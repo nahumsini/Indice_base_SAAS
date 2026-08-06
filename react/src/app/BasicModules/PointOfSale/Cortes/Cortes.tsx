@@ -9,6 +9,7 @@ import { CortesFiltersBar, type CortesFilterOption } from './components/CortesFi
 import { CortesHeader } from './components/CortesHeader';
 import { CortesKpiArea } from './components/CortesKpiArea';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
+import { getKpiMonetaryAggregates, useKpiMonetaryAggregates } from '../../shared/kpiMonetaryApi';
 import { CortesTable } from './components/CortesTable';
 import { useCashClosingHistory } from './hooks/useCashClosingHistory';
 import { cashClosingsApi } from './services/cashClosingsApi';
@@ -91,7 +92,7 @@ export default function Cortes() {
   const [cashRegisters, setCashRegisters] = useState<PosCashRegisterResponse[]>([]);
   const [shifts, setShifts] = useState<PosShiftResponse[]>([]);
   const [filterOptionsError, setFilterOptionsError] = useState('');
-  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
 
   const {
     clearSelectedDetail,
@@ -184,10 +185,30 @@ export default function Cortes() {
 
   const allVisibleSelected = visibleRows.length > 0 && visibleRows.every((row) => selectedRowIds.includes(row.id));
 
-  const analytics = useMemo(
-    () => buildCortesAnalytics(visibleRows, preferredCurrency, exchangeRatesPerUsd),
-    [exchangeRatesPerUsd, preferredCurrency, visibleRows],
-  );
+  const closingIds = useMemo(() => visibleRows.map((row) => row.id), [visibleRows]);
+  const monetaryQueries = useMemo(() => [
+    { key: 'sales', metric: 'POS_CLOSING_TOTAL' as const, preferredCurrency, ids: closingIds },
+    { key: 'expected', metric: 'POS_CLOSING_EXPECTED_CASH' as const, preferredCurrency, ids: closingIds },
+    { key: 'counted', metric: 'POS_CLOSING_COUNTED_CASH' as const, preferredCurrency, ids: closingIds },
+    { key: 'difference', metric: 'POS_CLOSING_DIFFERENCE' as const, preferredCurrency, ids: closingIds },
+  ], [closingIds, preferredCurrency]);
+  const { data: monetaryAggregates, error: monetaryError } = useKpiMonetaryAggregates(monetaryQueries);
+  const analytics = useMemo(() => buildCortesAnalytics(visibleRows, preferredCurrency, monetaryAggregates), [
+    monetaryAggregates,
+    preferredCurrency,
+    visibleRows,
+  ]);
+
+  const loadReportAnalytics = async (reportRows: PosCashClosingSummaryRow[]) => {
+    const ids = reportRows.map((row) => row.id);
+    const aggregates = await getKpiMonetaryAggregates([
+      { key: 'sales', metric: 'POS_CLOSING_TOTAL', preferredCurrency, ids },
+      { key: 'expected', metric: 'POS_CLOSING_EXPECTED_CASH', preferredCurrency, ids },
+      { key: 'counted', metric: 'POS_CLOSING_COUNTED_CASH', preferredCurrency, ids },
+      { key: 'difference', metric: 'POS_CLOSING_DIFFERENCE', preferredCurrency, ids },
+    ]);
+    return buildCortesAnalytics(reportRows, preferredCurrency, aggregates);
+  };
 
   const warehouseOptions = useMemo<CortesFilterOption[]>(() => (
     warehouses.map((warehouse) => ({
@@ -331,12 +352,11 @@ export default function Cortes() {
         : 'Reporte preparado con filas visibles porque no fue posible consultar el historial completo.');
     }
 
-    const reportAnalytics = buildCortesAnalytics(reportRows, preferredCurrency, exchangeRatesPerUsd);
+    const reportAnalytics = await loadReportAnalytics(reportRows);
     const reportHtml = buildCortesPrintReportHtml({
       analytics: reportAnalytics,
       cashRegisterLabel: getSelectedOptionLabel(cashRegisterOptions, filters.cashRegisterId),
       cashierLabel: getSelectedOptionLabel(cashierOptions, filters.userId),
-      exchangeRatesPerUsd,
       filters,
       preferredCurrency,
       rows: reportRows,
@@ -352,7 +372,7 @@ export default function Cortes() {
     setNotice(`Reporte imprimible preparado con ${reportRows.length} corte(s) filtrado(s).`);
   };
 
-  const printSelectedReport = () => {
+  const printSelectedReport = async () => {
     if (selectedRows.length === 0) {
       setNotice('Selecciona uno o mas cortes para preparar el reporte.');
       return;
@@ -367,10 +387,9 @@ export default function Cortes() {
 
     const reportRows = sortCortesRows(selectedRows, sortKey, sortDirection);
     const reportHtml = buildCortesPrintReportHtml({
-      analytics: buildCortesAnalytics(reportRows, preferredCurrency, exchangeRatesPerUsd),
+      analytics: await loadReportAnalytics(reportRows),
       cashRegisterLabel: getSelectedOptionLabel(cashRegisterOptions, filters.cashRegisterId),
       cashierLabel: getSelectedOptionLabel(cashierOptions, filters.userId),
-      exchangeRatesPerUsd,
       filters,
       preferredCurrency,
       rows: reportRows,
@@ -420,6 +439,12 @@ export default function Cortes() {
         </div>
       ) : null}
 
+      {monetaryError ? (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">
+          No fue posible consolidar los importes en la divisa preferida. Las filas continúan visibles en su divisa nativa.
+        </div>
+      ) : null}
+
       {filterOptionsError ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           {filterOptionsError}
@@ -461,8 +486,6 @@ export default function Cortes() {
           />
           <CortesTable
             allVisibleSelected={allVisibleSelected}
-            exchangeRatesPerUsd={exchangeRatesPerUsd}
-            preferredCurrency={preferredCurrency}
             loading={loading}
             rows={visibleRows}
             selectedRowIds={selectedRowIds}
@@ -479,7 +502,6 @@ export default function Cortes() {
         </>
       ) : (
         <CortesDayView
-          exchangeRatesPerUsd={exchangeRatesPerUsd}
           preferredCurrency={preferredCurrency}
           rows={visibleRows}
           onSelect={openDetail}

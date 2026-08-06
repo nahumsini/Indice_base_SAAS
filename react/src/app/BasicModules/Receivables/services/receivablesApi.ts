@@ -50,6 +50,7 @@ type BackendCreditPolicy = {
   contactId?: number | null;
   customerId?: string | null;
   customerName?: string | null;
+  currencyCode?: string | null;
   creditLine?: number | string | null;
   monthlyPurchaseLimit?: number | string | null;
   availableCredit?: number | string | null;
@@ -243,6 +244,7 @@ const toCreditPolicy = (dto: BackendCreditPolicy): CreditPolicy => ({
   unitId: dto.unitId ?? null,
   businessId: dto.businessId ?? null,
   customerName: cleanText(dto.customerName, 'Cliente sin nombre'),
+  currency: cleanText(dto.currencyCode, 'MXN'),
   creditLine: asNumber(dto.creditLine),
   monthlyPurchaseLimit: asNumber(dto.monthlyPurchaseLimit),
   defaultTermMonths: Math.max(1, Math.round(asNumber(dto.defaultTermMonths, 1))),
@@ -414,6 +416,7 @@ export const receivablesApi = {
         businessId: policy.businessId ?? null,
         customerId: policy.customerId,
         customerName: policy.customerName,
+        currencyCode: policy.currency ?? 'MXN',
         creditLine: policy.creditLine,
         monthlyPurchaseLimit: policy.monthlyPurchaseLimit,
         defaultTermMonths: policy.defaultTermMonths,

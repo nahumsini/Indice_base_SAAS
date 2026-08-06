@@ -7,15 +7,16 @@ import type {
   InventoryWarehouseMetrics,
 } from '../types/inventoryTypes';
 import type { InventoryTranslations } from '../translations';
-import { formatInventoryCurrency } from '../utils/inventoryFormatters';
 
 export function InventoryInsightBar({
   activeView,
   metrics,
+  monetaryValueLabel = 'No disponible',
   t,
 }: {
   activeView?: InventoryOperationalView;
   metrics: InventoryKpiMetrics | InventoryWarehouseMetrics | InventoryMovementMetrics | InventoryMetrics;
+  monetaryValueLabel?: string;
   t: InventoryTranslations;
 }) {
   const copy = (() => {
@@ -24,7 +25,7 @@ export function InventoryInsightBar({
         metrics.trackedItems,
         metrics.lowStockItems,
         metrics.outOfStockItems,
-        formatInventoryCurrency(metrics.totalStockValue),
+        monetaryValueLabel,
       );
     }
 
@@ -44,7 +45,7 @@ export function InventoryInsightBar({
         movementMetrics.transfers,
         movementMetrics.supplierReceipts,
         movementMetrics.inTransit,
-        formatInventoryCurrency(movementMetrics.inventoryValueInTransit),
+        monetaryValueLabel,
       );
     }
 
@@ -53,7 +54,7 @@ export function InventoryInsightBar({
       stockMetrics.totalItems,
       stockMetrics.totalUnits,
       stockMetrics.lowStockItems + stockMetrics.outOfStockItems,
-      formatInventoryCurrency(stockMetrics.estimatedValue),
+      monetaryValueLabel,
     );
   })();
 

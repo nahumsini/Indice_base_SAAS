@@ -1,17 +1,16 @@
 import { AlertTriangle } from 'lucide-react';
 import type { ProductsTranslations } from '../translations';
-import { formatProductCurrency } from '../utils/productFormatters';
 
 export function ProductsInsightBar({
   activeItems,
-  inventoryValue,
-  estimatedProfit,
+  inventoryValueLabel,
+  estimatedProfitLabel,
   readyForSales,
   t,
 }: {
   activeItems: number;
-  inventoryValue: number;
-  estimatedProfit: number;
+  inventoryValueLabel: string;
+  estimatedProfitLabel: string;
   readyForSales: number;
   t: ProductsTranslations;
 }) {
@@ -21,8 +20,8 @@ export function ProductsInsightBar({
       <span>
         {t.insight.summary(
           activeItems,
-          formatProductCurrency(inventoryValue),
-          formatProductCurrency(estimatedProfit),
+          inventoryValueLabel,
+          estimatedProfitLabel,
           readyForSales,
         )}
       </span>

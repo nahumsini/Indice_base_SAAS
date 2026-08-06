@@ -605,6 +605,7 @@ class ReceivablesRepository {
             Long unitId,
             Long businessId,
             String customerName,
+            String currencyCode,
             BigDecimal creditLine,
             BigDecimal monthlyPurchaseLimit,
             int defaultTermMonths,
@@ -614,16 +615,17 @@ class ReceivablesRepository {
         jdbcTemplate.update(
             """
             INSERT INTO finance_credit_policies
-            (company_id, unit_id, business_id, contact_id, customer_name, credit_line_amount,
+            (company_id, unit_id, business_id, contact_id, customer_name, currency_code, credit_line_amount,
              monthly_purchase_limit_amount, available_credit_amount, default_term_months,
              annual_interest_rate, status, notes, created_by_user_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             context.companyId(),
             unitId,
             businessId,
             contactId,
             customerName,
+            currencyCode,
             creditLine,
             monthlyPurchaseLimit,
             creditLine,
@@ -825,6 +827,7 @@ class ReceivablesRepository {
             contactId,
             customerId(contactId, rs.getString("customer_name")),
             rs.getString("customer_name"),
+            rs.getString("currency_code"),
             rs.getBigDecimal("credit_line_amount"),
             rs.getBigDecimal("monthly_purchase_limit_amount"),
             rs.getBigDecimal("available_credit_amount"),

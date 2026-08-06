@@ -37,7 +37,7 @@ export type SalesApiListResponse<TItem = Record<string, unknown>> = {
   collection: string;
 };
 
-export type SalesApiKpisResponse = Record<string, number | string | null>;
+export type SalesApiKpisResponse = Record<string, unknown>;
 
 export type SalesProductImageUploadResponse = {
   objectKey?: string;
@@ -74,8 +74,8 @@ export const salesApi = {
   context() {
     return apiClient<SalesContextResponse>(endpoints.sales.context);
   },
-  kpis() {
-    return apiClient<SalesApiKpisResponse>(endpoints.sales.kpis);
+  kpis(preferredCurrency?: string) {
+    return apiClient<SalesApiKpisResponse>(`${endpoints.sales.kpis}${buildQuery({ preferredCurrency })}`);
   },
   list<TItem = Record<string, unknown>>(
     collection: SalesApiCollection,
@@ -113,7 +113,7 @@ export const salesApi = {
   listCommissionCuts() {
     return apiClient<{ items: Array<Record<string, unknown>>; count: number }>(`${endpoints.sales.base}/commission-cuts`);
   },
-  createCommissionCut(payload: { periodStart: string; periodEnd: string }) {
+  createCommissionCut(payload: { periodStart: string; periodEnd: string; preferredCurrency: string }) {
     return apiClient<Record<string, unknown>>(`${endpoints.sales.base}/commission-cuts`, {
       method: 'POST', body: JSON.stringify(payload),
     });
@@ -121,7 +121,7 @@ export const salesApi = {
   getCommissionCutSchedule() {
     return apiClient<{ items: Array<{ id: number; name: string; cadence: 'weekly' | 'semimonthly' | 'monthly'; status: 'active' | 'paused'; nextRunDate: string; lastRunAt?: string | null }>; count: number }>(`${endpoints.sales.base}/commission-cut-schedule`);
   },
-  saveCommissionCutSchedule(payload: { id?: number; name: string; cadence: 'weekly' | 'semimonthly' | 'monthly'; status: 'active' | 'paused' }) {
+  saveCommissionCutSchedule(payload: { id?: number; name: string; cadence: 'weekly' | 'semimonthly' | 'monthly'; status: 'active' | 'paused'; preferredCurrency: string }) {
     return apiClient<{ id: number; name: string; cadence: 'weekly' | 'semimonthly' | 'monthly'; status: 'active' | 'paused'; nextRunDate: string; lastRunAt?: string | null }>(`${endpoints.sales.base}/commission-cut-schedule`, {
       method: 'PUT', body: JSON.stringify(payload),
     });

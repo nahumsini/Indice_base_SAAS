@@ -10,7 +10,7 @@ export function useCandidateCustomers(policies: CreditPolicy[], candidateSales: 
     const customers = new Map<string, CandidateCreditCustomer>();
 
     contacts.forEach((contact) => {
-      if (!policyCustomerIds.has(contact.id)) {
+      if (contact.status?.toLocaleLowerCase() !== 'inactive' && !policyCustomerIds.has(contact.id)) {
         customers.set(contact.id, {
           id: contact.id,
           name: contact.company || contact.contactPerson || contact.id,
@@ -34,6 +34,6 @@ export function useCandidateCustomers(policies: CreditPolicy[], candidateSales: 
       }
     });
 
-    return Array.from(customers.values());
+    return Array.from(customers.values()).sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: 'base' }));
   }, [candidateSales, contacts, policies]);
 }

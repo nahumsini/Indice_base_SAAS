@@ -2,7 +2,7 @@ import { Input } from '../../../../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../../components/ui/select';
 import type { InventoryBusiness, InventoryBusinessUnit, InventoryWarehouse } from '../../types/inventoryTypes';
 import type { InventoryTranslations } from '../../translations';
-import { InventoryModalField, inventoryModalControlClassName } from '../InventoryModalPrimitives';
+import { InventoryModalField, inventoryModalControlClassName, sortInventoryOptions } from '../InventoryModalPrimitives';
 import type { CreateWarehouseDraft, WarehouseResponsibleOption } from './CreateWarehouseModal';
 
 const warehouseTypes: InventoryWarehouse['type'][] = [
@@ -39,7 +39,7 @@ export function WarehouseFormView({
       <div className="grid gap-4 md:grid-cols-2">
         <InputField label={t.operational.modals.warehouseName} value={draft.name} onChange={(name) => onChange({ ...draft, name })} />
         <SelectField label={t.operational.modals.warehouseType} value={draft.type} options={warehouseTypes.map((type) => ({ value: type, label: t.operational.warehouseTypes[type] }))} onValueChange={(type) => onChange({ ...draft, type: type as InventoryWarehouse['type'] })} />
-        <SelectField label={t.operational.modals.businessUnit} value={draft.businessUnitId || 'none'} options={[{ value: 'none', label: t.common.none }, ...businessUnits.map((unit) => ({ value: unit.id, label: unit.name }))]} onValueChange={(businessUnitId) => {
+        <SelectField label={t.operational.modals.businessUnit} value={draft.businessUnitId || 'none'} options={[{ value: 'none', label: t.common.none }, ...sortInventoryOptions(businessUnits.map((unit) => ({ value: unit.id, label: unit.name })))]} onValueChange={(businessUnitId) => {
           if (businessUnitId === 'none') {
             onChange({ ...draft, businessUnitId: '', businessUnitName: '', businessId: '', businessName: '' });
             return;
@@ -54,7 +54,7 @@ export function WarehouseFormView({
             jurisdiction: formatJurisdiction(unit?.city, unit?.country) || draft.jurisdiction,
           });
         }} />
-        <SelectField label={t.operational.modals.business} value={draft.businessId || 'none'} options={[{ value: 'none', label: t.common.none }, ...availableBusinesses.map((business) => ({ value: business.id, label: business.name }))]} onValueChange={(businessId) => {
+        <SelectField label={t.operational.modals.business} value={draft.businessId || 'none'} options={[{ value: 'none', label: t.common.none }, ...sortInventoryOptions(availableBusinesses.map((business) => ({ value: business.id, label: business.name })))]} onValueChange={(businessId) => {
           if (businessId === 'none') {
             onChange({ ...draft, businessId: '', businessName: '' });
             return;
@@ -74,10 +74,10 @@ export function WarehouseFormView({
           value={draft.responsibleUserId || 'none'}
           options={[
             { value: 'none', label: t.common.none },
-            ...responsibleOptions.map((responsible) => ({
+            ...sortInventoryOptions(responsibleOptions.map((responsible) => ({
               value: responsible.id,
               label: responsible.email ? `${responsible.name} · ${responsible.email}` : responsible.name,
-            })),
+            }))),
           ]}
           onValueChange={(responsibleUserId) => {
             if (responsibleUserId === 'none') {

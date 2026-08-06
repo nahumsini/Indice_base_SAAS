@@ -13,6 +13,7 @@ import { opportunityStages, type OpportunityStage } from '../../salesCrmContext'
 import type {
   OperationalAlertChip,
   OperationalDistributionSegment,
+  OperationalKpiCurrencyContext,
   OperationalKpiMetric,
 } from '../../../shared/operational';
 import { OperationalKpiArea } from '../../../shared/operational';
@@ -34,16 +35,13 @@ export function ProspectosKpiStrip({
   periodClosedCount,
   periodWonCount,
   periodLostCount,
-  periodWonValueLabel,
   periodWonConvertedLabel,
-  periodLostValueLabel,
   periodLostConvertedLabel,
   periodConversionRate,
-  formattedPipelineValue,
   convertedPipelineLabel,
-  showConvertedPipeline,
   pipelineExchangeRateDate,
   stageCounts,
+  currencyContext,
 }: {
   copy: ProspectosCopy;
   visibleCount: number;
@@ -58,16 +56,13 @@ export function ProspectosKpiStrip({
   periodClosedCount: number;
   periodWonCount: number;
   periodLostCount: number;
-  periodWonValueLabel: string;
   periodWonConvertedLabel: string;
-  periodLostValueLabel: string;
   periodLostConvertedLabel: string;
   periodConversionRate: number;
-  formattedPipelineValue: string;
   convertedPipelineLabel: string;
-  showConvertedPipeline: boolean;
   pipelineExchangeRateDate: string;
   stageCounts: Array<{ stage: OpportunityStage; count: number }>;
+  currencyContext: OperationalKpiCurrencyContext;
 }) {
   const periodLabel = periodFilter === 'all'
     ? copy.filters.periodOptions.all
@@ -77,7 +72,7 @@ export function ProspectosKpiStrip({
       id: 'won-period',
       icon: <TrendingUp className="h-4 w-4" />,
       label: copy.kpiEngine.labels.wonPeriod,
-      value: periodWonValueLabel,
+      value: periodWonConvertedLabel,
       iconClassName: 'text-emerald-600',
       valueClassName: 'text-emerald-600',
     },
@@ -85,7 +80,7 @@ export function ProspectosKpiStrip({
       id: 'pipeline',
       icon: <Clock3 className="h-4 w-4" />,
       label: copy.kpiEngine.labels.pipeline,
-      value: formattedPipelineValue,
+      value: convertedPipelineLabel,
       iconClassName: 'text-[#2563EB]',
       valueClassName: 'text-[#2563EB]',
     },
@@ -93,7 +88,7 @@ export function ProspectosKpiStrip({
       id: 'lost-period',
       icon: <TrendingDown className="h-4 w-4" />,
       label: copy.kpiEngine.labels.lostPeriod,
-      value: periodLostValueLabel,
+      value: periodLostConvertedLabel,
       iconClassName: 'text-[#B63B32]',
       valueClassName: 'text-[#B63B32]',
     },
@@ -178,15 +173,6 @@ export function ProspectosKpiStrip({
     });
   }
 
-  if (showConvertedPipeline) {
-    alertChips.push({
-      id: 'finalPipeline',
-      icon: <Clock3 className="h-3.5 w-3.5" />,
-      label: copy.kpiEngine.alerts.finalPipeline(convertedPipelineLabel),
-      tone: 'brand',
-    });
-  }
-
   alertChips.push({
     id: 'exchangeRateDate',
     label: copy.kpiEngine.alerts.exchangeRateDate(pipelineExchangeRateDate),
@@ -203,15 +189,16 @@ export function ProspectosKpiStrip({
   return (
     <OperationalKpiArea
       alertChips={alertChips}
+      currencyContext={currencyContext}
       distributionSegments={distributionSegments}
       insight={copy.kpiEngine.insight({
         periodLabel,
         openCount,
         periodClosedCount,
         periodConversionRate,
-        periodLostValueLabel,
-        periodWonValueLabel,
-        formattedPipelineValue,
+        periodLostValueLabel: periodLostConvertedLabel,
+        periodWonValueLabel: periodWonConvertedLabel,
+        formattedPipelineValue: convertedPipelineLabel,
         hotCount,
         overdueCount,
         proposalCount,

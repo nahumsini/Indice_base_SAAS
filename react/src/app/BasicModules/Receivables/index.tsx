@@ -6,6 +6,7 @@ import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { ApiClientError } from '../../lib/apiClient';
 import { SalesCrmProvider } from '../Sales/salesCrmContext';
+import { usePreferredBusinessCurrency } from '../shared/BusinessCurrencyContext';
 import {
   legacyReceivablesTabAliases,
   receivablesTabs,
@@ -120,6 +121,7 @@ function ReceivablesWorkspace({
   onNavigate: (page?: string) => void;
 }) {
   const copy = useReceivablesTranslations();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
   const mainContentRef = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<ReceivablesState>(initialReceivablesState);
   const [apiCandidateSales, setApiCandidateSales] = useState<CandidateSale[]>([]);
@@ -326,7 +328,7 @@ function ReceivablesWorkspace({
   const createCreditPolicy = async (policy: Omit<CreditPolicy, 'id' | 'availableCredit'>) => {
     if (isBackendReady) {
       try {
-        applyWorkspace(await receivablesApi.createCreditPolicy(policy));
+        applyWorkspace(await receivablesApi.createCreditPolicy({ ...policy, currency: policy.currency ?? preferredCurrency }));
         return true;
       } catch (error) {
         if (!shouldUseLocalFallback(error)) {
@@ -341,6 +343,7 @@ function ReceivablesWorkspace({
       ...current,
       creditPolicies: [{
         ...policy,
+        currency: policy.currency ?? preferredCurrency,
         id: `policy-${Date.now()}`,
         availableCredit: policy.creditLine,
       }, ...current.creditPolicies],

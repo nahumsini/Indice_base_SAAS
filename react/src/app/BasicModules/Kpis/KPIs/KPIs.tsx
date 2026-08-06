@@ -548,9 +548,11 @@ function FinancialMap({
     .sort((left, right) => Math.abs(right.salesTotal) + Math.abs(right.expensesTotal) - Math.abs(left.salesTotal) - Math.abs(left.expensesTotal))
     .slice(0, 6);
   const maxValue = Math.max(...rankedRows.map((row) => Math.max(row.salesTotal, row.expensesTotal)), 1);
-  const salesTotal = summary?.salesTotal ?? rows.reduce((total, row) => total + row.salesTotal, 0);
-  const expensesTotal = summary?.expensesTotal ?? rows.reduce((total, row) => total + row.expensesTotal, 0);
-  const profit = summary?.operatingProfit ?? salesTotal - expensesTotal;
+  // Los totales ejecutivos son autoritativos en backend. Las filas sólo se usan
+  // para visualizar la distribución por unidad, nunca para reconstruir moneda.
+  const salesTotal = summary?.salesTotal ?? 0;
+  const expensesTotal = summary?.expensesTotal ?? 0;
+  const profit = summary?.operatingProfit ?? 0;
 
   return (
     <section className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">

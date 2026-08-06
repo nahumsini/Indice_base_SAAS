@@ -1,12 +1,10 @@
 import type { SalesOpportunity, SalesQuote } from '../../salesCrmContext';
-import type { BusinessExchangeRatesPerUsd } from '../../../shared/businessCurrency';
 import {
   defaultSalesCurrency,
   formatSalesCurrencyAmount,
   formatSalesCurrencyBreakdown,
   normalizeSalesCurrencyCode,
 } from '../../utils/salesCurrency';
-import { convertSalesCurrencyAmount } from '../../utils/salesCurrencyConversion';
 import { getTodayIsoDate } from '../../utils/salesCrmUtils';
 import { getLinkedQuotesForOpportunity } from './prospectosQuoteSignals';
 
@@ -25,6 +23,11 @@ export type OpportunityPipelineTotals = {
   preferredCurrency: string;
   exchangeRateDate: string;
 };
+
+export type OpportunityNativePipelineTotals = Pick<
+  OpportunityPipelineTotals,
+  'quoteCount' | 'totalsByCurrency' | 'totalLabel'
+>;
 
 function roundCurrencyTotal(value: number) {
   return Number(value.toFixed(2));
@@ -48,11 +51,25 @@ function getTotalsByCurrency(quotes: SalesQuote[]) {
   }));
 }
 
+export function getOpportunityNativePipelineTotals(
+  opportunity: SalesOpportunity,
+  quotes: SalesQuote[],
+): OpportunityNativePipelineTotals {
+  const linkedQuotes = getLinkedQuotesForOpportunity(opportunity, quotes);
+
+  return {
+    quoteCount: linkedQuotes.length,
+    totalsByCurrency: getTotalsByCurrency(linkedQuotes),
+    totalLabel: linkedQuotes.length > 0
+      ? formatSalesCurrencyBreakdown(linkedQuotes, (quote) => quote.total, (quote) => quote.currency)
+      : formatSalesCurrencyAmount(0, normalizeSalesCurrencyCode(opportunity.currency)),
+  };
+}
+
 export function getOpportunityPipelineTotals(
   opportunity: SalesOpportunity,
   quotes: SalesQuote[],
   preferredCurrency = defaultSalesCurrency,
-  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
 ): OpportunityPipelineTotals {
   const currency = normalizeSalesCurrencyCode(preferredCurrency);
   const linkedQuotes = getLinkedQuotesForOpportunity(opportunity, quotes);
@@ -70,22 +87,12 @@ export function getOpportunityPipelineTotals(
     };
   }
 
-  const convertedTotal = linkedQuotes.reduce((total, quote) => (
-    total + convertSalesCurrencyAmount(
-      quote.total,
-      getQuoteCurrency(quote),
-      currency,
-      exchangeRateDate,
-      exchangeRatesPerUsd,
-    ).amount
-  ), 0);
-
   return {
     quoteCount: linkedQuotes.length,
     totalsByCurrency: getTotalsByCurrency(linkedQuotes),
     totalLabel: formatSalesCurrencyBreakdown(linkedQuotes, (quote) => quote.total, (quote) => quote.currency),
-    convertedTotal: roundCurrencyTotal(convertedTotal),
-    convertedLabel: formatSalesCurrencyAmount(convertedTotal, currency),
+    convertedTotal: 0,
+    convertedLabel: formatSalesCurrencyAmount(0, currency),
     preferredCurrency: currency,
     exchangeRateDate,
   };
@@ -95,21 +102,11 @@ export function getProspectosPipelineSummary(
   opportunities: SalesOpportunity[],
   quotes: SalesQuote[],
   preferredCurrency = defaultSalesCurrency,
-  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
 ) {
   const visibleOpportunityIds = new Set(opportunities.map((opportunity) => opportunity.id));
   const visibleQuotes = quotes.filter((quote) => quote.opportunityId && visibleOpportunityIds.has(quote.opportunityId));
   const currency = normalizeSalesCurrencyCode(preferredCurrency);
   const exchangeRateDate = getTodayIsoDate();
-  const convertedTotal = visibleQuotes.reduce((total, quote) => (
-    total + convertSalesCurrencyAmount(
-      quote.total,
-      getQuoteCurrency(quote),
-      currency,
-      exchangeRateDate,
-      exchangeRatesPerUsd,
-    ).amount
-  ), 0);
   const totalsByCurrency = getTotalsByCurrency(visibleQuotes);
 
   return {
@@ -118,8 +115,8 @@ export function getProspectosPipelineSummary(
     totalLabel: visibleQuotes.length > 0
       ? formatSalesCurrencyBreakdown(visibleQuotes, (quote) => quote.total, (quote) => quote.currency)
       : formatSalesCurrencyAmount(0, currency),
-    convertedTotal: roundCurrencyTotal(convertedTotal),
-    convertedLabel: formatSalesCurrencyAmount(convertedTotal, currency),
+    convertedTotal: 0,
+    convertedLabel: formatSalesCurrencyAmount(0, currency),
     preferredCurrency: currency,
     exchangeRateDate,
     hasMultipleCurrencies: totalsByCurrency.length > 1,

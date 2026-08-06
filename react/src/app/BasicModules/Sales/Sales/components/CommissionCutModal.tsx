@@ -8,6 +8,7 @@ import { salesApi } from '../../salesApi';
 import type { SaleRecord } from '../types/salesTypes';
 import { formatSalesCurrency } from '../utils/salesFormatters';
 import { FormField, salesFieldClassName } from './SalesModalPrimitives';
+import { usePreferredBusinessCurrency } from '../../../shared/BusinessCurrencyContext';
 
 const actions = getSalesModalActionClassNames('coral');
 const iso = (date: Date) => date.toISOString().slice(0, 10);
@@ -22,6 +23,7 @@ const cadenceCopy: Record<Cadence, { title: string; detail: string }> = {
 };
 
 export function CommissionCutModal({ open, sales, onOpenChange, onCreated }: { open: boolean; sales: SaleRecord[]; onOpenChange: (open: boolean) => void; onCreated: () => void }) {
+  const { preferredCurrency } = usePreferredBusinessCurrency();
   const today = new Date();
   const [mode, setMode] = useState<CutMode>('manual');
   const [periodStart, setPeriodStart] = useState(iso(new Date(today.getFullYear(), today.getMonth(), 1)));
@@ -53,10 +55,10 @@ export function CommissionCutModal({ open, sales, onOpenChange, onCreated }: { o
     setSaving(true); setError('');
     try {
       if (mode === 'manual') {
-        await salesApi.createCommissionCut({ periodStart, periodEnd });
+        await salesApi.createCommissionCut({ periodStart, periodEnd, preferredCurrency });
         onCreated();
       } else {
-        const schedule = await salesApi.saveCommissionCutSchedule({ id: selectedScheduleId, name: scheduleName, cadence, status: 'active' });
+        const schedule = await salesApi.saveCommissionCutSchedule({ id: selectedScheduleId, name: scheduleName, cadence, status: 'active', preferredCurrency });
         setSelectedScheduleId(schedule.id); setScheduleName(schedule.name);
         setScheduleStatus(schedule.status); setNextRunDate(schedule.nextRunDate);
         setSchedules((current) => current.some((item) => item.id === schedule.id) ? current.map((item) => item.id === schedule.id ? schedule : item) : [...current, schedule]);
@@ -68,7 +70,7 @@ export function CommissionCutModal({ open, sales, onOpenChange, onCreated }: { o
 
   const pause = async () => {
     setSaving(true); setError('');
-    try { const schedule = await salesApi.saveCommissionCutSchedule({ id: selectedScheduleId, name: scheduleName, cadence, status: 'paused' }); setScheduleStatus(schedule.status); setNextRunDate(schedule.nextRunDate); setSchedules((current) => current.map((item) => item.id === schedule.id ? schedule : item)); }
+    try { const schedule = await salesApi.saveCommissionCutSchedule({ id: selectedScheduleId, name: scheduleName, cadence, status: 'paused', preferredCurrency }); setScheduleStatus(schedule.status); setNextRunDate(schedule.nextRunDate); setSchedules((current) => current.map((item) => item.id === schedule.id ? schedule : item)); }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'No se pudo pausar la automatización.'); }
     finally { setSaving(false); }
   };

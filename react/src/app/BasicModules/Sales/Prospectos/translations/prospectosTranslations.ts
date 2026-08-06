@@ -89,6 +89,14 @@ export const enCA = {
       finalPipeline: (value: string) => `final pipeline: ${value}`,
       exchangeRateDate: (date: string) => `FX date: ${date}`,
     },
+    currencyContext: {
+      consolidatedIn: 'Consolidated KPI total',
+      nativeOrigin: 'Native origin',
+      partialTotal: 'Partial total',
+      excludedRecords: (count: number) => `${count} records excluded because no valid exchange rate is available`,
+      dailyRate: 'Daily rate',
+      configuredRate: 'Configured rate',
+    },
     segments: {
       New: 'New',
       Contacted: 'Contacted',
@@ -533,6 +541,14 @@ export const esMX: ProspectosCopy = {
       lostPeriod: (count, value) => `${count} perdidas · ${value}`,
       finalPipeline: (value) => `pipeline final: ${value}`,
       exchangeRateDate: (date) => `tipo de cambio: ${date}`,
+    },
+    currencyContext: {
+      consolidatedIn: 'Total KPI consolidado',
+      nativeOrigin: 'Origen nativo',
+      partialTotal: 'Total parcial',
+      excludedRecords: (count) => `${count} registros excluidos por falta de un tipo de cambio válido`,
+      dailyRate: 'Tasa diaria',
+      configuredRate: 'Tasa configurada',
     },
     segments: {
       New: 'Nueva',

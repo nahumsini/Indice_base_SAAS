@@ -176,7 +176,8 @@ export function filterSalesKpiSources(sources: SalesKpiDataSources, filters: Sal
 }
 
 export function getSalesRevenue(sales: SaleRecord[]) {
-  return sales.reduce((sum, sale) => sum + sale.totalAmount, 0);
+  // Los importes consolidados se resuelven con el motor monetario del backend.
+  return 0;
 }
 
 export function getAverageTicket(sales: SaleRecord[]) {
@@ -184,9 +185,7 @@ export function getAverageTicket(sales: SaleRecord[]) {
 }
 
 export function getPipelineValue(opportunities: SalesOpportunity[]) {
-  return opportunities
-    .filter((opportunity) => opportunity.status !== 'Closed')
-    .reduce((sum, opportunity) => sum + parseSalesKpiMoney(opportunity.estimatedValue), 0);
+  return 0;
 }
 
 export function getCommercialRisk(opportunities: SalesOpportunity[]) {
@@ -220,9 +219,7 @@ export function getSellerRanking({
     .map((seller) => {
       const sellerQuotes = quotes.filter((quote) => quote.assignedSeller === seller);
       const sellerSales = sales.filter((sale) => sale.sellerName === seller);
-      const sellerPipeline = opportunities
-        .filter((opportunity) => opportunity.owner === seller && opportunity.status !== 'Closed')
-        .reduce((sum, opportunity) => sum + parseSalesKpiMoney(opportunity.estimatedValue), 0);
+      const sellerPipeline = 0;
 
       return {
         seller,
@@ -260,7 +257,7 @@ export function getSalesKpiMetrics(sources: SalesKpiDataSources): SalesKpiMetric
     closedWonQuotes: closedWonQuotes.length,
     totalSales: sources.sales.length,
     salesRevenue: getSalesRevenue(sources.sales),
-    totalCommissions: sources.sales.reduce((sum, sale) => sum + (sale.commissionAmount || 0), 0),
+    totalCommissions: 0,
     pipelineValue: getPipelineValue(sources.opportunities),
     averageTicket: getAverageTicket(sources.sales),
     quoteApprovalRate: getSalesKpiRate(approvedQuotes.length, sources.quotes.length),

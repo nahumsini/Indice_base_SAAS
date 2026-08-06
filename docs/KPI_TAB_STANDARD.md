@@ -196,6 +196,56 @@ Rules:
 - legally relevant and row-level amounts preserve their native currency
 - converted totals must clearly identify the display currency
 
+### 6.1 Preferred-currency boundary
+
+The preferred business currency has a deliberately narrow presentation scope.
+
+It may influence only:
+
+- operational KPI bars;
+- KPI and Indicators dashboards;
+- charts, rankings, and analytical totals that must consolidate records from
+  more than one native currency.
+
+It must not rewrite or replace the native currency in:
+
+- transaction tables;
+- record detail views and operational files;
+- forms and persisted transactions;
+- transactional exports, receipts, invoices, payroll lines, or legal documents.
+
+Transaction rows always show their native amount and currency. A table footer
+must preserve a native-currency breakdown unless it is explicitly part of an
+analytics surface governed by this standard.
+
+Every monetary KPI aggregation must:
+
+1. group amounts by native currency;
+2. retain the native-currency breakdown;
+3. convert each native subtotal to the preferred currency;
+4. present the consolidated preferred-currency total as the primary KPI value;
+5. identify the preferred currency, represented native currencies, exchange-rate
+   mode, source, and effective date;
+6. disclose records excluded because a valid exchange rate is unavailable.
+
+Open operational views use the current daily reference or the company-configured
+rate. Closed cuts, payroll periods, commission settlements, and other frozen
+business events retain their closing exchange-rate snapshot and must not be
+retroactively recalculated.
+
+Changing the preferred currency is a KPI presentation action. It must never
+mutate a transaction, its native amount, its native currency, or its historical
+exchange-rate evidence.
+
+Missing rates must never fall back silently to `1:1`. The KPI must be labeled as
+a partial total, preserve the excluded native amounts, and state how many records
+were not consolidated.
+
+Authoritative monetary aggregates and conversion snapshots belong to the backend.
+Frontend utilities may adapt an existing backend response for presentation during
+migration, but a module is not financially complete until its KPI endpoint returns
+the native totals, preferred total, rate context, exclusions, and calculation scope.
+
 ---
 
 ## 7. Eight KPI Rule

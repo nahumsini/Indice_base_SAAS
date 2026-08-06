@@ -1,4 +1,3 @@
-import type { BusinessExchangeRatesPerUsd } from '../../../shared/businessCurrency';
 import type { PosCashClosingSummaryRow } from '../types/cashClosingHistory.types';
 import {
   type CortesAnalytics,
@@ -15,7 +14,6 @@ interface CortesPrintReportParams {
   analytics: CortesAnalytics;
   cashRegisterLabel: string;
   cashierLabel: string;
-  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd;
   filters: CortesFilters;
   preferredCurrency: string;
   rows: PosCashClosingSummaryRow[];
@@ -104,7 +102,6 @@ export function buildCortesPrintReportHtml({
   analytics,
   cashRegisterLabel,
   cashierLabel,
-  exchangeRatesPerUsd,
   filters,
   preferredCurrency,
   rows,
@@ -162,26 +159,18 @@ export function buildCortesPrintReportHtml({
       const sales = formatClosingAmount(
         toNumber(row.totalSalesAmount),
         row,
-        preferredCurrency,
-        exchangeRatesPerUsd,
       );
       const expected = formatClosingAmount(
         toNumber(row.expectedCashAmount),
         row,
-        preferredCurrency,
-        exchangeRatesPerUsd,
       );
       const counted = formatClosingAmount(
         toNumber(row.countedCashAmount),
         row,
-        preferredCurrency,
-        exchangeRatesPerUsd,
       );
       const difference = formatClosingAmount(
         toNumber(row.overShortAmount),
         row,
-        preferredCurrency,
-        exchangeRatesPerUsd,
       );
       const differenceAmount = toNumber(row.overShortAmount);
       const differenceClass = differenceAmount < 0 ? 'risk' : differenceAmount > 0 ? 'warning' : 'ok';
@@ -198,13 +187,11 @@ export function buildCortesPrintReportHtml({
           <td>${escapeHtml(getClosingCurrency(row))}</td>
           <td class="amount">
             <strong>${escapeHtml(sales.nativeLabel)}</strong>
-            ${sales.nativeCurrency !== preferredCurrency ? `<span>Equiv. ${escapeHtml(sales.convertedLabel)}</span>` : ''}
           </td>
           <td class="amount">${escapeHtml(expected.nativeLabel)}</td>
           <td class="amount">${escapeHtml(counted.nativeLabel)}</td>
           <td class="amount ${differenceClass}">
             <strong>${escapeHtml(difference.nativeLabel)}</strong>
-            ${difference.nativeCurrency !== preferredCurrency ? `<span>Equiv. ${escapeHtml(difference.convertedLabel)}</span>` : ''}
           </td>
         </tr>
       `;

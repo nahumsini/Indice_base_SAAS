@@ -12,6 +12,7 @@ import {
   InventoryModalField,
   InventoryModalSection,
   inventoryModalControlClassName,
+  sortInventoryOptions,
 } from '../InventoryModalPrimitives';
 import { MovementProductLines, createMovementProductLine, type MovementProductLineDraft } from './MovementProductLines';
 
@@ -55,8 +56,8 @@ export function AddInventoryModal({
   onOpenChange: (open: boolean) => void;
   onSubmit: (draft: AddInventoryDraft) => void;
 }) {
-  const activeWarehouses = useMemo(() => warehouses.filter((warehouse) => warehouse.status === 'active'), [warehouses]);
-  const supplierOptions = useMemo(() => suppliers.filter((supplier) => supplier.name.trim()), [suppliers]);
+  const activeWarehouses = useMemo(() => [...warehouses].filter((warehouse) => warehouse.status === 'active').sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: 'base' })), [warehouses]);
+  const supplierOptions = useMemo(() => [...suppliers].filter((supplier) => supplier.name.trim()).sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: 'base' })), [suppliers]);
   const [draft, setDraft] = useState<AddInventoryDraft>({
     items: [createMovementProductLine()],
     supplierName: '',
@@ -136,7 +137,7 @@ export function AddInventoryModal({
           <InventoryModalSection>
             <div className="grid gap-4 md:grid-cols-2">
             {supplierOptions.length > 0 ? (
-              <SelectField label={t.operational.modals.supplier} value={draft.supplierName} options={supplierOptions.map((supplier) => ({ value: supplier.name, label: supplier.name }))} onValueChange={(supplierName) => setDraft({ ...draft, supplierName })} />
+              <SelectField label={t.operational.modals.supplier} value={draft.supplierName} options={sortInventoryOptions(supplierOptions.map((supplier) => ({ value: supplier.name, label: supplier.name })))} onValueChange={(supplierName) => setDraft({ ...draft, supplierName })} />
             ) : (
               <IndiceModalSummary
                 columns={2}

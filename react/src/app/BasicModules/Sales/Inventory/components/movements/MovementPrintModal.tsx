@@ -7,6 +7,7 @@ import type { InventoryOperationalMovement } from '../../types/inventoryTypes';
 import type { InventoryTranslations } from '../../translations';
 import { formatInventoryCurrency, formatInventoryNumber } from '../../utils/inventoryFormatters';
 import { printDocumentHtml } from '../../../../shared/print/documentHtmlPrintEngine';
+import { InventoryModalActionToolbar } from '../InventoryModalPrimitives';
 
 const printActionClassNames = getSalesModalActionClassNames('coral');
 
@@ -66,13 +67,13 @@ export function MovementPrintModal({
         </Button>
       )}
       footerSummary={`${movement.movementNumber ?? movement.id} · ${t.operational.movementTypes[movement.movementType]}`}
-      footer={(
-        <Button className={printActionClassNames.primary} onClick={handlePrint}>
-          <Printer className="h-4 w-4" />
-          {t.operational.modals.printDocument}
-        </Button>
-      )}
+      footer={undefined}
     >
+          <div className="mx-auto mb-4 flex w-full max-w-[820px] justify-end">
+            <InventoryModalActionToolbar actions={[
+              { icon: <Printer className="h-4 w-4" />, label: t.operational.modals.printDocument, onClick: handlePrint, tone: 'primary' },
+            ]} />
+          </div>
           <article ref={documentRef} className="mx-auto min-h-[760px] w-full max-w-[820px] bg-white px-12 py-10 shadow-xl ring-1 ring-slate-200">
             <header className="border-b border-slate-200 pb-7">
               <div className="flex items-start justify-between gap-6">

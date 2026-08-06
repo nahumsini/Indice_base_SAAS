@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { CalendarClock, Eye } from 'lucide-react';
+import { CalendarClock, Eye, FileSpreadsheet, FileText, Printer } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import {
   Table,
@@ -10,6 +10,7 @@ import {
   TableRow,
 } from '../../../../components/ui/table';
 import { cn } from '../../../../components/ui/utils';
+import { useLanguage } from '../../../../shared/context';
 import { ReceivablesStatusBadge } from '../ReceivablesStatusBadge';
 import {
   financeTextClass,
@@ -23,6 +24,9 @@ import {
   formatMoney,
   formatPercent,
 } from '../../utils';
+import { exportCreditSaleScheduleCsv } from '../../utils/creditSaleScheduleExport';
+import { downloadCreditSaleSchedulePdf, printCreditSaleSchedule } from '../../utils/receivablesPrintDocuments';
+import { ReceivablesModalActionToolbar } from './ReceivablesModalActionToolbar';
 import { ReceivablesModalFrame } from './ReceivablesModalFrame';
 
 type CreditSaleReadOnlyMode = 'detail' | 'schedule';
@@ -40,6 +44,7 @@ export function CreditSaleReadOnlyModal({
   sale,
   onClose,
 }: CreditSaleReadOnlyModalProps) {
+  const { currentLanguage } = useLanguage();
   const account = useMemo(() => createReceivableFromCreditSale(sale), [sale]);
   const installments = useMemo(() => createInstallmentsFromCreditSale(sale, account), [account, sale]);
   const isSchedule = mode === 'schedule';
@@ -62,6 +67,17 @@ export function CreditSaleReadOnlyModal({
       {isSchedule ? (
         <div className="space-y-4">
           <SummaryGrid copy={copy} sale={sale} totalPayable={account.totalPayable} />
+          <div className="flex flex-col gap-3 rounded-2xl border border-[#147514]/15 bg-[#147514]/5 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-emerald-400/20 dark:bg-emerald-400/10">
+            <div>
+              <p className="text-sm font-medium text-slate-950 dark:text-white">{copy.modals.creditSale.scheduleTitle}</p>
+              <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-300">{scheduleActionCopy(currentLanguage.code).nativeCurrency} · {sale.currency}</p>
+            </div>
+            <ReceivablesModalActionToolbar actions={[
+              { icon: <FileText className="h-4 w-4" />, label: scheduleActionCopy(currentLanguage.code).pdf, onClick: () => downloadCreditSaleSchedulePdf({ copy, installments, locale: currentLanguage.code, sale }) },
+              { icon: <FileSpreadsheet className="h-4 w-4" />, label: scheduleActionCopy(currentLanguage.code).excel, onClick: () => exportCreditSaleScheduleCsv({ installments, sale }) },
+              { icon: <Printer className="h-4 w-4" />, label: scheduleActionCopy(currentLanguage.code).print, onClick: () => printCreditSaleSchedule({ copy, installments, locale: currentLanguage.code, sale }), tone: 'primary' },
+            ]} />
+          </div>
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
             <div className="overflow-x-auto">
               <Table className="min-w-[760px]">
@@ -104,6 +120,14 @@ export function CreditSaleReadOnlyModal({
       )}
     </ReceivablesModalFrame>
   );
+}
+
+function scheduleActionCopy(languageCode: string) {
+  const language = languageCode.toLowerCase().split('-')[0];
+  if (language === 'es') return { excel: 'Excel', nativeCurrency: 'Importes en moneda de origen', pdf: 'PDF', print: 'Imprimir' };
+  if (language === 'fr') return { excel: 'Excel', nativeCurrency: 'Montants dans la devise d’origine', pdf: 'PDF', print: 'Imprimer' };
+  if (language === 'pt') return { excel: 'Excel', nativeCurrency: 'Valores na moeda de origem', pdf: 'PDF', print: 'Imprimir' };
+  return { excel: 'Excel', nativeCurrency: 'Amounts in native currency', pdf: 'PDF', print: 'Print' };
 }
 
 function SummaryGrid({

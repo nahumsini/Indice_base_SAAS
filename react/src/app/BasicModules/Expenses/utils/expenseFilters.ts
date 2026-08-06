@@ -1,11 +1,5 @@
 import type { Expense } from '../types/expenses.types';
-import type { ExpenseListFilters, ExpenseTotals } from '../types/expenseView.types';
-import {
-  convertBusinessCurrencyAmount,
-  defaultBusinessCurrency,
-  normalizeBusinessCurrencyCode,
-  type BusinessExchangeRatesPerUsd,
-} from '../../shared/businessCurrency';
+import type { ExpenseListFilters } from '../types/expenseView.types';
 
 const includesSearch = (value: string | undefined, search: string) =>
   Boolean(value?.toLowerCase().includes(search));
@@ -25,18 +19,6 @@ export const canDeleteExpense = (expense: Expense) => (
   || expense.type === 'real'
   || !expense.backendStatus
   || expense.backendStatus.toUpperCase() === 'DRAFT'
-);
-
-const convertExpenseAmount = (
-  amount: number,
-  expense: Expense,
-  preferredCurrency = defaultBusinessCurrency,
-  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
-) => convertBusinessCurrencyAmount(
-  amount,
-  normalizeBusinessCurrencyCode(expense.currency),
-  normalizeBusinessCurrencyCode(preferredCurrency),
-  exchangeRatesPerUsd,
 );
 
 export const isExpensePastDue = (expense: Expense, referenceDate = new Date()) => (
@@ -114,30 +96,4 @@ export const filterExpenses = (expenses: Expense[], filters: ExpenseListFilters)
 
     return matchesSearch && matchesPeriod && matchesUnit && matchesBusiness && matchesProvider && matchesStatus;
   });
-};
-
-export const calculateExpenseTotals = (
-  expenses: Expense[],
-  preferredCurrency = defaultBusinessCurrency,
-  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
-): ExpenseTotals => {
-  const total = expenses.reduce((sum, expense) => (
-    sum + convertExpenseAmount(expense.total, expense, preferredCurrency, exchangeRatesPerUsd)
-  ), 0);
-  const paid = expenses.reduce((sum, expense) => (
-    sum + convertExpenseAmount(getExpensePaidAmount(expense), expense, preferredCurrency, exchangeRatesPerUsd)
-  ), 0);
-  const overdue = expenses
-    .filter(expense => isExpenseEffectivelyOverdue(expense))
-    .reduce((sum, expense) => (
-      sum + convertExpenseAmount(getExpenseBalance(expense), expense, preferredCurrency, exchangeRatesPerUsd)
-    ), 0);
-
-  return {
-    total,
-    paid,
-    pending: Math.max(total - paid, 0),
-    overdue,
-    overdueCount: expenses.filter(expense => isExpenseEffectivelyOverdue(expense)).length,
-  };
 };

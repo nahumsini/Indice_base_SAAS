@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import type { InventoryWarehouse } from '../../types/inventoryTypes';
 import type { InventoryTranslations } from '../../translations';
 import { formatInventoryCurrency, formatInventoryNumber } from '../../utils/inventoryFormatters';
-import { InventoryModalField, inventoryModalControlClassName } from '../InventoryModalPrimitives';
+import { InventoryModalField, inventoryModalControlClassName, sortInventoryOptions } from '../InventoryModalPrimitives';
 
 export function WarehouseDeleteView({
   warehouse,
@@ -49,8 +49,8 @@ export function WarehouseDeleteView({
               <SelectTrigger className={inventoryModalControlClassName}><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">{t.operational.modals.selectDestinationWarehouse}</SelectItem>
-                {warehouses.filter((item) => item.id !== warehouse.id).map((target) => (
-                  <SelectItem key={target.id} value={target.id}>{target.name}</SelectItem>
+                {sortInventoryOptions(warehouses.filter((item) => item.id !== warehouse.id && item.status === 'active').map((target) => ({ value: target.id, label: target.name }))).map((target) => (
+                  <SelectItem key={target.value} value={target.value}>{target.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

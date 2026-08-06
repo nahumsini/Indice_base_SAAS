@@ -46,13 +46,13 @@ public class SalesApiController {
     }
 
     @GetMapping("/kpis")
-    public ResponseEntity<?> kpis(HttpSession session) {
+    public ResponseEntity<?> kpis(HttpSession session, @RequestParam(required = false) String preferredCurrency) {
         var user = currentUser(session);
         if (user.isEmpty()) {
             return unauthorized();
         }
 
-        return ResponseEntity.ok(salesService.kpis(user.get().companyId()));
+        return ResponseEntity.ok(salesService.kpis(user.get().companyId(), preferredCurrency));
     }
 
     @GetMapping("/files")

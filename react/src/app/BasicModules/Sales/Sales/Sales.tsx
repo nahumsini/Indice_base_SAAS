@@ -62,7 +62,7 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
     updateQuoteStatus,
     updateOpportunity,
   } = useSalesCrm();
-  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
   const {
     records,
     filteredRecords,
@@ -80,7 +80,7 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
     updateSaleRecord,
     creationWarning,
     clearCreationWarning,
-  } = useSalesRecords(preferredCurrency, exchangeRatesPerUsd);
+  } = useSalesRecords(preferredCurrency);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isSummaryPreviewOpen, setIsSummaryPreviewOpen] = useState(false);

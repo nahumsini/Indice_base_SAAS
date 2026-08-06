@@ -5,7 +5,7 @@ import type { SalesOpportunity } from '../../salesCrmContext';
 import { normalizeSalesCurrencyCode } from '../../utils/salesCurrency';
 import type { ProspectosCopy } from '../translations';
 import { formatCurrencyAmount, normalizeEstimatedValueInput, parseMoney, toEstimatedValueInputValue } from '../utils/prospectosFormatters';
-import type { OpportunityPipelineTotals } from '../utils/prospectosPipeline';
+import type { OpportunityNativePipelineTotals } from '../utils/prospectosPipeline';
 
 const valueBadgeClassNames = {
   estimated: 'border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8]',
@@ -22,7 +22,7 @@ export function OpportunityCommercialValueCell({
 }: {
   copy: ProspectosCopy['table']['commercialValue'];
   opportunity: SalesOpportunity;
-  pipeline: OpportunityPipelineTotals;
+  pipeline: OpportunityNativePipelineTotals;
   onEstimatedValueChange: (value: string) => void;
 }) {
   const isWon = opportunity.stage === 'Won';
@@ -71,9 +71,6 @@ export function OpportunityCommercialValueCell({
           <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.quoteCount(pipeline.quoteCount)}</span>
         ) : null}
       </div>
-      {hasQuotedValue && pipeline.totalsByCurrency.length > 1 ? (
-        <p className="text-xs font-medium text-[#B63B32] dark:text-[#FFB0AA]">{copy.converted(pipeline.convertedLabel)}</p>
-      ) : null}
     </div>
   );
 }

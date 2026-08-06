@@ -29,6 +29,7 @@ export type CreditPolicy = {
   unitId?: number | null;
   businessId?: number | null;
   customerName: string;
+  currency?: string;
   creditLine: number;
   monthlyPurchaseLimit: number;
   defaultTermMonths: number;

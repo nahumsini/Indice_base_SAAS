@@ -339,21 +339,6 @@ export function formatBusinessCurrencyAmount(
   }
 }
 
-export function convertBusinessCurrencyAmount(
-  amount: number,
-  sourceCurrency?: string | null,
-  targetCurrency?: string | null,
-  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
-) {
-  const source = normalizeBusinessCurrencyCode(sourceCurrency);
-  const target = normalizeBusinessCurrencyCode(targetCurrency);
-  const exchangeRate = source === target
-    ? 1
-    : getBusinessExchangeRatePerUsd(target, exchangeRatesPerUsd) / getBusinessExchangeRatePerUsd(source, exchangeRatesPerUsd);
-
-  return roundCurrencyAmount((Number.isFinite(amount) ? amount : 0) * exchangeRate);
-}
-
 export function formatBusinessCurrencyBreakdown<TItem>(
   items: TItem[],
   getAmount: (item: TItem) => number,

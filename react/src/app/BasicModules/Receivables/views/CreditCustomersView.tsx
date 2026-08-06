@@ -202,13 +202,13 @@ export function CreditCustomersView({
       return policy.business;
     }
     if (columnId === 'line') {
-      return formatMoney(policy.creditLine);
+      return formatMoney(policy.creditLine, policy.currency);
     }
     if (columnId === 'available') {
-      return formatMoney(policy.availableCredit);
+      return formatMoney(policy.availableCredit, policy.currency);
     }
     if (columnId === 'monthlyLimit') {
-      return formatMoney(policy.monthlyPurchaseLimit);
+      return formatMoney(policy.monthlyPurchaseLimit, policy.currency);
     }
     if (columnId === 'term') {
       return `${policy.defaultTermMonths} meses`;
@@ -273,8 +273,8 @@ export function CreditCustomersView({
               {renderCell(policy, 'status')}
             </div>
             <div className="mt-4 grid grid-cols-2 gap-3 border-y border-slate-100 py-3 dark:border-slate-800">
-              <div><p className="text-xs text-slate-500 dark:text-slate-400">{viewCopy.table.line}</p><p className="mt-1 text-base font-medium tabular-nums text-slate-950 dark:text-white">{formatMoney(policy.creditLine)}</p></div>
-              <div className="text-right"><p className="text-xs text-slate-500 dark:text-slate-400">{viewCopy.table.available}</p><p className={cn('mt-1 text-base font-medium tabular-nums', financeTextClass)}>{formatMoney(policy.availableCredit)}</p></div>
+              <div><p className="text-xs text-slate-500 dark:text-slate-400">{viewCopy.table.line}</p><p className="mt-1 text-base font-medium tabular-nums text-slate-950 dark:text-white">{formatMoney(policy.creditLine, policy.currency)}</p></div>
+              <div className="text-right"><p className="text-xs text-slate-500 dark:text-slate-400">{viewCopy.table.available}</p><p className={cn('mt-1 text-base font-medium tabular-nums', financeTextClass)}>{formatMoney(policy.availableCredit, policy.currency)}</p></div>
             </div>
             <div className="mt-3 flex items-center gap-2">
               <Button type="button" variant="outline" onClick={() => setEditingPolicy(policy)} className="h-10 flex-1 gap-2 rounded-lg border-[#147514]/25 text-sm font-medium text-[#147514] shadow-none hover:bg-[#147514]/5 dark:text-emerald-300"><Pencil className="h-4 w-4" />{viewCopy.rowActions.edit}</Button>

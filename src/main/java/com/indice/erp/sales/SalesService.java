@@ -1,5 +1,7 @@
 package com.indice.erp.sales;
 
+import com.indice.erp.exchange.BusinessExchangeRateService;
+import com.indice.erp.kpis.currency.KpiCurrencyAggregationService;
 import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import com.indice.erp.storage.ObjectStorageProperties;
@@ -42,6 +44,8 @@ public class SalesService {
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties storageProperties;
     private final CompanyStorageMeter storageMeter;
+    private final BusinessExchangeRateService businessExchangeRateService;
+    private final KpiCurrencyAggregationService kpiCurrencyAggregationService;
     private final Map<String, SalesEntityDefinition> definitions = SalesDefinitions.definitions();
 
     public SalesService(
@@ -49,12 +53,16 @@ public class SalesService {
             SalesReferenceService referenceService,
             ObjectStorageService objectStorageService,
             ObjectStorageProperties storageProperties,
-            CompanyStorageMeter storageMeter) {
+            CompanyStorageMeter storageMeter,
+            BusinessExchangeRateService businessExchangeRateService,
+            KpiCurrencyAggregationService kpiCurrencyAggregationService) {
         this.salesRepository = salesRepository;
         this.referenceService = referenceService;
         this.objectStorageService = objectStorageService;
         this.storageProperties = storageProperties;
         this.storageMeter = storageMeter;
+        this.businessExchangeRateService = businessExchangeRateService;
+        this.kpiCurrencyAggregationService = kpiCurrencyAggregationService;
     }
 
     public Map<String, Object> context(long companyId, long userId) {
@@ -168,8 +176,35 @@ public class SalesService {
         salesRepository.softDelete(companyId, definition(collection), id);
     }
 
-    public Map<String, Object> kpis(long companyId) {
-        return salesRepository.kpis(companyId);
+    public Map<String, Object> kpis(long companyId, String preferredCurrency) {
+        var body = new LinkedHashMap<>(salesRepository.kpis(companyId));
+        var rates = businessExchangeRateService.loadDailyRates();
+        var metadata = rates.metadata();
+        var effectiveDate = parseKpiRateDate(metadata == null ? null : metadata.sourceDate());
+        var source = metadata == null ? "" : metadata.sourceName();
+        var currency = preferredCurrency == null || preferredCurrency.isBlank() ? "MXN" : preferredCurrency;
+
+        var pipeline = kpiCurrencyAggregationService.aggregate(salesRepository.opportunityKpiAmounts(companyId), currency, rates.ratesPerUsd(), "daily", effectiveDate, source);
+        var quoted = kpiCurrencyAggregationService.aggregate(salesRepository.quoteKpiAmounts(companyId), currency, rates.ratesPerUsd(), "daily", effectiveDate, source);
+        var sales = kpiCurrencyAggregationService.aggregate(salesRepository.salesKpiAmounts(companyId, "all"), currency, rates.ratesPerUsd(), "daily", effectiveDate, source);
+        var monthly = kpiCurrencyAggregationService.aggregate(salesRepository.salesKpiAmounts(companyId, "month"), currency, rates.ratesPerUsd(), "daily", effectiveDate, source);
+        var weekly = kpiCurrencyAggregationService.aggregate(salesRepository.salesKpiAmounts(companyId, "week"), currency, rates.ratesPerUsd(), "daily", effectiveDate, source);
+
+        body.put("pipelineValue", pipeline.preferredTotal());
+        body.put("quotedValue", quoted.preferredTotal());
+        body.put("salesValue", sales.preferredTotal());
+        body.put("monthlySalesValue", monthly.preferredTotal());
+        body.put("weeklySalesValue", weekly.preferredTotal());
+        body.put("monetaryKpis", Map.of("pipeline", pipeline, "quoted", quoted, "sales", sales, "monthlySales", monthly, "weeklySales", weekly));
+        return body;
+    }
+
+    private LocalDate parseKpiRateDate(String value) {
+        try {
+            return value == null || value.isBlank() ? LocalDate.now() : LocalDate.parse(value);
+        } catch (RuntimeException ignored) {
+            return LocalDate.now();
+        }
     }
 
     public Map<String, Object> previewCommissionRule(Map<String, Object> payload) {

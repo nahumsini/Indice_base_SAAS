@@ -13,7 +13,6 @@ import type { PayrollTranslations } from '../translations/types';
 type PayrollOperationRun = PayrollRunSummary & {
   jurisdictionLabel: string;
   nativeBreakdownLabel: string;
-  preferredNetAmount: number;
   unitLabel: string;
   businessLabel: string;
 };
@@ -21,7 +20,7 @@ type PayrollOperationRun = PayrollRunSummary & {
 type PayrollOperationsPanelProps = {
   copy: PayrollTranslations;
   runs: PayrollOperationRun[];
-  formatMoney: (value: number) => string;
+  payoutLabel: string;
 };
 
 const statusStyleConfig = {
@@ -72,7 +71,7 @@ const getSegmentWidth = (count: number, total: number) => {
 export function PayrollOperationsPanel({
   copy,
   runs,
-  formatMoney,
+  payoutLabel,
 }: PayrollOperationsPanelProps) {
   const operations = copy.operations;
   const formatRunCount = (value: number) => (
@@ -84,9 +83,6 @@ export function PayrollOperationsPanel({
   const approvedCount = runs.filter((run) => run.status === 'approved' && !isBlockedRun(run)).length;
   const paidCount = runs.filter((run) => run.status === 'paid').length;
   const cancelledCount = runs.filter((run) => run.status === 'cancelled').length;
-  const payoutTotal = runs
-    .filter((run) => run.status !== 'cancelled')
-    .reduce((total, run) => total + run.preferredNetAmount, 0);
   const jurisdictionCount = new Set(
     runs
       .map((run) => run.jurisdictionLabel)
@@ -149,7 +145,7 @@ export function PayrollOperationsPanel({
     },
     {
       label: operations.metrics.payoutTotal,
-      value: formatMoney(payoutTotal),
+      value: payoutLabel,
       Icon: Wallet,
       valueClassName: 'text-[#59C3A5]',
     },

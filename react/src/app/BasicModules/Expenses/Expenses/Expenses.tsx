@@ -24,7 +24,7 @@ import type { ExpenseListFilters } from '../types/expenseView.types';
 import type { PaymentAccount } from '../PaymentAccounts/types';
 import type { ProviderRecord } from '../Providers/useProveedoresLogic';
 import { createQuickProviderRecord } from '../Providers/providerRecordFactory';
-import { calculateExpenseTotals, canDeleteExpense, filterExpenses } from '../utils/expenseFilters';
+import { canDeleteExpense, filterExpenses, isExpenseEffectivelyOverdue } from '../utils/expenseFilters';
 import { useExpenseAttachments } from '../hooks/useExpenseAttachments';
 import { useExpenseColumns } from '../hooks/useExpenseColumns';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
@@ -113,7 +113,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
   const saveTimeoutsRef = useRef<Record<string, number>>({});
   const expenses = controlledExpenses ?? localExpenses;
   const setExpenses = onExpensesChange ?? setLocalExpenses;
-  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
   const { businessOptions: referenceBusinessOptions, currentUser, isLoadingReferenceData, unitOptions: referenceUnitOptions, userOptions } =
     useFinanceReferenceData(setFailureToastMessage);
 
@@ -151,10 +151,13 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
   const createExpenseDisabled = isLoadingReferenceData;
   const createExpenseDisabledReason = t.expenses.createDisabledReason;
   const filteredExpenses = useMemo(() => filterExpenses(expenses, filters), [expenses, filters]);
-  const totals = useMemo(
-    () => calculateExpenseTotals(filteredExpenses, preferredCurrency, exchangeRatesPerUsd),
-    [exchangeRatesPerUsd, filteredExpenses, preferredCurrency],
-  );
+  const totals = useMemo(() => ({
+    total: 0,
+    paid: 0,
+    pending: 0,
+    overdue: 0,
+    overdueCount: filteredExpenses.filter((expense) => isExpenseEffectivelyOverdue(expense)).length,
+  }), [filteredExpenses]);
 
   useEffect(() => () => {
     Object.values(saveTimeoutsRef.current).forEach(timeoutId => window.clearTimeout(timeoutId));
@@ -822,7 +825,6 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
       />
 
       <ExpensesSummary
-        exchangeRatesPerUsd={exchangeRatesPerUsd}
         expenses={filteredExpenses}
         preferredCurrency={preferredCurrency}
         totals={totals}

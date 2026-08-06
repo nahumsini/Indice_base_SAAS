@@ -27,6 +27,22 @@ export type OperationalDistributionSegment = {
   className: string;
 };
 
+export type OperationalKpiCurrencyContext = {
+  preferredCurrency: string;
+  nativeBreakdown: string;
+  rateLabel: string;
+  effectiveDate?: string;
+  source?: string;
+  isPartial?: boolean;
+  excludedCount?: number;
+  labels: {
+    consolidatedIn: string;
+    nativeOrigin: string;
+    partialTotal: string;
+    excludedRecords: (count: number) => string;
+  };
+};
+
 const alertToneClassNames: Record<OperationalKpiTone, string> = {
   danger: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-300',
   warning: 'border-[#F4C84A]/35 bg-[#F4C84A]/15 text-[#9A6B05] dark:border-[#F4C84A]/35 dark:bg-[#F4C84A]/15 dark:text-[#F4C84A]',
@@ -52,7 +68,7 @@ export function OperationalKpiMetricItem({
   valueClassName = 'text-slate-950 dark:text-white',
 }: OperationalKpiMetric) {
   return (
-    <div className="flex min-w-fit items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
+    <div className="flex min-w-fit items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
       <span
         className={cn(
           'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700',
@@ -61,7 +77,7 @@ export function OperationalKpiMetricItem({
       >
         {icon}
       </span>
-      <span className={cn('font-black', valueClassName)}>{value}</span>
+      <span className={cn('font-medium tabular-nums', valueClassName)}>{value}</span>
       <span>{label}</span>
     </div>
   );
@@ -73,7 +89,7 @@ export function OperationalAlertChipItem({
   tone = 'warning',
 }: OperationalAlertChip) {
   return (
-    <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-black', alertToneClassNames[tone])}>
+    <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium', alertToneClassNames[tone])}>
       {icon ? <span className="shrink-0">{icon}</span> : null}
       <span>{label}</span>
     </span>
@@ -101,7 +117,7 @@ export function OperationalDistributionBar({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+      <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-500 dark:text-slate-400">
         {segments.map((segment) => (
           <span key={segment.id} className="flex items-center gap-1">
             <span className={cn('h-2 w-2 rounded-full', segment.className)} />
@@ -124,7 +140,7 @@ export function OperationalInsightBar({
     <div className="rounded-[20px] border border-[#F4C84A]/20 bg-[#F4C84A]/10 px-4 py-3 shadow-sm shadow-[#F4C84A]/5 dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/15">
       <div className="flex items-start gap-3">
         <span className="mt-0.5 shrink-0 text-[#9A6B05] dark:text-[#F4C84A]">{icon}</span>
-        <p className="text-sm font-semibold leading-relaxed text-slate-700 dark:text-slate-200">{message}</p>
+        <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-200">{message}</p>
       </div>
     </div>
   );
@@ -133,6 +149,7 @@ export function OperationalInsightBar({
 export function OperationalKpiArea({
   alertChips = [],
   className,
+  currencyContext,
   distributionSegments,
   insight,
   insightIcon,
@@ -140,6 +157,7 @@ export function OperationalKpiArea({
 }: {
   alertChips?: OperationalAlertChip[];
   className?: string;
+  currencyContext?: OperationalKpiCurrencyContext;
   distributionSegments: OperationalDistributionSegment[];
   insight: string;
   insightIcon: ReactNode;
@@ -172,8 +190,32 @@ export function OperationalKpiArea({
         ) : null}
       </div>
 
+      {currencyContext ? <OperationalKpiCurrencyStrip context={currencyContext} /> : null}
+
       <OperationalDistributionBar segments={distributionSegments} />
       <OperationalInsightBar icon={insightIcon} message={insight} />
     </section>
+  );
+}
+
+function OperationalKpiCurrencyStrip({ context }: { context: OperationalKpiCurrencyContext }) {
+  const excludedCount = context.excludedCount ?? 0;
+
+  return (
+    <div className={cn(
+      'flex flex-col gap-2 rounded-2xl border px-4 py-3 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4',
+      context.isPartial
+        ? 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100'
+        : 'border-blue-200 bg-blue-50/70 text-slate-700 dark:border-blue-900/60 dark:bg-blue-950/20 dark:text-slate-200',
+    )}>
+      <span className="font-medium">
+        {context.isPartial ? `${context.labels.partialTotal} · ` : ''}
+        {context.labels.consolidatedIn}: {context.preferredCurrency}
+      </span>
+      <span>{context.labels.nativeOrigin}: {context.nativeBreakdown || context.preferredCurrency}</span>
+      <span>{context.rateLabel}{context.effectiveDate ? ` · ${context.effectiveDate}` : ''}</span>
+      {context.source ? <span className="text-slate-500 dark:text-slate-400">{context.source}</span> : null}
+      {excludedCount > 0 ? <span className="font-medium">{context.labels.excludedRecords(excludedCount)}</span> : null}
+    </div>
   );
 }

@@ -18,7 +18,7 @@ import {
 import { getProductGalleryImages, persistProductImageDrafts, registerPersistedProductImages } from '../utils/productImages';
 import { buildProductForm, buildProductInput, initialProductForm } from '../utils/productForm';
 import { sortProducts } from '../utils/productFormatters';
-import { getProductAvailability, getProductInventoryValue, getProductProfit } from '../utils/productOperationalStatus';
+import { getProductAvailability } from '../utils/productOperationalStatus';
 
 type FilterValue = 'all' | string;
 const productCategoriesStorageKey = 'indice.sales.products.categoryDirectory';
@@ -104,8 +104,6 @@ export function useProductsCatalog(t: ProductsTranslations) {
 
   const sortedProducts = useMemo(() => sortProducts(filteredProducts, sortState), [filteredProducts, sortState]);
   const activeCount = filteredProducts.filter((product) => product.status === 'Active').length;
-  const inventoryValue = filteredProducts.reduce((total, product) => total + getProductInventoryValue(product), 0);
-  const estimatedProfit = filteredProducts.reduce((total, product) => total + getProductProfit(product), 0);
   const readyForSalesCount = filteredProducts.filter((product) => getProductAvailability(product).includes('sales')).length;
   const posReadyCount = filteredProducts.filter((product) => getProductAvailability(product).includes('pos')).length;
   const publicCatalogCount = filteredProducts.filter((product) => (
@@ -343,10 +341,8 @@ export function useProductsCatalog(t: ProductsTranslations) {
     categoryFilter,
     categoryOptions,
     editingProductId,
-    estimatedProfit,
     filteredProducts,
     form,
-    inventoryValue,
     isCategoryManagerOpen,
     isColumnsOpen,
     isCreateOpen,
