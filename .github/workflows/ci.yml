@@ -1,0 +1,189 @@
+name: CI
+
+on:
+  push:
+    branches-ignore:
+      - deploy
+  pull_request:
+    branches:
+      - main
+      - deploy
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  migration:
+    name: Migration checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: indice_test_db
+          MYSQL_USER: indice_test_user
+          MYSQL_PASSWORD: indice_test_pass
+          MYSQL_ROOT_PASSWORD: rootpass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -prootpass --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
+          --health-start-period=30s
+    env:
+      TEST_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/indice_test_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
+      TEST_DATASOURCE_USERNAME: indice_test_user
+      TEST_DATASOURCE_PASSWORD: indice_test_pass
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Validate Flyway migration numbering and startup migrations
+        run: ./mvnw -B -ntp clean -Dtest=MigrationVersionUniquenessTest,IndiceErpApiApplicationTests test
+
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: indice_test_db
+          MYSQL_USER: indice_test_user
+          MYSQL_PASSWORD: indice_test_pass
+          MYSQL_ROOT_PASSWORD: rootpass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -prootpass --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
+          --health-start-period=30s
+    env:
+      TEST_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/indice_test_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
+      TEST_DATASOURCE_USERNAME: indice_test_user
+      TEST_DATASOURCE_PASSWORD: indice_test_pass
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Run backend test suite
+        run: ./mvnw -B -ntp test
+
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: react
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: react/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Typecheck frontend
+        run: npm run typecheck
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Run frontend regression tests
+        run: |
+          npm run test:auth
+          npm run test:dashboard-ui
+          npm run test:human-resources-ui
+          npm run test:kiosks
+          npm run test:expenses
+          npm run test:expenses-ui
+          npm run test:petty-cash-ui
+          npm run test:receivables-ui
+          npm run test:processes-tasks-ui
+          npm run test:invitation
+          npm run test:learning-mode
+          npm run test:users
+          npm run test:kpis-ui
+          npm run test:inventory-ui
+          npm run test:sales-ui
+          npm run test:sales-workflow
+          npm run test:pos-ui
+          npm run test:print
+          npm run test:phone-validation
+
+  docker:
+    name: Docker and deployment config
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      APP_IMAGE_TAG: ci
+      MYSQL_DATABASE: indice_ci
+      MYSQL_USER: indice_ci
+      MYSQL_PASSWORD: indice_ci_password
+      MYSQL_ROOT_PASSWORD: indice_ci_root_password
+      MINIO_ROOT_USER: indiceci
+      MINIO_ROOT_PASSWORD: indice_ci_minio_password
+      APP_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET: indice-ci-hr-kiosk-identification-secret
+      APP_KIOSK_TOKEN_PROTECTION_SECRET: indice-ci-kiosk-token-protection-secret
+      APP_BILLING_STRIPE_SECRET_KEY: sk_test_ci_placeholder
+      APP_BILLING_STRIPE_PRICE_BASIC_1_MONTHLY: price_ci_basic_1_monthly
+      APP_BILLING_STRIPE_PRICE_BASIC_1_ANNUAL: price_ci_basic_1_annual
+      APP_BILLING_STRIPE_PRICE_BASIC_2_MONTHLY: price_ci_basic_2_monthly
+      APP_BILLING_STRIPE_PRICE_BASIC_2_ANNUAL: price_ci_basic_2_annual
+      APP_BILLING_STRIPE_PRICE_BASIC_3_MONTHLY: price_ci_basic_3_monthly
+      APP_BILLING_STRIPE_PRICE_BASIC_3_ANNUAL: price_ci_basic_3_annual
+      APP_BILLING_STRIPE_PRICE_BASIC_ALL_MONTHLY: price_ci_basic_all_monthly
+      APP_BILLING_STRIPE_PRICE_BASIC_ALL_ANNUAL: price_ci_basic_all_annual
+      APP_BILLING_STRIPE_PRICE_EXTRA_SEAT_MONTHLY: price_ci_extra_seat_monthly
+      APP_BILLING_STRIPE_PRICE_EXTRA_SEAT_ANNUAL: price_ci_extra_seat_annual
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate shell scripts
+        run: bash -n deployment/scripts/*.sh scripts/*.sh
+
+      - name: Validate base Compose config
+        run: docker compose --env-file deployment/env/.env.example -f deployment/compose/docker-compose.yml config --quiet
+
+      - name: Validate staging Compose config
+        run: docker compose --env-file deployment/env/.env.example -f deployment/compose/docker-compose.staging.yml config --quiet
+
+      - name: Build backend image
+        run: docker build -f deployment/docker/backend/Dockerfile -t indice-erp-backend:ci .
+
+      - name: Build web image
+        run: docker build -f deployment/docker/web/Dockerfile -t indice-erp-web:ci .
