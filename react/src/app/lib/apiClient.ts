@@ -26,7 +26,12 @@ const normalizeEnvUrl = (value: unknown) => (
 
 const apiBaseUrl = normalizeEnvUrl(import.meta.env.VITE_API_BASE_URL);
 const AUTH_ME_PATH = '/api/v1/auth/me';
+const AUTH_CSRF_PATH = '/api/v1/auth/csrf';
 const mutationMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+export type ApiClientRequestInit = RequestInit & {
+  csrf?: boolean;
+};
 
 export const buildApiUrl = (path: string) => {
   if (/^https?:\/\//.test(path)) {
@@ -46,6 +51,7 @@ const buildHeaders = (
   method: string,
   initHeaders?: HeadersInit,
   body?: BodyInit | null,
+  includeCsrf = mutationMethods.has(method),
 ) => {
   const headers = new Headers(initHeaders);
 
@@ -62,7 +68,7 @@ const buildHeaders = (
     headers.set('Content-Type', 'application/json');
   }
 
-  if (mutationMethods.has(method)) {
+  if (includeCsrf) {
     const csrfToken = getCachedCsrfToken();
     if (csrfToken && !headers.has('X-CSRF-Token')) {
       headers.set('X-CSRF-Token', csrfToken);
@@ -107,6 +113,22 @@ const cacheCsrfTokenFromPayload = (payload: unknown) => {
   }
 };
 
+const fetchCsrfToken = async () => {
+  const response = await fetch(buildApiUrl(AUTH_CSRF_PATH), {
+    cache: 'no-store',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  });
+  const payload = await parsePayload(response);
+
+  if (response.ok) {
+    cacheCsrfTokenFromPayload(payload);
+    return getCachedCsrfToken();
+  }
+
+  return null;
+};
+
 const isInvalidCsrfError = (status: number, payload: unknown) => (
   status === 403 && /csrf/i.test(messageFromPayload(payload))
 );
@@ -133,21 +155,29 @@ const refreshAuthSession = async () => {
 
 export async function apiClient<T = unknown>(
   path: string,
-  init: RequestInit = {},
+  init: ApiClientRequestInit = {},
 ): Promise<T> {
+  const { csrf = false, ...requestInit } = init;
   const method = normalizeMethod(init.method);
+  const includeCsrf = csrf || mutationMethods.has(method);
+  if (includeCsrf && !getCachedCsrfToken()) {
+    await fetchCsrfToken();
+  }
   const execute = () => fetch(buildApiUrl(path), {
     credentials: 'include',
     cache: defaultRequestCache(method),
-    ...init,
-    headers: buildHeaders(method, init.headers, init.body),
+    ...requestInit,
+    headers: buildHeaders(method, requestInit.headers, requestInit.body, includeCsrf),
   });
   let response = await execute();
   let payload = await parsePayload(response);
 
-  if (!response.ok && isInvalidCsrfError(response.status, payload) && mutationMethods.has(method)) {
+  if (!response.ok && isInvalidCsrfError(response.status, payload) && includeCsrf) {
     const session = await refreshAuthSession();
-    if (session?.csrfToken) {
+    if (!session?.csrfToken) {
+      await fetchCsrfToken();
+    }
+    if (getCachedCsrfToken()) {
       response = await execute();
       payload = await parsePayload(response);
     }
@@ -168,13 +198,18 @@ export async function apiClient<T = unknown>(
   return payload as T;
 }
 
-export async function requestText(path: string, init: RequestInit = {}) {
+export async function requestText(path: string, init: ApiClientRequestInit = {}) {
+  const { csrf = false, ...requestInit } = init;
   const method = normalizeMethod(init.method);
+  const includeCsrf = csrf || mutationMethods.has(method);
+  if (includeCsrf && !getCachedCsrfToken()) {
+    await fetchCsrfToken();
+  }
   const response = await fetch(buildApiUrl(path), {
     credentials: 'include',
     cache: defaultRequestCache(method),
-    ...init,
-    headers: buildHeaders(method, init.headers, init.body),
+    ...requestInit,
+    headers: buildHeaders(method, requestInit.headers, requestInit.body, includeCsrf),
   });
 
   const text = await response.text();
