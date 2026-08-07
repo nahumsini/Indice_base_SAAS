@@ -2,14 +2,8 @@ name: CI
 
 on:
   push:
-    branches-ignore:
-      - deploy
   pull_request:
-    branches:
-      - main
-      - deploy
   workflow_dispatch:
-  workflow_call:
 
 permissions:
   contents: read
