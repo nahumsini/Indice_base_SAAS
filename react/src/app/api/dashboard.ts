@@ -39,16 +39,16 @@ interface ListResponse<T> {
 
 export const dashboardApi = {
   listModules() {
-    return apiClient<BackendDashboardModule[]>(endpoints.dashboard.modules);
+    return apiClient<BackendDashboardModule[]>(endpoints.dashboard.modules, { csrf: true });
   },
 
   async listUnits() {
-    const response = await apiClient<ListResponse<BackendUnit>>(endpoints.dashboard.units);
+    const response = await apiClient<ListResponse<BackendUnit>>(endpoints.dashboard.units, { csrf: true });
     return response.data;
   },
 
   async listBusinesses() {
-    const response = await apiClient<ListResponse<BackendBusiness>>(endpoints.dashboard.businesses);
+    const response = await apiClient<ListResponse<BackendBusiness>>(endpoints.dashboard.businesses, { csrf: true });
     return response.data;
   },
 };

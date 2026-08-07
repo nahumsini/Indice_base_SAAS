@@ -12,8 +12,18 @@ const accessibleCatalogSource = readFileSync(
   'utf8',
 );
 const appSource = readFileSync(resolve(root, 'src/app/App.tsx'), 'utf8');
+const apiClientSource = readFileSync(resolve(root, 'src/app/lib/apiClient.ts'), 'utf8');
+const businessProfileApiSource = readFileSync(
+  resolve(root, 'src/app/api/HomePanel/BusinessProfile/businessProfile.ts'),
+  'utf8',
+);
+const dashboardApiSource = readFileSync(resolve(root, 'src/app/api/dashboard.ts'), 'utf8');
 const mainDashboardSource = readFileSync(
   resolve(root, 'src/app/Dashboard/MainDashboard.tsx'),
+  'utf8',
+);
+const personalPerformanceApiSource = readFileSync(
+  resolve(root, 'src/app/api/HomePanel/PersonalPerformance/personalPerformance.ts'),
   'utf8',
 );
 
@@ -57,4 +67,26 @@ test('el registro global gobierna módulos, rutas y KPIs sin reconstruir módulo
 
   assert.match(mainDashboardSource, /dashboardKpiModuleRouteById/);
   assert.match(mainDashboardSource, /accessibleModuleRoutes\.has\(moduleRoute\)/);
+});
+
+test('Panel Inicial usa apiClient para todas las APIs protegidas por CSRF', () => {
+  assert.match(apiClientSource, /const mutationMethods = new Set\(\['POST', 'PUT', 'PATCH', 'DELETE'\]\)/);
+  assert.match(apiClientSource, /headers\.set\('X-CSRF-Token', csrfToken\)/);
+  assert.match(apiClientSource, /csrf\?: boolean/);
+  assert.match(apiClientSource, /AUTH_CSRF_PATH = '\/api\/v1\/auth\/csrf'/);
+  assert.match(apiClientSource, /fetchCsrfToken/);
+
+  assert.match(dashboardApiSource, /listModules[\s\S]*apiClient<BackendDashboardModule\[\]>[\s\S]*csrf: true/);
+  assert.match(dashboardApiSource, /listUnits[\s\S]*apiClient<ListResponse<BackendUnit>>[\s\S]*csrf: true/);
+  assert.match(dashboardApiSource, /listBusinesses[\s\S]*apiClient<ListResponse<BackendBusiness>>[\s\S]*csrf: true/);
+
+  assert.match(businessProfileApiSource, /import \{ apiClient \}/);
+  assert.match(businessProfileApiSource, /getBusinessProfile[\s\S]*apiClient<BusinessProfileResponse>[\s\S]*csrf: true/);
+  assert.match(businessProfileApiSource, /saveBusinessProfile[\s\S]*apiClient<BusinessProfileResponse>[\s\S]*method: 'PUT'[\s\S]*csrf: true/);
+  assert.doesNotMatch(businessProfileApiSource, /\bfetch\(/);
+
+  assert.match(personalPerformanceApiSource, /import \{ apiClient \}/);
+  assert.match(personalPerformanceApiSource, /getPersonalPerformance[\s\S]*apiClient<PersonalPerformanceResponse>[\s\S]*csrf: true/);
+  assert.match(personalPerformanceApiSource, /savePersonalPerformance[\s\S]*apiClient<PersonalPerformanceResponse>[\s\S]*method: 'PUT'[\s\S]*csrf: true/);
+  assert.doesNotMatch(personalPerformanceApiSource, /\bfetch\(/);
 });

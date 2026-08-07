@@ -54,14 +54,14 @@ export interface SavePersonalPerformancePayload {
 
 export const personalPerformanceApi = {
   getPersonalPerformance() {
-    return apiClient<PersonalPerformanceResponse>(personalPerformanceEndpoint);
+    return apiClient<PersonalPerformanceResponse>(personalPerformanceEndpoint, { csrf: true });
   },
 
   savePersonalPerformance(payload: SavePersonalPerformancePayload) {
     return apiClient<PersonalPerformanceResponse>(personalPerformanceEndpoint, {
       method: 'PUT',
+      csrf: true,
       body: JSON.stringify(payload),
     });
   },
 };
-

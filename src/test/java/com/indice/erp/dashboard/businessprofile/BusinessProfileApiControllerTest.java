@@ -2,7 +2,11 @@ package com.indice.erp.dashboard.businessprofile;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -11,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.configcenter.ConfigCenterAccessService;
 import com.indice.erp.configcenter.ConfigCenterAccessService.ConfigCenterTab;
 import java.util.LinkedHashMap;
@@ -31,6 +36,9 @@ class BusinessProfileApiControllerTest {
 
     @MockBean
     private SessionAuthService sessionAuthService;
+
+    @MockBean
+    private SessionCsrfService sessionCsrfService;
 
     @MockBean
     private ConfigCenterAccessService accessService;
@@ -64,6 +72,89 @@ class BusinessProfileApiControllerTest {
     }
 
     @Test
+    void getBusinessProfileRequiresCsrfBeforeLoadingProfile() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        willThrow(new IllegalArgumentException("Invalid CSRF token."))
+            .given(sessionCsrfService)
+            .requireCsrf(any(), any());
+
+        mockMvc.perform(get("/api/v1/dashboard/business-profile"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Invalid CSRF token."));
+
+        verifyNoInteractions(businessProfileService);
+    }
+
+    @Test
+    void getBusinessProfileReturnsProfileForValidCsrf() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
+        var response = new LinkedHashMap<String, Object>();
+        response.put("profile", Map.of(
+            "id", 3L,
+            "company_id", 7L,
+            "status", "draft"
+        ));
+        response.put("sections", Map.of());
+
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(businessProfileService.getBusinessProfile(7L)).willReturn(response);
+
+        mockMvc.perform(get("/api/v1/dashboard/business-profile")
+                .header("X-CSRF-Token", "csrf-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.profile.company_id").value(7));
+
+        verify(sessionCsrfService).requireCsrf(any(), eq("csrf-token"));
+        verify(businessProfileService).getBusinessProfile(7L);
+    }
+
+    @Test
+    void saveBusinessProfileReturnsForbiddenWhenBusinessProfileTabIsDenied() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(accessService.canAccess(currentUser, ConfigCenterTab.BUSINESS_PROFILE)).willReturn(false);
+
+        mockMvc.perform(put("/api/v1/dashboard/business-profile")
+                .header("X-CSRF-Token", "csrf-token")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {
+                      "sections": {}
+                    }
+                    """))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
+
+        verifyNoInteractions(businessProfileService);
+    }
+
+    @Test
+    void saveBusinessProfileRequiresCsrfBeforeSaving() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        willThrow(new IllegalArgumentException("Invalid CSRF token."))
+            .given(sessionCsrfService)
+            .requireCsrf(any(), any());
+
+        mockMvc.perform(put("/api/v1/dashboard/business-profile")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {
+                      "sections": {
+                        "people": {
+                          "status": "completed"
+                        }
+                      }
+                    }
+                    """))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Invalid CSRF token."));
+
+        verifyNoInteractions(businessProfileService);
+    }
+
+    @Test
     void saveBusinessProfileReturnsSavedSectionsForAuthenticatedSession() throws Exception {
         var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
         var sections = new LinkedHashMap<String, Object>();
@@ -93,10 +184,11 @@ class BusinessProfileApiControllerTest {
         response.put("sections", sections);
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(businessProfileService.saveBusinessProfile(org.mockito.ArgumentMatchers.eq(7L), org.mockito.ArgumentMatchers.eq(1L), anyMap()))
+        given(businessProfileService.saveBusinessProfile(eq(7L), eq(1L), anyMap()))
             .willReturn(response);
 
         mockMvc.perform(put("/api/v1/dashboard/business-profile")
+                .header("X-CSRF-Token", "csrf-token")
                 .contentType(APPLICATION_JSON)
                 .content("""
                     {
@@ -118,5 +210,8 @@ class BusinessProfileApiControllerTest {
             .andExpect(jsonPath("$.profile.status").value("in_progress"))
             .andExpect(jsonPath("$.sections.people.section_key").value("people"))
             .andExpect(jsonPath("$.sections.people.data.answers.p2").value(4));
+
+        verify(sessionCsrfService).requireCsrf(any(), eq("csrf-token"));
+        verify(businessProfileService).saveBusinessProfile(eq(7L), eq(1L), anyMap());
     }
 }

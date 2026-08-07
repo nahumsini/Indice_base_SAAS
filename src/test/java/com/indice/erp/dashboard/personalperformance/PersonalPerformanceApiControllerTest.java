@@ -2,7 +2,11 @@ package com.indice.erp.dashboard.personalperformance;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -11,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.auth.SessionCsrfService;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -30,6 +35,9 @@ class PersonalPerformanceApiControllerTest {
     private SessionAuthService sessionAuthService;
 
     @MockBean
+    private SessionCsrfService sessionCsrfService;
+
+    @MockBean
     private PersonalPerformanceService personalPerformanceService;
 
     @Test
@@ -39,6 +47,21 @@ class PersonalPerformanceApiControllerTest {
         mockMvc.perform(get("/api/v1/dashboard/personal-performance/me"))
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.message").value("Unauthorized"));
+    }
+
+    @Test
+    void getPersonalPerformanceRequiresCsrfBeforeLoadingProfile() throws Exception {
+        var currentUser = new AuthSessionUser(4L, 7L, "Usuario Demo", "user");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        willThrow(new IllegalArgumentException("Invalid CSRF token."))
+            .given(sessionCsrfService)
+            .requireCsrf(any(), any());
+
+        mockMvc.perform(get("/api/v1/dashboard/personal-performance/me"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Invalid CSRF token."));
+
+        verifyNoInteractions(personalPerformanceService);
     }
 
     @Test
@@ -60,10 +83,38 @@ class PersonalPerformanceApiControllerTest {
             org.mockito.ArgumentMatchers.eq(7L)
         )).willReturn(response);
 
-        mockMvc.perform(get("/api/v1/dashboard/personal-performance/me"))
+        mockMvc.perform(get("/api/v1/dashboard/personal-performance/me")
+                .header("X-CSRF-Token", "csrf-token"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.profile.user_id").value(4))
             .andExpect(jsonPath("$.profile.company_id").value(7));
+
+        verify(sessionCsrfService).requireCsrf(any(), eq("csrf-token"));
+    }
+
+    @Test
+    void savePersonalPerformanceRequiresCsrfBeforeSaving() throws Exception {
+        var currentUser = new AuthSessionUser(4L, 7L, "Usuario Demo", "admin");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        willThrow(new IllegalArgumentException("Invalid CSRF token."))
+            .given(sessionCsrfService)
+            .requireCsrf(any(), any());
+
+        mockMvc.perform(put("/api/v1/dashboard/personal-performance/me")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {
+                      "sections": {
+                        "sleep_recovery": {
+                          "status": "completed"
+                        }
+                      }
+                    }
+                    """))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Invalid CSRF token."));
+
+        verifyNoInteractions(personalPerformanceService);
     }
 
     @Test
@@ -98,12 +149,13 @@ class PersonalPerformanceApiControllerTest {
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
         given(personalPerformanceService.savePersonalPerformance(
-            org.mockito.ArgumentMatchers.eq(4L),
-            org.mockito.ArgumentMatchers.eq(7L),
+            eq(4L),
+            eq(7L),
             anyMap()
         )).willReturn(response);
 
         mockMvc.perform(put("/api/v1/dashboard/personal-performance/me")
+                .header("X-CSRF-Token", "csrf-token")
                 .contentType(APPLICATION_JSON)
                 .content("""
                     {
@@ -125,5 +177,8 @@ class PersonalPerformanceApiControllerTest {
             .andExpect(jsonPath("$.profile.user_id").value(4))
             .andExpect(jsonPath("$.sections.sleep_recovery.section_key").value("sleep_recovery"))
             .andExpect(jsonPath("$.sections.sleep_recovery.data.answers.sr2").value(4));
+
+        verify(sessionCsrfService).requireCsrf(any(), eq("csrf-token"));
+        verify(personalPerformanceService).savePersonalPerformance(eq(4L), eq(7L), anyMap());
     }
 }

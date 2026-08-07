@@ -49,12 +49,13 @@ export interface SaveBusinessProfilePayload {
 
 export const businessProfileApi = {
   getBusinessProfile() {
-    return apiClient<BusinessProfileResponse>(businessProfileEndpoint);
+    return apiClient<BusinessProfileResponse>(businessProfileEndpoint, { csrf: true });
   },
 
   saveBusinessProfile(payload: SaveBusinessProfilePayload) {
     return apiClient<BusinessProfileResponse>(businessProfileEndpoint, {
       method: 'PUT',
+      csrf: true,
       body: JSON.stringify(payload),
     });
   },
