@@ -39,6 +39,28 @@ test('Recursos Humanos conserva el shell, el title bar y el Kiosk Engine de asis
   assert.match(identitySource, /<KioskIdentityGate/);
 });
 
+test('Recursos Humanos usa apiClient con CSRF para APIs protegidas no nomina', () => {
+  const apiClientSource = readFileSync(resolve(root, 'src/app/lib/apiClient.ts'), 'utf8');
+  const apiSources = {
+    humanResources: readFileSync(resolve(root, 'src/app/api/humanResources.ts'), 'utf8'),
+    assets: readFileSync(resolve(root, 'src/app/api/HumanResources/assets.ts'), 'utf8'),
+    permissions: readFileSync(resolve(root, 'src/app/api/HumanResources/permissions.ts'), 'utf8'),
+    incentives: readFileSync(resolve(root, 'src/app/api/HumanResources/incentives.ts'), 'utf8'),
+  };
+
+  assert.match(apiClientSource, /const mutationMethods = new Set\(\['POST', 'PUT', 'PATCH', 'DELETE'\]\)/);
+  assert.match(apiClientSource, /headers\.set\('X-CSRF-Token', csrfToken\)/);
+  Object.entries(apiSources).forEach(([name, source]) => {
+    assert.doesNotMatch(source, /fetch\(\s*(?:buildApiUrl\()?['"`]\/api\/v1\/hr/, `${name} no debe usar fetch directo contra APIs HR protegidas`);
+  });
+
+  assert.match(apiSources.humanResources, /createAttendanceControlLocation[\s\S]*apiClient[\s\S]*method: "POST"/);
+  assert.match(apiSources.humanResources, /presignRecordAttachmentUpload[\s\S]*apiClient[\s\S]*method: "POST"/);
+  assert.match(apiSources.assets, /createAsset[\s\S]*apiClient[\s\S]*method: 'POST'/);
+  assert.match(apiSources.permissions, /approvePermission[\s\S]*apiClient[\s\S]*method: 'POST'/);
+  assert.match(apiSources.incentives, /create\(payload[\s\S]*apiClient[\s\S]*method: 'POST'/);
+});
+
 test('Detalle de corrida usa el workspace operativo para revisar varios colaboradores', () => {
   const workspaceRoot = resolve(moduleRoot, 'Payroll/components/payroll-run-workspace');
   const workspaceSource = readFileSync(resolve(workspaceRoot, 'PayrollRunWorkspaceDialog.tsx'), 'utf8');

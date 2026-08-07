@@ -17,6 +17,10 @@ class TabPermissionRouteClassifierTest {
         assertRequirement("GET", "/api/v1/config-center/users", "config_center.users");
         assertAnyOf("GET", "/api/v1/billing/subscription", "config_center.plan", "config_center.users");
         assertRequirement("POST", "/api/v1/billing/subscription/cancel", "config_center.plan");
+        assertRequirement("GET", "/api/v1/dashboard/business-profile", "config_center.business-profile");
+        assertRequirement("PUT", "/api/v1/dashboard/business-profile", "config_center.business-profile");
+        assertRequirement("GET", "/api/v1/dashboard/personal-performance/me", "config_center.personal-performance");
+        assertRequirement("PUT", "/api/v1/dashboard/personal-performance/me", "config_center.personal-performance");
         assertRequirement("POST", "/api/v1/hr/users", "human_resources.collaborators");
         assertRequirement("GET", "/api/v1/hr/kpis", "human_resources.kpis");
         assertRequirement("GET", "/api/v1/projects", "processes.projects");
@@ -49,6 +53,20 @@ class TabPermissionRouteClassifierTest {
         assertAnyOf("POST", "/api/v1/finance/payment-accounts", "expenses.payment-accounts", "crm.sales");
         assertAnyOf("GET", "/api/v1/sales/inventory-warehouses", "inventory.inventory", "crm.sales");
         assertRequirement("POST", "/api/v1/sales/inventory-warehouses", "inventory.inventory");
+    }
+
+    @Test
+    void classifiesNonPayrollHumanResourcesRoutesByTab() {
+        assertRequirement("POST", "/api/v1/hr/users/12/documents/presign-upload", "human_resources.collaborators");
+        assertRequirement("POST", "/api/v1/hr/assets/8/status", "human_resources.assets");
+        assertRequirement("POST", "/api/v1/hr/records/12/attachments", "human_resources.records");
+        assertRequirement("POST", "/api/v1/hr/announcements/4/read", "human_resources.announcements");
+        assertRequirement("POST", "/api/v1/hr/permissions/5/approve", "human_resources.permissions");
+        assertRequirement("POST", "/api/v1/hr/incentives", "human_resources.incentives");
+        assertRequirement("POST", "/api/v1/hr/attendance/schedule-assignments/bulk", "human_resources.control");
+        assertAnyOf("POST", "/api/v1/hr/attendance/kiosk-events", "human_resources.attendance", "human_resources.control");
+        assertRequirement("POST", "/api/v1/hr/attendance/me/kiosk-events", "human_resources.attendance");
+        assertAnyOf("POST", "/api/v1/hr/face/enrollment-sessions", "human_resources.collaborators", "human_resources.control");
     }
 
     @Test
