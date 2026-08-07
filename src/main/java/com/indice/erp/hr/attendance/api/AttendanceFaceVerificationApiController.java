@@ -1,6 +1,7 @@
 package com.indice.erp.hr.attendance.api;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.face.FaceVerificationIntegrationException;
 import com.indice.erp.face.HrFaceService;
 import com.indice.erp.hr.HrAccessDeniedException;
@@ -16,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -24,30 +26,41 @@ import org.springframework.web.bind.annotation.RestController;
 public class AttendanceFaceVerificationApiController {
 
     private final SessionAuthService sessionAuthService;
+    private final SessionCsrfService sessionCsrfService;
     private final HrAttendanceService hrAttendanceService;
     private final HrFaceService hrFaceService;
     private final HrAccessService hrAccessService;
 
     public AttendanceFaceVerificationApiController(
         SessionAuthService sessionAuthService,
+        SessionCsrfService sessionCsrfService,
         HrAttendanceService hrAttendanceService,
         HrFaceService hrFaceService,
         HrAccessService hrAccessService
     ) {
         this.sessionAuthService = sessionAuthService;
+        this.sessionCsrfService = sessionCsrfService;
         this.hrAttendanceService = hrAttendanceService;
         this.hrFaceService = hrFaceService;
         this.hrAccessService = hrAccessService;
     }
 
     @PostMapping("/face-verification-sessions")
-    public ResponseEntity<?> createFaceVerificationSession(HttpSession session, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> createFaceVerificationSession(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody Map<String, Object> payload
+    ) {
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
         if (!hrAccessService.canAccessManagementTab(currentUser.get(), HrTab.CONTROL)) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -68,13 +81,20 @@ public class AttendanceFaceVerificationApiController {
     }
 
     @PostMapping("/me/face-verification-sessions")
-    public ResponseEntity<?> createMyFaceVerificationSession(HttpSession session) {
+    public ResponseEntity<?> createMyFaceVerificationSession(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
+    ) {
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
         if (!hrAccessService.canAccessReadableTab(currentUser.get(), HrTab.ATTENDANCE)) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -106,11 +126,16 @@ public class AttendanceFaceVerificationApiController {
     public ResponseEntity<?> presignFaceVerificationCapture(
         HttpSession session,
         @PathVariable long sessionId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody Map<String, Object> payload
     ) {
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -135,10 +160,18 @@ public class AttendanceFaceVerificationApiController {
     }
 
     @PostMapping("/face-verification-sessions/{sessionId}/complete")
-    public ResponseEntity<?> completeFaceVerificationSession(HttpSession session, @PathVariable long sessionId) {
+    public ResponseEntity<?> completeFaceVerificationSession(
+        HttpSession session,
+        @PathVariable long sessionId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
+    ) {
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -162,5 +195,14 @@ public class AttendanceFaceVerificationApiController {
 
     private ResponseEntity<?> forbidden() {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
+    }
+
+    private ResponseEntity<?> requireCsrf(HttpSession session, String csrfToken) {
+        try {
+            sessionCsrfService.requireCsrf(session, csrfToken);
+            return null;
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ex.getMessage()));
+        }
     }
 }

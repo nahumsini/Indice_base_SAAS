@@ -1,6 +1,7 @@
 package com.indice.erp.hr.attendance.api;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.hr.HrAccessService;
 import com.indice.erp.hr.attendance.HrAttendanceService;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,10 +27,11 @@ public class AttendanceKioskDeviceApiController extends AttendanceApiControllerS
 
     public AttendanceKioskDeviceApiController(
         SessionAuthService sessionAuthService,
+        SessionCsrfService sessionCsrfService,
         HrAttendanceService hrAttendanceService,
         HrAccessService hrAccessService
     ) {
-        super(sessionAuthService, hrAttendanceService, hrAccessService);
+        super(sessionAuthService, sessionCsrfService, hrAttendanceService, hrAccessService);
     }
 
     @GetMapping("/kiosk-devices")
@@ -45,13 +48,21 @@ public class AttendanceKioskDeviceApiController extends AttendanceApiControllerS
     }
 
     @PostMapping("/kiosk-devices")
-    public ResponseEntity<?> createKioskDevice(HttpSession session, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> createKioskDevice(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody Map<String, Object> payload
+    ) {
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
         if (!canAccessControl(currentUser.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -75,6 +86,7 @@ public class AttendanceKioskDeviceApiController extends AttendanceApiControllerS
     public ResponseEntity<?> updateKioskDevice(
         HttpSession session,
         @PathVariable long kioskDeviceId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody Map<String, Object> payload
     ) {
         var currentUser = sessionAuthService.currentUser(session);
@@ -83,6 +95,10 @@ public class AttendanceKioskDeviceApiController extends AttendanceApiControllerS
         }
         if (!canAccessControl(currentUser.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -103,13 +119,21 @@ public class AttendanceKioskDeviceApiController extends AttendanceApiControllerS
     }
 
     @DeleteMapping("/kiosk-devices/{kioskDeviceId}")
-    public ResponseEntity<?> deleteKioskDevice(HttpSession session, @PathVariable long kioskDeviceId) {
+    public ResponseEntity<?> deleteKioskDevice(
+        HttpSession session,
+        @PathVariable long kioskDeviceId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
+    ) {
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
         if (!canAccessControl(currentUser.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -123,13 +147,21 @@ public class AttendanceKioskDeviceApiController extends AttendanceApiControllerS
     }
 
     @PostMapping("/kiosk-devices/{kioskDeviceId}/rotate-public-access-token")
-    public ResponseEntity<?> rotateKioskPublicAccessToken(HttpSession session, @PathVariable long kioskDeviceId) {
+    public ResponseEntity<?> rotateKioskPublicAccessToken(
+        HttpSession session,
+        @PathVariable long kioskDeviceId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
+    ) {
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
         if (!canAccessControl(currentUser.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {

@@ -2,9 +2,11 @@ package com.indice.erp.hr.attendance.api;
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.hr.HrAccessService;
 import com.indice.erp.hr.HrAccessService.HrTab;
 import com.indice.erp.hr.attendance.HrAttendanceService;
+import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,15 +15,18 @@ import org.springframework.http.ResponseEntity;
 abstract class AttendanceApiControllerSupport {
 
     protected final SessionAuthService sessionAuthService;
+    protected final SessionCsrfService sessionCsrfService;
     protected final HrAttendanceService hrAttendanceService;
     protected final HrAccessService hrAccessService;
 
     protected AttendanceApiControllerSupport(
         SessionAuthService sessionAuthService,
+        SessionCsrfService sessionCsrfService,
         HrAttendanceService hrAttendanceService,
         HrAccessService hrAccessService
     ) {
         this.sessionAuthService = sessionAuthService;
+        this.sessionCsrfService = sessionCsrfService;
         this.hrAttendanceService = hrAttendanceService;
         this.hrAccessService = hrAccessService;
     }
@@ -44,5 +49,14 @@ abstract class AttendanceApiControllerSupport {
 
     protected ResponseEntity<?> forbidden() {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
+    }
+
+    protected ResponseEntity<?> requireCsrf(HttpSession session, String csrfToken) {
+        try {
+            sessionCsrfService.requireCsrf(session, csrfToken);
+            return null;
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ex.getMessage()));
+        }
     }
 }

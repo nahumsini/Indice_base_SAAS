@@ -1,6 +1,7 @@
 package com.indice.erp.hr.attendance.api;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.hr.HrAccessService;
 import com.indice.erp.hr.attendance.HrAttendanceService;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -25,10 +27,11 @@ public class AttendanceScheduleApiController extends AttendanceApiControllerSupp
 
     public AttendanceScheduleApiController(
         SessionAuthService sessionAuthService,
+        SessionCsrfService sessionCsrfService,
         HrAttendanceService hrAttendanceService,
         HrAccessService hrAccessService
     ) {
-        super(sessionAuthService, hrAttendanceService, hrAccessService);
+        super(sessionAuthService, sessionCsrfService, hrAttendanceService, hrAccessService);
     }
 
     @GetMapping("/schedule-templates")
@@ -89,13 +92,21 @@ public class AttendanceScheduleApiController extends AttendanceApiControllerSupp
     }
 
     @PostMapping("/schedule-templates")
-    public ResponseEntity<?> createScheduleTemplate(HttpSession session, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> createScheduleTemplate(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody Map<String, Object> payload
+    ) {
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
         if (!canAccessControl(currentUser.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -119,6 +130,7 @@ public class AttendanceScheduleApiController extends AttendanceApiControllerSupp
     public ResponseEntity<?> updateScheduleTemplate(
         HttpSession session,
         @PathVariable long templateId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody Map<String, Object> payload
     ) {
         var currentUser = sessionAuthService.currentUser(session);
@@ -127,6 +139,10 @@ public class AttendanceScheduleApiController extends AttendanceApiControllerSupp
         }
         if (!canAccessControl(currentUser.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -147,13 +163,21 @@ public class AttendanceScheduleApiController extends AttendanceApiControllerSupp
     }
 
     @PostMapping("/schedule-assignments/bulk")
-    public ResponseEntity<?> bulkAssignScheduleTemplate(HttpSession session, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> bulkAssignScheduleTemplate(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody Map<String, Object> payload
+    ) {
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
         if (!canAccessControl(currentUser.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {

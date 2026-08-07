@@ -1,6 +1,7 @@
 package com.indice.erp.hr.attendance.api;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.hr.HrAccessService;
 import com.indice.erp.hr.attendance.HrAttendanceService;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -24,10 +26,11 @@ public class AttendanceAccessApiController extends AttendanceApiControllerSuppor
 
     public AttendanceAccessApiController(
         SessionAuthService sessionAuthService,
+        SessionCsrfService sessionCsrfService,
         HrAttendanceService hrAttendanceService,
         HrAccessService hrAccessService
     ) {
-        super(sessionAuthService, hrAttendanceService, hrAccessService);
+        super(sessionAuthService, sessionCsrfService, hrAttendanceService, hrAccessService);
     }
 
     @GetMapping("/access-profiles")
@@ -44,13 +47,21 @@ public class AttendanceAccessApiController extends AttendanceApiControllerSuppor
     }
 
     @PostMapping("/access-profiles")
-    public ResponseEntity<?> createAccessProfile(HttpSession session, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> createAccessProfile(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody Map<String, Object> payload
+    ) {
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
         if (!canAccessControl(currentUser.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -74,6 +85,7 @@ public class AttendanceAccessApiController extends AttendanceApiControllerSuppor
     public ResponseEntity<?> updateAccessProfile(
         HttpSession session,
         @PathVariable long profileId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody Map<String, Object> payload
     ) {
         var currentUser = sessionAuthService.currentUser(session);
@@ -82,6 +94,10 @@ public class AttendanceAccessApiController extends AttendanceApiControllerSuppor
         }
         if (!canAccessControl(currentUser.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -115,13 +131,21 @@ public class AttendanceAccessApiController extends AttendanceApiControllerSuppor
     }
 
     @PostMapping("/access-methods")
-    public ResponseEntity<?> createAccessMethod(HttpSession session, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> createAccessMethod(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody Map<String, Object> payload
+    ) {
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
         if (!canAccessControl(currentUser.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -145,6 +169,7 @@ public class AttendanceAccessApiController extends AttendanceApiControllerSuppor
     public ResponseEntity<?> updateAccessMethod(
         HttpSession session,
         @PathVariable long methodId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody Map<String, Object> payload
     ) {
         var currentUser = sessionAuthService.currentUser(session);
@@ -153,6 +178,10 @@ public class AttendanceAccessApiController extends AttendanceApiControllerSuppor
         }
         if (!canAccessControl(currentUser.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {

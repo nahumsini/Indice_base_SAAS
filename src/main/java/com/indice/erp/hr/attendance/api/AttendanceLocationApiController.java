@@ -1,6 +1,7 @@
 package com.indice.erp.hr.attendance.api;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.hr.HrAccessService;
 import com.indice.erp.hr.attendance.HrAttendanceService;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,10 +27,11 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
 
     public AttendanceLocationApiController(
         SessionAuthService sessionAuthService,
+        SessionCsrfService sessionCsrfService,
         HrAttendanceService hrAttendanceService,
         HrAccessService hrAccessService
     ) {
-        super(sessionAuthService, hrAttendanceService, hrAccessService);
+        super(sessionAuthService, sessionCsrfService, hrAttendanceService, hrAccessService);
     }
 
     @GetMapping("/locations")
@@ -45,13 +48,21 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
     }
 
     @PostMapping("/locations/extract-coordinates")
-    public ResponseEntity<?> extractLocationCoordinates(HttpSession session, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> extractLocationCoordinates(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody Map<String, Object> payload
+    ) {
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
         if (!canAccessControl(currentUser.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -62,13 +73,21 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
     }
 
     @PostMapping("/locations")
-    public ResponseEntity<?> createLocation(HttpSession session, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> createLocation(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody Map<String, Object> payload
+    ) {
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
         if (!canAccessControl(currentUser.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -92,6 +111,7 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
     public ResponseEntity<?> updateLocation(
         HttpSession session,
         @PathVariable long locationId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody Map<String, Object> payload
     ) {
         var currentUser = sessionAuthService.currentUser(session);
@@ -100,6 +120,10 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
         }
         if (!canAccessControl(currentUser.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -120,13 +144,21 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
     }
 
     @DeleteMapping("/locations/{locationId}")
-    public ResponseEntity<?> deleteLocation(HttpSession session, @PathVariable long locationId) {
+    public ResponseEntity<?> deleteLocation(
+        HttpSession session,
+        @PathVariable long locationId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
+    ) {
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
         if (!canAccessControl(currentUser.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -143,6 +175,7 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
     public ResponseEntity<?> replaceHrUserAllowedLocations(
         HttpSession session,
         @PathVariable long userCompanyId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody Map<String, Object> payload
     ) {
         var currentUser = sessionAuthService.currentUser(session);
@@ -151,6 +184,10 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
         }
         if (!canAccessControl(currentUser.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -171,13 +208,21 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
     }
 
     @PostMapping("/work-site-assignments/bulk")
-    public ResponseEntity<?> bulkAssignActiveWorkSite(HttpSession session, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> bulkAssignActiveWorkSite(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody Map<String, Object> payload
+    ) {
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
         if (!canAccessControl(currentUser.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -197,13 +242,21 @@ public class AttendanceLocationApiController extends AttendanceApiControllerSupp
     }
 
     @PostMapping("/work-assignments/clear")
-    public ResponseEntity<?> clearHrUserWorkAssignments(HttpSession session, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> clearHrUserWorkAssignments(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody Map<String, Object> payload
+    ) {
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
         if (!canAccessControl(currentUser.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {

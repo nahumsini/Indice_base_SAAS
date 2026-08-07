@@ -1,6 +1,7 @@
 package com.indice.erp.hr.attendance.api;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.hr.HrAccessService;
 import com.indice.erp.hr.attendance.HrAttendanceService;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -22,10 +24,11 @@ public class AttendanceDailyRecordApiController extends AttendanceApiControllerS
 
     public AttendanceDailyRecordApiController(
         SessionAuthService sessionAuthService,
+        SessionCsrfService sessionCsrfService,
         HrAttendanceService hrAttendanceService,
         HrAccessService hrAccessService
     ) {
-        super(sessionAuthService, hrAttendanceService, hrAccessService);
+        super(sessionAuthService, sessionCsrfService, hrAttendanceService, hrAccessService);
     }
 
     @PutMapping("/daily-records/{userCompanyId}/{date}")
@@ -33,6 +36,7 @@ public class AttendanceDailyRecordApiController extends AttendanceApiControllerS
         HttpSession session,
         @PathVariable long userCompanyId,
         @PathVariable String date,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody Map<String, Object> payload
     ) {
         var currentUser = sessionAuthService.currentUser(session);
@@ -41,6 +45,10 @@ public class AttendanceDailyRecordApiController extends AttendanceApiControllerS
         }
         if (!canAccessControl(currentUser.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -66,6 +74,7 @@ public class AttendanceDailyRecordApiController extends AttendanceApiControllerS
     public ResponseEntity<?> bulkUpdateDailyRecords(
         HttpSession session,
         @PathVariable long userCompanyId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody Map<String, Object> payload
     ) {
         var currentUser = sessionAuthService.currentUser(session);
@@ -74,6 +83,10 @@ public class AttendanceDailyRecordApiController extends AttendanceApiControllerS
         }
         if (!canAccessControl(currentUser.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -96,6 +109,7 @@ public class AttendanceDailyRecordApiController extends AttendanceApiControllerS
     @PutMapping("/daily-records/rest-plan")
     public ResponseEntity<?> bulkAssignRestDays(
         HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody Map<String, Object> payload
     ) {
         var currentUser = sessionAuthService.currentUser(session);
@@ -104,6 +118,10 @@ public class AttendanceDailyRecordApiController extends AttendanceApiControllerS
         }
         if (!canAccessControl(currentUser.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -127,6 +145,7 @@ public class AttendanceDailyRecordApiController extends AttendanceApiControllerS
         HttpSession session,
         @PathVariable long userCompanyId,
         @PathVariable String date,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody Map<String, Object> payload
     ) {
         var currentUser = sessionAuthService.currentUser(session);
@@ -135,6 +154,10 @@ public class AttendanceDailyRecordApiController extends AttendanceApiControllerS
         }
         if (!canAccessControl(currentUser.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -160,6 +183,7 @@ public class AttendanceDailyRecordApiController extends AttendanceApiControllerS
     public ResponseEntity<?> updateMyDailyRecord(
         HttpSession session,
         @PathVariable String date,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody Map<String, Object> payload
     ) {
         var currentUser = sessionAuthService.currentUser(session);
@@ -168,6 +192,10 @@ public class AttendanceDailyRecordApiController extends AttendanceApiControllerS
         }
         if (!canWriteSelfAttendance(currentUser.get())) {
             return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {

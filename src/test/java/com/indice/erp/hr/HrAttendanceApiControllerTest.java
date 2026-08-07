@@ -2,6 +2,7 @@ package com.indice.erp.hr;
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.face.HrFaceService;
 import com.indice.erp.hr.attendance.api.AttendanceFaceVerificationApiController;
 import com.indice.erp.hr.HrAccessService.HrTab;
@@ -27,12 +28,15 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -58,6 +62,9 @@ class HrAttendanceApiControllerTest {
 
     @MockBean
     private SessionAuthService sessionAuthService;
+
+    @MockBean
+    private SessionCsrfService sessionCsrfService;
 
     @MockBean
     private HrAttendanceService hrAttendanceService;
@@ -179,6 +186,22 @@ class HrAttendanceApiControllerTest {
         mockMvc.perform(get("/api/v1/hr/attendance/me/calendar").param("month", "2026-04"))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.message").value("Forbidden"));
+    }
+
+    @Test
+    void writeEndpointsRejectMissingCsrfBeforeCallingServices() throws Exception {
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(new AuthSessionUser(1L, 1L, "Usuario Demo", "admin")));
+        willThrow(new IllegalArgumentException("Invalid CSRF token."))
+            .given(sessionCsrfService)
+            .requireCsrf(any(), nullable(String.class));
+
+        for (var request : attendanceWriteRequests()) {
+            mockMvc.perform(request)
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Invalid CSRF token."));
+        }
+
+        verifyNoInteractions(hrAttendanceService, hrFaceService, publicKioskGateway);
     }
 
     @Test
@@ -703,5 +726,73 @@ class HrAttendanceApiControllerTest {
         )
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.message").value("Forbidden"));
+    }
+
+    private List<MockHttpServletRequestBuilder> attendanceWriteRequests() {
+        return List.of(
+            post("/api/v1/hr/attendance/locations/extract-coordinates")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            post("/api/v1/hr/attendance/locations")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            put("/api/v1/hr/attendance/locations/9")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            post("/api/v1/hr/attendance/schedule-templates")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            put("/api/v1/hr/attendance/schedule-templates/3")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            post("/api/v1/hr/attendance/schedule-assignments/bulk")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            post("/api/v1/hr/attendance/kiosk-devices")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            post("/api/v1/hr/attendance/kiosk-devices/4/rotate-public-access-token"),
+            post("/api/v1/hr/attendance/access-profiles")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            post("/api/v1/hr/attendance/access-methods")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            post("/api/v1/hr/attendance/media/presign-upload")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            post("/api/v1/hr/attendance/me/media/presign-upload")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            post("/api/v1/hr/attendance/kiosk-events")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            post("/api/v1/hr/attendance/me/kiosk-events")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            put("/api/v1/hr/attendance/daily-records/12/2026-04-07")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            put("/api/v1/hr/attendance/daily-records/12/bulk")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            put("/api/v1/hr/attendance/daily-records/rest-plan")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            post("/api/v1/hr/attendance/daily-records/12/2026-04-07/manual-events")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            put("/api/v1/hr/attendance/me/daily-records/2026-04-07")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            post("/api/v1/hr/attendance/face-verification-sessions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            post("/api/v1/hr/attendance/me/face-verification-sessions"),
+            post("/api/v1/hr/attendance/face-verification-sessions/44/captures/presign-upload")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            post("/api/v1/hr/attendance/face-verification-sessions/44/complete")
+        );
     }
 }
