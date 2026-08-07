@@ -11,6 +11,9 @@ export const esMX: QuotesTranslations = {
     actions: 'Acciones',
     unassigned: 'Sin asignar',
     optional: 'Opcional',
+    back: 'Atrás',
+    continue: 'Continuar',
+    stepLabel: (current: number, total: number) => `Paso ${current} de ${total}`,
   },
   header: {
     title: 'Cotizaciones',

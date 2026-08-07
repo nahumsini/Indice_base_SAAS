@@ -7,6 +7,9 @@ import type { SaleRecord } from '../../Sales/Sales/types/salesTypes';
 import { PointOfSaleTablePagination } from '../shared/components/PointOfSaleTablePagination';
 import { PointOfSaleTitleBar } from '../shared/components/PointOfSaleTitleBar';
 import { useLearningModeHeaderActions } from '../../../learningMode';
+import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
+import { useKpiMonetaryAggregates } from '../../shared/kpiMonetaryApi';
+import { formatBusinessCurrencyAmount } from '../../shared/businessCurrency';
 
 type FiscalStatusFilter = 'all' | 'pending' | 'ready' | 'issued';
 type PeriodFilter = 'today' | 'this_month' | 'all';
@@ -64,6 +67,7 @@ export default function Facturacion() {
   const learningModeActive = useLearningModeHeaderActions()?.active ?? false;
   const navigate = useNavigate();
   const { salesRecords } = useSalesCrm();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
   const [search, setSearch] = useState('');
   const [period, setPeriod] = useState<PeriodFilter>('today');
   const [status, setStatus] = useState<FiscalStatusFilter>('all');
@@ -90,18 +94,16 @@ export default function Facturacion() {
   });
 
   const kpis = useMemo(() => ({
-    total: filteredSales.reduce((sum, sale) => sum + sale.totalAmount, 0),
-    tax: filteredSales.reduce((sum, sale) => sum + sale.taxTotal, 0),
     tickets: filteredSales.length,
     pending: filteredSales.filter((sale) => getFiscalStatus(sale) === 'pending').length,
   }), [filteredSales]);
-
-  const currency = filteredSales[0]?.currency ?? posSales[0]?.currency ?? 'MXN';
-  const formatCurrency = (amount: number) => new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  }).format(amount);
+  const saleIds = useMemo(() => filteredSales.map((sale) => sale.backendId).filter((id): id is number => Boolean(id)), [filteredSales]);
+  const { data: money } = useKpiMonetaryAggregates(useMemo(() => [
+    { key: 'total', metric: 'SALES_TOTAL' as const, preferredCurrency, ids: saleIds },
+    { key: 'tax', metric: 'SALES_TAX' as const, preferredCurrency, ids: saleIds },
+  ], [preferredCurrency, saleIds]));
+  const formatPreferred = (amount: number) => formatBusinessCurrencyAmount(amount, preferredCurrency, { maximumFractionDigits: 0 });
+  const formatNative = (amount: number, currency: string) => formatBusinessCurrencyAmount(amount, currency, { maximumFractionDigits: 0 });
 
   const openCreditSale = (sale: SaleRecord) => {
     const candidateSaleId = sale.backendId ? `sales:${sale.backendId}` : sale.id;
@@ -121,9 +123,9 @@ export default function Facturacion() {
       {!learningModeActive ? (
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Kpi icon={Wallet} label="Venta filtrada" value={formatCurrency(kpis.total)} />
+            <Kpi icon={Wallet} label={`Venta filtrada · ${preferredCurrency}`} value={formatPreferred(money.total?.preferredTotal ?? 0)} />
             <Kpi icon={ReceiptText} label="Tickets" value={String(kpis.tickets)} tone="blue" />
-            <Kpi icon={FileText} label="Impuesto" value={formatCurrency(kpis.tax)} tone="green" />
+            <Kpi icon={FileText} label={`Impuesto · ${preferredCurrency}`} value={formatPreferred(money.tax?.preferredTotal ?? 0)} tone="green" />
             <Kpi icon={AlertTriangle} label="Pendientes" value={String(kpis.pending)} tone={kpis.pending > 0 ? 'orange' : 'green'} />
           </div>
           <div className="rounded-lg border border-[#F4C84A]/35 bg-[#F4C84A]/10 px-4 py-3 text-sm font-medium text-[#7C5604] dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/10 dark:text-[#FAD76A]">
@@ -183,9 +185,9 @@ export default function Facturacion() {
                     <td className="px-5 py-4 font-medium text-slate-700 dark:text-slate-200">{sale.customerName}</td>
                     <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{formatDate(sale.saleDate)}</td>
                     <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{sale.paymentMethod}</td>
-                    <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{formatCurrency(sale.subtotal)}</td>
-                    <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{formatCurrency(sale.taxTotal)}</td>
-                    <td className="px-5 py-4 font-medium text-slate-950 dark:text-white">{formatCurrency(sale.totalAmount)}</td>
+                    <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{formatNative(sale.subtotal, sale.currency)}</td>
+                    <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{formatNative(sale.taxTotal, sale.currency)}</td>
+                    <td className="px-5 py-4 font-medium text-slate-950 dark:text-white">{formatNative(sale.totalAmount, sale.currency)}</td>
                     <td className="px-5 py-4">
                       <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${fiscalStatusClasses[fiscalStatus]}`}>
                         {fiscalStatusLabels[fiscalStatus]}

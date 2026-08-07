@@ -34,6 +34,8 @@ const Prospectos = lazy(() => import('./Prospectos')) as SalesTabLazyComponent;
 const Contactos = lazy(() => import('./Contactos')) as SalesTabLazyComponent;
 const Cotizacion = lazy(() => import('./Cotizacion')) as SalesTabLazyComponent;
 const Sales = lazy(() => import('./Sales/Sales')) as SalesTabLazyComponent;
+const SalesCommissions = lazy(() => import('./SalesCommissions')) as SalesTabLazyComponent;
+const SalesPaymentAccounts = lazy(() => import('./SalesPaymentAccounts')) as SalesTabLazyComponent;
 const Contrato = lazy(() => import('./Contrato')) as SalesTabLazyComponent;
 const KPIs = lazy(() => import('./KPIs')) as SalesTabLazyComponent;
 
@@ -42,6 +44,8 @@ const salesTabComponents: Partial<Record<SalesTabId, SalesTabLazyComponent>> = {
   contacts: Contactos,
   quotes: Cotizacion,
   sales: Sales,
+  commissions: SalesCommissions,
+  'payment-accounts': SalesPaymentAccounts,
   contracts: Contrato,
   kpis: KPIs,
 };
@@ -57,6 +61,10 @@ const legacySalesTabAliases: Partial<Record<string, SalesTabId>> = {
   cotizacion: 'quotes',
   ventas: 'sales',
   sales: 'sales',
+  comisiones: 'commissions',
+  commissions: 'commissions',
+  'cuentas-de-pago': 'payment-accounts',
+  'payment-accounts': 'payment-accounts',
   productos: 'products',
   proveedores: 'providers',
   providers: 'providers',
@@ -116,7 +124,7 @@ function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) 
         backLabel={copy.back}
         contentRef={moduleContentRef}
         currentModule="sales"
-        guide={learningModeActive ? (
+        guide={learningModeActive && activeTab !== 'payment-accounts' && activeTab !== 'commissions' ? (
           <OperationalModuleGuide
             activeTabId={activeTab}
             copy={guidanceCopy}

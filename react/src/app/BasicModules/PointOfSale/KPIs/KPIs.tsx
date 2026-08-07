@@ -11,7 +11,8 @@ import {
   TrendingUp,
   Wallet,
 } from 'lucide-react';
-import { useCurrencyAwareMoney } from '../../shared/useCurrencyAwareMoney';
+import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
+import { useKpiMonetaryAggregate, useKpiMonetaryAggregates, type KpiMonetaryBatchQuery } from '../../shared/kpiMonetaryApi';
 import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
 import { printStandardKpiReport } from '../../shared/print/standardKpiPrintReport';
 import { useLanguage } from '../../../shared/context';
@@ -32,8 +33,8 @@ import {
 const percent = (value: number) => `${value.toFixed(1)}%`;
 
 export default function KPIs() {
-  const { convertToPreferred, formatPreferred, preferredCurrency, rateContext, summarize } = useCurrencyAwareMoney();
   const { currentLanguage } = useLanguage();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
   const { identity: companyPrintIdentity, isReady: isCompanyPrintIdentityReady } = useCompanyPrintIdentity();
   const [period, setPeriod] = useState<PosKpiPeriod>('today');
   const [page, setPage] = useState(1);
@@ -49,16 +50,56 @@ export default function KPIs() {
     refresh,
   } = usePosKpiCashClosings(period);
 
-  const analytics = useMemo(() => buildPosKpiAnalytics({
+  const closingIds = rows.map((row) => row.id);
+  const revenueAggregate = useKpiMonetaryAggregate({ metric: 'POS_CLOSING_TOTAL', preferredCurrency, ids: closingIds });
+  const cashAggregate = useKpiMonetaryAggregate({ metric: 'POS_CLOSING_CASH_SALES', preferredCurrency, ids: closingIds });
+  const expectedAggregate = useKpiMonetaryAggregate({ metric: 'POS_CLOSING_EXPECTED_CASH', preferredCurrency, ids: closingIds });
+  const countedAggregate = useKpiMonetaryAggregate({ metric: 'POS_CLOSING_COUNTED_CASH', preferredCurrency, ids: closingIds });
+  const differenceAggregate = useKpiMonetaryAggregate({ metric: 'POS_CLOSING_DIFFERENCE', preferredCurrency, ids: closingIds });
+  const groupedQueries = useMemo<KpiMonetaryBatchQuery[]>(() => {
+    const groups = new Map<string, typeof rows>();
+    rows.forEach((row) => {
+      const keys = [`warehouse-${row.warehouseId}`, `register-${row.cashRegisterId}`, `hour-${new Date(row.closedAt).getHours()}`];
+      keys.forEach((key) => groups.set(key, [...(groups.get(key) ?? []), row]));
+    });
+    return Array.from(groups.entries()).slice(0, 100).map(([key, groupRows]) => ({
+      key, metric: 'POS_CLOSING_TOTAL' as const, preferredCurrency, ids: groupRows.map((row) => row.id),
+    }));
+  }, [preferredCurrency, rows]);
+  const groupedAggregates = useKpiMonetaryAggregates(groupedQueries);
+  const baseAnalytics = useMemo(() => buildPosKpiAnalytics({
     rows,
     details,
     period,
     totalCount,
     preferredCurrency,
-    convertAmount: convertToPreferred,
-  }), [convertToPreferred, details, period, preferredCurrency, rows, totalCount]);
+  }), [details, period, preferredCurrency, rows, totalCount]);
+  const analytics = useMemo<PosKpiAnalytics>(() => {
+    const revenue = revenueAggregate.data?.preferredTotal ?? 0;
+    const totalCashSales = cashAggregate.data?.preferredTotal ?? 0;
+    const netDifference = differenceAggregate.data?.preferredTotal ?? 0;
+    const tickets = baseAnalytics.tickets;
+    const registerNames = new Map(details.map((detail) => [String(detail.cashRegisterId), detail.cashRegister?.name || detail.cashRegister?.code || `Caja ${detail.cashRegisterId}`]));
+    const warehouses = Array.from(new Set(rows.map((row) => row.warehouseId))).map((id) => ({ name: `Almacen ${id}`, value: groupedAggregates.data[`warehouse-${id}`]?.preferredTotal ?? 0, detail: 'venta cerrada' }));
+    const registers = Array.from(new Set(rows.map((row) => row.cashRegisterId))).map((id) => ({ name: registerNames.get(String(id)) ?? `Caja ${id}`, value: groupedAggregates.data[`register-${id}`]?.preferredTotal ?? 0, detail: 'venta cerrada' }));
+    const hours = Array.from(new Set(rows.map((row) => new Date(row.closedAt).getHours()))).sort((a, b) => a - b).map((hour) => ({ hour: String(hour), sales: groupedAggregates.data[`hour-${hour}`]?.preferredTotal ?? 0 }));
+    return {
+      ...baseAnalytics,
+      revenue,
+      totalCashSales,
+      averageTicket: tickets > 0 ? revenue / tickets : 0,
+      netDifference,
+      overShortRate: totalCashSales > 0 ? Math.abs(netDifference / totalCashSales) * 100 : 0,
+      expectedCash: expectedAggregate.data?.preferredTotal ?? 0,
+      countedCash: countedAggregate.data?.preferredTotal ?? 0,
+      paymentMix: [],
+      hourlySales: hours,
+      topCashRegisters: registers.sort((a, b) => b.value - a.value).slice(0, 5),
+      topWarehouses: warehouses.sort((a, b) => b.value - a.value).slice(0, 5),
+    };
+  }, [baseAnalytics, cashAggregate.data, countedAggregate.data, details, differenceAggregate.data, expectedAggregate.data, groupedAggregates.data, revenueAggregate.data, rows]);
 
-  const formatCurrency = (amount: number) => formatPreferred(amount, preferredCurrency);
+  const formatCurrency = (amount: number, currency = preferredCurrency) => new Intl.NumberFormat(currentLanguage.code, { style: 'currency', currency }).format(amount);
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const paginatedRows = rows.slice((page - 1) * pageSize, page * pageSize);
   const maxHourlySales = Math.max(...analytics.hourlySales.map((entry) => entry.sales), 0);
@@ -67,11 +108,8 @@ export default function KPIs() {
   const paymentBreakdownNote = detailError
     || (detailFetchLimited
       ? 'El desglose por metodo muestra efectivo del listado; usa un periodo mas corto para cargar todos los metodos.'
-      : '');
-  const nativeSummary = summarize(rows.map((row) => ({
-    amount: Number(row.totalSalesAmount ?? 0),
-    currency: row.currencyCode ?? preferredCurrency,
-  })));
+      : 'El desglose monetario por método se mostrará cuando el backend entregue la agregación autoritativa por forma de pago.');
+  const nativeBreakdown = revenueAggregate.data?.nativeTotals.map(({ amount, currency }) => formatCurrency(amount, currency)).join(' / ') ?? '—';
 
   useEffect(() => {
     setPage((current) => Math.min(current, totalPages));
@@ -209,16 +247,14 @@ export default function KPIs() {
           headers: ['Cierre', 'Fecha', 'Caja', 'Almacén', 'Tickets', 'Venta', 'Diferencia'],
           rows: rows.map((row) => {
             const currency = row.currencyCode ?? preferredCurrency;
-            const sales = convertToPreferred(Number(row.totalSalesAmount ?? 0), currency);
-            const difference = convertToPreferred(Number(row.overShortAmount ?? 0), currency);
             return [
               String(row.id),
               dateFormatter.format(new Date(row.closedAt)),
               registerNameById.get(String(row.cashRegisterId)) ?? `Caja ${row.cashRegisterId}`,
               `Almacén ${row.warehouseId}`,
               String(row.ticketsCount),
-              formatCurrency(sales),
-              `${difference > 0 ? '+' : ''}${formatCurrency(difference)}`,
+              formatCurrency(Number(row.totalSalesAmount ?? 0), currency),
+              `${Number(row.overShortAmount ?? 0) > 0 ? '+' : ''}${formatCurrency(Number(row.overShortAmount ?? 0), currency)}`,
             ];
           }),
           title: 'Detalle de cierres de caja',
@@ -269,10 +305,10 @@ export default function KPIs() {
 
       <PosKpiContextStrip
         closings={analytics.closings}
-        nativeBreakdown={nativeSummary.nativeBreakdown}
+        nativeBreakdown={nativeBreakdown}
         preferredCurrency={preferredCurrency}
-        rateDate={rateContext.effectiveDate}
-        rateLabel={rateContext.label}
+        rateDate={revenueAggregate.data?.exchangeRate.effectiveDate ?? ''}
+        rateLabel={revenueAggregate.data?.exchangeRate.mode === 'configured' ? 'Tasa configurada' : 'Tasa diaria'}
         totalCount={analytics.totalCount}
       />
 

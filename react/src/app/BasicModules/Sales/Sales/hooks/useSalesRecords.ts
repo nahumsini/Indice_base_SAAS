@@ -5,8 +5,6 @@ import { getCustomerLifecycleSignals } from '../../utils/customerLifecycle';
 import { validateSaleDraftForBackendReadiness } from '../../services/salesWorkflowBridge';
 import { useSalesCrm } from '../../salesCrmContext';
 import { defaultSalesCurrency } from '../../utils/salesCurrency';
-import type { BusinessExchangeRatesPerUsd } from '../../../shared/businessCurrency';
-import { calculateCommissionAmount } from '../utils/salesFormatters';
 import { calculateSalesMetrics } from '../utils/salesMetrics';
 import { defaultVisibleSalesColumns } from '../utils/salesStatuses';
 import { salesApi } from '../../salesApi';
@@ -158,7 +156,6 @@ function uniqueBusinesses(records: SaleRecord[]) {
 
 export function useSalesRecords(
   preferredCurrency = defaultSalesCurrency,
-  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
 ) {
   const [creationWarning, setCreationWarning] = useState<'paymentEvidenceUploadFailed' | null>(null);
   const {
@@ -188,8 +185,8 @@ export function useSalesRecords(
   );
 
   const metrics = useMemo(
-    () => calculateSalesMetrics(filteredRecords, lifecycleByRecordId, preferredCurrency, exchangeRatesPerUsd),
-    [exchangeRatesPerUsd, filteredRecords, lifecycleByRecordId, preferredCurrency],
+    () => calculateSalesMetrics(filteredRecords, lifecycleByRecordId, preferredCurrency),
+    [filteredRecords, lifecycleByRecordId, preferredCurrency],
   );
   const sellers = useMemo(() => uniqueOptions(records.map((record) => record.sellerName)), [records]);
   const customers = useMemo(() => uniqueOptions(records.map((record) => record.customerName)), [records]);
@@ -228,7 +225,7 @@ export function useSalesRecords(
       taxTotal: Number(draft.taxTotal) || 0,
       marginTotal: Number(draft.marginTotal) || saleLines.reduce((sum, line) => sum + line.marginAmount, 0),
       commissionRate,
-      commissionAmount: draft.commissionAmount ?? calculateCommissionAmount(totalAmount, commissionRate),
+      commissionAmount: draft.commissionAmount ?? 0,
       inventoryMovementReference: draft.inventoryMovementReference || saleLines[0]?.inventoryMovementDraftId || '',
       saleLines,
     };

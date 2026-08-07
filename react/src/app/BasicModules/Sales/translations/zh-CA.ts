@@ -13,11 +13,17 @@ export const zhCA = {
     contactos: '联系人',
     cotizacion: '报价',
     sales: '销售记录',
+    commissions: '佣金',
+    paymentAccounts: '收款账户',
     productos: '产品',
     proveedores: '供应商',
     inventario: '库存',
     contrato: '合同',
     postventa: '售后',
     kpis: '关键指标',
+  },
+  paymentAccountsWorkspace: {
+    title: '销售收款账户',
+    subtitle: '定义销售款项的接收、识别和对账账户。',
   },
 } as const;

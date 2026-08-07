@@ -13,11 +13,17 @@ export const frCA = {
     contactos: 'Contacts',
     cotizacion: 'Devis',
     sales: 'Ventes',
+    commissions: 'Commissions',
+    paymentAccounts: 'Comptes de paiement',
     productos: 'Produits',
     proveedores: 'Fournisseurs',
     inventario: 'Inventaire',
     contrato: 'Contrats',
     postventa: 'Service après-vente',
     kpis: 'ICP',
+  },
+  paymentAccountsWorkspace: {
+    title: 'Comptes de paiement des ventes',
+    subtitle: 'Définissez où les paiements des ventes sont reçus, identifiés et rapprochés.',
   },
 } as const;

@@ -7,6 +7,12 @@ import type { InventoryOperationalMovement } from '../../types/inventoryTypes';
 import type { InventoryTranslations } from '../../translations';
 import { formatInventoryCurrency, formatInventoryNumber } from '../../utils/inventoryFormatters';
 import { printDocumentHtml } from '../../../../shared/print/documentHtmlPrintEngine';
+import { InventoryModalActionToolbar } from '../InventoryModalPrimitives';
+import {
+  documentPrintAttribution,
+  formatDocumentPrintDateTime,
+  getDocumentPrintLabels,
+} from '../../../../shared/print/documentPrintContract';
 
 const printActionClassNames = getSalesModalActionClassNames('coral');
 
@@ -29,6 +35,7 @@ export function MovementPrintModal({
   const lines = movementLines?.length ? movementLines : [movement];
   const movementValue = lines.reduce((total, line) => total + Math.abs(line.quantity) * (line.unitCost ?? 0), 0);
   const isControlAct = movement.movementType === 'adjustment' || movement.movementType === 'transfer';
+  const printLabels = getDocumentPrintLabels(locale);
   const documentTitle = isControlAct
     ? `${t.operational.movementTypes[movement.movementType]} · ${t.operational.modals.movementDocumentTitle}`
     : t.operational.modals.movementDocumentTitle;
@@ -66,13 +73,13 @@ export function MovementPrintModal({
         </Button>
       )}
       footerSummary={`${movement.movementNumber ?? movement.id} · ${t.operational.movementTypes[movement.movementType]}`}
-      footer={(
-        <Button className={printActionClassNames.primary} onClick={handlePrint}>
-          <Printer className="h-4 w-4" />
-          {t.operational.modals.printDocument}
-        </Button>
-      )}
+      footer={undefined}
     >
+          <div className="mx-auto mb-4 flex w-full max-w-[820px] justify-end">
+            <InventoryModalActionToolbar actions={[
+              { icon: <Printer className="h-4 w-4" />, label: t.operational.modals.printDocument, onClick: handlePrint, tone: 'primary' },
+            ]} />
+          </div>
           <article ref={documentRef} className="mx-auto min-h-[760px] w-full max-w-[820px] bg-white px-12 py-10 shadow-xl ring-1 ring-slate-200">
             <header className="border-b border-slate-200 pb-7">
               <div className="flex items-start justify-between gap-6">
@@ -151,6 +158,9 @@ export function MovementPrintModal({
                 <div><div className="border-t border-slate-400 pt-2">Entrega / origen</div></div>
                 <div><div className="border-t border-slate-400 pt-2">Recibe / autoriza</div></div>
               </div>
+              <p className="mt-8 border-t border-slate-200 pt-3 text-[10px] text-slate-500">
+                {documentPrintAttribution} · {printLabels.updated}: {formatDocumentPrintDateTime(new Date(), locale)}
+              </p>
             </footer>
           </article>
     </SalesModalFrame>

@@ -211,6 +211,7 @@ export const zhCA = {
     commission: {
       pending: '待处理',
       calculated: '已计算',
+      cut: '已发送至人力资源',
       paid: '已支付',
     },
     movement: {

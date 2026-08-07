@@ -80,7 +80,7 @@ export function PettyCashKioskAttachmentsModal({
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-[#147514] dark:bg-emerald-500/10 dark:text-emerald-300"><FileText className="h-5 w-5" /></span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{attachment.original_filename}</p>
-                    <p className="mt-0.5 truncate text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                    <p className="mt-0.5 truncate text-xs font-medium text-slate-500 dark:text-slate-400">
                       {formatFileSize(attachment.size_bytes)}
                       {attachment.uploaded_by_name ? ` · ${uploadedByLabel}: ${attachment.uploaded_by_name}` : ''}
                       {attachment.created_at ? ` · ${formatCreatedAt(attachment.created_at, locale)}` : ''}

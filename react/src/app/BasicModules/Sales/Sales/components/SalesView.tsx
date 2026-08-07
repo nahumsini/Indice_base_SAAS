@@ -62,6 +62,7 @@ export function SalesView({
 
       {!learningModeActive ? <SalesKpiStrip
         metrics={metrics}
+        records={filteredRecords}
         visibleCount={filteredRecords.length}
         totalCount={records.length}
         t={t}

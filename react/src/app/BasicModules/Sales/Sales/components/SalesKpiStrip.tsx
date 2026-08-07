@@ -17,24 +17,42 @@ import { OperationalKpiArea } from '../../../shared/operational';
 import type { SalesRecordsTranslations } from '../translations';
 import type { SalesMetrics } from '../types/salesTypes';
 import { formatSalesNumber } from '../utils/salesFormatters';
+import type { SaleRecord } from '../types/salesTypes';
+import { useKpiMonetaryAggregate } from '../../../shared/kpiMonetaryApi';
+import { formatBusinessCurrencyAmount } from '../../../shared/businessCurrency';
 
 export function SalesKpiStrip({
   metrics,
+  records,
   totalCount,
   visibleCount,
   t,
 }: {
   metrics: SalesMetrics;
+  records: SaleRecord[];
   totalCount: number;
   visibleCount: number;
   t: SalesRecordsTranslations;
 }) {
+  const backendIds = records.map((record) => record.backendId).filter((id): id is number => Boolean(id));
+  const { data: revenue, error: revenueError } = useKpiMonetaryAggregate({
+    metric: 'SALES_TOTAL',
+    preferredCurrency: metrics.preferredCurrency,
+    ids: backendIds,
+  });
+  const preferredRevenueLabel = formatBusinessCurrencyAmount(
+    revenue?.preferredTotal ?? 0,
+    metrics.preferredCurrency,
+  );
+  const nativeRevenueLabel = revenue?.nativeTotals.map(({ amount, currency }) => (
+    formatBusinessCurrencyAmount(amount, currency)
+  )).join(' / ') ?? '';
   const metricItems: OperationalKpiMetric[] = [
     {
       id: 'visibleRevenue',
       icon: <CircleDollarSign className="h-4 w-4" />,
       label: t.kpiEngine.labels.visibleRevenue,
-      value: metrics.totalSalesAmountLabel,
+      value: revenueError ? 'No disponible' : preferredRevenueLabel,
       iconClassName: 'text-[#B63B32]',
       valueClassName: 'text-[#FF6B5E]',
     },
@@ -114,11 +132,11 @@ export function SalesKpiStrip({
     });
   }
 
-  if (metrics.totalSalesNativeLabel && metrics.totalSalesNativeLabel !== metrics.preferredRevenueLabel) {
+  if (nativeRevenueLabel && nativeRevenueLabel !== preferredRevenueLabel) {
     alertChips.push({
       id: 'nativeCurrencyTotal',
       icon: <CircleDollarSign className="h-3.5 w-3.5" />,
-      label: t.kpiEngine.alerts.nativeCurrencyTotal(metrics.totalSalesNativeLabel),
+      label: t.kpiEngine.alerts.nativeCurrencyTotal(nativeRevenueLabel),
       tone: 'info',
     });
   }
@@ -165,7 +183,7 @@ export function SalesKpiStrip({
         pendingFinance: metrics.pendingFinanceValidation,
         pendingInventory: metrics.pendingInventoryMovement,
         preferredCurrency: metrics.preferredCurrency,
-        nativeTotal: metrics.totalSalesNativeLabel,
+        nativeTotal: nativeRevenueLabel,
         exchangeRateDate: metrics.exchangeRateDateLabel,
         progress: metrics.deliveryProgress,
         total: totalCount,

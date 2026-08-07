@@ -8,7 +8,8 @@ import {
   Target,
   UsersRound,
 } from 'lucide-react';
-import { useCurrencyAwareMoney } from '../../shared/useCurrencyAwareMoney';
+import { useKpiMonetaryAggregate, useKpiMonetaryAggregates, type KpiMonetaryBatchQuery } from '../../shared/kpiMonetaryApi';
+import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
 import { printStandardKpiReport } from '../../shared/print/standardKpiPrintReport';
 import { useLanguage } from '../../../shared/context';
@@ -39,7 +40,10 @@ export default function KPIs() {
   const copy = useSalesKpisTranslations();
   const { currentLanguage } = useLanguage();
   const { identity: companyPrintIdentity, isReady: isCompanyPrintIdentityReady } = useCompanyPrintIdentity();
-  const { formatPreferred, preferredCurrency, rateContext, summarize } = useCurrencyAwareMoney();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
+  const formatMoney = (amount: number, currency = preferredCurrency) => new Intl.NumberFormat(currentLanguage.code, {
+    style: 'currency', currency, maximumFractionDigits: 2,
+  }).format(amount);
   const {
     businessFilter,
     businessUnitFilter,
@@ -74,43 +78,61 @@ export default function KPIs() {
   const filteredOpportunities = filteredSources.opportunities;
   const totalPages = Math.max(1, Math.ceil(filteredOpportunities.length / pageSize));
   const paginatedOpportunities = filteredOpportunities.slice((page - 1) * pageSize, page * pageSize);
+  const salesAggregate = useKpiMonetaryAggregate({
+    metric: 'SALES_TOTAL',
+    preferredCurrency,
+    ids: filteredSources.sales.map((sale) => sale.backendId ?? sale.id),
+  });
+  const commissionAggregate = useKpiMonetaryAggregate({
+    metric: 'SALES_COMMISSION',
+    preferredCurrency,
+    ids: filteredSources.sales.map((sale) => sale.backendId ?? sale.id),
+  });
+  const pipelineAggregate = useKpiMonetaryAggregate({
+    metric: 'SALES_OPPORTUNITY_PIPELINE',
+    preferredCurrency,
+    ids: filteredOpportunities.filter((opportunity) => opportunity.status !== 'Closed').map((opportunity) => opportunity.backendId ?? opportunity.id),
+  });
+  const groupedQueries = useMemo<KpiMonetaryBatchQuery[]>(() => {
+    const queries: KpiMonetaryBatchQuery[] = [];
+    sellerRanking.forEach((row, index) => {
+      queries.push({
+        key: `seller-sales-${index}`,
+        metric: 'SALES_TOTAL',
+        preferredCurrency,
+        ids: filteredSources.sales.filter((sale) => sale.sellerName === row.seller).map((sale) => sale.backendId ?? sale.id),
+      });
+      queries.push({
+        key: `seller-pipeline-${index}`,
+        metric: 'SALES_OPPORTUNITY_PIPELINE',
+        preferredCurrency,
+        ids: filteredOpportunities.filter((opportunity) => opportunity.owner === row.seller && opportunity.status !== 'Closed').map((opportunity) => opportunity.backendId ?? opportunity.id),
+      });
+    });
+    const months = Array.from(new Set(filteredSources.sales.map((sale) => sale.saleDate.slice(0, 7)))).sort().slice(-6);
+    months.forEach((month) => queries.push({
+      key: `month-${month}`,
+      metric: 'SALES_TOTAL',
+      preferredCurrency,
+      ids: filteredSources.sales.filter((sale) => sale.saleDate.startsWith(month)).map((sale) => sale.backendId ?? sale.id),
+    }));
+    return queries;
+  }, [filteredOpportunities, filteredSources.sales, preferredCurrency, sellerRanking]);
+  const groupedAggregates = useKpiMonetaryAggregates(groupedQueries);
 
   useEffect(() => {
     setPage((current) => Math.min(current, totalPages));
   }, [setPage, totalPages]);
 
-  const salesSummary = summarize(filteredSources.sales.map((sale) => ({
-    amount: sale.totalAmount,
-    currency: sale.currency,
-  })));
-  const commissionSummary = summarize(filteredSources.sales.map((sale) => ({
-    amount: sale.commissionAmount || 0,
-    currency: sale.currency,
-  })));
-  const pipelineSummary = summarize(filteredOpportunities
-    .filter((opportunity) => opportunity.status !== 'Closed')
-    .map((opportunity) => ({
-      amount: parseSalesKpiMoney(opportunity.estimatedValue),
-      currency: opportunity.currency ?? preferredCurrency,
-    })));
+  const aggregateLabel = (aggregate: typeof salesAggregate) => aggregate.data && !aggregate.loading
+    ? formatMoney(aggregate.data.preferredTotal)
+    : '—';
+  const salesTotal = salesAggregate.data?.preferredTotal ?? 0;
 
-  const sellerMoney = useMemo(() => new Map(sellerRanking.map((row) => {
-    const sellerSales = filteredSources.sales.filter((sale) => sale.sellerName === row.seller);
-    const sellerOpportunities = filteredOpportunities.filter(
-      (opportunity) => opportunity.owner === row.seller && opportunity.status !== 'Closed',
-    );
-
-    return [row.seller, {
-      pipeline: summarize(sellerOpportunities.map((opportunity) => ({
-        amount: parseSalesKpiMoney(opportunity.estimatedValue),
-        currency: opportunity.currency ?? preferredCurrency,
-      }))).preferredTotalLabel,
-      sales: summarize(sellerSales.map((sale) => ({
-        amount: sale.totalAmount,
-        currency: sale.currency,
-      }))).preferredTotalLabel,
-    }];
-  })), [filteredOpportunities, filteredSources.sales, preferredCurrency, sellerRanking, summarize]);
+  const sellerMoney = useMemo(() => new Map(sellerRanking.map((row, index) => [row.seller, {
+    pipeline: groupedAggregates.loading ? '—' : formatMoney(groupedAggregates.data[`seller-pipeline-${index}`]?.preferredTotal ?? 0),
+    sales: groupedAggregates.loading ? '—' : formatMoney(groupedAggregates.data[`seller-sales-${index}`]?.preferredTotal ?? 0),
+  }])), [groupedAggregates.data, groupedAggregates.loading, preferredCurrency, sellerRanking]);
 
   const funnelChart = useMemo(() => [
     { label: copy.cards.activeProspects.label, value: kpis.activeProspects },
@@ -119,19 +141,9 @@ export default function KPIs() {
     { label: copy.sellerTable.columns.closed, value: kpis.totalSales },
   ], [copy, kpis]);
   const salesTrend = useMemo(() => {
-    const monthTotals = new Map<string, Array<{ amount: number; currency: string }>>();
-    filteredSources.sales.forEach((sale) => {
-      const month = sale.saleDate.slice(0, 7);
-      const entries = monthTotals.get(month) ?? [];
-      entries.push({ amount: sale.totalAmount, currency: sale.currency });
-      monthTotals.set(month, entries);
-    });
-
-    return Array.from(monthTotals.entries())
-      .sort(([left], [right]) => left.localeCompare(right))
-      .slice(-6)
-      .map(([label, values]) => ({ label, value: summarize(values).preferredTotal }));
-  }, [filteredSources.sales, summarize]);
+    const months = Array.from(new Set(filteredSources.sales.map((sale) => sale.saleDate.slice(0, 7)))).sort().slice(-6);
+    return months.map((label) => ({ label, value: groupedAggregates.data[`month-${label}`]?.preferredTotal ?? 0 }));
+  }, [filteredSources.sales, groupedAggregates.data]);
   const sellerComparison = useMemo(() => sellerRanking.slice(0, 5).map((row) => ({
     label: row.seller.split(' ')[0] || row.seller,
     quotes: row.quotes,
@@ -144,14 +156,14 @@ export default function KPIs() {
       icon: CircleDollarSign,
       label: copy.cards.salesRevenue.label,
       tone: 'green',
-      value: salesSummary.preferredTotalLabel,
+      value: aggregateLabel(salesAggregate),
     },
     {
       detail: copy.cards.pipeline.detail(kpis.activeProspects),
       icon: Target,
       label: copy.cards.pipeline.label,
       tone: 'coral',
-      value: pipelineSummary.preferredTotalLabel,
+      value: aggregateLabel(pipelineAggregate),
     },
     {
       detail: copy.cards.quoteConversion.detail(kpis.totalQuotes),
@@ -165,7 +177,7 @@ export default function KPIs() {
       icon: BriefcaseBusiness,
       label: copy.cards.averageTicket.label,
       tone: 'blue',
-      value: formatPreferred(kpis.totalSales > 0 ? salesSummary.preferredTotal / kpis.totalSales : 0, preferredCurrency),
+      value: formatMoney(kpis.totalSales > 0 ? salesTotal / kpis.totalSales : 0),
     },
     {
       detail: copy.cards.quotes.detail(kpis.approvedQuotes + kpis.closedWonQuotes),
@@ -186,7 +198,7 @@ export default function KPIs() {
       icon: UsersRound,
       label: copy.cards.commissions.label,
       tone: 'blue',
-      value: commissionSummary.preferredTotalLabel,
+      value: aggregateLabel(commissionAggregate),
     },
     {
       detail: copy.cards.contacts.detail(kpis.activeCustomers),
@@ -195,7 +207,7 @@ export default function KPIs() {
       tone: kpis.activeCustomers > 0 ? 'green' : 'yellow',
       value: String(kpis.totalContacts),
     },
-  ], [commissionSummary.preferredTotalLabel, copy.cards, formatPreferred, kpis, pipelineSummary.preferredTotalLabel, preferredCurrency, salesSummary.preferredTotal, salesSummary.preferredTotalLabel]);
+  ], [commissionAggregate.data, commissionAggregate.loading, copy.cards, kpis, pipelineAggregate.data, pipelineAggregate.loading, preferredCurrency, salesAggregate.data, salesAggregate.loading, salesTotal]);
 
   const totalRecords =
     filteredSources.sales.length +
@@ -221,7 +233,7 @@ export default function KPIs() {
         {
           rows: salesTrend.map((row) => ({
             ...row,
-            valueLabel: formatPreferred(row.value, preferredCurrency),
+            valueLabel: formatMoney(row.value),
           })),
           title: copy.cards.salesRevenue.label,
         },
@@ -314,10 +326,10 @@ export default function KPIs() {
 
       <SalesKpiContextStrip
         copy={copy}
-        nativeBreakdown={salesSummary.nativeBreakdown}
+        nativeBreakdown={salesAggregate.data?.nativeTotals.map(({ amount, currency }) => formatMoney(amount, currency)).join(' / ') ?? '—'}
         preferredCurrency={preferredCurrency}
-        rateDate={rateContext.effectiveDate}
-        rateLabel={rateContext.label}
+        rateDate={salesAggregate.data?.exchangeRate.effectiveDate ?? ''}
+        rateLabel={salesAggregate.data?.exchangeRate.mode === 'configured' ? 'Tasa configurada' : 'Tasa diaria'}
         recordCount={totalRecords}
       />
 
@@ -344,11 +356,9 @@ export default function KPIs() {
 
       <SalesProspectsPerformanceTable
         copy={copy}
-        formatPreferred={formatPreferred}
         items={paginatedOpportunities}
         page={page}
         pageSize={pageSize}
-        preferredCurrency={preferredCurrency}
         totalItems={filteredOpportunities.length}
         onPageChange={setPage}
         onPageSizeChange={setPageSize}

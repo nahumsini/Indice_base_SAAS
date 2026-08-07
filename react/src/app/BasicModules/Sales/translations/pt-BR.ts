@@ -13,11 +13,17 @@ export const ptBR = {
     contactos: 'Contatos',
     cotizacion: 'Cotações',
     sales: 'Vendas',
+    commissions: 'Comissões',
+    paymentAccounts: 'Contas de pagamento',
     productos: 'Produtos',
     proveedores: 'Fornecedores',
     inventario: 'Inventário',
     contrato: 'Contratos',
     postventa: 'Pós-venda',
     kpis: 'KPIs',
+  },
+  paymentAccountsWorkspace: {
+    title: 'Contas de pagamento de vendas',
+    subtitle: 'Defina onde os pagamentos de vendas são recebidos, identificados e conciliados.',
   },
 } as const;

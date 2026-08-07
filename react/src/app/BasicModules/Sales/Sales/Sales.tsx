@@ -3,22 +3,18 @@ import { useNavigate } from 'react-router';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { FailureToast } from '../../../components/FailureToast';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
-import PaymentAccounts from '../../Expenses/PaymentAccounts';
 import { CommissionManagementModal } from './components/CommissionManagementModal';
-import { CommissionRulesModal } from './components/CommissionRulesModal';
-import { CommissionsView } from './components/CommissionsView';
 import { SaleSummaryPreviewModal } from './components/SaleSummaryPreviewModal';
 import { SalesColumnsModal } from './components/SalesColumnsModal';
 import { SalesDetailModal } from './components/SalesDetailModal';
 import { SalesHeader } from './components/SalesHeader';
 import { SalesView } from './components/SalesView';
-import { SalesViewSwitcher } from './components/SalesViewSwitcher';
-import { commissionMockRules } from './data/commissionMockData';
 import { useSalesRecords } from './hooks/useSalesRecords';
 import { useSalesTranslations } from './hooks/useSalesTranslations';
-import type { CommissionRule, CommissionViewMode } from './types/commissions';
+import type { CommissionRule } from './types/commissions';
 import type { SaleRecord } from './types/salesTypes';
 import { calculateCommissionRecords } from './utils/commissionRules';
+import { commissionRulesService } from './services/commissionRulesService';
 import { useSalesCrm } from '../salesCrmContext';
 import { inventoryApi } from '../Inventory/services/inventoryApi';
 import type { InventoryWarehouse } from '../Inventory/types/inventoryTypes';
@@ -66,7 +62,7 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
     updateQuoteStatus,
     updateOpportunity,
   } = useSalesCrm();
-  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
   const {
     records,
     filteredRecords,
@@ -84,14 +80,13 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
     updateSaleRecord,
     creationWarning,
     clearCreationWarning,
-  } = useSalesRecords(preferredCurrency, exchangeRatesPerUsd);
+  } = useSalesRecords(preferredCurrency);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isSummaryPreviewOpen, setIsSummaryPreviewOpen] = useState(false);
   const [isCommissionModalOpen, setIsCommissionModalOpen] = useState(false);
-  const [isCommissionRulesOpen, setIsCommissionRulesOpen] = useState(false);
-  const [activeView, setActiveView] = useState<CommissionViewMode>('sales');
-  const [commissionRules, setCommissionRules] = useState<CommissionRule[]>(commissionMockRules);
+  const [commissionRules, setCommissionRules] = useState<CommissionRule[]>([]);
+  const [commissionRulesError, setCommissionRulesError] = useState('');
   const [selectedRecord, setSelectedRecord] = useState<SaleRecord | null>(null);
   const [summaryPreviewRecord, setSummaryPreviewRecord] = useState<SaleRecord | null>(null);
   const [commissionRecord, setCommissionRecord] = useState<SaleRecord | null>(null);
@@ -99,6 +94,16 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
   const [warehouses, setWarehouses] = useState<InventoryWarehouse[]>([]);
   const [currentSeller, setCurrentSeller] = useState<SalesCurrentSeller>();
   const commissionRecords = useMemo(() => calculateCommissionRecords(records, commissionRules), [commissionRules, records]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void commissionRulesService.list()
+      .then((loadedRules) => {
+        if (!cancelled) setCommissionRules(loadedRules);
+      })
+      .catch(() => setCommissionRulesError('No se pudieron cargar las reglas de comisión desde el backend.'));
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -190,19 +195,14 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
 
   return (
     <section className="space-y-5">
-      {activeView !== 'payment-accounts' ? (
-        <SalesHeader
-          t={t}
-          onOpenColumns={() => setIsColumnsModalOpen(true)}
-          onOpenCommissionRules={() => setIsCommissionRulesOpen(true)}
-          onCreateSale={handleCreateSale}
-        />
-      ) : null}
+      <SalesHeader
+        t={t}
+        onOpenColumns={() => setIsColumnsModalOpen(true)}
+        onOpenCommissionRules={() => navigate('/sales/commissions')}
+        onCreateSale={handleCreateSale}
+      />
 
-      <SalesViewSwitcher activeView={activeView} t={t} onViewChange={setActiveView} />
-
-      {activeView === 'sales' ? (
-        <SalesView
+      <SalesView
           learningModeActive={learningModeActive}
           records={records}
           filteredRecords={filteredRecords}
@@ -223,17 +223,7 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
           onSendToFinance={handleSendToFinance}
           onSendToCredit={handleSendToCredit}
           onCancelSale={handleCancelSale}
-        />
-      ) : activeView === 'commissions' ? (
-        <CommissionsView
-          learningModeActive={learningModeActive}
-          sales={records}
-          rules={commissionRules}
-          t={t}
-        />
-      ) : (
-        <PaymentAccounts onNavigate={(page) => page && navigate(`/${page}`)} />
-      )}
+      />
 
       <SalesColumnsModal
         open={isColumnsModalOpen}
@@ -257,7 +247,13 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
         t={t}
         onOpenChange={setIsDetailModalOpen}
         onCreateCustomer={createContactRecord}
-        onCreate={createSaleRecord}
+        onCreate={(draft) => createSaleRecord({
+          ...draft,
+          saleLines: draft.saleLines.map((line) => {
+            const product = products.find((item) => item.id === line.productId || String(item.backendId ?? '') === line.productId);
+            return product ? { ...line, categoryId: product.category.toLowerCase().replace(/\s+/g, '-'), categoryName: product.category } : line;
+          }),
+        })}
         onUpdate={updateSaleRecord}
         onCreditSaleCreated={handleSendToCredit}
         onQuoteConverted={(quoteId, opportunityId) => {
@@ -294,15 +290,6 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
         onUpdate={updateSaleRecord}
       />
 
-      <CommissionRulesModal
-        open={isCommissionRulesOpen}
-        rules={commissionRules}
-        sales={records}
-        t={t}
-        onOpenChange={setIsCommissionRulesOpen}
-        onRulesChange={setCommissionRules}
-      />
-
       <SaleCancelDialog
         record={pendingCancelRecord}
         t={t}
@@ -314,6 +301,11 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
         isVisible={creationWarning === 'paymentEvidenceUploadFailed'}
         message={t.modal.wizard.paymentEvidenceUploadWarning}
         onClose={clearCreationWarning}
+      />
+      <FailureToast
+        isVisible={Boolean(commissionRulesError)}
+        message={commissionRulesError}
+        onClose={() => setCommissionRulesError('')}
       />
     </section>
   );

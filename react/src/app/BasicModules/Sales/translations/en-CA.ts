@@ -13,11 +13,17 @@ export const enCA = {
     contactos: 'Contacts',
     cotizacion: 'Quotes',
     sales: 'Sales',
+    commissions: 'Commissions',
+    paymentAccounts: 'Payment accounts',
     productos: 'Products',
     proveedores: 'Providers',
     inventario: 'Inventory',
     contrato: 'Contracts',
     postventa: 'After-sales',
     kpis: 'KPIs',
+  },
+  paymentAccountsWorkspace: {
+    title: 'Sales payment accounts',
+    subtitle: 'Define where sales payments are received, identified, and reconciled.',
   },
 } as const;

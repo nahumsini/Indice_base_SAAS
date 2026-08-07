@@ -1,5 +1,7 @@
 package com.indice.erp.sales;
 
+import com.indice.erp.kpis.currency.KpiMoneyAmount;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
@@ -401,6 +403,36 @@ class SalesRepository {
         var sellerName = firstNonBlank(SalesPayloadSupport.stringValue(payload, "sellerName"), "Indice user");
         var movementCount = 0;
 
+        // Validate the complete movement before changing balances. This keeps a sale
+        // with several lines from producing a partial inventory discount when a later
+        // line still needs stock or warehouse configuration.
+        for (var item : lines) {
+            if (!(item instanceof Map<?, ?> rawLine)) {
+                continue;
+            }
+            var line = toStringMap(rawLine);
+            var productId = safeLong(SalesPayloadSupport.value(line, "productId"));
+            if (productId == null) {
+                throw new IllegalArgumentException("Each sale item must reference a saved product.");
+            }
+            var product = requireSaleProduct(companyId, productId);
+            if (!Boolean.TRUE.equals(product.get("inventoryReady"))) {
+                continue;
+            }
+            var quantity = SalesPayloadSupport.decimalValue(line, "quantity");
+            if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Sale item quantity must be greater than zero.");
+            }
+            var balance = requireInventoryBalanceForUpdate(companyId, productId, warehouseId);
+            if (!Boolean.TRUE.equals(balance.get("usesInventory"))) {
+                throw new IllegalArgumentException("The selected product is not enabled for inventory in this warehouse.");
+            }
+            var available = (BigDecimal) balance.get("availableQuantity");
+            if (available.compareTo(quantity) < 0) {
+                throw new IllegalArgumentException("Insufficient inventory for " + product.get("name") + " in " + warehouse.get("name") + ".");
+            }
+        }
+
         for (var index = 0; index < lines.size(); index++) {
             if (!(lines.get(index) instanceof Map<?, ?> rawLine)) {
                 continue;
@@ -796,6 +828,38 @@ class SalesRepository {
         body.put("pendingFinanceSales", countWhere("sales_records", companyId, "LOWER(finance_status) IN ('pending', 'pending_validation')"));
         body.put("pendingInventorySales", countWhere("sales_records", companyId, "LOWER(inventory_movement_status) IN ('not_generated', 'pending')"));
         return body;
+    }
+
+    List<KpiMoneyAmount> opportunityKpiAmounts(long companyId) {
+        return moneyAmounts("sales_opportunities", "estimated_value", "currency", companyId, "");
+    }
+
+    List<KpiMoneyAmount> quoteKpiAmounts(long companyId) {
+        return moneyAmounts("sales_quotes", "amount", "currency", companyId, "");
+    }
+
+    List<KpiMoneyAmount> salesKpiAmounts(long companyId, String period) {
+        var dateFilter = switch (period == null ? "all" : period) {
+            case "month" -> " AND sale_date >= DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01') AND sale_date < DATE_ADD(LAST_DAY(CURRENT_DATE()), INTERVAL 1 DAY)";
+            case "week" -> " AND sale_date >= DATE_SUB(CURRENT_DATE(), INTERVAL WEEKDAY(CURRENT_DATE()) DAY) AND sale_date < DATE_ADD(DATE_SUB(CURRENT_DATE(), INTERVAL WEEKDAY(CURRENT_DATE()) DAY), INTERVAL 7 DAY)";
+            default -> "";
+        };
+        return moneyAmounts("sales_records", "total_amount", "currency", companyId, dateFilter);
+    }
+
+    private List<KpiMoneyAmount> moneyAmounts(
+        String table,
+        String amountColumn,
+        String currencyColumn,
+        long companyId,
+        String trustedFilter
+    ) {
+        var sql = "SELECT " + amountColumn + " AS amount, " + currencyColumn + " AS currency FROM " + table
+            + " WHERE company_id = ? AND deleted_at IS NULL" + trustedFilter;
+        return jdbcTemplate.query(sql, (rs, rowNum) -> new KpiMoneyAmount(
+            rs.getBigDecimal("amount"),
+            rs.getString("currency")
+        ), companyId);
     }
 
     void updateQuoteAmount(long companyId, long quoteId, BigDecimal amount) {

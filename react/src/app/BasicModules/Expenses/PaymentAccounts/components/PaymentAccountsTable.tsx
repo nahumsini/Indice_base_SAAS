@@ -16,6 +16,7 @@ type PaymentAccountsTableProps = {
   sortDirection: SortDirection;
   sortField: PaymentSortField | null;
   unitOptions: FinanceReferenceOption[];
+  tone?: 'green' | 'coral';
   onDelete: (accountId: string) => void;
   onEdit: (account: PaymentAccount) => void;
   onNavigate?: (page?: string) => void;
@@ -34,6 +35,7 @@ export function PaymentAccountsTable({
   onToggleActive,
   sortDirection,
   sortField,
+  tone = 'green',
   unitOptions,
 }: PaymentAccountsTableProps) {
   const t = usePaymentAccountsTranslations();
@@ -54,7 +56,7 @@ export function PaymentAccountsTable({
   }, [accounts, pageSize, tableColumns]);
 
   const getSortIcon = (field: PaymentSortField) => (
-    <PaymentSortIcon active={sortField === field} direction={sortField === field ? sortDirection : null} />
+    <PaymentSortIcon active={sortField === field} direction={sortField === field ? sortDirection : null} tone={tone} />
   );
 
   return (
@@ -66,7 +68,7 @@ export function PaymentAccountsTable({
               {tableColumns.map(header => (
                 <SortableHeader key={header.key} field={header.sortField} label={header.label} width={defaultPaymentColumnWidths[header.key]} sortIcon={getSortIcon(header.sortField)} onSort={onSort} />
               ))}
-              <th className="px-5 py-4 text-center text-[11px] font-medium text-slate-500 dark:text-slate-400" style={{ width: defaultPaymentColumnWidths.actions, minWidth: defaultPaymentColumnWidths.actions }}>{t.common.actions}</th>
+              <th className="px-5 py-4 text-center text-xs font-medium text-slate-500 dark:text-slate-400" style={{ width: defaultPaymentColumnWidths.actions, minWidth: defaultPaymentColumnWidths.actions }}>{t.common.actions}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
@@ -77,6 +79,7 @@ export function PaymentAccountsTable({
                 businessOptions={businessOptions}
                 locale={locale}
                 tableColumns={tableColumns.map(column => column.key)}
+                tone={tone}
                 t={t}
                 unitOptions={unitOptions}
                 onDelete={onDelete}
@@ -122,6 +125,7 @@ function PaymentAccountRow({
   onNavigate,
   onToggleActive,
   tableColumns,
+  tone,
   t,
   unitOptions,
 }: {
@@ -129,6 +133,7 @@ function PaymentAccountRow({
   businessOptions: FinanceReferenceOption[];
   locale: ReturnType<typeof usePaymentAccountsResolvedLocale>;
   tableColumns: PaymentColumnKey[];
+  tone: 'green' | 'coral';
   t: FinanceTranslations;
   unitOptions: FinanceReferenceOption[];
   onDelete: (accountId: string) => void;
@@ -140,7 +145,7 @@ function PaymentAccountRow({
     <tr className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50">
       {tableColumns.map(columnKey => (
         <td key={columnKey} className="px-6 py-4 align-middle text-sm text-slate-700 dark:text-slate-300" style={{ width: defaultPaymentColumnWidths[columnKey], minWidth: defaultPaymentColumnWidths[columnKey] }}>
-          {renderPaymentCell(columnKey, account, unitOptions, businessOptions, t, locale)}
+          {renderPaymentCell(columnKey, account, unitOptions, businessOptions, t, locale, tone)}
         </td>
       ))}
       <td className="px-6 py-4 text-center align-middle" style={{ width: defaultPaymentColumnWidths.actions, minWidth: defaultPaymentColumnWidths.actions }}>
@@ -174,8 +179,9 @@ function renderPaymentCell(
   businessOptions: FinanceReferenceOption[],
   t: FinanceTranslations,
   locale: ReturnType<typeof usePaymentAccountsResolvedLocale>,
+  tone: 'green' | 'coral',
 ) {
-  if (columnKey === 'name') return <NameCell account={account} t={t} />;
+  if (columnKey === 'name') return <NameCell account={account} t={t} tone={tone} />;
   if (columnKey === 'type') return <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${getTypeBadgeColor(account.type)}`}>{t.paymentAccounts.types[account.type] ?? getTypeLabel(account.type)}</span>;
   if (columnKey === 'unitId') return <ReferencePill value={getReferenceLabel(unitOptions, account.unitId)} />;
   if (columnKey === 'businessId') return <ReferencePill value={getReferenceLabel(businessOptions, account.businessId)} />;
@@ -187,10 +193,10 @@ function renderPaymentCell(
   return <StatusBadge isActive={account.isActive} t={t} />;
 }
 
-function NameCell({ account, t }: { account: PaymentAccount; t: FinanceTranslations }) {
+function NameCell({ account, t, tone }: { account: PaymentAccount; t: FinanceTranslations; tone: 'green' | 'coral' }) {
   return (
     <div className="flex items-start gap-2">
-      <span className="mt-0.5 text-[#147514]">{getTypeIcon(account.type)}</span>
+      <span className={`mt-0.5 ${tone === 'coral' ? 'text-[#E8564B]' : 'text-[#147514]'}`}>{getTypeIcon(account.type)}</span>
       <div className="min-w-0">
         <p className="truncate font-medium text-slate-900 dark:text-slate-100">{account.name}</p>
         {account.source === 'petty_cash' ? <p className="mt-1 text-xs font-medium text-[#147514]">{t.paymentAccounts.table.pettyCashDetail(account.custodian ?? t.paymentAccounts.table.noCustodian)}</p> : null}
@@ -223,7 +229,7 @@ function getReferenceLabel(options: FinanceReferenceOption[], value?: string) {
 function SortableHeader({ field, label, onSort, sortIcon, width }: { field: PaymentSortField; label: string; onSort: (field: PaymentSortField) => void; sortIcon: ReactNode; width: number }) {
   return (
     <th className="px-5 py-4 text-left align-middle" style={{ width, minWidth: width }}>
-      <button type="button" onClick={() => onSort(field)} className="inline-flex items-center gap-2 whitespace-nowrap text-[11px] font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"><span>{label}</span>{sortIcon}</button>
+      <button type="button" onClick={() => onSort(field)} className="inline-flex items-center gap-2 whitespace-nowrap text-xs font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"><span>{label}</span>{sortIcon}</button>
     </th>
   );
 }
@@ -242,11 +248,12 @@ function EmptyRow({ colSpan, t }: { colSpan: number; t: FinanceTranslations }) {
   );
 }
 
-function PaymentSortIcon({ active, direction }: { active: boolean; direction: SortDirection }) {
+function PaymentSortIcon({ active, direction, tone }: { active: boolean; direction: SortDirection; tone: 'green' | 'coral' }) {
+  const activeColor = tone === 'coral' ? 'text-[#E8564B]' : 'text-[#147514]';
   return (
     <span className="flex h-4 w-4 shrink-0 flex-col items-center justify-center">
-      <ChevronUp className={`-mb-1 h-3 w-3 ${active && direction === 'asc' ? 'text-[#147514]' : 'text-slate-400'}`} />
-      <ChevronDown className={`-mt-1 h-3 w-3 ${active && direction === 'desc' ? 'text-[#147514]' : 'text-slate-400'}`} />
+      <ChevronUp className={`-mb-1 h-3 w-3 ${active && direction === 'asc' ? activeColor : 'text-slate-400'}`} />
+      <ChevronDown className={`-mt-1 h-3 w-3 ${active && direction === 'desc' ? activeColor : 'text-slate-400'}`} />
     </span>
   );
 }

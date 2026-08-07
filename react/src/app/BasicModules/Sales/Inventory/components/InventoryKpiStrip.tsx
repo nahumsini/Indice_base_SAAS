@@ -9,7 +9,7 @@ import type {
   InventoryWarehouseMetrics,
 } from '../types/inventoryTypes';
 import type { InventoryTranslations } from '../translations';
-import { formatInventoryCurrency, formatInventoryNumber } from '../utils/inventoryFormatters';
+import { formatInventoryNumber } from '../utils/inventoryFormatters';
 import { useLearningModeHeaderActions } from '../../../../learningMode';
 
 function InventoryMetricCard({
@@ -56,10 +56,12 @@ function InventoryMetricGroup({ children }: { children: ReactNode }) {
 export function InventoryKpiStrip({
   activeView,
   metrics,
+  monetaryValueLabel = 'No disponible',
   t,
 }: {
   activeView?: InventoryOperationalView;
   metrics: InventoryKpiMetrics | InventoryWarehouseMetrics | InventoryMovementMetrics | InventoryMetrics;
+  monetaryValueLabel?: string;
   t: InventoryTranslations;
 }) {
   const learningModeActive = useLearningModeHeaderActions()?.active ?? false;
@@ -74,7 +76,7 @@ export function InventoryKpiStrip({
         <InventoryMetricCard icon={<PackageCheck className="h-4 w-4" />} value={formatInventoryNumber(metrics.trackedItems)} label={t.metrics.trackedItems} valueClassName="text-[#FF6B5E]" />
         <InventoryMetricCard icon={<AlertTriangle className="h-4 w-4" />} value={formatInventoryNumber(metrics.lowStockItems)} label={t.metrics.lowStockItems} valueClassName="text-[#9a6b05]" />
         <InventoryMetricCard icon={<Archive className="h-4 w-4" />} value={formatInventoryNumber(metrics.outOfStockItems)} label={t.metrics.outOfStockItems} valueClassName="text-[#B63B32]" />
-        <InventoryMetricCard icon={<CircleDollarSign className="h-4 w-4" />} value={formatInventoryCurrency(metrics.totalStockValue)} label={t.metrics.totalStockValue} valueClassName="text-[#2563EB]" />
+        <InventoryMetricCard icon={<CircleDollarSign className="h-4 w-4" />} value={monetaryValueLabel} label={t.metrics.totalStockValue} valueClassName="text-[#2563EB]" />
         <InventoryMetricCard icon={<RotateCw className="h-4 w-4" />} value={formatInventoryNumber(metrics.recentMovements)} label={t.metrics.recentMovements} valueClassName="text-[#177d66]" />
       </InventoryMetricGroup>
     );
@@ -89,7 +91,7 @@ export function InventoryKpiStrip({
         <InventoryMetricCard icon={<Archive className="h-4 w-4" />} value={formatInventoryNumber(warehouseMetrics.storedItems)} label={t.operational.kpis.storedItems} />
         <InventoryMetricCard icon={<PackageCheck className="h-4 w-4" />} value={formatInventoryNumber(warehouseMetrics.totalUnits)} label={t.operational.kpis.totalUnits} valueClassName="text-[#2563EB]" />
         <InventoryMetricCard icon={<AlertTriangle className="h-4 w-4" />} value={formatInventoryNumber(warehouseMetrics.attentionWarehouses)} label={t.operational.kpis.attentionWarehouses} valueClassName="text-[#9a6b05]" />
-        <InventoryMetricCard icon={<CircleDollarSign className="h-4 w-4" />} value={formatInventoryCurrency(warehouseMetrics.estimatedValue)} label={t.operational.kpis.estimatedValue} valueClassName="text-[#177d66]" />
+        <InventoryMetricCard icon={<CircleDollarSign className="h-4 w-4" />} value={monetaryValueLabel} label={t.operational.kpis.estimatedValue} valueClassName="text-[#177d66]" />
       </InventoryMetricGroup>
     );
   }
@@ -105,7 +107,7 @@ export function InventoryKpiStrip({
         <InventoryMetricCard icon={<Archive className="h-4 w-4" />} value={formatInventoryNumber(movementMetrics.adjustments)} label={t.operational.kpis.adjustments} />
         <InventoryMetricCard icon={<AlertTriangle className="h-4 w-4" />} value={formatInventoryNumber(movementMetrics.inTransit)} label={t.operational.kpis.inTransit} valueClassName="text-[#9a6b05]" />
         <InventoryMetricCard icon={<PackageCheck className="h-4 w-4" />} value={formatInventoryNumber(movementMetrics.completed)} label={t.operational.kpis.completed} valueClassName="text-emerald-600" />
-        <InventoryMetricCard icon={<CircleDollarSign className="h-4 w-4" />} value={formatInventoryCurrency(movementMetrics.inventoryValueInTransit)} label={t.operational.kpis.inventoryValueInTransit} valueClassName="text-[#B63B32]" />
+        <InventoryMetricCard icon={<CircleDollarSign className="h-4 w-4" />} value={monetaryValueLabel} label={t.operational.kpis.inventoryValueInTransit} valueClassName="text-[#B63B32]" />
       </InventoryMetricGroup>
     );
   }
@@ -118,7 +120,7 @@ export function InventoryKpiStrip({
       <InventoryMetricCard icon={<Archive className="h-4 w-4" />} value={formatInventoryNumber(stockMetrics.totalUnits)} label={t.operational.kpis.totalUnits} />
       <InventoryMetricCard icon={<AlertTriangle className="h-4 w-4" />} value={formatInventoryNumber(stockMetrics.lowStockItems)} label={t.operational.kpis.lowStockItems} valueClassName="text-[#9a6b05]" />
       <InventoryMetricCard icon={<RotateCw className="h-4 w-4" />} value={formatInventoryNumber(stockMetrics.outOfStockItems)} label={t.operational.kpis.outOfStockItems} valueClassName="text-[#B63B32]" />
-      <InventoryMetricCard icon={<CircleDollarSign className="h-4 w-4" />} value={formatInventoryCurrency(stockMetrics.estimatedValue)} label={t.operational.kpis.estimatedValue} valueClassName="text-[#2563EB]" />
+      <InventoryMetricCard icon={<CircleDollarSign className="h-4 w-4" />} value={monetaryValueLabel} label={t.operational.kpis.estimatedValue} valueClassName="text-[#2563EB]" />
     </InventoryMetricGroup>
   );
 }

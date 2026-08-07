@@ -14,6 +14,7 @@ import {
   type ColumnConfig,
 } from '../../../components/rh/ColumnasConfigModal';
 import { useTablePagination } from '../../../hooks/useTablePagination';
+import { DataTablePagination } from '../../../components/table/DataTablePagination';
 import { CreditSalesKpiArea } from '../components/CreditSalesKpiArea';
 import { ReceivablesFilters } from '../components/ReceivablesFilters';
 import { ReceivablesStatusBadge } from '../components/ReceivablesStatusBadge';
@@ -53,7 +54,7 @@ type CreditSalesSortState = {
   direction: 'asc' | 'desc';
 };
 
-const creditSalesColumnsStorageKey = 'indice.receivables.creditSales.columns.v1';
+const creditSalesColumnsStorageKey = 'indice.receivables.creditSales.columns.v2';
 const creditSalesSortCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
 function normalizeCreditSalesColumns(columns: ColumnConfig[], defaultColumns: ColumnConfig[]) {
@@ -168,7 +169,7 @@ function SortableCreditSalesHead({
       <button
         type="button"
         onClick={() => onSort(columnId)}
-        className="inline-flex items-center gap-2 whitespace-nowrap text-[11px] font-medium text-slate-500 transition hover:text-[#147514] dark:text-slate-400 dark:hover:text-emerald-300"
+        className="inline-flex items-center gap-2 whitespace-nowrap text-xs font-medium text-slate-500 transition hover:text-[#147514] dark:text-slate-400 dark:hover:text-emerald-300"
       >
         <span>{column.label}</span>
         <CreditSalesSortIcon active={active} direction={sortState.direction} />
@@ -207,10 +208,10 @@ export function CreditSalesView({
     { id: 'sale', label: viewCopy.table.sale, visible: true, locked: true },
     { id: 'customer', label: viewCopy.table.customer, visible: true },
     { id: 'status', label: viewCopy.table.status, visible: true },
-    { id: 'unit', label: viewCopy.table.unit, visible: true },
-    { id: 'business', label: viewCopy.table.business, visible: true },
+    { id: 'unit', label: viewCopy.table.unit, visible: false },
+    { id: 'business', label: viewCopy.table.business, visible: false },
     { id: 'amount', label: viewCopy.table.amount, visible: true },
-    { id: 'run', label: viewCopy.table.run, visible: true },
+    { id: 'run', label: viewCopy.table.run, visible: false },
     { id: 'monthlyPayment', label: viewCopy.table.monthlyPayment, visible: true },
     { id: 'due', label: viewCopy.table.due, visible: true },
   ], [viewCopy.table]);
@@ -373,6 +374,27 @@ export function CreditSalesView({
         totalCreditSales={creditSales.length}
       />
 
+      <div className="space-y-3 md:hidden">
+        {pagination.paginatedRows.map((sale) => (
+          <article key={sale.id} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0"><p className="truncate text-sm font-medium text-slate-950 dark:text-white">{sale.customerName}</p><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{sale.saleNumber} · {sale.saleDate}</p></div>
+              <ReceivablesStatusBadge copy={copy} status={sale.status} />
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3 border-y border-slate-100 py-3 dark:border-slate-800">
+              <div><p className="text-xs text-slate-500 dark:text-slate-400">{viewCopy.table.amount}</p><p className="mt-1 text-base font-medium tabular-nums text-slate-950 dark:text-white">{formatMoney(sale.financedAmount, sale.currency)}</p></div>
+              <div className="text-right"><p className="text-xs text-slate-500 dark:text-slate-400">{viewCopy.table.monthlyPayment}</p><p className={cn('mt-1 text-base font-medium tabular-nums', financeTextClass)}>{formatMoney(sale.selectedSimulation.monthlyPayment, sale.currency)}</p></div>
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <Button type="button" variant="outline" onClick={() => setDetailSale(sale)} className="h-10 flex-1 gap-2 rounded-lg border-[#147514]/25 text-sm font-medium text-[#147514] shadow-none hover:bg-[#147514]/5 dark:text-emerald-300"><Eye className="h-4 w-4" />{viewCopy.rowActions.detail}</Button>
+              <Button type="button" size="icon" variant="outline" onClick={() => setScheduleSale(sale)} className="h-10 w-10 rounded-lg border-slate-200 shadow-none dark:border-slate-700" title={viewCopy.rowActions.schedule} aria-label={viewCopy.rowActions.schedule}><CalendarClock className="h-4 w-4" /></Button>
+            </div>
+          </article>
+        ))}
+        {pagination.totalCount === 0 ? <p className="rounded-xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500 dark:border-slate-700">{viewCopy.empty}</p> : null}
+        <DataTablePagination currentPage={pagination.currentPage} itemLabel={viewCopy.itemLabel} onPageChange={pagination.onPageChange} onPageSizeChange={pagination.onPageSizeChange} pageEnd={pagination.pageEnd} pageSize={pagination.pageSize} pageSizeOptions={pagination.pageSizeOptions} pageStart={pagination.pageStart} totalCount={pagination.totalCount} totalPages={pagination.totalPages} />
+      </div>
+      <div className="hidden md:block">
       <ReceivablesTableShell
         currentPage={pagination.currentPage}
         emptyColSpan={visibleColumns.length + 1}
@@ -397,7 +419,7 @@ export function CreditSalesView({
                 onSort={handleSort}
               />
             ))}
-            <TableHead className="px-5 py-4 text-right text-[11px] font-medium text-slate-500">
+            <TableHead className="px-5 py-4 text-right text-xs font-medium text-slate-500">
               {viewCopy.table.actions}
             </TableHead>
           </TableRow>
@@ -424,7 +446,7 @@ export function CreditSalesView({
                   );
                 })}
                 <TableCell className="px-5 py-4">
-                  <div className="ml-auto inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
+                  <div className="ml-auto inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/70 p-1 dark:border-slate-700 dark:bg-slate-900/70">
                     <Button
                       type="button"
                       variant="ghost"
@@ -432,7 +454,7 @@ export function CreditSalesView({
                       title={viewCopy.rowActions.detail}
                       aria-label={viewCopy.rowActions.detail}
                       onClick={() => setDetailSale(sale)}
-                      className="h-10 w-10 rounded-xl border border-blue-100 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-300 dark:hover:bg-blue-900/60"
+                      className="h-9 w-9 rounded-lg border border-blue-100 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-300 dark:hover:bg-blue-900/60"
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
@@ -443,7 +465,7 @@ export function CreditSalesView({
                       title={viewCopy.rowActions.schedule}
                       aria-label={viewCopy.rowActions.schedule}
                       onClick={() => setScheduleSale(sale)}
-                      className="h-10 w-10 rounded-xl border border-emerald-100 bg-emerald-50 text-[#147514] hover:bg-emerald-100 hover:text-[#0F5F10] dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60"
+                      className="h-9 w-9 rounded-lg border border-emerald-100 bg-emerald-50 text-[#147514] hover:bg-emerald-100 hover:text-[#0F5F10] dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60"
                     >
                       <CalendarClock className="h-4 w-4" />
                     </Button>
@@ -454,6 +476,7 @@ export function CreditSalesView({
           </TableBody>
         ) : null}
       </ReceivablesTableShell>
+      </div>
 
       <ColumnasConfigModal
         isOpen={showColumnsModal}

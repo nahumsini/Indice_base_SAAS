@@ -88,6 +88,7 @@ import { QuoteMarginBadge } from './components/QuoteMarginBadge';
 import { QuotePreviewModal } from './components/QuotePreviewModal';
 import { QuoteReadinessBadge } from './components/QuoteReadinessBadge';
 import { QuoteBuilderModal } from './modals/QuoteBuilderModal';
+import { useSalesTranslations } from '../Sales/hooks/useSalesTranslations';
 import { printQuotePdf } from './quotePdf';
 import { useQuotesTranslations } from './translations';
 import type { QuoteFormState } from './types/quoteBuilderTypes';
@@ -131,7 +132,9 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
     updateOpportunity,
     updateQuoteStatus,
     connectQuoteToOpportunity,
+    createContactRecord,
   } = useSalesCrm();
+  const salesT = useSalesTranslations();
 
   const defaultFallbackSellerValue = getDefaultQuoteSellerValue(salesOwners[0]);
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
@@ -610,10 +613,10 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
 
     setEditingQuote(quote);
     setForm({
-      clientMode: contact ? 'contact' : 'temporary',
-      clientId: contact?.id ?? contacts[0]?.id ?? '',
-      temporaryClient: contact ? '' : quote.clientName,
-      contactPerson: contact ? '' : quote.contactPerson,
+      clientMode: 'contact',
+      clientId: contact?.id ?? '',
+      temporaryClient: '',
+      contactPerson: '',
       opportunityId: quote.opportunityId ?? 'none',
       status: quote.status,
       createdDate: quote.createdDate,
@@ -650,8 +653,8 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
   };
 
   const handleSaveQuote = ({ printAfterSave = false }: { printAfterSave?: boolean } = {}) => {
-    const clientName = form.clientMode === 'contact' ? selectedContact?.company : form.temporaryClient.trim();
-    const contactPerson = form.clientMode === 'contact' ? selectedContact?.contactPerson : form.contactPerson.trim();
+    const clientName = selectedContact?.company;
+    const contactPerson = selectedContact?.contactPerson;
 
     if (!clientName || items.length === 0) {
       return;
@@ -659,7 +662,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
 
     const sellerPayload = getSellerPayloadFromValue(form.assignedSellerValue);
     const quotePayload = {
-      clientId: form.clientMode === 'contact' ? selectedContact?.id : undefined,
+      clientId: selectedContact?.id,
       clientName,
       contactPerson: contactPerson || t.common.unassigned,
       opportunityId: form.opportunityId === 'none' ? undefined : form.opportunityId,
@@ -996,12 +999,14 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
         selectedOpportunity={selectedBuilderOpportunity}
         totals={quoteTotals}
         t={t}
+        customerT={salesT}
         opportunityOptions={opportunityOptions}
         sellerOptions={formSellerOptions}
         formatCurrency={(value, currency) => formatCurrency(value, currency ?? form.currency)}
         onOpenChange={setIsBuilderOpen}
         onClose={closeQuoteBuilder}
         onFormChange={setForm}
+        onCreateCustomer={createContactRecord}
         onSellerChange={(value) => {
           const sellerPayload = getSellerPayloadFromValue(value);
           setForm((current) => ({

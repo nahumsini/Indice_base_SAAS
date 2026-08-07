@@ -34,6 +34,14 @@ export const enCA: ReceivablesTranslations = {
     },
   },
   kpiEngine: {
+    currency: {
+      consolidatedIn: 'Consolidated in',
+      nativeOrigin: 'Native origin',
+      partialTotal: 'Partial total',
+      excludedRecords: (count) => `${count} excluded records`,
+      dailyRate: 'Daily exchange rate',
+      unavailable: 'Unavailable',
+    },
     creditSales: {
       labels: {
         receivableTotal: 'receivable',

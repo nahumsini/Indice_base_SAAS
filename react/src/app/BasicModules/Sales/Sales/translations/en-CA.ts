@@ -469,6 +469,7 @@ export const enCA = {
     commission: {
       pending: 'Pending',
       calculated: 'Calculated',
+      cut: 'Sent to HR',
       paid: 'Paid',
     },
     movement: {
@@ -625,11 +626,10 @@ export const enCA = {
     },
     rules: {
       title: 'Commission Rules',
-      description: 'Configure frontend-only commission rules by sales rep, product, category, and calculation type.',
+      description: 'Configure backend-managed commission rules by sales rep, product, category, validity, and calculation type.',
       defaultRuleName: 'New commission rule',
       noRules: 'No commission rules available.',
       estimatedCommission: 'Estimated Commission',
-      backendReadyNote: 'Frontend-ready: replace this local rule state with GET/POST /commission-rules when the backend is available.',
       saveRule: 'Save rule',
       resetDraft: 'Reset draft',
       sections: {

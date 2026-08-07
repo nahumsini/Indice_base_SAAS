@@ -44,6 +44,14 @@ export interface ReceivablesTranslations {
     periodOptions: Record<PeriodFilter, string>;
   };
   kpiEngine: {
+    currency: {
+      consolidatedIn: string;
+      nativeOrigin: string;
+      partialTotal: string;
+      excludedRecords: (count: number) => string;
+      dailyRate: string;
+      unavailable: string;
+    };
     creditSales: {
       labels: {
         receivableTotal: string;

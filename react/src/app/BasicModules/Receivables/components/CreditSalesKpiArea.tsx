@@ -15,10 +15,10 @@ import {
 } from '../../shared/operational';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import {
-  convertBusinessCurrencyAmount,
   formatBusinessCurrencyAmount,
   normalizeBusinessCurrencyCode,
 } from '../../shared/businessCurrency';
+import { useKpiMonetaryAggregate, type KpiMonetaryAggregate } from '../../shared/kpiMonetaryApi';
 import type { ReceivablesTranslations } from '../translations';
 import type { CreditSale, CreditSaleStatus } from '../types';
 
@@ -34,40 +34,13 @@ function formatCount(value: number) {
   return new Intl.NumberFormat().format(value);
 }
 
-function formatNativeBreakdown(
-  creditSales: CreditSale[],
-  getAmount: (sale: CreditSale) => number,
-  fallbackCurrency: string,
-) {
-  const totalsByCurrency = creditSales.reduce<Map<string, number>>((totals, sale) => {
-    const currency = normalizeBusinessCurrencyCode(sale.currency, fallbackCurrency);
-    totals.set(currency, (totals.get(currency) ?? 0) + getAmount(sale));
-    return totals;
-  }, new Map());
-
-  if (totalsByCurrency.size === 0) {
+function formatNativeBreakdown(aggregate: KpiMonetaryAggregate | null, fallbackCurrency: string) {
+  if (!aggregate || aggregate.nativeTotals.length === 0) {
     return formatBusinessCurrencyAmount(0, fallbackCurrency, moneyFormatOptions);
   }
-
-  return Array.from(totalsByCurrency.entries())
-    .map(([currency, total]) => formatBusinessCurrencyAmount(total, currency, moneyFormatOptions))
+  return aggregate.nativeTotals
+    .map(({ currency, amount }) => formatBusinessCurrencyAmount(amount, currency, moneyFormatOptions))
     .join(' / ');
-}
-
-function getPreferredTotal(
-  creditSales: CreditSale[],
-  preferredCurrency: string,
-  exchangeRatesPerUsd: ReturnType<typeof usePreferredBusinessCurrency>['exchangeRatesPerUsd'],
-  getAmount: (sale: CreditSale) => number,
-) {
-  return creditSales.reduce((total, sale) => (
-    total + convertBusinessCurrencyAmount(
-      getAmount(sale),
-      sale.currency,
-      preferredCurrency,
-      exchangeRatesPerUsd,
-    )
-  ), 0);
 }
 
 export function CreditSalesKpiArea({
@@ -79,39 +52,26 @@ export function CreditSalesKpiArea({
   creditSales: CreditSale[];
   totalCreditSales: number;
 }) {
-  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
   const labels = copy.kpiEngine.creditSales;
+  const ids = creditSales.map((sale) => sale.id);
+  const receivable = useKpiMonetaryAggregate({ metric: 'CREDIT_SALES_TOTAL_PAYABLE', preferredCurrency, ids });
+  const monthly = useKpiMonetaryAggregate({ metric: 'CREDIT_SALES_MONTHLY_PAYMENT', preferredCurrency, ids });
+  const interest = useKpiMonetaryAggregate({ metric: 'CREDIT_SALES_INTEREST', preferredCurrency, ids });
   const activeCount = creditSales.filter((sale) => sale.status === 'active').length;
   const setupCount = creditSales.filter((sale) => setupStatuses.has(sale.status)).length;
   const completedCount = creditSales.filter((sale) => sale.status === 'completed').length;
   const stoppedCount = creditSales.filter((sale) => stoppedStatuses.has(sale.status)).length;
   const currencyCount = new Set(creditSales.map((sale) => normalizeBusinessCurrencyCode(sale.currency, preferredCurrency))).size;
-  const totalReceivable = getPreferredTotal(
-    creditSales,
-    preferredCurrency,
-    exchangeRatesPerUsd,
-    (sale) => sale.selectedSimulation.totalPayable,
+  const formatAggregate = (aggregate: typeof receivable) => (
+    aggregate.data && !aggregate.loading
+      ? formatBusinessCurrencyAmount(aggregate.data.preferredTotal, preferredCurrency, moneyFormatOptions)
+      : '—'
   );
-  const monthlyFlow = getPreferredTotal(
-    creditSales,
-    preferredCurrency,
-    exchangeRatesPerUsd,
-    (sale) => sale.selectedSimulation.monthlyPayment,
-  );
-  const totalInterest = getPreferredTotal(
-    creditSales,
-    preferredCurrency,
-    exchangeRatesPerUsd,
-    (sale) => sale.selectedSimulation.totalInterest,
-  );
-  const receivableTotalLabel = formatBusinessCurrencyAmount(totalReceivable, preferredCurrency, moneyFormatOptions);
-  const monthlyFlowLabel = formatBusinessCurrencyAmount(monthlyFlow, preferredCurrency, moneyFormatOptions);
-  const totalInterestLabel = formatBusinessCurrencyAmount(totalInterest, preferredCurrency, moneyFormatOptions);
-  const nativeTotalLabel = formatNativeBreakdown(
-    creditSales,
-    (sale) => sale.selectedSimulation.totalPayable,
-    preferredCurrency,
-  );
+  const receivableTotalLabel = formatAggregate(receivable);
+  const monthlyFlowLabel = formatAggregate(monthly);
+  const totalInterestLabel = formatAggregate(interest);
+  const nativeTotalLabel = formatNativeBreakdown(receivable.data, preferredCurrency);
   const metrics: OperationalKpiMetric[] = [
     {
       id: 'receivableTotal',
@@ -145,18 +105,11 @@ export function CreditSalesKpiArea({
     },
     {
       id: 'totalInterest',
-      icon: <Gauge className="h-4 w-4" />,
-      iconClassName: 'text-[#9A6B05]',
+      icon: <BadgeDollarSign className="h-4 w-4" />,
+      iconClassName: 'text-amber-600',
       label: labels.labels.totalInterest,
       value: totalInterestLabel,
-      valueClassName: 'text-[#9A6B05]',
-    },
-    {
-      id: 'completedSales',
-      icon: <CheckCircle2 className="h-4 w-4" />,
-      iconClassName: 'text-slate-500',
-      label: labels.labels.completedSales,
-      value: formatCount(completedCount),
+      valueClassName: 'text-amber-600',
     },
   ];
   const alertChips: OperationalAlertChip[] = [];
@@ -251,6 +204,18 @@ export function CreditSalesKpiArea({
       })}
       insightIcon={<AlertTriangle className="h-4 w-4" />}
       metrics={metrics}
+      currencyContext={{
+        preferredCurrency,
+        nativeBreakdown: nativeTotalLabel,
+        rateLabel: receivable.data?.exchangeRate.mode === 'daily'
+          ? copy.kpiEngine.currency.dailyRate
+          : copy.kpiEngine.currency.unavailable,
+        effectiveDate: receivable.data?.exchangeRate.effectiveDate,
+        source: receivable.data?.exchangeRate.source,
+        isPartial: Boolean(receivable.error || receivable.data?.partial),
+        excludedCount: receivable.data?.excludedRecords ?? (receivable.error ? creditSales.length : 0),
+        labels: copy.kpiEngine.currency,
+      }}
     />
   );
 }

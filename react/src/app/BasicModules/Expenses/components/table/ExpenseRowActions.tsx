@@ -1,6 +1,25 @@
-import { CheckCircle2, Copy, HandCoins, Loader2, Pencil, Printer, ShieldCheck, Trash2 } from 'lucide-react';
+import {
+  CheckCircle2,
+  Copy,
+  Eye,
+  HandCoins,
+  Loader2,
+  MoreHorizontal,
+  Pencil,
+  Printer,
+  ShieldCheck,
+  Trash2,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../../../../components/ui/dropdown-menu';
+import { getExpenseDetailCopy } from '../../Expenses/components/expenseDetail.copy';
+import { useExpensesResolvedLocale, useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
 
 type ExpenseRowActionsProps = {
   expenseId: string;
@@ -11,15 +30,17 @@ type ExpenseRowActionsProps = {
   onPrint: () => void;
   onRecordPayment: (expenseId: string) => void;
   onStartEdit: () => void;
+  onView: () => void;
   isDeletePending?: boolean;
   showAudit?: boolean;
   showDelete?: boolean;
   showMarkPaid?: boolean;
   showRecordPayment?: boolean;
+  showView?: boolean;
 };
 
 const tableActionButtonBaseClass =
-  'inline-flex h-10 w-10 items-center justify-center rounded-2xl border transition-all hover:-translate-y-0.5 hover:shadow-sm';
+  'inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-colors hover:border-[#147514]/30 hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300';
 
 export function ExpenseRowActions({
   expenseId,
@@ -30,76 +51,83 @@ export function ExpenseRowActions({
   onPrint,
   onRecordPayment,
   onStartEdit,
+  onView,
   isDeletePending = false,
   showAudit = true,
   showDelete = true,
   showMarkPaid = true,
   showRecordPayment = true,
+  showView = true,
 }: ExpenseRowActionsProps) {
   const t = useExpensesTranslations();
+  const detailCopy = getExpenseDetailCopy(useExpensesResolvedLocale());
 
   return (
-    <div className="inline-flex items-center justify-center gap-2 rounded-[22px] border border-slate-200 bg-white px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <ActionButton label="Imprimir comprobante / Print voucher" colorClass="border-emerald-200 bg-emerald-50/80 text-[#147514] hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300" onClick={onPrint}>
-        <Printer className="h-4 w-4" />
-      </ActionButton>
-      <ActionButton label={t.common.duplicate} colorClass="border-blue-200 bg-blue-50/80 text-blue-700 hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300" onClick={() => onDuplicate(expenseId)}>
-        <Copy className="h-4 w-4 text-blue-600" />
-      </ActionButton>
-      {showDelete ? (
-        <ActionButton
-          label={t.expenses.rowActions.deleteExpense}
-          colorClass="border-rose-100 bg-rose-50/60 text-rose-600 hover:bg-rose-100 dark:border-rose-900/40 dark:bg-rose-950/20"
-          disabled={isDeletePending}
-          onClick={() => onDelete(expenseId)}
-        >
-          {isDeletePending ? <Loader2 className="h-4 w-4 animate-spin text-red-600" /> : <Trash2 className="h-4 w-4 text-red-600" />}
+    <div className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/70 p-1 dark:border-slate-700 dark:bg-slate-900/60">
+      {showView ? (
+        <ActionButton label={detailCopy.title} onClick={onView}>
+          <Eye className="h-4 w-4" />
         </ActionButton>
       ) : null}
-      <ActionButton label={t.common.edit} colorClass="border-amber-200 bg-amber-50/80 text-amber-700 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300" onClick={onStartEdit}>
-        <Pencil className="h-4 w-4 text-amber-600" />
-      </ActionButton>
-      {showRecordPayment && (
-        <ActionButton label={t.expenses.payment.action} colorClass="border-sky-200 bg-sky-50/80 text-sky-700 hover:bg-sky-100 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-300" onClick={() => onRecordPayment(expenseId)}>
-          <HandCoins className="h-4 w-4 text-sky-600" />
+      {showRecordPayment ? (
+        <ActionButton label={t.expenses.payment.action} onClick={() => onRecordPayment(expenseId)}>
+          <HandCoins className="h-4 w-4" />
         </ActionButton>
-      )}
-      {showMarkPaid && (
-        <ActionButton label={t.expenses.rowActions.markPaid} colorClass="border-[#147514]/25 bg-[#147514]/12 text-[#147514] hover:bg-[#147514]/18 dark:border-[#147514]/35 dark:bg-[#147514]/15" onClick={() => onMarkPaid(expenseId)}>
-          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-        </ActionButton>
-      )}
-      {showAudit && (
-        <ActionButton label={t.statuses.audited} colorClass="border-violet-200 bg-violet-50/80 text-violet-700 hover:bg-violet-100 dark:border-violet-900/60 dark:bg-violet-950/40 dark:text-violet-300" onClick={() => onAudit(expenseId)}>
-          <ShieldCheck className="h-4 w-4 text-violet-600" />
-        </ActionButton>
-      )}
+      ) : null}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button aria-label={t.common.actions} className={tableActionButtonBaseClass} title={t.common.actions} type="button">
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52 rounded-xl p-1.5">
+          <DropdownMenuItem onClick={onStartEdit} className="rounded-lg py-2">
+            <Pencil />
+            {t.common.edit}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onPrint} className="rounded-lg py-2">
+            <Printer />
+            {detailCopy.printVoucher}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onDuplicate(expenseId)} className="rounded-lg py-2">
+            <Copy />
+            {t.common.duplicate}
+          </DropdownMenuItem>
+          {showMarkPaid ? (
+            <DropdownMenuItem onClick={() => onMarkPaid(expenseId)} className="rounded-lg py-2">
+              <CheckCircle2 />
+              {t.expenses.rowActions.markPaid}
+            </DropdownMenuItem>
+          ) : null}
+          {showAudit ? (
+            <DropdownMenuItem onClick={() => onAudit(expenseId)} className="rounded-lg py-2">
+              <ShieldCheck />
+              {t.statuses.audited}
+            </DropdownMenuItem>
+          ) : null}
+          {showDelete ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="rounded-lg py-2"
+                disabled={isDeletePending}
+                onClick={() => onDelete(expenseId)}
+                variant="destructive"
+              >
+                {isDeletePending ? <Loader2 className="animate-spin" /> : <Trash2 />}
+                {t.expenses.rowActions.deleteExpense}
+              </DropdownMenuItem>
+            </>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
 
-function ActionButton({
-  children,
-  colorClass,
-  disabled = false,
-  label,
-  onClick,
-}: {
-  children: ReactNode;
-  colorClass: string;
-  disabled?: boolean;
-  label: string;
-  onClick: () => void;
-}) {
+function ActionButton({ children, label, onClick }: { children: ReactNode; label: string; onClick: () => void }) {
   return (
-    <button
-      aria-label={label}
-      className={`${tableActionButtonBaseClass} ${colorClass} disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-none`}
-      disabled={disabled}
-      onClick={onClick}
-      title={label}
-      type="button"
-    >
+    <button aria-label={label} className={tableActionButtonBaseClass} onClick={onClick} title={label} type="button">
       {children}
     </button>
   );

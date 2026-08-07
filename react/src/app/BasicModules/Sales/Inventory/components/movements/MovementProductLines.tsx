@@ -10,6 +10,7 @@ import {
   InventoryModalField,
   InventoryModalSection,
   inventoryModalControlClassName,
+  sortInventoryOptions,
 } from '../InventoryModalPrimitives';
 
 export type MovementProductLineDraft = InventoryMovementEntryLine;
@@ -37,16 +38,18 @@ export function MovementProductLines({
   t: InventoryTranslations;
   onItemsChange: (items: MovementProductLineDraft[]) => void;
 }) {
-  const firstProductId = rows[0]?.productId ?? '';
+  const selectableRows = useMemo(() => [...rows]
+    .sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: 'base' })), [rows]);
+  const firstProductId = selectableRows[0]?.productId ?? '';
   const [search, setSearch] = useState('');
   const normalizedSearch = search.trim().toLowerCase();
   const searchResults = useMemo(() => {
     const sourceRows = normalizedSearch
       ? rows.filter((row) => [row.name, row.sku, row.category, row.type, row.description].some((value) => String(value ?? '').toLowerCase().includes(normalizedSearch)))
-      : rows;
+      : selectableRows;
 
-    return sourceRows.slice(0, 8);
-  }, [normalizedSearch, rows]);
+    return sourceRows.sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: 'base' })).slice(0, 8);
+  }, [normalizedSearch, rows, selectableRows]);
 
   const updateLine = (lineId: string, patch: Partial<MovementProductLineDraft>) => {
     onItemsChange(items.map((item) => (item.id === lineId ? { ...item, ...patch } : item)));
@@ -137,7 +140,7 @@ export function MovementProductLines({
                     <SelectValue placeholder={t.operational.emptyStates.noProducts} />
                   </SelectTrigger>
                   <SelectContent>
-                    {rows.map((stockRow) => <SelectItem key={stockRow.productId} value={stockRow.productId}>{stockRow.name}</SelectItem>)}
+                    {sortInventoryOptions(selectableRows.map((stockRow) => ({ value: stockRow.productId, label: stockRow.name }))).map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 {needsAvailabilityCheck ? (

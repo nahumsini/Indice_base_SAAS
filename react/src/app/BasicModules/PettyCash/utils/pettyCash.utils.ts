@@ -14,9 +14,7 @@ import type {
   PettyCashStatementStatus,
 } from '../types/pettyCash.types';
 import {
-  convertBusinessCurrencyAmount,
   formatBusinessCurrencyBreakdown,
-  type BusinessExchangeRatesPerUsd,
 } from '../../shared/businessCurrency';
 
 export function formatPettyCashCurrency(amount: number, currency = 'CAD') {
@@ -185,55 +183,6 @@ export function getCashFundSummary(funds: CashFund[]) {
     pendingReceipts,
     activeFunds,
     riskFunds,
-  };
-}
-
-export function getOperationalPettyCashSummary(
-  statements: PettyCashStatement[],
-  funds: PettyCashFund[],
-  preferredCurrency = 'MXN',
-  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
-) {
-  const convertStatementAmount = (amount: number, statement: PettyCashStatement) => (
-    convertBusinessCurrencyAmount(amount, statement.currencyCode, preferredCurrency, exchangeRatesPerUsd)
-  );
-  const assignedAmount = statements.reduce((sum, statement) => (
-    sum + convertStatementAmount(statement.assignedAmount + statement.additionalDepositAmount, statement)
-  ), 0);
-  const estimatedUsageAmount = statements.reduce((sum, statement) => (
-    sum + convertStatementAmount(statement.estimatedUsageAmount, statement)
-  ), 0);
-  const verifiedExpenseAmount = statements.reduce((sum, statement) => (
-    sum + convertStatementAmount(statement.verifiedExpenseAmount, statement)
-  ), 0);
-  const shortageAmount = statements.reduce((sum, statement) => (
-    sum + convertStatementAmount(statement.shortageAmount, statement)
-  ), 0);
-  const currentBalanceAmount = funds.reduce((sum, fund) => (
-    sum + convertBusinessCurrencyAmount(
-      fund.currentBalanceAmount,
-      fund.currencyCode,
-      preferredCurrency,
-      exchangeRatesPerUsd,
-    )
-  ), 0);
-  const pendingReconciliationAmount = Math.max(0, estimatedUsageAmount - verifiedExpenseAmount - shortageAmount);
-  const settledCount = statements.filter(statement => statement.status === 'SETTLED' || statement.status === 'CLOSED').length;
-  const riskCount = statements.filter(statement => (
-    statement.status === 'SHORTAGE'
-    || statement.status === 'CUT_PENDING'
-    || statement.status === 'PARTIALLY_SETTLED'
-  )).length;
-
-  return {
-    assignedAmount,
-    currentBalanceAmount,
-    estimatedUsageAmount,
-    pendingReconciliationAmount,
-    riskCount,
-    settledCount,
-    shortageAmount,
-    verifiedExpenseAmount,
   };
 }
 

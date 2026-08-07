@@ -33,7 +33,7 @@ export function printProcessProcedure(record: ProcessRecord, copy: ProcessesTran
     },
     fileName: { documentType: labels.procedure, identifier: record.folio },
     folio: record.folio,
-    issuer: record.businessName || record.business || record.unitName || record.unit || 'Indice',
+    issuer: record.businessName || record.business || record.unitName || record.unit,
     locale,
     metadata: [
       { label: copy.form.labels.unit, value: record.unitName || record.unit },

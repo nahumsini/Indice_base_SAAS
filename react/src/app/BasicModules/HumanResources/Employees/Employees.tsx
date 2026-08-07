@@ -35,7 +35,8 @@ import {
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import { uploadEmployeeDocument } from './utils/employees.documents';
 import { downloadEmployeesCsv } from './utils/employees.export';
-import { summarizeEmployeePayroll } from './utils/employees.payroll';
+import { useKpiMonetaryAggregate } from '../../shared/kpiMonetaryApi';
+import { formatBusinessCurrencyAmount } from '../../shared/businessCurrency';
 import { normalizeErrorMessage } from './utils/employees.utils';
 import type { EmployeeViewModel } from './types/employees.types';
 import {
@@ -61,7 +62,7 @@ export default function Employees({ learningModeActive = false }: EmployeesProps
   const copy = useEmployeesTranslations();
   const guidanceCopy = useHumanResourcesGuidanceTranslations();
   const employeesContentRef = useRef<HTMLDivElement | null>(null);
-  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
 
   const {
     attendanceLocations,
@@ -209,10 +210,18 @@ export default function Employees({ learningModeActive = false }: EmployeesProps
     organizationCopy: copy.modal.belonging,
     unitOptions,
   });
-  const payrollSummary = useMemo(
-    () => summarizeEmployeePayroll(filteredEmployees, preferredCurrency, exchangeRatesPerUsd),
-    [exchangeRatesPerUsd, filteredEmployees, preferredCurrency],
-  );
+  const payrollAggregate = useKpiMonetaryAggregate({
+    metric: 'HR_EMPLOYEE_MONTHLY_PAYROLL',
+    preferredCurrency,
+    ids: filteredEmployees.map((employee) => employee.id),
+  });
+  const payrollSummary = {
+    currencyCount: payrollAggregate.data?.nativeTotals.length ?? 0,
+    nativeBreakdownLabel: payrollAggregate.data?.nativeTotals.map(({ amount, currency }) => formatBusinessCurrencyAmount(amount, currency)).join(' / ') ?? '—',
+    preferredTotalLabel: payrollAggregate.data && !payrollAggregate.loading
+      ? formatBusinessCurrencyAmount(payrollAggregate.data.preferredTotal, preferredCurrency)
+      : '—',
+  };
   const rowSelection = useRowSelection<number>();
   const { pruneSelection } = rowSelection;
   const paginatedEmployeeIds = useMemo(

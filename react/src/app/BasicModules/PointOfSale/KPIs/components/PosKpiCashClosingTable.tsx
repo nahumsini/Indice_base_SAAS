@@ -17,13 +17,13 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-function DifferencePill({ value, formatCurrency }: { value: number; formatCurrency: (amount: number) => string }) {
+function DifferencePill({ value, currency, formatCurrency }: { value: number; currency: string; formatCurrency: (amount: number, currency?: string) => string }) {
   const hasDifference = Math.abs(value) >= 1;
   const tone = hasDifference
     ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200'
     : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200';
 
-  return <span className={`rounded-full border px-3 py-1 text-xs font-medium ${tone}`}>{value > 0 ? '+' : ''}{formatCurrency(value)}</span>;
+  return <span className={`rounded-full border px-3 py-1 text-xs font-medium ${tone}`}>{value > 0 ? '+' : ''}{formatCurrency(value, currency)}</span>;
 }
 
 export function PosKpiCashClosingTable({
@@ -35,7 +35,7 @@ export function PosKpiCashClosingTable({
   onPageChange,
   onPageSizeChange,
 }: {
-  formatCurrency: (amount: number) => string;
+  formatCurrency: (amount: number, currency?: string) => string;
   items: PosCashClosingSummaryRow[];
   page: number;
   pageSize: number;
@@ -95,10 +95,10 @@ export function PosKpiCashClosingTable({
                 <td className="px-5 py-4 text-slate-700 dark:text-slate-200">Caja {item.cashRegisterId}</td>
                 <td className="px-5 py-4 text-slate-700 dark:text-slate-200">Almacen {item.warehouseId}</td>
                 <td className="px-5 py-4 font-medium text-slate-900 dark:text-white">{item.ticketsCount}</td>
-                <td className="px-5 py-4 font-medium text-slate-900 dark:text-white">{formatCurrency(toNumber(item.totalSalesAmount))}</td>
-                <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{formatCurrency(toNumber(item.expectedCashAmount))}</td>
+                <td className="px-5 py-4 font-medium text-slate-900 dark:text-white">{formatCurrency(toNumber(item.totalSalesAmount), item.currencyCode)}</td>
+                <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{formatCurrency(toNumber(item.expectedCashAmount), item.currencyCode)}</td>
                 <td className="px-5 py-4">
-                  <DifferencePill value={toNumber(item.overShortAmount)} formatCurrency={formatCurrency} />
+                  <DifferencePill value={toNumber(item.overShortAmount)} currency={item.currencyCode ?? 'MXN'} formatCurrency={formatCurrency} />
                 </td>
               </tr>
             ))}

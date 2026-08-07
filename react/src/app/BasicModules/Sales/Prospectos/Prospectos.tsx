@@ -4,6 +4,8 @@ import { authApi } from '../../../api/auth';
 import { humanResourcesApi } from '../../../api/humanResources';
 import { useLanguage } from '../../../shared/context';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
+import { useKpiMonetaryAggregates } from '../../shared/kpiMonetaryApi';
+import { formatBusinessCurrencyAmount } from '../../shared/businessCurrency';
 import {
   salesOwners,
   type OpportunityStage,
@@ -100,7 +102,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   const [temperatureFilter, setTemperatureFilter] = useState('all');
   const [sourceFilter, setSourceFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
+  const { exchangeRateMetadata, preferredCurrency } = usePreferredBusinessCurrency();
   const [form, setForm] = useState<OpportunityFormState>({
     ...initialOpportunityForm,
     contactId: contacts[0]?.id ?? '',
@@ -248,7 +250,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   const {
     createSaleRecord,
     updateSaleRecord,
-  } = useSalesRecords(preferredPipelineCurrency, exchangeRatesPerUsd);
+  } = useSalesRecords(preferredPipelineCurrency);
   const defaultOwnerValue = currentUserCompanyId
     ? `user-company:${currentUserCompanyId}`
     : ownerSelectOptions[0]?.value ?? fallbackOwnerValue(initialOpportunityForm.owner);
@@ -283,8 +285,8 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   );
 
   const tableOpportunities = useMemo(
-    () => sortOpportunities(periodScopedOpportunities, sortState, quotes, preferredPipelineCurrency, exchangeRatesPerUsd),
-    [exchangeRatesPerUsd, periodScopedOpportunities, preferredPipelineCurrency, quotes, sortState],
+    () => sortOpportunities(periodScopedOpportunities, sortState, quotes),
+    [periodScopedOpportunities, quotes, sortState],
   );
 
   const metrics = useProspectosMetrics(
@@ -292,12 +294,39 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     quotes,
     preferredPipelineCurrency,
     periodFilter,
-    exchangeRatesPerUsd,
   );
-  const showConvertedPipeline = metrics.pipelineQuoteCount > 0 && (
-    metrics.hasMultiplePipelineCurrencies
-    || metrics.pipelineCurrencyTotals.some((total) => total.currency !== preferredPipelineCurrency)
-  );
+  const opportunityAggregateQueries = useMemo(() => {
+    const ids = (items: SalesOpportunity[]) => items
+      .map((item) => item.backendId)
+      .filter((id): id is number => Boolean(id));
+    return [
+      {
+        key: 'pipeline',
+        metric: 'SALES_OPPORTUNITY_PIPELINE' as const,
+        preferredCurrency: preferredPipelineCurrency,
+        ids: ids(filteredOpportunities.filter((item) => !['Won', 'Lost'].includes(item.stage))),
+      },
+      {
+        key: 'won',
+        metric: 'SALES_OPPORTUNITY_WON' as const,
+        preferredCurrency: preferredPipelineCurrency,
+        ids: ids(periodScopedOpportunities.filter((item) => item.stage === 'Won')),
+      },
+      {
+        key: 'lost',
+        metric: 'SALES_OPPORTUNITY_LOST' as const,
+        preferredCurrency: preferredPipelineCurrency,
+        ids: ids(periodScopedOpportunities.filter((item) => item.stage === 'Lost')),
+      },
+    ];
+  }, [filteredOpportunities, periodScopedOpportunities, preferredPipelineCurrency]);
+  const { data: opportunityMoney, error: opportunityMoneyError } = useKpiMonetaryAggregates(opportunityAggregateQueries);
+  const pipelineNativeBreakdown = opportunityMoney.pipeline?.nativeTotals
+    .map(({ amount, currency }) => formatBusinessCurrencyAmount(amount, currency))
+    .join(' / ') ?? '';
+  const pipelinePreferredLabel = opportunityMoneyError
+    ? 'No disponible'
+    : formatBusinessCurrencyAmount(opportunityMoney.pipeline?.preferredTotal ?? 0, preferredPipelineCurrency);
 
   const getOwnerPayloadFromValue = (value: string) => {
     const userCompanyId = getOwnerUserCompanyIdFromValue(value);
@@ -551,16 +580,24 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         periodClosedCount={metrics.periodClosedCount}
         periodWonCount={metrics.periodWonCount}
         periodLostCount={metrics.periodLostCount}
-        periodWonValueLabel={metrics.periodWonValueLabel}
-        periodWonConvertedLabel={metrics.periodWonConvertedLabel}
-        periodLostValueLabel={metrics.periodLostValueLabel}
-        periodLostConvertedLabel={metrics.periodLostConvertedLabel}
+        periodWonConvertedLabel={formatBusinessCurrencyAmount(opportunityMoney.won?.preferredTotal ?? 0, preferredPipelineCurrency)}
+        periodLostConvertedLabel={formatBusinessCurrencyAmount(opportunityMoney.lost?.preferredTotal ?? 0, preferredPipelineCurrency)}
         periodConversionRate={metrics.periodConversionRate}
-        formattedPipelineValue={metrics.formattedPipelineValue}
-        convertedPipelineLabel={metrics.convertedPipelineLabel}
-        showConvertedPipeline={showConvertedPipeline}
+        convertedPipelineLabel={pipelinePreferredLabel}
         pipelineExchangeRateDate={metrics.pipelineExchangeRateDate}
         stageCounts={metrics.stageCounts}
+        currencyContext={{
+          preferredCurrency: preferredPipelineCurrency,
+          nativeBreakdown: pipelineNativeBreakdown || pipelinePreferredLabel,
+          rateLabel: exchangeRateMetadata.mode === 'manual'
+            ? t.kpiEngine.currencyContext.configuredRate
+            : t.kpiEngine.currencyContext.dailyRate,
+          effectiveDate: exchangeRateMetadata.sourceDate || metrics.pipelineExchangeRateDate,
+          source: exchangeRateMetadata.sourceName,
+          isPartial: opportunityMoney.pipeline?.partial ?? false,
+          excludedCount: opportunityMoney.pipeline?.excludedRecords ?? 0,
+          labels: t.kpiEngine.currencyContext,
+        }}
       /> : null}
 
       {activeView === 'table' ? (
@@ -570,8 +607,6 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
           quotes={quotes}
           visibleColumns={localizedVisibleColumns}
           columnWidths={columnWidths}
-          exchangeRatesPerUsd={exchangeRatesPerUsd}
-          preferredCurrency={preferredPipelineCurrency}
           tableMinWidth={tableMinWidth}
           sortState={sortState}
           ownerSelectOptions={ownerSelectOptions}

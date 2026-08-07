@@ -12,7 +12,6 @@ import {
 } from '../../../../components/ui/table';
 import { cn } from '../../../../components/ui/utils';
 import { useTablePagination } from '../../../../hooks/useTablePagination';
-import type { BusinessExchangeRatesPerUsd } from '../../../shared/businessCurrency';
 import type { SalesOpportunity, SalesQuote } from '../../salesCrmContext';
 import type { ProspectosCopy } from '../translations';
 import type { OpportunityColumnId, OpportunitySortState } from '../types/prospectosTypes';
@@ -94,8 +93,6 @@ export function ProspectosTable({
   quotes,
   visibleColumns,
   columnWidths,
-  exchangeRatesPerUsd,
-  preferredCurrency,
   tableMinWidth,
   sortState,
   ownerSelectOptions,
@@ -115,8 +112,6 @@ export function ProspectosTable({
   quotes: SalesQuote[];
   visibleColumns: ColumnConfig[];
   columnWidths: Record<OpportunityColumnId, number>;
-  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd;
-  preferredCurrency: string;
   tableMinWidth: number;
   sortState: OpportunitySortState;
   ownerSelectOptions: Array<{ value: string; label: string }>;
@@ -185,8 +180,6 @@ export function ProspectosTable({
                 quotes={quotes}
                 visibleColumns={visibleColumns}
                 columnWidths={columnWidths}
-                exchangeRatesPerUsd={exchangeRatesPerUsd}
-                preferredCurrency={preferredCurrency}
                 ownerSelectOptions={ownerSelectOptions}
                 resolveOpportunityOwnerValue={resolveOpportunityOwnerValue}
                 getOwnerPayloadFromValue={getOwnerPayloadFromValue}

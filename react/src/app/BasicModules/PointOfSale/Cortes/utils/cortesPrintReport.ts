@@ -1,4 +1,8 @@
-import type { BusinessExchangeRatesPerUsd } from '../../../shared/businessCurrency';
+import {
+  documentPrintAttribution,
+  formatDocumentPrintDateTime,
+  getDocumentPrintLabels,
+} from '../../../shared/print/documentPrintContract';
 import type { PosCashClosingSummaryRow } from '../types/cashClosingHistory.types';
 import {
   type CortesAnalytics,
@@ -15,7 +19,6 @@ interface CortesPrintReportParams {
   analytics: CortesAnalytics;
   cashRegisterLabel: string;
   cashierLabel: string;
-  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd;
   filters: CortesFilters;
   preferredCurrency: string;
   rows: PosCashClosingSummaryRow[];
@@ -37,17 +40,6 @@ const escapeHtml = (value: unknown) => String(value ?? '')
   .replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;')
   .replace(/'/g, '&#039;');
-
-const formatGeneratedDate = (date: Date) => new Intl.DateTimeFormat('es-MX', {
-  day: '2-digit',
-  month: 'long',
-  year: 'numeric',
-}).format(date);
-
-const formatGeneratedTime = (date: Date) => new Intl.DateTimeFormat('es-MX', {
-  hour: '2-digit',
-  minute: '2-digit',
-}).format(date);
 
 const buildDocumentId = (date: Date) => {
   const datePart = [
@@ -104,7 +96,6 @@ export function buildCortesPrintReportHtml({
   analytics,
   cashRegisterLabel,
   cashierLabel,
-  exchangeRatesPerUsd,
   filters,
   preferredCurrency,
   rows,
@@ -112,6 +103,8 @@ export function buildCortesPrintReportHtml({
   warehouseLabel,
 }: CortesPrintReportParams) {
   const generatedAt = new Date();
+  const locale = 'es-MX';
+  const printLabels = getDocumentPrintLabels(locale);
   const documentId = buildDocumentId(generatedAt);
   const dateRange = filters.dateFrom === filters.dateTo
     ? filters.dateFrom
@@ -162,26 +155,18 @@ export function buildCortesPrintReportHtml({
       const sales = formatClosingAmount(
         toNumber(row.totalSalesAmount),
         row,
-        preferredCurrency,
-        exchangeRatesPerUsd,
       );
       const expected = formatClosingAmount(
         toNumber(row.expectedCashAmount),
         row,
-        preferredCurrency,
-        exchangeRatesPerUsd,
       );
       const counted = formatClosingAmount(
         toNumber(row.countedCashAmount),
         row,
-        preferredCurrency,
-        exchangeRatesPerUsd,
       );
       const difference = formatClosingAmount(
         toNumber(row.overShortAmount),
         row,
-        preferredCurrency,
-        exchangeRatesPerUsd,
       );
       const differenceAmount = toNumber(row.overShortAmount);
       const differenceClass = differenceAmount < 0 ? 'risk' : differenceAmount > 0 ? 'warning' : 'ok';
@@ -198,13 +183,11 @@ export function buildCortesPrintReportHtml({
           <td>${escapeHtml(getClosingCurrency(row))}</td>
           <td class="amount">
             <strong>${escapeHtml(sales.nativeLabel)}</strong>
-            ${sales.nativeCurrency !== preferredCurrency ? `<span>Equiv. ${escapeHtml(sales.convertedLabel)}</span>` : ''}
           </td>
           <td class="amount">${escapeHtml(expected.nativeLabel)}</td>
           <td class="amount">${escapeHtml(counted.nativeLabel)}</td>
           <td class="amount ${differenceClass}">
             <strong>${escapeHtml(difference.nativeLabel)}</strong>
-            ${difference.nativeCurrency !== preferredCurrency ? `<span>Equiv. ${escapeHtml(difference.convertedLabel)}</span>` : ''}
           </td>
         </tr>
       `;
@@ -266,15 +249,7 @@ export function buildCortesPrintReportHtml({
       gap: 20px;
       grid-template-columns: 1fr 1.35fr 1fr;
     }
-    .logo-lockup { display: flex; gap: 12px; align-items: center; }
-    .logo-bars { display: flex; gap: 4px; align-items: flex-end; height: 32px; }
-    .logo-bars span { border-radius: 999px; display: block; width: 7px; }
-    .logo-bars span:nth-child(1) { background: #ff6b5e; height: 16px; }
-    .logo-bars span:nth-child(2) { background: #f4c84a; height: 22px; }
-    .logo-bars span:nth-child(3) { background: #58c7a7; height: 28px; }
-    .logo-bars span:nth-child(4) { background: #2563eb; height: 32px; }
-    .brand { letter-spacing: 0.08em; font-size: 12pt; font-weight: 500; }
-    .brand-subtitle { color: #6b7280; font-size: 8pt; font-weight: 400; margin-top: 4px; }
+    .document-context { color: #4b5563; font-size: 9pt; font-weight: 500; line-height: 1.4; }
     .document-title { text-align: center; }
     .document-title h1 { font-size: 25pt; font-weight: 500; line-height: 1.08; margin: 0; }
     .document-title p { color: #6b7280; font-size: 10pt; font-weight: 400; margin: 8px 0 0; }
@@ -340,21 +315,14 @@ export function buildCortesPrintReportHtml({
 
   <main class="page">
     <header class="header">
-      <div class="logo-lockup">
-        <div class="logo-bars" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-        <div>
-          <div class="brand">INDICE</div>
-          <div class="brand-subtitle">Control operativo</div>
-        </div>
-      </div>
+      <div class="document-context">Punto de venta<br />Control operativo</div>
       <div class="document-title">
         <h1>Reporte de cortes de caja</h1>
         <p>Inteligencia operativa del punto de venta</p>
       </div>
       <div class="meta">
         <strong>${escapeHtml(documentId)}</strong>
-        Generado: ${escapeHtml(formatGeneratedDate(generatedAt))}<br />
-        Hora: ${escapeHtml(formatGeneratedTime(generatedAt))}<br />
+        Generado: ${escapeHtml(formatDocumentPrintDateTime(generatedAt, locale))}<br />
         Tipo: Documento operativo
       </div>
     </header>
@@ -419,7 +387,7 @@ export function buildCortesPrintReportHtml({
     </section>
 
     <footer class="footer">
-      <span>Generated by Indice · Actualizado: ${escapeHtml(formatGeneratedDate(generatedAt))} ${escapeHtml(formatGeneratedTime(generatedAt))}</span>
+      <span>${documentPrintAttribution} · ${escapeHtml(printLabels.updated)}: ${escapeHtml(formatDocumentPrintDateTime(generatedAt, locale))}</span>
       <span>${escapeHtml(documentId)}</span>
     </footer>
   </main>

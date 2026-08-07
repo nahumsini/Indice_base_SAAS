@@ -1,5 +1,7 @@
 package com.indice.erp.sales;
 
+import com.indice.erp.exchange.BusinessExchangeRateService;
+import com.indice.erp.kpis.currency.KpiCurrencyAggregationService;
 import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import com.indice.erp.storage.ObjectStorageProperties;
@@ -42,6 +44,8 @@ public class SalesService {
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties storageProperties;
     private final CompanyStorageMeter storageMeter;
+    private final BusinessExchangeRateService businessExchangeRateService;
+    private final KpiCurrencyAggregationService kpiCurrencyAggregationService;
     private final Map<String, SalesEntityDefinition> definitions = SalesDefinitions.definitions();
 
     public SalesService(
@@ -49,12 +53,16 @@ public class SalesService {
             SalesReferenceService referenceService,
             ObjectStorageService objectStorageService,
             ObjectStorageProperties storageProperties,
-            CompanyStorageMeter storageMeter) {
+            CompanyStorageMeter storageMeter,
+            BusinessExchangeRateService businessExchangeRateService,
+            KpiCurrencyAggregationService kpiCurrencyAggregationService) {
         this.salesRepository = salesRepository;
         this.referenceService = referenceService;
         this.objectStorageService = objectStorageService;
         this.storageProperties = storageProperties;
         this.storageMeter = storageMeter;
+        this.businessExchangeRateService = businessExchangeRateService;
+        this.kpiCurrencyAggregationService = kpiCurrencyAggregationService;
     }
 
     public Map<String, Object> context(long companyId, long userId) {
@@ -102,6 +110,9 @@ public class SalesService {
         var normalizedPayload = normalizeBeforeSave(companyId, collection, payload);
         if ("sales".equals(collection)) {
             assignAuthenticatedSeller(companyId, userId, normalizedPayload);
+            normalizedPayload.putAll(SalesCommissionCalculator.calculate(
+                    normalizedPayload,
+                    salesRepository.list(companyId, definition("commission-rules"), Map.of())));
         }
         referenceService.validateEntityPayload(companyId, collection, normalizedPayload);
         var id = salesRepository.create(companyId, userId, definition, normalizedPayload);
@@ -110,7 +121,13 @@ public class SalesService {
             refreshQuoteAmount(companyId, id);
         }
         if ("sales".equals(collection)) {
-            salesRepository.confirmSaleInventory(companyId, userId, id, normalizedPayload);
+            try {
+                salesRepository.confirmSaleInventory(companyId, userId, id, normalizedPayload);
+            } catch (IllegalArgumentException inventoryConfirmationError) {
+                // A commercial close must not be lost because inventory still needs
+                // configuration or replenishment. The sale keeps its pending inventory
+                // statuses from the payload and can be resolved operationally afterwards.
+            }
         }
         return get(companyId, collection, id);
     }
@@ -119,6 +136,16 @@ public class SalesService {
     public Map<String, Object> update(long companyId, long userId, String collection, long id, Map<String, Object> payload) {
         var definition = definition(collection);
         var normalizedPayload = normalizeBeforeSave(companyId, collection, payload);
+        if ("sales".equals(collection)) {
+            removeClientCommissionCalculation(normalizedPayload);
+            if (commissionInputsChanged(payload)) {
+                var calculationInput = new LinkedHashMap<String, Object>(get(companyId, "sales", id));
+                calculationInput.putAll(normalizedPayload);
+                normalizedPayload.putAll(SalesCommissionCalculator.calculate(
+                        calculationInput,
+                        salesRepository.list(companyId, definition("commission-rules"), Map.of())));
+            }
+        }
         referenceService.validateEntityPayload(companyId, collection, normalizedPayload);
         salesRepository.update(companyId, userId, definition, id, normalizedPayload);
         if ("quotes".equals(collection)) {
@@ -131,13 +158,66 @@ public class SalesService {
         return get(companyId, collection, id);
     }
 
+    private static void removeClientCommissionCalculation(Map<String, Object> payload) {
+        List.of(
+                "commissionRate", "commissionAmount", "commissionRuleId", "commissionRuleCode",
+                "commissionRuleName", "commissionType", "commissionValue", "commissionBreakdown")
+                .forEach(payload::remove);
+    }
+
+    private static boolean commissionInputsChanged(Map<String, Object> payload) {
+        if (payload == null) return false;
+        return List.of("saleDate", "totalAmount", "sellerUserCompanyId", "sellerName", "saleLines")
+                .stream().anyMatch(key -> SalesPayloadSupport.value(payload, key) != null);
+    }
+
     @Transactional
     public void delete(long companyId, String collection, long id) {
         salesRepository.softDelete(companyId, definition(collection), id);
     }
 
-    public Map<String, Object> kpis(long companyId) {
-        return salesRepository.kpis(companyId);
+    public Map<String, Object> kpis(long companyId, String preferredCurrency) {
+        var body = new LinkedHashMap<>(salesRepository.kpis(companyId));
+        var rates = businessExchangeRateService.loadDailyRates();
+        var metadata = rates.metadata();
+        var effectiveDate = parseKpiRateDate(metadata == null ? null : metadata.sourceDate());
+        var source = metadata == null ? "" : metadata.sourceName();
+        var currency = preferredCurrency == null || preferredCurrency.isBlank() ? "MXN" : preferredCurrency;
+
+        var pipeline = kpiCurrencyAggregationService.aggregate(salesRepository.opportunityKpiAmounts(companyId), currency, rates.ratesPerUsd(), "daily", effectiveDate, source);
+        var quoted = kpiCurrencyAggregationService.aggregate(salesRepository.quoteKpiAmounts(companyId), currency, rates.ratesPerUsd(), "daily", effectiveDate, source);
+        var sales = kpiCurrencyAggregationService.aggregate(salesRepository.salesKpiAmounts(companyId, "all"), currency, rates.ratesPerUsd(), "daily", effectiveDate, source);
+        var monthly = kpiCurrencyAggregationService.aggregate(salesRepository.salesKpiAmounts(companyId, "month"), currency, rates.ratesPerUsd(), "daily", effectiveDate, source);
+        var weekly = kpiCurrencyAggregationService.aggregate(salesRepository.salesKpiAmounts(companyId, "week"), currency, rates.ratesPerUsd(), "daily", effectiveDate, source);
+
+        body.put("pipelineValue", pipeline.preferredTotal());
+        body.put("quotedValue", quoted.preferredTotal());
+        body.put("salesValue", sales.preferredTotal());
+        body.put("monthlySalesValue", monthly.preferredTotal());
+        body.put("weeklySalesValue", weekly.preferredTotal());
+        body.put("monetaryKpis", Map.of("pipeline", pipeline, "quoted", quoted, "sales", sales, "monthlySales", monthly, "weeklySales", weekly));
+        return body;
+    }
+
+    private LocalDate parseKpiRateDate(String value) {
+        try {
+            return value == null || value.isBlank() ? LocalDate.now() : LocalDate.parse(value);
+        } catch (RuntimeException ignored) {
+            return LocalDate.now();
+        }
+    }
+
+    public Map<String, Object> previewCommissionRule(Map<String, Object> payload) {
+        var ruleValue = SalesPayloadSupport.value(payload, "rule");
+        var inputValue = SalesPayloadSupport.value(payload, "input");
+        if (!(ruleValue instanceof Map<?, ?> rawRule) || !(inputValue instanceof Map<?, ?> rawInput)) {
+            throw new IllegalArgumentException("rule and input are required.");
+        }
+        var rule = new LinkedHashMap<String, Object>();
+        rawRule.forEach((key, value) -> rule.put(String.valueOf(key), value));
+        var input = new LinkedHashMap<String, Object>();
+        rawInput.forEach((key, value) -> input.put(String.valueOf(key), value));
+        return SalesCommissionCalculator.preview(rule, input);
     }
 
     public Map<String, Object> listFiles(long companyId, String entityType, Long entityId) {

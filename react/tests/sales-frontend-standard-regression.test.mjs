@@ -26,3 +26,27 @@ test('Ventas respeta la escala tipográfica del Frontend Engine V2', () => {
 
   assert.deepEqual(violations, [], `Tipografía fuera del estándar:\n${violations.map(({ file, token }) => `${file}: ${token}`).join('\n')}`);
 });
+
+test('Oportunidades limita la divisa preferida a la barra KPI y conserva la tabla transaccional', () => {
+  const opportunitiesSource = readFileSync(resolve(salesRoot, 'Prospectos/Prospectos.tsx'), 'utf8');
+  const kpiSource = readFileSync(resolve(salesRoot, 'Prospectos/components/ProspectosKpiStrip.tsx'), 'utf8');
+  const tableSource = readFileSync(resolve(salesRoot, 'Prospectos/table/ProspectosTable.tsx'), 'utf8');
+
+  assert.match(kpiSource, /currencyContext=\{currencyContext\}/);
+  assert.match(kpiSource, /value: periodWonConvertedLabel/);
+  assert.match(kpiSource, /value: convertedPipelineLabel/);
+  assert.match(kpiSource, /value: periodLostConvertedLabel/);
+  assert.match(opportunitiesSource, /nativeBreakdown: pipelineNativeBreakdown/);
+  assert.match(opportunitiesSource, /exchangeRateMetadata\.sourceDate/);
+  assert.doesNotMatch(tableSource, /preferredCurrency|exchangeRatesPerUsd|convertSalesCurrencyAmount/);
+});
+
+test('el motor compartido de barras KPI respeta tipografía y contexto monetario', () => {
+  const engineSource = readFileSync(resolve(root, 'src/app/BasicModules/shared/operational/OperationalKpiArea.tsx'), 'utf8');
+
+  assert.doesNotMatch(engineSource, prohibitedTypography);
+  assert.match(engineSource, /OperationalKpiCurrencyContext/);
+  assert.match(engineSource, /nativeBreakdown/);
+  assert.match(engineSource, /preferredCurrency/);
+  assert.match(engineSource, /excludedRecords/);
+});

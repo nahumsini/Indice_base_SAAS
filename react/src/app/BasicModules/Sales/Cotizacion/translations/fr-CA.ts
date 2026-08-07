@@ -12,6 +12,9 @@ export const frCA = {
     actions: 'Actions',
     unassigned: 'Non assigné',
     optional: 'Optionnel',
+    back: 'Retour',
+    continue: 'Continuer',
+    stepLabel: (current: number, total: number) => `Étape ${current} sur ${total}`,
   },
   header: {
     ...enCA.header,

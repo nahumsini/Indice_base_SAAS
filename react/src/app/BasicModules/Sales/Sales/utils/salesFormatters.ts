@@ -21,7 +21,3 @@ export function formatSalesNumber(value: number) {
 export function formatCommissionRate(value: number) {
   return `${new Intl.NumberFormat(getSalesCurrencyLocale(), { maximumFractionDigits: 2 }).format(value)}%`;
 }
-
-export function calculateCommissionAmount(totalAmount: number, commissionRate: number) {
-  return Math.round((totalAmount * commissionRate) / 100);
-}

@@ -34,6 +34,14 @@ export const esMX: ReceivablesTranslations = {
     },
   },
   kpiEngine: {
+    currency: {
+      consolidatedIn: 'Consolidado en',
+      nativeOrigin: 'Origen nativo',
+      partialTotal: 'Total parcial',
+      excludedRecords: (count) => `${count} registros excluidos`,
+      dailyRate: 'Tipo de cambio diario',
+      unavailable: 'No disponible',
+    },
     creditSales: {
       labels: {
         receivableTotal: 'por cobrar',

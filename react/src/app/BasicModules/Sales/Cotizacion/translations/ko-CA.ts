@@ -12,6 +12,9 @@ export const koCA = {
     actions: '작업',
     unassigned: '미지정',
     optional: '선택 사항',
+    back: '뒤로',
+    continue: '계속',
+    stepLabel: (current: number, total: number) => `${total}단계 중 ${current}단계`,
   },
   header: {
     ...enCA.header,

@@ -23,6 +23,8 @@ export type SalesWorkflowSaleLine = {
   productId: string;
   sku: string;
   productName: string;
+  categoryId?: string;
+  categoryName?: string;
   quantity: number;
   unitPrice: number;
   unitCost: number;

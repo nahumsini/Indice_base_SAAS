@@ -4,7 +4,6 @@ import { productTypes, type SalesCatalogItem } from '../../salesCrmContext';
 import { cn } from '../../../../components/ui/utils';
 import { productTypeProgressStyles } from '../utils/productStyles';
 import type { ProductTypeCount } from '../types/productosTypes';
-import { formatProductCurrency } from '../utils/productFormatters';
 import { useLearningModeHeaderActions } from '../../../../learningMode';
 
 function CatalogMetric({
@@ -51,8 +50,8 @@ function CatalogMetricGroup({ children }: { children: ReactNode }) {
 export function ProductsKpiStrip({
   totalCount,
   activeCount,
-  inventoryValue,
-  estimatedProfit,
+  inventoryValueLabel,
+  estimatedProfitLabel,
   readyForSalesCount,
   posReadyCount,
   publicCatalogCount,
@@ -62,8 +61,8 @@ export function ProductsKpiStrip({
 }: {
   totalCount: number;
   activeCount: number;
-  inventoryValue: number;
-  estimatedProfit: number;
+  inventoryValueLabel: string;
+  estimatedProfitLabel: string;
   readyForSalesCount: number;
   posReadyCount: number;
   publicCatalogCount: number;
@@ -88,8 +87,8 @@ export function ProductsKpiStrip({
     <section className="space-y-4">
       <CatalogMetricGroup>
         <CatalogMetric icon={<PackageCheck className="h-4 w-4" />} value={activeCount} label={metricLabels.activeItems} valueClassName="text-[#FF6B5E]" />
-        <CatalogMetric icon={<Warehouse className="h-4 w-4" />} value={formatProductCurrency(inventoryValue)} label={metricLabels.inventoryValue} valueClassName="text-[#9a6b05]" />
-        <CatalogMetric icon={<TrendingUp className="h-4 w-4" />} value={formatProductCurrency(estimatedProfit)} label={metricLabels.estimatedProfit} valueClassName="text-[#177d66]" />
+        <CatalogMetric icon={<Warehouse className="h-4 w-4" />} value={inventoryValueLabel} label={metricLabels.inventoryValue} valueClassName="text-[#9a6b05]" />
+        <CatalogMetric icon={<TrendingUp className="h-4 w-4" />} value={estimatedProfitLabel} label={metricLabels.estimatedProfit} valueClassName="text-[#177d66]" />
         <CatalogMetric icon={<CircleDollarSign className="h-4 w-4" />} value={readyForSalesCount} label={metricLabels.readyForSales} valueClassName="text-[#2563EB]" />
       </CatalogMetricGroup>
 

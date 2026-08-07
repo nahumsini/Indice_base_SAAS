@@ -1,7 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
-import { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../../../components/ui/tabs';
-import type { SalesCatalogItem, SalesContact, SalesOpportunity, SalesQuoteItem } from '../../../types';
+import type { CreateContactInput, SalesCatalogItem, SalesContact, SalesOpportunity, SalesQuoteItem } from '../../../types';
+import type { SalesRecordsTranslations } from '../../../Sales/translations';
 import type { QuotesTranslations } from '../../translations';
 import type { QuoteFormState, QuoteHealthState, QuoteTotals } from '../../types/quoteBuilderTypes';
 import { QuoteCatalogSection } from './QuoteCatalogSection';
@@ -10,11 +9,12 @@ import { QuoteCustomerSection } from './QuoteCustomerSection';
 import { QuoteFinalReviewSection } from './QuoteFinalReviewSection';
 import { QuoteLineItemsSection } from './QuoteLineItemsSection';
 
-type QuoteBuilderTabId = 'customer' | 'items' | 'conditions' | 'summary';
+export type QuoteBuilderStepId = 'customer' | 'items' | 'conditions' | 'summary';
 
-const quoteBuilderTabIds: QuoteBuilderTabId[] = ['customer', 'items', 'conditions', 'summary'];
+export const quoteBuilderStepIds: QuoteBuilderStepId[] = ['customer', 'items', 'conditions', 'summary'];
 
 export function QuoteBuilderTabs({
+  activeStep,
   form,
   items,
   contacts,
@@ -24,16 +24,19 @@ export function QuoteBuilderTabs({
   totals,
   health,
   t,
+  customerT,
   opportunityOptions,
   sellerOptions,
   formatCurrency,
   onFormChange,
+  onCreateCustomer,
   onSellerChange,
   onCurrencyChange,
   onAddProduct,
   onUpdateItem,
   onRemoveItem,
 }: {
+  activeStep: QuoteBuilderStepId;
   form: QuoteFormState;
   items: SalesQuoteItem[];
   contacts: SalesContact[];
@@ -43,48 +46,38 @@ export function QuoteBuilderTabs({
   totals: QuoteTotals;
   health: QuoteHealthState;
   t: QuotesTranslations;
+  customerT: SalesRecordsTranslations;
   opportunityOptions: Array<{ value: string; label: string }>;
   sellerOptions: Array<{ value: string; label: string }>;
   formatCurrency: (value: number, currency?: string | null) => string;
   onFormChange: Dispatch<SetStateAction<QuoteFormState>>;
+  onCreateCustomer: (contact: CreateContactInput) => Promise<SalesContact>;
   onSellerChange: (value: string) => void;
   onCurrencyChange: (value: string) => void;
   onAddProduct: (product: SalesCatalogItem) => void;
   onUpdateItem: (itemId: string, patch: Partial<SalesQuoteItem>) => void;
   onRemoveItem: (itemId: string) => void;
 }) {
-  const [activeTab, setActiveTab] = useState<QuoteBuilderTabId>('customer');
-
   return (
-    <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as QuoteBuilderTabId)} className="min-h-0 gap-4">
-      <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 md:grid-cols-4">
-        {quoteBuilderTabIds.map((tabId) => (
-          <TabsTrigger
-            key={tabId}
-            value={tabId}
-            className="h-10 rounded-lg px-3 text-sm font-medium data-[state=active]:bg-[#FF6B5E] data-[state=active]:font-medium data-[state=active]:text-[#222831]"
-          >
-            {t.builderSections[tabId]}
-          </TabsTrigger>
-        ))}
-      </TabsList>
-
-      <TabsContent value="customer" className="mt-0 rounded-lg border border-slate-200 bg-white p-4">
+    <div className="min-h-0">
+      {activeStep === 'customer' ? <section className="rounded-lg border border-slate-200 bg-white p-4">
         <QuoteCustomerSection
           form={form}
           t={t}
+          customerT={customerT}
           contacts={contacts}
           items={items}
           opportunityOptions={opportunityOptions}
           sellerOptions={sellerOptions}
           onFormChange={onFormChange}
+          onCreateCustomer={onCreateCustomer}
           onSellerChange={onSellerChange}
           onCurrencyChange={onCurrencyChange}
           onUpdateItem={onUpdateItem}
         />
-      </TabsContent>
+      </section> : null}
 
-      <TabsContent value="items" className="mt-0 rounded-lg border border-slate-200 bg-white p-4">
+      {activeStep === 'items' ? <section className="rounded-lg border border-slate-200 bg-white p-4">
         <QuoteCatalogSection
           products={products}
           t={t}
@@ -102,13 +95,13 @@ export function QuoteBuilderTabs({
             onRemoveItem={onRemoveItem}
           />
         </div>
-      </TabsContent>
+      </section> : null}
 
-      <TabsContent value="conditions" className="mt-0 rounded-lg border border-slate-200 bg-white p-4">
+      {activeStep === 'conditions' ? <section className="rounded-lg border border-slate-200 bg-white p-4">
         <QuoteConditionsSection form={form} t={t} onFormChange={onFormChange} />
-      </TabsContent>
+      </section> : null}
 
-      <TabsContent value="summary" className="mt-0 rounded-lg border border-slate-200 bg-white p-4">
+      {activeStep === 'summary' ? <section className="rounded-lg border border-slate-200 bg-white p-4">
         <QuoteFinalReviewSection
           form={form}
           items={items}
@@ -120,7 +113,7 @@ export function QuoteBuilderTabs({
           t={t}
           formatCurrency={formatCurrency}
         />
-      </TabsContent>
-    </Tabs>
+      </section> : null}
+    </div>
   );
 }

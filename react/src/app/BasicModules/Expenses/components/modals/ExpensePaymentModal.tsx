@@ -1,6 +1,7 @@
-import { Check, HandCoins, Loader2 } from 'lucide-react';
+import { Check, HandCoins, Loader2, Paperclip, X } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
-import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
+import { useExpensesResolvedLocale, useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
+import { getExpenseDetailCopy } from '../../Expenses/components/expenseDetail.copy';
 import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
 import type { PaymentAccount } from '../../PaymentAccounts/types';
 import type { Expense } from '../../types/expenses.types';
@@ -10,7 +11,7 @@ import { formatCurrency } from '../../utils/expenses.utils';
 type ExpensePaymentModalProps = {
   expense: Expense;
   onClose: () => void;
-  onSubmit: (expenseId: string, amount: number, paymentAccountId: string, paymentDate: Date) => void | Promise<void>;
+  onSubmit: (expenseId: string, amount: number, paymentAccountId: string, paymentDate: Date, attachmentFiles: File[]) => void | Promise<void>;
   paymentAccounts: PaymentAccount[];
 };
 
@@ -19,11 +20,13 @@ const inputClass =
 
 export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccounts }: ExpensePaymentModalProps) {
   const t = useExpensesTranslations();
+  const detailCopy = getExpenseDetailCopy(useExpensesResolvedLocale());
   const [amount, setAmount] = useState('');
   const [paymentAccountId, setPaymentAccountId] = useState(expense.paymentAccountId ?? '');
   const [paymentDate, setPaymentDate] = useState(formatDateInputValue(new Date()));
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
 
   const eligiblePaymentAccounts = useMemo(() => (
     paymentAccounts.filter(account => (
@@ -52,9 +55,9 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccount
     setError('');
     setIsSubmitting(true);
     try {
-      await onSubmit(expense.id, paymentAmount, selectedPaymentAccountId, toDateValue(paymentDate));
+      await onSubmit(expense.id, paymentAmount, selectedPaymentAccountId, toDateValue(paymentDate), attachmentFiles);
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'No se pudo registrar el pago.');
+      setError(submitError instanceof Error ? submitError.message : t.expenses.messages.saveFailed);
     } finally {
       setIsSubmitting(false);
     }
@@ -90,7 +93,7 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccount
         className="space-y-4"
       >
         {error ? <IndiceModalValidation messages={[error]} tone="error" /> : null}
-          <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
             <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-700">
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0">
@@ -160,7 +163,33 @@ export function ExpensePaymentModal({ expense, onClose, onSubmit, paymentAccount
                 </label>
               </div>
 
-              <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#147514]/20 bg-[#147514]/5 px-4 py-3">
+              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 dark:border-slate-600 dark:bg-slate-900/50">
+                <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-medium text-[#147514] shadow-sm dark:bg-slate-800">
+                  <Paperclip className="h-4 w-4" />
+                  {detailCopy.paymentEvidence}
+                  <input
+                    className="hidden"
+                    type="file"
+                    multiple
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
+                    onChange={(event) => setAttachmentFiles(Array.from(event.target.files ?? []))}
+                  />
+                </label>
+                {attachmentFiles.length > 0 ? (
+                  <div className="mt-3 space-y-2">
+                    {attachmentFiles.map((file, index) => (
+                      <div key={`${file.name}-${file.size}-${index}`} className="flex items-center justify-between gap-3 text-xs text-slate-600 dark:text-slate-300">
+                        <span className="truncate">{file.name}</span>
+                        <button type="button" aria-label={`${t.common.delete}: ${file.name}`} onClick={() => setAttachmentFiles(files => files.filter((_, itemIndex) => itemIndex !== index))}>
+                          <X className="h-4 w-4 text-red-500" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="flex items-center justify-between gap-4 rounded-xl border border-[#147514]/20 bg-[#147514]/5 px-4 py-3">
                 <div>
                   <p className="text-xs font-medium text-slate-500">{t.expenses.payment.newBalance}</p>
                   <p className="mt-1 text-xl font-medium text-[#147514]">{formatCurrency(newBalance, expense.currency)}</p>

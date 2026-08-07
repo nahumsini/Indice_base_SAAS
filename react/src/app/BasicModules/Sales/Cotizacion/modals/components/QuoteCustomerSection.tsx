@@ -1,9 +1,9 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { AlertTriangle, Info } from 'lucide-react';
-import { Button } from '../../../../../components/ui/button';
 import { Input } from '../../../../../components/ui/input';
-import { cn } from '../../../../../components/ui/utils';
-import type { SalesContact, SalesQuoteItem } from '../../../types';
+import type { CreateContactInput, SalesContact, SalesQuoteItem } from '../../../types';
+import { SalesCustomerSelector } from '../../../Sales/components/SalesCustomerSelector';
+import type { SalesRecordsTranslations } from '../../../Sales/translations';
 import { FilterSelect } from '../../components/QuoteUi';
 import type { QuotesTranslations } from '../../translations';
 import type { QuoteFormState } from '../../types/quoteBuilderTypes';
@@ -15,22 +15,26 @@ const coralFieldClassName = 'border-slate-200 bg-white shadow-none focus-visible
 export function QuoteCustomerSection({
   form,
   t,
+  customerT,
   contacts,
   items,
   opportunityOptions,
   sellerOptions,
   onFormChange,
+  onCreateCustomer,
   onSellerChange,
   onCurrencyChange,
   onUpdateItem,
 }: {
   form: QuoteFormState;
   t: QuotesTranslations;
+  customerT: SalesRecordsTranslations;
   contacts: SalesContact[];
   items: SalesQuoteItem[];
   opportunityOptions: Array<{ value: string; label: string }>;
   sellerOptions: Array<{ value: string; label: string }>;
   onFormChange: Dispatch<SetStateAction<QuoteFormState>>;
+  onCreateCustomer: (contact: CreateContactInput) => Promise<SalesContact>;
   onSellerChange: (value: string) => void;
   onCurrencyChange: (value: string) => void;
   onUpdateItem: (itemId: string, patch: Partial<SalesQuoteItem>) => void;
@@ -40,59 +44,23 @@ export function QuoteCustomerSection({
 
   return (
     <section className="space-y-4">
-      <div className="grid grid-cols-2 gap-2 rounded-lg bg-white p-1 shadow-sm ring-1 ring-slate-200">
-        <Button
-          type="button"
-          variant={form.clientMode === 'contact' ? 'default' : 'ghost'}
-          className={cn('rounded-lg', form.clientMode === 'contact' && 'bg-[#FF6B5E] text-[#222831] hover:bg-[#E85C50]')}
-          onClick={() => onFormChange((current) => ({ ...current, clientMode: 'contact' }))}
-        >
-          {t.builder.modeContact}
-        </Button>
-        <Button
-          type="button"
-          variant={form.clientMode === 'temporary' ? 'default' : 'ghost'}
-          className={cn('rounded-lg', form.clientMode === 'temporary' && 'bg-[#FF6B5E] text-[#222831] hover:bg-[#E85C50]')}
-          onClick={() => onFormChange((current) => ({ ...current, clientMode: 'temporary' }))}
-        >
-          {t.builder.modeTemporary}
-        </Button>
-      </div>
-
-      {form.clientMode === 'contact' ? (
-        <FilterSelect
-          softTypography
-          label={t.labels.client}
-          value={form.clientId}
-          onValueChange={(value) => onFormChange((current) => ({ ...current, clientId: value }))}
-          options={contacts.map((contact) => ({ value: contact.id, label: `${contact.company} · ${contact.contactPerson}` }))}
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-slate-700">{t.labels.client}</label>
+        <SalesCustomerSelector
+          contacts={contacts}
+          selectedContactId={form.clientId}
+          selectedCustomerName=""
+          t={customerT}
+          onSelectCustomer={(contactId) => onFormChange((current) => ({
+            ...current,
+            clientMode: 'contact',
+            clientId: contactId,
+            temporaryClient: '',
+            contactPerson: '',
+          }))}
+          onCreateCustomer={onCreateCustomer}
         />
-      ) : (
-        <div className="grid gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">{t.labels.temporaryClient}</label>
-            <Input
-              className={coralFieldClassName}
-              value={form.temporaryClient}
-              onChange={(event) => onFormChange((current) => ({ ...current, temporaryClient: event.target.value }))}
-              placeholder={t.builder.temporaryClientPlaceholder}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">{t.labels.contact}</label>
-            <Input
-              className={coralFieldClassName}
-              value={form.contactPerson}
-              onChange={(event) => onFormChange((current) => ({ ...current, contactPerson: event.target.value }))}
-              placeholder={t.builder.contactPlaceholder}
-            />
-          </div>
-          <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-normal leading-5 text-slate-600">
-            <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-            {t.builder.temporaryCustomerHelper}
-          </div>
-        </div>
-      )}
+      </div>
 
       <FilterSelect
         softTypography

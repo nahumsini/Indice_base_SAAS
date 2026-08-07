@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BadgePercent } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';
@@ -15,7 +15,7 @@ import { getSalesModalActionClassNames } from '../../salesModalStyles';
 import { defaultSalesCurrency } from '../../utils/salesCurrency';
 import type { SalesRecordsTranslations } from '../translations';
 import type { CommissionStatus, SaleRecord } from '../types/salesTypes';
-import { calculateCommissionAmount, formatSalesCurrency } from '../utils/salesFormatters';
+import { formatSalesCurrency } from '../utils/salesFormatters';
 import { commissionStatuses } from '../utils/salesStatuses';
 import { FormField, salesFieldClassName } from './SalesModalPrimitives';
 
@@ -58,15 +58,6 @@ export function CommissionManagementModal({
     }
   }, [open, record]);
 
-  const suggestedAmount = useMemo(
-    () => calculateCommissionAmount(record?.totalAmount ?? 0, draft.commissionRate),
-    [draft.commissionRate, record?.totalAmount],
-  );
-
-  const handleUseSuggestedAmount = () => {
-    setDraft((current) => ({ ...current, commissionAmount: suggestedAmount }));
-  };
-
   const handleSave = () => {
     if (!record) return;
 
@@ -106,16 +97,12 @@ export function CommissionManagementModal({
           </Select>
         </FormField>
         <FormField label={t.modal.fields.commissionRate}>
-          <Input type="number" value={draft.commissionRate} onChange={(event) => setDraft((current) => ({ ...current, commissionRate: Number(event.target.value) }))} className={salesFieldClassName} />
+          <Input type="number" value={draft.commissionRate} readOnly className={`${salesFieldClassName} bg-slate-50`} />
         </FormField>
         <FormField label={t.modal.fields.commissionAmount}>
-          <Input type="number" value={draft.commissionAmount} onChange={(event) => setDraft((current) => ({ ...current, commissionAmount: Number(event.target.value) }))} className={salesFieldClassName} />
+          <Input type="number" value={draft.commissionAmount} readOnly className={`${salesFieldClassName} bg-slate-50`} />
         </FormField>
-        <div className="flex items-end">
-          <Button type="button" variant="outline" className="h-11 rounded-lg border-[#FF6B5E]/25 bg-white px-4 font-medium text-[#B63B32] hover:bg-[#FF6B5E]/10 dark:border-[#FF6B5E]/30 dark:bg-slate-950 dark:text-[#FFB0AA]" onClick={handleUseSuggestedAmount}>
-            {t.commissionModal.useSuggestedAmount}
-          </Button>
-        </div>
+        <p className="flex items-end text-sm text-slate-500">Importe y tasa calculados exclusivamente por el backend según la regla aplicada.</p>
       </section>
 
       <FormField label={t.modal.fields.commissionNotes}>

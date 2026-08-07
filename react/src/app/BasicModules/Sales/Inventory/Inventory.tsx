@@ -23,6 +23,9 @@ import { buildInitialInventoryMovements, buildInventoryStockRows, initialInvento
 import { useInventorySelection } from './hooks/useInventorySelection';
 import { useInventoryTranslations } from './hooks/useInventoryTranslations';
 import { useLanguage } from '../../../shared/context';
+import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
+import { useKpiMonetaryAggregate } from '../../shared/kpiMonetaryApi';
+import { formatBusinessCurrencyAmount } from '../../shared/businessCurrency';
 import { inventoryApi } from './services/inventoryApi';
 import type {
   InventoryOperationalColumnId,
@@ -57,6 +60,7 @@ import {
 export default function Inventory() {
   const t = useInventoryTranslations();
   const { currentLanguage } = useLanguage();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
   const { products } = useSalesCrm();
   const [activeView, setActiveView] = useState<InventoryOperationalView>('stock');
   const [movementViewMode, setMovementViewMode] = useState<'table' | 'kanban'>('table');
@@ -228,6 +232,16 @@ export default function Inventory() {
         ? getWarehouseMetrics(filteredWarehouses, stockRows)
         : getMovementMetrics(filteredMovements)
   ), [activeView, filteredMovements, filteredStockRows, filteredWarehouses, stockRows]);
+  const monetaryScope = activeView === 'movements' ? filteredMovements : activeView === 'warehouses' ? filteredWarehouseRows : filteredStockRows;
+  const monetaryIds = useMemo(() => monetaryScope
+    .map((item) => Number(item.id))
+    .filter((id) => Number.isSafeInteger(id) && id > 0), [monetaryScope]);
+  const { data: inventoryMoney } = useKpiMonetaryAggregate({
+    metric: activeView === 'movements' ? 'INVENTORY_MOVEMENT_VALUE' : 'INVENTORY_BALANCE_VALUE',
+    preferredCurrency,
+    ids: monetaryIds,
+  });
+  const inventoryMoneyLabel = formatBusinessCurrencyAmount(inventoryMoney?.preferredTotal ?? 0, preferredCurrency);
 
   const persistStockRows = (rows: InventoryStockRow[]) => {
     void inventoryApi.persistStockRows(rows)
@@ -504,8 +518,8 @@ export default function Inventory() {
         }}
       />
 
-      <InventoryKpiStrip activeView={activeView} metrics={activeMetrics} t={t} />
-      <InventoryInsightBar activeView={activeView} metrics={activeMetrics} t={t} />
+      <InventoryKpiStrip activeView={activeView} metrics={activeMetrics} monetaryValueLabel={inventoryMoneyLabel} t={t} />
+      <InventoryInsightBar activeView={activeView} metrics={activeMetrics} monetaryValueLabel={inventoryMoneyLabel} t={t} />
 
       {activeView === 'stock' ? (
         <>

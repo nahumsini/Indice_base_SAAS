@@ -211,6 +211,7 @@ export const ptBR = {
     commission: {
       pending: 'Pendente',
       calculated: 'Calculada',
+      cut: 'Enviada ao RH',
       paid: 'Paga',
     },
     movement: {

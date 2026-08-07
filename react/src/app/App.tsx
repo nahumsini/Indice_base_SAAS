@@ -53,6 +53,8 @@ const Cartera = lazy(() => import('./BasicModules/Receivables'));
 const Kpis = lazy(() => import('./BasicModules/Kpis'));
 const Mantenimiento = lazy(() => import('./ComplementaryModules/Maintenance'));
 const Inventarios = lazy(() => import('./ComplementaryModules/Inventory'));
+const MaterialWarehouse = lazy(() => import('./BasicModules/MaterialWarehouse'));
+const Production = lazy(() => import('./BasicModules/Production'));
 const ControlMinutas = lazy(() => import('./ComplementaryModules/MinutesControl'));
 const Limpieza = lazy(() => import('./ComplementaryModules/Cleaning'));
 const Lavanderia = lazy(() => import('./ComplementaryModules/Laundry'));
@@ -548,6 +550,10 @@ export default function App() {
           routes.add('kiosk-center');
           routes.add('kiosk-management');
         }
+        if (import.meta.env.DEV) {
+          routes.add('material-warehouse');
+          routes.add('production');
+        }
         setAllowedModuleRoutes(routes);
       } catch {
         if (active) {
@@ -711,6 +717,14 @@ export default function App() {
     ) : currentPage === 'inventory' ? (
       <StandaloneModuleShell currentModule={currentPage} onNavigate={handleModuleNavigation}>
         <Inventarios learningModeActive={learningModeActive} />
+      </StandaloneModuleShell>
+    ) : currentPage === 'material-warehouse' ? (
+      <StandaloneModuleShell currentModule={currentPage} onNavigate={handleModuleNavigation}>
+        <MaterialWarehouse />
+      </StandaloneModuleShell>
+    ) : currentPage === 'production' ? (
+      <StandaloneModuleShell currentModule={currentPage} onNavigate={handleModuleNavigation}>
+        <Production />
       </StandaloneModuleShell>
     ) : currentPage === 'work-climate' ? (
       <StandaloneModuleShell currentModule={currentPage} onNavigate={handleModuleNavigation}>

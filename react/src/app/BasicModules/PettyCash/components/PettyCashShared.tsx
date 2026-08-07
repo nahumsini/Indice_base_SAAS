@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { ArrowDown, ArrowUp, ArrowUpDown, Columns3, Plus, RefreshCcw } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Columns3, MoreHorizontal, Plus, RefreshCcw } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { DataTablePagination } from '../../../components/table/DataTablePagination';
 import {
@@ -10,6 +10,12 @@ import {
   IndiceViewState,
 } from '../../../components/frontend-os';
 import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../hooks/useTablePagination';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../../components/ui/dropdown-menu';
 import {
   pettyCashFundStatusClasses,
   pettyCashSettlementLineStatusClasses,
@@ -77,26 +83,6 @@ export function PettyCashHeaderBanner({
           {secondaryActionLabel}
         </button>
       ) : null}
-      {tertiaryActionLabel && onTertiaryAction ? (
-        <button
-          type="button"
-          onClick={onTertiaryAction}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-[#147514] shadow-none transition hover:bg-[#147514] hover:text-white dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-700 dark:hover:text-white"
-        >
-          {TertiaryActionIcon ? <TertiaryActionIcon className="h-4 w-4" /> : null}
-          {tertiaryActionLabel}
-        </button>
-      ) : null}
-      {onColumns ? (
-        <button
-          type="button"
-          onClick={onColumns}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-[#147514] shadow-none transition hover:bg-[#147514] hover:text-white dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-700 dark:hover:text-white"
-        >
-          <Columns3 className="h-4 w-4" />
-          <HeaderColumnsLabel />
-        </button>
-      ) : null}
       {actionLabel && onAction ? (
         <button
           type="button"
@@ -106,6 +92,30 @@ export function PettyCashHeaderBanner({
           <Plus className="h-4 w-4" />
           {actionLabel}
         </button>
+      ) : null}
+      {(tertiaryActionLabel && onTertiaryAction) || onColumns ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-none transition hover:border-[#147514]/30 hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+              <MoreHorizontal className="h-4 w-4" />
+              <HeaderActionsLabel />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56 rounded-xl p-1.5">
+            {tertiaryActionLabel && onTertiaryAction ? (
+              <DropdownMenuItem className="rounded-lg py-2.5" onClick={onTertiaryAction}>
+                {TertiaryActionIcon ? <TertiaryActionIcon /> : null}
+                {tertiaryActionLabel}
+              </DropdownMenuItem>
+            ) : null}
+            {onColumns ? (
+              <DropdownMenuItem className="rounded-lg py-2.5" onClick={onColumns}>
+                <Columns3 />
+                <HeaderColumnsLabel />
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
       ) : null}
     </div>
   );
@@ -124,6 +134,11 @@ export function PettyCashHeaderBanner({
 function HeaderColumnsLabel() {
   const copy = usePettyCashTranslations();
   return <>{copy.common.columns}</>;
+}
+
+function HeaderActionsLabel() {
+  const copy = usePettyCashTranslations();
+  return <>{copy.common.actions}</>;
 }
 
 export function PettyCashFilterShell({
@@ -249,13 +264,13 @@ export function PettyCashSortableHeader<K extends string>({
         <button
           type="button"
           onClick={() => onSort(columnKey)}
-          className={`inline-flex items-center gap-2 whitespace-nowrap text-[11px] font-medium transition-colors hover:text-slate-900 dark:hover:text-white ${isActive ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-500 dark:text-slate-400'}`}
+          className={`inline-flex items-center gap-2 whitespace-nowrap text-xs font-medium transition-colors hover:text-slate-900 dark:hover:text-white ${isActive ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-500 dark:text-slate-400'}`}
         >
           <span>{label}</span>
           <SortIcon className={`h-4 w-4 shrink-0 ${isActive ? 'text-[#147514] dark:text-emerald-300' : 'text-slate-400'}`} />
         </button>
       ) : (
-        <span className="whitespace-nowrap text-[11px] font-medium text-slate-500 dark:text-slate-400">{label}</span>
+        <span className="whitespace-nowrap text-xs font-medium text-slate-500 dark:text-slate-400">{label}</span>
       )}
     </th>
   );
@@ -311,7 +326,7 @@ export function PettyCashStatusPill({ kind, status }: { kind: StatusKind; status
 
 export function PettyCashTableShell({ children, footer }: { children: ReactNode; footer?: ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
       <div className="overflow-x-auto">{children}</div>
       {footer}
     </div>

@@ -19,10 +19,10 @@ import {
 } from '../../shared/operational';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import {
-  convertBusinessCurrencyAmount,
   formatBusinessCurrencyAmount,
   normalizeBusinessCurrencyCode,
 } from '../../shared/businessCurrency';
+import { useKpiMonetaryAggregate, useKpiMonetaryAggregates } from '../../shared/kpiMonetaryApi';
 import type { ReceivablesTranslations } from '../translations';
 import type { CreditPolicy, ReceivableAccount, ReceivableInstallment, ReceivablePayment } from '../types';
 import { formatPercent } from '../utils';
@@ -40,44 +40,6 @@ function hasReceipt(payment: ReceivablePayment) {
   return Boolean(payment.receiptFileName || payment.receiptDataUrl || payment.receiptImageDataUrl);
 }
 
-function formatNativeBreakdown<Row>(
-  rows: Row[],
-  getAmount: (row: Row) => number,
-  getCurrency: (row: Row) => string | undefined,
-  fallbackCurrency: string,
-) {
-  const totalsByCurrency = rows.reduce<Map<string, number>>((totals, row) => {
-    const currency = normalizeBusinessCurrencyCode(getCurrency(row), fallbackCurrency);
-    totals.set(currency, (totals.get(currency) ?? 0) + getAmount(row));
-    return totals;
-  }, new Map());
-
-  if (totalsByCurrency.size === 0) {
-    return formatBusinessCurrencyAmount(0, fallbackCurrency, moneyFormatOptions);
-  }
-
-  return Array.from(totalsByCurrency.entries())
-    .map(([currency, total]) => formatBusinessCurrencyAmount(total, currency, moneyFormatOptions))
-    .join(' / ');
-}
-
-function getPreferredTotal<Row>(
-  rows: Row[],
-  preferredCurrency: string,
-  exchangeRatesPerUsd: ReturnType<typeof usePreferredBusinessCurrency>['exchangeRatesPerUsd'],
-  getAmount: (row: Row) => number,
-  getCurrency: (row: Row) => string | undefined,
-) {
-  return rows.reduce((total, row) => (
-    total + convertBusinessCurrencyAmount(
-      getAmount(row),
-      getCurrency(row),
-      preferredCurrency,
-      exchangeRatesPerUsd,
-    )
-  ), 0);
-}
-
 export function AccountsReceivableKpiArea({
   copy,
   installments,
@@ -87,7 +49,7 @@ export function AccountsReceivableKpiArea({
   installments: ReceivableInstallment[];
   totalInstallments: number;
 }) {
-  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
   const labels = copy.kpiEngine.accountsReceivable;
   const onTimeCount = installments.filter((installment) => installment.status === 'on_time').length;
   const dueSoonCount = installments.filter((installment) => installment.status === 'due_soon').length;
@@ -95,20 +57,9 @@ export function AccountsReceivableKpiArea({
   const partialCount = installments.filter((installment) => installment.status === 'partial').length;
   const paidCount = installments.filter((installment) => installment.status === 'paid').length;
   const currencyCount = new Set(installments.map((installment) => normalizeBusinessCurrencyCode(installment.currency, preferredCurrency))).size;
-  const openBalanceTotal = getPreferredTotal(
-    installments,
-    preferredCurrency,
-    exchangeRatesPerUsd,
-    (installment) => installment.balance,
-    (installment) => installment.currency,
-  );
-  const openBalanceLabel = formatBusinessCurrencyAmount(openBalanceTotal, preferredCurrency, moneyFormatOptions);
-  const nativeTotalLabel = formatNativeBreakdown(
-    installments,
-    (installment) => installment.balance,
-    (installment) => installment.currency,
-    preferredCurrency,
-  );
+  const aggregate = useKpiMonetaryAggregate({ metric: 'RECEIVABLE_INSTALLMENT_BALANCE', preferredCurrency, ids: installments.map((installment) => installment.id) });
+  const openBalanceLabel = aggregate.data && !aggregate.loading ? formatBusinessCurrencyAmount(aggregate.data.preferredTotal, preferredCurrency, moneyFormatOptions) : '—';
+  const nativeTotalLabel = aggregate.data?.nativeTotals.map(({ amount, currency }) => formatBusinessCurrencyAmount(amount, currency, moneyFormatOptions)).join(' / ') || preferredCurrency;
   const metrics: OperationalKpiMetric[] = [
     {
       id: 'openBalance',
@@ -139,22 +90,6 @@ export function AccountsReceivableKpiArea({
       label: labels.labels.dueSoon,
       value: formatCount(dueSoonCount),
       valueClassName: 'text-[#9A6B05]',
-    },
-    {
-      id: 'paid',
-      icon: <CheckCircle2 className="h-4 w-4" />,
-      iconClassName: 'text-emerald-600',
-      label: labels.labels.paid,
-      value: formatCount(paidCount),
-      valueClassName: 'text-emerald-600',
-    },
-    {
-      id: 'partial',
-      icon: <Banknote className="h-4 w-4" />,
-      iconClassName: 'text-blue-600',
-      label: labels.labels.partial,
-      value: formatCount(partialCount),
-      valueClassName: 'text-blue-600',
     },
   ];
   const alertChips: OperationalAlertChip[] = [];
@@ -219,6 +154,9 @@ export function AccountsReceivableKpiArea({
       })}
       insightIcon={<AlertTriangle className="h-4 w-4" />}
       metrics={metrics}
+      currencyContext={{ preferredCurrency, nativeBreakdown: nativeTotalLabel, rateLabel: copy.kpiEngine.currency.dailyRate,
+        effectiveDate: aggregate.data?.exchangeRate.effectiveDate, source: aggregate.data?.exchangeRate.source,
+        isPartial: Boolean(aggregate.error || aggregate.data?.partial), excludedCount: aggregate.data?.excludedRecords ?? (aggregate.error ? installments.length : 0), labels: copy.kpiEngine.currency }}
     />
   );
 }
@@ -232,30 +170,17 @@ export function PaymentsKpiArea({
   copy: ReceivablesTranslations;
   payments: ReceivablePayment[];
 }) {
-  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
   const labels = copy.kpiEngine.payments;
-  const accountCurrencyById = new Map(accounts.map((account) => [account.id, account.currency]));
-  const getCurrency = (payment: ReceivablePayment) => payment.currency ?? accountCurrencyById.get(payment.receivableId) ?? preferredCurrency;
   const transferCount = payments.filter((payment) => payment.method === 'transfer').length;
   const cashCount = payments.filter((payment) => payment.method === 'cash').length;
   const cardCount = payments.filter((payment) => payment.method === 'card').length;
   const otherCount = payments.length - transferCount - cashCount - cardCount;
   const receiptCount = payments.filter(hasReceipt).length;
   const missingReceipts = Math.max(0, payments.length - receiptCount);
-  const totalPaid = getPreferredTotal(
-    payments,
-    preferredCurrency,
-    exchangeRatesPerUsd,
-    (payment) => payment.amount,
-    getCurrency,
-  );
-  const totalPaidLabel = formatBusinessCurrencyAmount(totalPaid, preferredCurrency, moneyFormatOptions);
-  const nativeTotalLabel = formatNativeBreakdown(
-    payments,
-    (payment) => payment.amount,
-    getCurrency,
-    preferredCurrency,
-  );
+  const aggregate = useKpiMonetaryAggregate({ metric: 'RECEIVABLE_PAYMENT_AMOUNT', preferredCurrency, ids: payments.map((payment) => payment.id) });
+  const totalPaidLabel = aggregate.data && !aggregate.loading ? formatBusinessCurrencyAmount(aggregate.data.preferredTotal, preferredCurrency, moneyFormatOptions) : '—';
+  const nativeTotalLabel = aggregate.data?.nativeTotals.map(({ amount, currency }) => formatBusinessCurrencyAmount(amount, currency, moneyFormatOptions)).join(' / ') || preferredCurrency;
   const metrics: OperationalKpiMetric[] = [
     {
       id: 'totalPaid',
@@ -286,21 +211,6 @@ export function PaymentsKpiArea({
       label: labels.labels.transfer,
       value: formatCount(transferCount),
       valueClassName: 'text-blue-600',
-    },
-    {
-      id: 'cash',
-      icon: <Banknote className="h-4 w-4" />,
-      iconClassName: 'text-[#9A6B05]',
-      label: labels.labels.cash,
-      value: formatCount(cashCount),
-      valueClassName: 'text-[#9A6B05]',
-    },
-    {
-      id: 'card',
-      icon: <CreditCard className="h-4 w-4" />,
-      iconClassName: 'text-slate-500',
-      label: labels.labels.card,
-      value: formatCount(cardCount),
     },
   ];
   const alertChips: OperationalAlertChip[] = [];
@@ -354,6 +264,9 @@ export function PaymentsKpiArea({
       })}
       insightIcon={<FileWarning className="h-4 w-4" />}
       metrics={metrics}
+      currencyContext={{ preferredCurrency, nativeBreakdown: nativeTotalLabel, rateLabel: copy.kpiEngine.currency.dailyRate,
+        effectiveDate: aggregate.data?.exchangeRate.effectiveDate, source: aggregate.data?.exchangeRate.source,
+        isPartial: Boolean(aggregate.error || aggregate.data?.partial), excludedCount: aggregate.data?.excludedRecords ?? (aggregate.error ? payments.length : 0), labels: copy.kpiEngine.currency }}
     />
   );
 }
@@ -370,8 +283,13 @@ export function CreditCustomersKpiArea({
   const activeCount = creditPolicies.filter((policy) => policy.status === 'active').length;
   const reviewCount = creditPolicies.filter((policy) => policy.status === 'review').length;
   const blockedCount = creditPolicies.filter((policy) => policy.status === 'blocked').length;
-  const totalLine = creditPolicies.reduce((sum, policy) => sum + policy.creditLine, 0);
-  const totalAvailable = creditPolicies.reduce((sum, policy) => sum + policy.availableCredit, 0);
+  const policyIds = creditPolicies.map((policy) => Number(policy.id)).filter((id) => Number.isSafeInteger(id) && id > 0);
+  const { data: policyMoney } = useKpiMonetaryAggregates([
+    { key: 'line', metric: 'CREDIT_POLICY_LINE', preferredCurrency, ids: policyIds },
+    { key: 'available', metric: 'CREDIT_POLICY_AVAILABLE', preferredCurrency, ids: policyIds },
+  ]);
+  const totalLine = policyMoney.line?.preferredTotal ?? 0;
+  const totalAvailable = policyMoney.available?.preferredTotal ?? 0;
   const utilization = totalLine > 0 ? ((totalLine - totalAvailable) / totalLine) * 100 : 0;
   const totalLineLabel = formatBusinessCurrencyAmount(totalLine, preferredCurrency, moneyFormatOptions);
   const totalAvailableLabel = formatBusinessCurrencyAmount(totalAvailable, preferredCurrency, moneyFormatOptions);
@@ -397,22 +315,6 @@ export function CreditCustomersKpiArea({
       icon: <UsersRound className="h-4 w-4" />,
       label: labels.labels.visibleCustomers,
       value: formatCount(creditPolicies.length),
-    },
-    {
-      id: 'active',
-      icon: <CheckCircle2 className="h-4 w-4" />,
-      iconClassName: 'text-blue-600',
-      label: labels.labels.active,
-      value: formatCount(activeCount),
-      valueClassName: 'text-blue-600',
-    },
-    {
-      id: 'review',
-      icon: <Timer className="h-4 w-4" />,
-      iconClassName: 'text-[#9A6B05]',
-      label: labels.labels.review,
-      value: formatCount(reviewCount),
-      valueClassName: 'text-[#9A6B05]',
     },
     {
       id: 'blocked',

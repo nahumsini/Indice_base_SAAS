@@ -35,7 +35,7 @@ export function PettyCashKioskExpenseCard({
     <article className="w-full rounded-2xl border border-[#147514]/20 bg-white p-3 shadow-[0_12px_28px_-28px_rgba(15,23,42,0.9)] dark:border-emerald-400/20 dark:bg-slate-950">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[10px] font-medium text-[#147514]/75 dark:text-emerald-300/75">{date}</p>
+          <p className="text-xs font-medium text-[#147514]/75 dark:text-emerald-300/75">{date}</p>
           <h3 className="mt-1 line-clamp-2 text-sm font-medium leading-5 text-slate-950 dark:text-white">{receipt.description}</h3>
         </div>
         <p className="shrink-0 text-sm font-medium text-rose-600 dark:text-rose-300">{amount}</p>
@@ -43,11 +43,11 @@ export function PettyCashKioskExpenseCard({
 
       <div className="mt-2 grid grid-cols-2 gap-2">
         <div className="min-w-0 rounded-xl bg-white px-2.5 py-2 dark:bg-slate-900">
-          <p className="text-[9px] font-medium text-slate-400">{referenceLabel}</p>
+          <p className="text-xs font-medium text-slate-400">{referenceLabel}</p>
           <p className="mt-0.5 truncate text-xs font-medium text-slate-700 dark:text-slate-200">{receipt.receipt_reference || noReferenceLabel}</p>
         </div>
         <div className="min-w-0 rounded-xl bg-white px-2.5 py-2 dark:bg-slate-900">
-          <p className="text-[9px] font-medium text-slate-400">{statusTitle}</p>
+          <p className="text-xs font-medium text-slate-400">{statusTitle}</p>
           <p className="mt-0.5 truncate text-xs font-medium text-[#147514] dark:text-emerald-300">{statusLabel}</p>
         </div>
       </div>

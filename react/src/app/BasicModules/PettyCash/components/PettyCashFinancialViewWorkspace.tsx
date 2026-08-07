@@ -22,11 +22,10 @@ import {
   formatPettyCashCurrency,
   formatPettyCashIsoDate,
   getFundById,
-  getOperationalPettyCashSummary,
   getStatementSettlementBalance,
 } from '../utils/pettyCash.utils';
-import { convertBusinessCurrencyAmount } from '../../shared/businessCurrency';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
+import { useKpiMonetaryAggregate, useKpiMonetaryAggregates, type KpiMonetaryBatchQuery } from '../../shared/kpiMonetaryApi';
 import { getPettyCashMethodLabel } from '../utils/pettyCash.methods';
 import { usePettyCashTranslations } from '../hooks/usePettyCashTranslations';
 import {
@@ -96,7 +95,7 @@ export function PettyCashFinancialViewWorkspace({
   statements,
 }: PettyCashFinancialViewWorkspaceProps) {
   const copy = usePettyCashTranslations();
-  const { exchangeRateMetadata, exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
+  const { exchangeRateMetadata, preferredCurrency } = usePreferredBusinessCurrency();
   const [periodFilter, setPeriodFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<PettyCashStatementStatus | 'all'>('all');
   const [unitFilter, setUnitFilter] = useState('all');
@@ -160,10 +159,23 @@ export function PettyCashFinancialViewWorkspace({
     [filteredStatementIds, settlementLines],
   );
 
-  const summary = useMemo(
-    () => getOperationalPettyCashSummary(filteredStatements, visibleFunds, preferredCurrency, exchangeRatesPerUsd),
-    [exchangeRatesPerUsd, filteredStatements, preferredCurrency, visibleFunds],
-  );
+  const statementIds = filteredStatements.map((statement) => statement.id);
+  const fundIds = visibleFunds.map((fund) => fund.id);
+  const assignedAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_STATEMENT_FUNDED', preferredCurrency, ids: statementIds });
+  const estimatedAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_STATEMENT_ESTIMATED', preferredCurrency, ids: statementIds });
+  const verifiedAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_STATEMENT_VERIFIED', preferredCurrency, ids: statementIds });
+  const pendingAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_STATEMENT_PENDING', preferredCurrency, ids: statementIds });
+  const shortageAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_STATEMENT_SHORTAGE', preferredCurrency, ids: statementIds });
+  const balanceAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_BALANCE', preferredCurrency, ids: fundIds });
+  const summary = {
+    assignedAmount: assignedAggregate.data?.preferredTotal ?? 0,
+    currentBalanceAmount: balanceAggregate.data?.preferredTotal ?? 0,
+    estimatedUsageAmount: estimatedAggregate.data?.preferredTotal ?? 0,
+    pendingReconciliationAmount: pendingAggregate.data?.preferredTotal ?? 0,
+    riskCount: filteredStatements.filter((statement) => ['SHORTAGE', 'CUT_PENDING', 'PARTIALLY_SETTLED'].includes(statement.status)).length,
+    shortageAmount: shortageAggregate.data?.preferredTotal ?? 0,
+    verifiedExpenseAmount: verifiedAggregate.data?.preferredTotal ?? 0,
+  };
   const currencyCount = useMemo(
     () => new Set(filteredStatements.map(statement => statement.currencyCode)).size,
     [filteredStatements],
@@ -202,48 +214,34 @@ export function PettyCashFinancialViewWorkspace({
   ));
   const activeKiosks = visibleFunds.filter(fund => fund.kioskEnabled).length;
 
-  const unitPerformance = useMemo(() => {
-    const grouped = new Map<string, { assigned: number; name: string; pending: number; verified: number }>();
+  const monetaryGroups = useMemo(() => {
+    const units = new Map<string, { ids: string[]; name: string }>();
+    const responsibles = new Map<string, { ids: string[]; name: string }>();
     filteredStatements.forEach(statement => {
       const fund = getFundById(funds, statement.pettyCashFundId);
-      const key = fund?.unitId ?? 'none';
-      const current = grouped.get(key) ?? { assigned: 0, name: fund?.unitName ?? copy.common.notAvailable, pending: 0, verified: 0 };
-      current.assigned += convertBusinessCurrencyAmount(statement.assignedAmount + statement.additionalDepositAmount, statement.currencyCode, preferredCurrency, exchangeRatesPerUsd);
-      current.pending += convertBusinessCurrencyAmount(getStatementSettlementBalance(statement), statement.currencyCode, preferredCurrency, exchangeRatesPerUsd);
-      current.verified += convertBusinessCurrencyAmount(statement.verifiedExpenseAmount, statement.currencyCode, preferredCurrency, exchangeRatesPerUsd);
-      grouped.set(key, current);
+      const unitKey = fund?.unitId ?? 'none';
+      const unit = units.get(unitKey) ?? { ids: [], name: fund?.unitName ?? copy.common.notAvailable };
+      unit.ids.push(statement.id);
+      units.set(unitKey, unit);
+      const responsible = responsibles.get(statement.responsibleUserId) ?? { ids: [], name: statement.responsibleName };
+      responsible.ids.push(statement.id);
+      responsibles.set(statement.responsibleUserId, responsible);
     });
-    return [...grouped.values()].sort((left, right) => right.verified - left.verified);
-  }, [copy.common.notAvailable, exchangeRatesPerUsd, filteredStatements, funds, preferredCurrency]);
-
-  const topFunds = useMemo(() => visibleFunds.map(fund => ({
-    ...fund,
-    pending: filteredStatements.filter(statement => statement.pettyCashFundId === fund.id).reduce((sum, statement) => (
-      sum + convertBusinessCurrencyAmount(getStatementSettlementBalance(statement), statement.currencyCode, preferredCurrency, exchangeRatesPerUsd)
-    ), 0),
-    spent: filteredStatements.filter(statement => statement.pettyCashFundId === fund.id).reduce((sum, statement) => (
-      sum + convertBusinessCurrencyAmount(statement.verifiedExpenseAmount, statement.currencyCode, preferredCurrency, exchangeRatesPerUsd)
-    ), 0),
-  })).sort((left, right) => right.spent - left.spent).slice(0, 5), [exchangeRatesPerUsd, filteredStatements, preferredCurrency, visibleFunds]);
-
-  const topResponsibles = useMemo(() => {
-    const grouped = new Map<string, { count: number; name: string; pending: number; spent: number }>();
-    filteredStatements.forEach(statement => {
-      const current = grouped.get(statement.responsibleUserId) ?? { count: 0, name: statement.responsibleName, pending: 0, spent: 0 };
-      current.count += 1;
-      current.pending += convertBusinessCurrencyAmount(getStatementSettlementBalance(statement), statement.currencyCode, preferredCurrency, exchangeRatesPerUsd);
-      current.spent += convertBusinessCurrencyAmount(statement.verifiedExpenseAmount, statement.currencyCode, preferredCurrency, exchangeRatesPerUsd);
-      grouped.set(statement.responsibleUserId, current);
-    });
-    return [...grouped.values()].sort((left, right) => right.spent - left.spent).slice(0, 5);
-  }, [exchangeRatesPerUsd, filteredStatements, preferredCurrency]);
-
-  const periodTrend = useMemo(() => periodOptions.slice(0, 6).reverse().map(period => ({
-    period,
-    value: statements.filter(statement => statement.periodKey === period && visibleFundIds.has(statement.pettyCashFundId)).reduce((sum, statement) => (
-      sum + convertBusinessCurrencyAmount(statement.verifiedExpenseAmount, statement.currencyCode, preferredCurrency, exchangeRatesPerUsd)
-    ), 0),
-  })), [exchangeRatesPerUsd, periodOptions, preferredCurrency, statements, visibleFundIds]);
+    return { units: [...units.entries()].slice(0, 8), responsibles: [...responsibles.entries()].sort((a, b) => b[1].ids.length - a[1].ids.length).slice(0, 5) };
+  }, [copy.common.notAvailable, filteredStatements, funds]);
+  const groupQueries = useMemo<KpiMonetaryBatchQuery[]>(() => {
+    const queries: KpiMonetaryBatchQuery[] = [];
+    monetaryGroups.units.forEach(([key, group]) => ['FUNDED', 'PENDING', 'VERIFIED'].forEach((metric) => queries.push({ key: `unit-${metric}-${key}`, metric: `PETTY_CASH_STATEMENT_${metric}` as KpiMonetaryBatchQuery['metric'], preferredCurrency, ids: group.ids })));
+    visibleFunds.slice(0, 8).forEach((fund) => ['PENDING', 'VERIFIED'].forEach((metric) => queries.push({ key: `fund-${metric}-${fund.id}`, metric: `PETTY_CASH_STATEMENT_${metric}` as KpiMonetaryBatchQuery['metric'], preferredCurrency, ids: filteredStatements.filter((statement) => statement.pettyCashFundId === fund.id).map((statement) => statement.id) })));
+    monetaryGroups.responsibles.forEach(([key, group]) => ['PENDING', 'VERIFIED'].forEach((metric) => queries.push({ key: `responsible-${metric}-${key}`, metric: `PETTY_CASH_STATEMENT_${metric}` as KpiMonetaryBatchQuery['metric'], preferredCurrency, ids: group.ids })));
+    periodOptions.slice(0, 6).forEach((period) => queries.push({ key: `period-${period}`, metric: 'PETTY_CASH_STATEMENT_VERIFIED', preferredCurrency, ids: statements.filter((statement) => statement.periodKey === period && visibleFundIds.has(statement.pettyCashFundId)).map((statement) => statement.id) }));
+    return queries;
+  }, [filteredStatements, monetaryGroups, periodOptions, preferredCurrency, statements, visibleFundIds, visibleFunds]);
+  const groupedAggregates = useKpiMonetaryAggregates(groupQueries);
+  const unitPerformance = monetaryGroups.units.map(([key, group]) => ({ assigned: groupedAggregates.data[`unit-FUNDED-${key}`]?.preferredTotal ?? 0, name: group.name, pending: groupedAggregates.data[`unit-PENDING-${key}`]?.preferredTotal ?? 0, verified: groupedAggregates.data[`unit-VERIFIED-${key}`]?.preferredTotal ?? 0 })).sort((a, b) => b.verified - a.verified);
+  const topFunds = visibleFunds.slice(0, 8).map((fund) => ({ ...fund, pending: groupedAggregates.data[`fund-PENDING-${fund.id}`]?.preferredTotal ?? 0, spent: groupedAggregates.data[`fund-VERIFIED-${fund.id}`]?.preferredTotal ?? 0 })).sort((a, b) => b.spent - a.spent).slice(0, 5);
+  const topResponsibles = monetaryGroups.responsibles.map(([key, group]) => ({ count: group.ids.length, name: group.name, pending: groupedAggregates.data[`responsible-PENDING-${key}`]?.preferredTotal ?? 0, spent: groupedAggregates.data[`responsible-VERIFIED-${key}`]?.preferredTotal ?? 0 })).sort((a, b) => b.spent - a.spent);
+  const periodTrend = periodOptions.slice(0, 6).reverse().map((period) => ({ period, value: groupedAggregates.data[`period-${period}`]?.preferredTotal ?? 0 }));
   const maxTrend = Math.max(1, ...periodTrend.map(item => item.value));
   const maxUnit = Math.max(1, ...unitPerformance.map(item => item.assigned));
   const maxTopFund = Math.max(1, ...topFunds.map(fund => fund.spent));
@@ -502,7 +500,7 @@ export function PettyCashFinancialViewWorkspace({
             {periodTrend.map(item => (
               <div key={item.period} className="flex min-w-0 flex-1 flex-col items-center gap-2">
                 <div className="w-full rounded-t-lg bg-[#147514]" style={{ height: `${Math.max(8, (item.value / maxTrend) * 180)}px` }} />
-                <span className="w-full truncate text-center text-[10px] font-medium text-slate-500">{item.period}</span>
+                <span className="w-full truncate text-center text-xs font-medium text-slate-500">{item.period}</span>
               </div>
             ))}
           </div>
@@ -525,7 +523,7 @@ export function PettyCashFinancialViewWorkspace({
         <RankingCard maxValue={maxTopResponsible} rows={topResponsibles.map(responsible => ({ detail: `${responsible.count} cortes`, label: responsible.name, secondary: formatPettyCashCurrency(responsible.pending, preferredCurrency), value: responsible.spent }))} title="Top responsables" valueCurrency={preferredCurrency} />
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
         <div className="flex flex-col gap-2 border-b border-slate-200 px-5 py-4 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="text-xl font-medium text-slate-900 dark:text-white">Desempeno por corte</h3>
@@ -533,7 +531,26 @@ export function PettyCashFinancialViewWorkspace({
           </div>
           <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">{copy.financial.filters.result(filteredStatements.length)}</span>
         </div>
-        <div className="overflow-x-auto">
+        <div className="space-y-3 p-3 md:hidden">
+          {statementPagination.paginatedRows.map((statement) => {
+            const fund = getFundById(funds, statement.pettyCashFundId);
+            return (
+              <article key={statement.id} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0"><p className="truncate text-sm font-medium text-slate-950 dark:text-white">{statement.folio}</p><p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{fund?.name ?? copy.financial.statements.noFund} · {statement.periodKey}</p></div>
+                  <PettyCashStatusPill kind="statement" status={statement.status} />
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-3 border-y border-slate-100 py-3 dark:border-slate-800">
+                  <div><p className="text-xs text-slate-500 dark:text-slate-400">{copy.financial.statements.columns.verified}</p><p className="mt-1 text-base font-medium tabular-nums text-[#147514] dark:text-emerald-300">{formatPettyCashCurrency(statement.verifiedExpenseAmount, statement.currencyCode)}</p></div>
+                  <div className="text-right"><p className="text-xs text-slate-500 dark:text-slate-400">{copy.financial.statements.columns.pending}</p><p className="mt-1 text-base font-medium tabular-nums text-amber-600 dark:text-amber-300">{formatPettyCashCurrency(getStatementSettlementBalance(statement), statement.currencyCode)}</p></div>
+                </div>
+                <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">{statement.responsibleName}</p>
+              </article>
+            );
+          })}
+          {statementPagination.totalCount === 0 ? <PettyCashEmptyState label="No hay cortes con el alcance seleccionado." /> : null}
+        </div>
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[1180px]">
             <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60">
               <tr>
@@ -590,7 +607,7 @@ export function PettyCashFinancialViewWorkspace({
         />
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
         <div className="flex flex-col gap-2 border-b border-slate-200 px-5 py-4 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="text-xl font-medium text-slate-900 dark:text-white">{copy.financial.movements.title}</h3>
@@ -600,7 +617,18 @@ export function PettyCashFinancialViewWorkspace({
         </div>
         {filteredMovements.length > 0 ? (
           <>
-            <div className="overflow-x-auto">
+            <div className="space-y-3 p-3 md:hidden">
+              {movementPagination.paginatedRows.map((movement) => {
+                const fund = getFundById(funds, movement.pettyCashFundId);
+                return (
+                  <article key={movement.id} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                    <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-medium text-slate-950 dark:text-white">{copy.status.movement[movement.type]}</p><p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{fund?.name ?? copy.financial.movements.noFund} · {formatPettyCashIsoDate(movement.movementDate)}</p></div><p className="shrink-0 text-base font-medium tabular-nums text-[#147514] dark:text-emerald-300">{formatPettyCashCurrency(movement.amount, movement.currencyCode)}</p></div>
+                    <p className="mt-3 truncate border-t border-slate-100 pt-3 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">{getPettyCashMethodLabel(copy.funds.methodLabels, movement.reference)}</p>
+                  </article>
+                );
+              })}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[980px]">
                 <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60">
                   <tr>

@@ -3,12 +3,12 @@ import { Button } from '../../../../components/ui/button';
 import { cn } from '../../../../components/ui/utils';
 import {
   moduleModalOutlineButtonClassName,
-  moduleModalPrimaryButtonClassName,
 } from '../../constants/receivables.constants';
 import type { ReceivablesTranslations } from '../../translations';
 import type { ReceivablePayment } from '../../types';
 import { formatMoney } from '../../utils';
 import { ReceivablesModalFrame } from './ReceivablesModalFrame';
+import { ReceivablesModalActionToolbar } from './ReceivablesModalActionToolbar';
 
 function getPaymentReceiptDataUrl(payment: ReceivablePayment) {
   return payment.receiptDataUrl ?? payment.receiptImageDataUrl ?? '';
@@ -65,7 +65,7 @@ export function ReceivableFilesModal({
             return (
               <article
                 key={`${payment.id}-${fileName}`}
-                className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900"
+                className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
               >
                 <div className="grid gap-0 md:grid-cols-[180px_1fr]">
                   <div className="flex min-h-36 items-center justify-center border-b border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950 md:border-b-0 md:border-r">
@@ -73,11 +73,11 @@ export function ReceivableFilesModal({
                       <img
                         src={dataUrl}
                         alt={fileName}
-                        className="h-28 w-full rounded-xl object-cover shadow-sm ring-1 ring-slate-200 dark:ring-slate-700"
+                        className="h-28 w-full rounded-lg object-cover ring-1 ring-slate-200 dark:ring-slate-700"
                       />
                     ) : (
                       <span className={cn(
-                        'flex h-16 w-16 items-center justify-center rounded-2xl shadow-sm ring-1',
+                        'flex h-16 w-16 items-center justify-center rounded-xl ring-1',
                         isPdf
                           ? 'bg-red-50 text-red-600 ring-red-100 dark:bg-red-950/50 dark:text-red-300 dark:ring-red-900/60'
                           : 'bg-[#147514]/10 text-[#147514] ring-[#147514]/15 dark:bg-emerald-400/10 dark:text-emerald-300 dark:ring-emerald-400/20',
@@ -96,31 +96,12 @@ export function ReceivableFilesModal({
                           {payment.saleNumber} · {payment.customerName}
                         </p>
                       </div>
-                      <div className="flex shrink-0 items-center gap-2">
+                      <div className="shrink-0">
                         {dataUrl ? (
-                          <>
-                            <Button
-                              asChild
-                              type="button"
-                              variant="outline"
-                              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                            >
-                              <a href={dataUrl} target="_blank" rel="noreferrer">
-                                <ExternalLink className="h-4 w-4" />
-                                {copy.modals.files.open}
-                              </a>
-                            </Button>
-                            <Button
-                              asChild
-                              type="button"
-                              className={cn('h-10 gap-2 rounded-xl px-4 text-sm font-medium', moduleModalPrimaryButtonClassName)}
-                            >
-                              <a href={dataUrl} download={fileName}>
-                                <Download className="h-4 w-4" />
-                                {copy.modals.files.download}
-                              </a>
-                            </Button>
-                          </>
+                          <ReceivablesModalActionToolbar actions={[
+                            { href: dataUrl, icon: <ExternalLink className="h-4 w-4" />, label: copy.modals.files.open },
+                            { download: true, href: dataUrl, icon: <Download className="h-4 w-4" />, label: copy.modals.files.download, tone: 'primary' },
+                          ]} />
                         ) : null}
                       </div>
                     </div>
@@ -152,7 +133,7 @@ export function ReceivableFilesModal({
           })}
         </div>
       ) : (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-5 py-10 text-center dark:border-slate-700 dark:bg-slate-900">
+        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-5 py-10 text-center dark:border-slate-700 dark:bg-slate-900">
           <FileText className="mx-auto h-10 w-10 text-slate-400" />
           <p className="mt-3 text-sm font-medium text-slate-500 dark:text-slate-300">{copy.modals.files.empty}</p>
         </div>

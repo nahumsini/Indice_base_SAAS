@@ -54,8 +54,9 @@ type ExpenseTableProps = {
   onExpensesChange: Dispatch<SetStateAction<Expense[]>>;
   onMarkExpensePaid?: (expense: Expense) => Promise<Expense | null>;
   onOpenAttachments: (expense: Expense) => void;
+  onViewExpense: (expense: Expense) => void;
   onPersistExpenseUpdate?: (expense: Expense) => void;
-  onRecordExpensePayment?: (expense: Expense, amount: number, paymentAccountId: string, paymentDate: Date) => Promise<Expense | null>;
+  onRecordExpensePayment?: (expense: Expense, amount: number, paymentAccountId: string, paymentDate: Date, attachmentFiles: File[]) => Promise<Expense | null>;
   onStatusChange?: (expense: Expense, status: ExpenseStatus) => Promise<Expense | null>;
   businessOptions?: FinanceReferenceOption[];
   paymentAccounts?: PaymentAccount[];
@@ -80,6 +81,7 @@ export function ExpenseTable({
   onExpensesChange,
   onMarkExpensePaid,
   onOpenAttachments,
+  onViewExpense,
   onPersistExpenseUpdate,
   onRecordExpensePayment,
   onStatusChange,
@@ -384,7 +386,7 @@ export function ExpenseTable({
     setPaymentExpenseId(id);
   };
 
-  const handleRecordPayment = async (id: string, amount: number, paymentAccountId: string, paymentDate: Date) => {
+  const handleRecordPayment = async (id: string, amount: number, paymentAccountId: string, paymentDate: Date, attachmentFiles: File[]) => {
     const expense = expenses.find(item => item.id === id);
     if (!expense) return;
     if (getExpenseBalance(expense) <= 0) {
@@ -392,7 +394,7 @@ export function ExpenseTable({
       return;
     }
     if (onRecordExpensePayment) {
-      const savedExpense = await onRecordExpensePayment(expense, amount, paymentAccountId, paymentDate);
+      const savedExpense = await onRecordExpensePayment(expense, amount, paymentAccountId, paymentDate, attachmentFiles);
       if (savedExpense) {
         replaceSavedExpense(savedExpense);
         setPaymentExpenseId(null);
@@ -441,10 +443,7 @@ export function ExpenseTable({
         emptyTitle={effectiveEmptyTitle}
         expenses={paginatedExpenses}
         deletingExpenseIds={deletingExpenseIds}
-        getAttachments={getAttachments}
-        isColumnVisible={isColumnVisible}
         isSelected={rowSelection.isSelected}
-        options={editableRowOptions}
         onAudit={setEditingRowId}
         onDelete={handleDelete}
         onDuplicate={handleDuplicate}
@@ -456,9 +455,9 @@ export function ExpenseTable({
           setEditingRowId(expense.id);
         }}
         onMarkPaid={handlePay}
-        onOpenAttachments={onOpenAttachments}
         onRecordPayment={openPaymentModal}
         onSelectionChange={rowSelection.toggleSelection}
+        onView={onViewExpense}
       />
 
       <div className="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800 md:block">
@@ -507,6 +506,7 @@ export function ExpenseTable({
                   onMarkPaid={handlePay}
                   onRecordPayment={openPaymentModal}
                   onAudit={setEditingRowId}
+                  onView={() => onViewExpense(expense)}
                 />
               ))
             )}

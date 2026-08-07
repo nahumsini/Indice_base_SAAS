@@ -491,7 +491,7 @@ function KioskShell({ children, copy, errorMessage, isLoading, isOnline, minimal
       banners={!isOnline ? <div role="alert" className="bg-amber-100 px-4 py-3 text-center text-sm font-medium text-amber-900">{copy.offline}</div> : null}
       errorMessage={errorMessage}
       header={(<header className="border-b border-slate-200 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-950">
-        <p className="text-[11px] font-medium text-[#147514] dark:text-emerald-300">{copy.kioskEyebrow}</p>
+        <p className="text-xs font-medium text-[#147514] dark:text-emerald-300">{copy.kioskEyebrow}</p>
         <h1 className="mt-1 line-clamp-2 break-words text-2xl font-medium leading-tight tracking-tight text-slate-950 dark:text-white">{title}</h1>
         <p className="mt-1.5 line-clamp-2 text-xs font-medium leading-5 text-slate-500 dark:text-slate-400">{subtitle}</p>
       </header>)}
@@ -519,7 +519,7 @@ function Field({ children, label, required }: { children: ReactNode; label: stri
 }
 
 function SummaryMetric({ label, strong, value }: { label: string; strong?: boolean; value: string }) {
-  return <div className={`min-w-0 rounded-2xl border border-slate-200 bg-white px-2 py-3 dark:border-slate-700 dark:bg-slate-900 ${strong ? 'col-span-2' : ''}`}><p className="truncate text-[10px] font-medium text-slate-500">{label}</p><p title={value} className={`mt-1 truncate text-xs ${strong ? 'font-medium text-[#147514]' : 'font-medium text-slate-900 dark:text-white'}`}>{value}</p></div>;
+  return <div className={`min-w-0 rounded-2xl border border-slate-200 bg-white px-2 py-3 dark:border-slate-700 dark:bg-slate-900 ${strong ? 'col-span-2' : ''}`}><p className="truncate text-xs font-medium text-slate-500">{label}</p><p title={value} className={`mt-1 truncate text-xs ${strong ? 'font-medium text-[#147514]' : 'font-medium text-slate-900 dark:text-white'}`}>{value}</p></div>;
 }
 
 function AttachmentRow({ attachment, deleteLabel, onRemove }: { attachment: AttachmentDraft; deleteLabel: string; onRemove: () => void }) {

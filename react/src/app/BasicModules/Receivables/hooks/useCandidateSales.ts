@@ -40,6 +40,9 @@ export function useCandidateSales(
       }
     });
 
-    return Array.from(unique.values());
+    return Array.from(unique.values()).sort((left, right) => {
+      const customerComparison = left.customerName.localeCompare(right.customerName, undefined, { sensitivity: 'base' });
+      return customerComparison || left.saleNumber.localeCompare(right.saleNumber, undefined, { sensitivity: 'base' });
+    });
   }, [apiCandidateSales, existingCreditSales, isBackendReady, salesRecords]);
 }

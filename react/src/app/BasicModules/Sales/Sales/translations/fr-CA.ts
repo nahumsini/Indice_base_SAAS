@@ -211,6 +211,7 @@ export const frCA = {
     commission: {
       pending: 'En attente',
       calculated: 'Calculée',
+      cut: 'Envoyée aux RH',
       paid: 'Payée',
     },
     movement: {

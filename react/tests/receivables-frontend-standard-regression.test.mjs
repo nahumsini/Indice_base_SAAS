@@ -37,3 +37,29 @@ test('Cartera conserva sus primitivas visuales y la integración con Sales CRM',
   assert.match(titleBarSource, /<IndiceTitleBar/);
   assert.match(modalFrameSource, /<IndiceModalFrame/);
 });
+
+test('Cartera conserva expediente financiero e índices móviles compactos', () => {
+  const accountsSource = readFileSync(resolve(receivablesRoot, 'views/AccountsReceivableView.tsx'), 'utf8');
+  const paymentsSource = readFileSync(resolve(receivablesRoot, 'views/PaymentsView.tsx'), 'utf8');
+  const salesSource = readFileSync(resolve(receivablesRoot, 'views/CreditSalesView.tsx'), 'utf8');
+  const customersSource = readFileSync(resolve(receivablesRoot, 'views/CreditCustomersView.tsx'), 'utf8');
+  const detailSource = readFileSync(resolve(receivablesRoot, 'components/modals/ReceivableDetailModal.tsx'), 'utf8');
+
+  assert.match(accountsSource, /<ReceivableDetailModal/);
+  assert.match(detailSource, /accountPayments/);
+  assert.match(detailSource, /accountInstallments/);
+  assert.match(detailSource, /openReceipt/);
+  for (const source of [accountsSource, paymentsSource, salesSource, customersSource]) {
+    assert.match(source, /md:hidden/);
+    assert.match(source, /hidden md:block/);
+  }
+});
+
+test('Cartera no introduce texto operativo menor a 12 px', () => {
+  const violations = collectFiles(receivablesRoot).flatMap((file) => {
+    const source = readFileSync(file, 'utf8');
+    return [...source.matchAll(/text-\[(?:[0-9]|1[01])px\]/g)].map(() => relative(root, file).replaceAll('\\', '/'));
+  });
+
+  assert.deepEqual(violations, []);
+});

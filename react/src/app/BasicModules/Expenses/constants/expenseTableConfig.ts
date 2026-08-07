@@ -21,7 +21,7 @@ export const DEFAULT_EXPENSE_COLUMN_WIDTHS: Record<string, number> = {
   authorizer: 180,
   performer: 180,
   audit: 180,
-  actions: 320,
+  actions: 150,
 };
 
 export const EXPENSE_USER_OPTIONS = [
@@ -63,12 +63,21 @@ export const EXPENSE_TABLE_HEADERS: ExpenseHeaderConfig[] = [
   { key: 'total', label: 'Total', sortable: 'total', visibleWhen: 'total' },
   { key: 'taxes', label: 'Impuestos', sortable: 'taxes', visibleWhen: 'taxes' },
   { key: 'amount', label: 'Monto', sortable: 'amount', visibleWhen: 'amount' },
-  { key: 'amountPaid', label: 'Abonado', sortable: 'amountPaid', visibleWhen: 'amountPaid' },
+  {
+    key: 'amountPaid',
+    label: 'Abonado',
+    sortable: 'amountPaid',
+    visibleWhen: 'amountPaid',
+  },
   { key: 'balance', label: 'Saldo', visibleWhen: 'balance' },
   { key: 'dueDate', label: 'F. Vencimiento', sortable: 'dueDate' },
   { key: 'paymentDate', label: 'F. Pago', sortable: 'paymentDate' },
   { key: 'paymentMethod', label: 'Método de Pago', sortable: 'paymentMethod' },
-  { key: 'accountingAccount', label: 'Cuenta Contable', sortable: 'accountingAccount' },
+  {
+    key: 'accountingAccount',
+    label: 'Cuenta Contable',
+    sortable: 'accountingAccount',
+  },
   { key: 'status', label: 'Estado', sortable: 'status' },
   { key: 'attachments', label: 'Archivos Adjuntos', sortable: 'attachments' },
   { key: 'authorizer', label: 'Autoriza' },

@@ -46,12 +46,9 @@ import {
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { cn } from '../../../components/ui/utils';
 import { useLanguage } from '../../../shared/context';
-import {
-  convertBusinessCurrencyAmount,
-  formatBusinessCurrencyAmount,
-  formatBusinessCurrencyBreakdown,
-} from '../../shared/businessCurrency';
+import { formatBusinessCurrencyAmount } from '../../shared/businessCurrency';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
+import { useKpiMonetaryAggregate } from '../../shared/kpiMonetaryApi';
 import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
 import { useKPIsTranslations } from './hooks/useKPIsTranslations';
 import { HrTitleBar, hrTitleBarPrimaryActionClass, hrTitleBarSecondaryActionClass } from '../shared/HrTitleBar';
@@ -525,7 +522,7 @@ export default function KPIs() {
   const copy = useKPIsTranslations();
   const { currentLanguage } = useLanguage();
   const standardCopy = getHrKpiStandardCopy(currentLanguage.code);
-  const { exchangeRatesPerUsd, preferredCurrency } = usePreferredBusinessCurrency();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
   const { identity: companyPrintIdentity, isReady: isCompanyPrintIdentityReady } = useCompanyPrintIdentity();
   const [employees, setEmployees] = useState<BackendHrUser[]>([]);
   const [employeeSummary, setEmployeeSummary] = useState(emptyHrSummary);
@@ -893,36 +890,28 @@ export default function KPIs() {
     [filteredAssets],
   );
 
+  const assetValueAggregate = useKpiMonetaryAggregate({
+    metric: 'HR_ASSET_VALUE',
+    preferredCurrency,
+    ids: filteredAssets.map((asset) => asset.id),
+  });
   const assetValueSummary = useMemo(() => {
     const assetsWithValue = filteredAssets.filter((asset) => asset.value_amount !== null && asset.value_amount !== undefined);
-    const preferredTotal = assetsWithValue.reduce(
-      (total, asset) =>
-        total
-        + convertBusinessCurrencyAmount(
-          asset.value_amount ?? 0,
-          asset.value_currency,
-          preferredCurrency,
-          exchangeRatesPerUsd,
-        ),
-      0,
-    );
     const valueCoverageRate = filteredAssets.length > 0
       ? clampScore((assetsWithValue.length / filteredAssets.length) * 100)
       : null;
 
     return {
       assetCountWithValue: assetsWithValue.length,
-      nativeBreakdownLabel: formatBusinessCurrencyBreakdown(
-        assetsWithValue,
-        (asset) => asset.value_amount ?? 0,
-        (asset) => asset.value_currency,
-      ),
-      preferredTotalLabel: formatBusinessCurrencyAmount(preferredTotal, preferredCurrency, {
+      nativeBreakdownLabel: assetValueAggregate.data?.nativeTotals
+        .map(({ amount, currency }) => formatBusinessCurrencyAmount(amount, currency, { maximumFractionDigits: 0 })).join(' / ') || preferredCurrency,
+      preferredTotalLabel: assetValueAggregate.data && !assetValueAggregate.loading
+        ? formatBusinessCurrencyAmount(assetValueAggregate.data.preferredTotal, preferredCurrency, {
         maximumFractionDigits: 0,
-      }),
+      }) : '—',
       valueCoverageRate,
     };
-  }, [exchangeRatesPerUsd, filteredAssets, preferredCurrency]);
+  }, [assetValueAggregate.data, assetValueAggregate.loading, filteredAssets, preferredCurrency]);
 
   const activeRate = scopedEmployees.length > 0
     ? clampScore((filteredEmployees.length / scopedEmployees.length) * 100)

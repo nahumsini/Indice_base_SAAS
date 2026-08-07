@@ -2,32 +2,8 @@ import type { SaleLifecycleSignals, SaleRecord, SalesMetrics } from '../types/sa
 import {
   defaultSalesCurrency,
   formatSalesCurrencyAmount,
-  formatSalesCurrencyBreakdown,
   normalizeSalesCurrencyCode,
 } from '../../utils/salesCurrency';
-import { convertSalesCurrencyAmount } from '../../utils/salesCurrencyConversion';
-import type { BusinessExchangeRatesPerUsd } from '../../../shared/businessCurrency';
-
-function roundCurrencyAmount(value: number) {
-  return Number(value.toFixed(2));
-}
-
-function getConvertedSalesTotal(
-  records: SaleRecord[],
-  preferredCurrency: string,
-  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
-  getAmount: (record: SaleRecord) => number = (record) => record.totalAmount,
-) {
-  return roundCurrencyAmount(records.reduce((total, record) => (
-    total + convertSalesCurrencyAmount(
-      getAmount(record),
-      record.currency,
-      preferredCurrency,
-      record.saleDate,
-      exchangeRatesPerUsd,
-    ).amount
-  ), 0));
-}
 
 function getLatestSaleDate(records: SaleRecord[]) {
   const sortedDates = records
@@ -42,25 +18,16 @@ export function calculateSalesMetrics(
   records: SaleRecord[],
   lifecycleByRecordId: Record<string, SaleLifecycleSignals> = {},
   preferredCurrency = defaultSalesCurrency,
-  exchangeRatesPerUsd?: BusinessExchangeRatesPerUsd,
 ): SalesMetrics {
   const normalizedPreferredCurrency = normalizeSalesCurrencyCode(preferredCurrency);
-  const totalSalesAmount = getConvertedSalesTotal(records, normalizedPreferredCurrency, exchangeRatesPerUsd);
-  const totalCommissions = getConvertedSalesTotal(
-    records,
-    normalizedPreferredCurrency,
-    exchangeRatesPerUsd,
-    (record) => record.commissionAmount,
-  );
+  const totalSalesAmount = 0;
+  const totalCommissions = 0;
   const salesCount = records.length;
   const getLifecycle = (record: SaleRecord) => lifecycleByRecordId[record.id];
-  const recurringRecords = records.filter((record) => getLifecycle(record)?.relationship === 'recurring');
-  const renewalRecords = records.filter((record) => getLifecycle(record)?.relationship === 'renewal');
-  const recoveredRecords = records.filter((record) => getLifecycle(record)?.relationship === 'recovered');
-  const recurringRevenue = getConvertedSalesTotal(recurringRecords, normalizedPreferredCurrency, exchangeRatesPerUsd);
-  const renewalRevenue = getConvertedSalesTotal(renewalRecords, normalizedPreferredCurrency, exchangeRatesPerUsd);
-  const recoveredRevenue = getConvertedSalesTotal(recoveredRecords, normalizedPreferredCurrency, exchangeRatesPerUsd);
-  const totalSalesNativeLabel = formatSalesCurrencyBreakdown(records, (record) => record.totalAmount, (record) => record.currency);
+  const recurringRevenue = 0;
+  const renewalRevenue = 0;
+  const recoveredRevenue = 0;
+  const totalSalesNativeLabel = '';
   const preferredRevenueLabel = formatSalesCurrencyAmount(totalSalesAmount, normalizedPreferredCurrency);
   const operationalBuckets = records.reduce(
     (buckets, record) => {
