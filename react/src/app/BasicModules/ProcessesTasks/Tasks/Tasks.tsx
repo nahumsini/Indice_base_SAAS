@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { CheckCircle2, CircleSlash, ClipboardCheck, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
@@ -310,7 +310,7 @@ export default function Tasks() {
   const [completionPercent, setCompletionPercent] = useState('100');
   const [confirmation, setConfirmation] = useState<ConfirmationState>(null);
 
-  const loadTasks = async () => {
+  const loadTasks = useCallback(async () => {
     setIsLoadingTasks(true);
     setTasksError(null);
 
@@ -323,11 +323,25 @@ export default function Tasks() {
     } finally {
       setIsLoadingTasks(false);
     }
-  };
+  }, [pageCopy.messages.load]);
 
   useEffect(() => {
     void loadTasks();
-  }, []);
+  }, [loadTasks]);
+
+  useEffect(() => {
+    const refreshTasks = () => {
+      if (document.visibilityState !== 'hidden') void loadTasks();
+    };
+    const intervalId = window.setInterval(refreshTasks, 30_000);
+    window.addEventListener('focus', refreshTasks);
+    document.addEventListener('visibilitychange', refreshTasks);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshTasks);
+      document.removeEventListener('visibilitychange', refreshTasks);
+    };
+  }, [loadTasks]);
 
   useEffect(() => {
     let isMounted = true;
@@ -451,6 +465,10 @@ export default function Tasks() {
         (task.notes ?? '').toLowerCase().includes(normalizedSearch) ||
         (task.businessName ?? '').toLowerCase().includes(normalizedSearch) ||
         (task.unitName ?? '').toLowerCase().includes(normalizedSearch) ||
+        (task.projectName ?? '').toLowerCase().includes(normalizedSearch) ||
+        (task.projectFolio ?? '').toLowerCase().includes(normalizedSearch) ||
+        (task.processTitle ?? '').toLowerCase().includes(normalizedSearch) ||
+        (task.processFolio ?? '').toLowerCase().includes(normalizedSearch) ||
         (task.createdByName ?? '').toLowerCase().includes(normalizedSearch);
 
       const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
@@ -815,8 +833,8 @@ export default function Tasks() {
                 </TableCell>
                 <TableCell className="px-5 py-5">
                   <div className="min-w-[180px] space-y-1 text-sm text-slate-700 dark:text-slate-200">
-                    <p>{pageCopy.project}: {task.projectId ?? pageCopy.none}</p>
-                    <p>{pageCopy.process}: {task.processId ?? pageCopy.none}</p>
+                    <p>{pageCopy.project}: {task.projectName ?? task.projectFolio ?? pageCopy.none}</p>
+                    <p>{pageCopy.process}: {task.processTitle ?? task.processFolio ?? pageCopy.none}</p>
                     <p>{pageCopy.unit}: {task.unitName ?? task.unitId ?? pageCopy.none}</p>
                     <p>{pageCopy.business}: {task.businessName ?? task.businessId ?? pageCopy.none}</p>
                   </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { dashboardApi } from '../../../../api/dashboard';
 import { humanResourcesApi } from '../../../../api/humanResources';
 import { listProcesses } from '../../Processes/processesApi';
@@ -23,8 +23,7 @@ export function useAgendaCatalogs() {
   const [catalogBusinesses, setCatalogBusinesses] = useState<ProcessBusinessOption[]>([]);
   const [catalogCollaborators, setCatalogCollaborators] = useState<ProcessCollaboratorOption[]>([]);
 
-  useEffect(() => {
-    const loadRelationsForTaskForm = async () => {
+  const loadRelationsForTaskForm = useCallback(async () => {
       const [projectResult, processResult, unitResult, businessResult, hrUserResult] = await Promise.allSettled([
         listProjects(),
         listProcesses(),
@@ -60,10 +59,16 @@ export function useAgendaCatalogs() {
               .sort((left, right) => left.name.localeCompare(right.name))
           : [],
       );
-    };
-
-    void loadRelationsForTaskForm();
   }, []);
+
+  useEffect(() => {
+    void loadRelationsForTaskForm();
+    const refreshCatalogs = () => {
+      if (document.visibilityState !== 'hidden') void loadRelationsForTaskForm();
+    };
+    window.addEventListener('focus', refreshCatalogs);
+    return () => window.removeEventListener('focus', refreshCatalogs);
+  }, [loadRelationsForTaskForm]);
 
   return {
     catalogBusinesses,

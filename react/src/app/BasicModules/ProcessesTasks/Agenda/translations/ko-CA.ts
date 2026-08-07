@@ -143,6 +143,8 @@ export const koCA: AgendaTranslations = {
     copyTask: '작업 복사',
     deleteTask: '작업 삭제',
     files: '파일',
+    viewDetails: '세부 정보 보기',
+    closeDetails: '세부 정보 닫기',
   },
   bulk: {
     selected: (count: number) => `${count}개 선택됨`,

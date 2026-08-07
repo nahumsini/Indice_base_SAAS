@@ -143,6 +143,8 @@ export const zhCA: AgendaTranslations = {
     copyTask: '复制任务',
     deleteTask: '删除任务',
     files: '文件',
+    viewDetails: '查看详情',
+    closeDetails: '关闭详情',
   },
   bulk: {
     selected: (count: number) => `已选择 ${count} 项`,

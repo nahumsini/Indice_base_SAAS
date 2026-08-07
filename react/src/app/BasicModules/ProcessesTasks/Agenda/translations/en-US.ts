@@ -143,6 +143,8 @@ export const enUS: AgendaTranslations = {
     copyTask: 'Copy task',
     deleteTask: 'Delete task',
     files: 'Files',
+    viewDetails: 'View details',
+    closeDetails: 'Close details',
   },
   bulk: {
     selected: (count: number) => `${count} selected`,

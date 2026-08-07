@@ -287,8 +287,8 @@ export function PublicTaskKioskTaskCard({
       : priorityLabel;
 
   return (
-    <article className={`overflow-hidden rounded-2xl border bg-white shadow-sm transition dark:bg-slate-950 ${task.is_overdue ? 'border-rose-200 dark:border-rose-900/60' : 'border-[#F4C84A]/35 dark:border-[#F4C84A]/20'}`}>
-      <button type="button" className="block w-full p-4 text-left outline-none transition hover:bg-slate-50/70 focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#F4C84A]/25 dark:hover:bg-slate-900/60" onClick={onOpen}>
+    <article className={`overflow-hidden rounded-xl border bg-white shadow-sm transition dark:bg-slate-950 ${task.is_overdue ? 'border-rose-200 dark:border-rose-900/60' : 'border-[#F4C84A]/35 dark:border-[#F4C84A]/20'}`}>
+      <button type="button" className="block w-full p-3 text-left outline-none transition hover:bg-slate-50/70 focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#F4C84A]/25 dark:hover:bg-slate-900/60" onClick={onOpen}>
         <div className="flex items-start justify-between gap-3">
           <span className="inline-flex min-w-0 items-center gap-1.5 rounded-full bg-[#F4C84A]/25 px-2.5 py-1 text-[10px] font-medium text-[#7A5204] dark:text-[#FDE68A]">
             <FolderKanban aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
@@ -297,25 +297,25 @@ export function PublicTaskKioskTaskCard({
           <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium ${task.is_overdue ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200' : task.status === 'completed' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200' : 'bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-300'}`}>{statusLabel}</span>
         </div>
 
-        <h3 className="mt-3 text-lg font-medium leading-6 tracking-tight text-slate-950 dark:text-white">{task.title}</h3>
-        {task.description ? <p className="mt-1.5 line-clamp-2 text-sm leading-5 text-slate-500 dark:text-slate-400">{task.description}</p> : null}
+        <h3 className="mt-2 line-clamp-2 text-[15px] font-medium leading-5 tracking-tight text-slate-950 dark:text-white">{task.title}</h3>
+        {task.description ? <p className="mt-1 hidden line-clamp-1 text-xs leading-4 text-slate-500 dark:text-slate-400 min-[420px]:block">{task.description}</p> : null}
         {origin ? (
-          <p className="mt-3 flex min-w-0 items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-300">
+          <p className="mt-2 flex min-w-0 items-center gap-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-300">
             <FolderKanban aria-hidden="true" className="h-4 w-4 shrink-0 text-[#9A6B05]" />
             <span className="truncate">{origin}</span>
           </p>
         ) : null}
 
-        <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+        <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-slate-100 pt-2.5 dark:border-slate-800">
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-            <span className="inline-flex items-center gap-1.5"><CalendarDays aria-hidden="true" className="h-3.5 w-3.5" />{dueLabel}: {formattedDueDate}</span>
+            <span className="inline-flex items-center gap-1"><CalendarDays aria-hidden="true" className="h-3.5 w-3.5" /><span className="sr-only">{dueLabel}: </span>{formattedDueDate}</span>
             {task.attachments > 0 ? <span className="inline-flex items-center gap-1.5"><Paperclip aria-hidden="true" className="h-3.5 w-3.5" />{task.attachments} {attachmentsLabel}</span> : null}
           </div>
-          <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-[#7A5204] dark:text-[#FDE68A]">{viewLabel}<ChevronRight aria-hidden="true" className="h-4 w-4" /></span>
+          <span className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-[#F4C84A]/20 px-2 text-[11px] font-medium text-[#7A5204] dark:text-[#FDE68A]">{viewLabel}<ChevronRight aria-hidden="true" className="h-3.5 w-3.5" /></span>
         </div>
 
         {task.completion_percent > 0 ? (
-          <div className="mt-3">
+          <div className="mt-2">
             <div className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full bg-[#F4C84A]" style={{ width: `${Math.min(100, Math.max(0, task.completion_percent))}%` }} /></div>
             <div className="mt-1 flex items-center justify-between text-[10px] font-medium text-slate-400"><span>{copy.selectedTask.completion}</span><span>{task.completion_percent}%</span></div>
           </div>

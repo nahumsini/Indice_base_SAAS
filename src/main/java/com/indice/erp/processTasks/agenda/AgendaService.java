@@ -121,10 +121,8 @@ public class AgendaService {
                         FROM process_tasks task
                         LEFT JOIN processes process ON process.id = task.process_id
                             AND process.company_id = task.company_id
-                            AND process.deleted_at IS NULL
                         LEFT JOIN projects project ON project.id = task.project_id
                             AND project.company_id = task.company_id
-                            AND project.deleted_at IS NULL
                         LEFT JOIN user_companies assigned_user_company ON assigned_user_company.id = task.assigned_user_company_id
                             AND assigned_user_company.company_id = task.company_id
                         LEFT JOIN users assigned_user ON assigned_user.id = assigned_user_company.user_id

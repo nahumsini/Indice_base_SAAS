@@ -538,8 +538,10 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
 
     window.addEventListener('focus', refreshAgenda);
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    const intervalId = window.setInterval(refreshAgenda, 30_000);
 
     return () => {
+      window.clearInterval(intervalId);
       window.removeEventListener('focus', refreshAgenda);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };

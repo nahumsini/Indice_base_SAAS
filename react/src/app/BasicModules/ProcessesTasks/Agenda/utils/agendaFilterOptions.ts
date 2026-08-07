@@ -121,7 +121,7 @@ export function businessMatchesUnit(business: ProcessBusinessOption, unitId: num
 }
 
 export function projectLabel(project: ProjectRecord) {
-  return `${project.folio ? `${project.folio} - ` : ''}${project.name}`;
+  return `${project.name}${project.folio ? ` (${project.folio})` : ''}`;
 }
 
 export function agendaProjectFilterValue(task: AgendaTaskItem) {
@@ -137,7 +137,7 @@ function agendaProjectFilterLabel(task: AgendaTaskItem, copy: AgendaTranslations
   if (task.projectId != null) {
     const label = compactText(task.projectName ?? task.project);
     const folio = compactText(task.projectFolio);
-    return label ? `${folio ? `${folio} - ` : ''}${label}` : `${copy.form.labels.project} #${task.projectId}`;
+    return label ? `${label}${folio ? ` (${folio})` : ''}` : `${copy.form.labels.project} #${task.projectId}`;
   }
 
   const fallbackLabel = compactText(task.projectName ?? task.project ?? task.projectFolio);

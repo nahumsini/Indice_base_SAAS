@@ -372,6 +372,35 @@ export default function PublicTaskKioskPage() {
     onExpire: expireKioskSession,
   });
 
+  const refreshKioskTasks = useCallback(async () => {
+    if (!deviceToken || !identity?.identification_token || !isOnline) return;
+    try {
+      const response = await processTaskKioskApi.listPublicTasks(
+        deviceToken,
+        identity.identification_token,
+      );
+      setTasks(response.items);
+    } catch {
+      // Keep the last usable list on transient refresh failures. Explicit actions
+      // still surface their errors and the session boundary handles expiration.
+    }
+  }, [deviceToken, identity?.identification_token, isOnline]);
+
+  useEffect(() => {
+    if (!identity) return undefined;
+    const refreshWhenVisible = () => {
+      if (document.visibilityState !== 'hidden') void refreshKioskTasks();
+    };
+    const intervalId = window.setInterval(refreshWhenVisible, 20_000);
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [identity, refreshKioskTasks]);
+
   const selectedTask = useMemo(
     () => tasks.find((task) => task.id === selectedTaskId) ?? null,
     [selectedTaskId, tasks],

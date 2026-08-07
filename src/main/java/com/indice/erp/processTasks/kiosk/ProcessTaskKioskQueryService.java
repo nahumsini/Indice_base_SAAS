@@ -153,9 +153,9 @@ class ProcessTaskKioskQueryService {
             LEFT JOIN businesses business ON business.id = task.business_id
              AND (business.company_id = task.company_id OR business.company_id IS NULL)
             LEFT JOIN processes process ON process.id = task.process_id
-             AND process.company_id = task.company_id AND process.deleted_at IS NULL
+             AND process.company_id = task.company_id
             LEFT JOIN projects project ON project.id = task.project_id
-             AND project.company_id = task.company_id AND project.deleted_at IS NULL
+             AND project.company_id = task.company_id
             WHERE task.company_id = ? AND %s AND task.deleted_at IS NULL %s
             %s
             """.formatted(visibilityCondition, statusCondition, extraWhere);

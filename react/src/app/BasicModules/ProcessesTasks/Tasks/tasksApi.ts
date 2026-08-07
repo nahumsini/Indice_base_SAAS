@@ -12,6 +12,11 @@ export interface TaskRecord {
   companyId: number;
   processId: number | null;
   projectId: number | null;
+  processFolio: string | null;
+  processTitle: string | null;
+  projectFolio: string | null;
+  projectName: string | null;
+  project: string | null;
   taskType: TaskType;
   type: TaskType;
   folio: string;
@@ -173,6 +178,11 @@ export function normalizeTaskRecord(record: Partial<TaskRecord>): TaskRecord {
     companyId: Number(record.companyId ?? 0),
     processId: record.processId ?? null,
     projectId: record.projectId ?? null,
+    processFolio: record.processFolio ?? null,
+    processTitle: record.processTitle ?? null,
+    projectFolio: record.projectFolio ?? null,
+    projectName: record.projectName ?? record.project ?? null,
+    project: record.project ?? record.projectName ?? null,
     taskType,
     type: taskType,
     folio: record.folio ?? '',

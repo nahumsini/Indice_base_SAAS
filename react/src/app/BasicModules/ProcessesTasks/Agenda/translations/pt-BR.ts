@@ -143,6 +143,8 @@ export const ptBR: AgendaTranslations = {
     copyTask: 'Copiar tarefa',
     deleteTask: 'Excluir tarefa',
     files: 'Arquivos',
+    viewDetails: 'Ver detalhes',
+    closeDetails: 'Fechar detalhes',
   },
   bulk: {
     selected: (count: number) => `${count} selecionada${count === 1 ? '' : 's'}`,

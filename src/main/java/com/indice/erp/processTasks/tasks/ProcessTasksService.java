@@ -93,6 +93,10 @@ public class ProcessTasksService {
                    pt.company_id,
                    pt.process_id,
                    pt.project_id,
+                   process.folio AS process_folio,
+                   process.title AS process_title,
+                   project.folio AS project_folio,
+                   project.name AS project_name,
                    pt.folio,
                    pt.title,
                    pt.description,
@@ -172,6 +176,10 @@ public class ProcessTasksService {
                 AND audited_user_company.company_id = pt.company_id
             LEFT JOIN users audited_user ON audited_user.id = audited_user_company.user_id
             LEFT JOIN users created_user ON created_user.id = pt.created_by
+            LEFT JOIN processes process ON process.id = pt.process_id
+                AND process.company_id = pt.company_id
+            LEFT JOIN projects project ON project.id = pt.project_id
+                AND project.company_id = pt.company_id
             LEFT JOIN businesses business ON business.id = pt.business_id
                 AND (business.company_id = pt.company_id OR business.company_id IS NULL)
             LEFT JOIN units unit ON unit.id = pt.unit_id
@@ -1785,6 +1793,11 @@ public class ProcessTasksService {
         row.put("companyId", rs.getLong("company_id"));
         row.put("processId", processId);
         row.put("projectId", projectId);
+        row.put("processFolio", rs.getString("process_folio"));
+        row.put("processTitle", rs.getString("process_title"));
+        row.put("projectFolio", rs.getString("project_folio"));
+        row.put("projectName", rs.getString("project_name"));
+        row.put("project", rs.getString("project_name"));
         row.put("taskType", taskType(projectId, processId));
         row.put("type", taskType(projectId, processId));
         row.put("folio", rs.getString("folio"));

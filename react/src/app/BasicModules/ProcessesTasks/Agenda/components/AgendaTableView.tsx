@@ -1,4 +1,5 @@
-import { useMemo, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
+import { useMemo, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
+import { CalendarDays, FolderKanban, Maximize2, X } from 'lucide-react';
 import type { ColumnConfig } from '../../../../components/rh/ColumnasConfigModal';
 import { DataTablePagination } from '../../../../components/table/DataTablePagination';
 import { Checkbox } from '../../../../components/ui/checkbox';
@@ -77,6 +78,7 @@ export function AgendaTableView({
   const primaryMobileColumn = visibleAgendaColumns[0];
   const secondaryMobileColumns = visibleAgendaColumns.slice(1);
   const actionsMobileLabel = fixedAgendaColumns[0]?.label ?? agendaCopy.columns.actions.label;
+  const [mobileDetailTask, setMobileDetailTask] = useState<AgendaTaskItem | null>(null);
   const {
     currentPage,
     onPageChange,
@@ -125,7 +127,7 @@ export function AgendaTableView({
         ) : null}
 
         {!isAgendaViewLoading && paginatedTasks.length > 0 ? (
-          <div className="space-y-3 p-3">
+          <div className="divide-y divide-slate-100 dark:divide-slate-700">
             {paginatedTasks.map((task) => {
               const selected = rowSelection.isSelected(task.taskId);
 
@@ -133,11 +135,11 @@ export function AgendaTableView({
                 <article
                   key={task.taskId}
                   className={cn(
-                    'rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800',
+                    'bg-white px-3 py-3 dark:bg-slate-800',
                     selected && 'border-[#F4C84A]/60 bg-[#F4C84A]/10 dark:bg-[#F4C84A]/15',
                   )}
                 >
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-2.5">
                     <Checkbox
                       aria-label={`${agendaCopy.columns.folio.label}: ${task.folio}`}
                       checked={selected}
@@ -145,39 +147,34 @@ export function AgendaTableView({
                       onCheckedChange={(checked) => rowSelection.toggleSelection(task.taskId, checked === true)}
                       className="mt-1 border-slate-300 data-[state=checked]:border-[#F4C84A] data-[state=checked]:bg-[#F4C84A]"
                     />
-                    {primaryMobileColumn ? (
-                      <div className="min-w-0 flex-1">
-                        <p className="mb-2 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                          {primaryMobileColumn.label}
-                        </p>
-                        {renderAgendaTaskCell(task, primaryMobileColumn.id as AgendaColumnId)}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-slate-950 dark:text-white">{task.title}</p>
+                          <p className="mt-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">{task.folio}</p>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-200">
+                          {agendaCopy.statuses[task.status]}
+                        </span>
                       </div>
-                    ) : null}
+                      <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
+                        <span className="inline-flex min-w-0 items-center gap-1"><FolderKanban className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{task.projectName ?? task.processTitle ?? task.businessName ?? agendaCopy.common.noRecord}</span></span>
+                        <span className="inline-flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" />{task.dueDate ?? agendaCopy.common.noDate}</span>
+                      </div>
+                    </div>
                   </div>
 
-                  {secondaryMobileColumns.length > 0 ? (
-                    <div className="mt-4 grid gap-3">
-                      {secondaryMobileColumns.map((column) => (
-                        <div
-                          key={`${task.taskId}-${column.id}`}
-                          className="rounded-2xl border border-slate-100 bg-slate-50/70 px-3 py-3 dark:border-slate-700 dark:bg-slate-900/50"
-                        >
-                          <p className="mb-2 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                            {column.label}
-                          </p>
-                          <div className="min-w-0">
-                            {renderAgendaTaskCell(task, column.id as AgendaColumnId)}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  <div className="mt-4 border-t border-slate-100 pt-3 dark:border-slate-700">
-                    <p className="mb-2 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                      {actionsMobileLabel}
-                    </p>
-                    {renderTaskActions(task)}
+                  <div className="mt-2 flex items-center justify-between gap-2 pl-8">
+                    <div className="min-w-0 flex-1 overflow-x-auto">{renderTaskActions(task)}</div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10 shrink-0 gap-1.5 rounded-xl px-3 text-xs font-medium"
+                      onClick={() => setMobileDetailTask(task)}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                      {agendaCopy.actions.viewDetails}
+                    </Button>
                   </div>
                 </article>
               );
@@ -185,6 +182,34 @@ export function AgendaTableView({
           </div>
         ) : null}
       </div>
+
+      {mobileDetailTask ? (
+        <div className="fixed inset-0 z-[170] flex flex-col bg-white dark:bg-slate-950 md:hidden" role="dialog" aria-modal="true" aria-label={agendaCopy.actions.viewDetails}>
+          <header className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-[#9A6B05]">{mobileDetailTask.folio}</p>
+              <h2 className="mt-1 text-lg font-medium leading-tight text-slate-950 dark:text-white">{mobileDetailTask.title}</h2>
+            </div>
+            <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0 rounded-xl" aria-label={agendaCopy.actions.closeDetails} onClick={() => setMobileDetailTask(null)}>
+              <X className="h-5 w-5" />
+            </Button>
+          </header>
+          <div className="flex-1 overflow-y-auto px-4 py-4 pb-28">
+            <div className="grid gap-3">
+              {[primaryMobileColumn, ...secondaryMobileColumns].filter(Boolean).map((column) => column ? (
+                <section key={`${mobileDetailTask.taskId}-detail-${column.id}`} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-900/60">
+                  <p className="mb-2 text-[11px] font-medium text-slate-500 dark:text-slate-400">{column.label}</p>
+                  {renderAgendaTaskCell(mobileDetailTask, column.id as AgendaColumnId)}
+                </section>
+              ) : null)}
+            </div>
+          </div>
+          <footer className="fixed inset-x-0 bottom-0 border-t border-slate-200 bg-white/95 p-3 pb-[calc(.75rem+env(safe-area-inset-bottom))] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
+            <p className="mb-2 text-[10px] font-medium text-slate-500">{actionsMobileLabel}</p>
+            {renderTaskActions(mobileDetailTask)}
+          </footer>
+        </div>
+      ) : null}
 
       <div className="hidden overflow-x-auto md:block">
         <Table style={{ minWidth: agendaTableMinWidth, tableLayout: 'fixed' }}>

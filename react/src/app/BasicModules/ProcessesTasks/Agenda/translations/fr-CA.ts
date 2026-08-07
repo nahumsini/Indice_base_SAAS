@@ -143,6 +143,8 @@ export const frCA: AgendaTranslations = {
     copyTask: "Copier la tache",
     deleteTask: "Supprimer la tache",
     files: "Fichiers",
+    viewDetails: "Voir les details",
+    closeDetails: "Fermer les details",
   },
   bulk: {
     selected: (count: number) => `${count} sélectionnée${count === 1 ? '' : 's'}`,

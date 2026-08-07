@@ -143,6 +143,8 @@ export const esCO: AgendaTranslations = {
     copyTask: 'Copiar tarea',
     deleteTask: 'Eliminar tarea',
     files: 'Archivos',
+    viewDetails: 'Ver detalle',
+    closeDetails: 'Cerrar detalle',
   },
   bulk: {
     selected: (count: number) => `${count} seleccionada${count === 1 ? '' : 's'}`,
