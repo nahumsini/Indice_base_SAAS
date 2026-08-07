@@ -832,23 +832,23 @@ export default function PublicTaskKioskPage() {
     setIsAssigningResponsible(false);
   };
 
-  const closeTaskCompletionModal = () => {
+  const closeTaskCompletionModal = useCallback(() => {
     if (isSubmitting) {
       return;
     }
     setIsTaskModalOpen(false);
     setCompletionNotes('');
     setEvidenceFiles([]);
-  };
+  }, [isSubmitting]);
 
-  const closeResponsibleModal = () => {
+  const closeResponsibleModal = useCallback(() => {
     if (isAssigningResponsible) {
       return;
     }
     setResponsibleTaskId(null);
     setResponsibleUserCompanyId('');
     setResponsibleError(null);
-  };
+  }, [isAssigningResponsible]);
 
   return (
     <>

@@ -196,6 +196,16 @@ test('task kiosk manager keeps compact actions inside replacement modal views', 
   assert.match(source, /Reemplazar y emitir liga/);
 });
 
+test('task kiosk dialog keeps mobile text fields focused while typing', async () => {
+  const source = await readFile(
+    new URL('../src/app/BasicModules/ProcessesTasks/Kiosk/PublicTaskKioskPage.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /const closeTaskCompletionModal = useCallback\(\(\) => \{/);
+  assert.match(source, /const closeResponsibleModal = useCallback\(\(\) => \{/);
+});
+
 test('administrative kiosk managers share replacement views without portaled action menus', async () => {
   const [hrSource, hrCardSource, pettyCashSource, expensesSource] = await Promise.all([
     readFile(new URL('../src/app/BasicModules/HumanResources/Control/components/kiosks/KioskManagementModal.tsx', import.meta.url), 'utf8'),

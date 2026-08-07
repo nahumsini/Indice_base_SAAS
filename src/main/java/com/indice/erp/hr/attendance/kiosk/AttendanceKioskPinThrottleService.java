@@ -8,6 +8,8 @@ import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -21,15 +23,29 @@ public class AttendanceKioskPinThrottleService {
 
     public static final String PIN_THROTTLE_METADATA_KEY = "_pin_throttle";
 
-    private static final int FAILURE_LIMIT = 5;
-    private static final Duration LOCK_DURATION = Duration.ofMinutes(15);
-
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+    private final int failureLimit;
+    private final Duration attemptWindow;
+    private final Duration lockDuration;
 
     public AttendanceKioskPinThrottleService(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
+        this(jdbcTemplate, objectMapper, 12, 5, 3);
+    }
+
+    @Autowired
+    public AttendanceKioskPinThrottleService(
+        JdbcTemplate jdbcTemplate,
+        ObjectMapper objectMapper,
+        @Value("${app.hr.attendance.kiosk.pin-failure-limit:12}") int failureLimit,
+        @Value("${app.hr.attendance.kiosk.pin-attempt-window-minutes:5}") long attemptWindowMinutes,
+        @Value("${app.hr.attendance.kiosk.pin-lock-minutes:3}") long lockMinutes
+    ) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
+        this.failureLimit = Math.max(5, failureLimit);
+        this.attemptWindow = Duration.ofMinutes(Math.max(1, attemptWindowMinutes));
+        this.lockDuration = Duration.ofMinutes(Math.max(1, lockMinutes));
     }
 
     @Transactional(
@@ -44,7 +60,7 @@ public class AttendanceKioskPinThrottleService {
 
         var now = Instant.now();
         if (!state.isLocked(now)) {
-            if (state.lockedUntil() != null) {
+            if (state.lockedUntil() != null || state.isAttemptWindowExpired(now, attemptWindow)) {
                 clearFailures(kioskDevice);
             }
             return;
@@ -64,13 +80,17 @@ public class AttendanceKioskPinThrottleService {
             throw new KioskPinThrottleException(throttleMessage(current, now));
         }
 
-        var nextFailedAttempts = current == null || current.lockedUntil() != null
+        var startsNewWindow = current == null
+            || current.lockedUntil() != null
+            || current.isAttemptWindowExpired(now, attemptWindow);
+        var nextFailedAttempts = startsNewWindow
             ? 1
             : current.failedAttempts() + 1;
-        var lockedUntil = nextFailedAttempts >= FAILURE_LIMIT
-            ? now.plus(LOCK_DURATION)
+        var windowStartedAt = startsNewWindow ? now : current.windowStartedAt();
+        var lockedUntil = nextFailedAttempts >= failureLimit
+            ? now.plus(lockDuration)
             : null;
-        var nextState = new PinThrottleState(nextFailedAttempts, lockedUntil);
+        var nextState = new PinThrottleState(nextFailedAttempts, windowStartedAt, lockedUntil);
         updateThrottle(kioskDevice, nextState);
 
         if (nextState.isLocked(now)) {
@@ -91,11 +111,12 @@ public class AttendanceKioskPinThrottleService {
         }
 
         var failedAttempts = parseMetadataInt(throttleMap.get("failed_attempts"));
+        var windowStartedAt = parseMetadataInstant(throttleMap.get("window_started_at"));
         var lockedUntil = parseMetadataInstant(throttleMap.get("locked_until"));
         if (failedAttempts <= 0 && lockedUntil == null) {
             return null;
         }
-        return new PinThrottleState(Math.max(failedAttempts, 0), lockedUntil);
+        return new PinThrottleState(Math.max(failedAttempts, 0), windowStartedAt, lockedUntil);
     }
 
     private void updateThrottle(KioskDeviceRow kioskDevice, PinThrottleState state) {
@@ -107,6 +128,9 @@ public class AttendanceKioskPinThrottleService {
         } else {
             var throttleMetadata = new LinkedHashMap<String, Object>();
             throttleMetadata.put("failed_attempts", state.failedAttempts());
+            if (state.windowStartedAt() != null) {
+                throttleMetadata.put("window_started_at", state.windowStartedAt().toString());
+            }
             if (state.lockedUntil() != null) {
                 throttleMetadata.put("locked_until", state.lockedUntil().toString());
             }
