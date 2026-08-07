@@ -1,6 +1,7 @@
 package com.indice.erp.face;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import jakarta.servlet.http.HttpSession;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -21,24 +23,35 @@ import org.springframework.web.bind.annotation.RestController;
 public class HrFaceApiController {
 
     private final SessionAuthService sessionAuthService;
+    private final SessionCsrfService sessionCsrfService;
     private final HrFaceAccessService hrFaceAccessService;
     private final HrFaceService hrFaceService;
 
     public HrFaceApiController(
         SessionAuthService sessionAuthService,
+        SessionCsrfService sessionCsrfService,
         HrFaceAccessService hrFaceAccessService,
         HrFaceService hrFaceService
     ) {
         this.sessionAuthService = sessionAuthService;
+        this.sessionCsrfService = sessionCsrfService;
         this.hrFaceAccessService = hrFaceAccessService;
         this.hrFaceService = hrFaceService;
     }
 
     @PostMapping("/enrollment-sessions")
-    public ResponseEntity<?> createEnrollmentSession(HttpSession session, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> createEnrollmentSession(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody Map<String, Object> payload
+    ) {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -66,11 +79,16 @@ public class HrFaceApiController {
     public ResponseEntity<?> presignEnrollmentCapture(
         HttpSession session,
         @PathVariable long enrollmentId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody Map<String, Object> payload
     ) {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -92,10 +110,18 @@ public class HrFaceApiController {
     }
 
     @PostMapping("/enrollment-sessions/{enrollmentId}/complete")
-    public ResponseEntity<?> completeEnrollment(HttpSession session, @PathVariable long enrollmentId) {
+    public ResponseEntity<?> completeEnrollment(
+        HttpSession session,
+        @PathVariable long enrollmentId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
+    ) {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -136,10 +162,18 @@ public class HrFaceApiController {
     }
 
     @DeleteMapping("/enrollments/{userCompanyId}")
-    public ResponseEntity<?> deleteEnrollment(HttpSession session, @PathVariable long userCompanyId) {
+    public ResponseEntity<?> deleteEnrollment(
+        HttpSession session,
+        @PathVariable long userCompanyId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
+    ) {
         var user = sessionAuthService.currentUser(session);
         if (user.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -179,5 +213,14 @@ public class HrFaceApiController {
 
     private ResponseEntity<?> forbidden() {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
+    }
+
+    private ResponseEntity<?> requireCsrf(HttpSession session, String csrfToken) {
+        try {
+            sessionCsrfService.requireCsrf(session, csrfToken);
+            return null;
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ex.getMessage()));
+        }
     }
 }

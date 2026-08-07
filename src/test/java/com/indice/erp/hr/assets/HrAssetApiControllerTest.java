@@ -2,14 +2,20 @@ package com.indice.erp.hr.assets;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.hr.HrAccessDeniedException;
 import com.indice.erp.hr.HrAccessService;
 import com.indice.erp.hr.HrAccessService.HrTab;
@@ -26,6 +32,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 @WebMvcTest(HrAssetApiController.class)
 class HrAssetApiControllerTest {
@@ -35,6 +42,9 @@ class HrAssetApiControllerTest {
 
     @MockBean
     private SessionAuthService sessionAuthService;
+
+    @MockBean
+    private SessionCsrfService sessionCsrfService;
 
     @MockBean
     private HrAssetService hrAssetService;
@@ -140,10 +150,25 @@ class HrAssetApiControllerTest {
             .andExpect(jsonPath("$.message").value("Forbidden"));
     }
 
+    @Test
+    void writeEndpointsRejectMissingCsrfBeforeCallingService() throws Exception {
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser()));
+        willThrow(new IllegalArgumentException("Invalid CSRF token."))
+            .given(sessionCsrfService)
+            .requireCsrf(any(), eq(null));
+
+        for (var request : assetWriteRequests()) {
+            mockMvc.perform(request)
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Invalid CSRF token."));
+        }
+
+        verifyNoInteractions(hrAssetService);
+    }
 
     @Test
     void createReturnsCreatedAsset() throws Exception {
-        var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
+        var currentUser = currentUser();
         var asset = new LinkedHashMap<String, Object>();
         asset.put("id", 15L);
         asset.put("asset_code", "PHONE-2026");
@@ -154,6 +179,7 @@ class HrAssetApiControllerTest {
             .willReturn(Map.of("asset", asset));
 
         mockMvc.perform(post("/api/v1/hr/assets")
+                .header("X-CSRF-Token", "csrf-token")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -164,17 +190,20 @@ class HrAssetApiControllerTest {
                     """))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.asset_code").value("PHONE-2026"));
+
+        verify(sessionCsrfService).requireCsrf(any(), eq("csrf-token"));
     }
 
     @Test
     void changeStatusReturnsBadRequestWhenValidationFails() throws Exception {
-        var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
+        var currentUser = currentUser();
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
         given(hrAssetService.changeStatus(any(AuthSessionUser.class), anyLong(), any(Map.class)))
             .willThrow(new IllegalArgumentException("status must be one of available, assigned, maintenance, custody, or inactive."));
 
         mockMvc.perform(post("/api/v1/hr/assets/8/status")
+                .header("X-CSRF-Token", "csrf-token")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -234,5 +263,26 @@ class HrAssetApiControllerTest {
         mockMvc.perform(get("/api/v1/hr/assets/44"))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.message").value("Forbidden"));
+    }
+
+    private AuthSessionUser currentUser() {
+        return new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
+    }
+
+    private List<MockHttpServletRequestBuilder> assetWriteRequests() {
+        return List.of(
+            post("/api/v1/hr/assets")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            put("/api/v1/hr/assets/8")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            post("/api/v1/hr/assets/8/reassign")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            post("/api/v1/hr/assets/8/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}")
+        );
     }
 }

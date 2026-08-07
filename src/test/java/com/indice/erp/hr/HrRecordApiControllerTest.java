@@ -2,6 +2,7 @@ package com.indice.erp.hr;
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.hr.HrAccessService.HrTab;
 import com.indice.erp.hr.records.HrRecordApiController;
 import com.indice.erp.hr.records.HrRecordService;
@@ -18,12 +19,17 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -39,6 +45,9 @@ class HrRecordApiControllerTest {
 
     @MockBean
     private SessionAuthService sessionAuthService;
+
+    @MockBean
+    private SessionCsrfService sessionCsrfService;
 
     @MockBean
     private HrRecordService hrRecordService;
@@ -120,16 +129,32 @@ class HrRecordApiControllerTest {
             .andExpect(jsonPath("$.message").value("Forbidden"));
     }
 
+    @Test
+    void writeEndpointsRejectMissingCsrfBeforeCallingService() throws Exception {
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser()));
+        willThrow(new IllegalArgumentException("Invalid CSRF token."))
+            .given(sessionCsrfService)
+            .requireCsrf(any(), eq(null));
+
+        for (var request : recordWriteRequests()) {
+            mockMvc.perform(request)
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Invalid CSRF token."));
+        }
+
+        verifyNoInteractions(hrRecordService);
+    }
 
     @Test
     void updateReturnsNotFoundWhenRecordIsMissing() throws Exception {
-        var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
+        var currentUser = currentUser();
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
         given(hrRecordService.updateRecord(any(AuthSessionUser.class), anyLong(), any(Map.class)))
             .willThrow(new NoSuchElementException("Record not found."));
 
         mockMvc.perform(put("/api/v1/hr/records/999")
+                .header("X-CSRF-Token", "csrf-token")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -208,13 +233,14 @@ class HrRecordApiControllerTest {
 
     @Test
     void attachmentPresignReturnsServiceUnavailableWhenStorageIsDisabled() throws Exception {
-        var currentUser = new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
+        var currentUser = currentUser();
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
         given(hrRecordService.createAttachmentUpload(any(AuthSessionUser.class), anyLong(), any(Map.class)))
             .willThrow(new ObjectStorageDisabledException("Object storage is not enabled."));
 
         mockMvc.perform(post("/api/v1/hr/records/12/attachments/presign-upload")
+                .header("X-CSRF-Token", "csrf-token")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -238,5 +264,28 @@ class HrRecordApiControllerTest {
         mockMvc.perform(get("/api/v1/hr/records/44"))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.message").value("Forbidden"));
+    }
+
+    private AuthSessionUser currentUser() {
+        return new AuthSessionUser(1L, 1L, "Usuario Demo", "admin");
+    }
+
+    private List<MockHttpServletRequestBuilder> recordWriteRequests() {
+        return List.of(
+            post("/api/v1/hr/records")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            put("/api/v1/hr/records/12")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            delete("/api/v1/hr/records/12"),
+            post("/api/v1/hr/records/12/attachments/presign-upload")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            post("/api/v1/hr/records/12/attachments")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"),
+            delete("/api/v1/hr/records/12/attachments/9")
+        );
     }
 }
