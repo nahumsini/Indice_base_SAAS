@@ -29,7 +29,7 @@ class PinThrottleStateTest {
 
     @Test
     void lockRemainsActiveOnlyUntilItsDeadline() {
-        var state = new PinThrottleState(12, NOW.minusSeconds(30), NOW.plusSeconds(30));
+        var state = new PinThrottleState(30, NOW.minusSeconds(30), NOW.plusSeconds(30));
 
         assertTrue(state.isLocked(NOW));
         assertFalse(state.isLocked(NOW.plusSeconds(30)));

@@ -30,16 +30,16 @@ public class AttendanceKioskPinThrottleService {
     private final Duration lockDuration;
 
     public AttendanceKioskPinThrottleService(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
-        this(jdbcTemplate, objectMapper, 12, 5, 3);
+        this(jdbcTemplate, objectMapper, 30, 5, 1);
     }
 
     @Autowired
     public AttendanceKioskPinThrottleService(
         JdbcTemplate jdbcTemplate,
         ObjectMapper objectMapper,
-        @Value("${app.hr.attendance.kiosk.pin-failure-limit:12}") int failureLimit,
+        @Value("${app.hr.attendance.kiosk.pin-failure-limit:30}") int failureLimit,
         @Value("${app.hr.attendance.kiosk.pin-attempt-window-minutes:5}") long attemptWindowMinutes,
-        @Value("${app.hr.attendance.kiosk.pin-lock-minutes:3}") long lockMinutes
+        @Value("${app.hr.attendance.kiosk.pin-lock-minutes:1}") long lockMinutes
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;

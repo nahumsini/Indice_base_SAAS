@@ -312,6 +312,37 @@ class KioskActionDispatcherTest {
     }
 
     @Test
+    void identityWithModuleManagedPinThrottleSkipsTheSharedEngineBuckets() {
+        var expiresAt = Instant.now().plusSeconds(180);
+        var capability = new KioskCapabilityDescriptor(
+            "attendance.identity.verify", 1, "PROCESS_TASKS",
+            KioskOperationPolicy.DIRECT, KioskAccessLevel.CONTROLLED,
+            false, true, Map.of("moduleManagedPinThrottle", true), Map.of(), Map.of());
+        var request = KioskActionRequest.of(
+            "attendance.identity.verify", Map.of("credential_payload", "12345"));
+        given(registry.requireCapability("attendance.identity.verify@1"))
+            .willReturn(capability);
+        lenient().when(adapter.capabilities(any())).thenReturn(java.util.Set.of(capability));
+        given(adapter.execute(any(), org.mockito.ArgumentMatchers.same(request)))
+            .willReturn(Map.of(
+                "identification_token", "module-token",
+                "expires_at", expiresAt.toString(),
+                "user", Map.of("id", 19L)));
+        given(sessionService.createControlledSession(
+            any(), eq("EMPLOYEE"), eq(19L), eq("module-token"), anyString(),
+            eq(java.util.Set.of(capability.versionedKey())), eq(expiresAt)))
+            .willReturn(new KioskSessionPrincipal(
+                "attendance-session", 17L, 7L, "EMPLOYEE", 19L,
+                java.util.Set.of(capability.versionedKey()), expiresAt));
+
+        assertThat(dispatcher.dispatch(context, request, null))
+            .containsEntry("identification_token", "module-token");
+
+        then(rateLimitService).shouldHaveNoInteractions();
+        then(adapter).should().execute(any(), org.mockito.ArgumentMatchers.same(request));
+    }
+
+    @Test
     void humanResourcesIdentityUsesTheModuleTokenForTheEngineSession() {
         var browserReference = "attendance-browser-reference-1234567890";
         var hrContext = KioskExecutionContext.publicLink(

@@ -47,7 +47,12 @@ public final class AttendanceKioskCapabilities {
     private static KioskCapabilityDescriptor descriptor(String key, boolean mutation, boolean sensitive) {
         return new KioskCapabilityDescriptor(
             key, 1, OWNER_MODULE, KioskOperationPolicy.DIRECT,
-            KioskAccessLevel.CONTROLLED, mutation, sensitive
+            KioskAccessLevel.CONTROLLED, mutation, sensitive,
+            IDENTITY_VERIFY.equals(key)
+                ? Map.of("moduleManagedPinThrottle", true)
+                : Map.of(),
+            Map.of(),
+            Map.of()
         );
     }
 

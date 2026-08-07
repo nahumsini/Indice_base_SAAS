@@ -112,7 +112,9 @@ public class KioskActionDispatcher {
                 throw new SecurityException("Kiosk capability is not available for this kiosk type.");
             }
             executionContext = context.resolved(definition, null);
-            if (isIdentityEstablishment(request)) {
+            var moduleManagedPinThrottle = isIdentityEstablishment(request)
+                && Boolean.TRUE.equals(capability.inputContract().get("moduleManagedPinThrottle"));
+            if (isIdentityEstablishment(request) && !moduleManagedPinThrottle) {
                 var stablePinScope = String.valueOf(
                     capability.inputContract().getOrDefault("stablePinScope", ""))
                     .trim().toUpperCase(java.util.Locale.ROOT);
@@ -125,7 +127,9 @@ public class KioskActionDispatcher {
                         "Kiosk PIN throttling scope is not supported.");
                 }
             }
-            rateLimitService.requireAllowed(rateLimitType(capability), executionContext, request.payload());
+            if (!moduleManagedPinThrottle) {
+                rateLimitService.requireAllowed(rateLimitType(capability), executionContext, request.payload());
+            }
             definitionRegistry.synchronizeCapabilities(definition, definitionCapabilities);
             if (!definitionRegistry.capabilityEnabled(definition.id(), capability)) {
                 throw new SecurityException("Kiosk capability is not available.");
