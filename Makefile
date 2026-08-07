@@ -3,6 +3,7 @@ SHELL := /bin/bash
 
 COMPOSE_FILES := -f deployment/compose/docker-compose.yml -f deployment/compose/docker-compose.dev.yml
 COMPOSE := docker compose $(COMPOSE_FILES)
+LOCAL_COMPOSE_ENV = APP_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET="$(LOCAL_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET)" APP_KIOSK_TOKEN_PROTECTION_SECRET="$(LOCAL_KIOSK_TOKEN_PROTECTION_SECRET)"
 INFRA_SERVICES ?= minio minio-init face-service
 COMPOSE_MINIO_CONTAINER := indice-erp-minio-1
 LEGACY_MINIO_CONTAINER := indice-minio
@@ -12,6 +13,11 @@ FRONTEND_HOST ?= 127.0.0.1
 FRONTEND_PORT ?= 5174
 SPRING_PROFILE ?= minio
 DB_CONTAINER ?= indice-mysql-fresh
+DB_HOST_PORT ?= 3307
+DB_NAME ?= indice_db
+DB_USER ?= indice_user
+DB_PASSWORD ?= indice_pass
+DB_ROOT_PASSWORD ?= rootpass
 
 MINIO_API_HOST_PORT ?= 9000
 MINIO_CONSOLE_HOST_PORT ?= 9001
@@ -31,7 +37,7 @@ export MINIO_CONSOLE_HOST_PORT
 
 .DEFAULT_GOAL := help
 
-.PHONY: help dev prepare minio-port-check infra reset-db frontend-install backend frontend ps logs down
+.PHONY: help dev up prepare minio-port-check mysql infra db-repair db-reset frontend-install backend frontend ps logs down
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage: make <target>\n\nTargets:\n"} /^[a-zA-Z0-9_.-]+:.*##/ {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -74,7 +80,9 @@ dev: prepare ## Start the full local dev stack
 	cleanup; \
 	exit $$status
 
-prepare: infra reset-db frontend-install ## Prepare Docker services, database, and frontend deps
+up: dev ## Alias for dev
+
+prepare: infra frontend-install ## Prepare Docker services and frontend deps without resetting the database
 
 minio-port-check: ## Stop stale Indice MinIO port conflicts
 	@for port in "$(MINIO_API_HOST_PORT)" "$(MINIO_CONSOLE_HOST_PORT)"; do \
@@ -93,18 +101,43 @@ minio-port-check: ## Stop stale Indice MinIO port conflicts
 		done; \
 	done
 
-infra: minio-port-check ## Start MinIO, minio-init, and face-service
-	$(COMPOSE) up -d --force-recreate minio minio-init
-	$(COMPOSE) up -d face-service
+mysql: ## Start local MySQL without resetting the database
+	@CONTAINER_NAME="$(DB_CONTAINER)" \
+	HOST_PORT="$(DB_HOST_PORT)" \
+	DATABASE_NAME="$(DB_NAME)" \
+	DATABASE_USER="$(DB_USER)" \
+	DATABASE_PASSWORD="$(DB_PASSWORD)" \
+	MYSQL_ROOT_PASSWORD="$(DB_ROOT_PASSWORD)" \
+	./scripts/ensure-local-mysql.sh
 
-reset-db: ## Reset the local MySQL database
-	CONTAINER_NAME="$(DB_CONTAINER)" ./scripts/reset-local-db.sh
+infra: mysql minio-port-check ## Start MySQL, MinIO, minio-init, and face-service
+	@$(LOCAL_COMPOSE_ENV) $(COMPOSE) up -d --force-recreate minio minio-init
+	@$(LOCAL_COMPOSE_ENV) $(COMPOSE) up -d face-service
+
+db-repair: ## Repair Flyway metadata without resetting the database
+	@CONTAINER_NAME="$(DB_CONTAINER)" \
+	HOST_PORT="$(DB_HOST_PORT)" \
+	DATABASE_NAME="$(DB_NAME)" \
+	DATABASE_USER="$(DB_USER)" \
+	DATABASE_PASSWORD="$(DB_PASSWORD)" \
+	MYSQL_ROOT_PASSWORD="$(DB_ROOT_PASSWORD)" \
+	./scripts/db-repair.sh
+
+db-reset: ## Destructively reset the local MySQL database
+	@echo "WARNING: this will drop and recreate $(DB_NAME) inside $(DB_CONTAINER)."
+	@CONTAINER_NAME="$(DB_CONTAINER)" \
+	HOST_PORT="$(DB_HOST_PORT)" \
+	DATABASE_NAME="$(DB_NAME)" \
+	DATABASE_USER="$(DB_USER)" \
+	DATABASE_PASSWORD="$(DB_PASSWORD)" \
+	MYSQL_ROOT_PASSWORD="$(DB_ROOT_PASSWORD)" \
+	./scripts/reset-local-db.sh
 
 frontend-install: ## Install frontend dependencies
 	npm --prefix "$(FRONTEND_DIR)" install
 
 backend: ## Run only the Spring Boot backend with the MinIO profile
-	APP_STORAGE_MINIO_PUBLIC_ENDPOINT="$(MINIO_PUBLIC_ENDPOINT)" \
+	@APP_STORAGE_MINIO_PUBLIC_ENDPOINT="$(MINIO_PUBLIC_ENDPOINT)" \
 	APP_STORAGE_MINIO_SERVICE_PUBLIC_ENDPOINT="$(MINIO_SERVICE_PUBLIC_ENDPOINT)" \
 	APP_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET="$(LOCAL_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET)" \
 	APP_KIOSK_TOKEN_PROTECTION_SECRET="$(LOCAL_KIOSK_TOKEN_PROTECTION_SECRET)" \
@@ -112,18 +145,19 @@ backend: ## Run only the Spring Boot backend with the MinIO profile
 		-Dspring-boot.run.jvmArguments="$(LOCAL_BACKEND_JVM_ARGUMENTS)"
 
 frontend: ## Run only the React/Vite frontend
-	VITE_BACKEND_URL="$(VITE_BACKEND_URL)" \
+	@VITE_BACKEND_URL="$(VITE_BACKEND_URL)" \
 	VITE_API_BASE_URL="$(VITE_API_BASE_URL)" \
 	npm --prefix "$(FRONTEND_DIR)" run dev -- --host "$(FRONTEND_HOST)" --port "$(FRONTEND_PORT)" --strictPort
 
 ps: ## Show Docker service status
-	$(COMPOSE) ps
+	@docker ps -a --filter "name=$(DB_CONTAINER)" --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+	@$(LOCAL_COMPOSE_ENV) $(COMPOSE) ps
 
 logs: ## Tail Docker service logs
-	$(COMPOSE) logs -f $(INFRA_SERVICES)
+	@$(LOCAL_COMPOSE_ENV) $(COMPOSE) logs -f $(INFRA_SERVICES)
 
 down: ## Stop compose services and the local MySQL container
-	$(COMPOSE) down
+	@$(LOCAL_COMPOSE_ENV) $(COMPOSE) down
 	@if docker container inspect "$(DB_CONTAINER)" >/dev/null 2>&1; then \
 		docker stop "$(DB_CONTAINER)" >/dev/null; \
 	fi

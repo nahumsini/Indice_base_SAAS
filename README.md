@@ -19,31 +19,48 @@ Full-stack Indice SAAS workspace with:
 ## Run
 
 ```bash
-cd ~/Documents/GitHub/Indice_base_SAAS
-make backend
+cd ~/Documents/Indice/Indice_base_SAAS
+make dev
 ```
 
-`make backend` supplies development-only kiosk secrets and disables the legacy
-kiosk-secret sentinel check for the existing local database. It also disables
-Spring Boot DevTools automatic restart so file watchers cannot accumulate during
-long development sessions. Production still requires its own secrets through
-the deployment environment and keeps kiosk-secret protection enabled.
+`make dev` starts the safe local development stack without resetting the
+database:
 
-Default URL:
+- local MySQL in `indice-mysql-fresh` on `127.0.0.1:3307`
+- MinIO, minio-init, and face-service
+- Spring Boot backend on `http://127.0.0.1:8082`
+- React/Vite frontend on `http://127.0.0.1:5174`
 
-- `http://127.0.0.1:8082`
+Useful local commands:
+
+```bash
+make infra     # Start MySQL, MinIO, minio-init, and face-service only
+make backend   # Run only Spring Boot on http://127.0.0.1:8082
+make frontend  # Run only React/Vite on http://127.0.0.1:5174
+make up        # Alias for make dev
+make db-repair # Repair Flyway metadata without resetting local data
+make ps        # Show local infrastructure status
+make down      # Stop local infrastructure containers
+```
+
+`make backend` and `make dev` supply development-only kiosk secrets and disable
+the legacy kiosk-secret sentinel check for the existing local database. They
+also disable Spring Boot DevTools automatic restart so file watchers cannot
+accumulate during long development sessions. Production still requires its own
+secrets through the deployment environment and keeps kiosk-secret protection
+enabled.
 
 ## Clean DB Run
 
-Reset the local MySQL database that this backend uses before starting Spring:
+Reset the local MySQL database only when you intentionally want a fresh schema:
 
 ```bash
-cd ~/Documents/GitHub/Indice_base_SAAS
-./scripts/reset-local-db.sh
-make backend
+cd ~/Documents/Indice/Indice_base_SAAS
+make db-reset
+make dev
 ```
 
-The reset script:
+`make db-reset` is destructive. It:
 
 - creates `indice-mysql-fresh` on port `3307` if it does not exist
 - starts the container if it is stopped
