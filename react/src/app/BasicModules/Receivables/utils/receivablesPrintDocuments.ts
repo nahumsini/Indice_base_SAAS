@@ -314,7 +314,7 @@ const buildCreditSaleScheduleDocument = ({ copy, installments, locale, sale }: C
     },
     fileName: { documentType: labels.schedule, identifier: sale.saleNumber },
     folio: sale.saleNumber,
-    issuer: sale.business || sale.unit || 'Indice',
+    issuer: sale.business || sale.unit,
     locale,
     metadata: [
       { label: labels.customer, value: sale.customerName },

@@ -83,15 +83,17 @@ test('evidencia de pago se carga como archivo y no se marca subida antes de pers
 
 test('ventas reutiliza las cuentas de pago de Expenses con permiso compartido', () => {
   const field = read('src/app/BasicModules/Sales/Sales/components/SalesPaymentAccountField.tsx');
-  const page = read('src/app/BasicModules/Sales/Sales/Sales.tsx');
-  const switcher = read('src/app/BasicModules/Sales/Sales/components/SalesViewSwitcher.tsx');
+  const module = read('src/app/BasicModules/Sales/Ventas.tsx');
+  const paymentAccounts = read('src/app/BasicModules/Sales/SalesPaymentAccounts.tsx');
 
   assert.match(field, /paymentAccountsService\.getPaymentAccounts/);
   assert.match(field, /<PaymentAccountModal/);
   assert.match(field, /paymentAccountsService\.createPaymentAccount/);
-  assert.match(page, /import PaymentAccounts from '\.\.\/\.\.\/Expenses\/PaymentAccounts'/);
-  assert.match(page, /<PaymentAccounts onNavigate=/);
-  assert.match(switcher, /id: 'payment-accounts'/);
+  assert.match(module, /const SalesPaymentAccounts = lazy\(\(\) => import\('\.\/SalesPaymentAccounts'\)\)/);
+  assert.match(module, /'payment-accounts': SalesPaymentAccounts/);
+  assert.match(paymentAccounts, /import PaymentAccounts from '\.\.\/Expenses\/PaymentAccounts'/);
+  assert.match(paymentAccounts, /<PaymentAccounts/);
+  assert.match(paymentAccounts, /headerTone="coral"/);
 });
 
 test('la venta toma vendedor autenticado y almacén para confirmar inventario', () => {

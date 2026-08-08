@@ -236,25 +236,20 @@ function OperationStep({
               value={form.warehouseId || 'none'}
               onValueChange={(warehouseId) => {
                 const warehouse = warehouses.find((item) => item.id === warehouseId);
-                const fallbackBusiness = businessOptions[0];
-                const businessUnitId = warehouse?.businessUnitId || fallbackBusiness?.businessUnitId || '';
-                const businessUnitName = warehouse?.businessUnitName || fallbackBusiness?.businessUnitName || '';
-                const businessId = warehouse?.businessId || fallbackBusiness?.id || '';
-                const businessName = warehouse?.businessName || fallbackBusiness?.name || '';
                 onFormChange({
                   warehouseId,
                   warehouseName: warehouse?.name ?? '',
-                  businessUnitId,
-                  businessUnitName,
-                  businessId,
-                  businessName,
+                  businessUnitId: warehouse?.businessUnitId ?? '',
+                  businessUnitName: warehouse?.businessUnitName ?? '',
+                  businessId: warehouse?.businessId ?? '',
+                  businessName: warehouse?.businessName ?? '',
                   paymentAccountId: undefined,
                   paymentAccountName: undefined,
                   saleLines: form.saleLines.map((line) => ({
                     ...line,
                     warehouseId,
-                    businessUnitId,
-                    businessId,
+                    businessUnitId: warehouse?.businessUnitId ?? '',
+                    businessId: warehouse?.businessId ?? '',
                   })),
                 });
               }}
