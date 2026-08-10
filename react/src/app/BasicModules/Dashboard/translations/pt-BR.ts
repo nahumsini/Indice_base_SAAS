@@ -2,6 +2,14 @@ import type { PanelInicialShellTranslations } from './types';
 
 export const ptBR: PanelInicialShellTranslations = {
   subtitle: 'Configure seu perfil, estrutura empresarial, usuários e preferências operacionais.',
+  tabDescriptions: {
+    profile: 'Dados pessoais e segurança',
+    businessStructure: 'Áreas, cargos e organização',
+    businessProfile: 'Identidade e diagnóstico do negócio',
+    consulting: 'Agenda e acompanhamento de consultoria',
+    personalPerformance: 'Objetivos e desempenho pessoal',
+    users: 'Acessos, funções e permissões',
+  },
   loadingTabTitle: 'Carregando aba do Painel Inicial',
   loadingTabDescription: 'Abrindo o espaço de configuração selecionado.',
   downloadingTabDescription: 'Baixando somente o espaço de configuração selecionado.',

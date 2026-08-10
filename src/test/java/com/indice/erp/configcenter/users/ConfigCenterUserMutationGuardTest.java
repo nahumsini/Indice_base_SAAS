@@ -238,7 +238,6 @@ class ConfigCenterUserMutationGuardTest {
             "module_slugs", List.of("config_center", "human_resources"),
             "tab_permission_keys", List.of(
                 "config_center.profile",
-                "config_center.personal-performance",
                 "human_resources.announcements",
                 "human_resources.assets",
                 "human_resources.attendance",
@@ -254,7 +253,6 @@ class ConfigCenterUserMutationGuardTest {
             List.of("config_center", "human_resources"),
             List.of(
                 "config_center.profile",
-                "config_center.personal-performance",
                 "human_resources.announcements",
                 "human_resources.assets",
                 "human_resources.attendance",

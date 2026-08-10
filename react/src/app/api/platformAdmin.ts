@@ -7,6 +7,81 @@ export interface PlatformAdminContext {
   can_manage_benefits: boolean;
   can_manage_ownership: boolean;
   can_manage_modules: boolean;
+  can_manage_consulting: boolean;
+}
+
+export type PlatformConsultingStatus = 'REQUESTED' | 'PAYMENT_REQUIRED' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'NO_SHOW';
+
+export interface PlatformConsultingAppointment {
+  id: number;
+  company_id: number;
+  company_name: string;
+  booked_by_user_id: number;
+  booked_by_email: string;
+  attendee_name: string;
+  attendee_email: string;
+  attendee_phone: string | null;
+  topic: string;
+  notes: string | null;
+  preferred_start_at: string;
+  alternative_start_at: string | null;
+  timezone: string;
+  duration_minutes: number;
+  consultation_mode: 'VIRTUAL' | 'IN_PERSON';
+  country_code: string | null;
+  service_location_code: string | null;
+  service_location_name: string | null;
+  session_kind: 'INCLUDED' | 'ADDITIONAL';
+  status: PlatformConsultingStatus;
+  payment_status: 'INCLUDED' | 'QUOTE_PENDING' | 'PENDING' | 'PAID' | 'WAIVED' | 'REFUNDED';
+  amount_cents: number | null;
+  currency: string;
+  confirmed_start_at: string | null;
+  meeting_url: string | null;
+  consultant_name: string | null;
+  consultant_email: string | null;
+  consultant_phone: string | null;
+  internal_notes: string | null;
+  notification_status: string;
+  cancelled_at: string | null;
+  cancellation_reason: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlatformConsultingLocation {
+  id: number;
+  location_code: string;
+  country_code: string;
+  country_name: string;
+  region_name: string;
+  city_name: string;
+  timezone: string;
+  active: boolean;
+  in_person_fee_cents: number | null;
+  currency: string;
+  updated_at: string;
+}
+
+export interface PlatformConsultingWorkspace {
+  totals: { appointments: number; requested: number; confirmed: number; upcoming: number };
+  appointments: PlatformConsultingAppointment[];
+  locations: PlatformConsultingLocation[];
+}
+
+export interface PlatformConsultingAppointmentUpdate {
+  status: PlatformConsultingStatus;
+  confirmedStartAt?: string | null;
+  meetingUrl?: string;
+  consultantName?: string;
+  consultantEmail?: string;
+  consultantPhone?: string;
+  internalNotes?: string;
+  paymentStatus: PlatformConsultingAppointment['payment_status'];
+  amountCents?: number | null;
+  currency: string;
+  cancellationReason?: string;
 }
 
 export interface PlatformCompanySummary {
@@ -292,6 +367,7 @@ export interface CourtesyCodePayload {
 
 const companyPath = (companyId: number) => `${endpoints.platformAdmin.companies}/${companyId}`;
 const courtesyCodesPath = '/api/v1/platform-admin/courtesy-codes';
+const consultingPath = '/api/v1/platform-admin/consulting';
 
 export const platformAdminApi = {
   getContext: () => apiClient<PlatformAdminContext>(endpoints.platformAdmin.context),
@@ -307,6 +383,15 @@ export const platformAdminApi = {
     { method: 'PATCH', body: JSON.stringify({ active, reason }) },
   ),
   getAudit: () => apiClient<PlatformAudit>(`${endpoints.platformAdmin.audit}?limit=200`),
+  getConsulting: () => apiClient<PlatformConsultingWorkspace>(consultingPath),
+  updateConsultingAppointment: (appointmentId: number, payload: PlatformConsultingAppointmentUpdate) => apiClient<PlatformConsultingAppointment>(
+    `${consultingPath}/appointments/${appointmentId}`,
+    { method: 'PATCH', body: JSON.stringify(payload) },
+  ),
+  updateConsultingLocation: (locationId: number, payload: { active: boolean; inPersonFeeCents: number | null; currency: string }) => apiClient<PlatformConsultingLocation>(
+    `${consultingPath}/locations/${locationId}`,
+    { method: 'PATCH', body: JSON.stringify(payload) },
+  ),
   grantBenefit: (companyId: number, payload: BenefitPayload) => apiClient<PlatformBenefit>(
     `${companyPath(companyId)}/benefits`,
     {

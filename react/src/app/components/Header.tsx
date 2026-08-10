@@ -227,20 +227,8 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
       <div className="max-w-[1600px] mx-auto">
         {/* Layout móvil y desktop */}
         <div className="flex items-center justify-between gap-3">
-          {/* Sección izquierda - Avatar y Saludo */}
+          {/* Sección izquierda - Saludo */}
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            {currentUserAvatarUrl ? (
-              <img
-                src={currentUserAvatarUrl}
-                alt={currentUserName}
-                onError={() => setCurrentUserAvatarUrl('')}
-                className="h-12 w-12 flex-shrink-0 rounded-full border-2 border-blue-500 object-cover shadow-sm sm:h-14 sm:w-14"
-              />
-            ) : (
-              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border-2 border-blue-500 bg-blue-50 text-sm font-semibold text-blue-700 shadow-sm dark:bg-blue-900/30 dark:text-blue-200 sm:h-14 sm:w-14 sm:text-base">
-                {currentUserInitials}
-              </div>
-            )}
             <div className="min-w-0 flex-1">
               <h1 className="text-lg sm:text-2xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 <span className="hidden sm:inline">{getGreetingIcon()}</span>

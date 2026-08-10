@@ -40,6 +40,7 @@ export interface PersonalPerformanceRecord {
 export interface PersonalPerformanceResponse {
   profile: PersonalPerformanceRecord;
   sections: Record<PersonalPerformanceSectionKey, PersonalPerformanceSection>;
+  has_completed_history?: boolean;
 }
 
 export interface SavePersonalPerformanceSectionPayload {
@@ -62,6 +63,12 @@ export const personalPerformanceApi = {
       method: 'PUT',
       csrf: true,
       body: JSON.stringify(payload),
+    });
+  },
+
+  restartPersonalPerformance() {
+    return apiClient<PersonalPerformanceResponse>(`${personalPerformanceEndpoint}/restart`, {
+      method: 'POST', csrf: true,
     });
   },
 };

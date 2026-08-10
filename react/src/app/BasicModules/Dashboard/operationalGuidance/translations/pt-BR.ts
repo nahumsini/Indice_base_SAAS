@@ -61,6 +61,17 @@ export const ptBR = {
         },
       ],
     },
+    consulting: {
+      label: 'Consultoria',
+      ctaLabel: 'Agendar sessão',
+      title: 'Transforme um desafio em uma conversa focada',
+      summary: 'Solicite uma sessão de 50 minutos com a equipe Índice e compartilhe o contexto antes da reunião.',
+      value: 'Uma solicitação clara facilita a confirmação e permite preparar a decisão que precisa ser trabalhada.',
+      steps: [
+        { title: 'Escolha um horário', description: 'Informe um horário preferencial e uma alternativa em horário comercial.' },
+        { title: 'Compartilhe o contexto', description: 'Selecione o tema e descreva o desafio ou a decisão.' },
+      ],
+    },
     'personal-performance': {
       label: 'Desempenho pessoal',
       ctaLabel: 'Avaliar desempenho',

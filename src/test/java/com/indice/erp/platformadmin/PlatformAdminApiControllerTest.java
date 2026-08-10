@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.auth.SessionCsrfService;
+import com.indice.erp.consulting.ConsultingAdministrationService;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -39,6 +40,9 @@ class PlatformAdminApiControllerTest {
 
     @MockBean
     private CourtesyCodeService courtesyCodes;
+
+    @MockBean
+    private ConsultingAdministrationService consulting;
 
     @Test
     void contextRequiresAnAuthenticatedApplicationSession() throws Exception {
@@ -160,5 +164,39 @@ class PlatformAdminApiControllerTest {
             .andExpect(jsonPath("$.is_active").value(false))
             .andExpect(jsonPath("$.global_effect").value(true))
             .andExpect(jsonPath("$.assignments_preserved").value(true));
+    }
+
+    @Test
+    void platformRootCanReadAndConfirmConsultingRequests() throws Exception {
+        var platformRoot = new AuthSessionUser(99L, 7L, "Platform Root", "user");
+        given(auth.currentUser(any())).willReturn(Optional.of(platformRoot));
+        given(consulting.workspace(99L)).willReturn(Map.of(
+            "totals", Map.of("requested", 1),
+            "appointments", List.of(Map.of("id", 42L, "status", "REQUESTED")),
+            "locations", List.of()
+        ));
+        given(consulting.updateAppointment(eq(99L), eq(42L), any()))
+            .willReturn(Map.of("id", 42L, "status", "CONFIRMED", "consultant_name", "Consultor Índice"));
+
+        mockMvc.perform(get("/api/v1/platform-admin/consulting"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.appointments[0].status").value("REQUESTED"));
+
+        mockMvc.perform(patch("/api/v1/platform-admin/consulting/appointments/42")
+                .header("X-CSRF-Token", "csrf-test")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {
+                      "status": "CONFIRMED",
+                      "confirmedStartAt": "2026-08-15T16:00:00Z",
+                      "meetingUrl": "https://meet.example.com/indice-42",
+                      "consultantName": "Consultor Índice",
+                      "consultantEmail": "consultor@indiceapp.com",
+                      "paymentStatus": "INCLUDED",
+                      "currency": "USD"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("CONFIRMED"));
     }
 }

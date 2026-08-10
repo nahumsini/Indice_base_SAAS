@@ -2,6 +2,14 @@ import type { PanelInicialShellTranslations } from './types';
 
 export const frCA: PanelInicialShellTranslations = {
   subtitle: "Configurez votre profil, la structure de l'entreprise, les utilisateurs et les préférences opérationnelles.",
+  tabDescriptions: {
+    profile: 'Données personnelles et sécurité',
+    businessStructure: 'Secteurs, postes et organisation',
+    businessProfile: "Identité et diagnostic de l'entreprise",
+    consulting: 'Planification et suivi des séances de conseil',
+    personalPerformance: 'Objectifs et rendement personnel',
+    users: 'Accès, rôles et autorisations',
+  },
   loadingTabTitle: "Chargement de l'onglet du panneau initial",
   loadingTabDescription: "Ouverture de l'espace de configuration sélectionné.",
   downloadingTabDescription: "Téléchargement de l'espace de configuration sélectionné uniquement.",

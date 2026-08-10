@@ -37,13 +37,14 @@ class PersonalPerformanceServiceTest {
             eq("""
                 SELECT id, user_id, company_id, version, status, started_at, completed_at
                 FROM user_personal_performance_profiles
-                WHERE user_id = ?
+                WHERE company_id = ? AND user_id = ?
                 ORDER BY version DESC, id DESC
                 LIMIT 1
                 """),
             org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
-            eq(4L)
+            eq(7L), eq(4L)
         )).thenReturn(List.of());
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), eq(7L), eq(4L))).thenReturn(0L);
 
         var response = service.getPersonalPerformance(4L, 7L);
 
@@ -73,13 +74,14 @@ class PersonalPerformanceServiceTest {
             eq("""
                 SELECT id, user_id, company_id, version, status, started_at, completed_at
                 FROM user_personal_performance_profiles
-                WHERE user_id = ?
+                WHERE company_id = ? AND user_id = ?
                 ORDER BY version DESC, id DESC
                 LIMIT 1
                 """),
             org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
-            eq(4L)
+            eq(7L), eq(4L)
         )).thenReturn(List.of());
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), eq(7L), eq(4L))).thenReturn(0L);
 
         when(jdbcTemplate.update(any(org.springframework.jdbc.core.PreparedStatementCreator.class), any(KeyHolder.class)))
             .thenAnswer(invocation -> {

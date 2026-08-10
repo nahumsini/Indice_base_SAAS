@@ -14,6 +14,14 @@ const usersFiltersSource = readFileSync(
   resolve(root, 'src/app/BasicModules/Dashboard/Users/components/UsersFilters.tsx'),
   'utf8',
 );
+const usersAccessProfilesSource = readFileSync(
+  resolve(root, 'src/app/BasicModules/Dashboard/Users/components/UsersAccessProfiles.tsx'),
+  'utf8',
+);
+const usersKpiStripSource = readFileSync(
+  resolve(root, 'src/app/BasicModules/Dashboard/Users/components/UsersKpiStrip.tsx'),
+  'utf8',
+);
 const usersTranslationsSource = readFileSync(
   resolve(root, 'src/app/BasicModules/Dashboard/Users/usersTranslations.ts'),
   'utf8',
@@ -64,11 +72,36 @@ test('usuarios conserva operacion movil y errores estructurados de licencias', (
 });
 
 test('usuarios conserva la composicion compacta y terminologia operativa de Indice', () => {
-  assert.match(usersSource, /withActionTooltip/);
   assert.match(usersSource, /uniqueNames/);
-  assert.match(usersFiltersSource, /xl:grid-cols-\[minmax\(135px,0\.65fr\)/);
+  assert.match(usersSource, /min-w-\[760px\]/);
+  assert.match(usersSource, /DropdownMenuContent/);
+  assert.match(usersSource, /usersCopy\.actions\.manage/);
+  assert.match(usersFiltersSource, /showAdvancedFilters/);
+  assert.match(usersFiltersSource, /advancedFilterCount/);
+  assert.match(usersKpiStripSource, /statusItems/);
+  assert.match(usersSource, /usersCopy\.seats\.unlimited/);
   assert.match(usersTranslationsSource, /Usuarios activos/);
   assert.match(usersTranslationsSource, /Lugares disponibles/);
+  assert.match(usersTranslationsSource, /Sin límite/);
+});
+
+test('perfiles de acceso aceleran la invitacion sin exceder el techo delegable', () => {
+  assert.match(usersSource, /profileReadyModules = assignableModules\.filter/);
+  assert.match(usersSource, /permissionKeysForModuleIds/);
+  assert.match(usersSource, /pruneTabPermissionKeysForRole\(inviteForm\.role, nextPermissionKeys\)/);
+  assert.match(usersSource, /setInviteKioskDefinitionIds\(\[\]\)/);
+  assert.match(usersSource, /<UsersAccessProfiles/);
+  assert.match(usersAccessProfilesSource, /activeProfileId/);
+  assert.match(usersTranslationsSource, /Perfil de acceso/);
+});
+
+test('editor de acceso explica el orden rol alcance modulos y kioscos', () => {
+  assert.match(usersSource, /organizationTitle/);
+  assert.match(usersSource, /permissionsTitle/);
+  assert.match(usersSource, /kiosksTitle/);
+  assert.match(usersSource, /number=\{1\}/);
+  assert.match(usersSource, /number=\{2\}/);
+  assert.match(usersSource, /number=\{3\}/);
 });
 
 test('filtros de usuarios incluyen unidad y negocio encadenados', () => {
@@ -89,7 +122,7 @@ test('catalogo de scopes cubre todos los modulos operativos y sus llaves canonic
   assert.match(tabScopeCatalogSource, /payment_accounts: 'payment-accounts'/);
   assert.match(tabScopeCatalogSource, /'purchase-orders': 'purchase-orders'/);
   assert.match(tabScopeCatalogSource, /isTabScopeAssignableToRole/);
-  assert.match(tabScopeCatalogSource, /config_center\.plan/);
+  assert.match(tabScopeCatalogSource, /permissionKey === 'config_center\.plan'/);
 });
 
 test('selector de pestañas escala por busqueda y modulos plegables', () => {
@@ -101,6 +134,18 @@ test('selector de pestañas escala por busqueda y modulos plegables', () => {
   assert.match(tabPermissionPickerSource, /categoryFilter/);
   assert.match(tabPermissionPickerSource, /module\.assignable === false/);
   assert.match(tabPermissionPickerSource, /onModuleChange/);
+});
+
+test('selector explica funciones capacidades y restricciones segun el rol', () => {
+  assert.match(configCenterApiSource, /description_es/);
+  assert.match(configCenterApiSource, /compatible_roles/);
+  assert.match(configCenterApiSource, /role_access/);
+  assert.match(tabPermissionPickerSource, /selectedRole/);
+  assert.match(tabPermissionPickerSource, /scopeLabel/);
+  assert.match(tabPermissionPickerSource, /roleAccessFor/);
+  assert.match(tabPermissionPickerSource, /capabilityLabels/);
+  assert.match(tabPermissionPickerSource, /restriction_reason_es/);
+  assert.match(usersSource, /roleAdjusted/);
 });
 
 test('registro de modulos futuros conserva ciclo de vida y candado de asignacion', () => {

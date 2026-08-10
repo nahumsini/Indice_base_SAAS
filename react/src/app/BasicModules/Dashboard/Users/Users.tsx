@@ -1,4 +1,4 @@
-import { type ReactElement, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Building2,
   Check,
@@ -8,6 +8,7 @@ import {
   Copy,
   Layers3,
   Mail,
+  MoreHorizontal,
   Settings,
   Trash2,
   UserCheck,
@@ -16,7 +17,12 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '../../../components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../../components/ui/dropdown-menu';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import {
   IndiceModalFrame,
@@ -54,8 +60,10 @@ import { UsersKioskPermissionPicker } from './UsersKioskPermissionPicker';
 import {
   buildTabPermissionModuleOptions,
   mergeDefaultTabPermissions,
+  permissionKeysForModuleIds,
   pruneTabPermissionKeysForModules,
 } from './usersTabPermissionAssignments';
+import { UsersAccessProfiles, type UsersAccessProfileId } from './components/UsersAccessProfiles';
 import { UsersFeedback } from './components/UsersFeedback';
 import { UsersFilters } from './components/UsersFilters';
 import { UsersKpiStrip } from './components/UsersKpiStrip';
@@ -207,6 +215,8 @@ export default function Users() {
   const [selectedTabPermissionDraft, setSelectedTabPermissionDraft] = useState<string[]>([]);
   const [selectedKioskDefinitionDraft, setSelectedKioskDefinitionDraft] = useState<number[]>([]);
   const [selectedRoleDraft, setSelectedRoleDraft] = useState<User['role']>('User');
+  const [selectedRoleAccessNotice, setSelectedRoleAccessNotice] = useState('');
+  const [inviteRoleAccessNotice, setInviteRoleAccessNotice] = useState('');
   const [selectedScopeTypeDraft, setSelectedScopeTypeDraft] = useState<User['scopeType']>('business_office');
   const [selectedUnitDraft, setSelectedUnitDraft] = useState('');
   const [selectedBusinessDraft, setSelectedBusinessDraft] = useState('');
@@ -254,6 +264,34 @@ export default function Users() {
     () => buildTabPermissionModuleOptions(assignableModules),
     [assignableModules],
   );
+  const inviteAccessProfiles = useMemo(() => {
+    const profileReadyModules = assignableModules.filter((module) => (
+      module.assignable !== false
+      && module.entitled
+      && module.lifecycleStatus !== 'planned'
+      && module.lifecycleStatus !== 'development'
+      && module.lifecycleStatus !== 'retired'
+    ));
+    const idsForSlugs = (slugs: string[]) => profileReadyModules
+      .filter((module) => slugs.includes(module.slug))
+      .map((module) => module.id);
+
+    return [
+      { id: 'basic' as const, moduleIds: idsForSlugs(['config_center']) },
+      { id: 'operation' as const, moduleIds: idsForSlugs(['config_center', 'human_resources', 'processes']) },
+      { id: 'responsible' as const, moduleIds: profileReadyModules.filter((module) => module.category === 'basic').map((module) => module.id) },
+      { id: 'admin' as const, moduleIds: profileReadyModules.map((module) => module.id) },
+    ].map((profile) => ({ ...profile, disabled: profile.moduleIds.length === 0 }));
+  }, [assignableModules]);
+  const activeInviteAccessProfileId = useMemo<UsersAccessProfileId>(() => {
+    const selectedIds = [...inviteModuleIds].sort();
+    const matchingProfile = inviteAccessProfiles.find((profile) => (
+      !profile.disabled
+      && profile.moduleIds.length === selectedIds.length
+      && [...profile.moduleIds].sort().every((moduleId, index) => moduleId === selectedIds[index])
+    ));
+    return matchingProfile?.id ?? 'custom';
+  }, [inviteAccessProfiles, inviteModuleIds]);
   const assignableBusinessUnitOptions = useMemo(() => {
     if (canAssignSuperAdmin || !currentAccessUser) {
       return businessUnitOptions;
@@ -289,6 +327,22 @@ export default function Users() {
   const selectedBusinessOptions = assignableBusinesses.filter((business) =>
     !selectedUnitDraft || business.unitId === selectedUnitDraft
   );
+  const scopeDraftLabel = (scopeType: User['scopeType'], unitId: string, businessId: string) => {
+    if (scopeType === 'corporate_office') {
+      return usersCopy.scope.corporate_office;
+    }
+    const unitName = assignableBusinessUnitOptions.find((option) => option.value === unitId)?.label;
+    if (scopeType === 'unit_headquarters') {
+      return unitName || usersCopy.scope.unit_headquarters;
+    }
+    const businessName = assignableBusinesses.find((business) => business.id === businessId)?.name;
+    return [unitName, businessName].filter(Boolean).join(' · ') || usersCopy.scope.business_office;
+  };
+  const roleDisplayName = (role: User['role']) => {
+    if (role === 'Super Admin') return t.panelInicial.users.roles.superAdmin;
+    if (role === 'Admin') return t.panelInicial.users.roles.admin;
+    return t.panelInicial.users.roles.user;
+  };
   const assignableScopeTypes = useMemo<User['scopeType'][]>(() => {
     if (canAssignSuperAdmin || !currentAccessUser || currentAccessUser.scopeType === 'corporate_office') {
       return ['corporate_office', 'unit_headquarters', 'business_office'];
@@ -372,10 +426,8 @@ export default function Users() {
 
   const selectedUser = users.find((user) => user.id === selectedUserForModules) ?? null;
   const resendUser = users.find((user) => user.id === selectedUserForResend) ?? null;
-  const selectedUserCatalogTabs = selectedUser
-    ? catalogTabsForRole(selectedRoleDraft, assignableCatalogTabs)
-    : assignableCatalogTabs;
-  const inviteCatalogTabs = catalogTabsForRole(inviteForm.role, assignableCatalogTabs);
+  const selectedUserCatalogTabs = assignableCatalogTabs;
+  const inviteCatalogTabs = assignableCatalogTabs;
   const invitationPendingDelete =
     users.find((user) => user.id === selectedUserForDelete && user.source === 'invitation') ?? null;
   const userPendingDeactivation =
@@ -430,7 +482,7 @@ export default function Users() {
   const pendingSeatCount = subscription?.pending_invitations ?? pendingUsers;
   const availableSeatCount = subscription?.seat_limit_enforced
     ? subscription.remaining_seats
-    : Math.max(0, totalUsers - activeUsers);
+    : usersCopy.seats.unlimited;
 
   const hideLoadingOverlay = () => {
     setLoadingOverlay({
@@ -597,6 +649,7 @@ export default function Users() {
     setCopiedLink(false);
     setInviteWizardStep('identity');
     setInviteValidationMessage('');
+    setInviteRoleAccessNotice('');
   };
 
   const closeResendModal = () => {
@@ -894,6 +947,7 @@ export default function Users() {
     }
 
     setSelectedUserForModules(user.id);
+    setSelectedRoleAccessNotice('');
     setSelectedRoleDraft(user.role);
     setSelectedScopeTypeDraft(user.scopeType);
     setSelectedUnitDraft(user.unitId == null ? '' : String(user.unitId));
@@ -973,7 +1027,13 @@ export default function Users() {
 
   const updateInviteForm = (field: keyof InviteFormState, value: string) => {
     if (field === 'role') {
-      setInviteTabPermissionKeys((currentKeys) => pruneTabPermissionKeysForRole(value, currentKeys));
+      const nextRole = value as User['role'];
+      setInviteTabPermissionKeys((currentKeys) => {
+        const nextKeys = pruneTabPermissionKeysForRole(nextRole, currentKeys);
+        const removedCount = currentKeys.length - nextKeys.length;
+        setInviteRoleAccessNotice(removedCount > 0 ? usersCopy.accessEditor.roleAdjusted(removedCount, roleDisplayName(nextRole)) : '');
+        return nextKeys;
+      });
     }
     setInviteForm((prevForm) => ({
       ...prevForm,
@@ -1002,6 +1062,18 @@ export default function Users() {
       );
       return nextModuleIds;
     });
+  };
+
+  const applyInviteAccessProfile = (profile: { moduleIds: string[] }) => {
+    const roleCatalogTabs = catalogTabsForRole(inviteForm.role, assignableCatalogTabs);
+    const nextPermissionKeys = permissionKeysForModuleIds(
+      roleCatalogTabs,
+      assignableTabPermissionModules,
+      profile.moduleIds,
+    );
+    setInviteModuleIds(profile.moduleIds);
+    setInviteTabPermissionKeys(pruneTabPermissionKeysForRole(inviteForm.role, nextPermissionKeys));
+    setInviteKioskDefinitionIds([]);
   };
 
   const formatSelectedModulesCount = usersCopy.selectedModules;
@@ -1060,80 +1132,80 @@ export default function Users() {
     return uniqueNames.join(' / ') || usersCopy.scope.business;
   };
 
-  const withActionTooltip = (label: string, action: ReactElement) => (
-    <Tooltip>
-      <TooltipTrigger asChild>{action}</TooltipTrigger>
-      <TooltipContent side="top" sideOffset={6}>{label}</TooltipContent>
-    </Tooltip>
-  );
+  const renderUserActions = (user: User) => {
+    const hasSecondaryActions = user.capabilities.canActivate
+      || user.capabilities.canDeactivate
+      || user.capabilities.canResendInvitation
+      || user.capabilities.canCancelInvitation;
 
-  const renderUserActions = (user: User) => (
-    <div className="flex flex-wrap items-center justify-end gap-1.5">
-      {canEditAccessFor(user) ? (
-        withActionTooltip(usersCopy.accessEditor.title, <button
-          type="button"
-          onClick={() => handleOpenModuleSettings(user)}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 md:h-9 md:w-9 md:rounded-lg dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300"
-          title={usersCopy.accessEditor.title}
-          aria-label={usersCopy.accessEditor.title}
-        >
-          <Settings aria-hidden="true" className="h-4 w-4" />
-        </button>)
-      ) : null}
-      {user.capabilities.canActivate ? (
-        withActionTooltip(seatLimitReached ? usersCopy.seats.limitReached : usersCopy.actions.activate, <button
-          type="button"
-          onClick={() => void handleActivateUser(user)}
-          disabled={seatLimitReached}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 transition-colors hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-40 md:h-9 md:w-9 md:rounded-lg dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300"
-          title={seatLimitReached ? usersCopy.seats.limitReached : usersCopy.actions.activate}
-          aria-label={usersCopy.actions.activate}
-        >
-          <UserCheck aria-hidden="true" className="h-4 w-4" />
-        </button>)
-      ) : null}
-      {user.capabilities.canDeactivate ? (
-        withActionTooltip(usersCopy.actions.deactivate, <button
-          type="button"
-          onClick={() => setSelectedUserForDeactivate(user.id)}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-amber-200 bg-amber-50 text-amber-700 transition-colors hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/30 md:h-9 md:w-9 md:rounded-lg dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300"
-          title={usersCopy.actions.deactivate}
-          aria-label={usersCopy.actions.deactivate}
-        >
-          <UserX aria-hidden="true" className="h-4 w-4" />
-        </button>)
-      ) : null}
-      {user.capabilities.canResendInvitation ? (
-        withActionTooltip(t.panelInicial.users.actions.resend, <button
-          type="button"
-          onClick={() => {
-            setSelectedUserForResend(user.id);
-            setShowResendModal(true);
-            setInviteLink('');
-            setInviteEmailStatus(null);
-            setCopiedLink(false);
-            setNewEmail('');
-          }}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-violet-200 bg-violet-50 text-violet-700 transition-colors hover:bg-violet-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/30 md:h-9 md:w-9 md:rounded-lg dark:border-violet-800 dark:bg-violet-900/20 dark:text-violet-300"
-          title={t.panelInicial.users.actions.resend}
-          aria-label={t.panelInicial.users.actions.resend}
-        >
-          <Mail aria-hidden="true" className="h-4 w-4" />
-        </button>)
-      ) : null}
-      {user.capabilities.canCancelInvitation ? (
-        withActionTooltip(deleteLabel, <button
-          type="button"
-          onClick={() => setSelectedUserForDelete(user.id)}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-700 transition-colors hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30 md:h-9 md:w-9 md:rounded-lg dark:border-red-800 dark:bg-red-900/20 dark:text-red-300"
-          title={deleteLabel}
-          aria-label={deleteLabel}
-        >
-          <Trash2 aria-hidden="true" className="h-4 w-4" />
-        </button>)
-      ) : null}
-    </div>
-  );
+    return (
+      <div className="flex items-center justify-end gap-1.5">
+        {canEditAccessFor(user) ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => handleOpenModuleSettings(user)}
+            className="h-9 gap-2 rounded-xl border-blue-200 px-3 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-300"
+          >
+            <Settings aria-hidden="true" className="h-4 w-4" />
+            {usersCopy.actions.manage}
+          </Button>
+        ) : null}
+
+        {hasSecondaryActions ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="ghost" size="sm" className="h-9 w-9 rounded-xl p-0" aria-label={usersCopy.actions.more}>
+                <MoreHorizontal aria-hidden="true" className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52 rounded-xl p-1.5">
+              {user.capabilities.canActivate ? (
+                <DropdownMenuItem
+                  disabled={seatLimitReached}
+                  title={seatLimitReached ? usersCopy.seats.limitReached : undefined}
+                  onClick={() => void handleActivateUser(user)}
+                  className="cursor-pointer rounded-lg"
+                >
+                  <UserCheck aria-hidden="true" />
+                  {usersCopy.actions.activate}
+                </DropdownMenuItem>
+              ) : null}
+              {user.capabilities.canDeactivate ? (
+                <DropdownMenuItem onClick={() => setSelectedUserForDeactivate(user.id)} className="cursor-pointer rounded-lg">
+                  <UserX aria-hidden="true" />
+                  {usersCopy.actions.deactivate}
+                </DropdownMenuItem>
+              ) : null}
+              {user.capabilities.canResendInvitation ? (
+                <DropdownMenuItem
+                  onClick={() => {
+                    setSelectedUserForResend(user.id);
+                    setShowResendModal(true);
+                    setInviteLink('');
+                    setInviteEmailStatus(null);
+                    setCopiedLink(false);
+                    setNewEmail('');
+                  }}
+                  className="cursor-pointer rounded-lg"
+                >
+                  <Mail aria-hidden="true" />
+                  {t.panelInicial.users.actions.resend}
+                </DropdownMenuItem>
+              ) : null}
+              {user.capabilities.canCancelInvitation ? (
+                <DropdownMenuItem variant="destructive" onClick={() => setSelectedUserForDelete(user.id)} className="cursor-pointer rounded-lg">
+                  <Trash2 aria-hidden="true" />
+                  {deleteLabel}
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+      </div>
+    );
+  };
 
   const renderInviteEmailStatus = () => {
     if (!inviteEmailStatus) {
@@ -1180,6 +1252,7 @@ export default function Users() {
         setCopiedLink(false);
         setInviteWizardStep('identity');
         setInviteValidationMessage('');
+        setInviteRoleAccessNotice('');
         setShowInviteModal(true);
       }}
     >
@@ -1200,7 +1273,7 @@ export default function Users() {
       />
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="grid lg:grid-cols-[minmax(230px,0.75fr)_minmax(0,2.25fr)]">
+        <div className="grid lg:grid-cols-[minmax(210px,0.55fr)_minmax(0,2.45fr)]">
           <div className="flex min-w-0 items-center gap-3 border-b border-blue-100 bg-blue-50/70 px-4 py-3 dark:border-blue-900/60 dark:bg-blue-950/20 lg:border-b-0 lg:border-r">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm dark:bg-slate-900 dark:text-blue-300">
               <Building2 aria-hidden="true" className="h-4 w-4" />
@@ -1211,12 +1284,19 @@ export default function Users() {
             </div>
           </div>
 
-          <UsersKpiStrip items={[
-            { label: usersCopy.seats.active, tone: 'green', value: activeSeatCount },
-            { label: usersCopy.seats.pending, tone: 'yellow', value: pendingSeatCount },
-            { label: usersCopy.seats.available, tone: 'blue', value: availableSeatCount },
-            { label: t.panelInicial.users.filters.inactive, tone: 'slate', value: inactiveUsers },
-          ]} />
+          <UsersKpiStrip
+            insight={usersCopy.seats.summary(activeSeatCount, pendingSeatCount, availableSeatCount)}
+            items={[
+              { label: usersCopy.seats.active, tone: 'green', value: activeSeatCount },
+              { label: usersCopy.seats.pending, tone: 'yellow', value: pendingSeatCount },
+              { label: usersCopy.seats.available, tone: 'blue', value: availableSeatCount },
+            ]}
+            statusItems={[
+              { label: t.panelInicial.users.filters.active, tone: 'green', value: activeUsers },
+              { label: t.panelInicial.users.filters.pending, tone: 'yellow', value: pendingUsers },
+              { label: t.panelInicial.users.filters.inactive, tone: 'slate', value: inactiveUsers },
+            ]}
+          />
         </div>
         {seatLimitReached ? (
           <p className="flex items-start gap-2 border-t border-amber-200 bg-amber-50 px-4 py-2.5 text-xs leading-5 text-amber-800 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-200">
@@ -1227,6 +1307,7 @@ export default function Users() {
       </section>
 
       <UsersFilters
+        advancedActiveLabel={usersCopy.filters.advancedActive}
         allLabel={t.panelInicial.users.filters.all}
         businessFilter={businessFilter}
         businessLabel={usersBusinessCopy.business}
@@ -1234,7 +1315,9 @@ export default function Users() {
         clearLabel={usersCopy.clearFilters}
         filterTitle={usersCopy.filters.title}
         hasActiveFilters={Boolean(searchTerm || unitFilter || businessFilter || roleFilter || statusFilter)}
+        hideAdvancedLabel={usersCopy.filters.hideAdvanced}
         insightLabel={usersCopy.insight(filteredUsers.length, totalUsers)}
+        moreFiltersLabel={usersCopy.filters.more}
         onBusinessChange={setBusinessFilter}
         onClear={() => {
           setSearchTerm('');
@@ -1301,18 +1384,15 @@ export default function Users() {
                     {statusLabelMap[user.status]}
                   </span>
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600 dark:text-slate-300">
-                  <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-800">
-                    <p className="text-[11px] text-slate-400 dark:text-slate-500">{t.panelInicial.users.table.role}</p>
-                    <p className="mt-0.5 truncate text-slate-700 dark:text-slate-200">{user.role === 'Super Admin' ? t.panelInicial.users.roles.superAdmin : user.role === 'Admin' ? t.panelInicial.users.roles.admin : t.panelInicial.users.roles.user}</p>
-                  </div>
-                  <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-800">
-                    <p className="text-[11px] text-slate-400 dark:text-slate-500">{usersCopy.scope.label}</p>
-                    <p className="mt-0.5 truncate text-slate-700 dark:text-slate-200">{scopeLabel(user)}</p>
-                  </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-800">
+                  <span className={`inline-flex rounded-full px-2 py-0.5 font-medium ${getRoleColorClasses(user.role)}`}>
+                    {user.role === 'Super Admin' ? t.panelInicial.users.roles.superAdmin : user.role === 'Admin' ? t.panelInicial.users.roles.admin : t.panelInicial.users.roles.user}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-slate-600 dark:text-slate-300">{scopeLabel(user)}</span>
+                  <span className="shrink-0 text-slate-500 dark:text-slate-400">{formatModulesCount(user.modules.length)}</span>
                 </div>
                 <div className="mt-3 flex items-center justify-between gap-3">
-                  <span className="text-xs text-slate-500 dark:text-slate-400">{formatModulesCount(user.modules.length)}</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">{usersCopy.accessEditor.review}</span>
                   {renderUserActions(user)}
                 </div>
               </article>
@@ -1322,20 +1402,14 @@ export default function Users() {
           )}
         </div>
         <div className="hidden overflow-x-auto md:block">
-          <table className="min-w-[900px] w-full">
+          <table className="min-w-[760px] w-full">
             <thead className="border-b border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/60">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
                   {renderSortableHeader(t.panelInicial.users.table.name, 'name')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {renderSortableHeader(t.panelInicial.users.table.role, 'role')}
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {renderSortableHeader(usersCopy.scope.label, 'scope')}
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {renderSortableHeader(t.panelInicial.users.table.modules, 'modules')}
+                  {renderSortableHeader(usersCopy.accessEditor.review, 'role')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
                   {renderSortableHeader(t.panelInicial.users.table.status, 'status')}
@@ -1395,25 +1469,20 @@ export default function Users() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-3.5 align-middle whitespace-nowrap">
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getRoleColorClasses(user.role)}`}>
-                          {user.role === 'Super Admin'
-                            ? t.panelInicial.users.roles.superAdmin
-                            : user.role === 'Admin'
-                              ? t.panelInicial.users.roles.admin
-                              : t.panelInicial.users.roles.user}
-                        </span>
-                      </td>
                       <td className="px-6 py-3.5 align-middle">
-                        <div className="max-w-[240px]">
-                          <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">{scopeLabel(user)}</p>
-                          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{usersCopy.scope[user.scopeType]}</p>
+                        <div className="max-w-[360px]">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getRoleColorClasses(user.role)}`}>
+                              {user.role === 'Super Admin'
+                                ? t.panelInicial.users.roles.superAdmin
+                                : user.role === 'Admin'
+                                  ? t.panelInicial.users.roles.admin
+                                  : t.panelInicial.users.roles.user}
+                            </span>
+                            <span className="text-xs text-slate-500 dark:text-slate-400">{formatModulesCount(user.modules.length)}</span>
+                          </div>
+                          <p className="mt-1 truncate text-xs text-slate-600 dark:text-slate-300">{scopeLabel(user)}</p>
                         </div>
-                      </td>
-                      <td className="px-6 py-3.5 align-middle whitespace-nowrap">
-                        <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                          {formatModulesCount(user.modules.length)}
-                        </span>
                       </td>
                       <td className="px-6 py-3.5 align-middle whitespace-nowrap">
                         <span
@@ -1432,7 +1501,7 @@ export default function Users() {
               ) : (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={4}
                     className="px-6 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
                     {summaryLabels.noResults}
@@ -1496,8 +1565,14 @@ export default function Users() {
           title={usersCopy.accessEditor.title}
           tone="blue"
         >
-              <div className="space-y-8">
-                <section className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-900/50 md:grid-cols-2">
+              <div className="space-y-6">
+                <section className="space-y-3">
+                  <AccessEditorSectionHeading
+                    description={usersCopy.accessEditor.organizationDescription}
+                    number={1}
+                    title={usersCopy.accessEditor.organizationTitle}
+                  />
+                  <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-900/50 md:grid-cols-2">
                   <label className="block">
                     <span className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-300">{usersCopy.accessEditor.role}</span>
                     <select
@@ -1505,7 +1580,12 @@ export default function Users() {
                       onChange={(event) => {
                         const role = event.target.value as User['role'];
                         setSelectedRoleDraft(role);
-                        setSelectedTabPermissionDraft((keys) => pruneTabPermissionKeysForRole(role, keys));
+                        setSelectedTabPermissionDraft((keys) => {
+                          const nextKeys = pruneTabPermissionKeysForRole(role, keys);
+                          const removedCount = keys.length - nextKeys.length;
+                          setSelectedRoleAccessNotice(removedCount > 0 ? usersCopy.accessEditor.roleAdjusted(removedCount, roleDisplayName(role)) : '');
+                          return nextKeys;
+                        });
                       }}
                       className={`${inputClassName} h-11 px-3 text-sm`}
                     >
@@ -1566,7 +1646,19 @@ export default function Users() {
                       </select>
                     </label>
                   ) : null}
+                  </div>
                 </section>
+                <section className="space-y-3">
+                  <AccessEditorSectionHeading
+                    description={usersCopy.accessEditor.permissionsDescription}
+                    number={2}
+                    title={usersCopy.accessEditor.permissionsTitle}
+                  />
+	                {selectedRoleAccessNotice ? (
+	                  <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+	                    {selectedRoleAccessNotice}
+	                  </div>
+	                ) : null}
 	                <UsersTabPermissionPicker
 		                  catalogTabs={selectedUserCatalogTabs}
 		                  languageCode={currentLanguage.code}
@@ -1575,11 +1667,20 @@ export default function Users() {
 	                  moduleSelectionLabel={usersCopy.selectedModules}
 	                  selectedModuleIds={selectedModulesDraft}
 	                  selectedPermissionKeys={selectedTabPermissionDraft}
+	                  selectedRole={selectedRoleDraft}
+	                  scopeLabel={scopeDraftLabel(selectedScopeTypeDraft, selectedUnitDraft, selectedBusinessDraft)}
 	                  onModuleChange={toggleUserModule}
 	                  onChange={(permissionKeys) =>
                         setSelectedTabPermissionDraft(pruneTabPermissionKeysForRole(selectedRoleDraft, permissionKeys))
                       }
 	                />
+                </section>
+                <section className="space-y-3">
+                  <AccessEditorSectionHeading
+                    description={usersCopy.accessEditor.kiosksDescription}
+                    number={3}
+                    title={usersCopy.accessEditor.kiosksTitle}
+                  />
 	                <UsersKioskPermissionPicker
 	                  kiosks={availableEmployeeKiosks}
 	                  selectedIds={eligibleKioskIds(
@@ -1595,6 +1696,7 @@ export default function Users() {
 	                  onChange={setSelectedKioskDefinitionDraft}
 	                  languageCode={currentLanguage.code}
 	                />
+                </section>
 	              </div>
         </IndiceModalFrame>
       )}
@@ -1776,6 +1878,17 @@ export default function Users() {
 
                 {inviteWizardStep === 'access' ? (
                   <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                    <UsersAccessProfiles
+                      activeProfileId={activeInviteAccessProfileId}
+                      copy={usersCopy.accessProfiles}
+                      profiles={inviteAccessProfiles}
+                      onApply={applyInviteAccessProfile}
+                    />
+                    {inviteRoleAccessNotice ? (
+                      <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                        {inviteRoleAccessNotice}
+                      </div>
+                    ) : null}
                     <UsersTabPermissionPicker
                       catalogTabs={inviteCatalogTabs}
                       languageCode={currentLanguage.code}
@@ -1784,6 +1897,8 @@ export default function Users() {
                       moduleSelectionLabel={usersCopy.selectedModules}
                       selectedModuleIds={inviteModuleIds}
                       selectedPermissionKeys={inviteTabPermissionKeys}
+                      selectedRole={inviteForm.role}
+                      scopeLabel={scopeDraftLabel(inviteForm.scopeType, inviteForm.businessUnitId, inviteForm.businessId)}
                       onModuleChange={toggleInviteModule}
                       onChange={(permissionKeys) => setInviteTabPermissionKeys(pruneTabPermissionKeysForRole(inviteForm.role, permissionKeys))}
                     />
@@ -1980,6 +2095,28 @@ export default function Users() {
           {usersCopy.deactivateConfirmationWarning}
         </p>
       </ConfirmDeleteDialog>
+    </div>
+  );
+}
+
+function AccessEditorSectionHeading({
+  description,
+  number,
+  title,
+}: {
+  description: string;
+  number: number;
+  title: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 px-1">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-medium text-white">
+        {number}
+      </span>
+      <div>
+        <h4 className="text-sm font-medium text-slate-900 dark:text-white">{title}</h4>
+        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{description}</p>
+      </div>
     </div>
   );
 }

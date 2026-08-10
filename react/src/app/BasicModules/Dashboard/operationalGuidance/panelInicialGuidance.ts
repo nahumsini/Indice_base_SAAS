@@ -14,6 +14,10 @@ export const panelInicialGuidanceTabs: readonly PanelInicialGuidanceTabDefinitio
     icon: 'maturity',
   },
   {
+    id: 'consulting',
+    icon: 'consulting',
+  },
+  {
     id: 'personal-performance',
     icon: 'performance',
   },

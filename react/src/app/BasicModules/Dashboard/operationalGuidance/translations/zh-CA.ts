@@ -61,6 +61,17 @@ export const zhCA = {
         },
       ],
     },
+    consulting: {
+      label: '咨询',
+      ctaLabel: '预约咨询',
+      title: '把挑战转化为聚焦的对话',
+      summary: '申请与 Indice 团队进行 50 分钟的咨询，并在会前提供背景信息。',
+      value: '清晰的申请有助于确认时间，并围绕需要做出的决定准备咨询。',
+      steps: [
+        { title: '选择时间', description: '提供工作时间内的首选时间和备选时间。' },
+        { title: '提供背景', description: '选择主题并说明要解决的挑战或决定。' },
+      ],
+    },
     'personal-performance': {
       label: '个人绩效',
       ctaLabel: '评估绩效',

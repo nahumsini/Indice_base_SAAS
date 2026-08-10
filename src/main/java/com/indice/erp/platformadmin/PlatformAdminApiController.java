@@ -2,6 +2,7 @@ package com.indice.erp.platformadmin;
 
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.auth.SessionCsrfService;
+import com.indice.erp.consulting.ConsultingAdministrationService;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -26,17 +27,20 @@ public class PlatformAdminApiController {
     private final SessionCsrfService csrf;
     private final PlatformAdminService service;
     private final CourtesyCodeService courtesyCodes;
+    private final ConsultingAdministrationService consulting;
 
     public PlatformAdminApiController(
         SessionAuthService auth,
         SessionCsrfService csrf,
         PlatformAdminService service,
-        CourtesyCodeService courtesyCodes
+        CourtesyCodeService courtesyCodes,
+        ConsultingAdministrationService consulting
     ) {
         this.auth = auth;
         this.csrf = csrf;
         this.service = service;
         this.courtesyCodes = courtesyCodes;
+        this.consulting = consulting;
     }
 
     @GetMapping("/context")
@@ -96,6 +100,49 @@ public class PlatformAdminApiController {
         @RequestParam(name = "limit", defaultValue = "100") int limit
     ) {
         return withUser(session, userId -> service.audit(userId, limit));
+    }
+
+    @GetMapping("/consulting")
+    public ResponseEntity<?> consulting(HttpSession session) {
+        return withUser(session, consulting::workspace);
+    }
+
+    @PatchMapping("/consulting/appointments/{appointmentId}")
+    public ResponseEntity<?> updateConsultingAppointment(
+        HttpSession session,
+        @PathVariable long appointmentId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody ConsultingAdministrationService.AppointmentUpdateRequest request
+    ) {
+        try {
+            var current = auth.currentUser(session).orElse(null);
+            if (current == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            }
+            csrf.requireCsrf(session, csrfToken);
+            return ResponseEntity.ok(consulting.updateAppointment(current.userId(), appointmentId, request));
+        } catch (RuntimeException exception) {
+            return error(exception);
+        }
+    }
+
+    @PatchMapping("/consulting/locations/{locationId}")
+    public ResponseEntity<?> updateConsultingLocation(
+        HttpSession session,
+        @PathVariable long locationId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody ConsultingAdministrationService.LocationUpdateRequest request
+    ) {
+        try {
+            var current = auth.currentUser(session).orElse(null);
+            if (current == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            }
+            csrf.requireCsrf(session, csrfToken);
+            return ResponseEntity.ok(consulting.updateLocation(current.userId(), locationId, request));
+        } catch (RuntimeException exception) {
+            return error(exception);
+        }
     }
 
     @GetMapping("/companies/{companyId}")

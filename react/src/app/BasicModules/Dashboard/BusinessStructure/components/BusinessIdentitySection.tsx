@@ -205,33 +205,16 @@ export function BusinessIdentitySection({
   return (
     <div
       key={`identity-${estructuraType}`}
-      className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6"
+      className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 sm:p-5"
     >
-      <div className="border-b border-gray-200 dark:border-gray-700 pb-4 mb-5">
+      <div className="mb-4">
         <h3 className="text-lg font-medium text-gray-900 dark:text-white">
           {estructuraType === 'simple' ? structure.identity.simple : structure.identity.holding}
         </h3>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          {structure.headquarters.helper}
-        </p>
-        <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-          {structure.headquarters.context}
-        </p>
+        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{structure.headquarters.context}</p>
       </div>
 
-      {estructuraType === 'multi' && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-5 border border-blue-200 dark:border-blue-700/30">
-          <p className="text-sm text-blue-800 dark:text-blue-300">
-            <strong>{structure.identity.holdingNotice}</strong>
-          </p>
-        </div>
-      )}
-
-      <h4 className="mb-3 text-sm font-medium text-gray-900 dark:text-white">
-        {structure.headquarters.basicInfo}
-      </h4>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+      <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             {companyNameLabel}
@@ -262,22 +245,22 @@ export function BusinessIdentitySection({
               </option>
             ))}
           </select>
-          <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-            {structure.headquarters.industryHelper}
-          </p>
         </div>
       </div>
 
-      <div className="mb-5">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          {logoLabel}
-        </label>
-        <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+      <details className="mb-4 rounded-xl border border-gray-200 bg-gray-50/70 dark:border-gray-700 dark:bg-gray-900/30">
+        <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-200">
+          {logoLabel} · {structure.fields.description} ({structure.fields.optional})
+        </summary>
+        <div className="grid gap-4 border-t border-gray-200 p-4 dark:border-gray-700 md:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{logoLabel}</label>
+            <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
           {logo ? (
             <img
               src={logo}
               alt={structure.fields.logoPreviewAlt}
-              className="h-20 w-20 rounded-lg border-2 border-gray-200 object-cover dark:border-gray-600"
+              className="h-16 w-16 rounded-lg border border-gray-200 object-cover dark:border-gray-600"
             />
           ) : null}
 
@@ -312,40 +295,21 @@ export function BusinessIdentitySection({
               </button>
             ) : null}
           </div>
+            </div>
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{structure.fields.description}</label>
+            <textarea rows={2} value={description} onChange={(event) => onDescriptionChange(event.target.value)} className={textareaClassName} disabled={disabled} />
+          </div>
         </div>
-        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">{structure.fields.uploadHint}</p>
-      </div>
+      </details>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          {structure.fields.description}{' '}
-          <span className="text-xs text-gray-500">{structure.fields.optional}</span>
-        </label>
-        <textarea
-          rows={4}
-          value={description}
-          onChange={(event) => onDescriptionChange(event.target.value)}
-          className={textareaClassName}
-          disabled={disabled}
-        />
-      </div>
-
-      <div className="mt-5">
-        <h4 className="mb-3 text-sm font-medium text-gray-900 dark:text-white">
+      <div className="border-t border-gray-200 pt-4 dark:border-gray-700">
+        <h4 className="mb-1 text-sm font-medium text-gray-900 dark:text-white">
           {structure.headquarters.locationTitle}
         </h4>
-        <p className="mb-3 text-xs text-gray-500 dark:text-gray-500">
-          {structure.headquarters.locationHelper}
-        </p>
-        <div className="mb-5 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
-          <h5 className="text-sm font-medium text-gray-900 dark:text-white">
-            {structure.headquarters.addressTitle}
-          </h5>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">
-            {structure.headquarters.addressHelper}
-          </p>
-
-          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+        <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">{structure.headquarters.locationHelper}</p>
+        <div className="mb-4 grid grid-cols-1 gap-3 rounded-xl bg-gray-50 p-3 dark:bg-gray-900/40 md:grid-cols-2">
             <div className="md:col-span-2">
               <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 {structure.fields.address}
@@ -432,11 +396,6 @@ export function BusinessIdentitySection({
                 disabled={disabled}
               />
             </div>
-          </div>
-
-          <p className="mt-3 text-xs text-gray-500 dark:text-gray-500">
-            {structure.headquarters.addressNote}
-          </p>
         </div>
         <LocationCoordinateFields
           values={locationCoordinateValues}

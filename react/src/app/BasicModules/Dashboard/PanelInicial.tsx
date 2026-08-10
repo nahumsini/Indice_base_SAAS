@@ -18,30 +18,30 @@ import { usePanelInicialTranslations } from './hooks/usePanelInicialTranslations
 const Profile = lazy(() => import('./Profile'));
 const BusinessStructure = lazy(() => import('./BusinessStructure'));
 const BusinessProfile = lazy(() => import('./BusinessProfile'));
-const PersonalPerformance = lazy(() => import('./PersonalPerformance'));
+const Consulting = lazy(() => import('./Consulting'));
 const Users = lazy(() => import('./Users'));
-const Plan = lazy(() => import('./Plan'));
 
 interface PanelInicialProps {
   learningModeActive?: boolean;
   onNavigate: (page?: string) => void;
 }
 
-type PanelInicialTabId = PanelInicialGuidanceTabId | 'plan';
+type PanelInicialTabId = PanelInicialGuidanceTabId;
 
 const subTabIds = [
   'profile',
   'business-structure',
   'business-profile',
-  'personal-performance',
+  'consulting',
   'users',
-  'plan',
 ] as const;
 
 const legacySubTabAliases: Partial<Record<string, PanelInicialGuidanceTabId>> = {
   perfil: 'profile',
   estructuraEmpresarial: 'business-structure',
   perfilEmpresarial: 'business-profile',
+  consultoria: 'consulting',
+  'personal-performance': 'business-profile',
   usuarios: 'users',
 };
 
@@ -68,16 +68,13 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
     subTabIds,
     legacySubTabAliases,
   );
-  const isGuidedTab = activeSubTab !== 'plan';
-
   const subTabs = useMemo(() => [
-    { id: 'profile', label: t.panelInicial.tabs.profile, emoji: '👤', component: Profile },
-    { id: 'business-structure', label: t.panelInicial.tabs.businessStructure, emoji: '🏢', component: BusinessStructure },
-    { id: 'business-profile', label: t.panelInicial.tabs.businessProfile, emoji: '📊', component: BusinessProfile },
-    { id: 'personal-performance', label: t.panelInicial.tabs.personalPerformance, emoji: '📈', component: PersonalPerformance },
-    { id: 'users', label: t.panelInicial.tabs.users, emoji: '👥', component: Users },
-    { id: 'plan', label: t.panelInicial.tabs.plan, emoji: '💳', component: Plan },
-  ], [t.panelInicial.tabs]);
+    { id: 'profile', label: t.panelInicial.tabs.profile, helper: shellCopy.tabDescriptions.profile, emoji: '👤', component: Profile },
+    { id: 'business-structure', label: t.panelInicial.tabs.businessStructure, helper: shellCopy.tabDescriptions.businessStructure, emoji: '🏢', component: BusinessStructure },
+    { id: 'business-profile', label: t.panelInicial.tabs.businessProfile, helper: shellCopy.tabDescriptions.businessProfile, emoji: '📊', component: BusinessProfile },
+    { id: 'consulting', label: t.panelInicial.tabs.consulting, helper: shellCopy.tabDescriptions.consulting, emoji: '🤝', component: Consulting },
+    { id: 'users', label: t.panelInicial.tabs.users, helper: shellCopy.tabDescriptions.users, emoji: '👥', component: Users },
+  ], [shellCopy.tabDescriptions, t.panelInicial.tabs]);
   const visibleSubTabs = sessionAccess.loaded
     ? subTabs.filter((tab) => (
         canAccessHomePanelTab(
@@ -155,7 +152,7 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
 
   return (
     <LearningModeHeaderActionsProvider active={learningModeActive}>
-    <div className="min-h-screen bg-[var(--indice-background)] dark:bg-slate-950">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--indice-background)] dark:bg-slate-950">
       <LoadingBarOverlay
         isVisible={isTabLoading || !sessionAccess.loaded}
         title={shellCopy.loadingTabTitle}
@@ -164,9 +161,7 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
 
       <PanelInicialHeader
         activeTabId={activeSubTab}
-        backLabel={t.panelInicial.back}
         navigationLabel={shellCopy.navigationLabel}
-        onBack={() => onNavigate()}
         onNavigate={onNavigate}
         onTabSelect={(tabId) => handleTabClick(tabId as PanelInicialTabId)}
         subtitle={shellCopy.subtitle}
@@ -174,7 +169,8 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
         title={t.panelInicial.title}
       />
 
-      {learningModeActive && isGuidedTab ? (
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      {learningModeActive ? (
         <div className="border-b border-[var(--indice-border)] bg-white px-3 pb-4 dark:bg-slate-800 sm:px-8 sm:pb-6">
           <div className="mx-auto max-w-[1600px]">
               <OperationalModuleGuide
@@ -219,6 +215,7 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
             />
           ) : null}
         </Suspense>
+      </div>
       </div>
     </div>
     </LearningModeHeaderActionsProvider>

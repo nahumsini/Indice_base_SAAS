@@ -1,11 +1,23 @@
-import { Home } from 'lucide-react';
 import type { ReactNode, Ref } from 'react';
 import { FavoritesBar } from '../FavoritesBar';
-import { Button } from '../ui/button';
 import { getModulePrimaryForeground, MODULE_COLORS, type IndiceModuleTone } from '../../styles/moduleColors';
 import { getCachedAuthSession } from '../../api/authSessionStore';
 import { canAccessModuleTab } from '../../access/tabScopeCatalog';
 import { resolvePageId } from '../../config/navigation';
+
+const MODULE_EMOJI_BY_ROUTE: Record<string, string> = {
+  'human-resources': '👥',
+  'processes-tasks': '✅',
+  expenses: '💸',
+  'petty-cash': '💰',
+  sales: '💼',
+  'point-of-sale': '🛒',
+  receivables: '📒',
+  kpis: '📊',
+  inventory: '📦',
+  'material-warehouse': '🏭',
+  production: '🏗️',
+};
 
 export type IndiceModuleTab<TabId extends string> = {
   id: TabId;
@@ -36,7 +48,6 @@ interface IndiceModuleShellProps<TabId extends string> {
  */
 export function IndiceModuleShell<TabId extends string>({
   activeTab,
-  backLabel,
   children,
   contentRef,
   currentModule,
@@ -56,44 +67,60 @@ export function IndiceModuleShell<TabId extends string>({
   const visibleTabs = resolvedPage && cachedSession !== undefined
     ? tabs.filter((tab) => canAccessModuleTab(resolvedPage, tab.id, cachedSession))
     : tabs;
+  const activeTabData = visibleTabs.find((tab) => tab.id === activeTab);
+  const moduleEmoji = MODULE_EMOJI_BY_ROUTE[resolvedPage ?? currentModule] ?? '◈';
 
   return (
     <div
-      className="min-h-screen bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-white"
+      className="flex h-full min-h-0 flex-col overflow-hidden bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-white"
       data-module={currentModule}
     >
       {loadingOverlay}
-      <header className="border-b border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-900 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
+      <header className="relative z-30 shrink-0 border-b border-slate-200 bg-white px-3 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:px-8">
         <div className="mx-auto max-w-[1600px]">
-          {onNavigate ? (
+          <div className="flex items-center gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-2.5 md:max-w-[420px] md:flex-none">
+              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-lg ring-1 ${theme.lightBg} ${theme.darkBg} ${theme.border} ${theme.darkBorder}`} aria-hidden="true">
+                {moduleEmoji}
+              </span>
+              <div className="min-w-0">
+                <div className="flex min-w-0 items-center gap-1.5 text-lg font-medium leading-tight text-slate-950 dark:text-white sm:text-xl">
+                  <span className="shrink-0">{title}</span>
+                  {activeTabData ? <span className="text-slate-300 dark:text-slate-600">/</span> : null}
+                  {activeTabData ? (
+                    <span className={`flex min-w-0 items-center gap-1 ${theme.text} ${theme.darkText}`}>
+                      <span className="shrink-0 text-base" aria-hidden="true">{activeTabData.icon}</span>
+                      <span className="truncate">{activeTabData.label}</span>
+                    </span>
+                  ) : null}
+                </div>
+                <p className="hidden truncate text-xs text-slate-500 dark:text-slate-400 sm:block">{subtitle}</p>
+              </div>
+            </div>
+
+            {onNavigate ? (
+              <div className="hidden min-w-0 flex-1 border-l border-slate-200 pl-3 dark:border-slate-700 md:block">
             <FavoritesBar
+              compact
               currentModule={currentModule}
               onNavigate={(page) => {
                 if (page !== currentModule) onNavigate(page);
               }}
             />
-          ) : null}
-
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <h1 className="text-2xl font-medium leading-tight text-slate-950 dark:text-white sm:text-3xl">{title}</h1>
-              <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">{subtitle}</p>
-            </div>
-            {backLabel && onNavigate ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onNavigate()}
-                className="w-full shrink-0 justify-center gap-2 text-sm sm:w-auto"
-              >
-                <Home aria-hidden="true" className="h-4 w-4" />
-                {backLabel}
-              </Button>
+              </div>
             ) : null}
           </div>
 
-          <nav aria-label={title} className="-mx-4 mt-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0">
-            <div className="flex min-w-max items-center gap-2 lg:min-w-0 lg:flex-wrap">
+          {onNavigate ? (
+            <div className="mt-1.5 md:hidden">
+              <FavoritesBar compact currentModule={currentModule} onNavigate={(page) => {
+                if (page !== currentModule) onNavigate(page);
+              }} />
+            </div>
+          ) : null}
+
+          <nav aria-label={title} className="mt-1.5 overflow-x-auto [scrollbar-width:none]">
+            <div className="flex min-w-max items-center gap-1.5 pb-0.5">
               {visibleTabs.map(tab => {
                 const isActive = activeTab === tab.id;
                 return (
@@ -102,7 +129,7 @@ export function IndiceModuleShell<TabId extends string>({
                     type="button"
                     aria-current={isActive ? 'page' : undefined}
                     onClick={() => onTabChange(tab.id)}
-                    className={`flex min-h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                    className={`flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 sm:text-sm ${
                       isActive
                         ? 'border-transparent shadow-md'
                         : `border-transparent bg-slate-100 text-slate-600 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white ${theme.iconHover}`
@@ -121,12 +148,14 @@ export function IndiceModuleShell<TabId extends string>({
             </div>
           </nav>
 
-          {guide ? <div className="mt-4">{guide}</div> : null}
         </div>
       </header>
 
-      <main ref={contentRef} className="mx-auto max-w-[1600px] scroll-mt-24 px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
-        {children}
+      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div ref={contentRef} className="mx-auto max-w-[1600px] scroll-mt-24 px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
+          {guide ? <div className="mb-4">{guide}</div> : null}
+          {children}
+        </div>
       </main>
     </div>
   );

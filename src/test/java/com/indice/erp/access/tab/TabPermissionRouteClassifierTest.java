@@ -19,6 +19,8 @@ class TabPermissionRouteClassifierTest {
         assertRequirement("POST", "/api/v1/billing/subscription/cancel", "config_center.plan");
         assertRequirement("GET", "/api/v1/dashboard/business-profile", "config_center.business-profile");
         assertRequirement("PUT", "/api/v1/dashboard/business-profile", "config_center.business-profile");
+        assertRequirement("GET", "/api/v1/consulting/workspace", "config_center.consulting");
+        assertRequirement("POST", "/api/v1/consulting/appointments", "config_center.consulting");
         assertRequirement("GET", "/api/v1/dashboard/personal-performance/me", "config_center.personal-performance");
         assertRequirement("PUT", "/api/v1/dashboard/personal-performance/me", "config_center.personal-performance");
         assertRequirement("POST", "/api/v1/hr/users", "human_resources.collaborators");

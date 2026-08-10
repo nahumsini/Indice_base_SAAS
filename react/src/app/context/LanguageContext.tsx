@@ -429,6 +429,7 @@ type TranslationDictionary = {
         profile: string;
         businessStructure: string;
         businessProfile: string;
+        consulting: string;
         personalPerformance: string;
         billing: string;
         plan: string;
@@ -1984,6 +1985,7 @@ const translations: Translations = {
         profile: 'Perfil',
         businessStructure: 'Estructura Empresarial',
         businessProfile: 'Perfil empresarial',
+        consulting: 'Consultoría',
         personalPerformance: 'Rendimiento personal',
         billing: 'Facturación',
         plan: 'Plan',
@@ -2867,6 +2869,7 @@ const translations: Translations = {
         profile: 'Perfil',
         businessStructure: 'Estructura Empresarial',
         businessProfile: 'Perfil empresarial',
+        consulting: 'Consultoría',
         personalPerformance: 'Rendimiento personal',
         billing: 'Facturación',
         plan: 'Plan',
@@ -3750,6 +3753,7 @@ const translations: Translations = {
         profile: 'Profile',
         businessStructure: 'Business Structure',
         businessProfile: 'Business Profile',
+        consulting: 'Consulting',
         personalPerformance: 'Personal Performance',
         billing: 'Billing',
         plan: 'Plan',
@@ -4633,6 +4637,7 @@ const translations: Translations = {
         profile: 'Profile',
         businessStructure: 'Business Structure',
         businessProfile: 'Business Profile',
+        consulting: 'Consulting',
         personalPerformance: 'Personal Performance',
         billing: 'Billing',
         plan: 'Plan',
@@ -5516,6 +5521,7 @@ const translations: Translations = {
         profile: 'Profil',
         businessStructure: 'Structure d\'entreprise',
         businessProfile: 'Profil d\'entreprise',
+        consulting: 'Conseil',
         personalPerformance: 'Performance personnelle',
         billing: 'Facturation',
         plan: 'Plan',
@@ -6399,6 +6405,7 @@ const translations: Translations = {
         profile: 'Perfil',
         businessStructure: 'Estrutura Empresarial',
         businessProfile: 'Perfil empresarial',
+        consulting: 'Consultoria',
         personalPerformance: 'Desempenho pessoal',
         billing: 'Faturamento',
         plan: 'Plano',
@@ -7282,6 +7289,7 @@ const translations: Translations = {
         profile: '프로필',
         businessStructure: '기업 구조',
         businessProfile: '기업 프로필',
+        consulting: '컨설팅',
         personalPerformance: '개인 성과',
         billing: '청구',
         plan: '계획',
@@ -8165,6 +8173,7 @@ const translations: Translations = {
         profile: '简介',
         businessStructure: '企业结构',
         businessProfile: '企业简介',
+        consulting: '咨询',
         personalPerformance: '个人表现',
         billing: '计费',
         plan: '计划',

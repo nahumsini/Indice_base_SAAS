@@ -1,8 +1,6 @@
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, CheckCircle2, CircleAlert, CreditCard, Eye, EyeOff, KeyRound, Loader2, Plus, ShieldCheck, Trash2 } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router';
+import { Camera, CheckCircle2, ChevronDown, CircleAlert, Eye, EyeOff, Loader2, Plus, Save, ShieldCheck, Trash2 } from 'lucide-react';
 import { configCenterApi, type ConfigCenterCurrentUser, type ConfigCenterPhoneNumber } from '../../../api/configCenter';
-import { runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { languages, useLanguage } from '../../../shared/context';
 import { DashboardTitleBar } from '../components/DashboardTitleBar';
 import {
@@ -47,7 +45,6 @@ const DEFAULT_PROFILE_FORM_VALUES = {
   confirmNewPassword: '',
 } as const;
 
-const PROFILE_AUTO_SAVE_DEBOUNCE_MS = 800;
 const PROFILE_AVATAR_MAX_SOURCE_SIZE_BYTES = 25 * 1024 * 1024;
 const PROFILE_AVATAR_MAX_UPLOAD_SIZE_BYTES = 1024 * 1024;
 const PROFILE_AVATAR_MAX_DIMENSION_PIXELS = 768;
@@ -273,14 +270,8 @@ const areProfileFormValuesEqual = (
   && currentValues.confirmNewPassword === baselineValues.confirmNewPassword
 );
 
-const isBlankProfilePhoneNumber = (phone: ProfilePhoneFormValue) => (
-  !phone.number.trim() || isPhoneInputDialCodeOnly(phone.number, phone.country)
-);
-
 export default function Profile() {
   const { currentLanguage, t } = useLanguage();
-  const navigate = useNavigate();
-  const { pageId } = useParams();
   const profileCopy = t.panelInicial.profile;
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const avatarPreviewRef = useRef('');
@@ -296,7 +287,6 @@ export default function Profile() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const formValuesRef = useRef(formValues);
-  const failedAutoSaveKeyRef = useRef('');
 
   const replaceAvatarPreview = (nextPreviewUrl: string) => {
     if (avatarPreviewRef.current) {
@@ -310,7 +300,7 @@ export default function Profile() {
   useEffect(() => {
     let active = true;
 
-    runWithMinimumDuration(configCenterApi.getCurrentUser())
+    configCenterApi.getCurrentUser()
       .then((response) => {
         if (!active) {
           return;
@@ -376,6 +366,26 @@ export default function Profile() {
   const avatarDisplayUrl = avatarPreviewUrl || user?.avatar_url || '';
   const uploadPhotoLabel = currentLanguage.code.startsWith('es') ? 'Subiendo foto...' : 'Uploading photo...';
   const hasUnsavedChanges = baselineValues !== null && !areProfileFormValuesEqual(formValues, baselineValues);
+  const completedEssentialFields = [
+    formValues.firstName.trim(),
+    formValues.lastName.trim(),
+    formValues.country.trim(),
+    formValues.phoneNumbers.find((phone) => (
+      phone.number.trim() && !isPhoneInputDialCodeOnly(phone.number, phone.country)
+    ))?.number ?? '',
+  ].filter(Boolean).length;
+  const profileCompletion = Math.round((completedEssentialFields / 4) * 100);
+  const expressCopy = currentLanguage.code.startsWith('es')
+    ? {
+        completion: 'Perfil completo',
+        essentials: 'Completa lo esencial en una sola vista.',
+        securityAction: 'Cambiar contraseña',
+      }
+    : {
+        completion: 'Profile complete',
+        essentials: 'Complete the essentials in a single view.',
+        securityAction: 'Change password',
+      };
   const trimmedNewPassword = formValues.newPassword.trim();
   const trimmedPasswordConfirmation = formValues.confirmNewPassword.trim();
   const hasPasswordChangeInProgress = trimmedNewPassword.length > 0 || trimmedPasswordConfirmation.length > 0;
@@ -401,10 +411,6 @@ export default function Profile() {
         || trimmedNewPassword !== trimmedPasswordConfirmation
       )
     );
-
-  const handleViewPlans = () => {
-    navigate(`/${pageId ?? 'home-panel'}/plan`);
-  };
 
   const updateFormValue = <Key extends keyof ProfileFormValues>(
     field: Key,
@@ -655,81 +661,34 @@ export default function Profile() {
         setFormValues(nextValues);
         replaceAvatarPreview('');
       }
-      failedAutoSaveKeyRef.current = '';
+      setSaveMessage(profileCopy.messages.saveSuccess);
       window.dispatchEvent(new CustomEvent(USER_PROFILE_UPDATED_EVENT, { detail: { user: response } }));
     } catch (error) {
-      failedAutoSaveKeyRef.current = JSON.stringify(valuesToSave);
       setErrorMessage(error instanceof Error ? error.message : profileCopy.messages.saveError);
     } finally {
       setIsSaving(false);
     }
   };
 
-  useEffect(() => {
-    if (
-      isLoading
-      || isSaving
-      || isUploadingAvatar
-      || isSaveDisabled
-      || !baselineValues
-      || !hasUnsavedChanges
-    ) {
-      return undefined;
-    }
-
-    const autoSaveKey = JSON.stringify(formValues);
-    if (failedAutoSaveKeyRef.current === autoSaveKey) {
-      return undefined;
-    }
-
-    const hasBlankExtraPhone = formValues.phoneNumbers.length > 1
-      && formValues.phoneNumbers.some((phone) => isBlankProfilePhoneNumber(phone));
-    const hasInvalidPhoneNumber = formValues.phoneNumbers.some((phone) => (
-      !isBlankProfilePhoneNumber(phone)
-      && !validatePhoneForProfileCountry(phone.number, phone.country).ok
-    ));
-
-    if (hasBlankExtraPhone || hasInvalidPhoneNumber) {
-      return undefined;
-    }
-
-    const saveTimer = window.setTimeout(() => {
-      void handleSaveProfile(formValues, baselineValues);
-    }, PROFILE_AUTO_SAVE_DEBOUNCE_MS);
-
-    return () => {
-      window.clearTimeout(saveTimer);
-    };
-  }, [
-    baselineValues,
-    formValues,
-    hasUnsavedChanges,
-    isLoading,
-    isSaveDisabled,
-    isSaving,
-    isUploadingAvatar,
-    user,
-  ]);
-
-  const titleBarActions = (
-    <button
-      type="button"
-      onClick={handleViewPlans}
-      className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-blue-700/40 dark:bg-gray-800 dark:text-blue-200 dark:hover:bg-blue-900/20 sm:w-auto"
-    >
-      <CreditCard className="h-4 w-4" />
-      {t.panelInicial.tabs.plan}
-    </button>
-  );
-
   return (
     <>
       <div>
         <div className="mb-6">
           <DashboardTitleBar
-            actions={titleBarActions}
+            actions={(
+              <div className="flex items-center gap-2 sm:justify-end">
+                {hasUnsavedChanges ? (
+                  <button type="button" onClick={handleDiscardChanges} disabled={isSaving} className="min-h-11 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200">
+                    {profileCopy.actions.discard}
+                  </button>
+                ) : null}
+                <button type="button" onClick={() => void handleSaveProfile()} disabled={isLoading || isSaving || isSaveDisabled || !hasUnsavedChanges} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300 dark:disabled:bg-blue-900 sm:flex-none">
+                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {isSaving ? profileCopy.actions.saving : profileCopy.actions.save}
+                </button>
+              </div>
+            )}
             emoji="👤"
-            helper={profileCopy.helper}
             subtitle={t.panelInicial.profile.subtitle}
             title={t.panelInicial.profile.title}
           />
@@ -747,7 +706,30 @@ export default function Profile() {
           </div>
         ) : null}
 
-        <div className="bg-white dark:bg-gray-800 mb-4 rounded-xl border border-gray-200 p-4 shadow-sm dark:border-gray-700 sm:p-6">
+        {saveMessage ? (
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-700/30 dark:bg-emerald-900/20 dark:text-emerald-300">
+            <CheckCircle2 className="h-4 w-4" />
+            {saveMessage}
+          </div>
+        ) : null}
+
+        <section className="mb-4 overflow-hidden rounded-xl border border-blue-200 bg-gradient-to-r from-blue-600 to-sky-500 p-4 text-white shadow-sm sm:p-5">
+          <div className="flex items-center gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-blue-50">{expressCopy.essentials}</p>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/25">
+                <div className="h-full rounded-full bg-white transition-all" style={{ width: `${profileCompletion}%` }} />
+              </div>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="text-2xl font-medium">{profileCompletion}%</p>
+              <p className="text-xs text-blue-50">{expressCopy.completion}</p>
+            </div>
+          </div>
+        </section>
+
+        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 sm:p-5">
           <div className="mb-5 border-b border-gray-200 pb-4 dark:border-gray-700">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white">
               {profileCopy.sections.identityTitle}
@@ -858,7 +840,7 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 mb-4 rounded-xl border border-gray-200 p-4 shadow-sm dark:border-gray-700 sm:p-6">
+        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 sm:p-5">
           <div className="mb-5 border-b border-gray-200 pb-4 dark:border-gray-700">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white">
               {profileCopy.sections.contactTitle}
@@ -868,11 +850,11 @@ export default function Profile() {
             </p>
           </div>
 
-          <div className="mb-4">
+          <div className="mb-4 rounded-lg bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60">
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
               {t.panelInicial.profile.fields.email}
             </label>
-            <input type="email" value={user?.email ?? ''} readOnly className={inputClassName} />
+            <p className="truncate text-sm text-slate-700 dark:text-slate-200">{user?.email ?? '—'}</p>
           </div>
 
           <div className="space-y-3">
@@ -937,209 +919,83 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 mb-4 rounded-xl border border-gray-200 p-4 shadow-sm dark:border-gray-700 sm:p-6">
-          <div className="mb-5 border-b border-gray-200 pb-4 dark:border-gray-700">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-              {profileCopy.sections.securityTitle}
-            </h3>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              {profileCopy.sections.securitySubtitle}
-            </p>
-          </div>
+        </div>
 
-          <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-blue-50/70 p-4 dark:border-blue-700/30 dark:from-blue-900/10 dark:via-gray-800 dark:to-blue-900/10 sm:p-5">
-            <div className="flex flex-col gap-4 xl:flex-row">
-              <div className="xl:w-[280px] xl:flex-shrink-0">
-                <div className="rounded-2xl border border-blue-100 bg-white/90 p-4 shadow-sm dark:border-blue-700/30 dark:bg-gray-800/90">
-                  <div className="mb-4 flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">
-                      <ShieldCheck className="h-5 w-5" />
-                    </div>
-                    <p className="text-sm leading-6 text-gray-600 dark:text-gray-300">
-                      {profileCopy.sections.securitySubtitle}
-                    </p>
-                  </div>
+        <details className="group mb-4 mt-4 rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+          <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 sm:px-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">
+                <ShieldCheck className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-medium text-gray-900 dark:text-white">{profileCopy.sections.securityTitle}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{expressCopy.securityAction}</p>
+              </div>
+            </div>
+            <ChevronDown className="h-5 w-5 text-gray-500 transition-transform group-open:rotate-180" />
+          </summary>
 
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-3 dark:border-blue-700/30 dark:bg-blue-900/10">
-                      <KeyRound className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600 dark:text-blue-300" />
-                      <p className="text-xs leading-5 text-gray-600 dark:text-gray-300">
-                        {profileCopy.messages.passwordMinLength}
-                      </p>
-                    </div>
-                    <div className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-800/80">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-600 dark:text-emerald-300" />
-                      <p className="text-xs leading-5 text-gray-600 dark:text-gray-300">
-                        {profileCopy.hints.password}
-                      </p>
-                    </div>
-                  </div>
+          <div className="border-t border-gray-200 bg-slate-50/70 p-4 dark:border-gray-700 dark:bg-slate-900/30 sm:p-5">
+            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-gray-600 dark:text-gray-300">{profileCopy.hints.password}</p>
+              <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                {profileCopy.messages.passwordMinLength}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {profileCopy.fields.newPassword}
+                </label>
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? 'text' : 'password'}
+                    value={formValues.newPassword}
+                    onChange={(event) => updateFormValue('newPassword', event.target.value)}
+                    placeholder="••••••••"
+                    autoComplete="new-password"
+                    aria-invalid={hasPasswordMinLengthError}
+                    className={`${inputClassName} min-h-11 pr-12 ${hasPasswordMinLengthError ? 'border-red-300 focus:ring-red-500' : isPasswordReady ? 'border-emerald-300' : ''}`}
+                  />
+                  <button type="button" onClick={() => setShowNewPassword((current) => !current)} className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-600" aria-label={showNewPassword ? t.loginPage.hidePassword : t.loginPage.showPassword}>
+                    {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
               </div>
 
-              <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-2">
-                <div className={`rounded-2xl border p-4 shadow-sm transition-colors ${
-                  isPasswordReady
-                    ? 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-700/40 dark:bg-emerald-900/10'
-                    : hasPasswordMinLengthError
-                    ? 'border-amber-300 bg-amber-50/80 dark:border-amber-700/40 dark:bg-amber-900/10'
-                    : trimmedNewPassword.length > 0
-                      ? 'border-blue-200 bg-white dark:border-blue-700/40 dark:bg-gray-800'
-                      : 'border-gray-200 bg-white/90 dark:border-gray-700 dark:bg-gray-800/90'
-                }`}>
-                  <div className="mb-3 flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">
-                        1
-                      </span>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {profileCopy.fields.newPassword}
-                        </label>
-                        <p className="mt-1 text-[11px] leading-5 text-gray-500 dark:text-gray-400">
-                          {profileCopy.messages.passwordMinLength}
-                        </p>
-                      </div>
-                    </div>
-                    {isPasswordReady ? (
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-600 dark:text-emerald-300" />
-                    ) : null}
-                  </div>
-
-                  <div className="relative">
-                    <input
-                      type={showNewPassword ? 'text' : 'password'}
-                      value={formValues.newPassword}
-                      onChange={(event) => updateFormValue('newPassword', event.target.value)}
-                      placeholder="••••••••"
-                      autoComplete="new-password"
-                      aria-invalid={hasPasswordMismatch || hasPasswordMinLengthError}
-                      className={`${inputClassName} pr-12 ${
-                        isPasswordReady
-                          ? 'border-emerald-300 bg-emerald-50/40 dark:bg-emerald-900/10'
-                          : hasPasswordMinLengthError
-                          ? 'border-amber-300 focus:ring-amber-500'
-                          : trimmedNewPassword.length > 0
-                            ? 'border-blue-300 bg-blue-50/40 dark:bg-blue-900/10'
-                            : ''
-                      }`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPassword((current) => !current)}
-                      className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-gray-200"
-                      aria-label={showNewPassword ? t.loginPage.hidePassword : t.loginPage.showPassword}
-                    >
-                      {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className={`rounded-2xl border p-4 shadow-sm transition-colors ${
-                  isPasswordReady
-                    ? 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-700/40 dark:bg-emerald-900/10'
-                    : hasPasswordMismatch
-                    ? 'border-red-300 bg-red-50/80 dark:border-red-700/40 dark:bg-red-900/10'
-                    : trimmedPasswordConfirmation.length > 0
-                      ? 'border-blue-200 bg-white dark:border-blue-700/40 dark:bg-gray-800'
-                      : 'border-gray-200 bg-white/90 dark:border-gray-700 dark:bg-gray-800/90'
-                }`}>
-                  <div className="mb-3 flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">
-                        2
-                      </span>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {profileCopy.fields.confirmNewPassword}
-                        </label>
-                        <p className="mt-1 text-[11px] leading-5 text-gray-500 dark:text-gray-400">
-                          {hasPasswordMismatch ? profileCopy.messages.passwordMismatch : profileCopy.hints.password}
-                        </p>
-                      </div>
-                    </div>
-                    {isPasswordReady ? (
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-600 dark:text-emerald-300" />
-                    ) : null}
-                  </div>
-
-                  <div className="relative">
-                    <input
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      value={formValues.confirmNewPassword}
-                      onChange={(event) => updateFormValue('confirmNewPassword', event.target.value)}
-                      placeholder="••••••••"
-                      autoComplete="new-password"
-                      aria-invalid={hasPasswordMismatch}
-                      className={`${inputClassName} pr-12 ${
-                        isPasswordReady
-                          ? 'border-emerald-300 bg-emerald-50/40 dark:bg-emerald-900/10'
-                          : hasPasswordMismatch
-                          ? 'border-red-300 focus:ring-red-500'
-                          : trimmedPasswordConfirmation.length > 0
-                            ? 'border-blue-300 bg-blue-50/40 dark:bg-blue-900/10'
-                            : ''
-                      }`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword((current) => !current)}
-                      className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-gray-200"
-                      aria-label={showConfirmPassword ? t.loginPage.hidePassword : t.loginPage.showPassword}
-                    >
-                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
+              <div>
+                <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {profileCopy.fields.confirmNewPassword}
+                  {isPasswordReady ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : null}
+                </label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={formValues.confirmNewPassword}
+                    onChange={(event) => updateFormValue('confirmNewPassword', event.target.value)}
+                    placeholder="••••••••"
+                    autoComplete="new-password"
+                    aria-invalid={hasPasswordMismatch}
+                    className={`${inputClassName} min-h-11 pr-12 ${hasPasswordMismatch ? 'border-red-300 focus:ring-red-500' : isPasswordReady ? 'border-emerald-300' : ''}`}
+                  />
+                  <button type="button" onClick={() => setShowConfirmPassword((current) => !current)} className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-600" aria-label={showConfirmPassword ? t.loginPage.hidePassword : t.loginPage.showPassword}>
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
               </div>
             </div>
 
             {hasPasswordMismatch || hasPasswordMinLengthError ? (
-              <div className="mt-4 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 dark:border-red-700/40 dark:bg-red-900/15 dark:text-red-200">
-                <CircleAlert className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                <div className="space-y-1 text-sm leading-5">
-                  {hasPasswordMinLengthError ? (
-                    <p>{profileCopy.messages.passwordMinLength}</p>
-                  ) : null}
-                  {hasPasswordMismatch ? (
-                    <p>{profileCopy.messages.passwordMismatch}</p>
-                  ) : null}
-                </div>
+              <div className="mt-3 flex items-center gap-2 text-sm text-red-600 dark:text-red-300">
+                <CircleAlert className="h-4 w-4 flex-shrink-0" />
+                {hasPasswordMinLengthError ? profileCopy.messages.passwordMinLength : profileCopy.messages.passwordMismatch}
               </div>
             ) : null}
           </div>
-        </div>
+        </details>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 p-4 shadow-sm dark:border-gray-700 sm:p-6">
-          <div className="mb-5 border-b border-gray-200 pb-4 dark:border-gray-700">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-              {profileCopy.sections.preferencesTitle}
-            </h3>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              {profileCopy.sections.preferencesSubtitle}
-            </p>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              {profileCopy.fields.preferredLanguage}
-            </label>
-            <select
-              value={formValues.preferredLanguage}
-              onChange={(event) => updateFormValue('preferredLanguage', event.target.value)}
-              className={`${inputClassName} appearance-none cursor-pointer`}
-            >
-              {languages.map((language) => (
-                <option key={language.code} value={language.code}>
-                  {language.flag} {language.name}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-              {profileCopy.hints.preferredLanguage}
-            </p>
-          </div>
-        </div>
       </div>
 
     </>

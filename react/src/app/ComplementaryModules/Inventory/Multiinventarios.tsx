@@ -58,17 +58,17 @@ type InventoryTab = {
   component: ComponentType;
 };
 
-export default function Multiinventarios({ learningModeActive = false }: { learningModeActive?: boolean }) {
+export default function Multiinventarios({ learningModeActive = false, onNavigate }: { learningModeActive?: boolean; onNavigate?: (page?: string) => void }) {
   return (
     <LearningModeHeaderActionsProvider active={learningModeActive}>
     <SalesCrmProvider>
-      <InventoryWorkspace learningModeActive={learningModeActive} />
+      <InventoryWorkspace learningModeActive={learningModeActive} onNavigate={onNavigate} />
     </SalesCrmProvider>
     </LearningModeHeaderActionsProvider>
   );
 }
 
-function InventoryWorkspace({ learningModeActive }: { learningModeActive: boolean }) {
+function InventoryWorkspace({ learningModeActive, onNavigate }: { learningModeActive: boolean; onNavigate?: (page?: string) => void }) {
   const t = useInventoryModuleTranslations();
   const mainContentRef = useRef<HTMLDivElement>(null);
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<InventoryTabId>(
@@ -104,6 +104,7 @@ function InventoryWorkspace({ learningModeActive }: { learningModeActive: boolea
         />
       ) : undefined}
       loadingOverlay={<LoadingBarOverlay isVisible={isTabLoading} title={t.loading.openingTitle} description={t.loading.openingDescription} />}
+      onNavigate={onNavigate}
       onTabChange={setActiveTab}
       subtitle={t.subtitle}
       tabs={inventoryTabs.map(tab => ({ id: tab.id, label: tab.label, icon: tab.emoji }))}

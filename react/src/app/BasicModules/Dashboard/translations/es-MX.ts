@@ -2,6 +2,14 @@ import type { PanelInicialShellTranslations } from './types';
 
 export const esMX: PanelInicialShellTranslations = {
   subtitle: 'Configura tu perfil, estructura empresarial, usuarios y preferencias operativas.',
+  tabDescriptions: {
+    profile: 'Datos personales y seguridad',
+    businessStructure: 'Áreas, puestos y organización',
+    businessProfile: 'Identidad y diagnóstico del negocio',
+    consulting: 'Agenda y seguimiento de consultoría',
+    personalPerformance: 'Objetivos y desempeño personal',
+    users: 'Accesos, roles y permisos',
+  },
   loadingTabTitle: 'Cargando pestaña del Panel Inicial',
   loadingTabDescription: 'Abriendo el espacio de configuración seleccionado.',
   downloadingTabDescription: 'Descargando únicamente el espacio de configuración seleccionado.',

@@ -61,6 +61,17 @@ export const enCA = {
         },
       ],
     },
+    consulting: {
+      label: 'Consulting',
+      ctaLabel: 'Schedule a session',
+      title: 'Turn a challenge into a focused conversation',
+      summary: 'Request a 50-minute session with the Indice team and share the context before the meeting.',
+      value: 'A clear request helps confirm the right time and lets the consultant prepare around the decision you need to make.',
+      steps: [
+        { title: 'Choose a time', description: 'Provide a preferred and optional alternative business-hour time.' },
+        { title: 'Share the context', description: 'Select the topic and describe the challenge or decision you want to address.' },
+      ],
+    },
     'personal-performance': {
       label: 'Personal performance',
       ctaLabel: 'Evaluate performance',

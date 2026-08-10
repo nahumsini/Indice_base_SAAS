@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, ChevronLeft, ChevronRight, Printer } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, Printer, RotateCcw } from 'lucide-react';
 
 import {
   personalPerformanceApi,
@@ -14,6 +14,7 @@ import {
 } from '../../../components/LoadingBarOverlay';
 import { Button } from '../../../components/ui/button';
 import { DashboardTitleBar } from '../components/DashboardTitleBar';
+import { IndiceConfirmationDialog } from '../../../components/indice-modal';
 import {
   PersonalPerformancePrintPortal,
   type PersonalPerformancePdfDocumentProps,
@@ -31,7 +32,6 @@ import {
 } from '../reportFileName';
 
 type SectionId = PersonalPerformanceSectionKey;
-type SectionColor = 'blue' | 'yellow' | 'orange' | 'green';
 type QuestionDefinition = {
   question: string;
   options: string[];
@@ -70,12 +70,11 @@ const PERSONAL_PERFORMANCE_REPORT_ID_PREFIX = 'IDX-PPI';
 const SECTION_METADATA: Array<{
   id: SectionId;
   emoji: string;
-  color: SectionColor;
 }> = [
-  { id: 'sleep_recovery', emoji: '😴', color: 'blue' },
-  { id: 'nutrition_energy', emoji: '🥗', color: 'green' },
-  { id: 'stress_clarity', emoji: '🧠', color: 'orange' },
-  { id: 'balance_sustainability', emoji: '⚖️', color: 'yellow' },
+  { id: 'sleep_recovery', emoji: '😴' },
+  { id: 'nutrition_energy', emoji: '🥗' },
+  { id: 'stress_clarity', emoji: '🧠' },
+  { id: 'balance_sustainability', emoji: '⚖️' },
 ];
 
 const createEmptySectionState = (sectionKey: SectionId, questionCount = DEFAULT_QUESTION_COUNT): SectionState => ({
@@ -276,12 +275,6 @@ const getSectionEntryQuestionIndex = (section: SectionState, questions: Question
   return getNextQuestionIndex(section, questions);
 };
 
-const formatPersonalPerformanceProgressText = (template: string, answered: number, total: number) => (
-  template
-    .replace('{answered}', String(answered))
-    .replace('{total}', String(total))
-);
-
 export default function PersonalPerformance() {
   const performanceUi = usePersonalPerformanceTranslations();
   const resolvedLocale = usePersonalPerformanceResolvedLocale();
@@ -295,6 +288,7 @@ export default function PersonalPerformance() {
   const [errorMessage, setErrorMessage] = useState('');
   const [reportUserName, setReportUserName] = useState('');
   const [printJob, setPrintJob] = useState<PersonalPerformancePdfDocumentProps | null>(null);
+  const [restartConfirmationOpen, setRestartConfirmationOpen] = useState(false);
   const sectionStateRef = useRef(sectionState);
   const failedAutoSaveKeyRef = useRef('');
 
@@ -302,10 +296,8 @@ export default function PersonalPerformance() {
   const sections = useMemo(() => SECTION_METADATA.map((section) => ({
     ...section,
     title: performanceUi.sections[section.id].title,
-    description: performanceUi.sections[section.id].description,
     onboardingTitle: performanceUi.onboarding.sections[section.id].title,
     onboardingIntro: performanceUi.onboarding.sections[section.id].intro,
-    onboardingDone: performanceUi.onboarding.sections[section.id].done,
   })), [performanceUi.onboarding.sections, performanceUi.sections]);
   const sectionTitles = useMemo(() => ({
     sleep_recovery: performanceUi.sections.sleep_recovery.title,
@@ -479,42 +471,6 @@ export default function PersonalPerformance() {
 
   const totalProgress = totalQuestions > 0 ? Math.round((totalAnswered / totalQuestions) * 100) : 0;
   const hasUnsavedChanges = baselineSectionState !== null && !areStatesEqual(sectionState, baselineSectionState);
-  const isSectionDirty = (sectionId: SectionId) => (
-    baselineSectionState !== null
-      ? !areSectionsEqual(sectionState[sectionId], baselineSectionState[sectionId])
-      : Object.keys(sectionState[sectionId].answers).length > 0
-  );
-
-  const getSectionActionLabel = (sectionId: SectionId) => {
-    const currentSection = sectionState[sectionId];
-    const answeredCount = Object.keys(currentSection.answers).length;
-    const totalSectionQuestions = questions[sectionId].length;
-
-    if (answeredCount <= 0) {
-      return actionsUi.start;
-    }
-
-    if (answeredCount >= totalSectionQuestions) {
-      return isSectionDirty(sectionId) ? actionsUi.reviewAnswers : actionsUi.doAgain;
-    }
-
-    return actionsUi.continue;
-  };
-  const getProgressEncouragement = (answeredCount: number, questionCount: number) => {
-    if (questionCount <= 0 || answeredCount >= questionCount) {
-      return '';
-    }
-
-    const progressRatio = answeredCount / questionCount;
-    if (progressRatio >= 0.8) {
-      return performanceUi.onboarding.encouragementNear;
-    }
-    if (progressRatio >= 0.5) {
-      return performanceUi.onboarding.encouragementMid;
-    }
-
-    return '';
-  };
 
   const handleAnswer = (sectionId: SectionId, questionIndex: number, answerIndex: number) => {
     setSectionState((currentState) => ({
@@ -532,40 +488,6 @@ export default function PersonalPerformance() {
       setErrorMessage('');
     }
 
-  };
-
-  const handleRestartSection = (sectionId: SectionId) => {
-    setSectionState((currentState) => ({
-      ...currentState,
-      [sectionId]: {
-        ...currentState[sectionId],
-        completedAt: null,
-        answers: {},
-      },
-    }));
-    setCurrentQuestion(0);
-
-    if (errorMessage) {
-      setErrorMessage('');
-    }
-
-  };
-
-  const handleNextQuestion = () => {
-    if (!activeSection) {
-      return;
-    }
-
-    const sectionQuestions = questions[activeSection];
-    if (currentQuestion < sectionQuestions.length - 1) {
-      setCurrentQuestion((previousValue) => previousValue + 1);
-    }
-  };
-
-  const handlePreviousQuestion = () => {
-    if (currentQuestion > 0) {
-      setCurrentQuestion((previousValue) => previousValue - 1);
-    }
   };
 
   const handleStartSection = (sectionId: SectionId) => {
@@ -643,52 +565,91 @@ export default function PersonalPerformance() {
     });
   };
 
-  const getColorClasses = (color: SectionColor) => {
-    const colorMap: Record<SectionColor, { bg: string; text: string; border: string; icon: string }> = {
-      blue: {
-        bg: 'bg-blue-50 dark:bg-blue-900/20',
-        text: 'text-blue-700 dark:text-blue-300',
-        border: 'border-blue-200 dark:border-blue-700',
-        icon: 'bg-blue-100 dark:bg-blue-900/40',
-      },
-      yellow: {
-        bg: 'bg-yellow-50 dark:bg-yellow-900/20',
-        text: 'text-yellow-700 dark:text-yellow-300',
-        border: 'border-yellow-200 dark:border-yellow-700',
-        icon: 'bg-yellow-100 dark:bg-yellow-900/40',
-      },
-      orange: {
-        bg: 'bg-orange-50 dark:bg-orange-900/20',
-        text: 'text-orange-700 dark:text-orange-300',
-        border: 'border-orange-200 dark:border-orange-700',
-        icon: 'bg-orange-100 dark:bg-orange-900/40',
-      },
-      green: {
-        bg: 'bg-green-50 dark:bg-green-900/20',
-        text: 'text-green-700 dark:text-green-300',
-        border: 'border-green-200 dark:border-green-700',
-        icon: 'bg-green-100 dark:bg-green-900/40',
-      },
-    };
-
-    return colorMap[color];
+  const handleRestartPerformance = async () => {
+    setIsSaving(true); setErrorMessage('');
+    try {
+      const response = await personalPerformanceApi.restartPersonalPerformance();
+      const nextState = createStateFromResponse(response, questions);
+      setSectionState(nextState); setBaselineSectionState(nextState); setActiveSection(null); setCurrentQuestion(0);
+      setRestartConfirmationOpen(false);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : performanceUi.messages.saveError);
+    } finally { setIsSaving(false); }
   };
 
-  const titleBarActions = (
+  const firstIncompleteSection = sections.find((section) => (
+    calculateProgress(section.id) < questions[section.id].length
+  ));
+  const activeSectionData = activeSection
+    ? sections.find((section) => section.id === activeSection) ?? null
+    : null;
+  const activeSectionIndex = activeSectionData
+    ? sections.findIndex((section) => section.id === activeSectionData.id)
+    : -1;
+  const activeSectionQuestions = activeSectionData ? questions[activeSectionData.id] : [];
+  const activeQuestionIndex = Math.min(currentQuestion, Math.max(activeSectionQuestions.length - 1, 0));
+  const activeQuestion = activeSectionData ? activeSectionQuestions[activeQuestionIndex] : null;
+  const activeSelectedAnswer = activeSectionData
+    ? sectionState[activeSectionData.id].answers[activeQuestionIndex]
+    : undefined;
+  const isPerformanceComplete = totalQuestions > 0 && totalAnswered >= totalQuestions;
+
+  const handleStartGuidedFlow = () => {
+    handleStartSection(firstIncompleteSection?.id ?? sections[0].id);
+  };
+
+  const handleGuidedNext = () => {
+    if (!activeSectionData || activeSelectedAnswer === undefined) {
+      return;
+    }
+
+    if (activeQuestionIndex < activeSectionQuestions.length - 1) {
+      setCurrentQuestion(activeQuestionIndex + 1);
+      return;
+    }
+
+    const nextSection = sections[activeSectionIndex + 1];
+    if (nextSection) {
+      handleStartSection(nextSection.id);
+      return;
+    }
+
+    setActiveSection(null);
+  };
+
+  const handleGuidedPrevious = () => {
+    if (!activeSectionData) {
+      return;
+    }
+
+    if (activeQuestionIndex > 0) {
+      setCurrentQuestion(activeQuestionIndex - 1);
+      return;
+    }
+
+    const previousSection = sections[activeSectionIndex - 1];
+    if (previousSection) {
+      setActiveSection(previousSection.id);
+      setCurrentQuestion(Math.max(questions[previousSection.id].length - 1, 0));
+    }
+  };
+
+  const titleBarActions = isPerformanceComplete && !activeSection ? (
+    <div className="flex w-full gap-2 sm:w-auto">
+    <Button variant="outline" size="sm" onClick={() => setRestartConfirmationOpen(true)} disabled={isSaving} className="flex-1 gap-2 sm:flex-none"><RotateCcw className="h-4 w-4" />{resolvedLocale.startsWith('es') ? 'Reiniciar test' : 'Restart test'}</Button>
     <Button
-      variant="outline"
       size="sm"
       onClick={handlePrint}
-      className="w-full gap-2 border-blue-600 bg-blue-600 text-white hover:border-blue-700 hover:bg-blue-700 sm:w-auto"
+      className="flex-1 gap-2 bg-blue-600 text-white hover:bg-blue-700 sm:flex-none"
     >
       <Printer className="h-4 w-4" />
       {performanceUi.printReport}
-    </Button>
-  );
+    </Button></div>
+  ) : undefined;
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-4">
         <DashboardTitleBar
           actions={titleBarActions}
           emoji="📈"
@@ -708,238 +669,152 @@ export default function PersonalPerformance() {
           </div>
         ) : null}
 
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-6">
-          <h3 className="mb-3 text-sm font-medium text-gray-900 dark:text-white">
-            {performanceUi.centerTitle}
-          </h3>
-          <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-            {performanceUi.centerDescription}
-          </p>
-          <p className="mb-4 text-sm font-medium text-gray-900 dark:text-white">
-            {performanceUi.questionCountLabel}{' '}
-            <span className="text-blue-600">{performanceUi.questionCount}</span>
-          </p>
+        <section className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 sm:p-6">
+          <div className="mb-5 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                {activeSectionData
+                  ? `${activeSectionData.emoji} ${activeSectionData.onboardingTitle}`
+                  : performanceUi.centerTitle}
+              </p>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                {activeSectionData ? activeSectionData.onboardingIntro : performanceUi.centerDescription}
+              </p>
+            </div>
+            <span className="shrink-0 text-sm font-medium text-blue-700 dark:text-blue-300">{totalProgress}%</span>
+          </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {sections.map((section) => {
+          <div className="mb-5 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+            <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${totalProgress}%` }} />
+          </div>
+
+          <div className="mb-6 grid grid-cols-2 gap-2 lg:grid-cols-4">
+            {sections.map((section, index) => {
               const progress = calculateProgress(section.id);
-              const isComplete = progress === questions[section.id].length;
+              const complete = progress === questions[section.id].length;
+              const active = activeSection === section.id;
 
               return (
-                <div key={section.id} className="flex items-center gap-2">
-                  <div
-                    className={`flex h-5 w-5 items-center justify-center rounded border-2 ${
-                      isComplete ? 'border-blue-600 bg-blue-600' : 'border-gray-300 dark:border-gray-600'
-                    }`}
-                  >
-                    {isComplete && <CheckCircle2 className="h-4 w-4 text-white" />}
-                  </div>
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    {section.emoji} {section.onboardingTitle}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-6">
-          <h3 className="mb-3 text-sm font-medium text-gray-900 dark:text-white">
-            {performanceUi.progress}
-          </h3>
-          <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-            {totalProgress}% {performanceUi.progressOf}
-          </p>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {sections.map((section) => {
-              const progress = calculateProgress(section.id);
-              const isComplete = progress === questions[section.id].length;
-
-              return (
-                <div key={section.id} className="flex items-center gap-2">
-                  <div
-                    className={`flex h-5 w-5 items-center justify-center rounded border-2 ${
-                      isComplete ? 'border-blue-600 bg-blue-600' : 'border-gray-300 dark:border-gray-600'
-                    }`}
-                  >
-                    {isComplete && <CheckCircle2 className="h-4 w-4 text-white" />}
-                  </div>
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{section.onboardingTitle}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          {sections.map((section) => {
-            const progress = calculateProgress(section.id);
-            const totalSectionQuestions = questions[section.id].length;
-            const isActive = activeSection === section.id;
-            const isDimmed = Boolean(activeSection && !isActive);
-            const colors = getColorClasses(section.color);
-            const activeQuestionIndex = Math.min(currentQuestion, Math.max(totalSectionQuestions - 1, 0));
-            const encouragement = getProgressEncouragement(progress, totalSectionQuestions);
-
-            return (
-              <div key={section.id}>
-                <div className={`transform-gpu rounded-lg border-2 p-4 transition-all duration-200 ease-in-out sm:p-6 ${colors.border} ${colors.bg} ${
-                  isActive
-                    ? 'scale-[1.01] shadow-lg ring-2 ring-blue-500/20'
-                    : isDimmed
-                      ? 'opacity-60'
-                      : 'hover:shadow-md'
-                }`}>
-                  <div className="mb-4 flex items-start gap-4">
-                    <div className={`flex h-12 w-12 items-center justify-center rounded-lg text-2xl ${colors.icon}`}>
-                      {section.emoji}
-                    </div>
-                    <div className="flex-1">
-                      <h3 className={`mb-1 font-medium ${colors.text}`}>{section.onboardingTitle}</h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{section.description}</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {progress}/{totalSectionQuestions}
+                <div
+                  key={section.id}
+                  className={`rounded-xl border px-3 py-2 ${
+                    active
+                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20'
+                      : complete
+                        ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20'
+                        : 'border-gray-200 dark:border-gray-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {complete ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    ) : (
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-200">
+                        {index + 1}
+                      </span>
+                    )}
+                    <span className="truncate text-xs font-medium text-gray-800 dark:text-gray-200">
+                      {section.onboardingTitle}
                     </span>
-                    <Button
-                      onClick={() => handleStartSection(section.id)}
-                      size="sm"
-                      className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
-                    >
-                      {getSectionActionLabel(section.id)}
-                    </Button>
                   </div>
                 </div>
+              );
+            })}
+          </div>
 
-                {isActive ? (
-                  <div className="mt-4 rounded-lg border-2 border-blue-600 bg-white p-4 shadow-lg dark:bg-gray-800 sm:p-8">
-                    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <h4 className="text-lg font-medium text-gray-900 dark:text-white">
-                        {section.emoji} {section.onboardingTitle}
-                      </h4>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setActiveSection(null)}
-                        className="w-full sm:w-auto"
-                      >
-                        {actionsUi.close}
-                      </Button>
-                    </div>
-                    <p className="mb-6 text-sm text-gray-600 dark:text-gray-400">
-                      {section.onboardingIntro}
-                    </p>
-
-                    <div className="mb-8">
-                      <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {actionsUi.question} {activeQuestionIndex + 1} {actionsUi.of} {totalSectionQuestions}
-                        </span>
-                        <span className="text-sm text-gray-600 dark:text-gray-400">
-                          {formatPersonalPerformanceProgressText(
-                            performanceUi.onboarding.answeredProgress,
-                            progress,
-                            totalSectionQuestions,
-                          )}
-                        </span>
-                      </div>
-                      {encouragement ? (
-                        <p className="mb-3 text-xs font-medium text-blue-700 dark:text-blue-300">
-                          {encouragement}
-                        </p>
-                      ) : null}
-                      <div className="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
-                        <div
-                          className="h-2 rounded-full bg-blue-600 transition-all duration-300"
-                          style={{ width: `${((activeQuestionIndex + 1) / totalSectionQuestions) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {(() => {
-                      const currentQ = questions[section.id][activeQuestionIndex];
-                      const selectedAnswer = sectionState[section.id].answers[activeQuestionIndex];
-
-                      return (
-                        <div
-                          key={`${section.id}-${activeQuestionIndex}`}
-                          className="mb-8 transform-gpu transition-all duration-150 ease-in-out"
-                        >
-                          <p className="mb-6 text-lg font-medium text-gray-900 dark:text-white sm:text-xl">
-                            {activeQuestionIndex + 1}. {currentQ.question}
-                          </p>
-                          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                            {currentQ.options.map((option, optionIndex) => (
-                              <button
-                                key={optionIndex}
-                                type="button"
-                                onClick={() => handleAnswer(section.id, activeQuestionIndex, optionIndex)}
-                                aria-pressed={selectedAnswer === optionIndex}
-                                className={`flex items-center justify-between gap-3 rounded-lg border-2 px-4 py-4 text-left text-sm font-medium transition-all duration-150 ease-in-out sm:px-6 sm:text-base ${
-                                  selectedAnswer === optionIndex
-                                    ? 'scale-[1.02] border-blue-600 bg-blue-600 text-white shadow-md'
-                                    : 'border-gray-200 bg-white text-gray-700 hover:scale-[1.01] hover:border-blue-400 hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-blue-900/20'
-                                }`}
-                              >
-                                <span>{option}</span>
-                                {selectedAnswer === optionIndex ? (
-                                  <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
-                                ) : null}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    <div className="flex flex-col-reverse gap-3 border-t border-gray-200 pt-6 dark:border-gray-700 sm:flex-row sm:items-center sm:justify-between">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handlePreviousQuestion}
-                        disabled={activeQuestionIndex === 0}
-                        className="w-full gap-2 sm:w-auto"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                        {actionsUi.previous}
-                      </Button>
-
-                      {activeQuestionIndex < totalSectionQuestions - 1 ? (
-                        <Button
-                          size="sm"
-                          onClick={handleNextQuestion}
-                          className="w-full gap-2 bg-blue-600 hover:bg-blue-700 sm:w-auto"
-                        >
-                          {actionsUi.next}
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      ) : null}
-                    </div>
-
-                    {progress === totalSectionQuestions ? (
-                      <div className="mt-4 space-y-3 text-center">
-                        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300">
-                          {section.onboardingDone}
-                        </p>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleRestartSection(section.id)}
-                          className="text-sm"
-                        >
-                          {performanceUi.restart}
-                        </Button>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
+          {!activeSectionData ? (
+            <div className="mx-auto max-w-xl text-center">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {performanceUi.questionCountLabel} {performanceUi.questionCount}
+              </p>
+              <Button
+                onClick={handleStartGuidedFlow}
+                className="mt-5 min-h-11 w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto sm:min-w-56"
+              >
+                {totalAnswered === 0
+                  ? actionsUi.start
+                  : isPerformanceComplete
+                    ? actionsUi.reviewAnswers
+                    : actionsUi.continue}
+                <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          ) : activeQuestion ? (
+            <div className="mx-auto max-w-4xl">
+              <div className="mb-5 flex items-center justify-between gap-3 text-sm text-gray-600 dark:text-gray-400">
+                <span>
+                  {actionsUi.question} {activeQuestionIndex + 1} {actionsUi.of} {activeSectionQuestions.length}
+                </span>
+                <span>{activeSectionIndex + 1}/{sections.length}</span>
               </div>
-            );
-          })}
-        </div>
+
+              <h3 className="mb-5 text-lg font-medium text-gray-950 dark:text-white sm:text-xl">
+                {activeQuestion.question}
+              </h3>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                {activeQuestion.options.map((option, optionIndex) => (
+                  <button
+                    key={optionIndex}
+                    type="button"
+                    onClick={() => handleAnswer(activeSectionData.id, activeQuestionIndex, optionIndex)}
+                    aria-pressed={activeSelectedAnswer === optionIndex}
+                    className={`flex min-h-14 items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors ${
+                      activeSelectedAnswer === optionIndex
+                        ? 'border-blue-600 bg-blue-600 text-white'
+                        : 'border-gray-200 text-gray-700 hover:border-blue-400 hover:bg-blue-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-blue-900/20'
+                    }`}
+                  >
+                    <span>{option}</span>
+                    {activeSelectedAnswer === optionIndex ? (
+                      <CheckCircle2 className="h-5 w-5 shrink-0" />
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-6 flex flex-col-reverse gap-3 border-t border-gray-200 pt-5 dark:border-gray-700 sm:flex-row sm:items-center sm:justify-between">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGuidedPrevious}
+                  disabled={activeSectionIndex === 0 && activeQuestionIndex === 0}
+                  className="w-full gap-2 sm:w-auto"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  {actionsUi.previous}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleGuidedNext}
+                  disabled={activeSelectedAnswer === undefined}
+                  className="w-full gap-2 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300 sm:w-auto"
+                >
+                  {activeQuestionIndex === activeSectionQuestions.length - 1
+                    && activeSectionIndex === sections.length - 1
+                    ? actionsUi.close
+                    : actionsUi.next}
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </section>
+
       </div>
+
+      <IndiceConfirmationDialog
+        busy={isSaving}
+        cancelLabel={resolvedLocale.startsWith('es') ? 'Cancelar' : 'Cancel'}
+        confirmLabel={resolvedLocale.startsWith('es') ? 'Reiniciar test' : 'Restart test'}
+        description={resolvedLocale.startsWith('es') ? 'Conservaremos tu resultado anterior y comenzaremos una nueva versión.' : 'We will preserve your previous result and begin a new version.'}
+        icon={<RotateCcw className="h-5 w-5" />}
+        onCancel={() => setRestartConfirmationOpen(false)}
+        onConfirm={() => void handleRestartPerformance()}
+        open={restartConfirmationOpen}
+        title={resolvedLocale.startsWith('es') ? '¿Reiniciar evaluación?' : 'Restart assessment?'}
+        tone="blue"
+      />
 
       <PersonalPerformancePrintPortal
         job={printJob}

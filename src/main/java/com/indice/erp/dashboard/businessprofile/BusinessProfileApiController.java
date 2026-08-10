@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -53,7 +54,17 @@ public class BusinessProfileApiController {
             return csrfFailure;
         }
 
-        return ResponseEntity.ok(businessProfileService.getBusinessProfile(currentUser.get().companyId()));
+        return ResponseEntity.ok(businessProfileService.getBusinessProfile(currentUser.get().companyId(), currentUser.get().userId()));
+    }
+
+    @PostMapping("/restart")
+    public ResponseEntity<?> restartBusinessProfile(HttpSession session, @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken) {
+        var currentUser = sessionAuthService.currentUser(session);
+        if (currentUser.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        if (!accessService.canAccess(currentUser.get(), ConfigCenterTab.BUSINESS_PROFILE)) return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Forbidden"));
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) return csrfFailure;
+        return ResponseEntity.ok(businessProfileService.restartBusinessProfile(currentUser.get().companyId(), currentUser.get().userId()));
     }
 
     @PutMapping

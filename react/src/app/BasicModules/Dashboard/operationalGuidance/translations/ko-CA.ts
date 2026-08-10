@@ -61,6 +61,17 @@ export const koCA = {
         },
       ],
     },
+    consulting: {
+      label: '컨설팅',
+      ctaLabel: '상담 예약',
+      title: '과제를 집중된 대화로 전환하세요',
+      summary: 'Indice 팀과 50분 상담을 요청하고 미팅 전에 상황을 공유하세요.',
+      value: '명확한 요청은 시간을 확정하고 필요한 결정을 중심으로 상담을 준비하는 데 도움이 됩니다.',
+      steps: [
+        { title: '시간 선택', description: '업무 시간 내 선호 시간과 대체 시간을 제안하세요.' },
+        { title: '상황 공유', description: '주제를 선택하고 해결할 과제나 결정을 설명하세요.' },
+      ],
+    },
     'personal-performance': {
       label: '개인 성과',
       ctaLabel: '성과 평가',

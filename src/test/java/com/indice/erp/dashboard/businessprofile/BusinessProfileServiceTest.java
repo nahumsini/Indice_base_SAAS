@@ -46,7 +46,7 @@ class BusinessProfileServiceTest {
             eq(1L)
         )).thenReturn(List.of());
 
-        var response = service.getBusinessProfile(1L);
+        var response = service.getBusinessProfile(1L, 9L);
 
         @SuppressWarnings("unchecked")
         var profile = (Map<String, Object>) response.get("profile");

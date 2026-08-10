@@ -5,19 +5,11 @@ interface StructureCopy {
   mode: {
     title: string;
     description: string;
-    helper: string;
     simpleTitle: string;
     simpleDescription: string;
-    simpleExample: string;
     multiTitle: string;
     multiDescription: string;
-    multiExample: string;
-    switchPrompt: string;
-    switchAction: string;
-    multiNote: string;
     selected: string;
-    structurePreviewTitle: string;
-    structurePreviewLines: string[];
   };
 }
 
@@ -37,154 +29,54 @@ export function OperationTypeSection({
   onEstructuraTypeChange,
 }: OperationTypeSectionProps) {
   const simpleDisabled = disabled || isSimpleDisabled;
+  const options = [
+    {
+      description: structure.mode.simpleDescription,
+      disabled: simpleDisabled,
+      title: structure.mode.simpleTitle,
+      type: 'simple' as const,
+    },
+    {
+      description: structure.mode.multiDescription,
+      disabled,
+      title: structure.mode.multiTitle,
+      type: 'multi' as const,
+    },
+  ];
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-      <div className="border-b border-gray-200 dark:border-gray-700 pb-4 mb-5">
+    <section className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 sm:p-5">
+      <div className="mb-4">
         <h3 className="text-lg font-medium text-gray-900 dark:text-white">{structure.mode.title}</h3>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          {structure.mode.description}
-        </p>
-        <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-          {structure.mode.helper}
-        </p>
+        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{structure.mode.description}</p>
       </div>
 
-      <div className="mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <button
-            type="button"
-            onClick={() => {
-              if (!simpleDisabled) {
-                onEstructuraTypeChange('simple');
-              }
-            }}
-            disabled={simpleDisabled}
-            className={`p-4 rounded-lg border-2 text-left transition-all duration-150 ease-in-out hover:-translate-y-0.5 hover:shadow-md ${
-              estructuraType === 'simple'
-                ? 'border-blue-600 bg-blue-50/80 shadow-sm ring-2 ring-blue-100 dark:border-blue-400 dark:bg-blue-900/25 dark:ring-blue-900/40'
-                : 'border-gray-200 bg-transparent opacity-95 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700'
-            } ${
-              simpleDisabled
-                ? 'cursor-not-allowed opacity-55 hover:translate-y-0 hover:border-gray-200 hover:shadow-none dark:hover:border-gray-700'
-                : ''
-            }`}
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <div
-                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                  estructuraType === 'simple'
-                    ? 'border-blue-500'
-                    : 'border-gray-300 dark:border-gray-600'
-                }`}
-              >
-                {estructuraType === 'simple' && (
-                  <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
-                )}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        {options.map((option) => {
+          const selected = estructuraType === option.type;
+          return (
+            <button
+              key={option.type}
+              type="button"
+              onClick={() => onEstructuraTypeChange(option.type)}
+              disabled={option.disabled}
+              aria-pressed={selected}
+              className={`min-h-20 rounded-xl border p-3 text-left transition-colors ${selected
+                ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-100 dark:border-blue-400 dark:bg-blue-900/25 dark:ring-blue-900/40'
+                : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/40 dark:border-gray-700 dark:hover:border-blue-700'} ${option.disabled ? 'cursor-not-allowed opacity-55' : ''}`}
+            >
+              <div className="flex items-center gap-2">
+                <span className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${selected ? 'border-blue-500' : 'border-gray-300 dark:border-gray-600'}`}>
+                  {selected ? <span className="h-2.5 w-2.5 rounded-full bg-blue-500" /> : null}
+                </span>
+                <span className="font-medium text-gray-950 dark:text-white">{option.title}</span>
+                {selected ? <Badge className="bg-blue-600 text-white dark:bg-blue-500">{structure.mode.selected}</Badge> : null}
               </div>
-              <span className={`font-medium ${
-                estructuraType === 'simple'
-                  ? 'text-gray-950 dark:text-white'
-                  : 'text-gray-800 dark:text-gray-200'
-              }`}>
-                {structure.mode.simpleTitle}
-              </span>
-              {estructuraType === 'simple' ? (
-                <Badge className="bg-blue-600 text-white dark:bg-blue-500">
-                  {structure.mode.selected}
-                </Badge>
-              ) : null}
-            </div>
-            <p className="text-xs text-gray-600 dark:text-gray-400 ml-7 mb-2">
-              {structure.mode.simpleDescription}
-            </p>
-            <p className="text-[11px] text-gray-500 dark:text-gray-500 ml-7 italic">
-              {structure.mode.simpleExample}
-            </p>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              if (!disabled) {
-                onEstructuraTypeChange('multi');
-              }
-            }}
-            disabled={disabled}
-            className={`p-4 rounded-lg border-2 text-left transition-all duration-150 ease-in-out hover:-translate-y-0.5 hover:shadow-md ${
-              estructuraType === 'multi'
-                ? 'border-blue-600 bg-blue-50/80 shadow-sm ring-2 ring-blue-100 dark:border-blue-400 dark:bg-blue-900/25 dark:ring-blue-900/40'
-                : 'border-gray-200 bg-transparent opacity-95 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700'
-            } ${disabled ? 'cursor-not-allowed opacity-55 hover:translate-y-0 hover:shadow-none' : ''}`}
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <div
-                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                  estructuraType === 'multi'
-                    ? 'border-blue-500'
-                    : 'border-gray-300 dark:border-gray-600'
-                }`}
-              >
-                {estructuraType === 'multi' && (
-                  <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
-                )}
-              </div>
-              <span className={`font-medium ${
-                estructuraType === 'multi'
-                  ? 'text-gray-950 dark:text-white'
-                  : 'text-gray-800 dark:text-gray-200'
-              }`}>
-                {structure.mode.multiTitle}
-              </span>
-              {estructuraType === 'multi' ? (
-                <Badge className="bg-blue-600 text-white dark:bg-blue-500">
-                  {structure.mode.selected}
-                </Badge>
-              ) : null}
-            </div>
-            <p className="text-xs text-gray-600 dark:text-gray-400 ml-7 mb-2">
-              {structure.mode.multiDescription}
-            </p>
-            <p className="text-[11px] text-gray-500 dark:text-gray-500 ml-7 italic">
-              {structure.mode.multiExample}
-            </p>
-          </button>
-        </div>
-
-        {estructuraType === 'simple' ? (
-          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-700/30 text-center">
-            <p className="text-sm text-blue-700 dark:text-blue-400">
-              {structure.mode.switchPrompt}{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  if (!disabled) {
-                    onEstructuraTypeChange('multi');
-                  }
-                }}
-                disabled={disabled}
-                className="font-medium hover:underline disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {structure.mode.switchAction}
-              </button>
-            </p>
-          </div>
-        ) : (
-          <div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-              {structure.mode.multiNote}
-            </p>
-            <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-              <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-                {structure.mode.structurePreviewTitle}
-              </p>
-              <pre className="text-xs text-gray-600 dark:text-gray-400 font-mono">
-{structure.mode.structurePreviewLines.join('\n')}
-              </pre>
-            </div>
-          </div>
-        )}
+              <p className="ml-7 mt-1 text-xs text-gray-600 dark:text-gray-400">{option.description}</p>
+            </button>
+          );
+        })}
       </div>
-    </div>
+    </section>
   );
 }

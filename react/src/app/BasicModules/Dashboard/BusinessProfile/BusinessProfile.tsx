@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, ChevronLeft, ChevronRight, Printer } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, Printer, RotateCcw } from 'lucide-react';
 import {
   businessProfileApi,
   type BusinessProfileResponse,
@@ -18,6 +18,8 @@ import {
 import { Button } from '../../../components/ui/button';
 import { useLanguage } from '../../../shared/context';
 import { DashboardTitleBar } from '../components/DashboardTitleBar';
+import { IndiceConfirmationDialog } from '../../../components/indice-modal';
+import { BusinessDiagnosisResult } from './components/BusinessDiagnosisResult';
 import {
   BusinessDiagnosisPrintPortal,
   type BusinessDiagnosisPdfDocumentProps,
@@ -303,12 +305,6 @@ const getSectionEntryQuestionIndex = (section: SectionState, questions: Question
   return getNextQuestionIndex(section, questions);
 };
 
-const formatDiagnosisProgressText = (template: string, answered: number, total: number) => (
-  template
-    .replace('{answered}', String(answered))
-    .replace('{total}', String(total))
-);
-
 export default function BusinessProfile() {
   const { currentLanguage, t } = useLanguage();
   const diagnosisCopy = t.panelInicial.diagnosis;
@@ -320,13 +316,13 @@ export default function BusinessProfile() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [saveMessage, setSaveMessage] = useState('');
   const [reportUserName, setReportUserName] = useState('');
   const [reportCompanyIdentity, setReportCompanyIdentity] = useState<ReportCompanyIdentity>({
     logoUrl: '',
     name: '',
   });
   const [printJob, setPrintJob] = useState<BusinessDiagnosisPdfDocumentProps | null>(null);
+  const [restartConfirmationOpen, setRestartConfirmationOpen] = useState(false);
   const sectionStateRef = useRef(sectionState);
   const failedAutoSaveKeyRef = useRef('');
 
@@ -536,42 +532,6 @@ export default function BusinessProfile() {
 
   const totalProgress = totalQuestions > 0 ? Math.round((totalAnswered / totalQuestions) * 100) : 0;
   const hasUnsavedChanges = baselineSectionState !== null && !areDiagnosticoStatesEqual(sectionState, baselineSectionState);
-  const isSectionDirty = (pillarId: PillarId) => (
-    baselineSectionState !== null
-      ? !areSectionsEqual(sectionState[pillarId], baselineSectionState[pillarId])
-      : Object.keys(sectionState[pillarId].answers).length > 0
-  );
-  const getPillarActionLabel = (pillarId: PillarId) => {
-    const currentSection = sectionState[pillarId];
-    const answeredCount = Object.keys(currentSection.answers).length;
-    const totalPillarQuestions = diagnosticoQuestions[pillarId].length;
-
-    if (answeredCount <= 0) {
-      return diagnosisCopy.start;
-    }
-
-    if (answeredCount >= totalPillarQuestions) {
-      return isSectionDirty(pillarId) ? diagnosisCopy.reviewAnswers : diagnosisCopy.doAgain;
-    }
-
-    return diagnosisCopy.continue;
-  };
-  const getProgressEncouragement = (answeredCount: number, questionCount: number) => {
-    if (questionCount <= 0 || answeredCount >= questionCount) {
-      return '';
-    }
-
-    const progressRatio = answeredCount / questionCount;
-    if (progressRatio >= 0.8) {
-      return diagnosisCopy.onboarding.encouragementNear;
-    }
-    if (progressRatio >= 0.5) {
-      return diagnosisCopy.onboarding.encouragementMid;
-    }
-
-    return '';
-  };
-
   const handleAnswer = (pillarId: PillarId, questionIndex: number, answerIndex: number) => {
     setSectionState((currentState) => ({
       ...currentState,
@@ -588,40 +548,6 @@ export default function BusinessProfile() {
       setErrorMessage('');
     }
 
-    if (saveMessage) {
-      setSaveMessage('');
-    }
-  };
-
-  const handleRestartPillar = (pillarId: PillarId) => {
-    setSectionState((currentState) => ({
-      ...currentState,
-      [pillarId]: {
-        ...currentState[pillarId],
-        completedAt: null,
-        answers: {},
-      },
-    }));
-    setCurrentQuestion(0);
-
-    if (errorMessage) {
-      setErrorMessage('');
-    }
-
-    if (saveMessage) {
-      setSaveMessage('');
-    }
-  };
-
-  const handleNextQuestion = () => {
-    if (!activePillar) {
-      return;
-    }
-
-    const pillarQuestions = diagnosticoQuestions[activePillar];
-    if (currentQuestion < pillarQuestions.length - 1) {
-      setCurrentQuestion((previousValue) => previousValue + 1);
-    }
   };
 
   const handlePreviousQuestion = () => {
@@ -639,20 +565,6 @@ export default function BusinessProfile() {
     setCurrentQuestion(getSectionEntryQuestionIndex(sectionState[pillarId], diagnosticoQuestions[pillarId]));
   };
 
-  const handleDiscardChanges = () => {
-    if (!baselineSectionState || isSaving) {
-      return;
-    }
-
-    setSectionState(baselineSectionState);
-    setErrorMessage('');
-    setSaveMessage('');
-
-    if (activePillar) {
-      setCurrentQuestion(getNextQuestionIndex(baselineSectionState[activePillar], diagnosticoQuestions[activePillar]));
-    }
-  };
-
   const handleSaveDiagnosis = async (
     stateToSave = sectionState,
     baselineToSave = baselineSectionState,
@@ -663,7 +575,6 @@ export default function BusinessProfile() {
 
     setIsSaving(true);
     setErrorMessage('');
-    setSaveMessage('');
 
     try {
       const response = await businessProfileApi.saveBusinessProfile(
@@ -720,52 +631,80 @@ export default function BusinessProfile() {
     });
   };
 
-  const getColorClasses = (color: PillarColor) => {
-    const colorMap: Record<PillarColor, { bg: string; text: string; border: string; icon: string }> = {
-      blue: {
-        bg: 'bg-blue-50 dark:bg-blue-900/20',
-        text: 'text-blue-700 dark:text-blue-300',
-        border: 'border-blue-200 dark:border-blue-700',
-        icon: 'bg-blue-100 dark:bg-blue-900/40',
-      },
-      yellow: {
-        bg: 'bg-yellow-50 dark:bg-yellow-900/20',
-        text: 'text-yellow-700 dark:text-yellow-300',
-        border: 'border-yellow-200 dark:border-yellow-700',
-        icon: 'bg-yellow-100 dark:bg-yellow-900/40',
-      },
-      orange: {
-        bg: 'bg-orange-50 dark:bg-orange-900/20',
-        text: 'text-orange-700 dark:text-orange-300',
-        border: 'border-orange-200 dark:border-orange-700',
-        icon: 'bg-orange-100 dark:bg-orange-900/40',
-      },
-      green: {
-        bg: 'bg-green-50 dark:bg-green-900/20',
-        text: 'text-green-700 dark:text-green-300',
-        border: 'border-green-200 dark:border-green-700',
-        icon: 'bg-green-100 dark:bg-green-900/40',
-      },
-    };
-
-    return colorMap[color];
+  const handleRestartDiagnosis = async () => {
+    setIsSaving(true);
+    setErrorMessage('');
+    try {
+      const response = await businessProfileApi.restartBusinessProfile();
+      const nextState = createDiagnosticoStateFromResponse(response, diagnosticoQuestions);
+      setSectionState(nextState);
+      setBaselineSectionState(nextState);
+      setActivePillar(null);
+      setCurrentQuestion(0);
+      setRestartConfirmationOpen(false);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : diagnosisCopy.messages.saveError);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const titleBarActions = (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={handlePrintDiagnosis}
-      className="w-full gap-2 border-blue-600 bg-blue-600 text-white hover:border-blue-700 hover:bg-blue-700 sm:w-auto"
-    >
-      <Printer className="h-4 w-4" />
-      {diagnosisCopy.printDiagnosis}
-    </Button>
-  );
+  const firstIncompletePillar = pilares.find((pilar) => (
+    calculateProgress(pilar.id) < diagnosticoQuestions[pilar.id].length
+  ));
+  const activePillarData = activePillar
+    ? pilares.find((pilar) => pilar.id === activePillar) ?? null
+    : null;
+  const activePillarIndex = activePillarData
+    ? pilares.findIndex((pilar) => pilar.id === activePillarData.id)
+    : -1;
+  const activePillarQuestions = activePillarData ? diagnosticoQuestions[activePillarData.id] : [];
+  const activeQuestionIndex = Math.min(currentQuestion, Math.max(activePillarQuestions.length - 1, 0));
+  const activeQuestion = activePillarData ? activePillarQuestions[activeQuestionIndex] : null;
+  const activeSelectedAnswer = activePillarData
+    ? sectionState[activePillarData.id].answers[activeQuestionIndex]
+    : undefined;
+  const isDiagnosisComplete = totalQuestions > 0 && totalAnswered >= totalQuestions;
+
+  const handleStartGuidedFlow = () => {
+    handleStartPillar(firstIncompletePillar?.id ?? pilares[0].id);
+  };
+
+  const handleGuidedNext = () => {
+    if (!activePillarData || activeSelectedAnswer === undefined) {
+      return;
+    }
+
+    if (activeQuestionIndex < activePillarQuestions.length - 1) {
+      setCurrentQuestion(activeQuestionIndex + 1);
+      return;
+    }
+
+    const nextPillar = pilares[activePillarIndex + 1];
+    if (nextPillar) {
+      handleStartPillar(nextPillar.id);
+      return;
+    }
+
+    setActivePillar(null);
+  };
+
+  const titleBarActions = isDiagnosisComplete && !activePillar ? (
+    <div className="flex w-full gap-2 sm:w-auto">
+      <Button variant="outline" size="sm" onClick={() => setRestartConfirmationOpen(true)} disabled={isSaving} className="flex-1 gap-2 sm:flex-none">
+        <RotateCcw className="h-4 w-4" />
+        {currentLanguage.code.startsWith('es') ? 'Reiniciar test' : 'Restart test'}
+      </Button>
+      <Button size="sm" onClick={handlePrintDiagnosis} className="flex-1 gap-2 bg-blue-600 text-white hover:bg-blue-700 sm:flex-none">
+        <Printer className="h-4 w-4" />
+        {diagnosisCopy.printDiagnosis}
+      </Button>
+    </div>
+  ) : undefined;
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-4">
         <DashboardTitleBar
           actions={titleBarActions}
           emoji="📊"
@@ -785,234 +724,103 @@ export default function BusinessProfile() {
           </div>
         ) : null}
 
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-6">
-          <h3 className="mb-3 text-sm font-medium text-gray-900 dark:text-white">
-            {diagnosisCopy.centerTitle}
-          </h3>
-          <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-            {diagnosisCopy.centerDescription}
-          </p>
-          <p className="mb-4 text-sm font-medium text-gray-900 dark:text-white">
-            {diagnosisCopy.questionCountLabel}{' '}
-            <span className="text-blue-600">{diagnosisCopy.questionCount}</span>
-          </p>
+        <section className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 sm:p-6">
+          <div className="mb-5 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                {activePillarData
+                  ? `${activePillarData.emoji} ${activePillarData.onboardingTitle}`
+                  : diagnosisCopy.centerTitle}
+              </p>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                {activePillarData ? activePillarData.onboardingIntro : diagnosisCopy.centerDescription}
+              </p>
+            </div>
+            <span className="shrink-0 text-sm font-medium text-blue-700 dark:text-blue-300">{totalProgress}%</span>
+          </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {pilares.map((pilar) => {
+          <div className="mb-5 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+            <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${totalProgress}%` }} />
+          </div>
+
+          <div className="mb-6 grid grid-cols-2 gap-2 lg:grid-cols-4">
+            {pilares.map((pilar, index) => {
               const progress = calculateProgress(pilar.id);
-              const isComplete = progress === diagnosticoQuestions[pilar.id].length;
-
+              const complete = progress === diagnosticoQuestions[pilar.id].length;
+              const active = activePillar === pilar.id;
               return (
-                <div key={pilar.id} className="flex items-center gap-2">
-                  <div
-                    className={`flex h-5 w-5 items-center justify-center rounded border-2 ${
-                      isComplete ? 'border-blue-600 bg-blue-600' : 'border-gray-300 dark:border-gray-600'
-                    }`}
-                  >
-                    {isComplete && <CheckCircle2 className="h-4 w-4 text-white" />}
+                <div key={pilar.id} className={`rounded-xl border px-3 py-2 ${active ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20' : complete ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20' : 'border-gray-200 dark:border-gray-700'}`}>
+                  <div className="flex items-center gap-2">
+                    {complete ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-200">{index + 1}</span>}
+                    <span className="truncate text-xs font-medium text-gray-800 dark:text-gray-200">{pilar.onboardingTitle}</span>
                   </div>
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    {pilar.emoji} {pilar.onboardingTitle}
-                  </span>
                 </div>
               );
             })}
           </div>
-        </div>
 
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-6">
-          <h3 className="mb-3 text-sm font-medium text-gray-900 dark:text-white">
-            {diagnosisCopy.progress}
-          </h3>
-          <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-            {totalProgress}% {diagnosisCopy.progressOf}
-          </p>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {pilares.map((pilar) => {
-              const progress = calculateProgress(pilar.id);
-              const isComplete = progress === diagnosticoQuestions[pilar.id].length;
-
-              return (
-                <div key={pilar.id} className="flex items-center gap-2">
-                  <div
-                    className={`flex h-5 w-5 items-center justify-center rounded border-2 ${
-                      isComplete ? 'border-blue-600 bg-blue-600' : 'border-gray-300 dark:border-gray-600'
-                    }`}
-                  >
-                    {isComplete && <CheckCircle2 className="h-4 w-4 text-white" />}
-                  </div>
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{pilar.onboardingTitle}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          {pilares.map((pilar) => {
-            const progress = calculateProgress(pilar.id);
-            const totalPillarQuestions = diagnosticoQuestions[pilar.id].length;
-            const isActive = activePillar === pilar.id;
-            const isDimmed = Boolean(activePillar && !isActive);
-            const colors = getColorClasses(pilar.color);
-            const activeQuestionIndex = Math.min(currentQuestion, Math.max(totalPillarQuestions - 1, 0));
-            const encouragement = getProgressEncouragement(progress, totalPillarQuestions);
-
-            return (
-              <div key={pilar.id}>
-                <div className={`transform-gpu rounded-lg border-2 p-4 transition-all duration-200 ease-in-out sm:p-6 ${colors.border} ${colors.bg} ${
-                  isActive
-                    ? 'scale-[1.01] shadow-lg ring-2 ring-blue-500/20'
-                    : isDimmed
-                      ? 'opacity-60'
-                      : 'hover:shadow-md'
-                }`}>
-                  <div className="mb-4 flex items-start gap-4">
-                    <div className={`flex h-12 w-12 items-center justify-center rounded-lg text-2xl ${colors.icon}`}>
-                      {pilar.emoji}
-                    </div>
-                    <div className="flex-1">
-                      <h3 className={`mb-1 font-medium ${colors.text}`}>{pilar.onboardingTitle}</h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{pilar.description}</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {progress}/{totalPillarQuestions}
-                    </span>
-                    <Button
-                      onClick={() => handleStartPillar(pilar.id)}
-                      size="sm"
-                      className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
-                    >
-                      {getPillarActionLabel(pilar.id)}
-                    </Button>
-                  </div>
-                </div>
-
-                {isActive ? (
-                  <div className="mt-4 rounded-lg border-2 border-blue-600 bg-white p-4 shadow-lg dark:bg-gray-800 sm:p-8">
-                    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <h4 className="text-lg font-medium text-gray-900 dark:text-white">
-                        {pilar.emoji} {pilar.onboardingTitle}
-                      </h4>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setActivePillar(null)}
-                        className="w-full sm:w-auto"
-                      >
-                        {diagnosisCopy.close}
-                      </Button>
-                    </div>
-                    <p className="mb-6 text-sm text-gray-600 dark:text-gray-400">
-                      {pilar.onboardingIntro}
-                    </p>
-
-                    <div className="mb-8">
-                      <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {diagnosisCopy.question} {activeQuestionIndex + 1} {diagnosisCopy.of} {totalPillarQuestions}
-                        </span>
-                        <span className="text-sm text-gray-600 dark:text-gray-400">
-                          {formatDiagnosisProgressText(diagnosisCopy.onboarding.answeredProgress, progress, totalPillarQuestions)}
-                        </span>
-                      </div>
-                      {encouragement ? (
-                        <p className="mb-3 text-xs font-medium text-blue-700 dark:text-blue-300">
-                          {encouragement}
-                        </p>
-                      ) : null}
-                      <div className="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
-                        <div
-                          className="h-2 rounded-full bg-blue-600 transition-all duration-300"
-                          style={{ width: `${((activeQuestionIndex + 1) / totalPillarQuestions) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {(() => {
-                      const currentQ = diagnosticoQuestions[pilar.id][activeQuestionIndex];
-                      const selectedAnswer = sectionState[pilar.id].answers[activeQuestionIndex];
-
-                      return (
-                        <div
-                          key={`${pilar.id}-${activeQuestionIndex}`}
-                          className="mb-8 transform-gpu transition-all duration-150 ease-in-out"
-                        >
-                          <p className="mb-6 text-lg font-medium text-gray-900 dark:text-white sm:text-xl">
-                            {activeQuestionIndex + 1}. {currentQ.question}
-                          </p>
-                          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                            {currentQ.options.map((option, optionIndex) => (
-                              <button
-                                key={optionIndex}
-                                type="button"
-                                onClick={() => handleAnswer(pilar.id, activeQuestionIndex, optionIndex)}
-                                aria-pressed={selectedAnswer === optionIndex}
-                                className={`flex items-center justify-between gap-3 rounded-lg border-2 px-4 py-4 text-left text-sm font-medium transition-all duration-150 ease-in-out sm:px-6 sm:text-base ${
-                                  selectedAnswer === optionIndex
-                                    ? 'scale-[1.02] border-blue-600 bg-blue-600 text-white shadow-md'
-                                    : 'border-gray-200 bg-white text-gray-700 hover:scale-[1.01] hover:border-blue-400 hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-blue-900/20'
-                                }`}
-                              >
-                                <span>{option}</span>
-                                {selectedAnswer === optionIndex ? (
-                                  <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
-                                ) : null}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    <div className="flex flex-col-reverse gap-3 border-t border-gray-200 pt-6 dark:border-gray-700 sm:flex-row sm:items-center sm:justify-between">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handlePreviousQuestion}
-                        disabled={activeQuestionIndex === 0}
-                        className="w-full gap-2 sm:w-auto"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                        {diagnosisCopy.previous}
-                      </Button>
-
-                      {activeQuestionIndex < totalPillarQuestions - 1 ? (
-                        <Button
-                          size="sm"
-                          onClick={handleNextQuestion}
-                          className="w-full gap-2 bg-blue-600 hover:bg-blue-700 sm:w-auto"
-                        >
-                          {diagnosisCopy.next}
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      ) : null}
-                    </div>
-
-                    {progress === totalPillarQuestions ? (
-                      <div className="mt-4 space-y-3 text-center">
-                        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300">
-                          {pilar.onboardingDone}
-                        </p>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleRestartPillar(pilar.id)}
-                          className="text-sm"
-                        >
-                          {diagnosisCopy.restart}
-                        </Button>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
+          {!activePillarData ? (
+            <div className="mx-auto max-w-xl text-center">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {diagnosisCopy.questionCountLabel} {diagnosisCopy.questionCount}
+              </p>
+              <Button onClick={handleStartGuidedFlow} className="mt-5 min-h-11 w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto sm:min-w-56">
+                {totalAnswered === 0 ? diagnosisCopy.start : isDiagnosisComplete ? diagnosisCopy.reviewAnswers : diagnosisCopy.continue}
+                <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          ) : activeQuestion ? (
+            <div className="mx-auto max-w-4xl">
+              <div className="mb-5 flex items-center justify-between gap-3 text-sm text-gray-600 dark:text-gray-400">
+                <span>{diagnosisCopy.question} {activeQuestionIndex + 1} {diagnosisCopy.of} {activePillarQuestions.length}</span>
+                <span>{activePillarIndex + 1}/4</span>
               </div>
-            );
-          })}
-        </div>
+              <h3 className="mb-5 text-lg font-medium text-gray-950 dark:text-white sm:text-xl">{activeQuestion.question}</h3>
+              <div className="grid gap-3 md:grid-cols-2">
+                {activeQuestion.options.map((option, optionIndex) => (
+                  <button
+                    key={optionIndex}
+                    type="button"
+                    onClick={() => handleAnswer(activePillarData.id, activeQuestionIndex, optionIndex)}
+                    aria-pressed={activeSelectedAnswer === optionIndex}
+                    className={`flex min-h-14 items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors ${activeSelectedAnswer === optionIndex ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-200 text-gray-700 hover:border-blue-400 hover:bg-blue-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-blue-900/20'}`}
+                  >
+                    <span>{option}</span>
+                    {activeSelectedAnswer === optionIndex ? <CheckCircle2 className="h-5 w-5 shrink-0" /> : null}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-6 flex flex-col-reverse gap-3 border-t border-gray-200 pt-5 dark:border-gray-700 sm:flex-row sm:items-center sm:justify-between">
+                <Button variant="outline" size="sm" onClick={handlePreviousQuestion} disabled={activeQuestionIndex === 0} className="w-full gap-2 sm:w-auto">
+                  <ChevronLeft className="h-4 w-4" /> {diagnosisCopy.previous}
+                </Button>
+                <Button size="sm" onClick={handleGuidedNext} disabled={activeSelectedAnswer === undefined} className="w-full gap-2 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300 sm:w-auto">
+                  {activeQuestionIndex === activePillarQuestions.length - 1 && activePillarIndex === pilares.length - 1 ? diagnosisCopy.close : diagnosisCopy.next}
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </section>
+
+        {isDiagnosisComplete && !activePillarData ? (
+          <BusinessDiagnosisResult locale={currentLanguage.code} report={diagnosisEngineReport} />
+        ) : null}
       </div>
+
+      <IndiceConfirmationDialog
+        busy={isSaving}
+        cancelLabel={currentLanguage.code.startsWith('es') ? 'Cancelar' : 'Cancel'}
+        confirmLabel={currentLanguage.code.startsWith('es') ? 'Reiniciar test' : 'Restart test'}
+        description={currentLanguage.code.startsWith('es') ? 'Conservaremos tu resultado anterior y comenzaremos una nueva versión.' : 'We will preserve your previous result and begin a new version.'}
+        icon={<RotateCcw className="h-5 w-5" />}
+        onCancel={() => setRestartConfirmationOpen(false)}
+        onConfirm={() => void handleRestartDiagnosis()}
+        open={restartConfirmationOpen}
+        title={currentLanguage.code.startsWith('es') ? '¿Reiniciar diagnóstico?' : 'Restart diagnosis?'}
+        tone="blue"
+      />
 
       <BusinessDiagnosisPrintPortal
         job={printJob}

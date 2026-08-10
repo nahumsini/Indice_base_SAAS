@@ -9,15 +9,6 @@ public final class ConfigCenterUserMutationGuard {
 
     private static final Set<String> PROTECTED_ROLES = Set.of("root", "superadmin");
     private static final Set<String> ADMIN_ASSIGNABLE_ROLES = Set.of("admin", "user");
-    private static final Set<String> USER_SELF_SERVICE_SCOPES = Set.of(
-        "config_center.profile",
-        "config_center.personal-performance",
-        "human_resources.attendance",
-        "human_resources.control",
-        "human_resources.announcements",
-        "human_resources.assets",
-        "human_resources.permissions"
-    );
 
     public void validateInvite(ActorAccess actor, String targetRole, Map<String, Object> payload, List<String> moduleSlugs,
         List<String> tabPermissionKeys, AccessScope scope, boolean hasTabPermissionPayload) {
@@ -48,21 +39,15 @@ public final class ConfigCenterUserMutationGuard {
             return;
         }
         for (var permissionKey : tabPermissionKeys == null ? List.<String>of() : tabPermissionKeys) {
-            if (ConfigCenterTabPermissionCatalog.isProtectedScope(permissionKey)) {
-                throw new IllegalArgumentException("Protected tab permissions can only be assigned to Super Admin.");
-            }
-            if ("user".equals(normalizeRole(targetRole)) && isAdministrativeSelfServiceModule(permissionKey)
-                && !USER_SELF_SERVICE_SCOPES.contains(permissionKey)) {
+            if (!ConfigCenterTabPermissionCatalog.isRoleCompatible(permissionKey, targetRole)) {
+                if (ConfigCenterTabPermissionCatalog.isProtectedScope(permissionKey)) {
+                    throw new IllegalArgumentException("Protected tab permissions can only be assigned to Super Admin.");
+                }
                 throw new IllegalArgumentException(
                     "User role cannot receive administrative Panel Inicial or HR permissions. Choose Admin for management access."
                 );
             }
         }
-    }
-
-    private boolean isAdministrativeSelfServiceModule(String permissionKey) {
-        return permissionKey != null
-            && (permissionKey.startsWith("config_center.") || permissionKey.startsWith("human_resources."));
     }
 
     private void ensureAccessPayload(Map<String, Object> payload, List<String> moduleSlugs, boolean hasTabPermissionPayload) {

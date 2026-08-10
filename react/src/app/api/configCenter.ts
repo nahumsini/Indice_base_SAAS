@@ -166,6 +166,27 @@ export interface ConfigCenterCatalogTab {
   name: string;
   name_en?: string;
   name_es?: string;
+  description_en?: string;
+  description_es?: string;
+  access_level?: 'personal' | 'self_service' | 'operational' | 'management' | 'protected';
+  compatible_roles?: Array<'user' | 'admin' | 'superadmin'>;
+  role_access?: Partial<Record<'user' | 'admin' | 'superadmin', {
+    allowed: boolean;
+    summary_en?: string;
+    summary_es?: string;
+    capability_keys?: Array<
+      | 'view'
+      | 'personal_use'
+      | 'operate_scope'
+      | 'manage_scope'
+      | 'manage_company'
+      | 'delegate_owned'
+      | 'delegate_access'
+      | 'protected_access'
+    >;
+    restriction_reason_en?: string;
+    restriction_reason_es?: string;
+  }>>;
   module_order?: number;
   tab_order?: number;
   protected_scope?: boolean;

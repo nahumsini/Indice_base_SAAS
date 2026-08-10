@@ -7,6 +7,7 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -79,6 +80,20 @@ public class PersonalPerformanceApiController {
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
+    }
+
+    @PostMapping("/me/restart")
+    public ResponseEntity<?> restartPersonalPerformance(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
+    ) {
+        var currentUser = sessionAuthService.currentUser(session);
+        if (currentUser.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) return csrfFailure;
+        return ResponseEntity.ok(personalPerformanceService.restartPersonalPerformance(
+            currentUser.get().userId(), currentUser.get().companyId()
+        ));
     }
 
     private ResponseEntity<?> requireCsrf(HttpSession session, String csrfToken) {

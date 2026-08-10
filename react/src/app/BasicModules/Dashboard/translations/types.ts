@@ -10,6 +10,14 @@ export type PanelInicialLocale =
 
 export interface PanelInicialShellTranslations {
   subtitle: string;
+  tabDescriptions: {
+    profile: string;
+    businessStructure: string;
+    businessProfile: string;
+    personalPerformance: string;
+    consulting: string;
+    users: string;
+  };
   loadingTabTitle: string;
   loadingTabDescription: string;
   downloadingTabDescription: string;

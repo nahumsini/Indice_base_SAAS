@@ -2,6 +2,14 @@ import type { PanelInicialShellTranslations } from './types';
 
 export const koCA: PanelInicialShellTranslations = {
   subtitle: '프로필, 회사 구조, 사용자 및 운영 환경설정을 구성합니다.',
+  tabDescriptions: {
+    profile: '개인 정보 및 보안',
+    businessStructure: '영역, 직책 및 조직',
+    businessProfile: '기업 정체성 및 진단',
+    consulting: '컨설팅 일정 및 진행 확인',
+    personalPerformance: '개인 목표 및 성과',
+    users: '접근 권한, 역할 및 권한',
+  },
   loadingTabTitle: '초기 패널 탭 로드 중',
   loadingTabDescription: '선택한 구성 작업공간을 여는 중입니다.',
   downloadingTabDescription: '선택한 구성 작업공간만 다운로드하는 중입니다.',

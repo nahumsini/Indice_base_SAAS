@@ -19,6 +19,7 @@ const tabEmojiMap: Record<PanelInicialGuidanceTabId, string> = {
   profile: '👤',
   'business-structure': '🏢',
   'business-profile': '📊',
+  consulting: '🤝',
   'personal-performance': '📈',
   users: '👥',
 };

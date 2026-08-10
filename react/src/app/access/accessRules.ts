@@ -4,9 +4,8 @@ export type HomePanelTabId =
   | 'profile'
   | 'business-structure'
   | 'business-profile'
-  | 'personal-performance'
-  | 'users'
-  | 'plan';
+  | 'consulting'
+  | 'users';
 
 export type HumanResourcesTabId =
   | 'collaborators'
@@ -27,7 +26,7 @@ export type TabPermissionKey =
 const ADMIN_ROLES = new Set(['root', 'superadmin', 'admin', 'owner', 'dueno']);
 const HR_MANAGEMENT_ROLES = new Set(['root', 'superadmin', 'admin', 'owner', 'dueno', 'manager', 'approver']);
 const UNRESTRICTED_TAB_ROLES = new Set(['root', 'superadmin']);
-const PERSONAL_HOME_PANEL_TABS = new Set<HomePanelTabId>(['profile', 'personal-performance']);
+const PERSONAL_HOME_PANEL_TABS = new Set<HomePanelTabId>(['profile']);
 const PERSONAL_HR_TABS = new Set<HumanResourcesTabId>([
   'attendance',
   'control',
@@ -76,7 +75,7 @@ export const canAccessHomePanelTab = (
   if (hasUnrestrictedTabAccess(role)) {
     return true;
   }
-  const roleAllowsTab = tabId !== 'plan' && (isAdminAccessRole(role) || PERSONAL_HOME_PANEL_TABS.has(tabId));
+  const roleAllowsTab = isAdminAccessRole(role) || PERSONAL_HOME_PANEL_TABS.has(tabId);
   if (tabPermissionsConfigured) {
     return roleAllowsTab && (tabPermissionKeys ?? []).includes(homePanelTabPermissionKey(tabId));
   }

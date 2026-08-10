@@ -89,7 +89,6 @@ class HrFirstRunIntegrationTest {
         "profile",
         "business-structure",
         "business-profile",
-        "personal-performance",
         "users"
     );
 

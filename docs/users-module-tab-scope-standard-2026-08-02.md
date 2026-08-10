@@ -2,7 +2,7 @@
 
 ## Estado
 
-Implementación terminada para convertir las pestañas visibles del sistema en permisos reales y persistentes. El catálogo canónico contiene 54 scopes de pestaña distribuidos en 10 módulos con navegación operativa.
+Implementación terminada para convertir las pestañas visibles del sistema en permisos reales y persistentes. El catálogo canónico contiene 53 scopes de pestaña distribuidos en 10 módulos con navegación operativa.
 
 El permiso de módulo sigue siendo el primer candado. El scope de pestaña es el segundo. Para entrar o consumir una API protegida deben cumplirse ambos.
 
@@ -20,6 +20,8 @@ empresa activa
 - `tab_key` identifica una pestaña estable dentro del módulo.
 - `module_slug.tab_key` es la llave canónica que intercambian frontend y backend.
 - `can_view = 1` habilita la superficie; `can_view = 0` la conserva explícitamente revocada.
+- Cada entrada del catálogo declara `description_en`, `description_es`, `access_level`, `compatible_roles` y `role_access`; la UI no mantiene una explicación paralela.
+- `role_access` describe únicamente capacidades que el modelo sí controla: consultar, uso personal, operar dentro del alcance, administrar alcance o empresa, delegar acceso propio y acceso protegido.
 - Root y Super Admin tienen acceso irrestricto, pero Plan permanece marcado como scope protegido para impedir su delegación accidental.
 - Admin puede delegar únicamente módulos, pestañas y alcance organizacional que ya posee.
 - User puede recibir cualquier scope operativo de módulos como Inventarios, Ventas, POS, Gastos, Caja chica, Cartera, Procesos y KPIs.
@@ -29,7 +31,7 @@ empresa activa
 
 | Módulo | `module_slug` | Pestañas / `tab_key` | Total |
 | --- | --- | --- | ---: |
-| Panel Inicial | `config_center` | `profile`, `business-structure`, `business-profile`, `personal-performance`, `users`, `plan` | 6 |
+| Panel Inicial | `config_center` | `profile`, `business-structure`, `business-profile`, `users` | 4 |
 | Recursos Humanos | `human_resources` | `collaborators`, `attendance`, `control`, `payroll`, `announcements`, `assets`, `records`, `permissions`, `incentives`, `kpis` | 10 |
 | Procesos y Tareas | `processes` | `calendar`, `projects`, `processes`, `kpis` | 4 |
 | Gastos | `expenses` | `expenses`, `budgets`, `providers`, `accounting`, `payment-accounts`, `kpis` | 6 |
@@ -39,7 +41,7 @@ empresa activa
 | Inventarios | `inventory` | `products`, `inventory`, `providers`, `purchase-orders` | 4 |
 | Cartera | `receivables` | `credit-sales`, `accounts-receivable`, `payments`, `credit-customers` | 4 |
 | KPIs | `kpis` | `kpis`, `accounting-reports`, `automated-reports` | 3 |
-| Total | 10 módulos | 54 scopes | 54 |
+| Total | 10 módulos | 53 scopes | 53 |
 
 `maintenance` continúa como módulo asignable, pero todavía no declara pestañas navegables; por ello permanece con control a nivel módulo hasta que tenga una superficie funcional definida.
 
@@ -48,7 +50,6 @@ empresa activa
 Dentro de Panel Inicial y Recursos Humanos, User puede recibir únicamente:
 
 - `config_center.profile`
-- `config_center.personal-performance`
 - `human_resources.attendance`
 - `human_resources.control`
 - `human_resources.announcements`
@@ -63,6 +64,8 @@ Fuera de esos dos módulos puede recibir cualquiera de los scopes operativos del
 - Los módulos se muestran plegados para evitar un modal excesivamente largo.
 - Existe búsqueda por nombre de módulo o pestaña, conteo por módulo y acciones Todas/Ninguna.
 - Al cambiar el rol se eliminan del borrador los scopes incompatibles.
+- El selector muestra un resumen del rol y alcance elegidos, la función de cada pestaña, sus capacidades efectivas y el motivo de cualquier restricción.
+- Las pestañas incompatibles permanecen visibles como contexto, pero bloqueadas; esto permite entender qué cambia al elegir otro rol sin conceder el permiso.
 - La navegación compartida oculta pestañas sin permiso.
 - Una URL directa a una pestaña denegada redirige a la primera pestaña permitida del módulo; si el usuario no tiene ninguna, regresa al dashboard.
 - Panel Inicial, Recursos Humanos y KPIs conservan sus restricciones específicas además del guard compartido.
@@ -96,6 +99,7 @@ Las tablas rectoras continúan siendo:
 Toda pestaña nueva debe incorporarse en una sola entrega a:
 
 1. `ConfigCenterTabPermissionCatalog` con nombres en inglés y español;
+   también debe incluir descripción funcional y clasificación de acceso por rol;
 2. `MODULE_TAB_SCOPE_CATALOG` con la relación entre ruta frontend y llave canónica;
 3. una migración que cree la fila faltante para usuarios e invitaciones existentes;
 4. `TabPermissionRouteClassifier` para las APIs propietarias o dependencias compartidas;
@@ -105,7 +109,7 @@ No debe publicarse una pestaña que solo esté oculta visualmente. El backend de
 
 ## Validación
 
-- catálogo: 54 scopes únicos y 10 módulos;
+- catálogo: 53 scopes únicos y 10 módulos;
 - compatibilidad de rol, techo de Admin y protección de Plan cubiertos por pruebas;
 - clasificación de rutas privadas y exclusión de rutas públicas cubiertas por pruebas;
 - migración V158 aplicada desde cero y revalidada sin sobrescribir permisos existentes;

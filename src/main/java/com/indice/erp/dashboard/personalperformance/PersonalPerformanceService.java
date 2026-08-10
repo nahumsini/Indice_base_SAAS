@@ -48,7 +48,7 @@ public class PersonalPerformanceService {
     }
 
     public Map<String, Object> getPersonalPerformance(long userId, long companyId) {
-        var profile = loadProfileByUserId(userId);
+        var profile = loadProfile(companyId, userId);
         if (profile == null) {
             return buildResponse(new ProfileRow(null, userId, companyId, 1, "draft", null, null), Map.of());
         }
@@ -58,7 +58,7 @@ public class PersonalPerformanceService {
 
     @Transactional
     public Map<String, Object> savePersonalPerformance(long userId, long companyId, Map<String, Object> payload) {
-        var profile = loadProfileByUserId(userId);
+        var profile = loadProfile(companyId, userId);
         var profileId = profile == null ? createProfile(userId, companyId) : profile.id();
         var now = LocalDateTime.now();
 
@@ -89,25 +89,24 @@ public class PersonalPerformanceService {
         return buildResponse(savedProfile, savedSections);
     }
 
-    private ProfileRow loadProfileByUserId(long userId) {
+    @Transactional
+    public Map<String, Object> restartPersonalPerformance(long userId, long companyId) {
+        var current = loadProfile(companyId, userId);
+        var nextVersion = current == null ? 1 : current.version() + 1;
+        var profileId = createProfile(userId, companyId, nextVersion);
+        return buildResponse(loadProfileById(profileId), Map.of());
+    }
+
+    private ProfileRow loadProfile(long companyId, long userId) {
         var rows = jdbcTemplate.query(
             """
                 SELECT id, user_id, company_id, version, status, started_at, completed_at
                 FROM user_personal_performance_profiles
-                WHERE user_id = ?
+                WHERE company_id = ? AND user_id = ?
                 ORDER BY version DESC, id DESC
                 LIMIT 1
                 """,
-            (rs, rowNum) -> new ProfileRow(
-                rs.getLong("id"),
-                rs.getLong("user_id"),
-                rs.getLong("company_id"),
-                rs.getInt("version"),
-                safe(rs.getString("status"), "draft"),
-                toLocalDateTime(rs.getTimestamp("started_at")),
-                toLocalDateTime(rs.getTimestamp("completed_at"))
-            ),
-            userId
+            (rs, rowNum) -> mapProfile(rs), companyId, userId
         );
 
         return rows.isEmpty() ? null : rows.getFirst();
@@ -136,7 +135,17 @@ public class PersonalPerformanceService {
         return rows.isEmpty() ? null : rows.getFirst();
     }
 
+    private ProfileRow mapProfile(java.sql.ResultSet rs) throws java.sql.SQLException {
+        return new ProfileRow(rs.getLong("id"), rs.getLong("user_id"), rs.getLong("company_id"),
+            rs.getInt("version"), safe(rs.getString("status"), "draft"),
+            toLocalDateTime(rs.getTimestamp("started_at")), toLocalDateTime(rs.getTimestamp("completed_at")));
+    }
+
     private long createProfile(long userId, long companyId) {
+        return createProfile(userId, companyId, 1);
+    }
+
+    private long createProfile(long userId, long companyId, int version) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         var now = LocalDateTime.now();
         jdbcTemplate.update(connection -> {
@@ -144,13 +153,14 @@ public class PersonalPerformanceService {
                 """
                     INSERT INTO user_personal_performance_profiles
                     (user_id, company_id, version, status, started_at)
-                    VALUES (?, ?, 1, 'draft', ?)
+                    VALUES (?, ?, ?, 'draft', ?)
                     """,
                 new String[] {"id"}
             );
             statement.setLong(1, userId);
             statement.setLong(2, companyId);
-            statement.setObject(3, now);
+            statement.setInt(3, version);
+            statement.setObject(4, now);
             return statement;
         }, keyHolder);
 
@@ -251,6 +261,11 @@ public class PersonalPerformanceService {
         var response = new LinkedHashMap<String, Object>();
         response.put("profile", profileMap);
         response.put("sections", sectionsMap);
+        var completedCount = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM user_personal_performance_profiles WHERE company_id = ? AND user_id = ? AND status = 'completed'",
+            Long.class, profile.companyId(), profile.userId()
+        );
+        response.put("has_completed_history", completedCount != null && completedCount > 0);
         return response;
     }
 

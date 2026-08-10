@@ -13,9 +13,8 @@ export const MODULE_TAB_SCOPE_CATALOG: Partial<Record<PageId, TabScopeDefinition
       profile: 'profile',
       'business-structure': 'business-structure',
       'business-profile': 'business-profile',
-      'personal-performance': 'personal-performance',
+      consulting: 'consulting',
       users: 'users',
-      plan: 'plan',
     },
   },
   'human-resources': {
@@ -108,11 +107,10 @@ export const MODULE_TAB_SCOPE_CATALOG: Partial<Record<PageId, TabScopeDefinition
 const UNRESTRICTED_ROLES = new Set(['root', 'superadmin']);
 const ADMIN_ROLES = new Set(['root', 'superadmin', 'admin', 'owner', 'dueno']);
 const HR_MANAGEMENT_ROLES = new Set(['root', 'superadmin', 'admin', 'owner', 'dueno', 'manager', 'approver']);
-const PERSONAL_HOME_TABS = new Set(['profile', 'personal-performance']);
+const PERSONAL_HOME_TABS = new Set(['profile']);
 const PERSONAL_HR_TABS = new Set(['attendance', 'control', 'announcements', 'assets', 'permissions']);
 const USER_SELF_SERVICE_SCOPES = new Set([
   'config_center.profile',
-  'config_center.personal-performance',
   'human_resources.attendance',
   'human_resources.control',
   'human_resources.announcements',
@@ -164,16 +162,12 @@ export function allowedModuleTabIds(
   return tabIds.filter((tabId) => canAccessModuleTab(page, tabId, session));
 }
 
-export function isProtectedTabScope(permissionKey: string) {
-  return permissionKey === 'config_center.plan';
-}
-
 export function isTabScopeAssignableToRole(permissionKey: string, role: string | null | undefined) {
   const normalizedRole = normalizeTabScopeRole(role);
   if (UNRESTRICTED_ROLES.has(normalizedRole)) {
     return true;
   }
-  if (isProtectedTabScope(permissionKey)) {
+  if (permissionKey === 'config_center.plan') {
     return false;
   }
   if (normalizedRole !== 'user') {

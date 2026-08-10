@@ -18,6 +18,7 @@ import {
   FileClock,
   Gift,
   HardDrive,
+  Handshake,
   KeyRound,
   LayoutDashboard,
   LoaderCircle,
@@ -33,6 +34,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { IndiceBrandLogo } from '../Auth/components/IndiceBrandLogo';
+import ConsultingAdminTab from './ConsultingAdminTab';
 import {
   platformAdminApi,
   type BenefitPayload,
@@ -51,7 +53,7 @@ import {
   type PlatformOverview,
 } from '../api/platformAdmin';
 
-type AdminTab = 'overview' | 'customers' | 'billing' | 'catalog' | 'modules' | 'courtesy' | 'audit';
+type AdminTab = 'overview' | 'customers' | 'billing' | 'catalog' | 'modules' | 'consulting' | 'courtesy' | 'audit';
 type Revocation = { kind: 'benefit' | 'courtesy'; reference: string } | null;
 type ModuleAvailabilityChange = { module: PlatformModule; active: boolean } | null;
 
@@ -86,6 +88,7 @@ const tabs: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'billing', label: 'Facturación', icon: CreditCard },
   { id: 'catalog', label: 'Productos y precios', icon: CircleDollarSign },
   { id: 'modules', label: 'Módulos', icon: Boxes },
+  { id: 'consulting', label: 'Consultorías', icon: Handshake },
   { id: 'courtesy', label: 'Cortesías', icon: Gift },
   { id: 'audit', label: 'Auditoría', icon: ClipboardList },
 ];
@@ -334,6 +337,7 @@ export default function PlatformAdminPage() {
             {activeTab === 'billing' ? <BillingTab data={billing} onOpenCompany={openCompany} /> : null}
             {activeTab === 'catalog' ? <CatalogTab data={catalog} /> : null}
             {activeTab === 'modules' ? <ModulesTab data={moduleRegistry} canManage={Boolean(context?.can_manage_modules)} saving={saving} onChange={setModuleChange} /> : null}
+            {activeTab === 'consulting' ? <ConsultingAdminTab canManage={Boolean(context?.can_manage_consulting)} /> : null}
             {activeTab === 'courtesy' ? (
               <CourtesyTab context={context} catalog={courtesyCatalog} value={courtesy} createdCode={createdCourtesyCode} saving={saving} onChange={setCourtesy} onSubmit={submitCourtesyCode} onRevoke={(reference) => setRevocation({ kind: 'courtesy', reference })} />
             ) : null}

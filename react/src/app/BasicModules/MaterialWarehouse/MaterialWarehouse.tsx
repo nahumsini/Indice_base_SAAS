@@ -11,7 +11,7 @@ const tabs = [
   { id: 'materials', label: 'Material inventory', icon: '📦' }, { id: 'receipts', label: 'Receipts', icon: '📥' }, { id: 'providers', label: 'Providers', icon: '🏢' }, { id: 'requests', label: 'Production requests', icon: '📋' }, { id: 'fulfillments', label: 'Production fulfillments', icon: '🚚' }, { id: 'movements', label: 'Movements', icon: '↔️' }, { id: 'kpis', label: 'KPIs', icon: '📈' },
 ] as const;
 
-export default function MaterialWarehouse() {
+export default function MaterialWarehouse({ onNavigate: _onNavigate }: { onNavigate?: (page?: string) => void }) {
   const contentRef = useRef<HTMLDivElement>(null);
   const { activeTab, setActiveTab } = useRoutedModuleTab<MaterialTabId>('materials', tabIds, {});
   const content = useMemo(() => {

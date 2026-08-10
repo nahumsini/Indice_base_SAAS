@@ -61,6 +61,17 @@ export const frCA = {
         },
       ],
     },
+    consulting: {
+      label: 'Conseil',
+      ctaLabel: 'Planifier une séance',
+      title: 'Transformez un défi en conversation ciblée',
+      summary: "Demandez une séance de 50 minutes avec l’équipe Indice et partagez le contexte avant la rencontre.",
+      value: 'Une demande claire facilite la confirmation et permet de préparer la décision à travailler.',
+      steps: [
+        { title: 'Choisir une heure', description: 'Proposez une heure préférée et une autre option pendant les heures ouvrables.' },
+        { title: 'Partager le contexte', description: 'Sélectionnez le sujet et décrivez le défi ou la décision.' },
+      ],
+    },
     'personal-performance': {
       label: 'Performance personnelle',
       ctaLabel: 'Évaluer la performance',

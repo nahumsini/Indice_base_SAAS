@@ -2,6 +2,14 @@ import type { PanelInicialShellTranslations } from './types';
 
 export const enCA: PanelInicialShellTranslations = {
   subtitle: 'Configure your profile, company structure, users, and operating preferences.',
+  tabDescriptions: {
+    profile: 'Personal details and security',
+    businessStructure: 'Areas, roles, and organization',
+    businessProfile: 'Business identity and diagnosis',
+    consulting: 'Schedule and track consulting sessions',
+    personalPerformance: 'Personal goals and performance',
+    users: 'Access, roles, and permissions',
+  },
   loadingTabTitle: 'Loading Home Panel tab',
   loadingTabDescription: 'Opening the selected configuration workspace.',
   downloadingTabDescription: 'Downloading only the selected configuration workspace.',

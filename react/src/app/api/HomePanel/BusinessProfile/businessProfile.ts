@@ -35,6 +35,7 @@ export interface BusinessProfileRecord {
 export interface BusinessProfileResponse {
   profile: BusinessProfileRecord;
   sections: Record<BusinessProfileSectionKey, BusinessProfileSection>;
+  has_completed_history?: boolean;
 }
 
 export interface SaveBusinessProfileSectionPayload {
@@ -57,6 +58,13 @@ export const businessProfileApi = {
       method: 'PUT',
       csrf: true,
       body: JSON.stringify(payload),
+    });
+  },
+
+  restartBusinessProfile() {
+    return apiClient<BusinessProfileResponse>(`${businessProfileEndpoint}/restart`, {
+      method: 'POST',
+      csrf: true,
     });
   },
 };

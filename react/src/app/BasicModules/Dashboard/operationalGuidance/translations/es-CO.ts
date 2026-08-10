@@ -61,6 +61,17 @@ export const esCO = {
         },
       ],
     },
+    consulting: {
+      label: 'Consultoría',
+      ctaLabel: 'Agendar sesión',
+      title: 'Convierte un reto en una conversación enfocada',
+      summary: 'Solicita una sesión de 50 minutos con el equipo de Índice y comparte el contexto antes de la reunión.',
+      value: 'Una solicitud clara facilita confirmar el horario y permite preparar la sesión alrededor de la decisión que necesitas tomar.',
+      steps: [
+        { title: 'Elige horario', description: 'Propón un horario preferente y, si quieres, una alternativa dentro de horario hábil.' },
+        { title: 'Comparte el contexto', description: 'Selecciona el tema y describe el reto o la decisión que quieres trabajar.' },
+      ],
+    },
     'personal-performance': {
       label: 'Desempeño personal',
       ctaLabel: 'Evaluar desempeño',

@@ -42,8 +42,8 @@ public class BusinessProfileService {
         this.objectMapper = objectMapper;
     }
 
-    public Map<String, Object> getBusinessProfile(long companyId) {
-        var profile = loadProfileByCompanyId(companyId);
+    public Map<String, Object> getBusinessProfile(long companyId, long userId) {
+        var profile = loadProfile(companyId);
         if (profile == null) {
             return buildResponse(new ProfileRow(null, companyId, 1, "draft", null, null), Map.of());
         }
@@ -53,7 +53,7 @@ public class BusinessProfileService {
 
     @Transactional
     public Map<String, Object> saveBusinessProfile(long companyId, long userId, Map<String, Object> payload) {
-        var profile = loadProfileByCompanyId(companyId);
+        var profile = loadProfile(companyId);
         var profileId = profile == null ? createProfile(companyId, userId) : profile.id();
         var now = LocalDateTime.now();
 
@@ -84,7 +84,15 @@ public class BusinessProfileService {
         return buildResponse(savedProfile, savedSections);
     }
 
-    private ProfileRow loadProfileByCompanyId(long companyId) {
+    @Transactional
+    public Map<String, Object> restartBusinessProfile(long companyId, long userId) {
+        var current = loadProfile(companyId);
+        var nextVersion = current == null ? 1 : current.version() + 1;
+        var profileId = createProfile(companyId, userId, nextVersion);
+        return buildResponse(loadProfileById(profileId), Map.of());
+    }
+
+    private ProfileRow loadProfile(long companyId) {
         var rows = jdbcTemplate.query(
             """
                 SELECT id, company_id, version, status, started_at, completed_at
@@ -130,6 +138,10 @@ public class BusinessProfileService {
     }
 
     private long createProfile(long companyId, long userId) {
+        return createProfile(companyId, userId, 1);
+    }
+
+    private long createProfile(long companyId, long userId, int version) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         var now = LocalDateTime.now();
         jdbcTemplate.update(connection -> {
@@ -137,14 +149,15 @@ public class BusinessProfileService {
                 """
                     INSERT INTO company_business_profiles
                     (company_id, version, status, started_at, created_by, updated_by)
-                    VALUES (?, 1, 'draft', ?, ?, ?)
+                    VALUES (?, ?, 'draft', ?, ?, ?)
                     """,
                 new String[] {"id"}
             );
             statement.setLong(1, companyId);
-            statement.setObject(2, now);
-            statement.setLong(3, userId);
+            statement.setInt(2, version);
+            statement.setObject(3, now);
             statement.setLong(4, userId);
+            statement.setLong(5, userId);
             return statement;
         }, keyHolder);
 
@@ -244,6 +257,12 @@ public class BusinessProfileService {
         var response = new LinkedHashMap<String, Object>();
         response.put("profile", profileMap);
         response.put("sections", sectionsMap);
+        var completedCount = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM company_business_profiles WHERE company_id = ? AND status = 'completed'",
+            Long.class,
+            profile.companyId()
+        );
+        response.put("has_completed_history", completedCount != null && completedCount > 0);
         return response;
     }
 

@@ -2,6 +2,14 @@ import type { PanelInicialShellTranslations } from './types';
 
 export const zhCA: PanelInicialShellTranslations = {
   subtitle: '配置个人资料、企业结构、用户和运营偏好。',
+  tabDescriptions: {
+    profile: '个人资料与安全',
+    businessStructure: '部门、职位与组织',
+    businessProfile: '企业身份与诊断',
+    consulting: '咨询预约与跟进',
+    personalPerformance: '个人目标与绩效',
+    users: '访问、角色与权限',
+  },
   loadingTabTitle: '正在加载初始面板标签页',
   loadingTabDescription: '正在打开所选配置工作区。',
   downloadingTabDescription: '正在仅下载所选配置工作区。',

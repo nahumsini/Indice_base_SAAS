@@ -20,7 +20,7 @@ const copy: Record<ProductionTabId, { title: string; description: string; action
   kpis: { title: 'Production KPIs', description: 'Monitor planned output, active lots, waste, quality, and production readiness.', action: 'View details' },
 };
 
-export default function ProductionModule() {
+export default function ProductionModule({ onNavigate: _onNavigate }: { onNavigate?: (page?: string) => void }) {
   const contentRef = useRef<HTMLDivElement>(null);
   const { activeTab, setActiveTab } = useRoutedModuleTab<ProductionTabId>('prototypes', tabIds, {});
   const tabCopy = useMemo(() => copy[activeTab], [activeTab]);

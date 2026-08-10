@@ -32,22 +32,6 @@ export const panelInicialLearningControls: Record<
 > = {
   profile: [
     createControl({
-      id: 'view-plan',
-      emoji: '💳',
-      kind: 'Botón de acción',
-      title: 'Ver plan',
-      purpose: 'Abre la información del plan contratado y las capacidades disponibles para la cuenta.',
-      behavior: 'Te lleva a la vista del plan sin perder los cambios que ya fueron guardados en el perfil.',
-      whenToUse: 'Úsalo cuando necesites confirmar límites, funciones disponibles o condiciones de la suscripción.',
-      result: 'Evita planear una configuración con herramientas que todavía no están habilitadas.',
-      focus: 'la relación entre el plan y las necesidades reales del negocio',
-      examples: {
-        emily: 'Emily revisa el plan antes de preparar la apertura de otra cafetería. Confirma cuántos responsables puede incorporar y evita prometer una configuración que todavía no ha contratado.',
-        juanito: 'Juanito compara el costo del plan con las funciones que realmente usa en sus supermercados. Así decide con números, pero tomando en cuenta también las necesidades del equipo.',
-        camila: 'Camila consulta el plan antes de invitar a más familiares y vendedores. Entiende qué está incluido y organiza el crecimiento sin depender de suposiciones.',
-      },
-    }),
-    createControl({
       id: 'profile-photo',
       emoji: '📷',
       kind: 'Control del perfil',
@@ -273,6 +257,40 @@ export const panelInicialLearningControls: Record<
         emily: 'Emily comparte el reporte con sus gerentes y convierte cada riesgo en una iniciativa para la siguiente etapa de expansión.',
         juanito: 'Juanito compara el reporte actual con revisiones anteriores. Observa si las mejoras operativas acompañan el crecimiento de sus números.',
         camila: 'Camila revisa el diagnóstico impreso con su familia. Las conversaciones dejan de depender de opiniones aisladas y se enfocan en prioridades visibles.',
+      },
+    }),
+  ],
+  consulting: [
+    createControl({
+      id: 'consulting-time-request',
+      emoji: '📅',
+      kind: 'Agenda de consultoría',
+      title: 'Horario preferente y alternativa',
+      purpose: 'Propone dos horarios posibles para coordinar una sesión de 50 minutos con el equipo de Índice.',
+      behavior: 'Registra la fecha, hora y zona horaria; el equipo confirma por correo el espacio definitivo.',
+      whenToUse: 'Úsalo cuando tengas un reto concreto o una decisión que requiera acompañamiento.',
+      result: 'Evita intercambios innecesarios y conserva la solicitud visible dentro de la cuenta.',
+      focus: 'la coordinación de la sesión de consultoría',
+      examples: {
+        emily: 'Emily propone dos horarios en los que puede participar su responsable de operación y recibe una confirmación clara para preparar la sesión.',
+        juanito: 'Juanito registra su zona horaria y evita confundir la hora de la reunión cuando viaja entre ubicaciones.',
+        camila: 'Camila elige un horario sin interrumpir la atención de la refaccionaria y conserva la solicitud dentro del sistema.',
+      },
+    }),
+    createControl({
+      id: 'consulting-context',
+      emoji: '🧭',
+      kind: 'Preparación de la sesión',
+      title: 'Tema y contexto',
+      purpose: 'Explica el reto, la decisión o el resultado que necesitas trabajar durante la consultoría.',
+      behavior: 'Envía el tema y las notas junto con tus datos de contacto al equipo consultor.',
+      whenToUse: 'Complétalo antes de solicitar la sesión para que la conversación empiece con contexto suficiente.',
+      result: 'Permite dedicar los 50 minutos a tomar decisiones y no a reconstruir información básica.',
+      focus: 'la preparación del objetivo de consultoría',
+      examples: {
+        emily: 'Emily describe la inconsistencia entre sucursales para que el consultor prepare preguntas sobre estandarización.',
+        juanito: 'Juanito indica el indicador que quiere corregir y lleva la conversación directamente a causas y acciones.',
+        camila: 'Camila explica el acuerdo familiar que necesita formalizar y llega a la sesión con una decisión concreta por resolver.',
       },
     }),
   ],

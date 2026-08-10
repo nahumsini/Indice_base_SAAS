@@ -98,7 +98,7 @@ class BusinessProfileApiControllerTest {
         response.put("sections", Map.of());
 
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
-        given(businessProfileService.getBusinessProfile(7L)).willReturn(response);
+        given(businessProfileService.getBusinessProfile(7L, 1L)).willReturn(response);
 
         mockMvc.perform(get("/api/v1/dashboard/business-profile")
                 .header("X-CSRF-Token", "csrf-token"))
@@ -106,7 +106,7 @@ class BusinessProfileApiControllerTest {
             .andExpect(jsonPath("$.profile.company_id").value(7));
 
         verify(sessionCsrfService).requireCsrf(any(), eq("csrf-token"));
-        verify(businessProfileService).getBusinessProfile(7L);
+        verify(businessProfileService).getBusinessProfile(7L, 1L);
     }
 
     @Test
