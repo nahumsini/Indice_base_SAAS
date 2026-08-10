@@ -164,4 +164,22 @@ export const zhCA = {
     responsibleFailure: '无法更新负责人。',
     responsibleTimeout: '负责人更新耗时过长。请检查连接后重试。',
   },
+  workspace: {
+    focus: '范围', period: '期间', mine: '我的任务', delegated: '我委派的任务', team: '可见团队', allPeriod: '全部',
+    today: '今天', tomorrow: '明天', yesterday: '昨天', week: '周', month: '月', view: '查看详情', attachments: '凭证',
+    filters: '筛选', filtersDescription: '选择要查看的任务，变更会立即应用。', applyFilters: '查看任务', clearFilters: '重置',
+    evidenceHint: '照片或文件，最多 5 个凭证。', createdEvidenceTitle: '初始凭证', createdEvidenceBody: '附加照片、PDF 或文件，让任务从一开始就有完整背景。',
+    takePhoto: '拍照', chooseFile: '选择文件', taskDetails: '任务信息', close: '关闭',
+  },
+  admin: {
+    errors: { sessionExpired: '会话已过期。请重新登录后再试。', forbidden: '当前会话无权管理任务自助终端。', save: '无法保存自助终端。请检查必填字段后重试。', required: '名称、内部标识、单位和业务均为必填项。', securityLoad: '无法加载自助终端安全信息。', employeeId: '请输入有效的员工 ID。', grant: '无法授予访问权限。', revoke: '无法移除访问权限。' },
+    context: { selectedBusiness: (name: string) => `${name}。每位员工仍只能看到分配给自己的未完成任务。`, selectedUnit: (name: string) => `${name}。每位员工仍只能看到分配给自己的未完成任务。`, businessFallback: '已选业务', unitFallback: '已选单位', required: '请选择单位和业务，以设定自助终端的必需范围。' },
+    center: { closeLabel: '关闭自助终端中心', description: '管理日常访问，让团队可通过手机完成已分配任务。', close: '关闭', summary: (active: number, links: number) => `${active} 个启用 · ${links} 个链接已签发`, title: '任务自助终端中心', accessTitle: '现场工作访问点', accessDescription: '每个链接都会打开带 PIN 的公开页面，不会暴露完整 ERP。', create: '创建自助终端', total: '自助终端总数', active: '启用', issued: '已签发链接', expires: (value: string) => `${value} 到期`, linkAvailable: '链接现可使用', linkProtected: '受保护链接', linkMissing: '链接未签发', edit: '编辑', open: '打开自助终端', share: '分享并管理链接', more: '更多选项', actions: (name: string) => `${name} 的操作`, visibility: '仅显示分配给已识别员工的未完成任务。', emptyTitle: '尚无自助终端', emptyDescription: '创建链接，让团队可在现场完成已分配任务。' },
+    state: { ACTIVE: '启用', DISABLED: '已暂停', EXPIRED: '已过期', REVOKED: '已撤销', DELETED: '已删除' },
+    editor: { closeLabel: '取消编辑', description: '定义访问点的范围和有效期。', cancel: '取消', saving: '保存中…', save: '保存更改', create: '创建自助终端', editTitle: '编辑自助终端', createTitle: '创建自助终端', defaultName: '现场任务访问', name: '名称', namePlaceholder: '仓库任务自助终端', reference: '内部标识', referencePlaceholder: 'warehouse-task-kiosk', unit: '单位', selectUnit: '选择单位', business: '业务', selectBusiness: '选择业务', status: '状态', active: '启用', inactive: '停用', expiration: '可选到期时间', visibility: '安全可见范围' },
+    share: { closeLabel: '关闭链接管理', description: (name: string) => `管理 ${name} 的公开链接。`, fallback: '自助终端公开链接。', close: '关闭', title: '自助终端链接', availableTitle: '本次会话期间链接可用', availableMessage: '你可以打开、复制或生成 QR 码。关闭中心后，完整令牌将因安全原因被隐藏。', open: '打开自助终端', copy: '复制链接', qr: '显示 QR 码', replace: '替换链接', protectedTitle: '链接受保护', unavailableTitle: '链接不可用', protectedMessage: '当前链接仍存在，但完整令牌不会保存且无法恢复。请替换以签发新链接。', unavailableMessage: '请签发新链接以打开、复制或生成自助终端 QR 码。', replaceAndIssue: '替换并签发链接', issue: '签发新链接', terminal: '此自助终端的访问已撤销或过期，不能再签发新链接。' },
+    options: { closeLabel: '关闭选项', description: (name: string) => `管理 ${name} 的状态和历史。`, fallback: '自助终端选项。', close: '关闭', title: '自助终端选项', securityDescription: '查看已授权人员和使用事件。', security: '访问与历史', pauseDescription: '此操作可恢复，并会关闭活动会话。', pause: '暂停访问', reactivateDescription: '允许再次使用当前链接。', reactivate: '重新启用访问', revokeDescription: '此操作不可恢复；如需恢复访问，请创建新的自助终端。', revoke: '永久撤销访问', deleteDescription: '仅删除管理记录，不会删除任务或凭证。', delete: '删除记录' },
+    qr: { closeLabel: '关闭 QR 码', description: (name: string) => `分享 ${name} 的授权访问。`, fallback: '自助终端访问码。', close: '关闭', title: '自助终端 QR 码', alt: (name: string) => `${name} 自助终端 QR 码`, generating: '正在生成安全 QR 码…', note: '此 QR 码包含已签发链接。请仅在授权范围内分享。' },
+    security: { closeLabel: '关闭安全设置', description: (name: string) => `管理谁可使用 ${name} 并查看其活动。`, fallback: '自助终端访问。', close: '关闭', title: '访问与历史', aria: (name: string) => `${name} 安全设置`, heading: '访问与审计', privacy: 'PIN 为个人专用；此自助终端仅用于授予或撤销权限。', closeAria: '关闭安全设置', tabsAria: '安全管理', people: '有权访问的人员', history: '历史', loading: '加载中…', employeeId: '员工 ID', employeePlaceholder: '例如：81', grant: '授予', allCapabilities: '所有功能已启用', confirmRevoke: '确认移除', revoke: '移除访问', revoked: '已撤销', emptyGrants: '尚未登记任何访问权限。', reference: (value: string) => `参考 ${value}`, emptyAudit: '此自助终端尚无审计事件。' },
+  },
 } satisfies TaskKioskTranslations;

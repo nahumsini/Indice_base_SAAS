@@ -222,7 +222,7 @@ function MovementKanbanCard({
         </button>
       </div>
       <div className="mt-3">
-        <MovementFlow movement={movement} />
+        <MovementFlow movement={movement} t={t} />
       </div>
       <div className="mt-3 flex items-center gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-[9px] font-medium text-slate-400">

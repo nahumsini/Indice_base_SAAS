@@ -6,6 +6,8 @@ export const frCA: ProcessesTranslations = {
   ...enCA,
   common: {
     ...enCA.common,
+    previous: 'Précédent',
+    continue: 'Continuer',
     all: 'Tous',
     allFemale: 'Toutes',
     retry: 'Reessayer',

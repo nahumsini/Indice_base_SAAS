@@ -185,7 +185,7 @@ export const koCA: ProjectsTranslations = {
   },
   workspace: {
     header: {
-      eyebrow: 'Selected project',
+      eyebrow: '선택한 프로젝트',
       tasksCount: (count: number) => `${count}개 작업`,
       title: (projectName: string) => `${projectName} 작업`,
       subtitle:
@@ -195,38 +195,38 @@ export const koCA: ProjectsTranslations = {
       createTask: '작업 만들기',
       context: {
         folio: 'Folio',
-        status: 'Status',
-        priority: 'Priority',
-        responsible: 'Responsible',
-        scope: 'Scope',
-        dueDate: 'Due date',
+        status: '상태',
+        priority: '우선순위',
+        responsible: '담당자',
+        scope: '범위',
+        dueDate: '마감일',
       },
       insights: {
-        empty: (projectName: string) => `${projectName} has no tasks yet. Create the first task to start execution.`,
+        empty: (projectName: string) => `${projectName}에 아직 작업이 없습니다. 첫 작업을 만들어 실행을 시작하세요.`,
         overdue: (projectName: string, open: number, overdue: number, progress: number) =>
-          `${projectName} needs attention: ${overdue} overdue tasks, ${open} open tasks, and ${progress}% progress.`,
+          `${projectName}에 주의가 필요합니다. 기한 초과 ${overdue}개, 진행 중 ${open}개, 진행률 ${progress}%입니다.`,
         active: (projectName: string, open: number, completed: number, progress: number) =>
-          `${projectName} is moving: ${open} open tasks, ${completed} completed tasks, and ${progress}% progress.`,
+          `${projectName}가 진행 중입니다. 진행 중 ${open}개, 완료 ${completed}개, 진행률 ${progress}%입니다.`,
         complete: (projectName: string, completed: number, audited: number) =>
-          `${projectName} has ${completed} completed tasks and ${audited} audited tasks ready for review.`,
+          `${projectName}에 완료 작업 ${completed}개와 검토 가능한 감사 완료 작업 ${audited}개가 있습니다.`,
       },
     },
     projectStatuses: {
-      active: 'Active',
-      paused: 'Paused',
-      completed: 'Completed',
-      cancelled: 'Cancelled',
+      active: '활성',
+      paused: '일시 중지',
+      completed: '완료',
+      cancelled: '취소됨',
     },
     projectPriorities: {
-      low: 'Low',
-      medium: 'Medium',
-      high: 'High',
+      low: '낮음',
+      medium: '중간',
+      high: '높음',
     },
     emptyContext: {
-      noPriority: 'No priority',
-      noResponsible: 'Unassigned',
-      noScope: 'No unit or business',
-      noDate: 'No date',
+      noPriority: '우선순위 없음',
+      noResponsible: '미지정',
+      noScope: '단위 또는 사업 없음',
+      noDate: '날짜 없음',
     },
     filters: {
       search: '검색',
@@ -247,12 +247,14 @@ export const koCA: ProjectsTranslations = {
       empty: '이 프로젝트에는 현재 필터와 일치하는 작업이 없습니다.',
     },
     gantt: {
-      taskColumn: 'Task timeline',
-      timelineRange: 'Drag bars to move or adjust dates.',
-      today: 'Today',
+      taskColumn: '작업 일정',
+      timelineRange: '막대를 끌어 날짜를 이동하거나 조정하세요.',
+      today: '오늘',
       duration: (days: number) => `${days}d`,
-      dependsOn: (folio: string) => `Depends on ${folio}`,
-      noPredecessor: 'No predecessor',
+      dependsOn: (folio: string) => `${folio}에 종속`,
+      noPredecessor: '선행 작업 없음',
+      adjustStartDate: '시작일 조정',
+      adjustDueDate: '마감일 조정',
     },
     bulk: {
       selectedLabel: (count: number) => `${count}개 선택됨`,

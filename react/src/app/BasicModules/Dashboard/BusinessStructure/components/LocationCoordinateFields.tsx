@@ -2,8 +2,8 @@ import { Link2, LocateFixed } from 'lucide-react';
 import { useState } from 'react';
 import { configCenterApi } from '../../../../api/configCenter';
 import { Button } from '../../../../components/ui/button';
-import { useLanguage } from '../../../../shared/context';
 import { inputClassName } from '../constants';
+import { useBusinessStructureTranslations } from '../hooks/useBusinessStructureTranslations';
 import type { LocationCoordinateFormValues } from '../types';
 
 interface LocationCoordinateFieldsProps {
@@ -21,8 +21,7 @@ export function LocationCoordinateFields({
   disabled = false,
   requireGoogleMapsLink = false,
 }: LocationCoordinateFieldsProps) {
-  const { t } = useLanguage();
-  const actions = t.panelInicial.structure.actions;
+  const { actions, coordinates } = useBusinessStructureTranslations();
   const [statusMessage, setStatusMessage] = useState('');
   const [statusTone, setStatusTone] = useState<'success' | 'error'>('success');
   const [isExtracting, setIsExtracting] = useState(false);
@@ -35,7 +34,7 @@ export function LocationCoordinateFields({
 
   const handleExtractCoordinates = async () => {
     if (!values.googleMapsUrl.trim()) {
-      showStatus('Paste a Google Maps link first.', 'error');
+      showStatus(coordinates.pasteLinkFirst, 'error');
       return;
     }
 
@@ -53,9 +52,9 @@ export function LocationCoordinateFields({
         coordinateSource: 'google_maps_link',
         googleMapsUrl: response.resolved_url || values.googleMapsUrl.trim(),
       });
-      showStatus('Coordinates extracted.', 'success');
+      showStatus(coordinates.extracted, 'success');
     } catch {
-      showStatus('Could not extract coordinates from that link.', 'error');
+      showStatus(coordinates.extractError, 'error');
     } finally {
       setIsExtracting(false);
     }
@@ -63,7 +62,7 @@ export function LocationCoordinateFields({
 
   const handleUseCurrentLocation = async () => {
     if (!navigator.geolocation) {
-      showStatus('Current location is not available in this browser.', 'error');
+      showStatus(coordinates.unavailable, 'error');
       return;
     }
 
@@ -78,11 +77,11 @@ export function LocationCoordinateFields({
           radiusMeters: values.radiusMeters || '100',
           coordinateSource: 'current_location',
         });
-        showStatus('Current location captured.', 'success');
+        showStatus(coordinates.captured, 'success');
         setIsLocating(false);
       },
       () => {
-        showStatus('Could not read the current location.', 'error');
+        showStatus(coordinates.readError, 'error');
         setIsLocating(false);
       },
       {
@@ -105,14 +104,14 @@ export function LocationCoordinateFields({
       <div className="flex flex-col gap-2 lg:flex-row lg:items-end">
         <div className="flex-1">
           <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Google Maps link
+            {coordinates.googleMapsLink}
             {requireGoogleMapsLink ? <span className="ml-1 text-red-500">*</span> : null}
           </label>
           <input
             type="text"
             value={values.googleMapsUrl}
             onChange={(event) => onChange({ googleMapsUrl: event.target.value })}
-            placeholder="Paste Google Maps link"
+            placeholder={coordinates.googleMapsPlaceholder}
             className={inputClassName}
             disabled={disabled || isExtracting}
             required={requireGoogleMapsLink}
@@ -143,7 +142,7 @@ export function LocationCoordinateFields({
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Latitude
+            {coordinates.latitude}
           </label>
           <input
             type="number"
@@ -159,7 +158,7 @@ export function LocationCoordinateFields({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Longitude
+            {coordinates.longitude}
           </label>
           <input
             type="number"
@@ -175,7 +174,7 @@ export function LocationCoordinateFields({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Radius meters
+            {coordinates.radiusMeters}
           </label>
           <input
             type="number"

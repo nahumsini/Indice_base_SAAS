@@ -358,6 +358,10 @@ export const enCA = {
       tax: 'Tax %',
       total: 'Line total',
       remove: 'Remove item',
+      searchPlaceholder: 'Search by name, SKU, code, or category',
+      allCategories: 'All categories',
+      noFilteredProducts: 'No products match these filters.',
+      pageSummary: (count: number, page: number, pages: number) => `${count} products · page ${page} of ${pages}`,
     },
     paymentEvidence: {
       upload: 'Upload payment evidence',
@@ -498,6 +502,7 @@ export const enCA = {
     useSuggestedAmount: 'Use suggested amount',
     notesPlaceholder: 'Commission context, approval notes, or payment timing.',
     save: 'Save commission',
+    calculatedByBackend: 'The amount and rate are calculated exclusively by the backend using the applied rule.',
   },
   commissions: {
     view: {
@@ -668,6 +673,20 @@ export const enCA = {
     ruleStatuses: {
       active: 'Active',
       inactive: 'Inactive',
+    },
+  },
+  commissionWorkspace: {
+    loadError: 'Commission settings could not be loaded.', title: 'Commissions', subtitle: 'Define how commissions are earned, review generated amounts, and control each handoff to Incentives and Payroll.', generated: 'Generated commissions', cuts: 'Cuts', generateCut: 'Generate cut', managePolicies: 'Manage policies', sectionsLabel: 'Commission sections',
+    common: { back: 'Back', continue: 'Continue', saving: 'Saving…', delete: 'Delete', pause: 'Pause', selected: (count: number) => `${count} selected`, selectAll: 'Select all', applyAll: 'Apply to all', noMatches: 'No matches.', resultsPage: (count: number, page: number, pages: number) => `${count} results · page ${page} of ${pages}`, selectFiltered: (count: number) => `Select all ${count} filtered results`, calculating: 'Calculating…', unavailable: 'Unavailable' },
+    rules: {
+      steps: ['Participants and products', 'Calculation', 'Review'], policyHelp: 'Define a clear policy: who can earn the commission and which products generate it. With no selection, the policy applies to everyone.', participants: 'Participating employees', allEmployees: 'All employees', searchEmployees: 'Search by name or email', categoryFilter: 'Filter catalogue by category', allCategories: 'All categories', productsInCategory: (count: number, category: string) => `${count} products in ${category}`, applyCategory: 'Apply full category', fullCategory: (name: string) => `Full category: ${name}`, commissionProducts: 'Products that generate commission', allProducts: 'All products', searchProducts: 'Search by name, code, or category', specificity: 'Specificity applies first: seller + product, product, category, seller, then general rule. Priority only breaks ties at the same scope.',
+      typeHelpers: { fixed_per_product: 'The amount is paid for each unit sold.', percentage_of_product: 'The percentage applies to each line subtotal.', fixed_per_sale: 'The amount is paid once per sale.', percentage_of_sale: 'The percentage applies to the sale total.' },
+      saleOrLineAmount: 'Sale or line amount', quantity: 'Quantity', result: 'Rule result', participantsSummary: (count: number) => count ? `${count} employees` : 'All employees', productsSummary: (count: number) => count ? `${count} selected products` : 'All products', futureEffect: 'Future sales for each selected employee will generate their commission automatically when they match this policy.', validity: 'Validity', noStart: 'No start', noEnd: 'No end', conflicts: (count: number, names: string) => `Matches ${count} rule(s): ${names}. Priority will resolve the tie.`, noConflicts: 'No conflicts were found for the same scope and validity.', duplicate: 'Duplicate as inactive', deleteRule: 'Delete rule', copiedSuffix: '(copy)',
+      validation: { name: 'Give the rule a name.', positive: 'The commission value must be greater than zero.', percentage: 'The percentage cannot exceed 100%.', dates: 'The end date cannot be before the start date.', priority: 'Priority must be between 0 and 999.' }, saveError: 'The rule could not be saved. Check your connection and try again.', deleteError: 'The rule could not be deleted.',
+    },
+    cutsPanel: {
+      loadError: 'The cut history could not be loaded.', created: 'The cut was sent to HR Incentives. Applications will be available for the next compatible payroll.', filters: 'Cut filters', summary: (visible: number, total: number) => `${visible} of ${total} cuts`, search: 'Search', searchPlaceholder: 'Cut reference', status: 'Status', allStatuses: 'All statuses', inHr: 'In Human Resources', consumed: 'Consumed in payroll', periodFrom: 'Period from', periodTo: 'Period to', title: 'Commission cuts', description: 'History sent to Incentives and payroll consumption tracking.', count: (count: number) => `${count} cuts`, columns: { code: 'Reference', period: 'Period', commissions: 'Commissions', employees: 'Employees', total: 'Total', status: 'Status' }, applied: (applied: number, total: number) => `In HR · ${applied}/${total} applied`, noMatch: 'No cuts match the filters.', empty: 'No commission cuts have been generated yet.',
+      modalTitle: 'Commission cuts', modalDescription: 'Run a cut now or manage recurring closes from the backend.', saveError: 'The cut could not be saved.', scheduleLoadError: 'The current automation could not be loaded.', pauseError: 'The automation could not be paused.', removeError: 'The automation could not be deleted.', closeAndSend: 'Close and send to HR', saveChanges: 'Save changes', createAutomation: 'Create automation', manual: 'Manual cut', manualDescription: 'Choose the dates, review the scope, and run it immediately.', automatic: 'Automatic cut', automaticDescription: 'The backend closes each period and sends it to HR automatically.', start: 'Cut start', end: 'Cut end', amount: 'Amount', saved: 'Saved automations', configured: (count: number) => `${count} configured`, new: 'New', active: 'Active', paused: 'Paused', none: 'No automations yet. Configure the first one.', automationName: 'Automation name', automationPlaceholder: 'e.g. Monthly sales commissions', frequency: 'Closing frequency', currentStatus: 'Current status', notConfigured: 'Not configured', nextRun: 'Next run', emptyRun: 'If a period has no eligible commissions, the execution is recorded and the schedule advances without creating an empty cut.', audit: 'Each cut is frozen and each incentive can be included in Payroll only once, preserving its reference for audit.', cadence: { weekly: { title: 'Weekly', detail: 'Every Monday closes the previous Monday through Sunday.' }, semimonthly: { title: 'Semimonthly', detail: 'On the 16th and 1st, closes each half-month.' }, monthly: { title: 'Monthly', detail: 'On the 1st, closes the previous calendar month.' } },
     },
   },
   summaryPreview: {

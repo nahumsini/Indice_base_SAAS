@@ -418,9 +418,8 @@ export function ProcessFormDialog({
   ];
   const activeStepIndex = wizardSteps.findIndex((step) => step.id === activeStep);
   const canContinue = activeStep === 'identity' ? isIdentityValid : activeStep === 'schedule' ? isScheduleValid : true;
-  const isSpanish = locale.toLowerCase().startsWith('es');
-  const previousLabel = isSpanish ? 'Anterior' : 'Previous';
-  const continueLabel = isSpanish ? 'Continuar' : 'Continue';
+  const previousLabel = copy.common.previous;
+  const continueLabel = copy.common.continue;
 
   const updateFrequency = (frequency: ProcessFormState['frequency']) => {
     setForm((currentForm) => ({

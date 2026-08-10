@@ -150,13 +150,13 @@ export function MovementPrintModal({
             <footer className="mt-8 border-t border-slate-200 pt-10">
               <p className="mb-10 text-xs leading-5 text-slate-500">
                 {isControlAct
-                  ? 'Acta operativa de control de inventario. Las firmas confirman revisión del movimiento; no sustituyen autorizaciones requeridas por la política interna.'
-                  : 'Documento operativo de trazabilidad de inventario.'}
+                  ? t.operational.modals.controlActDisclaimer
+                  : t.operational.modals.traceabilityDisclaimer}
               </p>
               <div className="grid grid-cols-3 gap-8 text-center text-xs text-slate-600">
                 <div><div className="border-t border-slate-400 pt-2">{movement.responsibleName}</div></div>
-                <div><div className="border-t border-slate-400 pt-2">Entrega / origen</div></div>
-                <div><div className="border-t border-slate-400 pt-2">Recibe / autoriza</div></div>
+                <div><div className="border-t border-slate-400 pt-2">{t.operational.modals.deliveredBy}</div></div>
+                <div><div className="border-t border-slate-400 pt-2">{t.operational.modals.receivedBy}</div></div>
               </div>
               <p className="mt-8 border-t border-slate-200 pt-3 text-[10px] text-slate-500">
                 {documentPrintAttribution} · {printLabels.updated}: {formatDocumentPrintDateTime(new Date(), locale)}

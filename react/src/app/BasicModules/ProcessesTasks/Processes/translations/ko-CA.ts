@@ -6,6 +6,8 @@ export const koCA: ProcessesTranslations = {
   ...enCA,
   common: {
     ...enCA.common,
+    previous: '이전',
+    continue: '계속',
     all: '전체',
     allFemale: '전체',
     retry: '다시 시도',

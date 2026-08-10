@@ -1,0 +1,68 @@
+import type { ProfileTranslations } from "./types";
+
+export const ptBR = {
+  title: "Meu perfil",
+  subtitle: "Informações pessoais e configurações da conta",
+  helper: "Você pode completar isto a qualquer momento",
+  fields: {
+    fullName: "Nome completo",
+    email: "E-mail",
+    phone: "Telefone",
+    position: "Cargo",
+    department: "Departamento",
+    profilePhoto: "Foto de perfil",
+    country: "País",
+    uploadPhoto: "Carregar foto",
+    firstNames: "Nome ou nomes",
+    lastNames: "Sobrenome ou sobrenomes",
+    preferredLanguage: "Idioma preferido",
+    newPassword: "Nova senha",
+    confirmNewPassword: "Confirmar nova senha",
+  },
+  sections: {
+    identityTitle: "Identidade",
+    identitySubtitle: "Sua foto e seu nome para a interface.",
+    contactTitle: "Informações de contato",
+    contactSubtitle: "Dados para notificações e comunicação.",
+    securityTitle: "Segurança da conta",
+    securitySubtitle: "Atualize sua senha sempre que precisar.",
+    preferencesTitle: "Preferências",
+    preferencesSubtitle: "Personalize o idioma da interface.",
+    nameGroup: "Nome e sobrenomes",
+  },
+  hints: {
+    photoFormat: "JPG/PNG/WebP/HEIC, máx. 25 MB; compactada antes do envio",
+    firstNames: "Em alguns países você pode usar um ou mais nomes.",
+    lastNames:
+      "Pode ser 1 sobrenome (EUA/Canadá) ou 2 sobrenomes (México/Colômbia).",
+    phone: "O país atualiza o código telefônico automaticamente.",
+    password: "Se não quiser alterá-la, deixe em branco.",
+    preferredLanguage: "Usaremos este idioma para a interface e os modelos.",
+  },
+  actions: {
+    save: "Salvar alterações",
+    saving: "Salvando...",
+    discard: "Descartar",
+    uploadingPhoto: "Enviando foto...",
+  },
+  phone: { add: "Adicionar telefone", number: "Número", primary: "Principal", remove: "Remover" },
+  progress: {
+    completion: "Perfil completo",
+    essentials: "Preencha o essencial em uma única tela.",
+    securityAction: "Alterar senha",
+  },
+  accessibility: { showPassword: "Mostrar senha", hidePassword: "Ocultar senha" },
+  messages: {
+    loading: "Carregando perfil...",
+    saveSuccess: "Perfil salvo.",
+    loadError: "Não foi possível carregar o perfil.",
+    saveError: "Não foi possível salvar o perfil.",
+    unsavedChanges: "Você tem alterações não salvas.",
+    optional: "(opcional)",
+    savingOverlay: "Salvando perfil...",
+    passwordMismatch: "A nova senha e a confirmação devem ser iguais.",
+    passwordMinLength: "A nova senha deve ter pelo menos 8 caracteres.",
+    invalidPhone:
+      "Digite um número de telefone válido para o país selecionado.",
+  },
+} as const satisfies ProfileTranslations;

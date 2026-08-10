@@ -1,4 +1,5 @@
 import type { TaskKioskTranslations } from './types';
+import { enCA } from './en-CA';
 
 export const enUS = {
   language: {
@@ -164,4 +165,6 @@ export const enUS = {
     responsibleFailure: 'Could not update the responsible person.',
     responsibleTimeout: 'The responsible update took too long. Check the connection and try again.',
   },
+  admin: enCA.admin,
+  workspace: enCA.workspace,
 } satisfies TaskKioskTranslations;

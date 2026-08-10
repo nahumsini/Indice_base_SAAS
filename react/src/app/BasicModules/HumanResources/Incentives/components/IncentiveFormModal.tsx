@@ -5,12 +5,14 @@ import type { BackendHrUser } from '../../../../api/humanResources';
 import type { CreateHrIncentivePayload } from '../../../../api/HumanResources/incentives';
 import { Button } from '../../../../components/ui/button';
 import { IndiceModalFrame } from '../../../../components/indice-modal';
+import type { IncentivesTranslations } from '../translations';
 
 interface IncentiveFormModalProps {
   defaultCurrency?: string;
   employees: BackendHrUser[];
   isOpen: boolean;
   isSaving: boolean;
+  copy: IncentivesTranslations['form'];
   onClose: () => void;
   onSave: (payload: CreateHrIncentivePayload) => Promise<void>;
 }
@@ -24,6 +26,7 @@ export function IncentiveFormModal({
   employees,
   isOpen,
   isSaving,
+  copy,
   onClose,
   onSave,
 }: IncentiveFormModalProps) {
@@ -107,67 +110,67 @@ export function IncentiveFormModal({
   return (
     <IndiceModalFrame
       busy={isSaving}
-      description="Registra una percepción que se aplicará a la siguiente corrida."
+      description={copy.description}
       footer={(
         <Button type="button" onClick={handleSave} disabled={!canSave || isSaving}>
-          {isSaving ? 'Guardando...' : 'Guardar incentivo'}
+          {isSaving ? copy.saving : copy.save}
         </Button>
       )}
       footerLeading={(
         <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
-          Cancelar
+          {copy.cancel}
         </Button>
       )}
-      footerSummary={scopeAll ? 'Se aplicará a todo el personal activo.' : `${selectedEmployeeIds.length} colaboradores seleccionados.`}
+      footerSummary={scopeAll ? copy.allEmployeesSummary : copy.selectedEmployeesSummary(selectedEmployeeIds.length)}
       icon={<Gift className="h-5 w-5" />}
       modalType="standard-form"
       onOpenChange={(nextOpen) => {
         if (!nextOpen) onClose();
       }}
       open={isOpen}
-      title="Agregar incentivo"
+      title={copy.title}
       tone="aqua"
     >
         <div className="space-y-5">
           <section className="rounded-2xl border border-slate-200 bg-slate-50/40 p-5">
             <h3 className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-600">
               <HandCoins className="h-4 w-4 text-[#59C3A5]" />
-              Incentivo
+              {copy.incentiveSection}
             </h3>
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Nombre del incentivo" required>
+              <Field label={copy.name} required>
                 <input
                   value={name}
                   onChange={(event) => setName(event.target.value)}
-                  placeholder="Ej. Bono por puntualidad"
+                  placeholder={copy.namePlaceholder}
                   className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                 />
               </Field>
 
-              <Field label="Estado">
+              <Field label={copy.status}>
                 <select
                   value={status}
                   onChange={(event) => setStatus(event.target.value as CreateHrIncentivePayload['status'])}
                   className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                 >
-                  <option value="active">Activo</option>
-                  <option value="scheduled">Programado</option>
-                  <option value="paused">Pausado</option>
+                  <option value="active">{copy.statuses.active}</option>
+                  <option value="scheduled">{copy.statuses.scheduled}</option>
+                  <option value="paused">{copy.statuses.paused}</option>
                 </select>
               </Field>
 
-              <Field label="Monto" required>
+              <Field label={copy.amount} required>
                 <input
                   value={amount}
                   onChange={(event) => setAmount(event.target.value)}
                   inputMode="decimal"
-                  placeholder="Ej. 1500"
+                  placeholder={copy.amountPlaceholder}
                   className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                 />
               </Field>
 
               <div className="grid grid-cols-[1fr_1.2fr] gap-3">
-                <Field label="Divisa">
+                <Field label={copy.currency}>
                   <select
                     value={currency}
                     onChange={(event) => setCurrency(event.target.value)}
@@ -178,7 +181,7 @@ export function IncentiveFormModal({
                     ))}
                   </select>
                 </Field>
-                <Field label="Fecha de aplicación" required>
+                <Field label={copy.effectiveDate} required>
                   <div className="relative">
                     <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <input
@@ -191,11 +194,11 @@ export function IncentiveFormModal({
                 </Field>
               </div>
 
-              <Field label="Concepto">
+              <Field label={copy.descriptionLabel}>
                 <textarea
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
-                  placeholder="Detalle interno del incentivo"
+                  placeholder={copy.descriptionPlaceholder}
                   className="min-h-[88px] w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white md:col-span-2"
                 />
               </Field>
@@ -206,7 +209,7 @@ export function IncentiveFormModal({
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h3 className="flex items-center gap-2 text-sm font-medium text-slate-600">
                 <Users className="h-4 w-4 text-[#59C3A5]" />
-                Colaboradores
+                {copy.employees}
               </h3>
               <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
                 <input
@@ -215,7 +218,7 @@ export function IncentiveFormModal({
                   onChange={(event) => setScopeAll(event.target.checked)}
                   className="h-4 w-4 rounded border-slate-300 text-[#59C3A5] focus:ring-[#59C3A5]"
                 />
-                Todo el personal activo
+                {copy.allActiveEmployees}
               </label>
             </div>
 
@@ -226,7 +229,7 @@ export function IncentiveFormModal({
                   <input
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder="Buscar colaborador, puesto o unidad"
+                    placeholder={copy.searchPlaceholder}
                     className="h-11 w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                   />
                 </div>
@@ -241,7 +244,7 @@ export function IncentiveFormModal({
                       />
                       <span className="flex-1">
                         <span className="block text-sm font-medium text-slate-900">{employee.full_name}</span>
-                        <span className="block text-xs font-medium text-slate-500">{employee.position_title || employee.position || 'Sin puesto'} · {employee.unit_name || 'Sin unidad'}</span>
+                        <span className="block text-xs font-medium text-slate-500">{employee.position_title || employee.position || copy.noPosition} · {employee.unit_name || copy.noUnit}</span>
                       </span>
                     </label>
                   ))}

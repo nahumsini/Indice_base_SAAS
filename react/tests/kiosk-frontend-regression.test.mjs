@@ -183,17 +183,25 @@ test('pre-ticket product resolution is all-or-nothing', () => {
 });
 
 test('task kiosk manager keeps compact actions inside replacement modal views', async () => {
-  const source = await readFile(
-    new URL('../src/app/BasicModules/ProcessesTasks/Kiosk/TaskKioskManagementModal.tsx', import.meta.url),
-    'utf8',
-  );
+  const [source, translations] = await Promise.all([
+    readFile(
+      new URL('../src/app/BasicModules/ProcessesTasks/Kiosk/TaskKioskManagementModal.tsx', import.meta.url),
+      'utf8',
+    ),
+    readFile(
+      new URL('../src/app/BasicModules/ProcessesTasks/Kiosk/translations/es-MX.ts', import.meta.url),
+      'utf8',
+    ),
+  ]);
 
   assert.doesNotMatch(source, /DropdownMenu/);
-  assert.match(source, /label="Abrir kiosko"/);
-  assert.match(source, /label="Compartir y administrar liga"/);
-  assert.match(source, /title="Liga del kiosko"/);
-  assert.match(source, /title="Opciones del kiosko"/);
-  assert.match(source, /Reemplazar y emitir liga/);
+  assert.match(source, /label=\{copy\.admin\.share\.open\}/);
+  assert.match(source, /label=\{copy\.admin\.center\.share\}/);
+  assert.match(source, /title=\{copy\.admin\.share\.title\}/);
+  assert.match(source, /title=\{copy\.admin\.options\.title\}/);
+  assert.match(translations, /open: 'Abrir kiosko'/);
+  assert.match(translations, /share: 'Compartir y administrar liga'/);
+  assert.match(translations, /replaceAndIssue: 'Reemplazar y emitir liga'/);
 });
 
 test('task kiosk dialog keeps mobile text fields focused while typing', async () => {

@@ -9,6 +9,11 @@ export const koCA = {
     autoBadge: '자동',
     autoDetected: '기기/IP 신호로 제안됨',
   },
+  network: {
+    required: '이 키오스크를 사용하려면 인터넷 연결이 필요합니다.',
+    offline: '오프라인입니다. 키오스크 작업이 일시 중지되었습니다.',
+    sessionExpiring: '세션이 곧 만료됩니다. 계속하려면 화면을 조작하세요.',
+  },
   title: '근태 등록 화면',
   subtitle: 'PIN 입력, 신원 확인, GPS 위치 확인 후 근태를 등록합니다.',
   terminalBadge: '근태 터미널',

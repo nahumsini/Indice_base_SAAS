@@ -13,6 +13,12 @@ export const zhCA = {
   progressOf: '已完成',
   printReport: '下载 PDF',
   restart: '重新开始本部分',
+  restartDialog: {
+    action: '重新开始测试',
+    cancel: '取消',
+    description: '我们会保留你之前的结果，并开始一个新版本。',
+    title: '重新开始评估？',
+  },
   actions: {
     start: '开始',
     continue: '继续',

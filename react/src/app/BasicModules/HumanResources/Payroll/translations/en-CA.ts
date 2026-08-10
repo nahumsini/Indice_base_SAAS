@@ -5,6 +5,14 @@ export const enCA = {
   applyFilters: 'Apply filters',
   retry: 'Retry',
   loading: 'Loading payroll',
+  list: {
+    search: { label: 'Search payroll', placeholder: 'Period, unit, business, jurisdiction, or status' },
+    pagination: {
+      next: 'Next', previous: 'Previous', pageSize: 'Rows per page',
+      page: (current: number, total: number) => `Page ${current} of ${total}`,
+      showing: (start: number, end: number, total: number) => `Showing ${start}-${end} of ${total} runs`,
+    },
+  },
   unauthorized: 'Your session is no longer authenticated. Sign in again and reload the module.',
   notFound: 'The running backend does not expose the payroll API yet. Restart the Spring server on the latest branch.',
   genericError: 'Unable to load payroll.',
@@ -48,6 +56,7 @@ export const enCA = {
     csvDescription: 'Preparing the payroll ledger for spreadsheet export.',
     pdfTitle: 'Preparing payroll PDF',
     pdfDescription: 'Building a printable payroll report with the current run data.',
+    identityNotReady: 'The company identity is still being prepared for printing.',
   },
   statuses: {
     draft: 'Draft',
@@ -925,5 +934,15 @@ export const enCA = {
       ],
     },
     manualAdjustmentFallback: 'Manual adjustment',
+  },
+  colombiaOperations: {
+    busy: { loadingTitle: 'Loading Colombia', loadingDescription: 'Loading company configuration, employee profile, and payroll events.', savingTitle: 'Saving Colombia', savingDescription: 'Updating the Colombia configuration and statutory profile.', noveltyTitle: 'Saving payroll event', noveltyDescription: 'Recording the Colombia payroll event for the employee.' },
+    success: { saved: 'Colombia configuration saved. Synchronize the run to apply the changes to the calculation.', novelty: 'Colombia payroll event saved. Synchronize the run to recalculate this line.' },
+    title: 'Colombia', description: (name: string, runId: number) => `${name} · Run #${runId}`, footerSummary: 'Changes apply to the next backend calculation.', save: 'Save Colombia',
+    company: 'Colombia company', defaultArlClass: 'Default ARL class', fundCode: 'Compensation fund code', fundName: 'Compensation fund', employerHealthExemption: 'Employer health exemption', undefined: 'Not defined', yes: 'Yes', no: 'No',
+    employeeProfile: 'Employee profile', contributorType: 'Contributor type', contributorSubtype: 'Contributor subtype', arlClass: 'ARL class', integralSalary: 'Integral salary', eps: 'EPS', epsCode: 'EPS code', afp: 'AFP', afpCode: 'AFP code', withholdingProcedure: 'Withholding procedure', procedure1: 'Procedure 1', procedure2: 'Procedure 2', procedure2Rate: 'Procedure 2 rate', dependents: 'Dependants', prepaidMedicine: 'Prepaid medicine', housingInterest: 'Housing interest', voluntaryPension: 'Voluntary pension', afc: 'AFC', otherExemptIncome: 'Other exempt income',
+    novelties: 'Colombia payroll events', periodLabel: 'Period', period: (start: string, end: string) => `Period ${start} to ${end}`, registered: (count: number) => `${count} recorded`, code: 'Code', label: 'Label', start: 'Start', end: 'End', ibcImpact: 'IBC impact', add: 'Add', status: 'Status', empty: 'No payroll events are recorded for this period.',
+    noveltyLabels: { VSP: 'Permanent salary change', VST: 'Temporary salary change', SLN: 'Temporary suspension', IGE: 'General incapacity', LMA: 'Maternity/paternity leave', LPA: 'Paid leave', VAC: 'Vacation', RETRO: 'Retroactive adjustment', CORR: 'Correction', LIQ: 'Settlement', RET: 'Termination' },
+    reporting: { title: 'PILA / DIAN Colombia', run: (id: number, start: string, end: string) => `Run #${id} · ${start} → ${end}`, snapshots: 'Colombia government snapshots', blocking: 'Blocking', validated: 'Validated', line: (lineId: number, employeeId: number) => `Line #${lineId} · Employee #${employeeId}`, hash: 'Hash', noHash: 'No hash', noDate: 'No date', ready: 'Ready', review: 'Review', alerts: (count: number) => `${count} alerts`, payload: 'Payload', empty: 'There are no PILA / DIAN snapshots for this Colombia statutory run.' },
   }
 } as const;

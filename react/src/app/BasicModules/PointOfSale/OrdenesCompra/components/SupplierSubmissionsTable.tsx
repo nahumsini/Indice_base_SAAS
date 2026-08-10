@@ -7,8 +7,8 @@ import {
   formatMoney,
   numberFrom,
   statusClassName,
-  supplierSubmissionStatusLabels,
 } from '../utils/purchaseOrderFormat';
+import { usePurchaseOrderTranslations } from '../hooks/usePurchaseOrderTranslations';
 
 export function SupplierSubmissionsTable({
   disabled,
@@ -23,6 +23,7 @@ export function SupplierSubmissionsTable({
   onStartReview: (submission: SupplierSubmission) => void;
   submissions: SupplierSubmission[];
 }) {
+  const { copy, locale } = usePurchaseOrderTranslations();
   const submissionsPagination = useTablePagination({
     resetKey: submissions.map((submission) => submission.id).join('|'),
     rows: submissions,
@@ -31,9 +32,9 @@ export function SupplierSubmissionsTable({
   if (submissions.length === 0) {
     return (
       <section className="rounded-[24px] border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <p className="text-lg font-medium text-slate-950 dark:text-white">No hay propuestas de proveedor con estos filtros.</p>
+        <p className="text-lg font-medium text-slate-950 dark:text-white">{copy.submissionTable.emptyTitle}</p>
         <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
-          Cuando el kiosko o un usuario registre propuestas, apareceran aqui para revisar antes de crear una orden formal.
+          {copy.submissionTable.emptyDescription}
         </p>
       </section>
     );
@@ -45,7 +46,7 @@ export function SupplierSubmissionsTable({
         <table className="w-full min-w-[1180px] text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-950/60">
             <tr>
-              {['Propuesta', 'Proveedor', 'Enviado por', 'Partidas', 'Revision', 'Total', 'Estado', 'Acciones'].map((header) => (
+              {copy.submissionTable.columns.map((header) => (
                 <th key={header} className="px-5 py-4 text-left text-xs font-medium text-slate-500 dark:text-slate-400">
                   {header}
                 </th>
@@ -64,49 +65,49 @@ export function SupplierSubmissionsTable({
                       {submission.submissionNumber}
                     </button>
                     <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-                      {formatDate(submission.createdAt?.slice(0, 10))}
+                      {formatDate(submission.createdAt?.slice(0, 10), locale, copy.common.noDate)}
                     </p>
                   </td>
                   <td className="px-5 py-5">
                     <p className="font-medium text-slate-900 dark:text-slate-100">{submission.providerName}</p>
-                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{submission.providerEmail || 'Sin email'}</p>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{submission.providerEmail || copy.common.noEmail}</p>
                   </td>
                   <td className="px-5 py-5">
-                    <p className="font-medium text-slate-900 dark:text-slate-100">{submission.submittedByName || 'Proveedor'}</p>
-                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{submission.submittedByEmail || 'Sin contacto'}</p>
+                    <p className="font-medium text-slate-900 dark:text-slate-100">{submission.submittedByName || copy.common.provider}</p>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{submission.submittedByEmail || copy.submissionTable.noContact}</p>
                   </td>
                   <td className="px-5 py-5">
-                    <p className="font-medium text-slate-950 dark:text-white">{submission.items.length} partidas</p>
+                    <p className="font-medium text-slate-950 dark:text-white">{copy.submissionTable.itemCount(submission.items.length)}</p>
                     <p className={`text-xs font-medium ${unresolvedItems > 0 ? 'text-amber-700 dark:text-amber-200' : 'text-emerald-700 dark:text-emerald-200'}`}>
-                      {unresolvedItems > 0 ? `${unresolvedItems} sin producto ligado` : 'Productos ligados'}
+                      {unresolvedItems > 0 ? copy.submissionTable.unresolved(unresolvedItems) : copy.submissionTable.linkedProducts}
                     </p>
                   </td>
                   <td className="px-5 py-5">
-                    <p className="font-medium text-slate-700 dark:text-slate-200">{submission.reviewedAt ? formatDate(submission.reviewedAt.slice(0, 10)) : 'Sin revision'}</p>
-                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{submission.reviewNote || 'Sin nota'}</p>
+                    <p className="font-medium text-slate-700 dark:text-slate-200">{submission.reviewedAt ? formatDate(submission.reviewedAt.slice(0, 10), locale, copy.common.noDate) : copy.submissionTable.noReview}</p>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{submission.reviewNote || copy.submissionTable.noNote}</p>
                   </td>
                   <td className="px-5 py-5">
-                    <p className="font-medium text-slate-950 dark:text-white">{formatMoney(submission.totalAmount, submission.currencyCode)}</p>
+                    <p className="font-medium text-slate-950 dark:text-white">{formatMoney(submission.totalAmount, submission.currencyCode, locale)}</p>
                     <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                      Impuesto {formatMoney(submission.taxAmount, submission.currencyCode)}
+                      {copy.submissionTable.tax} {formatMoney(submission.taxAmount, submission.currencyCode, locale)}
                     </p>
                   </td>
                   <td className="px-5 py-5">
                     <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${statusClassName(submission.status)}`}>
-                      {supplierSubmissionStatusLabels[submission.status]}
+                      {copy.submissionStatus[submission.status]}
                     </span>
                     {submission.convertedPurchaseOrderId ? (
                       <p className="mt-1 text-xs font-medium text-emerald-700 dark:text-emerald-200">
-                        OC #{submission.convertedPurchaseOrderId}
+                        {copy.submissionTable.convertedOrder(submission.convertedPurchaseOrderId)}
                       </p>
                     ) : null}
                   </td>
                   <td className="px-5 py-5">
                     <div className="flex flex-wrap gap-2">
-                      <IconAction label="Ver" onClick={() => onSelect(submission)} icon={Eye} disabled={disabled} />
-                      <IconAction label="Revisar" onClick={() => onStartReview(submission)} icon={ShieldCheck} disabled={disabled} />
+                      <IconAction label={copy.submissionTable.view} onClick={() => onSelect(submission)} icon={Eye} disabled={disabled} />
+                      <IconAction label={copy.submissionTable.review} onClick={() => onStartReview(submission)} icon={ShieldCheck} disabled={disabled} />
                       <IconAction
-                        label="Convertir"
+                        label={copy.submissionTable.convert}
                         onClick={() => onConvert(submission)}
                         icon={ArrowRight}
                         disabled={disabled || !canConvert || unresolvedItems > 0 || numberFrom(submission.totalAmount) <= 0}
@@ -119,7 +120,7 @@ export function SupplierSubmissionsTable({
           </tbody>
         </table>
       </div>
-      <PointOfSaleTablePagination {...submissionsPagination} itemLabel="propuestas" />
+      <PointOfSaleTablePagination {...submissionsPagination} itemLabel={copy.submissionTable.itemLabel} />
     </section>
   );
 }

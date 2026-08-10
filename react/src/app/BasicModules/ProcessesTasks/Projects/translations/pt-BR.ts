@@ -184,7 +184,7 @@ export const ptBR: ProjectsTranslations = {
   },
   workspace: {
     header: {
-      eyebrow: 'Selected project',
+      eyebrow: 'Projeto selecionado',
       tasksCount: (count: number) => `${count} tarefas`,
       title: (projectName: string) => `Tarefas de ${projectName}`,
       subtitle:
@@ -195,37 +195,37 @@ export const ptBR: ProjectsTranslations = {
       context: {
         folio: 'Folio',
         status: 'Status',
-        priority: 'Priority',
-        responsible: 'Responsible',
-        scope: 'Scope',
-        dueDate: 'Due date',
+        priority: 'Prioridade',
+        responsible: 'Responsável',
+        scope: 'Escopo',
+        dueDate: 'Vencimento',
       },
       insights: {
-        empty: (projectName: string) => `${projectName} has no tasks yet. Create the first task to start execution.`,
+        empty: (projectName: string) => `${projectName} ainda não tem tarefas. Crie a primeira para iniciar a execução.`,
         overdue: (projectName: string, open: number, overdue: number, progress: number) =>
-          `${projectName} needs attention: ${overdue} overdue tasks, ${open} open tasks, and ${progress}% progress.`,
+          `${projectName} precisa de atenção: ${overdue} tarefas vencidas, ${open} abertas e ${progress}% de avanço.`,
         active: (projectName: string, open: number, completed: number, progress: number) =>
-          `${projectName} is moving: ${open} open tasks, ${completed} completed tasks, and ${progress}% progress.`,
+          `${projectName} está avançando: ${open} tarefas abertas, ${completed} concluídas e ${progress}% de avanço.`,
         complete: (projectName: string, completed: number, audited: number) =>
-          `${projectName} has ${completed} completed tasks and ${audited} audited tasks ready for review.`,
+          `${projectName} tem ${completed} tarefas concluídas e ${audited} auditadas prontas para revisão.`,
       },
     },
     projectStatuses: {
-      active: 'Active',
-      paused: 'Paused',
-      completed: 'Completed',
-      cancelled: 'Cancelled',
+      active: 'Ativo',
+      paused: 'Pausado',
+      completed: 'Concluído',
+      cancelled: 'Cancelado',
     },
     projectPriorities: {
-      low: 'Low',
-      medium: 'Medium',
-      high: 'High',
+      low: 'Baixa',
+      medium: 'Média',
+      high: 'Alta',
     },
     emptyContext: {
-      noPriority: 'No priority',
-      noResponsible: 'Unassigned',
-      noScope: 'No unit or business',
-      noDate: 'No date',
+      noPriority: 'Sem prioridade',
+      noResponsible: 'Sem responsável',
+      noScope: 'Sem unidade ou negócio',
+      noDate: 'Sem data',
     },
     filters: {
       search: 'Buscar',
@@ -246,12 +246,14 @@ export const ptBR: ProjectsTranslations = {
       empty: 'Este projeto ainda não tem tarefas que correspondam aos filtros atuais.',
     },
     gantt: {
-      taskColumn: 'Task timeline',
-      timelineRange: 'Drag bars to move or adjust dates.',
-      today: 'Today',
+      taskColumn: 'Linha do tempo das tarefas',
+      timelineRange: 'Arraste as barras para mover ou ajustar as datas.',
+      today: 'Hoje',
       duration: (days: number) => `${days}d`,
-      dependsOn: (folio: string) => `Depends on ${folio}`,
-      noPredecessor: 'No predecessor',
+      dependsOn: (folio: string) => `Depende de ${folio}`,
+      noPredecessor: 'Sem predecessora',
+      adjustStartDate: 'Ajustar data de início',
+      adjustDueDate: 'Ajustar data de vencimento',
     },
     bulk: {
       selectedLabel: (count: number) => `${count} selecionada${count === 1 ? '' : 's'}`,

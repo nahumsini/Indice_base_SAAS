@@ -16,6 +16,7 @@ import type { PurchaseOrder, SupplierInvoice } from '../types/purchaseOrder.type
 import { formatMoney, numberFrom } from '../utils/purchaseOrderFormat';
 import { useKpiMonetaryAggregate } from '../../../shared/kpiMonetaryApi';
 import { usePreferredBusinessCurrency } from '../../../shared/BusinessCurrencyContext';
+import { usePurchaseOrderTranslations } from '../hooks/usePurchaseOrderTranslations';
 
 export function PurchaseOrderKpis({
   currency,
@@ -26,6 +27,7 @@ export function PurchaseOrderKpis({
   invoices: SupplierInvoice[];
   orders: PurchaseOrder[];
 }) {
+  const { copy, locale } = usePurchaseOrderTranslations();
   const { preferredCurrency } = usePreferredBusinessCurrency();
   const draftOrders = orders.filter((order) => order.status === 'DRAFT').length;
   const inApproval = orders.filter((order) => ['REQUESTED', 'IN_REVIEW', 'NEEDS_CLARIFICATION', 'APPROVED'].includes(order.status)).length;
@@ -40,8 +42,8 @@ export function PurchaseOrderKpis({
   ), 0);
   const expectedAggregate = useKpiMonetaryAggregate({ metric: 'PURCHASE_ORDER_TOTAL', preferredCurrency, ids: openOrders.map((order) => order.id) });
   const expectedValueLabel = expectedAggregate.data && !expectedAggregate.loading
-    ? formatMoney(expectedAggregate.data.preferredTotal, preferredCurrency) : '—';
-  const nativeValueLabel = expectedAggregate.data?.nativeTotals.map(({ amount, currency: nativeCurrency }) => formatMoney(amount, nativeCurrency)).join(' / ') || currency;
+    ? formatMoney(expectedAggregate.data.preferredTotal, preferredCurrency, locale) : '—';
+  const nativeValueLabel = expectedAggregate.data?.nativeTotals.map(({ amount, currency: nativeCurrency }) => formatMoney(amount, nativeCurrency, locale)).join(' / ') || currency;
   const pendingInvoices = invoices.filter((invoice) => invoice.status === 'SUBMITTED' || invoice.status === 'MATCHED').length;
   const delayed = openOrders.filter((order) => {
     if (!order.expectedDate) return false;
@@ -53,7 +55,7 @@ export function PurchaseOrderKpis({
     {
       id: 'open-orders',
       icon: <Truck className="h-4 w-4" />,
-      label: 'compras abiertas',
+      label: copy.orderKpis.openOrders,
       value: openOrders.length,
       iconClassName: 'text-[#B63B32]',
       valueClassName: 'text-[#FF6B5E]',
@@ -61,7 +63,7 @@ export function PurchaseOrderKpis({
     {
       id: 'pending-receive',
       icon: <PackageCheck className="h-4 w-4" />,
-      label: 'unidades por recibir',
+      label: copy.orderKpis.pendingUnits,
       value: pendingReceive,
       iconClassName: 'text-[#2563EB]',
       valueClassName: 'text-[#2563EB]',
@@ -69,7 +71,7 @@ export function PurchaseOrderKpis({
     {
       id: 'expected-value',
       icon: <ClipboardList className="h-4 w-4" />,
-      label: 'valor comprometido',
+      label: copy.orderKpis.committedValue,
       value: expectedValueLabel,
       iconClassName: 'text-[#9A6B05]',
       valueClassName: 'text-[#9A6B05]',
@@ -77,7 +79,7 @@ export function PurchaseOrderKpis({
     {
       id: 'pending-invoices',
       icon: <FileText className="h-4 w-4" />,
-      label: 'facturas por conciliar',
+      label: copy.orderKpis.pendingInvoices,
       value: pendingInvoices,
       iconClassName: 'text-violet-600',
       valueClassName: 'text-violet-600',
@@ -85,7 +87,7 @@ export function PurchaseOrderKpis({
     {
       id: 'delayed',
       icon: <AlertTriangle className="h-4 w-4" />,
-      label: 'retrasadas',
+      label: copy.orderKpis.delayed,
       value: delayed,
       iconClassName: delayed > 0 ? 'text-rose-600' : 'text-slate-500',
       valueClassName: delayed > 0 ? 'text-rose-600' : 'text-slate-700 dark:text-slate-200',
@@ -98,7 +100,7 @@ export function PurchaseOrderKpis({
     alertChips.push({
       id: 'delayed',
       icon: <AlertTriangle className="h-3.5 w-3.5" />,
-      label: `${delayed} compras retrasadas`,
+      label: copy.orderKpis.delayedAlert(delayed),
       tone: 'danger',
     });
   }
@@ -107,7 +109,7 @@ export function PurchaseOrderKpis({
     alertChips.push({
       id: 'pending-receive',
       icon: <PackageCheck className="h-3.5 w-3.5" />,
-      label: `${pendingReceive} unidades pendientes`,
+      label: copy.orderKpis.pendingUnitsAlert(pendingReceive),
       tone: 'info',
     });
   }
@@ -116,7 +118,7 @@ export function PurchaseOrderKpis({
     alertChips.push({
       id: 'pending-invoices',
       icon: <FileText className="h-3.5 w-3.5" />,
-      label: `${pendingInvoices} facturas por conciliar`,
+      label: copy.orderKpis.pendingInvoicesAlert(pendingInvoices),
       tone: 'warning',
     });
   }
@@ -125,28 +127,28 @@ export function PurchaseOrderKpis({
     alertChips.push({
       id: 'native-value',
       icon: <ClipboardList className="h-3.5 w-3.5" />,
-      label: `Nativo: ${nativeValueLabel}`,
+      label: copy.orderKpis.nativeValue(nativeValueLabel),
       tone: 'info',
     });
   }
 
   const distributionSegments: OperationalDistributionSegment[] = [
-    { id: 'draft', label: 'Borrador', count: draftOrders, className: 'bg-slate-400' },
-    { id: 'approval', label: 'Aprobacion', count: inApproval, className: 'bg-[#F4C84A]' },
-    { id: 'transit', label: 'En proveedor', count: inTransit, className: 'bg-[#2563EB]' },
-    { id: 'receiving', label: 'Recepcion parcial', count: partiallyReceived, className: 'bg-violet-500' },
-    { id: 'received', label: 'Recibidas', count: receivedOrders, className: 'bg-emerald-500' },
-    { id: 'closed', label: 'Pago/cierre', count: closedOrders, className: 'bg-cyan-500' },
-    { id: 'cancelled', label: 'Canceladas', count: cancelledOrders, className: 'bg-rose-500' },
+    { id: 'draft', label: copy.orderKpis.distribution.draft, count: draftOrders, className: 'bg-slate-400' },
+    { id: 'approval', label: copy.orderKpis.distribution.approval, count: inApproval, className: 'bg-[#F4C84A]' },
+    { id: 'transit', label: copy.orderKpis.distribution.supplier, count: inTransit, className: 'bg-[#2563EB]' },
+    { id: 'receiving', label: copy.orderKpis.distribution.partial, count: partiallyReceived, className: 'bg-violet-500' },
+    { id: 'received', label: copy.orderKpis.distribution.received, count: receivedOrders, className: 'bg-emerald-500' },
+    { id: 'closed', label: copy.orderKpis.distribution.closed, count: closedOrders, className: 'bg-cyan-500' },
+    { id: 'cancelled', label: copy.orderKpis.distribution.cancelled, count: cancelledOrders, className: 'bg-rose-500' },
   ];
 
   const insight = delayed > 0
-    ? `${delayed} compras requieren seguimiento con proveedor antes de que afecten disponibilidad en caja.`
+    ? copy.orderKpis.delayedInsight(delayed)
     : pendingReceive > 0
-      ? `Recibe ${pendingReceive} unidades pendientes para convertir compras abiertas en inventario vendible. Total consolidado por backend en ${preferredCurrency}.`
+      ? copy.orderKpis.pendingInsight(pendingReceive, preferredCurrency)
       : pendingInvoices > 0
-        ? `Concilia ${pendingInvoices} facturas para cerrar el ciclo de compra y pago.`
-        : 'No hay alertas operativas en compras POS con los filtros actuales.';
+        ? copy.orderKpis.invoicesInsight(pendingInvoices)
+        : copy.orderKpis.noAlerts;
 
   return (
     <OperationalKpiArea

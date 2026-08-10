@@ -4,6 +4,7 @@ import {
   pointOfSaleTitleBarPrimaryActionClassName,
   pointOfSaleTitleBarSecondaryActionClassName,
 } from '../../shared/components/PointOfSaleTitleBar';
+import { usePurchaseOrderTranslations } from '../hooks/usePurchaseOrderTranslations';
 
 export function PurchaseOrderHeader({
   onCreateOrder,
@@ -12,13 +13,15 @@ export function PurchaseOrderHeader({
   onCreateOrder: () => void;
   onManageSupplierPortal: () => void;
 }) {
+  const { copy } = usePurchaseOrderTranslations();
+
   return (
     <PointOfSaleTitleBar
       eyebrow={null}
       icon="📋"
       rhIndent
-      title="Compras para punto de venta"
-      subtitle="Ordena faltantes a proveedor, recibe mercancia en almacen POS y deja la factura lista para pago."
+      title={copy.header.title}
+      subtitle={copy.header.subtitle}
       actions={(
         <>
           <button
@@ -27,7 +30,7 @@ export function PurchaseOrderHeader({
             onClick={onManageSupplierPortal}
           >
             <KeyRound className="h-4 w-4" />
-            Portal proveedor
+            {copy.header.supplierPortal}
           </button>
           <button
             type="button"
@@ -35,7 +38,7 @@ export function PurchaseOrderHeader({
             onClick={onCreateOrder}
           >
             <Plus className="h-4 w-4" />
-            Nueva orden de compra
+            {copy.header.newOrder}
           </button>
         </>
       )}

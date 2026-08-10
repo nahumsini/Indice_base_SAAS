@@ -70,9 +70,9 @@ export function OperationalModuleGuide({
             camila: `Camila la utiliza para transformar acuerdos de palabra en un flujo comercial que su equipo puede continuar: ${step.description}`,
           }
         : {
-            emily: `Emily uses this function to create a repeatable commercial standard: ${step.description}`,
-            juanito: `Juanito uses this function to connect follow-up with measurable control: ${step.description}`,
-            camila: `Camila uses this function to turn informal agreements into a visible sales workflow: ${step.description}`,
+            emily: step.description,
+            juanito: step.description,
+            camila: step.description,
           },
     }));
   }, [activeGuide, activeTabId, isSpanish]);

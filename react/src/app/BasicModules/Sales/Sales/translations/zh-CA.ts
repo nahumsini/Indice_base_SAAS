@@ -1,7 +1,9 @@
 import { enCA } from './en-CA';
+import { zhCACommissionWorkspace } from './commissionWorkspaceLocales';
 
 export const zhCA = {
   ...enCA,
+  commissionWorkspace: zhCACommissionWorkspace,
   common: {
     ...enCA.common,
     all: '全部',
@@ -184,6 +186,13 @@ export const zhCA = {
       taxIdentifier: '税务识别号',
       defaultWarehouse: '默认仓库',
     },
+    lineItems: {
+      ...enCA.modal.lineItems,
+      searchPlaceholder: '按名称、SKU、代码或类别搜索',
+      allCategories: '所有类别',
+      noFilteredProducts: '没有符合这些筛选条件的产品。',
+      pageSummary: (count: number, page: number, pages: number) => `${count} 个产品 · 第 ${page}/${pages} 页`,
+    },
   },
   statuses: {
     commercial: {
@@ -240,6 +249,7 @@ export const zhCA = {
     useSuggestedAmount: '使用建议金额',
     notesPlaceholder: '佣金上下文、审批备注或付款时间。',
     save: '保存佣金',
+    calculatedByBackend: '金额和比例仅由后端根据应用的规则计算。',
   },
   summaryPreview: {
     title: '销售摘要',

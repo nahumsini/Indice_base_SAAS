@@ -27,6 +27,7 @@ type Labels = {
   noRows: string;
   focus: string;
   statuses: Record<HrEmployeeOperationsRow['status'], string>;
+  pagination: { next: string; previous: string; rows: string; item: string };
 };
 
 const badgeClasses: Record<HrEmployeeOperationsRow['status'], string> = {
@@ -43,28 +44,17 @@ const barClasses: Record<HrEmployeeOperationsRow['status'], string> = {
 
 export function HrEmployeeOperationsTable({
   labels,
-  locale,
   onFocus,
   resetKey,
   rows,
 }: {
   labels: Labels;
-  locale: string;
   onFocus: (row: HrEmployeeOperationsRow) => void;
   resetKey: string;
   rows: HrEmployeeOperationsRow[];
 }) {
   const pagination = useTablePagination({ rows, initialPageSize: 10, resetKey });
-  const isSpanish = locale.startsWith('es');
-  const isFrench = locale.startsWith('fr');
-  const isPortuguese = locale.startsWith('pt');
-  const paginationCopy = isSpanish
-    ? { next: 'Siguiente', previous: 'Anterior', rows: 'Filas por página', item: 'colaboradores' }
-    : isFrench
-      ? { next: 'Suivant', previous: 'Précédent', rows: 'Lignes par page', item: 'employés' }
-      : isPortuguese
-        ? { next: 'Próxima', previous: 'Anterior', rows: 'Linhas por página', item: 'colaboradores' }
-        : { next: 'Next', previous: 'Previous', rows: 'Rows per page', item: 'employees' };
+  const paginationCopy = labels.pagination;
 
   return (
     <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">

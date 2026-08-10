@@ -52,9 +52,9 @@ export function OperationalModuleGuide({
         camila: activeGuide.value,
       },
       storyByCharacter: {
-        emily: `Emily uses this function to create a repeatable business foundation: ${step.description}`,
-        juanito: `Juanito uses this function to keep operational context as reliable as his numbers: ${step.description}`,
-        camila: `Camila uses this function to turn informal agreements into visible business structure: ${step.description}`,
+        emily: step.description,
+        juanito: step.description,
+        camila: step.description,
       },
     }));
   }, [activeGuide, activeTabId, isSpanish]);

@@ -61,8 +61,8 @@ export function QuoteCatalogSection({
       </div>
 
       <div className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 md:grid-cols-[minmax(0,1fr)_240px]">
-        <div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={query} onChange={(event) => setQuery(event.target.value)} className="min-h-11 bg-white pl-9" placeholder="Buscar por nombre, SKU, clave o categoría" /></div>
-        <Select value={category} onValueChange={setCategory}><SelectTrigger className="min-h-11 bg-white"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todas las categorías</SelectItem>{categories.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select>
+        <div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={query} onChange={(event) => setQuery(event.target.value)} className="min-h-11 bg-white pl-9" placeholder={t.catalog.searchPlaceholder} /></div>
+        <Select value={category} onValueChange={setCategory}><SelectTrigger className="min-h-11 bg-white"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">{t.catalog.allCategories}</SelectItem>{categories.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select>
       </div>
 
       {visibleProducts.length === 0 ? (
@@ -82,7 +82,7 @@ export function QuoteCatalogSection({
           ))}
         </div>
       )}
-      <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500"><span>{visibleProducts.length.toLocaleString()} productos · página {safePage} de {pageCount}</span><span className="flex gap-1"><Button type="button" variant="outline" size="sm" className="h-8 px-2" disabled={safePage === 1} onClick={() => setPage((current) => Math.max(1, current - 1))}><ChevronLeft className="h-4 w-4" /></Button><Button type="button" variant="outline" size="sm" className="h-8 px-2" disabled={safePage === pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))}><ChevronRight className="h-4 w-4" /></Button></span></div>
+      <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500"><span>{t.catalog.pageSummary(visibleProducts.length, safePage, pageCount)}</span><span className="flex gap-1"><Button type="button" variant="outline" size="sm" className="h-8 px-2" disabled={safePage === 1} onClick={() => setPage((current) => Math.max(1, current - 1))}><ChevronLeft className="h-4 w-4" /></Button><Button type="button" variant="outline" size="sm" className="h-8 px-2" disabled={safePage === pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))}><ChevronRight className="h-4 w-4" /></Button></span></div>
     </section>
   );
 }

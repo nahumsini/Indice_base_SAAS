@@ -184,7 +184,7 @@ export const frCA: ProjectsTranslations = {
   },
   workspace: {
     header: {
-      eyebrow: 'Selected project',
+      eyebrow: 'Projet sélectionné',
       tasksCount: (count: number) => `${count} taches`,
       title: (projectName: string) => `Taches de ${projectName}`,
       subtitle:
@@ -194,38 +194,38 @@ export const frCA: ProjectsTranslations = {
       createTask: 'Creer une tache',
       context: {
         folio: 'Folio',
-        status: 'Status',
-        priority: 'Priority',
-        responsible: 'Responsible',
-        scope: 'Scope',
-        dueDate: 'Due date',
+        status: 'État',
+        priority: 'Priorité',
+        responsible: 'Responsable',
+        scope: 'Portée',
+        dueDate: 'Échéance',
       },
       insights: {
-        empty: (projectName: string) => `${projectName} has no tasks yet. Create the first task to start execution.`,
+        empty: (projectName: string) => `${projectName} n’a pas encore de tâches. Créez la première pour commencer l’exécution.`,
         overdue: (projectName: string, open: number, overdue: number, progress: number) =>
-          `${projectName} needs attention: ${overdue} overdue tasks, ${open} open tasks, and ${progress}% progress.`,
+          `${projectName} demande de l’attention : ${overdue} tâches en retard, ${open} ouvertes et ${progress} % d’avancement.`,
         active: (projectName: string, open: number, completed: number, progress: number) =>
-          `${projectName} is moving: ${open} open tasks, ${completed} completed tasks, and ${progress}% progress.`,
+          `${projectName} avance : ${open} tâches ouvertes, ${completed} terminées et ${progress} % d’avancement.`,
         complete: (projectName: string, completed: number, audited: number) =>
-          `${projectName} has ${completed} completed tasks and ${audited} audited tasks ready for review.`,
+          `${projectName} compte ${completed} tâches terminées et ${audited} tâches auditées prêtes à être révisées.`,
       },
     },
     projectStatuses: {
-      active: 'Active',
-      paused: 'Paused',
-      completed: 'Completed',
-      cancelled: 'Cancelled',
+      active: 'Actif',
+      paused: 'En pause',
+      completed: 'Terminé',
+      cancelled: 'Annulé',
     },
     projectPriorities: {
-      low: 'Low',
-      medium: 'Medium',
-      high: 'High',
+      low: 'Faible',
+      medium: 'Moyenne',
+      high: 'Élevée',
     },
     emptyContext: {
-      noPriority: 'No priority',
-      noResponsible: 'Unassigned',
-      noScope: 'No unit or business',
-      noDate: 'No date',
+      noPriority: 'Aucune priorité',
+      noResponsible: 'Non attribué',
+      noScope: 'Aucune unité ni établissement',
+      noDate: 'Aucune date',
     },
     filters: {
       search: 'Rechercher',
@@ -246,12 +246,14 @@ export const frCA: ProjectsTranslations = {
       empty: 'Ce projet n a pas encore de taches correspondant aux filtres actuels.',
     },
     gantt: {
-      taskColumn: 'Task timeline',
-      timelineRange: 'Drag bars to move or adjust dates.',
-      today: 'Today',
+      taskColumn: 'Échéancier des tâches',
+      timelineRange: 'Faites glisser les barres pour déplacer ou ajuster les dates.',
+      today: 'Aujourd’hui',
       duration: (days: number) => `${days}d`,
-      dependsOn: (folio: string) => `Depends on ${folio}`,
-      noPredecessor: 'No predecessor',
+      dependsOn: (folio: string) => `Dépend de ${folio}`,
+      noPredecessor: 'Aucun prédécesseur',
+      adjustStartDate: 'Ajuster la date de début',
+      adjustDueDate: 'Ajuster la date d’échéance',
     },
     bulk: {
       selectedLabel: (count: number) => `${count} selectionnee${count === 1 ? '' : 's'}`,

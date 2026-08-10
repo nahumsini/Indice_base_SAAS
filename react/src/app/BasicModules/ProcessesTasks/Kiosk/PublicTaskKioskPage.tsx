@@ -236,40 +236,6 @@ function formatDateTime(value: string | null, locale: TaskKioskLocale, emptyLabe
   return date.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }
 
-function filterLabels(locale: TaskKioskLocale) {
-  const isSpanish = locale.startsWith('es');
-  return {
-    focus: isSpanish ? 'Enfoque' : 'Focus',
-    period: isSpanish ? 'Periodo' : 'Period',
-    mine: isSpanish ? 'Mis tareas' : 'My tasks',
-    delegated: isSpanish ? 'Delegadas por mi' : 'Delegated by me',
-    team: isSpanish ? 'Equipo visible' : 'Visible team',
-    allPeriod: isSpanish ? 'Todo' : 'All',
-    today: isSpanish ? 'Hoy' : 'Today',
-    tomorrow: isSpanish ? 'Mañana' : 'Tomorrow',
-    yesterday: isSpanish ? 'Ayer' : 'Yesterday',
-    week: isSpanish ? 'Semana' : 'Week',
-    month: isSpanish ? 'Mes' : 'Month',
-    evidenceHint: isSpanish ? 'Foto o archivo, maximo 5 evidencias.' : 'Photo or file, up to 5 evidence files.',
-    view: isSpanish ? 'Ver detalle' : 'View details',
-    attachments: isSpanish ? 'evidencias' : 'evidence',
-    createdEvidenceTitle: isSpanish ? 'Evidencia inicial' : 'Initial evidence',
-    createdEvidenceBody: isSpanish
-      ? 'Adjunta fotos, PDF o archivos para que la tarea nazca con contexto.'
-      : 'Attach photos, PDFs, or files so the task starts with context.',
-    filters: isSpanish ? 'Filtros' : 'Filters',
-    filtersDescription: isSpanish
-      ? 'Ajusta qué tareas quieres consultar. Los cambios se aplican al instante.'
-      : 'Choose which tasks you want to review. Changes apply immediately.',
-    applyFilters: isSpanish ? 'Ver tareas' : 'View tasks',
-    clearFilters: isSpanish ? 'Restablecer' : 'Reset',
-    takePhoto: isSpanish ? 'Tomar foto' : 'Take photo',
-    chooseFile: isSpanish ? 'Elegir archivo' : 'Choose file',
-    taskDetails: isSpanish ? 'Información de la tarea' : 'Task information',
-    close: isSpanish ? 'Cerrar' : 'Close',
-  };
-}
-
 function taskTypeLabel(taskType: PublicTaskKioskTask['task_type'] | undefined, copy: TaskKioskTranslations) {
   return {
     task: copy.task.task,
@@ -493,7 +459,7 @@ export default function PublicTaskKioskPage() {
   const pointLabel = bootstrap?.kiosk.name ?? copy.header.defaultPoint;
   const scopeLabel = bootstrap?.scope_label ?? copy.header.defaultScope;
   const currentTimeLabel = new Date().toLocaleTimeString(selectedLocale, { hour: '2-digit', minute: '2-digit' });
-  const labels = useMemo(() => filterLabels(selectedLocale), [selectedLocale]);
+  const labels = copy.workspace;
   const focusFilterLabel = focusFilter === 'mine'
     ? labels.mine
     : focusFilter === 'delegated'

@@ -5,6 +5,13 @@ export const frCA = {
   ...enCA,
   title: 'Contrôle',
   subtitle: 'Suivez la présence en temps réel et gérez les règles opérationnelles.',
+  selfShiftCalendar: {
+    title: 'Mon calendrier de quarts', loadingTitle: 'Chargement du calendrier', loadingDescription: 'Vérification de vos quarts assignés.', month: 'Mois',
+    shift: 'Quart', openShift: 'Quart ouvert', restDay: 'Jour de repos', noShift: 'Aucun quart', selectedDay: 'Jour sélectionné', today: 'Aujourd’hui',
+    details: 'Détails du quart', schedule: 'Horaire', start: 'Début', end: 'Fin', flexible: 'Flexible', workSite: 'Lieu de travail', template: 'Modèle',
+    meal: 'Repas', rest: 'Repos', overnight: 'Quart de nuit', notAssigned: 'Aucun quart assigné pour cette journée.', restAssigned: 'Cette journée est marquée comme repos.',
+    pickDay: 'Aucune journée sélectionnée.', minutes: 'min', retry: 'Impossible de charger votre calendrier de quarts.', previousMonth: 'Mois précédent', nextMonth: 'Mois suivant',
+  },
   refresh: 'Actualiser',
   loading: 'Chargement du contrôle',
   retry: 'Réessayer',

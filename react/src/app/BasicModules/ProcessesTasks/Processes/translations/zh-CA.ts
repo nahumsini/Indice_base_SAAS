@@ -6,6 +6,8 @@ export const zhCA: ProcessesTranslations = {
   ...enCA,
   common: {
     ...enCA.common,
+    previous: '上一步',
+    continue: '继续',
     all: '全部',
     allFemale: '全部',
     retry: '重试',

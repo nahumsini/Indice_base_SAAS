@@ -21,6 +21,7 @@ import {
   updatePhoneCountry,
   type ProfilePhoneFormValue,
 } from './profilePhones';
+import { useProfileTranslations } from './hooks/useProfileTranslations';
 
 const inputClassName =
   'w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all';
@@ -271,8 +272,8 @@ const areProfileFormValuesEqual = (
 );
 
 export default function Profile() {
-  const { currentLanguage, t } = useLanguage();
-  const profileCopy = t.panelInicial.profile;
+  const { currentLanguage } = useLanguage();
+  const profileCopy = useProfileTranslations();
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const avatarPreviewRef = useRef('');
   const [user, setUser] = useState<ConfigCenterCurrentUser | null>(null);
@@ -358,13 +359,11 @@ export default function Profile() {
     })),
     [currentLanguage.code],
   );
-  const phoneCopy = currentLanguage.code.startsWith('es')
-    ? { add: 'Agregar teléfono', number: 'Número', primary: 'Principal', remove: 'Quitar' }
-    : { add: 'Add phone', number: 'Number', primary: 'Primary', remove: 'Remove' };
+  const phoneCopy = profileCopy.phone;
 
   const initials = ((firstNames[0] ?? '') + (lastNames[0] ?? '')).trim().toUpperCase() || 'U';
   const avatarDisplayUrl = avatarPreviewUrl || user?.avatar_url || '';
-  const uploadPhotoLabel = currentLanguage.code.startsWith('es') ? 'Subiendo foto...' : 'Uploading photo...';
+  const uploadPhotoLabel = profileCopy.actions.uploadingPhoto;
   const hasUnsavedChanges = baselineValues !== null && !areProfileFormValuesEqual(formValues, baselineValues);
   const completedEssentialFields = [
     formValues.firstName.trim(),
@@ -375,17 +374,7 @@ export default function Profile() {
     ))?.number ?? '',
   ].filter(Boolean).length;
   const profileCompletion = Math.round((completedEssentialFields / 4) * 100);
-  const expressCopy = currentLanguage.code.startsWith('es')
-    ? {
-        completion: 'Perfil completo',
-        essentials: 'Completa lo esencial en una sola vista.',
-        securityAction: 'Cambiar contraseña',
-      }
-    : {
-        completion: 'Profile complete',
-        essentials: 'Complete the essentials in a single view.',
-        securityAction: 'Change password',
-      };
+  const expressCopy = profileCopy.progress;
   const trimmedNewPassword = formValues.newPassword.trim();
   const trimmedPasswordConfirmation = formValues.confirmNewPassword.trim();
   const hasPasswordChangeInProgress = trimmedNewPassword.length > 0 || trimmedPasswordConfirmation.length > 0;
@@ -689,8 +678,8 @@ export default function Profile() {
               </div>
             )}
             emoji="👤"
-            subtitle={t.panelInicial.profile.subtitle}
-            title={t.panelInicial.profile.title}
+            subtitle={profileCopy.subtitle}
+            title={profileCopy.title}
           />
         </div>
 
@@ -741,13 +730,13 @@ export default function Profile() {
 
           <div className="mb-5">
             <label className="mb-3 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              {t.panelInicial.profile.fields.profilePhoto}
+              {profileCopy.fields.profilePhoto}
             </label>
             <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
               {avatarDisplayUrl ? (
                 <img
                   src={avatarDisplayUrl}
-                  alt={t.panelInicial.profile.fields.profilePhoto}
+                  alt={profileCopy.fields.profilePhoto}
                   className="h-16 w-16 rounded-full border-2 border-blue-200 object-cover shadow-md dark:border-blue-700/50"
                 />
               ) : (
@@ -775,7 +764,7 @@ export default function Profile() {
                   ) : (
                     <Camera className="h-4 w-4" />
                   )}
-                  {isUploadingAvatar ? uploadPhotoLabel : t.panelInicial.profile.fields.uploadPhoto}
+                  {isUploadingAvatar ? uploadPhotoLabel : profileCopy.fields.uploadPhoto}
                 </button>
                 <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
                   {profileCopy.hints.photoFormat}
@@ -852,7 +841,7 @@ export default function Profile() {
 
           <div className="mb-4 rounded-lg bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60">
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              {t.panelInicial.profile.fields.email}
+              {profileCopy.fields.email}
             </label>
             <p className="truncate text-sm text-slate-700 dark:text-slate-200">{user?.email ?? '—'}</p>
           </div>
@@ -860,7 +849,7 @@ export default function Profile() {
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                {t.panelInicial.profile.fields.phone} <span className="text-[11px] text-gray-400">{profileCopy.messages.optional}</span>
+                {profileCopy.fields.phone} <span className="text-[11px] text-gray-400">{profileCopy.messages.optional}</span>
               </label>
               <button
                 type="button"
@@ -876,7 +865,7 @@ export default function Profile() {
                 <div key={phone.key} className="rounded-xl border border-gray-200 p-3 dark:border-gray-700">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                      {index === 0 ? phoneCopy.primary : `${t.panelInicial.profile.fields.phone} ${index + 1}`}
+                      {index === 0 ? phoneCopy.primary : `${profileCopy.fields.phone} ${index + 1}`}
                     </span>
                     {formValues.phoneNumbers.length > 1 ? (
                       <button
@@ -959,7 +948,7 @@ export default function Profile() {
                     aria-invalid={hasPasswordMinLengthError}
                     className={`${inputClassName} min-h-11 pr-12 ${hasPasswordMinLengthError ? 'border-red-300 focus:ring-red-500' : isPasswordReady ? 'border-emerald-300' : ''}`}
                   />
-                  <button type="button" onClick={() => setShowNewPassword((current) => !current)} className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-600" aria-label={showNewPassword ? t.loginPage.hidePassword : t.loginPage.showPassword}>
+                  <button type="button" onClick={() => setShowNewPassword((current) => !current)} className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-600" aria-label={showNewPassword ? profileCopy.accessibility.hidePassword : profileCopy.accessibility.showPassword}>
                     {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
@@ -980,7 +969,7 @@ export default function Profile() {
                     aria-invalid={hasPasswordMismatch}
                     className={`${inputClassName} min-h-11 pr-12 ${hasPasswordMismatch ? 'border-red-300 focus:ring-red-500' : isPasswordReady ? 'border-emerald-300' : ''}`}
                   />
-                  <button type="button" onClick={() => setShowConfirmPassword((current) => !current)} className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-600" aria-label={showConfirmPassword ? t.loginPage.hidePassword : t.loginPage.showPassword}>
+                  <button type="button" onClick={() => setShowConfirmPassword((current) => !current)} className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-600" aria-label={showConfirmPassword ? profileCopy.accessibility.hidePassword : profileCopy.accessibility.showPassword}>
                     {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>

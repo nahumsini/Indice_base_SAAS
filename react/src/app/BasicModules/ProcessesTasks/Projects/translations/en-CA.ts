@@ -248,6 +248,8 @@ export const enCA = {
       duration: (days: number) => `${days}d`,
       dependsOn: (folio: string) => `Depends on ${folio}`,
       noPredecessor: 'No predecessor',
+      adjustStartDate: 'Adjust start date',
+      adjustDueDate: 'Adjust due date',
     },
     bulk: {
       selectedLabel: (count: number) => `${count} selected`,

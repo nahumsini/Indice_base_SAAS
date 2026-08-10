@@ -1,4 +1,5 @@
 import type { TaskKioskTranslations } from './types';
+import { esMX } from './es-MX';
 
 export const esCO = {
   language: {
@@ -164,4 +165,6 @@ export const esCO = {
     responsibleFailure: 'No se pudo actualizar el responsable.',
     responsibleTimeout: 'La actualización tardó demasiado. Revisa la conexión e intenta de nuevo.',
   },
+  admin: esMX.admin,
+  workspace: esMX.workspace,
 } satisfies TaskKioskTranslations;

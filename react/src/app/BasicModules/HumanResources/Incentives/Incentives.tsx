@@ -206,6 +206,7 @@ export default function Incentives() {
 
         {isModalOpen ? (
           <LazyIncentiveFormModal
+            copy={copy.form}
             defaultCurrency={preferredCurrency}
             employees={employees}
             isOpen={isModalOpen}

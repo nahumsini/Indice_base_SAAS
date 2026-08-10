@@ -1,73 +1,22 @@
-import type {
-  PurchaseOrderOrigin,
-  PurchaseOrderStatus,
-  SupplierInvoiceStatus,
-  SupplierSubmissionStatus,
-} from '../types/purchaseOrder.types';
+import type { PurchaseOrderStatus, SupplierInvoiceStatus, SupplierSubmissionStatus } from '../types/purchaseOrder.types';
 
 export const numberFrom = (value: unknown) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-export const formatMoney = (amount: unknown, currency = 'MXN') => (
-  new Intl.NumberFormat('es-MX', {
+export const formatMoney = (amount: unknown, currency = 'MXN', locale = 'en-CA') => (
+  new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
   }).format(numberFrom(amount))
 );
 
-export const formatDate = (value?: string | null) => {
-  if (!value) return 'Sin fecha';
+export const formatDate = (value?: string | null, locale = 'en-CA', emptyLabel = '—') => {
+  if (!value) return emptyLabel;
   const date = new Date(`${value}T00:00:00`);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
-};
-
-export const purchaseOrderStatusLabels: Record<PurchaseOrderStatus, string> = {
-  DRAFT: 'Borrador',
-  REQUESTED: 'Solicitada',
-  IN_REVIEW: 'En revision',
-  NEEDS_CLARIFICATION: 'Aclaracion',
-  APPROVED: 'Aprobada',
-  ISSUED: 'Emitida',
-  SENT: 'Enviada',
-  CONFIRMED: 'Confirmada',
-  PARTIALLY_RECEIVED: 'Parcial',
-  RECEIVED: 'Recibida',
-  INVOICED: 'Facturada',
-  VALIDATED_FOR_PAYMENT: 'Validada pago',
-  SCHEDULED_FOR_PAYMENT: 'Pago programado',
-  PAID: 'Pagada',
-  CLOSED: 'Cerrada',
-  CANCELLED: 'Cancelada',
-  REJECTED: 'Rechazada',
-};
-
-export const purchaseOrderOriginLabels: Record<PurchaseOrderOrigin, string> = {
-  INDICE: 'Indice',
-  SUPPLIER_KIOSK: 'Kiosko proveedor',
-  POS_REPLENISHMENT: 'Reposicion POS',
-  SALES: 'Sales',
-  IMPORT: 'Importacion',
-};
-
-export const supplierInvoiceStatusLabels: Record<SupplierInvoiceStatus, string> = {
-  SUBMITTED: 'En revision',
-  MATCHED: 'Conciliada',
-  APPROVED_FOR_PAYMENT: 'Lista para pago',
-  REJECTED: 'Rechazada',
-};
-
-export const supplierSubmissionStatusLabels: Record<SupplierSubmissionStatus, string> = {
-  SUPPLIER_DRAFT: 'Borrador proveedor',
-  SUBMITTED: 'Enviada',
-  IN_REVIEW: 'En revision',
-  NEEDS_CLARIFICATION: 'Aclaracion',
-  APPROVED: 'Aprobada',
-  PARTIALLY_APPROVED: 'Parcial',
-  REJECTED: 'Rechazada',
-  CONVERTED_TO_PURCHASE_ORDER: 'Convertida',
+  return date.toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
 export const statusClassName = (status: PurchaseOrderStatus | SupplierInvoiceStatus | SupplierSubmissionStatus) => {

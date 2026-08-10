@@ -1,7 +1,9 @@
 import { enCA } from './en-CA';
+import { frCACommissionWorkspace } from './commissionWorkspaceLocales';
 
 export const frCA = {
   ...enCA,
+  commissionWorkspace: frCACommissionWorkspace,
   common: {
     ...enCA.common,
     all: 'Tous',
@@ -184,6 +186,13 @@ export const frCA = {
       taxIdentifier: 'Numéro d’entreprise',
       defaultWarehouse: 'Entrepôt par défaut',
     },
+    lineItems: {
+      ...enCA.modal.lineItems,
+      searchPlaceholder: 'Rechercher par nom, SKU, code ou catégorie',
+      allCategories: 'Toutes les catégories',
+      noFilteredProducts: 'Aucun produit ne correspond à ces filtres.',
+      pageSummary: (count: number, page: number, pages: number) => `${count} produits · page ${page} sur ${pages}`,
+    },
   },
   statuses: {
     commercial: {
@@ -240,6 +249,7 @@ export const frCA = {
     useSuggestedAmount: 'Utiliser le montant suggéré',
     notesPlaceholder: 'Contexte de commission, notes d’approbation ou moment de paiement.',
     save: 'Enregistrer la commission',
+    calculatedByBackend: 'Le montant et le taux sont calculés exclusivement par le serveur selon la règle appliquée.',
   },
   summaryPreview: {
     title: 'Résumé de vente',

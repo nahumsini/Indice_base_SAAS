@@ -67,7 +67,7 @@ import { UsersAccessProfiles, type UsersAccessProfileId } from './components/Use
 import { UsersFeedback } from './components/UsersFeedback';
 import { UsersFilters } from './components/UsersFilters';
 import { UsersKpiStrip } from './components/UsersKpiStrip';
-import { getUsersTranslations } from './usersTranslations';
+import { useUsersTranslations } from './hooks/useUsersTranslations';
 import { DashboardTitleBar } from '../components/DashboardTitleBar';
 
 interface User {
@@ -159,10 +159,7 @@ const emptyInviteForm: InviteFormState = {
 
 export default function Users() {
   const { currentLanguage, t } = useLanguage();
-  const usersCopy = useMemo(
-    () => getUsersTranslations(currentLanguage.code),
-    [currentLanguage.code],
-  );
+  const usersCopy = useUsersTranslations();
   const [users, setUsers] = useState<User[]>([]);
   const [availableModules, setAvailableModules] = useState<AvailableModule[]>([]);
   const [availableUnits, setAvailableUnits] = useState<BusinessUnitOption[]>([]);
@@ -220,7 +217,7 @@ export default function Users() {
   const [selectedScopeTypeDraft, setSelectedScopeTypeDraft] = useState<User['scopeType']>('business_office');
   const [selectedUnitDraft, setSelectedUnitDraft] = useState('');
   const [selectedBusinessDraft, setSelectedBusinessDraft] = useState('');
-  const usersBusinessCopy = t.panelInicial.users.businessStructure;
+  const usersBusinessCopy = usersCopy.organization;
   const businessUnitOptions = availableUnits.map((unit) => ({
     value: unit.id,
     label: unit.name,
@@ -339,9 +336,9 @@ export default function Users() {
     return [unitName, businessName].filter(Boolean).join(' · ') || usersCopy.scope.business_office;
   };
   const roleDisplayName = (role: User['role']) => {
-    if (role === 'Super Admin') return t.panelInicial.users.roles.superAdmin;
-    if (role === 'Admin') return t.panelInicial.users.roles.admin;
-    return t.panelInicial.users.roles.user;
+    if (role === 'Super Admin') return usersCopy.screen.roles.superAdmin;
+    if (role === 'Admin') return usersCopy.screen.roles.admin;
+    return usersCopy.screen.roles.user;
   };
   const assignableScopeTypes = useMemo<User['scopeType'][]>(() => {
     if (canAssignSuperAdmin || !currentAccessUser || currentAccessUser.scopeType === 'corporate_office') {
@@ -357,9 +354,9 @@ export default function Users() {
     || (selectedScopeTypeDraft === 'business_office' && Boolean(selectedUnitDraft && selectedBusinessDraft));
 
   const statusLabelMap: Record<User['status'], string> = {
-    active: t.panelInicial.users.status.active,
-    pending: t.panelInicial.users.status.pending,
-    inactive: t.panelInicial.users.status.inactive,
+    active: usersCopy.screen.status.active,
+    pending: usersCopy.screen.status.pending,
+    inactive: usersCopy.screen.status.inactive,
   };
 
   const summaryLabels = {
@@ -1191,7 +1188,7 @@ export default function Users() {
                   className="cursor-pointer rounded-lg"
                 >
                   <Mail aria-hidden="true" />
-                  {t.panelInicial.users.actions.resend}
+                  {usersCopy.screen.resend}
                 </DropdownMenuItem>
               ) : null}
               {user.capabilities.canCancelInvitation ? (
@@ -1257,7 +1254,7 @@ export default function Users() {
       }}
     >
       <UserPlus className="w-4 h-4" />
-      {t.panelInicial.users.invite}
+      {usersCopy.screen.invite}
     </Button>
   ) : null;
 
@@ -1268,8 +1265,8 @@ export default function Users() {
       <DashboardTitleBar
         actions={titleBarActions ?? undefined}
         emoji="👥"
-        subtitle={t.panelInicial.users.subtitle}
-        title={t.panelInicial.users.title}
+        subtitle={usersCopy.screen.subtitle}
+        title={usersCopy.screen.title}
       />
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -1292,9 +1289,9 @@ export default function Users() {
               { label: usersCopy.seats.available, tone: 'blue', value: availableSeatCount },
             ]}
             statusItems={[
-              { label: t.panelInicial.users.filters.active, tone: 'green', value: activeUsers },
-              { label: t.panelInicial.users.filters.pending, tone: 'yellow', value: pendingUsers },
-              { label: t.panelInicial.users.filters.inactive, tone: 'slate', value: inactiveUsers },
+              { label: usersCopy.screen.filters.active, tone: 'green', value: activeUsers },
+              { label: usersCopy.screen.filters.pending, tone: 'yellow', value: pendingUsers },
+              { label: usersCopy.screen.filters.inactive, tone: 'slate', value: inactiveUsers },
             ]}
           />
         </div>
@@ -1308,7 +1305,7 @@ export default function Users() {
 
       <UsersFilters
         advancedActiveLabel={usersCopy.filters.advancedActive}
-        allLabel={t.panelInicial.users.filters.all}
+        allLabel={usersCopy.screen.filters.all}
         businessFilter={businessFilter}
         businessLabel={usersBusinessCopy.business}
         businessOptions={businessFilterOptions}
@@ -1340,18 +1337,18 @@ export default function Users() {
         roleFilter={roleFilter}
         roleLabel={usersCopy.filters.role}
         roleOptions={[
-          { value: 'Super Admin', label: t.panelInicial.users.roles.superAdmin },
-          { value: 'Admin', label: t.panelInicial.users.roles.admin },
-          { value: 'User', label: t.panelInicial.users.roles.user },
+          { value: 'Super Admin', label: usersCopy.screen.roles.superAdmin },
+          { value: 'Admin', label: usersCopy.screen.roles.admin },
+          { value: 'User', label: usersCopy.screen.roles.user },
         ]}
-        searchLabel={t.panelInicial.users.search}
+        searchLabel={usersCopy.screen.search}
         searchTerm={searchTerm}
         statusFilter={statusFilter}
         statusLabel={usersCopy.filters.status}
         statusOptions={[
-          { value: 'active', label: t.panelInicial.users.status.active },
-          { value: 'pending', label: t.panelInicial.users.status.pending },
-          { value: 'inactive', label: t.panelInicial.users.status.inactive },
+          { value: 'active', label: usersCopy.screen.status.active },
+          { value: 'pending', label: usersCopy.screen.status.pending },
+          { value: 'inactive', label: usersCopy.screen.status.inactive },
         ]}
         unitFilter={unitFilter}
         unitLabel={usersBusinessCopy.businessUnit}
@@ -1386,7 +1383,7 @@ export default function Users() {
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-800">
                   <span className={`inline-flex rounded-full px-2 py-0.5 font-medium ${getRoleColorClasses(user.role)}`}>
-                    {user.role === 'Super Admin' ? t.panelInicial.users.roles.superAdmin : user.role === 'Admin' ? t.panelInicial.users.roles.admin : t.panelInicial.users.roles.user}
+                    {user.role === 'Super Admin' ? usersCopy.screen.roles.superAdmin : user.role === 'Admin' ? usersCopy.screen.roles.admin : usersCopy.screen.roles.user}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-slate-600 dark:text-slate-300">{scopeLabel(user)}</span>
                   <span className="shrink-0 text-slate-500 dark:text-slate-400">{formatModulesCount(user.modules.length)}</span>
@@ -1406,16 +1403,16 @@ export default function Users() {
             <thead className="border-b border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/60">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {renderSortableHeader(t.panelInicial.users.table.name, 'name')}
+                  {renderSortableHeader(usersCopy.screen.table.name, 'name')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
                   {renderSortableHeader(usersCopy.accessEditor.review, 'role')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {renderSortableHeader(t.panelInicial.users.table.status, 'status')}
+                  {renderSortableHeader(usersCopy.screen.table.status, 'status')}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400">
-                  {t.panelInicial.users.table.actions}
+                  {usersCopy.screen.table.actions}
                 </th>
               </tr>
             </thead>
@@ -1474,10 +1471,10 @@ export default function Users() {
                           <div className="flex flex-wrap items-center gap-2">
                             <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getRoleColorClasses(user.role)}`}>
                               {user.role === 'Super Admin'
-                                ? t.panelInicial.users.roles.superAdmin
+                                ? usersCopy.screen.roles.superAdmin
                                 : user.role === 'Admin'
-                                  ? t.panelInicial.users.roles.admin
-                                  : t.panelInicial.users.roles.user}
+                                  ? usersCopy.screen.roles.admin
+                                  : usersCopy.screen.roles.user}
                             </span>
                             <span className="text-xs text-slate-500 dark:text-slate-400">{formatModulesCount(user.modules.length)}</span>
                           </div>
@@ -1542,7 +1539,7 @@ export default function Users() {
               onClick={handleSaveSelectedModules}
               disabled={selectedModulesDraft.length === 0 || !selectedEditScopeIsValid}
             >
-              {t.panelInicial.users.modal.save}
+              {usersCopy.screen.modal.save}
             </Button>
           )}
           footerLeading={(
@@ -1552,10 +1549,10 @@ export default function Users() {
               onClick={() => setSelectedUserForModules(null)}
               className="h-11 rounded-xl border-white bg-white px-5 text-sm font-medium text-slate-600 hover:bg-white/90"
             >
-              {t.panelInicial.users.modal.cancel}
+              {usersCopy.screen.modal.cancel}
             </Button>
           )}
-          footerSummary={`${usersCopy.accessEditor.review}: ${formatSelectedModulesCount(selectedModulesDraft.length)} · ${selectedKioskDefinitionDraft.length} ${currentLanguage.code.startsWith('es') ? 'kioscos' : 'kiosks'}`}
+          footerSummary={`${usersCopy.accessEditor.review}: ${formatSelectedModulesCount(selectedModulesDraft.length)} · ${usersCopy.kioskPermissions.assigned(selectedKioskDefinitionDraft.length)}`}
           icon={<Layers3 className="h-5 w-5" />}
           modalType="operational-workspace"
           onOpenChange={(open) => {
@@ -1590,10 +1587,10 @@ export default function Users() {
                       className={`${inputClassName} h-11 px-3 text-sm`}
                     >
                       {canAssignSuperAdmin || selectedUser.role === 'Super Admin' ? (
-                        <option value="Super Admin">{t.panelInicial.users.roles.superAdmin}</option>
+                        <option value="Super Admin">{usersCopy.screen.roles.superAdmin}</option>
                       ) : null}
-                      <option value="Admin">{t.panelInicial.users.roles.admin}</option>
-                      <option value="User">{t.panelInicial.users.roles.user}</option>
+                      <option value="Admin">{usersCopy.screen.roles.admin}</option>
+                      <option value="User">{usersCopy.screen.roles.user}</option>
                     </select>
                   </label>
                   <label className="block">
@@ -1694,7 +1691,7 @@ export default function Users() {
 	                  unitId={selectedScopeTypeDraft === 'corporate_office' ? null : numberOrNull(selectedUnitDraft)}
 	                  businessId={selectedScopeTypeDraft === 'business_office' ? numberOrNull(selectedBusinessDraft) : null}
 	                  onChange={setSelectedKioskDefinitionDraft}
-	                  languageCode={currentLanguage.code}
+	                  copy={usersCopy.kioskPermissions}
 	                />
                 </section>
 	              </div>
@@ -1704,9 +1701,9 @@ export default function Users() {
       {showInviteModal && (
         <IndiceModalFrame
           busy={loadingOverlay.isVisible}
-          closeLabel={t.panelInicial.users.modal.cancel}
+          closeLabel={usersCopy.screen.modal.cancel}
           contentClassName="max-h-[min(92dvh,820px)]"
-          description={t.panelInicial.users.subtitle}
+          description={usersCopy.screen.subtitle}
           eyebrow={!inviteLink ? inviteWizardCopy.progress(activeInviteStepIndex + 1, inviteWizardSteps.length) : inviteWizardCopy.completed}
           footer={inviteLink ? (
             <Button type="button" onClick={closeInviteModal}>{closeLabel}</Button>
@@ -1724,7 +1721,7 @@ export default function Users() {
                   disabled={loadingOverlay.isVisible || !inviteAccessIsValid}
                 >
                   <UserPlus className="h-4 w-4" />
-                  {t.panelInicial.users.modal.send}
+                  {usersCopy.screen.modal.send}
                 </Button>
               ) : (
                 <Button type="button" onClick={continueInviteWizard}>
@@ -1740,7 +1737,7 @@ export default function Users() {
               onClick={closeInviteModal}
               className="h-11 rounded-xl border-white bg-white px-5 text-sm font-medium text-slate-600 hover:bg-white/90"
             >
-              {t.panelInicial.users.modal.cancel}
+              {usersCopy.screen.modal.cancel}
             </Button>
           )}
           footerSummary={inviteLink
@@ -1752,7 +1749,7 @@ export default function Users() {
             if (!open) closeInviteModal();
           }}
           open
-          title={t.panelInicial.users.modal.newUser}
+          title={usersCopy.screen.modal.newUser}
           tone="blue"
         >
           <form id="dashboard-user-invite-form" onSubmit={handleSendInvite} className="space-y-5">
@@ -1780,18 +1777,18 @@ export default function Users() {
                 {inviteWizardStep === 'identity' ? (
                   <section className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:grid-cols-2">
                     <label className="space-y-2">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{t.panelInicial.users.modal.name}</span>
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{usersCopy.screen.modal.name}</span>
                       <input
                         type="text"
                         value={inviteForm.name}
                         onChange={(event) => updateInviteForm('name', event.target.value)}
                         className={`h-11 px-4 ${inputClassName}`}
-                        placeholder={t.panelInicial.users.modal.name}
+                        placeholder={usersCopy.screen.modal.name}
                         required
                       />
                     </label>
                     <label className="space-y-2">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{t.panelInicial.users.modal.email}</span>
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{usersCopy.screen.modal.email}</span>
                       <input
                         type="email"
                         value={inviteForm.email}
@@ -1802,16 +1799,16 @@ export default function Users() {
                       />
                     </label>
                     <label className="space-y-2 sm:col-span-2">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{t.panelInicial.users.modal.role}</span>
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{usersCopy.screen.modal.role}</span>
                       <span className="relative block">
                         <select
                           value={inviteForm.role}
                           onChange={(event) => updateInviteForm('role', event.target.value as User['role'])}
                           className={`h-11 appearance-none cursor-pointer px-4 pr-10 ${inputClassName}`}
                         >
-                          {canAssignSuperAdmin ? <option value="Super Admin">{t.panelInicial.users.roles.superAdmin}</option> : null}
-                          <option value="Admin">{t.panelInicial.users.roles.admin}</option>
-                          <option value="User">{t.panelInicial.users.roles.user}</option>
+                          {canAssignSuperAdmin ? <option value="Super Admin">{usersCopy.screen.roles.superAdmin}</option> : null}
+                          <option value="Admin">{usersCopy.screen.roles.admin}</option>
+                          <option value="User">{usersCopy.screen.roles.user}</option>
                         </select>
                         <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                       </span>
@@ -1865,8 +1862,8 @@ export default function Users() {
                       <IndiceModalSummary
                         columns={3}
                         items={[
-                          { label: t.panelInicial.users.modal.name, value: inviteForm.name || '—' },
-                          { label: t.panelInicial.users.modal.role, value: inviteForm.role },
+                          { label: usersCopy.screen.modal.name, value: inviteForm.name || '—' },
+                          { label: usersCopy.screen.modal.role, value: inviteForm.role },
                           { label: usersCopy.scope.label, value: usersCopy.scope[inviteForm.scopeType] },
                         ]}
                         title={inviteWizardCopy.inheritedProfile}
@@ -1915,14 +1912,14 @@ export default function Users() {
                       unitId={inviteForm.scopeType === 'corporate_office' ? null : numberOrNull(inviteForm.businessUnitId)}
                       businessId={inviteForm.scopeType === 'business_office' ? numberOrNull(inviteForm.businessId) : null}
                       onChange={setInviteKioskDefinitionIds}
-                      languageCode={currentLanguage.code}
+                      copy={usersCopy.kioskPermissions}
                     />
                     <IndiceModalSummary
                       columns={3}
                       items={[
-                        { label: t.panelInicial.users.modal.name, value: inviteForm.name || '—' },
+                        { label: usersCopy.screen.modal.name, value: inviteForm.name || '—' },
                         { label: usersCopy.scope.label, value: usersCopy.scope[inviteForm.scopeType] },
-                        { label: t.panelInicial.users.modal.modules, value: formatSelectedModulesCount(inviteModuleIds.length), emphasized: true },
+                        { label: usersCopy.screen.modal.modules, value: formatSelectedModulesCount(inviteModuleIds.length), emphasized: true },
                       ]}
                       title={inviteWizardCopy.finalReview}
                       variant="plain"
@@ -1936,20 +1933,20 @@ export default function Users() {
                   columns={2}
                   icon={<CheckCircle2 className="h-5 w-5" />}
                   items={[
-                    { label: t.panelInicial.users.modal.email, value: inviteForm.email, emphasized: true },
-                    { label: t.panelInicial.users.modal.role, value: inviteForm.role },
+                    { label: usersCopy.screen.modal.email, value: inviteForm.email, emphasized: true },
+                    { label: usersCopy.screen.modal.role, value: inviteForm.role },
                   ]}
                   title={inviteEmailStatus?.sent ? summaryLabels.inviteSuccess : summaryLabels.inviteCreated}
                   variant="success"
                 />
                 {renderInviteEmailStatus()}
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{t.panelInicial.users.modal.inviteLink}</span>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{usersCopy.screen.modal.inviteLink}</span>
                   <span className="flex flex-col gap-2 sm:flex-row">
                     <input type="text" value={inviteLink} readOnly className={`h-11 flex-1 px-4 ${inputClassName}`} />
                     <Button type="button" onClick={() => copyToClipboard(inviteLink)} className="h-11 gap-2 bg-blue-600 text-white hover:bg-blue-700">
                       {copiedLink ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                      {copiedLink ? t.panelInicial.users.modal.copied : t.panelInicial.users.modal.copyLink}
+                      {copiedLink ? usersCopy.screen.modal.copied : usersCopy.screen.modal.copyLink}
                     </Button>
                   </span>
                 </label>
@@ -1969,7 +1966,7 @@ export default function Users() {
           ) : (
             <Button type="button" onClick={handleResendInvite} disabled={loadingOverlay.isVisible}>
               <Mail className="h-4 w-4" />
-              {t.panelInicial.users.actions.resend}
+              {usersCopy.screen.resend}
             </Button>
           )}
           footerLeading={(
@@ -1979,7 +1976,7 @@ export default function Users() {
               onClick={closeResendModal}
               className="h-11 rounded-xl border-white bg-white px-5 text-sm font-medium text-slate-600 hover:bg-white/90"
             >
-              {t.panelInicial.users.modal.cancel}
+              {usersCopy.screen.modal.cancel}
             </Button>
           )}
           footerSummary={newEmail.trim() || resendUser.email}
@@ -1989,7 +1986,7 @@ export default function Users() {
             if (!open) closeResendModal();
           }}
           open
-          title={t.panelInicial.users.actions.resend}
+          title={usersCopy.screen.resend}
           tone="blue"
         >
             <div className="space-y-4">
@@ -1997,7 +1994,7 @@ export default function Users() {
                 <>
                   <label className="block space-y-2">
                     <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-                      {t.panelInicial.users.modal.email}
+                      {usersCopy.screen.modal.email}
                     </span>
                     <input
                       type="text"
@@ -2016,7 +2013,7 @@ export default function Users() {
                       value={newEmail}
                       onChange={(event) => setNewEmail(event.target.value)}
                       className={`h-11 px-4 ${inputClassName}`}
-                      placeholder={t.panelInicial.users.modal.email}
+                      placeholder={usersCopy.screen.modal.email}
                     />
                     <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
                       {resendEmailHint}
@@ -2028,7 +2025,7 @@ export default function Users() {
                   <IndiceModalSummary
                     columns={2}
                     icon={<CheckCircle2 className="h-5 w-5" />}
-                    items={[{ label: t.panelInicial.users.modal.email, value: newEmail.trim() || resendUser.email, emphasized: true }]}
+                    items={[{ label: usersCopy.screen.modal.email, value: newEmail.trim() || resendUser.email, emphasized: true }]}
                     title={inviteEmailStatus?.sent ? summaryLabels.resendSuccess : summaryLabels.resendCreated}
                     variant="success"
                   />
@@ -2037,7 +2034,7 @@ export default function Users() {
 
                   <label className="block space-y-2">
                     <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-                      {t.panelInicial.users.modal.inviteLink}
+                      {usersCopy.screen.modal.inviteLink}
                     </span>
                     <span className="flex flex-col gap-2 sm:flex-row">
                       <input
@@ -2052,7 +2049,7 @@ export default function Users() {
                         className="h-11 gap-2 bg-blue-600 text-white hover:bg-blue-700"
                       >
                         {copiedLink ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                        {copiedLink ? t.panelInicial.users.modal.copied : t.panelInicial.users.modal.copyLink}
+                        {copiedLink ? usersCopy.screen.modal.copied : usersCopy.screen.modal.copyLink}
                       </Button>
                     </span>
                   </label>
@@ -2074,7 +2071,7 @@ export default function Users() {
         itemName={invitationPendingDelete ? `${invitationPendingDelete.name} <${invitationPendingDelete.email}>` : undefined}
         description={usersCopy.deleteConfirmationDescription}
         confirmLabel={isDeletingUser ? deletingLabel : deleteLabel}
-        cancelLabel={t.panelInicial.users.modal.cancel}
+        cancelLabel={usersCopy.screen.modal.cancel}
         confirmDisabled={isDeletingUser || loadingOverlay.isVisible}
         onConfirm={handleDeleteUser}
         onCancel={closeDeleteDialog}
@@ -2086,7 +2083,7 @@ export default function Users() {
         itemName={userPendingDeactivation ? `${userPendingDeactivation.name} <${userPendingDeactivation.email}>` : undefined}
         description={usersCopy.deactivateConfirmationDescription}
         confirmLabel={isDeletingUser ? usersCopy.overlays.deactivatingTitle : usersCopy.actions.deactivate}
-        cancelLabel={t.panelInicial.users.modal.cancel}
+        cancelLabel={usersCopy.screen.modal.cancel}
         confirmDisabled={isDeletingUser || loadingOverlay.isVisible}
         onConfirm={handleDeactivateUser}
         onCancel={closeDeactivateDialog}

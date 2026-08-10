@@ -914,8 +914,8 @@ export default function Payroll() {
     try {
       await runBusyTask({
         kind: 'government-reporting',
-        title: 'Consultando PILA / DIAN',
-        description: 'Leyendo snapshots gubernamentales auditables de la corrida.',
+        title: copy.colombiaOperations.reporting.title,
+        description: copy.colombiaOperations.reporting.snapshots,
       }, async () => {
         const reportingDetail = await humanResourcesApi.listPayrollGovernmentReportingSnapshots(runId);
         setGovernmentReportingDetail(reportingDetail);
@@ -960,8 +960,8 @@ export default function Payroll() {
       setColombiaSetupNotice(null);
       await runBusyTask({
         kind: 'colombia-setup',
-        title: 'Cargando Colombia',
-        description: 'Leyendo configuración, perfil fiscal y novedades del colaborador.',
+        title: copy.colombiaOperations.busy.loadingTitle,
+        description: copy.colombiaOperations.busy.loadingDescription,
       }, async () => {
         await loadColombiaSetup(run, line);
         setIsRunDialogOpen(false);
@@ -979,8 +979,8 @@ export default function Payroll() {
     try {
       await runBusyTask({
         kind: 'colombia-setup',
-        title: 'Guardando Colombia',
-        description: 'Actualizando configuración y perfil fiscal Colombia.',
+        title: copy.colombiaOperations.busy.savingTitle,
+        description: copy.colombiaOperations.busy.savingDescription,
       }, async () => {
         const [config, profile] = await Promise.all([
           humanResourcesApi.updatePayrollColombiaConfig(colombiaConfigForm),
@@ -993,7 +993,7 @@ export default function Payroll() {
         setColombiaProfileForm(profile);
         setColombiaSetupNotice({
           tone: 'success',
-          message: 'Configuración Colombia guardada. Sincroniza la corrida para aplicar cambios al cálculo.',
+          message: copy.colombiaOperations.success.saved,
         });
       }, 500);
     } catch (error) {
@@ -1008,8 +1008,8 @@ export default function Payroll() {
     try {
       await runBusyTask({
         kind: 'colombia-setup',
-        title: 'Guardando novedad',
-        description: 'Registrando novedad Colombia para el colaborador.',
+        title: copy.colombiaOperations.busy.noveltyTitle,
+        description: copy.colombiaOperations.busy.noveltyDescription,
       }, async () => {
         await humanResourcesApi.createPayrollColombiaNovelty({
           user_company_id: colombiaSetupContext.line.user_company_id,
@@ -1034,7 +1034,7 @@ export default function Payroll() {
         setColombiaNovelties(novelties.items);
         setColombiaSetupNotice({
           tone: 'success',
-          message: 'Novedad Colombia guardada. Sincroniza la corrida para recalcular esta línea.',
+          message: copy.colombiaOperations.success.novelty,
         });
       }, 500);
     } catch (error) {
@@ -1236,9 +1236,7 @@ export default function Payroll() {
       }
 
       if (!isCompanyPrintIdentityReady) {
-        setErrorMessage(currentLanguage.code.toLowerCase().startsWith('es')
-          ? 'La identidad de la empresa todavía se está preparando para impresión.'
-          : 'The company identity is still being prepared for printing.');
+        setErrorMessage(copy.busy.identityNotReady);
         return;
       }
 
@@ -1263,9 +1261,7 @@ export default function Payroll() {
     if (!isCompanyPrintIdentityReady) {
       setRunDialogNotice({
         tone: 'error',
-        message: currentLanguage.code.toLowerCase().startsWith('es')
-          ? 'La identidad de la empresa todavía se está preparando para impresión.'
-          : 'The company identity is still being prepared for printing.',
+        message: copy.busy.identityNotReady,
       });
       return;
     }
@@ -1424,41 +1420,8 @@ export default function Payroll() {
     setVisibleColumnIds(nextVisibleColumnIds);
   };
 
-  const searchCopy = useMemo(() => {
-    if (currentLanguage.code.startsWith('es')) {
-      return {
-        label: 'Buscar nómina',
-        placeholder: 'Período, unidad, negocio, jurisdicción o estado',
-      };
-    }
-
-    return {
-      label: 'Search payroll',
-      placeholder: 'Period, unit, business, jurisdiction, or status',
-    };
-  }, [currentLanguage.code]);
-
-  const paginationCopy = useMemo(() => {
-    if (currentLanguage.code.startsWith('es')) {
-      return {
-        next: 'Siguiente',
-        page: (current: number, total: number) => `Página ${current} de ${total}`,
-        pageSize: 'Filas por página',
-        previous: 'Anterior',
-        showing: (start: number, end: number, total: number) =>
-          `Mostrando ${start}-${end} de ${total} corridas`,
-      };
-    }
-
-    return {
-      next: 'Next',
-      page: (current: number, total: number) => `Page ${current} of ${total}`,
-      pageSize: 'Rows per page',
-      previous: 'Previous',
-      showing: (start: number, end: number, total: number) =>
-        `Showing ${start}-${end} of ${total} runs`,
-    };
-  }, [currentLanguage.code]);
+  const searchCopy = copy.list.search;
+  const paginationCopy = copy.list.pagination;
 
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
   const filteredRuns = useMemo(() => {
@@ -3511,19 +3474,7 @@ function PayrollRunDialog({
   );
 }
 
-const colombiaNoveltyOptions: Array<{ value: PayrollColombiaNoveltyCode; label: string }> = [
-  { value: 'VSP', label: 'Variacion permanente de salario' },
-  { value: 'VST', label: 'Variacion transitoria de salario' },
-  { value: 'SLN', label: 'Suspension temporal' },
-  { value: 'IGE', label: 'Incapacidad general' },
-  { value: 'LMA', label: 'Licencia maternidad/paternidad' },
-  { value: 'LPA', label: 'Licencia remunerada' },
-  { value: 'VAC', label: 'Vacaciones' },
-  { value: 'RETRO', label: 'Retroactivo' },
-  { value: 'CORR', label: 'Correccion' },
-  { value: 'LIQ', label: 'Liquidacion' },
-  { value: 'RET', label: 'Retiro' },
-];
+const colombiaNoveltyCodes: PayrollColombiaNoveltyCode[] = ['VSP', 'VST', 'SLN', 'IGE', 'LMA', 'LPA', 'VAC', 'RETRO', 'CORR', 'LIQ', 'RET'];
 
 const boolSelectValue = (value: boolean | null | undefined) => (
   value === true ? 'true' : value === false ? 'false' : 'inherit'
@@ -3562,6 +3513,7 @@ function PayrollColombiaSetupDialog({
   onSave: () => void;
   onClose: () => void;
 }) {
+  const copy = usePayrollTranslations();
   const inputClassName = 'h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-800 dark:text-white';
   const labelClassName = 'grid gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400';
   const selectClassName = `${inputClassName} appearance-none`;
@@ -3582,19 +3534,19 @@ function PayrollColombiaSetupDialog({
       tone="aqua"
       busy={isSaving}
       icon={<Globe2 className="h-5 w-5" />}
-      title="Colombia"
-      description={`${context.line.user_name} · Corrida #${context.run.id}`}
-      closeLabel="Cerrar"
+      title={copy.colombiaOperations.title}
+      description={copy.colombiaOperations.description(context.line.user_name, context.run.id)}
+      closeLabel={copy.labels.close}
       contentClassName="z-[145] h-[min(90dvh,940px)] sm:max-w-[1080px]"
       bodyClassName="p-0"
-      footerSummary="Los cambios aplican al siguiente cálculo backend."
+      footerSummary={copy.colombiaOperations.footerSummary}
       footer={(
         <>
           <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
-            Cerrar
+            {copy.labels.close}
           </Button>
           <Button type="button" onClick={onSave} disabled={isSaving}>
-            {isSaving ? 'Guardando...' : 'Guardar Colombia'}
+            {isSaving ? copy.colombiaOperations.busy.savingTitle : copy.colombiaOperations.save}
           </Button>
         </>
       )}
@@ -3612,10 +3564,10 @@ function PayrollColombiaSetupDialog({
 
           <div className="grid gap-4 lg:grid-cols-2">
             <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-              <h3 className="text-sm font-medium text-slate-900 dark:text-white">Empresa Colombia</h3>
+              <h3 className="text-sm font-medium text-slate-900 dark:text-white">{copy.colombiaOperations.company}</h3>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <label className={labelClassName}>
-                  Clase ARL default
+                  {copy.colombiaOperations.defaultArlClass}
                   <input
                     type="number"
                     min="1"
@@ -3627,7 +3579,7 @@ function PayrollColombiaSetupDialog({
                   />
                 </label>
                 <label className={labelClassName}>
-                  Codigo caja compensacion
+                  {copy.colombiaOperations.fundCode}
                   <input
                     value={configForm.compensation_fund_code ?? ''}
                     onChange={(event) => setConfig('compensation_fund_code', event.target.value)}
@@ -3635,7 +3587,7 @@ function PayrollColombiaSetupDialog({
                   />
                 </label>
                 <label className={`${labelClassName} sm:col-span-2`}>
-                  Caja de compensacion
+                  {copy.colombiaOperations.fundName}
                   <input
                     value={configForm.compensation_fund_name ?? ''}
                     onChange={(event) => setConfig('compensation_fund_name', event.target.value)}
@@ -3643,7 +3595,7 @@ function PayrollColombiaSetupDialog({
                   />
                 </label>
                 {([
-                  ['employer_health_exemption_applies', 'Exoneracion salud patronal'],
+                  ['employer_health_exemption_applies', copy.colombiaOperations.employerHealthExemption],
                   ['sena_applies', 'SENA'],
                   ['icbf_applies', 'ICBF'],
                   ['ccf_applies', 'CCF'],
@@ -3655,9 +3607,9 @@ function PayrollColombiaSetupDialog({
                       onChange={(event) => setConfig(key, boolFromSelectValue(event.target.value))}
                       className={selectClassName}
                     >
-                      <option value="inherit">Sin definir</option>
-                      <option value="true">Si</option>
-                      <option value="false">No</option>
+                      <option value="inherit">{copy.colombiaOperations.undefined}</option>
+                      <option value="true">{copy.colombiaOperations.yes}</option>
+                      <option value="false">{copy.colombiaOperations.no}</option>
                     </select>
                   </label>
                 ))}
@@ -3665,10 +3617,10 @@ function PayrollColombiaSetupDialog({
             </section>
 
             <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-              <h3 className="text-sm font-medium text-slate-900 dark:text-white">Perfil del colaborador</h3>
+              <h3 className="text-sm font-medium text-slate-900 dark:text-white">{copy.colombiaOperations.employeeProfile}</h3>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <label className={labelClassName}>
-                  Tipo cotizante
+                  {copy.colombiaOperations.contributorType}
                   <input
                     value={profileForm.contributor_type ?? ''}
                     onChange={(event) => setProfile('contributor_type', event.target.value)}
@@ -3676,7 +3628,7 @@ function PayrollColombiaSetupDialog({
                   />
                 </label>
                 <label className={labelClassName}>
-                  Subtipo cotizante
+                  {copy.colombiaOperations.contributorSubtype}
                   <input
                     value={profileForm.contributor_subtype ?? ''}
                     onChange={(event) => setProfile('contributor_subtype', event.target.value)}
@@ -3684,7 +3636,7 @@ function PayrollColombiaSetupDialog({
                   />
                 </label>
                 <label className={labelClassName}>
-                  Clase ARL
+                  {copy.colombiaOperations.arlClass}
                   <input
                     type="number"
                     min="1"
@@ -3696,18 +3648,18 @@ function PayrollColombiaSetupDialog({
                   />
                 </label>
                 <label className={labelClassName}>
-                  Salario integral
+                  {copy.colombiaOperations.integralSalary}
                   <select
                     value={profileForm.integral_salary ? 'true' : 'false'}
                     onChange={(event) => setProfile('integral_salary', event.target.value === 'true')}
                     className={selectClassName}
                   >
-                    <option value="false">No</option>
-                    <option value="true">Si</option>
+                    <option value="false">{copy.colombiaOperations.no}</option>
+                    <option value="true">{copy.colombiaOperations.yes}</option>
                   </select>
                 </label>
                 <label className={labelClassName}>
-                  EPS
+                  {copy.colombiaOperations.eps}
                   <input
                     value={profileForm.eps_name ?? ''}
                     onChange={(event) => setProfile('eps_name', event.target.value)}
@@ -3715,7 +3667,7 @@ function PayrollColombiaSetupDialog({
                   />
                 </label>
                 <label className={labelClassName}>
-                  Codigo EPS
+                  {copy.colombiaOperations.epsCode}
                   <input
                     value={profileForm.eps_code ?? ''}
                     onChange={(event) => setProfile('eps_code', event.target.value)}
@@ -3723,7 +3675,7 @@ function PayrollColombiaSetupDialog({
                   />
                 </label>
                 <label className={labelClassName}>
-                  AFP
+                  {copy.colombiaOperations.afp}
                   <input
                     value={profileForm.afp_name ?? ''}
                     onChange={(event) => setProfile('afp_name', event.target.value)}
@@ -3731,7 +3683,7 @@ function PayrollColombiaSetupDialog({
                   />
                 </label>
                 <label className={labelClassName}>
-                  Codigo AFP
+                  {copy.colombiaOperations.afpCode}
                   <input
                     value={profileForm.afp_code ?? ''}
                     onChange={(event) => setProfile('afp_code', event.target.value)}
@@ -3739,18 +3691,18 @@ function PayrollColombiaSetupDialog({
                   />
                 </label>
                 <label className={labelClassName}>
-                  Procedimiento retencion
+                  {copy.colombiaOperations.withholdingProcedure}
                   <select
                     value={profileForm.withholding_procedure ?? 'procedure_1'}
                     onChange={(event) => setProfile('withholding_procedure', event.target.value as PayrollColombiaEmployeeProfile['withholding_procedure'])}
                     className={selectClassName}
                   >
-                    <option value="procedure_1">Procedimiento 1</option>
-                    <option value="procedure_2">Procedimiento 2</option>
+                    <option value="procedure_1">{copy.colombiaOperations.procedure1}</option>
+                    <option value="procedure_2">{copy.colombiaOperations.procedure2}</option>
                   </select>
                 </label>
                 <label className={labelClassName}>
-                  Tarifa proc. 2
+                  {copy.colombiaOperations.procedure2Rate}
                   <input
                     type="number"
                     min="0"
@@ -3762,12 +3714,12 @@ function PayrollColombiaSetupDialog({
                   />
                 </label>
                 {([
-                  ['dependents_monthly_deduction', 'Dependientes'],
-                  ['prepaid_medicine_monthly', 'Medicina prepagada'],
-                  ['housing_interest_monthly', 'Intereses vivienda'],
-                  ['voluntary_pension_monthly', 'Pension voluntaria'],
-                  ['afc_monthly', 'AFC'],
-                  ['other_exempt_income_monthly', 'Otras rentas exentas'],
+                  ['dependents_monthly_deduction', copy.colombiaOperations.dependents],
+                  ['prepaid_medicine_monthly', copy.colombiaOperations.prepaidMedicine],
+                  ['housing_interest_monthly', copy.colombiaOperations.housingInterest],
+                  ['voluntary_pension_monthly', copy.colombiaOperations.voluntaryPension],
+                  ['afc_monthly', copy.colombiaOperations.afc],
+                  ['other_exempt_income_monthly', copy.colombiaOperations.otherExemptIncome],
                 ] as const).map(([key, label]) => (
                   <label key={key} className={labelClassName}>
                     {label}
@@ -3788,31 +3740,31 @@ function PayrollColombiaSetupDialog({
           <section className="mt-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h3 className="text-sm font-medium text-slate-900 dark:text-white">Novedades Colombia</h3>
+                <h3 className="text-sm font-medium text-slate-900 dark:text-white">{copy.colombiaOperations.novelties}</h3>
                 <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-                  Periodo {context.run.period_start_date} a {context.run.period_end_date}
+                  {copy.colombiaOperations.period(context.run.period_start_date, context.run.period_end_date)}
                 </p>
               </div>
               <span className="rounded-full border border-[#59C3A5]/25 bg-[#59C3A5]/10 px-3 py-1 text-xs font-medium text-[#177d66]">
-                {novelties.length} registradas
+                {copy.colombiaOperations.registered(novelties.length)}
               </span>
             </div>
 
             <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr_120px_120px_150px_auto]">
               <label className={labelClassName}>
-                Codigo
+                {copy.colombiaOperations.code}
                 <select
                   value={noveltyForm.novelty_code}
                   onChange={(event) => onChangeNovelty({ ...noveltyForm, novelty_code: event.target.value as PayrollColombiaNoveltyCode })}
                   className={selectClassName}
                 >
-                  {colombiaNoveltyOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
+                  {colombiaNoveltyCodes.map((code) => (
+                    <option key={code} value={code}>{copy.colombiaOperations.noveltyLabels[code]}</option>
                   ))}
                 </select>
               </label>
               <label className={labelClassName}>
-                Etiqueta
+                {copy.colombiaOperations.label}
                 <input
                   value={noveltyForm.novelty_label}
                   onChange={(event) => onChangeNovelty({ ...noveltyForm, novelty_label: event.target.value })}
@@ -3820,7 +3772,7 @@ function PayrollColombiaSetupDialog({
                 />
               </label>
               <label className={labelClassName}>
-                Inicio
+                {copy.colombiaOperations.start}
                 <input
                   type="date"
                   value={noveltyForm.start_date}
@@ -3829,7 +3781,7 @@ function PayrollColombiaSetupDialog({
                 />
               </label>
               <label className={labelClassName}>
-                Fin
+                {copy.colombiaOperations.end}
                 <input
                   type="date"
                   value={noveltyForm.end_date}
@@ -3838,7 +3790,7 @@ function PayrollColombiaSetupDialog({
                 />
               </label>
               <label className={labelClassName}>
-                Impacto IBC
+                {copy.colombiaOperations.ibcImpact}
                 <input
                   type="number"
                   step="0.01"
@@ -3853,7 +3805,7 @@ function PayrollColombiaSetupDialog({
                 disabled={isSaving || !noveltyForm.start_date}
                 className="mt-auto h-10 rounded-lg bg-[#59C3A5] px-4 text-sm font-medium text-slate-950 hover:bg-[#102d63] hover:text-white"
               >
-                Agregar
+                {copy.colombiaOperations.add}
               </Button>
             </div>
 
@@ -3861,10 +3813,10 @@ function PayrollColombiaSetupDialog({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Codigo</TableHead>
-                    <TableHead>Periodo</TableHead>
+                    <TableHead>{copy.colombiaOperations.code}</TableHead>
+                    <TableHead>{copy.colombiaOperations.periodLabel}</TableHead>
                     <TableHead>IBC</TableHead>
-                    <TableHead>Estado</TableHead>
+                    <TableHead>{copy.colombiaOperations.status}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -3878,7 +3830,7 @@ function PayrollColombiaSetupDialog({
                   )) : (
                     <TableRow>
                       <TableCell colSpan={4} className="py-8 text-center text-sm font-medium text-slate-500">
-                        Sin novedades registradas en este periodo.
+                        {copy.colombiaOperations.empty}
                       </TableCell>
                     </TableRow>
                   )}
@@ -3910,7 +3862,14 @@ function PayrollGovernmentReportingDialog({
   locale: string;
   onClose: () => void;
 }) {
+  const copy = usePayrollTranslations();
   const items = detail?.items ?? [];
+  const startDate = detail
+    ? formatDate(detail.run.period_start_date, locale, detail.run.period_start_date)
+    : '';
+  const endDate = detail
+    ? formatDate(detail.run.period_end_date, locale, detail.run.period_end_date)
+    : '';
 
   return (
     <IndiceModalFrame
@@ -3921,11 +3880,11 @@ function PayrollGovernmentReportingDialog({
       modalType="operational-workspace"
       tone="aqua"
       icon={<Landmark className="h-5 w-5" />}
-      title="PILA / DIAN Colombia"
+      title={copy.colombiaOperations.reporting.title}
       description={detail
-        ? `Corrida #${detail.run.id} · ${formatDate(detail.run.period_start_date, locale, detail.run.period_start_date)} → ${formatDate(detail.run.period_end_date, locale, detail.run.period_end_date)}`
-        : 'Snapshots gubernamentales Colombia'}
-      closeLabel="Cerrar"
+        ? copy.colombiaOperations.reporting.run(detail.run.id, startDate, endDate)
+        : copy.colombiaOperations.reporting.snapshots}
+      closeLabel={copy.labels.close}
       contentClassName="z-[140] h-[min(88dvh,900px)] sm:max-w-[1040px]"
       bodyClassName="p-0"
     >
@@ -3954,14 +3913,16 @@ function PayrollGovernmentReportingDialog({
                             : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200'
                           }`}
                           >
-                            {blocking ? 'Bloqueante' : 'Validado'}
+                            {blocking
+                              ? copy.colombiaOperations.reporting.blocking
+                              : copy.colombiaOperations.reporting.validated}
                           </span>
                         </div>
                         <p className="mt-3 text-sm font-medium text-slate-900 dark:text-white">
-                          Línea #{snapshot.run_line_id} · Colaborador #{snapshot.user_company_id}
+                          {copy.colombiaOperations.reporting.line(snapshot.run_line_id, snapshot.user_company_id)}
                         </p>
                         <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-                          Hash: {snapshot.payload_hash || 'Sin hash'} · {snapshot.generated_at || 'Sin fecha'}
+                          {copy.colombiaOperations.reporting.hash}: {snapshot.payload_hash || copy.colombiaOperations.reporting.noHash} · {snapshot.generated_at || copy.colombiaOperations.reporting.noDate}
                         </p>
                       </div>
 
@@ -3972,10 +3933,12 @@ function PayrollGovernmentReportingDialog({
                         }`}
                         >
                           {reportingReady(snapshot) ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
-                          {reportingReady(snapshot) ? 'Listo' : 'Revisar'}
+                          {reportingReady(snapshot)
+                            ? copy.colombiaOperations.reporting.ready
+                            : copy.colombiaOperations.reporting.review}
                         </span>
                         <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                          {issues.length} alertas
+                          {copy.colombiaOperations.reporting.alerts(issues.length)}
                         </span>
                       </div>
                     </div>
@@ -3994,7 +3957,7 @@ function PayrollGovernmentReportingDialog({
 
                     <details className="mt-4 rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-950">
                       <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-slate-500 dark:text-slate-400">
-                        Payload
+                        {copy.colombiaOperations.reporting.payload}
                       </summary>
                       <pre className="max-h-72 overflow-auto border-t border-slate-200 p-3 text-xs leading-5 text-slate-700 dark:border-slate-700 dark:text-slate-200">
                         {JSON.stringify(snapshot.payload, null, 2)}
@@ -4006,7 +3969,7 @@ function PayrollGovernmentReportingDialog({
             </div>
           ) : (
             <div className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-sm font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
-              No hay snapshots PILA / DIAN para esta corrida Colombia fiscal.
+              {copy.colombiaOperations.reporting.empty}
             </div>
           )}
         </div>

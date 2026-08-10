@@ -65,7 +65,7 @@ const consultingApiSource = readFileSync(
   'utf8',
 );
 const consultingTranslationsSource = readFileSync(
-  resolve(moduleRoot, 'Consulting/translations.ts'),
+  resolve(moduleRoot, 'Consulting/translations/es-MX.ts'),
   'utf8',
 );
 const consultingAdminSource = readFileSync(

@@ -9,6 +9,7 @@ import {
 import type { PurchaseOrder, PurchaseOrderReceivePayload } from '../types/purchaseOrder.types';
 import { formatMoney, numberFrom } from '../utils/purchaseOrderFormat';
 import { printPurchaseOrderReceipt } from '../../shared/pointOfSalePrintDocuments';
+import { usePurchaseOrderTranslations } from '../hooks/usePurchaseOrderTranslations';
 
 export function ReceivePurchaseOrderModal({
   onClose,
@@ -21,6 +22,7 @@ export function ReceivePurchaseOrderModal({
   order: PurchaseOrder | null;
   saving: boolean;
 }) {
+  const { copy, locale } = usePurchaseOrderTranslations();
   const [notes, setNotes] = useState('');
   const [quantities, setQuantities] = useState<Record<number, number>>({});
   const receivableItems = useMemo(() => (
@@ -41,7 +43,7 @@ export function ReceivePurchaseOrderModal({
       const payload = { notes: notes || null, items };
       const resultingOrder = await onSubmit(order.id, payload);
       if (printAfterSave) {
-        printPurchaseOrderReceipt({ notes, order, payload, resultingOrder });
+        printPurchaseOrderReceipt({ locale, notes, order, payload, resultingOrder });
       }
       onClose();
     } catch {
@@ -53,20 +55,20 @@ export function ReceivePurchaseOrderModal({
     <PosModalFrame
       modalType="standard-form"
       onClose={onClose}
-      closeLabel="Cerrar recepción"
-      title="Recibir mercancía"
+      closeLabel={copy.receive.closeLabel}
+      title={copy.receive.title}
       subtitle={`${order.folio} - ${order.warehouseName}`}
-      eyebrow="Recepción POS"
+      eyebrow={copy.receive.eyebrow}
       icon={<PackageCheck className="h-6 w-6" />}
       tone="coral"
       size="md"
       footerClassName={posModalModuleFooterClassName}
       footerLeading={
         <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
-          Cancelar
+          {copy.common.cancel}
         </button>
       }
-      footerSummary={`${receivableItems.length} partidas pendientes por recibir`}
+      footerSummary={copy.orderTable.pendingUnits(receivableItems.length)}
       footer={(
         <div className="flex flex-wrap items-center justify-end gap-2">
           <button
@@ -76,7 +78,7 @@ export function ReceivePurchaseOrderModal({
             className={posModalSecondaryActionClassName}
           >
             <Printer className="h-4 w-4" />
-            Guardar e imprimir
+            {copy.receive.save} + {copy.detail.print}
           </button>
           <button
             type="button"
@@ -84,7 +86,7 @@ export function ReceivePurchaseOrderModal({
             onClick={() => void submit(false)}
             className={posModalPrimaryActionClassName}
           >
-            Guardar recepción
+            {copy.receive.save}
           </button>
         </div>
       )}
@@ -92,21 +94,21 @@ export function ReceivePurchaseOrderModal({
       <main className="space-y-4">
         {receivableItems.length === 0 ? (
           <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
-            Esta orden no tiene cantidades pendientes por recibir.
+            {copy.receive.noPending}
           </p>
         ) : receivableItems.map((item) => (
           <div key={item.id} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 md:grid-cols-[1fr_130px_130px]">
             <div>
               <p className="font-medium text-slate-950 dark:text-white">{item.productName}</p>
               <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-                Pendiente {item.pendingQuantity} - costo {formatMoney(item.unitCost, order.currencyCode)}
+                {copy.receive.pending} {item.pendingQuantity} · {formatMoney(item.unitCost, order.currencyCode, locale)}
               </p>
             </div>
             <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 dark:bg-slate-950 dark:text-slate-200">
-              Ordenado: {item.quantity}
+              {copy.receive.ordered}: {item.quantity}
             </div>
             <label className="space-y-1">
-              <span className="text-xs font-medium tracking-normal text-slate-500">Recibir</span>
+              <span className="text-xs font-medium tracking-normal text-slate-500">{copy.receive.receive}</span>
               <input
                 type="number"
                 min="0"
@@ -119,7 +121,7 @@ export function ReceivePurchaseOrderModal({
           </div>
         ))}
         <label className="block space-y-2">
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Notas de recepcion</span>
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.receive.notes}</span>
           <textarea
             value={notes}
             onChange={(event) => setNotes(event.target.value)}

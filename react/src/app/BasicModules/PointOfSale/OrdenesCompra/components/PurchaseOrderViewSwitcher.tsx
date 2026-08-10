@@ -1,5 +1,6 @@
 import { ClipboardList, Inbox, type LucideIcon } from 'lucide-react';
 import { cn } from '../../../../components/ui/utils';
+import { usePurchaseOrderTranslations } from '../hooks/usePurchaseOrderTranslations';
 
 export type PurchaseOrderWorkspaceMode = 'orders' | 'submissions';
 
@@ -14,20 +15,22 @@ export function PurchaseOrderViewSwitcher({
   submissionCount: number;
   onChange: (mode: PurchaseOrderWorkspaceMode) => void;
 }) {
+  const { copy } = usePurchaseOrderTranslations();
+
   return (
     <div className="inline-flex w-fit flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <SwitchButton
         active={mode === 'orders'}
         count={orderCount}
         icon={ClipboardList}
-        label="Compras POS"
+        label={copy.views.orders}
         onClick={() => onChange('orders')}
       />
       <SwitchButton
         active={mode === 'submissions'}
         count={submissionCount}
         icon={Inbox}
-        label="Propuestas proveedor"
+        label={copy.views.submissions}
         onClick={() => onChange('submissions')}
       />
     </div>

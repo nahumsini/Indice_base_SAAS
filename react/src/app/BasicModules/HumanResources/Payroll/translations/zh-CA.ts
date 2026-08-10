@@ -9,6 +9,14 @@ export const zhCA = {
   applyFilters: '应用筛选',
   retry: '重试',
   loading: '正在加载薪资',
+  list: {
+    search: { label: '搜索薪资', placeholder: '期间、单位、业务、管辖区或状态' },
+    pagination: {
+      next: '下一页', previous: '上一页', pageSize: '每页行数',
+      page: (current: number, total: number) => `第 ${current} 页，共 ${total} 页`,
+      showing: (start: number, end: number, total: number) => `显示 ${start}-${end}，共 ${total} 个批次`,
+    },
+  },
   unauthorized: '你的会话已不再通过身份验证。请重新登录并刷新模块。',
   notFound: '当前运行的后端尚未提供薪资 API。请使用最新分支重启 Spring 服务。',
   genericError: '无法加载薪资。',
@@ -51,6 +59,7 @@ export const zhCA = {
     csvDescription: '正在准备薪资台账以导出为电子表格。',
     pdfTitle: '正在准备薪资 PDF',
     pdfDescription: '正在使用当前批次数据生成可打印的薪资报告。',
+    identityNotReady: '公司打印信息仍在准备中。',
   },
   statuses: {
     draft: '草稿',
@@ -351,5 +360,13 @@ export const zhCA = {
     subtitle: '需要审核、批准、支付或导出的开放批次。',
     actions: '操作',
     netPayout: '净支付',
+  },
+  colombiaOperations: {
+    busy: { loadingTitle: '正在加载哥伦比亚设置', loadingDescription: '正在加载公司设置、员工档案和薪资变动。', savingTitle: '正在保存哥伦比亚设置', savingDescription: '正在更新哥伦比亚设置和法定档案。', noveltyTitle: '正在保存薪资变动', noveltyDescription: '正在登记该员工的哥伦比亚薪资变动。' },
+    success: { saved: '哥伦比亚设置已保存。请同步薪资批次以将更改应用到计算。', novelty: '哥伦比亚薪资变动已保存。请同步薪资批次以重新计算此行。' },
+    title: '哥伦比亚', description: (name: string, runId: number) => `${name} · 薪资批次 #${runId}`, footerSummary: '更改将在下一次后端计算中生效。', save: '保存哥伦比亚设置', company: '哥伦比亚公司', defaultArlClass: '默认 ARL 等级', fundCode: '补偿基金代码', fundName: '补偿基金', employerHealthExemption: '雇主健康缴费豁免', undefined: '未定义', yes: '是', no: '否',
+    employeeProfile: '员工档案', contributorType: '缴费人类型', contributorSubtype: '缴费人子类型', arlClass: 'ARL 等级', integralSalary: '综合薪资', eps: 'EPS', epsCode: 'EPS 代码', afp: 'AFP', afpCode: 'AFP 代码', withholdingProcedure: '预扣程序', procedure1: '程序 1', procedure2: '程序 2', procedure2Rate: '程序 2 税率', dependents: '受抚养人', prepaidMedicine: '预付医疗', housingInterest: '住房利息', voluntaryPension: '自愿养老金', afc: 'AFC', otherExemptIncome: '其他免税收入',
+    novelties: '哥伦比亚薪资变动', periodLabel: '期间', period: (start: string, end: string) => `期间 ${start} 至 ${end}`, registered: (count: number) => `${count} 项已登记`, code: '代码', label: '标签', start: '开始', end: '结束', ibcImpact: 'IBC 影响', add: '添加', status: '状态', empty: '此期间没有已登记的薪资变动。', noveltyLabels: { VSP: '永久薪资变更', VST: '临时薪资变更', SLN: '临时停职', IGE: '一般失能', LMA: '产假/陪产假', LPA: '带薪休假', VAC: '休假', RETRO: '追溯调整', CORR: '更正', LIQ: '结算', RET: '离职' },
+    reporting: { title: '哥伦比亚 PILA / DIAN', run: (id: number, start: string, end: string) => `薪资批次 #${id} · ${start} → ${end}`, snapshots: '哥伦比亚政府快照', blocking: '阻断', validated: '已验证', line: (lineId: number, employeeId: number) => `行 #${lineId} · 员工 #${employeeId}`, hash: '哈希', noHash: '无哈希', noDate: '无日期', ready: '就绪', review: '审核', alerts: (count: number) => `${count} 条提醒`, payload: '载荷', empty: '此哥伦比亚法定薪资批次没有 PILA / DIAN 快照。' },
   },
 } as const satisfies PayrollTranslations;

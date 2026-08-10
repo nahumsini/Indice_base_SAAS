@@ -1,14 +1,14 @@
 import { AlertTriangle, ArrowRight, CheckCircle2, Lightbulb, Target } from 'lucide-react';
 
 import type { BusinessDiagnosisEngineReport } from '../diagnosisEngine';
+import type { BusinessProfileTranslations } from '../translations';
 
 type BusinessDiagnosisResultProps = {
-  locale: string;
+  copy: BusinessProfileTranslations['result'];
   report: BusinessDiagnosisEngineReport;
 };
 
-export function BusinessDiagnosisResult({ locale, report }: BusinessDiagnosisResultProps) {
-  const spanish = locale.toLowerCase().startsWith('es');
+export function BusinessDiagnosisResult({ copy, report }: BusinessDiagnosisResultProps) {
   const priority = report.insights.find((insight) => insight.type === 'single_priority') ?? report.insights[0];
   const quickWin = report.insights.find((insight) => insight.type === 'quick_win') ?? report.insights[1];
   const mainRisk = report.insights.find((insight) => insight.type === 'main_risk') ?? report.insights[2];
@@ -24,18 +24,18 @@ export function BusinessDiagnosisResult({ locale, report }: BusinessDiagnosisRes
             </span>
             <div>
               <h2 className="text-lg font-medium text-[#222831] dark:text-white">
-                {spanish ? 'Resultado de tu empresa' : 'Your company result'}
+                {copy.title}
               </h2>
               <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                {spanish ? 'Una lectura práctica para decidir qué mejorar primero.' : 'A practical reading to decide what to improve first.'}
+                {copy.subtitle}
               </p>
             </div>
           </div>
           <p className="mt-4 max-w-5xl text-sm leading-6 text-gray-700 dark:text-gray-200">{report.executiveSummary}</p>
         </div>
         <div className="grid min-w-64 grid-cols-2 overflow-hidden rounded-xl border border-blue-100 bg-white dark:border-blue-900/50 dark:bg-gray-900">
-          <Metric label={spanish ? 'Madurez' : 'Maturity'} value={`${Math.round(report.scoreReport.overall.averageScore)}%`} />
-          <Metric label={spanish ? 'Confianza' : 'Confidence'} value={`${report.confidenceScore}%`} />
+          <Metric label={copy.maturity} value={`${Math.round(report.scoreReport.overall.averageScore)}%`} />
+          <Metric label={copy.confidence} value={`${report.confidenceScore}%`} />
         </div>
       </header>
 
@@ -43,10 +43,10 @@ export function BusinessDiagnosisResult({ locale, report }: BusinessDiagnosisRes
         {selectedInsights.map((insight, index) => {
           const Icon = index === 0 ? Target : index === 1 ? Lightbulb : AlertTriangle;
           const label = index === 0
-            ? (spanish ? 'Prioridad' : 'Priority')
+            ? copy.priority
             : index === 1
-              ? 'Quick win'
-              : (spanish ? 'Riesgo principal' : 'Main risk');
+              ? copy.quickWin
+              : copy.mainRisk;
 
           return (
             <article key={insight.type} className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
@@ -68,7 +68,7 @@ export function BusinessDiagnosisResult({ locale, report }: BusinessDiagnosisRes
         <div className="mb-4 flex items-center gap-2">
           <CheckCircle2 className="h-5 w-5 text-emerald-600" />
           <h3 className="font-medium text-[#222831] dark:text-white">
-            {spanish ? 'Plan recomendado' : 'Recommended plan'}
+            {copy.recommendedPlan}
           </h3>
         </div>
         <div className="grid gap-3 lg:grid-cols-3">

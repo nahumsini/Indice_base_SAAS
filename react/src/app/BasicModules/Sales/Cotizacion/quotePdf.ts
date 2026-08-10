@@ -90,7 +90,6 @@ export function buildQuotePdf({ quote, contact, opportunity, copy, locale = 'es-
   const right = pageWidth - 18;
   const contentWidth = right - left;
   const generatedAt = new Date();
-  const isSpanishDocument = locale.toLowerCase().startsWith('es-');
   const generatedDate = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(generatedAt);
   const generatedTime = new Intl.DateTimeFormat(locale, { timeStyle: 'short' }).format(generatedAt);
   const quoteCurrency = quote.currency ?? 'MXN';
@@ -100,21 +99,19 @@ export function buildQuotePdf({ quote, contact, opportunity, copy, locale = 'es-
     .filter((value, index, list) => list.indexOf(value) === index)
     .join(' / ') || copy.common.unassigned;
   const isExpired = new Date(quote.expirationDate).getTime() < new Date().setHours(0, 0, 0, 0);
-  const customerSummary = isSpanishDocument
-    ? {
-      scope: 'Alcance comercial',
-      validity: 'Vigencia',
-      terms: 'Condiciones',
-      scopeBody: `${quote.items.length} partida(s) comerciales por ${formatCurrency(quote.total, quoteCurrency)}.`,
-      validityBody: isExpired ? `Cotización vencida el ${quote.expirationDate}.` : `Válida hasta el ${quote.expirationDate}.`,
-    }
-    : {
-      scope: 'Commercial scope',
-      validity: 'Validity',
-      terms: 'Terms',
-      scopeBody: `${quote.items.length} commercial line(s) for ${formatCurrency(quote.total, quoteCurrency)}.`,
-      validityBody: isExpired ? `Quote expired on ${quote.expirationDate}.` : `Valid through ${quote.expirationDate}.`,
-    };
+  const documentInsights = copy.previewModal.documentInsights;
+  const customerSummary = {
+    scope: documentInsights.scope,
+    validity: documentInsights.validity,
+    terms: documentInsights.terms,
+    scopeBody: documentInsights.scopeBody(
+      quote.items.length,
+      formatCurrency(quote.total, quoteCurrency),
+    ),
+    validityBody: isExpired
+      ? documentInsights.expiredBody(quote.expirationDate)
+      : documentInsights.validThroughBody(quote.expirationDate),
+  };
 
   const drawBrandBar = (x: number, y: number, width: number, height = 2.5) => {
     const segments = [

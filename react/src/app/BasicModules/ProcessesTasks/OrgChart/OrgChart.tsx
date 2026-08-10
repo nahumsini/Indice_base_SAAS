@@ -16,6 +16,8 @@ import {
   ZoomOut,
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
+import { useLanguage } from '../../../shared/context';
+import { useOrgChartTranslations } from './hooks/useOrgChartTranslations';
 import {
   defaultProcessOrgChartAssignments,
   OrgChartAssignment,
@@ -155,6 +157,8 @@ const getInitials = (name: string) =>
     .join('');
 
 export default function OrgChart() {
+  const t = useOrgChartTranslations();
+  const { currentLanguage } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
   const [assignments, setAssignments] = useState<OrgChartAssignment[]>(
     defaultProcessOrgChartAssignments,
@@ -166,9 +170,7 @@ export default function OrgChart() {
     defaultProcessOrgChartAssignments[0]?.collaboratorId ?? null,
   );
   const [dragState, setDragState] = useState<DragState | null>(null);
-  const [statusMessage, setStatusMessage] = useState(
-    'Arrastra colaboradores al lienzo o sobre otro nodo para definir jerarquias.',
-  );
+  const [statusMessage, setStatusMessage] = useState(t.initialStatus);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -203,11 +205,11 @@ export default function OrgChart() {
         setZoom(savedState.zoom);
       }
 
-      setStatusMessage('Organigrama cargado desde tu ultima configuracion guardada.');
+      setStatusMessage(t.loaded);
     } catch {
-      setStatusMessage('No se pudo cargar el organigrama guardado. Se uso la configuracion base.');
+      setStatusMessage(t.loadError);
     }
-  }, []);
+  }, [t.loadError, t.loaded]);
 
   useEffect(() => {
     if (!dragState) {
@@ -321,7 +323,7 @@ export default function OrgChart() {
   const availableCount = processOrgCollaborators.length - assignedCount;
 
   const getManagerName = (managerId: number | null) =>
-    managerId == null ? 'Raiz principal' : collaboratorMap.get(managerId)?.name ?? 'Sin asignar';
+    managerId == null ? t.mainRoot : collaboratorMap.get(managerId)?.name ?? t.unassigned;
 
   const startNodeDrag = (event: MouseEvent<HTMLButtonElement>, collaboratorId: number) => {
     const canvas = canvasRef.current;
@@ -343,12 +345,12 @@ export default function OrgChart() {
 
   const assignCollaborator = (collaboratorId: number, managerId: number | null) => {
     if (collaboratorId === managerId) {
-      setStatusMessage('Un colaborador no puede reportarse a si mismo.');
+      setStatusMessage(t.selfReportError);
       return;
     }
 
     if (managerChainContains(assignments, managerId, collaboratorId)) {
-      setStatusMessage('No puedes asignar un colaborador debajo de uno de sus reportes.');
+      setStatusMessage(t.cycleError);
       return;
     }
 
@@ -372,8 +374,8 @@ export default function OrgChart() {
     setSelectedNodeId(collaboratorId);
     setStatusMessage(
       managerId == null
-        ? 'Colaborador agregado al nivel raiz del organigrama.'
-        : 'Jerarquia actualizada correctamente.',
+        ? t.addedToRoot
+        : t.hierarchyUpdated,
     );
   };
 
@@ -440,13 +442,13 @@ export default function OrgChart() {
       delete next[selectedNodeId];
       return next;
     });
-    setStatusMessage('Colaborador retirado del organigrama y sus reportes quedaron en raiz.');
+    setStatusMessage(t.removed);
     setSelectedNodeId(null);
   };
 
   const handleAutoOrganize = () => {
     setManualPositions({});
-    setStatusMessage('Organigrama reorganizado automaticamente.');
+    setStatusMessage(t.reorganized);
   };
 
   const handleReset = () => {
@@ -455,7 +457,7 @@ export default function OrgChart() {
     setLevelCount(3);
     setZoom(1);
     setSelectedNodeId(defaultProcessOrgChartAssignments[0]?.collaboratorId ?? null);
-    setStatusMessage('Organigrama reiniciado a la configuracion base.');
+    setStatusMessage(t.resetDone);
   };
 
   const handleSave = () => {
@@ -472,9 +474,9 @@ export default function OrgChart() {
 
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
     setLastSavedAt(
-      new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+      new Date().toLocaleTimeString(currentLanguage.code, { hour: '2-digit', minute: '2-digit' }),
     );
-    setStatusMessage('Organigrama guardado localmente en este navegador.');
+    setStatusMessage(t.saved);
   };
 
   return (
@@ -484,14 +486,14 @@ export default function OrgChart() {
           <div>
             <h2 className="text-2xl font-medium text-gray-900 dark:text-white mb-1 flex items-center gap-2">
               <span className="text-2xl">🏢</span>
-              Organigrama
+              {t.title}
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Arrastra colaboradores para construir niveles jerarquicos y visualizar la estructura operativa.
+              {t.subtitle}
             </p>
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">
-            {lastSavedAt ? `Ultimo guardado: ${lastSavedAt}` : 'Aun no has guardado cambios'}
+            {lastSavedAt ? t.lastSaved(lastSavedAt) : t.neverSaved}
           </div>
         </div>
       </div>
@@ -500,13 +502,13 @@ export default function OrgChart() {
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div>
-              <h3 className="text-xl font-medium text-gray-900 dark:text-white">Colaboradores</h3>
+              <h3 className="text-xl font-medium text-gray-900 dark:text-white">{t.employees}</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                {assignedCount} en organigrama · {availableCount} disponibles
+                {t.counts(assignedCount, availableCount)}
               </p>
             </div>
             <div className="rounded-full bg-[#F4C84A]/15 text-[#9A6B05] px-3 py-1 text-xs font-medium">
-              Drag & drop
+              {t.dragDrop}
             </div>
           </div>
 
@@ -516,7 +518,7 @@ export default function OrgChart() {
               type="text"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Buscar colaborador..."
+              placeholder={t.search}
               className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             />
           </div>
@@ -554,7 +556,7 @@ export default function OrgChart() {
                               : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
                           }`}
                         >
-                          {isAssigned ? 'Asignado' : 'Disponible'}
+                          {isAssigned ? t.assigned : t.available}
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
@@ -588,7 +590,7 @@ export default function OrgChart() {
                 <div className="rounded-xl bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700">
                   <p className="text-gray-500 dark:text-gray-400 flex items-center gap-2">
                     <Briefcase className="h-4 w-4" />
-                    Area
+                    {t.area}
                   </p>
                   <p className="font-medium text-gray-900 dark:text-white mt-1">
                     {selectedCollaborator.area}
@@ -597,7 +599,7 @@ export default function OrgChart() {
                 <div className="rounded-xl bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700">
                   <p className="text-gray-500 dark:text-gray-400 flex items-center gap-2">
                     <MapPin className="h-4 w-4" />
-                    Ubicacion
+                    {t.location}
                   </p>
                   <p className="font-medium text-gray-900 dark:text-white mt-1">
                     {selectedCollaborator.location}
@@ -606,7 +608,7 @@ export default function OrgChart() {
               </div>
 
               <div className="rounded-xl bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 mb-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400">Reporta a</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{t.reportsTo}</p>
                 <p className="font-medium text-gray-900 dark:text-white mt-1">
                   {getManagerName(selectedAssignment?.managerId ?? null)}
                 </p>
@@ -626,7 +628,7 @@ export default function OrgChart() {
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={handleMoveSelectedToRoot}>
                   <UserRoundPlus className="h-4 w-4" />
-                  Mover a raiz
+                  {t.moveToRoot}
                 </Button>
                 {selectedAssignment && (
                   <Button
@@ -636,7 +638,7 @@ export default function OrgChart() {
                     className="text-red-600 hover:text-red-700"
                   >
                     <Trash2 className="h-4 w-4" />
-                    Quitar
+                    {t.remove}
                   </Button>
                 )}
               </div>
@@ -647,9 +649,9 @@ export default function OrgChart() {
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between mb-6">
             <div>
-              <h3 className="text-2xl font-medium text-gray-900 dark:text-white">Organigrama</h3>
+              <h3 className="text-2xl font-medium text-gray-900 dark:text-white">{t.title}</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Lienzo editable con niveles jerarquicos, zoom y guardado local.
+                {t.canvasSubtitle}
               </p>
             </div>
 
@@ -660,7 +662,7 @@ export default function OrgChart() {
                 className="gap-2"
               >
                 <Plus className="h-4 w-4" />
-                Nivel
+                {t.level}
               </Button>
               <Button
                 variant="outline"
@@ -668,7 +670,7 @@ export default function OrgChart() {
                 className="gap-2"
               >
                 <Minus className="h-4 w-4" />
-                Nivel
+                {t.level}
               </Button>
               <div className="h-8 w-px bg-gray-200 dark:bg-gray-700 mx-1" />
               <Button
@@ -688,18 +690,18 @@ export default function OrgChart() {
               <div className="h-8 w-px bg-gray-200 dark:bg-gray-700 mx-1" />
               <Button variant="outline" onClick={handleAutoOrganize} className="gap-2">
                 <Sparkles className="h-4 w-4" />
-                Auto organizar
+                {t.autoOrganize}
               </Button>
               <Button variant="outline" onClick={handleReset} className="gap-2">
                 <RotateCcw className="h-4 w-4" />
-                Reiniciar
+                {t.reset}
               </Button>
               <Button
                 onClick={handleSave}
                 className="bg-[#F4C84A] hover:bg-[#E5B835] text-slate-950 gap-2"
               >
                 <Save className="h-4 w-4" />
-                Guardar
+                {t.save}
               </Button>
             </div>
           </div>
@@ -740,7 +742,7 @@ export default function OrgChart() {
                         className="absolute left-6 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-2 py-0.5 text-xs font-medium text-gray-500 dark:text-gray-400"
                         style={{ top: `${top - 22}px` }}
                       >
-                        Nivel {index + 1}
+                        {t.level} {index + 1}
                       </div>
                     </div>
                   );
@@ -816,7 +818,7 @@ export default function OrgChart() {
           <div className="mt-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between text-sm">
             <p className="text-gray-600 dark:text-gray-400">{statusMessage}</p>
             <div className="text-gray-500 dark:text-gray-400">
-              Zoom {Math.round(zoom * 100)}% · Niveles visibles {displayLevels}
+              {t.zoomSummary(Math.round(zoom * 100), displayLevels)}
             </div>
           </div>
         </div>

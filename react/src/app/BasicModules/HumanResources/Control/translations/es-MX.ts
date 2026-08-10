@@ -4,6 +4,13 @@ export const esMX = {
   ...({
     title: 'Control operativo',
     subtitle: 'Monitorea la asistencia en tiempo real y administra la configuracion.',
+    selfShiftCalendar: {
+      title: 'Mi calendario de turnos', loadingTitle: 'Cargando calendario', loadingDescription: 'Revisando tus turnos asignados.', month: 'Mes',
+      shift: 'Turno', openShift: 'Turno abierto', restDay: 'Descanso', noShift: 'Sin turno', selectedDay: 'Día seleccionado', today: 'Hoy',
+      details: 'Detalle del turno', schedule: 'Horario', start: 'Inicio', end: 'Fin', flexible: 'Flexible', workSite: 'Sitio de trabajo', template: 'Plantilla',
+      meal: 'Comida', rest: 'Descanso', overnight: 'Turno nocturno', notAssigned: 'No hay turno asignado para este día.', restAssigned: 'Este día está marcado como descanso.',
+      pickDay: 'No hay día seleccionado.', minutes: 'min', retry: 'No se pudo cargar tu calendario de turnos.', previousMonth: 'Mes anterior', nextMonth: 'Mes siguiente',
+    },
     refresh: 'Actualizar',
     loading: 'Cargando control operativo',
     retry: 'Reintentar',

@@ -143,7 +143,6 @@ export function QuotePreviewModal({
   }
 
   const quoteCurrency = quote.currency ?? 'MXN';
-  const isSpanishDocument = locale.toLowerCase().startsWith('es-');
   const itemCount = quote.items.reduce((total, item) => total + item.quantity, 0);
   const estimatedCost = quote.items.reduce((total, item) => (
     total + item.quantity * (item.convertedUnitCost ?? item.unitCost ?? item.originalUnitCost ?? 0)
@@ -161,23 +160,26 @@ export function QuotePreviewModal({
       : hasLowMargin
         ? copy.marginGuidance.messages.warning
         : copy.marginGuidance.messages.success;
-  const intelligenceLabels = isSpanishDocument
-    ? {
-      happened: '1. Qué pasó',
-      matters: '2. Por qué importa',
-      next: '3. Siguiente acción',
-      decisionSignal: 'Señal de decisión',
-      happenedBody: `${quote.clientName} recibió una cotización por ${formatCurrency(quote.total, quoteCurrency)} con ${quote.items.length} partida(s) comerciales.`,
-      mattersBody: `${copy.labels.expirationDate}: ${quote.expirationDate}. ${copy.labels.taxTotal}: ${formatCurrency(quote.taxTotal, quoteCurrency)}. ${copy.labels.currency}: ${quoteCurrency}.`,
-    }
-    : {
-      happened: '1. What happened',
-      matters: '2. Why it matters',
-      next: '3. Next action',
-      decisionSignal: 'Decision signal',
-      happenedBody: `${quote.clientName} received a quote for ${formatCurrency(quote.total, quoteCurrency)} covering ${quote.items.length} commercial line(s).`,
-      mattersBody: `${copy.labels.expirationDate}: ${quote.expirationDate}. ${copy.labels.taxTotal}: ${formatCurrency(quote.taxTotal, quoteCurrency)}. ${copy.labels.currency}: ${quoteCurrency}.`,
-    };
+  const documentInsights = copy.previewModal.documentInsights;
+  const intelligenceLabels = {
+    happened: documentInsights.happened,
+    matters: documentInsights.matters,
+    next: documentInsights.next,
+    decisionSignal: documentInsights.decisionSignal,
+    happenedBody: documentInsights.happenedBody(
+      quote.clientName,
+      formatCurrency(quote.total, quoteCurrency),
+      quote.items.length,
+    ),
+    mattersBody: documentInsights.mattersBody(
+      copy.labels.expirationDate,
+      quote.expirationDate,
+      copy.labels.taxTotal,
+      formatCurrency(quote.taxTotal, quoteCurrency),
+      copy.labels.currency,
+      quoteCurrency,
+    ),
+  };
   const metricCards = [
     { label: copy.labels.total, value: formatCurrency(quote.total, quoteCurrency), accent: 'bg-[#FF6B5E]' },
     { label: copy.labels.currency, value: quoteCurrency, accent: 'bg-[#2563EB]' },

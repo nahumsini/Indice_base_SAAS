@@ -9,6 +9,14 @@ export const frCA = {
   applyFilters: 'Appliquer les filtres',
   retry: 'Réessayer',
   loading: 'Chargement de la paie',
+  list: {
+    search: { label: 'Rechercher la paie', placeholder: 'Période, unité, établissement, territoire ou état' },
+    pagination: {
+      next: 'Suivant', previous: 'Précédent', pageSize: 'Lignes par page',
+      page: (current: number, total: number) => `Page ${current} sur ${total}`,
+      showing: (start: number, end: number, total: number) => `${start}-${end} sur ${total} cycles`,
+    },
+  },
   unauthorized: 'Votre session n’est plus authentifiée. Connectez-vous de nouveau et rechargez le module.',
   notFound: 'Le backend en cours d’exécution n’expose pas encore l’API de paie. Redémarrez le serveur Spring avec la branche la plus récente.',
   genericError: 'Impossible de charger la paie.',
@@ -51,6 +59,7 @@ export const frCA = {
     csvDescription: 'Préparation du registre de paie pour export tableur.',
     pdfTitle: 'Préparation du PDF de paie',
     pdfDescription: 'Création d’un rapport de paie imprimable avec les données du cycle actuel.',
+    identityNotReady: 'L’identité de l’entreprise est encore en préparation pour l’impression.',
   },
   statuses: {
     draft: 'Brouillon',
@@ -376,5 +385,13 @@ export const frCA = {
     markPayrollAsPaid: 'Marquer comme payée',
     openDetails: 'Ouvrir les détails',
     cancel: 'Annuler',
+  },
+  colombiaOperations: {
+    busy: { loadingTitle: 'Chargement de la Colombie', loadingDescription: 'Chargement de la configuration de l’entreprise, du profil de l’employé et des événements de paie.', savingTitle: 'Enregistrement — Colombie', savingDescription: 'Mise à jour de la configuration et du profil fiscal colombiens.', noveltyTitle: 'Enregistrement de l’événement', noveltyDescription: 'Enregistrement de l’événement de paie colombien pour l’employé.' },
+    success: { saved: 'Configuration colombienne enregistrée. Synchronisez le cycle pour appliquer les changements au calcul.', novelty: 'Événement de paie colombien enregistré. Synchronisez le cycle pour recalculer cette ligne.' },
+    title: 'Colombie', description: (name: string, runId: number) => `${name} · Cycle nº ${runId}`, footerSummary: 'Les changements s’appliquent au prochain calcul du serveur.', save: 'Enregistrer — Colombie', company: 'Entreprise en Colombie', defaultArlClass: 'Classe ARL par défaut', fundCode: 'Code de la caisse de compensation', fundName: 'Caisse de compensation', employerHealthExemption: 'Exonération santé de l’employeur', undefined: 'Non défini', yes: 'Oui', no: 'Non',
+    employeeProfile: 'Profil de l’employé', contributorType: 'Type de cotisant', contributorSubtype: 'Sous-type de cotisant', arlClass: 'Classe ARL', integralSalary: 'Salaire intégral', eps: 'EPS', epsCode: 'Code EPS', afp: 'AFP', afpCode: 'Code AFP', withholdingProcedure: 'Procédure de retenue', procedure1: 'Procédure 1', procedure2: 'Procédure 2', procedure2Rate: 'Taux de la procédure 2', dependents: 'Personnes à charge', prepaidMedicine: 'Médecine prépayée', housingInterest: 'Intérêts hypothécaires', voluntaryPension: 'Pension volontaire', afc: 'AFC', otherExemptIncome: 'Autres revenus exonérés',
+    novelties: 'Événements de paie — Colombie', periodLabel: 'Période', period: (start: string, end: string) => `Période du ${start} au ${end}`, registered: (count: number) => `${count} enregistrés`, code: 'Code', label: 'Libellé', start: 'Début', end: 'Fin', ibcImpact: 'Incidence IBC', add: 'Ajouter', status: 'Statut', empty: 'Aucun événement enregistré pour cette période.', noveltyLabels: { VSP: 'Variation permanente du salaire', VST: 'Variation temporaire du salaire', SLN: 'Suspension temporaire', IGE: 'Incapacité générale', LMA: 'Congé de maternité/paternité', LPA: 'Congé payé', VAC: 'Vacances', RETRO: 'Rajustement rétroactif', CORR: 'Correction', LIQ: 'Règlement', RET: 'Fin d’emploi' },
+    reporting: { title: 'PILA / DIAN Colombie', run: (id: number, start: string, end: string) => `Cycle nº ${id} · ${start} → ${end}`, snapshots: 'Instantanés gouvernementaux de la Colombie', blocking: 'Bloquant', validated: 'Validé', line: (lineId: number, employeeId: number) => `Ligne nº ${lineId} · Employé nº ${employeeId}`, hash: 'Hachage', noHash: 'Aucun hachage', noDate: 'Aucune date', ready: 'Prêt', review: 'Réviser', alerts: (count: number) => `${count} alertes`, payload: 'Charge utile', empty: 'Aucun instantané PILA / DIAN pour ce cycle fiscal colombien.' },
   },
 } as const satisfies PayrollTranslations;

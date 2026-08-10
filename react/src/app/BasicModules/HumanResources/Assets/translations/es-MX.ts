@@ -3,6 +3,21 @@ import type { AssetsTranslations } from './types';
 export const esMX = {
   title: 'Activos de la empresa',
   subtitle: 'Controla equipos asignados, dispositivos, resguardos y mantenimiento.',
+  assignmentAct: {
+    printButton: 'Imprimir acta',
+    title: 'Acta responsiva de activo',
+    brand: 'Índice ERP',
+    generatedAt: 'Fecha de emisión',
+    assetSection: 'Datos del activo',
+    assignmentSection: 'Datos de asignación',
+    signatures: 'Firmas',
+    receiver: 'Recibe / Responsable del activo',
+    issuer: 'Entrega / Responsable que otorga',
+    signature: 'Firma',
+    intro: 'Por medio de la presente se hace constar la entrega del activo descrito a continuación, quedando bajo resguardo del responsable indicado para su uso laboral y cuidado operativo.',
+    responsibility: 'La persona responsable se compromete a conservar el activo en buen estado, reportar cualquier daño, pérdida o cambio de asignación, y devolverlo cuando la empresa lo solicite.',
+    footer: 'Documento generado por Índice ERP para control interno de activos.',
+  },
   preferredCurrency: 'Divisa estándar',
   exchangeRates: {
     action: 'TC',

@@ -1,7 +1,9 @@
 import { enCA } from './en-CA';
+import { ptBRCommissionWorkspace } from './commissionWorkspaceLocales';
 
 export const ptBR = {
   ...enCA,
+  commissionWorkspace: ptBRCommissionWorkspace,
   common: {
     ...enCA.common,
     all: 'Todos',
@@ -184,6 +186,13 @@ export const ptBR = {
       taxIdentifier: 'CNPJ',
       defaultWarehouse: 'Depósito padrão',
     },
+    lineItems: {
+      ...enCA.modal.lineItems,
+      searchPlaceholder: 'Buscar por nome, SKU, código ou categoria',
+      allCategories: 'Todas as categorias',
+      noFilteredProducts: 'Nenhum produto corresponde a estes filtros.',
+      pageSummary: (count: number, page: number, pages: number) => `${count} produtos · página ${page} de ${pages}`,
+    },
   },
   statuses: {
     commercial: {
@@ -240,6 +249,7 @@ export const ptBR = {
     useSuggestedAmount: 'Usar valor sugerido',
     notesPlaceholder: 'Contexto da comissão, notas de aprovação ou momento de pagamento.',
     save: 'Salvar comissão',
+    calculatedByBackend: 'O valor e a taxa são calculados exclusivamente pelo backend conforme a regra aplicada.',
   },
   summaryPreview: {
     title: 'Resumo da venda',

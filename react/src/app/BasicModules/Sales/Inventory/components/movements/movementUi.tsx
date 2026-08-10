@@ -25,18 +25,18 @@ export const movementStatusTone = {
   cancelled: 'border-red-300 bg-red-100 text-red-800 shadow-sm shadow-red-200/60 dark:border-red-500/35 dark:bg-red-500/15 dark:text-red-200 dark:shadow-none',
 };
 
-export function MovementFlow({ movement }: { movement: InventoryOperationalMovement }) {
+export function MovementFlow({ movement, t }: { movement: InventoryOperationalMovement; t: InventoryTranslations }) {
   return (
     <div className="min-w-[260px] rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
       <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-        {movement.fromWarehouseName ?? 'System'}
+        {movement.fromWarehouseName ?? t.common.system}
       </span>
       <div className="my-2 flex items-center gap-2 pl-3 text-[#B63B32]">
         <ArrowDown className="h-4 w-4" />
-        <span className="text-xs font-medium text-[#B63B32]/80">flow</span>
+        <span className="text-xs font-medium text-[#B63B32]/80">{t.common.flow}</span>
       </div>
       <span className="inline-flex rounded-full border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-3 py-1 text-xs font-medium text-[#B63B32]">
-        {movement.toWarehouseName ?? 'Inventory'}
+        {movement.toWarehouseName ?? t.common.inventory}
       </span>
     </div>
   );

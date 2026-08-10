@@ -5,6 +5,18 @@ export const ptBR = {
   ...enCA,
   title: 'Registros',
   subtitle: 'Histórico de colaboradores, incidentes, relatos e ações de acompanhamento.',
+  pdfDocument: {
+    brand: 'Índice ERP',
+    title: 'Registro de Recursos Humanos',
+    generatedAt: 'Data de emissão',
+    overview: 'Resumo do registro',
+    followUp: 'Acompanhamento',
+    signatures: 'Assinaturas de ciência',
+    employeeSignature: 'Colaborador',
+    reportedBySignature: 'Responsável pelo relato',
+    signature: 'Assinatura',
+    footer: 'Documento gerado pelo Índice ERP para controle interno de Recursos Humanos.',
+  },
   actions: {
     columns: 'Colunas',
     addRecord: 'Adicionar registro',

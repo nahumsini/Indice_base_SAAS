@@ -32,6 +32,7 @@ import {
   loadReportUserDisplayName,
   USER_PROFILE_UPDATED_EVENT,
 } from '../reportFileName';
+import { useBusinessProfileTranslations } from './hooks/useBusinessProfileTranslations';
 
 type PillarId = BusinessProfileSectionKey;
 type PillarColor = 'blue' | 'yellow' | 'orange' | 'green';
@@ -306,8 +307,8 @@ const getSectionEntryQuestionIndex = (section: SectionState, questions: Question
 };
 
 export default function BusinessProfile() {
-  const { currentLanguage, t } = useLanguage();
-  const diagnosisCopy = t.panelInicial.diagnosis;
+  const { currentLanguage } = useLanguage();
+  const diagnosisCopy = useBusinessProfileTranslations();
   const diagnosisPdfCopy = useBusinessDiagnosisPdfTranslations();
   const [activePillar, setActivePillar] = useState<PillarId | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -327,10 +328,10 @@ export default function BusinessProfile() {
   const failedAutoSaveKeyRef = useRef('');
 
   const diagnosticoQuestions = useMemo<DiagnosticoQuestions>(() => ({
-    people: diagnosisCopy.questions.people,
-    processes: diagnosisCopy.questions.processes,
-    products: diagnosisCopy.questions.products,
-    finance: diagnosisCopy.questions.finance,
+    people: diagnosisCopy.questions.people.map((item) => ({ question: item.question, options: [...item.options] })),
+    processes: diagnosisCopy.questions.processes.map((item) => ({ question: item.question, options: [...item.options] })),
+    products: diagnosisCopy.questions.products.map((item) => ({ question: item.question, options: [...item.options] })),
+    finance: diagnosisCopy.questions.finance.map((item) => ({ question: item.question, options: [...item.options] })),
   }), [diagnosisCopy.questions.finance, diagnosisCopy.questions.people, diagnosisCopy.questions.processes, diagnosisCopy.questions.products]);
 
   const pilares = useMemo(() => PILLAR_METADATA.map((pillar) => ({
@@ -693,7 +694,7 @@ export default function BusinessProfile() {
     <div className="flex w-full gap-2 sm:w-auto">
       <Button variant="outline" size="sm" onClick={() => setRestartConfirmationOpen(true)} disabled={isSaving} className="flex-1 gap-2 sm:flex-none">
         <RotateCcw className="h-4 w-4" />
-        {currentLanguage.code.startsWith('es') ? 'Reiniciar test' : 'Restart test'}
+        {diagnosisCopy.restartDialog.confirm}
       </Button>
       <Button size="sm" onClick={handlePrintDiagnosis} className="flex-1 gap-2 bg-blue-600 text-white hover:bg-blue-700 sm:flex-none">
         <Printer className="h-4 w-4" />
@@ -805,20 +806,20 @@ export default function BusinessProfile() {
         </section>
 
         {isDiagnosisComplete && !activePillarData ? (
-          <BusinessDiagnosisResult locale={currentLanguage.code} report={diagnosisEngineReport} />
+          <BusinessDiagnosisResult copy={diagnosisCopy.result} report={diagnosisEngineReport} />
         ) : null}
       </div>
 
       <IndiceConfirmationDialog
         busy={isSaving}
-        cancelLabel={currentLanguage.code.startsWith('es') ? 'Cancelar' : 'Cancel'}
-        confirmLabel={currentLanguage.code.startsWith('es') ? 'Reiniciar test' : 'Restart test'}
-        description={currentLanguage.code.startsWith('es') ? 'Conservaremos tu resultado anterior y comenzaremos una nueva versión.' : 'We will preserve your previous result and begin a new version.'}
+        cancelLabel={diagnosisCopy.restartDialog.cancel}
+        confirmLabel={diagnosisCopy.restartDialog.confirm}
+        description={diagnosisCopy.restartDialog.description}
         icon={<RotateCcw className="h-5 w-5" />}
         onCancel={() => setRestartConfirmationOpen(false)}
         onConfirm={() => void handleRestartDiagnosis()}
         open={restartConfirmationOpen}
-        title={currentLanguage.code.startsWith('es') ? '¿Reiniciar diagnóstico?' : 'Restart diagnosis?'}
+        title={diagnosisCopy.restartDialog.title}
         tone="blue"
       />
 

@@ -5,6 +5,18 @@ export const koCA = {
   ...enCA,
   title: '기록',
   subtitle: '직원 이력, 사고, 보고서 및 후속 조치를 관리합니다.',
+  pdfDocument: {
+    brand: 'Índice ERP',
+    title: '인사 기록',
+    generatedAt: '발행일',
+    overview: '기록 요약',
+    followUp: '후속 조치',
+    signatures: '확인 서명',
+    employeeSignature: '직원',
+    reportedBySignature: '보고 책임자',
+    signature: '서명',
+    footer: 'Índice ERP에서 내부 인사 관리를 위해 생성한 문서입니다.',
+  },
   actions: {
     ...enCA.actions,
     columns: '열',

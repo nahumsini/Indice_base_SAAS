@@ -8,6 +8,8 @@ export const esMX: ProcessesTranslations = {
     retry: 'Reintentar',
     cancel: 'Cancelar',
     close: 'Cerrar',
+    previous: 'Anterior',
+    continue: 'Continuar',
     saving: 'Guardando...',
     noDate: 'Sin fecha',
     noUnit: 'Sin unidad',

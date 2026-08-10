@@ -250,6 +250,8 @@ export const esMX: ProjectsTranslations = {
       duration: (days: number) => `${days}d`,
       dependsOn: (folio: string) => `Depende de ${folio}`,
       noPredecessor: 'Sin predecesora',
+      adjustStartDate: 'Ajustar fecha de inicio',
+      adjustDueDate: 'Ajustar fecha de vencimiento',
     },
     bulk: {
       selectedLabel: (count: number) => `${count} seleccionada${count === 1 ? '' : 's'}`,

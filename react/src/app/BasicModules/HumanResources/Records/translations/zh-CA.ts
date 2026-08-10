@@ -5,6 +5,18 @@ export const zhCA = {
   ...enCA,
   title: '记录',
   subtitle: '管理员工历史、事件、报告和后续行动。',
+  pdfDocument: {
+    brand: 'Índice ERP',
+    title: '人力资源记录',
+    generatedAt: '签发日期',
+    overview: '记录摘要',
+    followUp: '后续跟进',
+    signatures: '确认签字',
+    employeeSignature: '员工',
+    reportedBySignature: '报告负责人',
+    signature: '签字',
+    footer: '本文件由 Índice ERP 生成，用于公司内部人力资源管理。',
+  },
   actions: {
     ...enCA.actions,
     columns: '列',

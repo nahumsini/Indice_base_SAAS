@@ -5,6 +5,11 @@ export const enCA = {
     autoBadge: 'Auto',
     autoDetected: 'Suggested from device/IP signals',
   },
+  network: {
+    required: 'An internet connection is required to use this kiosk.',
+    offline: 'Offline. Kiosk actions are paused.',
+    sessionExpiring: 'Your session is about to expire. Interact to continue.',
+  },
   title: 'Attendance screen',
   subtitle: 'Enter your PIN, verify your identity and location, then register attendance.',
   terminalBadge: 'Attendance terminal',

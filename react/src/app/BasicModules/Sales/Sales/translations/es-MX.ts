@@ -351,6 +351,10 @@ export const esMX = {
       tax: 'Impuesto %',
       total: 'Total de partida',
       remove: 'Eliminar partida',
+      searchPlaceholder: 'Buscar por nombre, SKU, clave o categoría',
+      allCategories: 'Todas las categorías',
+      noFilteredProducts: 'No encontramos productos con esos filtros.',
+      pageSummary: (count: number, page: number, pages: number) => `${count} productos · página ${page} de ${pages}`,
     },
     paymentEvidence: {
       upload: 'Subir evidencia de pago',
@@ -491,6 +495,7 @@ export const esMX = {
     useSuggestedAmount: 'Usar monto sugerido',
     notesPlaceholder: 'Contexto de comisión, notas de aprobación o momento de pago.',
     save: 'Guardar comisión',
+    calculatedByBackend: 'El importe y la tasa se calculan exclusivamente en el backend según la regla aplicada.',
   },
   commissions: {
     ...enCA.commissions,
@@ -571,6 +576,20 @@ export const esMX = {
 
         return `${paid} comisiones están pagadas con una tasa promedio de ${rate}.`;
       },
+    },
+  },
+  commissionWorkspace: {
+    loadError: 'No se pudo cargar la configuración de comisiones.', title: 'Comisiones', subtitle: 'Define cómo se gana, revisa lo generado y controla el envío de cada corte hacia Incentivos y Nómina.', generated: 'Comisiones generadas', cuts: 'Cortes', generateCut: 'Generar corte', managePolicies: 'Administrar políticas', sectionsLabel: 'Secciones de comisiones',
+    common: { back: 'Atrás', continue: 'Continuar', saving: 'Guardando…', delete: 'Eliminar', pause: 'Pausar', selected: (count: number) => `${count} seleccionados`, selectAll: 'Seleccionar todos', applyAll: 'Aplicar a todos', noMatches: 'No hay coincidencias.', resultsPage: (count: number, page: number, pages: number) => `${count} resultados · página ${page} de ${pages}`, selectFiltered: (count: number) => `Seleccionar los ${count} resultados filtrados`, calculating: 'Calculando…', unavailable: 'No disponible' },
+    rules: {
+      steps: ['Participantes y productos', 'Forma de pago', 'Revisión'], policyHelp: 'Define una política clara: quién puede ganar la comisión y qué productos la generan. Si no haces una selección, la política aplicará a todos.', participants: 'Colaboradores participantes', allEmployees: 'Todos los colaboradores', searchEmployees: 'Buscar por nombre o correo', categoryFilter: 'Filtrar catálogo por categoría', allCategories: 'Todas las categorías', productsInCategory: (count: number, category: string) => `${count} productos en ${category}`, applyCategory: 'Aplicar categoría completa', fullCategory: (name: string) => `Categoría completa: ${name}`, commissionProducts: 'Productos que generan comisión', allProducts: 'Todos los productos', searchProducts: 'Buscar por nombre, clave o categoría', specificity: 'La especificidad decide primero: vendedor + producto, producto, categoría, vendedor y regla general. La prioridad sólo desempata reglas del mismo alcance.',
+      typeHelpers: { fixed_per_product: 'El monto se paga por cada unidad vendida.', percentage_of_product: 'El porcentaje se aplica al subtotal de cada partida.', fixed_per_sale: 'El monto se paga una sola vez por venta.', percentage_of_sale: 'El porcentaje se aplica al total de la venta.' },
+      saleOrLineAmount: 'Monto de venta o partida', quantity: 'Cantidad', result: 'Resultado de la regla', participantsSummary: (count: number) => count ? `${count} colaboradores` : 'Todos los colaboradores', productsSummary: (count: number) => count ? `${count} productos seleccionados` : 'Todos los productos', futureEffect: 'Las ventas futuras de cada colaborador seleccionado generarán su comisión automáticamente cuando coincidan con esta política.', validity: 'Vigencia', noStart: 'Sin inicio', noEnd: 'Sin fin', conflicts: (count: number, names: string) => `Coincide con ${count} regla(s): ${names}. La prioridad resolverá el empate.`, noConflicts: 'No se detectaron conflictos del mismo alcance y vigencia.', duplicate: 'Duplicar como inactiva', deleteRule: 'Eliminar regla', copiedSuffix: '(copia)',
+      validation: { name: 'Asigna un nombre a la regla.', positive: 'El valor de la comisión debe ser mayor que cero.', percentage: 'El porcentaje no puede ser mayor a 100%.', dates: 'La fecha final no puede ser anterior a la fecha inicial.', priority: 'La prioridad debe estar entre 0 y 999.' }, saveError: 'No se pudo guardar la regla. Revisa la conexión e inténtalo nuevamente.', deleteError: 'No se pudo eliminar la regla.',
+    },
+    cutsPanel: {
+      loadError: 'No se pudo cargar el historial de cortes.', created: 'El corte fue enviado a Incentivos de RH. Las aplicaciones quedarán disponibles para la siguiente nómina compatible.', filters: 'Filtros de cortes', summary: (visible: number, total: number) => `${visible} de ${total} cortes`, search: 'Buscar', searchPlaceholder: 'Folio del corte', status: 'Estado', allStatuses: 'Todos los estados', inHr: 'En Recursos Humanos', consumed: 'Consumido en nómina', periodFrom: 'Periodo desde', periodTo: 'Periodo hasta', title: 'Cortes de comisión', description: 'Historial enviado a Incentivos y seguimiento de consumo en Nómina.', count: (count: number) => `${count} cortes`, columns: { code: 'Folio', period: 'Periodo', commissions: 'Comisiones', employees: 'Colaboradores', total: 'Total', status: 'Estado' }, applied: (applied: number, total: number) => `En RH · ${applied}/${total} aplicados`, noMatch: 'No hay cortes que coincidan con los filtros.', empty: 'Aún no se han generado cortes de comisión.',
+      modalTitle: 'Cortes de comisiones', modalDescription: 'Ejecuta un corte ahora o administra cierres recurrentes desde el backend.', saveError: 'No se pudo guardar el corte.', scheduleLoadError: 'No se pudo consultar la automatización actual.', pauseError: 'No se pudo pausar la automatización.', removeError: 'No se pudo eliminar la automatización.', closeAndSend: 'Cerrar y enviar a RH', saveChanges: 'Guardar cambios', createAutomation: 'Crear automatización', manual: 'Corte manual', manualDescription: 'Elige las fechas, revisa el alcance y ejecútalo inmediatamente.', automatic: 'Corte automático', automaticDescription: 'El backend cierra cada periodo y lo envía a RH sin intervención.', start: 'Inicio del corte', end: 'Fin del corte', amount: 'Importe', saved: 'Automatizaciones guardadas', configured: (count: number) => `${count} configuradas`, new: 'Nueva', active: 'Activa', paused: 'Pausada', none: 'Aún no hay automatizaciones. Configura la primera.', automationName: 'Nombre de la automatización', automationPlaceholder: 'Ej. Comisiones mensuales de ventas', frequency: 'Frecuencia de cierre', currentStatus: 'Estado actual', notConfigured: 'Sin configurar', nextRun: 'Próxima ejecución', emptyRun: 'Si un periodo no tiene comisiones elegibles, se registra la ejecución y el calendario avanza sin crear un corte vacío.', audit: 'Cada corte queda congelado y cada incentivo sólo puede incorporarse una vez a Nómina, conservando su folio para auditoría.', cadence: { weekly: { title: 'Semanal', detail: 'Cada lunes cierra de lunes a domingo.' }, semimonthly: { title: 'Quincenal', detail: 'El día 16 y el día 1 cierra cada quincena.' }, monthly: { title: 'Mensual', detail: 'El día 1 cierra el mes calendario anterior.' } },
     },
   },
   summaryPreview: {

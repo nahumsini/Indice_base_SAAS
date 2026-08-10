@@ -1,8 +1,10 @@
 import { enCA } from './en-CA';
 import type { IncentivesTranslations } from './types';
+import { zhCAIncentiveForm } from './formLocales';
 
 export const zhCA = {
   ...enCA,
+  form: zhCAIncentiveForm,
   title: '激励',
   subtitle: '管理手动奖金、自动规则和薪资应用时间。',
   actions: { columns: '列', addIncentive: '新增激励' },

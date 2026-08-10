@@ -2508,8 +2508,8 @@ export function ProjectTasksWorkspace({
                     >
                       <button
                         type="button"
-                        aria-label="Adjust start date"
-                        title="Ajustar fecha de inicio"
+                        aria-label={copy.gantt.adjustStartDate}
+                        title={copy.gantt.adjustStartDate}
                         disabled={isPending}
                         className="absolute bottom-1 left-1 top-1 flex w-6 cursor-ew-resize items-center justify-center rounded-full bg-transparent transition-colors hover:bg-white/45 disabled:cursor-not-allowed dark:hover:bg-slate-900/35"
                         onMouseDown={(event) => handleTaskGanttDragStart(event, task, 'resize-start', dayCount)}
@@ -2532,8 +2532,8 @@ export function ProjectTasksWorkspace({
                       </div>
                       <button
                         type="button"
-                        aria-label="Adjust due date"
-                        title="Ajustar fecha de vencimiento"
+                        aria-label={copy.gantt.adjustDueDate}
+                        title={copy.gantt.adjustDueDate}
                         disabled={isPending}
                         className="absolute bottom-1 right-1 top-1 flex w-6 cursor-ew-resize items-center justify-center rounded-full bg-transparent transition-colors hover:bg-white/45 disabled:cursor-not-allowed dark:hover:bg-slate-900/35"
                         onMouseDown={(event) => handleTaskGanttDragStart(event, task, 'resize-end', dayCount)}

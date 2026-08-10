@@ -24,6 +24,7 @@ import {
   LoaderCircle,
   Mail,
   PackageCheck,
+  Plus,
   RefreshCw,
   Search,
   Settings2,
@@ -34,6 +35,8 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { IndiceBrandLogo } from '../Auth/components/IndiceBrandLogo';
+import AccountCreationModal from './AccountCreationModal';
+import CompanyAccountDrawer from './CompanyAccountDrawer';
 import ConsultingAdminTab from './ConsultingAdminTab';
 import {
   platformAdminApi,
@@ -41,10 +44,13 @@ import {
   type CourtesyCodeCatalog,
   type CourtesyCodePayload,
   type PlatformAdminContext,
+  type PlatformAccountCreatePayload,
+  type PlatformAccountCreateResult,
   type PlatformAudit,
   type PlatformBilling,
   type PlatformCatalog,
   type PlatformCatalogPrice,
+  type PlatformCatalogProduct,
   type PlatformCompanyDetail,
   type PlatformCompanySummary,
   type PlatformInvoice,
@@ -120,6 +126,7 @@ export default function PlatformAdminPage() {
   const [benefit, setBenefit] = useState<BenefitPayload>(initialBenefit);
   const [courtesy, setCourtesy] = useState<CourtesyCodePayload>(initialCourtesy);
   const [createdCourtesyCode, setCreatedCourtesyCode] = useState('');
+  const [createAccountOpen, setCreateAccountOpen] = useState(false);
   const [revocation, setRevocation] = useState<Revocation>(null);
   const [revocationReason, setRevocationReason] = useState('Fin de cortesía o promoción');
   const [moduleChange, setModuleChange] = useState<ModuleAvailabilityChange>(null);
@@ -173,6 +180,13 @@ export default function PlatformAdminPage() {
     return companies.slice(start, start + pageSize);
   }, [companies, page, pageSize]);
 
+  const activeCatalogProducts = useMemo(() => {
+    const activeVersion = catalog?.versions.find((version) => version.status === 'ACTIVE') || catalog?.versions[0];
+    return (catalog?.products ?? [])
+      .filter((product) => product.active && (!activeVersion || product.catalog_version_id === activeVersion.id))
+      .sort((left, right) => left.sort_order - right.sort_order);
+  }, [catalog]);
+
   useEffect(() => { setPage(1); }, [query, statusFilter, pageSize]);
 
   const openCompany = async (company: PlatformCompanySummary | number) => {
@@ -188,6 +202,40 @@ export default function PlatformAdminPage() {
     const overviewData = await platformAdminApi.getOverview();
     setOverview(overviewData);
     if (selected) setSelected(await platformAdminApi.getCompany(selected.id));
+  };
+
+  const createCompanyAccount = async (payload: PlatformAccountCreatePayload): Promise<PlatformAccountCreateResult> => {
+    const created = await platformAdminApi.createCompanyAccount(payload);
+    const [overviewData, courtesyData, auditData] = await Promise.all([
+      platformAdminApi.getOverview(),
+      platformAdminApi.getCourtesyCodes(),
+      platformAdminApi.getAudit(),
+    ]);
+    setOverview(overviewData);
+    setCourtesyCatalog(courtesyData);
+    setAuditLog(auditData);
+    return created;
+  };
+
+  const grantProductAccess = async (productCode: string) => {
+    if (!selected || saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      await platformAdminApi.grantBenefit(selected.id, {
+        benefit_type: 'PRODUCT',
+        product_code: productCode,
+        quantity: 1,
+        source_type: 'SUPPORT',
+        reason: 'Acceso de módulo administrado desde la cuenta Root.',
+        campaign_code: 'ROOT-ACCESS',
+      });
+      await refreshOverviewAndCompany();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'No se pudo habilitar el módulo.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const submitBenefit = async (event: FormEvent) => {
@@ -332,7 +380,7 @@ export default function PlatformAdminPage() {
               <OverviewTab totals={totals} companies={companies} billing={billing} onOpenCompany={openCompany} onNavigate={setActiveTab} />
             ) : null}
             {activeTab === 'customers' ? (
-              <CustomersTab companies={companies} pagedCompanies={pagedCompanies} query={query} statusFilter={statusFilter} page={page} pageSize={pageSize} onQuery={setQuery} onStatus={setStatusFilter} onPage={setPage} onPageSize={setPageSize} onOpenCompany={openCompany} />
+              <CustomersTab companies={companies} pagedCompanies={pagedCompanies} query={query} statusFilter={statusFilter} page={page} pageSize={pageSize} canCreate={Boolean(context?.can_manage_accounts)} onCreate={() => setCreateAccountOpen(true)} onQuery={setQuery} onStatus={setStatusFilter} onPage={setPage} onPageSize={setPageSize} onOpenCompany={openCompany} />
             ) : null}
             {activeTab === 'billing' ? <BillingTab data={billing} onOpenCompany={openCompany} /> : null}
             {activeTab === 'catalog' ? <CatalogTab data={catalog} /> : null}
@@ -347,7 +395,19 @@ export default function PlatformAdminPage() {
       </div>
 
       {selected ? (
-        <CompanyDrawer company={selected} context={context} benefit={benefit} saving={saving} onClose={() => setSelected(null)} onBenefit={setBenefit} onSubmitBenefit={submitBenefit} onRevokeBenefit={(reference) => setRevocation({ kind: 'benefit', reference })} />
+        <CompanyAccountDrawer company={selected} context={context} catalogProducts={activeCatalogProducts} benefit={benefit} saving={saving} onClose={() => setSelected(null)} onBenefit={setBenefit} onSubmitBenefit={submitBenefit} onGrantProduct={(productCode) => void grantProductAccess(productCode)} onRevokeBenefit={(reference) => setRevocation({ kind: 'benefit', reference })} />
+      ) : null}
+      {createAccountOpen ? (
+        <AccountCreationModal
+          products={activeCatalogProducts}
+          onClose={() => setCreateAccountOpen(false)}
+          onCreate={createCompanyAccount}
+          onOpenAccount={(companyId) => {
+            setCreateAccountOpen(false);
+            setActiveTab('customers');
+            void openCompany(companyId);
+          }}
+        />
       ) : null}
       {revocation ? (
         <ConfirmModal reason={revocationReason} saving={saving} onReason={setRevocationReason} onCancel={() => setRevocation(null)} onConfirm={() => void confirmRevocation()} />
@@ -411,13 +471,15 @@ function OverviewTab({ totals, companies, billing, onOpenCompany, onNavigate }: 
   );
 }
 
-function CustomersTab({ companies, pagedCompanies, query, statusFilter, page, pageSize, onQuery, onStatus, onPage, onPageSize, onOpenCompany }: {
+function CustomersTab({ companies, pagedCompanies, query, statusFilter, page, pageSize, canCreate, onCreate, onQuery, onStatus, onPage, onPageSize, onOpenCompany }: {
   companies: PlatformCompanySummary[];
   pagedCompanies: PlatformCompanySummary[];
   query: string;
   statusFilter: string;
   page: number;
   pageSize: number;
+  canCreate: boolean;
+  onCreate: () => void;
   onQuery: (value: string) => void;
   onStatus: (value: string) => void;
   onPage: (page: number) => void;
@@ -427,7 +489,13 @@ function CustomersTab({ companies, pagedCompanies, query, statusFilter, page, pa
   const pages = Math.max(1, Math.ceil(companies.length / pageSize));
   return (
     <div className="space-y-5">
-      <PageIntro eyebrow="Clientes" title="Cuentas, contratos y acceso" description="Consulta qué contrató cada empresa, cuánto paga y cuándo requiere atención." />
+      <PageIntro
+        eyebrow="Clientes"
+        title="Cuentas, contratos y acceso"
+        description="Crea empresas, entrega accesos de demostración y administra planes y módulos desde un solo lugar."
+        icon={Building2}
+        action={canCreate ? <button type="button" onClick={onCreate} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1d4ed8]"><Plus className="h-4 w-4" /> Agregar cuenta</button> : null}
+      />
       <Panel title="Directorio comercial" description={`${companies.length} cuenta(s) coinciden con los filtros.`}>
         <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-center lg:justify-between">
           <label className="relative w-full max-w-xl"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => onQuery(event.target.value)} className={`${controlClass} pl-10`} placeholder="Buscar empresa, correo o ID" /></label>
@@ -543,7 +611,7 @@ function AuditTab({ data }: { data: PlatformAudit | null }) {
   return <div className="space-y-5"><PageIntro eyebrow="Auditoría" title="Trazabilidad de plataforma" description="Eventos comerciales y administrativos con actor, resultado y referencia técnica." /><Panel title="Eventos recientes" description={`${data?.events.length ?? 0} eventos cargados.`}><div className="overflow-x-auto"><table className="w-full min-w-[980px]"><thead className="bg-slate-50"><tr><th className={tableHeadClass}>Fecha</th><th className={tableHeadClass}>Evento</th><th className={tableHeadClass}>Resultado</th><th className={tableHeadClass}>Cliente</th><th className={tableHeadClass}>Actor</th><th className={tableHeadClass}>Referencia</th></tr></thead><tbody className="divide-y divide-slate-100">{(data?.events ?? []).map((event) => <tr key={event.id} className="hover:bg-slate-50/80"><td className={tableCellClass}>{formatDateTime(event.occurred_at)}</td><td className={tableCellClass}><p className="font-medium text-slate-900">{humanize(event.action)}</p><p className="text-xs text-slate-500">{humanize(event.category)}</p></td><td className={tableCellClass}><StatusBadge status={event.outcome} /></td><td className={tableCellClass}>{event.company_name || (event.company_id ? `Company #${event.company_id}` : 'Sistema')}</td><td className={tableCellClass}>{event.actor_email || (event.actor_user_id ? `User #${event.actor_user_id}` : 'Automático')}</td><td className={tableCellClass}><span className="font-mono text-[11px] text-slate-500">{shortId(event.request_id || event.stripe_event_id || event.stripe_object_id || `event-${event.id}`)}</span></td></tr>)}{!data?.events.length ? <tr><td colSpan={6}><EmptyRow icon={ClipboardList} text="Aún no hay eventos de auditoría." /></td></tr> : null}</tbody></table></div></Panel></div>;
 }
 
-function CompanyDrawer({ company, context, benefit, saving, onClose, onBenefit, onSubmitBenefit, onRevokeBenefit }: { company: PlatformCompanyDetail; context: PlatformAdminContext | null; benefit: BenefitPayload; saving: boolean; onClose: () => void; onBenefit: (value: BenefitPayload) => void; onSubmitBenefit: (event: FormEvent) => void; onRevokeBenefit: (reference: string) => void }) {
+function CompanyDrawer({ company, context, catalogProducts, benefit, saving, onClose, onBenefit, onSubmitBenefit, onGrantProduct, onRevokeBenefit }: { company: PlatformCompanyDetail; context: PlatformAdminContext | null; catalogProducts: PlatformCatalogProduct[]; benefit: BenefitPayload; saving: boolean; onClose: () => void; onBenefit: (value: BenefitPayload) => void; onSubmitBenefit: (event: FormEvent) => void; onGrantProduct: (productCode: string) => void; onRevokeBenefit: (reference: string) => void }) {
   return <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/40 backdrop-blur-[2px]" role="dialog" aria-modal="true" aria-label={`Detalle de ${company.name}`}><section className="flex h-full w-full max-w-3xl flex-col bg-[#f7f9fc] shadow-2xl"><div className="border-b border-slate-200 bg-white p-5"><div className="flex items-start justify-between gap-4"><div className="flex min-w-0 items-center gap-3"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#e8f5f2] font-medium text-[#177D66]">{initials(company.name)}</span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="truncate text-xl font-medium text-slate-900">{company.name}</h2><StatusBadge status={company.billing_status || company.lifecycle_state || 'legacy'} /></div><p className="mt-1 truncate text-sm text-slate-500">{company.owner_email || 'Propietario pendiente'} · Company #{company.id}</p></div></div><button type="button" onClick={onClose} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500" aria-label="Cerrar"><X className="h-5 w-5" /></button></div></div><div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5"><section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><SmallMetric label="Plan" value={offerLabels[company.offer_code || ''] || company.offer_code || 'Sin plan'} /><SmallMetric label="Estado de acceso" value={humanize(company.access_mode || company.lifecycle_state || 'legacy')} /><SmallMetric label="Usuarios" value={`${company.seat_usage.active ?? 0} / ${(company.seat_usage.included ?? 0) + (company.seat_usage.purchased_extra ?? 0) + (company.seat_usage.courtesy_extra ?? 0)}`} /><SmallMetric label="Próxima renovación" value={formatDate(company.billing_status === 'trialing' ? company.trial_ends_at : company.current_period_ends_at)} /></section><Panel title="Productos contratados" description="Selección asociada a la suscripción más reciente."><div className="flex flex-wrap gap-2 p-5">{company.products.map((product) => <span key={product.code} className="inline-flex items-center gap-2 rounded-xl border border-[#59C3A5]/40 bg-[#f5fbf9] px-3 py-2 text-sm text-[#177D66]"><PackageCheck className="h-4 w-4" />{product.name}</span>)}{!company.products.length ? <p className="text-sm text-slate-500">Esta cuenta todavía no tiene productos de catálogo asociados.</p> : null}</div></Panel><section className="grid gap-4 lg:grid-cols-2"><Panel title="Usuarios de la cuenta" description={`${company.members.length} membresía(s) registradas.`}><div className="max-h-72 divide-y divide-slate-100 overflow-y-auto">{company.members.map((member) => <div key={member.membership_id} className="flex items-center justify-between gap-3 px-5 py-3"><div className="min-w-0"><p className="truncate text-sm font-medium text-slate-900">{member.name || member.email}</p><p className="truncate text-xs text-slate-500">{member.email}</p></div><div className="text-right"><p className="text-xs font-medium text-slate-700">{humanize(member.role || 'user')}</p><StatusBadge status={member.status || 'active'} subtle /></div></div>)}</div></Panel><Panel title="Facturas recientes" description="Últimos documentos asociados a la compañía."><div className="max-h-72 divide-y divide-slate-100 overflow-y-auto">{company.invoices.map((invoice) => <div key={invoice.invoice_id} className="flex items-center justify-between gap-3 px-5 py-3"><div><p className="text-sm font-medium text-slate-900">{formatMoney(invoice.amount_due_cents, invoice.currency)}</p><p className="text-xs text-slate-500">{formatDate(invoice.period_ends_at)}</p></div><div className="flex items-center gap-2"><StatusBadge status={invoice.status || 'unknown'} />{invoice.hosted_invoice_url ? <a href={invoice.hosted_invoice_url} target="_blank" rel="noreferrer" aria-label="Abrir factura"><ExternalLink className="h-4 w-4 text-slate-500" /></a> : null}</div></div>)}{!company.invoices.length ? <EmptyRow icon={CreditCard} text="Sin facturas sincronizadas." /> : null}</div></Panel></section>{company.storage_usage?.metered ? <Panel title="Almacenamiento" description="Uso medido y capacidad asignada a la cuenta."><div className="grid grid-cols-3 gap-3 p-5"><SmallMetric label="Usado" value={`${toGigabytes(company.storage_usage.used_bytes + company.storage_usage.reserved_bytes)} GB`} /><SmallMetric label="Límite" value={`${toGigabytes(company.storage_usage.limit_bytes)} GB`} /><SmallMetric label="Bloques extra" value={String(company.storage_usage.purchased_blocks + company.storage_usage.benefit_blocks)} /></div></Panel> : null}{context?.can_manage_benefits ? <Panel title="Otorgar beneficio" description="Separado de la suscripción y registrado en auditoría."><form onSubmit={onSubmitBenefit} className="space-y-3 p-5"><div className="grid gap-3 sm:grid-cols-2"><Field label="Tipo"><select value={benefit.benefit_type} onChange={(event) => onBenefit({ ...benefit, benefit_type: event.target.value as BenefitPayload['benefit_type'] })} className={controlClass}><option value="PRODUCT">Módulo</option><option value="SEAT">Usuarios</option><option value="STORAGE">Almacenamiento</option></select></Field><Field label="Origen"><select value={benefit.source_type} onChange={(event) => onBenefit({ ...benefit, source_type: event.target.value as BenefitPayload['source_type'] })} className={controlClass}><option value="COURTESY">Cortesía</option><option value="PROMOTION">Promoción</option><option value="SUPPORT">Soporte</option><option value="TEST">Prueba</option></select></Field></div>{benefit.benefit_type === 'PRODUCT' ? <Field label="Código de producto"><input required value={benefit.product_code} onChange={(event) => onBenefit({ ...benefit, product_code: event.target.value })} className={controlClass} placeholder="hr, process_tasks..." /></Field> : <Field label="Cantidad"><input required min={1} type="number" value={benefit.quantity} onChange={(event) => onBenefit({ ...benefit, quantity: Number(event.target.value) })} className={controlClass} /></Field>}<Field label="Motivo"><textarea required minLength={5} value={benefit.reason} onChange={(event) => onBenefit({ ...benefit, reason: event.target.value })} className={`${controlClass} min-h-20 resize-y py-2`} /></Field><div className="grid gap-3 sm:grid-cols-2"><Field label="Campaña"><input value={benefit.campaign_code} onChange={(event) => onBenefit({ ...benefit, campaign_code: event.target.value })} className={controlClass} /></Field><Field label="Vigencia hasta"><input type="datetime-local" value={benefit.ends_at || ''} onChange={(event) => onBenefit({ ...benefit, ends_at: event.target.value })} className={controlClass} /></Field></div><button disabled={saving} className="h-11 w-full rounded-xl bg-[#143675] text-sm font-medium text-white disabled:opacity-50">{saving ? 'Guardando...' : 'Otorgar beneficio'}</button></form></Panel> : null}<Panel title="Historial de beneficios" description="Cortesías, promociones y apoyos activos o revocados."><div className="divide-y divide-slate-100">{company.benefits.map((item) => <article key={item.reference} className="p-5"><div className="flex items-start justify-between gap-3"><div><p className="font-medium text-slate-900">{item.benefit_type === 'PRODUCT' ? item.product_code : `${item.quantity} ${item.benefit_type === 'SEAT' ? 'usuario(s)' : 'bloque(s)'}`}</p><p className="mt-1 text-xs text-slate-500">{humanize(item.source_type)} · {item.campaign_code || 'Sin campaña'}</p></div><StatusBadge status={item.status} /></div><p className="mt-3 text-sm text-slate-600">{item.reason}</p>{item.status === 'ACTIVE' && context?.can_manage_benefits ? <button type="button" disabled={saving} onClick={() => onRevokeBenefit(item.reference)} className="mt-3 text-xs font-medium text-red-600">Revocar beneficio</button> : null}</article>)}{!company.benefits.length ? <EmptyRow icon={Gift} text="Esta cuenta no tiene beneficios." /> : null}</div></Panel></div></section></div>;
 }
 
@@ -556,7 +624,7 @@ function ConfirmModal({ reason, saving, onReason, onCancel, onConfirm }: { reaso
   return <div className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/45 p-4" role="alertdialog" aria-modal="true" aria-labelledby="revoke-title"><section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl"><span className="grid h-11 w-11 place-items-center rounded-xl bg-red-50 text-red-600"><CircleAlert className="h-5 w-5" /></span><h2 id="revoke-title" className="mt-4 text-lg font-medium text-slate-900">Confirmar revocación</h2><p className="mt-1 text-sm text-slate-500">La acción quedará registrada en auditoría. Indica el motivo.</p><Field label="Motivo"><textarea autoFocus value={reason} onChange={(event) => onReason(event.target.value)} className={`${controlClass} mt-4 min-h-24 resize-y py-2`} /></Field><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={onCancel} className="h-10 rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-700">Cancelar</button><button type="button" disabled={saving || reason.trim().length < 3} onClick={onConfirm} className="h-10 rounded-xl bg-red-600 px-4 text-sm font-medium text-white disabled:opacity-50">{saving ? 'Revocando...' : 'Revocar'}</button></div></section></div>;
 }
 
-function PageIntro({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: ReactNode }) { return <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-medium text-[#177D66]">{eyebrow}</p><h2 className="mt-1 text-2xl font-medium tracking-tight text-slate-950">{title}</h2><p className="mt-1 max-w-3xl text-sm text-slate-500">{description}</p></div>{action}</section>; }
+function PageIntro({ eyebrow, title, description, action, icon: Icon = LayoutDashboard }: { eyebrow: string; title: string; description: string; action?: ReactNode; icon?: typeof LayoutDashboard }) { return <section className="relative overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-r from-white via-blue-50/60 to-emerald-50/50 p-5 shadow-[0_18px_45px_-38px_rgba(37,99,235,0.65)]"><span className="pointer-events-none absolute -right-8 -top-12 h-36 w-36 rounded-full bg-[#59C3A5]/10" aria-hidden="true" /><div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-blue-100 bg-white text-[#2563EB] shadow-sm"><Icon className="h-5 w-5" /></span><div><p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#177D66]">{eyebrow}</p><h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">{title}</h2><p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">{description}</p></div></div>{action}</div></section>; }
 function Panel({ title, description, action, children }: { title: string; description?: string; action?: ReactNode; children: ReactNode }) { return <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_45px_-38px_rgba(15,23,42,0.55)]"><div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4"><div><h3 className="font-medium text-slate-900">{title}</h3>{description ? <p className="mt-1 text-xs text-slate-500">{description}</p> : null}</div>{action}</div>{children}</section>; }
 function Metric({ icon: Icon, label, value, accent }: { icon: typeof Users; label: string; value: string; accent: 'mint' | 'blue' | 'gold' | 'coral' }) { const accents = { mint: 'bg-[#e8f5f2] text-[#177D66]', blue: 'bg-blue-50 text-[#143675]', gold: 'bg-amber-50 text-amber-700', coral: 'bg-red-50 text-[#d84f49]' }; return <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_14px_35px_-32px_rgba(15,23,42,0.7)]"><div className="flex items-center gap-3"><span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${accents[accent]}`}><Icon className="h-5 w-5" /></span><div className="min-w-0"><p className="truncate text-xs text-slate-500">{label}</p><p className="mt-0.5 truncate text-xl font-medium tracking-tight text-slate-950">{value}</p></div></div></article>; }
 function SmallMetric({ label, value }: { label: string; value: string }) { return <div className="rounded-xl border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 truncate text-sm font-medium text-slate-900">{value}</p></div>; }

@@ -66,7 +66,7 @@ interface StructureCopy {
     addressNote: string;
   };
   options: {
-    businessIdentityIndustries: Array<{
+    businessIdentityIndustries: ReadonlyArray<{
       value: string;
       label: string;
     }>;

@@ -1,5 +1,5 @@
 import { Check, Sparkles } from 'lucide-react';
-import type { UsersTranslations } from '../usersTranslations';
+import type { UsersTranslations } from '../translations';
 
 export type UsersAccessProfileId = 'basic' | 'operation' | 'responsible' | 'admin' | 'custom';
 

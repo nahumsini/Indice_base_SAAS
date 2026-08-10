@@ -9,6 +9,14 @@ export const ptBR = {
   applyFilters: 'Aplicar filtros',
   retry: 'Tentar novamente',
   loading: 'Carregando folha',
+  list: {
+    search: { label: 'Buscar folha', placeholder: 'Período, unidade, negócio, jurisdição ou status' },
+    pagination: {
+      next: 'Próxima', previous: 'Anterior', pageSize: 'Linhas por página',
+      page: (current: number, total: number) => `Página ${current} de ${total}`,
+      showing: (start: number, end: number, total: number) => `Mostrando ${start}-${end} de ${total} folhas`,
+    },
+  },
   unauthorized: 'Sua sessão não está mais autenticada. Entre novamente e recarregue o módulo.',
   notFound: 'O backend em execução ainda não expõe a API de folha. Reinicie o Spring na branch mais recente.',
   genericError: 'Não foi possível carregar a folha.',
@@ -51,6 +59,7 @@ export const ptBR = {
     csvDescription: 'Preparando o razão da folha para exportação em planilha.',
     pdfTitle: 'Preparando PDF da folha',
     pdfDescription: 'Gerando um relatório imprimível da folha com os dados atuais.',
+    identityNotReady: 'A identidade da empresa ainda está sendo preparada para impressão.',
   },
   statuses: {
     draft: 'Rascunho',
@@ -371,5 +380,13 @@ export const ptBR = {
     eyebrow: 'Configuração da folha',
     title: 'Configure como a folha deve ser agrupada',
     configurePreferences: 'Configurar preferências',
+  },
+  colombiaOperations: {
+    busy: { loadingTitle: 'Carregando Colômbia', loadingDescription: 'Carregando a configuração da empresa, o perfil do colaborador e as ocorrências da folha.', savingTitle: 'Salvando Colômbia', savingDescription: 'Atualizando a configuração e o perfil fiscal da Colômbia.', noveltyTitle: 'Salvando ocorrência', noveltyDescription: 'Registrando a ocorrência da folha colombiana para o colaborador.' },
+    success: { saved: 'Configuração da Colômbia salva. Sincronize a folha para aplicar as alterações ao cálculo.', novelty: 'Ocorrência da Colômbia salva. Sincronize a folha para recalcular esta linha.' },
+    title: 'Colômbia', description: (name: string, runId: number) => `${name} · Folha nº ${runId}`, footerSummary: 'As alterações serão aplicadas no próximo cálculo do backend.', save: 'Salvar Colômbia', company: 'Empresa Colômbia', defaultArlClass: 'Classe ARL padrão', fundCode: 'Código da caixa de compensação', fundName: 'Caixa de compensação', employerHealthExemption: 'Isenção de saúde patronal', undefined: 'Não definido', yes: 'Sim', no: 'Não',
+    employeeProfile: 'Perfil do colaborador', contributorType: 'Tipo de contribuinte', contributorSubtype: 'Subtipo de contribuinte', arlClass: 'Classe ARL', integralSalary: 'Salário integral', eps: 'EPS', epsCode: 'Código EPS', afp: 'AFP', afpCode: 'Código AFP', withholdingProcedure: 'Procedimento de retenção', procedure1: 'Procedimento 1', procedure2: 'Procedimento 2', procedure2Rate: 'Taxa do procedimento 2', dependents: 'Dependentes', prepaidMedicine: 'Medicina pré-paga', housingInterest: 'Juros habitacionais', voluntaryPension: 'Pensão voluntária', afc: 'AFC', otherExemptIncome: 'Outras rendas isentas',
+    novelties: 'Ocorrências da Colômbia', periodLabel: 'Período', period: (start: string, end: string) => `Período de ${start} a ${end}`, registered: (count: number) => `${count} registradas`, code: 'Código', label: 'Rótulo', start: 'Início', end: 'Fim', ibcImpact: 'Impacto no IBC', add: 'Adicionar', status: 'Status', empty: 'Não há ocorrências registradas neste período.', noveltyLabels: { VSP: 'Variação salarial permanente', VST: 'Variação salarial temporária', SLN: 'Suspensão temporária', IGE: 'Incapacidade geral', LMA: 'Licença maternidade/paternidade', LPA: 'Licença remunerada', VAC: 'Férias', RETRO: 'Retroativo', CORR: 'Correção', LIQ: 'Liquidação', RET: 'Desligamento' },
+    reporting: { title: 'PILA / DIAN Colômbia', run: (id: number, start: string, end: string) => `Folha nº ${id} · ${start} → ${end}`, snapshots: 'Snapshots governamentais da Colômbia', blocking: 'Bloqueante', validated: 'Validado', line: (lineId: number, employeeId: number) => `Linha nº ${lineId} · Colaborador nº ${employeeId}`, hash: 'Hash', noHash: 'Sem hash', noDate: 'Sem data', ready: 'Pronto', review: 'Revisar', alerts: (count: number) => `${count} alertas`, payload: 'Payload', empty: 'Não há snapshots PILA / DIAN para esta folha fiscal da Colômbia.' },
   },
 } as const satisfies PayrollTranslations;

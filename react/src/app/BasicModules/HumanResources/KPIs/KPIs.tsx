@@ -1745,8 +1745,8 @@ export default function KPIs() {
           noRows: copy.dashboard.table.noRows,
           focus: standardCopy.focus,
           statuses: copy.dashboard.statuses,
+          pagination: standardCopy.pagination,
         }}
-        locale={currentLanguage.code}
         onFocus={(row) => setSearchQuery(row.name)}
         resetKey={[searchQuery, unitFilter, businessFilter, periodFilter, attendanceStatusFilter, departmentFilter, selectedDate].join('|')}
         rows={employeeOperationsRows}

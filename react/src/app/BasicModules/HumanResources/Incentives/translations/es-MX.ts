@@ -1,8 +1,10 @@
 import { enCA } from './en-CA';
 import type { IncentivesTranslations } from './types';
+import { esMXIncentiveForm } from './formLocales';
 
 export const esMX = {
   ...enCA,
+  form: esMXIncentiveForm,
   title: 'Incentivos',
   subtitle: 'Gestiona bonos manuales, reglas automatizadas y aplicación en nómina.',
   actions: {

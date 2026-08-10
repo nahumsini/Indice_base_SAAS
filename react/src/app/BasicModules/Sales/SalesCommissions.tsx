@@ -36,7 +36,7 @@ export default function SalesCommissions({ learningModeActive = false }: { learn
         setRules(loadedRules);
         setUsers(context.users.filter((user) => user.status !== 'inactive'));
       })
-      .catch(() => !cancelled && setError('No se pudo cargar la configuración de comisiones.'));
+      .catch(() => !cancelled && setError(t.commissionWorkspace.loadError));
     return () => { cancelled = true; };
   }, []);
 
@@ -54,8 +54,8 @@ export default function SalesCommissions({ learningModeActive = false }: { learn
   };
 
   const sections: Array<{ id: WorkspaceSection; label: string; icon: typeof BadgePercent }> = [
-    { id: 'generated', label: 'Comisiones generadas', icon: BadgePercent },
-    { id: 'cuts', label: 'Cortes', icon: CalendarRange },
+    { id: 'generated', label: t.commissionWorkspace.generated, icon: BadgePercent },
+    { id: 'cuts', label: t.commissionWorkspace.cuts, icon: CalendarRange },
   ];
 
   return (
@@ -64,16 +64,16 @@ export default function SalesCommissions({ learningModeActive = false }: { learn
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-start gap-3">
             <span className="rounded-lg bg-[#FF6B5E]/15 p-2 text-[#B63B32]"><BadgePercent className="h-6 w-6" /></span>
-            <div><h2 className="text-xl font-medium text-slate-950">Comisiones</h2><p className="mt-1 text-sm text-slate-600">Define cómo se gana, revisa lo generado y controla el envío de cada corte hacia Incentivos y Nómina.</p></div>
+            <div><h2 className="text-xl font-medium text-slate-950">{t.commissionWorkspace.title}</h2><p className="mt-1 text-sm text-slate-600">{t.commissionWorkspace.subtitle}</p></div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" className="shrink-0 rounded-lg border-[#FF6B5E]/35 bg-white text-[#B63B32] shadow-sm hover:bg-[#FF6B5E]/10" onClick={() => { setSection('cuts'); setCutOpen(true); }}><CalendarRange className="h-4 w-4" />Generar corte</Button>
-            <Button className="shrink-0 rounded-lg bg-[#FF6B5E] text-[#222831] shadow-sm hover:bg-[#E85C50] focus-visible:ring-[#FF6B5E]/30" onClick={() => setRulesOpen(true)}><Settings2 className="h-4 w-4" />Administrar políticas</Button>
+            <Button variant="outline" className="shrink-0 rounded-lg border-[#FF6B5E]/35 bg-white text-[#B63B32] shadow-sm hover:bg-[#FF6B5E]/10" onClick={() => { setSection('cuts'); setCutOpen(true); }}><CalendarRange className="h-4 w-4" />{t.commissionWorkspace.generateCut}</Button>
+            <Button className="shrink-0 rounded-lg bg-[#FF6B5E] text-[#222831] shadow-sm hover:bg-[#E85C50] focus-visible:ring-[#FF6B5E]/30" onClick={() => setRulesOpen(true)}><Settings2 className="h-4 w-4" />{t.commissionWorkspace.managePolicies}</Button>
           </div>
         </div>
       </div>
 
-      <nav className="inline-flex max-w-full flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm" aria-label="Secciones de comisiones">
+      <nav className="inline-flex max-w-full flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm" aria-label={t.commissionWorkspace.sectionsLabel}>
         {sections.map(({ id, label, icon: Icon }) => <Button key={id} type="button" variant="ghost" className={`h-11 rounded-lg px-5 text-sm font-medium focus-visible:ring-[#FF6B5E]/30 ${section === id ? 'bg-[#FF6B5E] text-[#222831] shadow-md hover:bg-[#E85C50]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'}`} onClick={() => setSection(id)}><Icon className="h-4 w-4" />{label}</Button>)}
       </nav>
 
@@ -82,7 +82,7 @@ export default function SalesCommissions({ learningModeActive = false }: { learn
       {section === 'generated' ? <CommissionsView learningModeActive={learningModeActive} sales={records} rules={rules} t={t} section="generated" /> : null}
       {section === 'cuts' ? <CommissionsView learningModeActive={learningModeActive} sales={records} rules={rules} t={t} section="cuts" cutCreated={cutCreated} cutRefreshKey={cutRefreshKey} /> : null}
       <CommissionRulesModal open={rulesOpen} rules={rules} sales={records} users={users} products={products} t={t} onOpenChange={setRulesOpen} onDeleteRule={deleteRule} onSaveRule={saveRule} />
-      <CommissionCutModal open={cutOpen} sales={records} onOpenChange={setCutOpen} onCreated={() => { setCutCreated(true); setCutRefreshKey((current) => current + 1); }} />
+      <CommissionCutModal open={cutOpen} sales={records} t={t} onOpenChange={setCutOpen} onCreated={() => { setCutCreated(true); setCutRefreshKey((current) => current + 1); }} />
     </section>
   );
 }

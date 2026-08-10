@@ -636,7 +636,7 @@ export default function PersonalPerformance() {
 
   const titleBarActions = isPerformanceComplete && !activeSection ? (
     <div className="flex w-full gap-2 sm:w-auto">
-    <Button variant="outline" size="sm" onClick={() => setRestartConfirmationOpen(true)} disabled={isSaving} className="flex-1 gap-2 sm:flex-none"><RotateCcw className="h-4 w-4" />{resolvedLocale.startsWith('es') ? 'Reiniciar test' : 'Restart test'}</Button>
+    <Button variant="outline" size="sm" onClick={() => setRestartConfirmationOpen(true)} disabled={isSaving} className="flex-1 gap-2 sm:flex-none"><RotateCcw className="h-4 w-4" />{performanceUi.restartDialog.action}</Button>
     <Button
       size="sm"
       onClick={handlePrint}
@@ -805,14 +805,14 @@ export default function PersonalPerformance() {
 
       <IndiceConfirmationDialog
         busy={isSaving}
-        cancelLabel={resolvedLocale.startsWith('es') ? 'Cancelar' : 'Cancel'}
-        confirmLabel={resolvedLocale.startsWith('es') ? 'Reiniciar test' : 'Restart test'}
-        description={resolvedLocale.startsWith('es') ? 'Conservaremos tu resultado anterior y comenzaremos una nueva versión.' : 'We will preserve your previous result and begin a new version.'}
+        cancelLabel={performanceUi.restartDialog.cancel}
+        confirmLabel={performanceUi.restartDialog.action}
+        description={performanceUi.restartDialog.description}
         icon={<RotateCcw className="h-5 w-5" />}
         onCancel={() => setRestartConfirmationOpen(false)}
         onConfirm={() => void handleRestartPerformance()}
         open={restartConfirmationOpen}
-        title={resolvedLocale.startsWith('es') ? '¿Reiniciar evaluación?' : 'Restart assessment?'}
+        title={performanceUi.restartDialog.title}
         tone="blue"
       />
 

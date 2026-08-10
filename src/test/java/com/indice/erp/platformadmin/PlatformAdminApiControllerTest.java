@@ -39,6 +39,9 @@ class PlatformAdminApiControllerTest {
     private PlatformAdminService service;
 
     @MockBean
+    private PlatformAccountProvisioningService accountProvisioning;
+
+    @MockBean
     private CourtesyCodeService courtesyCodes;
 
     @MockBean
@@ -133,6 +136,38 @@ class PlatformAdminApiControllerTest {
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.public_reference").value("benefit-1"))
             .andExpect(jsonPath("$.status").value("ACTIVE"));
+    }
+
+    @Test
+    void platformRootCanCreateAProvisionedCompanyAccount() throws Exception {
+        var platformRoot = new AuthSessionUser(99L, 7L, "Platform Root", "root");
+        given(auth.currentUser(any())).willReturn(Optional.of(platformRoot));
+        given(accountProvisioning.create(eq(99L), eq("account-request-1"), any()))
+            .willReturn(Map.of(
+                "company_id", 44L,
+                "company_name", "Demo Norte",
+                "owner_user_id", 88L,
+                "owner_email", "demo.norte@example.com",
+                "replayed", false
+            ));
+
+        mockMvc.perform(post("/api/v1/platform-admin/companies")
+                .header("X-CSRF-Token", "csrf-test")
+                .header("Idempotency-Key", "account-request-1")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {
+                      "company_name": "Demo Norte",
+                      "owner_email": "demo.norte@example.com",
+                      "temporary_password": "DemoSegura2026!",
+                      "country_code": "MX",
+                      "product_codes": ["hr"],
+                      "access_days": 30
+                    }
+                    """))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.company_id").value(44L))
+            .andExpect(jsonPath("$.owner_email").value("demo.norte@example.com"));
     }
 
     @Test

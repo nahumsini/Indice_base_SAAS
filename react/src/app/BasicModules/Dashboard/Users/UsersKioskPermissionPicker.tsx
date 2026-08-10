@@ -2,6 +2,7 @@ import { Check, LockKeyhole, MonitorSmartphone } from 'lucide-react';
 import type { ConfigCenterEmployeeKiosk } from '../../../api/configCenter';
 import { routeForBackendSlug } from '../../../config/moduleCatalog';
 import { cn } from '../../../components/ui/utils';
+import type { UsersTranslations } from './usersTranslations';
 
 interface Props {
   kiosks: ConfigCenterEmployeeKiosk[];
@@ -10,7 +11,7 @@ interface Props {
   unitId: number | null;
   businessId: number | null;
   onChange: (ids: number[]) => void;
-  languageCode: string;
+  copy: UsersTranslations['kioskPermissions'];
 }
 
 const scopeAllows = (
@@ -31,9 +32,8 @@ export function UsersKioskPermissionPicker({
   unitId,
   businessId,
   onChange,
-  languageCode,
+  copy,
 }: Props) {
-  const spanish = languageCode.toLowerCase().startsWith('es');
   const selected = new Set(selectedIds);
   const moduleIds = new Set(selectedModuleIds);
   const rows = kiosks.map(kiosk => {
@@ -58,20 +58,20 @@ export function UsersKioskPermissionPicker({
         <div className="flex items-start gap-3">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/50"><MonitorSmartphone className="h-4 w-4" /></div>
           <div>
-            <h3 className="text-sm font-medium text-slate-950 dark:text-white">{spanish ? 'Kioscos operativos' : 'Operational kiosks'}</h3>
-            <p className="mt-1 text-xs leading-5 text-slate-500">{spanish ? 'Asigna solamente las experiencias que esta persona necesita para trabajar.' : 'Assign only the experiences this person needs for work.'}</p>
+            <h3 className="text-sm font-medium text-slate-950 dark:text-white">{copy.title}</h3>
+            <p className="mt-1 text-xs leading-5 text-slate-500">{copy.description}</p>
           </div>
         </div>
-        <span className="self-start rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">{selectedIds.length} {spanish ? 'asignados' : 'assigned'}</span>
+        <span className="self-start rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">{copy.assigned(selectedIds.length)}</span>
       </div>
 
       {rows.length === 0 ? (
-        <p className="mt-4 rounded-xl border border-dashed border-slate-300 p-5 text-center text-xs text-slate-500">{spanish ? 'Aún no hay kioscos de empleados disponibles.' : 'No employee kiosks are available yet.'}</p>
+        <p className="mt-4 rounded-xl border border-dashed border-slate-300 p-5 text-center text-xs text-slate-500">{copy.empty}</p>
       ) : (
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           {rows.map(({ kiosk, allowed }) => {
             const active = selected.has(kiosk.id) && allowed;
-            const scope = kiosk.business_name || kiosk.unit_name || (spanish ? 'Toda la empresa' : 'Company-wide');
+            const scope = kiosk.business_name || kiosk.unit_name || copy.companyWide;
             return (
               <button
                 key={kiosk.id}

@@ -9,6 +9,14 @@ export const esMX = {
   applyFilters: 'Aplicar filtros',
   retry: 'Reintentar',
   loading: 'Cargando nómina',
+  list: {
+    search: { label: 'Buscar nómina', placeholder: 'Período, unidad, negocio, jurisdicción o estado' },
+    pagination: {
+      next: 'Siguiente', previous: 'Anterior', pageSize: 'Filas por página',
+      page: (current: number, total: number) => `Página ${current} de ${total}`,
+      showing: (start: number, end: number, total: number) => `Mostrando ${start}-${end} de ${total} corridas`,
+    },
+  },
   unauthorized: 'Tu sesión ya no está autenticada. Inicia sesión de nuevo y vuelve a cargar el módulo.',
   notFound: 'El backend en ejecución todavía no expone la API de nómina. Reinicia Spring con la versión más reciente.',
   genericError: 'No se pudo cargar la nómina.',
@@ -52,6 +60,7 @@ export const esMX = {
     csvDescription: 'Preparando el libro de nómina para exportarlo a hoja de cálculo.',
     pdfTitle: 'Preparando PDF de nómina',
     pdfDescription: 'Generando un reporte imprimible de la corrida actual.',
+    identityNotReady: 'La identidad de la empresa todavía se está preparando para impresión.',
   },
   statuses: {
     draft: 'Borrador',
@@ -893,5 +902,15 @@ export const esMX = {
       ],
     },
     manualAdjustmentFallback: 'Ajuste manual',
+  },
+  colombiaOperations: {
+    busy: { loadingTitle: 'Cargando Colombia', loadingDescription: 'Consultando configuración de empresa, perfil del colaborador y novedades.', savingTitle: 'Guardando Colombia', savingDescription: 'Actualizando configuración y perfil fiscal de Colombia.', noveltyTitle: 'Guardando novedad', noveltyDescription: 'Registrando la novedad de nómina Colombia para el colaborador.' },
+    success: { saved: 'Configuración Colombia guardada. Sincroniza la corrida para aplicar los cambios al cálculo.', novelty: 'Novedad Colombia guardada. Sincroniza la corrida para recalcular esta línea.' },
+    title: 'Colombia', description: (name: string, runId: number) => `${name} · Corrida #${runId}`, footerSummary: 'Los cambios aplican al siguiente cálculo del backend.', save: 'Guardar Colombia',
+    company: 'Empresa Colombia', defaultArlClass: 'Clase ARL predeterminada', fundCode: 'Código de caja de compensación', fundName: 'Caja de compensación', employerHealthExemption: 'Exoneración de salud patronal', undefined: 'Sin definir', yes: 'Sí', no: 'No',
+    employeeProfile: 'Perfil del colaborador', contributorType: 'Tipo de cotizante', contributorSubtype: 'Subtipo de cotizante', arlClass: 'Clase ARL', integralSalary: 'Salario integral', eps: 'EPS', epsCode: 'Código EPS', afp: 'AFP', afpCode: 'Código AFP', withholdingProcedure: 'Procedimiento de retención', procedure1: 'Procedimiento 1', procedure2: 'Procedimiento 2', procedure2Rate: 'Tarifa del procedimiento 2', dependents: 'Dependientes', prepaidMedicine: 'Medicina prepagada', housingInterest: 'Intereses de vivienda', voluntaryPension: 'Pensión voluntaria', afc: 'AFC', otherExemptIncome: 'Otras rentas exentas',
+    novelties: 'Novedades Colombia', periodLabel: 'Periodo', period: (start: string, end: string) => `Periodo ${start} a ${end}`, registered: (count: number) => `${count} registradas`, code: 'Código', label: 'Etiqueta', start: 'Inicio', end: 'Fin', ibcImpact: 'Impacto IBC', add: 'Agregar', status: 'Estado', empty: 'No hay novedades registradas en este periodo.',
+    noveltyLabels: { VSP: 'Variación permanente de salario', VST: 'Variación transitoria de salario', SLN: 'Suspensión temporal', IGE: 'Incapacidad general', LMA: 'Licencia de maternidad/paternidad', LPA: 'Licencia remunerada', VAC: 'Vacaciones', RETRO: 'Retroactivo', CORR: 'Corrección', LIQ: 'Liquidación', RET: 'Retiro' },
+    reporting: { title: 'PILA / DIAN Colombia', run: (id: number, start: string, end: string) => `Corrida #${id} · ${start} → ${end}`, snapshots: 'Snapshots gubernamentales de Colombia', blocking: 'Bloqueante', validated: 'Validado', line: (lineId: number, employeeId: number) => `Línea #${lineId} · Colaborador #${employeeId}`, hash: 'Hash', noHash: 'Sin hash', noDate: 'Sin fecha', ready: 'Listo', review: 'Revisar', alerts: (count: number) => `${count} alertas`, payload: 'Payload', empty: 'No hay snapshots PILA / DIAN para esta corrida fiscal de Colombia.' },
   }
 } as const satisfies PayrollTranslations;

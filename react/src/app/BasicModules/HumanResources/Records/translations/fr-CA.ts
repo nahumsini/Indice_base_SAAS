@@ -5,6 +5,18 @@ export const frCA = {
   ...enCA,
   title: 'Dossiers',
   subtitle: 'Historique des employés, incidents, rapports et actions de suivi.',
+  pdfDocument: {
+    brand: 'Índice ERP',
+    title: 'Dossier de Ressources Humaines',
+    generatedAt: "Date d'émission",
+    overview: 'Résumé du dossier',
+    followUp: 'Suivi',
+    signatures: 'Signatures de prise de connaissance',
+    employeeSignature: 'Employé',
+    reportedBySignature: 'Responsable déclarant',
+    signature: 'Signature',
+    footer: 'Document généré par Índice ERP pour le contrôle interne des Ressources Humaines.',
+  },
   actions: {
     columns: 'Colonnes',
     addRecord: 'Ajouter un dossier',

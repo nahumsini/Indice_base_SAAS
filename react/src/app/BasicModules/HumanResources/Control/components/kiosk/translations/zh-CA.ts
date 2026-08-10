@@ -9,6 +9,11 @@ export const zhCA = {
     autoBadge: '自动',
     autoDetected: '根据设备/IP 信号建议',
   },
+  network: {
+    required: '使用此终端需要互联网连接。',
+    offline: '当前离线，终端操作已暂停。',
+    sessionExpiring: '您的会话即将过期，请进行操作以继续。',
+  },
   title: '考勤屏幕',
   subtitle: '输入 PIN，验证身份和 GPS 位置，然后登记考勤。',
   terminalBadge: '考勤终端',

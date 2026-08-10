@@ -1,8 +1,10 @@
 import { enCA } from './en-CA';
 import type { IncentivesTranslations } from './types';
+import { koCAIncentiveForm } from './formLocales';
 
 export const koCA = {
   ...enCA,
+  form: koCAIncentiveForm,
   title: '인센티브',
   subtitle: '수동 보너스, 자동 규칙 및 급여 적용 시점을 관리합니다.',
   actions: { columns: '열', addIncentive: '인센티브 추가' },

@@ -1,0 +1,68 @@
+import type { ProfileTranslations } from "./types";
+
+export const enUS = {
+  title: "My profile",
+  subtitle: "Personal information and account settings",
+  helper: "You can complete this at any time",
+  fields: {
+    fullName: "Full name",
+    email: "Email",
+    phone: "Phone",
+    position: "Position",
+    department: "Department",
+    profilePhoto: "Profile photo",
+    country: "Country",
+    uploadPhoto: "Upload photo",
+    firstNames: "First name(s)",
+    lastNames: "Last name(s)",
+    preferredLanguage: "Preferred language",
+    newPassword: "New password",
+    confirmNewPassword: "Confirm new password",
+  },
+  sections: {
+    identityTitle: "Identity",
+    identitySubtitle: "Your photo and name for the interface.",
+    contactTitle: "Contact information",
+    contactSubtitle: "Details for notifications and communication.",
+    securityTitle: "Account security",
+    securitySubtitle: "Update your password whenever you need to.",
+    preferencesTitle: "Preferences",
+    preferencesSubtitle: "Personalize the interface language.",
+    nameGroup: "First and last names",
+  },
+  hints: {
+    photoFormat: "JPG/PNG/WebP/HEIC, max 25MB; compressed before upload",
+    firstNames: "In some countries you may use one or more given names.",
+    lastNames:
+      "This may be 1 surname (USA/Canada) or 2 surnames (Mexico/Colombia).",
+    phone: "The country updates the phone code automatically.",
+    password: "Leave it blank if you do not want to change it.",
+    preferredLanguage:
+      "We will use this language for the interface and templates.",
+  },
+  actions: {
+    save: "Save changes",
+    saving: "Saving...",
+    discard: "Discard",
+    uploadingPhoto: "Uploading photo...",
+  },
+  phone: { add: "Add phone", number: "Number", primary: "Primary", remove: "Remove" },
+  progress: {
+    completion: "Profile complete",
+    essentials: "Complete the essentials in a single view.",
+    securityAction: "Change password",
+  },
+  accessibility: { showPassword: "Show password", hidePassword: "Hide password" },
+  messages: {
+    loading: "Loading profile...",
+    saveSuccess: "Profile saved.",
+    loadError: "Unable to load profile.",
+    saveError: "Unable to save profile.",
+    unsavedChanges: "You have unsaved changes.",
+    optional: "(optional)",
+    savingOverlay: "Saving profile...",
+    passwordMismatch: "The new password and its confirmation must match.",
+    passwordMinLength: "The new password must be at least 8 characters long.",
+    invalidPhone: "Enter a valid phone number for the selected country.",
+  },
+} as const satisfies ProfileTranslations;

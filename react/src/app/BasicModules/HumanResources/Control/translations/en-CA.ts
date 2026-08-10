@@ -2,6 +2,13 @@ export const enCA = {
   ...({
     title: 'Control',
     subtitle: 'Monitor attendance in real time and manage settings.',
+    selfShiftCalendar: {
+      title: 'My shift calendar', loadingTitle: 'Loading calendar', loadingDescription: 'Checking your assigned shifts.', month: 'Month',
+      shift: 'Shift', openShift: 'Open shift', restDay: 'Rest day', noShift: 'No shift', selectedDay: 'Selected day', today: 'Today',
+      details: 'Shift details', schedule: 'Schedule', start: 'Start', end: 'End', flexible: 'Flexible', workSite: 'Work site', template: 'Template',
+      meal: 'Meal', rest: 'Rest', overnight: 'Overnight shift', notAssigned: 'No shift assigned for this day.', restAssigned: 'This day is marked as rest.',
+      pickDay: 'No day selected.', minutes: 'min', retry: 'Unable to load your shift calendar.', previousMonth: 'Previous month', nextMonth: 'Next month',
+    },
     refresh: 'Refresh',
     loading: 'Loading control data',
     retry: 'Retry',

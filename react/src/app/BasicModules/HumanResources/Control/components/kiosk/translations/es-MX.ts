@@ -9,6 +9,11 @@ export const esMX = {
     autoBadge: 'Automático',
     autoDetected: 'Sugerido por señales del dispositivo/IP',
   },
+  network: {
+    required: 'Se requiere conexión a internet para usar este kiosco.',
+    offline: 'Sin conexión. Las acciones del kiosco están pausadas.',
+    sessionExpiring: 'Tu sesión está por vencer. Interactúa para continuar.',
+  },
   title: 'Pantalla de asistencia',
   subtitle: 'Captura tu PIN, verifica tu identidad y ubicación, y registra asistencia.',
   terminalBadge: 'Terminal de asistencia',

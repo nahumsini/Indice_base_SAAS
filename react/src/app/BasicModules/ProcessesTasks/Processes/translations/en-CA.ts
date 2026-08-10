@@ -7,6 +7,8 @@ export const enCA = {
     retry: 'Retry',
     cancel: 'Cancel',
     close: 'Close',
+    previous: 'Previous',
+    continue: 'Continue',
     saving: 'Saving...',
     noDate: 'No date',
     noUnit: 'No unit',

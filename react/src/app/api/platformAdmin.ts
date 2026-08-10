@@ -8,6 +8,7 @@ export interface PlatformAdminContext {
   can_manage_ownership: boolean;
   can_manage_modules: boolean;
   can_manage_consulting: boolean;
+  can_manage_accounts: boolean;
 }
 
 export type PlatformConsultingStatus = 'REQUESTED' | 'PAYMENT_REQUIRED' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'NO_SHOW';
@@ -365,6 +366,34 @@ export interface CourtesyCodePayload {
   campaign_code?: string;
 }
 
+export interface PlatformAccountCreatePayload {
+  company_name: string;
+  owner_name?: string;
+  owner_email: string;
+  temporary_password: string;
+  country_code: 'MX' | 'CA' | 'US' | 'CO' | 'BR';
+  phone?: string;
+  industry?: string;
+  company_size?: string;
+  product_codes: string[];
+  extra_seats: number;
+  access_days?: number;
+  permanent: boolean;
+}
+
+export interface PlatformAccountCreateResult {
+  company_id: number;
+  company_name: string;
+  owner_user_id: number;
+  owner_email: string;
+  owner_membership_id: number;
+  product_codes?: string[];
+  extra_seats?: number;
+  access_days?: number | null;
+  permanent?: boolean;
+  replayed: boolean;
+}
+
 const companyPath = (companyId: number) => `${endpoints.platformAdmin.companies}/${companyId}`;
 const courtesyCodesPath = '/api/v1/platform-admin/courtesy-codes';
 const consultingPath = '/api/v1/platform-admin/consulting';
@@ -375,6 +404,14 @@ export const platformAdminApi = {
     `${endpoints.platformAdmin.overview}?q=${encodeURIComponent(query)}&limit=100`,
   ),
   getCompany: (companyId: number) => apiClient<PlatformCompanyDetail>(companyPath(companyId)),
+  createCompanyAccount: (payload: PlatformAccountCreatePayload) => apiClient<PlatformAccountCreateResult>(
+    endpoints.platformAdmin.companies,
+    {
+      method: 'POST',
+      headers: { 'Idempotency-Key': crypto.randomUUID() },
+      body: JSON.stringify(payload),
+    },
+  ),
   getBilling: () => apiClient<PlatformBilling>(`${endpoints.platformAdmin.billing}?limit=200`),
   getCatalog: () => apiClient<PlatformCatalog>(endpoints.platformAdmin.catalog),
   getModules: () => apiClient<PlatformModules>(endpoints.platformAdmin.modules),

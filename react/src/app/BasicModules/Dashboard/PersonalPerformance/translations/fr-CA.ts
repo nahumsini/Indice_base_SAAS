@@ -13,6 +13,12 @@ export const frCA = {
   progressOf: 'complété',
   printReport: 'Télécharger le PDF',
   restart: 'Recommencer la section',
+  restartDialog: {
+    action: 'Recommencer le test',
+    cancel: 'Annuler',
+    description: 'Nous conserverons votre résultat précédent et commencerons une nouvelle version.',
+    title: 'Recommencer l’évaluation?',
+  },
   actions: {
     start: 'Commencer',
     continue: 'Continuer',

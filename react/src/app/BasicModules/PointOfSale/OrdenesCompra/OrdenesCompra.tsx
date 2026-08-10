@@ -18,6 +18,7 @@ import { SupplierSubmissionKpis } from './components/SupplierSubmissionKpis';
 import { SupplierSubmissionsTable } from './components/SupplierSubmissionsTable';
 import { SupplierPortalAccessModal } from './components/SupplierPortalAccessModal';
 import { usePurchaseOrderWorkspace } from './hooks/usePurchaseOrderWorkspace';
+import { usePurchaseOrderTranslations } from './hooks/usePurchaseOrderTranslations';
 import type {
   PurchaseOrder,
   SupplierInvoiceStatus,
@@ -29,6 +30,7 @@ import type {
 } from './types/purchaseOrder.types';
 
 export default function OrdenesCompra() {
+  const { copy } = usePurchaseOrderTranslations();
   const { balanceLoadError, products, saleCurrency, reloadInventoryBalances } = usePointOfSaleCatalogProducts();
   const { createProductRecord } = useSalesCrm();
   const {
@@ -82,7 +84,7 @@ export default function OrdenesCompra() {
       return;
     }
 
-    void performOrderAction(orderPendingCancellation.id, 'cancel', 'Cancelada desde Punto de Venta.')
+    void performOrderAction(orderPendingCancellation.id, 'cancel', copy.cancelDialog.note)
       .finally(() => setOrderPendingCancellation(null));
   };
 
@@ -142,7 +144,7 @@ export default function OrdenesCompra() {
       {notice ? (
         <div className="flex items-start justify-between gap-3 rounded-[20px] border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
           <span>{notice}</span>
-          <button type="button" className="text-xs font-medium" onClick={() => setNotice(null)}>Cerrar</button>
+          <button type="button" className="text-xs font-medium" onClick={() => setNotice(null)}>{copy.common.close}</button>
         </div>
       ) : null}
 
@@ -253,12 +255,12 @@ export default function OrdenesCompra() {
 
       <ConfirmDeleteDialog
         isVisible={Boolean(orderPendingCancellation)}
-        title="Cancelar orden de compra"
+        title={copy.cancelDialog.title}
         itemName={orderPendingCancellation?.folio}
-        description="Esta accion cambiara el estado de la orden a cancelada y detendra su avance operativo."
-        cancelLabel="Volver"
+        description={copy.cancelDialog.description}
+        cancelLabel={copy.common.close}
         confirmDisabled={saving}
-        confirmLabel="Cancelar orden"
+        confirmLabel={copy.cancelDialog.confirm}
         onCancel={() => setOrderPendingCancellation(null)}
         onConfirm={confirmOrderCancellation}
       />

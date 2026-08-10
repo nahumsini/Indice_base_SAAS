@@ -27,6 +27,7 @@ import {
   type ConsultingWorkspace,
 } from './consultingApi';
 import { getConsultingTranslations } from './translations';
+import { useConsultingTranslations } from './hooks/useConsultingTranslations';
 
 const TIME_OPTIONS = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'];
 const ACTIVE_STATUSES = new Set(['REQUESTED', 'PAYMENT_REQUIRED', 'CONFIRMED']);
@@ -107,7 +108,7 @@ function isBusinessDay(date: string) {
 
 export default function Consulting() {
   const { currentLanguage } = useLanguage();
-  const copy = useMemo(() => getConsultingTranslations(currentLanguage.code), [currentLanguage.code]);
+  const copy = useConsultingTranslations();
   const locale = currentLanguage.code || 'es-MX';
   const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Monterrey';
   const [workspace, setWorkspace] = useState<ConsultingWorkspace | null>(null);
@@ -378,7 +379,7 @@ export default function Consulting() {
                       <div className="mt-3 space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900 dark:bg-amber-950/20">
                         <p className="text-xs leading-5 text-amber-800 dark:text-amber-200">{copy.inPersonCost}</p>
                         <div className="grid gap-3 sm:grid-cols-2">
-                          <Field label={copy.country}><select value={form.countryCode} onChange={(event) => setForm((current) => ({ ...current, countryCode: event.target.value, serviceLocationCode: '' }))} className={controlClass}>{COUNTRY_CODES.map((country) => <option key={country} value={country}>{countryName(country, locale)}</option>)}</select></Field>
+                          <Field label={copy.country}><select value={form.countryCode} onChange={(event) => setForm((current) => ({ ...current, countryCode: event.target.value, serviceLocationCode: '' }))} className={controlClass}>{COUNTRY_CODES.map((country) => <option key={country} value={country}>{copy.countries[country] || country}</option>)}</select></Field>
                               <Field label={copy.city}><select disabled={inPersonUnavailable} required value={form.serviceLocationCode} onChange={(event) => updateForm('serviceLocationCode', event.target.value)} className={controlClass}><option value="">{copy.cityPlaceholder}</option>{countryLocations.map((location) => <option key={location.location_code} value={location.location_code}>{location.city_name}{location.region_name ? ` · ${location.region_name}` : ''}</option>)}<option value="OTHER">{copy.otherCity}</option></select></Field>
                         </div>
                         {inPersonUnavailable || form.serviceLocationCode === 'OTHER' ? <div className="flex gap-2 rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs leading-5 text-amber-800 dark:border-amber-900 dark:bg-slate-900 dark:text-amber-200"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0" /><span>{copy.unsupportedCountry} {copy.useVirtualInstead}</span></div> : null}
@@ -477,7 +478,6 @@ function ModeCard({ active, icon: Icon, title, description, onClick }: { active:
 
 function Detail({ label, value }: { label: string; value: string }) { return <div><p className="text-xs text-slate-500 dark:text-slate-400">{label}</p><p className="mt-1 text-sm font-medium text-slate-950 dark:text-white">{value}</p></div>; }
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block space-y-1.5 text-xs font-medium text-slate-700 dark:text-slate-200"><span>{label}</span>{children}</label>; }
-function countryName(code: string, locale: string) { const names: Record<string, { es: string; en: string }> = { MX: { es: '🇲🇽 México', en: '🇲🇽 Mexico' }, CA: { es: '🇨🇦 Canadá', en: '🇨🇦 Canada' }, US: { es: '🇺🇸 Estados Unidos', en: '🇺🇸 United States' }, BR: { es: '🇧🇷 Brasil', en: '🇧🇷 Brazil' }, CO: { es: '🇨🇴 Colombia', en: '🇨🇴 Colombia' } }; return names[code]?.[locale.toLowerCase().startsWith('es') ? 'es' : 'en'] || code; }
 
 const controlClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:disabled:bg-slate-950 dark:focus:ring-blue-950';
 const iconClass = 'pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400';

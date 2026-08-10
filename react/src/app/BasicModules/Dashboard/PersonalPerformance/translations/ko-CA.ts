@@ -13,6 +13,12 @@ export const koCA = {
   progressOf: '완료',
   printReport: 'PDF 다운로드',
   restart: '섹션 다시 시작',
+  restartDialog: {
+    action: '테스트 다시 시작',
+    cancel: '취소',
+    description: '이전 결과를 보존하고 새 버전을 시작합니다.',
+    title: '평가를 다시 시작할까요?',
+  },
   actions: {
     start: '시작',
     continue: '계속',

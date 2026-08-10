@@ -1,6 +1,8 @@
 import { History, KeyRound, Loader2, ShieldX, UserPlus, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '../../../../components/ui/button';
+import { useLanguage } from '../../../../shared/context';
+import { useTaskKioskTranslations } from '../hooks/useTaskKioskTranslations';
 import {
   processTaskKioskApi,
   type ProcessTaskKiosk,
@@ -17,6 +19,8 @@ interface TaskKioskSecurityPanelProps {
 type PanelTab = 'grants' | 'audit';
 
 export function TaskKioskSecurityPanel({ embedded = false, kiosk, onClose }: TaskKioskSecurityPanelProps) {
+  const copy = useTaskKioskTranslations();
+  const { currentLanguage } = useLanguage();
   const [tab, setTab] = useState<PanelTab>('grants');
   const [grants, setGrants] = useState<ProcessTaskKioskGrant[]>([]);
   const [audit, setAudit] = useState<ProcessTaskKioskAuditEvent[]>([]);
@@ -36,11 +40,11 @@ export function TaskKioskSecurityPanel({ embedded = false, kiosk, onClose }: Tas
         setAudit(await processTaskKioskApi.listAudit(kiosk.id));
       }
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'No fue posible cargar la seguridad del kiosko.');
+      setError(loadError instanceof Error ? loadError.message : copy.admin.errors.securityLoad);
     } finally {
       setIsLoading(false);
     }
-  }, [kiosk.id]);
+  }, [copy.admin.errors.securityLoad, kiosk.id]);
 
   useEffect(() => {
     void load(tab);
@@ -49,7 +53,7 @@ export function TaskKioskSecurityPanel({ embedded = false, kiosk, onClose }: Tas
   const handleGrant = async () => {
     const numericIdentityId = Number(identityId);
     if (!Number.isInteger(numericIdentityId) || numericIdentityId <= 0) {
-      setError('Captura un ID de colaborador válido.');
+      setError(copy.admin.errors.employeeId);
       return;
     }
     setIsSaving(true);
@@ -59,7 +63,7 @@ export function TaskKioskSecurityPanel({ embedded = false, kiosk, onClose }: Tas
       setIdentityId('');
       await load('grants');
     } catch (grantError) {
-      setError(grantError instanceof Error ? grantError.message : 'No fue posible conceder el acceso.');
+      setError(grantError instanceof Error ? grantError.message : copy.admin.errors.grant);
     } finally {
       setIsSaving(false);
     }
@@ -77,45 +81,45 @@ export function TaskKioskSecurityPanel({ embedded = false, kiosk, onClose }: Tas
       setPendingRevokeId(null);
       await load('grants');
     } catch (revokeError) {
-      setError(revokeError instanceof Error ? revokeError.message : 'No fue posible retirar el acceso.');
+      setError(revokeError instanceof Error ? revokeError.message : copy.admin.errors.revoke);
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <section className={embedded ? 'min-w-0' : 'mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950'} aria-label={`Seguridad de ${kiosk.name}`}>
+    <section className={embedded ? 'min-w-0' : 'mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950'} aria-label={copy.admin.security.aria(kiosk.name)}>
       {!embedded ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="font-medium text-slate-950 dark:text-white">Accesos y auditoría</p>
-            <p className="mt-1 text-xs text-slate-500">El PIN es personal; este kiosko únicamente concede o revoca capacidades.</p>
+            <p className="font-medium text-slate-950 dark:text-white">{copy.admin.security.heading}</p>
+            <p className="mt-1 text-xs text-slate-500">{copy.admin.security.privacy}</p>
           </div>
-          <Button type="button" variant="ghost" size="sm" onClick={onClose} aria-label="Cerrar seguridad">
+          <Button type="button" variant="ghost" size="sm" onClick={onClose} aria-label={copy.admin.security.closeAria}>
             <X className="h-4 w-4" />
           </Button>
         </div>
       ) : (
-        <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">El PIN es personal; este kiosko únicamente concede o revoca capacidades.</p>
+        <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">{copy.admin.security.privacy}</p>
       )}
 
-      <div className="mt-4 grid grid-cols-2 gap-2" role="tablist" aria-label="Administración de seguridad">
+      <div className="mt-4 grid grid-cols-2 gap-2" role="tablist" aria-label={copy.admin.security.tabsAria}>
         <Button type="button" size="sm" variant={tab === 'grants' ? 'default' : 'outline'} role="tab" aria-selected={tab === 'grants'} onClick={() => setTab('grants')}>
-          <KeyRound className="h-4 w-4" />Personas con acceso
+          <KeyRound className="h-4 w-4" />{copy.admin.security.people}
         </Button>
         <Button type="button" size="sm" variant={tab === 'audit' ? 'default' : 'outline'} role="tab" aria-selected={tab === 'audit'} onClick={() => setTab('audit')}>
-          <History className="h-4 w-4" />Historial
+          <History className="h-4 w-4" />{copy.admin.security.history}
         </Button>
       </div>
 
       {error ? <p role="alert" className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-200">{error}</p> : null}
-      {isLoading ? <p role="status" className="mt-5 flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Cargando...</p> : null}
+      {isLoading ? <p role="status" className="mt-5 flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />{copy.admin.security.loading}</p> : null}
 
       {!isLoading && tab === 'grants' ? (
         <div className="mt-4 space-y-4" role="tabpanel">
           <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
             <label className="text-xs font-medium text-slate-600 dark:text-slate-300">
-              ID de colaborador
+              {copy.admin.security.employeeId}
               <input
                 inputMode="numeric"
                 min="1"
@@ -124,11 +128,11 @@ export function TaskKioskSecurityPanel({ embedded = false, kiosk, onClose }: Tas
                 disabled={isSaving}
                 onChange={(event) => setIdentityId(event.target.value)}
                 className="mt-1 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"
-                placeholder="Ej. 81"
+                placeholder={copy.admin.security.employeePlaceholder}
               />
             </label>
             <Button type="button" className="self-end" disabled={isSaving || !identityId} onClick={() => void handleGrant()}>
-              <UserPlus className="h-4 w-4" />Conceder
+              <UserPlus className="h-4 w-4" />{copy.admin.security.grant}
             </Button>
           </div>
           {grants.length ? (
@@ -137,17 +141,17 @@ export function TaskKioskSecurityPanel({ embedded = false, kiosk, onClose }: Tas
                 <div key={grant.id} className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-900">
                   <div>
                     <p className="text-sm font-medium text-slate-900 dark:text-white">{grant.identity_type} #{grant.identity_id}</p>
-                    <p className="mt-1 text-xs text-slate-500">{grant.capability_key === '*' ? 'Todas las capacidades habilitadas' : grant.capability_key} · {grant.source}</p>
+                    <p className="mt-1 text-xs text-slate-500">{grant.capability_key === '*' ? copy.admin.security.allCapabilities : grant.capability_key} · {grant.source}</p>
                   </div>
                   {grant.status === 'ACTIVE' ? (
                     <Button type="button" size="sm" variant="outline" disabled={isSaving} className="text-red-600" onClick={() => void handleRevoke(grant.id)}>
-                      <ShieldX className="h-4 w-4" />{pendingRevokeId === grant.id ? 'Confirmar retiro' : 'Retirar acceso'}
+                      <ShieldX className="h-4 w-4" />{pendingRevokeId === grant.id ? copy.admin.security.confirmRevoke : copy.admin.security.revoke}
                     </Button>
-                  ) : <span className="text-xs font-medium text-slate-500">Revocado</span>}
+                  ) : <span className="text-xs font-medium text-slate-500">{copy.admin.security.revoked}</span>}
                 </div>
               ))}
             </div>
-          ) : <p className="text-sm text-slate-500">No hay accesos registrados todavía.</p>}
+          ) : <p className="text-sm text-slate-500">{copy.admin.security.emptyGrants}</p>}
         </div>
       ) : null}
 
@@ -157,11 +161,11 @@ export function TaskKioskSecurityPanel({ embedded = false, kiosk, onClose }: Tas
             <div key={event.event_id} className="rounded-xl border border-slate-200 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-900">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium text-slate-900 dark:text-white">{eventLabel(event.event_type)}</p>
-                <span className="text-xs font-medium text-slate-500">{new Date(event.created_at).toLocaleString('es-MX')}</span>
+                <span className="text-xs font-medium text-slate-500">{new Date(event.created_at).toLocaleString(currentLanguage.code)}</span>
               </div>
-              <p className="mt-1 text-xs text-slate-500">{event.outcome}{event.capability ? ` · ${event.capability}` : ''}{event.module_reference ? ` · Ref. ${event.module_reference}` : ''}</p>
+              <p className="mt-1 text-xs text-slate-500">{event.outcome}{event.capability ? ` · ${event.capability}` : ''}{event.module_reference ? ` · ${copy.admin.security.reference(event.module_reference)}` : ''}</p>
             </div>
-          )) : <p className="text-sm text-slate-500">Aún no hay eventos de auditoría para este kiosko.</p>}
+          )) : <p className="text-sm text-slate-500">{copy.admin.security.emptyAudit}</p>}
         </div>
       ) : null}
     </section>

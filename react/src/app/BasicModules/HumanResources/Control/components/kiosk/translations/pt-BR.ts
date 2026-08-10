@@ -9,6 +9,11 @@ export const ptBR = {
     autoBadge: 'Automático',
     autoDetected: 'Sugerido por sinais do dispositivo/IP',
   },
+  network: {
+    required: 'É necessária uma conexão com a internet para usar este quiosque.',
+    offline: 'Sem conexão. As ações do quiosque estão pausadas.',
+    sessionExpiring: 'Sua sessão está prestes a expirar. Interaja para continuar.',
+  },
   title: 'Tela de ponto',
   subtitle: 'Digite seu PIN, verifique identidade e localizacao, e registre o ponto.',
   terminalBadge: 'Terminal de ponto',

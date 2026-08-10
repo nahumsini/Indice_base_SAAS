@@ -25,24 +25,26 @@ import type {
   SupplierInvoicePayload,
 } from '../types/purchaseOrder.types';
 import { purchaseOrdersApi } from '../services/purchaseOrdersApi';
+import { usePurchaseOrderTranslations } from '../hooks/usePurchaseOrderTranslations';
+import type { PurchaseOrderTranslations } from '../translations/types';
 import { formatMoney, numberFrom } from '../utils/purchaseOrderFormat';
 
 const RECONCILIATION_TOLERANCE = 0.01;
 
-const getPurchaseOrderSaveError = (error: unknown) => {
+const getPurchaseOrderSaveError = (error: unknown, copy: PurchaseOrderTranslations['create']) => {
   if (error instanceof ApiClientError && error.status === 401) {
-    return 'Tu sesion expiro despues de reiniciar el sistema. Inicia sesion de nuevo y vuelve a crear la compra.';
+    return copy.sessionExpired;
   }
 
   if (error instanceof ApiClientError && error.status === 403) {
-    return 'La sesion no autorizo esta accion. Refresca la pagina e inicia sesion de nuevo si vuelve a pasar.';
+    return copy.forbidden;
   }
 
   if (error instanceof Error && error.message) {
     return error.message;
   }
 
-  return 'No se pudo guardar la compra.';
+  return copy.saveError;
 };
 
 type DraftLine = {
@@ -78,6 +80,7 @@ export function CreatePurchaseOrderModal({
   supplierLinks: ProductSupplier[];
   warehouses: PosWarehouseSummary[];
 }) {
+  const { copy, locale } = usePurchaseOrderTranslations();
   const productOptions = useMemo(() => products.filter((product) => product.salesProductBackendId), [products]);
   const currencyOptions = useMemo(() => Array.from(new Set([
     saleCurrency || 'MXN',
@@ -121,8 +124,8 @@ export function CreatePurchaseOrderModal({
       label: profile.region ? `${profile.shortName} - ${profile.region}` : profile.shortName,
       value: profile.manualRate ? -1 : Number(taxRateToPercentInput(profile.rate)),
     })),
-    { label: 'Manual', value: -1 },
-  ], [taxProfiles]);
+    { label: copy.create.manual, value: -1 },
+  ], [copy.create.manual, taxProfiles]);
   const productTaxRateOptions = useMemo(() => taxProfiles
     .filter((profile) => !profile.manualRate)
     .map((profile) => ({
@@ -287,7 +290,7 @@ export function CreatePurchaseOrderModal({
   const submit = async () => {
     if (!canCreate) return;
     setSaveError('');
-    setSavingStep('Guardando compra...');
+    setSavingStep(copy.create.savingOrder);
     try {
       const order = await onSubmit({
         providerId: Number(providerId),
@@ -310,7 +313,7 @@ export function CreatePurchaseOrderModal({
         let documentReference: string | null = null;
         if (documentFile) {
           setUploadingDocument(true);
-          setSavingStep('Subiendo factura...');
+          setSavingStep(copy.create.uploadingInvoice);
           const contentType = documentFile.type || 'application/octet-stream';
           const upload = await purchaseOrdersApi.presignSupplierInvoiceDocument({
             fileName: documentFile.name,
@@ -320,7 +323,7 @@ export function CreatePurchaseOrderModal({
           const uploadUrl = upload.uploadUrl ?? upload.upload_url;
           const objectKey = upload.objectKey ?? upload.object_key;
           if (!uploadUrl || !objectKey) {
-            throw new Error('No se recibio URL para subir el documento.');
+            throw new Error(copy.create.uploadUrlError);
           }
           await purchaseOrdersApi.uploadDocument(
             uploadUrl,
@@ -331,7 +334,7 @@ export function CreatePurchaseOrderModal({
           documentReference = objectKey;
           setUploadingDocument(false);
         }
-        setSavingStep('Registrando factura...');
+        setSavingStep(copy.create.registeringInvoice);
         await onSubmitInvoice({
           providerId: Number(providerId),
           purchaseOrderId: order.id,
@@ -350,7 +353,7 @@ export function CreatePurchaseOrderModal({
 
       onClose();
     } catch (error) {
-      setSaveError(getPurchaseOrderSaveError(error));
+      setSaveError(getPurchaseOrderSaveError(error, copy.create));
     } finally {
       setUploadingDocument(false);
       setSavingStep('');
@@ -361,10 +364,10 @@ export function CreatePurchaseOrderModal({
     <PosModalFrame
       modalType="operational-workspace"
       onClose={onClose}
-      closeLabel="Cerrar nueva compra POS"
-      title="Nueva compra POS"
-      subtitle="Concilia factura, presupuesto e inventario antes de crear la compra."
-      eyebrow="Reabastecimiento POS"
+      closeLabel={copy.create.closeLabel}
+      title={copy.create.title}
+      subtitle={copy.create.subtitle}
+      eyebrow={copy.create.eyebrow}
       icon={<PackagePlus className="h-6 w-6" />}
       tone="coral"
       size="xl"
@@ -372,13 +375,13 @@ export function CreatePurchaseOrderModal({
       footerClassName={posModalModuleFooterClassName}
       footerLeading={
         <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
-          Cancelar
+          {copy.create.cancel}
         </button>
       }
-      footerSummary={`${lines.length} partidas · ${registerInvoice ? `Diferencia ${formatMoney(difference, currencyCode)}` : `Total ${formatMoney(totals.total, currencyCode)}`}`}
+      footerSummary={`${copy.create.footerLines(lines.length)} · ${registerInvoice ? copy.create.footerDifference(formatMoney(difference, currencyCode, locale)) : copy.create.footerTotal(formatMoney(totals.total, currencyCode, locale))}`}
       footer={
         <button type="button" disabled={!canCreate} onClick={() => void submit()} className={posModalPrimaryActionClassName}>
-          {savingStep || (registerInvoice ? 'Crear compra y factura' : 'Crear compra')}
+          {savingStep || (registerInvoice ? copy.create.createWithInvoice : copy.create.create)}
         </button>
       }
     >
@@ -391,15 +394,15 @@ export function CreatePurchaseOrderModal({
             ) : null}
 
             <section className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-              <SectionTitle icon={<FileText className="h-5 w-5" />} title="Proveedor, factura y presupuesto" subtitle="Estos datos preparan la referencia financiera para cuentas por pagar y Expenses." />
+              <SectionTitle icon={<FileText className="h-5 w-5" />} title={copy.create.referenceTitle} subtitle={copy.create.referenceSubtitle} />
               <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <Select label="Proveedor" value={providerId} onChange={setProviderId}>
+                <Select label={copy.create.provider} value={providerId} onChange={setProviderId}>
                   {providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
                 </Select>
-                <Select label="Almacen destino" value={warehouseId} onChange={setWarehouseId}>
+                <Select label={copy.create.destinationWarehouse} value={warehouseId} onChange={setWarehouseId}>
                   {warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}
                 </Select>
-                <Select label="Divisa" value={currencyCode} onChange={(value) => {
+                <Select label={copy.create.currency} value={currencyCode} onChange={(value) => {
                   const nextDefaultProfile = getDefaultBudgetTaxProfile(inferTaxCountryFromCurrency(value));
                   const nextDefaultRate = nextDefaultProfile ? Number(taxRateToPercentInput(nextDefaultProfile.rate)) : 0;
                   setCurrencyCode(value);
@@ -420,13 +423,13 @@ export function CreatePurchaseOrderModal({
                 }}>
                   {currencyOptions.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
                 </Select>
-                <Input label="Fecha esperada" type="date" value={expectedDate} onChange={setExpectedDate} />
+                <Input label={copy.create.expectedDate} type="date" value={expectedDate} onChange={setExpectedDate} />
               </div>
 
               <label className="mt-5 flex items-center justify-between gap-4 rounded-2xl border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 px-4 py-3">
                 <div>
-                  <span className="block text-sm font-medium text-slate-950 dark:text-white">Registrar factura vinculada</span>
-                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Si hay factura, debe cuadrar contra las partidas antes de crear.</span>
+                  <span className="block text-sm font-medium text-slate-950 dark:text-white">{copy.create.linkInvoice}</span>
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.create.linkInvoiceHint}</span>
                 </div>
                 <input type="checkbox" checked={registerInvoice} onChange={(event) => {
                   setRegisterInvoice(event.target.checked);
@@ -439,39 +442,39 @@ export function CreatePurchaseOrderModal({
                   <div className="mt-4 rounded-2xl border border-[#FF6B5E]/25 bg-gradient-to-r from-[#FF6B5E]/10 to-[#FFF3F1] p-4 dark:from-[#FF6B5E]/10 dark:to-[#FF6B5E]/10">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <p className="text-xs font-medium text-[#B63B32]">Conciliacion de factura</p>
+                        <p className="text-xs font-medium text-[#B63B32]">{copy.create.reconciliation}</p>
                         <p className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-300">
-                          Total factura {formatMoney(invoiceTotal, currencyCode)} contra partidas {formatMoney(totals.total, currencyCode)}.
+                          {copy.create.reconciliationSummary(formatMoney(invoiceTotal, currencyCode, locale), formatMoney(totals.total, currencyCode, locale))}
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className={`rounded-full px-3 py-1 text-xs font-medium ${reconciled ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200'}`}>
-                          {reconciled ? 'Cuadra' : `Diferencia ${formatMoney(difference, currencyCode)}`}
+                          {reconciled ? copy.create.matched : copy.create.footerDifference(formatMoney(difference, currencyCode, locale))}
                         </span>
                         <button type="button" onClick={syncInvoiceWithItems} className="h-10 rounded-xl border border-[#FF6B5E]/30 bg-white px-4 text-sm font-medium text-[#B63B32] shadow-sm hover:bg-[#FF6B5E]/10 dark:bg-slate-950">
-                          Empatar partidas
+                          {copy.create.syncToItems}
                         </button>
                       </div>
                     </div>
                   </div>
 
                   <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <Input label="Numero de factura" value={invoiceNumber} onChange={setInvoiceNumber} />
-                    <Input label="Fecha factura" type="date" value={invoiceDate} onChange={setInvoiceDate} />
-                    <Input label="Vencimiento" type="date" value={dueDate} onChange={setDueDate} />
-                    <FileInput label="Factura / archivo" fileName={documentFile?.name ?? ''} onChange={updateInvoiceDocument} />
-                    <Input label="Subtotal factura" type="number" value={String(invoiceSubtotal)} onChange={updateInvoiceSubtotal} />
-                    <Select label={`Impuesto factura (${taxCountry})`} value={String(invoiceTaxRate)} onChange={updateInvoiceTaxRate}>
+                    <Input label={copy.create.invoiceNumber} value={invoiceNumber} onChange={setInvoiceNumber} />
+                    <Input label={copy.create.invoiceDate} type="date" value={invoiceDate} onChange={setInvoiceDate} />
+                    <Input label={copy.create.dueDate} type="date" value={dueDate} onChange={setDueDate} />
+                    <FileInput label={copy.create.document} fileName={documentFile?.name ?? ''} onChange={updateInvoiceDocument} uploadLabel={copy.create.upload} emptyLabel={copy.create.noFile} removeLabel={copy.create.removeFile} />
+                    <Input label={copy.create.subtotal} type="number" value={String(invoiceSubtotal)} onChange={updateInvoiceSubtotal} />
+                    <Select label={`${copy.create.tax} (${taxCountry})`} value={String(invoiceTaxRate)} onChange={updateInvoiceTaxRate}>
                       {taxRateOptions.map((option) => <option key={`${option.label}-${option.value}`} value={option.value}>{option.label}</option>)}
                     </Select>
-                    <Input label="Importe impuesto" type="number" value={String(invoiceTax)} onChange={updateInvoiceTax} />
-                    <Input label="Total factura" type="number" value={String(invoiceTotal)} onChange={updateInvoiceTotal} />
+                    <Input label={copy.create.taxAmount} type="number" value={String(invoiceTax)} onChange={updateInvoiceTax} />
+                    <Input label={copy.create.invoiceTotal} type="number" value={String(invoiceTotal)} onChange={updateInvoiceTotal} />
                   </div>
                 </>
               ) : null}
 
               <label className="mt-4 block space-y-2">
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Notas</span>
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.create.notes}</span>
                 <textarea
                   value={notes}
                   onChange={(event) => setNotes(event.target.value)}
@@ -481,37 +484,37 @@ export function CreatePurchaseOrderModal({
             </section>
 
             <section className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-              <SectionTitle icon={<PackagePlus className="h-5 w-5" />} title="Inventario de productos" subtitle="Arma las partidas hasta que el total coincida con la factura o presupuesto." />
+              <SectionTitle icon={<PackagePlus className="h-5 w-5" />} title={copy.create.inventoryTitle} subtitle={copy.create.inventorySubtitle} />
               <div className="mt-4 grid gap-3 rounded-2xl border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 p-4 text-center dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/15 md:grid-cols-3">
                 <div>
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Movimiento</p>
-                  <p className="mt-1 text-lg font-medium text-[#B63B32]">Entrada por compra</p>
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.create.movement}</p>
+                  <p className="mt-1 text-lg font-medium text-[#B63B32]">{copy.create.purchaseEntry}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Partidas</p>
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.create.items}</p>
                   <p className="mt-1 text-2xl font-medium text-slate-950 dark:text-white">{lines.length}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Total entrada</p>
-                  <p className="mt-1 text-2xl font-medium text-[#B63B32]">{formatMoney(totals.total, currencyCode)}</p>
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.create.entryTotal}</p>
+                  <p className="mt-1 text-2xl font-medium text-[#B63B32]">{formatMoney(totals.total, currencyCode, locale)}</p>
                 </div>
               </div>
               <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_140px_160px_160px_auto]">
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Buscar producto</span>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.create.searchProduct}</span>
                   <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 focus-within:border-[#FF6B5E] focus-within:ring-2 focus-within:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
                     <Search className="h-4 w-4 text-slate-400" />
-                    <input value={productSearch} onChange={(event) => setProductSearch(event.target.value)} placeholder="Nombre, SKU o codigo" className="min-w-0 flex-1 bg-transparent outline-none" />
+                    <input value={productSearch} onChange={(event) => setProductSearch(event.target.value)} placeholder={copy.create.searchPlaceholder} className="min-w-0 flex-1 bg-transparent outline-none" />
                   </div>
                 </label>
-                <Input label="Cantidad" type="number" value={String(quantity)} onChange={(value) => setQuantity(Number(value))} />
-                <Input label="Costo unitario" type="number" value={String(effectiveUnitCost)} onChange={(value) => setUnitCost(Number(value))} />
-                <Select label={`Impuesto (${taxCountry})`} value={String(taxRate)} onChange={(value) => setTaxRate(Number(value))}>
+                <Input label={copy.create.quantity} type="number" value={String(quantity)} onChange={(value) => setQuantity(Number(value))} />
+                <Input label={copy.create.unitCost} type="number" value={String(effectiveUnitCost)} onChange={(value) => setUnitCost(Number(value))} />
+                <Select label={`${copy.create.taxRate} (${taxCountry})`} value={String(taxRate)} onChange={(value) => setTaxRate(Number(value))}>
                   {productTaxRateOptions.map((option) => <option key={`${option.label}-${option.value}`} value={option.value}>{option.label}</option>)}
                 </Select>
                 <button type="button" onClick={() => addLine()} disabled={!selectedProduct} className="mt-7 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950">
                   <Plus className="h-4 w-4" />
-                  Agregar
+                  {copy.create.addItem}
                 </button>
               </div>
 
@@ -524,9 +527,9 @@ export function CreatePurchaseOrderModal({
                     className={`rounded-2xl border p-4 text-left transition hover:border-[#FF6B5E] hover:bg-[#FF6B5E]/5 ${String(product.salesProductBackendId) === selectedProductId ? 'border-[#FF6B5E] bg-[#FF6B5E]/10' : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950'}`}
                   >
                     <p className="line-clamp-2 font-medium text-slate-950 dark:text-white">{product.name}</p>
-                    <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{product.sku || product.barcode || 'Sin SKU'}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{product.sku || product.barcode || copy.common.noSku}</p>
                     <div className="mt-3 flex items-center justify-between gap-2 text-xs font-medium">
-                      <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600 dark:bg-slate-800 dark:text-slate-300">{formatMoney(product.costPrice || 0, currencyCode)}</span>
+                      <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600 dark:bg-slate-800 dark:text-slate-300">{formatMoney(product.costPrice || 0, currencyCode, locale)}</span>
                       <span className="text-[#B63B32]">{product.taxRate ?? defaultTaxRate}%</span>
                     </div>
                   </button>
@@ -535,10 +538,10 @@ export function CreatePurchaseOrderModal({
 
               <div className="mt-4 rounded-2xl border border-dashed border-[#FF6B5E]/35 bg-[#FF6B5E]/5 p-4">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-                  <Input label="Producto nuevo" value={newProductName} onChange={setNewProductName} />
-                  <Input label="SKU / codigo" value={newProductSku} onChange={setNewProductSku} />
+                  <Input label={copy.create.newProductName} value={newProductName} onChange={setNewProductName} />
+                  <Input label={copy.create.skuOptional} value={newProductSku} onChange={setNewProductSku} />
                   <button type="button" onClick={() => void createProductAndSelect()} disabled={creatingProduct || !(newProductName.trim() || productSearch.trim())} className="h-11 rounded-xl bg-[#FF6B5E] px-5 text-sm font-medium text-[#222831] disabled:cursor-not-allowed disabled:opacity-50">
-                    {creatingProduct ? 'Creando...' : 'Agregar producto al catalogo'}
+                    {creatingProduct ? copy.create.creatingProduct : copy.create.createProduct}
                   </button>
                 </div>
               </div>
@@ -546,7 +549,7 @@ export function CreatePurchaseOrderModal({
               <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
                 {lines.length === 0 ? (
                   <div className="p-8 text-center text-sm font-medium text-slate-500 dark:text-slate-400">
-                    Agrega productos para controlar inventario, costos y precios reales.
+                    {copy.create.emptyLines}
                   </div>
                 ) : lines.map((line) => {
                   const lineSubtotal = line.quantity * line.unitCost;
@@ -555,13 +558,13 @@ export function CreatePurchaseOrderModal({
                     <div key={line.id} className="grid gap-3 border-b border-slate-100 bg-white p-3 text-sm last:border-b-0 dark:border-slate-800 dark:bg-slate-900 md:grid-cols-[1fr_90px_120px_120px_120px_40px]">
                       <div>
                         <p className="font-medium text-slate-950 dark:text-white">{line.productName}</p>
-                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{line.sku || 'Sin SKU'}</p>
+                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{line.sku || copy.common.noSku}</p>
                       </div>
                       <span className="font-medium text-slate-600 dark:text-slate-300">{line.quantity}</span>
-                      <span className="font-medium text-slate-600 dark:text-slate-300">{formatMoney(line.unitCost, currencyCode)}</span>
-                      <span className="font-medium text-slate-600 dark:text-slate-300">{formatMoney(lineTax, currencyCode)}</span>
-                      <span className="font-medium text-slate-950 dark:text-white">{formatMoney(lineSubtotal + lineTax, currencyCode)}</span>
-                      <button type="button" onClick={() => setLines((current) => current.filter((item) => item.id !== line.id))} className="rounded-lg p-2 text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/10" aria-label="Eliminar partida">
+                      <span className="font-medium text-slate-600 dark:text-slate-300">{formatMoney(line.unitCost, currencyCode, locale)}</span>
+                      <span className="font-medium text-slate-600 dark:text-slate-300">{formatMoney(lineTax, currencyCode, locale)}</span>
+                      <span className="font-medium text-slate-950 dark:text-white">{formatMoney(lineSubtotal + lineTax, currencyCode, locale)}</span>
+                      <button type="button" onClick={() => setLines((current) => current.filter((item) => item.id !== line.id))} className="rounded-lg p-2 text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/10" aria-label={copy.create.removeLine}>
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
@@ -572,25 +575,25 @@ export function CreatePurchaseOrderModal({
           </main>
 
           <aside className="space-y-4 border-l border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-            <Summary label="Proveedor" value={selectedProvider?.name ?? 'Sin proveedor'} />
-            <Summary label="Partidas" value={String(lines.length)} />
-            <Summary label="Subtotal partidas" value={formatMoney(totals.subtotal, currencyCode)} />
-            <Summary label="Impuesto partidas" value={formatMoney(totals.tax, currencyCode)} />
-            <Summary label="Total partidas" value={formatMoney(totals.total, currencyCode)} highlight={!registerInvoice} />
+            <Summary label={copy.create.provider} value={selectedProvider?.name ?? copy.create.noProvider} />
+            <Summary label={copy.create.items} value={String(lines.length)} />
+            <Summary label={copy.create.itemSubtotal} value={formatMoney(totals.subtotal, currencyCode, locale)} />
+            <Summary label={copy.create.itemTax} value={formatMoney(totals.tax, currencyCode, locale)} />
+            <Summary label={copy.create.itemTotal} value={formatMoney(totals.total, currencyCode, locale)} highlight={!registerInvoice} />
             {registerInvoice ? (
               <>
-                <Summary label="Total factura" value={formatMoney(invoiceTotal, currencyCode)} highlight />
+                <Summary label={copy.create.invoiceTotal} value={formatMoney(invoiceTotal, currencyCode, locale)} highlight />
                 <div className={`rounded-2xl border p-4 ${reconciled ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100' : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100'}`}>
                   <div className="flex items-center gap-2">
                     {reconciled ? <CheckCircle2 className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
-                    <p className="font-medium">{reconciled ? 'Conciliado' : 'Falta conciliar'}</p>
+                    <p className="font-medium">{reconciled ? copy.create.reconciled : copy.create.unreconciled}</p>
                   </div>
-                  <p className="mt-2 text-sm font-medium">Diferencia: {formatMoney(difference, currencyCode)}</p>
+                  <p className="mt-2 text-sm font-medium">{copy.create.differenceLabel(formatMoney(difference, currencyCode, locale))}</p>
                 </div>
               </>
             ) : (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
-                Sin factura: se crea orden y compromiso operativo con el total de partidas.
+                {copy.create.noInvoiceSummary}
               </div>
             )}
           </aside>
@@ -631,14 +634,28 @@ function Input({ label, onChange, type = 'text', value }: { label: string; onCha
   );
 }
 
-function FileInput({ fileName, label, onChange }: { fileName: string; label: string; onChange: (file: File | null) => void }) {
+function FileInput({
+  emptyLabel,
+  fileName,
+  label,
+  onChange,
+  removeLabel,
+  uploadLabel,
+}: {
+  emptyLabel: string;
+  fileName: string;
+  label: string;
+  onChange: (file: File | null) => void;
+  removeLabel: string;
+  uploadLabel: string;
+}) {
   return (
     <div className="space-y-2">
       <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</span>
       <div className="flex h-11 items-center overflow-hidden rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-950 focus-within:border-[#FF6B5E] focus-within:ring-2 focus-within:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
         <label className="flex h-full shrink-0 cursor-pointer items-center gap-2 bg-[#FF6B5E]/10 px-3 text-[#B63B32] transition hover:bg-[#FF6B5E]/15">
           <Upload className="h-4 w-4" />
-          Subir
+          {uploadLabel}
           <input
             type="file"
             accept=".pdf,.xml,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx"
@@ -647,11 +664,11 @@ function FileInput({ fileName, label, onChange }: { fileName: string; label: str
           />
         </label>
         <span className="min-w-0 flex-1 truncate px-3 text-slate-500 dark:text-slate-400">
-          {fileName || 'Sin archivo seleccionado'}
+          {fileName || emptyLabel}
         </span>
         {fileName ? (
           <button type="button" onClick={() => onChange(null)} className="mr-2 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">
-            Quitar
+            {removeLabel}
           </button>
         ) : null}
       </div>

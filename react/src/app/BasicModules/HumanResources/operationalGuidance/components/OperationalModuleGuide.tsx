@@ -62,9 +62,9 @@ export function OperationalModuleGuide({
             camila: humanResourcesCharacterExamples.camila[activeTabId],
           }
         : {
-            emily: `Emily uses this function to strengthen the operation: ${step.description}`,
-            juanito: `Juanito uses this function to strengthen the operation: ${step.description}`,
-            camila: `Camila uses this function to strengthen the operation: ${step.description}`,
+            emily: step.description,
+            juanito: step.description,
+            camila: step.description,
           },
     }));
   }, [activeGuide, activeTabId, isSpanish]);

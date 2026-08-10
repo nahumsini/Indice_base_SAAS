@@ -11,6 +11,12 @@ export const esMX = {
   progressOf: 'completado',
   printReport: 'Descargar PDF',
   restart: 'Reiniciar sección',
+  restartDialog: {
+    action: 'Reiniciar test',
+    cancel: 'Cancelar',
+    description: 'Conservaremos tu resultado anterior y comenzaremos una nueva versión.',
+    title: '¿Reiniciar evaluación?',
+  },
   actions: {
     start: 'Comenzar',
     continue: 'Continuar',

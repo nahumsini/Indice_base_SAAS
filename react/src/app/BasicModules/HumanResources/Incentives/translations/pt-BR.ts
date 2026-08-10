@@ -1,8 +1,10 @@
 import { enCA } from './en-CA';
 import type { IncentivesTranslations } from './types';
+import { ptBRIncentiveForm } from './formLocales';
 
 export const ptBR = {
   ...enCA,
+  form: ptBRIncentiveForm,
   title: 'Incentivos',
   subtitle: 'Gerencie bônus manuais, regras automatizadas e aplicação na folha.',
   actions: { columns: 'Colunas', addIncentive: 'Adicionar incentivo' },

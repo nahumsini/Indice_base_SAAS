@@ -55,6 +55,7 @@ public class PlatformAdminService {
         body.put("can_manage_ownership", access.allows("PLATFORM_OWNERSHIP_WRITE"));
         body.put("can_manage_modules", access.allows("PLATFORM_MODULES_WRITE"));
         body.put("can_manage_consulting", access.allows("PLATFORM_CONSULTING_WRITE"));
+        body.put("can_manage_accounts", access.allows("PLATFORM_ACCOUNTS_WRITE") && access.allows("PLATFORM_BENEFITS_WRITE"));
         return body;
     }
 
@@ -124,17 +125,41 @@ public class PlatformAdminService {
                            ORDER BY storage_price.effective_from DESC, storage_price.id DESC
                            LIMIT 1
                        ), 0) AS recurring_amount_cents,
-                       (
-                           SELECT GROUP_CONCAT(product.product_code ORDER BY product.sort_order SEPARATOR ',')
-                           FROM company_billing_subscription_products selected_product
-                           JOIN billing_catalog_products product ON product.id = selected_product.catalog_product_id
-                           WHERE selected_product.subscription_id = subscription.id
+                       CONCAT_WS(',',
+                           (
+                               SELECT GROUP_CONCAT(product.product_code ORDER BY product.sort_order SEPARATOR ',')
+                               FROM company_billing_subscription_products selected_product
+                               JOIN billing_catalog_products product ON product.id = selected_product.catalog_product_id
+                               WHERE selected_product.subscription_id = subscription.id
+                           ),
+                           (
+                               SELECT GROUP_CONCAT(DISTINCT product.product_code ORDER BY product.sort_order SEPARATOR ',')
+                               FROM company_benefit_grants benefit
+                               JOIN billing_catalog_products product ON product.id = benefit.catalog_product_id
+                               WHERE benefit.company_id = company.id
+                                 AND benefit.benefit_type = 'PRODUCT'
+                                 AND benefit.status = 'ACTIVE'
+                                 AND benefit.starts_at <= CURRENT_TIMESTAMP(6)
+                                 AND (benefit.ends_at IS NULL OR benefit.ends_at > CURRENT_TIMESTAMP(6))
+                           )
                        ) AS product_codes,
-                       (
-                           SELECT GROUP_CONCAT(product.display_name ORDER BY product.sort_order SEPARATOR '|')
-                           FROM company_billing_subscription_products selected_product
-                           JOIN billing_catalog_products product ON product.id = selected_product.catalog_product_id
-                           WHERE selected_product.subscription_id = subscription.id
+                       CONCAT_WS('|',
+                           (
+                               SELECT GROUP_CONCAT(product.display_name ORDER BY product.sort_order SEPARATOR '|')
+                               FROM company_billing_subscription_products selected_product
+                               JOIN billing_catalog_products product ON product.id = selected_product.catalog_product_id
+                               WHERE selected_product.subscription_id = subscription.id
+                           ),
+                           (
+                               SELECT GROUP_CONCAT(DISTINCT product.display_name ORDER BY product.sort_order SEPARATOR '|')
+                               FROM company_benefit_grants benefit
+                               JOIN billing_catalog_products product ON product.id = benefit.catalog_product_id
+                               WHERE benefit.company_id = company.id
+                                 AND benefit.benefit_type = 'PRODUCT'
+                                 AND benefit.status = 'ACTIVE'
+                                 AND benefit.starts_at <= CURRENT_TIMESTAMP(6)
+                                 AND (benefit.ends_at IS NULL OR benefit.ends_at > CURRENT_TIMESTAMP(6))
+                           )
                        ) AS product_names,
                        invoice.status AS last_invoice_status,
                        invoice.amount_due_cents AS last_invoice_due_cents,
@@ -615,17 +640,32 @@ public class PlatformAdminService {
     private List<Map<String, Object>> companyProducts(long companyId) {
         return jdbcTemplate.query(
             """
-                SELECT product.product_code, product.display_name, product.product_type,
-                       product.sort_order, selected_product.source
-                FROM company_billing_subscription_products selected_product
-                JOIN company_billing_subscriptions subscription ON subscription.id = selected_product.subscription_id
-                JOIN billing_catalog_products product ON product.id = selected_product.catalog_product_id
-                WHERE subscription.id = (
-                    SELECT MAX(candidate.id)
-                    FROM company_billing_subscriptions candidate
-                    WHERE candidate.company_id = ?
-                )
-                ORDER BY product.sort_order, product.display_name
+                SELECT product_code, display_name, product_type, sort_order,
+                       GROUP_CONCAT(DISTINCT source ORDER BY source SEPARATOR ', ') AS source
+                FROM (
+                    SELECT product.product_code, product.display_name, product.product_type,
+                           product.sort_order, selected_product.source
+                    FROM company_billing_subscription_products selected_product
+                    JOIN company_billing_subscriptions subscription ON subscription.id = selected_product.subscription_id
+                    JOIN billing_catalog_products product ON product.id = selected_product.catalog_product_id
+                    WHERE subscription.id = (
+                        SELECT MAX(candidate.id)
+                        FROM company_billing_subscriptions candidate
+                        WHERE candidate.company_id = ?
+                    )
+                    UNION ALL
+                    SELECT product.product_code, product.display_name, product.product_type,
+                           product.sort_order, CONCAT('BENEFIT_', benefit.source_type)
+                    FROM company_benefit_grants benefit
+                    JOIN billing_catalog_products product ON product.id = benefit.catalog_product_id
+                    WHERE benefit.company_id = ?
+                      AND benefit.benefit_type = 'PRODUCT'
+                      AND benefit.status = 'ACTIVE'
+                      AND benefit.starts_at <= CURRENT_TIMESTAMP(6)
+                      AND (benefit.ends_at IS NULL OR benefit.ends_at > CURRENT_TIMESTAMP(6))
+                ) active_products
+                GROUP BY product_code, display_name, product_type, sort_order
+                ORDER BY sort_order, display_name
                 """,
             (rs, rowNum) -> {
                 var row = new LinkedHashMap<String, Object>();
@@ -636,6 +676,7 @@ public class PlatformAdminService {
                 row.put("sort_order", rs.getInt("sort_order"));
                 return row;
             },
+            companyId,
             companyId
         );
     }

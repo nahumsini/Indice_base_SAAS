@@ -138,7 +138,7 @@ export function MovementsTable({
                       {group.lines.length > 1 ? <p className="mt-2 text-xs font-medium text-slate-500">{group.lines.length} products</p> : null}
                     </TableCell>
                     <TableCell className="px-4 py-4 align-top">
-                      <MovementFlow movement={movement} />
+                      <MovementFlow movement={movement} t={t} />
                     </TableCell>
                     <TableCell className="px-4 py-4 align-top">
                       <GroupedProducts group={group} t={t} />

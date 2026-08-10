@@ -4,6 +4,7 @@ import { Button } from '../../../components/ui/button';
 import { useLanguage } from '../../../shared/context';
 import { billingRecoveryApi, type BillingRecoverySnapshot } from '../../../api/billingRecovery';
 import { billingStorageApi, type BillingStorageSnapshot } from '../../../api/billingStorage';
+import { useBillingTranslations } from './hooks/useBillingTranslations';
 
 interface SavedCard {
   id: string;
@@ -83,6 +84,7 @@ const invoiceRows: InvoiceRow[] = [
 
 export default function Billing() {
   const { currentLanguage, t } = useLanguage();
+  const billingCopy = useBillingTranslations();
   const [selectedCountry, setSelectedCountry] = useState<CountryCode>('');
   const [showAddCard, setShowAddCard] = useState(false);
   const [savedCards, setSavedCards] = useState<SavedCard[]>(initialSavedCards);
@@ -129,10 +131,10 @@ export default function Billing() {
           if (active) setStorage(capacity);
         }
       })
-      .catch((error) => { if (active) setRecoveryError(error instanceof Error ? error.message : 'No se pudo consultar la suscripción.'); })
+      .catch((error) => { if (active) setRecoveryError(error instanceof Error ? error.message : billingCopy.recovery.loadError); })
       .finally(() => { if (active) setRecoveryLoading(false); });
     return () => { active = false; };
-  }, []);
+  }, [billingCopy.recovery.loadError]);
 
   const openBillingPortal = async () => {
     if (openingPortal) return;
@@ -142,7 +144,7 @@ export default function Billing() {
       const result = await billingRecoveryApi.portal();
       window.location.assign(result.url);
     } catch (error) {
-      setRecoveryError(error instanceof Error ? error.message : 'No se pudo abrir el portal de facturación.');
+      setRecoveryError(error instanceof Error ? error.message : billingCopy.recovery.portalError);
     } finally {
       setOpeningPortal(false);
     }
@@ -429,7 +431,7 @@ export default function Billing() {
     <div className="space-y-6">
       {recoveryLoading ? (
         <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
-          <LoaderCircle className="h-4 w-4 animate-spin" /> Consultando el estado comercial real...
+          <LoaderCircle className="h-4 w-4 animate-spin" /> {billingCopy.recovery.loading}
         </div>
       ) : null}
 
@@ -439,15 +441,15 @@ export default function Billing() {
             <div className="flex items-start gap-3">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-amber-700 shadow-sm"><AlertTriangle className="h-5 w-5" /></span>
               <div>
-                <p className="text-xs font-medium text-slate-500">Estado comercial</p>
-                <h3 className="mt-1 font-medium text-slate-950">{recovery.lifecycle?.state || 'Sincronizando'}</h3>
-                <p className="mt-1 text-sm text-slate-600">{recovery.lifecycle?.allows_operational_write ? 'La operación de la cuenta está habilitada.' : 'Regulariza la facturación para restaurar la operación completa.'}</p>
+                <p className="text-xs font-medium text-slate-500">{billingCopy.recovery.title}</p>
+                <h3 className="mt-1 font-medium text-slate-950">{recovery.lifecycle?.state || billingCopy.recovery.syncing}</h3>
+                <p className="mt-1 text-sm text-slate-600">{recovery.lifecycle?.allows_operational_write ? billingCopy.recovery.enabled : billingCopy.recovery.actionRequired}</p>
               </div>
             </div>
             {recovery.can_manage_billing && recovery.portal_available ? (
               <Button type="button" onClick={() => void openBillingPortal()} disabled={openingPortal} className="gap-2 bg-[#143675] hover:bg-[#102d63]">
                 {openingPortal ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
-                Administrar en Stripe
+                {billingCopy.recovery.manage}
               </Button>
             ) : null}
           </div>
@@ -463,15 +465,15 @@ export default function Billing() {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <div>
-                  <p className="text-xs font-medium text-slate-500">Almacenamiento de la cuenta</p>
+                  <p className="text-xs font-medium text-slate-500">{billingCopy.storage.title}</p>
                   <h3 className="mt-1 font-medium text-slate-950">{formatStorage(storage.used_bytes + storage.reserved_bytes)} de {formatStorage(storage.limit_bytes)}</h3>
                 </div>
-                <span className="text-xs font-medium text-slate-500">5 GB incluidos · {storage.purchased_blocks} comprado(s) · {storage.benefit_blocks} cortesía</span>
+                <span className="text-xs font-medium text-slate-500">{billingCopy.storage.summary(storage.purchased_blocks, storage.benefit_blocks)}</span>
               </div>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="Uso de almacenamiento" aria-valuemin={0} aria-valuemax={100} aria-valuenow={storagePercent(storage)}>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label={billingCopy.storage.usageLabel} aria-valuemin={0} aria-valuemax={100} aria-valuenow={storagePercent(storage)}>
                 <div className={`h-full rounded-full transition-all ${storage.alert_level === 'LIMIT' || storage.alert_level === 'CRITICAL' ? 'bg-amber-500' : 'bg-[#143675]'}`} style={{ width: `${storagePercent(storage)}%` }} />
               </div>
-              <p className="mt-2 text-xs text-slate-500">Incluye archivos guardados y cargas reservadas. La compra de bloques se habilitará cuando el precio comercial quede aprobado.</p>
+              <p className="mt-2 text-xs text-slate-500">{billingCopy.storage.note}</p>
             </div>
           </div>
         </div>
@@ -758,17 +760,7 @@ export default function Billing() {
                     <option value="1">{t.panelInicial.billing.automaticBilling.selectDay}</option>
                     {Array.from({ length: 28 }, (_, index) => index + 1).map((day) => (
                       <option key={day} value={String(day)}>
-                        {currentLanguage.code.startsWith('en')
-                          ? `Day ${day} of each month`
-                          : currentLanguage.code === 'pt-BR'
-                            ? `Dia ${day} de cada mes`
-                            : currentLanguage.code === 'fr-CA'
-                              ? `Jour ${day} de chaque mois`
-                              : currentLanguage.code === 'ko-CA'
-                                ? `매월 ${day}일`
-                                : currentLanguage.code === 'zh-CA'
-                                  ? `每月 ${day} 日`
-                                  : `Día ${day} de cada mes`}
+                        {billingCopy.billingDayLabel(day)}
                       </option>
                     ))}
                   </select>

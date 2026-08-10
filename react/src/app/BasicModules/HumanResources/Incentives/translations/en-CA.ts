@@ -76,4 +76,7 @@ export const enCA = {
     pending: 'Pending',
     nextPayroll: 'Next payroll',
   },
+  form: {
+    title: 'Add incentive', description: 'Record an earning that will be applied to the next payroll run.', saving: 'Saving…', save: 'Save incentive', cancel: 'Cancel', allEmployeesSummary: 'It will apply to all active employees.', selectedEmployeesSummary: (count: number) => `${count} employees selected.`, incentiveSection: 'Incentive', name: 'Incentive name', namePlaceholder: 'e.g. Attendance bonus', status: 'Status', statuses: { active: 'Active', scheduled: 'Scheduled', paused: 'Paused' }, amount: 'Amount', amountPlaceholder: 'e.g. 1500', currency: 'Currency', effectiveDate: 'Application date', descriptionLabel: 'Description', descriptionPlaceholder: 'Internal incentive details', employees: 'Employees', allActiveEmployees: 'All active employees', searchPlaceholder: 'Search employee, position, or unit', noPosition: 'No position', noUnit: 'No unit',
+  },
 } as const;

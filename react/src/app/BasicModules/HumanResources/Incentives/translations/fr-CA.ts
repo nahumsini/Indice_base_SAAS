@@ -1,8 +1,10 @@
 import { enCA } from './en-CA';
 import type { IncentivesTranslations } from './types';
+import { frCAIncentiveForm } from './formLocales';
 
 export const frCA = {
   ...enCA,
+  form: frCAIncentiveForm,
   title: 'Incitatifs',
   subtitle: 'Gérez les primes manuelles, règles automatisées et application à la paie.',
   actions: { columns: 'Colonnes', addIncentive: 'Ajouter un incitatif' },

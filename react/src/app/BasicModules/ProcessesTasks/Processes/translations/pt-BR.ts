@@ -6,6 +6,8 @@ export const ptBR: ProcessesTranslations = {
   ...enCA,
   common: {
     ...enCA.common,
+    previous: 'Anterior',
+    continue: 'Continuar',
     all: 'Todos',
     allFemale: 'Todas',
     retry: 'Tentar novamente',

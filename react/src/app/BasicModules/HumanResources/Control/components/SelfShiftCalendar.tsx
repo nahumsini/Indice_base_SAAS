@@ -21,67 +21,7 @@ import { Skeleton } from '../../../../components/ui/skeleton';
 import { cn } from '../../../../components/ui/utils';
 import { useLanguage } from '../../../../shared/context';
 import { todayIsoDate, todayMonth } from '../../Attendance/utils/attendance.utils';
-
-const copyByLanguage = {
-  en: {
-    title: 'My shift calendar',
-    loadingTitle: 'Loading calendar',
-    loadingDescription: 'Checking your assigned shifts.',
-    month: 'Month',
-    shift: 'Shift',
-    openShift: 'Open shift',
-    restDay: 'Rest day',
-    noShift: 'No shift',
-    selectedDay: 'Selected day',
-    today: 'Today',
-    details: 'Shift details',
-    schedule: 'Schedule',
-    start: 'Start',
-    end: 'End',
-    flexible: 'Flexible',
-    workSite: 'Work site',
-    template: 'Template',
-    meal: 'Meal',
-    rest: 'Rest',
-    overnight: 'Overnight shift',
-    notAssigned: 'No shift assigned for this day.',
-    restAssigned: 'This day is marked as rest.',
-    pickDay: 'No day selected.',
-    minutes: 'min',
-    retry: 'Unable to load your shift calendar.',
-  },
-  es: {
-    title: 'Mi calendario de turnos',
-    loadingTitle: 'Cargando calendario',
-    loadingDescription: 'Revisando tus turnos asignados.',
-    month: 'Mes',
-    shift: 'Turno',
-    openShift: 'Turno abierto',
-    restDay: 'Descanso',
-    noShift: 'Sin turno',
-    selectedDay: 'Dia seleccionado',
-    today: 'Hoy',
-    details: 'Detalle del turno',
-    schedule: 'Horario',
-    start: 'Inicio',
-    end: 'Fin',
-    flexible: 'Flexible',
-    workSite: 'Sitio de trabajo',
-    template: 'Plantilla',
-    meal: 'Comida',
-    rest: 'Descanso',
-    overnight: 'Turno nocturno',
-    notAssigned: 'No hay turno asignado para este dia.',
-    restAssigned: 'Este dia esta marcado como descanso.',
-    pickDay: 'No hay dia seleccionado.',
-    minutes: 'min',
-    retry: 'No se pudo cargar tu calendario de turnos.',
-  },
-} as const;
-
-const getCopy = (languageCode: string) => (
-  languageCode.startsWith('es') ? copyByLanguage.es : copyByLanguage.en
-);
+import { useControlTranslations } from '../hooks/useControlTranslations';
 
 const toMonthDate = (month: string) => new Date(`${month}-01T00:00:00`);
 
@@ -208,7 +148,7 @@ const dayTone = (day: AttendanceCalendarDay | null | undefined, isSelected: bool
 export function SelfShiftCalendar() {
   const { currentLanguage } = useLanguage();
   const locale = currentLanguage.code;
-  const copy = getCopy(locale);
+  const copy = useControlTranslations().selfShiftCalendar;
   const [calendarMonth, setCalendarMonth] = useState(todayMonth());
   const [selectedDate, setSelectedDate] = useState(todayIsoDate());
   const [calendar, setCalendar] = useState<AttendanceCalendarResponse | null>(null);
@@ -307,13 +247,13 @@ export function SelfShiftCalendar() {
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <Button variant="outline" size="icon" onClick={() => shiftMonth(-1)} aria-label="Previous month">
+            <Button variant="outline" size="icon" onClick={() => shiftMonth(-1)} aria-label={copy.previousMonth}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <h3 className="text-base font-medium capitalize text-slate-950 dark:text-white">
               {formatMonthLabel(calendarMonth, locale)}
             </h3>
-            <Button variant="outline" size="icon" onClick={() => shiftMonth(1)} aria-label="Next month">
+            <Button variant="outline" size="icon" onClick={() => shiftMonth(1)} aria-label={copy.nextMonth}>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>

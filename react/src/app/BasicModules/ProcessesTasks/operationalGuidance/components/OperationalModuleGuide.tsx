@@ -57,9 +57,9 @@ export function OperationalModuleGuide({
             camila: processesTasksCharacterExamples.camila[activeTabId],
           }
         : {
-            emily: `Emily applies this function to make execution repeatable: ${step.description}`,
-            juanito: `Juanito applies this function to connect operational work with control: ${step.description}`,
-            camila: `Camila applies this function to make responsibilities visible: ${step.description}`,
+            emily: step.description,
+            juanito: step.description,
+            camila: step.description,
           },
     }))
   ), [activeGuide, activeTabId, isSpanish]);

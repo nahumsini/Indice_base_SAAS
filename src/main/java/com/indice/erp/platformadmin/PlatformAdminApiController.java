@@ -26,6 +26,7 @@ public class PlatformAdminApiController {
     private final SessionAuthService auth;
     private final SessionCsrfService csrf;
     private final PlatformAdminService service;
+    private final PlatformAccountProvisioningService accountProvisioning;
     private final CourtesyCodeService courtesyCodes;
     private final ConsultingAdministrationService consulting;
 
@@ -33,12 +34,14 @@ public class PlatformAdminApiController {
         SessionAuthService auth,
         SessionCsrfService csrf,
         PlatformAdminService service,
+        PlatformAccountProvisioningService accountProvisioning,
         CourtesyCodeService courtesyCodes,
         ConsultingAdministrationService consulting
     ) {
         this.auth = auth;
         this.csrf = csrf;
         this.service = service;
+        this.accountProvisioning = accountProvisioning;
         this.courtesyCodes = courtesyCodes;
         this.consulting = consulting;
     }
@@ -148,6 +151,27 @@ public class PlatformAdminApiController {
     @GetMapping("/companies/{companyId}")
     public ResponseEntity<?> company(HttpSession session, @PathVariable long companyId) {
         return withUser(session, userId -> service.company(userId, companyId));
+    }
+
+    @PostMapping("/companies")
+    public ResponseEntity<?> createCompanyAccount(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+        @RequestBody PlatformAccountProvisioningService.CreateAccountRequest request
+    ) {
+        try {
+            var current = auth.currentUser(session).orElse(null);
+            if (current == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            }
+            csrf.requireCsrf(session, csrfToken);
+            return ResponseEntity.status(HttpStatus.CREATED).body(
+                accountProvisioning.create(current.userId(), idempotencyKey, request)
+            );
+        } catch (RuntimeException exception) {
+            return error(exception);
+        }
     }
 
     @GetMapping("/courtesy-codes")

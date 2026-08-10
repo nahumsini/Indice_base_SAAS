@@ -1,6 +1,7 @@
 import type { CashAuditRecord } from '../Arqueos/types/cashAudit.types';
 import type { PurchaseOrder, PurchaseOrderReceivePayload } from '../OrdenesCompra/types/purchaseOrder.types';
-import { numberFrom, purchaseOrderOriginLabels, purchaseOrderStatusLabels } from '../OrdenesCompra/utils/purchaseOrderFormat';
+import { getPurchaseOrderTranslations, resolvePurchaseOrderLocale } from '../OrdenesCompra/translations';
+import { numberFrom } from '../OrdenesCompra/utils/purchaseOrderFormat';
 import { printStandardDocumentPdf } from '../../shared/print/standardDocumentPdf';
 
 const money = (amount: number | string, currency: string, locale: string) => new Intl.NumberFormat(locale, {
@@ -25,6 +26,8 @@ const date = (value: string | Date | null | undefined, locale: string) => {
 };
 
 export function printPurchaseOrder(order: PurchaseOrder, locale = 'es-MX') {
+  const purchaseLocale = resolvePurchaseOrderLocale(locale);
+  const copy = getPurchaseOrderTranslations(purchaseLocale);
   return printStandardDocumentPdf({
     accentColor: [255, 107, 94],
     contract: {
@@ -34,48 +37,48 @@ export function printPurchaseOrder(order: PurchaseOrder, locale = 'es-MX') {
       pageSize: 'letter',
       version: '1.0',
     },
-    fileName: { documentType: 'orden-de-compra', identifier: order.folio },
+    fileName: { documentType: copy.print.purchaseFile, identifier: order.folio },
     folio: order.folio,
     issuer: order.warehouseName,
     locale,
     metadata: [
-      { label: 'Proveedor', value: order.providerName },
-      { label: 'Correo del proveedor', value: order.providerEmail },
-      { label: 'Almacén de entrega', value: order.warehouseName },
-      { label: 'Fecha esperada', value: date(order.expectedDate, locale) },
-      { label: 'Fecha de orden', value: date(order.orderedAt || order.createdAt, locale) },
-      { label: 'Origen', value: purchaseOrderOriginLabels[order.origin ?? 'POS_REPLENISHMENT'] },
+      { label: copy.common.provider, value: order.providerName },
+      { label: copy.print.supplierEmail, value: order.providerEmail },
+      { label: copy.print.deliveryWarehouse, value: order.warehouseName },
+      { label: copy.common.expected, value: date(order.expectedDate, purchaseLocale) },
+      { label: copy.print.orderDate, value: date(order.orderedAt || order.createdAt, purchaseLocale) },
+      { label: copy.detail.origin, value: copy.origin[order.origin ?? 'POS_REPLENISHMENT'] },
     ],
     metrics: [
-      { label: 'Subtotal', value: money(order.subtotalAmount, order.currencyCode, locale) },
-      { label: 'Impuestos', value: money(order.taxAmount, order.currencyCode, locale) },
-      { label: 'Total', tone: 'default', value: money(order.totalAmount, order.currencyCode, locale) },
-      { label: 'Partidas', value: order.items.length },
+      { label: copy.common.subtotal, value: money(order.subtotalAmount, order.currencyCode, purchaseLocale) },
+      { label: copy.print.taxes, value: money(order.taxAmount, order.currencyCode, purchaseLocale) },
+      { label: copy.common.total, tone: 'default', value: money(order.totalAmount, order.currencyCode, purchaseLocale) },
+      { label: copy.print.items, value: order.items.length },
     ],
-    notice: 'Documento comercial de compra. No constituye factura fiscal ni confirma por sí mismo la recepción o el pago de mercancía.',
+    notice: copy.print.orderNotice,
     recipient: order.providerName,
-    sections: order.notes ? [{ paragraphs: [order.notes], title: 'Notas y condiciones' }] : undefined,
+    sections: order.notes ? [{ paragraphs: [order.notes], title: copy.print.notesAndTerms }] : undefined,
     signatures: [
-      { label: 'Elaboró' },
-      { label: 'Autorizó' },
-      { caption: order.providerName, label: 'Proveedor' },
+      { label: copy.print.preparedBy },
+      { label: copy.print.authorizedBy },
+      { caption: order.providerName, label: copy.print.supplier },
     ],
-    status: purchaseOrderStatusLabels[order.status],
+    status: copy.orderStatus[order.status],
     subtitle: `${order.providerName} · ${order.warehouseName}`,
     tables: [{
-      columns: ['SKU', 'Producto', 'Cantidad', 'Costo unitario', 'Impuesto', 'Subtotal', 'Total'],
+      columns: [...copy.print.itemColumns],
       rows: order.items.map((item) => [
         item.sku || '-',
         item.productName,
         numberFrom(item.quantity),
-        money(item.unitCost, order.currencyCode, locale),
+        money(item.unitCost, order.currencyCode, purchaseLocale),
         `${numberFrom(item.taxRate).toFixed(2)}%`,
-        money(item.lineSubtotal, order.currencyCode, locale),
-        money(item.lineTotal, order.currencyCode, locale),
+        money(item.lineSubtotal, order.currencyCode, purchaseLocale),
+        money(item.lineTotal, order.currencyCode, purchaseLocale),
       ]),
-      title: 'Partidas de la orden',
+      title: copy.print.orderItems,
     }],
-    title: 'Orden de compra',
+    title: copy.print.orderTitle,
   });
 }
 
@@ -92,11 +95,13 @@ export function printPurchaseOrderReceipt({
   payload: PurchaseOrderReceivePayload;
   resultingOrder?: PurchaseOrder;
 }) {
+  const purchaseLocale = resolvePurchaseOrderLocale(locale);
+  const copy = getPurchaseOrderTranslations(purchaseLocale);
   const receivedByItemId = new Map(payload.items.map((item) => [item.orderItemId, item.receivedQuantity]));
   const receivedItems = order.items.filter((item) => (receivedByItemId.get(item.id) ?? 0) > 0);
   return printStandardDocumentPdf({
     accentColor: [255, 107, 94],
-    confidentiality: 'Internal',
+    confidentiality: copy.print.confidentiality,
     contract: {
       category: 'transaction-document',
       modifiers: ['approval-required', 'internal', 'signature-required'],
@@ -104,34 +109,34 @@ export function printPurchaseOrderReceipt({
       pageSize: 'letter',
       version: '1.0',
     },
-    fileName: { documentType: 'recepcion-de-mercancia', identifier: order.folio },
+    fileName: { documentType: copy.print.receiptFile, identifier: order.folio },
     folio: order.folio,
     issuer: order.warehouseName,
     locale,
     metadata: [
-      { label: 'Orden de compra', value: order.folio },
-      { label: 'Proveedor', value: order.providerName },
-      { label: 'Almacén', value: order.warehouseName },
-      { label: 'Fecha de recepción', value: date(new Date(), locale) },
-      { label: 'Estado posterior', value: purchaseOrderStatusLabels[resultingOrder?.status ?? order.status] },
+      { label: copy.print.purchaseOrder, value: order.folio },
+      { label: copy.common.provider, value: order.providerName },
+      { label: copy.common.warehouse, value: order.warehouseName },
+      { label: copy.print.receiptDate, value: date(new Date(), purchaseLocale) },
+      { label: copy.print.followingStatus, value: copy.orderStatus[resultingOrder?.status ?? order.status] },
     ],
     metrics: [
-      { label: 'Partidas recibidas', tone: 'positive', value: receivedItems.length },
-      { label: 'Unidades recibidas', tone: 'positive', value: payload.items.reduce((sum, item) => sum + item.receivedQuantity, 0) },
-      { label: 'Partidas pendientes previas', value: order.items.filter((item) => numberFrom(item.pendingQuantity) > 0).length },
+      { label: copy.print.receivedItems, tone: 'positive', value: receivedItems.length },
+      { label: copy.print.receivedUnits, tone: 'positive', value: payload.items.reduce((sum, item) => sum + item.receivedQuantity, 0) },
+      { label: copy.print.previousPendingItems, value: order.items.filter((item) => numberFrom(item.pendingQuantity) > 0).length },
     ],
-    notice: 'Constancia operativa de recepción. La orden no expone un folio de recepción independiente; el folio mostrado corresponde a la orden de compra.',
+    notice: copy.print.receiptNotice,
     recipient: order.providerName,
-    sections: (notes || payload.notes) ? [{ paragraphs: [notes || payload.notes || ''], title: 'Notas de recepción' }] : undefined,
+    sections: (notes || payload.notes) ? [{ paragraphs: [notes || payload.notes || ''], title: copy.print.receiptNotes }] : undefined,
     signatures: [
-      { label: 'Entregó proveedor' },
-      { label: 'Recibió almacén' },
-      { label: 'Supervisó' },
+      { label: copy.print.deliveredBy },
+      { label: copy.print.receivedBy },
+      { label: copy.print.supervisedBy },
     ],
-    status: 'Recepción registrada',
+    status: copy.print.receiptRecorded,
     subtitle: `${order.folio} · ${order.warehouseName}`,
     tables: [{
-      columns: ['SKU', 'Producto', 'Ordenado', 'Pendiente previo', 'Recibido ahora', 'Pendiente estimado'],
+      columns: [...copy.print.receiptColumns],
       rows: receivedItems.map((item) => {
         const received = receivedByItemId.get(item.id) ?? 0;
         return [
@@ -143,9 +148,9 @@ export function printPurchaseOrderReceipt({
           Math.max(0, numberFrom(item.pendingQuantity) - received),
         ];
       }),
-      title: 'Mercancía recibida',
+      title: copy.print.receivedGoods,
     }],
-    title: 'Acta de recepción de mercancía',
+    title: copy.print.receiptTitle,
   });
 }
 

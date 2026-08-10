@@ -9,6 +9,14 @@ export const koCA = {
   applyFilters: '필터 적용',
   retry: '다시 시도',
   loading: '급여 로딩 중',
+  list: {
+    search: { label: '급여 검색', placeholder: '기간, 단위, 사업장, 관할 또는 상태' },
+    pagination: {
+      next: '다음', previous: '이전', pageSize: '페이지당 행',
+      page: (current: number, total: number) => `${current} / ${total} 페이지`,
+      showing: (start: number, end: number, total: number) => `전체 ${total}건 중 ${start}-${end} 표시`,
+    },
+  },
   unauthorized: '세션 인증이 만료되었습니다. 다시 로그인한 뒤 모듈을 새로고침하세요.',
   notFound: '실행 중인 백엔드가 아직 급여 API를 제공하지 않습니다. 최신 브랜치로 Spring 서버를 다시 시작하세요.',
   genericError: '급여를 불러올 수 없습니다.',
@@ -51,6 +59,7 @@ export const koCA = {
     csvDescription: '급여 장부를 스프레드시트로 내보낼 수 있게 준비하고 있습니다.',
     pdfTitle: '급여 PDF 준비 중',
     pdfDescription: '현재 실행 데이터로 인쇄 가능한 급여 보고서를 만들고 있습니다.',
+    identityNotReady: '인쇄용 회사 정보를 아직 준비하고 있습니다.',
   },
   statuses: {
     draft: '초안',
@@ -351,5 +360,13 @@ export const koCA = {
     subtitle: '검토, 승인, 지급 또는 내보내기가 필요한 실행입니다.',
     actions: '작업',
     netPayout: '순지급액',
+  },
+  colombiaOperations: {
+    busy: { loadingTitle: '콜롬비아 정보 불러오기', loadingDescription: '회사 설정, 직원 프로필 및 급여 변동 사항을 불러옵니다.', savingTitle: '콜롬비아 설정 저장', savingDescription: '콜롬비아 설정 및 법정 프로필을 업데이트합니다.', noveltyTitle: '급여 변동 사항 저장', noveltyDescription: '직원의 콜롬비아 급여 변동 사항을 등록합니다.' },
+    success: { saved: '콜롬비아 설정이 저장되었습니다. 계산에 반영하려면 급여 실행을 동기화하세요.', novelty: '콜롬비아 급여 변동 사항이 저장되었습니다. 이 라인을 다시 계산하려면 급여 실행을 동기화하세요.' },
+    title: '콜롬비아', description: (name: string, runId: number) => `${name} · 급여 실행 #${runId}`, footerSummary: '변경 사항은 다음 백엔드 계산에 적용됩니다.', save: '콜롬비아 설정 저장', company: '콜롬비아 회사', defaultArlClass: '기본 ARL 등급', fundCode: '보상 기금 코드', fundName: '보상 기금', employerHealthExemption: '고용주 건강보험 면제', undefined: '미설정', yes: '예', no: '아니요',
+    employeeProfile: '직원 프로필', contributorType: '가입자 유형', contributorSubtype: '가입자 하위 유형', arlClass: 'ARL 등급', integralSalary: '통합 급여', eps: 'EPS', epsCode: 'EPS 코드', afp: 'AFP', afpCode: 'AFP 코드', withholdingProcedure: '원천징수 절차', procedure1: '절차 1', procedure2: '절차 2', procedure2Rate: '절차 2 세율', dependents: '부양가족', prepaidMedicine: '선불 의료', housingInterest: '주택 이자', voluntaryPension: '자발적 연금', afc: 'AFC', otherExemptIncome: '기타 비과세 소득',
+    novelties: '콜롬비아 급여 변동 사항', periodLabel: '기간', period: (start: string, end: string) => `기간 ${start}~${end}`, registered: (count: number) => `${count}건 등록`, code: '코드', label: '명칭', start: '시작', end: '종료', ibcImpact: 'IBC 영향', add: '추가', status: '상태', empty: '이 기간에 등록된 급여 변동 사항이 없습니다.', noveltyLabels: { VSP: '영구 급여 변경', VST: '일시적 급여 변경', SLN: '일시 정직', IGE: '일반 장애', LMA: '출산/육아 휴가', LPA: '유급 휴가', VAC: '휴가', RETRO: '소급 조정', CORR: '수정', LIQ: '정산', RET: '퇴직' },
+    reporting: { title: '콜롬비아 PILA / DIAN', run: (id: number, start: string, end: string) => `급여 실행 #${id} · ${start} → ${end}`, snapshots: '콜롬비아 정부 스냅샷', blocking: '차단', validated: '검증됨', line: (lineId: number, employeeId: number) => `라인 #${lineId} · 직원 #${employeeId}`, hash: '해시', noHash: '해시 없음', noDate: '날짜 없음', ready: '준비됨', review: '검토', alerts: (count: number) => `${count}개 알림`, payload: '페이로드', empty: '이 콜롬비아 법정 급여 실행에 PILA / DIAN 스냅샷이 없습니다.' },
   },
 } as const satisfies PayrollTranslations;

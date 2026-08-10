@@ -179,7 +179,7 @@ export function PayrollRunRoster({
                         {warnings}
                       </button>
                     ) : (
-                      <span title="Sin alertas" className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-300">
+                      <span title={text.noWarnings} className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-300">
                         <CheckCircle2 className="h-4 w-4" />
                       </span>
                     )}

@@ -5,6 +5,18 @@ export const esMX = {
   ...enCA,
   title: 'Actas',
   subtitle: 'Historial de colaboradores, incidentes, reportes y acciones de seguimiento.',
+  pdfDocument: {
+    brand: 'Índice ERP',
+    title: 'Acta de Recursos Humanos',
+    generatedAt: 'Fecha de emisión',
+    overview: 'Resumen del acta',
+    followUp: 'Seguimiento',
+    signatures: 'Firmas de conocimiento',
+    employeeSignature: 'Colaborador',
+    reportedBySignature: 'Responsable que reporta',
+    signature: 'Firma',
+    footer: 'Documento generado por Índice ERP para control interno de Recursos Humanos.',
+  },
   actions: {
     columns: 'Columnas',
     addRecord: 'Agregar acta',

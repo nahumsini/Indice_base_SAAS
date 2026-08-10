@@ -185,7 +185,7 @@ export const zhCA: ProjectsTranslations = {
   },
   workspace: {
     header: {
-      eyebrow: 'Selected project',
+      eyebrow: '已选项目',
       tasksCount: (count: number) => `${count} 个任务`,
       title: (projectName: string) => `${projectName} 的任务`,
       subtitle:
@@ -195,38 +195,38 @@ export const zhCA: ProjectsTranslations = {
       createTask: '创建任务',
       context: {
         folio: 'Folio',
-        status: 'Status',
-        priority: 'Priority',
-        responsible: 'Responsible',
-        scope: 'Scope',
-        dueDate: 'Due date',
+        status: '状态',
+        priority: '优先级',
+        responsible: '负责人',
+        scope: '范围',
+        dueDate: '截止日期',
       },
       insights: {
-        empty: (projectName: string) => `${projectName} has no tasks yet. Create the first task to start execution.`,
+        empty: (projectName: string) => `${projectName} 尚无任务。创建第一个任务以开始执行。`,
         overdue: (projectName: string, open: number, overdue: number, progress: number) =>
-          `${projectName} needs attention: ${overdue} overdue tasks, ${open} open tasks, and ${progress}% progress.`,
+          `${projectName} 需要关注：${overdue} 个逾期任务、${open} 个未完成任务，进度为 ${progress}%。`,
         active: (projectName: string, open: number, completed: number, progress: number) =>
-          `${projectName} is moving: ${open} open tasks, ${completed} completed tasks, and ${progress}% progress.`,
+          `${projectName} 正在推进：${open} 个未完成任务、${completed} 个已完成任务，进度为 ${progress}%。`,
         complete: (projectName: string, completed: number, audited: number) =>
-          `${projectName} has ${completed} completed tasks and ${audited} audited tasks ready for review.`,
+          `${projectName} 有 ${completed} 个已完成任务和 ${audited} 个已审计任务可供查看。`,
       },
     },
     projectStatuses: {
-      active: 'Active',
-      paused: 'Paused',
-      completed: 'Completed',
-      cancelled: 'Cancelled',
+      active: '进行中',
+      paused: '已暂停',
+      completed: '已完成',
+      cancelled: '已取消',
     },
     projectPriorities: {
-      low: 'Low',
-      medium: 'Medium',
-      high: 'High',
+      low: '低',
+      medium: '中',
+      high: '高',
     },
     emptyContext: {
-      noPriority: 'No priority',
-      noResponsible: 'Unassigned',
-      noScope: 'No unit or business',
-      noDate: 'No date',
+      noPriority: '无优先级',
+      noResponsible: '未分配',
+      noScope: '无业务单元或业务',
+      noDate: '无日期',
     },
     filters: {
       search: '搜索',
@@ -247,12 +247,14 @@ export const zhCA: ProjectsTranslations = {
       empty: '该项目当前没有符合筛选条件的任务。',
     },
     gantt: {
-      taskColumn: 'Task timeline',
-      timelineRange: 'Drag bars to move or adjust dates.',
-      today: 'Today',
+      taskColumn: '任务时间线',
+      timelineRange: '拖动条形以移动或调整日期。',
+      today: '今天',
       duration: (days: number) => `${days}d`,
-      dependsOn: (folio: string) => `Depends on ${folio}`,
-      noPredecessor: 'No predecessor',
+      dependsOn: (folio: string) => `依赖 ${folio}`,
+      noPredecessor: '无前置任务',
+      adjustStartDate: '调整开始日期',
+      adjustDueDate: '调整截止日期',
     },
     bulk: {
       selectedLabel: (count: number) => `已选择 ${count} 个`,

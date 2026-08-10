@@ -9,6 +9,11 @@ export const frCA = {
     autoBadge: 'Automatique',
     autoDetected: 'Suggeree selon les signaux appareil/IP',
   },
+  network: {
+    required: 'Une connexion Internet est requise pour utiliser ce kiosque.',
+    offline: 'Hors ligne. Les actions du kiosque sont suspendues.',
+    sessionExpiring: 'Votre session expire bientôt. Interagissez pour continuer.',
+  },
   title: 'Ecran de presence',
   subtitle: 'Entrez votre NIP, verifiez votre identite et votre emplacement, puis enregistrez la presence.',
   terminalBadge: 'Terminal de presence',

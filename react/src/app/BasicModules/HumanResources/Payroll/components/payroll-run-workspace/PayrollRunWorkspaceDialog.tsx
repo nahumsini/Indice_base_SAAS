@@ -348,7 +348,7 @@ export function PayrollRunWorkspaceDialog({
                 {activeBusyKind === 'download-csv' ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
               </span>
               <span className="mt-4 block text-base font-medium text-slate-900 dark:text-white">{copy.labels.exportCsv}</span>
-              <span className="mt-1 block text-sm font-normal text-slate-500 dark:text-slate-400">Libro tabular con todos los colaboradores y conceptos de la corrida.</span>
+              <span className="mt-1 block text-sm font-normal text-slate-500 dark:text-slate-400">{text.exportCsvDescription}</span>
             </button>
             <button
               type="button"
@@ -360,7 +360,7 @@ export function PayrollRunWorkspaceDialog({
                 {activeBusyKind === 'download-pdf' ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5" />}
               </span>
               <span className="mt-4 block text-base font-medium text-slate-900 dark:text-white">{copy.labels.exportPdf}</span>
-              <span className="mt-1 block text-sm font-normal text-slate-500 dark:text-slate-400">Reporte diseñado para revisión, archivo o impresión.</span>
+              <span className="mt-1 block text-sm font-normal text-slate-500 dark:text-slate-400">{text.exportPdfDescription}</span>
             </button>
             {runHasColombiaFiscalLines && canManageReporting ? (
               <button
@@ -372,8 +372,8 @@ export function PayrollRunWorkspaceDialog({
                 <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#59C3A5]/15 text-[#177D66]">
                   <Landmark className="h-5 w-5" />
                 </span>
-                <span className="mt-4 block text-base font-medium text-slate-900 dark:text-white">PILA / DIAN Colombia</span>
-                <span className="mt-1 block text-sm font-normal text-slate-500 dark:text-slate-400">Abre los snapshots gubernamentales auditables de esta corrida.</span>
+                <span className="mt-4 block text-base font-medium text-slate-900 dark:text-white">{text.governmentReportingTitle}</span>
+                <span className="mt-1 block text-sm font-normal text-slate-500 dark:text-slate-400">{text.governmentReportingDescription}</span>
               </button>
             ) : null}
           </div>

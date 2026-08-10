@@ -9,8 +9,10 @@ import type { SupplierSubmission } from '../types/purchaseOrder.types';
 import { formatMoney, numberFrom } from '../utils/purchaseOrderFormat';
 import { useKpiMonetaryAggregate } from '../../../shared/kpiMonetaryApi';
 import { usePreferredBusinessCurrency } from '../../../shared/BusinessCurrencyContext';
+import { usePurchaseOrderTranslations } from '../hooks/usePurchaseOrderTranslations';
 
 export function SupplierSubmissionKpis({ submissions }: { submissions: SupplierSubmission[] }) {
+  const { copy, locale } = usePurchaseOrderTranslations();
   const { preferredCurrency } = usePreferredBusinessCurrency();
   const submitted = submissions.filter((submission) => submission.status === 'SUBMITTED').length;
   const inReview = submissions.filter((submission) => submission.status === 'IN_REVIEW').length;
@@ -34,14 +36,14 @@ export function SupplierSubmissionKpis({ submissions }: { submissions: SupplierS
     ids: submissions.map((submission) => submission.id),
   });
   const valueLabel = valueAggregate.data && !valueAggregate.loading
-    ? formatMoney(valueAggregate.data.preferredTotal, preferredCurrency)
+    ? formatMoney(valueAggregate.data.preferredTotal, preferredCurrency, locale)
     : '—';
 
   const metrics: OperationalKpiMetric[] = [
     {
       id: 'submissions',
       icon: <Inbox className="h-4 w-4" />,
-      label: 'propuestas visibles',
+      label: copy.submissionKpis.visible,
       value: submissions.length,
       iconClassName: 'text-[#B63B32]',
       valueClassName: 'text-[#FF6B5E]',
@@ -49,7 +51,7 @@ export function SupplierSubmissionKpis({ submissions }: { submissions: SupplierS
     {
       id: 'pending-review',
       icon: <ShieldCheck className="h-4 w-4" />,
-      label: 'por revisar',
+      label: copy.submissionKpis.toReview,
       value: pendingReview,
       iconClassName: 'text-[#9A6B05]',
       valueClassName: 'text-[#9A6B05]',
@@ -57,7 +59,7 @@ export function SupplierSubmissionKpis({ submissions }: { submissions: SupplierS
     {
       id: 'convertible',
       icon: <ArrowRight className="h-4 w-4" />,
-      label: 'listas para compra',
+      label: copy.submissionKpis.ready,
       value: convertible,
       iconClassName: 'text-[#2563EB]',
       valueClassName: 'text-[#2563EB]',
@@ -65,7 +67,7 @@ export function SupplierSubmissionKpis({ submissions }: { submissions: SupplierS
     {
       id: 'unresolved-items',
       icon: <Link2 className="h-4 w-4" />,
-      label: 'partidas sin ligar',
+      label: copy.submissionKpis.unresolved,
       value: unresolvedItems,
       iconClassName: unresolvedItems > 0 ? 'text-rose-600' : 'text-slate-500',
       valueClassName: unresolvedItems > 0 ? 'text-rose-600' : 'text-slate-700 dark:text-slate-200',
@@ -73,7 +75,7 @@ export function SupplierSubmissionKpis({ submissions }: { submissions: SupplierS
     {
       id: 'value',
       icon: <Inbox className="h-4 w-4" />,
-      label: 'valor propuesto',
+      label: copy.submissionKpis.proposedValue,
       value: valueLabel,
       iconClassName: 'text-violet-600',
       valueClassName: 'text-violet-600',
@@ -86,7 +88,7 @@ export function SupplierSubmissionKpis({ submissions }: { submissions: SupplierS
     alertChips.push({
       id: 'needs-clarification',
       icon: <AlertTriangle className="h-3.5 w-3.5" />,
-      label: `${needsClarification} requieren aclaracion`,
+      label: copy.submissionKpis.clarificationAlert(needsClarification),
       tone: 'warning',
     });
   }
@@ -95,7 +97,7 @@ export function SupplierSubmissionKpis({ submissions }: { submissions: SupplierS
     alertChips.push({
       id: 'unresolved-items',
       icon: <Link2 className="h-3.5 w-3.5" />,
-      label: `${unresolvedItems} partidas sin producto`,
+      label: copy.submissionKpis.unresolvedAlert(unresolvedItems),
       tone: 'danger',
     });
   }
@@ -104,7 +106,7 @@ export function SupplierSubmissionKpis({ submissions }: { submissions: SupplierS
     alertChips.push({
       id: 'convertible',
       icon: <ArrowRight className="h-3.5 w-3.5" />,
-      label: `${convertible} listas para convertir`,
+      label: copy.submissionKpis.convertibleAlert(convertible),
       tone: 'success',
     });
   }
@@ -113,27 +115,27 @@ export function SupplierSubmissionKpis({ submissions }: { submissions: SupplierS
     alertChips.push({
       id: 'native-value-breakdown',
       icon: <Inbox className="h-3.5 w-3.5" />,
-      label: `Nativo: ${valueAggregate.data?.nativeTotals.map(({ amount, currency }) => formatMoney(amount, currency)).join(' / ')}`,
+      label: copy.submissionKpis.nativeValue(valueAggregate.data?.nativeTotals.map(({ amount, currency }) => formatMoney(amount, currency, locale)).join(' / ') ?? ''),
       tone: 'info',
     });
   }
 
   const distributionSegments: OperationalDistributionSegment[] = [
-    { id: 'submitted', label: 'Enviadas', count: submitted, className: 'bg-[#2563EB]' },
-    { id: 'review', label: 'En revision', count: inReview, className: 'bg-[#F4C84A]' },
-    { id: 'clarification', label: 'Aclaracion', count: needsClarification, className: 'bg-[#FF6B5E]' },
-    { id: 'approved', label: 'Aprobadas', count: approved, className: 'bg-emerald-500' },
-    { id: 'converted', label: 'Convertidas', count: converted, className: 'bg-violet-500' },
-    { id: 'rejected', label: 'Rechazadas', count: rejected, className: 'bg-rose-500' },
+    { id: 'submitted', label: copy.submissionKpis.distribution.submitted, count: submitted, className: 'bg-[#2563EB]' },
+    { id: 'review', label: copy.submissionKpis.distribution.review, count: inReview, className: 'bg-[#F4C84A]' },
+    { id: 'clarification', label: copy.submissionKpis.distribution.clarification, count: needsClarification, className: 'bg-[#FF6B5E]' },
+    { id: 'approved', label: copy.submissionKpis.distribution.approved, count: approved, className: 'bg-emerald-500' },
+    { id: 'converted', label: copy.submissionKpis.distribution.converted, count: converted, className: 'bg-violet-500' },
+    { id: 'rejected', label: copy.submissionKpis.distribution.rejected, count: rejected, className: 'bg-rose-500' },
   ];
 
   const insight = unresolvedItems > 0
-    ? `Liga ${unresolvedItems} partidas a productos POS antes de convertir propuestas en compras.`
+    ? copy.submissionKpis.unresolvedInsight(unresolvedItems)
     : convertible > 0
-      ? `Convierte ${convertible} propuestas aprobadas para iniciar reabastecimiento de tienda.`
+      ? copy.submissionKpis.convertibleInsight(convertible)
       : pendingReview > 0
-      ? `Revisa ${pendingReview} propuestas de proveedor para decidir si se convierten en compra POS. Valor consolidado por backend en ${preferredCurrency}.`
-        : 'No hay propuestas de proveedor que requieran accion con los filtros actuales.';
+      ? copy.submissionKpis.reviewInsight(pendingReview, preferredCurrency)
+        : copy.submissionKpis.noAlerts;
 
   return (
     <OperationalKpiArea

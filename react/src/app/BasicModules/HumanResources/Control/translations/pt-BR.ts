@@ -5,6 +5,13 @@ export const ptBR = {
   ...enCA,
   title: 'Controle',
   subtitle: 'Monitore presença em tempo real e gerencie regras operacionais.',
+  selfShiftCalendar: {
+    title: 'Meu calendário de turnos', loadingTitle: 'Carregando calendário', loadingDescription: 'Verificando seus turnos atribuídos.', month: 'Mês',
+    shift: 'Turno', openShift: 'Turno aberto', restDay: 'Dia de descanso', noShift: 'Sem turno', selectedDay: 'Dia selecionado', today: 'Hoje',
+    details: 'Detalhes do turno', schedule: 'Horário', start: 'Início', end: 'Fim', flexible: 'Flexível', workSite: 'Local de trabalho', template: 'Modelo',
+    meal: 'Refeição', rest: 'Descanso', overnight: 'Turno noturno', notAssigned: 'Não há turno atribuído para este dia.', restAssigned: 'Este dia está marcado como descanso.',
+    pickDay: 'Nenhum dia selecionado.', minutes: 'min', retry: 'Não foi possível carregar seu calendário de turnos.', previousMonth: 'Mês anterior', nextMonth: 'Próximo mês',
+  },
   refresh: 'Atualizar',
   loading: 'Carregando controle',
   retry: 'Tentar novamente',

@@ -328,9 +328,7 @@ export function usePublicKioskController() {
       return;
     }
     if (!isOnline) {
-      showFailureToast(selectedLocale.startsWith('es')
-        ? 'Se requiere conexión para usar este kiosko.'
-        : 'An internet connection is required to use this kiosk.');
+      showFailureToast(copy.network.required);
       return;
     }
     if (!bootstrap.auth_methods.includes('pin')) {

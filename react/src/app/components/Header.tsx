@@ -1,4 +1,4 @@
-import { Building2, Check, Globe, GraduationCap, LoaderCircle, User, Sun, Moon, Sunrise, Settings, MonitorSmartphone } from 'lucide-react';
+import { Building2, Check, CreditCard, Globe, GraduationCap, LoaderCircle, User, Sun, Moon, Sunrise, Settings, ShieldCheck, MonitorSmartphone } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
 import {
@@ -19,7 +19,7 @@ import { NotificationMenu } from './notifications/NotificationMenu';
 import { useNotifications } from './notifications/useNotifications';
 import { PreferredCurrencyControl } from '../BasicModules/shared/PreferredCurrencyControl';
 import { useHeaderTranslations } from './header/hooks/useHeaderTranslations';
-import { isAdminAccessRole } from '../access/accessRules';
+import { isAdminAccessRole, normalizeAccessRole } from '../access/accessRules';
 
 interface HeaderProps {
   learningModeActive: boolean;
@@ -152,6 +152,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
     .join('')
     .toUpperCase() || 'U';
   const currentUserPrimaryName = currentUserName.trim().split(/\s+/)[0] || 'User';
+  const isRootAccount = normalizeAccessRole(authSession?.user.role) === 'root';
 
   const handleLogout = async () => {
     if (isLoggingOut) {
@@ -428,6 +429,20 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                           {currentLanguage.code.startsWith('es') ? 'Centro de kioscos' : 'Kiosk Center'}
                         </span>
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate('/billing')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
+                        <CreditCard className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">
+                          {copy.actions.subscription}
+                        </span>
+                      </DropdownMenuItem>
+                      {isRootAccount ? (
+                        <DropdownMenuItem onClick={() => navigate('/platform-admin')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
+                          <ShieldCheck className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">
+                            {copy.actions.platformAdmin}
+                          </span>
+                        </DropdownMenuItem>
+                      ) : null}
                       <DropdownMenuSeparator className="my-0 bg-[#59C3A5]/15 dark:bg-[#59C3A5]/20" />
                     </>
                   ) : null}

@@ -9,6 +9,12 @@ export const enCA = {
   progressOf: 'completed',
   printReport: 'Download PDF',
   restart: 'Restart section',
+  restartDialog: {
+    action: 'Restart test',
+    cancel: 'Cancel',
+    description: 'We will preserve your previous result and begin a new version.',
+    title: 'Restart assessment?',
+  },
   actions: {
     start: 'Start',
     continue: 'Continue',

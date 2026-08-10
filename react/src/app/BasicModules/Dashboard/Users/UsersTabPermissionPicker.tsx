@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Check, ChevronDown, Info, LockKeyhole, Search, ShieldCheck } from 'lucide-react';
 import type { ConfigCenterCatalogTab } from '../../../api/configCenter';
 import type { TabPermissionModuleOption } from './usersTabPermissionAssignments';
+import type { UsersTranslations } from './translations';
 
 interface UsersTabPermissionPickerProps {
   catalogTabs: ConfigCenterCatalogTab[];
@@ -13,17 +14,7 @@ interface UsersTabPermissionPickerProps {
   scopeLabel: string;
   onModuleChange: (moduleId: string) => void;
   onChange: (permissionKeys: string[]) => void;
-  copy: {
-    all: string;
-    collapse: string;
-    expand: string;
-    noResults: string;
-    none: string;
-    protected: string;
-    search: string;
-    selected: (count: number) => string;
-    title: string;
-  };
+  copy: UsersTranslations['tabPermissions'];
   moduleSelectionLabel: (count: number) => string;
 }
 
@@ -50,38 +41,19 @@ export function UsersTabPermissionPicker({
   const isSpanish = languageCode.toLocaleLowerCase().startsWith('es');
   const normalizedRole = selectedRole === 'Super Admin' ? 'superadmin' : selectedRole.toLocaleLowerCase() as 'admin' | 'user';
 
-  const labels = isSpanish ? {
-    allCategories: 'Todos', basic: 'Básicos', complementary: 'Complementarios', ai: 'IA',
-    fullAccess: 'Acceso completo al módulo', comingSoon: 'Próximamente', development: 'En desarrollo',
-    pilot: 'Piloto', available: 'Disponible', notIncluded: 'No incluido', tabs: 'pestañas',
-    allowedTabs: 'disponibles para este rol', roleAccess: 'Acceso efectivo', roleScope: 'Alcance',
-    roleNames: { user: 'Usuario', admin: 'Administrador', superadmin: 'Superadministrador' },
-    roleDescriptions: {
-      user: 'Opera únicamente las funciones seleccionadas dentro de su alcance. Las áreas administrativas permanecen protegidas.',
-      admin: 'Administra las funciones seleccionadas dentro de su alcance y solo puede delegar accesos que ya posee.',
-      superadmin: 'Administra toda la empresa, incluidos accesos protegidos, y puede delegar permisos.',
-    },
-    capabilityLabels: {
-      view: 'Consultar', personal_use: 'Uso personal', operate_scope: 'Operar en su alcance',
-      manage_scope: 'Administrar su alcance', manage_company: 'Administrar empresa',
-      delegate_owned: 'Delegar acceso propio', delegate_access: 'Delegar accesos', protected_access: 'Acceso protegido',
-    },
-  } : {
-    allCategories: 'All', basic: 'Basic', complementary: 'Complementary', ai: 'AI',
-    fullAccess: 'Full module access', comingSoon: 'Coming soon', development: 'In development',
-    pilot: 'Pilot', available: 'Available', notIncluded: 'Not included', tabs: 'tabs',
-    allowedTabs: 'available for this role', roleAccess: 'Effective access', roleScope: 'Scope',
-    roleNames: { user: 'User', admin: 'Administrator', superadmin: 'Super Admin' },
-    roleDescriptions: {
-      user: 'Operates only the selected functions within their scope. Administrative areas remain protected.',
-      admin: 'Manages selected functions within their scope and delegates only access they already hold.',
-      superadmin: 'Manages the entire company, including protected access, and can delegate permissions.',
-    },
-    capabilityLabels: {
-      view: 'View', personal_use: 'Personal use', operate_scope: 'Operate in scope',
-      manage_scope: 'Manage scope', manage_company: 'Manage company',
-      delegate_owned: 'Delegate owned access', delegate_access: 'Delegate access', protected_access: 'Protected access',
-    },
+  const labels = {
+    allCategories: copy.categories.all,
+    basic: copy.categories.basic,
+    complementary: copy.categories.complementary,
+    ai: copy.categories.ai,
+    ...copy.availability,
+    allowedTabs: copy.allowedTabs,
+    roleAccess: copy.roleAccess,
+    roleScope: copy.roleScope,
+    roleNames: copy.roleNames,
+    roleDescriptions: copy.roleDescriptions,
+    capabilityLabels: copy.capabilityLabels,
+    categoriesAriaLabel: copy.categoriesAriaLabel,
   };
 
   const tabsByModule = useMemo(() => {
@@ -225,7 +197,7 @@ export function UsersTabPermissionPicker({
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2" aria-label="Module categories">
+      <div className="mt-3 flex flex-wrap gap-2" aria-label={labels.categoriesAriaLabel}>
         {categoryOptions.map((category) => (
           <button
             key={category.id}

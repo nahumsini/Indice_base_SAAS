@@ -31,6 +31,7 @@ import type {
   Negocio,
   Unidad,
 } from './types';
+import { useBusinessStructureTranslations } from './hooks/useBusinessStructureTranslations';
 
 const readImageAsPreview = (
   event: ChangeEvent<HTMLInputElement>,
@@ -755,8 +756,8 @@ const buildConfigMap = (_estructuraType: EstructuraType, unidades: Unidad[]) => 
 );
 
 export default function BusinessStructure() {
-  const { currentLanguage, t } = useLanguage();
-  const structure = t.panelInicial.structure;
+  const { currentLanguage } = useLanguage();
+  const structure = useBusinessStructureTranslations();
   const [estructuraType, setEstructuraType] = useState<EstructuraType>('simple');
   const [unidades, setUnidades] = useState<Unidad[]>(createDefaultUnidades);
   const [companyName, setCompanyName] = useState('');
@@ -1157,7 +1158,7 @@ export default function BusinessStructure() {
 
     const emailValidation = validateOptionalEmail(unidadFormValues.email);
     if (!emailValidation.ok) {
-      setLoadError(t.loginPage.emailError);
+      setLoadError(structure.validation.invalidEmail);
       return;
     }
 
@@ -1223,7 +1224,7 @@ export default function BusinessStructure() {
 
     const emailValidation = validateOptionalEmail(negocioFormValues.email);
     if (!emailValidation.ok) {
-      setLoadError(t.loginPage.emailError);
+      setLoadError(structure.validation.invalidEmail);
       return;
     }
 
@@ -1750,7 +1751,7 @@ export default function BusinessStructure() {
 
                       <div>
                         <h5 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                          Coordinates
+                          {structure.fields.location}
                         </h5>
                         <LocationCoordinateFields
                           values={unidadFormValues}
@@ -1999,7 +2000,7 @@ export default function BusinessStructure() {
 
                       <div>
                         <h5 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                          Coordinates
+                          {structure.fields.location}
                         </h5>
                         <LocationCoordinateFields
                           values={negocioFormValues}

@@ -102,7 +102,7 @@ export function CommissionManagementModal({
         <FormField label={t.modal.fields.commissionAmount}>
           <Input type="number" value={draft.commissionAmount} readOnly className={`${salesFieldClassName} bg-slate-50`} />
         </FormField>
-        <p className="flex items-end text-sm text-slate-500">Importe y tasa calculados exclusivamente por el backend según la regla aplicada.</p>
+        <p className="flex items-end text-sm text-slate-500">{t.commissionModal.calculatedByBackend}</p>
       </section>
 
       <FormField label={t.modal.fields.commissionNotes}>

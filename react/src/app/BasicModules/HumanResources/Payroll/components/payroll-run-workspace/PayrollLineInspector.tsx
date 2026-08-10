@@ -9,7 +9,6 @@ import type {
   PayrollLineItem,
   PayrollManualItemPayload,
   PayrollRunLine,
-  PayrollTreatment,
 } from '../../../../../api/humanResources';
 import type { PayrollTranslations } from '../../translations';
 import {
@@ -39,13 +38,6 @@ const formatCurrency = (value: number, locale: string, currency: string) => new 
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 }).format(value);
-
-const treatmentLabels: Record<PayrollTreatment, string> = {
-  fiscal_payroll: 'Nómina fiscal',
-  operational_payroll: 'Nómina operativa',
-  accounts_payable: 'Cuenta por pagar',
-  no_payroll: 'Sin nómina',
-};
 
 const itemSourceLabel = (item: PayrollLineItem, copy: PayrollTranslations) => {
   if (item.source_type === 'manual') return copy.labels.sourceManual;
@@ -85,11 +77,13 @@ function OverviewTab({
   currency,
   line,
   locale,
+  text,
 }: {
   copy: PayrollTranslations;
   currency: string;
   line: PayrollRunLine;
   locale: string;
+  text: PayrollRunWorkspaceText;
 }) {
   const attendanceWarnings = line.attendance_warnings ?? [];
   const calculationWarnings = line.calculation_warnings ?? [];
@@ -103,7 +97,7 @@ function OverviewTab({
       </div>
 
       <section>
-        <h4 className="text-sm font-medium text-slate-900 dark:text-white">Asistencia del período</h4>
+        <h4 className="text-sm font-medium text-slate-900 dark:text-white">{text.attendancePeriod}</h4>
         <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Metric label={copy.labels.daysPayable} value={String(line.days_payable)} />
           <Metric label={copy.labels.regularHours} value={String(line.regular_hours)} />
@@ -120,7 +114,7 @@ function OverviewTab({
         <section className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/40 dark:bg-amber-950/25">
           <div className="flex items-center gap-2 text-sm font-medium text-amber-800 dark:text-amber-200">
             <AlertTriangle className="h-4 w-4" />
-            Requiere revisión
+            {text.reviewRequired}
           </div>
           <ul className="mt-2 space-y-1 pl-6 text-xs font-normal text-amber-800 dark:text-amber-200">
             {[...attendanceWarnings, ...calculationWarnings].map((warning, index) => (
@@ -130,7 +124,7 @@ function OverviewTab({
         </section>
       ) : (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-normal text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/25 dark:text-emerald-200">
-          La línea no presenta alertas de asistencia o cálculo.
+          {text.noLineWarnings}
         </div>
       )}
     </div>
@@ -199,6 +193,7 @@ function ManualItemsEditor({
   heading,
   isEditable,
   onChangeDraft,
+  text,
 }: {
   addLabel: string;
   allowedCategories: readonly PayrollManualItemPayload['category'][];
@@ -210,6 +205,7 @@ function ManualItemsEditor({
   heading: string;
   isEditable: boolean;
   onChangeDraft: (draft: PayrollLineDraft) => void;
+  text: PayrollRunWorkspaceText;
 }) {
   const inputClassName = 'h-10 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm font-normal text-slate-900 outline-none transition focus:border-[#59C3A5] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-white';
   const visibleItems = draft.manual_items
@@ -292,8 +288,8 @@ function ManualItemsEditor({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  aria-label="Eliminar ajuste"
-                  title="Eliminar ajuste"
+                  aria-label={text.removeAdjustment}
+                  title={text.removeAdjustment}
                   onClick={() => onChangeDraft({
                     ...draft,
                     manual_items: draft.manual_items.filter((_, currentIndex) => currentIndex !== index),
@@ -393,6 +389,7 @@ function DeductionsTab({
         heading={text.manualDiscounts}
         isEditable={isEditable}
         onChangeDraft={onChangeDraft}
+        text={text}
       />
     </div>
   );
@@ -424,6 +421,7 @@ function AdjustmentsTab({
         heading={text.otherAdjustments}
         isEditable={isEditable}
         onChangeDraft={onChangeDraft}
+        text={text}
       />
 
       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -481,7 +479,7 @@ export function PayrollLineInspector({
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
             <span className="rounded-full border border-[#59C3A5]/30 bg-[#59C3A5]/10 px-2.5 py-1 text-xs font-medium text-[#177D66] dark:text-[#B8F2E3]">
-              {treatmentLabels[treatment]}
+              {text.treatmentLabels[treatment]}
             </span>
           </div>
         </div>
@@ -491,7 +489,7 @@ export function PayrollLineInspector({
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         {view === 'breakdown' ? (
           <div className="space-y-6">
-            <OverviewTab copy={copy} currency={currency} line={line} locale={locale} />
+            <OverviewTab copy={copy} currency={currency} line={line} locale={locale} text={text} />
             <section>
               <h4 className="mb-3 text-sm font-medium text-slate-900 dark:text-white">{text.concepts}</h4>
               <ConceptsTab copy={copy} currency={currency} line={line} locale={locale} />

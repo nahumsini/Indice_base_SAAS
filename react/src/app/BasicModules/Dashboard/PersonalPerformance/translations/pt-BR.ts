@@ -13,6 +13,12 @@ export const ptBR = {
   progressOf: 'concluído',
   printReport: 'Baixar PDF',
   restart: 'Reiniciar seção',
+  restartDialog: {
+    action: 'Reiniciar teste',
+    cancel: 'Cancelar',
+    description: 'Preservaremos seu resultado anterior e iniciaremos uma nova versão.',
+    title: 'Reiniciar avaliação?',
+  },
   actions: {
     start: 'Começar',
     continue: 'Continuar',

@@ -1,7 +1,9 @@
 import { enCA } from './en-CA';
+import { koCACommissionWorkspace } from './commissionWorkspaceLocales';
 
 export const koCA = {
   ...enCA,
+  commissionWorkspace: koCACommissionWorkspace,
   common: {
     ...enCA.common,
     all: '전체',
@@ -184,6 +186,13 @@ export const koCA = {
       taxIdentifier: '세금 식별번호',
       defaultWarehouse: '기본 창고',
     },
+    lineItems: {
+      ...enCA.modal.lineItems,
+      searchPlaceholder: '이름, SKU, 코드 또는 카테고리 검색',
+      allCategories: '모든 카테고리',
+      noFilteredProducts: '이 필터와 일치하는 제품이 없습니다.',
+      pageSummary: (count: number, page: number, pages: number) => `제품 ${count}개 · ${pages}페이지 중 ${page}`,
+    },
   },
   statuses: {
     commercial: {
@@ -240,6 +249,7 @@ export const koCA = {
     useSuggestedAmount: '제안 금액 사용',
     notesPlaceholder: '커미션 컨텍스트, 승인 메모 또는 지급 시점.',
     save: '커미션 저장',
+    calculatedByBackend: '금액과 비율은 적용된 규칙에 따라 백엔드에서만 계산됩니다.',
   },
   summaryPreview: {
     title: '판매 요약',
