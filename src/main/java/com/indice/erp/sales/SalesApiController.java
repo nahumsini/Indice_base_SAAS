@@ -2,6 +2,7 @@ package com.indice.erp.sales;
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.entitlement.RequiresCapability;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import jakarta.servlet.http.HttpSession;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,11 +28,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class SalesApiController {
 
     private final SessionAuthService sessionAuthService;
+    private final SessionCsrfService sessionCsrfService;
     private final SalesService salesService;
     private final SalesCommissionCutService commissionCutService;
 
-    public SalesApiController(SessionAuthService sessionAuthService, SalesService salesService, SalesCommissionCutService commissionCutService) {
+    public SalesApiController(
+            SessionAuthService sessionAuthService,
+            SessionCsrfService sessionCsrfService,
+            SalesService salesService,
+            SalesCommissionCutService commissionCutService) {
         this.sessionAuthService = sessionAuthService;
+        this.sessionCsrfService = sessionCsrfService;
         this.salesService = salesService;
         this.commissionCutService = commissionCutService;
     }
@@ -75,10 +83,15 @@ public class SalesApiController {
     @PostMapping("/files")
     public ResponseEntity<?> createFile(
             HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @RequestBody(required = false) Map<String, Object> payload) {
         var user = currentUser(session);
         if (user.isEmpty()) {
             return unauthorized();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -96,10 +109,15 @@ public class SalesApiController {
     @PostMapping("/products/images/presign-upload")
     public ResponseEntity<?> createProductImageUpload(
             HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @RequestBody(required = false) Map<String, Object> payload) {
         var user = currentUser(session);
         if (user.isEmpty()) {
             return unauthorized();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -117,10 +135,15 @@ public class SalesApiController {
     public ResponseEntity<?> registerProductImage(
             HttpSession session,
             @PathVariable long productId,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @RequestBody(required = false) Map<String, Object> payload) {
         var user = currentUser(session);
         if (user.isEmpty()) {
             return unauthorized();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -141,10 +164,15 @@ public class SalesApiController {
     @PostMapping("/sales/payment-evidence/presign-upload")
     public ResponseEntity<?> createSalePaymentEvidenceUpload(
             HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @RequestBody(required = false) Map<String, Object> payload) {
         var user = currentUser(session);
         if (user.isEmpty()) {
             return unauthorized();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -162,10 +190,15 @@ public class SalesApiController {
     public ResponseEntity<?> registerSalePaymentEvidence(
             HttpSession session,
             @PathVariable long saleId,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @RequestBody(required = false) Map<String, Object> payload) {
         var user = currentUser(session);
         if (user.isEmpty()) {
             return unauthorized();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -184,10 +217,17 @@ public class SalesApiController {
     }
 
     @DeleteMapping("/files/{fileId}")
-    public ResponseEntity<?> deleteFile(HttpSession session, @PathVariable long fileId) {
+    public ResponseEntity<?> deleteFile(
+            HttpSession session,
+            @PathVariable long fileId,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken) {
         var user = currentUser(session);
         if (user.isEmpty()) {
             return unauthorized();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         salesService.deleteFile(user.get().companyId(), fileId);
@@ -198,10 +238,15 @@ public class SalesApiController {
     public ResponseEntity<?> createQuoteItem(
             HttpSession session,
             @PathVariable long quoteId,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @RequestBody(required = false) Map<String, Object> payload) {
         var user = currentUser(session);
         if (user.isEmpty()) {
             return unauthorized();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -221,10 +266,15 @@ public class SalesApiController {
             HttpSession session,
             @PathVariable long quoteId,
             @PathVariable long itemId,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @RequestBody(required = false) Map<String, Object> payload) {
         var user = currentUser(session);
         if (user.isEmpty()) {
             return unauthorized();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -244,10 +294,15 @@ public class SalesApiController {
     public ResponseEntity<?> deleteQuoteItem(
             HttpSession session,
             @PathVariable long quoteId,
-            @PathVariable long itemId) {
+            @PathVariable long itemId,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken) {
         var user = currentUser(session);
         if (user.isEmpty()) {
             return unauthorized();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -261,10 +316,15 @@ public class SalesApiController {
     public ResponseEntity<?> connectQuote(
             HttpSession session,
             @PathVariable long quoteId,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @RequestBody(required = false) Map<String, Object> payload) {
         var user = currentUser(session);
         if (user.isEmpty()) {
             return unauthorized();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -283,9 +343,14 @@ public class SalesApiController {
     @PostMapping("/commission-rules/preview")
     public ResponseEntity<?> previewCommissionRule(
             HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @RequestBody(required = false) Map<String, Object> payload) {
         var user = currentUser(session);
         if (user.isEmpty()) return unauthorized();
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
+        }
         try {
             return ResponseEntity.ok(salesService.previewCommissionRule(
                     payload == null ? Map.<String, Object>of() : payload));
@@ -303,9 +368,16 @@ public class SalesApiController {
     }
 
     @PostMapping("/commission-cuts")
-    public ResponseEntity<?> createCommissionCut(HttpSession session, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> createCommissionCut(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestBody Map<String, Object> payload) {
         var user = currentUser(session);
         if (user.isEmpty()) return unauthorized();
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
+        }
         try {
             return ResponseEntity.status(HttpStatus.CREATED).body(commissionCutService.create(user.get(), payload));
         } catch (IllegalArgumentException ex) {
@@ -322,9 +394,16 @@ public class SalesApiController {
     }
 
     @PutMapping("/commission-cut-schedule")
-    public ResponseEntity<?> saveCommissionCutSchedule(HttpSession session, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> saveCommissionCutSchedule(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestBody Map<String, Object> payload) {
         var user = currentUser(session);
         if (user.isEmpty()) return unauthorized();
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
+        }
         try {
             return ResponseEntity.ok(commissionCutService.saveSchedule(user.get(), payload));
         } catch (IllegalArgumentException ex) {
@@ -333,9 +412,16 @@ public class SalesApiController {
     }
 
     @DeleteMapping("/commission-cut-schedule/{scheduleId}")
-    public ResponseEntity<?> deleteCommissionCutSchedule(HttpSession session, @PathVariable long scheduleId) {
+    public ResponseEntity<?> deleteCommissionCutSchedule(
+            HttpSession session,
+            @PathVariable long scheduleId,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken) {
         var user = currentUser(session);
         if (user.isEmpty()) return unauthorized();
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
+        }
         try {
             commissionCutService.deleteSchedule(user.get().companyId(), scheduleId);
             return ResponseEntity.noContent().build();
@@ -365,10 +451,15 @@ public class SalesApiController {
     public ResponseEntity<?> create(
             HttpSession session,
             @PathVariable String collection,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @RequestBody(required = false) Map<String, Object> payload) {
         var user = currentUser(session);
         if (user.isEmpty()) {
             return unauthorized();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -406,10 +497,15 @@ public class SalesApiController {
             HttpSession session,
             @PathVariable String collection,
             @PathVariable long id,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @RequestBody(required = false) Map<String, Object> payload) {
         var user = currentUser(session);
         if (user.isEmpty()) {
             return unauthorized();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -430,10 +526,15 @@ public class SalesApiController {
     public ResponseEntity<?> delete(
             HttpSession session,
             @PathVariable String collection,
-            @PathVariable long id) {
+            @PathVariable long id,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken) {
         var user = currentUser(session);
         if (user.isEmpty()) {
             return unauthorized();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
         }
 
         try {
@@ -462,6 +563,15 @@ public class SalesApiController {
 
     private static ResponseEntity<Map<String, String>> storageUnavailable(ObjectStorageDisabledException ex) {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
+    }
+
+    private ResponseEntity<?> requireCsrf(HttpSession session, String csrfToken) {
+        try {
+            sessionCsrfService.requireCsrf(session, csrfToken);
+            return null;
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ex.getMessage()));
+        }
     }
 
     private static Long nullableLong(String raw) {
