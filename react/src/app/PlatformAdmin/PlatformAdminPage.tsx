@@ -1,7 +1,17 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import {
   Activity,
   ArrowLeft,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   BadgeCheck,
   BookOpenCheck,
   Boxes,
@@ -24,6 +34,7 @@ import {
   LoaderCircle,
   Mail,
   PackageCheck,
+  PencilLine,
   Plus,
   RefreshCw,
   Search,
@@ -32,17 +43,59 @@ import {
   Sparkles,
   Users,
   X,
-} from 'lucide-react';
-import { useNavigate } from 'react-router';
-import { IndiceBrandLogo } from '../Auth/components/IndiceBrandLogo';
-import AccountCreationModal from './AccountCreationModal';
-import CompanyAccountDrawer from './CompanyAccountDrawer';
-import ConsultingAdminTab from './ConsultingAdminTab';
+} from "lucide-react";
+import { useNavigate } from "react-router";
+import { IndiceBrandLogo } from "../Auth/components/IndiceBrandLogo";
+import {
+  IndiceConfirmationDialog,
+  IndiceModalFrame,
+  IndiceModalValidation,
+} from "../components/indice-modal";
+import {
+  IndiceFilterBar,
+  IndiceFilterSearch,
+  IndiceFilterSelect,
+  IndiceTitleBar,
+} from "../components/frontend-os";
+import { DataTablePagination } from "../components/table/DataTablePagination";
+import { useLanguage } from "../shared/context";
+import AccountCreationModal from "./AccountCreationModal";
+import AccountTypeEditModal from "./AccountTypeEditModal";
+import DistributorAssignmentModal from "./DistributorAssignmentModal";
+import CompanyAccountDrawer, { type CompanyAccountTab } from "./CompanyAccountDrawer";
+import { CustomerUsersModal } from "./Customers/CustomerUsersModal";
+import ConsultingAdminTab from "./ConsultingAdminTab";
+import { CatalogProductCard } from "./Catalog";
+import {
+  CustomersTable,
+  TrialExtensionModal,
+  basicCommercialStatus,
+  compareCustomerValues,
+  type CustomerSortKey,
+  type SortDirection,
+  type TrialExtensionDays,
+} from "./Customers";
+import {
+  ModuleWorkOrderModal,
+  useModuleWorkOrderCopy,
+  useModuleWorkOrders,
+} from "./ModuleWorkOrders";
+import {
+  accessDayOptions,
+  accessReasonOptions,
+  currencyOptions,
+  extraSeatOptions,
+  moduleAvailabilityReasonOptions,
+  redemptionOptions,
+  revocationReasonOptions,
+} from "./flowOptions";
+import { hasAccountCreationDraft } from "./accountCreationDraft";
 import {
   platformAdminApi,
   type BenefitPayload,
   type CourtesyCodeCatalog,
   type CourtesyCodePayload,
+  type EditablePlatformAccountType,
   type PlatformAdminContext,
   type PlatformAccountCreatePayload,
   type PlatformAccountCreateResult,
@@ -51,95 +104,173 @@ import {
   type PlatformCatalog,
   type PlatformCatalogPrice,
   type PlatformCatalogProduct,
+  type PlatformCatalogValidation,
   type PlatformCompanyDetail,
   type PlatformCompanySummary,
   type PlatformInvoice,
   type PlatformModule,
   type PlatformModules,
   type PlatformOverview,
-} from '../api/platformAdmin';
+} from "../api/platformAdmin";
 
-type AdminTab = 'overview' | 'customers' | 'billing' | 'catalog' | 'modules' | 'consulting' | 'courtesy' | 'audit';
-type Revocation = { kind: 'benefit' | 'courtesy'; reference: string } | null;
-type ModuleAvailabilityChange = { module: PlatformModule; active: boolean } | null;
+type AdminTab =
+  "customers" | "billing" | "catalog" | "consulting" | "audit";
+type BillingSortKey =
+  "customer" | "invoice" | "status" | "amount" | "paid" | "period";
+type CatalogPriceSortKey =
+  "concept" | "type" | "interval" | "amount" | "stripe" | "status";
+type Revocation = {
+  kind: "benefit" | "courtesy";
+  reference: string;
+  label?: string;
+  grantCount?: number;
+} | null;
+type ModuleAvailabilityChange = {
+  module: PlatformModule;
+  active: boolean;
+} | null;
 
 const initialCourtesy: CourtesyCodePayload = {
-  label: '',
-  allowed_email: '',
+  label: "",
+  allowed_email: "",
   product_codes: [],
   included_extra_seats: 0,
   access_days: 30,
   permanent: false,
   max_redemptions: 1,
-  reason: '',
-  campaign_code: '',
+  reason: "",
+  campaign_code: "",
 };
 
 const initialBenefit: BenefitPayload = {
-  benefit_type: 'PRODUCT',
-  product_code: '',
+  benefit_type: "PRODUCT",
+  product_code: "",
   quantity: 1,
-  source_type: 'COURTESY',
-  reason: '',
-  campaign_code: '',
+  source_type: "COURTESY",
+  reason: "",
+  campaign_code: "",
 };
 
-const controlClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-[#177D66] focus:ring-2 focus:ring-[#177D66]/10 disabled:bg-slate-100 disabled:text-slate-400';
-const tableHeadClass = 'whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-slate-500';
-const tableCellClass = 'px-4 py-3 align-middle text-sm text-slate-700';
+const controlClass =
+  "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-[#177D66] focus:ring-2 focus:ring-[#177D66]/10 disabled:bg-slate-100 disabled:text-slate-400";
+const tableHeadClass =
+  "whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-slate-500";
+const tableCellClass = "px-4 py-3 align-middle text-sm text-slate-700";
 
-const tabs: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
-  { id: 'overview', label: 'Resumen', icon: LayoutDashboard },
-  { id: 'customers', label: 'Clientes', icon: Building2 },
-  { id: 'billing', label: 'Facturación', icon: CreditCard },
-  { id: 'catalog', label: 'Productos y precios', icon: CircleDollarSign },
-  { id: 'modules', label: 'Módulos', icon: Boxes },
-  { id: 'consulting', label: 'Consultorías', icon: Handshake },
-  { id: 'courtesy', label: 'Cortesías', icon: Gift },
-  { id: 'audit', label: 'Auditoría', icon: ClipboardList },
+const tabDefinitions: {
+  id: AdminTab;
+  es: string;
+  en: string;
+  icon: typeof LayoutDashboard;
+}[] = [
+  { id: "customers", es: "Clientes", en: "Customers", icon: Building2 },
+  { id: "billing", es: "Facturación", en: "Billing", icon: CreditCard },
+  {
+    id: "catalog",
+    es: "Catálogo y módulos",
+    en: "Catalog & modules",
+    icon: Boxes,
+  },
+  { id: "consulting", es: "Consultorías", en: "Consulting", icon: Handshake },
+  { id: "audit", es: "Auditoría", en: "Audit", icon: ClipboardList },
 ];
 
 const offerLabels: Record<string, string> = {
-  basic_1: 'Un módulo',
-  basic_2: 'Dos módulos',
-  basic_3: 'Tres módulos',
-  basic_all: 'Cuatro o más módulos',
-  extra_seat: 'Usuario adicional',
-  storage_block: 'Almacenamiento adicional',
+  basic_1: "Un módulo",
+  basic_2: "Dos módulos",
+  basic_3: "Tres módulos",
+  basic_all: "Cuatro o más módulos",
+  extra_seat: "Usuario adicional",
+  storage_block: "Almacenamiento adicional",
 };
 
 export default function PlatformAdminPage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<AdminTab>('overview');
+  const { currentLanguage } = useLanguage();
+  const english = currentLanguage.code.startsWith("en");
+  const tabs = useMemo(
+    () =>
+      tabDefinitions.map((tab) => ({
+        ...tab,
+        label: english ? tab.en : tab.es,
+      })),
+    [english],
+  );
+  const [activeTab, setActiveTab] = useState<AdminTab>("customers");
   const [context, setContext] = useState<PlatformAdminContext | null>(null);
   const [overview, setOverview] = useState<PlatformOverview | null>(null);
   const [billing, setBilling] = useState<PlatformBilling | null>(null);
   const [catalog, setCatalog] = useState<PlatformCatalog | null>(null);
-  const [moduleRegistry, setModuleRegistry] = useState<PlatformModules | null>(null);
+  const [moduleRegistry, setModuleRegistry] = useState<PlatformModules | null>(
+    null,
+  );
   const [auditLog, setAuditLog] = useState<PlatformAudit | null>(null);
-  const [courtesyCatalog, setCourtesyCatalog] = useState<CourtesyCodeCatalog | null>(null);
+  const [courtesyCatalog, setCourtesyCatalog] =
+    useState<CourtesyCodeCatalog | null>(null);
   const [selected, setSelected] = useState<PlatformCompanyDetail | null>(null);
-  const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedInitialTab, setSelectedInitialTab] =
+    useState<CompanyAccountTab>("overview");
+  const [usersCompany, setUsersCompany] =
+    useState<PlatformCompanyDetail | null>(null);
+  const [query, setQuery] = useState("");
+  const [userTypeFilter, setUserTypeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [customerSort, setCustomerSort] = useState<{
+    key: CustomerSortKey;
+    direction: SortDirection;
+  }>({ key: "customer", direction: null });
   const [benefit, setBenefit] = useState<BenefitPayload>(initialBenefit);
-  const [courtesy, setCourtesy] = useState<CourtesyCodePayload>(initialCourtesy);
-  const [createdCourtesyCode, setCreatedCourtesyCode] = useState('');
+  const [courtesy, setCourtesy] =
+    useState<CourtesyCodePayload>(initialCourtesy);
+  const [createdCourtesyCode, setCreatedCourtesyCode] = useState("");
+  const [courtesyFeedback, setCourtesyFeedback] = useState<{
+    kind: "success" | "error";
+    message: string;
+  } | null>(null);
   const [createAccountOpen, setCreateAccountOpen] = useState(false);
+  const [accountTypeEdit, setAccountTypeEdit] =
+    useState<PlatformCompanySummary | null>(null);
+  const [accountTypeEditError, setAccountTypeEditError] = useState("");
+  const [distributorAssignment, setDistributorAssignment] =
+    useState<PlatformCompanySummary | null>(null);
+  const [distributorAssignmentError, setDistributorAssignmentError] =
+    useState("");
+  const [trialExtension, setTrialExtension] =
+    useState<PlatformCompanySummary | null>(null);
+  const [trialExtensionError, setTrialExtensionError] = useState("");
+  const [courtesyAccessOpen, setCourtesyAccessOpen] = useState(false);
   const [revocation, setRevocation] = useState<Revocation>(null);
-  const [revocationReason, setRevocationReason] = useState('Fin de cortesía o promoción');
-  const [moduleChange, setModuleChange] = useState<ModuleAvailabilityChange>(null);
-  const [moduleChangeReason, setModuleChangeReason] = useState('Disponibilidad global administrada desde el panel root');
+  const [revocationReason, setRevocationReason] = useState(
+    "Fin de cortesía o promoción",
+  );
+  const [moduleChange, setModuleChange] =
+    useState<ModuleAvailabilityChange>(null);
+  const [moduleChangeReason, setModuleChangeReason] = useState(
+    "Disponibilidad global administrada desde el panel root",
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
+  const [accountFeedback, setAccountFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    setError('');
+    setError("");
     try {
-      const [access, overviewData, billingData, catalogData, modulesData, auditData, courtesyData] = await Promise.all([
+      const [
+        access,
+        overviewData,
+        billingData,
+        catalogData,
+        modulesData,
+        auditData,
+        courtesyData,
+      ] = await Promise.all([
         platformAdminApi.getContext(),
         platformAdminApi.getOverview(),
         platformAdminApi.getBilling(),
@@ -156,46 +287,154 @@ export default function PlatformAdminPage() {
       setAuditLog(auditData);
       setCourtesyCatalog(courtesyData);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'No se pudo cargar la operación de plataforma.');
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "No se pudo cargar la operación de plataforma.",
+      );
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { void loadAll(); }, [loadAll]);
+  useEffect(() => {
+    void loadAll();
+  }, [loadAll]);
+
+  useEffect(() => {
+    if (activeTab !== "customers" || loading) return;
+
+    let cancelled = false;
+    const refreshCustomerBilling = async () => {
+      try {
+        const overviewData = await platformAdminApi.getOverview();
+        if (!cancelled) setOverview(overviewData);
+      } catch {
+        // Background synchronization must not replace usable data with an error screen.
+      }
+    };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        void refreshCustomerBilling();
+      }
+    };
+
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    const intervalId = window.setInterval(refreshWhenVisible, 30_000);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.clearInterval(intervalId);
+    };
+  }, [activeTab, loading]);
+
+  useEffect(() => {
+    if (!loading && context?.can_manage_accounts && hasAccountCreationDraft()) {
+      setCreateAccountOpen(true);
+    }
+  }, [context?.can_manage_accounts, loading]);
 
   const companies = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return (overview?.companies ?? []).filter((company) => {
-      const matchesQuery = !normalizedQuery || [company.name, company.owner_email, String(company.id)]
-        .some((value) => value?.toLowerCase().includes(normalizedQuery));
-      const state = company.billing_status || company.lifecycle_state || 'legacy';
-      const matchesStatus = statusFilter === 'all' || state.toLowerCase() === statusFilter;
-      return matchesQuery && matchesStatus;
+      const matchesQuery =
+        !normalizedQuery ||
+        [
+          company.name,
+          company.owner_email,
+          company.distributor_company_name,
+          String(company.id),
+        ].some((value) => value?.toLowerCase().includes(normalizedQuery));
+      const matchesStatus =
+        statusFilter === "all" || basicCommercialStatus(company) === statusFilter;
+      const matchesUserType =
+        userTypeFilter === "all" || company.user_type === userTypeFilter;
+      return matchesQuery && matchesUserType && matchesStatus;
     });
-  }, [overview, query, statusFilter]);
+  }, [overview, query, userTypeFilter, statusFilter]);
+
+  const sortedCompanies = useMemo(() => {
+    if (!customerSort.direction) return companies;
+    const direction = customerSort.direction === "asc" ? 1 : -1;
+    return [...companies].sort(
+      (left, right) =>
+        compareCustomerValues(left, right, customerSort.key) * direction,
+    );
+  }, [companies, customerSort]);
+
+  const distributorAccounts = useMemo(
+    () =>
+      (overview?.companies ?? [])
+        .filter((company) => company.user_type === "DISTRIBUTOR")
+        .sort((left, right) => left.name.localeCompare(right.name)),
+    [overview],
+  );
 
   const pagedCompanies = useMemo(() => {
     const start = (page - 1) * pageSize;
-    return companies.slice(start, start + pageSize);
-  }, [companies, page, pageSize]);
+    return sortedCompanies.slice(start, start + pageSize);
+  }, [sortedCompanies, page, pageSize]);
 
   const activeCatalogProducts = useMemo(() => {
-    const activeVersion = catalog?.versions.find((version) => version.status === 'ACTIVE') || catalog?.versions[0];
+    const activeVersion =
+      catalog?.versions.find((version) => version.status === "ACTIVE") ||
+      catalog?.versions[0];
     return (catalog?.products ?? [])
-      .filter((product) => product.active && (!activeVersion || product.catalog_version_id === activeVersion.id))
+      .filter(
+        (product) =>
+          product.active &&
+          product.commercially_available !== false &&
+          (!activeVersion || product.catalog_version_id === activeVersion.id),
+      )
       .sort((left, right) => left.sort_order - right.sort_order);
   }, [catalog]);
 
-  useEffect(() => { setPage(1); }, [query, statusFilter, pageSize]);
+  useEffect(() => {
+    setPage(1);
+  }, [query, userTypeFilter, statusFilter, pageSize, customerSort]);
 
   const openCompany = async (company: PlatformCompanySummary | number) => {
-    setError('');
+    setError("");
+    setAccountFeedback(null);
+    setSelectedInitialTab("overview");
     try {
-      setSelected(await platformAdminApi.getCompany(typeof company === 'number' ? company : company.id));
+      setSelected(
+        await platformAdminApi.getCompany(
+          typeof company === "number" ? company : company.id,
+        ),
+      );
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'No se pudo cargar la cuenta.');
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "No se pudo cargar la cuenta.",
+      );
     }
+  };
+
+  const openCompanyUsers = async (company: PlatformCompanySummary) => {
+    setError("");
+    try {
+      setUsersCompany(await platformAdminApi.getCompany(company.id));
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "No se pudieron cargar los usuarios de la cuenta.",
+      );
+    }
+  };
+
+  const refreshUsersCompany = async () => {
+    if (!usersCompany) return;
+    const [overviewData, companyData] = await Promise.all([
+      platformAdminApi.getOverview(),
+      platformAdminApi.getCompany(usersCompany.id),
+    ]);
+    setOverview(overviewData);
+    setUsersCompany(companyData);
   };
 
   const refreshOverviewAndCompany = async () => {
@@ -204,7 +443,9 @@ export default function PlatformAdminPage() {
     if (selected) setSelected(await platformAdminApi.getCompany(selected.id));
   };
 
-  const createCompanyAccount = async (payload: PlatformAccountCreatePayload): Promise<PlatformAccountCreateResult> => {
+  const createCompanyAccount = async (
+    payload: PlatformAccountCreatePayload,
+  ): Promise<PlatformAccountCreateResult> => {
     const created = await platformAdminApi.createCompanyAccount(payload);
     const [overviewData, courtesyData, auditData] = await Promise.all([
       platformAdminApi.getOverview(),
@@ -217,22 +458,157 @@ export default function PlatformAdminPage() {
     return created;
   };
 
+  const updateCompanyAccountType = async (
+    accountType: EditablePlatformAccountType,
+  ) => {
+    if (!accountTypeEdit || saving) return;
+    setSaving(true);
+    setAccountTypeEditError("");
+    try {
+      await platformAdminApi.updateCompanyAccountType(
+        accountTypeEdit.id,
+        accountType,
+      );
+      const [overviewData, auditData] = await Promise.all([
+        platformAdminApi.getOverview(),
+        platformAdminApi.getAudit(),
+      ]);
+      setOverview(overviewData);
+      setAuditLog(auditData);
+      setAccountTypeEdit(null);
+    } catch (saveError) {
+      setAccountTypeEditError(
+        saveError instanceof Error
+          ? saveError.message
+          : english
+            ? "The user type could not be updated."
+            : "No se pudo actualizar el tipo de usuario.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateCompanyDistributor = async (
+    distributorCompanyId: number | null,
+  ) => {
+    if (!distributorAssignment || saving) return;
+    setSaving(true);
+    setDistributorAssignmentError("");
+    try {
+      await platformAdminApi.updateCompanyDistributor(
+        distributorAssignment.id,
+        distributorCompanyId,
+      );
+      const [overviewData, auditData] = await Promise.all([
+        platformAdminApi.getOverview(),
+        platformAdminApi.getAudit(),
+      ]);
+      setOverview(overviewData);
+      setAuditLog(auditData);
+      setDistributorAssignment(null);
+    } catch (saveError) {
+      setDistributorAssignmentError(
+        saveError instanceof Error
+          ? saveError.message
+          : english
+            ? "The distributor could not be assigned."
+            : "No se pudo asignar el distribuidor.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const extendCompanyTrial = async (days: TrialExtensionDays) => {
+    if (!trialExtension || saving) return;
+    setSaving(true);
+    setTrialExtensionError("");
+    try {
+      await platformAdminApi.extendCompanyTrial(trialExtension.id, days);
+      const [overviewData, auditData] = await Promise.all([
+        platformAdminApi.getOverview(),
+        platformAdminApi.getAudit(),
+      ]);
+      setOverview(overviewData);
+      setAuditLog(auditData);
+      if (selected?.id === trialExtension.id) {
+        setSelected(await platformAdminApi.getCompany(trialExtension.id));
+      }
+      setTrialExtension(null);
+    } catch (saveError) {
+      setTrialExtensionError(
+        saveError instanceof Error
+          ? saveError.message
+          : english
+            ? "The trial could not be extended."
+            : "No se pudo extender el periodo de prueba.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const grantProductAccess = async (productCode: string) => {
     if (!selected || saving) return;
     setSaving(true);
-    setError('');
+    setError("");
+    setAccountFeedback(null);
     try {
+      const accessEndsAt = selected.benefits
+        .filter((item) => item.status.toUpperCase() === "ACTIVE" && item.ends_at)
+        .map((item) => item.ends_at as string)
+        .sort()[0];
       await platformAdminApi.grantBenefit(selected.id, {
-        benefit_type: 'PRODUCT',
+        benefit_type: "PRODUCT",
         product_code: productCode,
         quantity: 1,
-        source_type: 'SUPPORT',
-        reason: 'Acceso de módulo administrado desde la cuenta Root.',
-        campaign_code: 'ROOT-ACCESS',
+        source_type: "SUPPORT",
+        reason: "Acceso de módulo administrado desde la cuenta Root.",
+        campaign_code: "ROOT-ACCESS",
+        ends_at: accessEndsAt,
       });
       await refreshOverviewAndCompany();
+      const productName =
+        activeCatalogProducts.find(
+          (product) => product.product_code === productCode,
+        )?.display_name || productCode;
+      setAccountFeedback({
+        type: "success",
+        message: `${productName} quedó habilitado y sincronizado con el acceso real de la cuenta.`,
+      });
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'No se pudo habilitar el módulo.');
+      const message =
+        saveError instanceof Error
+          ? saveError.message
+          : "No se pudo habilitar el módulo.";
+      setError(message);
+      setAccountFeedback({ type: "error", message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateTrialProducts = async (productCodes: string[]) => {
+    if (!selected || saving) return;
+    setSaving(true);
+    setError("");
+    setAccountFeedback(null);
+    try {
+      const result = await platformAdminApi.updateTrialProducts(selected.id, productCodes);
+      await refreshOverviewAndCompany();
+      setAccountFeedback({
+        type: "success",
+        message: result.charge_timing === "TRIAL_END"
+          ? `La prueba quedó con ${result.product_codes.length} módulo(s). Stripe usará esta selección al terminar la prueba.`
+          : `La suscripción quedó con ${result.product_codes.length} módulo(s). El acceso cambió ahora y Stripe cobrará el nuevo total en la próxima factura.`,
+      });
+    } catch (saveError) {
+      const message = saveError instanceof Error
+        ? saveError.message
+        : "No se pudieron actualizar los módulos de la cuenta.";
+      setError(message);
+      setAccountFeedback({ type: "error", message });
     } finally {
       setSaving(false);
     }
@@ -242,20 +618,39 @@ export default function PlatformAdminPage() {
     event.preventDefault();
     if (!selected || saving) return;
     setSaving(true);
-    setError('');
+    setError("");
+    setAccountFeedback(null);
     try {
       await platformAdminApi.grantBenefit(selected.id, {
         ...benefit,
-        product_code: benefit.benefit_type === 'PRODUCT' ? benefit.product_code?.trim() : undefined,
-        quantity: benefit.benefit_type === 'PRODUCT' ? 1 : Number(benefit.quantity || 1),
+        product_code:
+          benefit.benefit_type === "PRODUCT"
+            ? benefit.product_code?.trim()
+            : undefined,
+        quantity:
+          benefit.benefit_type === "PRODUCT"
+            ? 1
+            : Number(benefit.quantity || 1),
         reason: benefit.reason.trim(),
         campaign_code: benefit.campaign_code?.trim() || undefined,
-        ends_at: benefit.ends_at ? new Date(benefit.ends_at).toISOString() : undefined,
+        ends_at: benefit.ends_at
+          ? new Date(benefit.ends_at).toISOString()
+          : undefined,
       });
       setBenefit(initialBenefit);
       await refreshOverviewAndCompany();
+      setAccountFeedback({
+        type: "success",
+        message:
+          "El ajuste se aplicó correctamente y quedó registrado en auditoría.",
+      });
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'No se pudo otorgar el beneficio.');
+      const message =
+        saveError instanceof Error
+          ? saveError.message
+          : "No se pudo otorgar el beneficio.";
+      setError(message);
+      setAccountFeedback({ type: "error", message });
     } finally {
       setSaving(false);
     }
@@ -265,23 +660,37 @@ export default function PlatformAdminPage() {
     event.preventDefault();
     if (saving) return;
     setSaving(true);
-    setError('');
+    setError("");
+    setCourtesyFeedback(null);
     try {
       const created = await platformAdminApi.createCourtesyCode({
         ...courtesy,
         label: courtesy.label.trim(),
-        allowed_email: courtesy.allowed_email?.trim().toLowerCase() || undefined,
-        access_days: courtesy.permanent ? undefined : Number(courtesy.access_days || 30),
+        allowed_email:
+          courtesy.allowed_email?.trim().toLowerCase() || undefined,
+        access_days: courtesy.permanent
+          ? undefined
+          : Number(courtesy.access_days || 30),
         included_extra_seats: Number(courtesy.included_extra_seats || 0),
         max_redemptions: Number(courtesy.max_redemptions || 1),
         reason: courtesy.reason.trim(),
         campaign_code: courtesy.campaign_code?.trim() || undefined,
       });
-      setCreatedCourtesyCode(created.code || '');
+      setCreatedCourtesyCode(created.code || "");
       setCourtesy(initialCourtesy);
       setCourtesyCatalog(await platformAdminApi.getCourtesyCodes());
+      setCourtesyFeedback({
+        kind: "success",
+        message:
+          "El acceso promocional quedó generado. Copia el código antes de cerrar.",
+      });
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'No se pudo generar el código de cortesía.');
+      const message =
+        saveError instanceof Error
+          ? saveError.message
+          : "No se pudo generar el acceso promocional.";
+      setError(message);
+      setCourtesyFeedback({ kind: "error", message });
     } finally {
       setSaving(false);
     }
@@ -290,20 +699,38 @@ export default function PlatformAdminPage() {
   const confirmRevocation = async () => {
     if (!revocation || saving || !revocationReason.trim()) return;
     setSaving(true);
-    setError('');
+    setError("");
     try {
-      if (revocation.kind === 'benefit') {
+      if (revocation.kind === "benefit") {
         if (!selected) return;
-        await platformAdminApi.revokeBenefit(selected.id, revocation.reference, revocationReason.trim());
+        await platformAdminApi.revokeBenefit(
+          selected.id,
+          revocation.reference,
+          revocationReason.trim(),
+        );
         await refreshOverviewAndCompany();
+        setAccountFeedback({
+          type: "success",
+          message: `${revocation.label || "El acceso"} se retiró y la cuenta quedó sincronizada.`,
+        });
       } else {
-        await platformAdminApi.revokeCourtesyCode(revocation.reference, revocationReason.trim());
+        await platformAdminApi.revokeCourtesyCode(
+          revocation.reference,
+          revocationReason.trim(),
+        );
         setCourtesyCatalog(await platformAdminApi.getCourtesyCodes());
       }
       setRevocation(null);
-      setRevocationReason('Fin de cortesía o promoción');
+      setRevocationReason("Fin de cortesía o promoción");
     } catch (revokeError) {
-      setError(revokeError instanceof Error ? revokeError.message : 'No se pudo completar la revocación.');
+      const message =
+        revokeError instanceof Error
+          ? revokeError.message
+          : "No se pudo completar la revocación.";
+      setError(message);
+      if (revocation.kind === "benefit")
+        setAccountFeedback({ type: "error", message });
+      setRevocation(null);
     } finally {
       setSaving(false);
     }
@@ -312,7 +739,7 @@ export default function PlatformAdminPage() {
   const confirmModuleAvailability = async () => {
     if (!moduleChange || saving || moduleChangeReason.trim().length < 3) return;
     setSaving(true);
-    setError('');
+    setError("");
     try {
       await platformAdminApi.updateModuleAvailability(
         moduleChange.module.id,
@@ -321,96 +748,342 @@ export default function PlatformAdminPage() {
       );
       setModuleRegistry(await platformAdminApi.getModules());
       setModuleChange(null);
-      setModuleChangeReason('Disponibilidad global administrada desde el panel root');
+      setModuleChangeReason(
+        "Disponibilidad global administrada desde el panel root",
+      );
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'No se pudo cambiar la disponibilidad global del módulo.');
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : "No se pudo cambiar la disponibilidad global del módulo.",
+      );
     } finally {
       setSaving(false);
     }
   };
 
   const environment = environmentLabel();
-  const totals = overview?.totals;
-
   return (
-    <main className="min-h-screen bg-[#f4f7fb] text-[#222831]">
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+    <main
+      className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-white"
+      data-module="platform-admin"
+    >
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-4 py-3 lg:px-6">
           <div className="flex min-w-0 items-center gap-4">
-            <IndiceBrandLogo alt="Índice" className="h-9 w-28 shrink-0" imageClassName="w-[130px]" />
+            <IndiceBrandLogo
+              alt="Índice"
+              className="h-9 w-28 shrink-0"
+              imageClassName="w-[130px]"
+            />
             <div className="hidden h-8 w-px bg-slate-200 sm:block" />
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="truncate text-base font-medium text-slate-900">Administración de plataforma</h1>
-                <span className={`hidden rounded-full px-2 py-1 text-[11px] font-medium sm:inline-flex ${environment.className}`}>{environment.label}</span>
+                <h1 className="truncate text-base font-medium text-slate-900 dark:text-white">
+                  {english
+                    ? "Platform administration"
+                    : "Administración de plataforma"}
+                </h1>
+                <span
+                  className={`hidden rounded-full px-2 py-1 text-[11px] font-medium sm:inline-flex ${environment.className}`}
+                >
+                  {environment.label}
+                </span>
               </div>
-              <p className="hidden text-xs text-slate-500 md:block">Clientes, catálogo, accesos y operación comercial</p>
+              <p className="hidden text-xs text-slate-500 dark:text-slate-400 md:block">
+                {english
+                  ? "Customers, catalog, access and commercial operations"
+                  : "Clientes, catálogo, accesos y operación comercial"}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={() => void loadAll()} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50" aria-label="Actualizar información">
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <button
+              type="button"
+              onClick={() => void loadAll()}
+              className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              aria-label={english ? "Refresh data" : "Actualizar información"}
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+              />
             </button>
-            <button type="button" onClick={() => navigate('/dashboard')} className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
-              <ArrowLeft className="h-4 w-4" /><span className="hidden sm:inline">Volver al ERP</span>
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard")}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">
+                {english ? "Back to ERP" : "Volver al ERP"}
+              </span>
             </button>
           </div>
         </div>
-        <nav className="mx-auto flex max-w-[1600px] gap-1 overflow-x-auto px-4 lg:px-6" aria-label="Secciones de administración">
+        <nav
+          className="mx-auto flex max-w-[1600px] gap-1.5 overflow-x-auto px-4 py-2 lg:px-6"
+          aria-label={
+            english ? "Administration sections" : "Secciones de administración"
+          }
+        >
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
             return (
-              <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={`inline-flex h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition ${active ? 'border-[#177D66] text-[#177D66]' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
-                <Icon className="h-4 w-4" />{tab.label}
+              <button
+                key={tab.id}
+                type="button"
+                aria-current={active ? "page" : undefined}
+                onClick={() => setActiveTab(tab.id)}
+                className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-full border px-3 text-sm font-medium transition ${active ? "border-transparent bg-[#2563EB] text-white shadow-md" : "border-transparent bg-slate-100 text-slate-600 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-300"}`}
+              >
+                <Icon className="h-4 w-4" />
+                {tab.label}
               </button>
             );
           })}
         </nav>
-        <div className="grid h-1 grid-cols-4" aria-hidden="true"><span className="bg-[#59C3A5]" /><span className="bg-[#F7C845]" /><span className="bg-[#FF6B63]" /><span className="bg-[#2563EB]" /></div>
+        <div className="grid h-1 grid-cols-4" aria-hidden="true">
+          <span className="bg-[#59C3A5]" />
+          <span className="bg-[#F7C845]" />
+          <span className="bg-[#FF6B63]" />
+          <span className="bg-[#2563EB]" />
+        </div>
       </header>
 
       <div className="mx-auto max-w-[1600px] space-y-5 px-4 py-5 lg:px-6 lg:py-6">
-        {error ? <div role="alert" className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0" /><span>{error}</span></div> : null}
+        {error ? (
+          <div
+            role="alert"
+            className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          >
+            <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        ) : null}
         {loading && !overview ? <LoadingState /> : null}
 
         {!loading || overview ? (
           <>
-            {activeTab === 'overview' ? (
-              <OverviewTab totals={totals} companies={companies} billing={billing} onOpenCompany={openCompany} onNavigate={setActiveTab} />
+            {activeTab === "customers" ? (
+              <CustomersTab
+                english={english}
+                totals={overview?.totals}
+                companies={companies}
+                pagedCompanies={pagedCompanies}
+                query={query}
+                userTypeFilter={userTypeFilter}
+                statusFilter={statusFilter}
+                sort={customerSort}
+                page={page}
+                pageSize={pageSize}
+                canCreate={Boolean(context?.can_manage_accounts)}
+                canEditTypes={Boolean(context?.can_manage_accounts)}
+                canAssignDistributors={Boolean(context?.can_manage_accounts)}
+                canExtendTrials={context?.role === "PLATFORM_ROOT"}
+                canManageCourtesy={Boolean(context?.can_manage_benefits)}
+                onCreate={() => setCreateAccountOpen(true)}
+                onOpenCourtesy={() => {
+                  setCourtesyFeedback(null);
+                  setCourtesyAccessOpen(true);
+                }}
+                onQuery={setQuery}
+                onUserType={setUserTypeFilter}
+                onStatus={setStatusFilter}
+                onSort={(key) =>
+                  setCustomerSort((current) =>
+                    current.key !== key
+                      ? { key, direction: "asc" }
+                      : {
+                          key,
+                          direction:
+                            current.direction === null
+                              ? "asc"
+                              : current.direction === "asc"
+                                ? "desc"
+                                : null,
+                        },
+                  )
+                }
+                onPage={setPage}
+                onPageSize={setPageSize}
+                onOpenCompany={openCompany}
+                onOpenUsers={openCompanyUsers}
+                onEditType={(company) => {
+                  setAccountTypeEditError("");
+                  setAccountTypeEdit(company);
+                }}
+                onAssignDistributor={(company) => {
+                  setDistributorAssignmentError("");
+                  setDistributorAssignment(company);
+                }}
+                onExtendTrial={(company) => {
+                  setTrialExtensionError("");
+                  setTrialExtension(company);
+                }}
+              />
             ) : null}
-            {activeTab === 'customers' ? (
-              <CustomersTab companies={companies} pagedCompanies={pagedCompanies} query={query} statusFilter={statusFilter} page={page} pageSize={pageSize} canCreate={Boolean(context?.can_manage_accounts)} onCreate={() => setCreateAccountOpen(true)} onQuery={setQuery} onStatus={setStatusFilter} onPage={setPage} onPageSize={setPageSize} onOpenCompany={openCompany} />
+            {activeTab === "billing" ? (
+              <BillingTab
+                english={english}
+                data={billing}
+                onOpenCompany={openCompany}
+              />
             ) : null}
-            {activeTab === 'billing' ? <BillingTab data={billing} onOpenCompany={openCompany} /> : null}
-            {activeTab === 'catalog' ? <CatalogTab data={catalog} /> : null}
-            {activeTab === 'modules' ? <ModulesTab data={moduleRegistry} canManage={Boolean(context?.can_manage_modules)} saving={saving} onChange={setModuleChange} /> : null}
-            {activeTab === 'consulting' ? <ConsultingAdminTab canManage={Boolean(context?.can_manage_consulting)} /> : null}
-            {activeTab === 'courtesy' ? (
-              <CourtesyTab context={context} catalog={courtesyCatalog} value={courtesy} createdCode={createdCourtesyCode} saving={saving} onChange={setCourtesy} onSubmit={submitCourtesyCode} onRevoke={(reference) => setRevocation({ kind: 'courtesy', reference })} />
+            {activeTab === "catalog" ? (
+              <CatalogAndModulesTab
+                english={english}
+                catalog={catalog}
+                modules={moduleRegistry}
+                canManage={Boolean(context?.can_manage_modules)}
+                saving={saving}
+                onCatalogChange={setCatalog}
+                onModuleChange={setModuleChange}
+              />
             ) : null}
-            {activeTab === 'audit' ? <AuditTab data={auditLog} /> : null}
+            {activeTab === "consulting" ? (
+              <ConsultingAdminTab
+                canManage={Boolean(context?.can_manage_consulting)}
+                companies={companies}
+              />
+            ) : null}
+            {activeTab === "audit" ? (
+              <AuditTab english={english} data={auditLog} />
+            ) : null}
           </>
         ) : null}
       </div>
 
-      {selected ? (
-        <CompanyAccountDrawer company={selected} context={context} catalogProducts={activeCatalogProducts} benefit={benefit} saving={saving} onClose={() => setSelected(null)} onBenefit={setBenefit} onSubmitBenefit={submitBenefit} onGrantProduct={(productCode) => void grantProductAccess(productCode)} onRevokeBenefit={(reference) => setRevocation({ kind: 'benefit', reference })} />
+      {selected && revocation?.kind !== "benefit" ? (
+        <CompanyAccountDrawer
+          company={selected}
+          context={context}
+          catalogProducts={activeCatalogProducts}
+          benefit={benefit}
+          saving={saving}
+          feedback={accountFeedback}
+          onClose={() => {
+            setSelected(null);
+            setAccountFeedback(null);
+          }}
+          onBenefit={setBenefit}
+          onSubmitBenefit={submitBenefit}
+          onGrantProduct={(productCode) => void grantProductAccess(productCode)}
+          onUpdateTrialProducts={updateTrialProducts}
+          onRefreshCompany={refreshOverviewAndCompany}
+          onRevokeBenefit={(reference, label, grantCount) =>
+            setRevocation({ kind: "benefit", reference, label, grantCount })
+          }
+          initialTab={selectedInitialTab}
+        />
+      ) : null}
+      {usersCompany ? (
+        <CustomerUsersModal
+          company={usersCompany}
+          canManage={Boolean(context?.can_manage_accounts)}
+          onClose={() => setUsersCompany(null)}
+          onRefresh={refreshUsersCompany}
+          onManageSeats={() => {
+            setSelectedInitialTab("access");
+            setSelected(usersCompany);
+            setUsersCompany(null);
+          }}
+        />
       ) : null}
       {createAccountOpen ? (
         <AccountCreationModal
           products={activeCatalogProducts}
+          existingOwnerEmails={(overview?.companies ?? []).flatMap((company) =>
+            company.owner_email ? [company.owner_email] : [],
+          )}
           onClose={() => setCreateAccountOpen(false)}
           onCreate={createCompanyAccount}
           onOpenAccount={(companyId) => {
             setCreateAccountOpen(false);
-            setActiveTab('customers');
+            setActiveTab("customers");
             void openCompany(companyId);
           }}
         />
       ) : null}
+      {accountTypeEdit ? (
+        <AccountTypeEditModal
+          company={accountTypeEdit}
+          english={english}
+          saving={saving}
+          error={accountTypeEditError}
+          onClose={() => {
+            setAccountTypeEdit(null);
+            setAccountTypeEditError("");
+          }}
+          onSave={updateCompanyAccountType}
+        />
+      ) : null}
+      {distributorAssignment ? (
+        <DistributorAssignmentModal
+          company={distributorAssignment}
+          distributors={distributorAccounts}
+          english={english}
+          saving={saving}
+          error={distributorAssignmentError}
+          onClose={() => {
+            setDistributorAssignment(null);
+            setDistributorAssignmentError("");
+          }}
+          onSave={updateCompanyDistributor}
+        />
+      ) : null}
+      {trialExtension ? (
+        <TrialExtensionModal
+          company={trialExtension}
+          english={english}
+          saving={saving}
+          error={trialExtensionError}
+          onClose={() => {
+            setTrialExtension(null);
+            setTrialExtensionError("");
+          }}
+          onConfirm={extendCompanyTrial}
+        />
+      ) : null}
+      {courtesyAccessOpen ? (
+        <IndiceModalFrame
+          open
+          onOpenChange={(open) => !open && setCourtesyAccessOpen(false)}
+          modalType="operational-workspace"
+          tone="blue"
+          icon={<Gift className="h-5 w-5" />}
+          eyebrow={english ? "Customers" : "Clientes"}
+          title={english ? "Promotional access" : "Acceso promocional"}
+          description={
+            english
+              ? "Create and manage auditable access codes without leaving the customer workflow."
+              : "Genera y administra códigos auditables sin salir del flujo de clientes."
+          }
+        >
+          <CourtesyTab
+            context={context}
+            catalog={courtesyCatalog}
+            value={courtesy}
+            createdCode={createdCourtesyCode}
+            feedback={courtesyFeedback}
+            saving={saving}
+            onChange={setCourtesy}
+            onSubmit={submitCourtesyCode}
+            onRevoke={(reference) =>
+              setRevocation({ kind: "courtesy", reference })
+            }
+          />
+        </IndiceModalFrame>
+      ) : null}
       {revocation ? (
-        <ConfirmModal reason={revocationReason} saving={saving} onReason={setRevocationReason} onCancel={() => setRevocation(null)} onConfirm={() => void confirmRevocation()} />
+        <ConfirmModal
+          revocation={revocation}
+          reason={revocationReason}
+          saving={saving}
+          onReason={setRevocationReason}
+          onCancel={() => setRevocation(null)}
+          onConfirm={() => void confirmRevocation()}
+        />
       ) : null}
       {moduleChange ? (
         <ModuleAvailabilityModal
@@ -426,222 +1099,3651 @@ export default function PlatformAdminPage() {
   );
 }
 
-function OverviewTab({ totals, companies, billing, onOpenCompany, onNavigate }: {
-  totals?: PlatformOverview['totals'];
-  companies: PlatformCompanySummary[];
-  billing: PlatformBilling | null;
-  onOpenCompany: (company: PlatformCompanySummary | number) => void;
-  onNavigate: (tab: AdminTab) => void;
-}) {
-  const attention = totals?.attention_required ?? 0;
-  const trials = totals?.trials_ending_soon ?? 0;
-  return (
-    <div className="space-y-5">
-      <PageIntro eyebrow="Operación central" title="Pulso comercial de Índice" description="Una vista para seguir clientes, ingresos, vencimientos y accesos sin entrar a cada cuenta." />
-      {attention > 0 || trials > 0 ? (
-        <section className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3 text-sm text-amber-900"><CircleAlert className="h-5 w-5" /><span>{attention > 0 ? `${attention} cuenta(s) requieren atención de pago.` : ''} {trials > 0 ? `${trials} prueba(s) terminan en los próximos 7 días.` : ''}</span></div>
-          <button type="button" onClick={() => onNavigate('customers')} className="text-left text-sm font-medium text-amber-900 underline-offset-4 hover:underline">Revisar clientes</button>
-        </section>
-      ) : null}
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <Metric icon={CircleDollarSign} label="Ingreso mensual estimado" value={formatMoney(totals?.monthly_recurring_cents, totals?.currency)} accent="mint" />
-        <Metric icon={CreditCard} label="Cobrado últimos 30 días" value={formatMoney(totals?.paid_last_30_days_cents, totals?.currency)} accent="blue" />
-        <Metric icon={BadgeCheck} label="Suscripciones activas" value={String(totals?.active_subscriptions ?? 0)} accent="mint" />
-        <Metric icon={Sparkles} label="Pruebas activas" value={String(totals?.trialing_subscriptions ?? 0)} accent="gold" />
-        <Metric icon={Building2} label="Cuentas registradas" value={String(totals?.companies ?? 0)} accent="coral" />
-      </section>
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.75fr)]">
-        <Panel title="Clientes y suscripciones" description="Tarifa, módulos, usuarios y estado comercial actual." action={<button type="button" onClick={() => onNavigate('customers')} className="text-sm font-medium text-[#177D66]">Ver todos</button>}>
-          <CustomersTable companies={companies.slice(0, 8)} onOpenCompany={onOpenCompany} compact />
-        </Panel>
-        <Panel title="Facturación reciente" description="Últimos movimientos sincronizados con Stripe." action={<button type="button" onClick={() => onNavigate('billing')} className="text-sm font-medium text-[#177D66]">Ver facturación</button>}>
-          <div className="divide-y divide-slate-100">
-            {(billing?.invoices ?? []).slice(0, 6).map((invoice) => (
-              <button key={invoice.invoice_id} type="button" onClick={() => invoice.company_id && onOpenCompany(invoice.company_id)} className="flex w-full items-center justify-between gap-3 px-5 py-3 text-left transition hover:bg-slate-50">
-                <div className="min-w-0"><p className="truncate text-sm font-medium text-slate-800">{invoice.company_name || 'Cuenta sin asociar'}</p><p className="mt-0.5 text-xs text-slate-500">{formatDate(invoice.updated_at)} · {statusLabel(invoice.status)}</p></div>
-                <p className="shrink-0 text-sm font-medium text-slate-900">{formatMoney(invoice.amount_paid_cents || invoice.amount_due_cents, invoice.currency)}</p>
-              </button>
-            ))}
-            {!billing?.invoices.length ? <EmptyRow icon={CreditCard} text="Aún no hay facturas sincronizadas." /> : null}
-          </div>
-        </Panel>
-      </section>
-    </div>
-  );
-}
-
-function CustomersTab({ companies, pagedCompanies, query, statusFilter, page, pageSize, canCreate, onCreate, onQuery, onStatus, onPage, onPageSize, onOpenCompany }: {
+function CustomersTab({
+  english,
+  totals,
+  companies,
+  pagedCompanies,
+  query,
+  userTypeFilter,
+  statusFilter,
+  sort,
+  page,
+  pageSize,
+  canCreate,
+  canEditTypes,
+  canAssignDistributors,
+  canExtendTrials,
+  canManageCourtesy,
+  onCreate,
+  onOpenCourtesy,
+  onQuery,
+  onUserType,
+  onStatus,
+  onSort,
+  onPage,
+  onPageSize,
+  onOpenCompany,
+  onOpenUsers,
+  onEditType,
+  onAssignDistributor,
+  onExtendTrial,
+}: {
+  english: boolean;
+  totals: PlatformOverview["totals"] | undefined;
   companies: PlatformCompanySummary[];
   pagedCompanies: PlatformCompanySummary[];
   query: string;
+  userTypeFilter: string;
   statusFilter: string;
+  sort: { key: CustomerSortKey; direction: SortDirection };
   page: number;
   pageSize: number;
   canCreate: boolean;
+  canEditTypes: boolean;
+  canAssignDistributors: boolean;
+  canExtendTrials: boolean;
+  canManageCourtesy: boolean;
   onCreate: () => void;
+  onOpenCourtesy: () => void;
   onQuery: (value: string) => void;
+  onUserType: (value: string) => void;
   onStatus: (value: string) => void;
+  onSort: (key: CustomerSortKey) => void;
   onPage: (page: number) => void;
   onPageSize: (size: number) => void;
   onOpenCompany: (company: PlatformCompanySummary | number) => void;
+  onOpenUsers: (company: PlatformCompanySummary) => void;
+  onEditType: (company: PlatformCompanySummary) => void;
+  onAssignDistributor: (company: PlatformCompanySummary) => void;
+  onExtendTrial: (company: PlatformCompanySummary) => void;
 }) {
   const pages = Math.max(1, Math.ceil(companies.length / pageSize));
   return (
     <div className="space-y-5">
-      <PageIntro
-        eyebrow="Clientes"
-        title="Cuentas, contratos y acceso"
-        description="Crea empresas, entrega accesos de demostración y administra planes y módulos desde un solo lugar."
-        icon={Building2}
-        action={canCreate ? <button type="button" onClick={onCreate} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1d4ed8]"><Plus className="h-4 w-4" /> Agregar cuenta</button> : null}
+      <IndiceTitleBar
+        tone="blue"
+        icon={<Building2 className="h-5 w-5" />}
+        eyebrow={english ? "Customers" : "Clientes"}
+        title={
+          english
+            ? "Accounts, contracts and access"
+            : "Cuentas, contratos y acceso"
+        }
+        subtitle={
+          english
+            ? "Create companies, provide demo access, and manage plans and modules in one place."
+            : "Crea empresas, entrega accesos de demostración y administra planes y módulos desde un solo lugar."
+        }
+        actions={
+          canCreate || canManageCourtesy ? (
+            <div className="flex flex-wrap justify-end gap-2">
+              {canManageCourtesy ? (
+                <button
+                  type="button"
+                  onClick={onOpenCourtesy}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-semibold text-[#143675]"
+                >
+                  <Gift className="h-4 w-4" />
+                  {english ? "Promotional access" : "Acceso promocional"}
+                </button>
+              ) : null}
+              {canCreate ? (
+                <button
+                  type="button"
+                  onClick={onCreate}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 text-sm font-semibold text-white"
+                >
+                  <Plus className="h-4 w-4" />
+                  {english ? "Add account" : "Agregar cuenta"}
+                </button>
+              ) : null}
+            </div>
+          ) : undefined
+        }
       />
-      <Panel title="Directorio comercial" description={`${companies.length} cuenta(s) coinciden con los filtros.`}>
-        <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-center lg:justify-between">
-          <label className="relative w-full max-w-xl"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => onQuery(event.target.value)} className={`${controlClass} pl-10`} placeholder="Buscar empresa, correo o ID" /></label>
-          <div className="flex gap-2">
-            <select value={statusFilter} onChange={(event) => onStatus(event.target.value)} className={`${controlClass} min-w-40`} aria-label="Filtrar por estado"><option value="all">Todos los estados</option><option value="trialing">En prueba</option><option value="active">Activa</option><option value="past_due">Pago pendiente</option><option value="canceled">Cancelada</option><option value="legacy">Legacy</option></select>
-            <select value={pageSize} onChange={(event) => onPageSize(Number(event.target.value))} className={`${controlClass} w-24`} aria-label="Filas por página">{[10, 25, 50, 100, 200].map((size) => <option key={size} value={size}>{size}</option>)}</select>
+      <section
+        className="grid gap-3 md:grid-cols-3"
+        aria-label={english ? "Customer KPIs" : "KPIs de clientes"}
+      >
+        <Metric
+          icon={CircleDollarSign}
+          label={english ? "Monthly billing" : "Facturación mensual"}
+          value={formatMoney(
+            totals?.projected_monthly_billing_cents,
+            totals?.currency,
+            english,
+          )}
+          caption={english ? "Active + scheduled" : "Activa + programada"}
+          accent="gold"
+        />
+        <Metric
+          icon={Building2}
+          label={english ? "Active customers" : "Clientes activos"}
+          value={String(totals?.active_customer_companies ?? 0)}
+          caption={
+            english
+              ? "Customer accounts only"
+              : "Sólo cuentas de clientes"
+          }
+          accent="blue"
+        />
+        <Metric
+          icon={Users}
+          label={english ? "Total active users" : "Usuarios activos totales"}
+          value={String(totals?.customer_active_users ?? 0)}
+          caption={
+            english
+              ? "Across customer companies"
+              : "En todas las empresas cliente"
+          }
+          accent="mint"
+        />
+      </section>
+      <IndiceFilterBar
+        title={english ? "Commercial directory" : "Directorio comercial"}
+        subtitle={
+          english
+            ? "Find an account by company, owner email or ID."
+            : "Encuentra una cuenta por empresa, correo del propietario o ID."
+        }
+        summary={
+          english
+            ? `${companies.length} matching accounts`
+            : `${companies.length} cuentas coinciden`
+        }
+        gridClassName="lg:grid-cols-[minmax(0,1fr)_220px_260px]"
+      >
+        <IndiceFilterSearch
+          label={english ? "Search" : "Buscar"}
+          placeholder={
+            english ? "Company, email or ID" : "Empresa, correo o ID"
+          }
+          tone="blue"
+          value={query}
+          onValueChange={onQuery}
+          onClear={() => onQuery("")}
+        />
+        <IndiceFilterSelect
+          label={english ? "User type" : "Tipo de usuario"}
+          tone="blue"
+          value={userTypeFilter}
+          onValueChange={onUserType}
+          options={[
+            { value: "all", label: english ? "All types" : "Todos los tipos" },
+            { value: "ROOT", label: "Root" },
+            { value: "SUPER_ADMIN", label: "Super Admin" },
+            {
+              value: "DISTRIBUTOR",
+              label: english ? "Distributor" : "Distribuidor",
+            },
+          ]}
+        />
+        <IndiceFilterSelect
+          label={english ? "Commercial status" : "Estado comercial"}
+          tone="blue"
+          value={statusFilter}
+          onValueChange={onStatus}
+          options={[
+            {
+              value: "all",
+              label: english ? "All statuses" : "Todos los estados",
+            },
+            { value: "active", label: english ? "Active" : "Activa" },
+            { value: "trial", label: english ? "Trial" : "Prueba" },
+            { value: "demo", label: "Demo" },
+            {
+              value: "inactive",
+              label: english ? "Inactive" : "Inactiva",
+            },
+          ]}
+        />
+      </IndiceFilterBar>
+      <Panel title={english ? "Customer accounts" : "Cuentas de clientes"}>
+        <CustomersTable
+          english={english}
+          companies={pagedCompanies}
+          sort={sort}
+          onSort={onSort}
+          onOpenCompany={onOpenCompany}
+          onOpenUsers={onOpenUsers}
+          canEditTypes={canEditTypes}
+          canAssignDistributors={canAssignDistributors}
+          canExtendTrials={canExtendTrials}
+          onEditType={onEditType}
+          onAssignDistributor={onAssignDistributor}
+          onExtendTrial={onExtendTrial}
+        />
+        <DataTablePagination
+          currentPage={page}
+          totalPages={pages}
+          pageSize={pageSize}
+          pageSizeOptions={[10, 25, 50, 100, 200]}
+          totalCount={companies.length}
+          pageStart={(page - 1) * pageSize + 1}
+          pageEnd={Math.min(page * pageSize, companies.length)}
+          itemLabel={english ? "accounts" : "cuentas"}
+          onPageChange={onPage}
+          onPageSizeChange={onPageSize}
+        />
+      </Panel>
+    </div>
+  );
+}
+
+function BillingTab({
+  english,
+  data,
+  onOpenCompany,
+}: {
+  english: boolean;
+  data: PlatformBilling | null;
+  onOpenCompany: (company: number) => void;
+}) {
+  const [sort, setSort] = useState<{
+    key: BillingSortKey;
+    direction: SortDirection;
+  }>({ key: "period", direction: "desc" });
+  const totals = data?.totals;
+  const invoices = useMemo(() => {
+    const rows = data?.invoices ?? [];
+    if (!sort.direction) return rows;
+    const direction = sort.direction === "asc" ? 1 : -1;
+    return [...rows].sort(
+      (left, right) => compareInvoiceValues(left, right, sort.key) * direction,
+    );
+  }, [data?.invoices, sort]);
+  const changeSort = (key: BillingSortKey) =>
+    setSort((current) =>
+      current.key !== key
+        ? { key, direction: "asc" }
+        : {
+            key,
+            direction:
+              current.direction === null
+                ? "asc"
+                : current.direction === "asc"
+                  ? "desc"
+                  : null,
+          },
+    );
+  return (
+    <div className="space-y-5">
+      <IndiceTitleBar
+        tone="blue"
+        icon={<CreditCard className="h-5 w-5" />}
+        eyebrow={english ? "Billing" : "Facturación"}
+        title={english ? "Payments and documents" : "Cobros y documentos"}
+        subtitle={
+          english
+            ? "Stripe remains the payment authority; this view shows synchronized operational status."
+            : "Stripe conserva la autoridad de pago; aquí consultas el estado operativo sincronizado."
+        }
+      />
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric
+          icon={CircleDollarSign}
+          label={english ? "Total collected" : "Total cobrado"}
+          value={formatMoney(totals?.paid_cents, totals?.currency, english)}
+          accent="mint"
+        />
+        <Metric
+          icon={FileClock}
+          label={english ? "Open balance" : "Saldo abierto"}
+          value={formatMoney(totals?.open_cents, totals?.currency, english)}
+          accent="gold"
+        />
+        <Metric
+          icon={CircleAlert}
+          label={
+            english
+              ? "Documents requiring attention"
+              : "Documentos con atención"
+          }
+          value={String(totals?.failed ?? 0)}
+          accent="coral"
+        />
+        <Metric
+          icon={CreditCard}
+          label={english ? "Synchronized invoices" : "Facturas sincronizadas"}
+          value={String(totals?.invoices ?? 0)}
+          accent="blue"
+        />
+      </section>
+      <Panel
+        title={english ? "Billing history" : "Historial de facturación"}
+        description={
+          english
+            ? "Collected and pending amounts with official Stripe links."
+            : "Importes cobrados, pendientes y enlaces oficiales de Stripe."
+        }
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[980px]">
+            <thead className="bg-slate-50 dark:bg-slate-900">
+              <tr>
+                {(
+                  [
+                    ["customer", english ? "Customer" : "Cliente"],
+                    ["invoice", english ? "Invoice" : "Factura"],
+                    ["status", english ? "Status" : "Estado"],
+                    ["amount", english ? "Amount" : "Importe"],
+                    ["paid", english ? "Paid" : "Pagado"],
+                    ["period", english ? "Period" : "Periodo"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <SortableBillingHeader
+                    key={key}
+                    column={key}
+                    label={label}
+                    sort={sort}
+                    onSort={changeSort}
+                  />
+                ))}
+                <th className={`${tableHeadClass} text-right`}>
+                  {english ? "Documents" : "Documentos"}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {invoices.map((invoice) => (
+                <InvoiceRow
+                  key={invoice.invoice_id}
+                  invoice={invoice}
+                  onOpenCompany={onOpenCompany}
+                />
+              ))}
+              {!invoices.length ? (
+                <tr>
+                  <td colSpan={7}>
+                    <EmptyRow
+                      icon={CreditCard}
+                      text={
+                        english
+                          ? "No invoices have been synchronized in this environment yet."
+                          : "Aún no hay facturas sincronizadas en este entorno."
+                      }
+                    />
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+function InvoiceRow({
+  invoice,
+  onOpenCompany,
+}: {
+  invoice: PlatformInvoice;
+  onOpenCompany: (company: number) => void;
+}) {
+  return (
+    <tr className="hover:bg-slate-50/80">
+      <td className={tableCellClass}>
+        {invoice.company_id ? (
+          <button
+            type="button"
+            onClick={() => onOpenCompany(invoice.company_id!)}
+            className="text-left"
+          >
+            <p className="font-medium text-slate-900">
+              {invoice.company_name || `Company #${invoice.company_id}`}
+            </p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {invoice.owner_email || "Sin correo propietario"}
+            </p>
+          </button>
+        ) : (
+          "Sin asociar"
+        )}
+      </td>
+      <td className={tableCellClass}>
+        <span className="font-mono text-xs text-slate-600">
+          {shortId(invoice.invoice_id)}
+        </span>
+      </td>
+      <td className={tableCellClass}>
+        <StatusBadge status={invoice.status || "unknown"} />
+      </td>
+      <td className={tableCellClass}>
+        {formatMoney(invoice.amount_due_cents, invoice.currency)}
+      </td>
+      <td className={tableCellClass}>
+        {formatMoney(invoice.amount_paid_cents, invoice.currency)}
+      </td>
+      <td className={tableCellClass}>
+        <p>{formatDate(invoice.period_starts_at)}</p>
+        <p className="text-xs text-slate-500">
+          a {formatDate(invoice.period_ends_at)}
+        </p>
+      </td>
+      <td className={`${tableCellClass} text-right`}>
+        <div className="inline-flex gap-2">
+          {invoice.hosted_invoice_url ? (
+            <a
+              href={invoice.hosted_invoice_url}
+              target="_blank"
+              rel="noreferrer"
+              className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200"
+              aria-label="Abrir factura"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </a>
+          ) : null}
+          {invoice.invoice_pdf_url ? (
+            <a
+              href={invoice.invoice_pdf_url}
+              target="_blank"
+              rel="noreferrer"
+              className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200"
+              aria-label="Descargar PDF"
+            >
+              <Download className="h-4 w-4" />
+            </a>
+          ) : null}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function SortableBillingHeader({
+  column,
+  label,
+  sort,
+  onSort,
+}: {
+  column: BillingSortKey;
+  label: string;
+  sort: { key: BillingSortKey; direction: SortDirection };
+  onSort: (key: BillingSortKey) => void;
+}) {
+  const activeDirection = sort.key === column ? sort.direction : null;
+  const Icon =
+    activeDirection === "asc"
+      ? ArrowUp
+      : activeDirection === "desc"
+        ? ArrowDown
+        : ArrowUpDown;
+  return (
+    <th
+      className={tableHeadClass}
+      aria-sort={
+        activeDirection === "asc"
+          ? "ascending"
+          : activeDirection === "desc"
+            ? "descending"
+            : "none"
+      }
+    >
+      <button
+        type="button"
+        onClick={() => onSort(column)}
+        className={`group inline-flex items-center gap-1.5 rounded-md py-1 text-left transition hover:text-[#2563EB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/25 ${activeDirection ? "font-semibold text-[#2563EB]" : ""}`}
+        title={`${label} · ${activeDirection ?? "sort"}`}
+      >
+        <span>{label}</span>
+        <Icon
+          className={`h-3.5 w-3.5 ${activeDirection ? "opacity-100" : "opacity-45 group-hover:opacity-100"}`}
+          aria-hidden="true"
+        />
+      </button>
+    </th>
+  );
+}
+
+function compareInvoiceValues(
+  left: PlatformInvoice,
+  right: PlatformInvoice,
+  key: BillingSortKey,
+) {
+  const text = (a: string | null | undefined, b: string | null | undefined) =>
+    (a || "").localeCompare(b || "", undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+  const number = (a: number | null | undefined, b: number | null | undefined) =>
+    (a ?? 0) - (b ?? 0);
+  const date = (value: string | null | undefined) =>
+    value ? new Date(value).getTime() || 0 : 0;
+  switch (key) {
+    case "customer":
+      return text(
+        left.company_name || left.owner_email,
+        right.company_name || right.owner_email,
+      );
+    case "invoice":
+      return text(left.invoice_id, right.invoice_id);
+    case "status":
+      return text(left.status, right.status);
+    case "amount":
+      return number(left.amount_due_cents, right.amount_due_cents);
+    case "paid":
+      return number(left.amount_paid_cents, right.amount_paid_cents);
+    case "period":
+      return number(
+        date(left.period_ends_at || left.updated_at),
+        date(right.period_ends_at || right.updated_at),
+      );
+  }
+}
+
+type CatalogView = "products" | "prices";
+type CatalogWorkspaceView = "modules" | "products" | "prices";
+const operationalLocaleLabels: Record<string, string> = {
+  "en-CA": "English (Canada)",
+  "en-US": "English (United States)",
+  "es-MX": "Español (México)",
+  "es-CO": "Español (Colombia)",
+  "fr-CA": "Français (Canada)",
+  "pt-BR": "Português (Brasil)",
+  "ko-CA": "한국어",
+  "zh-CA": "中文",
+};
+type CatalogEditTarget =
+  | { kind: "product"; value: PlatformCatalogProduct }
+  | { kind: "price"; value: PlatformCatalogPrice };
+
+function CatalogAndModulesTab({
+  english,
+  catalog,
+  modules,
+  canManage,
+  saving,
+  onCatalogChange,
+  onModuleChange,
+}: {
+  english: boolean;
+  catalog: PlatformCatalog | null;
+  modules: PlatformModules | null;
+  canManage: boolean;
+  saving: boolean;
+  onCatalogChange: (data: PlatformCatalog) => void;
+  onModuleChange: (change: ModuleAvailabilityChange) => void;
+}) {
+  const [view, setView] = useState<CatalogWorkspaceView>("modules");
+  const [syncing, setSyncing] = useState(false);
+  const [catalogWorkflowBusy, setCatalogWorkflowBusy] = useState(false);
+  const [catalogValidation, setCatalogValidation] =
+    useState<PlatformCatalogValidation | null>(null);
+  const [syncFeedback, setSyncFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+  const draftVersion = catalog?.versions.find(
+    (version) => version.status === "DRAFT",
+  );
+  const activeVersion = catalog?.versions.find(
+    (version) => version.status === "ACTIVE",
+  );
+  const workingVersion =
+    draftVersion || activeVersion ||
+    catalog?.versions[0];
+  const versionProducts = (catalog?.products ?? []).filter(
+    (product) =>
+      !workingVersion || product.catalog_version_id === workingVersion.id,
+  );
+  const versionPrices = (catalog?.prices ?? []).filter(
+    (price) => !workingVersion || price.catalog_version_id === workingVersion.id,
+  );
+  const activeModules = (modules?.modules ?? []).filter((module) => module.is_active).length;
+  const configuredPrices = versionPrices.filter(
+    (price) => price.unit_amount_cents != null && price.unit_amount_cents >= 0,
+  ).length;
+  const productsWithoutRates = versionProducts.filter(
+    (product) =>
+      product.active &&
+      !versionPrices.some(
+        (price) =>
+          price.catalog_product_id === product.id ||
+          price.billable_code === product.product_code ||
+          product.capabilities.includes(price.billable_code),
+      ),
+  ).length;
+  const pricesPendingStripe = versionPrices.filter(
+    (price) =>
+      price.unit_amount_cents != null &&
+      price.unit_amount_cents >= 0 &&
+      !price.external_price_id,
+  ).length;
+
+  const synchronizeComplementaries = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    setSyncFeedback(null);
+    try {
+      const result = await platformAdminApi.synchronizeComplementaryProducts();
+      onCatalogChange(await platformAdminApi.getCatalog());
+      setCatalogValidation(null);
+      setSyncFeedback({
+        type: "success",
+        message: english
+          ? `${result.products_created} products and ${result.prices_created} prices were added to the commercial catalog.`
+          : `${result.products_created} producto(s) y ${result.prices_created} precio(s) se incorporaron al catálogo comercial.`,
+      });
+    } catch (syncError) {
+      setSyncFeedback({
+        type: "error",
+        message:
+          syncError instanceof Error
+            ? syncError.message
+            : english
+              ? "The commercial catalog could not be updated."
+              : "No se pudo actualizar el catálogo comercial.",
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const prepareCatalogDraft = async () => {
+    if (catalogWorkflowBusy) return;
+    setCatalogWorkflowBusy(true);
+    setSyncFeedback(null);
+    try {
+      const draft = await platformAdminApi.createCatalogDraft();
+      onCatalogChange(await platformAdminApi.getCatalog());
+      setCatalogValidation(null);
+      setSyncFeedback({
+        type: "success",
+        message: english
+          ? `${draft.version_code} is ready for controlled changes.`
+          : `${draft.version_code} está lista para cambios controlados.`,
+      });
+    } catch (workflowError) {
+      setSyncFeedback({
+        type: "error",
+        message:
+          workflowError instanceof Error
+            ? workflowError.message
+            : english
+              ? "The working version could not be prepared."
+              : "No se pudo preparar la versión de trabajo.",
+      });
+    } finally {
+      setCatalogWorkflowBusy(false);
+    }
+  };
+
+  const validateCatalogDraft = async () => {
+    if (!draftVersion || catalogWorkflowBusy) return;
+    setCatalogWorkflowBusy(true);
+    setSyncFeedback(null);
+    try {
+      const validation =
+        await platformAdminApi.validateCatalogDraft(draftVersion.id);
+      setCatalogValidation(validation);
+      setSyncFeedback({
+        type: validation.ready ? "success" : "error",
+        message: validation.ready
+          ? english
+            ? "The offer is complete and ready to publish in Stripe test mode."
+            : "La oferta está completa y lista para publicarse en modo de prueba de Stripe."
+          : english
+            ? `${validation.blockers.length} item(s) must be completed before publishing.`
+            : `Falta completar ${validation.blockers.length} pendiente(s) antes de publicar.`,
+      });
+    } catch (workflowError) {
+      setSyncFeedback({
+        type: "error",
+        message:
+          workflowError instanceof Error
+            ? workflowError.message
+            : english
+              ? "The offer could not be validated."
+              : "No se pudo validar la oferta.",
+      });
+    } finally {
+      setCatalogWorkflowBusy(false);
+    }
+  };
+
+  const publishCatalogDraft = async () => {
+    if (!draftVersion || !catalogValidation?.ready || catalogWorkflowBusy) return;
+    setCatalogWorkflowBusy(true);
+    setSyncFeedback(null);
+    try {
+      const published = await platformAdminApi.publishCatalogDraft(
+        draftVersion.id,
+      );
+      onCatalogChange(await platformAdminApi.getCatalog());
+      setCatalogValidation(null);
+      setSyncFeedback({
+        type: "success",
+        message: english
+          ? `${published.version_code} is now the active offer. Existing customers keep their agreed version.`
+          : `${published.version_code} ya es la oferta activa. Los clientes existentes conservan la versión acordada.`,
+      });
+    } catch (workflowError) {
+      setSyncFeedback({
+        type: "error",
+        message:
+          workflowError instanceof Error
+            ? workflowError.message
+            : english
+              ? "The offer could not be published."
+              : "No se pudo publicar la oferta.",
+      });
+    } finally {
+      setCatalogWorkflowBusy(false);
+    }
+  };
+
+  const workspaceTabs = [
+    {
+      id: "modules" as const,
+      label: english ? "Availability" : "Disponibilidad",
+      description: english ? "What can be offered" : "Qué se puede ofrecer",
+      icon: Boxes,
+    },
+    {
+      id: "products" as const,
+      label: english ? "Products and packages" : "Productos y paquetes",
+      description: english ? "What the customer selects" : "Lo que el cliente elige",
+      icon: PackageCheck,
+    },
+    {
+      id: "prices" as const,
+      label: english ? "Prices and billing" : "Precios y cobro",
+      description: english ? "What will be charged" : "Lo que se va a cobrar",
+      icon: CircleDollarSign,
+    },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <IndiceTitleBar
+        tone="blue"
+        icon={<Boxes className="h-5 w-5" />}
+        eyebrow={english ? "Commercial setup" : "Configuración comercial"}
+        title={english ? "Catalog and modules" : "Catálogo y módulos"}
+        subtitle={
+          english
+            ? "Decide what Indice offers, group it into products and define the amount customers will pay."
+            : "Decide qué ofrece Índice, agrúpalo en productos y define el importe que pagarán los clientes."
+        }
+        actions={
+          <button
+            type="button"
+            disabled={syncing}
+            onClick={() => void synchronizeComplementaries()}
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-white px-3 text-xs font-semibold text-[#143675] shadow-sm hover:bg-blue-50 disabled:opacity-60"
+          >
+            <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+            {english ? "Update commercial catalog" : "Actualizar catálogo comercial"}
+          </button>
+        }
+      />
+
+      {syncFeedback ? (
+        <div className={`rounded-xl border px-4 py-3 text-sm font-medium ${syncFeedback.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
+          {syncFeedback.message}
+        </div>
+      ) : null}
+
+      <nav
+        role="tablist"
+        aria-label={english ? "Catalog workflow" : "Flujo de catálogo"}
+        className="grid gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm md:grid-cols-3"
+      >
+        {workspaceTabs.map((item, index) => {
+          const Icon = item.icon;
+          const active = view === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setView(item.id)}
+              className={`flex min-h-16 items-center gap-3 rounded-xl px-4 text-left transition ${active ? "bg-[#2563EB] text-white shadow-sm" : "bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-blue-800"}`}
+            >
+              <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-semibold ${active ? "bg-white/15 text-white" : "bg-white text-blue-600 shadow-sm"}`}>
+                {index + 1}
+              </span>
+              <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold">{item.label}</span>
+                <span className={`block truncate text-xs ${active ? "text-blue-100" : "text-slate-500"}`}>{item.description}</span>
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+
+      <section className="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
+        <div className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${draftVersion ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>
+              {draftVersion ? (
+                <FileClock className="h-5 w-5" />
+              ) : (
+                <BadgeCheck className="h-5 w-5" />
+              )}
+            </span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-sm font-semibold text-slate-950">
+                  {draftVersion
+                    ? english
+                      ? "Offer being prepared"
+                      : "Oferta en preparación"
+                    : english
+                      ? "Published offer"
+                      : "Oferta publicada"}
+                </h2>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${draftVersion ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-700"}`}>
+                  {draftVersion ? (english ? "Draft" : "Borrador") : english ? "Active" : "Activa"}
+                </span>
+                <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                  Stripe test
+                </span>
+              </div>
+              <p className="mt-1 truncate text-xs text-slate-500">
+                {workingVersion?.version_code || (english ? "No version" : "Sin versión")}
+                {draftVersion
+                  ? english
+                    ? " · Changes are not visible to customers until publication."
+                    : " · Los cambios no son visibles para clientes hasta publicar."
+                  : english
+                    ? " · Customers and Billing use this version."
+                    : " · Clientes y Facturación utilizan esta versión."}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {!draftVersion ? (
+              <button
+                type="button"
+                disabled={!canManage || catalogWorkflowBusy}
+                onClick={() => void prepareCatalogDraft()}
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#2563EB] px-4 text-xs font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-50"
+              >
+                <Plus className="h-4 w-4" />
+                {english ? "Prepare changes" : "Preparar cambios"}
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  disabled={!canManage || catalogWorkflowBusy}
+                  onClick={() => void validateCatalogDraft()}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-xs font-semibold text-[#143675] hover:bg-blue-50 disabled:opacity-50"
+                >
+                  <ShieldCheck className="h-4 w-4" />
+                  {english ? "Validate offer" : "Validar oferta"}
+                </button>
+                <button
+                  type="button"
+                  disabled={!canManage || catalogWorkflowBusy || !catalogValidation?.ready}
+                  onClick={() => void publishCatalogDraft()}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#177D66] px-4 text-xs font-semibold text-white hover:bg-[#126653] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+                >
+                  <BadgeCheck className="h-4 w-4" />
+                  {english ? "Publish offer" : "Publicar oferta"}
+                </button>
+              </>
+            )}
           </div>
         </div>
-        <CustomersTable companies={pagedCompanies} onOpenCompany={onOpenCompany} />
-        <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-sm text-slate-500">
-          <span>Página {page} de {pages}</span><div className="flex gap-2"><button type="button" disabled={page <= 1} onClick={() => onPage(page - 1)} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 disabled:opacity-40" aria-label="Página anterior"><ChevronLeft className="h-4 w-4" /></button><button type="button" disabled={page >= pages} onClick={() => onPage(page + 1)} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 disabled:opacity-40" aria-label="Página siguiente"><ChevronRight className="h-4 w-4" /></button></div>
-        </div>
-      </Panel>
-    </div>
-  );
-}
-
-function CustomersTable({ companies, onOpenCompany, compact = false }: { companies: PlatformCompanySummary[]; onOpenCompany: (company: PlatformCompanySummary | number) => void; compact?: boolean }) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[1050px] border-collapse">
-        <thead className="bg-slate-50"><tr><th className={tableHeadClass}>Cliente</th><th className={tableHeadClass}>Estado</th><th className={tableHeadClass}>Plan y módulos</th><th className={tableHeadClass}>Tarifa</th><th className={tableHeadClass}>Usuarios</th><th className={tableHeadClass}>Próximo evento</th><th className={tableHeadClass}>Pago</th><th className={`${tableHeadClass} text-right`}>Acción</th></tr></thead>
-        <tbody className="divide-y divide-slate-100">
-          {companies.map((company) => (
-            <tr key={company.id} className="transition hover:bg-slate-50/80">
-              <td className={tableCellClass}><div className="flex items-center gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#e8f5f2] text-sm font-medium text-[#177D66]">{initials(company.name)}</span><div className="min-w-0"><p className="max-w-52 truncate font-medium text-slate-900">{company.name}</p><p className="mt-0.5 max-w-52 truncate text-xs text-slate-500">{company.owner_email || `Company #${company.id}`}</p></div></div></td>
-              <td className={tableCellClass}><StatusBadge status={company.billing_status || company.lifecycle_state || 'legacy'} /></td>
-              <td className={tableCellClass}><p className="font-medium text-slate-800">{offerLabels[company.offer_code || ''] || company.offer_code || 'Sin plan'}</p><div className="mt-1 flex max-w-64 flex-wrap gap-1">{(company.product_names ?? []).slice(0, compact ? 2 : 3).map((name) => <span key={name} className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600">{name}</span>)}{(company.product_names?.length ?? 0) > (compact ? 2 : 3) ? <span className="text-[11px] text-slate-500">+{(company.product_names?.length ?? 0) - (compact ? 2 : 3)}</span> : null}</div></td>
-              <td className={tableCellClass}><p className="font-medium text-slate-900">{formatMoney(company.recurring_amount_cents, company.currency)}</p><p className="mt-0.5 text-xs text-slate-500">{company.billing_interval === 'YEAR' ? 'anual' : company.billing_status ? 'mensual' : 'sin contrato'}</p></td>
-              <td className={tableCellClass}><p className="font-medium text-slate-800">{company.active_members} / {(company.included_seats || 0) + (company.purchased_extra_seats || 0)}</p><p className="mt-0.5 text-xs text-slate-500">activos / disponibles</p></td>
-              <td className={tableCellClass}><p className="text-sm text-slate-700">{company.billing_status === 'trialing' ? 'Fin de prueba' : company.current_period_ends_at ? 'Renovación' : 'Sin fecha'}</p><p className="mt-0.5 text-xs text-slate-500">{formatDate(company.billing_status === 'trialing' ? company.trial_ends_at : company.current_period_ends_at)}</p></td>
-              <td className={tableCellClass}><StatusBadge status={company.last_invoice_status || company.last_payment_status || 'sin movimientos'} subtle /></td>
-              <td className={`${tableCellClass} text-right`}><button type="button" onClick={() => onOpenCompany(company)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-[#143675] transition hover:border-[#143675]/30 hover:bg-blue-50">Ver cuenta <ChevronRight className="h-3.5 w-3.5" /></button></td>
-            </tr>
-          ))}
-          {!companies.length ? <tr><td colSpan={8}><EmptyRow icon={Building2} text="No hay cuentas que coincidan con los filtros." /></td></tr> : null}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function BillingTab({ data, onOpenCompany }: { data: PlatformBilling | null; onOpenCompany: (company: number) => void }) {
-  const totals = data?.totals;
-  return (
-    <div className="space-y-5">
-      <PageIntro eyebrow="Facturación" title="Cobros y documentos" description="Stripe conserva la autoridad de pago; aquí consultas el estado operativo sincronizado." />
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Metric icon={CircleDollarSign} label="Total cobrado" value={formatMoney(totals?.paid_cents, totals?.currency)} accent="mint" /><Metric icon={FileClock} label="Saldo abierto" value={formatMoney(totals?.open_cents, totals?.currency)} accent="gold" /><Metric icon={CircleAlert} label="Documentos con atención" value={String(totals?.failed ?? 0)} accent="coral" /><Metric icon={CreditCard} label="Facturas sincronizadas" value={String(totals?.invoices ?? 0)} accent="blue" /></section>
-      <Panel title="Historial de facturación" description="Importes cobrados, pendientes y enlaces oficiales de Stripe.">
-        <div className="overflow-x-auto"><table className="w-full min-w-[980px]"><thead className="bg-slate-50"><tr><th className={tableHeadClass}>Cliente</th><th className={tableHeadClass}>Factura</th><th className={tableHeadClass}>Estado</th><th className={tableHeadClass}>Importe</th><th className={tableHeadClass}>Pagado</th><th className={tableHeadClass}>Periodo</th><th className={`${tableHeadClass} text-right`}>Documentos</th></tr></thead><tbody className="divide-y divide-slate-100">{(data?.invoices ?? []).map((invoice) => <InvoiceRow key={invoice.invoice_id} invoice={invoice} onOpenCompany={onOpenCompany} />)}{!data?.invoices.length ? <tr><td colSpan={7}><EmptyRow icon={CreditCard} text="Aún no hay facturas sincronizadas en este entorno." /></td></tr> : null}</tbody></table></div>
-      </Panel>
-    </div>
-  );
-}
-
-function InvoiceRow({ invoice, onOpenCompany }: { invoice: PlatformInvoice; onOpenCompany: (company: number) => void }) {
-  return <tr className="hover:bg-slate-50/80"><td className={tableCellClass}>{invoice.company_id ? <button type="button" onClick={() => onOpenCompany(invoice.company_id!)} className="text-left"><p className="font-medium text-slate-900">{invoice.company_name || `Company #${invoice.company_id}`}</p><p className="mt-0.5 text-xs text-slate-500">{invoice.owner_email || 'Sin correo propietario'}</p></button> : 'Sin asociar'}</td><td className={tableCellClass}><span className="font-mono text-xs text-slate-600">{shortId(invoice.invoice_id)}</span></td><td className={tableCellClass}><StatusBadge status={invoice.status || 'unknown'} /></td><td className={tableCellClass}>{formatMoney(invoice.amount_due_cents, invoice.currency)}</td><td className={tableCellClass}>{formatMoney(invoice.amount_paid_cents, invoice.currency)}</td><td className={tableCellClass}><p>{formatDate(invoice.period_starts_at)}</p><p className="text-xs text-slate-500">a {formatDate(invoice.period_ends_at)}</p></td><td className={`${tableCellClass} text-right`}><div className="inline-flex gap-2">{invoice.hosted_invoice_url ? <a href={invoice.hosted_invoice_url} target="_blank" rel="noreferrer" className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200" aria-label="Abrir factura"><ExternalLink className="h-4 w-4" /></a> : null}{invoice.invoice_pdf_url ? <a href={invoice.invoice_pdf_url} target="_blank" rel="noreferrer" className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200" aria-label="Descargar PDF"><Download className="h-4 w-4" /></a> : null}</div></td></tr>;
-}
-
-function CatalogTab({ data }: { data: PlatformCatalog | null }) {
-  const activeVersion = data?.versions.find((version) => version.status === 'ACTIVE') || data?.versions[0];
-  const prices = (data?.prices ?? []).filter((price) => !activeVersion || price.catalog_version_id === activeVersion.id);
-  const products = (data?.products ?? []).filter((product) => !activeVersion || product.catalog_version_id === activeVersion.id);
-  return (
-    <div className="space-y-5">
-      <PageIntro eyebrow="Catálogo comercial" title="Productos y precios" description="Cada tarifa es versionada para proteger contratos e historial. Esta pantalla es de consulta segura." action={<span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-[#143675]"><ShieldCheck className="h-4 w-4" /> Sólo lectura</span>} />
-      <section className="grid gap-3 md:grid-cols-3"><Metric icon={Database} label="Versión activa" value={activeVersion?.version_code || 'Sin versión'} accent="blue" /><Metric icon={PackageCheck} label="Productos activos" value={String(products.filter((product) => product.active).length)} accent="mint" /><Metric icon={CircleDollarSign} label="Precios configurados" value={String(prices.length)} accent="gold" /></section>
-      <section className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
-        <Panel title="Productos del catálogo" description="Paquetes base y complementos disponibles en la versión activa."><div className="divide-y divide-slate-100">{products.map((product) => <div key={product.id} className="px-5 py-4"><div className="flex items-center justify-between gap-3"><div><p className="font-medium text-slate-900">{product.display_name}</p><p className="mt-1 font-mono text-xs text-slate-500">{product.product_code}</p></div><StatusBadge status={product.active ? 'active' : 'inactive'} /></div><div className="mt-2 flex flex-wrap gap-1">{product.capabilities.map((capability) => <span key={capability} className="rounded-md bg-slate-100 px-2 py-1 text-[11px] text-slate-600">{capability}</span>)}</div></div>)}{!products.length ? <EmptyRow icon={PackageCheck} text="No hay productos en esta versión." /> : null}</div></Panel>
-        <Panel title="Tarifas vigentes" description="Importes de catálogo antes de impuestos; Stripe Price ID se mantiene enlazado."><div className="overflow-x-auto"><table className="w-full min-w-[720px]"><thead className="bg-slate-50"><tr><th className={tableHeadClass}>Concepto</th><th className={tableHeadClass}>Tipo</th><th className={tableHeadClass}>Periodicidad</th><th className={tableHeadClass}>Importe</th><th className={tableHeadClass}>Stripe</th><th className={tableHeadClass}>Estado</th></tr></thead><tbody className="divide-y divide-slate-100">{prices.map((price) => <PriceRow key={price.id} price={price} />)}</tbody></table></div></Panel>
+        {catalogValidation && !catalogValidation.ready ? (
+          <div className="border-t border-amber-100 bg-amber-50 px-4 py-3">
+            <p className="text-xs font-semibold text-amber-900">
+              {english ? "Complete before publishing:" : "Completa antes de publicar:"}
+            </p>
+            <ul className="mt-2 grid gap-1 text-xs text-amber-800 md:grid-cols-2">
+              {catalogValidation.blockers.map((blocker, index) => (
+                <li key={`${blocker.code}-${blocker.product_code}-${index}`} className="flex gap-2">
+                  <CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span>{blocker.message}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </section>
-      <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-[#143675]">Los cambios futuros deben publicarse como una nueva versión de catálogo. Así, los clientes conservan su tarifa de lealtad y las facturas históricas no cambian.</div>
+
+      <CatalogOperationalGuide english={english} view={view} />
+
+      <section className="grid gap-3 md:grid-cols-3">
+        <Metric
+          icon={Activity}
+          label={english ? "Available modules" : "Módulos disponibles"}
+          value={String(activeModules)}
+          accent="blue"
+        />
+        <Metric
+          icon={PackageCheck}
+          label={english ? "Products missing prices" : "Productos sin precio"}
+          value={String(productsWithoutRates)}
+          accent="mint"
+        />
+        <Metric
+          icon={CircleDollarSign}
+          label={english ? "Prices pending Stripe" : "Precios pendientes de Stripe"}
+          value={String(pricesPendingStripe)}
+          accent="gold"
+        />
+      </section>
+
+      {view === "modules" ? (
+        <ModulesTab
+          english={english}
+          data={modules}
+          canManage={canManage}
+          saving={saving}
+          onChange={onModuleChange}
+          embedded
+        />
+      ) : (
+        <CatalogTab
+          english={english}
+          data={catalog}
+          onChange={(nextCatalog) => {
+            setCatalogValidation(null);
+            onCatalogChange(nextCatalog);
+          }}
+          view={view}
+        />
+      )}
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">
+            {english ? "Next step" : "Siguiente paso"}
+          </p>
+          <p className="mt-1 text-sm text-[#143675]">
+            {view === "modules"
+              ? english
+                ? "Build the products customers will be able to select."
+                : "Arma los productos que podrán seleccionar los clientes."
+              : view === "products"
+                ? english
+                  ? "Set monthly and annual prices before offering them."
+                  : "Define precios mensuales y anuales antes de ofrecerlos."
+                : english
+                  ? `${configuredPrices} prices have an amount; review pending Stripe links before selling.`
+                  : `${configuredPrices} precios tienen importe; revisa los enlaces pendientes con Stripe antes de vender.`}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() =>
+            setView(
+              view === "modules"
+                ? "products"
+                : view === "products"
+                  ? "prices"
+                  : "modules",
+            )
+          }
+          className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#1D4ED8]"
+        >
+          {view === "modules"
+            ? english
+              ? "Continue to products"
+              : "Continuar a productos"
+            : view === "products"
+              ? english
+                ? "Continue to prices"
+                : "Continuar a precios"
+              : english
+                ? "Review availability"
+                : "Revisar disponibilidad"}
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }
 
-function PriceRow({ price }: { price: PlatformCatalogPrice }) {
-  return <tr className="hover:bg-slate-50/80"><td className={tableCellClass}><p className="font-medium text-slate-900">{offerLabels[price.billable_code] || price.billable_code}</p><p className="font-mono text-[11px] text-slate-500">{price.billable_code}</p></td><td className={tableCellClass}>{price.price_type}</td><td className={tableCellClass}>{price.billing_interval === 'YEAR' ? 'Anual' : 'Mensual'}</td><td className={`${tableCellClass} font-medium text-slate-900`}>{formatMoney(price.unit_amount_cents, price.currency)}</td><td className={tableCellClass}><span className="font-mono text-[11px] text-slate-500">{price.external_price_id ? shortId(price.external_price_id) : 'Pendiente'}</span></td><td className={tableCellClass}><StatusBadge status={price.status} /></td></tr>;
+function CatalogOperationalGuide({
+  english,
+  view,
+}: {
+  english: boolean;
+  view: CatalogWorkspaceView;
+}) {
+  const content = {
+    modules: {
+      action: english
+        ? "Choose which Indice functions are available to sell or test."
+        : "Elige qué funciones de Índice están disponibles para vender o probar.",
+      impact: english
+        ? "Products, trials and new customer accounts."
+        : "Productos, pruebas y nuevas cuentas de clientes.",
+      next: english
+        ? "Add each available module to a product or package."
+        : "Incorpora cada módulo disponible a un producto o paquete.",
+    },
+    products: {
+      action: english
+        ? "Create the packages and add-ons customers can choose."
+        : "Crea los paquetes y complementos que puede elegir el cliente.",
+      impact: english
+        ? "Account setup, billing and the customer billing screen."
+        : "Alta de cuentas, facturación y pantalla de pagos del cliente.",
+      next: english
+        ? "Assign a monthly and annual price to every active product."
+        : "Asigna un precio mensual y anual a cada producto activo.",
+    },
+    prices: {
+      action: english
+        ? "Define amounts and confirm that Stripe is ready to collect them."
+        : "Define importes y confirma que Stripe esté listo para cobrarlos.",
+      impact: english
+        ? "Charges after trials and changes made from Billing."
+        : "Cobros al terminar las pruebas y cambios realizados desde Facturación.",
+      next: english
+        ? "Resolve every pending Stripe link before offering the product."
+        : "Resuelve cada enlace pendiente con Stripe antes de ofrecer el producto.",
+    },
+  }[view];
+
+  return (
+    <section className="grid overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:grid-cols-3">
+      {[
+        [english ? "What you do here" : "Qué haces aquí", content.action, BookOpenCheck],
+        [english ? "This affects" : "Afecta a", content.impact, Users],
+        [english ? "Next step" : "Siguiente paso", content.next, ChevronRight],
+      ].map(([label, description, Icon], index) => {
+        const GuideIcon = Icon as typeof BookOpenCheck;
+        return (
+          <div
+            key={String(label)}
+            className={`flex gap-3 p-4 ${index ? "border-t border-slate-100 md:border-l md:border-t-0" : ""}`}
+          >
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600">
+              <GuideIcon className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                {String(label)}
+              </p>
+              <p className="mt-1 text-sm leading-5 text-slate-700">
+                {String(description)}
+              </p>
+            </div>
+          </div>
+        );
+      })}
+    </section>
+  );
 }
 
-function ModulesTab({ data, canManage, saving, onChange }: { data: PlatformModules | null; canManage: boolean; saving: boolean; onChange: (change: ModuleAvailabilityChange) => void }) {
-  const grouped = ['basic', 'complementary', 'ai'].map((category) => ({ category, modules: (data?.modules ?? []).filter((module) => module.category === category) }));
+function CatalogTab({
+  english,
+  data,
+  onChange,
+  view,
+}: {
+  english: boolean;
+  data: PlatformCatalog | null;
+  onChange: (data: PlatformCatalog) => void;
+  view: CatalogView;
+}) {
+  const [editing, setEditing] = useState<CatalogEditTarget | null>(null);
+  const [priceSort, setPriceSort] = useState<{
+    key: CatalogPriceSortKey;
+    direction: SortDirection;
+  }>({ key: "concept", direction: "asc" });
+  const [priceQuery, setPriceQuery] = useState("");
+  const [priceTypeFilter, setPriceTypeFilter] = useState("all");
+  const [priceIntervalFilter, setPriceIntervalFilter] = useState("all");
+  const [priceStatusFilter, setPriceStatusFilter] = useState("all");
+  const [catalogSaving, setCatalogSaving] = useState(false);
+  const [catalogFeedback, setCatalogFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+  const workingVersion =
+    data?.versions.find((version) => version.status === "DRAFT") ||
+    data?.versions.find((version) => version.status === "ACTIVE") ||
+    data?.versions[0];
+  const versionPrices = useMemo(
+    () =>
+      (data?.prices ?? []).filter(
+        (price) =>
+          !workingVersion || price.catalog_version_id === workingVersion.id,
+      ),
+    [workingVersion, data?.prices],
+  );
+  const filteredPrices = useMemo(() => {
+    const query = priceQuery.trim().toLowerCase();
+    return versionPrices.filter((price) => {
+      const matchesQuery =
+        !query ||
+        [
+          offerLabels[price.billable_code],
+          price.billable_code,
+          price.external_price_id,
+        ].some((value) => value?.toLowerCase().includes(query));
+      return (
+        matchesQuery &&
+        (priceTypeFilter === "all" || price.price_type === priceTypeFilter) &&
+        (priceIntervalFilter === "all" ||
+          price.billing_interval === priceIntervalFilter) &&
+        (priceStatusFilter === "all" ||
+          (priceStatusFilter === "ready" &&
+            price.unit_amount_cents != null &&
+            Boolean(price.external_price_id) &&
+            !["ARCHIVED", "INACTIVE"].includes(price.status)) ||
+          (priceStatusFilter === "pending" &&
+            price.unit_amount_cents != null &&
+            !price.external_price_id) ||
+          (priceStatusFilter === "inactive" &&
+            ["ARCHIVED", "INACTIVE"].includes(price.status)))
+      );
+    });
+  }, [
+    priceIntervalFilter,
+    priceQuery,
+    priceStatusFilter,
+    priceTypeFilter,
+    versionPrices,
+  ]);
+  const prices = useMemo(() => {
+    if (!priceSort.direction) return filteredPrices;
+    const direction = priceSort.direction === "asc" ? 1 : -1;
+    return [...filteredPrices].sort(
+      (left, right) =>
+        compareCatalogPriceValues(left, right, priceSort.key) * direction,
+    );
+  }, [filteredPrices, priceSort]);
+  const changePriceSort = (key: CatalogPriceSortKey) =>
+    setPriceSort((current) =>
+      current.key !== key
+        ? { key, direction: "asc" }
+        : {
+            key,
+            direction:
+              current.direction === null
+                ? "asc"
+                : current.direction === "asc"
+                  ? "desc"
+                  : null,
+          },
+    );
+  const products = (data?.products ?? []).filter(
+    (product) =>
+      !workingVersion || product.catalog_version_id === workingVersion.id,
+  );
+  const refreshCatalog = async () => {
+    const nextCatalog = await platformAdminApi.getCatalog();
+    onChange(nextCatalog);
+  };
+  const saveEdit = async (target: CatalogEditTarget) => {
+    if (!data || catalogSaving) return;
+    setCatalogSaving(true);
+    setCatalogFeedback(null);
+    try {
+      if (target.kind === "product") {
+        await platformAdminApi.updateCatalogProduct(target.value.id, {
+          display_name: target.value.display_name,
+          sort_order: target.value.sort_order,
+          active: target.value.active,
+        });
+      } else {
+        await platformAdminApi.updateCatalogPrice(target.value.id, {
+          unit_amount_cents: target.value.unit_amount_cents ?? null,
+          external_price_id: target.value.external_price_id?.trim() || null,
+          status: target.value.status,
+        });
+      }
+      await refreshCatalog();
+      setEditing(null);
+      setCatalogFeedback({
+        type: "success",
+        message: english
+          ? "The change was saved in the working version. Validate and publish it when the offer is complete."
+          : "El cambio se guardó en la versión de trabajo. Valídala y publícala cuando la oferta esté completa.",
+      });
+    } catch (saveError) {
+      setCatalogFeedback({
+        type: "error",
+        message:
+          saveError instanceof Error
+            ? saveError.message
+            : english
+              ? "The catalog could not be updated."
+              : "No se pudo actualizar el catálogo.",
+      });
+    } finally {
+      setCatalogSaving(false);
+    }
+  };
   return (
     <div className="space-y-5">
-      <PageIntro eyebrow="Registro de producto" title="Módulos de Índice" description="Disponibilidad global, acceso y etapa de cada módulo. Al desactivar uno deja de mostrarse y de autorizarse para todas las empresas." action={<span className="inline-flex items-center gap-2 rounded-full bg-[#e8f5f2] px-3 py-1.5 text-xs font-medium text-[#177D66]"><Activity className="h-4 w-4" /> {(data?.modules ?? []).filter((module) => module.is_active).length} activos</span>} />
-      {!canManage ? <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">Tu autoridad permite consultar el registro, pero no cambiar la disponibilidad global.</div> : null}
-      {grouped.map((group) => <ModuleGroup key={group.category} category={group.category} modules={group.modules} canManage={canManage} saving={saving} onChange={onChange} />)}
+      {catalogFeedback ? (
+        <div className={`rounded-xl border px-4 py-3 text-sm font-medium ${catalogFeedback.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
+          {catalogFeedback.message}
+        </div>
+      ) : null}
+      {view === "products" ? (
+        <section>
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold text-slate-950 dark:text-white">
+              {english ? "Products customers can select" : "Productos que puede elegir el cliente"}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              {english
+                ? "Review packages and add-ons, and complete any product still missing a price."
+                : "Revisa paquetes y complementos, y completa los productos que aún no tienen precio."}
+            </p>
+          </div>
+          {products.length ? (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {products.map((product) => {
+                const productPrices = versionPrices.filter(
+                  (price) =>
+                    price.billable_code === product.product_code ||
+                    product.capabilities.includes(price.billable_code),
+                );
+                const connectedIntervals = new Set(
+                  productPrices
+                    .filter(
+                      (price) =>
+                        price.unit_amount_cents != null &&
+                        Boolean(price.external_price_id) &&
+                        !["ARCHIVED", "INACTIVE"].includes(price.status),
+                    )
+                    .map((price) => price.billing_interval),
+                );
+                return (
+                  <CatalogProductCard
+                    key={product.id}
+                    english={english}
+                    product={product}
+                    priceCount={productPrices.length}
+                    readyForSale={
+                      connectedIntervals.has("MONTH") &&
+                      connectedIntervals.has("YEAR")
+                    }
+                    onEdit={() =>
+                      setEditing({ kind: "product", value: product })
+                    }
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <Panel
+              title={english ? "Products and packages" : "Productos y paquetes"}
+            >
+              <EmptyRow
+                icon={PackageCheck}
+                text={
+                  english
+                    ? "No products in this version."
+                    : "No hay productos en esta versión."
+                }
+              />
+            </Panel>
+          )}
+        </section>
+      ) : (
+        <div className="space-y-4">
+          <IndiceFilterBar
+            title={
+              english ? "Filter current rates" : "Filtrar tarifas vigentes"
+            }
+            subtitle={
+              english
+                ? "Find the amount you need to review or connect to Stripe."
+                : "Encuentra el importe que necesitas revisar o conectar con Stripe."
+            }
+            summary={
+              english
+                ? `${prices.length} matching rates`
+                : `${prices.length} tarifas coinciden`
+            }
+            gridClassName="md:grid-cols-2 xl:grid-cols-4"
+          >
+            <IndiceFilterSearch
+              label={english ? "Search" : "Buscar"}
+              placeholder={
+                english
+                  ? "Product or Stripe reference"
+                  : "Producto o referencia de Stripe"
+              }
+              tone="blue"
+              value={priceQuery}
+              onValueChange={setPriceQuery}
+              onClear={() => setPriceQuery("")}
+            />
+            <IndiceFilterSelect
+              label={english ? "Type" : "Tipo"}
+              tone="blue"
+              value={priceTypeFilter}
+              onValueChange={setPriceTypeFilter}
+              options={[
+                {
+                  value: "all",
+                  label: english ? "All types" : "Todos los tipos",
+                },
+                ...Array.from(
+                  new Set(versionPrices.map((price) => price.price_type)),
+                ).map((value) => ({ value, label: value })),
+              ]}
+            />
+            <IndiceFilterSelect
+              label={english ? "Frequency" : "Periodicidad"}
+              tone="blue"
+              value={priceIntervalFilter}
+              onValueChange={setPriceIntervalFilter}
+              options={[
+                {
+                  value: "all",
+                  label: english
+                    ? "All frequencies"
+                    : "Todas las periodicidades",
+                },
+                { value: "MONTH", label: english ? "Monthly" : "Mensual" },
+                { value: "YEAR", label: english ? "Annual" : "Anual" },
+              ]}
+            />
+            <IndiceFilterSelect
+              label={english ? "Billing readiness" : "Preparación para cobro"}
+              tone="blue"
+              value={priceStatusFilter}
+              onValueChange={setPriceStatusFilter}
+              options={[
+                {
+                  value: "all",
+                  label: english ? "All" : "Todos",
+                },
+                {
+                  value: "ready",
+                  label: english ? "Ready to bill" : "Listos para cobrar",
+                },
+                {
+                  value: "pending",
+                  label: english ? "Pending Stripe" : "Pendientes de Stripe",
+                },
+                {
+                  value: "inactive",
+                  label: english ? "Inactive" : "Inactivos",
+                },
+              ]}
+            />
+          </IndiceFilterBar>
+          <Panel
+            title={english ? "Prices ready for billing" : "Precios para cobro"}
+            description={
+              english
+                ? "Amounts before tax. A price is ready to sell only when it is connected to Stripe."
+                : "Importes antes de impuestos. Un precio está listo para vender sólo cuando está conectado con Stripe."
+            }
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[820px]">
+                <thead className="bg-slate-50 dark:bg-slate-900">
+                  <tr>
+                    {(
+                      [
+                        ["concept", english ? "Item" : "Concepto"],
+                        ["type", english ? "Type" : "Tipo"],
+                        ["interval", english ? "Frequency" : "Periodicidad"],
+                        ["amount", english ? "Amount" : "Importe"],
+                        ["stripe", english ? "Billing connection" : "Conexión de cobro"],
+                        ["status", english ? "Readiness" : "Preparación"],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <SortableCatalogPriceHeader
+                        key={key}
+                        column={key}
+                        label={label}
+                        sort={priceSort}
+                        onSort={changePriceSort}
+                      />
+                    ))}
+                    <th className={`${tableHeadClass} text-right`}>
+                      {english ? "Action" : "Acción"}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {prices.map((price) => (
+                    <PriceRow
+                      key={price.id}
+                      price={price}
+                      english={english}
+                      onEdit={() => setEditing({ kind: "price", value: price })}
+                    />
+                  ))}
+                  {!prices.length ? (
+                    <tr>
+                      <td colSpan={7}>
+                        <EmptyRow
+                          icon={CircleDollarSign}
+                          text={
+                            english
+                              ? "No rates match the selected filters."
+                              : "No hay tarifas que coincidan con los filtros."
+                          }
+                        />
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+        </div>
+      )}
+      <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-[#143675]">
+        {english
+          ? "Price changes apply to new sales. Existing customers and previous invoices keep the conditions already agreed."
+          : "Los cambios de precio se aplican a nuevas ventas. Los clientes actuales y las facturas anteriores conservan las condiciones ya acordadas."}
+      </div>
+      {editing ? (
+        <CatalogEditModal
+          english={english}
+          target={editing}
+          onCancel={() => setEditing(null)}
+          onSave={saveEdit}
+          saving={catalogSaving}
+          error={
+            catalogFeedback?.type === "error"
+              ? catalogFeedback.message
+              : null
+          }
+        />
+      ) : null}
     </div>
   );
 }
 
-function ModuleGroup({ category, modules, canManage, saving, onChange }: { category: string; modules: PlatformModule[]; canManage: boolean; saving: boolean; onChange: (change: ModuleAvailabilityChange) => void }) {
-  const labels: Record<string, string> = { basic: 'Módulos básicos', complementary: 'Módulos complementarios', ai: 'Inteligencia artificial' };
-  const colors: Record<string, string> = { basic: 'border-[#59C3A5]/40 bg-[#f5fbf9]', complementary: 'border-slate-200 bg-white', ai: 'border-[#F7C845]/50 bg-[#fffdf5]' };
-  return <section><div className="mb-3 flex items-end justify-between"><div><h2 className="text-lg font-medium text-slate-900">{labels[category] || category}</h2><p className="mt-1 text-sm text-slate-500">{modules.length} módulo(s) registrados</p></div></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">{modules.map((module) => { const protectedCore = module.is_core; return <article key={module.id} className={`rounded-2xl border p-4 transition ${module.is_active ? colors[category] || colors.complementary : 'border-slate-200 bg-slate-50 opacity-80'}`}><div className="flex items-start justify-between gap-3"><span className={`grid h-11 w-11 place-items-center rounded-xl border border-white bg-white text-xl shadow-sm ${module.is_active ? '' : 'grayscale'}`}>{moduleEmoji(module)}</span><StatusBadge status={module.lifecycle_status} subtle /></div><h3 className="mt-4 font-medium text-slate-900">{module.name}</h3><p className="mt-1 line-clamp-2 min-h-10 text-sm leading-5 text-slate-500">{module.description || 'Descripción operativa pendiente.'}</p><div className="mt-4 flex flex-wrap gap-1.5"><MiniTag>{module.access_model}</MiniTag><MiniTag>{module.assignment_enabled ? 'Asignable' : 'Sin asignación'}</MiniTag>{module.is_core ? <MiniTag>Core estructural</MiniTag> : null}</div><div className="mt-4 flex items-center justify-between border-t border-slate-200/70 pt-3 text-xs"><span className="min-w-0 truncate font-mono text-slate-500">{module.slug}</span><StatusBadge status={module.is_active ? 'active' : 'inactive'} subtle /></div><button type="button" disabled={!canManage || saving || protectedCore} title={protectedCore ? 'Panel Inicial es estructural y no puede desactivarse globalmente.' : undefined} onClick={() => onChange({ module, active: !module.is_active })} className={`mt-3 h-11 w-full rounded-xl border px-3 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${protectedCore ? 'border-slate-200 bg-slate-100 text-slate-500' : module.is_active ? 'border-red-200 bg-white text-red-600 hover:bg-red-50' : 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700'}`}>{protectedCore ? 'Protegido' : module.is_active ? 'Desactivar para todos' : 'Activar para todos'}</button></article>; })}</div></section>;
+function PriceRow({
+  price,
+  english,
+  onEdit,
+}: {
+  price: PlatformCatalogPrice;
+  english: boolean;
+  onEdit: () => void;
+}) {
+  return (
+    <tr className="hover:bg-slate-50/80 dark:hover:bg-slate-800/60">
+      <td className={tableCellClass}>
+        <p className="font-medium text-slate-900 dark:text-white">
+          {offerLabels[price.billable_code] || price.billable_code}
+        </p>
+      </td>
+      <td className={tableCellClass}>
+        {price.price_type === "ADDON"
+          ? english
+            ? "Add-on"
+            : "Complemento"
+          : english
+            ? "Package"
+            : "Paquete"}
+      </td>
+      <td className={tableCellClass}>
+        {price.billing_interval === "YEAR"
+          ? english
+            ? "Annual"
+            : "Anual"
+          : english
+            ? "Monthly"
+            : "Mensual"}
+      </td>
+      <td
+        className={`${tableCellClass} font-medium text-slate-900 dark:text-white`}
+      >
+        {formatMoney(price.unit_amount_cents, price.currency, english)}
+      </td>
+      <td className={tableCellClass}>
+        {price.external_price_id ? (
+          <div>
+            <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+              {english ? "Connected" : "Conectado"}
+            </span>
+            <p className="mt-1 font-mono text-[10px] text-slate-400" title={price.external_price_id}>
+              {shortId(price.external_price_id)}
+            </p>
+          </div>
+        ) : (
+          <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
+            {english ? "Pending connection" : "Conexión pendiente"}
+          </span>
+        )}
+      </td>
+      <td className={tableCellClass}>
+        <span
+          className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${["ARCHIVED", "INACTIVE"].includes(price.status) ? "bg-slate-200 text-slate-600" : price.unit_amount_cents != null && price.external_price_id ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800"}`}
+        >
+          {["ARCHIVED", "INACTIVE"].includes(price.status)
+            ? english
+              ? "Inactive"
+              : "Inactivo"
+            : price.unit_amount_cents != null && price.external_price_id
+              ? english
+                ? "Ready to bill"
+                : "Listo para cobrar"
+              : english
+                ? "Needs review"
+                : "Requiere revisión"}
+        </span>
+      </td>
+      <td className={`${tableCellClass} text-right`}>
+        <button
+          type="button"
+          onClick={onEdit}
+          className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+        >
+          <PencilLine className="h-3.5 w-3.5" />
+          {english ? "Edit" : "Editar"}
+        </button>
+      </td>
+    </tr>
+  );
 }
 
-function CourtesyTab({ context, catalog, value, createdCode, saving, onChange, onSubmit, onRevoke }: {
+function SortableCatalogPriceHeader({
+  column,
+  label,
+  sort,
+  onSort,
+}: {
+  column: CatalogPriceSortKey;
+  label: string;
+  sort: { key: CatalogPriceSortKey; direction: SortDirection };
+  onSort: (key: CatalogPriceSortKey) => void;
+}) {
+  const activeDirection = sort.key === column ? sort.direction : null;
+  const Icon =
+    activeDirection === "asc"
+      ? ArrowUp
+      : activeDirection === "desc"
+        ? ArrowDown
+        : ArrowUpDown;
+  return (
+    <th
+      className={tableHeadClass}
+      aria-sort={
+        activeDirection === "asc"
+          ? "ascending"
+          : activeDirection === "desc"
+            ? "descending"
+            : "none"
+      }
+    >
+      <button
+        type="button"
+        onClick={() => onSort(column)}
+        className={`group inline-flex items-center gap-1.5 rounded-md py-1 text-left transition hover:text-[#2563EB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/25 ${activeDirection ? "font-semibold text-[#2563EB]" : ""}`}
+        title={`${label} · ${activeDirection ?? "sort"}`}
+      >
+        <span>{label}</span>
+        <Icon
+          className={`h-3.5 w-3.5 ${activeDirection ? "opacity-100" : "opacity-45 group-hover:opacity-100"}`}
+          aria-hidden="true"
+        />
+      </button>
+    </th>
+  );
+}
+
+function compareCatalogPriceValues(
+  left: PlatformCatalogPrice,
+  right: PlatformCatalogPrice,
+  key: CatalogPriceSortKey,
+) {
+  const text = (a: string | null | undefined, b: string | null | undefined) =>
+    (a || "").localeCompare(b || "", undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+  switch (key) {
+    case "concept":
+      return (
+        text(
+          offerLabels[left.billable_code] || left.billable_code,
+          offerLabels[right.billable_code] || right.billable_code,
+        ) || text(left.billing_interval, right.billing_interval)
+      );
+    case "type":
+      return text(left.price_type, right.price_type);
+    case "interval":
+      return text(left.billing_interval, right.billing_interval);
+    case "amount":
+      return (left.unit_amount_cents ?? 0) - (right.unit_amount_cents ?? 0);
+    case "stripe":
+      return text(left.external_price_id, right.external_price_id);
+    case "status":
+      return text(left.status, right.status);
+  }
+}
+
+function CatalogEditModal({
+  english,
+  target,
+  saving,
+  error,
+  onCancel,
+  onSave,
+}: {
+  english: boolean;
+  target: CatalogEditTarget;
+  saving: boolean;
+  error?: string | null;
+  onCancel: () => void;
+  onSave: (target: CatalogEditTarget) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState<CatalogEditTarget>(target);
+  const product = draft.kind === "product" ? draft.value : null;
+  const price = draft.kind === "price" ? draft.value : null;
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    void onSave(draft);
+  };
+  return (
+    <IndiceModalFrame
+      open
+      onOpenChange={(open) => {
+        if (!open) onCancel();
+      }}
+      modalType="standard-form"
+      tone="blue"
+      icon={<PencilLine className="h-5 w-5" />}
+      eyebrow={english ? "Commercial catalog" : "Catálogo comercial"}
+      title={
+        product
+          ? english
+            ? "Configure product"
+            : "Configurar producto"
+          : english
+            ? "Configure price"
+            : "Configurar precio"
+      }
+      description={
+        english
+          ? "The saved information becomes available to customer configuration flows."
+          : "La información guardada queda disponible en los flujos de configuración de clientes."
+      }
+      footer={
+        <div className="flex w-full items-center justify-end gap-2">
+          <button
+            type="button"
+            disabled={saving}
+            onClick={onCancel}
+            className="h-11 rounded-xl border border-white/40 bg-white px-4 text-sm font-medium text-slate-700"
+          >
+            {english ? "Cancel" : "Cancelar"}
+          </button>
+          <button
+            type="submit"
+            disabled={saving}
+            form="catalog-edit-form"
+            className="h-11 rounded-xl bg-white px-5 text-sm font-semibold text-[#1D4ED8] shadow-sm transition hover:bg-blue-50 disabled:cursor-wait disabled:bg-white/45 disabled:text-white/80"
+          >
+            {saving
+              ? english ? "Saving…" : "Guardando…"
+              : english ? "Save changes" : "Guardar cambios"}
+          </button>
+        </div>
+      }
+    >
+      <form id="catalog-edit-form" onSubmit={submit} className="space-y-5">
+        {error ? (
+          <div
+            role="alert"
+            className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700"
+          >
+            {error}
+          </div>
+        ) : null}
+        <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-[#143675]">
+          {product
+            ? english
+              ? "Mark the product as available now. Missing prices or Stripe links will be checked before the offer is published."
+              : "Marca el producto como disponible. Las tarifas o conexiones de Stripe pendientes se validarán antes de publicar la oferta."
+            : english
+              ? "A price is ready to bill when it has an amount and is connected to its Stripe price."
+              : "Un precio queda listo para cobrar cuando tiene importe y está conectado con su precio de Stripe."}
+        </div>
+        {product ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label={english ? "Display name" : "Nombre visible"}>
+              <input
+                required
+                value={product.display_name}
+                onChange={(event) =>
+                  setDraft({
+                    kind: "product",
+                    value: { ...product, display_name: event.target.value },
+                  })
+                }
+                className={controlClass}
+              />
+            </Field>
+            <Field label={english ? "Display order" : "Orden de visualización"}>
+              <input
+                type="number"
+                min={0}
+                value={product.sort_order}
+                onChange={(event) =>
+                  setDraft({
+                    kind: "product",
+                    value: {
+                      ...product,
+                      sort_order: Number(event.target.value),
+                    },
+                  })
+                }
+                className={controlClass}
+              />
+            </Field>
+            <div className="sm:col-span-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+              <p className="text-sm font-semibold text-slate-800">
+                {english ? "Included modules" : "Módulos incluidos"}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                {english
+                  ? "These are the modules customers receive when selecting this product."
+                  : "Son los módulos que recibe el cliente cuando selecciona este producto."}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {product.capabilities.map((capability) => (
+                  <span
+                    key={capability}
+                    className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700"
+                  >
+                    {humanize(capability)}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <label className="sm:col-span-2 flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-700">
+              <input
+                type="checkbox"
+                checked={product.active}
+                onChange={(event) =>
+                  setDraft({
+                    kind: "product",
+                    value: { ...product, active: event.target.checked },
+                  })
+                }
+              />
+              {english ? "Available for customers" : "Disponible para clientes"}
+            </label>
+          </div>
+        ) : price ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:grid-cols-3">
+              <div>
+                <p className="text-xs text-slate-500">{english ? "Product" : "Producto"}</p>
+                <p className="mt-1 font-semibold text-slate-900">
+                  {offerLabels[price.billable_code] || price.billable_code}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">{english ? "Type" : "Tipo"}</p>
+                <p className="mt-1 font-semibold text-slate-900">
+                  {price.price_type === "ADDON"
+                    ? english ? "Add-on" : "Complemento"
+                    : english ? "Package" : "Paquete"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">{english ? "Frequency" : "Periodicidad"}</p>
+                <p className="mt-1 font-semibold text-slate-900">
+                  {price.billing_interval === "YEAR"
+                    ? english ? "Annual" : "Anual"
+                    : english ? "Monthly" : "Mensual"}
+                </p>
+              </div>
+            </div>
+            <Field label={`${english ? "Amount" : "Importe"} (${price.currency})`}>
+              <input
+                required
+                type="number"
+                min={0}
+                step="0.01"
+                value={(price.unit_amount_cents ?? 0) / 100}
+                onChange={(event) =>
+                  setDraft({
+                    kind: "price",
+                    value: {
+                      ...price,
+                      unit_amount_cents: Math.round(
+                        Number(event.target.value) * 100,
+                      ),
+                    },
+                  })
+                }
+                className={controlClass}
+              />
+            </Field>
+            <Field label={english ? "Billing readiness" : "Preparación para cobro"}>
+              <select
+                value={price.status}
+                onChange={(event) =>
+                  setDraft({
+                    kind: "price",
+                    value: { ...price, status: event.target.value },
+                  })
+                }
+                className={controlClass}
+              >
+                <option value="ACTIVE">{english ? "Available to bill" : "Disponible para cobrar"}</option>
+                <option value="READY">{english ? "Ready for review" : "Listo para revisión"}</option>
+                <option value="DRAFT">{english ? "Draft" : "Borrador"}</option>
+                <option value="ARCHIVED">{english ? "Inactive" : "Inactivo"}</option>
+              </select>
+            </Field>
+            <div className="sm:col-span-2">
+              <Field label={english ? "Stripe billing reference" : "Referencia de cobro de Stripe"}>
+                <input
+                  value={price.external_price_id || ""}
+                  onChange={(event) =>
+                    setDraft({
+                      kind: "price",
+                      value: {
+                        ...price,
+                        external_price_id: event.target.value || null,
+                      },
+                    })
+                  }
+                  className={controlClass}
+                  placeholder="price_..."
+                />
+              </Field>
+              <p className="mt-1.5 text-xs text-slate-500">
+                {english
+                  ? "Paste the Price ID created in Stripe to enable automatic billing."
+                  : "Pega el Price ID creado en Stripe para habilitar el cobro automático."}
+              </p>
+            </div>
+          </div>
+        ) : null}
+      </form>
+    </IndiceModalFrame>
+  );
+}
+
+function ModulesTab({
+  english,
+  data,
+  canManage,
+  saving,
+  onChange,
+  embedded = false,
+}: {
+  english: boolean;
+  data: PlatformModules | null;
+  canManage: boolean;
+  saving: boolean;
+  onChange: (change: ModuleAvailabilityChange) => void;
+  embedded?: boolean;
+}) {
+  const [workOrderOpen, setWorkOrderOpen] = useState(false);
+  const { create, error: workOrderError, loading: workOrdersLoading, remove, workOrders } = useModuleWorkOrders();
+  const workOrderCopy = useModuleWorkOrderCopy();
+  const grouped = ["basic", "complementary", "ai"].map((category) => ({
+    category,
+    modules: (data?.modules ?? []).filter(
+      (module) => module.category === category,
+    ),
+  }));
+  return (
+    <div className="space-y-5">
+      {embedded ? (
+        <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-950">
+              {english ? "Available modules" : "Módulos disponibles"}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {english
+                ? "Choose which Indice functions can be included in products, trials and customer accounts."
+                : "Elige qué funciones de Índice pueden incluirse en productos, pruebas y cuentas de clientes."}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-2 rounded-full bg-[#e8f5f2] px-3 py-1.5 text-xs font-medium text-[#177D66]">
+              <Activity className="h-4 w-4" />
+              {(data?.modules ?? []).filter((module) => module.is_active).length} {english ? "active" : "activos"}
+            </span>
+            {canManage ? (
+              <button
+                type="button"
+                onClick={() => setWorkOrderOpen(true)}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#1D4ED8]"
+              >
+                <Plus className="h-4 w-4" />
+                {workOrderCopy.add}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : (
+        <IndiceTitleBar
+          tone="blue"
+          icon={<Boxes className="h-5 w-5" />}
+          eyebrow={english ? "Commercial availability" : "Disponibilidad comercial"}
+          title={english ? "Indice modules" : "Módulos de Índice"}
+          subtitle={
+            english
+              ? "Enable the functions that may be offered to customers and safely remove those no longer available."
+              : "Habilita las funciones que pueden ofrecerse a clientes y retira de forma segura las que ya no estén disponibles."
+          }
+        />
+      )}
+      {!canManage ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {english
+            ? "You can review availability, but you do not have permission to change the commercial offer."
+            : "Puedes consultar la disponibilidad, pero no tienes permiso para cambiar la oferta comercial."}
+        </div>
+      ) : null}
+      {workOrderError ? (
+        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {workOrderError}
+        </div>
+      ) : null}
+      {workOrdersLoading ? (
+        <p className="text-sm text-slate-500">{english ? "Loading module requests…" : "Cargando solicitudes de módulos…"}</p>
+      ) : null}
+      {workOrders.length ? (
+        <Panel
+          title={workOrderCopy.sectionTitle}
+          description={workOrderCopy.sectionDescription}
+        >
+          <div className="divide-y divide-slate-100 px-4">
+            {workOrders.map((order) => (
+              <article
+                key={order.id}
+                className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-blue-100 bg-blue-50 text-lg dark:border-blue-900 dark:bg-blue-950/20">
+                    🧩
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="truncate text-sm font-semibold text-slate-950 dark:text-white">
+                        {order.moduleName}
+                      </h3>
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                        {workOrderCopy.draft}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 truncate text-xs text-slate-500">
+                      {english ? "Initial language" : "Idioma inicial"}: {operationalLocaleLabels[order.sourceLocale] || order.sourceLocale}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => void remove(order.id)}
+                    className="inline-flex h-8 items-center justify-center rounded-lg border border-red-200 px-3 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                  >
+                    {workOrderCopy.remove}
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </Panel>
+      ) : null}
+      {grouped.map((group) => (
+        <ModuleGroup
+          key={group.category}
+          category={group.category}
+          modules={group.modules}
+          canManage={canManage}
+          saving={saving}
+          onChange={onChange}
+          english={english}
+        />
+      ))}
+      {workOrderOpen ? (
+        <ModuleWorkOrderModal
+          english={english}
+          onClose={() => setWorkOrderOpen(false)}
+          onCreate={async (input) => {
+            await create(input);
+            setWorkOrderOpen(false);
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function ModuleGroup({
+  category,
+  modules,
+  canManage,
+  saving,
+  onChange,
+  english,
+}: {
+  category: string;
+  modules: PlatformModule[];
+  canManage: boolean;
+  saving: boolean;
+  onChange: (change: ModuleAvailabilityChange) => void;
+  english: boolean;
+}) {
+  const labels: Record<string, string> = {
+    basic: english ? "Base modules" : "Módulos base",
+    complementary: english ? "Add-on modules" : "Módulos complementarios",
+    ai: english ? "Artificial intelligence" : "Inteligencia artificial",
+  };
+  return (
+    <section>
+      <div className="mb-3 flex items-end justify-between">
+        <div>
+          <h2 className="text-lg font-medium text-slate-900 dark:text-white">
+            {labels[category] || category}
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            {modules.length} {english ? "registered modules" : "módulo(s) registrados"}
+          </p>
+        </div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {modules.map((module) => {
+          const protectedCore = module.is_core;
+          const visual = moduleVisual(module);
+          const moduleDescription =
+            module.description || "Descripción operativa pendiente.";
+          return (
+            <article
+              key={module.id}
+              className={`group relative flex min-h-[214px] flex-col overflow-hidden rounded-2xl border bg-white p-4 shadow-[0_14px_32px_-30px_rgba(15,23,42,0.7)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_20px_42px_-30px_rgba(15,23,42,0.5)] dark:bg-slate-900 ${module.is_active ? visual.border : "border-slate-200 dark:border-slate-700"}`}
+            >
+              <div
+                className={`pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-br ${visual.gradient} opacity-60`}
+                aria-hidden="true"
+              />
+              <div className="relative flex items-start justify-between gap-3">
+                <span
+                  className={`grid h-10 w-10 place-items-center rounded-xl border bg-white text-lg shadow-sm transition group-hover:scale-105 dark:bg-slate-900 ${visual.border} ${module.is_active ? "" : "grayscale opacity-70"}`}
+                  aria-hidden="true"
+                >
+                  {visual.emoji}
+                </span>
+                <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${module.is_active ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
+                  {module.is_active
+                    ? english
+                      ? "Available"
+                      : "Disponible"
+                    : english
+                      ? "Unavailable"
+                      : "No disponible"}
+                </span>
+              </div>
+              <div className="relative mt-3 flex-1">
+                <h3 className="truncate text-base font-semibold text-slate-950 dark:text-white" title={module.name}>
+                  {module.name}
+                </h3>
+                <p
+                  className="mt-1 truncate text-xs leading-5 text-slate-500 dark:text-slate-400"
+                  title={moduleDescription}
+                >
+                  {moduleDescription}
+                </p>
+                <div className="mt-2 flex min-h-6 flex-wrap gap-1">
+                  <MiniTag>
+                    {module.assignment_enabled
+                      ? english
+                        ? "Customer assignable"
+                        : "Asignable a clientes"
+                      : english
+                        ? "Internal use"
+                        : "Uso interno"}
+                  </MiniTag>
+                  {module.is_core ? <MiniTag>{english ? "Indice essential" : "Esencial de Índice"}</MiniTag> : null}
+                </div>
+              </div>
+              <div className="relative mt-2 flex items-center justify-between gap-2 border-t border-slate-200/70 pt-2 text-xs dark:border-slate-700">
+                <span className="min-w-0 truncate text-slate-500">
+                  {module.is_active
+                    ? english
+                      ? "Visible in products and accounts"
+                      : "Visible en productos y cuentas"
+                    : english
+                      ? "Hidden from new selections"
+                      : "Oculto en nuevas selecciones"}
+                </span>
+              </div>
+              <button
+                type="button"
+                disabled={!canManage || saving || protectedCore}
+                title={
+                  protectedCore
+                    ? english
+                      ? "The Indice essentials are required and cannot be removed."
+                      : "El núcleo de Índice es obligatorio y no puede retirarse."
+                    : undefined
+                }
+                onClick={() => onChange({ module, active: !module.is_active })}
+                className={`relative mt-2 h-9 w-full rounded-lg border px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${protectedCore ? "border-slate-200 bg-slate-100 text-slate-500 dark:border-slate-700 dark:bg-slate-800" : module.is_active ? "border-red-200 bg-white text-red-600 hover:bg-red-50 dark:border-red-900 dark:bg-slate-900" : "border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700"}`}
+              >
+                {protectedCore
+                  ? english
+                    ? "Required"
+                    : "Obligatorio"
+                  : module.is_active
+                    ? english
+                      ? "Remove from offer"
+                      : "Retirar de la oferta"
+                    : english
+                      ? "Enable for offer"
+                      : "Habilitar para la oferta"}
+              </button>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function CourtesyTab({
+  context,
+  catalog,
+  value,
+  createdCode,
+  feedback,
+  saving,
+  onChange,
+  onSubmit,
+  onRevoke,
+}: {
   context: PlatformAdminContext | null;
   catalog: CourtesyCodeCatalog | null;
   value: CourtesyCodePayload;
   createdCode: string;
+  feedback: { kind: "success" | "error"; message: string } | null;
   saving: boolean;
   onChange: (value: CourtesyCodePayload) => void;
   onSubmit: (event: FormEvent) => void;
   onRevoke: (reference: string) => void;
 }) {
+  const [view, setView] = useState<"create" | "history">("create");
+  const presetReason = accessReasonOptions.includes(
+    value.reason as (typeof accessReasonOptions)[number],
+  );
+  const reasonSelection = presetReason
+    ? value.reason
+    : value.reason
+      ? "OTHER"
+      : "";
   if (!context?.can_manage_benefits) return <PermissionState />;
-  return <div className="space-y-5"><PageIntro eyebrow="Cortesías" title="Accesos comerciales controlados" description="Genera códigos auditables que omiten Stripe y define exactamente qué acceso recibe cada cuenta." /><section className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]"><Panel title="Nueva cortesía" description="El código claro se muestra una sola vez después de generarlo."><form onSubmit={onSubmit} className="space-y-4 p-5">{createdCode ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4"><p className="text-xs font-medium text-emerald-800">Código generado. Cópialo ahora.</p><div className="mt-2 flex gap-2"><code className="min-w-0 flex-1 overflow-x-auto rounded-xl bg-white px-3 py-2 text-sm">{createdCode}</code><button type="button" onClick={() => void navigator.clipboard.writeText(createdCode)} className="rounded-xl bg-[#177D66] px-3 text-sm font-medium text-white">Copiar</button></div></div> : null}<div className="grid gap-3 sm:grid-cols-2"><Field label="Nombre interno"><input required value={value.label} onChange={(event) => onChange({ ...value, label: event.target.value })} className={controlClass} placeholder="Cliente piloto agosto" /></Field><Field label="Correo autorizado"><input type="email" value={value.allowed_email || ''} onChange={(event) => onChange({ ...value, allowed_email: event.target.value })} className={controlClass} placeholder="Opcional, recomendado" /></Field></div><fieldset className="rounded-2xl border border-slate-200 p-4"><legend className="px-1 text-sm font-medium text-slate-700">Módulos incluidos</legend><p className="mb-3 text-xs text-slate-500">Sin selección concede todos los módulos básicos.</p><div className="grid gap-2 sm:grid-cols-2">{catalog?.products.map((product) => { const checked = value.product_codes.includes(product.code); return <label key={product.code} className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2 text-sm ${checked ? 'border-[#59C3A5] bg-[#f5fbf9]' : 'border-slate-200'}`}><input type="checkbox" checked={checked} onChange={() => onChange({ ...value, product_codes: checked ? value.product_codes.filter((code) => code !== product.code) : [...value.product_codes, product.code] })} />{product.name}</label>; })}</div></fieldset><div className="grid gap-3 sm:grid-cols-3"><Field label="Usuarios extra"><input min={0} max={500} type="number" value={value.included_extra_seats} onChange={(event) => onChange({ ...value, included_extra_seats: Number(event.target.value) })} className={controlClass} /></Field><Field label="Usos máximos"><input min={1} max={1000} type="number" value={value.max_redemptions} onChange={(event) => onChange({ ...value, max_redemptions: Number(event.target.value) })} className={controlClass} /></Field><Field label="Días de acceso"><input disabled={value.permanent} min={1} max={3650} type="number" value={value.access_days || 30} onChange={(event) => onChange({ ...value, access_days: Number(event.target.value) })} className={controlClass} /></Field></div><label className="flex min-h-11 items-center gap-2 text-sm font-medium text-slate-700"><input type="checkbox" checked={value.permanent} onChange={(event) => onChange({ ...value, permanent: event.target.checked })} /> Acceso permanente</label><Field label="Motivo"><textarea required minLength={5} value={value.reason} onChange={(event) => onChange({ ...value, reason: event.target.value })} className={`${controlClass} min-h-20 resize-y py-2`} placeholder="Justificación comercial, soporte o piloto" /></Field><Field label="Campaña"><input value={value.campaign_code || ''} onChange={(event) => onChange({ ...value, campaign_code: event.target.value })} className={controlClass} placeholder="Opcional" /></Field><button disabled={saving} className="h-11 w-full rounded-xl bg-[#177D66] text-sm font-medium text-white disabled:opacity-50">{saving ? 'Generando...' : 'Generar código seguro'}</button></form></Panel><Panel title="Códigos emitidos" description="Vigencia, redenciones y restricción de correo."><div className="max-h-[760px] divide-y divide-slate-100 overflow-y-auto">{catalog?.codes.map((item) => <article key={item.reference} className="p-5"><div className="flex items-start justify-between gap-3"><div><p className="font-medium text-slate-900">{item.label}</p><p className="mt-1 text-xs text-slate-500">{item.allowed_email || 'Sin correo restringido'}</p></div><StatusBadge status={item.status} /></div><p className="mt-3 text-sm text-slate-600">{item.all_basic_products ? 'Todos los módulos básicos' : item.product_codes.join(', ')}</p><div className="mt-2 flex flex-wrap gap-2"><MiniTag>{item.redemption_count}/{item.max_redemptions} usos</MiniTag><MiniTag>{item.permanent ? 'Permanente' : `${item.access_days} días`}</MiniTag><MiniTag>{item.included_extra_seats} usuarios extra</MiniTag></div><p className="mt-3 text-sm text-slate-500">{item.reason}</p>{item.status === 'ACTIVE' ? <button type="button" disabled={saving} onClick={() => onRevoke(item.reference)} className="mt-3 text-xs font-medium text-red-600">Revocar código</button> : null}</article>)}{!catalog?.codes.length ? <EmptyRow icon={KeyRound} text="Aún no hay códigos emitidos." /> : null}</div></Panel></section></div>;
+  return (
+    <div className="space-y-5">
+      <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+        <button
+          type="button"
+          onClick={() => setView("create")}
+          className={`h-10 rounded-lg px-4 text-sm font-semibold ${view === "create" ? "bg-[#2563EB] text-white" : "text-slate-600"}`}
+        >
+          Nuevo acceso
+        </button>
+        <button
+          type="button"
+          onClick={() => setView("history")}
+          className={`h-10 rounded-lg px-4 text-sm font-semibold ${view === "history" ? "bg-[#2563EB] text-white" : "text-slate-600"}`}
+        >
+          Códigos emitidos ({catalog?.codes.length ?? 0})
+        </button>
+      </div>
+      {feedback ? (
+        <IndiceModalValidation
+          messages={[feedback.message]}
+          tone={feedback.kind}
+          title={
+            feedback.kind === "success"
+              ? "Acceso generado"
+              : "No se pudo generar"
+          }
+        />
+      ) : null}
+      <section className="grid gap-5">
+        {view === "create" ? (
+          <Panel
+            title="Nuevo acceso promocional"
+            description="El código claro se muestra una sola vez después de generarlo."
+          >
+            <form onSubmit={onSubmit} className="space-y-4 p-5">
+              {createdCode ? (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                  <p className="text-xs font-medium text-emerald-800">
+                    Código generado. Cópialo ahora.
+                  </p>
+                  <div className="mt-2 flex gap-2">
+                    <code className="min-w-0 flex-1 overflow-x-auto rounded-xl bg-white px-3 py-2 text-sm">
+                      {createdCode}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void navigator.clipboard.writeText(createdCode)
+                      }
+                      className="rounded-xl bg-[#177D66] px-3 text-sm font-medium text-white"
+                    >
+                      Copiar
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Nombre interno">
+                  <input
+                    required
+                    value={value.label}
+                    onChange={(event) =>
+                      onChange({ ...value, label: event.target.value })
+                    }
+                    className={controlClass}
+                    placeholder="Cliente piloto agosto"
+                  />
+                </Field>
+                <Field label="Correo autorizado">
+                  <input
+                    type="email"
+                    value={value.allowed_email || ""}
+                    onChange={(event) =>
+                      onChange({ ...value, allowed_email: event.target.value })
+                    }
+                    className={controlClass}
+                    placeholder="Opcional, recomendado"
+                  />
+                </Field>
+              </div>
+              <fieldset className="rounded-2xl border border-slate-200 p-4">
+                <legend className="px-1 text-sm font-medium text-slate-700">
+                  Módulos incluidos
+                </legend>
+                <p className="mb-3 text-xs text-slate-500">
+                  Sin selección concede todos los módulos básicos.
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {catalog?.products.map((product) => {
+                    const checked = value.product_codes.includes(product.code);
+                    return (
+                      <label
+                        key={product.code}
+                        className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2 text-sm ${checked ? "border-[#59C3A5] bg-[#f5fbf9]" : "border-slate-200"}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() =>
+                            onChange({
+                              ...value,
+                              product_codes: checked
+                                ? value.product_codes.filter(
+                                    (code) => code !== product.code,
+                                  )
+                                : [...value.product_codes, product.code],
+                            })
+                          }
+                        />
+                        {product.name}
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Field label="Usuarios extra">
+                  <select
+                    value={value.included_extra_seats}
+                    onChange={(event) =>
+                      onChange({
+                        ...value,
+                        included_extra_seats: Number(event.target.value),
+                      })
+                    }
+                    className={controlClass}
+                  >
+                    {extraSeatOptions.map((quantity) => (
+                      <option key={quantity} value={quantity}>
+                        {quantity === 0 ? "Ninguno" : quantity}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Usos máximos">
+                  <select
+                    value={value.max_redemptions}
+                    onChange={(event) =>
+                      onChange({
+                        ...value,
+                        max_redemptions: Number(event.target.value),
+                      })
+                    }
+                    className={controlClass}
+                  >
+                    {redemptionOptions.map((quantity) => (
+                      <option key={quantity} value={quantity}>
+                        {quantity}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Días de acceso">
+                  <select
+                    disabled={value.permanent}
+                    value={value.access_days || 30}
+                    onChange={(event) =>
+                      onChange({
+                        ...value,
+                        access_days: Number(event.target.value),
+                      })
+                    }
+                    className={controlClass}
+                  >
+                    {accessDayOptions.map((days) => (
+                      <option key={days} value={days}>
+                        {days} días
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+              <Field label="Tipo de acceso">
+                <select
+                  value={value.permanent ? "PERMANENT" : "TIMED"}
+                  onChange={(event) =>
+                    onChange({
+                      ...value,
+                      permanent: event.target.value === "PERMANENT",
+                    })
+                  }
+                  className={controlClass}
+                >
+                  <option value="TIMED">Acceso con vigencia</option>
+                  <option value="PERMANENT">Acceso permanente</option>
+                </select>
+              </Field>
+              <Field label="Motivo auditable">
+                <select
+                  required
+                  value={reasonSelection}
+                  onChange={(event) =>
+                    onChange({ ...value, reason: event.target.value })
+                  }
+                  className={controlClass}
+                >
+                  <option value="">Selecciona un motivo</option>
+                  {accessReasonOptions.map((reason) => (
+                    <option key={reason} value={reason}>
+                      {reason}
+                    </option>
+                  ))}
+                  <option value="OTHER">Otro motivo</option>
+                </select>
+              </Field>
+              {reasonSelection === "OTHER" ? (
+                <Field label="Describe el motivo">
+                  <textarea
+                    required
+                    minLength={5}
+                    value={value.reason === "OTHER" ? "" : value.reason}
+                    onChange={(event) =>
+                      onChange({ ...value, reason: event.target.value })
+                    }
+                    className={`${controlClass} min-h-20 resize-y py-2`}
+                  />
+                </Field>
+              ) : null}
+              <Field label="Campaña">
+                <input
+                  value={value.campaign_code || ""}
+                  onChange={(event) =>
+                    onChange({ ...value, campaign_code: event.target.value })
+                  }
+                  className={controlClass}
+                  placeholder="Opcional"
+                />
+              </Field>
+              <button
+                disabled={saving}
+                className="h-11 w-full rounded-xl bg-[#177D66] text-sm font-medium text-white disabled:opacity-50"
+              >
+                {saving ? "Generando..." : "Generar código seguro"}
+              </button>
+            </form>
+          </Panel>
+        ) : (
+          <Panel
+            title="Códigos emitidos"
+            description="Vigencia, redenciones y restricción de correo."
+          >
+            <div className="max-h-[760px] divide-y divide-slate-100 overflow-y-auto">
+              {catalog?.codes.map((item) => (
+                <article key={item.reference} className="p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-slate-900">{item.label}</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {item.allowed_email || "Sin correo restringido"}
+                      </p>
+                    </div>
+                    <StatusBadge status={item.status} />
+                  </div>
+                  <p className="mt-3 text-sm text-slate-600">
+                    {item.all_basic_products
+                      ? "Todos los módulos básicos"
+                      : item.product_codes.join(", ")}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <MiniTag>
+                      {item.redemption_count}/{item.max_redemptions} usos
+                    </MiniTag>
+                    <MiniTag>
+                      {item.permanent
+                        ? "Permanente"
+                        : `${item.access_days} días`}
+                    </MiniTag>
+                    <MiniTag>
+                      {item.included_extra_seats} usuarios extra
+                    </MiniTag>
+                  </div>
+                  <p className="mt-3 text-sm text-slate-500">{item.reason}</p>
+                  {item.status === "ACTIVE" ? (
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={() => onRevoke(item.reference)}
+                      className="mt-3 text-xs font-medium text-red-600"
+                    >
+                      Revocar código
+                    </button>
+                  ) : null}
+                </article>
+              ))}
+              {!catalog?.codes.length ? (
+                <EmptyRow icon={KeyRound} text="Aún no hay códigos emitidos." />
+              ) : null}
+            </div>
+          </Panel>
+        )}
+      </section>
+    </div>
+  );
 }
 
-function AuditTab({ data }: { data: PlatformAudit | null }) {
-  return <div className="space-y-5"><PageIntro eyebrow="Auditoría" title="Trazabilidad de plataforma" description="Eventos comerciales y administrativos con actor, resultado y referencia técnica." /><Panel title="Eventos recientes" description={`${data?.events.length ?? 0} eventos cargados.`}><div className="overflow-x-auto"><table className="w-full min-w-[980px]"><thead className="bg-slate-50"><tr><th className={tableHeadClass}>Fecha</th><th className={tableHeadClass}>Evento</th><th className={tableHeadClass}>Resultado</th><th className={tableHeadClass}>Cliente</th><th className={tableHeadClass}>Actor</th><th className={tableHeadClass}>Referencia</th></tr></thead><tbody className="divide-y divide-slate-100">{(data?.events ?? []).map((event) => <tr key={event.id} className="hover:bg-slate-50/80"><td className={tableCellClass}>{formatDateTime(event.occurred_at)}</td><td className={tableCellClass}><p className="font-medium text-slate-900">{humanize(event.action)}</p><p className="text-xs text-slate-500">{humanize(event.category)}</p></td><td className={tableCellClass}><StatusBadge status={event.outcome} /></td><td className={tableCellClass}>{event.company_name || (event.company_id ? `Company #${event.company_id}` : 'Sistema')}</td><td className={tableCellClass}>{event.actor_email || (event.actor_user_id ? `User #${event.actor_user_id}` : 'Automático')}</td><td className={tableCellClass}><span className="font-mono text-[11px] text-slate-500">{shortId(event.request_id || event.stripe_event_id || event.stripe_object_id || `event-${event.id}`)}</span></td></tr>)}{!data?.events.length ? <tr><td colSpan={6}><EmptyRow icon={ClipboardList} text="Aún no hay eventos de auditoría." /></td></tr> : null}</tbody></table></div></Panel></div>;
+function AuditTab({
+  english,
+  data,
+}: {
+  english: boolean;
+  data: PlatformAudit | null;
+}) {
+  return (
+    <div className="space-y-5">
+      <IndiceTitleBar
+        tone="blue"
+        icon={<ClipboardList className="h-5 w-5" />}
+        eyebrow={english ? "Audit" : "Auditoría"}
+        title={english ? "Platform traceability" : "Trazabilidad de plataforma"}
+        subtitle={
+          english
+            ? "Commercial and administrative events with actor, outcome and technical reference."
+            : "Eventos comerciales y administrativos con actor, resultado y referencia técnica."
+        }
+      />
+      <Panel
+        title={english ? "Recent events" : "Eventos recientes"}
+        description={
+          english
+            ? `${data?.events.length ?? 0} events loaded.`
+            : `${data?.events.length ?? 0} eventos cargados.`
+        }
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[980px]">
+            <thead className="bg-slate-50">
+              <tr>
+                {[
+                  english ? "Date" : "Fecha",
+                  english ? "Event" : "Evento",
+                  english ? "Outcome" : "Resultado",
+                  english ? "Customer" : "Cliente",
+                  english ? "Actor" : "Actor",
+                  english ? "Reference" : "Referencia",
+                ].map((label) => (
+                  <th key={label} className={tableHeadClass}>
+                    {label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {(data?.events ?? []).map((event) => (
+                <tr key={event.id} className="hover:bg-slate-50/80">
+                  <td className={tableCellClass}>
+                    {formatDateTime(event.occurred_at)}
+                  </td>
+                  <td className={tableCellClass}>
+                    <p className="font-medium text-slate-900">
+                      {humanize(event.action)}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {humanize(event.category)}
+                    </p>
+                  </td>
+                  <td className={tableCellClass}>
+                    <StatusBadge status={event.outcome} />
+                  </td>
+                  <td className={tableCellClass}>
+                    {event.company_name ||
+                      (event.company_id
+                        ? `Company #${event.company_id}`
+                        : english
+                          ? "System"
+                          : "Sistema")}
+                  </td>
+                  <td className={tableCellClass}>
+                    {event.actor_email ||
+                      (event.actor_user_id
+                        ? `User #${event.actor_user_id}`
+                        : english
+                          ? "Automatic"
+                          : "Automático")}
+                  </td>
+                  <td className={tableCellClass}>
+                    <span className="font-mono text-[11px] text-slate-500">
+                      {shortId(
+                        event.request_id ||
+                          event.stripe_event_id ||
+                          event.stripe_object_id ||
+                          `event-${event.id}`,
+                      )}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {!data?.events.length ? (
+                <tr>
+                  <td colSpan={6}>
+                    <EmptyRow
+                      icon={ClipboardList}
+                      text={
+                        english
+                          ? "No audit events yet."
+                          : "Aún no hay eventos de auditoría."
+                      }
+                    />
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </div>
+  );
 }
 
-function CompanyDrawer({ company, context, catalogProducts, benefit, saving, onClose, onBenefit, onSubmitBenefit, onGrantProduct, onRevokeBenefit }: { company: PlatformCompanyDetail; context: PlatformAdminContext | null; catalogProducts: PlatformCatalogProduct[]; benefit: BenefitPayload; saving: boolean; onClose: () => void; onBenefit: (value: BenefitPayload) => void; onSubmitBenefit: (event: FormEvent) => void; onGrantProduct: (productCode: string) => void; onRevokeBenefit: (reference: string) => void }) {
-  return <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/40 backdrop-blur-[2px]" role="dialog" aria-modal="true" aria-label={`Detalle de ${company.name}`}><section className="flex h-full w-full max-w-3xl flex-col bg-[#f7f9fc] shadow-2xl"><div className="border-b border-slate-200 bg-white p-5"><div className="flex items-start justify-between gap-4"><div className="flex min-w-0 items-center gap-3"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#e8f5f2] font-medium text-[#177D66]">{initials(company.name)}</span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="truncate text-xl font-medium text-slate-900">{company.name}</h2><StatusBadge status={company.billing_status || company.lifecycle_state || 'legacy'} /></div><p className="mt-1 truncate text-sm text-slate-500">{company.owner_email || 'Propietario pendiente'} · Company #{company.id}</p></div></div><button type="button" onClick={onClose} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500" aria-label="Cerrar"><X className="h-5 w-5" /></button></div></div><div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5"><section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><SmallMetric label="Plan" value={offerLabels[company.offer_code || ''] || company.offer_code || 'Sin plan'} /><SmallMetric label="Estado de acceso" value={humanize(company.access_mode || company.lifecycle_state || 'legacy')} /><SmallMetric label="Usuarios" value={`${company.seat_usage.active ?? 0} / ${(company.seat_usage.included ?? 0) + (company.seat_usage.purchased_extra ?? 0) + (company.seat_usage.courtesy_extra ?? 0)}`} /><SmallMetric label="Próxima renovación" value={formatDate(company.billing_status === 'trialing' ? company.trial_ends_at : company.current_period_ends_at)} /></section><Panel title="Productos contratados" description="Selección asociada a la suscripción más reciente."><div className="flex flex-wrap gap-2 p-5">{company.products.map((product) => <span key={product.code} className="inline-flex items-center gap-2 rounded-xl border border-[#59C3A5]/40 bg-[#f5fbf9] px-3 py-2 text-sm text-[#177D66]"><PackageCheck className="h-4 w-4" />{product.name}</span>)}{!company.products.length ? <p className="text-sm text-slate-500">Esta cuenta todavía no tiene productos de catálogo asociados.</p> : null}</div></Panel><section className="grid gap-4 lg:grid-cols-2"><Panel title="Usuarios de la cuenta" description={`${company.members.length} membresía(s) registradas.`}><div className="max-h-72 divide-y divide-slate-100 overflow-y-auto">{company.members.map((member) => <div key={member.membership_id} className="flex items-center justify-between gap-3 px-5 py-3"><div className="min-w-0"><p className="truncate text-sm font-medium text-slate-900">{member.name || member.email}</p><p className="truncate text-xs text-slate-500">{member.email}</p></div><div className="text-right"><p className="text-xs font-medium text-slate-700">{humanize(member.role || 'user')}</p><StatusBadge status={member.status || 'active'} subtle /></div></div>)}</div></Panel><Panel title="Facturas recientes" description="Últimos documentos asociados a la compañía."><div className="max-h-72 divide-y divide-slate-100 overflow-y-auto">{company.invoices.map((invoice) => <div key={invoice.invoice_id} className="flex items-center justify-between gap-3 px-5 py-3"><div><p className="text-sm font-medium text-slate-900">{formatMoney(invoice.amount_due_cents, invoice.currency)}</p><p className="text-xs text-slate-500">{formatDate(invoice.period_ends_at)}</p></div><div className="flex items-center gap-2"><StatusBadge status={invoice.status || 'unknown'} />{invoice.hosted_invoice_url ? <a href={invoice.hosted_invoice_url} target="_blank" rel="noreferrer" aria-label="Abrir factura"><ExternalLink className="h-4 w-4 text-slate-500" /></a> : null}</div></div>)}{!company.invoices.length ? <EmptyRow icon={CreditCard} text="Sin facturas sincronizadas." /> : null}</div></Panel></section>{company.storage_usage?.metered ? <Panel title="Almacenamiento" description="Uso medido y capacidad asignada a la cuenta."><div className="grid grid-cols-3 gap-3 p-5"><SmallMetric label="Usado" value={`${toGigabytes(company.storage_usage.used_bytes + company.storage_usage.reserved_bytes)} GB`} /><SmallMetric label="Límite" value={`${toGigabytes(company.storage_usage.limit_bytes)} GB`} /><SmallMetric label="Bloques extra" value={String(company.storage_usage.purchased_blocks + company.storage_usage.benefit_blocks)} /></div></Panel> : null}{context?.can_manage_benefits ? <Panel title="Otorgar beneficio" description="Separado de la suscripción y registrado en auditoría."><form onSubmit={onSubmitBenefit} className="space-y-3 p-5"><div className="grid gap-3 sm:grid-cols-2"><Field label="Tipo"><select value={benefit.benefit_type} onChange={(event) => onBenefit({ ...benefit, benefit_type: event.target.value as BenefitPayload['benefit_type'] })} className={controlClass}><option value="PRODUCT">Módulo</option><option value="SEAT">Usuarios</option><option value="STORAGE">Almacenamiento</option></select></Field><Field label="Origen"><select value={benefit.source_type} onChange={(event) => onBenefit({ ...benefit, source_type: event.target.value as BenefitPayload['source_type'] })} className={controlClass}><option value="COURTESY">Cortesía</option><option value="PROMOTION">Promoción</option><option value="SUPPORT">Soporte</option><option value="TEST">Prueba</option></select></Field></div>{benefit.benefit_type === 'PRODUCT' ? <Field label="Código de producto"><input required value={benefit.product_code} onChange={(event) => onBenefit({ ...benefit, product_code: event.target.value })} className={controlClass} placeholder="hr, process_tasks..." /></Field> : <Field label="Cantidad"><input required min={1} type="number" value={benefit.quantity} onChange={(event) => onBenefit({ ...benefit, quantity: Number(event.target.value) })} className={controlClass} /></Field>}<Field label="Motivo"><textarea required minLength={5} value={benefit.reason} onChange={(event) => onBenefit({ ...benefit, reason: event.target.value })} className={`${controlClass} min-h-20 resize-y py-2`} /></Field><div className="grid gap-3 sm:grid-cols-2"><Field label="Campaña"><input value={benefit.campaign_code} onChange={(event) => onBenefit({ ...benefit, campaign_code: event.target.value })} className={controlClass} /></Field><Field label="Vigencia hasta"><input type="datetime-local" value={benefit.ends_at || ''} onChange={(event) => onBenefit({ ...benefit, ends_at: event.target.value })} className={controlClass} /></Field></div><button disabled={saving} className="h-11 w-full rounded-xl bg-[#143675] text-sm font-medium text-white disabled:opacity-50">{saving ? 'Guardando...' : 'Otorgar beneficio'}</button></form></Panel> : null}<Panel title="Historial de beneficios" description="Cortesías, promociones y apoyos activos o revocados."><div className="divide-y divide-slate-100">{company.benefits.map((item) => <article key={item.reference} className="p-5"><div className="flex items-start justify-between gap-3"><div><p className="font-medium text-slate-900">{item.benefit_type === 'PRODUCT' ? item.product_code : `${item.quantity} ${item.benefit_type === 'SEAT' ? 'usuario(s)' : 'bloque(s)'}`}</p><p className="mt-1 text-xs text-slate-500">{humanize(item.source_type)} · {item.campaign_code || 'Sin campaña'}</p></div><StatusBadge status={item.status} /></div><p className="mt-3 text-sm text-slate-600">{item.reason}</p>{item.status === 'ACTIVE' && context?.can_manage_benefits ? <button type="button" disabled={saving} onClick={() => onRevokeBenefit(item.reference)} className="mt-3 text-xs font-medium text-red-600">Revocar beneficio</button> : null}</article>)}{!company.benefits.length ? <EmptyRow icon={Gift} text="Esta cuenta no tiene beneficios." /> : null}</div></Panel></div></section></div>;
+function CompanyDrawer({
+  company,
+  context,
+  catalogProducts,
+  benefit,
+  saving,
+  onClose,
+  onBenefit,
+  onSubmitBenefit,
+  onGrantProduct,
+  onRevokeBenefit,
+}: {
+  company: PlatformCompanyDetail;
+  context: PlatformAdminContext | null;
+  catalogProducts: PlatformCatalogProduct[];
+  benefit: BenefitPayload;
+  saving: boolean;
+  onClose: () => void;
+  onBenefit: (value: BenefitPayload) => void;
+  onSubmitBenefit: (event: FormEvent) => void;
+  onGrantProduct: (productCode: string) => void;
+  onRevokeBenefit: (reference: string) => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex justify-end bg-slate-950/40 backdrop-blur-[2px]"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Detalle de ${company.name}`}
+    >
+      <section className="flex h-full w-full max-w-3xl flex-col bg-[#f7f9fc] shadow-2xl">
+        <div className="border-b border-slate-200 bg-white p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#e8f5f2] font-medium text-[#177D66]">
+                {initials(company.name)}
+              </span>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="truncate text-xl font-medium text-slate-900">
+                    {company.name}
+                  </h2>
+                  <StatusBadge
+                    status={
+                      company.billing_status ||
+                      company.lifecycle_state ||
+                      "legacy"
+                    }
+                  />
+                </div>
+                <p className="mt-1 truncate text-sm text-slate-500">
+                  {company.owner_email || "Propietario pendiente"} · Company #
+                  {company.id}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500"
+              aria-label="Cerrar"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+        <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
+          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <SmallMetric
+              label="Plan"
+              value={
+                offerLabels[company.offer_code || ""] ||
+                company.offer_code ||
+                "Sin plan"
+              }
+            />
+            <SmallMetric
+              label="Estado de acceso"
+              value={humanize(
+                company.access_mode || company.lifecycle_state || "legacy",
+              )}
+            />
+            <SmallMetric
+              label="Usuarios"
+              value={`${company.seat_usage.active ?? 0} / ${(company.seat_usage.included ?? 0) + (company.seat_usage.purchased_extra ?? 0) + (company.seat_usage.courtesy_extra ?? 0)}`}
+            />
+            <SmallMetric
+              label="Próxima renovación"
+              value={formatDate(
+                company.billing_status === "trialing"
+                  ? company.trial_ends_at
+                  : company.current_period_ends_at,
+              )}
+            />
+          </section>
+          <Panel
+            title="Productos contratados"
+            description="Selección asociada a la suscripción más reciente."
+          >
+            <div className="flex flex-wrap gap-2 p-5">
+              {company.products.map((product) => (
+                <span
+                  key={product.code}
+                  className="inline-flex items-center gap-2 rounded-xl border border-[#59C3A5]/40 bg-[#f5fbf9] px-3 py-2 text-sm text-[#177D66]"
+                >
+                  <PackageCheck className="h-4 w-4" />
+                  {product.name}
+                </span>
+              ))}
+              {!company.products.length ? (
+                <p className="text-sm text-slate-500">
+                  Esta cuenta todavía no tiene productos de catálogo asociados.
+                </p>
+              ) : null}
+            </div>
+          </Panel>
+          <section className="grid gap-4 lg:grid-cols-2">
+            <Panel
+              title="Usuarios de la cuenta"
+              description={`${company.members.length} membresía(s) registradas.`}
+            >
+              <div className="max-h-72 divide-y divide-slate-100 overflow-y-auto">
+                {company.members.map((member) => (
+                  <div
+                    key={member.membership_id}
+                    className="flex items-center justify-between gap-3 px-5 py-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-slate-900">
+                        {member.name || member.email}
+                      </p>
+                      <p className="truncate text-xs text-slate-500">
+                        {member.email}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-medium text-slate-700">
+                        {humanize(member.role || "user")}
+                      </p>
+                      <StatusBadge status={member.status || "active"} subtle />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+            <Panel
+              title="Facturas recientes"
+              description="Últimos documentos asociados a la compañía."
+            >
+              <div className="max-h-72 divide-y divide-slate-100 overflow-y-auto">
+                {company.invoices.map((invoice) => (
+                  <div
+                    key={invoice.invoice_id}
+                    className="flex items-center justify-between gap-3 px-5 py-3"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">
+                        {formatMoney(
+                          invoice.amount_due_cents,
+                          invoice.currency,
+                        )}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {formatDate(invoice.period_ends_at)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={invoice.status || "unknown"} />
+                      {invoice.hosted_invoice_url ? (
+                        <a
+                          href={invoice.hosted_invoice_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label="Abrir factura"
+                        >
+                          <ExternalLink className="h-4 w-4 text-slate-500" />
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+                {!company.invoices.length ? (
+                  <EmptyRow
+                    icon={CreditCard}
+                    text="Sin facturas sincronizadas."
+                  />
+                ) : null}
+              </div>
+            </Panel>
+          </section>
+          {company.storage_usage?.metered ? (
+            <Panel
+              title="Almacenamiento"
+              description="Uso medido y capacidad asignada a la cuenta."
+            >
+              <div className="grid grid-cols-3 gap-3 p-5">
+                <SmallMetric
+                  label="Usado"
+                  value={`${toGigabytes(company.storage_usage.used_bytes + company.storage_usage.reserved_bytes)} GB`}
+                />
+                <SmallMetric
+                  label="Límite"
+                  value={`${toGigabytes(company.storage_usage.limit_bytes)} GB`}
+                />
+                <SmallMetric
+                  label="Bloques extra"
+                  value={String(
+                    company.storage_usage.purchased_blocks +
+                      company.storage_usage.benefit_blocks,
+                  )}
+                />
+              </div>
+            </Panel>
+          ) : null}
+          {context?.can_manage_benefits ? (
+            <Panel
+              title="Otorgar beneficio"
+              description="Separado de la suscripción y registrado en auditoría."
+            >
+              <form onSubmit={onSubmitBenefit} className="space-y-3 p-5">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Tipo">
+                    <select
+                      value={benefit.benefit_type}
+                      onChange={(event) =>
+                        onBenefit({
+                          ...benefit,
+                          benefit_type: event.target
+                            .value as BenefitPayload["benefit_type"],
+                        })
+                      }
+                      className={controlClass}
+                    >
+                      <option value="PRODUCT">Módulo</option>
+                      <option value="SEAT">Usuarios</option>
+                      <option value="STORAGE">Almacenamiento</option>
+                    </select>
+                  </Field>
+                  <Field label="Origen">
+                    <select
+                      value={benefit.source_type}
+                      onChange={(event) =>
+                        onBenefit({
+                          ...benefit,
+                          source_type: event.target
+                            .value as BenefitPayload["source_type"],
+                        })
+                      }
+                      className={controlClass}
+                    >
+                      <option value="COURTESY">Cortesía</option>
+                      <option value="PROMOTION">Promoción</option>
+                      <option value="SUPPORT">Soporte</option>
+                      <option value="TEST">Prueba</option>
+                    </select>
+                  </Field>
+                </div>
+                {benefit.benefit_type === "PRODUCT" ? (
+                  <Field label="Código de producto">
+                    <input
+                      required
+                      value={benefit.product_code}
+                      onChange={(event) =>
+                        onBenefit({
+                          ...benefit,
+                          product_code: event.target.value,
+                        })
+                      }
+                      className={controlClass}
+                      placeholder="hr, process_tasks..."
+                    />
+                  </Field>
+                ) : (
+                  <Field label="Cantidad">
+                    <input
+                      required
+                      min={1}
+                      type="number"
+                      value={benefit.quantity}
+                      onChange={(event) =>
+                        onBenefit({
+                          ...benefit,
+                          quantity: Number(event.target.value),
+                        })
+                      }
+                      className={controlClass}
+                    />
+                  </Field>
+                )}
+                <Field label="Motivo">
+                  <textarea
+                    required
+                    minLength={5}
+                    value={benefit.reason}
+                    onChange={(event) =>
+                      onBenefit({ ...benefit, reason: event.target.value })
+                    }
+                    className={`${controlClass} min-h-20 resize-y py-2`}
+                  />
+                </Field>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Campaña">
+                    <input
+                      value={benefit.campaign_code}
+                      onChange={(event) =>
+                        onBenefit({
+                          ...benefit,
+                          campaign_code: event.target.value,
+                        })
+                      }
+                      className={controlClass}
+                    />
+                  </Field>
+                  <Field label="Vigencia hasta">
+                    <input
+                      type="datetime-local"
+                      value={benefit.ends_at || ""}
+                      onChange={(event) =>
+                        onBenefit({ ...benefit, ends_at: event.target.value })
+                      }
+                      className={controlClass}
+                    />
+                  </Field>
+                </div>
+                <button
+                  disabled={saving}
+                  className="h-11 w-full rounded-xl bg-[#143675] text-sm font-medium text-white disabled:opacity-50"
+                >
+                  {saving ? "Guardando..." : "Otorgar beneficio"}
+                </button>
+              </form>
+            </Panel>
+          ) : null}
+          <Panel
+            title="Historial de beneficios"
+            description="Cortesías, promociones y apoyos activos o revocados."
+          >
+            <div className="divide-y divide-slate-100">
+              {company.benefits.map((item) => (
+                <article key={item.reference} className="p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-slate-900">
+                        {item.benefit_type === "PRODUCT"
+                          ? item.product_code
+                          : `${item.quantity} ${item.benefit_type === "SEAT" ? "usuario(s)" : "bloque(s)"}`}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {humanize(item.source_type)} ·{" "}
+                        {item.campaign_code || "Sin campaña"}
+                      </p>
+                    </div>
+                    <StatusBadge status={item.status} />
+                  </div>
+                  <p className="mt-3 text-sm text-slate-600">{item.reason}</p>
+                  {item.status === "ACTIVE" && context?.can_manage_benefits ? (
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={() => onRevokeBenefit(item.reference)}
+                      className="mt-3 text-xs font-medium text-red-600"
+                    >
+                      Revocar beneficio
+                    </button>
+                  ) : null}
+                </article>
+              ))}
+              {!company.benefits.length ? (
+                <EmptyRow icon={Gift} text="Esta cuenta no tiene beneficios." />
+              ) : null}
+            </div>
+          </Panel>
+        </div>
+      </section>
+    </div>
+  );
 }
 
-function ModuleAvailabilityModal({ change, reason, saving, onReason, onCancel, onConfirm }: { change: NonNullable<ModuleAvailabilityChange>; reason: string; saving: boolean; onReason: (value: string) => void; onCancel: () => void; onConfirm: () => void }) {
+function ModuleAvailabilityModal({
+  change,
+  reason,
+  saving,
+  onReason,
+  onCancel,
+  onConfirm,
+}: {
+  change: NonNullable<ModuleAvailabilityChange>;
+  reason: string;
+  saving: boolean;
+  onReason: (value: string) => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
   const activating = change.active;
-  return <div className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/45 p-4" role="alertdialog" aria-modal="true" aria-labelledby="module-status-title"><section className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl"><span className={`grid h-11 w-11 place-items-center rounded-xl ${activating ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>{activating ? <Activity className="h-5 w-5" /> : <CircleAlert className="h-5 w-5" />}</span><h2 id="module-status-title" className="mt-4 text-lg font-medium text-slate-900">{activating ? 'Activar módulo para todos' : 'Desactivar módulo para todos'}</h2><p className="mt-1 text-sm leading-6 text-slate-600">{activating ? <><strong className="font-medium text-slate-900">{change.module.name}</strong> volverá a aparecer y a autorizarse según el plan y los permisos de cada empresa.</> : <><strong className="font-medium text-slate-900">{change.module.name}</strong> dejará de verse y su acceso será bloqueado inmediatamente para todos los usuarios. Sus datos y asignaciones se conservarán para una futura reactivación.</>}</p><div className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${activating ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-700'}`}>{activating ? 'El módulo conservará las asignaciones que tenía antes de ser desactivado.' : 'Este cambio es global y afecta también a empresas que ya tienen el módulo contratado o asignado.'}</div><Field label="Motivo de auditoría"><textarea autoFocus value={reason} onChange={(event) => onReason(event.target.value)} className={`${controlClass} mt-4 min-h-24 resize-y py-2`} /></Field><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={onCancel} className="h-11 rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-700">Cancelar</button><button type="button" disabled={saving || reason.trim().length < 3} onClick={onConfirm} className={`h-11 rounded-xl px-4 text-sm font-medium text-white disabled:opacity-50 ${activating ? 'bg-emerald-600' : 'bg-red-600'}`}>{saving ? 'Aplicando...' : activating ? 'Activar globalmente' : 'Desactivar globalmente'}</button></div></section></div>;
+  const presetReason = moduleAvailabilityReasonOptions.includes(
+    reason as (typeof moduleAvailabilityReasonOptions)[number],
+  );
+  const reasonSelection = presetReason ? reason : reason ? "OTHER" : "";
+  return (
+    <div
+      className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/45 p-4"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="module-status-title"
+    >
+      <section className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl">
+        <span
+          className={`grid h-11 w-11 place-items-center rounded-xl ${activating ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}
+        >
+          {activating ? (
+            <Activity className="h-5 w-5" />
+          ) : (
+            <CircleAlert className="h-5 w-5" />
+          )}
+        </span>
+        <h2
+          id="module-status-title"
+          className="mt-4 text-lg font-medium text-slate-900"
+        >
+          {activating
+            ? "Habilitar módulo en la oferta"
+            : "Retirar módulo de la oferta"}
+        </h2>
+        <p className="mt-1 text-sm leading-6 text-slate-600">
+          {activating ? (
+            <>
+              <strong className="font-medium text-slate-900">
+                {change.module.name}
+              </strong>{" "}
+              volverá a estar disponible en productos, pruebas y nuevas cuentas.
+            </>
+          ) : (
+            <>
+              <strong className="font-medium text-slate-900">
+                {change.module.name}
+              </strong>{" "}
+              dejará de ofrecerse en productos y nuevas cuentas. Los datos y
+              asignaciones existentes se conservarán para una futura reactivación.
+            </>
+          )}
+        </p>
+        <div
+          className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${activating ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-700"}`}
+        >
+          {activating
+            ? "Después de habilitarlo, revisa Productos y paquetes para decidir cómo se venderá."
+            : "Este cambio afecta la oferta general. Revisa los clientes actuales antes de confirmar."}
+        </div>
+        <Field label="Motivo de auditoría">
+          <select
+            autoFocus
+            required
+            value={reasonSelection}
+            onChange={(event) => onReason(event.target.value)}
+            className={`${controlClass} mt-4`}
+          >
+            <option value="">Selecciona un motivo</option>
+            {moduleAvailabilityReasonOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+            <option value="OTHER">Otro motivo</option>
+          </select>
+        </Field>
+        {reasonSelection === "OTHER" ? (
+          <Field label="Describe el motivo">
+            <textarea
+              required
+              minLength={5}
+              value={reason === "OTHER" ? "" : reason}
+              onChange={(event) => onReason(event.target.value)}
+              className={`${controlClass} mt-4 min-h-24 resize-y py-2`}
+            />
+          </Field>
+        ) : null}
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="h-11 rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-700"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            disabled={saving || reason === "OTHER" || reason.trim().length < 3}
+            onClick={onConfirm}
+            className={`h-11 rounded-xl px-4 text-sm font-medium text-white disabled:opacity-50 ${activating ? "bg-emerald-600" : "bg-red-600"}`}
+          >
+            {saving
+              ? "Aplicando..."
+              : activating
+                ? "Habilitar módulo"
+                : "Retirar de la oferta"}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
 }
 
-function ConfirmModal({ reason, saving, onReason, onCancel, onConfirm }: { reason: string; saving: boolean; onReason: (value: string) => void; onCancel: () => void; onConfirm: () => void }) {
-  return <div className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/45 p-4" role="alertdialog" aria-modal="true" aria-labelledby="revoke-title"><section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl"><span className="grid h-11 w-11 place-items-center rounded-xl bg-red-50 text-red-600"><CircleAlert className="h-5 w-5" /></span><h2 id="revoke-title" className="mt-4 text-lg font-medium text-slate-900">Confirmar revocación</h2><p className="mt-1 text-sm text-slate-500">La acción quedará registrada en auditoría. Indica el motivo.</p><Field label="Motivo"><textarea autoFocus value={reason} onChange={(event) => onReason(event.target.value)} className={`${controlClass} mt-4 min-h-24 resize-y py-2`} /></Field><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={onCancel} className="h-10 rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-700">Cancelar</button><button type="button" disabled={saving || reason.trim().length < 3} onClick={onConfirm} className="h-10 rounded-xl bg-red-600 px-4 text-sm font-medium text-white disabled:opacity-50">{saving ? 'Revocando...' : 'Revocar'}</button></div></section></div>;
+function ConfirmModal({
+  revocation,
+  reason,
+  saving,
+  onReason,
+  onCancel,
+  onConfirm,
+}: {
+  revocation: NonNullable<Revocation>;
+  reason: string;
+  saving: boolean;
+  onReason: (value: string) => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const isProduct = revocation.kind === "benefit" && Boolean(revocation.label);
+  const presetReason = revocationReasonOptions.includes(
+    reason as (typeof revocationReasonOptions)[number],
+  );
+  const reasonSelection = presetReason ? reason : reason ? "OTHER" : "";
+  const duplicateMessage =
+    isProduct && (revocation.grantCount ?? 0) > 1
+      ? ` Se consolidarán y revocarán las ${revocation.grantCount} concesiones activas encontradas.`
+      : "";
+  return (
+    <IndiceConfirmationDialog
+      busy={saving}
+      confirmDisabled={reason === "OTHER" || reason.trim().length < 3}
+      confirmLabel={
+        saving ? "Aplicando..." : isProduct ? "Quitar acceso" : "Revocar"
+      }
+      description={
+        isProduct
+          ? `El módulo dejará de estar disponible para esta cuenta.${duplicateMessage}`
+          : "La cortesía dejará de estar disponible y la acción quedará registrada en auditoría."
+      }
+      destructive
+      icon={<CircleAlert className="h-5 w-5" />}
+      itemName={revocation.label || revocation.reference}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+      open
+      title={
+        isProduct
+          ? `Quitar acceso a ${revocation.label}`
+          : "Confirmar revocación"
+      }
+      tone="blue"
+    >
+      <Field label="Motivo de auditoría">
+        <select
+          autoFocus
+          required
+          value={reasonSelection}
+          onChange={(event) => onReason(event.target.value)}
+          className={controlClass}
+        >
+          <option value="">Selecciona un motivo</option>
+          {revocationReasonOptions.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+          <option value="OTHER">Otro motivo</option>
+        </select>
+      </Field>
+      {reasonSelection === "OTHER" ? (
+        <Field label="Describe el motivo">
+          <textarea
+            required
+            minLength={5}
+            value={reason === "OTHER" ? "" : reason}
+            onChange={(event) => onReason(event.target.value)}
+            className={`${controlClass} min-h-24 resize-y py-2`}
+          />
+        </Field>
+      ) : null}
+    </IndiceConfirmationDialog>
+  );
 }
 
-function PageIntro({ eyebrow, title, description, action, icon: Icon = LayoutDashboard }: { eyebrow: string; title: string; description: string; action?: ReactNode; icon?: typeof LayoutDashboard }) { return <section className="relative overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-r from-white via-blue-50/60 to-emerald-50/50 p-5 shadow-[0_18px_45px_-38px_rgba(37,99,235,0.65)]"><span className="pointer-events-none absolute -right-8 -top-12 h-36 w-36 rounded-full bg-[#59C3A5]/10" aria-hidden="true" /><div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-blue-100 bg-white text-[#2563EB] shadow-sm"><Icon className="h-5 w-5" /></span><div><p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#177D66]">{eyebrow}</p><h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">{title}</h2><p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">{description}</p></div></div>{action}</div></section>; }
-function Panel({ title, description, action, children }: { title: string; description?: string; action?: ReactNode; children: ReactNode }) { return <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_45px_-38px_rgba(15,23,42,0.55)]"><div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4"><div><h3 className="font-medium text-slate-900">{title}</h3>{description ? <p className="mt-1 text-xs text-slate-500">{description}</p> : null}</div>{action}</div>{children}</section>; }
-function Metric({ icon: Icon, label, value, accent }: { icon: typeof Users; label: string; value: string; accent: 'mint' | 'blue' | 'gold' | 'coral' }) { const accents = { mint: 'bg-[#e8f5f2] text-[#177D66]', blue: 'bg-blue-50 text-[#143675]', gold: 'bg-amber-50 text-amber-700', coral: 'bg-red-50 text-[#d84f49]' }; return <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_14px_35px_-32px_rgba(15,23,42,0.7)]"><div className="flex items-center gap-3"><span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${accents[accent]}`}><Icon className="h-5 w-5" /></span><div className="min-w-0"><p className="truncate text-xs text-slate-500">{label}</p><p className="mt-0.5 truncate text-xl font-medium tracking-tight text-slate-950">{value}</p></div></div></article>; }
-function SmallMetric({ label, value }: { label: string; value: string }) { return <div className="rounded-xl border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 truncate text-sm font-medium text-slate-900">{value}</p></div>; }
-function Field({ label, children }: { label: string; children: ReactNode }) { return <label className="block space-y-1.5 text-sm font-medium text-slate-700"><span>{label}</span>{children}</label>; }
-function MiniTag({ children }: { children: ReactNode }) { return <span className="rounded-md bg-slate-100 px-2 py-1 text-[11px] text-slate-600">{children}</span>; }
-function StatusBadge({ status, subtle = false }: { status: string; subtle?: boolean }) { const normalized = status.toLowerCase(); const positive = ['active', 'paid', 'success', 'trialing', 'released'].includes(normalized); const warning = ['open', 'pending', 'past_due', 'trial', 'draft', 'grace'].includes(normalized); const negative = ['failed', 'unpaid', 'canceled', 'cancelled', 'revoked', 'inactive', 'uncollectible', 'void'].includes(normalized); const tone = positive ? 'bg-emerald-50 text-emerald-700' : warning ? 'bg-amber-50 text-amber-700' : negative ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-600'; return <span className={`inline-flex max-w-36 items-center rounded-full px-2.5 py-1 text-[11px] font-medium ${tone} ${subtle ? 'bg-opacity-70' : ''}`} title={status}>{statusLabel(status)}</span>; }
-function EmptyRow({ icon: Icon, text }: { icon: typeof Users; text: string }) { return <div className="flex flex-col items-center justify-center gap-2 px-5 py-10 text-center text-sm text-slate-500"><span className="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-slate-400"><Icon className="h-5 w-5" /></span>{text}</div>; }
-function LoadingState() { return <div className="flex min-h-[45vh] items-center justify-center gap-3 text-sm text-slate-500"><LoaderCircle className="h-5 w-5 animate-spin text-[#177D66]" /> Cargando operación de plataforma...</div>; }
-function PermissionState() { return <div className="grid min-h-[45vh] place-items-center"><div className="text-center"><ShieldCheck className="mx-auto h-10 w-10 text-slate-400" /><h2 className="mt-3 text-lg font-medium">Acceso de consulta</h2><p className="mt-1 text-sm text-slate-500">Tu rol no permite administrar beneficios.</p></div></div>; }
+function PageIntro({
+  eyebrow,
+  title,
+  description,
+  action,
+  icon: Icon = LayoutDashboard,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  action?: ReactNode;
+  icon?: typeof LayoutDashboard;
+}) {
+  return (
+    <section className="relative overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-r from-white via-blue-50/60 to-emerald-50/50 p-5 shadow-[0_18px_45px_-38px_rgba(37,99,235,0.65)]">
+      <span
+        className="pointer-events-none absolute -right-8 -top-12 h-36 w-36 rounded-full bg-[#59C3A5]/10"
+        aria-hidden="true"
+      />
+      <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-blue-100 bg-white text-[#2563EB] shadow-sm">
+            <Icon className="h-5 w-5" />
+          </span>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#177D66]">
+              {eyebrow}
+            </p>
+            <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
+              {title}
+            </h2>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">
+              {description}
+            </p>
+          </div>
+        </div>
+        {action}
+      </div>
+    </section>
+  );
+}
+function Panel({
+  title,
+  description,
+  action,
+  children,
+}: {
+  title: string;
+  description?: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_45px_-38px_rgba(15,23,42,0.55)]">
+      <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+        <div>
+          <h3 className="font-medium text-slate-900">{title}</h3>
+          {description ? (
+            <p className="mt-1 text-xs text-slate-500">{description}</p>
+          ) : null}
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+function Metric({
+  icon: Icon,
+  label,
+  value,
+  caption,
+  accent,
+}: {
+  icon: typeof Users;
+  label: string;
+  value: string;
+  caption?: string;
+  accent: "mint" | "blue" | "gold" | "coral";
+}) {
+  const accents = {
+    mint: "bg-[#e8f5f2] text-[#177D66]",
+    blue: "bg-blue-50 text-[#143675]",
+    gold: "bg-amber-50 text-amber-700",
+    coral: "bg-red-50 text-[#d84f49]",
+  };
+  return (
+    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_14px_35px_-32px_rgba(15,23,42,0.7)]">
+      <div className="flex items-center gap-3">
+        <span
+          className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${accents[accent]}`}
+        >
+          <Icon className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-xs text-slate-500">{label}</p>
+          <p className="mt-0.5 truncate text-xl font-medium tracking-tight text-slate-950">
+            {value}
+          </p>
+          {caption ? (
+            <p className="mt-0.5 truncate text-[11px] text-slate-400">
+              {caption}
+            </p>
+          ) : null}
+        </div>
+      </div>
+    </article>
+  );
+}
+function SmallMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-3">
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className="mt-1 truncate text-sm font-medium text-slate-900">
+        {value}
+      </p>
+    </div>
+  );
+}
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="block space-y-1.5 text-sm font-medium text-slate-700">
+      <span>{label}</span>
+      {children}
+    </label>
+  );
+}
+function MiniTag({ children }: { children: ReactNode }) {
+  return (
+    <span className="rounded-md bg-slate-100 px-2 py-1 text-[11px] text-slate-600">
+      {children}
+    </span>
+  );
+}
+function StatusBadge({
+  status,
+  subtle = false,
+}: {
+  status: string;
+  subtle?: boolean;
+}) {
+  const normalized = status.toLowerCase();
+  const positive = [
+    "active",
+    "paid",
+    "success",
+    "trialing",
+    "released",
+  ].includes(normalized);
+  const warning = [
+    "open",
+    "pending",
+    "past_due",
+    "trial",
+    "draft",
+    "grace",
+  ].includes(normalized);
+  const negative = [
+    "failed",
+    "unpaid",
+    "canceled",
+    "cancelled",
+    "revoked",
+    "inactive",
+    "uncollectible",
+    "void",
+  ].includes(normalized);
+  const informational = normalized === "demo";
+  const tone = positive
+    ? "bg-emerald-50 text-emerald-700"
+    : warning
+      ? "bg-amber-50 text-amber-700"
+      : informational
+        ? "bg-blue-50 text-blue-700"
+      : negative
+        ? "bg-red-50 text-red-700"
+        : "bg-slate-100 text-slate-600";
+  return (
+    <span
+      className={`inline-flex max-w-36 items-center rounded-full px-2.5 py-1 text-[11px] font-medium ${tone} ${subtle ? "bg-opacity-70" : ""}`}
+      title={status}
+    >
+      {statusLabel(status)}
+    </span>
+  );
+}
+function EmptyRow({ icon: Icon, text }: { icon: typeof Users; text: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 px-5 py-10 text-center text-sm text-slate-500">
+      <span className="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-slate-400">
+        <Icon className="h-5 w-5" />
+      </span>
+      {text}
+    </div>
+  );
+}
+function LoadingState() {
+  return (
+    <div className="flex min-h-[45vh] items-center justify-center gap-3 text-sm text-slate-500">
+      <LoaderCircle className="h-5 w-5 animate-spin text-[#177D66]" /> Cargando
+      operación de plataforma...
+    </div>
+  );
+}
+function PermissionState() {
+  return (
+    <div className="grid min-h-[45vh] place-items-center">
+      <div className="text-center">
+        <ShieldCheck className="mx-auto h-10 w-10 text-slate-400" />
+        <h2 className="mt-3 text-lg font-medium">Acceso de consulta</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Tu rol no permite administrar beneficios.
+        </p>
+      </div>
+    </div>
+  );
+}
 
-function formatMoney(value?: number | null, currency = 'USD') { if (value === null || value === undefined) return '—'; return new Intl.NumberFormat('es-MX', { style: 'currency', currency: currency || 'USD', maximumFractionDigits: 0 }).format(value / 100); }
-function formatDate(value?: string | null) { if (!value) return '—'; const date = new Date(value); return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }).format(date); }
-function formatDateTime(value?: string | null) { if (!value) return '—'; const date = new Date(value); return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date); }
-function statusLabel(value?: string | null) { if (!value) return 'Sin estado'; const labels: Record<string, string> = { active: 'Activa', trialing: 'En prueba', paid: 'Pagada', open: 'Abierta', past_due: 'Pago pendiente', unpaid: 'Sin pagar', canceled: 'Cancelada', cancelled: 'Cancelada', revoked: 'Revocada', success: 'Correcto', failed: 'Fallido', released: 'Publicado', legacy: 'Legacy', inactive: 'Inactivo', unknown: 'Desconocido', 'sin movimientos': 'Sin movimientos' }; return labels[value.toLowerCase()] || humanize(value); }
-function humanize(value: string) { return value.replace(/_/g, ' ').toLowerCase().replace(/^./, (letter) => letter.toUpperCase()); }
-function initials(value: string) { return value.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]).join('').toUpperCase() || 'IN'; }
-function shortId(value?: string | null) { if (!value) return '—'; return value.length > 22 ? `${value.slice(0, 10)}…${value.slice(-7)}` : value; }
-function toGigabytes(bytes: number) { return Number((bytes / (1024 ** 3)).toFixed(1)); }
-function moduleEmoji(module: PlatformModule) { if (module.icon && /[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u.test(module.icon)) return module.icon; const slug = module.slug.toLowerCase(); if (slug.includes('human') || slug.includes('resource')) return '👥'; if (slug.includes('process') || slug.includes('task')) return '✅'; if (slug.includes('expense')) return '💸'; if (slug.includes('petty') || slug.includes('cash')) return '💰'; if (slug.includes('sale')) return '💼'; if (slug.includes('point') || slug.includes('pos')) return '🛒'; if (slug.includes('inventory')) return '📦'; if (slug.includes('receiv')) return '📒'; if (module.category === 'ai') return '🤖'; return '🧩'; }
-function environmentLabel() { const hostname = window.location.hostname; if (hostname === 'localhost' || hostname === '127.0.0.1') return { label: 'Local', className: 'bg-blue-50 text-[#143675]' }; if (hostname.includes('apptest')) return { label: 'Pruebas', className: 'bg-amber-50 text-amber-700' }; return { label: 'Producción', className: 'bg-emerald-50 text-emerald-700' }; }
+function formatMoney(value?: number | null, currency = "USD", english = false) {
+  if (value === null || value === undefined) return "—";
+  return new Intl.NumberFormat(english ? "en-CA" : "es-MX", {
+    style: "currency",
+    currency: currency || "USD",
+    maximumFractionDigits: 0,
+  }).format(value / 100);
+}
+function formatDate(value?: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : new Intl.DateTimeFormat("es-MX", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }).format(date);
+}
+function formatDateTime(value?: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : new Intl.DateTimeFormat("es-MX", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(date);
+}
+function statusLabel(value?: string | null) {
+  if (!value) return "Sin estado";
+  const labels: Record<string, string> = {
+    active: "Activa",
+    trial: "Prueba",
+    demo: "Demo",
+    trialing: "En prueba",
+    paid: "Pagada",
+    open: "Abierta",
+    past_due: "Pago pendiente",
+    unpaid: "Sin pagar",
+    canceled: "Cancelada",
+    cancelled: "Cancelada",
+    revoked: "Revocada",
+    success: "Correcto",
+    failed: "Fallido",
+    released: "Publicado",
+    legacy: "Legacy",
+    inactive: "Inactivo",
+    unknown: "Desconocido",
+    "sin movimientos": "Sin movimientos",
+  };
+  return labels[value.toLowerCase()] || humanize(value);
+}
+function humanize(value: string) {
+  return value
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/^./, (letter) => letter.toUpperCase());
+}
+function initials(value: string) {
+  return (
+    value
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((word) => word[0])
+      .join("")
+      .toUpperCase() || "IN"
+  );
+}
+function shortId(value?: string | null) {
+  if (!value) return "—";
+  return value.length > 22 ? `${value.slice(0, 10)}…${value.slice(-7)}` : value;
+}
+function toGigabytes(bytes: number) {
+  return Number((bytes / 1024 ** 3).toFixed(1));
+}
+function moduleVisual(module: PlatformModule) {
+  const slug =
+    `${module.slug} ${module.route_key || ""} ${module.name}`.toLowerCase();
+  const definitions: Array<[string[], string, string, string]> = [
+    [
+      ["config", "panel inicial", "dashboard"],
+      "🏠",
+      "from-blue-100 via-sky-50 to-transparent",
+      "border-blue-200 dark:border-blue-900",
+    ],
+    [
+      ["human", "resource", "recursos humanos"],
+      "👥",
+      "from-teal-100 via-emerald-50 to-transparent",
+      "border-teal-200 dark:border-teal-900",
+    ],
+    [
+      ["petty", "caja chica"],
+      "💰",
+      "from-emerald-100 via-green-50 to-transparent",
+      "border-emerald-200 dark:border-emerald-900",
+    ],
+    [
+      ["expense", "gastos"],
+      "💸",
+      "from-green-100 via-lime-50 to-transparent",
+      "border-green-200 dark:border-green-900",
+    ],
+    [
+      ["crm"],
+      "🤝",
+      "from-orange-100 via-amber-50 to-transparent",
+      "border-orange-200 dark:border-orange-900",
+    ],
+    [
+      ["point", "pos", "punto de venta"],
+      "🛒",
+      "from-rose-100 via-orange-50 to-transparent",
+      "border-rose-200 dark:border-rose-900",
+    ],
+    [
+      ["kpi", "indicadores"],
+      "📊",
+      "from-violet-100 via-purple-50 to-transparent",
+      "border-violet-200 dark:border-violet-900",
+    ],
+    [
+      ["process", "task", "procesos", "tareas"],
+      "✅",
+      "from-amber-100 via-yellow-50 to-transparent",
+      "border-amber-200 dark:border-amber-900",
+    ],
+    [
+      ["receiv", "cartera"],
+      "📒",
+      "from-cyan-100 via-sky-50 to-transparent",
+      "border-cyan-200 dark:border-cyan-900",
+    ],
+    [
+      ["inventory", "inventario", "warehouse", "almacén"],
+      "📦",
+      "from-orange-100 via-red-50 to-transparent",
+      "border-orange-200 dark:border-orange-900",
+    ],
+    [
+      ["sale", "ventas"],
+      "💼",
+      "from-rose-100 via-pink-50 to-transparent",
+      "border-rose-200 dark:border-rose-900",
+    ],
+    [
+      ["maintenance", "mantenimiento"],
+      "🛠️",
+      "from-slate-200 via-zinc-50 to-transparent",
+      "border-slate-300 dark:border-slate-700",
+    ],
+    [
+      ["minutas", "minutes", "control_minutas"],
+      "📝",
+      "from-indigo-100 via-blue-50 to-transparent",
+      "border-indigo-200 dark:border-indigo-900",
+    ],
+    [
+      ["cleaning", "limpieza"],
+      "🧹",
+      "from-cyan-100 via-teal-50 to-transparent",
+      "border-cyan-200 dark:border-cyan-900",
+    ],
+    [
+      ["lavander"],
+      "🧺",
+      "from-sky-100 via-blue-50 to-transparent",
+      "border-sky-200 dark:border-sky-900",
+    ],
+    [
+      ["transport"],
+      "🚌",
+      "from-yellow-100 via-amber-50 to-transparent",
+      "border-yellow-200 dark:border-yellow-900",
+    ],
+    [
+      ["vehicle", "vehículo", "vehiculo", "maquinaria"],
+      "🚜",
+      "from-orange-100 via-amber-50 to-transparent",
+      "border-orange-200 dark:border-orange-900",
+    ],
+    [
+      ["property", "inmueble"],
+      "🏢",
+      "from-blue-100 via-indigo-50 to-transparent",
+      "border-blue-200 dark:border-blue-900",
+    ],
+    [
+      ["form", "formulario"],
+      "📋",
+      "from-purple-100 via-fuchsia-50 to-transparent",
+      "border-purple-200 dark:border-purple-900",
+    ],
+    [
+      ["billing", "facturación", "facturacion"],
+      "🧾",
+      "from-emerald-100 via-teal-50 to-transparent",
+      "border-emerald-200 dark:border-emerald-900",
+    ],
+    [
+      ["mail", "correo"],
+      "✉️",
+      "from-blue-100 via-sky-50 to-transparent",
+      "border-blue-200 dark:border-blue-900",
+    ],
+    [
+      ["clima", "climate"],
+      "🌤️",
+      "from-yellow-100 via-sky-50 to-transparent",
+      "border-yellow-200 dark:border-yellow-900",
+    ],
+    [
+      ["affiliate", "afiliado"],
+      "🔗",
+      "from-fuchsia-100 via-pink-50 to-transparent",
+      "border-fuchsia-200 dark:border-fuchsia-900",
+    ],
+  ];
+  const match = definitions.find(([tokens]) =>
+    tokens.some((token) => slug.includes(token)),
+  );
+  if (match) return { emoji: match[1], gradient: match[2], border: match[3] };
+  if (module.category === "ai")
+    return {
+      emoji: "🤖",
+      gradient: "from-violet-100 via-blue-50 to-transparent",
+      border: "border-violet-200 dark:border-violet-900",
+    };
+  if (
+    module.icon &&
+    /[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u.test(module.icon)
+  )
+    return {
+      emoji: module.icon,
+      gradient: "from-slate-100 to-transparent",
+      border: "border-slate-200 dark:border-slate-700",
+    };
+  return {
+    emoji: "🧩",
+    gradient: "from-slate-100 to-transparent",
+    border: "border-slate-200 dark:border-slate-700",
+  };
+}
+function environmentLabel() {
+  const hostname = window.location.hostname;
+  if (hostname === "localhost" || hostname === "127.0.0.1")
+    return { label: "Local", className: "bg-blue-50 text-[#143675]" };
+  if (hostname.includes("apptest"))
+    return { label: "Pruebas", className: "bg-amber-50 text-amber-700" };
+  return { label: "Producción", className: "bg-emerald-50 text-emerald-700" };
+}

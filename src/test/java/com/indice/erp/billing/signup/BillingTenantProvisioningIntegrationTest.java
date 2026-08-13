@@ -74,6 +74,11 @@ class BillingTenantProvisioningIntegrationTest {
         assertThat(provisioned.provisioningStatus()).isEqualTo("PROVISIONED");
         assertThat(provisioned.companyId()).isNotNull();
         assertThat(jdbc.queryForObject(
+            "SELECT commercial_account_type FROM companies WHERE id = ?",
+            String.class,
+            provisioned.companyId()
+        )).isEqualTo("SUPER_ADMIN");
+        assertThat(jdbc.queryForObject(
             "SELECT COUNT(*) FROM company_ownerships WHERE source_signup_intent_id = ?",
             Integer.class,
             intent.id()
@@ -92,16 +97,16 @@ class BillingTenantProvisioningIntegrationTest {
             provisioned.ownerUserCompanyId()
         )).containsEntry("unit_id", null).containsEntry("business_id", null).containsEntry("department", "Corporate office");
 
-        var expectedProducts = offers.activeBasicProducts().size();
+        var expectedProducts = signupIntents.productIds(intent.id()).size();
         var expectedCapabilities = jdbc.queryForObject(
             """
                 SELECT COUNT(DISTINCT capability_code)
                 FROM billing_product_capabilities capability
-                JOIN billing_catalog_products product ON product.id = capability.product_id
-                JOIN billing_catalog_versions version ON version.id = product.catalog_version_id
-                WHERE version.status = 'ACTIVE' AND product.product_type = 'BASIC' AND product.active = 1
+                JOIN billing_signup_intent_products selected ON selected.catalog_product_id = capability.product_id
+                WHERE selected.signup_intent_id = ?
                 """,
-            Integer.class
+            Integer.class,
+            intent.id()
         );
         assertThat(jdbc.queryForObject(
             "SELECT COUNT(*) FROM company_trial_product_grants WHERE source_signup_intent_id = ? AND status = 'ACTIVE'",
@@ -127,9 +132,7 @@ class BillingTenantProvisioningIntegrationTest {
             "SELECT COUNT(DISTINCT capability_code) FROM company_entitlements WHERE company_id = ?",
             Integer.class,
             provisioned.companyId()
-        // Connected products intentionally collapse into five enforceable capability bundles
-        // (for example, both sales products share one inventory entitlement).
-        )).isGreaterThanOrEqualTo(5);
+        )).isGreaterThanOrEqualTo(expectedCapabilities == null ? 0 : expectedCapabilities);
         assertThat(jdbc.queryForMap(
             "SELECT included_seats, purchased_extra_seats, reserved_seats FROM company_seat_states WHERE company_id = ?",
             provisioned.companyId()
@@ -141,7 +144,7 @@ class BillingTenantProvisioningIntegrationTest {
             provisioned.companyId()
         )).containsEntry("state", "TRIAL").containsEntry("access_mode", "FULL");
         assertThat(entitlements.resolve(provisioned.companyId(), "human_resources").allowed()).isTrue();
-        assertThat(entitlements.resolve(provisioned.companyId(), "receivables").allowed()).isTrue();
+        assertThat(entitlements.resolve(provisioned.companyId(), "receivables").allowed()).isFalse();
     }
 
     @Test

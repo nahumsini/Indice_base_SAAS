@@ -73,6 +73,10 @@ public class BillingTenantProvisioningService {
         if (!"CHECKOUT_COMPLETED".equals(intent.checkoutStatus()) && !courtesySignup) {
             return new ProvisioningResult(intentId, "NOT_ELIGIBLE", null, null, false);
         }
+        var courtesy = courtesySignup ? signupIntents.courtesyProvisioningSpec(intentId) : null;
+        if (courtesySignup && courtesy == null) {
+            throw new IllegalStateException("Courtesy provisioning details are missing.");
+        }
 
         signupIntents.markProvisioningStarted(intentId);
         var existingUserId = existingUserId(intent.email());
@@ -91,6 +95,11 @@ public class BillingTenantProvisioningService {
 
         var companyId = insertCompany(intent.companyName());
         var ownerUserId = insertUser(intent.email(), intent.passwordHash(), intent.fullName());
+        jdbcTemplate.update(
+            "UPDATE companies SET created_by_user_id = ? WHERE id = ?",
+            ownerUserId,
+            companyId
+        );
         var membershipId = insertOwnerMembership(ownerUserId, companyId);
         insertCorporateWorkProfile(intent, companyId, ownerUserId, membershipId);
 
@@ -106,16 +115,19 @@ public class BillingTenantProvisioningService {
             intentId
         );
 
-        var moduleSlugs = provisionOwnerModules(intent.catalogVersionId(), companyId, membershipId);
+        var selectedProductIds = Set.copyOf(signupIntents.productIds(intentId));
+        var moduleSlugs = provisionOwnerModules(
+            intent.catalogVersionId(),
+            companyId,
+            membershipId,
+            courtesy,
+            selectedProductIds
+        );
         provisionOwnerTabs(membershipId, moduleSlugs);
         associateBillingRecords(intentId, companyId, intent.stripeCustomerId());
         entitlementProjection.enrollPremiumSignup(companyId, intent.catalogVersionId(), ownerUserId);
         TrialWindow trial = null;
-        var courtesy = courtesySignup ? signupIntents.courtesyProvisioningSpec(intentId) : null;
         if (courtesySignup) {
-            if (courtesy == null) {
-                throw new IllegalStateException("Courtesy provisioning details are missing.");
-            }
             provisionCourtesyBenefits(intent.catalogVersionId(), intentId, companyId, courtesy);
             entitlementProjection.refreshIfEnrolled(companyId);
             commercialLifecycle.initializeCourtesy(companyId, courtesy.accessEndsAt());
@@ -181,7 +193,7 @@ public class BillingTenantProvisioningService {
         var keys = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             var statement = connection.prepareStatement(
-                "INSERT INTO companies (name) VALUES (?)",
+                "INSERT INTO companies (name, commercial_account_type, creation_origin) VALUES (?, 'SUPER_ADMIN', 'WEB_SELF_SERVICE')",
                 Statement.RETURN_GENERATED_KEYS
             );
             statement.setString(1, companyName);
@@ -245,10 +257,17 @@ public class BillingTenantProvisioningService {
         );
     }
 
-    private Set<String> provisionOwnerModules(long catalogVersionId, long companyId, long membershipId) {
-        var moduleSlugs = new LinkedHashSet<>(jdbcTemplate.query(
+    private Set<String> provisionOwnerModules(
+        long catalogVersionId,
+        long companyId,
+        long membershipId,
+        BillingSignupIntentRepository.CourtesyProvisioningSpec courtesy,
+        Set<Long> selectedProductIds
+    ) {
+        var allowedProducts = courtesy == null ? Set.<String>of() : Set.copyOf(courtesy.productCodes());
+        var productModules = jdbcTemplate.query(
             """
-                SELECT DISTINCT m.slug
+                SELECT DISTINCT m.slug, p.id AS product_id, p.product_code, p.product_type
                 FROM billing_catalog_products p
                 JOIN billing_product_capabilities pc ON pc.product_id = p.id
                 JOIN modules m ON CAST(m.slug AS BINARY) = CAST((CASE pc.capability_code
@@ -257,13 +276,27 @@ public class BillingTenantProvisioningService {
                 END) AS BINARY)
                 WHERE p.catalog_version_id = ?
                   AND p.active = 1
-                  AND p.product_type IN ('CORE', 'BASIC')
+                  AND p.product_type IN ('CORE', 'BASIC', 'ADDON')
                   AND m.is_active = 1
                 ORDER BY m.slug
                 """,
-            (rs, rowNum) -> rs.getString(1),
+            (rs, rowNum) -> new ProductModule(
+                rs.getString("slug"),
+                rs.getLong("product_id"),
+                rs.getString("product_code"),
+                rs.getString("product_type")
+            ),
             catalogVersionId
-        ));
+        );
+        var moduleSlugs = new LinkedHashSet<String>();
+        for (var productModule : productModules) {
+            var selectedForAccess = courtesy == null
+                ? selectedProductIds.contains(productModule.productId())
+                : courtesy.allBasicProducts() || allowedProducts.contains(productModule.productCode());
+            if ("CORE".equalsIgnoreCase(productModule.productType()) || selectedForAccess) {
+                moduleSlugs.add(productModule.moduleSlug());
+            }
+        }
         for (var moduleSlug : moduleSlugs) {
             jdbcTemplate.update(
                 """
@@ -335,15 +368,17 @@ public class BillingTenantProvisioningService {
                     status, starts_at, ends_at
                 )
                 SELECT ?, p.id, ?, 'ACTIVE', ?, ?
-                FROM billing_catalog_products p
+                FROM billing_available_commercial_products p
+                JOIN billing_signup_intent_products selected
+                  ON selected.catalog_product_id = p.id
+                 AND selected.signup_intent_id = ?
                 WHERE p.catalog_version_id = ?
-                  AND p.product_type = 'BASIC'
-                  AND p.active = 1
                 """,
             companyId,
             intentId,
             Timestamp.from(trial.startsAt()),
             Timestamp.from(trial.endsAt()),
+            intentId,
             catalogVersionId
         );
     }
@@ -357,19 +392,26 @@ public class BillingTenantProvisioningService {
         var allowedCodes = Set.copyOf(courtesy.productCodes());
         var products = jdbcTemplate.query(
             """
-                SELECT id, product_code
-                FROM billing_catalog_products
-                WHERE catalog_version_id = ? AND product_type = 'BASIC' AND active = 1
+                SELECT id, product_code, product_type
+                FROM billing_available_commercial_products
+                WHERE catalog_version_id = ?
                 ORDER BY sort_order, id
                 """,
-            (rs, rowNum) -> Map.entry(rs.getLong("id"), rs.getString("product_code")),
+            (rs, rowNum) -> new CourtesyProduct(
+                rs.getLong("id"),
+                rs.getString("product_code"),
+                rs.getString("product_type")
+            ),
             catalogVersionId
         );
         for (var product : products) {
-            if (!courtesy.allBasicProducts() && !allowedCodes.contains(product.getValue())) continue;
+            var include = courtesy.allBasicProducts()
+                ? "BASIC".equalsIgnoreCase(product.productType())
+                : allowedCodes.contains(product.code());
+            if (!include) continue;
             insertCourtesyBenefit(
-                intentId, companyId, "PRODUCT", product.getKey(), 1, courtesy,
-                "product:" + product.getValue()
+                intentId, companyId, "PRODUCT", product.id(), 1, courtesy,
+                "product:" + product.code()
             );
         }
         if (courtesy.includedExtraSeats() > 0) {
@@ -455,6 +497,12 @@ public class BillingTenantProvisioningService {
     }
 
     private record TrialWindow(Instant startsAt, Instant endsAt) {
+    }
+
+    private record ProductModule(String moduleSlug, long productId, String productCode, String productType) {
+    }
+
+    private record CourtesyProduct(long id, String code, String productType) {
     }
 
     public record ProvisioningResult(

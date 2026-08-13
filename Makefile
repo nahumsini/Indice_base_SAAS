@@ -30,6 +30,9 @@ VITE_API_BASE_URL ?=
 # through the deployment environment.
 LOCAL_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET ?= indice-local-hr-identification-secret-2026
 LOCAL_KIOSK_TOKEN_PROTECTION_SECRET ?= indice-local-kiosk-protection-secret-2026
+# Root account creation uses the audited courtesy-provisioning path and does not
+# contact Stripe. Keep this opt-in scoped to the local Make targets below.
+LOCAL_BILLING_PROVISIONING_ENABLED ?= true
 LOCAL_BACKEND_JVM_ARGUMENTS ?= -Dspring.devtools.restart.enabled=false -Dapp.kiosk.secret-protection.enabled=false
 
 export MINIO_API_HOST_PORT
@@ -57,6 +60,7 @@ dev: prepare ## Start the full local dev stack
 	APP_STORAGE_MINIO_SERVICE_PUBLIC_ENDPOINT="$(MINIO_SERVICE_PUBLIC_ENDPOINT)" \
 	APP_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET="$(LOCAL_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET)" \
 	APP_KIOSK_TOKEN_PROTECTION_SECRET="$(LOCAL_KIOSK_TOKEN_PROTECTION_SECRET)" \
+	APP_BILLING_PROVISIONING_ENABLED="$(LOCAL_BILLING_PROVISIONING_ENABLED)" \
 	./mvnw spring-boot:run -P$(SPRING_PROFILE) \
 		-Dspring-boot.run.jvmArguments="$(LOCAL_BACKEND_JVM_ARGUMENTS)" & backend_pid=$$!; \
 	echo "Starting frontend with Vite on http://$(FRONTEND_HOST):$(FRONTEND_PORT)"; \
@@ -141,6 +145,7 @@ backend: ## Run only the Spring Boot backend with the MinIO profile
 	APP_STORAGE_MINIO_SERVICE_PUBLIC_ENDPOINT="$(MINIO_SERVICE_PUBLIC_ENDPOINT)" \
 	APP_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET="$(LOCAL_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET)" \
 	APP_KIOSK_TOKEN_PROTECTION_SECRET="$(LOCAL_KIOSK_TOKEN_PROTECTION_SECRET)" \
+	APP_BILLING_PROVISIONING_ENABLED="$(LOCAL_BILLING_PROVISIONING_ENABLED)" \
 	./mvnw spring-boot:run -P$(SPRING_PROFILE) \
 		-Dspring-boot.run.jvmArguments="$(LOCAL_BACKEND_JVM_ARGUMENTS)"
 

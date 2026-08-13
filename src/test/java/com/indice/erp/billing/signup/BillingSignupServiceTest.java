@@ -1,6 +1,7 @@
 package com.indice.erp.billing.signup;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -112,5 +113,17 @@ class BillingSignupServiceTest {
         assertThat(replay.checkoutSessionId()).isEqualTo("cs_test");
         verify(gateway, times(1)).createCustomer(any(), anyString());
         verify(gateway, times(1)).createCheckout(any(), anyString());
+    }
+
+    @Test
+    void rejectsPasswordsThatBcryptWouldSilentlyTruncate() {
+        var request = new BillingSignupRequest(
+            "Premium Owner", "owner@example.com", "🔐".repeat(20), "Premium Company",
+            "MX", null, null, null, "MONTH", 0, List.of("basic_hr"), null
+        );
+
+        assertThatThrownBy(() -> service.createCheckout(request, "idempotency-key-password-limit"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("no more than 72 bytes");
     }
 }

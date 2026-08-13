@@ -10,6 +10,7 @@ export type IndiceConfirmationDialogProps = {
   confirmDisabled?: boolean;
   confirmLabel?: string;
   description: ReactNode;
+  destructive?: boolean;
   icon?: ReactNode;
   itemName?: ReactNode;
   onCancel: () => void;
@@ -26,6 +27,7 @@ export function IndiceConfirmationDialog({
   confirmDisabled = false,
   confirmLabel = 'Confirmar',
   description,
+  destructive = false,
   icon = <AlertTriangle className="h-5 w-5" />,
   itemName,
   onCancel,
@@ -43,7 +45,12 @@ export function IndiceConfirmationDialog({
           <Button type="button" variant="outline" onClick={onCancel} disabled={busy}>
             {cancelLabel}
           </Button>
-          <Button type="button" onClick={onConfirm} disabled={busy || confirmDisabled}>
+          <Button
+            type="button"
+            data-modal-destructive={destructive ? true : undefined}
+            onClick={onConfirm}
+            disabled={busy || confirmDisabled}
+          >
             {confirmLabel}
           </Button>
         </>

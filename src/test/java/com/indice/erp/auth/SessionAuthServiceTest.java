@@ -163,6 +163,7 @@ class SessionAuthServiceTest {
         assertEquals(List.of("config_center.profile", "human_resources.attendance"), current.get().user().tab_permission_keys());
         assertTrue(current.get().user().tab_permissions_configured());
         assertEquals("Corazón del Caribe", current.get().company().name());
+        assertEquals("SUPER_ADMIN", current.get().company().commercial_account_type());
         assertEquals("corporate_office", current.get().company().scope().type());
         assertTrue(current.get().company().subscription().access_allowed());
         assertEquals(1, current.get().companies().size());
@@ -248,6 +249,7 @@ class SessionAuthServiceTest {
                 when(rs.getLong("user_company_id")).thenReturn(membership.userCompanyId());
                 when(rs.getLong("company_id")).thenReturn(membership.companyId());
                 when(rs.getString("company_name")).thenReturn(membership.companyName());
+                when(rs.getString("commercial_account_type")).thenReturn("SUPER_ADMIN");
                 when(rs.getString("role")).thenReturn(membership.role());
                 when(rs.getObject("unit_id", Long.class)).thenReturn(membership.unitId());
                 when(rs.getObject("business_id", Long.class)).thenReturn(membership.businessId());

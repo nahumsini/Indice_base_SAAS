@@ -16,6 +16,7 @@ export type ConsultingTranslations = {
   scheduleDescription: string;
   stepSession: string;
   stepTime: string;
+  stepConsultant: string;
   stepContext: string;
   includedBadge: string;
   additionalBadge: string;
@@ -25,6 +26,13 @@ export type ConsultingTranslations = {
   addAlternative: string;
   removeAlternative: string;
   timezone: string;
+  consultantPreference: string;
+  consultantPreferenceDescription: string;
+  distributorPreferenceTitle: string;
+  distributorPreferenceDescription: string;
+  indiceTeamPreferenceTitle: string;
+  indiceTeamPreferenceDescription: string;
+  requestedWith: string;
   consultationMode: string;
   virtualMode: string;
   virtualDescription: string;
@@ -71,6 +79,7 @@ export type ConsultingTranslations = {
   successTitle: string;
   successDescription: string;
   requiredMessage: string;
+  preferenceRequiredMessage: string;
   invalidDateMessage: string;
   locationRequiredMessage: string;
   notificationWarning: string;

@@ -25,9 +25,19 @@ const LOGIN_MINIMUM_LOADING_MS = 2500;
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const locationState = location.state as {
+    authenticationExpired?: boolean;
+    returnTo?: string;
+    companyName?: string;
+    email?: string;
+  } | null;
   const { currentLanguage, setCurrentLanguage, t } = useLanguage();
-  const [companyName, setCompanyName] = useState('');
-  const [email, setEmail] = useState('');
+  const [companyName, setCompanyName] = useState(
+    typeof locationState?.companyName === 'string' ? locationState.companyName : '',
+  );
+  const [email, setEmail] = useState(
+    typeof locationState?.email === 'string' ? locationState.email : '',
+  );
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -41,10 +51,6 @@ export default function LoginPage() {
   const [resetErrorMessage, setResetErrorMessage] = useState('');
   const [isResetSubmitting, setIsResetSubmitting] = useState(false);
   const copy = t.loginPage;
-  const locationState = location.state as {
-    authenticationExpired?: boolean;
-    returnTo?: string;
-  } | null;
   const safeReturnTo = locationState?.returnTo?.startsWith('/')
     && !locationState.returnTo.startsWith('//')
     ? locationState.returnTo
@@ -52,7 +58,7 @@ export default function LoginPage() {
 
   const normalizedEmail = normalizeEmail(email);
   const normalizedCompanyName = companyName.trim();
-  const normalizedPassword = password.trim();
+  const passwordIsPresent = password.trim().length > 0;
   const emailIsValid = isValidEmail(normalizedEmail);
   const showEmailError = emailTouched && normalizedEmail.length > 0 && !emailIsValid;
   const showCompanyNameError = companyNameTouched && normalizedCompanyName.length <= 1;
@@ -61,8 +67,8 @@ export default function LoginPage() {
   const showResetEmailError = resetEmailTouched && normalizedResetEmail.length > 0 && !resetEmailIsValid;
 
   const canSubmit = useMemo(
-    () => normalizedCompanyName.length > 1 && normalizedEmail.length > 0 && emailIsValid && normalizedPassword.length > 0 && !isSubmitting,
-    [emailIsValid, isSubmitting, normalizedCompanyName, normalizedEmail, normalizedPassword],
+    () => normalizedCompanyName.length > 1 && normalizedEmail.length > 0 && emailIsValid && passwordIsPresent && !isSubmitting,
+    [emailIsValid, isSubmitting, normalizedCompanyName, normalizedEmail, passwordIsPresent],
   );
 
   const canSubmitReset = useMemo(
@@ -88,7 +94,9 @@ export default function LoginPage() {
         authApi.login({
           companyName: normalizedCompanyName,
           email: normalizedEmail,
-          password: normalizedPassword,
+          // Passwords are secrets, not display text: preserve every character
+          // exactly as it was supplied during account creation.
+          password,
         }),
         LOGIN_MINIMUM_LOADING_MS,
       );

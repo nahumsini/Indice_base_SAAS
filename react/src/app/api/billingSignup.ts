@@ -5,6 +5,9 @@ export type BillingSignupProduct = {
   id: number;
   code: string;
   displayName: string;
+  productType: 'BASIC' | 'ADDON' | string;
+  unitAmountCents: number | null;
+  externalPriceId?: string | null;
 };
 
 export type BillingSignupPrice = {

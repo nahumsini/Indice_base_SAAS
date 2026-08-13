@@ -8,6 +8,31 @@ import { IndiceBrandLogo } from './components/IndiceBrandLogo';
 const LOGIN_SIGNUP_DRAFT_STORAGE_KEY = 'indice.auth.signupDraft.v1';
 const BILLING_SIGNUP_REFERENCE_STORAGE_KEY = 'indice:billing-signup-reference';
 
+type LoginPrefill = {
+  companyName: string;
+  email: string;
+};
+
+const readLoginPrefill = (): LoginPrefill => {
+  if (typeof window === 'undefined') {
+    return { companyName: '', email: '' };
+  }
+  const rawDraft = window.sessionStorage.getItem(LOGIN_SIGNUP_DRAFT_STORAGE_KEY)
+    ?? window.localStorage.getItem(LOGIN_SIGNUP_DRAFT_STORAGE_KEY);
+  if (!rawDraft) {
+    return { companyName: '', email: '' };
+  }
+  try {
+    const draft = JSON.parse(rawDraft) as { companyName?: unknown; email?: unknown };
+    return {
+      companyName: typeof draft.companyName === 'string' ? draft.companyName.trim() : '',
+      email: typeof draft.email === 'string' ? draft.email.trim().toLowerCase() : '',
+    };
+  } catch {
+    return { companyName: '', email: '' };
+  }
+};
+
 export default function SignupCompletePage() {
   const [searchParams] = useSearchParams();
   const reference = searchParams.get('reference')
@@ -15,6 +40,7 @@ export default function SignupCompletePage() {
     ?? '';
   const [status, setStatus] = useState<BillingSignupStatus | null>(null);
   const [error, setError] = useState(reference ? '' : 'No encontramos la referencia segura de este registro.');
+  const [loginPrefill] = useState(readLoginPrefill);
 
   useEffect(() => {
     if (!reference || status?.loginReady || status?.requiresReview) {
@@ -103,7 +129,15 @@ export default function SignupCompletePage() {
 
             {ready ? (
               <Button asChild className="mt-8 h-12 w-full rounded-xl bg-[var(--indice-brand-action)] text-white hover:bg-[var(--indice-brand-action-hover)]">
-                <Link to="/login"><LogIn className="h-5 w-5" /> Iniciar sesión</Link>
+                <Link
+                  to="/login"
+                  state={{
+                    companyName: loginPrefill.companyName,
+                    email: loginPrefill.email,
+                  }}
+                >
+                  <LogIn className="h-5 w-5" /> Iniciar sesión
+                </Link>
               </Button>
             ) : (
               <Link to="/login" className="mt-8 inline-block text-sm font-medium text-[var(--indice-structural-blue)] underline-offset-4 hover:text-[var(--indice-structural-blue-hover)] hover:underline">Ir al inicio de sesión</Link>

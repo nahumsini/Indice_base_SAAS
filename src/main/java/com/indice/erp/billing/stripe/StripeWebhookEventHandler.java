@@ -8,6 +8,7 @@ import com.indice.erp.billing.lifecycle.CommercialLifecycleService;
 import com.indice.erp.billing.signup.BillingSignupIntent;
 import com.indice.erp.billing.signup.BillingSignupIntentRepository;
 import com.indice.erp.billing.signup.BillingTenantProvisioningService;
+import com.indice.erp.billing.subscription.BillingActivationService;
 import com.indice.erp.entitlement.CompanyEntitlementProjectionService;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -25,6 +26,7 @@ public class StripeWebhookEventHandler {
     private final BillingAuditService audit;
     private final CompanyEntitlementProjectionService entitlementProjection;
     private final CommercialLifecycleService commercialLifecycle;
+    private final BillingActivationService activationService;
 
     public StripeWebhookEventHandler(
         ObjectMapper objectMapper,
@@ -33,7 +35,8 @@ public class StripeWebhookEventHandler {
         BillingTenantProvisioningService provisioning,
         BillingAuditService audit,
         CompanyEntitlementProjectionService entitlementProjection,
-        CommercialLifecycleService commercialLifecycle
+        CommercialLifecycleService commercialLifecycle,
+        BillingActivationService activationService
     ) {
         this.objectMapper = objectMapper;
         this.signupIntents = signupIntents;
@@ -42,6 +45,7 @@ public class StripeWebhookEventHandler {
         this.audit = audit;
         this.entitlementProjection = entitlementProjection;
         this.commercialLifecycle = commercialLifecycle;
+        this.activationService = activationService;
     }
 
     @Transactional
@@ -91,6 +95,9 @@ public class StripeWebhookEventHandler {
         );
         var association = projections.associateSubscription(subscriptionId, intent.id());
         var provisioningResult = provisioning.provisionIfEligible(intent.id());
+        if (activationService.isActivationIntent(intent.id())) {
+            activationService.complete(intent.id(), customerId);
+        }
         var companyId = provisioningResult.companyId() == null && association != null
             ? association.companyId()
             : provisioningResult.companyId();
@@ -167,6 +174,9 @@ public class StripeWebhookEventHandler {
         );
         if (intent != null) {
             signupIntents.attachSubscription(intent.id(), subscriptionId, eventId, eventCreatedAt);
+            if (activationService.isActivationIntent(intent.id())) {
+                activationService.complete(intent.id(), objectId(object.path("customer")));
+            }
         }
         if (association.companyId() != null) {
             entitlementProjection.refreshIfEnrolled(association.companyId());

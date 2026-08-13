@@ -82,9 +82,26 @@ public class CompanySeatAllowanceService {
     }
 
     private CompanySeatAllowance usage(long companyId, SeatPlan plan, Long excludedInvitationId) {
-        var allowed = Math.max(0, plan.includedSeats()) + Math.max(0, plan.extraSeats());
+        var allowed = Math.max(0, plan.includedSeats())
+            + Math.max(0, plan.extraSeats())
+            + activeBenefitSeats(companyId);
         var used = activeUsers(companyId) + pendingInvitations(companyId, excludedInvitationId);
         return new CompanySeatAllowance(allowed, used, Math.max(0, allowed - used), plan.includedSeats(), plan.extraSeats());
+    }
+
+    private int activeBenefitSeats(long companyId) {
+        return count(
+            """
+                SELECT COALESCE(SUM(quantity), 0)
+                FROM company_benefit_grants
+                WHERE company_id = ?
+                  AND benefit_type = 'SEAT'
+                  AND status = 'ACTIVE'
+                  AND starts_at <= CURRENT_TIMESTAMP(6)
+                  AND (ends_at IS NULL OR ends_at > CURRENT_TIMESTAMP(6))
+                """,
+            companyId
+        );
     }
 
     private int activeUsers(long companyId) {

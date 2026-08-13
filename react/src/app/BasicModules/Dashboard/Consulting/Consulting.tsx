@@ -15,6 +15,7 @@ import {
   Monitor,
   Phone,
   UserRound,
+  UsersRound,
   XCircle,
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
@@ -46,6 +47,7 @@ type BookingForm = {
   attendeeName: string;
   attendeeEmail: string;
   attendeePhone: string;
+  consultantPreference: '' | 'DISTRIBUTOR' | 'INDICE_TEAM';
 };
 
 const EMPTY_FORM: BookingForm = {
@@ -61,6 +63,7 @@ const EMPTY_FORM: BookingForm = {
   attendeeName: '',
   attendeeEmail: '',
   attendeePhone: '',
+  consultantPreference: '',
 };
 
 function nextBookableDate() {
@@ -134,6 +137,9 @@ export default function Consulting() {
           attendeeName: current.attendeeName || response.contact.name,
           attendeeEmail: current.attendeeEmail || response.contact.email,
           attendeePhone: current.attendeePhone || response.contact.phone,
+          consultantPreference: response.distributor
+            ? current.consultantPreference
+            : 'INDICE_TEAM',
         }));
       })
       .catch(() => setErrorMessage(copy.errorDescription))
@@ -184,6 +190,10 @@ export default function Consulting() {
     const alternativeStartAt = showAlternative
       ? toInstant(form.alternativeDate, form.alternativeTime, appointmentTimezone)
       : null;
+    if (!form.consultantPreference) {
+      setErrorMessage(copy.preferenceRequiredMessage);
+      return;
+    }
     if (!form.attendeeName.trim() || !form.attendeeEmail.trim() || !form.attendeePhone.trim() || !form.topic || !preferredStartAt) {
       setErrorMessage(copy.requiredMessage);
       return;
@@ -206,6 +216,7 @@ export default function Consulting() {
         attendeeName: form.attendeeName.trim(),
         attendeeEmail: form.attendeeEmail.trim(),
         attendeePhone: form.attendeePhone.trim(),
+        consultantPreference: form.consultantPreference,
         topic: form.topic,
         notes: form.notes.trim(),
         preferredStartAt,
@@ -223,6 +234,7 @@ export default function Consulting() {
         attendeeName: current.attendeeName,
         attendeeEmail: current.attendeeEmail,
         attendeePhone: current.attendeePhone,
+        consultantPreference: workspace?.distributor ? '' : 'INDICE_TEAM',
       }));
       setShowAlternative(false);
       await loadWorkspace();
@@ -342,8 +354,8 @@ export default function Consulting() {
               <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-700">
                 <h2 className="font-medium text-slate-950 dark:text-white">{copy.scheduleTitle}</h2>
                 <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{copy.scheduleDescription}</p>
-                <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                  {[copy.stepTime, copy.stepSession, copy.stepContext].map((label, index) => (
+                <div className="mt-4 grid gap-2 sm:grid-cols-4">
+                  {[copy.stepTime, copy.stepConsultant, copy.stepSession, copy.stepContext].map((label, index) => (
                     <span key={label} className={`rounded-lg border px-3 py-2 text-xs font-medium ${index === 0 ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-200' : 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300'}`}>{label}</span>
                   ))}
                 </div>
@@ -367,6 +379,29 @@ export default function Consulting() {
                       </div>
                     ) : <button type="button" className="mt-3 text-sm font-medium text-blue-700 hover:underline dark:text-blue-300" onClick={() => setShowAlternative(true)}>+ {copy.addAlternative}</button>}
                     <p className="mt-3 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400"><Clock3 className="h-3.5 w-3.5" />{copy.timezone}: {appointmentTimezone}</p>
+                  </section>
+
+                  <section>
+                    <h3 className="flex items-center gap-2 text-sm font-medium text-slate-950 dark:text-white"><UsersRound className="h-4 w-4 text-blue-600" />{copy.consultantPreference}</h3>
+                    <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{copy.consultantPreferenceDescription}</p>
+                    <div className={`mt-3 grid gap-3 ${workspace.distributor ? 'sm:grid-cols-2' : ''}`}>
+                      {workspace.distributor ? (
+                        <ModeCard
+                          active={form.consultantPreference === 'DISTRIBUTOR'}
+                          icon={Handshake}
+                          title={`${copy.distributorPreferenceTitle} · ${workspace.distributor.company_name}`}
+                          description={copy.distributorPreferenceDescription}
+                          onClick={() => updateForm('consultantPreference', 'DISTRIBUTOR')}
+                        />
+                      ) : null}
+                      <ModeCard
+                        active={form.consultantPreference === 'INDICE_TEAM'}
+                        icon={UsersRound}
+                        title={copy.indiceTeamPreferenceTitle}
+                        description={copy.indiceTeamPreferenceDescription}
+                        onClick={() => updateForm('consultantPreference', 'INDICE_TEAM')}
+                      />
+                    </div>
                   </section>
 
                   <section>
@@ -447,6 +482,12 @@ function AppointmentCard({ appointment, cancelling, copy, formatDateTime, onCanc
             <Detail label={confirmed ? copy.confirmed : copy.preferredLabel} value={formatDateTime(appointment.confirmed_start_at || appointment.preferred_start_at, appointment.timezone)} />
             {!confirmed && appointment.alternative_start_at ? <Detail label={copy.alternativeLabel} value={formatDateTime(appointment.alternative_start_at, appointment.timezone)} /> : null}
             <Detail label={copy.topic} value={topicLabel(appointment.topic)} />
+            <Detail
+              label={copy.requestedWith}
+              value={appointment.consultant_preference === 'DISTRIBUTOR'
+                ? appointment.requested_distributor_name || copy.distributorPreferenceTitle
+                : copy.indiceTeamPreferenceTitle}
+            />
             <Detail label={copy.consultantLabel} value={appointment.consultant_name || copy.requested} />
             <Detail label={copy.duration} value={sessionLabel(appointment)} />
           </div>
@@ -469,7 +510,7 @@ function History({ appointments, copy, formatDateTime, sessionLabel, statusLabel
   statusLabel: (status: ConsultingAppointment['status']) => string;
   topicLabel: (topic: string) => string;
 }) {
-  return <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800"><div className="border-b border-slate-200 px-5 py-4 dark:border-slate-700"><h2 className="font-medium text-slate-950 dark:text-white">{copy.historyTitle}</h2></div>{appointments.length === 0 ? <p className="px-5 py-8 text-center text-sm text-slate-500 dark:text-slate-400">{copy.historyEmpty}</p> : <div className="divide-y divide-slate-100 dark:divide-slate-700">{appointments.map((appointment) => <div key={appointment.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="truncate text-sm font-medium text-slate-950 dark:text-white">{topicLabel(appointment.topic)}</p><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{formatDateTime(appointment.confirmed_start_at || appointment.preferred_start_at, appointment.timezone)} · {appointment.consultation_mode === 'IN_PERSON' ? `📍 ${appointment.service_location_name}` : `💻 ${copy.virtualMode}`}</p></div><div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-200">{statusLabel(appointment.status)}</span><span className="max-w-xs truncate rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-200">{sessionLabel(appointment)}</span></div></div>)}</div>}</section>;
+  return <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800"><div className="border-b border-slate-200 px-5 py-4 dark:border-slate-700"><h2 className="font-medium text-slate-950 dark:text-white">{copy.historyTitle}</h2></div>{appointments.length === 0 ? <p className="px-5 py-8 text-center text-sm text-slate-500 dark:text-slate-400">{copy.historyEmpty}</p> : <div className="divide-y divide-slate-100 dark:divide-slate-700">{appointments.map((appointment) => <div key={appointment.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="truncate text-sm font-medium text-slate-950 dark:text-white">{topicLabel(appointment.topic)}</p><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{formatDateTime(appointment.confirmed_start_at || appointment.preferred_start_at, appointment.timezone)} · {appointment.consultation_mode === 'IN_PERSON' ? `📍 ${appointment.service_location_name}` : `💻 ${copy.virtualMode}`}</p></div><div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-200">{statusLabel(appointment.status)}</span><span className="max-w-xs truncate rounded-full bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-200">{appointment.consultant_preference === 'DISTRIBUTOR' ? appointment.requested_distributor_name || copy.distributorPreferenceTitle : copy.indiceTeamPreferenceTitle}</span><span className="max-w-xs truncate rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-200">{sessionLabel(appointment)}</span></div></div>)}</div>}</section>;
 }
 
 function ModeCard({ active, icon: Icon, title, description, onClick }: { active: boolean; icon: typeof Monitor; title: string; description: string; onClick: () => void }) {

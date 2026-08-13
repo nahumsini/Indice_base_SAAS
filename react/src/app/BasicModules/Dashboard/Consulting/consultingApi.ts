@@ -4,6 +4,10 @@ export type ConsultingAppointmentStatus = 'REQUESTED' | 'PAYMENT_REQUIRED' | 'CO
 
 export interface ConsultingAppointment {
   id: number;
+  consultant_preference: 'DISTRIBUTOR' | 'INDICE_TEAM';
+  requested_distributor_company_id: number | null;
+  requested_distributor_name: string | null;
+  request_source: 'CLIENT_PORTAL' | 'DISTRIBUTOR_PORTAL' | 'PLATFORM_ADMIN';
   attendee_name: string;
   attendee_email: string;
   attendee_phone: string | null;
@@ -46,6 +50,10 @@ export interface ConsultingWorkspace {
     email: string;
     phone: string;
   };
+  distributor: {
+    company_id: number;
+    company_name: string;
+  } | null;
   topics: Array<{
     value: string;
     label: string;
@@ -71,6 +79,7 @@ export interface ConsultingBookingPayload {
   attendeeName: string;
   attendeeEmail: string;
   attendeePhone: string;
+  consultantPreference: 'DISTRIBUTOR' | 'INDICE_TEAM';
   topic: string;
   notes: string;
   preferredStartAt: string;

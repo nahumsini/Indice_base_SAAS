@@ -29,12 +29,15 @@ public class StripeJavaStorageGateway implements StripeStorageGateway {
         try {
             if (command.quantity() == 0) {
                 if (blank(command.subscriptionItemId())) return new Result(null, 0);
-                SubscriptionItem.retrieve(command.subscriptionItemId(), options).delete(options);
+                SubscriptionItem.retrieve(command.subscriptionItemId(), options).delete(
+                    Map.of("proration_behavior", "none"),
+                    options
+                );
                 return new Result(null, 0);
             }
             var params = new LinkedHashMap<String, Object>();
             params.put("quantity", command.quantity());
-            params.put("proration_behavior", "create_prorations");
+            params.put("proration_behavior", "none");
             params.put("metadata", Map.of(
                 "indice_billable_code", "storage_block",
                 "indice_block_size_bytes", Long.toString(storageProperties.getBlockBytes())));

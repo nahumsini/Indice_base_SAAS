@@ -290,6 +290,7 @@ public class SessionAuthService {
                     uc.id AS user_company_id,
                     uc.company_id,
                     COALESCE(c.name, CONCAT('Company #', uc.company_id)) AS company_name,
+                    COALESCE(c.commercial_account_type, 'SUPER_ADMIN') AS commercial_account_type,
                     COALESCE(uc.role, 'user') AS role,
                     wp.unit_id,
                     wp.business_id
@@ -320,6 +321,7 @@ public class SessionAuthService {
                 rs.getLong("user_company_id"),
                 rs.getLong("company_id"),
                 rs.getString("company_name"),
+                rs.getString("commercial_account_type"),
                 rs.getString("role"),
                 rs.getObject("unit_id", Long.class),
                 rs.getObject("business_id", Long.class)
@@ -333,6 +335,7 @@ public class SessionAuthService {
         return new AuthSessionResponse.CompanyInfo(
             membership.companyId(),
             membership.companyName(),
+            membership.commercialAccountType() == null ? "SUPER_ADMIN" : membership.commercialAccountType(),
             membership.userCompanyId(),
             normalizeRole(membership.role()),
             new AuthSessionResponse.ScopeInfo(scope.type(), scope.unit_id(), scope.business_id()),
@@ -462,10 +465,21 @@ public class SessionAuthService {
         long userCompanyId,
         long companyId,
         String companyName,
+        String commercialAccountType,
         String role,
         Long unitId,
         Long businessId
     ) {
+        private CompanyMembership(
+            long userCompanyId,
+            long companyId,
+            String companyName,
+            String role,
+            Long unitId,
+            Long businessId
+        ) {
+            this(userCompanyId, companyId, companyName, "SUPER_ADMIN", role, unitId, businessId);
+        }
     }
 
     private record SessionAccess(

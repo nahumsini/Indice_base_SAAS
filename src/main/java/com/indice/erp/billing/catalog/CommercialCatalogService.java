@@ -44,8 +44,10 @@ public class CommercialCatalogService {
                 SELECT p.product_code, p.display_name, p.product_type, c.capability_code
                 FROM billing_catalog_products p
                 LEFT JOIN billing_product_capabilities c ON c.product_id = p.id
+                LEFT JOIN billing_available_commercial_products availability ON availability.id = p.id
                 WHERE p.catalog_version_id = ?
                   AND p.active = 1
+                  AND (p.product_type = 'CORE' OR availability.id IS NOT NULL)
                 ORDER BY p.sort_order ASC, p.id ASC, c.capability_code ASC
                 """,
             (rs, rowNum) -> new ProductCapabilityRow(

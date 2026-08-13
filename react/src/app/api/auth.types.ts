@@ -10,6 +10,7 @@ export interface AuthSessionResponse {
   company: {
     id: number;
     name: string;
+    commercial_account_type: 'SUPER_ADMIN' | 'DISTRIBUTOR';
     user_company_id: number;
     role: string;
     scope: {

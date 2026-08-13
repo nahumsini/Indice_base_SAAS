@@ -32,7 +32,7 @@ class BillingSubscriptionRepository {
                         JOIN billing_catalog_products product
                           ON product.id = subscription_product.catalog_product_id
                         WHERE subscription_product.subscription_id = subscription.id
-                          AND product.product_type = 'BASIC'
+                          AND product.product_type IN ('BASIC', 'ADDON')
                     ) AS module_count,
                     subscription.included_seats,
                     subscription.extra_seats,
@@ -74,6 +74,21 @@ class BillingSubscriptionRepository {
                                 LIMIT 1
                             ), 0)
                         )
+                        + COALESCE((
+                            SELECT SUM(price.unit_amount_cents)
+                            FROM company_billing_subscription_products selected
+                            JOIN billing_catalog_products product
+                              ON product.id = selected.catalog_product_id
+                             AND product.product_type = 'ADDON'
+                            JOIN billing_catalog_prices price
+                              ON price.catalog_product_id = product.id
+                             AND price.catalog_version_id = subscription.catalog_version_id
+                             AND price.billing_interval = subscription.billing_interval
+                             AND price.currency = subscription.currency
+                             AND price.price_type = 'ADDON'
+                             AND price.status IN ('READY', 'ACTIVE')
+                            WHERE selected.subscription_id = subscription.id
+                        ), 0)
                     ) AS monthly_amount_cents,
                     COALESCE(subscription.currency, 'USD') AS currency,
                     subscription.trial_starts_at,
@@ -153,7 +168,7 @@ class BillingSubscriptionRepository {
                 JOIN billing_product_capabilities capability
                   ON capability.product_id = product.id
                 WHERE subscription.company_id = ?
-                  AND product.product_type = 'BASIC'
+                  AND product.product_type IN ('BASIC', 'ADDON')
                 ORDER BY module_slug ASC
                 """,
             (rs, rowNum) -> rs.getString("module_slug"),

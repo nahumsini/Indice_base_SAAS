@@ -1,6 +1,7 @@
 package com.indice.erp.platformadmin;
 
 import com.indice.erp.billing.BillingHashing;
+import com.indice.erp.billing.catalog.CommercialOfferSelectionService;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
@@ -25,17 +26,20 @@ public class CourtesyCodeService {
     private final PlatformAdminAccessService access;
     private final PlatformAuditService audit;
     private final Clock clock;
+    private final CommercialOfferSelectionService offers;
 
     public CourtesyCodeService(
         JdbcTemplate jdbc,
         PlatformAdminAccessService access,
         PlatformAuditService audit,
-        Clock clock
+        Clock clock,
+        CommercialOfferSelectionService offers
     ) {
         this.jdbc = jdbc;
         this.access = access;
         this.audit = audit;
         this.clock = clock;
+        this.offers = offers;
     }
 
     public Map<String, Object> list(long actorUserId) {
@@ -61,7 +65,7 @@ public class CourtesyCodeService {
                 instant(rs.getTimestamp("revoked_at")), instant(rs.getTimestamp("created_at")), null
             )
         );
-        return Map.of("codes", codes, "products", activeBasicProducts());
+        return Map.of("codes", codes, "products", activeCommercialProducts());
     }
 
     @Transactional
@@ -71,6 +75,16 @@ public class CourtesyCodeService {
         CreateRequest request
     ) {
         access.require(actorUserId, "PLATFORM_BENEFITS_WRITE");
+        return createAfterAuthorization(actorUserId, idempotencyKey, request);
+    }
+
+    /** Caller must authorize the commercial operation before invoking this shared operation. */
+    @Transactional
+    public Map<String, Object> createAfterAuthorization(
+        long actorUserId,
+        String idempotencyKey,
+        CreateRequest request
+    ) {
         if (idempotencyKey == null || idempotencyKey.isBlank()) {
             throw new IllegalArgumentException("Idempotency-Key is required.");
         }
@@ -252,26 +266,23 @@ public class CourtesyCodeService {
         return rawCode != null && !rawCode.isBlank();
     }
 
-    private List<Map<String, Object>> activeBasicProducts() {
-        return jdbc.query(
-            """
-                SELECT p.product_code, p.display_name
-                FROM billing_catalog_products p
-                JOIN billing_catalog_versions v ON v.id = p.catalog_version_id
-                WHERE v.status = 'ACTIVE' AND p.product_type = 'BASIC' AND p.active = 1
-                ORDER BY p.sort_order, p.id
-                """,
-            (rs, rowNum) -> Map.of("code", rs.getString("product_code"), "name", rs.getString("display_name"))
-        );
+    private List<Map<String, Object>> activeCommercialProducts() {
+        return offers.activeProducts("MONTH").stream()
+            .map(product -> Map.<String, Object>of(
+                "code", product.code(),
+                "name", product.displayName(),
+                "type", product.productType()
+            ))
+            .toList();
     }
 
     private void requireActiveProducts(Set<String> products) {
         if (products.isEmpty()) return;
-        var active = activeBasicProducts().stream()
+        var active = activeCommercialProducts().stream()
             .map(row -> String.valueOf(row.get("code")))
             .collect(java.util.stream.Collectors.toSet());
         if (!active.containsAll(products)) {
-            throw new IllegalArgumentException("product_codes contains an unknown Basic product.");
+            throw new IllegalArgumentException("product_codes contains an unavailable commercial product.");
         }
     }
 

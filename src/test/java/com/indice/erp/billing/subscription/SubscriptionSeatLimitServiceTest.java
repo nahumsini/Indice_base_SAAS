@@ -26,15 +26,16 @@ class SubscriptionSeatLimitServiceTest {
     void usageCountsActiveUsersAndPendingInvitationsAgainstPaidLimit() {
         var service = new SubscriptionSeatLimitService(jdbcTemplate);
         stubSeatLimit(7L, 6);
+        stubBenefitSeats(7L, 3);
         stubActiveSeats(7L, 4);
         stubPendingInvitations(7L, 1);
 
         var usage = service.usage(7L);
 
         assertTrue(usage.enforced());
-        assertEquals(6, usage.allowedSeats());
+        assertEquals(9, usage.allowedSeats());
         assertEquals(5, usage.usedSeats());
-        assertEquals(1, usage.remainingSeats());
+        assertEquals(4, usage.remainingSeats());
     }
 
     @Test
@@ -54,6 +55,7 @@ class SubscriptionSeatLimitServiceTest {
     void availableSeatIsRequiredBeforeCreatingNewCollaborator() {
         var service = new SubscriptionSeatLimitService(jdbcTemplate);
         stubSeatLimit(7L, 5);
+        stubBenefitSeats(7L, 0);
         stubActiveSeats(7L, 5);
         stubPendingInvitations(7L, 0);
 
@@ -81,6 +83,14 @@ class SubscriptionSeatLimitServiceTest {
     private void stubActiveSeats(long companyId, int count) {
         when(jdbcTemplate.queryForObject(
             contains("FROM user_companies"),
+            eq(Integer.class),
+            eq(companyId)
+        )).thenReturn(count);
+    }
+
+    private void stubBenefitSeats(long companyId, int count) {
+        when(jdbcTemplate.queryForObject(
+            contains("benefit_type = 'SEAT'"),
             eq(Integer.class),
             eq(companyId)
         )).thenReturn(count);

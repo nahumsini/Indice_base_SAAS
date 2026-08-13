@@ -27,6 +27,9 @@
     "test:pos-ui": "node --test tests/point-of-sale-frontend-standard-regression.test.mjs",
     "test:print": "node --test tests/document-print-standard-regression.test.mjs",
     "test:phone-validation": "node scripts/phone-validation-regression.mjs",
+    "test:platform-admin": "node --test tests/platform-admin-flow-regression.test.mjs",
+    "test:billing-flow": "node --test tests/billing-flow-regression.test.mjs",
+    "test:distributor-portal": "node --test tests/distributor-portal-flow-regression.test.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

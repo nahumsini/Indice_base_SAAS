@@ -43,6 +43,26 @@ public class CommercialLifecycleService {
     }
 
     @Transactional
+    public TransitionResult extendTrial(
+        long companyId,
+        Instant extendedEndsAt,
+        boolean stripeManaged,
+        String sourceEventId
+    ) {
+        var now = clock.instant();
+        return apply(
+            companyId,
+            "PLATFORM_ADMIN",
+            sourceEventId,
+            now,
+            stripeManaged ? "trialing" : "courtesy",
+            null,
+            extendedEndsAt,
+            stripeManaged ? "TRIAL_EXTENDED" : "COURTESY_EXTENDED"
+        );
+    }
+
+    @Transactional
     public TransitionResult applySubscriptionEvent(
         long companyId,
         String eventId,

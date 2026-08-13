@@ -35,6 +35,7 @@ import {
 } from '../components/ui/dropdown-menu';
 import { Input } from '../components/ui/input';
 import { languages, useLanguage } from '../shared/context';
+import { isValidAccountPassword } from '../shared/validation/password';
 import { IndiceBrandLogo } from './components/IndiceBrandLogo';
 
 const SIGNUP_DRAFT_STORAGE_KEY = 'indice.auth.signupDraft.v1';
@@ -185,7 +186,7 @@ const esSignupExperience: SignupExperienceCopy = {
   hidePassword: 'Ocultar contraseña',
   requiredField: 'Este campo es obligatorio.',
   validEmail: 'Escribe un correo electrónico válido.',
-  passwordRequirement: 'Usa al menos 10 caracteres.',
+  passwordRequirement: 'Usa entre 10 caracteres y 72 bytes.',
   continueLabel: 'Continuar y elegir módulos',
   noCharge: 'No se realizará ningún cobro en este paso.',
   billingValueTitle: 'Configura hoy. Decide con experiencia.',
@@ -223,7 +224,7 @@ const enSignupExperience: SignupExperienceCopy = {
   hidePassword: 'Hide password',
   requiredField: 'This field is required.',
   validEmail: 'Enter a valid email address.',
-  passwordRequirement: 'Use at least 10 characters.',
+  passwordRequirement: 'Use at least 10 characters and no more than 72 bytes.',
   continueLabel: 'Continue and choose modules',
   noCharge: 'No charge will be made in this step.',
   billingValueTitle: 'Configure today. Decide with experience.',
@@ -267,7 +268,7 @@ const signupExperienceCopies: Record<string, SignupExperienceCopy> = {
     hidePassword: 'Masquer le mot de passe',
     requiredField: 'Ce champ est obligatoire.',
     validEmail: 'Saisissez une adresse courriel valide.',
-    passwordRequirement: 'Utilisez au moins 10 caractères.',
+    passwordRequirement: 'Utilisez au moins 10 caractères et au plus 72 octets.',
     continueLabel: 'Continuer et choisir les modules',
     noCharge: 'Aucun prélèvement ne sera effectué à cette étape.',
     billingValueTitle: 'Configurez aujourd’hui. Décidez avec expérience.',
@@ -295,7 +296,7 @@ const signupExperienceCopies: Record<string, SignupExperienceCopy> = {
     hidePassword: 'Ocultar senha',
     requiredField: 'Este campo é obrigatório.',
     validEmail: 'Digite um e-mail válido.',
-    passwordRequirement: 'Use pelo menos 10 caracteres.',
+    passwordRequirement: 'Use pelo menos 10 caracteres e no máximo 72 bytes.',
     continueLabel: 'Continuar e escolher módulos',
     noCharge: 'Nenhuma cobrança será feita nesta etapa.',
     billingValueTitle: 'Configure hoje. Decida com experiência.',
@@ -323,7 +324,7 @@ const signupExperienceCopies: Record<string, SignupExperienceCopy> = {
     hidePassword: '비밀번호 숨기기',
     requiredField: '필수 입력 항목입니다.',
     validEmail: '유효한 이메일 주소를 입력하세요.',
-    passwordRequirement: '10자 이상 입력하세요.',
+    passwordRequirement: '10자 이상, 72바이트 이하로 입력하세요.',
     continueLabel: '계속해서 모듈 선택',
     noCharge: '이 단계에서는 결제되지 않습니다.',
     billingValueTitle: '오늘 구성하고 경험을 바탕으로 결정하세요.',
@@ -351,7 +352,7 @@ const signupExperienceCopies: Record<string, SignupExperienceCopy> = {
     hidePassword: '隐藏密码',
     requiredField: '此字段为必填项。',
     validEmail: '请输入有效的电子邮件地址。',
-    passwordRequirement: '请至少输入 10 个字符。',
+    passwordRequirement: '请输入至少 10 个字符，且不超过 72 字节。',
     continueLabel: '继续并选择模块',
     noCharge: '此步骤不会产生任何费用。',
     billingValueTitle: '今天完成配置，体验后再决定。',
@@ -1308,9 +1309,14 @@ export default function SignupPage() {
   }, [form]);
 
   const selectedCount = form.selectedProductCodes.length;
-  const offerCode = config && selectedCount >= 4 && selectedCount <= config.products.length
+  const basicProducts = config?.products.filter((product) => product.productType === 'BASIC') ?? [];
+  const selectedBasicCount = basicProducts.filter((product) => form.selectedProductCodes.includes(product.code)).length;
+  const selectedComplementaryProducts = config?.products.filter(
+    (product) => product.productType === 'ADDON' && form.selectedProductCodes.includes(product.code),
+  ) ?? [];
+  const offerCode = config && selectedBasicCount >= 4 && selectedBasicCount <= basicProducts.length
     ? 'basic_all'
-    : `basic_${selectedCount}`;
+    : `basic_${selectedBasicCount}`;
   const basePrice = config?.prices.find((price) => (
     price.billableCode === offerCode
     && price.priceType === 'BASE'
@@ -1321,11 +1327,22 @@ export default function SignupPage() {
     && price.priceType === 'ADDON'
     && price.billingInterval === form.billingInterval
   ));
-  const estimatedAmount = basePrice?.unitAmountCents == null || seatPrice?.unitAmountCents == null
+  const complementaryPrices = selectedComplementaryProducts.map((product) => config?.prices.find((price) => (
+    price.billableCode === product.code
+    && price.priceType === 'ADDON'
+    && price.billingInterval === form.billingInterval
+  ))?.unitAmountCents ?? null);
+  const complementaryPricesReady = complementaryPrices.every((amount) => amount != null);
+  const complementaryAmount = complementaryPricesReady
+    ? complementaryPrices.reduce((total, amount) => total + (amount ?? 0), 0)
+    : null;
+  const estimatedAmount = basePrice?.unitAmountCents == null
+    || seatPrice?.unitAmountCents == null
+    || complementaryAmount == null
     ? null
-    : basePrice.unitAmountCents + seatPrice.unitAmountCents * form.extraSeats;
-  const validSelection = selectedCount >= 1
-    && selectedCount <= (config?.products.length ?? 0);
+    : basePrice.unitAmountCents + complementaryAmount + seatPrice.unitAmountCents * form.extraSeats;
+  const validSelection = selectedBasicCount >= 1
+    && selectedBasicCount <= basicProducts.length;
   const courtesyRequested = form.courtesyCode.trim().length > 0;
   const platformReady = Boolean(
     config?.provisioningEnabled
@@ -1335,7 +1352,7 @@ export default function SignupPage() {
     form.fullName.trim().length >= 2
     && form.companyName.trim().length >= 2
     && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())
-    && form.password.length >= 10
+    && isValidAccountPassword(form.password)
   ), [form.companyName, form.email, form.fullName, form.password]);
   const canSubmit = platformReady
     && accountDetailsComplete
@@ -1345,7 +1362,7 @@ export default function SignupPage() {
   const knownIndustry = !form.industry
     || industryValues.includes(form.industry as (typeof industryValues)[number]);
   const availableProductCodes = useMemo(() => config?.products.map((product) => product.code) ?? [], [config]);
-  const selectedTier = tierForSelection(selectedCount, availableProductCodes.length);
+  const selectedTier = tierForSelection(selectedBasicCount, basicProducts.length);
   const includedSeats = config?.includedSeats ?? 5;
   const visibleSignupEstimate = signupEstimatedAmount(selectedTier, form.extraSeats, form.billingInterval);
 
@@ -1358,6 +1375,8 @@ export default function SignupPage() {
     if (!availableProductCodes.includes(code)) return;
     const currentSelection = form.selectedProductCodes.filter((productCode) => availableProductCodes.includes(productCode));
     if (currentSelection.includes(code)) {
+      const product = config?.products.find((item) => item.code === code);
+      if (product?.productType === 'BASIC' && selectedBasicCount === 1) return;
       update('selectedProductCodes', currentSelection.filter((current) => current !== code));
       return;
     }
@@ -1365,7 +1384,7 @@ export default function SignupPage() {
   };
 
   const selectAllProducts = () => update('selectedProductCodes', availableProductCodes);
-  const clearProducts = () => update('selectedProductCodes', []);
+  const clearProducts = () => update('selectedProductCodes', basicProducts.slice(0, 1).map((product) => product.code));
 
   const continueToBilling = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1457,7 +1476,7 @@ export default function SignupPage() {
   const companyInvalid = accountAttempted && form.companyName.trim().length < 2;
   const ownerInvalid = accountAttempted && form.fullName.trim().length < 2;
   const emailInvalid = accountAttempted && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim());
-  const passwordInvalid = accountAttempted && form.password.length < 10;
+  const passwordInvalid = accountAttempted && !isValidAccountPassword(form.password);
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(89,195,165,0.14),_transparent_32%),radial-gradient(circle_at_top_right,_rgba(37,99,235,0.08),_transparent_30%),linear-gradient(135deg,_#F8FAFC_0%,_#EEF3F8_55%,_#F8FAFC_100%)] px-4 py-4 font-sans text-[#222831] sm:px-6 sm:py-5 lg:px-8 lg:py-7">
@@ -1660,12 +1679,22 @@ export default function SignupPage() {
                               {visual.emoji.map((emoji, index) => <span key={`${product.code}-${index}`}>{emoji}</span>)}
                             </span>
                             <span className="mt-3 text-base font-medium leading-5 text-slate-900">{productLabel(product.code, product.displayName, copy)}</span>
-                            <span className="mt-2 text-sm font-medium" style={{ color: visual.accent }}>{experienceCopy.countsAsOne}</span>
+                          <span className="mt-2 text-sm font-medium" style={{ color: visual.accent }}>
+                            {product.productType === 'ADDON'
+                              ? currency(
+                                  config?.prices.find((price) => price.billableCode === product.code
+                                    && price.priceType === 'ADDON'
+                                    && price.billingInterval === form.billingInterval)?.unitAmountCents ?? 0,
+                                  form.billingInterval,
+                                  copy,
+                                )
+                              : experienceCopy.countsAsOne}
+                          </span>
                           </button>
                         );
                       })}
                     </div>
-                    {selectedCount === 0 ? <p className="mt-4 text-sm font-medium text-amber-700">{experienceCopy.chooseAtLeastOne}</p> : null}
+                    {selectedBasicCount === 0 ? <p className="mt-4 text-sm font-medium text-amber-700">{experienceCopy.chooseAtLeastOne}</p> : null}
                     {!validSelection && selectedCount > 0 ? <p className="mt-3 text-sm font-medium text-amber-700">{copy.invalidSelection}</p> : null}
                     {basePrice?.status === 'PENDING_PRICE' ? <p className="mt-3 text-sm font-semibold text-amber-700">{copy.pendingCompletePrice}</p> : null}
                   </fieldset>
@@ -1770,7 +1799,7 @@ export default function SignupPage() {
                     {copy.passwordLabel}
                     <span className="relative block">
                       <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                      <Input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(event) => update('password', event.target.value)} className={`${brandInputClasses} pl-10 pr-11`} placeholder={copy.passwordPlaceholder} autoComplete="new-password" aria-invalid={passwordInvalid} required minLength={10} />
+                      <Input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(event) => update('password', event.target.value)} className={`${brandInputClasses} pl-10 pr-11`} placeholder={copy.passwordPlaceholder} autoComplete="new-password" aria-invalid={passwordInvalid} required minLength={10} maxLength={72} />
                       <button type="button" onClick={() => setShowPassword((visible) => !visible)} className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-800" aria-label={showPassword ? experienceCopy.hidePassword : experienceCopy.showPassword}>
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>

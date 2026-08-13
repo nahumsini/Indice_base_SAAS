@@ -42,6 +42,31 @@ export interface BillingPortalResponse {
   url: string;
 }
 
+export interface BillingInvoiceRecord {
+  invoice_id: string;
+  status: string;
+  currency: string;
+  amount_due_cents: number | null;
+  amount_paid_cents: number | null;
+  hosted_invoice_url: string | null;
+  invoice_pdf_url: string | null;
+  period_starts_at: string | null;
+  period_ends_at: string | null;
+  updated_at: string | null;
+}
+
+export interface BillingInvoiceHistoryResponse {
+  invoices: BillingInvoiceRecord[];
+}
+
+export interface BillingActivationResponse {
+  status: string;
+  checkout_url: string;
+  checkout_expires_at: string;
+  remaining_trial_days: number;
+  replayed: boolean;
+}
+
 export interface BillingSeatSnapshot {
   company_id: number;
   enforced: boolean;
@@ -54,6 +79,48 @@ export interface BillingSeatSnapshot {
   available: number;
   mutation_reference?: string;
   idempotent_replay?: boolean;
+  change_timing?: 'TRIAL_END' | 'NEXT_INVOICE' | 'PAYMENT_METHOD_REQUIRED' | string;
+  charged_now?: boolean;
+}
+
+export interface BillingCatalogProduct {
+  id: number;
+  product_code: string;
+  display_name: string;
+  product_type: 'BASIC' | 'ADDON' | string;
+  unit_amount_cents: number | null;
+  stripe_ready: boolean;
+  capabilities: string[];
+}
+
+export interface BillingSelectionPayload {
+  product_codes: string[];
+  extra_seats: number;
+  billing_interval: 'MONTH' | 'YEAR';
+}
+
+export interface BillingSelectionResponse {
+  source: 'STRIPE' | 'COURTESY' | string;
+  status: string;
+  catalog_version: string;
+  offer_code: string;
+  billing_interval: 'MONTH' | 'YEAR';
+  currency: string;
+  included_seats: number;
+  extra_seats: number;
+  used_seats: number;
+  available_seats: number;
+  base_amount_cents: number | null;
+  complementary_amount_cents: number;
+  extra_seat_unit_amount_cents: number;
+  estimated_amount_cents: number | null;
+  trial_ends_at: string;
+  change_timing: 'TRIAL_END' | 'NEXT_INVOICE' | 'PAYMENT_METHOD_REQUIRED' | string;
+  charged_now: boolean;
+  payment_method_required: boolean;
+  can_update: boolean;
+  selected_product_codes: string[];
+  available_products: BillingCatalogProduct[];
 }
 
 const billingAction = async <T>(path: string) => {
@@ -70,6 +137,46 @@ const billingAction = async <T>(path: string) => {
 export const billingApi = {
   subscription() {
     return apiClient<BillingSubscriptionResponse>(endpoints.billing.subscription);
+  },
+
+  async subscriptionOptional() {
+    try {
+      return await apiClient<BillingSubscriptionResponse>(endpoints.billing.subscription);
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 404) return null;
+      throw error;
+    }
+  },
+
+  selection() {
+    return apiClient<BillingSelectionResponse>(endpoints.billing.selection);
+  },
+
+  invoices() {
+    return apiClient<BillingInvoiceHistoryResponse>(endpoints.billing.invoices);
+  },
+
+  previewSelection(payload: BillingSelectionPayload) {
+    return apiClient<BillingSelectionResponse>(endpoints.billing.selectionPreview, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateSelection(payload: BillingSelectionPayload, idempotencyKey: string) {
+    return apiClient<BillingSelectionResponse>(endpoints.billing.selection, {
+      method: 'PUT',
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  activate(payload: BillingSelectionPayload, idempotencyKey: string) {
+    return apiClient<BillingActivationResponse>(endpoints.billing.activate, {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify(payload),
+    });
   },
 
   cancelSubscription() {

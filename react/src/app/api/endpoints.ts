@@ -33,6 +33,13 @@ export const endpoints = {
     modules: '/api/v1/platform-admin/modules',
     audit: '/api/v1/platform-admin/audit',
   },
+  distributorPortal: {
+    context: '/api/v1/distributor-portal/context',
+    contractsAccess: '/api/v1/distributor-portal/contracts-access',
+    catalog: '/api/v1/distributor-portal/catalog',
+    companies: '/api/v1/distributor-portal/companies',
+    consulting: '/api/v1/distributor-portal/consulting',
+  },
   notifications: {
     list: '/api/v1/notifications',
     readAll: '/api/v1/notifications/read-all',
@@ -42,6 +49,10 @@ export const endpoints = {
     cancelSubscription: '/api/v1/billing/subscription/cancel',
     resumeSubscription: '/api/v1/billing/subscription/resume',
     portal: '/api/v1/billing/subscription/portal',
+    selection: '/api/v1/billing/subscription/selection',
+    selectionPreview: '/api/v1/billing/subscription/selection/preview',
+    activate: '/api/v1/billing/subscription/activate',
+    invoices: '/api/v1/billing/subscription/invoices',
     seats: '/api/v1/billing/seats',
   },
   kioskCenter: {

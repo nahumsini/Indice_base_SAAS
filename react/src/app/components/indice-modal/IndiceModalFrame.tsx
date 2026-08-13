@@ -133,7 +133,7 @@ export function IndiceModalFrame({
           contentClassName,
         )}
         closeButtonClassName={cn(
-          'right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full border opacity-100 focus:ring-white/70 [&_svg]:h-5 [&_svg]:w-5',
+          'right-5 top-5 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border opacity-100 focus:ring-white/70 disabled:cursor-not-allowed [&_svg]:h-5 [&_svg]:w-5',
           styles.close,
           busy && 'pointer-events-none opacity-50',
         )}

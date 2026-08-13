@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -13,6 +14,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.auth.SessionCsrfService;
+import com.indice.erp.config.AppWebProperties;
+import com.indice.erp.configcenter.InvitationEmailResult;
+import com.indice.erp.configcenter.InvitationEmailService;
 import com.indice.erp.consulting.ConsultingAdministrationService;
 import java.util.List;
 import java.util.Map;
@@ -42,10 +46,31 @@ class PlatformAdminApiControllerTest {
     private PlatformAccountProvisioningService accountProvisioning;
 
     @MockBean
+    private PlatformCompanyModuleService companyModules;
+
+    @MockBean
+    private PlatformTrialExtensionService trialExtensions;
+
+    @MockBean
     private CourtesyCodeService courtesyCodes;
 
     @MockBean
     private ConsultingAdministrationService consulting;
+
+    @MockBean
+    private PlatformCatalogManagementService catalogManagement;
+
+    @MockBean
+    private PlatformModuleWorkOrderService moduleWorkOrders;
+
+    @MockBean
+    private PlatformCompanyUserService companyUsers;
+
+    @MockBean
+    private InvitationEmailService invitationEmailService;
+
+    @MockBean
+    private AppWebProperties appWebProperties;
 
     @Test
     void contextRequiresAnAuthenticatedApplicationSession() throws Exception {
@@ -108,6 +133,90 @@ class PlatformAdminApiControllerTest {
     }
 
     @Test
+    void platformRootCanPrepareValidateAndPublishAVersionedCatalog() throws Exception {
+        var platformRoot = new AuthSessionUser(99L, 7L, "Platform Root", "root");
+        given(auth.currentUser(any())).willReturn(Optional.of(platformRoot));
+        given(catalogManagement.createDraft(99L)).willReturn(Map.of(
+            "id", 77L,
+            "version_code", "2026.08-draft-test",
+            "status", "DRAFT",
+            "stripe_mode", "TEST"
+        ));
+        given(catalogManagement.validateDraft(99L, 77L)).willReturn(Map.of(
+            "catalog_version_id", 77L,
+            "version_code", "2026.08-draft-test",
+            "ready", true,
+            "blockers", List.of(),
+            "stripe_mode", "TEST"
+        ));
+        given(catalogManagement.publishDraft(99L, 77L)).willReturn(Map.of(
+            "catalog_version_id", 77L,
+            "version_code", "2026.08-draft-test",
+            "status", "ACTIVE",
+            "published", true,
+            "stripe_mode", "TEST"
+        ));
+
+        mockMvc.perform(post("/api/v1/platform-admin/catalog/drafts")
+                .header("X-CSRF-Token", "csrf-test"))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.status").value("DRAFT"))
+            .andExpect(jsonPath("$.stripe_mode").value("TEST"));
+
+        mockMvc.perform(get("/api/v1/platform-admin/catalog/drafts/77/validation"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.ready").value(true))
+            .andExpect(jsonPath("$.blockers").isEmpty());
+
+        mockMvc.perform(post("/api/v1/platform-admin/catalog/drafts/77/publish")
+                .header("X-CSRF-Token", "csrf-test"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("ACTIVE"))
+            .andExpect(jsonPath("$.published").value(true));
+    }
+
+    @Test
+    void platformRootCanPersistAndCancelAModuleWorkOrder() throws Exception {
+        var platformRoot = new AuthSessionUser(99L, 7L, "Platform Root", "root");
+        given(auth.currentUser(any())).willReturn(Optional.of(platformRoot));
+        given(moduleWorkOrders.create(eq(99L), any())).willReturn(Map.of(
+            "id", 81L,
+            "moduleName", "Gestión ambiental",
+            "slug", "gestion-ambiental",
+            "routeSegment", "/gestion-ambiental",
+            "sourceLocale", "es-MX",
+            "status", "DRAFT"
+        ));
+        given(moduleWorkOrders.list(99L)).willReturn(Map.of(
+            "work_orders", List.of(Map.of("id", 81L, "status", "DRAFT"))
+        ));
+        given(moduleWorkOrders.cancel(99L, 81L)).willReturn(Map.of(
+            "id", 81L,
+            "status", "CANCELLED",
+            "removed", true
+        ));
+
+        mockMvc.perform(post("/api/v1/platform-admin/modules/work-orders")
+                .header("X-CSRF-Token", "csrf-test")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    { "moduleName": "Gestión ambiental", "sourceLocale": "es-MX" }
+                    """))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.slug").value("gestion-ambiental"))
+            .andExpect(jsonPath("$.status").value("DRAFT"));
+
+        mockMvc.perform(get("/api/v1/platform-admin/modules/work-orders"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.work_orders[0].id").value(81L));
+
+        mockMvc.perform(delete("/api/v1/platform-admin/modules/work-orders/81")
+                .header("X-CSRF-Token", "csrf-test"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.removed").value(true));
+    }
+
+    @Test
     void platformRootCanGrantAnAuditableCourtesyBenefit() throws Exception {
         var platformRoot = new AuthSessionUser(99L, 7L, "Platform Root", "user");
         given(auth.currentUser(any())).willReturn(Optional.of(platformRoot));
@@ -136,6 +245,58 @@ class PlatformAdminApiControllerTest {
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.public_reference").value("benefit-1"))
             .andExpect(jsonPath("$.status").value("ACTIVE"));
+    }
+
+    @Test
+    void platformRootCanUpdateTheProductsChargedWhenATrialEnds() throws Exception {
+        var platformRoot = new AuthSessionUser(99L, 7L, "Platform Root", "root");
+        given(auth.currentUser(any())).willReturn(Optional.of(platformRoot));
+        given(companyModules.updateTrialProducts(eq(99L), eq(22L), eq("trial-products-1"), any()))
+            .willReturn(Map.of(
+                "company_id", 22L,
+                "product_codes", List.of("basic_hr", "basic_process_tasks"),
+                "offer_code", "basic_2",
+                "charge_timing", "TRIAL_END",
+                "charged_now", false
+            ));
+
+        mockMvc.perform(patch("/api/v1/platform-admin/companies/22/products")
+                .header("X-CSRF-Token", "csrf-test")
+                .header("Idempotency-Key", "trial-products-1")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    { "product_codes": ["basic_hr", "basic_process_tasks"] }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.offer_code").value("basic_2"))
+            .andExpect(jsonPath("$.charge_timing").value("TRIAL_END"))
+            .andExpect(jsonPath("$.charged_now").value(false));
+    }
+
+    @Test
+    void platformRootCanExtendATrialByAnAllowedPreset() throws Exception {
+        var platformRoot = new AuthSessionUser(99L, 7L, "Platform Root", "root");
+        given(auth.currentUser(any())).willReturn(Optional.of(platformRoot));
+        given(trialExtensions.extend(eq(99L), eq(22L), eq("trial-extension-1"), any()))
+            .willReturn(Map.of(
+                "company_id", 22L,
+                "source", "STRIPE",
+                "added_days", 15,
+                "trial_ends_at", "2026-09-15T00:00:00Z",
+                "charged_now", false
+            ));
+
+        mockMvc.perform(patch("/api/v1/platform-admin/companies/22/trial-extension")
+                .header("X-CSRF-Token", "csrf-test")
+                .header("Idempotency-Key", "trial-extension-1")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    { "days": 15 }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.added_days").value(15))
+            .andExpect(jsonPath("$.source").value("STRIPE"))
+            .andExpect(jsonPath("$.charged_now").value(false));
     }
 
     @Test
@@ -168,6 +329,115 @@ class PlatformAdminApiControllerTest {
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.company_id").value(44L))
             .andExpect(jsonPath("$.owner_email").value("demo.norte@example.com"));
+    }
+
+    @Test
+    void platformRootCanInviteAndDeactivateCompanyUsersWithinSeatCapacity() throws Exception {
+        var platformRoot = new AuthSessionUser(99L, 7L, "Platform Root", "root");
+        given(auth.currentUser(any())).willReturn(Optional.of(platformRoot));
+        given(appWebProperties.resolveInvitationBaseUrl()).willReturn("http://localhost:5174");
+        given(companyUsers.invite(eq(99L), eq(44L), eq("user-invite-1"), any()))
+            .willReturn(Map.of(
+                "invitation_id", 71L,
+                "email", "andrea@example.com",
+                "full_name", "Andrea López",
+                "role", "user",
+                "token", "invite-token",
+                "expires_at", "2026-08-20T12:00:00Z",
+                "seat_usage", Map.of(
+                    "included", 5,
+                    "active", 1,
+                    "reserved", 1,
+                    "available", 3
+                )
+            ));
+        given(invitationEmailService.sendInvitation(
+            "andrea@example.com",
+            "Andrea López",
+            "http://localhost:5174/invite/invite-token"
+        )).willReturn(InvitationEmailResult.disabled());
+        given(companyUsers.updateStatus(eq(99L), eq(44L), eq(88L), any()))
+            .willReturn(Map.of(
+                "success", true,
+                "user_id", 88L,
+                "status", "inactive",
+                "seat_usage", Map.of("active", 1, "available", 4)
+            ));
+
+        mockMvc.perform(post("/api/v1/platform-admin/companies/44/users/invitations")
+                .header("X-CSRF-Token", "csrf-test")
+                .header("Idempotency-Key", "user-invite-1")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {
+                      "name": "Andrea López",
+                      "email": "andrea@example.com",
+                      "role": "user"
+                    }
+                    """))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.invitation_id").value(71L))
+            .andExpect(jsonPath("$.invite_link").value("http://localhost:5174/invite/invite-token"))
+            .andExpect(jsonPath("$.email_status").value("disabled"))
+            .andExpect(jsonPath("$.seat_usage.reserved").value(1));
+
+        mockMvc.perform(patch("/api/v1/platform-admin/companies/44/users/88/status")
+                .header("X-CSRF-Token", "csrf-test")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    { "status": "inactive" }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("inactive"))
+            .andExpect(jsonPath("$.seat_usage.available").value(4));
+    }
+
+    @Test
+    void platformRootCanEditACommercialAccountType() throws Exception {
+        var platformRoot = new AuthSessionUser(99L, 7L, "Platform Root", "root");
+        given(auth.currentUser(any())).willReturn(Optional.of(platformRoot));
+        given(service.updateCompanyAccountType(eq(99L), eq(44L), any()))
+            .willReturn(Map.of(
+                "company_id", 44L,
+                "user_type", "DISTRIBUTOR",
+                "changed", true
+            ));
+
+        mockMvc.perform(patch("/api/v1/platform-admin/companies/44/account-type")
+                .header("X-CSRF-Token", "csrf-test")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    { "account_type": "DISTRIBUTOR" }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.company_id").value(44L))
+            .andExpect(jsonPath("$.user_type").value("DISTRIBUTOR"))
+            .andExpect(jsonPath("$.changed").value(true));
+    }
+
+    @Test
+    void platformRootCanAssignAClientToADistributor() throws Exception {
+        var platformRoot = new AuthSessionUser(99L, 7L, "Platform Root", "root");
+        given(auth.currentUser(any())).willReturn(Optional.of(platformRoot));
+        given(service.updateCompanyDistributor(eq(99L), eq(44L), any()))
+            .willReturn(Map.of(
+                "company_id", 44L,
+                "distributor_company_id", 9L,
+                "distributor_company_name", "Aliado Norte",
+                "commercial_origin", "DISTRIBUTOR",
+                "changed", true
+            ));
+
+        mockMvc.perform(patch("/api/v1/platform-admin/companies/44/distributor")
+                .header("X-CSRF-Token", "csrf-test")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    { "distributor_company_id": 9 }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.company_id").value(44L))
+            .andExpect(jsonPath("$.distributor_company_id").value(9L))
+            .andExpect(jsonPath("$.distributor_company_name").value("Aliado Norte"));
     }
 
     @Test
@@ -233,5 +503,86 @@ class PlatformAdminApiControllerTest {
                     """))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.status").value("CONFIRMED"));
+    }
+
+    @Test
+    void platformRootCanCreateConsultantsCoverageAndSessions() throws Exception {
+        var platformRoot = new AuthSessionUser(99L, 7L, "Platform Root", "root");
+        given(auth.currentUser(any())).willReturn(Optional.of(platformRoot));
+        given(consulting.createConsultant(eq(99L), any())).willReturn(Map.of(
+            "id", 12L,
+            "name", "Andrea Ruiz",
+            "email", "andrea@example.com",
+            "active", true
+        ));
+        given(consulting.createLocation(eq(99L), any())).willReturn(Map.of(
+            "id", 13L,
+            "location_code", "MX-MTY",
+            "city_name", "Monterrey",
+            "active", true
+        ));
+        given(consulting.createAppointment(eq(99L), any())).willReturn(Map.of(
+            "id", 14L,
+            "company_id", 22L,
+            "status", "CONFIRMED",
+            "consultant_name", "Andrea Ruiz"
+        ));
+
+        mockMvc.perform(post("/api/v1/platform-admin/consulting/consultants")
+                .header("X-CSRF-Token", "csrf-test")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {
+                      "firstName": "Andrea",
+                      "lastName": "Ruiz",
+                      "phone": "+52 81 5555 0101",
+                      "email": "andrea@example.com"
+                    }
+                    """))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.name").value("Andrea Ruiz"));
+
+        mockMvc.perform(post("/api/v1/platform-admin/consulting/locations")
+                .header("X-CSRF-Token", "csrf-test")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {
+                      "cityName": "Monterrey",
+                      "regionName": "Nuevo León",
+                      "countryName": "México",
+                      "countryCode": "MX",
+                      "timezone": "America/Monterrey",
+                      "currency": "USD"
+                    }
+                    """))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.city_name").value("Monterrey"));
+
+        mockMvc.perform(post("/api/v1/platform-admin/consulting/appointments")
+                .header("X-CSRF-Token", "csrf-test")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {
+                      "companyId": 22,
+                      "attendeeName": "Cliente Demo",
+                      "attendeeEmail": "cliente@example.com",
+                      "attendeePhone": "+52 81 5555 0202",
+                      "topic": "IMPLEMENTATION",
+                      "consultationMode": "VIRTUAL",
+                      "startAt": "2026-09-15T16:00:00Z",
+                      "timezone": "America/Monterrey",
+                      "durationMinutes": 60,
+                      "consultantName": "Andrea Ruiz",
+                      "consultantEmail": "andrea@example.com",
+                      "consultantPhone": "+52 81 5555 0101",
+                      "meetingUrl": "https://meet.example.com/indice-14",
+                      "serviceLocationCode": "",
+                      "serviceLocationName": "",
+                      "countryCode": "MX"
+                    }
+                    """))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.status").value("CONFIRMED"))
+            .andExpect(jsonPath("$.consultant_name").value("Andrea Ruiz"));
     }
 }

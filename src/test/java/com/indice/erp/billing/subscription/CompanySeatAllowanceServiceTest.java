@@ -28,20 +28,22 @@ class CompanySeatAllowanceServiceTest {
     void currentUsageCountsActiveUsersAndPendingUnexpiredInvitations() throws Exception {
         var service = new CompanySeatAllowanceService(jdbcTemplate);
         givenPlan(5, 2);
+        givenBenefitSeats(3);
         givenActiveUsers(3);
         givenPendingInvitations(2);
 
         var usage = service.currentUsage(7L);
 
-        assertEquals(7, usage.allowedSeats());
+        assertEquals(10, usage.allowedSeats());
         assertEquals(5, usage.usedSeats());
-        assertEquals(2, usage.remainingSeats());
+        assertEquals(5, usage.remainingSeats());
     }
 
     @Test
     void inviteBlocksWhenPlanHasNoRemainingSeats() throws Exception {
         var service = new CompanySeatAllowanceService(jdbcTemplate);
         givenPlan(5, 0);
+        givenBenefitSeats(0);
         givenActiveUsers(5);
         givenPendingInvitations(0);
 
@@ -57,6 +59,7 @@ class CompanySeatAllowanceServiceTest {
     void invitationAcceptanceAllowsReservedInviteToBecomeActiveUser() throws Exception {
         var service = new CompanySeatAllowanceService(jdbcTemplate);
         givenPlan(1, 0);
+        givenBenefitSeats(0);
         givenActiveUsers(0);
         when(jdbcTemplate.queryForObject(contains("id <> ?"), eq(Integer.class), eq(7L), eq(99L)))
             .thenReturn(0);
@@ -81,6 +84,11 @@ class CompanySeatAllowanceServiceTest {
 
     private void givenActiveUsers(int count) {
         when(jdbcTemplate.queryForObject(contains("FROM user_companies"), eq(Integer.class), eq(7L)))
+            .thenReturn(count);
+    }
+
+    private void givenBenefitSeats(int count) {
+        when(jdbcTemplate.queryForObject(contains("benefit_type = 'SEAT'"), eq(Integer.class), eq(7L)))
             .thenReturn(count);
     }
 

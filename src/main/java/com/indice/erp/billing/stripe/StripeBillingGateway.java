@@ -11,10 +11,10 @@ import org.springframework.stereotype.Component;
 @Component
 public class StripeBillingGateway {
 
-    private final StripeSignupProperties properties;
+    private final StripeSecretProvider secrets;
 
-    public StripeBillingGateway(StripeSignupProperties properties) {
-        this.properties = properties;
+    public StripeBillingGateway(StripeSecretProvider secrets) {
+        this.secrets = secrets;
     }
 
     public Customer createCustomer(Map<String, Object> params, String idempotencyKey) throws StripeException {
@@ -40,13 +40,13 @@ public class StripeBillingGateway {
 
     private RequestOptions requestOptions() {
         return RequestOptions.builder()
-            .setApiKey(properties.getSecretKey())
+            .setApiKey(secrets.secretKey())
             .build();
     }
 
     private RequestOptions requestOptions(String idempotencyKey) {
         return RequestOptions.builder()
-            .setApiKey(properties.getSecretKey())
+            .setApiKey(secrets.secretKey())
             .setIdempotencyKey(idempotencyKey)
             .build();
     }

@@ -56,7 +56,7 @@ public class SubscriptionSeatLimitService {
             companyId
         );
         if (!rows.isEmpty()) {
-            return Math.max(0, rows.getFirst());
+            return Math.max(0, rows.getFirst()) + activeBenefitSeats(companyId);
         }
         var subscriptionRows = jdbcTemplate.query(
             """
@@ -69,7 +69,26 @@ public class SubscriptionSeatLimitService {
             (rs, rowNum) -> rs.getInt("seat_limit"),
             companyId
         );
-        return subscriptionRows.isEmpty() ? 0 : Math.max(0, subscriptionRows.getFirst());
+        return subscriptionRows.isEmpty()
+            ? 0
+            : Math.max(0, subscriptionRows.getFirst()) + activeBenefitSeats(companyId);
+    }
+
+    private int activeBenefitSeats(long companyId) {
+        var count = jdbcTemplate.queryForObject(
+            """
+                SELECT COALESCE(SUM(quantity), 0)
+                FROM company_benefit_grants
+                WHERE company_id = ?
+                  AND benefit_type = 'SEAT'
+                  AND status = 'ACTIVE'
+                  AND starts_at <= CURRENT_TIMESTAMP(6)
+                  AND (ends_at IS NULL OR ends_at > CURRENT_TIMESTAMP(6))
+                """,
+            Integer.class,
+            companyId
+        );
+        return count == null ? 0 : Math.max(0, count);
     }
 
     private int activeSeatCount(long companyId) {

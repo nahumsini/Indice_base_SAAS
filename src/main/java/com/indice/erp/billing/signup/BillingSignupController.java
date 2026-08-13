@@ -52,7 +52,7 @@ public class BillingSignupController {
             Map.entry("includedSeats", 5),
             Map.entry("currency", "USD"),
             Map.entry("launchCountries", java.util.List.of("MX", "CA", "US", "CO", "BR")),
-            Map.entry("products", offers.activeBasicProducts()),
+            Map.entry("products", offers.activeProducts("MONTH")),
             Map.entry("prices", offers.activePrices())
         );
     }

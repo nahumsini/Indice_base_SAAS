@@ -1,0 +1,391 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import test from "node:test";
+
+const root = resolve(import.meta.dirname, "..");
+const read = (path) => readFileSync(resolve(root, path), "utf8");
+const page = read("src/app/PlatformAdmin/PlatformAdminPage.tsx");
+const customerTable = read(
+  "src/app/PlatformAdmin/Customers/CustomersTable.tsx",
+);
+const customerRow = read(
+  "src/app/PlatformAdmin/Customers/CustomerTableRow.tsx",
+);
+const customerUsersModal = read(
+  "src/app/PlatformAdmin/Customers/CustomerUsersModal.tsx",
+);
+const customerTraceability = read(
+  "src/app/PlatformAdmin/Customers/CustomerTraceabilityCell.tsx",
+);
+const customerTableCopy = read(
+  "src/app/PlatformAdmin/Customers/customerTableCopy.ts",
+);
+const customerTableUtils = read(
+  "src/app/PlatformAdmin/Customers/customerTableUtils.ts",
+);
+const account = read("src/app/PlatformAdmin/AccountCreationModal.tsx");
+const accountFlow = read(
+  "src/app/PlatformAdmin/AccountCreation/hooks/useAccountCreationFlow.ts",
+);
+const accountUtils = read(
+  "src/app/PlatformAdmin/AccountCreation/accountCreationUtils.ts",
+);
+const accountCompanyStep = read(
+  "src/app/PlatformAdmin/AccountCreation/components/CompanyStep.tsx",
+);
+const accountOwnerStep = read(
+  "src/app/PlatformAdmin/AccountCreation/components/OwnerStep.tsx",
+);
+const accountAccessStep = read(
+  "src/app/PlatformAdmin/AccountCreation/components/AccessStep.tsx",
+);
+const trialExtension = read(
+  "src/app/PlatformAdmin/Customers/TrialExtensionModal.tsx",
+);
+const accountSuccess = read(
+  "src/app/PlatformAdmin/AccountCreation/components/AccountCreationSuccess.tsx",
+);
+const accountSpanishCopy = read(
+  "src/app/PlatformAdmin/AccountCreation/translations/es-MX.ts",
+);
+const accountFeature = [
+  account,
+  accountFlow,
+  accountUtils,
+  accountCompanyStep,
+  accountOwnerStep,
+  accountAccessStep,
+  accountSuccess,
+  accountSpanishCopy,
+].join("\n");
+const accountDraft = read(
+  "src/app/PlatformAdmin/accountCreationDraft.ts",
+);
+const routes = read("src/app/routes.tsx");
+const accountTypeEdit = read("src/app/PlatformAdmin/AccountTypeEditModal.tsx");
+const distributorAssignment = read(
+  "src/app/PlatformAdmin/DistributorAssignmentModal.tsx",
+);
+const platformApi = read("src/app/api/platformAdmin.ts");
+const company = read("src/app/PlatformAdmin/CompanyAccountDrawer.tsx");
+const companyModules = read(
+  "src/app/PlatformAdmin/CompanyAccount/CompanyModulesTab.tsx",
+);
+const companyActivity = read(
+  "src/app/PlatformAdmin/CompanyAccount/CompanyActivityTab.tsx",
+);
+const companyAccess = read("src/app/PlatformAdmin/CompanyAccount/CompanyAccessTab.tsx");
+const adjustment = read("src/app/PlatformAdmin/BenefitAdjustmentModal.tsx");
+const consulting = read("src/app/PlatformAdmin/ConsultingAdminTab.tsx");
+const clientConsulting = read(
+  "src/app/BasicModules/Dashboard/Consulting/Consulting.tsx",
+);
+const consultingApi = read(
+  "src/app/BasicModules/Dashboard/Consulting/consultingApi.ts",
+);
+const session = read(
+  "src/app/PlatformAdmin/ConsultingSessions/SessionCreateModal.tsx",
+);
+const coverage = read(
+  "src/app/PlatformAdmin/ConsultingCoverage/CoverageCreateModal.tsx",
+);
+const moduleWorkOrders = read(
+  "src/app/PlatformAdmin/ModuleWorkOrders/useModuleWorkOrders.ts",
+);
+
+test("clientes concentra el acceso promocional sin recuperar la pestaña eliminada", () => {
+  assert.doesNotMatch(page, /id:\s*["']courtesy["']/);
+  assert.match(page, /Acceso promocional/);
+  assert.match(page, /courtesyFeedback/);
+  assert.match(page, /IndiceModalValidation/);
+});
+
+test("catálogo y módulos guía un flujo operativo de disponibilidad producto y cobro", () => {
+  assert.match(page, /es: "Catálogo y módulos"/);
+  assert.match(page, /en: "Catalog & modules"/);
+  assert.doesNotMatch(page, /id: "modules", es: "Módulos"/);
+  assert.match(page, /type CatalogWorkspaceView = "modules" \| "products" \| "prices"/);
+  assert.match(page, /Catálogo y módulos/);
+  assert.match(page, /Disponibilidad/);
+  assert.match(page, /Productos y paquetes/);
+  assert.match(page, /Precios y cobro/);
+  assert.match(page, /Actualizar catálogo comercial/);
+  assert.match(page, /Qué haces aquí/);
+  assert.match(page, /Afecta a/);
+  assert.match(page, /Siguiente paso/);
+  assert.match(page, /<ModulesTab[\s\S]*embedded/);
+  assert.match(page, /<CatalogTab[\s\S]*view=\{view\}/);
+});
+
+test("alta de cuenta avanza por empresa propietario y acceso", () => {
+  assert.match(account, /IndiceModalWizardStepper/);
+  assert.match(accountUtils, /id:\s*["']company["']/);
+  assert.match(accountUtils, /id:\s*["']owner["']/);
+  assert.match(accountUtils, /id:\s*["']access["']/);
+  assert.match(accountFlow, /reportValidity/);
+  assert.match(accountCompanyStep, /industryOptions/);
+  assert.match(accountCompanyStep, /employee_count/);
+  assert.match(accountCompanyStep, /Número exacto de empleados|copy\.company\.employees/);
+  assert.match(accountAccessStep, /requiredExtraSeats/);
+  assert.match(accountAccessStep, /INCLUDED_ACCOUNT_SEATS/);
+  assert.doesNotMatch(accountAccessStep, /extraSeatOptions/);
+  assert.match(accountFlow, /extra_seats: requiredExtraSeats\(updated\.employee_count\)/);
+  assert.match(accountFlow, /company_size: String\(employeeCount\)/);
+  assert.match(accountFlow, /isValidAccountPassword\(form\.temporary_password\)/);
+  assert.doesNotMatch(account, /h-\[92dvh\]/);
+  assert.match(accountFlow, /validatePhoneForCountry/);
+  assert.match(accountFlow, /knownOwnerEmails\.has/);
+  assert.match(accountFlow, /setStep\(errorStep\)/);
+  assert.match(accountFlow, /if \(step !== ["']access["']\) \{\s*advance\(\);\s*return;/);
+  assert.match(accountFlow, /const hasBasicProduct = selectableProducts\.some/);
+  assert.match(accountFlow, /product\.product_type\.toUpperCase\(\) === ["']BASIC["']/);
+  assert.match(accountFlow, /if \(!hasBasicProduct\)/);
+  assert.match(accountFlow, /result\.modules_applied === true/);
+  assert.match(accountFlow, /confirmedProducts\.has\(code\)/);
+  assert.match(accountSuccess, /copy\.success\.loadedModules/);
+  assert.match(accountSuccess, /created\.products/);
+});
+
+test("la tabla suma los lugares adicionales concedidos durante la prueba", () => {
+  assert.match(platformApi, /courtesy_extra_seats\?: number/);
+  assert.match(customerRow, /company\.courtesy_extra_seats \|\| 0/);
+});
+
+test("clientes resume facturacion mensual cuentas activas y usuarios reales", () => {
+  assert.match(page, /projected_monthly_billing_cents/);
+  assert.match(page, /active_customer_companies/);
+  assert.match(page, /customer_active_users/);
+  assert.match(page, /Facturaci.n mensual/);
+  assert.match(page, /Usuarios activos totales/);
+});
+
+test("la prueba sólo permite periodos controlados de 7 15 o 30 días", () => {
+  assert.match(accountAccessStep, /trialDayOptions/);
+  assert.match(
+    trialExtension,
+    /const options: TrialExtensionDays\[\] = \[7, 15, 30\]/,
+  );
+  assert.doesNotMatch(trialExtension, /type=["']number["']/);
+  assert.match(customerRow, /trial_days_remaining/);
+  assert.match(customerRow, /onExtendTrial/);
+  assert.match(page, /context\?\.role === "PLATFORM_ROOT"/);
+  assert.match(platformApi, /\/trial-extension/);
+});
+
+test("alta de cuenta recupera el avance cuando expira la sesión Root", () => {
+  assert.match(routes, /function PlatformAdminRoute\(\)[\s\S]*subscribeToAuthenticationExpired/);
+  assert.match(routes, /authenticationExpired: true/);
+  assert.match(routes, /returnTo:/);
+  assert.match(accountFlow, /saveAccountCreationDraft\(step, form\)/);
+  assert.match(accountFeature, /hasAccountCreationDraft|restoredDraft/);
+  assert.match(accountSpanishCopy, /Volver a iniciar sesión/);
+  assert.match(accountFlow, /returnTo: "\/platform-admin"/);
+  assert.match(accountDraft, /temporary_password: omittedPassword/);
+  assert.match(accountDraft, /Never persist the temporary password/);
+  assert.match(page, /hasAccountCreationDraft\(\)/);
+});
+
+test("tipo de cuenta se persiste sin permitir conceder Root desde el alta", () => {
+  assert.match(page, /Tipo de usuario/);
+  assert.match(customerRow, /UserTypeBadge/);
+  assert.match(page, /value: "ROOT", label: "Root"/);
+  assert.match(accountUtils, /account_type: "SUPER_ADMIN"/);
+  assert.match(accountCompanyStep, /<option value="SUPER_ADMIN">/);
+  assert.match(accountCompanyStep, /<option value="DISTRIBUTOR">/);
+  assert.doesNotMatch(accountCompanyStep, /<option value="ROOT">/);
+});
+
+test("el tipo de cuenta se edita por modal y conserva Root fuera del flujo", () => {
+  assert.match(customerTableCopy, /editType: "Editar tipo de usuario"/);
+  assert.match(customerRow, /company\.user_type !== "ROOT"/);
+  assert.match(page, /AccountTypeEditModal/);
+  assert.match(accountTypeEdit, /Editar tipo de usuario/);
+  assert.match(accountTypeEdit, /<option value="SUPER_ADMIN">/);
+  assert.match(accountTypeEdit, /<option value="DISTRIBUTOR">/);
+  assert.doesNotMatch(accountTypeEdit, /<option value="ROOT">/);
+  assert.match(platformApi, /updateCompanyAccountType/);
+  assert.match(platformApi, /\/account-type/);
+});
+
+test("el estado comercial distingue activo prueba demo e inactivo", () => {
+  assert.match(customerTableUtils, /basicCommercialStatus/);
+  assert.match(page, /value: "active", label: english \? "Active" : "Activa"/);
+  assert.match(page, /value: "trial", label: english \? "Trial" : "Prueba"/);
+  assert.match(page, /value: "demo", label: "Demo"/);
+  assert.match(page, /value: "inactive"/);
+  assert.match(customerTableUtils, /company\.temporary_benefits/);
+  assert.match(platformApi, /temporary_benefits\?: number/);
+  assert.match(customerRow, /basicCommercialStatus\(company\)/);
+});
+
+test("la tabla de clientes conserva identidad y acciones con el patrón Índice", () => {
+  assert.match(customerTable, /table-fixed/);
+  assert.match(customerTable, /sticky right-0/);
+  assert.match(customerRow, /sticky left-0/);
+  assert.match(customerRow, /bg-\[#2563EB\]/);
+  assert.match(customerRow, /Settings2/);
+  assert.match(customerTableCopy, /manage: "Administrar"/);
+});
+
+test("la tabla separa el creador histórico del distribuidor vigente", () => {
+  assert.match(customerTableCopy, /commercialOrigin: "Trazabilidad"/);
+  assert.match(customerTableCopy, /createdByDistributor: "Creado por distribuidor"/);
+  assert.match(customerTableCopy, /distributorAccount: "Cuenta distribuidora"/);
+  assert.match(customerTraceability, /company\.creation_origin === "DISTRIBUTOR_PORTAL"/);
+  assert.match(customerTraceability, /company\.created_by_distributor_company_name/);
+  assert.match(customerTraceability, /company\.distributor_company_name/);
+  assert.match(customerTraceability, /copy\.currentDistributor/);
+  assert.match(customerTraceability, /copy\.originNotRegistered/);
+  assert.match(customerTraceability, /text-sm font-medium/);
+  assert.match(customerTraceability, /text-xs leading-4/);
+  assert.match(customerTraceability, /grid h-9 w-9/);
+  assert.doesNotMatch(customerTraceability, /shadow-sm/);
+  assert.match(customerTableUtils, /case "distributor"/);
+  assert.match(platformApi, /creation_origin\?:/);
+  assert.match(platformApi, /distributor_company_name\?: string \| null/);
+  assert.match(page, /company\.distributor_company_name/);
+});
+
+test("una cuenta cliente asigna cambia o retira su distribuidor por modal", () => {
+  assert.match(customerRow, /company\.user_type === "SUPER_ADMIN"/);
+  assert.match(customerRow, /onAssignDistributor/);
+  assert.match(customerTableCopy, /assignDistributor: "Asignar distribuidor"/);
+  assert.match(page, /DistributorAssignmentModal/);
+  assert.match(page, /updateCompanyDistributor/);
+  assert.match(distributorAssignment, /distributors\.map/);
+  assert.match(distributorAssignment, /value="direct"/);
+  assert.match(distributorAssignment, /Desvincular distribuidor/);
+  assert.match(platformApi, /\/distributor/);
+});
+
+test("la entrega de la cuenta permite copiar todos los datos de acceso", () => {
+  assert.match(accountSpanishCopy, /Copiar datos/);
+  assert.match(accountSpanishCopy, /Datos copiados/);
+  assert.match(accountSuccess, /copy\.success\.loginPage/);
+  assert.match(accountSuccess, /copy\.success\.password/);
+  assert.match(accountSuccess, /writeClipboard/);
+});
+
+test("la cuenta separa módulos activos de los disponibles para agregar", () => {
+  assert.match(companyModules, /Módulos activos/);
+  assert.match(companyModules, /Disponibles para agregar/);
+  assert.match(companyModules, /availableCatalogProducts/);
+  assert.match(companyModules, /Sólo aparecen módulos publicados y listos comercialmente/);
+  assert.match(companyModules, /onUpdateTrialProducts\(\[\.\.\.trialSelection, product\.product_code\]\)/);
+  assert.match(companyModules, /onGrant\(product\.product_code\)/);
+  assert.match(companyModules, /Esta cuenta ya tiene todos los módulos disponibles del catálogo/);
+});
+
+test("usuarios incluidos ocupan y liberan lugares con invitaciones controladas", () => {
+  assert.match(customerTable, /\["users", copy\.users\]/);
+  assert.match(customerRow, /onOpenUsers\(company\)/);
+  assert.match(customerRow, /copy\.manageUsers/);
+  assert.match(page, /openCompanyUsers/);
+  assert.match(page, /CustomerUsersModal/);
+  assert.match(customerUsersModal, /CompanyActivityTab/);
+  assert.match(customerUsersModal, /showBilling=\{false\}/);
+  assert.match(companyActivity, /Capacidad de usuarios/);
+  assert.match(companyActivity, /El propietario ocupa un lugar/);
+  assert.match(companyActivity, /Activos/);
+  assert.match(companyActivity, /Invitaciones/);
+  assert.match(companyActivity, /Inactivos/);
+  assert.match(companyActivity, /Invitar usuario/);
+  assert.match(companyActivity, /lugar quedó reservado/);
+  assert.match(companyActivity, /Desactivar y liberar lugar/);
+  assert.match(companyActivity, /Reactivar/);
+  assert.match(companyActivity, /available < 1/);
+  assert.match(companyActivity, /Ajustar lugares/);
+  assert.match(platformApi, /inviteCompanyUser/);
+  assert.match(platformApi, /cancelCompanyUserInvitation/);
+  assert.match(platformApi, /resendCompanyUserInvitation/);
+  assert.match(platformApi, /updateCompanyUserStatus/);
+});
+
+test("sesiones nacen con cuenta horario destino y consultor sin exigir enlace", () => {
+  assert.match(session, /companies\.map/);
+  assert.match(session, /locations[\s\S]*filter\(\(location\) => location\.active\)/);
+  assert.match(session, /consultants\.map/);
+  assert.doesNotMatch(session, /Enlace HTTPS de reunión/);
+  assert.doesNotMatch(session, /pattern="https:\/\/\.\*"/);
+  assert.match(session, /value\.mode === "VIRTUAL" \|\| value\.serviceLocationCode/);
+  assert.match(session, /footer=\{[\s\S]*<>[\s\S]*Cancelar[\s\S]*Siguiente[\s\S]*<\/>/);
+  assert.match(session, /new Date\(value\.startAt\) <= new Date\(\)/);
+  assert.match(consulting, /companies=\{companies\}/);
+  assert.match(consulting, /locations=\{allLocations\}/);
+});
+
+test("cobertura enlaza país código moneda y zona horaria", () => {
+  assert.match(coverage, /countryOptions\.map/);
+  assert.match(coverage, /country\.timezones\[0\]/);
+  assert.match(coverage, /currencyOptions\.map/);
+  assert.match(coverage, /disabled[\s\S]*value=\{value\.country_code\}/);
+});
+
+test("la consultoría conserva empresa usuario y preferencia de asignación", () => {
+  assert.match(clientConsulting, /consultantPreference/);
+  assert.match(clientConsulting, /DISTRIBUTOR/);
+  assert.match(clientConsulting, /INDICE_TEAM/);
+  assert.match(clientConsulting, /workspace\.distributor/);
+  assert.match(consultingApi, /requested_distributor_company_id/);
+  assert.match(consulting, /Trazabilidad de la solicitud/);
+  assert.match(consulting, /appointment\.booked_by_user_id/);
+  assert.match(consulting, /Puedes reasignar/);
+});
+
+test("la cuenta se administra en un workspace compacto con pestañas directas", () => {
+  assert.doesNotMatch(company, /IndiceModalWizardStepper/);
+  assert.match(company, /role="tablist"/);
+  assert.match(company, /id:\s*["']overview["']/);
+  assert.match(company, /id:\s*["']modules["']/);
+  assert.match(company, /id:\s*["']activity["']/);
+  assert.match(company, /id:\s*["']access["']/);
+  assert.match(company, /modalType="operational-workspace"/);
+  assert.match(company, /tone="blue"/);
+  assert.match(company, /onOpenChange=\{\(nextOpen\)/);
+  assert.match(company, /footerSummary=/);
+  assert.match(company, />\s*Cerrar\s*</);
+  assert.match(company, /className="cursor-pointer"/);
+  assert.match(company, /Number\.isFinite/);
+  assert.doesNotMatch(company, /h-\[92dvh\]/);
+  assert.doesNotMatch(company, /Siguiente|Anterior|Paso \d/);
+  assert.match(company, /BenefitAdjustmentModal/);
+  assert.match(companyAccess, /Crear ajuste/);
+  assert.match(adjustment, /accessReasonOptions/);
+  assert.match(adjustment, /extraSeatOptions/);
+  assert.match(adjustment, /Selecciona un módulo/);
+});
+
+test("catálogo presenta módulos y monedas controladas en lenguaje operativo", () => {
+  assert.match(page, /Módulos incluidos/);
+  assert.match(page, /product\.capabilities\.map\(\(capability\)/);
+  assert.match(page, /Importe.*price\.currency/);
+  assert.match(page, /Referencia de cobro de Stripe/);
+  assert.doesNotMatch(page, /Capacidades \(separadas por coma\)/);
+  assert.doesNotMatch(page, /Código facturable/);
+});
+
+test("el catálogo se prepara valida y publica como versión antes de cambiar la oferta activa", () => {
+  assert.match(platformApi, /createCatalogDraft/);
+  assert.match(platformApi, /validateCatalogDraft/);
+  assert.match(platformApi, /publishCatalogDraft/);
+  assert.match(platformApi, /endpoints\.platformAdmin\.catalog\}\/drafts/);
+  assert.match(page, /Oferta en preparación/);
+  assert.match(page, /Validar oferta/);
+  assert.match(page, /Publicar oferta/);
+  assert.match(page, /Stripe test/);
+  assert.match(page, /catalogValidation\.blockers/);
+});
+
+test("órdenes de módulos y operación de consultoría persisten por API", () => {
+  assert.match(moduleWorkOrders, /platformAdminApi\.getModuleWorkOrders/);
+  assert.match(moduleWorkOrders, /platformAdminApi\.createModuleWorkOrder/);
+  assert.match(moduleWorkOrders, /platformAdminApi\.removeModuleWorkOrder/);
+  assert.doesNotMatch(moduleWorkOrders, /localStorage/);
+  assert.match(platformApi, /moduleWorkOrdersPath = `\$\{endpoints\.platformAdmin\.modules\}\/work-orders`/);
+  assert.match(consulting, /platformAdminApi\.getConsulting/);
+  assert.match(consulting, /platformAdminApi\.createConsultingConsultant/);
+  assert.match(consulting, /platformAdminApi\.createConsultingLocation/);
+  assert.match(consulting, /platformAdminApi\.createConsultingAppointment/);
+  assert.doesNotMatch(consulting, /localStorage/);
+});

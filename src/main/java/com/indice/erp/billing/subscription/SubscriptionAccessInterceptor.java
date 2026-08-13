@@ -59,6 +59,7 @@ public class SubscriptionAccessInterceptor implements HandlerInterceptor {
     private boolean isExcluded(String path) {
         return path.startsWith("/api/v1/auth/")
             || path.startsWith("/api/v1/billing/")
+            || path.startsWith("/api/v1/distributor-portal/")
             || path.contains("/public-kiosk");
     }
 }

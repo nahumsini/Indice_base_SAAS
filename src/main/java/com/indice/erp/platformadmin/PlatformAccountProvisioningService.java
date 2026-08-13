@@ -19,6 +19,11 @@ public class PlatformAccountProvisioningService {
 
     private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
     private static final Set<String> COUNTRIES = Set.of("MX", "CA", "US", "CO", "BR");
+    private static final Set<String> ACCOUNT_TYPES = Set.of("SUPER_ADMIN", "DISTRIBUTOR");
+    private static final Set<Integer> TRIAL_DAYS = Set.of(7, 15, 30);
+    private static final int INCLUDED_SEATS = 5;
+    private static final int MAX_EXTRA_SEATS = 500;
+    private static final int MAX_EMPLOYEES = INCLUDED_SEATS + MAX_EXTRA_SEATS;
 
     private final JdbcTemplate jdbc;
     private final PlatformAdminAccessService access;
@@ -47,6 +52,36 @@ public class PlatformAccountProvisioningService {
         CreateAccountRequest request
     ) {
         access.require(actorUserId, "PLATFORM_ACCOUNTS_WRITE");
+        return createAfterAuthorization(actorUserId, idempotencyKey, request, null);
+    }
+
+    /**
+     * Creates a client from an already-authorized distributor portal operation.
+     * The commercial origin and current distributor are forced server-side so
+     * they cannot be forged by the browser payload.
+     */
+    @Transactional
+    public Map<String, Object> createForDistributor(
+        long actorUserId,
+        long distributorCompanyId,
+        String distributorCompanyName,
+        String idempotencyKey,
+        CreateAccountRequest request
+    ) {
+        return createAfterAuthorization(
+            actorUserId,
+            idempotencyKey,
+            request,
+            new DistributorCreation(distributorCompanyId, distributorCompanyName)
+        );
+    }
+
+    private Map<String, Object> createAfterAuthorization(
+        long actorUserId,
+        String idempotencyKey,
+        CreateAccountRequest request,
+        DistributorCreation distributor
+    ) {
         if (!signup.provisioningEnabled()) {
             throw new IllegalStateException("Account provisioning is not enabled in this environment.");
         }
@@ -60,10 +95,22 @@ public class PlatformAccountProvisioningService {
         var requestKey = idempotencyKey.trim();
         var companyName = required(request.company_name(), "Company name", 2, 120);
         var email = email(request.owner_email());
+        var productCodes = normalizeProducts(request.product_codes());
+        var employeeCount = employeeCount(request.employee_count());
+        var extraSeats = Math.max(0, employeeCount - INCLUDED_SEATS);
+        if (request.extra_seats() != null && request.extra_seats() != extraSeats) {
+            throw new IllegalArgumentException(
+                "extra_seats must match the exact employee count after the 5 included users."
+            );
+        }
         var existing = existingAccount(companyName, email);
         if (existing != null) {
             if (isIdempotentReplay(requestKey, companyName, email)) {
+                confirmAppliedProducts(existing, productCodes);
                 existing.put("replayed", true);
+                existing.put("employee_count", employeeCount);
+                existing.put("included_seats", INCLUDED_SEATS);
+                existing.put("extra_seats", extraSeats);
                 return existing;
             }
             throw new IllegalStateException("Ese correo ya pertenece a una cuenta de Índice.");
@@ -78,19 +125,14 @@ public class PlatformAccountProvisioningService {
         var country = country(request.country_code());
         var phone = clean(request.phone(), 40);
         var industry = clean(request.industry(), 120);
-        var companySize = clean(request.company_size(), 40);
-        var productCodes = normalizeProducts(request.product_codes());
+        var companySize = Integer.toString(employeeCount);
+        var accountType = distributor == null ? accountType(request.account_type()) : "SUPER_ADMIN";
         var permanent = Boolean.TRUE.equals(request.permanent());
         var accessDays = permanent ? null : request.access_days() == null ? 30 : request.access_days();
-        if (!permanent && (accessDays < 1 || accessDays > 3650)) {
-            throw new IllegalArgumentException("access_days must be between 1 and 3650, or permanent must be true.");
+        if (!permanent && !TRIAL_DAYS.contains(accessDays)) {
+            throw new IllegalArgumentException("access_days must be 7, 15 or 30, or permanent must be true.");
         }
-        var extraSeats = request.extra_seats() == null ? 0 : request.extra_seats();
-        if (extraSeats < 0 || extraSeats > 500) {
-            throw new IllegalArgumentException("extra_seats must be between 0 and 500.");
-        }
-
-        var courtesy = courtesyCodes.create(
+        var courtesy = courtesyCodes.createAfterAuthorization(
             actorUserId,
             requestKey + ":access",
             new CourtesyCodeService.CreateRequest(
@@ -103,8 +145,10 @@ public class PlatformAccountProvisioningService {
                 1,
                 null,
                 null,
-                "Cuenta creada directamente desde Administración de plataforma.",
-                "PLATFORM-DIRECT"
+                distributor == null
+                    ? "Cuenta creada directamente desde Administración de plataforma."
+                    : "Cuenta creada desde la cartera del distribuidor " + distributor.companyName() + ".",
+                distributor == null ? "PLATFORM-DIRECT" : "DISTRIBUTOR-DIRECT"
             )
         );
         var courtesyCode = String.valueOf(courtesy.getOrDefault("code", ""));
@@ -137,10 +181,56 @@ public class PlatformAccountProvisioningService {
         if (created == null) {
             throw new IllegalStateException("The account was provisioned but could not be loaded.");
         }
+        var createdCompanyId = ((Number) created.get("company_id")).longValue();
+        if (distributor == null) {
+            jdbc.update(
+                """
+                    UPDATE companies
+                    SET commercial_account_type = ?,
+                        creation_origin = 'PLATFORM_ADMIN',
+                        created_by_user_id = ?,
+                        created_by_distributor_company_id = NULL,
+                        created_by_distributor_name = NULL
+                    WHERE id = ?
+                    """,
+                accountType,
+                actorUserId,
+                createdCompanyId
+            );
+        } else {
+            jdbc.update(
+                """
+                    UPDATE companies
+                    SET commercial_account_type = 'SUPER_ADMIN',
+                        creation_origin = 'DISTRIBUTOR_PORTAL',
+                        created_by_user_id = ?,
+                        created_by_distributor_company_id = ?,
+                        created_by_distributor_name = ?,
+                        distributor_company_id = ?
+                    WHERE id = ?
+                    """,
+                actorUserId,
+                distributor.companyId(),
+                distributor.companyName(),
+                distributor.companyId(),
+                createdCompanyId
+            );
+        }
+        created.put("user_type", accountType);
+        created.put("creation_origin", distributor == null ? "PLATFORM_ADMIN" : "DISTRIBUTOR_PORTAL");
+        created.put("created_by_user_id", actorUserId);
+        if (distributor != null) {
+            created.put("created_by_distributor_company_id", distributor.companyId());
+            created.put("created_by_distributor_company_name", distributor.companyName());
+            created.put("distributor_company_id", distributor.companyId());
+            created.put("distributor_company_name", distributor.companyName());
+        }
         created.put("replayed", false);
         created.put("permanent", permanent);
         created.put("access_days", accessDays);
-        created.put("product_codes", productCodes);
+        created.put("employee_count", employeeCount);
+        created.put("included_seats", INCLUDED_SEATS);
+        confirmAppliedProducts(created, productCodes);
         created.put("extra_seats", extraSeats);
         created.put("signup_reference", checkout.signupReference());
         audit.record(
@@ -148,23 +238,86 @@ public class PlatformAccountProvisioningService {
             "COMPANY_ACCOUNT_CREATED",
             "COMPANY",
             String.valueOf(created.get("company_id")),
-            ((Number) created.get("company_id")).longValue(),
+            createdCompanyId,
             "SUCCESS",
-            Map.of(
-                "owner_email", email,
-                "product_count", productCodes.size(),
-                "extra_seats", extraSeats,
-                "permanent", permanent,
-                "access_days", accessDays == null ? 0 : accessDays
+            creationAuditMetadata(
+                email, accountType, productCodes.size(), employeeCount,
+                extraSeats, permanent, accessDays, distributor
             )
         );
         return created;
+    }
+
+    private Map<String, Object> creationAuditMetadata(
+        String email,
+        String accountType,
+        int productCount,
+        int employeeCount,
+        int extraSeats,
+        boolean permanent,
+        Integer accessDays,
+        DistributorCreation distributor
+    ) {
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("owner_email", email);
+        metadata.put("user_type", accountType);
+        metadata.put("product_count", productCount);
+        metadata.put("employee_count", employeeCount);
+        metadata.put("included_seats", INCLUDED_SEATS);
+        metadata.put("extra_seats", extraSeats);
+        metadata.put("permanent", permanent);
+        metadata.put("access_days", accessDays == null ? 0 : accessDays);
+        metadata.put("creation_origin", distributor == null ? "PLATFORM_ADMIN" : "DISTRIBUTOR_PORTAL");
+        if (distributor != null) metadata.put("distributor_company_id", distributor.companyId());
+        return metadata;
+    }
+
+    private void confirmAppliedProducts(
+        LinkedHashMap<String, Object> account,
+        List<String> requestedProductCodes
+    ) {
+        var appliedProducts = appliedProducts(((Number) account.get("company_id")).longValue());
+        var appliedProductCodes = appliedProducts.stream()
+            .map(AppliedProduct::code)
+            .toList();
+        if (!Set.copyOf(appliedProductCodes).equals(Set.copyOf(requestedProductCodes))) {
+            throw new IllegalStateException(
+                "La cuenta se creó, pero los módulos seleccionados no terminaron de cargarse. Abre Administrar cuenta para completar el acceso."
+            );
+        }
+        account.put("product_codes", appliedProductCodes);
+        account.put("products", appliedProducts.stream()
+            .map(product -> Map.of("code", product.code(), "name", product.name()))
+            .toList());
+        account.put("modules_applied", true);
+    }
+
+    private List<AppliedProduct> appliedProducts(long companyId) {
+        return jdbc.query(
+            """
+                SELECT product.product_code, product.display_name
+                FROM company_benefit_grants benefit
+                JOIN billing_catalog_products product ON product.id = benefit.catalog_product_id
+                WHERE benefit.company_id = ?
+                  AND benefit.benefit_type = 'PRODUCT'
+                  AND benefit.status = 'ACTIVE'
+                  AND benefit.starts_at <= CURRENT_TIMESTAMP(6)
+                  AND (benefit.ends_at IS NULL OR benefit.ends_at > CURRENT_TIMESTAMP(6))
+                ORDER BY product.sort_order, product.display_name
+                """,
+            (rs, rowNum) -> new AppliedProduct(
+                rs.getString("product_code"),
+                rs.getString("display_name")
+            ),
+            companyId
+        );
     }
 
     private LinkedHashMap<String, Object> existingAccount(String companyName, String email) {
         return jdbc.query(
             """
                 SELECT company.id AS company_id, company.name AS company_name,
+                       company.commercial_account_type AS user_type,
                        user.id AS owner_user_id, user.email AS owner_email,
                        membership.id AS owner_membership_id
                 FROM users user
@@ -179,6 +332,7 @@ public class PlatformAccountProvisioningService {
                 var row = new LinkedHashMap<String, Object>();
                 row.put("company_id", rs.getLong("company_id"));
                 row.put("company_name", rs.getString("company_name"));
+                row.put("user_type", rs.getString("user_type"));
                 row.put("owner_user_id", rs.getLong("owner_user_id"));
                 row.put("owner_email", rs.getString("owner_email"));
                 row.put("owner_membership_id", rs.getLong("owner_membership_id"));
@@ -251,6 +405,24 @@ public class PlatformAccountProvisioningService {
         return normalized;
     }
 
+    private String accountType(String value) {
+        var normalized = clean(value, 24).toUpperCase(Locale.ROOT);
+        if (normalized.isBlank()) normalized = "SUPER_ADMIN";
+        if (!ACCOUNT_TYPES.contains(normalized)) {
+            throw new IllegalArgumentException("Account type must be SUPER_ADMIN or DISTRIBUTOR.");
+        }
+        return normalized;
+    }
+
+    private int employeeCount(Integer value) {
+        if (value == null || value < 1 || value > MAX_EMPLOYEES) {
+            throw new IllegalArgumentException(
+                "employee_count must be between 1 and " + MAX_EMPLOYEES + "."
+            );
+        }
+        return value;
+    }
+
     private String required(String value, String field, int min, int max) {
         var normalized = clean(value, max);
         if (normalized.length() < min) {
@@ -276,9 +448,20 @@ public class PlatformAccountProvisioningService {
         String phone,
         String industry,
         String company_size,
+        Integer employee_count,
+        String account_type,
         List<String> product_codes,
         Integer extra_seats,
         Integer access_days,
         Boolean permanent
     ) {}
+
+    record AppliedProduct(String code, String name) {
+    }
+
+    private record DistributorCreation(long companyId, String companyName) {
+        private DistributorCreation {
+            companyName = companyName == null || companyName.isBlank() ? "Distribuidor" : companyName.trim();
+        }
+    }
 }

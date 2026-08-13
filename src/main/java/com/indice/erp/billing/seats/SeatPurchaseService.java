@@ -51,7 +51,7 @@ public class SeatPurchaseService {
             throw new IllegalStateException("The seat mutation could not be prepared.");
         }
         if (prepared.completed()) {
-            return result(prepared.reference(), seats.snapshot(companyId), true);
+            return result(prepared.reference(), seats.snapshot(companyId), true, chargeTiming(companyId));
         }
         try {
             var stripeResult = stripe.setExtraSeatQuantity(
@@ -61,8 +61,14 @@ public class SeatPurchaseService {
             );
             transactions.executeWithoutResult(status -> complete(prepared, stripeResult));
             audit.record(actorUserId, "EXTRA_SEATS_CHANGED", "COMPANY", Long.toString(companyId), companyId,
-                "SUCCESS", Map.of("prior", prepared.prior(), "target", target, "reference", prepared.reference()));
-            return result(prepared.reference(), seats.snapshot(companyId), false);
+                "SUCCESS", Map.of(
+                    "prior", prepared.prior(),
+                    "target", target,
+                    "reference", prepared.reference(),
+                    "charge_timing", chargeTiming(companyId),
+                    "proration_behavior", "none"
+                ));
+            return result(prepared.reference(), seats.snapshot(companyId), false, chargeTiming(companyId));
         } catch (RuntimeException exception) {
             transactions.executeWithoutResult(status -> fail(prepared.reference(), exception));
             audit.record(actorUserId, "EXTRA_SEATS_CHANGE_FAILED", "COMPANY", Long.toString(companyId), companyId,
@@ -192,11 +198,26 @@ public class SeatPurchaseService {
         }
     }
 
-    private Map<String, Object> result(String reference, SeatService.SeatSnapshot snapshot, boolean replay) {
+    private Map<String, Object> result(
+        String reference,
+        SeatService.SeatSnapshot snapshot,
+        boolean replay,
+        String chargeTiming
+    ) {
         var result = new LinkedHashMap<>(toMap(snapshot));
         result.put("mutation_reference", reference);
         result.put("idempotent_replay", replay);
+        result.put("change_timing", chargeTiming);
+        result.put("charged_now", false);
         return result;
+    }
+
+    private String chargeTiming(long companyId) {
+        return jdbcTemplate.query(
+            "SELECT status FROM company_billing_subscriptions WHERE company_id = ? ORDER BY id DESC LIMIT 1",
+            (rs, rowNum) -> "TRIALING".equalsIgnoreCase(rs.getString(1)) ? "TRIAL_END" : "NEXT_INVOICE",
+            companyId
+        ).stream().findFirst().orElse("PAYMENT_METHOD_REQUIRED");
     }
 
     private Map<String, Object> toMap(SeatService.SeatSnapshot snapshot) {

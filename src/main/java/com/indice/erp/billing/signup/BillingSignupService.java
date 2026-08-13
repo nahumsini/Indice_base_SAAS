@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.billing.BillingHashing;
 import com.indice.erp.billing.audit.BillingAuditService;
+import com.indice.erp.billing.catalog.CommercialOfferSelection;
 import com.indice.erp.billing.catalog.CommercialOfferSelectionService;
 import com.indice.erp.billing.stripe.StripeCheckoutGateway;
 import com.indice.erp.billing.stripe.StripeGatewayException;
@@ -12,6 +13,7 @@ import com.indice.erp.billing.stripe.StripeSecretProvider;
 import com.indice.erp.platformadmin.CourtesyCodeService;
 import java.time.Clock;
 import java.time.Duration;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -122,15 +124,21 @@ public class BillingSignupService {
             if (properties.getSuccessUrl().isBlank() || properties.getCancelUrl().isBlank()) {
                 throw new IllegalStateException("Stripe checkout success and cancel URLs are required.");
             }
-            var basePriceId = requirePriceId(spec.offerCode(), spec.billingInterval());
+            var basePriceId = requirePriceId(selection.baseExternalPriceId(), spec.offerCode(), spec.billingInterval());
             var lineItems = new ArrayList<StripeCheckoutGateway.LineItem>();
             lineItems.add(new StripeCheckoutGateway.LineItem(basePriceId, 1));
             if (spec.extraSeats() > 0) {
                 lineItems.add(new StripeCheckoutGateway.LineItem(
-                    requirePriceId("extra_seat", spec.billingInterval()),
+                    requirePriceId(selection.extraSeatExternalPriceId(), "extra_seat", spec.billingInterval()),
                     spec.extraSeats()
                 ));
             }
+            selection.products().stream()
+                .filter(CommercialOfferSelection.Product::complementary)
+                .forEach(product -> lineItems.add(new StripeCheckoutGateway.LineItem(
+                    requirePriceId(product.externalPriceId(), product.code(), spec.billingInterval()),
+                    1
+                )));
 
             var customerId = intent.stripeCustomerId();
             if (customerId == null || customerId.isBlank()) {
@@ -205,11 +213,19 @@ public class BillingSignupService {
     }
 
     private String requirePriceId(String offerCode, String interval) {
-        var priceId = properties.priceId(offerCode, interval);
+        return requirePriceId(null, offerCode, interval);
+    }
+
+    private String requirePriceId(String catalogPriceId, String offerCode, String interval) {
+        var priceId = validPriceId(catalogPriceId) ? catalogPriceId : properties.priceId(offerCode, interval);
         if (priceId == null || priceId.isBlank() || !priceId.startsWith("price_")) {
             throw new IllegalStateException("The Stripe Price ID for " + offerCode + " / " + interval + " is not configured.");
         }
         return priceId;
+    }
+
+    private boolean validPriceId(String value) {
+        return value != null && value.startsWith("price_");
     }
 
     private void validate(BillingSignupRequest request, String idempotencyKey) {
@@ -222,8 +238,9 @@ public class BillingSignupService {
         if (email.length() > 190 || !EMAIL.matcher(email).matches()) {
             throw new IllegalArgumentException("A valid email is required.");
         }
-        if (request.password() == null || request.password().length() < 10 || request.password().length() > 200) {
-            throw new IllegalArgumentException("Password must contain between 10 and 200 characters.");
+        var password = request.password() == null ? "" : request.password();
+        if (password.length() < 10 || password.getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new IllegalArgumentException("Password must contain at least 10 characters and no more than 72 bytes.");
         }
         var country = request.countryCode() == null ? "" : request.countryCode().trim().toUpperCase(Locale.ROOT);
         if (!LAUNCH_COUNTRIES.contains(country)) {

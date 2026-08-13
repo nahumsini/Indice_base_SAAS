@@ -19,12 +19,24 @@ public record AuthSessionResponse(
     public record CompanyInfo(
         Long id,
         String name,
+        String commercial_account_type,
         Long user_company_id,
         String role,
         ScopeInfo scope,
         boolean active,
         SubscriptionInfo subscription
     ) {
+        public CompanyInfo(
+            Long id,
+            String name,
+            Long user_company_id,
+            String role,
+            ScopeInfo scope,
+            boolean active,
+            SubscriptionInfo subscription
+        ) {
+            this(id, name, "SUPER_ADMIN", user_company_id, role, scope, active, subscription);
+        }
     }
 
     public record ScopeInfo(

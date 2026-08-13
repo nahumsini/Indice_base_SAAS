@@ -15,6 +15,7 @@ const CustomerDisplay = lazy(() => import('./BasicModules/PointOfSale/CustomerDi
 const SupplierPortal = lazy(() => import('./BasicModules/PointOfSale/SupplierPortal'));
 const SelfServiceKiosk = lazy(() => import('./BasicModules/PointOfSale/SelfServiceKiosk'));
 const PlatformAdminPage = lazy(() => import('./PlatformAdmin/PlatformAdminPage'));
+const DistributorPortalPage = lazy(() => import('./DistributorPortal/DistributorPortalPage'));
 const MultiKioskMobilePage = lazy(() => import('./KioskCenter/MultiKioskMobilePage'));
 
 const chunkReloadStorageKey = 'indice:route-chunk-reload-attempted';
@@ -308,9 +309,43 @@ function PrivateAppRoute() {
 }
 
 function PlatformAdminRoute() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => subscribeToAuthenticationExpired(() => {
+    navigate('/login', {
+      replace: true,
+      state: {
+        authenticationExpired: true,
+        returnTo: `${location.pathname}${location.search}${location.hash}`,
+      },
+    });
+  }), [location.hash, location.pathname, location.search, navigate]);
+
   return (
     <Suspense fallback={<LoadingBarOverlay isVisible title="Cargando plataforma" description="Validando autoridad operativa." />}>
       <PlatformAdminPage />
+    </Suspense>
+  );
+}
+
+function DistributorPortalRoute() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => subscribeToAuthenticationExpired(() => {
+    navigate('/login', {
+      replace: true,
+      state: {
+        authenticationExpired: true,
+        returnTo: `${location.pathname}${location.search}${location.hash}`,
+      },
+    });
+  }), [location.hash, location.pathname, location.search, navigate]);
+
+  return (
+    <Suspense fallback={<LoadingBarOverlay isVisible title="Loading distributor portal" description="Validating your linked portfolio." />}>
+      <DistributorPortalPage />
     </Suspense>
   );
 }
@@ -346,6 +381,19 @@ const requirePlatformAdminSession = async () => {
   const { platformAdminApi } = await import('./api/platformAdmin');
   try {
     await platformAdminApi.getContext();
+    return null;
+  } catch {
+    return redirect('/dashboard');
+  }
+};
+
+const requireDistributorPortalSession = async () => {
+  const session = await getRouteSessionOrNull();
+  if (!session) return redirect('/login');
+  if (session.company.commercial_account_type !== 'DISTRIBUTOR') return redirect('/dashboard');
+  const { distributorPortalApi } = await import('./DistributorPortal/contracts-access/services/distributorPortalApi');
+  try {
+    await distributorPortalApi.getContext();
     return null;
   } catch {
     return redirect('/dashboard');
@@ -438,6 +486,11 @@ export const router = createBrowserRouter([
     path: '/platform-admin',
     element: <PlatformAdminRoute />,
     loader: requirePlatformAdminSession,
+  },
+  {
+    path: '/distributor-portal',
+    element: <DistributorPortalRoute />,
+    loader: requireDistributorPortalSession,
   },
   {
     path: '/:pageId/*',

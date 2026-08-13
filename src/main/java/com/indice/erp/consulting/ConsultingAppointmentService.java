@@ -33,6 +33,7 @@ public class ConsultingAppointmentService {
         "ONBOARDING", "BUSINESS_CONSULTING", "OPERATIONS", "PEOPLE", "SALES", "FINANCE", "OTHER"
     );
     private static final Set<String> MODES = Set.of("VIRTUAL", "IN_PERSON");
+    private static final Set<String> CONSULTANT_PREFERENCES = Set.of("DISTRIBUTOR", "INDICE_TEAM");
     private static final Set<String> CANCELLABLE_STATUSES = Set.of("REQUESTED", "CONFIRMED", "PAYMENT_REQUIRED");
     private static final Duration JOIN_WINDOW_BEFORE = Duration.ofMinutes(15);
     private static final Duration JOIN_WINDOW_AFTER = Duration.ofMinutes(90);
@@ -56,6 +57,7 @@ public class ConsultingAppointmentService {
 
     public Map<String, Object> workspace(AuthSessionUser user) {
         requireAccess(user);
+        var distributor = distributorRelationship(user.companyId());
         var response = new LinkedHashMap<String, Object>();
         response.put("duration_minutes", 50);
         response.put("join_window_minutes", JOIN_WINDOW_BEFORE.toMinutes());
@@ -63,6 +65,10 @@ public class ConsultingAppointmentService {
         response.put("additional_session_amount_cents", additionalSessionAmountCents);
         response.put("currency", "USD");
         response.put("contact", contact(user));
+        response.put("distributor", distributor == null ? null : Map.of(
+            "company_id", distributor.companyId(),
+            "company_name", distributor.companyName()
+        ));
         response.put("topics", topics());
         response.put("in_person_locations", serviceLocations(true));
         response.put("appointments", appointments(user.companyId()));
@@ -81,6 +87,8 @@ public class ConsultingAppointmentService {
             throw new IllegalArgumentException("Enter a valid attendee email.");
         }
         var attendeePhone = required(request.attendeePhone(), "Attendee phone", 40);
+        var distributor = distributorRelationship(user.companyId());
+        var consultantPreference = validConsultantPreference(request.consultantPreference(), distributor);
         var topic = validTopic(request.topic());
         var notes = optional(request.notes(), 2000);
         var mode = required(request.consultationMode(), "Consultation mode", 24).toUpperCase(Locale.ROOT);
@@ -127,33 +135,38 @@ public class ConsultingAppointmentService {
             var statement = connection.prepareStatement(
                 """
                     INSERT INTO consulting_appointments
-                    (company_id, booked_by_user_id, attendee_name, attendee_email, attendee_phone,
+                    (company_id, booked_by_user_id, consultant_preference,
+                     requested_distributor_company_id, requested_distributor_name, request_source,
+                     attendee_name, attendee_email, attendee_phone,
                      topic, notes, preferred_start_at, alternative_start_at, timezone, duration_minutes,
                      consultation_mode, country_code, service_location_code, service_location_name,
                      session_kind, status, payment_status, amount_cents, currency)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 50, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, 'CLIENT_PORTAL', ?, ?, ?, ?, ?, ?, ?, ?, 50, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                 Statement.RETURN_GENERATED_KEYS
             );
             statement.setLong(1, user.companyId());
             statement.setLong(2, user.userId());
-            statement.setString(3, attendeeName);
-            statement.setString(4, attendeeEmail);
-            statement.setString(5, attendeePhone);
-            statement.setString(6, topic);
-            statement.setString(7, notes);
-            statement.setTimestamp(8, Timestamp.from(preferred));
-            setTimestamp(statement, 9, alternative);
-            statement.setString(10, timezone);
-            statement.setString(11, mode);
-            statement.setString(12, finalCountryCode);
-            statement.setString(13, serviceLocationCode);
-            statement.setString(14, serviceLocationName);
-            statement.setString(15, sessionKind);
-            statement.setString(16, status);
-            statement.setString(17, paymentStatus);
-            if (amount == null) statement.setNull(18, java.sql.Types.BIGINT); else statement.setLong(18, amount);
-            statement.setString(19, currency);
+            statement.setString(3, consultantPreference);
+            if (distributor == null) statement.setNull(4, java.sql.Types.BIGINT); else statement.setLong(4, distributor.companyId());
+            statement.setString(5, distributor == null ? null : distributor.companyName());
+            statement.setString(6, attendeeName);
+            statement.setString(7, attendeeEmail);
+            statement.setString(8, attendeePhone);
+            statement.setString(9, topic);
+            statement.setString(10, notes);
+            statement.setTimestamp(11, Timestamp.from(preferred));
+            setTimestamp(statement, 12, alternative);
+            statement.setString(13, timezone);
+            statement.setString(14, mode);
+            statement.setString(15, finalCountryCode);
+            statement.setString(16, serviceLocationCode);
+            statement.setString(17, serviceLocationName);
+            statement.setString(18, sessionKind);
+            statement.setString(19, status);
+            statement.setString(20, paymentStatus);
+            if (amount == null) statement.setNull(21, java.sql.Types.BIGINT); else statement.setLong(21, amount);
+            statement.setString(22, currency);
             return statement;
         }, keyHolder);
         var appointmentId = generatedId(keyHolder.getKey());
@@ -360,7 +373,9 @@ public class ConsultingAppointmentService {
 
     private String appointmentSelect() {
         return """
-            SELECT id, attendee_name, attendee_email, attendee_phone, topic, notes,
+            SELECT id, consultant_preference, requested_distributor_company_id,
+                   requested_distributor_name, request_source,
+                   attendee_name, attendee_email, attendee_phone, topic, notes,
                    preferred_start_at, alternative_start_at, timezone, duration_minutes,
                    consultation_mode, country_code, service_location_code, service_location_name,
                    session_kind, status, payment_status, amount_cents, currency,
@@ -377,6 +392,11 @@ public class ConsultingAppointmentService {
         var meetingUrl = rs.getString("meeting_url");
         var joinAvailable = isJoinAvailable(status, confirmedStart, meetingUrl);
         row.put("id", rs.getLong("id"));
+        row.put("consultant_preference", rs.getString("consultant_preference"));
+        var distributorCompanyId = rs.getObject("requested_distributor_company_id");
+        row.put("requested_distributor_company_id", distributorCompanyId == null ? null : ((Number) distributorCompanyId).longValue());
+        row.put("requested_distributor_name", rs.getString("requested_distributor_name"));
+        row.put("request_source", rs.getString("request_source"));
         row.put("attendee_name", rs.getString("attendee_name"));
         row.put("attendee_email", rs.getString("attendee_email"));
         row.put("attendee_phone", rs.getString("attendee_phone"));
@@ -427,6 +447,36 @@ public class ConsultingAppointmentService {
             Long.class, companyId
         );
         return count == null || count == 0;
+    }
+
+    private DistributorRelationship distributorRelationship(long clientCompanyId) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT distributor.id, distributor.name
+                FROM companies client
+                JOIN companies distributor ON distributor.id = client.distributor_company_id
+                WHERE client.id = ?
+                  AND distributor.id <> client.id
+                  AND distributor.commercial_account_type = 'DISTRIBUTOR'
+                LIMIT 1
+                """,
+            (rs, rowNum) -> new DistributorRelationship(rs.getLong("id"), rs.getString("name")),
+            clientCompanyId
+        );
+        return rows.isEmpty() ? null : rows.getFirst();
+    }
+
+    private String validConsultantPreference(String value, DistributorRelationship distributor) {
+        var preference = value == null || value.isBlank()
+            ? "INDICE_TEAM"
+            : value.trim().toUpperCase(Locale.ROOT);
+        if (!CONSULTANT_PREFERENCES.contains(preference)) {
+            throw new IllegalArgumentException("Choose a valid consultant preference.");
+        }
+        if ("DISTRIBUTOR".equals(preference) && distributor == null) {
+            throw new IllegalArgumentException("Your company does not have an active distributor assigned.");
+        }
+        return preference;
     }
 
     private String companyName(long companyId) {
@@ -501,10 +551,14 @@ public class ConsultingAppointmentService {
         }
     }
 
+    private record DistributorRelationship(long companyId, String companyName) {
+    }
+
     public record BookingRequest(
         String attendeeName,
         String attendeeEmail,
         String attendeePhone,
+        String consultantPreference,
         String topic,
         String notes,
         String preferredStartAt,

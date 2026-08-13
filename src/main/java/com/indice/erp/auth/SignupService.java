@@ -62,12 +62,20 @@ public class SignupService {
             throw new IllegalArgumentException("Billing confirmation is required.");
         }
         ensureEmailAvailable(profile.email());
-        var companyId = insertReturningId("INSERT INTO companies (name) VALUES (?)", profile.companyName());
+        var companyId = insertReturningId(
+            "INSERT INTO companies (name, commercial_account_type, creation_origin) VALUES (?, 'SUPER_ADMIN', 'WEB_SELF_SERVICE')",
+            profile.companyName()
+        );
         var userId = insertReturningId(
             "INSERT INTO users (email, password_hash, full_name) VALUES (?, ?, ?)",
             profile.email(),
             profile.passwordHash(),
             profile.fullName()
+        );
+        jdbcTemplate.update(
+            "UPDATE companies SET created_by_user_id = ? WHERE id = ?",
+            userId,
+            companyId
         );
         insertUserProfile(userId, profile.fullName(), profile.phone(), profile.country());
         var userCompanyId = insertReturningId(

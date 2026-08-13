@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -15,6 +16,7 @@ import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.auth.SessionCsrfService;
 import java.util.List;
 import java.util.Optional;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -35,6 +37,15 @@ class BillingSubscriptionApiControllerTest {
 
     @MockBean
     private BillingSubscriptionManagementService subscriptionService;
+
+    @MockBean
+    private BillingProductSelectionService selectionService;
+
+    @MockBean
+    private BillingActivationService activationService;
+
+    @MockBean
+    private BillingInvoiceHistoryService invoiceHistoryService;
 
     @Test
     void cancelRejectsMissingCsrfToken() throws Exception {
@@ -117,6 +128,69 @@ class BillingSubscriptionApiControllerTest {
         verify(subscriptionService).portal(7L);
     }
 
+    @Test
+    void selectionReturnsCommercialCatalogForCurrentCompany() throws Exception {
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(owner()));
+        given(selectionService.current(7L)).willReturn(selection());
+
+        mockMvc.perform(get("/api/v1/billing/subscription/selection"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.selected_product_codes[0]").value("basic_hr"))
+            .andExpect(jsonPath("$.available_products[0].display_name").value("Recursos Humanos"));
+
+        verify(selectionService).current(7L);
+    }
+
+    @Test
+    void invoicesReturnStripeDocumentsForCurrentCompany() throws Exception {
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(owner()));
+        given(invoiceHistoryService.current(7L)).willReturn(new BillingInvoiceHistoryResponse(List.of(
+            new BillingInvoiceResponse(
+                "in_123", "paid", "usd", 19_900L, 19_900L,
+                "https://invoice.stripe.com/i/acct_test/in_123",
+                "https://pay.stripe.com/invoice/acct_test/in_123/pdf",
+                Instant.parse("2026-08-01T00:00:00Z"),
+                Instant.parse("2026-09-01T00:00:00Z"),
+                Instant.parse("2026-08-01T00:00:01Z")
+            )
+        )));
+
+        mockMvc.perform(get("/api/v1/billing/subscription/invoices"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.invoices[0].invoice_id").value("in_123"))
+            .andExpect(jsonPath("$.invoices[0].status").value("paid"))
+            .andExpect(jsonPath("$.invoices[0].invoice_pdf_url").value("https://pay.stripe.com/invoice/acct_test/in_123/pdf"));
+
+        verify(invoiceHistoryService).current(7L);
+    }
+
+    @Test
+    void activationWithValidCsrfCreatesExistingCompanyCheckout() throws Exception {
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(owner()));
+        given(activationService.createCheckout(eq(7L), eq(1L), eq("activation-123"), any()))
+            .willReturn(new BillingActivationResponse(
+                "CHECKOUT_CREATED",
+                "https://checkout.stripe.com/session",
+                Instant.parse("2026-08-13T00:00:00Z"),
+                12,
+                false
+            ));
+
+        mockMvc.perform(post("/api/v1/billing/subscription/activate")
+                .header("X-CSRF-Token", "csrf-token")
+                .header("Idempotency-Key", "activation-123")
+                .contentType("application/json")
+                .content("""
+                    {"product_codes":["basic_hr"],"billing_interval":"MONTH","extra_seats":0}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.checkout_url").value("https://checkout.stripe.com/session"))
+            .andExpect(jsonPath("$.remaining_trial_days").value(12));
+
+        verify(csrfService).requireCsrf(any(), eq("csrf-token"));
+        verify(activationService).createCheckout(eq(7L), eq(1L), eq("activation-123"), any());
+    }
+
     private AuthSessionUser owner() {
         return new AuthSessionUser(1L, 7L, 11L, "Ada Owner", "owner");
     }
@@ -125,5 +199,15 @@ class BillingSubscriptionApiControllerTest {
         return new BillingSubscriptionResponse("trialing", "all-modules", 7, 5, 0, 5, 1, 4, 19_900,
             19_900, 1_200, "MONTH", "usd", "", "", "", "", true, "", "", "", "", "", "", "stripe", true, "", true,
             List.of("crm"), 1, 1, 0, 4, true);
+    }
+
+    private BillingSelectionResponse selection() {
+        return new BillingSelectionResponse(
+            "COURTESY", "DEMO", "2026.07-premium-v1", "basic_1", "MONTH", "USD",
+            5, 0, 1, 4, 6_900L, 1_200L, 6_900L, "2026-08-24T00:00:00Z",
+            "AT_TRIAL_END", false, true, true,
+            List.of("basic_hr"),
+            List.of(new BillingSelectionResponse.Product(1L, "basic_hr", "Recursos Humanos", List.of("human_resources")))
+        );
     }
 }

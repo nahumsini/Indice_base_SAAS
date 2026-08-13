@@ -42,6 +42,7 @@ public class CommercialLifecycleInterceptor implements HandlerInterceptor {
             || path.startsWith("/api/v1/billing")
             || path.startsWith("/api/v1/account/ownership")
             || path.startsWith("/api/v1/platform-admin")
+            || path.startsWith("/api/v1/distributor-portal")
             || path.equals("/api/v1/health")
             || path.startsWith("/actuator");
     }

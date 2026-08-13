@@ -28,40 +28,63 @@ public class CommercialOfferSelectionService {
         var version = activeVersion();
         var available = jdbcTemplate.query(
             """
-                SELECT id, product_code, display_name
-                FROM billing_catalog_products
-                WHERE catalog_version_id = ?
-                  AND product_type = 'BASIC'
-                  AND active = 1
-                ORDER BY sort_order, id
+                SELECT product.id, product.product_code, product.display_name, product.product_type,
+                       price.unit_amount_cents, price.external_price_id
+                FROM billing_available_commercial_products product
+                LEFT JOIN billing_catalog_prices price
+                  ON price.catalog_version_id = product.catalog_version_id
+                 AND price.billable_code = product.product_code
+                 AND price.price_type = 'ADDON'
+                 AND price.billing_interval = ?
+                 AND price.currency = 'USD'
+                 AND (price.effective_from IS NULL OR price.effective_from <= CURRENT_TIMESTAMP)
+                 AND (price.effective_to IS NULL OR price.effective_to > CURRENT_TIMESTAMP)
+                WHERE product.catalog_version_id = ?
+                ORDER BY product.sort_order, product.id
                 """,
             (rs, rowNum) -> new CommercialOfferSelection.Product(
                 rs.getLong("id"),
                 rs.getString("product_code"),
-                rs.getString("display_name")
+                rs.getString("display_name"),
+                rs.getString("product_type"),
+                (Long) rs.getObject("unit_amount_cents"),
+                rs.getString("external_price_id")
             ),
+            interval.name(),
             version.id()
         );
-        if (available.isEmpty()) {
+        var availableBasics = available.stream().filter(product -> !product.complementary()).toList();
+        if (availableBasics.isEmpty()) {
             throw new IllegalStateException("The active catalog has no basic products.");
         }
 
         var requested = normalize(requestedProductCodes);
         var availableCodes = available.stream().map(CommercialOfferSelection.Product::code).collect(java.util.stream.Collectors.toSet());
         if (requested.isEmpty() || !availableCodes.containsAll(requested)) {
-            throw new IllegalArgumentException("Select valid basic products from the active catalog.");
+            throw new IllegalArgumentException("Select valid products from the active catalog.");
         }
 
         var selected = available.stream().filter(product -> requested.contains(product.code())).toList();
-        var offerCode = offerCode(selected.size(), available.size());
+        var selectedBasics = selected.stream().filter(product -> !product.complementary()).toList();
+        if (selectedBasics.isEmpty()) {
+            throw new IllegalArgumentException("Select at least one basic product.");
+        }
+        var offerCode = offerCode(selectedBasics.size(), availableBasics.size());
         var basePrice = price(version.id(), offerCode, interval, "BASE");
         var seatPrice = price(version.id(), "extra_seat", interval, "ADDON");
         if (seatPrice.unitAmountCents() == null) {
             throw new IllegalStateException("The extra-seat price is not ready.");
         }
+        var complementaryAmount = selected.stream()
+            .filter(CommercialOfferSelection.Product::complementary)
+            .map(CommercialOfferSelection.Product::unitAmountCents)
+            .reduce(0L, (total, amount) -> Math.addExact(total, amount == null ? 0 : amount));
         var estimated = basePrice.unitAmountCents() == null
             ? null
-            : Math.addExact(basePrice.unitAmountCents(), Math.multiplyExact(seatPrice.unitAmountCents(), (long) extraSeats));
+            : Math.addExact(
+                Math.addExact(basePrice.unitAmountCents(), complementaryAmount),
+                Math.multiplyExact(seatPrice.unitAmountCents(), (long) extraSeats)
+            );
 
         return new CommercialOfferSelection(
             version.id(),
@@ -74,26 +97,45 @@ public class CommercialOfferSelectionService {
             estimated,
             basePrice.unitAmountCents(),
             seatPrice.unitAmountCents(),
+            complementaryAmount,
+            basePrice.externalPriceId(),
+            seatPrice.externalPriceId(),
             selected
         );
     }
 
     public List<CommercialOfferSelection.Product> activeBasicProducts() {
+        return activeProducts("MONTH").stream().filter(product -> !product.complementary()).toList();
+    }
+
+    public List<CommercialOfferSelection.Product> activeProducts(String intervalValue) {
+        var interval = BillingInterval.parse(intervalValue);
         var version = activeVersion();
         return jdbcTemplate.query(
             """
-                SELECT id, product_code, display_name
-                FROM billing_catalog_products
-                WHERE catalog_version_id = ?
-                  AND product_type = 'BASIC'
-                  AND active = 1
-                ORDER BY sort_order, id
+                SELECT product.id, product.product_code, product.display_name, product.product_type,
+                       price.unit_amount_cents, price.external_price_id
+                FROM billing_available_commercial_products product
+                LEFT JOIN billing_catalog_prices price
+                  ON price.catalog_version_id = product.catalog_version_id
+                 AND price.billable_code = product.product_code
+                 AND price.price_type = 'ADDON'
+                 AND price.billing_interval = ?
+                 AND price.currency = 'USD'
+                 AND (price.effective_from IS NULL OR price.effective_from <= CURRENT_TIMESTAMP)
+                 AND (price.effective_to IS NULL OR price.effective_to > CURRENT_TIMESTAMP)
+                WHERE product.catalog_version_id = ?
+                ORDER BY product.sort_order, product.id
                 """,
             (rs, rowNum) -> new CommercialOfferSelection.Product(
                 rs.getLong("id"),
                 rs.getString("product_code"),
-                rs.getString("display_name")
+                rs.getString("display_name"),
+                rs.getString("product_type"),
+                (Long) rs.getObject("unit_amount_cents"),
+                rs.getString("external_price_id")
             ),
+            interval.name(),
             version.id()
         );
     }
@@ -145,7 +187,7 @@ public class CommercialOfferSelectionService {
     private PriceDefinition price(long versionId, String billableCode, BillingInterval interval, String priceType) {
         var rows = jdbcTemplate.query(
             """
-                SELECT unit_amount_cents, status
+                SELECT unit_amount_cents, status, external_price_id
                 FROM billing_catalog_prices
                 WHERE catalog_version_id = ?
                   AND billable_code = ?
@@ -159,7 +201,8 @@ public class CommercialOfferSelectionService {
                 """,
             (rs, rowNum) -> new PriceDefinition(
                 (Long) rs.getObject("unit_amount_cents"),
-                rs.getString("status")
+                rs.getString("status"),
+                rs.getString("external_price_id")
             ),
             versionId,
             billableCode,
@@ -200,7 +243,7 @@ public class CommercialOfferSelectionService {
     private record CatalogVersion(long id, String code) {
     }
 
-    private record PriceDefinition(Long unitAmountCents, String status) {
+    private record PriceDefinition(Long unitAmountCents, String status, String externalPriceId) {
     }
 
     public record PublicPrice(

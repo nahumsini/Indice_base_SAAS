@@ -29,12 +29,15 @@ public class StripeJavaSeatGateway implements StripeSeatGateway {
                 if (blank(command.subscriptionItemId())) {
                     return new Result(null, 0);
                 }
-                SubscriptionItem.retrieve(command.subscriptionItemId(), options).delete(options);
+                SubscriptionItem.retrieve(command.subscriptionItemId(), options).delete(
+                    Map.of("proration_behavior", "none"),
+                    options
+                );
                 return new Result(null, 0);
             }
             var params = new LinkedHashMap<String, Object>();
             params.put("quantity", command.quantity());
-            params.put("proration_behavior", "always_invoice");
+            params.put("proration_behavior", "none");
             params.put("metadata", Map.of("indice_billable_code", "extra_seat"));
             SubscriptionItem item;
             if (blank(command.subscriptionItemId())) {

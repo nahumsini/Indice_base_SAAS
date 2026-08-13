@@ -1,17 +1,23 @@
 package com.indice.erp.platformadmin;
 
 import com.indice.erp.billing.BillingHashing;
+import com.indice.erp.billing.catalog.CommercialOfferSelection;
+import com.indice.erp.billing.catalog.CommercialOfferSelectionService;
 import com.indice.erp.entitlement.CompanyEntitlementProjectionService;
 import com.indice.erp.billing.storage.StorageQuotaService;
+import com.indice.erp.configcenter.users.ConfigCenterTabPermissionCatalog;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -20,14 +26,17 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class PlatformAdminService {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(PlatformAdminService.class);
     private static final Set<String> BENEFIT_TYPES = Set.of("PRODUCT", "SEAT", "STORAGE");
     private static final Set<String> SOURCE_TYPES = Set.of("COURTESY", "PROMOTION", "SUPPORT", "TEST");
+    private static final Set<String> COMMERCIAL_ACCOUNT_TYPES = Set.of("SUPER_ADMIN", "DISTRIBUTOR");
 
     private final JdbcTemplate jdbcTemplate;
     private final PlatformAdminAccessService accessService;
     private final PlatformAuditService audit;
     private final CompanyEntitlementProjectionService entitlementProjection;
     private final StorageQuotaService storageQuota;
+    private final CommercialOfferSelectionService commercialOffers;
     private final Clock clock;
 
     public PlatformAdminService(
@@ -36,6 +45,7 @@ public class PlatformAdminService {
         PlatformAuditService audit,
         CompanyEntitlementProjectionService entitlementProjection,
         StorageQuotaService storageQuota,
+        CommercialOfferSelectionService commercialOffers,
         Clock clock
     ) {
         this.jdbcTemplate = jdbcTemplate;
@@ -43,6 +53,7 @@ public class PlatformAdminService {
         this.audit = audit;
         this.entitlementProjection = entitlementProjection;
         this.storageQuota = storageQuota;
+        this.commercialOffers = commercialOffers;
         this.clock = clock;
     }
 
@@ -62,11 +73,33 @@ public class PlatformAdminService {
     public Map<String, Object> overview(long actorUserId, String rawQuery, int requestedLimit) {
         accessService.require(actorUserId, "PLATFORM_VIEW");
         var query = rawQuery == null ? "" : rawQuery.trim().toLowerCase(Locale.ROOT);
-        var limit = Math.max(1, Math.min(requestedLimit, 100));
+        var limit = Math.max(1, Math.min(requestedLimit, 500));
         var pattern = "%" + query + "%";
         var companies = jdbcTemplate.query(
             """
                 SELECT company.id, company.name,
+                       CASE
+                           WHEN EXISTS (
+                               SELECT 1
+                               FROM user_companies platform_membership
+                               JOIN platform_administrators platform_administrator
+                                 ON platform_administrator.user_id = platform_membership.user_id
+                                AND platform_administrator.status = 'ACTIVE'
+                                AND platform_administrator.platform_role = 'PLATFORM_ROOT'
+                               WHERE platform_membership.company_id = company.id
+                                 AND LOWER(COALESCE(platform_membership.status, 'active')) = 'active'
+                           ) THEN 'ROOT'
+                           ELSE company.commercial_account_type
+                       END AS user_type,
+                       distributor.id AS distributor_company_id,
+                       distributor.name AS distributor_company_name,
+                       company.creation_origin,
+                       creator_user.id AS created_by_user_id,
+                       creator_user.email AS created_by_user_email,
+                       creator_user.full_name AS created_by_user_name,
+                       creator_distributor.id AS created_by_distributor_company_id,
+                       COALESCE(creator_distributor.name, company.created_by_distributor_name)
+                           AS created_by_distributor_company_name,
                        COALESCE(owner.email, (
                            SELECT member_user.email
                            FROM user_companies member
@@ -80,6 +113,7 @@ public class PlatformAdminService {
                        signup.country_code,
                        policy.mode AS entitlement_mode,
                        subscription.status AS billing_status,
+                       subscription.stripe_subscription_id,
                        lifecycle.state AS lifecycle_state,
                        lifecycle.access_mode AS access_mode,
                        subscription.offer_code,
@@ -87,10 +121,42 @@ public class PlatformAdminService {
                        subscription.currency,
                        subscription.cancel_at_period_end,
                        subscription.trial_ends_at,
+                       (
+                           SELECT MAX(trial.ends_at)
+                           FROM company_trial_product_grants trial
+                           WHERE trial.company_id = company.id
+                             AND trial.status = 'ACTIVE'
+                       ) AS granted_trial_ends_at,
+                       (
+                           SELECT MAX(benefit.ends_at)
+                           FROM company_benefit_grants benefit
+                           WHERE benefit.company_id = company.id
+                             AND benefit.benefit_type = 'PRODUCT'
+                             AND benefit.source_type IN ('COURTESY', 'PROMOTION', 'SUPPORT', 'TEST')
+                             AND benefit.status = 'ACTIVE'
+                             AND benefit.ends_at IS NOT NULL
+                       ) AS local_demo_ends_at,
+                       EXISTS (
+                           SELECT 1
+                           FROM company_benefit_grants benefit
+                           WHERE benefit.company_id = company.id
+                             AND benefit.benefit_type = 'PRODUCT'
+                             AND benefit.status = 'ACTIVE'
+                             AND benefit.ends_at IS NULL
+                       ) AS permanent_demo,
                        subscription.current_period_ends_at,
                        subscription.last_payment_status,
                        COALESCE(seats.included_seats, 0) AS included_seats,
                        COALESCE(seats.purchased_extra_seats, 0) AS purchased_extra_seats,
+                       COALESCE((
+                           SELECT SUM(seat_benefit.quantity)
+                           FROM company_benefit_grants seat_benefit
+                           WHERE seat_benefit.company_id = company.id
+                             AND seat_benefit.benefit_type = 'SEAT'
+                             AND seat_benefit.status = 'ACTIVE'
+                             AND seat_benefit.starts_at <= CURRENT_TIMESTAMP(6)
+                             AND (seat_benefit.ends_at IS NULL OR seat_benefit.ends_at > CURRENT_TIMESTAMP(6))
+                       ), 0) AS courtesy_extra_seats,
                        COALESCE(storage.purchased_blocks, 0) AS purchased_storage_blocks,
                        COALESCE((
                            SELECT base_price.unit_amount_cents
@@ -114,6 +180,21 @@ public class PlatformAdminService {
                            ORDER BY seat_price.effective_from DESC, seat_price.id DESC
                            LIMIT 1
                        ), 0)
+                       + COALESCE((
+                           SELECT SUM(addon_price.unit_amount_cents)
+                           FROM company_billing_subscription_products selected_addon
+                           JOIN billing_catalog_products addon_product
+                             ON addon_product.id = selected_addon.catalog_product_id
+                            AND addon_product.product_type = 'ADDON'
+                           JOIN billing_catalog_prices addon_price
+                             ON addon_price.catalog_product_id = addon_product.id
+                            AND addon_price.catalog_version_id = subscription.catalog_version_id
+                            AND addon_price.billing_interval = subscription.billing_interval
+                            AND addon_price.currency = subscription.currency
+                            AND addon_price.price_type = 'ADDON'
+                            AND addon_price.status IN ('READY', 'ACTIVE')
+                           WHERE selected_addon.subscription_id = subscription.id
+                       ), 0)
                        + COALESCE(storage.purchased_blocks, 0) * COALESCE((
                            SELECT storage_price.unit_amount_cents
                            FROM billing_catalog_prices storage_price
@@ -131,6 +212,17 @@ public class PlatformAdminService {
                                FROM company_billing_subscription_products selected_product
                                JOIN billing_catalog_products product ON product.id = selected_product.catalog_product_id
                                WHERE selected_product.subscription_id = subscription.id
+                                 AND LOWER(subscription.status) IN ('trialing', 'active', 'past_due')
+                                 AND (subscription.current_period_ends_at IS NULL OR subscription.current_period_ends_at > CURRENT_TIMESTAMP(6))
+                           ),
+                           (
+                               SELECT GROUP_CONCAT(DISTINCT product.product_code ORDER BY product.sort_order SEPARATOR ',')
+                               FROM company_trial_product_grants trial
+                               JOIN billing_catalog_products product ON product.id = trial.catalog_product_id
+                               WHERE trial.company_id = company.id
+                                 AND trial.status = 'ACTIVE'
+                                 AND trial.starts_at <= CURRENT_TIMESTAMP(6)
+                                 AND trial.ends_at > CURRENT_TIMESTAMP(6)
                            ),
                            (
                                SELECT GROUP_CONCAT(DISTINCT product.product_code ORDER BY product.sort_order SEPARATOR ',')
@@ -149,6 +241,17 @@ public class PlatformAdminService {
                                FROM company_billing_subscription_products selected_product
                                JOIN billing_catalog_products product ON product.id = selected_product.catalog_product_id
                                WHERE selected_product.subscription_id = subscription.id
+                                 AND LOWER(subscription.status) IN ('trialing', 'active', 'past_due')
+                                 AND (subscription.current_period_ends_at IS NULL OR subscription.current_period_ends_at > CURRENT_TIMESTAMP(6))
+                           ),
+                           (
+                               SELECT GROUP_CONCAT(DISTINCT product.display_name ORDER BY product.sort_order SEPARATOR '|')
+                               FROM company_trial_product_grants trial
+                               JOIN billing_catalog_products product ON product.id = trial.catalog_product_id
+                               WHERE trial.company_id = company.id
+                                 AND trial.status = 'ACTIVE'
+                                 AND trial.starts_at <= CURRENT_TIMESTAMP(6)
+                                 AND trial.ends_at > CURRENT_TIMESTAMP(6)
                            ),
                            (
                                SELECT GROUP_CONCAT(DISTINCT product.display_name ORDER BY product.sort_order SEPARATOR '|')
@@ -172,8 +275,20 @@ public class PlatformAdminService {
                          WHERE benefit.company_id = company.id
                            AND benefit.status = 'ACTIVE'
                            AND benefit.starts_at <= CURRENT_TIMESTAMP(6)
-                           AND (benefit.ends_at IS NULL OR benefit.ends_at > CURRENT_TIMESTAMP(6))) AS active_benefits
+                           AND (benefit.ends_at IS NULL OR benefit.ends_at > CURRENT_TIMESTAMP(6))) AS active_benefits,
+                       (SELECT COUNT(*) FROM company_benefit_grants benefit
+                         WHERE benefit.company_id = company.id
+                           AND benefit.status = 'ACTIVE'
+                           AND benefit.starts_at <= CURRENT_TIMESTAMP(6)
+                           AND benefit.ends_at > CURRENT_TIMESTAMP(6)) AS temporary_benefits
                 FROM companies company
+                LEFT JOIN companies distributor
+                  ON distributor.id = company.distributor_company_id
+                 AND distributor.commercial_account_type = 'DISTRIBUTOR'
+                LEFT JOIN users creator_user
+                  ON creator_user.id = company.created_by_user_id
+                LEFT JOIN companies creator_distributor
+                  ON creator_distributor.id = company.created_by_distributor_company_id
                 LEFT JOIN company_entitlement_policies policy ON policy.company_id = company.id
                 LEFT JOIN company_seat_states seats ON seats.company_id = company.id
                 LEFT JOIN company_storage_states storage ON storage.company_id = company.id
@@ -194,7 +309,12 @@ public class PlatformAdminService {
                       FROM billing_invoice_snapshots candidate_invoice
                       WHERE candidate_invoice.company_id = company.id
                   )
-                WHERE (? = '' OR LOWER(company.name) LIKE ? OR LOWER(COALESCE(owner.email, '')) LIKE ? OR CAST(company.id AS CHAR) = ?)
+                WHERE (? = ''
+                    OR LOWER(company.name) LIKE ?
+                    OR LOWER(COALESCE(owner.email, '')) LIKE ?
+                    OR LOWER(COALESCE(distributor.name, '')) LIKE ?
+                    OR LOWER(COALESCE(creator_distributor.name, company.created_by_distributor_name, '')) LIKE ?
+                    OR CAST(company.id AS CHAR) = ?)
                 ORDER BY company.id DESC
                 LIMIT ?
                 """,
@@ -202,21 +322,49 @@ public class PlatformAdminService {
                 var row = new LinkedHashMap<String, Object>();
                 row.put("id", rs.getLong("id"));
                 row.put("name", rs.getString("name"));
+                row.put("user_type", rs.getString("user_type"));
+                row.put("distributor_company_id", rs.getObject("distributor_company_id"));
+                row.put("distributor_company_name", nullable(rs.getString("distributor_company_name")));
+                row.put("creation_origin", rs.getString("creation_origin"));
+                row.put("created_by_user_id", rs.getObject("created_by_user_id"));
+                row.put("created_by_user_email", nullable(rs.getString("created_by_user_email")));
+                row.put("created_by_user_name", nullable(rs.getString("created_by_user_name")));
+                row.put("created_by_distributor_company_id", rs.getObject("created_by_distributor_company_id"));
+                row.put("created_by_distributor_company_name", nullable(rs.getString("created_by_distributor_company_name")));
                 row.put("owner_email", nullable(rs.getString("owner_email")));
                 row.put("country_code", nullable(rs.getString("country_code")));
                 row.put("entitlement_mode", nullable(rs.getString("entitlement_mode")));
                 row.put("billing_status", nullable(rs.getString("billing_status")));
+                var stripeSubscriptionId = nullable(rs.getString("stripe_subscription_id"));
+                row.put("billing_managed_by_stripe", isStripeManaged(stripeSubscriptionId));
                 row.put("lifecycle_state", nullable(rs.getString("lifecycle_state")));
                 row.put("access_mode", nullable(rs.getString("access_mode")));
                 row.put("offer_code", nullable(rs.getString("offer_code")));
                 row.put("billing_interval", nullable(rs.getString("billing_interval")));
                 row.put("currency", nullable(rs.getString("currency")));
                 row.put("cancel_at_period_end", rs.getBoolean("cancel_at_period_end"));
-                row.put("trial_ends_at", instant(rs.getTimestamp("trial_ends_at")));
+                var billingStatus = nullable(rs.getString("billing_status"));
+                var stripeTrialEndsAt = instant(rs.getTimestamp("trial_ends_at"));
+                var grantedTrialEndsAt = instant(rs.getTimestamp("granted_trial_ends_at"));
+                var localDemoEndsAt = instant(rs.getTimestamp("local_demo_ends_at"));
+                var stripeTrial = "trialing".equalsIgnoreCase(billingStatus) && stripeTrialEndsAt != null;
+                var localDemo = billingStatus == null && localDemoEndsAt != null && !rs.getBoolean("permanent_demo");
+                var effectiveTrialEndsAt = stripeTrial
+                    ? stripeTrialEndsAt
+                    : localDemo
+                        ? localDemoEndsAt
+                        : grantedTrialEndsAt;
+                var trialSource = stripeTrial ? "STRIPE" : localDemo ? "LOCAL_DEMO" : null;
+                row.put("trial_ends_at", effectiveTrialEndsAt);
+                row.put("trial_source", trialSource);
+                row.put("trial_days_remaining", remainingDays(effectiveTrialEndsAt));
+                row.put("trial_extendable", trialSource != null);
+                row.put("trial_permanent", rs.getBoolean("permanent_demo"));
                 row.put("current_period_ends_at", instant(rs.getTimestamp("current_period_ends_at")));
                 row.put("last_payment_status", nullable(rs.getString("last_payment_status")));
                 row.put("included_seats", rs.getInt("included_seats"));
                 row.put("purchased_extra_seats", rs.getInt("purchased_extra_seats"));
+                row.put("courtesy_extra_seats", rs.getInt("courtesy_extra_seats"));
                 row.put("purchased_storage_blocks", rs.getInt("purchased_storage_blocks"));
                 row.put("recurring_amount_cents", rs.getLong("recurring_amount_cents"));
                 row.put("product_codes", csv(rs.getString("product_codes"), ","));
@@ -227,14 +375,21 @@ public class PlatformAdminService {
                 row.put("last_invoice_period_ends_at", instant(rs.getTimestamp("last_invoice_period_ends_at")));
                 row.put("active_members", rs.getInt("active_members"));
                 row.put("active_benefits", rs.getInt("active_benefits"));
+                row.put("temporary_benefits", rs.getInt("temporary_benefits"));
                 return row;
             },
             query,
             pattern,
             pattern,
+            pattern,
+            pattern,
             query,
             limit
         );
+        addBillingProjection(companies);
+        var activeCustomerAccounts = companies.stream()
+            .filter(PlatformAdminService::isOperationalCustomerAccount)
+            .toList();
         var totals = new LinkedHashMap<String, Object>();
         totals.put("companies", scalar("SELECT COUNT(*) FROM companies"));
         totals.put("premium_companies", scalar("SELECT COUNT(*) FROM company_entitlement_policies"));
@@ -252,16 +407,169 @@ public class PlatformAdminService {
             })
             .sum();
         totals.put("monthly_recurring_cents", mrrCents);
+        totals.put("active_customer_companies", activeCustomerAccounts.size());
+        totals.put(
+            "customer_active_users",
+            activeCustomerAccounts.stream()
+                .mapToLong(company -> ((Number) company.getOrDefault("active_members", 0)).longValue())
+                .sum()
+        );
+        totals.put(
+            "projected_monthly_billing_cents",
+            activeCustomerAccounts.stream()
+                .filter(company -> "USD".equalsIgnoreCase(String.valueOf(company.getOrDefault("billing_currency", "USD"))))
+                .mapToLong(PlatformAdminService::monthlyBillingAmount)
+                .sum()
+        );
         totals.put("paid_last_30_days_cents", scalarLong("SELECT COALESCE(SUM(amount_paid_cents), 0) FROM billing_invoice_snapshots WHERE currency = 'USD' AND LOWER(COALESCE(status, '')) = 'paid' AND updated_at >= DATE_SUB(CURRENT_TIMESTAMP(6), INTERVAL 30 DAY)"));
         totals.put("currency", "USD");
         return Map.of("totals", totals, "companies", companies);
     }
 
+    private void addBillingProjection(List<? extends Map<String, Object>> companies) {
+        var quoteCache = new LinkedHashMap<String, CommercialOfferSelection>();
+        for (var company : companies) {
+            var billingStatus = lower(company.get("billing_status"));
+            var stripeManaged = Boolean.TRUE.equals(company.get("billing_managed_by_stripe"));
+            var activeStripeContract = stripeManaged
+                && Set.of("trialing", "active", "past_due", "unpaid").contains(billingStatus);
+            var interval = "YEAR".equals(company.get("billing_interval")) ? "YEAR" : "MONTH";
+
+            if (activeStripeContract) {
+                company.put("billing_amount_cents", company.get("recurring_amount_cents"));
+                company.put(
+                    "billing_amount_kind",
+                    "trialing".equals(billingStatus)
+                        ? "TRIAL_END"
+                        : "active".equals(billingStatus) ? "NEXT_INVOICE" : "CURRENT"
+                );
+                company.put("billing_amount_interval", interval);
+                company.put("billing_currency", company.get("currency") == null ? "USD" : company.get("currency"));
+                company.put("projected_offer_code", null);
+                continue;
+            }
+
+            var productCodes = new LinkedHashSet<String>();
+            var rawCodes = company.get("product_codes");
+            if (rawCodes instanceof List<?> codes) {
+                codes.stream()
+                    .filter(java.util.Objects::nonNull)
+                    .map(Object::toString)
+                    .map(String::trim)
+                    .filter(code -> !code.isBlank())
+                    .map(code -> code.toLowerCase(Locale.ROOT))
+                    .forEach(productCodes::add);
+            }
+            if (productCodes.isEmpty()) {
+                unavailableBillingProjection(company);
+                continue;
+            }
+
+            var purchasedExtraSeats = ((Number) company.getOrDefault("purchased_extra_seats", 0)).intValue();
+            var courtesyExtraSeats = ((Number) company.getOrDefault("courtesy_extra_seats", 0)).intValue();
+            var extraSeats = Math.max(0, purchasedExtraSeats) + Math.max(0, courtesyExtraSeats);
+            var cacheKey = interval + ":" + extraSeats + ":" + String.join(",", productCodes.stream().sorted().toList());
+            try {
+                var quote = quoteCache.computeIfAbsent(
+                    cacheKey,
+                    ignored -> commercialOffers.select(List.copyOf(productCodes), interval, extraSeats)
+                );
+                if (quote.estimatedAmountCents() == null) {
+                    unavailableBillingProjection(company);
+                    continue;
+                }
+                company.put("billing_amount_cents", quote.estimatedAmountCents());
+                company.put("billing_amount_kind", "ESTIMATE");
+                company.put("billing_amount_interval", quote.billingInterval().name());
+                company.put("billing_currency", quote.currency());
+                company.put("projected_offer_code", quote.offerCode());
+            } catch (IllegalArgumentException | IllegalStateException exception) {
+                LOGGER.warn(
+                    "platform_billing_projection_unavailable companyId={} productCodes={} interval={} extraSeats={} reason={}",
+                    company.get("id"),
+                    productCodes,
+                    interval,
+                    extraSeats,
+                    exception.getMessage()
+                );
+                unavailableBillingProjection(company);
+            }
+        }
+    }
+
+    private static void unavailableBillingProjection(Map<String, Object> company) {
+        company.put("billing_amount_cents", null);
+        company.put("billing_amount_kind", "UNAVAILABLE");
+        company.put("billing_amount_interval", null);
+        company.put("billing_currency", company.get("currency") == null ? "USD" : company.get("currency"));
+        company.put("projected_offer_code", null);
+    }
+
+    private static boolean isOperationalCustomerAccount(Map<String, Object> company) {
+        if (!"SUPER_ADMIN".equalsIgnoreCase(String.valueOf(company.get("user_type")))) {
+            return false;
+        }
+        var billingStatus = lower(company.get("billing_status"));
+        var lifecycleState = lower(company.get("lifecycle_state"));
+        var accessMode = lower(company.get("access_mode"));
+        var activeBenefits = ((Number) company.getOrDefault("active_benefits", 0)).longValue();
+        var temporaryBenefits = ((Number) company.getOrDefault("temporary_benefits", 0)).longValue();
+        return Set.of("active", "trialing", "paid", "past_due").contains(billingStatus)
+            || Set.of("active", "trial", "grace").contains(lifecycleState)
+            || "full".equals(accessMode)
+            || activeBenefits > 0
+            || temporaryBenefits > 0;
+    }
+
+    private static long monthlyBillingAmount(Map<String, Object> company) {
+        var rawAmount = company.get("billing_amount_cents");
+        if (!(rawAmount instanceof Number amount)) {
+            return 0L;
+        }
+        var cents = Math.max(0L, amount.longValue());
+        return "YEAR".equalsIgnoreCase(String.valueOf(company.get("billing_amount_interval")))
+            ? Math.round(cents / 12.0)
+            : cents;
+    }
+
+    private static boolean isStripeManaged(String stripeSubscriptionId) {
+        return stripeSubscriptionId != null
+            && !stripeSubscriptionId.startsWith("internal_")
+            && !stripeSubscriptionId.startsWith("legacy_");
+    }
+
     public Map<String, Object> company(long actorUserId, long companyId) {
         accessService.require(actorUserId, "PLATFORM_VIEW");
+        return companyAfterAuthorization(companyId);
+    }
+
+    /** Caller must authorize the target company before invoking this shared operation. */
+    public Map<String, Object> companyAfterAuthorization(long companyId) {
         var companies = jdbcTemplate.query(
             """
                 SELECT company.id, company.name, policy.mode,
+                       CASE
+                           WHEN EXISTS (
+                               SELECT 1
+                               FROM user_companies platform_membership
+                               JOIN platform_administrators platform_administrator
+                                 ON platform_administrator.user_id = platform_membership.user_id
+                                AND platform_administrator.status = 'ACTIVE'
+                                AND platform_administrator.platform_role = 'PLATFORM_ROOT'
+                               WHERE platform_membership.company_id = company.id
+                                 AND LOWER(COALESCE(platform_membership.status, 'active')) = 'active'
+                           ) THEN 'ROOT'
+                           ELSE company.commercial_account_type
+                       END AS user_type,
+                       distributor.id AS distributor_company_id,
+                       distributor.name AS distributor_company_name,
+                       company.creation_origin,
+                       creator_user.id AS created_by_user_id,
+                       creator_user.email AS created_by_user_email,
+                       creator_user.full_name AS created_by_user_name,
+                       creator_distributor.id AS created_by_distributor_company_id,
+                       COALESCE(creator_distributor.name, company.created_by_distributor_name)
+                           AS created_by_distributor_company_name,
                        COALESCE(ownership.owner_user_id, (
                            SELECT member.user_id
                            FROM user_companies member
@@ -300,6 +608,13 @@ public class PlatformAdminService {
                        lifecycle.read_only_ends_at,
                        lifecycle.retention_until
                 FROM companies company
+                LEFT JOIN companies distributor
+                  ON distributor.id = company.distributor_company_id
+                 AND distributor.commercial_account_type = 'DISTRIBUTOR'
+                LEFT JOIN users creator_user
+                  ON creator_user.id = company.created_by_user_id
+                LEFT JOIN companies creator_distributor
+                  ON creator_distributor.id = company.created_by_distributor_company_id
                 LEFT JOIN company_entitlement_policies policy ON policy.company_id = company.id
                 LEFT JOIN company_ownerships ownership
                   ON ownership.company_id = company.id AND ownership.status = 'ACTIVE'
@@ -314,6 +629,15 @@ public class PlatformAdminService {
                 var row = new LinkedHashMap<String, Object>();
                 row.put("id", rs.getLong("id"));
                 row.put("name", rs.getString("name"));
+                row.put("user_type", rs.getString("user_type"));
+                row.put("distributor_company_id", rs.getObject("distributor_company_id"));
+                row.put("distributor_company_name", nullable(rs.getString("distributor_company_name")));
+                row.put("creation_origin", rs.getString("creation_origin"));
+                row.put("created_by_user_id", rs.getObject("created_by_user_id"));
+                row.put("created_by_user_email", nullable(rs.getString("created_by_user_email")));
+                row.put("created_by_user_name", nullable(rs.getString("created_by_user_name")));
+                row.put("created_by_distributor_company_id", rs.getObject("created_by_distributor_company_id"));
+                row.put("created_by_distributor_company_name", nullable(rs.getString("created_by_distributor_company_name")));
                 row.put("entitlement_mode", nullable(rs.getString("mode")));
                 row.put("owner_user_id", rs.getObject("owner_user_id"));
                 row.put("owner_email", nullable(rs.getString("owner_email")));
@@ -347,11 +671,192 @@ public class PlatformAdminService {
         var body = new LinkedHashMap<>(companies.getFirst());
         body.put("products", companyProducts(companyId));
         body.put("members", companyMembers(companyId));
+        body.put("invitations", companyInvitations(companyId));
         body.put("invoices", companyInvoices(companyId));
         body.put("benefits", listBenefits(companyId));
         body.put("seat_usage", seatUsage(companyId));
         body.put("storage_usage", storageSnapshot(companyId));
         return body;
+    }
+
+    @Transactional
+    public Map<String, Object> updateCompanyAccountType(
+        long actorUserId,
+        long companyId,
+        AccountTypeUpdateRequest request
+    ) {
+        accessService.require(actorUserId, "PLATFORM_ACCOUNTS_WRITE");
+        if (request == null) {
+            throw new IllegalArgumentException("Account type details are required.");
+        }
+        var accountType = upper(request.account_type());
+        if (!COMMERCIAL_ACCOUNT_TYPES.contains(accountType)) {
+            throw new IllegalArgumentException("Account type must be SUPER_ADMIN or DISTRIBUTOR.");
+        }
+        var rows = jdbcTemplate.query(
+            """
+                SELECT company.commercial_account_type,
+                       EXISTS (
+                           SELECT 1
+                           FROM user_companies platform_membership
+                           JOIN platform_administrators platform_administrator
+                             ON platform_administrator.user_id = platform_membership.user_id
+                            AND platform_administrator.status = 'ACTIVE'
+                            AND platform_administrator.platform_role = 'PLATFORM_ROOT'
+                           WHERE platform_membership.company_id = company.id
+                             AND LOWER(COALESCE(platform_membership.status, 'active')) = 'active'
+                       ) AS platform_root
+                FROM companies company
+                WHERE company.id = ?
+                LIMIT 1
+                """,
+            (rs, rowNum) -> Map.<String, Object>of(
+                "account_type", rs.getString("commercial_account_type"),
+                "platform_root", rs.getBoolean("platform_root")
+            ),
+            companyId
+        );
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException("Company not found.");
+        }
+        var current = rows.getFirst();
+        if (Boolean.TRUE.equals(current.get("platform_root"))) {
+            throw new IllegalStateException("Root authority must be managed from platform administrator security.");
+        }
+        var previousType = String.valueOf(current.get("account_type"));
+        var changed = !accountType.equals(previousType);
+        if (changed) {
+            jdbcTemplate.update(
+                "UPDATE companies SET commercial_account_type = ? WHERE id = ?",
+                accountType,
+                companyId
+            );
+            audit.record(
+                actorUserId,
+                "COMPANY_ACCOUNT_TYPE_UPDATED",
+                "COMPANY",
+                String.valueOf(companyId),
+                companyId,
+                "SUCCESS",
+                Map.of("previous_type", previousType, "user_type", accountType)
+            );
+        }
+        return Map.of(
+            "company_id", companyId,
+            "user_type", accountType,
+            "changed", changed
+        );
+    }
+
+    @Transactional
+    public Map<String, Object> updateCompanyDistributor(
+        long actorUserId,
+        long companyId,
+        DistributorAssignmentRequest request
+    ) {
+        accessService.require(actorUserId, "PLATFORM_ACCOUNTS_WRITE");
+        if (request == null) {
+            throw new IllegalArgumentException("Distributor assignment details are required.");
+        }
+        var companies = jdbcTemplate.query(
+            """
+                SELECT company.name,
+                       company.commercial_account_type,
+                       company.distributor_company_id,
+                       current_distributor.name AS distributor_company_name,
+                       EXISTS (
+                           SELECT 1
+                           FROM user_companies platform_membership
+                           JOIN platform_administrators platform_administrator
+                             ON platform_administrator.user_id = platform_membership.user_id
+                            AND platform_administrator.status = 'ACTIVE'
+                            AND platform_administrator.platform_role = 'PLATFORM_ROOT'
+                           WHERE platform_membership.company_id = company.id
+                             AND LOWER(COALESCE(platform_membership.status, 'active')) = 'active'
+                       ) AS platform_root
+                FROM companies company
+                LEFT JOIN companies current_distributor
+                  ON current_distributor.id = company.distributor_company_id
+                WHERE company.id = ?
+                LIMIT 1
+                """,
+            (rs, rowNum) -> {
+                var row = new LinkedHashMap<String, Object>();
+                row.put("company_name", rs.getString("name"));
+                row.put("account_type", rs.getString("commercial_account_type"));
+                row.put("distributor_company_id", rs.getObject("distributor_company_id"));
+                row.put("distributor_company_name", nullable(rs.getString("distributor_company_name")));
+                row.put("platform_root", rs.getBoolean("platform_root"));
+                return row;
+            },
+            companyId
+        );
+        if (companies.isEmpty()) {
+            throw new NoSuchElementException("Company not found.");
+        }
+        var company = companies.getFirst();
+        if (Boolean.TRUE.equals(company.get("platform_root"))) {
+            throw new IllegalStateException("Root accounts cannot be assigned to a distributor.");
+        }
+        if (!"SUPER_ADMIN".equals(company.get("account_type"))) {
+            throw new IllegalStateException("Only customer accounts can be assigned to a distributor.");
+        }
+
+        var requestedDistributorId = request.distributor_company_id();
+        String requestedDistributorName = null;
+        if (requestedDistributorId != null) {
+            if (requestedDistributorId <= 0 || requestedDistributorId == companyId) {
+                throw new IllegalArgumentException("A valid distributor must be selected.");
+            }
+            requestedDistributorName = jdbcTemplate.query(
+                """
+                    SELECT name
+                    FROM companies
+                    WHERE id = ? AND commercial_account_type = 'DISTRIBUTOR'
+                    LIMIT 1
+                    """,
+                (rs, rowNum) -> rs.getString("name"),
+                requestedDistributorId
+            ).stream().findFirst().orElseThrow(
+                () -> new IllegalArgumentException("The selected company is not a distributor.")
+            );
+        }
+
+        var previousDistributorId = company.get("distributor_company_id") == null
+            ? null
+            : ((Number) company.get("distributor_company_id")).longValue();
+        var changed = !java.util.Objects.equals(previousDistributorId, requestedDistributorId);
+        if (changed) {
+            jdbcTemplate.update(
+                "UPDATE companies SET distributor_company_id = ? WHERE id = ?",
+                requestedDistributorId,
+                companyId
+            );
+            var detail = new LinkedHashMap<String, Object>();
+            detail.put("company_name", company.get("company_name"));
+            detail.put("previous_distributor_company_id", previousDistributorId);
+            detail.put("previous_distributor_company_name", company.get("distributor_company_name"));
+            detail.put("distributor_company_id", requestedDistributorId);
+            detail.put("distributor_company_name", requestedDistributorName);
+            detail.put("commercial_origin", requestedDistributorId == null ? "INDICE_DIRECT" : "DISTRIBUTOR");
+            audit.record(
+                actorUserId,
+                requestedDistributorId == null ? "COMPANY_DISTRIBUTOR_UNASSIGNED" : "COMPANY_DISTRIBUTOR_ASSIGNED",
+                "COMPANY",
+                String.valueOf(companyId),
+                companyId,
+                "SUCCESS",
+                detail
+            );
+        }
+
+        var result = new LinkedHashMap<String, Object>();
+        result.put("company_id", companyId);
+        result.put("distributor_company_id", requestedDistributorId);
+        result.put("distributor_company_name", requestedDistributorName);
+        result.put("commercial_origin", requestedDistributorId == null ? "INDICE_DIRECT" : "DISTRIBUTOR");
+        result.put("changed", changed);
+        return result;
     }
 
     public Map<String, Object> billing(long actorUserId, int requestedLimit) {
@@ -412,6 +917,11 @@ public class PlatformAdminService {
 
     public Map<String, Object> catalog(long actorUserId) {
         accessService.require(actorUserId, "PLATFORM_VIEW");
+        return catalogAfterAuthorization();
+    }
+
+    /** Caller must authorize the active portfolio before invoking this shared operation. */
+    public Map<String, Object> catalogAfterAuthorization() {
         var versions = jdbcTemplate.query(
             """
                 SELECT id, version_code, status, effective_from, effective_to, created_at
@@ -434,13 +944,15 @@ public class PlatformAdminService {
                 SELECT product.id, product.catalog_version_id, version.version_code,
                        product.product_code, product.display_name, product.product_type,
                        product.sort_order, product.active,
+                       CASE WHEN product.product_type = 'CORE' OR availability.id IS NOT NULL THEN 1 ELSE 0 END AS commercially_available,
                        GROUP_CONCAT(capability.capability_code ORDER BY capability.capability_code SEPARATOR ',') AS capabilities
                 FROM billing_catalog_products product
                 JOIN billing_catalog_versions version ON version.id = product.catalog_version_id
                 LEFT JOIN billing_product_capabilities capability ON capability.product_id = product.id
+                LEFT JOIN billing_available_commercial_products availability ON availability.id = product.id
                 GROUP BY product.id, product.catalog_version_id, version.version_code,
                          product.product_code, product.display_name, product.product_type,
-                         product.sort_order, product.active
+                         product.sort_order, product.active, availability.id
                 ORDER BY version.effective_from DESC, product.sort_order, product.id
                 """,
             (rs, rowNum) -> {
@@ -453,13 +965,14 @@ public class PlatformAdminService {
                 row.put("product_type", rs.getString("product_type"));
                 row.put("sort_order", rs.getInt("sort_order"));
                 row.put("active", rs.getBoolean("active"));
+                row.put("commercially_available", rs.getBoolean("commercially_available"));
                 row.put("capabilities", csv(rs.getString("capabilities"), ","));
                 return row;
             }
         );
         var prices = jdbcTemplate.query(
             """
-                SELECT price.id, price.catalog_version_id, version.version_code,
+                SELECT price.id, price.catalog_version_id, price.catalog_product_id, version.version_code,
                        price.billable_code, price.price_type, price.billing_interval,
                        price.currency, price.unit_amount_cents, price.included_quantity,
                        price.external_price_id, price.status, price.effective_from, price.effective_to
@@ -471,6 +984,7 @@ public class PlatformAdminService {
                 var row = new LinkedHashMap<String, Object>();
                 row.put("id", rs.getLong("id"));
                 row.put("catalog_version_id", rs.getLong("catalog_version_id"));
+                row.put("catalog_product_id", rs.getObject("catalog_product_id"));
                 row.put("version_code", rs.getString("version_code"));
                 row.put("billable_code", rs.getString("billable_code"));
                 row.put("price_type", rs.getString("price_type"));
@@ -644,7 +1158,7 @@ public class PlatformAdminService {
                        GROUP_CONCAT(DISTINCT source ORDER BY source SEPARATOR ', ') AS source
                 FROM (
                     SELECT product.product_code, product.display_name, product.product_type,
-                           product.sort_order, selected_product.source
+                           product.sort_order, CONCAT('SUBSCRIPTION_', selected_product.source) AS source
                     FROM company_billing_subscription_products selected_product
                     JOIN company_billing_subscriptions subscription ON subscription.id = selected_product.subscription_id
                     JOIN billing_catalog_products product ON product.id = selected_product.catalog_product_id
@@ -653,6 +1167,17 @@ public class PlatformAdminService {
                         FROM company_billing_subscriptions candidate
                         WHERE candidate.company_id = ?
                     )
+                      AND LOWER(subscription.status) IN ('trialing', 'active', 'past_due')
+                      AND (subscription.current_period_ends_at IS NULL OR subscription.current_period_ends_at > CURRENT_TIMESTAMP(6))
+                    UNION ALL
+                    SELECT product.product_code, product.display_name, product.product_type,
+                           product.sort_order, 'TRIAL'
+                    FROM company_trial_product_grants trial
+                    JOIN billing_catalog_products product ON product.id = trial.catalog_product_id
+                    WHERE trial.company_id = ?
+                      AND trial.status = 'ACTIVE'
+                      AND trial.starts_at <= CURRENT_TIMESTAMP(6)
+                      AND trial.ends_at > CURRENT_TIMESTAMP(6)
                     UNION ALL
                     SELECT product.product_code, product.display_name, product.product_type,
                            product.sort_order, CONCAT('BENEFIT_', benefit.source_type)
@@ -677,6 +1202,7 @@ public class PlatformAdminService {
                 return row;
             },
             companyId,
+            companyId,
             companyId
         );
     }
@@ -698,7 +1224,14 @@ public class PlatformAdminService {
         return jdbcTemplate.query(
             """
                 SELECT membership.id, user.id AS user_id, user.full_name, user.email,
-                       membership.role, membership.status, membership.created_at
+                       membership.role, membership.status, membership.created_at,
+                       EXISTS (
+                           SELECT 1
+                           FROM company_ownerships ownership
+                           WHERE ownership.company_id = membership.company_id
+                             AND ownership.owner_user_id = membership.user_id
+                             AND ownership.status = 'ACTIVE'
+                       ) AS is_owner
                 FROM user_companies membership
                 JOIN users user ON user.id = membership.user_id
                 WHERE membership.company_id = ?
@@ -713,6 +1246,34 @@ public class PlatformAdminService {
                 row.put("email", rs.getString("email"));
                 row.put("role", nullable(rs.getString("role")));
                 row.put("status", nullable(rs.getString("status")));
+                row.put("is_owner", rs.getBoolean("is_owner"));
+                row.put("created_at", instant(rs.getTimestamp("created_at")));
+                return row;
+            },
+            companyId
+        );
+    }
+
+    private List<Map<String, Object>> companyInvitations(long companyId) {
+        return jdbcTemplate.query(
+            """
+                SELECT invitation.id, invitation.full_name, invitation.email,
+                       invitation.role, invitation.status, invitation.expires_at,
+                       invitation.created_at
+                FROM user_invitations invitation
+                WHERE invitation.company_id = ?
+                  AND LOWER(COALESCE(invitation.status, 'pending')) = 'pending'
+                  AND (invitation.expires_at IS NULL OR invitation.expires_at > CURRENT_TIMESTAMP)
+                ORDER BY invitation.created_at DESC, invitation.id DESC
+                """,
+            (rs, rowNum) -> {
+                var row = new LinkedHashMap<String, Object>();
+                row.put("invitation_id", rs.getLong("id"));
+                row.put("name", nullable(rs.getString("full_name")));
+                row.put("email", rs.getString("email"));
+                row.put("role", nullable(rs.getString("role")));
+                row.put("status", nullable(rs.getString("status")));
+                row.put("expires_at", instant(rs.getTimestamp("expires_at")));
                 row.put("created_at", instant(rs.getTimestamp("created_at")));
                 return row;
             },
@@ -756,6 +1317,17 @@ public class PlatformAdminService {
         BenefitRequest request
     ) {
         accessService.require(actorUserId, "PLATFORM_BENEFITS_WRITE");
+        return grantBenefitAfterAuthorization(actorUserId, companyId, idempotencyKey, request);
+    }
+
+    /** Caller must authorize the target company before invoking this shared operation. */
+    @Transactional
+    public Map<String, Object> grantBenefitAfterAuthorization(
+        long actorUserId,
+        long companyId,
+        String idempotencyKey,
+        BenefitRequest request
+    ) {
         if (idempotencyKey == null || idempotencyKey.isBlank()) {
             throw new IllegalArgumentException("Idempotency-Key is required.");
         }
@@ -789,6 +1361,14 @@ public class PlatformAdminService {
         var existing = benefitByIdempotency(hash);
         if (existing != null) {
             return existing;
+        }
+        if ("PRODUCT".equals(type)) {
+            var activeProductBenefit = activeProductBenefit(companyId, productId);
+            if (activeProductBenefit != null) {
+                synchronizeProductModuleAccess(companyId, productId);
+                activeProductBenefit.put("replayed", true);
+                return activeProductBenefit;
+            }
         }
         var reference = BillingHashing.randomReference().substring(0, 32);
         try {
@@ -824,7 +1404,7 @@ public class PlatformAdminService {
             throw exception;
         }
         if ("PRODUCT".equals(type)) {
-            entitlementProjection.refreshIfEnrolled(companyId);
+            synchronizeProductModuleAccess(companyId, productId);
         }
         audit.record(actorUserId, "BENEFIT_GRANTED", "COMPANY_BENEFIT", reference, companyId, "SUCCESS", Map.of(
             "benefit_type", type,
@@ -838,32 +1418,238 @@ public class PlatformAdminService {
     @Transactional
     public Map<String, Object> revokeBenefit(long actorUserId, long companyId, String reference, String reason) {
         accessService.require(actorUserId, "PLATFORM_BENEFITS_WRITE");
+        return revokeBenefitAfterAuthorization(actorUserId, companyId, reference, reason);
+    }
+
+    /** Caller must authorize the target company before invoking this shared operation. */
+    @Transactional
+    public Map<String, Object> revokeBenefitAfterAuthorization(
+        long actorUserId,
+        long companyId,
+        String reference,
+        String reason
+    ) {
         var before = benefitByReference(reference);
         if (before == null || ((Number) before.get("company_id")).longValue() != companyId) {
             throw new NoSuchElementException("Benefit not found.");
         }
-        var updated = jdbcTemplate.update(
-            """
-                UPDATE company_benefit_grants
-                SET status = 'REVOKED', revoked_by_user_id = ?, revoked_at = CURRENT_TIMESTAMP(6),
-                    reason = CONCAT(reason, '\nRevoked: ', ?)
-                WHERE company_id = ? AND public_reference = ? AND status = 'ACTIVE'
-                """,
-            actorUserId,
-            reason == null || reason.isBlank() ? "Administrative decision" : reason.trim(),
-            companyId,
-            reference
-        );
+        var productBenefit = "PRODUCT".equals(before.get("benefit_type"));
+        var productId = productBenefit ? productIdForBenefit(reference) : null;
+        var revocationReason = reason == null || reason.isBlank() ? "Administrative decision" : reason.trim();
+        var updated = productBenefit
+            ? jdbcTemplate.update(
+                """
+                    UPDATE company_benefit_grants
+                    SET status = 'REVOKED', revoked_by_user_id = ?, revoked_at = CURRENT_TIMESTAMP(6),
+                        reason = CONCAT(reason, '\nRevoked: ', ?)
+                    WHERE company_id = ? AND catalog_product_id = ?
+                      AND benefit_type = 'PRODUCT' AND status = 'ACTIVE'
+                    """,
+                actorUserId, revocationReason, companyId, productId
+            )
+            : jdbcTemplate.update(
+                """
+                    UPDATE company_benefit_grants
+                    SET status = 'REVOKED', revoked_by_user_id = ?, revoked_at = CURRENT_TIMESTAMP(6),
+                        reason = CONCAT(reason, '\nRevoked: ', ?)
+                    WHERE company_id = ? AND public_reference = ? AND status = 'ACTIVE'
+                    """,
+                actorUserId, revocationReason, companyId, reference
+            );
         if (updated == 0) {
             throw new IllegalStateException("Benefit is not active.");
         }
-        if ("PRODUCT".equals(before.get("benefit_type"))) {
-            entitlementProjection.refreshIfEnrolled(companyId);
+        if (productBenefit) {
+            synchronizeProductModuleAccess(companyId, productId);
         }
         audit.record(actorUserId, "BENEFIT_REVOKED", "COMPANY_BENEFIT", reference, companyId, "SUCCESS", Map.of(
-            "reason", reason == null ? "" : reason
+            "reason", reason == null ? "" : reason,
+            "revoked_grants", updated,
+            "product_code", before.get("product_code") == null ? "" : before.get("product_code")
         ));
-        return benefitByReference(reference);
+        var revoked = benefitByReference(reference);
+        revoked.put("revoked_grants", updated);
+        return revoked;
+    }
+
+    private Map<String, Object> activeProductBenefit(long companyId, long productId) {
+        return jdbcTemplate.query(
+            """
+                SELECT benefit.public_reference, benefit.company_id, benefit.benefit_type,
+                       product.product_code, benefit.quantity, benefit.source_type, benefit.status,
+                       benefit.starts_at, benefit.ends_at, benefit.reason, benefit.campaign_code,
+                       benefit.stripe_coupon_id, benefit.stripe_promotion_code_id,
+                       benefit.created_by_user_id, benefit.created_at, benefit.revoked_at
+                FROM company_benefit_grants benefit
+                JOIN billing_catalog_products product ON product.id = benefit.catalog_product_id
+                WHERE benefit.company_id = ?
+                  AND benefit.catalog_product_id = ?
+                  AND benefit.benefit_type = 'PRODUCT'
+                  AND benefit.status = 'ACTIVE'
+                  AND benefit.starts_at <= CURRENT_TIMESTAMP(6)
+                  AND (benefit.ends_at IS NULL OR benefit.ends_at > CURRENT_TIMESTAMP(6))
+                ORDER BY benefit.created_at DESC, benefit.id DESC
+                LIMIT 1
+                """,
+            (rs, rowNum) -> benefitRow(rs),
+            companyId,
+            productId
+        ).stream().findFirst().orElse(null);
+    }
+
+    private Long productIdForBenefit(String reference) {
+        return jdbcTemplate.query(
+            """
+                SELECT catalog_product_id
+                FROM company_benefit_grants
+                WHERE public_reference = ? AND benefit_type = 'PRODUCT'
+                """,
+            (rs, rowNum) -> (Long) rs.getObject(1),
+            reference
+        ).stream().findFirst().orElseThrow(() -> new NoSuchElementException("Product benefit not found."));
+    }
+
+    public void synchronizeProductModuleAccess(long companyId, long productId) {
+        var moduleSlugs = jdbcTemplate.query(
+            """
+                SELECT DISTINCT module_row.slug
+                FROM billing_product_capabilities capability
+                JOIN modules module_row
+                  ON module_row.slug COLLATE utf8mb4_unicode_ci =
+                     (CASE capability.capability_code
+                         WHEN 'sales' THEN 'crm'
+                         ELSE capability.capability_code
+                      END) COLLATE utf8mb4_unicode_ci
+                WHERE capability.product_id = ?
+                  AND COALESCE(module_row.is_active, 1) = 1
+                ORDER BY module_row.slug
+                """,
+            (rs, rowNum) -> rs.getString(1),
+            productId
+        );
+        for (var moduleSlug : moduleSlugs) {
+            var effectiveSource = effectiveModuleSource(companyId, moduleSlug);
+            if (effectiveSource == null) {
+                jdbcTemplate.update(
+                    """
+                        UPDATE company_module_entitlements
+                        SET status = 'inactive'
+                        WHERE company_id = ? AND module_slug = ?
+                        """,
+                    companyId,
+                    moduleSlug
+                );
+                jdbcTemplate.update(
+                    """
+                        DELETE permission
+                        FROM user_company_tab_permissions permission
+                        JOIN user_companies membership ON membership.id = permission.user_company_id
+                        WHERE membership.company_id = ? AND permission.module_slug = ?
+                        """,
+                    companyId,
+                    moduleSlug
+                );
+                jdbcTemplate.update(
+                    """
+                        DELETE role_row
+                        FROM user_company_module_roles role_row
+                        JOIN user_companies membership ON membership.id = role_row.user_company_id
+                        WHERE membership.company_id = ? AND role_row.module_slug = ?
+                        """,
+                    companyId,
+                    moduleSlug
+                );
+                continue;
+            }
+            jdbcTemplate.update(
+                """
+                    INSERT INTO company_module_entitlements (company_id, module_slug, status, source)
+                    SELECT ?, module_row.slug, 'active', ?
+                    FROM modules module_row
+                    WHERE module_row.slug = ? AND COALESCE(module_row.is_active, 1) = 1
+                    ON DUPLICATE KEY UPDATE status = VALUES(status), source = VALUES(source)
+                    """,
+                companyId,
+                effectiveSource,
+                moduleSlug
+            );
+            grantCompanyAdministratorsModule(companyId, moduleSlug);
+        }
+        entitlementProjection.refreshIfEnrolled(companyId);
+    }
+
+    private String effectiveModuleSource(long companyId, String moduleSlug) {
+        return jdbcTemplate.query(
+            """
+                SELECT effective.source_label
+                FROM (
+                    SELECT 'paid_subscription' AS source_label, 1 AS priority
+                    FROM company_billing_subscriptions subscription
+                    JOIN company_billing_subscription_products selected_product
+                      ON selected_product.subscription_id = subscription.id
+                    JOIN billing_product_capabilities capability
+                      ON capability.product_id = selected_product.catalog_product_id
+                    WHERE subscription.company_id = ?
+                      AND LOWER(subscription.status) IN ('trialing', 'active', 'past_due')
+                      AND (subscription.current_period_ends_at IS NULL OR subscription.current_period_ends_at > CURRENT_TIMESTAMP(6))
+                      AND CASE capability.capability_code WHEN 'sales' THEN 'crm' ELSE capability.capability_code END = ?
+                    UNION ALL
+                    SELECT 'launch_basic_trial', 2
+                    FROM company_trial_product_grants trial
+                    JOIN billing_product_capabilities capability ON capability.product_id = trial.catalog_product_id
+                    WHERE trial.company_id = ? AND trial.status = 'ACTIVE'
+                      AND trial.starts_at <= CURRENT_TIMESTAMP(6) AND trial.ends_at > CURRENT_TIMESTAMP(6)
+                      AND CASE capability.capability_code WHEN 'sales' THEN 'crm' ELSE capability.capability_code END = ?
+                    UNION ALL
+                    SELECT 'platform_benefit', 3
+                    FROM company_benefit_grants benefit
+                    JOIN billing_product_capabilities capability ON capability.product_id = benefit.catalog_product_id
+                    WHERE benefit.company_id = ? AND benefit.benefit_type = 'PRODUCT' AND benefit.status = 'ACTIVE'
+                      AND benefit.starts_at <= CURRENT_TIMESTAMP(6)
+                      AND (benefit.ends_at IS NULL OR benefit.ends_at > CURRENT_TIMESTAMP(6))
+                      AND CASE capability.capability_code WHEN 'sales' THEN 'crm' ELSE capability.capability_code END = ?
+                ) effective
+                ORDER BY effective.priority
+                LIMIT 1
+                """,
+            (rs, rowNum) -> rs.getString(1),
+            companyId, moduleSlug,
+            companyId, moduleSlug,
+            companyId, moduleSlug
+        ).stream().findFirst().orElse(null);
+    }
+
+    private void grantCompanyAdministratorsModule(long companyId, String moduleSlug) {
+        jdbcTemplate.update(
+            """
+                INSERT INTO user_company_module_roles (user_company_id, module_slug, role, skill_level)
+                SELECT membership.id, ?, 'admin', 100
+                FROM user_companies membership
+                WHERE membership.company_id = ?
+                  AND LOWER(COALESCE(membership.status, 'active')) IN ('active', 'activo')
+                  AND LOWER(REPLACE(COALESCE(membership.role, ''), ' ', '')) IN ('root', 'superadmin', 'owner')
+                ON DUPLICATE KEY UPDATE role = VALUES(role), skill_level = VALUES(skill_level)
+                """,
+            moduleSlug,
+            companyId
+        );
+        for (var permissionKey : ConfigCenterTabPermissionCatalog.permissionKeysForModuleSlugs(Set.of(moduleSlug))) {
+            var separator = permissionKey.indexOf('.');
+            jdbcTemplate.update(
+                """
+                    INSERT INTO user_company_tab_permissions (user_company_id, module_slug, tab_key, can_view)
+                    SELECT membership.id, ?, ?, 1
+                    FROM user_companies membership
+                    WHERE membership.company_id = ?
+                      AND LOWER(COALESCE(membership.status, 'active')) IN ('active', 'activo')
+                      AND LOWER(REPLACE(COALESCE(membership.role, ''), ' ', '')) IN ('root', 'superadmin', 'owner')
+                    ON DUPLICATE KEY UPDATE can_view = VALUES(can_view)
+                    """,
+                moduleSlug,
+                permissionKey.substring(separator + 1),
+                companyId
+            );
+        }
     }
 
     private List<Map<String, Object>> listBenefits(long companyId) {
@@ -985,6 +1771,10 @@ public class PlatformAdminService {
                 FROM billing_catalog_products product
                 JOIN billing_catalog_versions version ON version.id = product.catalog_version_id
                 WHERE product.product_code = ? AND product.active = 1 AND version.status = 'ACTIVE'
+                  AND (
+                      product.product_type = 'CORE'
+                      OR EXISTS (SELECT 1 FROM billing_available_commercial_products availability WHERE availability.id = product.id)
+                  )
                 ORDER BY version.effective_from DESC, version.id DESC
                 LIMIT 1
                 """,
@@ -1040,6 +1830,13 @@ public class PlatformAdminService {
         return value == null ? null : value.toInstant();
     }
 
+    private Integer remainingDays(Instant endsAt) {
+        if (endsAt == null) return null;
+        var seconds = endsAt.getEpochSecond() - clock.instant().getEpochSecond();
+        if (seconds <= 0) return 0;
+        return (int) Math.ceil(seconds / 86_400.0);
+    }
+
     public record BenefitRequest(
         String benefit_type,
         String product_code,
@@ -1058,6 +1855,12 @@ public class PlatformAdminService {
     }
 
     public record ModuleAvailabilityRequest(Boolean active, String reason) {
+    }
+
+    public record AccountTypeUpdateRequest(String account_type) {
+    }
+
+    public record DistributorAssignmentRequest(Long distributor_company_id) {
     }
 
     private record ModuleAvailabilityRow(long id, String slug, String name, boolean core, boolean active) {

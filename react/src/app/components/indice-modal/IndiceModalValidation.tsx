@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import { AlertTriangle, CircleAlert, Info } from 'lucide-react';
+import { AlertTriangle, CircleAlert, CircleCheck, Info } from 'lucide-react';
 import { cn } from '../ui/utils';
 
-export type IndiceModalValidationTone = 'error' | 'info' | 'warning';
+export type IndiceModalValidationTone = 'error' | 'info' | 'success' | 'warning';
 
 export type IndiceModalValidationProps = {
   className?: string;
@@ -19,6 +19,10 @@ const toneStyles: Record<IndiceModalValidationTone, { container: string; icon: t
   info: {
     container: 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200',
     icon: Info,
+  },
+  success: {
+    container: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200',
+    icon: CircleCheck,
   },
   warning: {
     container: 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100',

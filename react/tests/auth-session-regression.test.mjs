@@ -43,3 +43,21 @@ test('payable creation never inserts a local phantom record after a failed reque
     /catch\s*\([^)]*\)\s*\{[\s\S]*?setExpenses\s*\(\s*currentExpenses\s*=>\s*\[payableExpense/,
   );
 });
+
+test('signup and login share the exact delivered credential contract', async () => {
+  const [loginPage, signupPage, signupCompletePage, routes] = await Promise.all([
+    readFile(new URL('../src/app/Auth/LoginPage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/Auth/SignupPage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/Auth/SignupCompletePage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/routes.tsx', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(loginPage, /navigate\('\/signup'\)/);
+  assert.match(routes, /path:\s*'\/signup'/);
+  assert.match(routes, /path:\s*'\/signup\/complete'/);
+  assert.match(signupPage, /isValidAccountPassword\(form\.password\)/);
+  assert.match(signupCompletePage, /companyName:\s*loginPrefill\.companyName/);
+  assert.match(signupCompletePage, /email:\s*loginPrefill\.email/);
+  assert.match(loginPage, /password,\s*\n\s*\}\)/);
+  assert.doesNotMatch(loginPage, /password:\s*password\.trim\(\)/);
+});
