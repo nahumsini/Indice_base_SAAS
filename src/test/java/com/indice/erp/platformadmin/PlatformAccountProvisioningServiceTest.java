@@ -65,7 +65,7 @@ class PlatformAccountProvisioningServiceTest {
                 )
             );
         when(jdbc.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(courtesyCodes.create(eq(9L), eq("account-request-1:access"), any()))
+        when(courtesyCodes.createAfterAuthorization(eq(9L), eq("account-request-1:access"), any()))
             .thenReturn(Map.of("code", "IND-DEMO-SAFE-CODE"));
         when(signup.createCheckout(any(), eq("account-request-1:signup")))
             .thenReturn(new BillingSignupService.SignupCheckoutResponse(
@@ -84,7 +84,7 @@ class PlatformAccountProvisioningServiceTest {
             .containsEntry("extra_seats", 2)
             .containsEntry("product_codes", List.of("basic_hr", "basic_process_tasks"));
         verify(access).require(9L, "PLATFORM_ACCOUNTS_WRITE");
-        verify(courtesyCodes).create(eq(9L), eq("account-request-1:access"), any());
+        verify(courtesyCodes).createAfterAuthorization(eq(9L), eq("account-request-1:access"), any());
         verify(signup).createCheckout(any(), eq("account-request-1:signup"));
         verify(jdbc).update(
             anyString(),
