@@ -1,0 +1,11 @@
+services:
+  backend:
+    environment:
+      APP_KIOSK_SECRET_PROTECTION_ENABLED: "false"
+      KIOSK_GLOBAL_CENTER_ENABLED: "true"
+      KIOSK_MULTI_DASHBOARD_ENABLED: "true"
+      KIOSK_EMPLOYEE_CENTER_ENABLED: "false"
+      # This local volume predates the V156/V157 merge collision. The missing
+      # migrations are applied explicitly during local verification so Flyway
+      # must not reinterpret the historical version numbers on startup.
+      SPRING_FLYWAY_ENABLED: "false"

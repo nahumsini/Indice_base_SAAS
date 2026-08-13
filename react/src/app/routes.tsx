@@ -31,6 +31,7 @@ function isDynamicImportFailure(error: unknown) {
 function WorkspaceRouteError() {
   const error = useRouteError();
   const isChunkError = isDynamicImportFailure(error);
+  const errorMessage = error instanceof Error ? error.message : String(error ?? 'Unknown route error');
 
   useEffect(() => {
     if (!isChunkError) {
@@ -63,6 +64,9 @@ function WorkspaceRouteError() {
         </h1>
         <p className="mt-3 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">
           El navegador tenia archivos de una version anterior del frontend. Recarga la pagina para tomar el build actual.
+        </p>
+        <p className="mt-3 break-all rounded-lg bg-slate-100 p-3 font-mono text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+          {errorMessage}
         </p>
         <button
           type="button"
@@ -107,6 +111,9 @@ class WorkspaceRenderErrorBoundary extends Component<
 
   render() {
     const isChunkError = isDynamicImportFailure(this.state.error);
+    const errorMessage = this.state.error instanceof Error
+      ? this.state.error.message
+      : String(this.state.error ?? 'Unknown render error');
 
     if (!this.state.error || (isChunkError && sessionStorage.getItem(renderChunkReloadStorageKey) !== 'true')) {
       return this.props.children;
@@ -123,6 +130,9 @@ class WorkspaceRenderErrorBoundary extends Component<
           </h1>
           <p className="mt-3 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">
             El navegador intento abrir un archivo antiguo del frontend. Recarga para tomar el build actual.
+          </p>
+          <p className="mt-3 break-all rounded-lg bg-slate-100 p-3 font-mono text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+            {errorMessage}
           </p>
           <button
             type="button"

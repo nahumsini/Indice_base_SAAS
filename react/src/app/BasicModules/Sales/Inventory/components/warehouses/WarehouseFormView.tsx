@@ -35,7 +35,7 @@ export function WarehouseFormView({
     : businesses;
 
   return (
-    <section className="mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+    <section className="mx-auto max-w-3xl">
       <div className="grid gap-4 md:grid-cols-2">
         <InputField label={t.operational.modals.warehouseName} value={draft.name} onChange={(name) => onChange({ ...draft, name })} />
         <SelectField label={t.operational.modals.warehouseType} value={draft.type} options={warehouseTypes.map((type) => ({ value: type, label: t.operational.warehouseTypes[type] }))} onValueChange={(type) => onChange({ ...draft, type: type as InventoryWarehouse['type'] })} />

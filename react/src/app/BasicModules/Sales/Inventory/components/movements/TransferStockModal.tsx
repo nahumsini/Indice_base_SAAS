@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowRightLeft, SlidersHorizontal } from 'lucide-react';
-import { IndiceModalSummary } from '../../../../../components/indice-modal';
+import { IndiceModalSummary, IndiceModalValidation, IndiceModalWizardStepper } from '../../../../../components/indice-modal';
 import { Button } from '../../../../../components/ui/button';
 import { Input } from '../../../../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../../components/ui/select';
@@ -26,9 +26,11 @@ export type TransferStockDraft = {
   reason: string;
   reference: string;
   date: string;
+  adjustmentDirection?: 'increase' | 'decrease';
 };
 
 const movementTypes: InventoryMovementEntryType[] = ['supplierReceipt', 'transfer', 'storeReplenishment', 'sale', 'return', 'adjustment', 'writeOff'];
+const creatableMovementTypes = movementTypes.filter((type) => type !== 'sale');
 const transferActionClassNames = getSalesModalActionClassNames('coral');
 
 const movementRules: Record<InventoryMovementEntryType, {
@@ -58,6 +60,8 @@ type SupplierOption = {
   id: string;
   name: string;
 };
+
+type MovementWizardStep = 'movement' | 'products' | 'review';
 
 export function TransferStockModal({
   open,
@@ -99,13 +103,16 @@ export function TransferStockModal({
     reason: 'Transfer',
     reference: '',
     date: new Date().toISOString().slice(0, 10),
+    adjustmentDirection: 'decrease',
   });
+  const [activeStep, setActiveStep] = useState<MovementWizardStep>('movement');
+  const [showStepError, setShowStepError] = useState(false);
 
   const rules = movementRules[draft.movementType];
   const usesFromWarehouse = rules.from === 'warehouse';
   const usesToWarehouse = rules.to === 'warehouse';
   const sourceIsSupplier = isSupplierSource(draft.fromWarehouseId);
-  const needsAvailabilityCheck = rules.needsAvailability && !sourceIsSupplier;
+  const needsAvailabilityCheck = rules.needsAvailability && !sourceIsSupplier && (draft.movementType !== 'adjustment' || draft.adjustmentDirection !== 'increase');
   const fromLocationOptions = useMemo(() => [
     { value: SUPPLIER_SOURCE_ID, label: t.operational.modals.supplier },
     ...sortInventoryOptions(activeWarehouses.map((warehouse) => ({ value: warehouse.id, label: warehouse.name }))),
@@ -113,6 +120,8 @@ export function TransferStockModal({
 
   useEffect(() => {
     if (!open) return;
+    setActiveStep('movement');
+    setShowStepError(false);
 
     if (editingMovement) {
       const editableMovementType = movementTypes.includes(editingMovement.movementType as InventoryMovementEntryType)
@@ -133,6 +142,7 @@ export function TransferStockModal({
         reason: editingMovement.reason,
         reference: editingMovement.reference ?? '',
         date: editingMovement.movementDate,
+        adjustmentDirection: editingMovement.quantity > 0 ? 'increase' : 'decrease',
       });
       return;
     }
@@ -151,6 +161,7 @@ export function TransferStockModal({
       reason: t.operational.movementTypes[initialMovementType],
       reference: '',
       date: new Date().toISOString().slice(0, 10),
+      adjustmentDirection: 'decrease',
     });
   }, [activeWarehouses, editingMovement, editingMovementLines, initialMovementType, initialProductId, initialWarehouseId, open, rows, supplierOptions, t]);
 
@@ -164,15 +175,45 @@ export function TransferStockModal({
     return item.quantity <= available;
   });
   const hasValidSupplier = draft.movementType !== 'supplierReceipt' || Boolean(draft.supplierName);
-  const canSubmit = hasValidItems && hasValidLocations && hasValidStock && hasValidSupplier;
+  const hasValidReason = draft.movementType !== 'adjustment' || Boolean(draft.reason.trim());
+  const canSubmit = hasValidItems && hasValidLocations && hasValidStock && hasValidSupplier && hasValidReason;
+  const movementStepValid = hasValidLocations && hasValidSupplier && hasValidReason;
+  const productsStepValid = hasValidItems && hasValidStock;
+  const steps = useMemo(() => [
+    { id: 'movement' as const, label: draft.movementType === 'adjustment' ? t.operational.adjustmentLabels.criteria : t.operational.adjustmentLabels.route },
+    { id: 'products' as const, label: draft.movementType === 'adjustment' ? t.operational.adjustmentLabels.difference : t.operational.modals.products },
+    { id: 'review' as const, label: t.common.review },
+  ], [draft.movementType, t]);
+
+  const continueWizard = () => {
+    if (activeStep === 'movement') {
+      if (!movementStepValid) { setShowStepError(true); return; }
+      setActiveStep('products');
+      setShowStepError(false);
+      return;
+    }
+    if (activeStep === 'products') {
+      if (!productsStepValid) { setShowStepError(true); return; }
+      setActiveStep('review');
+      setShowStepError(false);
+    }
+  };
+  const goBack = () => {
+    setShowStepError(false);
+    setActiveStep((current) => current === 'review' ? 'products' : 'movement');
+  };
 
   const handleTypeChange = (movementType: InventoryMovementEntryType) => {
     setDraft((current) => ({
       ...current,
       movementType,
       fromWarehouseId: movementType === 'supplierReceipt' ? SUPPLIER_SOURCE_ID : current.fromWarehouseId,
+      toWarehouseId: movementType === 'transfer' && current.toWarehouseId === current.fromWarehouseId
+        ? activeWarehouses.find((warehouse) => warehouse.id !== current.fromWarehouseId)?.id ?? current.toWarehouseId
+        : current.toWarehouseId,
       supplierName: movementType === 'supplierReceipt' ? current.supplierName ?? supplierOptions[0]?.name ?? '' : current.supplierName,
       reason: t.operational.movementTypes[movementType],
+      adjustmentDirection: movementType === 'adjustment' ? current.adjustmentDirection ?? 'decrease' : current.adjustmentDirection,
     }));
   };
 
@@ -189,8 +230,9 @@ export function TransferStockModal({
     ? draft.supplierName || t.operational.modals.supplier
     : activeWarehouses.find((warehouse) => warehouse.id === draft.fromWarehouseId)?.name
       ?? locationLabels[rules.from];
-  const toLocationLabel = activeWarehouses.find((warehouse) => warehouse.id === draft.toWarehouseId)?.name
-    ?? locationLabels[rules.to];
+  const toLocationLabel = draft.movementType === 'adjustment'
+    ? t.operational.adjustmentLabels.correction
+    : activeWarehouses.find((warehouse) => warehouse.id === draft.toWarehouseId)?.name ?? locationLabels[rules.to];
 
   return (
     <SalesModalFrame
@@ -199,17 +241,18 @@ export function TransferStockModal({
       title={title}
       description={subtitle}
       icon={<HeaderIcon className="h-5 w-5" />}
-      modalType="operational-workspace"
-      contentClassName="flex max-h-[88vh] flex-col sm:max-w-[1100px]"
+      modalType="wizard"
+      contentClassName="flex max-h-[88vh] flex-col"
       bodyClassName="!max-h-none flex-1 space-y-4 overflow-y-auto bg-slate-50/70 px-6 py-5"
       footerLeading={(
-        <Button type="button" variant="outline" className={transferActionClassNames.secondary} onClick={() => onOpenChange(false)}>
-          {t.common.cancel}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="outline" className={transferActionClassNames.secondary} onClick={() => onOpenChange(false)}>{t.common.cancel}</Button>
+          {activeStep !== 'movement' ? <Button type="button" variant="outline" className={transferActionClassNames.secondary} onClick={goBack}>{t.common.back}</Button> : null}
+        </div>
       )}
       footerSummary={`${t.operational.modals.products}: ${draft.items.length} · ${fromLocationLabel} → ${toLocationLabel}`}
       footer={(
-        <Button
+        activeStep === 'review' ? <Button
           type="button"
           className={transferActionClassNames.primary}
           disabled={!canSubmit}
@@ -223,9 +266,11 @@ export function TransferStockModal({
           }}
         >
           {isEditing ? t.common.save : t.operational.modals.registerMovement}
-        </Button>
+        </Button> : <Button type="button" className={transferActionClassNames.primary} onClick={continueWizard}>{t.common.continue}</Button>
       )}
     >
+          <IndiceModalWizardStepper accent="coral" activeStepId={activeStep} progressLabel={title} steps={steps} />
+          {showStepError ? <IndiceModalValidation messages={[activeStep === 'movement' ? t.common.completeMovementData : t.common.reviewProductQuantities]} /> : null}
           <IndiceModalSummary
             columns={3}
             items={[
@@ -236,10 +281,11 @@ export function TransferStockModal({
             variant="muted"
           />
 
-          <InventoryModalSection>
+          {activeStep === 'movement' ? <InventoryModalSection>
             <div className="grid gap-4 md:grid-cols-2">
-            <SelectField label={t.operational.modals.movementType} value={draft.movementType} options={movementTypes.map((type) => ({ value: type, label: t.operational.movementTypes[type] }))} onValueChange={(movementType) => handleTypeChange(movementType as InventoryMovementEntryType)} />
+            <SelectField label={t.operational.modals.movementType} value={draft.movementType} options={(isEditing ? movementTypes : creatableMovementTypes).map((type) => ({ value: type, label: t.operational.movementTypes[type] }))} onValueChange={(movementType) => handleTypeChange(movementType as InventoryMovementEntryType)} />
             <InputField label={t.operational.modals.date} type="date" value={draft.date} onChange={(date) => setDraft({ ...draft, date })} />
+            {draft.movementType === 'adjustment' ? <SelectField label={t.operational.adjustmentLabels.direction} value={draft.adjustmentDirection ?? 'decrease'} options={[{ value: 'increase', label: t.operational.adjustmentLabels.increase }, { value: 'decrease', label: t.operational.adjustmentLabels.decrease }]} onValueChange={(adjustmentDirection) => setDraft({ ...draft, adjustmentDirection: adjustmentDirection as 'increase' | 'decrease' })} /> : null}
             {draft.movementType === 'supplierReceipt' ? (
               supplierOptions.length > 0 ? (
               <SelectField label={t.operational.modals.supplier} value={draft.supplierName ?? ''} options={sortInventoryOptions(supplierOptions.map((supplier) => ({ value: supplier.name, label: supplier.name })))} onValueChange={(supplierName) => setDraft({ ...draft, supplierName })} />
@@ -248,7 +294,7 @@ export function TransferStockModal({
               )
             ) : null}
             {usesFromWarehouse ? (
-              <SelectField label={t.operational.modals.fromWarehouse} value={draft.fromWarehouseId} options={fromLocationOptions} onValueChange={(fromWarehouseId) => setDraft({ ...draft, fromWarehouseId })} />
+              <SelectField label={t.operational.modals.fromWarehouse} value={draft.fromWarehouseId} options={fromLocationOptions} onValueChange={(fromWarehouseId) => setDraft({ ...draft, fromWarehouseId, toWarehouseId: usesToWarehouse && draft.toWarehouseId === fromWarehouseId ? activeWarehouses.find((warehouse) => warehouse.id !== fromWarehouseId)?.id ?? draft.toWarehouseId : draft.toWarehouseId })} />
             ) : draft.movementType === 'supplierReceipt' ? null : (
               <ReadOnlyField label={t.operational.modals.source} value={locationLabels[rules.from]} />
             )}
@@ -257,19 +303,45 @@ export function TransferStockModal({
             ) : (
               <ReadOnlyField label={t.operational.modals.destination} value={locationLabels[rules.to]} />
             )}
-            <InputField label={t.operational.modals.reason} value={draft.reason} onChange={(reason) => setDraft({ ...draft, reason })} />
+            <InputField label={`${t.operational.modals.reason}${draft.movementType === 'adjustment' ? ' *' : ''}`} value={draft.reason} onChange={(reason) => setDraft({ ...draft, reason })} />
             <InputField label={t.operational.modals.referenceNote} value={draft.reference} onChange={(reference) => setDraft({ ...draft, reference })} />
             </div>
-          </InventoryModalSection>
+          </InventoryModalSection> : null}
 
-          <MovementProductLines
+          {activeStep === 'products' ? <MovementProductLines
             rows={rows}
             items={draft.items}
             fromWarehouseId={draft.fromWarehouseId}
             needsAvailabilityCheck={needsAvailabilityCheck}
             t={t}
             onItemsChange={(items) => setDraft({ ...draft, items })}
-          />
+          /> : null}
+
+          {activeStep === 'review' ? (
+            <div className="space-y-4">
+              <IndiceModalSummary
+                columns={3}
+                items={[
+                  { id: 'type', label: t.operational.modals.movementType, value: t.operational.movementTypes[draft.movementType] },
+                  { id: 'date', label: t.operational.modals.date, value: draft.date },
+                  { id: 'status-review', label: t.operational.modals.status, value: t.operational.movementStatuses[displayedStatus] },
+                  { id: 'source-review', label: t.operational.modals.source, value: fromLocationLabel },
+                  { id: 'destination-review', label: t.operational.modals.destination, value: toLocationLabel },
+                  { id: 'products-review', label: t.operational.modals.products, value: String(draft.items.length) },
+                ]}
+                variant="accent"
+              />
+              <InventoryModalSection>
+                <div className="divide-y divide-slate-200">
+                  {draft.items.map((item) => {
+                    const product = rows.find((row) => row.productId === item.productId);
+                    return <div key={item.id} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"><div className="min-w-0"><p className="truncate text-sm font-medium text-slate-900">{product?.name ?? t.common.notAvailable}</p><p className="mt-0.5 truncate text-xs text-slate-500">{product?.sku ?? t.common.notAvailable}</p></div><span className="shrink-0 text-sm font-medium tabular-nums text-slate-900">{t.operational.modals.quantity}: {item.quantity}</span></div>;
+                  })}
+                </div>
+              </InventoryModalSection>
+              {draft.reason || draft.reference ? <IndiceModalSummary columns={2} items={[{ id: 'reason-review', label: t.operational.modals.reason, value: draft.reason || t.common.notAvailable }, { id: 'reference-review', label: t.operational.modals.referenceNote, value: draft.reference || t.common.notAvailable }]} variant="muted" /> : null}
+            </div>
+          ) : null}
     </SalesModalFrame>
   );
 }

@@ -1,12 +1,13 @@
 import { createLearningModeControl, type LearningModeControl } from '../../../learningMode';
 
-export type InventoryLearningTabId = 'products' | 'inventory' | 'providers' | 'purchase-orders';
+export type InventoryLearningTabId = 'products' | 'inventory' | 'warehouses' | 'providers' | 'purchase-orders';
 
 const control = createLearningModeControl;
 
 export const inventoryLearningLabels: Record<InventoryLearningTabId, string> = {
   products: 'Productos',
   inventory: 'Inventario',
+  warehouses: 'Almacenes',
   providers: 'Proveedores',
   'purchase-orders': 'Órdenes de compra',
 };
@@ -109,6 +110,20 @@ export const inventoryLearningControls: Record<InventoryLearningTabId, readonly 
         emily: 'Emily filtra una cafetería y abre el historial del insumo que se consume más rápido.',
         juanito: 'Juanito recorre del stock actual a entradas, salidas y ajustes hasta reconstruir el número.',
         camila: 'Camila busca una pieza y confirma si está en bodega, mostrador o fue transferida.',
+      },
+    }),
+  ],
+  warehouses: [
+    control({
+      id: 'warehouse-management', emoji: '🏭', kind: 'Espacio operativo', title: 'Administrar almacenes',
+      purpose: 'Define las ubicaciones que poseen existencias y sus responsables.',
+      behavior: 'Permite buscar, crear y retirar almacenes; si existe stock, exige transferirlo antes de eliminar.',
+      whenToUse: 'Úsalo antes de recibir inventario en una ubicación nueva o al cerrar una ubicación existente.',
+      result: 'Conserva el stock ubicado y evita eliminar existencias por accidente.', focus: 'la estructura física del inventario',
+      stories: {
+        emily: 'Emily separa almacén central y cafeterías para conocer dónde está cada insumo.',
+        juanito: 'Juanito asigna responsable a cada ubicación y mantiene totales explicables físicamente.',
+        camila: 'Camila distingue mostrador y bodega sin perder piezas durante una reorganización.',
       },
     }),
   ],

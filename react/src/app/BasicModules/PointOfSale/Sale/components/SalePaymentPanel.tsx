@@ -76,9 +76,9 @@ export function SalePaymentPanel({
 
   return (
     <>
-      <div className="flex h-full min-w-0 flex-col overflow-hidden rounded-lg border border-[#222831]/10 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+      <div className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-[#222831]/10 bg-white dark:border-gray-700 dark:bg-gray-800">
         <section className="space-y-2.5 border-b border-gray-200 p-3 dark:border-gray-700">
-          <div className={`rounded-lg p-3 shadow-sm ${totals.isPaid ? 'bg-[#59C3A5] text-[#222831]' : 'bg-[#222831] text-white'}`}>
+          <div className={`rounded-xl p-3 ${totals.isPaid ? 'bg-[#59C3A5] text-[#222831]' : 'bg-[#222831] text-white'}`}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-medium opacity-90">Cobro</p>
@@ -101,7 +101,7 @@ export function SalePaymentPanel({
             />
           </div>
 
-          <div className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 ${
+          <div className={`flex items-start gap-2 rounded-xl border px-3 py-2.5 ${
             totals.isPaid
               ? 'border-[#59C3A5]/50 bg-[#59C3A5]/10'
               : 'border-[#F4C84A]/60 bg-[#F4C84A]/15'
@@ -124,7 +124,7 @@ export function SalePaymentPanel({
           </div>
 
           {payments.length > 0 && (
-            <div className="rounded-lg border border-gray-200 bg-[#F7F8FA] px-3 py-2 dark:border-gray-700 dark:bg-gray-900/40">
+            <div className="rounded-xl border border-gray-200 bg-[#F7F8FA] px-3 py-2 dark:border-gray-700 dark:bg-gray-900/40">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Pagos registrados</p>
               <p className="text-base font-medium text-[#222831] dark:text-white">
                 {payments.length} pago{payments.length === 1 ? '' : 's'} · {formatCurrency(totals.paid)}
@@ -136,7 +136,7 @@ export function SalePaymentPanel({
             type="button"
             onClick={() => setIsCheckoutOpen(true)}
             disabled={!canOpenCheckout || isCompletingSale}
-            className="min-h-12 w-full rounded-lg bg-[#FF6B5E] px-5 py-2.5 text-lg font-medium text-[#222831] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#ff5a4b] hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+            className="min-h-12 w-full rounded-xl bg-[#FF6B5E] px-5 py-2.5 text-lg font-medium text-[#222831] transition hover:bg-[#ff5a4b] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
           >
             {cartItemCount === 0 && payments.length === 0
               ? 'Agrega productos'
@@ -240,9 +240,9 @@ function CompactPosActions({
               key={quantity}
               type="button"
               onClick={() => onQuantityChange(quantity)}
-              className={`min-h-9 rounded-lg text-sm font-medium transition active:scale-95 ${
+              className={`min-h-11 rounded-xl text-sm font-medium transition active:scale-95 ${
                 selectedQuickQuantity === quantity
-                  ? 'bg-[#FF6B5E] text-[#222831] shadow-sm'
+                  ? 'bg-[#FF6B5E] text-[#222831]'
                   : 'bg-[#F7F8FA] text-gray-700 ring-1 ring-gray-200 hover:bg-[#FF6B5E]/10 dark:bg-gray-900 dark:text-gray-200 dark:ring-gray-700'
               }`}
             >
@@ -260,7 +260,7 @@ function CompactPosActions({
         <QuickActionButton label="Espejo" icon={<User className="h-4 w-4" />} onClick={onOpenCustomerDisplay} />
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-[#F7F8FA] p-3 dark:border-gray-700 dark:bg-gray-900/40">
+      <div className="rounded-xl border border-gray-200 bg-[#F7F8FA] p-3 dark:border-gray-700 dark:bg-gray-900/40">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-medium text-[#222831] dark:text-white">Tickets pausados</p>
@@ -280,7 +280,7 @@ function CompactPosActions({
         {suspendedSales.length > 0 && (
           <div className="mt-2 space-y-2">
             {visibleSuspendedSales.map((sale) => (
-              <div key={sale.id} className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 dark:bg-gray-950/40">
+              <div key={sale.id} className="flex items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 dark:bg-gray-950/40">
                 <div className="min-w-0">
                   <p className="truncate text-xs font-medium text-[#222831] dark:text-white">{sale.title}</p>
                   <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">{formatCurrency(sale.total)}</p>
@@ -289,14 +289,14 @@ function CompactPosActions({
                   <button
                     type="button"
                     onClick={() => onResume(sale.id)}
-                    className="rounded-lg bg-[#222831] px-2 py-1 text-[11px] font-medium text-white"
+                    className="min-h-9 rounded-xl bg-[#222831] px-3 py-1 text-xs font-medium text-white"
                   >
                     Abrir
                   </button>
                   <button
                     type="button"
                     onClick={() => onDiscard(sale.id)}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg text-[#EF4444] hover:bg-red-50 dark:hover:bg-red-900/20"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl text-[#EF4444] hover:bg-red-50 dark:hover:bg-red-900/20"
                     aria-label="Descartar ticket pausado"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -332,7 +332,7 @@ function QuickActionButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-white px-2.5 py-2 text-xs font-medium text-gray-700 ring-1 ring-gray-200 transition hover:bg-[#59C3A5]/10 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-gray-900 dark:text-gray-200 dark:ring-gray-700"
+      className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-white px-2.5 py-2 text-xs font-medium text-gray-700 ring-1 ring-gray-200 transition hover:bg-[#FF6B5E]/10 hover:text-[#B63B32] disabled:cursor-not-allowed disabled:opacity-40 dark:bg-gray-900 dark:text-gray-200 dark:ring-gray-700 dark:hover:text-[#FFB0AA]"
     >
       <span aria-hidden="true">{icon}</span>
       {label}
@@ -356,7 +356,7 @@ function StatusTile({
   }[tone];
 
   return (
-    <div className={`rounded-lg px-3 py-2.5 ${toneClass}`}>
+    <div className={`rounded-xl px-3 py-2.5 ${toneClass}`}>
       <p className="text-[10px] font-medium tracking-normal opacity-75">{label}</p>
       <p className="mt-0.5 break-words text-base font-medium leading-tight">{value}</p>
     </div>

@@ -11,6 +11,7 @@ export const ptBR = {
   tabs: {
     products: 'Produtos',
     inventory: 'Estoque',
+    warehouses: 'Armazéns',
     providers: 'Fornecedores',
     purchaseOrders: 'Ordens de compra',
   },

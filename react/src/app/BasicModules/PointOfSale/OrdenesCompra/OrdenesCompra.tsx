@@ -16,13 +16,11 @@ import { ReceivePurchaseOrderModal } from './components/ReceivePurchaseOrderModa
 import { SupplierSubmissionDetailModal } from './components/SupplierSubmissionDetailModal';
 import { SupplierSubmissionKpis } from './components/SupplierSubmissionKpis';
 import { SupplierSubmissionsTable } from './components/SupplierSubmissionsTable';
-import { SupplierPortalAccessModal } from './components/SupplierPortalAccessModal';
 import { usePurchaseOrderWorkspace } from './hooks/usePurchaseOrderWorkspace';
 import { usePurchaseOrderTranslations } from './hooks/usePurchaseOrderTranslations';
 import type {
   PurchaseOrder,
   SupplierInvoiceStatus,
-  SupplierPortalAccessPayload,
   SupplierSubmission,
   SupplierSubmissionConvertPayload,
   SupplierSubmissionReviewPayload,
@@ -34,10 +32,7 @@ export default function OrdenesCompra() {
   const { balanceLoadError, products, saleCurrency, reloadInventoryBalances } = usePointOfSaleCatalogProducts();
   const { createProductRecord } = useSalesCrm();
   const {
-    changeSupplierPortalAccessPin,
     createOrder,
-    createSupplierPortalAccess,
-    deleteSupplierPortalKiosk,
     error,
     filteredOrders,
     filteredSupplierSubmissions,
@@ -54,16 +49,12 @@ export default function OrdenesCompra() {
     submitSupplierInvoice,
     supplierInvoices,
     supplierLinks,
-    supplierPortalAccess,
     warehouses,
     convertSupplierSubmission,
-    updateSupplierPortalAccessStatus,
-    updateSupplierPortalKiosk,
   } = usePurchaseOrderWorkspace();
 
   const [workspaceMode, setWorkspaceMode] = useState<PurchaseOrderWorkspaceMode>('orders');
   const [showCreateOrder, setShowCreateOrder] = useState(false);
-  const [showSupplierPortal, setShowSupplierPortal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
   const [selectedSubmission, setSelectedSubmission] = useState<SupplierSubmission | null>(null);
   const [receivingOrder, setReceivingOrder] = useState<PurchaseOrder | null>(null);
@@ -112,10 +103,6 @@ export default function OrdenesCompra() {
     return order;
   };
 
-  const handleCreateSupplierPortalAccess = async (payload: SupplierPortalAccessPayload) => (
-    createSupplierPortalAccess(payload)
-  );
-
   const handleCreatePurchaseProduct = async (product: Partial<(typeof products)[number]>) => {
     const savedProduct = await createProductRecord(buildSalesProductInputFromPointOfSale(product, saleCurrency));
     return toPointOfSaleProduct(savedProduct);
@@ -138,7 +125,6 @@ export default function OrdenesCompra() {
     <div className="space-y-6">
       <PurchaseOrderHeader
         onCreateOrder={() => setShowCreateOrder(true)}
-        onManageSupplierPortal={() => setShowSupplierPortal(true)}
       />
 
       {notice ? (
@@ -217,19 +203,6 @@ export default function OrdenesCompra() {
         />
       ) : null}
 
-      {showSupplierPortal ? (
-        <SupplierPortalAccessModal
-          accessList={supplierPortalAccess}
-          providers={providers}
-          saving={saving}
-          onChangePin={changeSupplierPortalAccessPin}
-          onClose={() => setShowSupplierPortal(false)}
-          onDelete={deleteSupplierPortalKiosk}
-          onStatusChange={updateSupplierPortalAccessStatus}
-          onSubmit={handleCreateSupplierPortalAccess}
-          onUpdateConfiguration={updateSupplierPortalKiosk}
-        />
-      ) : null}
 
       <ReceivePurchaseOrderModal
         order={receivingOrder}

@@ -28,6 +28,7 @@ export function MovementProductLines({
   items,
   fromWarehouseId,
   needsAvailabilityCheck,
+  layout = 'stacked',
   t,
   onItemsChange,
 }: {
@@ -35,6 +36,7 @@ export function MovementProductLines({
   items: MovementProductLineDraft[];
   fromWarehouseId: string;
   needsAvailabilityCheck: boolean;
+  layout?: 'stacked' | 'workspace';
   t: InventoryTranslations;
   onItemsChange: (items: MovementProductLineDraft[]) => void;
 }) {
@@ -83,7 +85,7 @@ export function MovementProductLines({
           <h3 className="text-sm font-medium text-slate-900">{t.operational.modals.products}</h3>
           <p className="mt-1 text-xs font-medium text-slate-500">{t.operational.modals.products}: {items.length}</p>
         </div>
-        <Button
+        {layout === 'stacked' ? <Button
           type="button"
           variant="outline"
           className="h-9 gap-2 rounded-lg border-[#FF6B5E]/25 bg-white px-3 text-xs font-medium text-[#B63B32] hover:bg-[#FF6B5E]/10"
@@ -91,10 +93,11 @@ export function MovementProductLines({
         >
           <Plus className="h-4 w-4" />
           {t.operational.modals.addProduct}
-        </Button>
+        </Button> : null}
       </div>
 
-      <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50/70 p-3">
+      <div className={layout === 'workspace' ? 'grid min-h-0 gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]' : ''}>
+      <div className={`${layout === 'workspace' ? 'min-h-0' : 'mb-4'} rounded-lg border border-slate-200 bg-slate-50/70 p-3`}>
         <InventoryModalField label={t.operational.modals.searchProducts}>
           <span className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -106,7 +109,7 @@ export function MovementProductLines({
             />
           </span>
         </InventoryModalField>
-        <div className="mt-3 grid gap-2 md:grid-cols-2">
+        <div className={`mt-3 grid gap-2 ${layout === 'workspace' ? 'max-h-[360px] overflow-y-auto pr-1 md:grid-cols-2' : 'md:grid-cols-2'}`}>
           {searchResults.map((row) => (
             <button
               key={row.productId}
@@ -126,7 +129,8 @@ export function MovementProductLines({
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className={`${layout === 'workspace' ? 'rounded-lg border border-slate-200 bg-white p-3' : ''} space-y-3`}>
+        {layout === 'workspace' ? <div className="border-b border-slate-200 pb-3"><h4 className="text-sm font-medium text-slate-900">{t.operational.modals.products}</h4><p className="mt-1 text-xs text-slate-500">{t.operational.modals.products}: {items.length}</p></div> : null}
         {items.map((item) => {
           const row = rows.find((stockRow) => stockRow.productId === item.productId);
           const available = row?.distributions.find((distribution) => distribution.warehouseId === fromWarehouseId)?.available ?? 0;
@@ -177,6 +181,7 @@ export function MovementProductLines({
             </div>
           );
         })}
+      </div>
       </div>
     </InventoryModalSection>
   );

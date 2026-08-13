@@ -20,6 +20,7 @@ export type InventoryMovementEntryDraft = {
   date: string;
   supplierName?: string;
   attachments?: InventoryMovementAttachment[];
+  adjustmentDirection?: 'increase' | 'decrease';
 };
 
 const movementPrefix: Record<InventoryMovementEntryType, string> = {
@@ -60,8 +61,9 @@ export function isSupplierSource(sourceId: string) {
   return sourceId === SUPPLIER_SOURCE_ID;
 }
 
-export function getMovementSignedQuantity(type: InventoryMovementEntryType, quantity: number) {
-  return type === 'sale' || type === 'adjustment' || type === 'writeOff' ? -quantity : quantity;
+export function getMovementSignedQuantity(type: InventoryMovementEntryType, quantity: number, adjustmentDirection?: 'increase' | 'decrease') {
+  if (type === 'adjustment') return adjustmentDirection === 'increase' ? quantity : -quantity;
+  return type === 'sale' || type === 'writeOff' ? -quantity : quantity;
 }
 
 export function applyMovementEntryToStockRows(
@@ -87,7 +89,8 @@ export function applyMovementEntryToStockRows(
       return toWarehouse ? updateWarehouseDistribution(nextRows, item.productId, toWarehouse, item.quantity) : nextRows;
     }
 
-    return fromWarehouse ? updateWarehouseDistribution(nextRows, item.productId, fromWarehouse, -item.quantity) : nextRows;
+    const signedQuantity = draft.movementType === 'adjustment' && draft.adjustmentDirection === 'increase' ? item.quantity : -item.quantity;
+    return fromWarehouse ? updateWarehouseDistribution(nextRows, item.productId, fromWarehouse, signedQuantity) : nextRows;
   }, rows);
 }
 
@@ -127,7 +130,7 @@ export function createInventoryMovementEntries({
       productImageAlt: row.thumbnailAlt,
       variantLabel: row.type === 'Product' ? row.category : undefined,
       movementType: draft.movementType,
-      quantity: getMovementSignedQuantity(draft.movementType, item.quantity),
+      quantity: getMovementSignedQuantity(draft.movementType, item.quantity, draft.adjustmentDirection),
       unitCost: row.averageCost,
       fromWarehouseId: fromWarehouse?.id,
       fromWarehouseName: fromName,
@@ -159,6 +162,10 @@ export function reverseInventoryMovement(
 
   if (fromWarehouse && toWarehouse) {
     return updateWarehouseDistribution(updateWarehouseDistribution(rows, movement.productId, fromWarehouse, quantity), movement.productId, toWarehouse, -quantity);
+  }
+
+  if (movement.movementType === 'adjustment' && movement.quantity > 0 && fromWarehouse) {
+    return updateWarehouseDistribution(rows, movement.productId, fromWarehouse, -quantity);
   }
 
   if (movement.quantity < 0 && fromWarehouse) {

@@ -161,6 +161,8 @@ export type SupplierPortalAccessListResponse = {
 
 export type SupplierPortalAccessPayload = {
   providerId: number;
+  unitId: number;
+  businessId: number;
   portalCode?: string | null;
   pin: string;
   status?: SupplierPortalAccessStatus;

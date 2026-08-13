@@ -1,4 +1,4 @@
-import { ArrowRightLeft, Columns3, PackagePlus, SlidersHorizontal, Warehouse } from 'lucide-react';
+import { ArrowRightLeft, Columns3, PackagePlus, SlidersHorizontal } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import {
   SalesTitleBar,
@@ -12,7 +12,6 @@ export function InventoryHeader({
   isMovementsView = false,
   onAddInventory,
   onTransferStock,
-  onCreateWarehouse,
   onInventoryAdjustment,
   onOpenColumns,
   showColumnsAction = true,
@@ -21,14 +20,12 @@ export function InventoryHeader({
   isMovementsView?: boolean;
   onAddInventory: () => void;
   onTransferStock: () => void;
-  onCreateWarehouse: () => void;
   onInventoryAdjustment?: () => void;
   onOpenColumns: () => void;
   showColumnsAction?: boolean;
 }) {
   const title = isMovementsView ? t.operational.movementsTitle : t.operational.title;
   const subtitle = isMovementsView ? t.operational.movementsSubtitle : t.operational.subtitle;
-  const warehouseActionLabel = t.operational.modals.manageWarehousesTitle;
 
   return (
     <SalesTitleBar
@@ -46,16 +43,6 @@ export function InventoryHeader({
             >
               <Columns3 className="h-4 w-4" />
               {t.header.secondaryAction}
-            </Button>
-          ) : null}
-          {!isMovementsView ? (
-            <Button
-              variant="outline"
-              className={salesTitleBarSecondaryActionClassName}
-              onClick={onCreateWarehouse}
-            >
-              <Warehouse className="h-4 w-4" />
-              {warehouseActionLabel}
             </Button>
           ) : null}
           <Button

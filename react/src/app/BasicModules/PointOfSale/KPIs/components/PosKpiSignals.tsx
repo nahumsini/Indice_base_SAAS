@@ -40,7 +40,7 @@ export function PosKpiSignals({
   const hasRisk = insight.tone === 'risk';
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <section className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
       <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 className="text-lg font-medium text-slate-950 dark:text-white">Senales ejecutivas POS</h3>
@@ -50,7 +50,7 @@ export function PosKpiSignals({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-lg border border-slate-200 p-5 dark:border-slate-800">
+        <div className="rounded-xl border border-slate-200 p-5 dark:border-slate-800">
           <div className="mb-3 flex items-center justify-between">
             <p className="font-medium text-slate-700 dark:text-slate-200">Precision de caja</p>
             <Scale className="h-5 w-5 text-[#B63B32] dark:text-[#FFB0AA]" />
@@ -59,7 +59,7 @@ export function PosKpiSignals({
           <ProgressLine value={cashAccuracy} danger={hasRisk} />
         </div>
 
-        <div className="rounded-lg border border-slate-200 p-5 dark:border-slate-800">
+        <div className="rounded-xl border border-slate-200 p-5 dark:border-slate-800">
           <div className="mb-3 flex items-center justify-between">
             <p className="font-medium text-slate-700 dark:text-slate-200">Tickets cerrados</p>
             <Ticket className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
@@ -68,7 +68,7 @@ export function PosKpiSignals({
           <p className="text-sm text-slate-500 dark:text-slate-400">{analytics.closings} cierres alimentan la lectura.</p>
         </div>
 
-        <div className="rounded-lg border border-slate-200 p-5 dark:border-slate-800">
+        <div className="rounded-xl border border-slate-200 p-5 dark:border-slate-800">
           <div className="mb-3 flex items-center justify-between">
             <p className="font-medium text-slate-700 dark:text-slate-200">Lectura ejecutiva</p>
             {hasRisk ? <AlertTriangle className="h-5 w-5 text-rose-600 dark:text-rose-300" /> : <ArrowUpRight className="h-5 w-5 text-blue-600 dark:text-blue-300" />}

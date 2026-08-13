@@ -104,6 +104,8 @@ export type PosCashRegisterOption = {
   name: string;
   status: string;
   active: boolean;
+  unitId?: number | null;
+  businessId?: number | null;
   warehouseId: number;
   warehouseName: string;
 };
@@ -112,6 +114,18 @@ type EngineEnvelope<T> = {
   data: T;
   meta?: { requestId?: string };
 };
+
+type CollectionEnvelope<T> = {
+  content?: T[];
+  data?: T[];
+  items?: T[];
+  rows?: T[];
+};
+
+function collectionFromResponse<T>(response: T[] | CollectionEnvelope<T>): T[] {
+  if (Array.isArray(response)) return response;
+  return response.items ?? response.data ?? response.rows ?? response.content ?? [];
+}
 
 const adminPath = '/api/v1/pos/self-service-kiosks';
 
@@ -152,8 +166,11 @@ export const selfServiceKioskApi = {
     return apiClient<SelfServiceKioskAdmin[]>(adminPath);
   },
 
-  listCashRegisters() {
-    return apiClient<PosCashRegisterOption[]>('/api/v1/pos/cash-registers');
+  async listCashRegisters() {
+    const response = await apiClient<PosCashRegisterOption[] | CollectionEnvelope<PosCashRegisterOption>>(
+      '/api/v1/pos/cash-registers',
+    );
+    return collectionFromResponse(response);
   },
 
   createAdmin(payload: {

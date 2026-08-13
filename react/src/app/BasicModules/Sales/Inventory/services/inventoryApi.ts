@@ -107,7 +107,7 @@ function toWarehousePayload(warehouse: InventoryWarehouse) {
     type: warehouse.type,
     businessUnitId: warehouse.businessUnitId,
     businessUnitName: warehouse.businessUnitName,
-    businessId: warehouse.businessId,
+    businessId: isDatabaseId(warehouse.businessId) ? warehouse.businessId : undefined,
     businessName: warehouse.businessName,
     jurisdiction: warehouse.jurisdiction,
     responsibleUserId: warehouse.responsibleUserId,

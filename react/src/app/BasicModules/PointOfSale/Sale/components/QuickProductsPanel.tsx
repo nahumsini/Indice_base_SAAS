@@ -47,11 +47,11 @@ export function QuickProductsPanel({
   }, [filteredQuickProducts, normalizedQuickSearch]);
 
   return (
-    <div className="flex h-full min-h-[420px] min-w-0 flex-col overflow-hidden rounded-lg border border-[#222831]/10 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+    <div className="flex h-full min-h-[420px] min-w-0 flex-col overflow-hidden rounded-xl border border-[#222831]/10 bg-white dark:border-gray-700 dark:bg-gray-800">
       <div className="border-b border-[#222831]/10 bg-[#222831] px-5 py-4 text-white dark:border-gray-700 dark:bg-[#111827]">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#FF6B5E]/20 text-white dark:bg-[#FF6B5E]/15" aria-hidden="true">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#FF6B5E]/20 text-[#FFB0AA] dark:bg-[#FF6B5E]/15" aria-hidden="true">
               <Sparkles className="h-6 w-6" />
             </span>
             <div className="min-w-0">
@@ -62,7 +62,7 @@ export function QuickProductsPanel({
             </div>
           </div>
           {selectedQuickQuantity > 1 && (
-            <span className="rounded-lg bg-[#F4C84A] px-4 py-2 text-sm font-medium text-[#222831]">
+            <span className="rounded-full bg-[#F4C84A] px-4 py-2 text-sm font-medium text-[#222831]">
               x{selectedQuickQuantity}
             </span>
           )}
@@ -79,9 +79,9 @@ export function QuickProductsPanel({
                   type="button"
                   onClick={() => onSelectCategory(category)}
                   aria-pressed={selectedCategory === category}
-                  className={`min-h-11 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition ${
+                  className={`min-h-11 whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium transition ${
                     selectedCategory === category
-                      ? 'bg-[#FF6B5E] text-[#222831] shadow-sm'
+                      ? 'bg-[#FF6B5E] text-[#222831]'
                       : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-[#FF6B5E]/10 hover:text-[#222831] dark:bg-gray-700 dark:text-gray-300 dark:ring-gray-700 dark:hover:bg-gray-600'
                   }`}
                 >
@@ -99,13 +99,13 @@ export function QuickProductsPanel({
               value={quickSearch}
               onChange={(event) => setQuickSearch(event.target.value)}
               placeholder="Buscar por nombre, SKU o codigo"
-              className="min-h-12 w-full rounded-lg border border-gray-200 bg-white pl-12 pr-11 text-sm font-medium text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#FF6B5E] focus:ring-4 focus:ring-[#FF6B5E]/15 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+              className="min-h-12 w-full rounded-xl border border-gray-200 bg-white pl-12 pr-11 text-sm font-medium text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#FF6B5E] focus:ring-4 focus:ring-[#FF6B5E]/15 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             />
             {quickSearch ? (
               <button
                 type="button"
                 onClick={() => setQuickSearch('')}
-                className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-white"
+                className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-white"
                 aria-label="Limpiar busqueda de productos rapidos"
               >
                 <X className="h-4 w-4" />
@@ -127,7 +127,7 @@ export function QuickProductsPanel({
                 type="button"
                 onClick={() => onAddToCart(product, selectedQuickQuantity)}
                 disabled={isOutOfStock && blockSalesWithoutStock}
-                className={`group relative min-h-[224px] rounded-lg border p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${
+                className={`group relative min-h-[224px] rounded-xl border p-3 text-left transition hover:border-[#FF6B5E]/45 hover:bg-[#FF6B5E]/[0.04] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${
                   isOutOfStock
                     ? 'border-[#EF4444]/50 bg-red-50 dark:border-red-700 dark:bg-red-900/20'
                     : hasLowStock
@@ -136,7 +136,7 @@ export function QuickProductsPanel({
                 }`}
               >
                 <div className="flex h-full flex-col justify-between gap-3">
-                  <div className={`relative h-16 overflow-hidden rounded-lg border border-black/5 ${
+                  <div className={`relative h-16 overflow-hidden rounded-xl border border-black/5 ${
                     isOutOfStock
                       ? 'bg-red-100 dark:bg-red-900/20'
                       : hasLowStock
@@ -164,11 +164,11 @@ export function QuickProductsPanel({
                       />
                     )}
                     <div className="absolute right-2 top-2 z-20 flex flex-col items-end gap-1">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#222831] text-xs font-medium text-white shadow-sm dark:bg-white dark:text-gray-900">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#222831] text-xs font-medium text-white dark:bg-white dark:text-gray-900">
                         {index + 1}
                       </span>
                       {selectedQuickQuantity > 1 && (
-                        <span className="rounded-full bg-[#FF6B5E] px-2 py-0.5 text-[11px] font-medium text-[#222831] shadow-sm">
+                        <span className="rounded-full bg-[#FF6B5E] px-2 py-0.5 text-xs font-medium text-[#222831]">
                           x{selectedQuickQuantity}
                         </span>
                       )}
@@ -206,14 +206,14 @@ export function QuickProductsPanel({
                   </div>
                 </div>
 
-                <div className="pointer-events-none absolute inset-0 rounded-lg bg-[#FF6B5E] opacity-0 transition-opacity group-active:opacity-15" />
+                <div className="pointer-events-none absolute inset-0 rounded-xl bg-[#FF6B5E] opacity-0 transition-opacity group-active:opacity-15" />
               </button>
             );
           })}
         </div>
 
         {visibleQuickProducts.length === 0 && (
-          <div className="flex h-full min-h-[320px] items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-500">
+          <div className="flex h-full min-h-[320px] items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white p-6 text-center text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-500">
             <p className="text-sm font-medium">
               {quickSearch ? 'No hay productos para esa busqueda' : 'No hay productos en esta categoria'}
             </p>

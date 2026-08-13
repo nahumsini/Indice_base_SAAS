@@ -22,9 +22,9 @@ export type PosKpiCardItem = {
 
 export function PosKpiCard({ detail, icon: Icon, label, tone = 'coral', value }: PosKpiCardItem) {
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <article className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
       <div className="mb-4 flex items-start justify-between gap-3">
-        <span className={cn('flex h-10 w-10 items-center justify-center rounded-lg border', toneClasses[tone])}>
+        <span className={cn('flex h-11 w-11 items-center justify-center rounded-xl border', toneClasses[tone])}>
           <Icon className="h-5 w-5" />
         </span>
       </div>

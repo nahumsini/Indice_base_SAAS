@@ -292,6 +292,13 @@ export const purchaseOrdersApi = {
     return normalizeSupplierPortalAccess(response);
   },
 
+  async resetSupplierPortalAccessLink(accessId: number) {
+    const response = await apiClient<SupplierPortalAccessWire>(`${posBasePath}/supplier-portal-access/${accessId}/link`, {
+      method: 'POST',
+    });
+    return normalizeSupplierPortalAccess(response);
+  },
+
   async listSupplierPortalKiosks() {
     const response = await apiClient<KioskV2Envelope<{ items: SupplierPortalKioskDefinitionWire[] }>>(
       supplierPortalAdminV2BasePath,

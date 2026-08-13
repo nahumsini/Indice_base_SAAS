@@ -16,12 +16,14 @@ import {
 
 const Productos = lazy(() => import('../../BasicModules/Sales/Productos'));
 const Inventario = lazy(() => import('../../BasicModules/Sales/Inventory'));
+const Almacenes = lazy(() => import('../../BasicModules/Sales/Inventory/Warehouses'));
 const Proveedores = lazy(() => import('../../BasicModules/Sales/Providers'));
 const OrdenesCompra = lazy(() => import('../../BasicModules/PointOfSale/OrdenesCompra'));
 
 const inventoryTabIds = [
   'products',
   'inventory',
+  'warehouses',
   'providers',
   'purchase-orders',
 ] as const;
@@ -36,6 +38,10 @@ const legacyInventoryTabAliases: Partial<Record<string, InventoryTabId>> = {
   inventario: 'inventory',
   inventory: 'inventory',
   stock: 'inventory',
+  almacen: 'warehouses',
+  almacenes: 'warehouses',
+  warehouse: 'warehouses',
+  warehouses: 'warehouses',
   proveedor: 'providers',
   proveedores: 'providers',
   provider: 'providers',
@@ -80,6 +86,7 @@ function InventoryWorkspace({ learningModeActive, onNavigate }: { learningModeAc
   const inventoryTabs = useMemo<InventoryTab[]>(() => [
     { id: 'products', label: t.tabs.products, emoji: '📦', component: Productos },
     { id: 'inventory', label: t.tabs.inventory, emoji: '🏬', component: Inventario },
+    { id: 'warehouses', label: t.tabs.warehouses, emoji: '🏭', component: Almacenes },
     { id: 'providers', label: t.tabs.providers, emoji: '🏢', component: Proveedores },
     { id: 'purchase-orders', label: t.tabs.purchaseOrders, emoji: '📋', component: OrdenesCompra },
   ], [t]);

@@ -37,3 +37,58 @@ test('Inventarios y sus superficies compartidas respetan la escala tipográfica 
 
   assert.deepEqual(violations, [], `Tipografía fuera del estándar:\n${violations.map(({ file, token }) => `${file}: ${token}`).join('\n')}`);
 });
+
+test('Almacenes vive en una pestaña propia y conserva los manejadores reales de inventario', () => {
+  const moduleSource = readFileSync(resolve(root, 'src/app/ComplementaryModules/Inventory/Multiinventarios.tsx'), 'utf8');
+  const inventorySource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Inventory/Inventory.tsx'), 'utf8');
+  const workspaceSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Inventory/components/warehouses/WarehouseManagementWorkspace.tsx'), 'utf8');
+  const filtersSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Inventory/components/InventoryFilters.tsx'), 'utf8');
+  const receiptModalSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Inventory/components/movements/AddInventoryModal.tsx'), 'utf8');
+  const tabScopeSource = readFileSync(resolve(root, 'src/app/access/tabScopeCatalog.ts'), 'utf8');
+  const inventoryApiSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Inventory/services/inventoryApi.ts'), 'utf8');
+
+  assert.match(moduleSource, /'warehouses'/);
+  assert.match(moduleSource, /Inventory\/Warehouses/);
+  assert.match(moduleSource, /almacenes:\s*'warehouses'/);
+  assert.match(tabScopeSource, /warehouses:\s*'inventory'/);
+  assert.doesNotMatch(inventorySource, /<CreateWarehouseModal/);
+  assert.match(inventorySource, /onSubmit=\{handleCreateWarehouse\}/);
+  assert.match(inventorySource, /onDeleteWarehouse=\{handleDeleteWarehouse\}/);
+  assert.match(inventorySource, /onTransferAndDeleteWarehouse=\{handleTransferAndDeleteWarehouse\}/);
+  assert.match(workspaceSource, /WarehouseManagerView/);
+  assert.match(workspaceSource, /WarehouseFormView/);
+  assert.match(workspaceSource, /WarehouseDeleteView/);
+  assert.match(workspaceSource, /createView === 'discard' \? 'confirmation' : 'standard-form'/);
+  assert.match(workspaceSource, /hasSelectedStock \? 'standard-form' : 'confirmation'/);
+  assert.match(workspaceSource, /busy=\{isCreating\}/);
+  assert.match(workspaceSource, /busy=\{isDeleting\}/);
+  assert.match(workspaceSource, /overflow-y-auto overscroll-contain/);
+  assert.match(workspaceSource, /scrollbar-gutter:stable/);
+  assert.match(workspaceSource, /unsavedChanges/);
+  assert.doesNotMatch(workspaceSource, /max-w-(?:3xl|4xl)/);
+  assert.doesNotMatch(filtersSource, /filterLabels\.businessUnit/);
+  assert.doesNotMatch(filtersSource, /filterLabels\.business\}/);
+  assert.match(filtersSource, /businessUnitId:\s*warehouse\?\.businessUnitId/);
+  assert.match(filtersSource, /businessId:\s*warehouse\?\.businessId/);
+  assert.match(receiptModalSource, /layout="workspace"/);
+  assert.match(receiptModalSource, /busy=\{isSaving\}/);
+  assert.match(receiptModalSource, /unsavedChanges/);
+  assert.doesNotMatch(receiptModalSource, /Supplier receipt/);
+  assert.match(receiptModalSource, /IndiceModalWizardStepper/);
+  assert.match(receiptModalSource, /'receipt' \| 'products' \| 'review'/);
+  assert.match(receiptModalSource, /view === 'discard' \? 'confirmation' : 'wizard'/);
+  assert.match(receiptModalSource, /activeStep === 'review'/);
+  const movementModalSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Inventory/components/movements/TransferStockModal.tsx'), 'utf8');
+  assert.match(movementModalSource, /IndiceModalWizardStepper/);
+  assert.match(movementModalSource, /modalType="wizard"/);
+  assert.match(movementModalSource, /'movement' \| 'products' \| 'review'/);
+  assert.match(movementModalSource, /activeStep === 'review'/);
+  assert.match(movementModalSource, /creatableMovementTypes = movementTypes\.filter\(\(type\) => type !== 'sale'\)/);
+  assert.match(movementModalSource, /isEditing \? movementTypes : creatableMovementTypes/);
+  assert.match(movementModalSource, /adjustmentDirection/);
+  assert.match(movementModalSource, /adjustmentLabels\.criteria/);
+  assert.match(movementModalSource, /adjustmentLabels\.difference/);
+  const movementEntriesSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Inventory/utils/inventoryMovementEntries.ts'), 'utf8');
+  assert.match(movementEntriesSource, /adjustmentDirection === 'increase' \? quantity : -quantity/);
+  assert.match(inventoryApiSource, /businessId: isDatabaseId\(warehouse\.businessId\) \? warehouse\.businessId : undefined/);
+});
