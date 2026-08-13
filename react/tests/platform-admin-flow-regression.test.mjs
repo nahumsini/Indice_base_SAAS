@@ -180,7 +180,8 @@ test("alta de cuenta recupera el avance cuando expira la sesión Root", () => {
   assert.match(accountFlow, /saveAccountCreationDraft\(step, form\)/);
   assert.match(accountFeature, /hasAccountCreationDraft|restoredDraft/);
   assert.match(accountSpanishCopy, /Volver a iniciar sesión/);
-  assert.match(accountFlow, /returnTo: "\/platform-admin"/);
+  assert.match(accountFlow, /returnTo = "\/platform-admin"/);
+  assert.match(accountFlow, /state: \{ authenticationExpired: true, returnTo \}/);
   assert.match(accountDraft, /temporary_password: omittedPassword/);
   assert.match(accountDraft, /Never persist the temporary password/);
   assert.match(page, /hasAccountCreationDraft\(\)/);
@@ -383,9 +384,14 @@ test("órdenes de módulos y operación de consultoría persisten por API", () =
   assert.match(moduleWorkOrders, /platformAdminApi\.removeModuleWorkOrder/);
   assert.doesNotMatch(moduleWorkOrders, /localStorage/);
   assert.match(platformApi, /moduleWorkOrdersPath = `\$\{endpoints\.platformAdmin\.modules\}\/work-orders`/);
-  assert.match(consulting, /platformAdminApi\.getConsulting/);
-  assert.match(consulting, /platformAdminApi\.createConsultingConsultant/);
-  assert.match(consulting, /platformAdminApi\.createConsultingLocation/);
-  assert.match(consulting, /platformAdminApi\.createConsultingAppointment/);
+  assert.match(consulting, /operations = platformAdminApi/);
+  assert.match(consulting, /operations\.getConsulting/);
+  assert.match(consulting, /operations\.createConsultingConsultant/);
+  assert.match(consulting, /operations\.createConsultingLocation/);
+  assert.match(consulting, /operations\.createConsultingAppointment/);
+  assert.match(platformApi, /getConsulting:/);
+  assert.match(platformApi, /createConsultingConsultant:/);
+  assert.match(platformApi, /createConsultingLocation:/);
+  assert.match(platformApi, /createConsultingAppointment:/);
   assert.doesNotMatch(consulting, /localStorage/);
 });
