@@ -11,6 +11,7 @@ export const frCA = {
   tabs: {
     products: 'Produits',
     inventory: 'Inventaire',
+    warehouses: 'Entrepôts',
     providers: 'Fournisseurs',
     purchaseOrders: 'Bons de commande',
   },

@@ -130,7 +130,7 @@ export function PosModalFrame({
           zIndexClassName,
           contentClassName,
         )}
-        closeButtonClassName={cn('right-4 top-4 h-11 w-11 rounded-lg border opacity-100', toneClasses.close)}
+        closeButtonClassName={cn('right-5 top-5 z-10 flex h-10 w-10 items-center justify-center rounded-full border p-0 opacity-100 [&_svg]:h-5 [&_svg]:w-5', toneClasses.close)}
         closeButtonDisabled={isCloseDisabled}
         closeButtonLabel={closeLabel}
         overlayClassName={cn('bg-[#111827]/70 backdrop-blur-sm', zIndexClassName)}

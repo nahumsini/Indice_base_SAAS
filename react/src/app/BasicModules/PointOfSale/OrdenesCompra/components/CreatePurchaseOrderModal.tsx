@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { AlertTriangle, CheckCircle2, FileText, PackagePlus, Plus, Search, Trash2, Upload } from 'lucide-react';
 import type { PosWarehouseSummary } from '../../Sale/services/posBackendApi';
@@ -111,9 +111,22 @@ export function CreatePurchaseOrderModal({
   const [taxRate, setTaxRate] = useState(16);
   const [newProductName, setNewProductName] = useState('');
   const [newProductSku, setNewProductSku] = useState('');
+  const [showProductCreator, setShowProductCreator] = useState(false);
   const [creatingProduct, setCreatingProduct] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [lines, setLines] = useState<DraftLine[]>([]);
+
+  useEffect(() => {
+    if (!providers.some((provider) => String(provider.id) === providerId)) {
+      setProviderId(providers[0]?.id ? String(providers[0].id) : '');
+    }
+  }, [providerId, providers]);
+
+  useEffect(() => {
+    if (!warehouses.some((warehouse) => String(warehouse.id) === warehouseId)) {
+      setWarehouseId(warehouses[0]?.id ? String(warehouses[0].id) : '');
+    }
+  }, [warehouseId, warehouses]);
 
   const taxCountry = inferTaxCountryFromCurrency(currencyCode);
   const taxProfiles = getBudgetTaxProfiles(taxCountry);
@@ -281,6 +294,7 @@ export function CreatePurchaseOrderModal({
         selectProduct(product);
         setNewProductName('');
         setNewProductSku('');
+        setShowProductCreator(false);
       }
     } finally {
       setCreatingProduct(false);
@@ -371,7 +385,7 @@ export function CreatePurchaseOrderModal({
       icon={<PackagePlus className="h-6 w-6" />}
       tone="coral"
       size="xl"
-      bodyClassName="p-0"
+      bodyClassName="overflow-x-hidden p-0"
       footerClassName={posModalModuleFooterClassName}
       footerLeading={
         <button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>
@@ -385,8 +399,8 @@ export function CreatePurchaseOrderModal({
         </button>
       }
     >
-        <div className="grid min-h-0 bg-slate-50 dark:bg-slate-950 lg:grid-cols-[1fr_340px]">
-          <main className="space-y-4 p-6">
+        <div className="grid min-h-0 min-w-0 bg-slate-50 dark:bg-slate-950 xl:grid-cols-[minmax(0,1fr)_280px] 2xl:grid-cols-[minmax(0,1fr)_320px]">
+          <main className="min-w-0 space-y-4 p-4 sm:p-5 xl:p-6">
             {saveError ? (
               <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
                 {saveError}
@@ -395,7 +409,7 @@ export function CreatePurchaseOrderModal({
 
             <section className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
               <SectionTitle icon={<FileText className="h-5 w-5" />} title={copy.create.referenceTitle} subtitle={copy.create.referenceSubtitle} />
-              <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="mt-4 grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
                 <Select label={copy.create.provider} value={providerId} onChange={setProviderId}>
                   {providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
                 </Select>
@@ -458,7 +472,7 @@ export function CreatePurchaseOrderModal({
                     </div>
                   </div>
 
-                  <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="mt-4 grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
                     <Input label={copy.create.invoiceNumber} value={invoiceNumber} onChange={setInvoiceNumber} />
                     <Input label={copy.create.invoiceDate} type="date" value={invoiceDate} onChange={setInvoiceDate} />
                     <Input label={copy.create.dueDate} type="date" value={dueDate} onChange={setDueDate} />
@@ -484,22 +498,8 @@ export function CreatePurchaseOrderModal({
             </section>
 
             <section className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-              <SectionTitle icon={<PackagePlus className="h-5 w-5" />} title={copy.create.inventoryTitle} subtitle={copy.create.inventorySubtitle} />
-              <div className="mt-4 grid gap-3 rounded-2xl border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 p-4 text-center dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/15 md:grid-cols-3">
-                <div>
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.create.movement}</p>
-                  <p className="mt-1 text-lg font-medium text-[#B63B32]">{copy.create.purchaseEntry}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.create.items}</p>
-                  <p className="mt-1 text-2xl font-medium text-slate-950 dark:text-white">{lines.length}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.create.entryTotal}</p>
-                  <p className="mt-1 text-2xl font-medium text-[#B63B32]">{formatMoney(totals.total, currencyCode, locale)}</p>
-                </div>
-              </div>
-              <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_140px_160px_160px_auto]">
+              <SectionTitle icon={<Search className="h-5 w-5" />} title={copy.create.searchProduct} subtitle={copy.create.inventorySubtitle} />
+              <div className="mt-4 grid min-w-0 gap-4 sm:grid-cols-2 2xl:grid-cols-[minmax(220px,1fr)_110px_140px_150px_auto]">
                 <label className="space-y-2">
                   <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.create.searchProduct}</span>
                   <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 focus-within:border-[#FF6B5E] focus-within:ring-2 focus-within:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
@@ -512,37 +512,43 @@ export function CreatePurchaseOrderModal({
                 <Select label={`${copy.create.taxRate} (${taxCountry})`} value={String(taxRate)} onChange={(value) => setTaxRate(Number(value))}>
                   {productTaxRateOptions.map((option) => <option key={`${option.label}-${option.value}`} value={option.value}>{option.label}</option>)}
                 </Select>
-                <button type="button" onClick={() => addLine()} disabled={!selectedProduct} className="mt-7 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950">
+                <button type="button" onClick={() => addLine()} disabled={!selectedProduct} className="inline-flex h-11 items-center justify-center gap-2 self-end rounded-xl bg-slate-950 px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950">
                   <Plus className="h-4 w-4" />
                   {copy.create.addItem}
                 </button>
               </div>
 
-              <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 {filteredProducts.map((product) => (
                   <button
                     key={product.salesProductBackendId ?? product.id}
                     type="button"
                     onClick={() => selectProduct(product)}
-                    className={`rounded-2xl border p-4 text-left transition hover:border-[#FF6B5E] hover:bg-[#FF6B5E]/5 ${String(product.salesProductBackendId) === selectedProductId ? 'border-[#FF6B5E] bg-[#FF6B5E]/10' : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950'}`}
+                    className={`rounded-xl border px-3 py-2.5 text-left transition hover:border-[#FF6B5E] hover:bg-[#FF6B5E]/5 ${String(product.salesProductBackendId) === selectedProductId ? 'border-[#FF6B5E] bg-[#FF6B5E]/10' : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950'}`}
                   >
-                    <p className="line-clamp-2 font-medium text-slate-950 dark:text-white">{product.name}</p>
-                    <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{product.sku || product.barcode || copy.common.noSku}</p>
-                    <div className="mt-3 flex items-center justify-between gap-2 text-xs font-medium">
-                      <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600 dark:bg-slate-800 dark:text-slate-300">{formatMoney(product.costPrice || 0, currencyCode, locale)}</span>
+                    <div className="flex min-w-0 items-center justify-between gap-3">
+                      <div className="min-w-0"><p className="truncate font-medium text-slate-950 dark:text-white">{product.name}</p><p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">{product.sku || product.barcode || copy.common.noSku}</p></div>
+                      <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">{formatMoney(product.costPrice || 0, currencyCode, locale)}</span>
                       <span className="text-[#B63B32]">{product.taxRate ?? defaultTaxRate}%</span>
                     </div>
                   </button>
                 ))}
               </div>
 
-              <div className="mt-4 rounded-2xl border border-dashed border-[#FF6B5E]/35 bg-[#FF6B5E]/5 p-4">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-                  <Input label={copy.create.newProductName} value={newProductName} onChange={setNewProductName} />
-                  <Input label={copy.create.skuOptional} value={newProductSku} onChange={setNewProductSku} />
-                  <button type="button" onClick={() => void createProductAndSelect()} disabled={creatingProduct || !(newProductName.trim() || productSearch.trim())} className="h-11 rounded-xl bg-[#FF6B5E] px-5 text-sm font-medium text-[#222831] disabled:cursor-not-allowed disabled:opacity-50">
-                    {creatingProduct ? copy.create.creatingProduct : copy.create.createProduct}
-                  </button>
+              <div className="mt-4">
+                <button type="button" onClick={() => setShowProductCreator((current) => !current)} className="text-sm font-medium text-[#B63B32] hover:underline">
+                  <Plus className="mr-1 inline h-4 w-4" />{copy.create.createProduct}
+                </button>
+                {showProductCreator ? <div className="mt-3 rounded-2xl border border-dashed border-[#FF6B5E]/35 bg-[#FF6B5E]/5 p-4"><div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-[1fr_1fr_auto] 2xl:items-end"><Input label={copy.create.newProductName} value={newProductName} onChange={setNewProductName} /><Input label={copy.create.skuOptional} value={newProductSku} onChange={setNewProductSku} /><button type="button" onClick={() => void createProductAndSelect()} disabled={creatingProduct || !(newProductName.trim() || productSearch.trim())} className="h-11 rounded-xl bg-[#FF6B5E] px-5 text-sm font-medium text-[#222831] disabled:cursor-not-allowed disabled:opacity-50 sm:col-span-2 2xl:col-span-1">{creatingProduct ? copy.create.creatingProduct : copy.create.createProduct}</button></div></div> : null}
+              </div>
+            </section>
+
+            <section className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <SectionTitle icon={<PackagePlus className="h-5 w-5" />} title={copy.create.inventoryTitle} subtitle={copy.create.purchaseEntry} />
+                <div className="flex flex-wrap gap-2 text-xs font-medium">
+                  <span className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-600 dark:bg-slate-800 dark:text-slate-300">{copy.create.footerLines(lines.length)}</span>
+                  <span className="rounded-full bg-[#FF6B5E]/10 px-3 py-1.5 text-[#B63B32]">{copy.create.footerTotal(formatMoney(totals.total, currencyCode, locale))}</span>
                 </div>
               </div>
 
@@ -555,7 +561,7 @@ export function CreatePurchaseOrderModal({
                   const lineSubtotal = line.quantity * line.unitCost;
                   const lineTax = lineSubtotal * (line.taxRate / 100);
                   return (
-                    <div key={line.id} className="grid gap-3 border-b border-slate-100 bg-white p-3 text-sm last:border-b-0 dark:border-slate-800 dark:bg-slate-900 md:grid-cols-[1fr_90px_120px_120px_120px_40px]">
+                    <div key={line.id} className="grid min-w-0 gap-3 border-b border-slate-100 bg-white p-3 text-sm last:border-b-0 dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-2 2xl:grid-cols-[minmax(160px,1fr)_70px_105px_105px_110px_40px]">
                       <div>
                         <p className="font-medium text-slate-950 dark:text-white">{line.productName}</p>
                         <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{line.sku || copy.common.noSku}</p>
@@ -574,7 +580,7 @@ export function CreatePurchaseOrderModal({
             </section>
           </main>
 
-          <aside className="space-y-4 border-l border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+          <aside className="space-y-3 border-t border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 xl:sticky xl:top-0 xl:self-start xl:border-l xl:border-t-0 xl:p-5">
             <Summary label={copy.create.provider} value={selectedProvider?.name ?? copy.create.noProvider} />
             <Summary label={copy.create.items} value={String(lines.length)} />
             <Summary label={copy.create.itemSubtotal} value={formatMoney(totals.subtotal, currencyCode, locale)} />

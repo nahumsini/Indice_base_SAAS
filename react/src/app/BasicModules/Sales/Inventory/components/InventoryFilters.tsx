@@ -27,8 +27,6 @@ export function InventoryFilters({
   filters,
   warehouses,
   locations,
-  businessUnits,
-  businesses,
   categoryOptions,
   responsibleOptions = [],
   t,
@@ -52,10 +50,10 @@ export function InventoryFilters({
     type: 'businessWarehouse' as const,
     jurisdiction: location.city ?? '',
     responsibleName: location.managerName ?? '',
+    businessUnitId: location.businessUnitId,
+    businessId: location.businessId,
     status: location.isActive ? 'active' as const : 'inactive' as const,
   })) ?? [];
-  const unitOptions = businessUnits ?? [];
-  const businessOptions = businesses ?? [];
   const categories = categoryOptions ?? productCategories;
   const searchLabel = activeView === 'warehouses'
     ? t.operational.filterLabels.searchWarehouse
@@ -64,8 +62,8 @@ export function InventoryFilters({
       : t.operational.filterLabels.searchProduct;
   const gridClassName = view === 'movements'
     ? 'xl:grid-cols-5'
-    : 'xl:grid-cols-4 2xl:grid-cols-7';
-  const searchClassName = view === 'movements' ? 'xl:col-span-2' : '2xl:col-span-2';
+    : 'xl:grid-cols-5';
+  const searchClassName = 'xl:col-span-2';
 
   return (
     <SalesFilterBar title={t.operational.filtersTitle} gridClassName={gridClassName}>
@@ -79,10 +77,21 @@ export function InventoryFilters({
 
       {view === 'stock' || view === 'warehouses' ? (
         <>
-            <FilterSelect label={t.operational.filterLabels.businessUnit} value={(filters as InventoryOperationalFiltersState).businessUnitId ?? 'all'} onValueChange={(value) => onFiltersChange({ ...filters, businessUnitId: value } as InventoryAnyFilters)} options={[{ value: 'all', label: t.common.all }, ...unitOptions.map((unit) => ({ value: unit.id, label: unit.name }))]} />
-            <FilterSelect label={t.operational.filterLabels.business} value={(filters as InventoryOperationalFiltersState).businessId ?? 'all'} onValueChange={(value) => onFiltersChange({ ...filters, businessId: value } as InventoryAnyFilters)} options={[{ value: 'all', label: t.common.all }, ...businessOptions.map((business) => ({ value: business.id, label: business.name }))]} />
             <FilterSelect label={t.operational.filterLabels.category} value={(filters as InventoryOperationalFiltersState).category} onValueChange={(value) => onFiltersChange({ ...filters, category: value } as InventoryAnyFilters)} options={[{ value: 'all', label: t.filters.allCategories }, ...categories.map((category) => ({ value: category, label: category }))]} />
-            <FilterSelect label={t.operational.filterLabels.warehouse} value={(filters as InventoryOperationalFiltersState).warehouseId ?? 'all'} onValueChange={(value) => onFiltersChange({ ...filters, warehouseId: value } as InventoryAnyFilters)} options={[{ value: 'all', label: t.common.all }, ...warehouseOptions.map((warehouse) => ({ value: warehouse.id, label: warehouse.name }))]} />
+            <FilterSelect
+              label={t.operational.filterLabels.warehouse}
+              value={(filters as InventoryOperationalFiltersState).warehouseId ?? 'all'}
+              onValueChange={(value) => {
+                const warehouse = warehouseOptions.find((item) => item.id === value);
+                onFiltersChange({
+                  ...filters,
+                  warehouseId: value,
+                  businessUnitId: warehouse?.businessUnitId ?? 'all',
+                  businessId: warehouse?.businessId ?? 'all',
+                } as InventoryAnyFilters);
+              }}
+              options={[{ value: 'all', label: t.common.all }, ...warehouseOptions.map((warehouse) => ({ value: warehouse.id, label: warehouse.name }))]}
+            />
             <FilterSelect label={t.operational.filterLabels.itemType} value={(filters as InventoryOperationalFiltersState).itemType} onValueChange={(value) => onFiltersChange({ ...filters, itemType: value } as InventoryAnyFilters)} options={[{ value: 'all', label: t.filters.allTypes }, ...productTypes.map((type) => ({ value: type, label: type }))]} />
         </>
       ) : null}

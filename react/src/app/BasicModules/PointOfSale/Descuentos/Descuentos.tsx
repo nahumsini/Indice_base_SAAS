@@ -190,7 +190,7 @@ export default function Descuentos() {
         </div>
       )}
 
-      <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-gray-800">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-gray-800">
         <h3 className="text-base font-medium text-slate-800 dark:text-white">Filtros</h3>
         <div className="mt-4 grid gap-4 lg:grid-cols-[1.4fr_repeat(3,minmax(160px,1fr))]">
           <label className="relative min-w-0">
@@ -221,7 +221,7 @@ export default function Descuentos() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-gray-800">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-gray-800">
         <div className="overflow-x-auto">
           <table className="min-w-[1160px] w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
             <thead className="bg-slate-50 dark:bg-gray-900/40">
@@ -246,11 +246,11 @@ export default function Descuentos() {
                   <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{rule.requiresAuthorization ? 'Supervisor' : 'Caja'}</td>
                   <td className="px-5 py-4"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${statusClasses[rule.status]}`}>{statusLabels[rule.status]}</span></td>
                   <td className="px-5 py-4 text-right">
-                    <div className="inline-flex items-center justify-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-gray-900">
-                      <button onClick={() => toggleRuleStatus(rule)} className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 transition hover:border-[#FF6B5E]/35 hover:bg-[#FFF3F1] hover:text-[#B63B32] dark:border-slate-700 dark:bg-gray-800 dark:text-slate-200 dark:hover:bg-[#FF6B5E]/10">
+                    <div className="inline-flex items-center justify-end gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-gray-900">
+                      <button onClick={() => toggleRuleStatus(rule)} className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 transition hover:border-[#FF6B5E]/35 hover:bg-[#FFF3F1] hover:text-[#B63B32] dark:border-slate-700 dark:bg-gray-800 dark:text-slate-200 dark:hover:bg-[#FF6B5E]/10">
                         {rule.status === 'active' ? 'Pausar' : 'Activar'}
                       </button>
-                      <button onClick={() => setEditingRule(rule)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 transition hover:border-blue-300 hover:bg-blue-100 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200 dark:hover:bg-blue-500/20" aria-label={`Editar regla ${rule.name}`} title="Editar regla">
+                      <button onClick={() => setEditingRule(rule)} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] transition hover:bg-[#FF6B5E]/20 dark:border-[#FF6B5E]/30 dark:text-[#FFB0AA]" aria-label={`Editar regla ${rule.name}`} title="Editar regla">
                         <Edit2 className="h-4 w-4" />
                       </button>
                     </div>

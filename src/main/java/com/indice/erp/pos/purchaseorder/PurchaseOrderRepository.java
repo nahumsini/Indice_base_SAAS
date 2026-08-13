@@ -733,6 +733,28 @@ public class PurchaseOrderRepository {
             """, params.toArray()) > 0;
     }
 
+    public boolean updateSupplierPortalAccessCode(PosContext context, long accessId, String portalCode) {
+        var normalizedCode = normalizePortalCode(portalCode);
+        var params = new ArrayList<Object>();
+        params.add(secrets.protect(normalizedCode));
+        params.add(secrets.hash(normalizedCode));
+        params.add(secrets.hint(normalizedCode));
+        params.add(context.userId());
+        params.add(context.companyId());
+        params.add(accessId);
+        PosSqlSupport.appendScopeParams(params, context.scope());
+        return jdbcTemplate.update("""
+            UPDATE pos_supplier_portal_access access
+            JOIN finance_providers provider
+              ON provider.id = access.provider_id
+             AND provider.company_id = access.company_id
+            SET access.portal_code = ?, access.portal_code_hash = ?, access.portal_code_hint = ?,
+                access.updated_by_user_id = ?, access.updated_at = CURRENT_TIMESTAMP
+            WHERE access.company_id = ? AND access.id = ? AND access.deleted_at IS NULL
+              AND provider.deleted_at IS NULL
+              AND """ + PosSqlSupport.scopePredicate("provider", context.scope()), params.toArray()) > 0;
+    }
+
     /**
      * Keeps the legacy per-link verifier aligned with the provider's authoritative
      * personal credential. This is intentionally provider-wide: the PIN belongs to
@@ -1325,20 +1347,33 @@ public class PurchaseOrderRepository {
 
     private SupplierPortalAccessResponse mapSupplierPortalAccess(java.sql.ResultSet rs, int rowNum)
             throws java.sql.SQLException {
-        var portalCode = secrets.reveal(rs.getString("portal_code"));
+        var portalCode = revealPortalCodeForListing(rs.getString("portal_code"));
         return new SupplierPortalAccessResponse(
             rs.getLong("id"),
             rs.getLong("provider_id"),
             rs.getString("provider_name"),
             rs.getString("provider_email"),
             portalCode,
-            "/supplier-portal/" + portalCode,
+            portalCode == null ? "" : "/supplier-portal/" + portalCode,
             rs.getString("status"),
             instant(rs, "expires_at"),
             instant(rs, "created_at"),
             instant(rs, "updated_at"),
             false
         );
+    }
+
+    /**
+     * Administrative lists must remain available when a legacy credential was
+     * encrypted with a retired local key. Authentication paths still use the
+     * strict mapper below and never accept an unreadable credential.
+     */
+    private String revealPortalCodeForListing(String storedPortalCode) {
+        try {
+            return secrets.reveal(storedPortalCode);
+        } catch (IllegalStateException | IllegalArgumentException unreadableCredential) {
+            return null;
+        }
     }
 
     private SupplierPortalAccessRecord mapSupplierPortalAccessRecord(java.sql.ResultSet rs)

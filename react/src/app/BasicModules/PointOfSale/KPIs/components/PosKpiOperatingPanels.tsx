@@ -2,7 +2,7 @@ import { BarChart3, CreditCard, Package, Users, Wallet, type LucideIcon } from '
 import type { PosKpiAnalytics } from '../utils/posKpiAnalytics';
 
 function EmptyText({ text }: { text: string }) {
-  return <p className="rounded-lg bg-slate-50 p-4 text-sm font-medium text-slate-500 dark:bg-slate-950 dark:text-slate-400">{text}</p>;
+  return <p className="rounded-xl bg-slate-50 p-4 text-sm font-medium text-slate-500 dark:bg-slate-950 dark:text-slate-400">{text}</p>;
 }
 
 export function PosKpiOperatingPanels({
@@ -40,7 +40,7 @@ function HourlySalesChart({ rows, max, formatCurrency }: {
   formatCurrency: (amount: number) => string;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
       <div className="mb-5 flex items-center justify-between">
         <div>
           <h3 className="text-lg font-medium text-slate-950 dark:text-white">Ventas por cierre</h3>
@@ -54,9 +54,9 @@ function HourlySalesChart({ rows, max, formatCurrency }: {
         <div className="flex h-72 items-end gap-3">
           {rows.map((entry) => (
             <div key={entry.hour} className="flex flex-1 flex-col items-center gap-2">
-              <div className="flex h-full w-full items-end rounded-lg bg-slate-50 px-2 dark:bg-slate-950">
+              <div className="flex h-full w-full items-end rounded-xl bg-slate-50 px-2 dark:bg-slate-950">
                 <div
-                  className="w-full rounded-t-lg bg-[#FF6B5E] shadow-sm transition-all hover:bg-[#E85C50]"
+                  className="w-full rounded-t-lg bg-[#FF6B5E] transition-all hover:bg-[#E85C50]"
                   style={{ height: `${Math.max(8, max > 0 ? (entry.sales / max) * 100 : 0)}%` }}
                   title={formatCurrency(entry.sales)}
                 />
@@ -76,7 +76,7 @@ function PaymentMixPanel({ rows, formatCurrency, note }: {
   note?: string;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
       <div className="mb-4 flex items-center gap-2">
         <CreditCard className="h-5 w-5 text-[#B63B32] dark:text-[#FFB0AA]" />
         <h3 className="text-lg font-medium text-slate-950 dark:text-white">Mezcla de pago</h3>
@@ -97,7 +97,7 @@ function PaymentMixPanel({ rows, formatCurrency, note }: {
           ))}
         </div>
       )}
-      {note ? <p className="mt-4 rounded-lg bg-[#FF6B5E]/10 p-3 text-xs font-medium text-[#B63B32] dark:text-[#FFB0AA]">{note}</p> : null}
+      {note ? <p className="mt-4 rounded-xl bg-[#FF6B5E]/10 p-3 text-xs font-medium text-[#B63B32] dark:text-[#FFB0AA]">{note}</p> : null}
     </div>
   );
 }
@@ -110,7 +110,7 @@ function TopList({ title, icon: Icon, rows, formatValue, emptyText }: {
   emptyText: string;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
       <div className="mb-4 flex items-center gap-2">
         <Icon className="h-5 w-5 text-[#B63B32] dark:text-[#FFB0AA]" />
         <h3 className="text-lg font-medium text-slate-950 dark:text-white">{title}</h3>
@@ -118,9 +118,9 @@ function TopList({ title, icon: Icon, rows, formatValue, emptyText }: {
       {rows.length === 0 ? <EmptyText text={emptyText} /> : (
         <div className="space-y-3">
           {rows.map((row, index) => (
-            <div key={row.name} className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-950">
+            <div key={row.name} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-950">
               <div className="flex min-w-0 items-center gap-3">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#FF6B5E]/10 text-sm font-medium text-[#B63B32] dark:text-[#FFB0AA]">{index + 1}</span>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FF6B5E]/10 text-sm font-medium text-[#B63B32] dark:text-[#FFB0AA]">{index + 1}</span>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-slate-950 dark:text-white">{row.name}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">{row.detail}</p>
@@ -141,14 +141,14 @@ function CurrencyPanel({ totals, formatCurrency, primaryCurrency }: {
   primaryCurrency: string;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
       <div className="mb-4 flex items-center gap-2">
         <Wallet className="h-5 w-5 text-[#B63B32] dark:text-[#FFB0AA]" />
         <h3 className="text-lg font-medium text-slate-950 dark:text-white">Divisas POS</h3>
       </div>
       <div className="space-y-3">
         {totals.length === 0 ? <EmptyText text="Sin divisas registradas en el periodo." /> : totals.map((total) => (
-          <div key={total.currency} className="flex items-center justify-between rounded-lg bg-slate-50 p-3 dark:bg-slate-950">
+          <div key={total.currency} className="flex items-center justify-between rounded-xl bg-slate-50 p-3 dark:bg-slate-950">
             <span className="text-sm font-medium text-slate-950 dark:text-white">{total.currency}</span>
             <span className="text-sm font-medium text-slate-950 dark:text-white">
               {total.currency === primaryCurrency ? formatCurrency(total.amount) : `${total.amount.toLocaleString('es-MX')} ${total.currency}`}

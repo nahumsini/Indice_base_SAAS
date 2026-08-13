@@ -137,7 +137,7 @@ export default function Sale() {
     lastUpdatedAt: preTicketsLastUpdatedAt,
     claimingPreTicketIds,
   } = usePendingPreTickets({
-    cashRegisterId: Number(registerContext.cashRegisterId) || undefined,
+    cashRegisterId: Number(registerContext?.cashRegisterId) || undefined,
     products: saleProducts,
     addProductsToCart,
     pushActivity,
@@ -505,7 +505,7 @@ export default function Sale() {
       <div
         ref={posFullscreenRef}
         data-pos-fullscreen-root
-        className="rounded-lg bg-[#F7F8FA] p-3 dark:bg-[#111827]"
+        className="rounded-xl bg-[#F7F8FA] p-3 sm:p-4 dark:bg-[#111827]"
       >
         <div data-pos-terminal-shell className="mx-auto flex min-h-0 w-full flex-col">
           <ShiftBar
@@ -520,7 +520,7 @@ export default function Sale() {
             onOpenFiscalSettings={() => setShowFiscalSettingsModal(true)}
           />
 
-          <div className={`mt-2 grid gap-2 ${smartAlerts.length > 0 ? '2xl:grid-cols-[minmax(0,1fr)_minmax(300px,400px)]' : ''}`}>
+          <div className="mt-3 space-y-2">
             {!learningModeActive ? (
               <IndiceSignalBar
                 salesTrendLabel={currentShift.totalSales > 0 ? '+18% ritmo de turno' : 'ritmo base de turno'}
@@ -547,7 +547,7 @@ export default function Sale() {
 
           <div
             data-pos-workspace-grid
-            className="mt-3 grid min-h-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(620px,1fr)_minmax(420px,520px)] 2xl:h-[clamp(560px,calc(100vh-25rem),720px)] 2xl:grid-cols-[minmax(560px,1fr)_minmax(420px,520px)_minmax(320px,400px)]"
+            className="mt-4 grid min-h-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(620px,1fr)_minmax(420px,520px)] 2xl:h-[clamp(560px,calc(100vh-25rem),720px)] 2xl:grid-cols-[minmax(560px,1fr)_minmax(420px,520px)_minmax(320px,400px)]"
           >
             <div data-pos-products-column className="flex min-h-0 min-w-0 flex-col gap-4 xl:row-span-2 2xl:row-span-1">
               <PendingPreTicketsPanel
@@ -696,7 +696,7 @@ function OperationalNotice({
   onDismiss?: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 shadow-sm dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
       <span className="flex min-w-0 items-center gap-2">
         <AlertTriangle className="h-4 w-4 shrink-0" />
         <span className="min-w-0">{message}</span>
@@ -705,7 +705,7 @@ function OperationalNotice({
         <button
           type="button"
           onClick={onDismiss}
-          className="rounded-lg px-2 py-1 text-xs font-medium text-amber-700 transition hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-500/20"
+          className="min-h-9 rounded-xl px-3 py-1 text-xs font-medium text-amber-700 transition hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-500/20"
         >
           Cerrar
         </button>

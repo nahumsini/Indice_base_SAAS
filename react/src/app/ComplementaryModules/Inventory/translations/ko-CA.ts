@@ -11,6 +11,7 @@ export const koCA = {
   tabs: {
     products: '제품',
     inventory: '재고',
+    warehouses: '창고',
     providers: '공급업체',
     purchaseOrders: '구매 주문',
   },

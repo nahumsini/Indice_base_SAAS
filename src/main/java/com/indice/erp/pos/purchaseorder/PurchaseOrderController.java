@@ -274,6 +274,19 @@ public class PurchaseOrderController {
             : ResponseEntity.ok(supplierPortalAdmin.rotatePin(access.context(), accessId, request));
     }
 
+    @PostMapping("/supplier-portal-access/{accessId}/link")
+    public ResponseEntity<?> resetSupplierPortalAccessLink(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long accessId) {
+        var access = supplierPortalEngineEnabled()
+            ? guard.requireAdminWriteAccess(session, csrfToken)
+            : guard.requireWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(supplierPortalAdmin.resetLink(access.context(), accessId));
+    }
+
     @DeleteMapping("/supplier-portal-access/{accessId}")
     public ResponseEntity<?> deleteSupplierPortalAccess(
             HttpSession session,

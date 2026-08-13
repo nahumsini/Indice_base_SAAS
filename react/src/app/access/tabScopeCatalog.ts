@@ -81,6 +81,7 @@ export const MODULE_TAB_SCOPE_CATALOG: Partial<Record<PageId, TabScopeDefinition
     tabs: {
       products: 'products',
       inventory: 'inventory',
+      warehouses: 'inventory',
       providers: 'providers',
       'purchase-orders': 'purchase-orders',
     },

@@ -11,6 +11,7 @@ export const esMX = {
   tabs: {
     products: 'Productos',
     inventory: 'Inventario',
+    warehouses: 'Almacenes',
     providers: 'Proveedores',
     purchaseOrders: 'Órdenes de compra',
   },

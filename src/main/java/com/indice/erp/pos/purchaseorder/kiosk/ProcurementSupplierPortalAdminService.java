@@ -71,7 +71,9 @@ public class ProcurementSupplierPortalAdminService {
             ? purchaseOrders.createSupplierPortalAccessLegacy(context, request)
             : purchaseOrders.createSupplierPortalAccess(context, request);
         var access = access(created.portalCode());
-        if (access.unitId() == null || access.businessId() == null) {
+        var unitId = access.unitId() != null ? access.unitId() : request.unitId();
+        var businessId = access.businessId() != null ? access.businessId() : request.businessId();
+        if (unitId == null || businessId == null) {
             throw new IllegalStateException(
                 "Supplier portal requires both Business Unit and Business scope.");
         }
@@ -83,8 +85,8 @@ public class ProcurementSupplierPortalAdminService {
             "SUPPLIER-PORTAL-" + access.id(),
             "Portal de " + access.providerName(),
             access.status(),
-            access.unitId(),
-            access.businessId(),
+            unitId,
+            businessId,
             access.expiresAt(),
             access.portalCode(),
             true,
@@ -185,6 +187,22 @@ public class ProcurementSupplierPortalAdminService {
         moduleAudit.adminSuccess(
             context.companyId(), accessId, context.userId(), "SUPPLIER_PERSONAL_PIN_ROTATED",
             java.util.Map.of("provider_id", response.providerId(), "sessions_revoked", true));
+        return response;
+    }
+
+    @Transactional
+    public SupplierPortalAccessResponse resetLink(PosContext context, long accessId) {
+        var definition = definition(context, accessId);
+        if (definition.status().terminal()) {
+            throw new IllegalStateException("A revoked supplier portal cannot reset its link.");
+        }
+        var response = purchaseOrders.resetSupplierPortalAccessLink(context, accessId);
+        registry.replacePublicToken(
+            context.companyId(), ProcurementSupplierPortalCapabilities.OWNER_MODULE,
+            accessId, response.portalCode(), context.userId());
+        moduleAudit.adminSuccess(
+            context.companyId(), accessId, context.userId(), "SUPPLIER_PORTAL_LINK_RESET",
+            java.util.Map.of("sessions_revoked", true));
         return response;
     }
 
@@ -345,11 +363,13 @@ public class ProcurementSupplierPortalAdminService {
                 throw new IllegalStateException(
                     "A supplier portal without an active provider cannot be enabled.");
             }
-            if (access.unitId() == null || access.businessId() == null) {
+            var unitId = access.unitId() != null ? access.unitId() : definition.unitId();
+            var businessId = access.businessId() != null ? access.businessId() : definition.businessId();
+            if (unitId == null || businessId == null) {
                 throw new IllegalStateException(
                     "Supplier portal requires both Business Unit and Business scope.");
             }
-            registry.synchronizeScopeSnapshot(definition, access.unitId(), access.businessId());
+            registry.synchronizeScopeSnapshot(definition, unitId, businessId);
             definition = definition(companyId, accessId);
         }
         var effective = definition.effectiveStatus(java.time.Instant.now());

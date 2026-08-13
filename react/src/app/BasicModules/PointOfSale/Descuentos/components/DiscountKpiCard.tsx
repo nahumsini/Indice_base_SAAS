@@ -21,9 +21,9 @@ export function DiscountKpiCard({
   };
 
   return (
-    <div className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-gray-800">
+    <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-gray-800">
       <div className="flex items-center gap-3">
-        <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${tones[tone]}`}>
+        <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${tones[tone]}`}>
           <Icon className="h-5 w-5" />
         </span>
         <div>

@@ -47,6 +47,8 @@ export const enCA = {
     warehouse: 'Warehouse',
     expectedFrom: 'Expected from',
     expectedTo: 'Expected to',
+    period: 'Period',
+    periodOptions: { ALL: 'All time', CURRENT_MONTH: 'This month', PREVIOUS_MONTH: 'Previous month', LAST_90_DAYS: 'Last 90 days', CURRENT_YEAR: 'This year' },
   },
   orderStatus: {
     DRAFT: 'Draft', REQUESTED: 'Requested', IN_REVIEW: 'In review', NEEDS_CLARIFICATION: 'Needs clarification',

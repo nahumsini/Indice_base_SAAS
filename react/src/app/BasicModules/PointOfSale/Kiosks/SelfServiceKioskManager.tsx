@@ -66,7 +66,9 @@ export function SelfServiceKioskManager() {
         selfServiceKioskApi.listCashRegisters(),
       ]);
       setItems(kiosks);
-      setRegisters(cashRegisters.filter((register) => register.active));
+      setRegisters(cashRegisters.filter((register) => (
+        register.active && register.unitId != null && register.businessId != null
+      )));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : copy.selfServiceAdmin.loadError);
     } finally {
@@ -193,18 +195,23 @@ export function SelfServiceKioskManager() {
           <p className="mt-1 text-sm text-slate-500">{copy.selfServiceAdmin.description}</p>
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={() => void reload()} className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium dark:border-slate-700 dark:bg-slate-950"><RefreshCw className="h-4 w-4" />{copy.common.update}</button>
-          <button type="button" onClick={openCreate} disabled={registers.length === 0} className="inline-flex h-10 items-center gap-2 rounded-lg bg-teal-600 px-4 text-sm font-medium text-white disabled:opacity-50"><Plus className="h-4 w-4" />{copy.selfServiceAdmin.newKiosk}</button>
+          <button type="button" onClick={() => void reload()} className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium dark:border-slate-700 dark:bg-slate-950"><RefreshCw className="h-4 w-4" />{copy.common.update}</button>
+          <button type="button" onClick={openCreate} disabled={registers.length === 0} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#FF6B5E] px-4 text-sm font-medium text-[#222831] disabled:opacity-50"><Plus className="h-4 w-4" />{copy.selfServiceAdmin.newKiosk}</button>
         </div>
       </div>
 
-      {error ? <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</div> : null}
-      {loading ? <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm font-medium text-slate-500">{copy.selfServiceAdmin.loading}</div> : null}
-      {!loading && items.length === 0 ? <div className="rounded-lg border border-dashed border-slate-300 p-10 text-center text-sm font-medium text-slate-500">{copy.selfServiceAdmin.empty}</div> : null}
+      {error ? <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</div> : null}
+      {!loading && registers.length === 0 ? (
+        <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+          {copy.selfServiceAdmin.registerScopeRequired}
+        </div>
+      ) : null}
+      {loading ? <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm font-medium text-slate-500">{copy.selfServiceAdmin.loading}</div> : null}
+      {!loading && items.length === 0 ? <div className="rounded-xl border border-dashed border-slate-300 p-10 text-center text-sm font-medium text-slate-500">{copy.selfServiceAdmin.empty}</div> : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
         {items.map((kiosk) => (
-          <article key={kiosk.id} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+          <article key={kiosk.id} className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
             <div className="flex items-start gap-3">
               <span className="grid h-11 w-11 place-items-center rounded-lg bg-teal-100 text-teal-700"><Store className="h-5 w-5" /></span>
               <div className="min-w-0 flex-1">

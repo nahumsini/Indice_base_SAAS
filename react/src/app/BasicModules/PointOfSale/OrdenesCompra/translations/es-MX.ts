@@ -18,6 +18,7 @@ export const esMX = {
     title: 'Filtros de compra', search: 'Buscar', searchPlaceholder: 'Folio, proveedor o almacén', status: 'Estado',
     channel: 'Canal', submissionStatus: 'Estado de la propuesta', supplierKiosk: 'Kiosco de proveedor',
     provider: 'Proveedor', warehouse: 'Almacén', expectedFrom: 'Esperado desde', expectedTo: 'Esperado hasta',
+    period: 'Periodo', periodOptions: { ALL: 'Todo el tiempo', CURRENT_MONTH: 'Este mes', PREVIOUS_MONTH: 'Mes anterior', LAST_90_DAYS: 'Últimos 90 días', CURRENT_YEAR: 'Este año' },
   },
   orderStatus: {
     DRAFT: 'Borrador', REQUESTED: 'Solicitada', IN_REVIEW: 'En revisión', NEEDS_CLARIFICATION: 'Requiere aclaración',

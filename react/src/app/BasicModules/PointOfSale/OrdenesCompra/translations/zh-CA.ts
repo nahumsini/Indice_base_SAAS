@@ -6,7 +6,7 @@ export const zhCA = {
   common: { all: '全部', approve: '批准', cancel: '取消', close: '关闭', currency: '币种', date: '日期', expected: '预计', invoice: '发票', manual: '手动', noDate: '无日期', noEmail: '无电子邮件', noSku: '无 SKU', notes: '备注', pending: '待处理', provider: '供应商', received: '已收货', save: '保存', send: '发送', subtotal: '小计', tax: '税额', total: '总计', units: '件', view: '查看', warehouse: '仓库' },
   header: { title: '销售点采购', subtitle: '向供应商订购补货，将商品收进 POS 库存，并准备发票以供付款。', supplierPortal: '供应商门户', newOrder: '新建采购单' },
   views: { orders: 'POS 采购', submissions: '供应商提案' },
-  filters: { title: '采购筛选', search: '搜索', searchPlaceholder: '单号、供应商或仓库', status: '状态', channel: '渠道', submissionStatus: '提案状态', supplierKiosk: '供应商自助终端', provider: '供应商', warehouse: '仓库', expectedFrom: '预计开始', expectedTo: '预计结束' },
+  filters: { title: '采购筛选', search: '搜索', searchPlaceholder: '单号、供应商或仓库', status: '状态', channel: '渠道', submissionStatus: '提案状态', supplierKiosk: '供应商自助终端', provider: '供应商', warehouse: '仓库', expectedFrom: '预计开始', expectedTo: '预计结束', period: '期间', periodOptions: { ALL: '全部时间', CURRENT_MONTH: '本月', PREVIOUS_MONTH: '上月', LAST_90_DAYS: '最近90天', CURRENT_YEAR: '今年' } },
   orderStatus: { DRAFT: '草稿', REQUESTED: '已申请', IN_REVIEW: '审核中', NEEDS_CLARIFICATION: '需要说明', APPROVED: '已批准', ISSUED: '已签发', SENT: '已发送', CONFIRMED: '已确认', PARTIALLY_RECEIVED: '部分收货', RECEIVED: '已收货', INVOICED: '已开票', VALIDATED_FOR_PAYMENT: '已验证付款', SCHEDULED_FOR_PAYMENT: '已安排付款', PAID: '已付款', CLOSED: '已关闭', CANCELLED: '已取消', REJECTED: '已拒绝' },
   origin: { INDICE: 'Indice', SUPPLIER_KIOSK: '供应商自助终端', POS_REPLENISHMENT: 'POS 补货', SALES: '销售', IMPORT: '导入' },
   invoiceStatus: { SUBMITTED: '审核中', MATCHED: '已核对', APPROVED_FOR_PAYMENT: '可付款', REJECTED: '已拒绝' },

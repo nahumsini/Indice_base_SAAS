@@ -42,7 +42,7 @@ export function CortesFiltersBar({
   };
 
   return (
-    <section className="rounded-lg border border-[#FF6B5E]/20 bg-white p-4 shadow-sm dark:border-[#FF6B5E]/25 dark:bg-slate-900 sm:p-5">
+    <section className="rounded-2xl border border-[#FF6B5E]/20 bg-white p-4 dark:border-[#FF6B5E]/25 dark:bg-slate-900 sm:p-5">
       <div className="mb-4">
         <div>
           <h3 className="text-base font-medium text-[#222831] dark:text-white">Filtros</h3>
@@ -133,7 +133,7 @@ function DateInput({
         type="date"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
       />
     </label>
   );
@@ -156,7 +156,7 @@ function SearchField({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder="Folio, caja, turno o usuario"
-          className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm font-medium text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+          className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm font-medium text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
         />
       </span>
     </label>
@@ -180,7 +180,7 @@ function SelectField({
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>

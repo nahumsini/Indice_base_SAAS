@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   CalendarDays,
   Copy,
+  Eye,
   ExternalLink,
   History,
   KeyRound,
@@ -21,6 +22,7 @@ import QRCode from 'qrcode';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ConfirmDeleteDialog } from '../../../../components/ConfirmDeleteDialog';
 import { useSupplierPortalTranslations } from '../../SupplierPortal/supplierPortalTranslations';
+import type { PosWarehouseSummary } from '../../Sale/services/posBackendApi';
 import {
   PosModalFrame,
   posModalModuleFooterClassName,
@@ -136,16 +138,19 @@ export function SupplierPortalAccessModal({
   onClose,
   onDelete,
   onStatusChange,
+  onResetLink,
   onSubmit,
   onUpdateConfiguration,
   providers,
   saving,
+  warehouses,
 }: {
   accessList: SupplierPortalAccess[];
   onChangePin: (accessId: number, pin: string) => Promise<SupplierPortalAccess>;
   onClose: () => void;
   onDelete: (kioskId: number, reason?: string) => Promise<{ deleted: boolean }>;
   onStatusChange: (accessId: number, status: SupplierPortalAccessStatus) => Promise<SupplierPortalAccess>;
+  onResetLink: (accessId: number) => Promise<SupplierPortalAccess>;
   onSubmit: (payload: SupplierPortalAccessPayload) => Promise<SupplierPortalAccess>;
   onUpdateConfiguration: (
     kioskId: number,
@@ -153,9 +158,12 @@ export function SupplierPortalAccessModal({
   ) => Promise<SupplierPortalKioskDefinition>;
   providers: ProviderOption[];
   saving: boolean;
+  warehouses: PosWarehouseSummary[];
 }) {
   const { copy, locale } = useSupplierPortalTranslations();
   const [providerId, setProviderId] = useState(providers[0]?.id ? String(providers[0].id) : '');
+  const scopedWarehouses = useMemo(() => warehouses.filter(warehouse => warehouse.unitId && warehouse.businessId && warehouse.status !== 'INACTIVE'), [warehouses]);
+  const [scopeWarehouseId, setScopeWarehouseId] = useState(() => scopedWarehouses[0]?.id ? String(scopedWarehouses[0].id) : '');
   const [generatedPin, setGeneratedPin] = useState(() => randomPin());
   const [expiresAt, setExpiresAt] = useState(() => defaultExpiration());
   const [neverExpires, setNeverExpires] = useState(false);
@@ -166,6 +174,8 @@ export function SupplierPortalAccessModal({
   const [actionError, setActionError] = useState('');
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [pendingPinRotationId, setPendingPinRotationId] = useState<number | null>(null);
+  const [pinManagementAccessId, setPinManagementAccessId] = useState<number | null>(null);
+  const [restoredPin, setRestoredPin] = useState('');
   const [pendingRevocationId, setPendingRevocationId] = useState<number | null>(null);
   const [kiosks, setKiosks] = useState<SupplierPortalKioskDefinition[]>([]);
   const [engineLoading, setEngineLoading] = useState(true);
@@ -178,6 +188,12 @@ export function SupplierPortalAccessModal({
   const [detailsByKioskId, setDetailsByKioskId] = useState<Record<number, DetailState>>({});
   const [pendingDeleteAccess, setPendingDeleteAccess] = useState<SupplierPortalAccess | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
+  const [showCreateAccess, setShowCreateAccess] = useState(false);
+  const [createdAccessResult, setCreatedAccessResult] = useState<{
+    access: SupplierPortalAccess;
+    pin: string | null;
+    portalUrl: string;
+  } | null>(null);
   const submitLockRef = useRef(false);
   const actionLockRef = useRef(false);
 
@@ -204,6 +220,12 @@ export function SupplierPortalAccessModal({
     if (!providerId && activeProviders[0]?.id) setProviderId(String(activeProviders[0].id));
   }, [activeProviders, providerId]);
 
+  useEffect(() => {
+    if (!scopedWarehouses.some(warehouse => String(warehouse.id) === scopeWarehouseId)) {
+      setScopeWarehouseId(scopedWarehouses[0]?.id ? String(scopedWarehouses[0].id) : '');
+    }
+  }, [scopeWarehouseId, scopedWarehouses]);
+
   const kioskByAccessId = useMemo(
     () => new Map(kiosks.map(kiosk => [kiosk.legacyReferenceId, kiosk])),
     [kiosks],
@@ -215,7 +237,8 @@ export function SupplierPortalAccessModal({
   const revokedCount = statuses.filter(status => status === 'REVOKED').length;
   const expirationTime = expiresAt ? new Date(expiresAt).getTime() : Number.NaN;
   const hasValidExpiration = neverExpires || (Number.isFinite(expirationTime) && expirationTime > Date.now());
-  const canSubmit = Boolean(providerId && generatedPin && hasValidExpiration && !saving && !pendingAction);
+  const selectedScopeWarehouse = scopedWarehouses.find(warehouse => String(warehouse.id) === scopeWarehouseId);
+  const canSubmit = Boolean(providerId && selectedScopeWarehouse && generatedPin && hasValidExpiration && !saving && !pendingAction);
 
   const formatDateTime = (value?: string | null, fallback = copy.common.notAvailable) => {
     if (!value) return fallback;
@@ -242,6 +265,8 @@ export function SupplierPortalAccessModal({
     try {
       const createdAccess = await onSubmit({
         providerId: Number(providerId),
+        unitId: selectedScopeWarehouse!.unitId!,
+        businessId: selectedScopeWarehouse!.businessId!,
         portalCode: null,
         pin: pinToCreate,
         status: 'ACTIVE',
@@ -264,9 +289,11 @@ export function SupplierPortalAccessModal({
         ...current,
         [createdAccess.id]: fullCreatedPortalUrl(createdAccess.portalUrl),
       }));
-      setGeneratedPin(randomPin());
-      setExpiresAt(defaultExpiration());
-      setNeverExpires(false);
+      setCreatedAccessResult({
+        access: createdAccess,
+        pin: createdAccess.personalPinCreated === true ? pinToCreate : null,
+        portalUrl: fullCreatedPortalUrl(createdAccess.portalUrl),
+      });
       await loadKiosks(false);
     } catch (error) {
       setActionError(error instanceof Error && error.message ? error.message : copy.admin.createError);
@@ -274,6 +301,16 @@ export function SupplierPortalAccessModal({
       submitLockRef.current = false;
       setPendingAction(null);
     }
+  };
+
+  const closeCreateAccess = () => {
+    if (pendingAction) return;
+    setActionError('');
+    setCreatedAccessResult(null);
+    setGeneratedPin(randomPin());
+    setExpiresAt(defaultExpiration());
+    setNeverExpires(false);
+    setShowCreateAccess(false);
   };
 
   const markCopied = (key: string) => {
@@ -322,6 +359,7 @@ export function SupplierPortalAccessModal({
       setRevealedPins(current => ({ ...current, [access.id]: nextPin }));
       setCredentialOutcomes(current => ({ ...current, [access.id]: 'created' }));
       setPendingPinRotationId(null);
+      setRestoredPin(nextPin);
       await loadKiosks(false);
     }, copy.admin.pinError);
   };
@@ -459,21 +497,116 @@ export function SupplierPortalAccessModal({
     );
   }
 
-  return (
-    <PosModalFrame
-        modalType="operational-workspace"
-        onClose={onClose}
-        isCloseDisabled={saving || Boolean(pendingAction)}
-        closeLabel={copy.admin.closeLabel}
-        title={copy.admin.title}
-        subtitle={copy.admin.subtitle}
+  const pinManagementAccess = pinManagementAccessId == null
+    ? null
+    : accessList.find(access => access.id === pinManagementAccessId) ?? null;
+  if (pinManagementAccess) {
+    const pinActionKey = `pin-${pinManagementAccess.id}`;
+    const closePinManagement = () => {
+      if (pendingAction) return;
+      setActionError('');
+      setPendingPinRotationId(null);
+      setRestoredPin('');
+      setPinManagementAccessId(null);
+    };
+    return (
+      <PosModalFrame
+        modalType="standard-form"
+        onClose={closePinManagement}
+        isCloseDisabled={Boolean(pendingAction)}
+        closeLabel={copy.admin.closePinManagement}
+        title={copy.admin.viewPin}
+        subtitle={copy.admin.viewPinDescription}
         eyebrow={copy.admin.eyebrow}
         icon={<KeyRound className="h-6 w-6" />}
         tone="coral"
-        size="xl"
-        bodyClassName="p-0"
+        size="md"
         footerClassName={posModalModuleFooterClassName}
         footer={(
+          <div className="flex w-full flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button type="button" disabled={Boolean(pendingAction)} onClick={closePinManagement} className={posModalSecondaryActionClassName}>
+              {restoredPin ? copy.admin.finish : copy.common.cancel}
+            </button>
+            {!restoredPin ? (
+              <button type="button" disabled={Boolean(pendingAction)} onClick={() => void changePin(pinManagementAccess)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-medium text-[#B63B32] shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:opacity-60">
+                {pendingAction === pinActionKey ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                {copy.admin.restorePin}
+              </button>
+            ) : null}
+          </div>
+        )}
+      >
+        <div className="space-y-4">
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex items-start gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#FFF1EF] text-[#B63B32] dark:bg-[#FF6B5E]/10 dark:text-[#FFC7C3]"><KeyRound className="h-5 w-5" /></span>
+              <div>
+                <h2 className="font-medium text-slate-950 dark:text-white">{pinManagementAccess.providerName}</h2>
+                <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{copy.admin.personalPin}</p>
+              </div>
+            </div>
+          </section>
+
+          {actionError ? <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">{actionError}</p> : null}
+
+          {restoredPin ? (
+            <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+              <ShieldCheck className="h-7 w-7 text-emerald-600 dark:text-emerald-300" />
+              <h3 className="mt-3 font-medium text-slate-950 dark:text-white">{copy.admin.pinRestored}</h3>
+              <p className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-300">{copy.admin.pinRestoredDescription}</p>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-white p-4 dark:border-emerald-800 dark:bg-slate-950">
+                <span className="text-3xl font-medium text-slate-950 dark:text-white">{restoredPin}</span>
+                <button type="button" onClick={() => void copyValue('restored-pin', restoredPin)} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-medium text-white focus-visible:ring-2 focus-visible:ring-emerald-400 dark:bg-white dark:text-slate-950">
+                  <Copy className="h-4 w-4" />
+                  {copiedKey === 'restored-pin' ? copy.common.copied : copy.admin.copyPin}
+                </button>
+              </div>
+            </section>
+          ) : (
+            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-900/50 dark:bg-amber-950/30">
+              <AlertTriangle className="h-7 w-7 text-amber-600 dark:text-amber-300" />
+              <h3 className="mt-3 font-medium text-slate-950 dark:text-white">{copy.admin.pinNotRecoverable}</h3>
+              <p className="mt-2 text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">{copy.admin.pinRotationWarning}</p>
+            </section>
+          )}
+        </div>
+      </PosModalFrame>
+    );
+  }
+
+  return (
+    <PosModalFrame
+        modalType={showCreateAccess ? 'standard-form' : 'operational-workspace'}
+        onClose={showCreateAccess ? closeCreateAccess : onClose}
+        isCloseDisabled={saving || Boolean(pendingAction)}
+        closeLabel={copy.admin.closeLabel}
+        title={showCreateAccess ? (createdAccessResult ? copy.admin.accessCreated : copy.admin.createAccess) : copy.admin.title}
+        subtitle={showCreateAccess ? (createdAccessResult ? copy.admin.accessCreatedDescription : copy.admin.createDescription) : copy.admin.subtitle}
+        eyebrow={copy.admin.eyebrow}
+        icon={showCreateAccess ? <Plus className="h-6 w-6" /> : <KeyRound className="h-6 w-6" />}
+        tone="coral"
+        size={showCreateAccess ? 'md' : 'xl'}
+        bodyClassName="overflow-x-hidden p-0"
+        footerClassName={posModalModuleFooterClassName}
+        footer={showCreateAccess ? (
+          <div className="flex w-full flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            {createdAccessResult ? (
+              <button type="button" onClick={closeCreateAccess} className="inline-flex min-h-11 items-center justify-center rounded-lg bg-white px-5 py-2.5 text-sm font-medium text-[#B63B32] shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+                {copy.admin.finish}
+              </button>
+            ) : (
+              <>
+                <button type="button" disabled={saving || Boolean(pendingAction)} onClick={closeCreateAccess} className={posModalSecondaryActionClassName}>
+                  {copy.common.cancel}
+                </button>
+                <button type="button" disabled={!canSubmit || pendingAction === 'create'} onClick={() => void submit()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-medium text-[#B63B32] shadow-sm transition hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:bg-white/60 disabled:text-[#B63B32]/50">
+                  {pendingAction === 'create' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  {copy.admin.createAccess}
+                </button>
+              </>
+            )}
+          </div>
+        ) : (
           <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm font-medium text-white/90" aria-live="polite">
               {copy.admin.countSummary(activeCount, disabledCount, expiredCount, revokedCount)}
@@ -484,8 +617,12 @@ export function SupplierPortalAccessModal({
               </button>
               <button
                 type="button"
-                disabled={!canSubmit || pendingAction === 'create'}
-                onClick={() => void submit()}
+                disabled={saving || Boolean(pendingAction)}
+                onClick={() => {
+                  setActionError('');
+                  setCreatedAccessResult(null);
+                  setShowCreateAccess(true);
+                }}
                 className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-medium text-[#B63B32] shadow-sm transition hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:bg-white/60 disabled:text-[#B63B32]/50 sm:w-auto"
               >
                 {pendingAction === 'create' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
@@ -495,8 +632,46 @@ export function SupplierPortalAccessModal({
           </div>
         )}
       >
-        <div className="grid min-h-0 bg-slate-50 dark:bg-slate-950 xl:grid-cols-[360px_minmax(0,1fr)]">
-          <section className="border-b border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-6 xl:border-b-0 xl:border-r">
+        <div className="min-h-0 bg-slate-50 dark:bg-slate-950">
+          {showCreateAccess ? (
+            createdAccessResult ? (
+              <section className="bg-white p-5 dark:bg-slate-900 sm:p-7">
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+                  <ShieldCheck className="h-8 w-8 text-emerald-600 dark:text-emerald-300" />
+                  <h2 className="mt-3 text-lg font-medium text-slate-950 dark:text-white">{copy.admin.accessCreated}</h2>
+                  <p className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-300">{copy.admin.accessCreatedDescription}</p>
+                </div>
+
+                {createdAccessResult.pin ? (
+                  <div className="mt-4 rounded-2xl border border-[#FFB3AD] bg-[#FFF1EF] p-5 dark:border-[#FF6B5E]/40 dark:bg-[#FF6B5E]/10">
+                    <p className="text-xs font-medium text-[#B63B32] dark:text-[#FFC7C3]">{copy.admin.oneTimePin}</p>
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-3xl font-medium text-slate-950 dark:text-white">{createdAccessResult.pin}</p>
+                      <button type="button" onClick={() => void copyValue('created-pin', createdAccessResult.pin!)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#FFB3AD] bg-white px-4 text-sm font-medium text-[#B63B32] focus-visible:ring-2 focus-visible:ring-orange-400 dark:bg-slate-950 dark:text-[#FFC7C3]">
+                        <Copy className="h-4 w-4" />
+                        {copiedKey === 'created-pin' ? copy.common.copied : copy.admin.copyPin}
+                      </button>
+                    </div>
+                    <p className="mt-3 text-xs font-medium text-[#B63B32]/80 dark:text-[#FFC7C3]/80">{copy.admin.pinCopyReminder}</p>
+                  </div>
+                ) : (
+                  <p role="status" className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm font-medium text-sky-800 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-100">{copy.admin.reusedCredential}</p>
+                )}
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-[minmax(0,1fr)_128px] sm:items-center">
+                  <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{copy.admin.secureLink}</p>
+                    <p className="mt-2 break-all text-sm font-medium text-slate-900 dark:text-white">{createdAccessResult.portalUrl}</p>
+                    <button type="button" onClick={() => void copyValue('created-link', createdAccessResult.portalUrl)} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-medium text-white focus-visible:ring-2 focus-visible:ring-orange-400 dark:bg-white dark:text-slate-950">
+                      <Copy className="h-4 w-4" />
+                      {copiedKey === 'created-link' ? copy.common.copied : copy.admin.copyLink}
+                    </button>
+                  </div>
+                  <PortalQr alt={copy.admin.qrAlt(createdAccessResult.access.providerName)} errorMessage={copy.admin.qrError} linkLabel={copy.admin.downloadQr} url={createdAccessResult.portalUrl} />
+                </div>
+              </section>
+            ) : (
+          <section className="bg-white p-4 dark:bg-slate-900 sm:p-6">
             <h2 className="text-lg font-medium text-slate-950 dark:text-white">{copy.admin.createAccess}</h2>
             <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{copy.admin.createDescription}</p>
             <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-medium leading-5 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100">
@@ -531,18 +706,31 @@ export function SupplierPortalAccessModal({
               </select>
             </label>
 
+            <label className="mt-4 block space-y-2">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.admin.scope}</span>
+              <select
+                value={scopeWarehouseId}
+                disabled={scopedWarehouses.length === 0}
+                onChange={(event) => setScopeWarehouseId(event.target.value)}
+                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 outline-none focus-visible:ring-2 focus-visible:ring-orange-400 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+              >
+                {scopedWarehouses.length === 0 ? <option value="">{copy.admin.noScope}</option> : null}
+                {scopedWarehouses.map(warehouse => <option key={warehouse.id} value={warehouse.id}>{warehouse.name} · {warehouse.unitName} · {warehouse.businessName}</option>)}
+              </select>
+            </label>
+
             <div className="mt-4 rounded-2xl border border-[#FFB3AD] bg-[#FFF1EF] p-4 dark:border-[#FF6B5E]/40 dark:bg-[#FF6B5E]/10">
               <div className="flex items-center justify-between gap-3">
-                <div>
-                  <span className="text-xs font-medium text-[#B63B32] dark:text-[#FFC7C3]">{copy.admin.oneTimePin}</span>
-                  <p className="mt-1 text-2xl font-medium text-slate-950 dark:text-white">{generatedPin}</p>
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#B63B32] dark:bg-slate-950 dark:text-[#FFC7C3]">
+                    <KeyRound className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <span className="text-xs font-medium text-[#B63B32] dark:text-[#FFC7C3]">{copy.admin.oneTimePin}</span>
+                    <p className="mt-1 text-sm font-medium text-slate-950 dark:text-white">{copy.admin.pinPrepared}</p>
+                  </div>
                 </div>
-                <button type="button" disabled={Boolean(pendingAction)} onClick={() => setGeneratedPin(randomPin())} className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#FFB3AD] bg-white px-3 text-xs font-medium text-[#B63B32] outline-none hover:bg-[#FFF7F5] focus-visible:ring-2 focus-visible:ring-orange-400 disabled:opacity-60 dark:border-[#FF6B5E]/40 dark:bg-slate-950 dark:text-[#FFC7C3]">
-                  <RefreshCw className="h-4 w-4" />
-                  {copy.admin.generateNew}
-                </button>
               </div>
-              <p className="mt-2 text-xs font-medium text-[#B63B32]/80 dark:text-[#FFC7C3]/80">{copy.admin.pinCopyReminder}</p>
             </div>
 
             <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
@@ -567,6 +755,8 @@ export function SupplierPortalAccessModal({
               {!hasValidExpiration ? <p className="mt-2 text-xs font-medium text-red-600 dark:text-red-300">{copy.admin.futureExpiration}</p> : null}
             </div>
           </section>
+            )
+          ) : (
 
           <section className="min-w-0 space-y-4 p-4 sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -596,7 +786,8 @@ export function SupplierPortalAccessModal({
               const canRevoke = accessStatus === 'ACTIVE' || accessStatus === 'DISABLED';
               const canDelete = Boolean(kiosk && (accessStatus === 'REVOKED' || accessStatus === 'EXPIRED'));
               const details = kiosk ? detailsByKioskId[kiosk.id] : undefined;
-              const portalUrl = revealedLinks[access.id] ?? '';
+              const portalUrl = revealedLinks[access.id]
+                ?? (access.portalUrl ? fullCreatedPortalUrl(access.portalUrl) : '');
 
               return (
                 <article key={access.id} className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">
@@ -647,15 +838,6 @@ export function SupplierPortalAccessModal({
                         </div>
                       ) : null}
 
-                      {pendingPinRotationId === access.id ? (
-                        <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100">
-                          <p className="font-medium">{copy.admin.pinRotationWarning}</p>
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            <button type="button" disabled={isBusy} onClick={() => void changePin(access)} className="min-h-10 rounded-lg bg-amber-600 px-3 text-xs font-medium text-white disabled:opacity-60">{copy.admin.confirmRotation}</button>
-                            <button type="button" disabled={isBusy} onClick={() => setPendingPinRotationId(null)} className="min-h-10 rounded-lg border border-amber-200 bg-white px-3 text-xs font-medium text-amber-800 disabled:opacity-60 dark:bg-slate-950">{copy.common.cancel}</button>
-                          </div>
-                        </div>
-                      ) : null}
                     </div>
 
                     {portalUrl ? (
@@ -669,19 +851,37 @@ export function SupplierPortalAccessModal({
                   </div>
 
                   <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
-                    {portalUrl ? (
-                      <button type="button" disabled={accessStatus === 'REVOKED'} onClick={() => void copyValue(linkKey, portalUrl)} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-medium text-slate-700 outline-none hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-orange-400 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
-                        <Copy className="h-4 w-4" />
-                        {copiedKey === linkKey ? copy.common.copied : copy.admin.copyLink}
-                      </button>
-                    ) : null}
-                    {canRotatePin && pendingPinRotationId !== access.id ? (
+                    <button type="button" disabled={!portalUrl || accessStatus === 'REVOKED'} onClick={() => portalUrl && void copyValue(linkKey, portalUrl)} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-medium text-slate-700 outline-none hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-orange-400 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800" title={!portalUrl ? copy.admin.linkHidden : copy.admin.copyLink}>
+                      <Copy className="h-4 w-4" />
+                      {copiedKey === linkKey ? copy.common.copied : copy.admin.copyLink}
+                    </button>
+                    <button type="button" disabled={!canOpen || !portalUrl} onClick={() => portalUrl && window.open(portalUrl, '_blank', 'noopener,noreferrer')} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-slate-950 px-3 text-xs font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-orange-400 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-slate-950" title={!portalUrl ? copy.admin.linkHidden : copy.admin.open}>
+                      <ExternalLink className="h-4 w-4" />
+                      {copy.admin.open}
+                    </button>
+                    <button type="button" disabled={saving || Boolean(pendingAction) || accessStatus === 'REVOKED'} onClick={() => {
+                      if (!window.confirm('El enlace anterior dejará de funcionar. ¿Deseas reiniciarlo?')) return;
+                      setPendingAction(`link-${access.id}`);
+                      void onResetLink(access.id)
+                        .then(updated => {
+                          const nextUrl = fullCreatedPortalUrl(updated.portalUrl);
+                          setRevealedLinks(current => ({ ...current, [access.id]: nextUrl }));
+                        })
+                        .catch(error => setActionError(error instanceof Error ? error.message : 'No se pudo reiniciar el enlace.'))
+                        .finally(() => setPendingAction(null));
+                    }} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-amber-200 px-3 text-xs font-medium text-amber-700 outline-none hover:bg-amber-50 focus-visible:ring-2 focus-visible:ring-amber-400 disabled:opacity-50 dark:border-amber-900/50 dark:text-amber-200 dark:hover:bg-amber-950/30">
+                      <RefreshCw className="h-4 w-4" />
+                      Reiniciar enlace
+                    </button>
+                    {canRotatePin ? (
                       <button type="button" disabled={saving || Boolean(pendingAction)} onClick={() => {
+                        setActionError('');
                         setPendingRevocationId(null);
-                        setPendingPinRotationId(access.id);
+                        setRestoredPin('');
+                        setPinManagementAccessId(access.id);
                       }} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#FFB3AD] px-3 text-xs font-medium text-[#B63B32] outline-none hover:bg-[#FFF1EF] focus-visible:ring-2 focus-visible:ring-orange-400 disabled:opacity-60 dark:border-[#FF6B5E]/40 dark:text-[#FFC7C3] dark:hover:bg-[#FF6B5E]/10">
-                        <RefreshCw className="h-4 w-4" />
-                        {copy.admin.rotatePin}
+                        <Eye className="h-4 w-4" />
+                        {copy.admin.viewPin}
                       </button>
                     ) : null}
                     {accessStatus === 'ACTIVE' ? (
@@ -695,44 +895,6 @@ export function SupplierPortalAccessModal({
                         <Power className="h-4 w-4" />
                         {copy.admin.enable}
                       </button>
-                    ) : null}
-                    {canRevoke && pendingRevocationId !== access.id ? (
-                      <button type="button" disabled={saving || Boolean(pendingAction)} onClick={() => {
-                        setActionError('');
-                        setPendingPinRotationId(null);
-                        setPendingRevocationId(access.id);
-                      }} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-red-200 px-3 text-xs font-medium text-red-700 outline-none hover:bg-red-50 focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-60 dark:border-red-900/50 dark:text-red-200 dark:hover:bg-red-950/30">
-                        <ShieldX className="h-4 w-4" />
-                        {copy.admin.revoke}
-                      </button>
-                    ) : null}
-                    {canEdit && kiosk ? (
-                      <button type="button" disabled={saving || Boolean(pendingAction)} onClick={() => beginConfigurationEdit(access, kiosk)} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-sky-200 px-3 text-xs font-medium text-sky-700 outline-none hover:bg-sky-50 focus-visible:ring-2 focus-visible:ring-sky-400 disabled:opacity-60 dark:border-sky-900/50 dark:text-sky-200 dark:hover:bg-sky-950/30">
-                        <Pencil className="h-4 w-4" />
-                        {copy.admin.configuration}
-                      </button>
-                    ) : null}
-                    {kiosk ? (
-                      <button type="button" disabled={saving || Boolean(pendingAction)} onClick={() => void toggleDetails(access, kiosk)} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-violet-200 px-3 text-xs font-medium text-violet-700 outline-none hover:bg-violet-50 focus-visible:ring-2 focus-visible:ring-violet-400 disabled:opacity-60 dark:border-violet-900/50 dark:text-violet-200 dark:hover:bg-violet-950/30">
-                        <History className="h-4 w-4" />
-                        {expandedAccessId === access.id ? copy.admin.hideDetails : copy.admin.details}
-                      </button>
-                    ) : null}
-                    {canDelete ? (
-                      <button type="button" disabled={saving || Boolean(pendingAction)} onClick={() => {
-                        setActionError('');
-                        setDeleteReason('');
-                        setPendingDeleteAccess(access);
-                      }} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-red-300 px-3 text-xs font-medium text-red-800 outline-none hover:bg-red-50 focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-60 dark:border-red-800 dark:text-red-200 dark:hover:bg-red-950/30">
-                        <Trash2 className="h-4 w-4" />
-                        {copy.admin.permanentDelete}
-                      </button>
-                    ) : null}
-                    {canOpen && portalUrl ? (
-                      <a href={portalUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-slate-950 px-3 text-xs font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-orange-400 dark:bg-white dark:text-slate-950">
-                        <ExternalLink className="h-4 w-4" />
-                        {copy.admin.open}
-                      </a>
                     ) : null}
                   </div>
 
@@ -808,6 +970,7 @@ export function SupplierPortalAccessModal({
               );
             })}
           </section>
+          )}
         </div>
     </PosModalFrame>
   );

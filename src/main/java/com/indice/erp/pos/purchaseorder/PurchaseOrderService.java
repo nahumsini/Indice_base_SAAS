@@ -238,6 +238,8 @@ public class PurchaseOrderService {
         }
         var normalized = new SupplierPortalAccessRequest(
             request.providerId(),
+            request.unitId(),
+            request.businessId(),
             portalCode,
             request.pin(),
             status,
@@ -269,7 +271,7 @@ public class PurchaseOrderService {
             throw PosApiException.badRequest("Supplier portal status is invalid.");
         }
         var normalized = new SupplierPortalAccessRequest(
-            request.providerId(), portalCode, request.pin(), status, null);
+            request.providerId(), request.unitId(), request.businessId(), portalCode, request.pin(), status, null);
         var id = repository.insertSupplierPortalAccess(
             context, normalized, portalCode, passwordEncoder.encode(request.pin().trim()));
         return repository.findSupplierPortalAccess(context, id).orElseThrow();
@@ -296,6 +298,20 @@ public class PurchaseOrderService {
                 context,
                 accessId,
                 passwordEncoder.encode(request.pin().trim()))) {
+            throw PosApiException.notFound("Supplier portal access not found.");
+        }
+        return effectiveSupplierPortalAccess(repository.findSupplierPortalAccess(context, accessId).orElseThrow());
+    }
+
+    @Transactional
+    public SupplierPortalAccessResponse resetSupplierPortalAccessLink(PosContext context, long accessId) {
+        var current = repository.findSupplierPortalAccess(context, accessId)
+            .orElseThrow(() -> PosApiException.notFound("Supplier portal access not found."));
+        if ("REVOKED".equalsIgnoreCase(current.status())) {
+            throw PosApiException.conflict("A revoked supplier portal cannot reset its link.");
+        }
+        var portalCode = portalCodeOrGenerate(context, null);
+        if (!repository.updateSupplierPortalAccessCode(context, accessId, portalCode)) {
             throw PosApiException.notFound("Supplier portal access not found.");
         }
         return effectiveSupplierPortalAccess(repository.findSupplierPortalAccess(context, accessId).orElseThrow());

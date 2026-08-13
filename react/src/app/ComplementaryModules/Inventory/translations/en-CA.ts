@@ -11,6 +11,7 @@ export const enCA = {
   tabs: {
     products: 'Products',
     inventory: 'Inventory',
+    warehouses: 'Warehouses',
     providers: 'Providers',
     purchaseOrders: 'Purchase orders',
   },

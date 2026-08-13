@@ -60,7 +60,7 @@ export function CortesTable({
   const columnSpan = visibleColumns.length + 2;
 
   return (
-    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
       <div className="flex flex-col gap-1 border-b border-slate-200 px-5 py-4 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-lg font-medium text-slate-950 dark:text-white">Historial de cortes</h3>
@@ -137,7 +137,7 @@ export function CortesTable({
                   </td>
                 ))}
                 <td className="px-5 py-4 text-right">
-                  <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                  <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-800">
                     <IconButton label={`Ver corte COR-${row.id}`} onClick={() => onSelect(row)}>
                       <Eye className="h-4 w-4" />
                     </IconButton>
@@ -297,7 +297,7 @@ function IconButton({
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"
+      className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 transition hover:bg-[#FF6B5E]/10 hover:text-[#B63B32] dark:text-slate-300 dark:hover:bg-[#FF6B5E]/10 dark:hover:text-[#FFB0AA]"
     >
       {children}
     </button>

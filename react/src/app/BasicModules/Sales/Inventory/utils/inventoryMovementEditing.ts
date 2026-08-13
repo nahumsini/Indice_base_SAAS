@@ -9,6 +9,7 @@ import { getMovementSignedQuantity, isSupplierSource } from './inventoryMovement
 
 export type InventoryMovementEditDraft = {
   movementType: InventoryMovementEntryType;
+  adjustmentDirection?: 'increase' | 'decrease';
   items: InventoryMovementEntryLine[];
   fromWarehouseId: string;
   toWarehouseId: string;
@@ -86,7 +87,7 @@ export function updateMovementGroupFromDraft({
       productImageAlt: stockRow?.thumbnailAlt ?? movement.productImageAlt,
       variantLabel: stockRow?.type === 'Product' ? stockRow.category : movement.variantLabel,
       movementType: draft.movementType,
-      quantity: draftItem ? getMovementSignedQuantity(draft.movementType, draftItem.quantity) : movement.quantity,
+      quantity: draftItem ? getMovementSignedQuantity(draft.movementType, draftItem.quantity, draft.adjustmentDirection) : movement.quantity,
       unitCost: stockRow?.averageCost ?? movement.unitCost,
       fromWarehouseId: sourceIsSupplier ? undefined : fromWarehouse?.id ?? movement.fromWarehouseId,
       fromWarehouseName: sourceIsSupplier

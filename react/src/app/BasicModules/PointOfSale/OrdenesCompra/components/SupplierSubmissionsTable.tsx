@@ -43,11 +43,11 @@ export function SupplierSubmissionsTable({
   return (
     <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1180px] text-sm">
+        <table className="w-full min-w-[1100px] text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-950/60">
             <tr>
-              {copy.submissionTable.columns.map((header) => (
-                <th key={header} className="px-5 py-4 text-left text-xs font-medium text-slate-500 dark:text-slate-400">
+              {copy.submissionTable.columns.map((header, index) => (
+                <th key={header} className={`whitespace-nowrap px-4 py-3.5 text-xs font-medium text-slate-500 dark:text-slate-400 ${index === copy.submissionTable.columns.length - 1 ? 'text-right' : 'text-left'}`}>
                   {header}
                 </th>
               ))}
@@ -59,8 +59,8 @@ export function SupplierSubmissionsTable({
               const canConvert = ['APPROVED', 'PARTIALLY_APPROVED'].includes(submission.status)
                 && !submission.convertedPurchaseOrderId;
               return (
-                <tr key={submission.id} className="align-top transition hover:bg-[#FF6B5E]/5 dark:hover:bg-[#FF6B5E]/10">
-                  <td className="px-5 py-5">
+                <tr key={submission.id} className="align-middle transition hover:bg-[#FF6B5E]/5 dark:hover:bg-[#FF6B5E]/10">
+                  <td className="px-4 py-4">
                     <button type="button" onClick={() => onSelect(submission)} className="font-medium text-slate-950 underline-offset-4 hover:underline dark:text-white">
                       {submission.submissionNumber}
                     </button>
@@ -68,31 +68,31 @@ export function SupplierSubmissionsTable({
                       {formatDate(submission.createdAt?.slice(0, 10), locale, copy.common.noDate)}
                     </p>
                   </td>
-                  <td className="px-5 py-5">
+                  <td className="px-4 py-4">
                     <p className="font-medium text-slate-900 dark:text-slate-100">{submission.providerName}</p>
                     <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{submission.providerEmail || copy.common.noEmail}</p>
                   </td>
-                  <td className="px-5 py-5">
+                  <td className="px-4 py-4">
                     <p className="font-medium text-slate-900 dark:text-slate-100">{submission.submittedByName || copy.common.provider}</p>
                     <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{submission.submittedByEmail || copy.submissionTable.noContact}</p>
                   </td>
-                  <td className="px-5 py-5">
+                  <td className="px-4 py-4">
                     <p className="font-medium text-slate-950 dark:text-white">{copy.submissionTable.itemCount(submission.items.length)}</p>
                     <p className={`text-xs font-medium ${unresolvedItems > 0 ? 'text-amber-700 dark:text-amber-200' : 'text-emerald-700 dark:text-emerald-200'}`}>
                       {unresolvedItems > 0 ? copy.submissionTable.unresolved(unresolvedItems) : copy.submissionTable.linkedProducts}
                     </p>
                   </td>
-                  <td className="px-5 py-5">
+                  <td className="px-4 py-4">
                     <p className="font-medium text-slate-700 dark:text-slate-200">{submission.reviewedAt ? formatDate(submission.reviewedAt.slice(0, 10), locale, copy.common.noDate) : copy.submissionTable.noReview}</p>
                     <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{submission.reviewNote || copy.submissionTable.noNote}</p>
                   </td>
-                  <td className="px-5 py-5">
+                  <td className="px-4 py-4">
                     <p className="font-medium text-slate-950 dark:text-white">{formatMoney(submission.totalAmount, submission.currencyCode, locale)}</p>
                     <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                       {copy.submissionTable.tax} {formatMoney(submission.taxAmount, submission.currencyCode, locale)}
                     </p>
                   </td>
-                  <td className="px-5 py-5">
+                  <td className="px-4 py-4">
                     <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${statusClassName(submission.status)}`}>
                       {copy.submissionStatus[submission.status]}
                     </span>
@@ -102,8 +102,8 @@ export function SupplierSubmissionsTable({
                       </p>
                     ) : null}
                   </td>
-                  <td className="px-5 py-5">
-                    <div className="flex flex-wrap gap-2">
+                  <td className="px-4 py-4">
+                    <div className="ml-auto flex w-fit items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70">
                       <IconAction label={copy.submissionTable.view} onClick={() => onSelect(submission)} icon={Eye} disabled={disabled} />
                       <IconAction label={copy.submissionTable.review} onClick={() => onStartReview(submission)} icon={ShieldCheck} disabled={disabled} />
                       <IconAction
@@ -141,10 +141,11 @@ function IconAction({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800"
+      title={label}
+      aria-label={label}
+      className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition-all hover:-translate-y-0.5 hover:bg-slate-100 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800"
     >
       <Icon className="h-4 w-4" />
-      {label}
     </button>
   );
 }

@@ -11,6 +11,7 @@ export const zhCA = {
   tabs: {
     products: '产品',
     inventory: '库存',
+    warehouses: '仓库',
     providers: '供应商',
     purchaseOrders: '采购订单',
   },

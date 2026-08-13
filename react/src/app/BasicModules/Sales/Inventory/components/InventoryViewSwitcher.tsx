@@ -1,4 +1,4 @@
-import { Archive, History, Warehouse } from 'lucide-react';
+import { Archive, History } from 'lucide-react';
 import type { InventoryTranslations } from '../translations';
 import type { InventoryOperationalView } from '../types/inventoryTypes';
 
@@ -7,7 +7,6 @@ const views: Array<{
   icon: typeof Archive;
 }> = [
   { id: 'stock', icon: Archive },
-  { id: 'warehouses', icon: Warehouse },
   { id: 'movements', icon: History },
 ];
 

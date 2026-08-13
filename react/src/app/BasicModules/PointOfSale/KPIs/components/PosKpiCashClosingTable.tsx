@@ -46,7 +46,7 @@ export function PosKpiCashClosingTable({
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <section className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
       <div className="flex flex-col gap-3 border-b border-slate-100 p-5 dark:border-slate-800 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 className="text-lg font-medium text-slate-950 dark:text-white">Cierres que alimentan los KPIs</h3>
@@ -57,7 +57,7 @@ export function PosKpiCashClosingTable({
           <select
             value={pageSize}
             onChange={(event) => onPageSizeChange(Number(event.target.value))}
-            className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm font-medium outline-none focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            className="h-11 rounded-xl border border-slate-300 bg-white px-2 text-sm font-medium outline-none focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
           >
             {[10, 25, 50, 100, 200].map((size) => (
               <option key={size} value={size}>{size}</option>
@@ -111,11 +111,11 @@ export function PosKpiCashClosingTable({
           Pagina {page} / {totalPages} - {totalItems} cierres
         </p>
         <div className="flex gap-2">
-          <Button type="button" variant="outline" className="h-9 rounded-lg border-slate-300 dark:border-slate-700" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
+          <Button type="button" variant="outline" className="h-11 rounded-xl border-slate-300 dark:border-slate-700" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
             <ChevronLeft className="h-4 w-4" />
             Anterior
           </Button>
-          <Button type="button" variant="outline" className="h-9 rounded-lg border-slate-300 dark:border-slate-700" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
+          <Button type="button" variant="outline" className="h-11 rounded-xl border-slate-300 dark:border-slate-700" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
             Siguiente
             <ChevronRight className="h-4 w-4" />
           </Button>

@@ -224,11 +224,21 @@ public final class PurchaseOrderDtos {
 
     public record SupplierPortalAccessRequest(
         @NotNull Long providerId,
+        @NotNull Long unitId,
+        @NotNull Long businessId,
         @Size(max = 120) String portalCode,
         @NotBlank @Size(min = 4, max = 20) String pin,
         @Size(max = 40) String status,
         Instant expiresAt
     ) {
+        public SupplierPortalAccessRequest(
+                Long providerId,
+                String portalCode,
+                String pin,
+                String status,
+                Instant expiresAt) {
+            this(providerId, null, null, portalCode, pin, status, expiresAt);
+        }
     }
 
     public record SupplierPortalAccessStatusRequest(

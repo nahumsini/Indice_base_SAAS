@@ -49,7 +49,10 @@ export function WarehouseDeleteView({
               <SelectTrigger className={inventoryModalControlClassName}><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">{t.operational.modals.selectDestinationWarehouse}</SelectItem>
-                {sortInventoryOptions(warehouses.filter((item) => item.id !== warehouse.id && item.status === 'active').map((target) => ({ value: target.id, label: target.name }))).map((target) => (
+                {sortInventoryOptions(warehouses.filter((item) => item.id !== warehouse.id && item.status === 'active').map((target) => ({
+                  value: target.id,
+                  label: [target.name, target.businessUnitName, target.businessName].filter(Boolean).join(' · '),
+                }))).map((target) => (
                   <SelectItem key={target.value} value={target.value}>{target.label}</SelectItem>
                 ))}
               </SelectContent>

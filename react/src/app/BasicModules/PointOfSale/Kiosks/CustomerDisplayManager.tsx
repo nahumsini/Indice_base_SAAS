@@ -84,7 +84,7 @@ export function CustomerDisplayManager() {
           type="button"
           onClick={() => void reload()}
           disabled={loading}
-          className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950"
+          className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950"
         >
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           {copy.common.update}
@@ -92,26 +92,26 @@ export function CustomerDisplayManager() {
       </div>
 
       {error ? (
-        <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
           {error}
         </div>
       ) : null}
       {loading ? (
-        <div role="status" className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm font-medium text-slate-500 dark:border-slate-800 dark:bg-slate-950">
+        <div role="status" className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm font-medium text-slate-500 dark:border-slate-800 dark:bg-slate-950">
           {copy.customerDisplayAdmin.loading}
         </div>
       ) : null}
       {!loading && items.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-slate-300 p-10 text-center text-sm font-medium text-slate-500 dark:border-slate-700">
+        <div className="rounded-xl border border-dashed border-slate-300 p-10 text-center text-sm font-medium text-slate-500 dark:border-slate-700">
           {copy.customerDisplayAdmin.empty}
         </div>
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
         {items.map((kiosk) => (
-          <article key={kiosk.id} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+          <article key={kiosk.id} className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
             <div className="flex items-start gap-3">
-              <span className="grid h-11 w-11 place-items-center rounded-lg bg-[#FF6B5E]/10 text-[#C74337]">
+              <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#FF6B5E]/10 text-[#C74337]">
                 <Monitor className="h-5 w-5" />
               </span>
               <div className="min-w-0 flex-1">
@@ -126,14 +126,14 @@ export function CustomerDisplayManager() {
             </div>
 
             <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-              <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-900">
+              <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900">
                 <dt className="text-xs font-medium text-slate-500">{copy.customerDisplayAdmin.connection}</dt>
                 <dd className="mt-1 flex items-center gap-2 font-medium">
                   {kiosk.connected ? <Wifi className="h-4 w-4 text-emerald-600" /> : <WifiOff className="h-4 w-4 text-slate-400" />}
                   {kiosk.connected ? copy.customerDisplayAdmin.online : copy.customerDisplayAdmin.inactive}
                 </dd>
               </div>
-              <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-900">
+              <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900">
                 <dt className="text-xs font-medium text-slate-500">{copy.customerDisplayAdmin.lastActivity}</dt>
                 <dd className="mt-1 font-medium">{formatDate(kiosk.lastSeenAt, locale, copy)}</dd>
               </div>
@@ -144,22 +144,22 @@ export function CustomerDisplayManager() {
 
             <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
               {kiosk.status === 'ACTIVE' ? (
-                <button type="button" onClick={() => requestAction(kiosk, 'disable')} className="inline-flex h-9 items-center gap-2 rounded-lg border border-amber-300 px-3 text-xs font-medium text-amber-800 dark:text-amber-200">
+                <button type="button" onClick={() => requestAction(kiosk, 'disable')} className="inline-flex h-11 items-center gap-2 rounded-xl border border-amber-300 px-3 text-xs font-medium text-amber-800 dark:text-amber-200">
                   <Power className="h-4 w-4" />{copy.common.deactivate}
                 </button>
               ) : null}
               {kiosk.status === 'DISABLED' ? (
-                <button type="button" onClick={() => requestAction(kiosk, 'enable')} className="inline-flex h-9 items-center gap-2 rounded-lg border border-emerald-300 px-3 text-xs font-medium text-emerald-800 dark:text-emerald-200">
+                <button type="button" onClick={() => requestAction(kiosk, 'enable')} className="inline-flex h-11 items-center gap-2 rounded-xl border border-emerald-300 px-3 text-xs font-medium text-emerald-800 dark:text-emerald-200">
                   <Power className="h-4 w-4" />{copy.common.activate}
                 </button>
               ) : null}
               {!['REVOKED', 'EXPIRED'].includes(kiosk.status) ? (
-                <button type="button" onClick={() => requestAction(kiosk, 'revoke')} className="ml-auto inline-flex h-9 items-center gap-2 rounded-lg border border-red-200 px-3 text-xs font-medium text-red-700 dark:text-red-200">
+                <button type="button" onClick={() => requestAction(kiosk, 'revoke')} className="ml-auto inline-flex h-11 items-center gap-2 rounded-xl border border-red-200 px-3 text-xs font-medium text-red-700 dark:text-red-200">
                   <ShieldOff className="h-4 w-4" />{copy.common.revoke}
                 </button>
               ) : null}
               {['REVOKED', 'EXPIRED'].includes(kiosk.status) ? (
-                <button type="button" onClick={() => requestAction(kiosk, 'delete')} className="ml-auto inline-flex h-9 items-center gap-2 rounded-lg border border-red-200 px-3 text-xs font-medium text-red-700 dark:text-red-200">
+                <button type="button" onClick={() => requestAction(kiosk, 'delete')} className="ml-auto inline-flex h-11 items-center gap-2 rounded-xl border border-red-200 px-3 text-xs font-medium text-red-700 dark:text-red-200">
                   <Trash2 className="h-4 w-4" />{copy.common.delete}
                 </button>
               ) : null}

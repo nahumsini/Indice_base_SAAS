@@ -11,6 +11,7 @@ export const enUS = {
   tabs: {
     products: 'Products',
     inventory: 'Inventory',
+    warehouses: 'Warehouses',
     providers: 'Suppliers',
     purchaseOrders: 'Purchase orders',
   },

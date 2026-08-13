@@ -7,8 +7,6 @@ import { PettyCashProvider } from './app/BasicModules/PettyCash/context/PettyCas
 import './styles/index.css';
 
 const chunkReloadStorageKey = 'indice:chunk-reload-attempted';
-const routeChunkReloadStorageKey = 'indice:route-chunk-reload-attempted';
-const renderChunkReloadStorageKey = 'indice:render-chunk-reload-attempted';
 
 function isDynamicImportFailure(reason: unknown) {
   const message = reason instanceof Error ? reason.message : String(reason ?? '');
@@ -33,11 +31,10 @@ window.addEventListener('unhandledrejection', (event) => {
   window.location.reload();
 });
 
-window.addEventListener('load', () => {
-  sessionStorage.removeItem(chunkReloadStorageKey);
-  sessionStorage.removeItem(routeChunkReloadStorageKey);
-  sessionStorage.removeItem(renderChunkReloadStorageKey);
-});
+// Do not clear the retry markers on `load`: that event fires before lazy route
+// chunks finish loading and used to turn a persistent chunk failure into an
+// endless reload loop. The route error UI clears the relevant marker when the
+// user explicitly retries.
 
 const rootElement = document.getElementById('root');
 
