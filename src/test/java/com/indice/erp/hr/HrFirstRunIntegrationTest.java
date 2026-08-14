@@ -2198,7 +2198,7 @@ class HrFirstRunIntegrationTest {
                 .session(session)
                 .header("X-CSRF-Token", csrf(session)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.run.status").value("processed"));
+            .andExpect(jsonPath("$.run.status").value("draft"));
 
         mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/approve", runId)
                 .session(session)
@@ -2209,8 +2209,7 @@ class HrFirstRunIntegrationTest {
         mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/mark-paid", runId)
                 .session(session)
                 .header("X-CSRF-Token", csrf(session)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.run.status").value("paid"));
+            .andExpect(status().isBadRequest());
 
         var csvExport = mockMvc.perform(get("/api/v1/hr/payroll/runs/{runId}/export.csv", runId).session(session))
             .andExpect(status().isOk())
@@ -2313,7 +2312,7 @@ class HrFirstRunIntegrationTest {
                 .session(session)
                 .header("X-CSRF-Token", csrf(session)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.run.status").value("processed"));
+            .andExpect(jsonPath("$.run.status").value("draft"));
 
         var processedDetail = readMap(mockMvc.perform(
             get("/api/v1/hr/payroll/runs/{runId}", runId)
@@ -2336,8 +2335,7 @@ class HrFirstRunIntegrationTest {
         mockMvc.perform(post("/api/v1/hr/payroll/runs/{runId}/mark-paid", runId)
                 .session(session)
                 .header("X-CSRF-Token", csrf(session)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.run.status").value("paid"));
+            .andExpect(status().isBadRequest());
 
         var csvExport = mockMvc.perform(get("/api/v1/hr/payroll/runs/{runId}/export.csv", runId).session(session))
             .andExpect(status().isOk())
@@ -2616,6 +2614,7 @@ class HrFirstRunIntegrationTest {
                 SET registration_country = ?,
                     state_province = ?,
                     salary = ?,
+                    payroll_treatment = 'fiscal_payroll',
                     pay_period = 'monthly',
                     salary_type = 'daily',
                     workday_hours = 8.00,
