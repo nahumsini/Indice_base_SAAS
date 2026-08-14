@@ -13,6 +13,7 @@ const accessibleCatalogSource = readFileSync(
 );
 const appSource = readFileSync(resolve(root, 'src/app/App.tsx'), 'utf8');
 const apiClientSource = readFileSync(resolve(root, 'src/app/lib/apiClient.ts'), 'utf8');
+const platformAdminApiSource = readFileSync(resolve(root, 'src/app/api/platformAdmin.ts'), 'utf8');
 const businessProfileApiSource = readFileSync(
   resolve(root, 'src/app/api/HomePanel/BusinessProfile/businessProfile.ts'),
   'utf8',
@@ -186,9 +187,13 @@ test('Consultoría conserva el flujo comercial de solicitud y confirmación', ()
   assert.match(consultingTranslationsSource, /La solicitud quedará “Por confirmar”/);
   assert.match(consultingTranslationsSource, /Nunca estás solo mientras haces crecer tu empresa/);
   assert.match(consultingTranslationsSource, /Consultoría de negocios/);
-  assert.match(consultingAdminSource, /platformAdminApi\.getConsulting/);
-  assert.match(consultingAdminSource, /platformAdminApi\.updateConsultingAppointment/);
-  assert.match(consultingAdminSource, /platformAdminApi\.updateConsultingLocation/);
+  assert.match(consultingAdminSource, /operations = platformAdminApi/);
+  assert.match(consultingAdminSource, /operations\.getConsulting\(\)/);
+  assert.match(consultingAdminSource, /operations\.updateConsultingAppointment\(/);
+  assert.match(consultingAdminSource, /operations\.updateConsultingLocation/);
+  assert.match(platformAdminApiSource, /getConsulting: \(\) => apiClient<PlatformConsultingWorkspace>/);
+  assert.match(platformAdminApiSource, /updateConsultingAppointment: \(appointmentId: number, payload: PlatformConsultingAppointmentUpdate\)/);
+  assert.match(platformAdminApiSource, /updateConsultingLocation: \(locationId: number, payload:/);
   assert.match(consultingAdminSource, /mailto:/);
   assert.match(consultingAdminSource, /tel:/);
   assert.doesNotMatch(consultingTranslationsSource, /USD 89/);
