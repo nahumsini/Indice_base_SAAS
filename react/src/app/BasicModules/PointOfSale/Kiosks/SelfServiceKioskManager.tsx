@@ -350,17 +350,39 @@ function SelfServiceKioskFormModal({ editing, form, registers, saving, setForm, 
 
 function IssuedLinkPanel({ path }: { path: string }) {
   const { copy } = usePointOfSaleKioskTranslations();
-  const absoluteUrl = useMemo(() => new URL(path, window.location.origin).toString(), [path]);
+  const preticketUrl = useMemo(() => new URL(path, window.location.origin).toString(), [path]);
+  const selfCheckoutUrl = useMemo(() => {
+    const source = new URL(path, window.location.origin);
+    const pathParts = source.pathname.split('/').filter(Boolean);
+    const token = pathParts[pathParts.length - 1] ?? '';
+    return new URL(`/pos-self-checkout/${encodeURIComponent(token)}`, window.location.origin).toString();
+  }, [path]);
   const [qr, setQr] = useState('');
   useEffect(() => {
     let active = true;
-    void import('qrcode').then(({ default: QRCode }) => QRCode.toDataURL(absoluteUrl, { width: 220, margin: 2 })).then((value) => { if (active) setQr(value); });
+    void import('qrcode').then(({ default: QRCode }) => QRCode.toDataURL(selfCheckoutUrl, { width: 220, margin: 2 })).then((value) => { if (active) setQr(value); });
     return () => { active = false; };
-  }, [absoluteUrl]);
+  }, [selfCheckoutUrl]);
   return (
-    <div className="mt-4 flex flex-col gap-3 rounded-lg border border-teal-200 bg-teal-50 p-4 sm:flex-row sm:items-center dark:bg-teal-950/20">
-      {qr ? <img src={qr} alt={copy.selfServiceAdmin.qrAlt} className="h-24 w-24 rounded-md bg-white p-1" /> : <QrCode className="h-16 w-16 text-teal-700" />}
-      <div className="min-w-0 flex-1"><p className="text-xs font-medium text-teal-800">{copy.selfServiceAdmin.oneTimeLink}</p><p className="mt-1 truncate text-xs text-teal-700">{absoluteUrl}</p><div className="mt-3 flex gap-2"><button type="button" onClick={() => void navigator.clipboard.writeText(absoluteUrl)} className="inline-flex h-9 items-center gap-2 rounded-lg bg-white px-3 text-xs font-medium text-teal-800"><Copy className="h-4 w-4" />{copy.selfServiceAdmin.copy}</button><a href={absoluteUrl} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-2 rounded-lg bg-teal-700 px-3 text-xs font-medium text-white"><ExternalLink className="h-4 w-4" />{copy.selfServiceAdmin.open}</a></div></div>
+    <div className="mt-4 rounded-xl border border-teal-200 bg-teal-50 p-4 dark:bg-teal-950/20">
+      <p className="text-xs font-medium text-teal-800">{copy.selfServiceAdmin.oneTimeLink}</p>
+      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+        {qr ? <img src={qr} alt={copy.selfServiceAdmin.qrAlt} className="h-24 w-24 rounded-md bg-white p-1" /> : <QrCode className="h-16 w-16 text-teal-700" />}
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-teal-950 dark:text-teal-100">{copy.selfServiceAdmin.selfCheckoutLink}</p>
+          <p className="mt-1 text-xs text-teal-800 dark:text-teal-200">{copy.selfServiceAdmin.selfCheckoutLinkHelp}</p>
+          <p className="mt-2 truncate text-xs text-teal-700 dark:text-teal-300">{selfCheckoutUrl}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" onClick={() => void navigator.clipboard.writeText(selfCheckoutUrl)} className="inline-flex h-10 items-center gap-2 rounded-lg bg-white px-3 text-xs font-medium text-teal-800"><Copy className="h-4 w-4" />{copy.selfServiceAdmin.copy}</button>
+            <a href={selfCheckoutUrl} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center gap-2 rounded-lg bg-teal-700 px-3 text-xs font-medium text-white"><ExternalLink className="h-4 w-4" />{copy.selfServiceAdmin.open}</a>
+          </div>
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-teal-200 pt-3">
+        <p className="mr-auto text-xs font-medium text-teal-900 dark:text-teal-100">{copy.selfServiceAdmin.preticketLink}</p>
+        <button type="button" onClick={() => void navigator.clipboard.writeText(preticketUrl)} className="inline-flex h-9 items-center gap-2 rounded-lg bg-white px-3 text-xs font-medium text-teal-800"><Copy className="h-4 w-4" />{copy.selfServiceAdmin.copy}</button>
+        <a href={preticketUrl} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-2 rounded-lg border border-teal-300 px-3 text-xs font-medium text-teal-800 dark:text-teal-100"><ExternalLink className="h-4 w-4" />{copy.selfServiceAdmin.open}</a>
+      </div>
     </div>
   );
 }

@@ -1,14 +1,24 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Building2, Clock3, LogOut, Monitor, Package, ReceiptText, RotateCcw, Store, TrendingUp, User, UserRound } from 'lucide-react';
+import {
+  ChevronDown,
+  Clock3,
+  ClipboardList,
+  LogOut,
+  Monitor,
+  MoreHorizontal,
+  ReceiptText,
+  RotateCcw,
+  TrendingUp,
+} from 'lucide-react';
 import type { Shift } from '../types/shift.types';
 
 interface ShiftBarProps {
   shift: Shift | null;
   onOpenCashMovement: () => void;
+  onOpenShiftSummary: () => void;
   onCloseShift: () => void;
   onOpenReturn?: () => void;
   onToggleFullscreen?: () => void;
-  onOpenCustomerDisplay?: () => void;
   fiscalSummary?: string;
   fiscalDetail?: string;
   onOpenFiscalSettings?: () => void;
@@ -17,242 +27,139 @@ interface ShiftBarProps {
 export function ShiftBar({
   shift,
   onOpenCashMovement,
+  onOpenShiftSummary,
   onCloseShift,
   onOpenReturn,
   onToggleFullscreen,
-  onOpenCustomerDisplay,
   fiscalSummary,
   fiscalDetail,
   onOpenFiscalSettings,
 }: ShiftBarProps) {
   const [elapsed, setElapsed] = useState('');
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   useEffect(() => {
     if (!shift) return;
-
     const updateElapsed = () => {
-      const now = new Date().getTime();
-      const diff = now - shift.startTime.getTime();
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const diff = Date.now() - shift.startTime.getTime();
+      const hours = Math.floor(diff / 3_600_000);
+      const minutes = Math.floor((diff % 3_600_000) / 60_000);
       setElapsed(`${hours}h ${minutes}m`);
     };
-
     updateElapsed();
-    const interval = setInterval(updateElapsed, 60000); // Update every minute
-
+    const interval = setInterval(updateElapsed, 60_000);
     return () => clearInterval(interval);
   }, [shift]);
 
   if (!shift) return null;
 
+  const warehouseName = shift.warehouseName?.trim() || shift.cashRegisterName || 'Almacén no asignado';
   const shiftStartedAt = new Intl.DateTimeFormat('es-MX', {
     hour: 'numeric',
     minute: '2-digit',
   }).format(shift.startTime);
-  const warehouseName = shift.warehouseName?.trim() || shift.cashRegisterName || 'Almacén no asignado';
 
   return (
-    <div className="rounded-lg border border-[#222831] bg-[#222831] p-2 text-gray-950 shadow-sm dark:border-gray-700 dark:bg-[#111827] dark:text-white">
-      <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(620px,840px)] xl:items-stretch">
-        <div className="min-w-0 rounded-lg border border-white/10 bg-white p-2 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-          <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 px-1">
-            <div>
-              <p className="text-[11px] font-medium tracking-normal text-[#FF6B5E] dark:text-[#FF8A80]">Turno operativo</p>
-              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                Caja {shift.cashRegisterCode}
-              </p>
-            </div>
-            <span className="rounded-full bg-[#F4C84A]/20 px-3 py-1 text-[11px] font-medium text-[#222831] dark:bg-[#F4C84A]/15 dark:text-[#F4C84A]">
-              {shift.cashRegisterName}
+    <header className="relative z-20 rounded-lg border border-[#222831] bg-[#222831] px-3 py-2 text-white shadow-sm">
+      <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+        <button
+          type="button"
+          className="min-w-0 rounded-lg px-1 py-1 text-left transition hover:bg-white/5"
+          title={`${shift.businessUnitName} · ${shift.businessName} · ${warehouseName} · ${shift.cashierName}`}
+        >
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="text-sm font-medium">Caja {shift.cashRegisterCode}</span>
+            <span className="rounded-full bg-[#F4C84A]/20 px-2 py-0.5 text-xs font-medium text-[#F4C84A]">{shift.cashRegisterName}</span>
+            <span className="text-xs font-normal text-gray-300">{shift.businessUnitName}</span>
+            <span className="text-gray-500">·</span>
+            <span className="text-xs font-normal text-gray-300">{shift.businessName}</span>
+            <span className="text-gray-500">·</span>
+            <span className="text-xs font-normal text-gray-300">{warehouseName}</span>
+          </span>
+          <span className="mt-1 flex flex-wrap items-center gap-2 text-xs font-normal text-gray-400">
+            <span>{shift.cashierName}</span>
+            <span>·</span>
+            <span className="inline-flex items-center gap-1">
+              <Clock3 className="h-3.5 w-3.5" /> Inicio {shiftStartedAt} · {elapsed}
             </span>
-          </div>
+            <span>·</span>
+            <span>
+              {fiscalSummary ?? 'Fiscal'}
+              {fiscalDetail ? ` · ${fiscalDetail}` : ''}
+            </span>
+          </span>
+        </button>
 
-          <div className="grid min-w-0 gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
-            <ShiftPill icon={<Building2 className="h-4 w-4" />} label="Unidad" value={shift.businessUnitName} tone="blue" />
-            <ShiftPill icon={<Store className="h-4 w-4" />} label="Negocio" value={shift.businessName} tone="aqua" />
-            <ShiftPill icon={<Package className="h-4 w-4" />} label="Almacén" value={warehouseName} tone="yellow" />
-            <ShiftPill icon={<UserRound className="h-4 w-4" />} label="Responsable" value={shift.cashierName} tone="coral" />
-            <ShiftPill
-              icon={<Clock3 className="h-4 w-4" />}
-              label="Turno"
-              value={`Inició ${shiftStartedAt}`}
-              detail={`Abierta · ${elapsed}`}
-              tone="success"
-            />
-          </div>
-        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {onOpenReturn ? <CompactAction icon={<RotateCcw />} label="Devolución" onClick={onOpenReturn} /> : null}
+          <CompactAction icon={<TrendingUp />} label="Movimientos" onClick={onOpenCashMovement} />
+          <CompactAction icon={<ClipboardList />} label="Resumen" onClick={onOpenShiftSummary} />
+          {onToggleFullscreen ? <CompactAction icon={<Monitor />} label="Pantalla" onClick={onToggleFullscreen} /> : null}
 
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          {onOpenFiscalSettings && (
+          <div className="relative">
             <button
               type="button"
-              onClick={onOpenFiscalSettings}
-              className="group flex min-h-[88px] flex-col items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white px-2.5 py-3 text-center shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#F4C84A]/50 hover:bg-[#F4C84A]/10 hover:shadow-md active:translate-y-0 active:scale-[0.98] dark:border-gray-800 dark:bg-gray-900 dark:hover:border-[#F4C84A]/40 dark:hover:bg-[#F4C84A]/10"
-              aria-label="Configurar divisa e impuestos"
+              onClick={() => setIsMoreOpen((current) => !current)}
+              aria-expanded={isMoreOpen}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-3 text-sm font-medium text-white transition hover:bg-white/20"
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#F4C84A]/20 transition-all duration-200 group-hover:rotate-6 group-hover:scale-110 dark:bg-[#F4C84A]/15" aria-hidden="true">
-                <ReceiptText className="h-4 w-4" />
-              </span>
-              <span className="flex min-w-0 flex-col items-center gap-1">
-                <span className="block text-[10px] font-medium tracking-normal text-gray-500 dark:text-gray-400">Divisa / Impuestos</span>
-                <span className="max-w-full truncate text-sm font-medium text-gray-950 dark:text-white">
-                  {fiscalSummary ?? 'Fiscal'}
-                </span>
-                {fiscalDetail && (
-                  <span className="max-w-full rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium leading-none text-gray-500 dark:bg-gray-800 dark:text-gray-300">
-                    {fiscalDetail}
-                  </span>
-                )}
-              </span>
+              <MoreHorizontal className="h-4 w-4" /> Más <ChevronDown className="h-3.5 w-3.5" />
             </button>
-          )}
+            {isMoreOpen ? (
+              <div className="absolute right-0 top-12 z-40 w-56 rounded-lg border border-gray-200 bg-white p-1.5 text-gray-800 shadow-xl dark:border-gray-700 dark:bg-gray-900 dark:text-white">
+                {onOpenFiscalSettings ? (
+                  <MenuAction
+                    icon={<ReceiptText />}
+                    label="Divisa e impuestos"
+                    onClick={() => {
+                      setIsMoreOpen(false);
+                      onOpenFiscalSettings();
+                    }}
+                  />
+                ) : null}
+              </div>
+            ) : null}
+          </div>
 
-          {onOpenReturn && (
-            <ActionButton
-              icon={<RotateCcw className="h-4 w-4" />}
-              label="Devolución"
-              title="Procesar devolución"
-              onClick={onOpenReturn}
-              tone="blue"
-            />
-          )}
-
-          <ActionButton
-            icon={<TrendingUp className="h-4 w-4" />}
-            label="Movimientos"
-            title="Entradas/Salidas de efectivo"
-            onClick={onOpenCashMovement}
-            tone="aqua"
-          />
-
-          {onToggleFullscreen && (
-            <ActionButton
-              icon={<Monitor className="h-4 w-4" />}
-              label="Pantalla"
-              title="Modo pantalla completa"
-              onClick={onToggleFullscreen}
-              tone="graphite"
-            />
-          )}
-
-          {onOpenCustomerDisplay && (
-            <ActionButton
-              icon={<User className="h-4 w-4" />}
-              label="Espejo"
-              title="Pantalla espejo del cliente"
-              onClick={onOpenCustomerDisplay}
-              tone="aqua"
-            />
-          )}
-
-          <ActionButton
-            icon={<LogOut className="h-4 w-4" />}
-            label="Cerrar turno"
-            title="Cerrar turno"
+          <button
+            type="button"
             onClick={onCloseShift}
-            variant="danger"
-          />
+            className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#EF4444] px-3 text-sm font-medium text-white transition hover:bg-red-600"
+          >
+            <LogOut className="h-4 w-4" /> Cerrar turno
+          </button>
         </div>
       </div>
-    </div>
+    </header>
   );
 }
 
-function ShiftPill({
-  icon,
-  label,
-  value,
-  detail,
-  tone = 'default',
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-  detail?: string;
-  tone?: 'default' | 'blue' | 'aqua' | 'yellow' | 'coral' | 'success' | 'money';
-}) {
-  const toneClassName = {
-    default: 'bg-white text-gray-950 dark:bg-gray-900 dark:text-white',
-    blue: 'bg-blue-50 text-gray-950 dark:bg-blue-500/10 dark:text-blue-50',
-    aqua: 'bg-[#59C3A5]/10 text-gray-950 dark:bg-[#59C3A5]/10 dark:text-[#D8FFF4]',
-    yellow: 'bg-[#F4C84A]/20 text-gray-950 dark:bg-[#F4C84A]/10 dark:text-[#FFF2BF]',
-    coral: 'bg-[#FF6B5E]/10 text-gray-950 dark:bg-[#FF6B5E]/10 dark:text-[#FFE5E2]',
-    success: 'bg-emerald-50 text-emerald-950 dark:bg-emerald-500/10 dark:text-emerald-100',
-    money: 'bg-amber-50 text-amber-950 dark:bg-amber-500/10 dark:text-amber-100',
-  }[tone];
-
-  const iconClassName = {
-    default: 'bg-gray-50 dark:bg-gray-800',
-    blue: 'bg-blue-100 dark:bg-blue-500/15',
-    aqua: 'bg-[#59C3A5]/20 dark:bg-[#59C3A5]/15',
-    yellow: 'bg-[#F4C84A]/25 dark:bg-[#F4C84A]/15',
-    coral: 'bg-[#FF6B5E]/20 dark:bg-[#FF6B5E]/15',
-    success: 'bg-emerald-100 dark:bg-emerald-500/15',
-    money: 'bg-amber-100 dark:bg-amber-500/15',
-  }[tone];
-
-  return (
-    <div className={`flex min-h-[66px] min-w-0 items-center gap-2 rounded-lg border border-black/5 px-2.5 py-2 shadow-sm dark:border-white/10 ${toneClassName}`}>
-      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconClassName}`} aria-hidden="true">
-        {icon}
-      </span>
-      <div className="min-w-0 flex-1 text-center">
-        <p className="text-[10px] font-medium tracking-normal text-gray-500 dark:text-gray-400">{label}</p>
-        <p className="mt-0.5 break-words text-[13px] font-medium leading-snug text-gray-950 dark:text-white" title={value}>{value}</p>
-        {detail && (
-          <p className="break-words text-[11px] font-medium leading-snug text-gray-500 dark:text-gray-300" title={detail}>{detail}</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ActionButton({
-  icon,
-  label,
-  title,
-  onClick,
-  variant = 'default',
-  tone = 'default',
-}: {
-  icon: ReactNode;
-  label: string;
-  title: string;
-  onClick: () => void;
-  variant?: 'default' | 'danger';
-  tone?: 'default' | 'blue' | 'aqua' | 'graphite';
-}) {
-  const className = variant === 'danger'
-    ? 'border-[#EF4444] bg-[#EF4444] text-white hover:bg-red-600 dark:border-[#EF4444] dark:bg-[#EF4444] dark:hover:bg-red-600'
-    : {
-      default: 'border-white/10 bg-white text-gray-800 hover:border-[#FF6B5E]/40 hover:bg-[#FF6B5E]/10 hover:text-[#222831] dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100 dark:hover:border-[#FF6B5E]/30 dark:hover:bg-[#FF6B5E]/10 dark:hover:text-orange-100',
-      blue: 'border-white/10 bg-white text-gray-800 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100 dark:hover:border-blue-500/30 dark:hover:bg-blue-500/10 dark:hover:text-blue-100',
-      aqua: 'border-white/10 bg-white text-gray-800 hover:border-[#59C3A5]/50 hover:bg-[#59C3A5]/10 hover:text-[#146B58] dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100 dark:hover:border-[#59C3A5]/35 dark:hover:bg-[#59C3A5]/10 dark:hover:text-[#D8FFF4]',
-      graphite: 'border-white/10 bg-white text-gray-800 hover:border-[#222831]/30 hover:bg-[#222831]/10 hover:text-[#222831] dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100 dark:hover:border-gray-500 dark:hover:bg-gray-800',
-    }[tone];
-  const iconClassName = variant === 'danger'
-    ? 'bg-white/15 group-hover:bg-white/25'
-    : {
-      default: 'bg-[#FF6B5E]/10 group-hover:bg-[#FF6B5E]/20 dark:bg-gray-800 dark:group-hover:bg-[#FF6B5E]/15',
-      blue: 'bg-blue-50 group-hover:bg-blue-100 dark:bg-gray-800 dark:group-hover:bg-blue-500/15',
-      aqua: 'bg-[#59C3A5]/10 group-hover:bg-[#59C3A5]/20 dark:bg-gray-800 dark:group-hover:bg-[#59C3A5]/15',
-      graphite: 'bg-[#222831]/8 group-hover:bg-[#222831]/15 dark:bg-gray-800 dark:group-hover:bg-gray-700',
-    }[tone];
-
+function CompactAction({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      aria-label={title}
-      className={`group relative flex min-h-[88px] flex-col items-center justify-center gap-1.5 overflow-hidden rounded-lg border px-2.5 py-3 text-center text-sm font-medium shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:scale-[0.98] ${className}`}
+      className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/15 bg-white px-3 text-sm font-medium text-[#222831] transition hover:bg-gray-100"
     >
-      {variant === 'danger' && (
-        <span className="absolute inset-0 animate-pulse bg-white/0 transition-colors group-hover:bg-white/5" aria-hidden="true" />
-      )}
-      <span className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-all duration-200 group-hover:scale-110 ${iconClassName}`} aria-hidden="true">
+      <span className="[&_svg]:h-4 [&_svg]:w-4" aria-hidden="true">
         {icon}
       </span>
-      <span className="relative max-w-full whitespace-normal break-words leading-tight">{label}</span>
+      {label}
+    </button>
+  );
+}
+
+function MenuAction({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex min-h-10 w-full items-center gap-2 rounded-md px-3 text-left text-sm font-medium transition hover:bg-gray-100 dark:hover:bg-gray-800"
+    >
+      <span className="[&_svg]:h-4 [&_svg]:w-4" aria-hidden="true">
+        {icon}
+      </span>
+      {label}
     </button>
   );
 }

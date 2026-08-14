@@ -9,12 +9,7 @@ import {
   type PosShiftResponse,
 } from '../services/posBackendApi';
 import type { CashMovement, Shift } from '../types/shift.types';
-import {
-  buildShiftFromBackend,
-  getPosRequestErrorMessage,
-  toBackendId,
-  toShiftId,
-} from '../utils/posShiftMappers';
+import { buildShiftFromBackend, getPosRequestErrorMessage, toBackendId, toShiftId } from '../utils/posShiftMappers';
 
 interface UseSaleShiftOptions {
   pushActivity: (activity: Omit<OperationalActivity, 'id' | 'timestamp'>) => void;
@@ -46,10 +41,7 @@ const movementTone: Record<PosCashMovementType, OperationalActivity['tone']> = {
   CORRECTION: 'info',
 };
 
-const mapCashMovement = (
-  movement: PosCashMovementResponse,
-  cashierName: string,
-): CashMovement => ({
+const mapCashMovement = (movement: PosCashMovementResponse, cashierName: string): CashMovement => ({
   id: String(movement.id),
   shiftId: String(movement.shiftId),
   type: movement.movementType,
@@ -148,7 +140,9 @@ export function useSaleShift({
       return;
     }
 
-    const openingCurrency = String(selectedCurrencyCode || currency).trim().toUpperCase();
+    const openingCurrency = String(selectedCurrencyCode || currency)
+      .trim()
+      .toUpperCase();
     if (!/^[A-Z]{3}$/.test(openingCurrency)) {
       setShiftError('Selecciona una divisa valida para abrir caja.');
       return;
@@ -185,7 +179,7 @@ export function useSaleShift({
     }
   };
 
-  const openCloseShiftModal = async () => {
+  const loadClosingSummary = useCallback(async () => {
     if (!currentShift) {
       return;
     }
@@ -196,7 +190,6 @@ export function useSaleShift({
       return;
     }
 
-    setShowCloseShiftModal(true);
     setClosingSummary(null);
     setClosingSummaryError('');
     setIsLoadingClosingSummary(true);
@@ -209,6 +202,15 @@ export function useSaleShift({
     } finally {
       setIsLoadingClosingSummary(false);
     }
+  }, [currentShift]);
+
+  const openCloseShiftModal = async () => {
+    if (!currentShift) {
+      return;
+    }
+
+    setShowCloseShiftModal(true);
+    await loadClosingSummary();
   };
 
   const closeCloseShiftModal = () => {
@@ -251,9 +253,10 @@ export function useSaleShift({
         countedCashAmount: closing.countedCash,
         closingNote: closing.notes,
       });
-      const difference = toNumber(closedBackendShift.overShortAmount)
-        || (closing.countedCash - toNumber(closingSummary.expectedCashAmount));
-      setShiftNotice(`Caja cerrada. Tickets: ${closingSummary.ticketsCount} · Total: ${formatCurrency(toNumber(closingSummary.totalSalesAmount))} · Diferencia: ${formatCurrency(difference)}.`);
+      const difference = toNumber(closedBackendShift.overShortAmount) || closing.countedCash - toNumber(closingSummary.expectedCashAmount);
+      setShiftNotice(
+        `Caja cerrada. Tickets: ${closingSummary.ticketsCount} · Total: ${formatCurrency(toNumber(closingSummary.totalSalesAmount))} · Diferencia: ${formatCurrency(difference)}.`,
+      );
 
       setCurrentShift(null);
       setShowCloseShiftModal(false);
@@ -272,12 +275,7 @@ export function useSaleShift({
     }
   };
 
-  const handleCashMovement = async (
-    type: PosCashMovementType,
-    amount: number,
-    reason: string,
-    reference?: string,
-  ) => {
+  const handleCashMovement = async (type: PosCashMovementType, amount: number, reason: string, reference?: string) => {
     if (!currentShift) {
       return;
     }
@@ -379,6 +377,7 @@ export function useSaleShift({
     isOpeningShift,
     isClosingShift,
     isLoadingClosingSummary,
+    loadClosingSummary,
     isCreatingCashMovement,
     handleOpenShift,
     handleCloseShift,

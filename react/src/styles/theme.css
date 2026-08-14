@@ -276,6 +276,17 @@
     display: none;  /* Chrome, Safari y Opera */
   }
 
+  [data-pos-fullscreen-root][data-pos-terminal-mode] {
+    width: 100%;
+    height: var(--pos-terminal-height, 720px);
+    max-height: var(--pos-terminal-height, 720px);
+    display: flex;
+    justify-content: center;
+    overflow: hidden;
+    background: var(--indice-background);
+    padding: clamp(10px, 1vw, 16px);
+  }
+
   [data-pos-fullscreen-root]:fullscreen {
     width: 100vw;
     height: 100vh;
@@ -288,7 +299,7 @@
     padding: clamp(10px, 1.2vw, 22px);
   }
 
-  [data-pos-fullscreen-root]:fullscreen [data-pos-terminal-shell] {
+  [data-pos-terminal-mode] [data-pos-terminal-shell] {
     width: min(100%, 1780px);
     height: 100%;
     min-height: 0;
@@ -296,67 +307,239 @@
     flex-direction: column;
   }
 
+  [data-pos-fixed-footer] {
+    display: none;
+  }
+
+  [data-pos-terminal-mode] [data-pos-fixed-header],
+  [data-pos-terminal-mode] [data-pos-fixed-footer] {
+    flex: 0 0 auto;
+  }
+
+  [data-pos-terminal-mode] [data-pos-fixed-header] > header {
+    min-height: 78px;
+    padding: 8px 16px;
+  }
+
+  [data-pos-terminal-mode] [data-pos-fixed-header] button {
+    min-height: 62px;
+    font-size: 16px;
+  }
+
+  [data-pos-terminal-mode] [data-pos-fixed-header] button svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  [data-pos-terminal-mode] [data-pos-workspace-body] {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  [data-pos-terminal-mode] [data-pos-secondary-status],
+  [data-pos-terminal-mode] [data-pos-pre-tickets] {
+    display: none;
+  }
+
+  [data-pos-terminal-mode] [data-pos-products-column] {
+    gap: 0;
+    border: 1px solid rgb(34 40 49 / 10%);
+    border-radius: 12px;
+    background: white;
+  }
+
+  [data-pos-terminal-mode] [data-pos-products-column][data-workspace-hidden="true"] {
+    display: none;
+  }
+
+  [data-pos-terminal-mode] [data-pos-quick-products] {
+    display: none;
+  }
+
+  [data-pos-terminal-mode] [data-pos-products-column][data-workspace-active="true"] [data-pos-quick-products] {
+    display: block;
+    height: 100%;
+  }
+
+  [data-pos-terminal-mode] [data-pos-products-column][data-workspace-active="true"] [data-pos-inline-product-search] {
+    display: block;
+  }
+
+  [data-pos-terminal-mode] [data-pos-products-column][data-workspace-active="true"] [data-pos-quick-products] > div {
+    min-height: 0;
+    height: 100%;
+    border: 0;
+    border-radius: 10px;
+  }
+
+  [data-pos-terminal-mode] [data-pos-products-column][data-workspace-active="true"] [data-pos-quick-products] button[class*="min-h-[188px]"] {
+    min-height: 142px;
+    padding: 10px;
+  }
+
+  [data-pos-terminal-mode] [data-pos-ticket-header] {
+    min-height: 54px;
+    padding: 7px 12px;
+  }
+
+  [data-pos-terminal-mode] [data-pos-ticket-header] > div > span {
+    width: 38px;
+    height: 38px;
+  }
+
+  [data-pos-terminal-mode] [data-pos-ticket-header] h2 {
+    font-size: 18px;
+  }
+
+  [data-pos-terminal-mode] [data-pos-ticket-scanner] {
+    padding: 8px 12px;
+  }
+
+  [data-pos-terminal-mode] [data-pos-ticket-scanner] input {
+    min-height: 48px;
+    font-size: 16px;
+  }
+
+  [data-pos-terminal-mode] [data-pos-ticket-local-footer] {
+    display: none;
+  }
+
+  [data-pos-terminal-mode] [data-pos-ticket-item] {
+    min-height: 68px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    box-shadow: none;
+  }
+
+  [data-pos-terminal-mode] [data-pos-ticket-item-layout] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(210px, auto);
+    align-items: center;
+    gap: 8px;
+  }
+
+  [data-pos-terminal-mode] [data-pos-ticket-item-actions] {
+    min-width: 210px;
+    padding: 2px;
+    background: transparent;
+  }
+
+  [data-pos-terminal-mode] [data-pos-ticket-quantity] {
+    display: none;
+  }
+
+  [data-pos-terminal-mode] [data-pos-ticket-items] {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  [data-pos-terminal-mode] [data-pos-ticket-item-summary] {
+    min-width: 0;
+    align-items: center;
+  }
+
+  [data-pos-terminal-mode] [data-pos-ticket-item-actions] button,
+  [data-pos-terminal-mode] [data-pos-ticket-item-actions] span {
+    border-radius: 8px;
+  }
+
+  [data-pos-terminal-mode] [data-pos-fixed-footer] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto minmax(0, 1fr);
+    align-items: center;
+    gap: 16px;
+    min-height: 112px;
+    margin-top: 8px;
+    border: 1px solid rgb(34 40 49 / 18%);
+    border-radius: 8px;
+    background: #222831;
+    padding: 16px 20px;
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
   [data-pos-fullscreen-root]:fullscreen::backdrop {
     background: var(--indice-background);
   }
 
-  [data-pos-fullscreen-root]:fullscreen [data-pos-workspace-grid] {
+  [data-pos-terminal-mode] [data-pos-workspace-grid] {
     flex: 1 1 auto;
+    width: 100%;
     min-height: 0;
     height: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
     grid-auto-rows: minmax(0, 1fr);
   }
 
   @media (max-width: 1799px) {
-    [data-pos-fullscreen-root]:fullscreen [data-pos-workspace-grid] {
-      grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
-      grid-template-rows: minmax(0, 1fr) minmax(260px, auto);
+    [data-pos-terminal-mode] [data-pos-workspace-grid] {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      grid-template-rows: minmax(0, 1fr);
     }
 
-    [data-pos-fullscreen-root]:fullscreen [data-pos-products-column] {
+    [data-pos-terminal-mode] [data-pos-products-column] {
       grid-column: 1;
-      grid-row: 1 / span 2;
+      grid-row: 1;
     }
 
-    [data-pos-fullscreen-root]:fullscreen [data-pos-ticket-column] {
+    [data-pos-terminal-mode] [data-pos-ticket-column] {
       grid-column: 2;
       grid-row: 1;
     }
 
-    [data-pos-fullscreen-root]:fullscreen [data-pos-payment-column] {
-      grid-column: 2;
-      grid-row: 2;
+    [data-pos-terminal-mode] [data-pos-payment-column] {
+      display: none;
+    }
+
+    [data-pos-terminal-mode] [data-pos-payment-column][data-workspace-active="true"] {
+      display: block;
+      grid-column: 1;
+      grid-row: 1;
     }
   }
 
   @media (min-width: 1800px) {
-    [data-pos-fullscreen-root]:fullscreen [data-pos-workspace-grid] {
-      grid-template-columns: minmax(560px, 1fr) minmax(420px, 520px) minmax(320px, 380px);
+    [data-pos-terminal-mode] [data-pos-workspace-grid] {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
       grid-template-rows: minmax(0, 1fr);
     }
 
-    [data-pos-fullscreen-root]:fullscreen [data-pos-products-column] {
+    [data-pos-terminal-mode] [data-pos-products-column] {
       grid-column: 1;
       grid-row: 1;
     }
 
-    [data-pos-fullscreen-root]:fullscreen [data-pos-ticket-column] {
+    [data-pos-terminal-mode] [data-pos-ticket-column] {
       grid-column: 2;
       grid-row: 1;
     }
 
-    [data-pos-fullscreen-root]:fullscreen [data-pos-payment-column] {
-      grid-column: 3;
+    [data-pos-terminal-mode] [data-pos-payment-column] {
+      display: none;
+    }
+
+    [data-pos-terminal-mode] [data-pos-payment-column][data-workspace-active="true"] {
+      display: block;
+      grid-column: 1;
       grid-row: 1;
     }
   }
 
   @media (min-width: 2200px) {
-    [data-pos-fullscreen-root]:fullscreen [data-pos-terminal-shell] {
+    [data-pos-terminal-mode] [data-pos-terminal-shell] {
       width: min(100%, 1860px);
     }
   }
 
+  .dark [data-pos-fullscreen-root][data-pos-terminal-mode],
   .dark [data-pos-fullscreen-root]:fullscreen {
     background: #111827;
   }

@@ -65,5 +65,7 @@ export interface Payment {
   method: PaymentMethod;
   amount: number;
   reference?: string;
+  cashReceived?: number;
+  change?: number;
   creditDetails?: CreditPaymentDetails;
 }

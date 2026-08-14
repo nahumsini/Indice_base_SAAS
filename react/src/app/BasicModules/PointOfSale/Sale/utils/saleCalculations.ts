@@ -113,7 +113,8 @@ export function calculateSaleTotals(cart: SaleItem[], payments: Payment[]): Sale
   const total = subtotal + tax;
   const paid = payments.reduce((sum, payment) => sum + payment.amount, 0);
   const remaining = total - paid;
-  const change = paid > total ? paid - total : 0;
+  const recordedCashChange = payments.reduce((sum, payment) => sum + (payment.change ?? 0), 0);
+  const change = recordedCashChange > 0 ? recordedCashChange : paid > total ? paid - total : 0;
   const isPaid = paid >= total;
 
   return {

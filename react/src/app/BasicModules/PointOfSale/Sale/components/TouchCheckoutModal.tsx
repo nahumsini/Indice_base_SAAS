@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertCircle, Banknote, Check, CreditCard, Landmark, Plus, ReceiptText, Wallet, X } from 'lucide-react';
 import type { Payment, PaymentMethod } from '../types/sale.types';
 import type { SaleTotals } from '../utils/saleCalculations';
@@ -60,7 +61,7 @@ export function TouchCheckoutModal({
 
   const hasCart = cartItemCount > 0;
 
-  return (
+  return createPortal((
     <PosModalFrame
       modalType="operational-workspace"
       closeLabel="Cerrar cobro"
@@ -223,7 +224,7 @@ export function TouchCheckoutModal({
         </aside>
       </div>
     </PosModalFrame>
-  );
+  ), document.body);
 }
 
 function AmountTile({

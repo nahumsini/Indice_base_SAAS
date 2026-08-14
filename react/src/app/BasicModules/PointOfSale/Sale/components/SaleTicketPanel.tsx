@@ -44,7 +44,7 @@ export function SaleTicketPanel({
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-[#222831]/10 bg-white dark:border-gray-700 dark:bg-gray-800">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#222831]/10 bg-[#222831] px-5 py-3 text-white dark:border-gray-700 dark:bg-[#111827]">
+      <div data-pos-ticket-header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#222831]/10 bg-[#222831] px-5 py-3 text-white dark:border-gray-700 dark:bg-[#111827]">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#FF6B5E]/20 text-[#FFB0AA] dark:bg-[#FF6B5E]/15" aria-hidden="true">
             <ShoppingCart className="h-5 w-5" />
@@ -68,7 +68,7 @@ export function SaleTicketPanel({
         </button>
       </div>
 
-      <div className="border-b border-gray-200 bg-[#F7F8FA] px-5 py-3 dark:border-gray-700 dark:bg-gray-900/50">
+      <div data-pos-ticket-scanner className="border-b border-gray-200 bg-[#F7F8FA] px-5 py-3 dark:border-gray-700 dark:bg-gray-900/50">
         <form onSubmit={onBarcodeSubmit} className="relative">
           <div className="absolute left-4 top-1/2 -translate-y-1/2">
             <Barcode className="h-5 w-5 text-[#B63B32] dark:text-[#FFB0AA]" />
@@ -97,7 +97,7 @@ export function SaleTicketPanel({
             <p className="mt-1 text-sm">El ticket se arma aqui con cantidades, descuentos y stock visible.</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div data-pos-ticket-items className="space-y-2">
             {cart.map((item) => {
               const product = products.find((candidate) => candidate.id === item.productId);
               const { hasLowStock, isOutOfStock } = getProductStockState(product);
@@ -105,16 +105,17 @@ export function SaleTicketPanel({
               return (
                 <div
                   key={item.id}
-                  className={`group rounded-xl border p-3 transition ${
+                  data-pos-ticket-item
+                  className={`group rounded-xl border p-2.5 transition ${
                     lastAddedItem === item.id
                       ? 'border-[#FF6B5E] bg-[#FF6B5E]/10 ring-2 ring-[#FF6B5E]/15 dark:bg-[#FF6B5E]/10 dark:ring-[#FF6B5E]/25'
                       : 'border-gray-200 bg-white hover:bg-[#59C3A5]/10 dark:border-gray-700 dark:bg-gray-900/30 dark:hover:bg-[#59C3A5]/10'
                   }`}
                 >
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-lg bg-[#F4C84A]/25 text-[#222831] dark:bg-[#F4C84A]/15 dark:text-[#F4C84A]">
-                        <span className="text-xl font-medium leading-none">{item.quantity}</span>
+                  <div data-pos-ticket-item-layout className="flex flex-col gap-2 md:flex-row md:items-center">
+                    <div data-pos-ticket-item-summary className="flex min-w-0 flex-1 items-center gap-2.5">
+                      <div data-pos-ticket-quantity className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-lg bg-[#F4C84A]/25 text-[#222831] dark:bg-[#F4C84A]/15 dark:text-[#F4C84A]">
+                        <span className="text-lg font-medium leading-none">{item.quantity}</span>
                         <span className="text-[10px] font-medium leading-none">uds</span>
                       </div>
 
@@ -127,7 +128,7 @@ export function SaleTicketPanel({
                         }}
                       >
                         <div className="flex min-w-0 flex-wrap items-center gap-2">
-                          <p className="min-w-0 flex-1 truncate text-base font-medium text-gray-900 dark:text-white">
+                          <p className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900 dark:text-white">
                             {item.name}
                           </p>
                           {isOutOfStock && (
@@ -163,34 +164,34 @@ export function SaleTicketPanel({
                         )}
                       </div>
 
-                      <div className="shrink-0 text-right">
+                      <div className="w-20 shrink-0 text-right">
                         {item.discount > 0 && (
                           <p className="text-xs text-gray-400 line-through dark:text-gray-500">
                             {formatCurrency(item.price * item.quantity)}
                           </p>
                         )}
-                        <p className="text-xl font-medium text-gray-950 dark:text-white">
+                        <p className="text-lg font-medium text-gray-950 dark:text-white">
                           {formatCurrency(item.subtotal)}
                         </p>
                         <p className="text-[10px] font-medium text-gray-400 dark:text-gray-500">subtotal</p>
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#F7F8FA] p-2 dark:bg-gray-950/30">
+                    <div data-pos-ticket-item-actions className="flex shrink-0 items-center justify-end gap-1 rounded-lg bg-[#F7F8FA] p-1 dark:bg-gray-950/30">
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
-                          className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 transition hover:border-[#FF6B5E]/40 hover:bg-[#FF6B5E]/10 active:scale-95 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                          className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 transition hover:border-[#FF6B5E]/40 hover:bg-[#FF6B5E]/10 active:scale-95 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                           aria-label={`Restar ${item.name}`}
                         >
                           <Minus className="h-4 w-4" />
                         </button>
-                        <span className="min-w-11 rounded-xl bg-white px-3 py-2.5 text-center text-sm font-medium text-[#222831] ring-1 ring-gray-200 dark:bg-gray-800 dark:text-white dark:ring-gray-700">
+                        <span className="flex h-10 min-w-10 items-center justify-center rounded-lg bg-white px-2 text-center text-sm font-medium text-[#222831] ring-1 ring-gray-200 dark:bg-gray-800 dark:text-white dark:ring-gray-700">
                           {item.quantity}
                         </span>
                         <button
                           onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                          className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 transition hover:border-[#FF6B5E]/40 hover:bg-[#FF6B5E]/10 active:scale-95 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                          className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 transition hover:border-[#FF6B5E]/40 hover:bg-[#FF6B5E]/10 active:scale-95 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                           aria-label={`Sumar ${item.name}`}
                         >
                           <Plus className="h-4 w-4" />
@@ -200,7 +201,7 @@ export function SaleTicketPanel({
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => onOpenItemDiscount(item)}
-                          className="flex h-11 min-w-11 items-center justify-center rounded-xl border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 px-3 text-sm font-medium text-[#B63B32] transition hover:bg-[#FF6B5E]/20 active:scale-95 dark:text-[#FFB0AA]"
+                          className="flex h-10 min-w-10 items-center justify-center rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 px-2.5 text-sm font-medium text-[#B63B32] transition hover:bg-[#FF6B5E]/20 active:scale-95 dark:text-[#FFB0AA]"
                           title="Aplicar descuento"
                           aria-label={`Aplicar descuento a ${item.name}`}
                         >
@@ -208,7 +209,7 @@ export function SaleTicketPanel({
                         </button>
                         <button
                           onClick={() => onRemoveItem(item.id)}
-                          className="flex h-11 min-w-11 items-center justify-center rounded-xl bg-red-50 px-3 text-sm font-medium text-red-600 transition hover:bg-red-100 active:scale-95 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
+                          className="flex h-10 min-w-10 items-center justify-center rounded-lg bg-red-50 px-2.5 text-sm font-medium text-red-600 transition hover:bg-red-100 active:scale-95 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
                           aria-label={`Quitar ${item.name}`}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -223,7 +224,7 @@ export function SaleTicketPanel({
         )}
       </div>
 
-      <div className="border-t border-gray-200 bg-[#222831] px-5 py-3 text-white dark:border-gray-700">
+      <div data-pos-ticket-local-footer className="border-t border-gray-200 bg-[#222831] px-5 py-3 text-white dark:border-gray-700">
         <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-sm font-medium text-gray-300">Total a cobrar</p>
