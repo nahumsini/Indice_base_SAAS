@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { X } from 'lucide-react';
 import { IndiceModalFooter } from '../../../../components/indice-modal';
 import {
   Dialog,
@@ -40,7 +41,7 @@ const toneClassNames: Record<PosModalTone, {
     close: 'border-white/20 bg-white/10 text-white hover:bg-white/20 focus:ring-white/60',
     eyebrow: 'text-[#F4C84A]',
     header: 'bg-[#222831]',
-    icon: 'border-white/15 bg-[#FF6B5E]/20 text-white',
+    icon: 'border-white/15 bg-[#FF6B5E]/20 text-[#FFAAA2]',
     subtitle: 'text-gray-300',
     title: 'text-white',
   },
@@ -60,6 +61,10 @@ export const posModalSecondaryActionClassName = 'inline-flex min-h-11 w-full ite
 
 export const posModalModuleFooterClassName = 'border-t border-[#FF6B5E] bg-[#FF6B5E] px-6 py-4 text-[#222831] dark:border-[#b63b32] dark:bg-[#b63b32] dark:text-white';
 
+export const posWorkspacePrimaryActionClassName = 'inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#FF6B5E] px-5 py-2.5 text-sm font-medium text-[#222831] shadow-sm transition hover:bg-[#F45D50] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#FFAAA2] disabled:text-[#222831]/50 disabled:active:scale-100 sm:w-auto';
+
+export const posWorkspaceSecondaryActionClassName = 'inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-[#222831] transition hover:bg-gray-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 sm:w-auto';
+
 interface PosModalFrameProps {
   actions?: ReactNode;
   bodyClassName?: string;
@@ -77,6 +82,7 @@ interface PosModalFrameProps {
   onClose: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
+  presentation?: 'modal' | 'workspace';
   size?: PosModalSize;
   subtitle?: string;
   tone?: PosModalTone;
@@ -101,6 +107,7 @@ export function PosModalFrame({
   onClose,
   onMouseEnter,
   onMouseLeave,
+  presentation = 'modal',
   size = 'lg',
   subtitle,
   tone = 'coral',
@@ -115,6 +122,52 @@ export function PosModalFrame({
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen && !isCloseDisabled) onClose();
   };
+
+  if (presentation === 'workspace') {
+    return (
+      <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-[#222831]/10 bg-white dark:border-gray-700 dark:bg-gray-950" aria-busy={isCloseDisabled}>
+        <header className={cn('flex shrink-0 items-center justify-between gap-3 px-5 py-3 text-left', toneClasses.header)}>
+          <div className="flex min-w-0 items-center gap-3">
+            <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border shadow-sm', toneClasses.icon)} aria-hidden="true">
+              {icon}
+            </span>
+            <div className="min-w-0 flex-1">
+              {eyebrow ? <p className={cn('text-[11px] font-medium leading-4', toneClasses.eyebrow)}>{eyebrow}</p> : null}
+              <h2 className={cn('truncate text-xl font-medium leading-tight', toneClasses.title)}>{title}</h2>
+              {subtitle ? <p className={cn('truncate text-xs font-normal leading-4', toneClasses.subtitle)}>{subtitle}</p> : null}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isCloseDisabled}
+            className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition disabled:opacity-50', toneClasses.close)}
+            aria-label={closeLabel}
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </header>
+
+        <div className={cn('min-h-0 flex-1 overflow-y-auto bg-[#F7F8FA] p-4 dark:bg-[#111827]', bodyClassName)}>
+          {children}
+        </div>
+
+        {footer || footerLeading || footerSummary ? (
+          <footer className={cn('shrink-0 border-t border-gray-200 bg-white px-4 py-3 text-[#222831] dark:border-gray-700 dark:bg-gray-900 dark:text-white', footerClassName)}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              {footerLeading || footerSummary ? (
+                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+                  {footerLeading}
+                  {footerSummary ? <div className="truncate text-xs font-medium text-gray-500 dark:text-gray-400">{footerSummary}</div> : null}
+                </div>
+              ) : <span />}
+              {footer ? <div className="flex shrink-0 items-center justify-end">{footer}</div> : null}
+            </div>
+          </footer>
+        ) : null}
+      </section>
+    );
+  }
 
   return (
     <Dialog open onOpenChange={handleOpenChange}>

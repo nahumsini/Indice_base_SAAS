@@ -1,17 +1,20 @@
-import { AddPaymentModal } from './AddPaymentModal';
-import { CashMovementModal } from './CashMovementModal';
-import { CloseShiftModal } from './CloseShiftModal';
-import { DiscountModal } from './DiscountModal';
-import { ReturnModal } from './ReturnModal';
-import { TicketModal } from './TicketModal';
-import type { CashClosingInput } from '../../shared/cashClosing.types';
-import type { Customer } from '../../shared/commercial/customers';
-import type { CreditRule } from '../../shared/commercial/credit';
-import type { DiscountRule } from '../../shared/commercial/discounts';
-import type { CreditPaymentDetails, Payment, PaymentMethod, SaleItem } from '../types/sale.types';
-import type { Shift } from '../types/shift.types';
-import type { PosCashMovementType, PosShiftClosingSummaryResponse } from '../services/posBackendApi';
-import type { SaleTotals } from '../utils/saleCalculations';
+import { AddPaymentModal } from "./AddPaymentModal";
+import { CloseShiftModal } from "./CloseShiftModal";
+import { DiscountModal } from "./DiscountModal";
+import { TicketModal } from "./TicketModal";
+import type { CashClosingInput } from "../../shared/cashClosing.types";
+import type { Customer } from "../../shared/commercial/customers";
+import type { CreditRule } from "../../shared/commercial/credit";
+import type { DiscountRule } from "../../shared/commercial/discounts";
+import type {
+  CreditPaymentDetails,
+  Payment,
+  PaymentMethod,
+  SaleItem,
+} from "../types/sale.types";
+import type { Shift } from "../types/shift.types";
+import type { PosShiftClosingSummaryResponse } from "../services/posBackendApi";
+import type { SaleTotals } from "../utils/saleCalculations";
 
 interface SaleModalsProps {
   showAddPaymentModal: boolean;
@@ -23,8 +26,6 @@ interface SaleModalsProps {
   closingSummary: PosShiftClosingSummaryResponse | null;
   isLoadingClosingSummary?: boolean;
   closingSummaryError?: string;
-  showCashMovementModal: boolean;
-  isCreatingCashMovement?: boolean;
   selectedItemForDiscount: SaleItem | null;
   showDiscountModal: boolean;
   showGlobalDiscountModal: boolean;
@@ -42,7 +43,6 @@ interface SaleModalsProps {
     totals: SaleTotals;
   } | null;
   showTicketModal: boolean;
-  showReturnModal: boolean;
   onCloseAddPayment: () => void;
   onConfirmAddPayment: (
     amount: number,
@@ -52,15 +52,17 @@ interface SaleModalsProps {
   ) => void;
   onCloseShiftModal: () => void;
   onConfirmCloseShift: (closing: CashClosingInput) => void;
-  onCloseCashMovementModal: () => void;
-  onConfirmCashMovement: (type: PosCashMovementType, amount: number, reason: string, reference?: string) => void | Promise<void>;
   onCloseItemDiscount: () => void;
-  onConfirmItemDiscount: (discount: number, type: SaleItem['discountType']) => void;
+  onConfirmItemDiscount: (
+    discount: number,
+    type: SaleItem["discountType"],
+  ) => void;
   onCloseGlobalDiscount: () => void;
-  onConfirmGlobalDiscount: (discount: number, type: SaleItem['discountType']) => void;
+  onConfirmGlobalDiscount: (
+    discount: number,
+    type: SaleItem["discountType"],
+  ) => void;
   onCloseTicket: () => void;
-  onCloseReturn: () => void;
-  onConfirmReturn: (saleId: string, type: 'full' | 'partial') => void;
 }
 
 export function SaleModals({
@@ -72,9 +74,7 @@ export function SaleModals({
   isClosingShift = false,
   closingSummary,
   isLoadingClosingSummary = false,
-  closingSummaryError = '',
-  showCashMovementModal,
-  isCreatingCashMovement = false,
+  closingSummaryError = "",
   selectedItemForDiscount,
   showDiscountModal,
   showGlobalDiscountModal,
@@ -87,20 +87,15 @@ export function SaleModals({
   totals,
   lastSale,
   showTicketModal,
-  showReturnModal,
   onCloseAddPayment,
   onConfirmAddPayment,
   onCloseShiftModal,
   onConfirmCloseShift,
-  onCloseCashMovementModal,
-  onConfirmCashMovement,
   onCloseItemDiscount,
   onConfirmItemDiscount,
   onCloseGlobalDiscount,
   onConfirmGlobalDiscount,
   onCloseTicket,
-  onCloseReturn,
-  onConfirmReturn,
 }: SaleModalsProps) {
   const totalItemQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -126,14 +121,6 @@ export function SaleModals({
         summaryError={closingSummaryError}
         onConfirm={onConfirmCloseShift}
         isSubmitting={isClosingShift}
-      />
-
-      <CashMovementModal
-        isOpen={showCashMovementModal}
-        onClose={onCloseCashMovementModal}
-        onConfirm={onConfirmCashMovement}
-        isSubmitting={isCreatingCashMovement}
-        currency={currentShift?.currencyCode || currency}
       />
 
       {selectedItemForDiscount && (
@@ -175,12 +162,6 @@ export function SaleModals({
           saleNumber={lastSale.saleNumber}
         />
       )}
-
-      <ReturnModal
-        isOpen={showReturnModal}
-        onClose={onCloseReturn}
-        onConfirm={onConfirmReturn}
-      />
     </>
   );
 }

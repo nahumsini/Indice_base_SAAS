@@ -5,6 +5,8 @@ import {
   posModalModuleFooterClassName,
   posModalPrimaryActionClassName,
   posModalSecondaryActionClassName,
+  posWorkspacePrimaryActionClassName,
+  posWorkspaceSecondaryActionClassName,
 } from './PosModalFrame';
 import type { PosCashMovementType } from '../services/posBackendApi';
 
@@ -14,6 +16,7 @@ interface CashMovementModalProps {
   onConfirm: (type: PosCashMovementType, amount: number, reason: string, reference?: string) => void | Promise<void>;
   isSubmitting?: boolean;
   currency?: string;
+  workspaceMode?: boolean;
 }
 
 const movementOptions: Array<{
@@ -73,6 +76,7 @@ export function CashMovementModal({
   onConfirm,
   isSubmitting = false,
   currency = 'MXN',
+  workspaceMode = false,
 }: CashMovementModalProps) {
   const [type, setType] = useState<PosCashMovementType>('CASH_IN');
   const [amount, setAmount] = useState('');
@@ -133,24 +137,25 @@ export function CashMovementModal({
       icon={<ActiveIcon className="h-6 w-6" />}
       isCloseDisabled={isSubmitting}
       onClose={onClose}
+      presentation={workspaceMode ? 'workspace' : 'modal'}
       size="md"
       subtitle="Registra ajustes operativos del turno actual."
       title="Movimiento de efectivo"
-      tone="coral"
-      footerClassName={posModalModuleFooterClassName}
+      tone={workspaceMode ? 'graphite' : 'coral'}
+      footerClassName={workspaceMode ? undefined : posModalModuleFooterClassName}
       footer={(
         <div className="flex flex-col gap-3 sm:flex-row">
           <button
             onClick={onClose}
             disabled={isSubmitting}
-            className={posModalSecondaryActionClassName}
+            className={workspaceMode ? posWorkspaceSecondaryActionClassName : posModalSecondaryActionClassName}
           >
             Cancelar
           </button>
           <button
             onClick={handleConfirm}
             disabled={isSubmitting || !amount || Number(amount) <= 0 || !reason.trim()}
-            className={posModalPrimaryActionClassName}
+            className={workspaceMode ? posWorkspacePrimaryActionClassName : posModalPrimaryActionClassName}
           >
             {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
             {isSubmitting ? 'Registrando...' : 'Registrar movimiento'}

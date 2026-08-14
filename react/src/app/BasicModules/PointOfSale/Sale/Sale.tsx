@@ -6,27 +6,22 @@ import { defaultBusinessCurrency, normalizeBusinessCurrencyCode } from '../../sh
 import { usePointOfSaleCatalogProducts } from '../../CommerceCore/usePointOfSaleCatalogProducts';
 import { usePointOfSaleCustomers } from '../../CommerceCore/usePointOfSaleCustomers';
 import { useSalesCrm } from '../../Sales/salesCrmContext';
-import {
-  readStoredCreditRules,
-  type CreditRule,
-} from '../shared/commercial/credit';
-import {
-  getEligibleDiscountRules,
-  readStoredDiscountRules,
-  type DiscountRule,
-} from '../shared/commercial/discounts';
+import { readStoredCreditRules, type CreditRule } from '../shared/commercial/credit';
+import { getEligibleDiscountRules, readStoredDiscountRules, type DiscountRule } from '../shared/commercial/discounts';
 import type { Product } from '../shared/commercial/products';
-import { CustomerDisplaySetupModal } from './components/CustomerDisplaySetupModal';
+import { CashMovementModal } from './components/CashMovementModal';
 import { IndiceSignalBar } from './components/IndiceSignalBar';
 import { PendingPreTicketsPanel } from './components/PendingPreTicketsPanel';
 import { PosFiscalSettingsModal } from './components/PosFiscalSettingsModal';
 import { QuickProductsPanel } from './components/QuickProductsPanel';
+import { ReturnModal } from './components/ReturnModal';
 import { SaleModals } from './components/SaleModals';
 import { SaleNoShiftState } from './components/SaleNoShiftState';
 import { SalePaymentPanel } from './components/SalePaymentPanel';
 import { SaleSidePanel, type SaleSidePanelState } from './components/SaleSidePanel';
 import { SaleTicketPanel } from './components/SaleTicketPanel';
 import { ShiftBar } from './components/ShiftBar';
+import { ShiftSummaryWorkspace } from './components/ShiftSummaryWorkspace';
 import { SmartAlertsStrip } from './components/SmartAlertsStrip';
 import { useSaleActivityFeed } from './hooks/useSaleActivityFeed';
 import { useSaleCatalog } from './hooks/useSaleCatalog';
@@ -84,18 +79,18 @@ export default function Sale() {
     (amount: number) => formatPosDisplayCurrency(amount, transactionCurrency, transactionCurrency),
     [transactionCurrency],
   );
-  const cartTaxOverride = useMemo(() => ({
-    taxRate: fiscalSettings.taxRate,
-    taxCode: fiscalSettings.taxPresetId,
-    taxLabel: fiscalSettings.taxLabel,
-    taxJurisdiction: fiscalSettings.taxJurisdiction,
-    taxIsCustom: fiscalSettings.isCustomRate,
-    currency: fiscalSettings.currencyCode,
-  }), [fiscalSettings]);
-  const fiscalSummary = useMemo(
-    () => getFiscalSummary(fiscalSettings),
+  const cartTaxOverride = useMemo(
+    () => ({
+      taxRate: fiscalSettings.taxRate,
+      taxCode: fiscalSettings.taxPresetId,
+      taxLabel: fiscalSettings.taxLabel,
+      taxJurisdiction: fiscalSettings.taxJurisdiction,
+      taxIsCustom: fiscalSettings.isCustomRate,
+      currency: fiscalSettings.currencyCode,
+    }),
     [fiscalSettings],
   );
+  const fiscalSummary = useMemo(() => getFiscalSummary(fiscalSettings), [fiscalSettings]);
   const shiftCurrencyMismatchNotice = useMemo(() => {
     const shiftCurrency = currentOpenShift?.currencyCode?.trim().toUpperCase();
     if (!shiftCurrency || shiftCurrency === transactionCurrency) {
@@ -165,6 +160,7 @@ export default function Sale() {
     isOpeningShift,
     isClosingShift,
     isLoadingClosingSummary,
+    loadClosingSummary,
     isCreatingCashMovement,
   } = useSaleShift({
     pushActivity,
@@ -177,26 +173,63 @@ export default function Sale() {
     refreshRegisterContext,
   });
   const syncCheckoutData = useCallback(async () => {
-    await Promise.all([
-      reloadSalesRecords(),
-      reloadInventoryBalances(),
-    ]);
+    await Promise.all([reloadSalesRecords(), reloadInventoryBalances()]);
   }, [reloadInventoryBalances, reloadSalesRecords]);
-  const openCreditSaleInReceivables = useCallback((candidateSaleId: string) => {
-    navigate(`/receivables/credit-sales?candidateSaleId=${encodeURIComponent(candidateSaleId)}&openCreditSale=1`);
-  }, [navigate]);
+  const openCreditSaleInReceivables = useCallback(
+    (candidateSaleId: string) => {
+      navigate(`/receivables/credit-sales?candidateSaleId=${encodeURIComponent(candidateSaleId)}&openCreditSale=1`);
+    },
+    [navigate],
+  );
 
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [selectedItemForDiscount, setSelectedItemForDiscount] = useState<SaleItem | null>(null);
   const [showGlobalDiscountModal, setShowGlobalDiscountModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
-  const [showCustomerDisplayModal, setShowCustomerDisplayModal] = useState(false);
+  const [showShiftSummaryWorkspace, setShowShiftSummaryWorkspace] = useState(false);
   const [showFiscalSettingsModal, setShowFiscalSettingsModal] = useState(false);
+  const [checkoutRequestId, setCheckoutRequestId] = useState(0);
+  const [productSearchRequestId, setProductSearchRequestId] = useState(0);
+  const [isProductWorkspaceOpen, setIsProductWorkspaceOpen] = useState(false);
+  const [isPaymentWorkspaceOpen, setIsPaymentWorkspaceOpen] = useState(false);
   const [discountRules, setDiscountRules] = useState<DiscountRule[]>(() => readStoredDiscountRules());
   const [creditRules, setCreditRules] = useState<CreditRule[]>(() => readStoredCreditRules());
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const posFullscreenRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let animationFrame = 0;
+
+    const syncTerminalHeight = () => {
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(() => {
+        const terminalRoot = posFullscreenRef.current;
+        if (!terminalRoot || document.fullscreenElement === terminalRoot) {
+          return;
+        }
+
+        const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+        const terminalTop = Math.max(0, terminalRoot.getBoundingClientRect().top);
+        const availableHeight = Math.max(540, viewportHeight - terminalTop - 12);
+        terminalRoot.style.setProperty('--pos-terminal-height', `${availableHeight}px`);
+      });
+    };
+
+    syncTerminalHeight();
+    window.addEventListener('resize', syncTerminalHeight);
+    window.addEventListener('scroll', syncTerminalHeight, { passive: true });
+    window.visualViewport?.addEventListener('resize', syncTerminalHeight);
+    document.addEventListener('fullscreenchange', syncTerminalHeight);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      window.removeEventListener('resize', syncTerminalHeight);
+      window.removeEventListener('scroll', syncTerminalHeight);
+      window.visualViewport?.removeEventListener('resize', syncTerminalHeight);
+      document.removeEventListener('fullscreenchange', syncTerminalHeight);
+    };
+  }, [currentShift]);
 
   const { categories, filteredQuickProducts, stockSignals } = useSaleCatalog(saleProducts, selectedCategory);
   const {
@@ -216,6 +249,7 @@ export default function Sale() {
     closeAddPaymentModal,
     handleAddPayment,
     confirmAddPayment,
+    confirmWorkspacePayment,
     removePayment,
     completeSale,
     handleExactPayment,
@@ -235,12 +269,7 @@ export default function Sale() {
   const openProductPanel = useCallback((product: Product) => {
     setSidePanel({ type: 'product', product });
   }, []);
-  const {
-    suspendedSales,
-    suspendCurrentSale,
-    resumeSuspendedSale,
-    discardSuspendedSale,
-  } = useSuspendedSales({
+  const { suspendedSales, suspendCurrentSale, resumeSuspendedSale, discardSuspendedSale } = useSuspendedSales({
     cart,
     payments,
     totals,
@@ -260,16 +289,16 @@ export default function Sale() {
     onOpenProductPanel: openProductPanel,
   });
   const isAnySaleModalOpen =
-    showAddPaymentModal
-    || showOpenShiftModal
-    || showCloseShiftModal
-    || showCashMovementModal
-    || showDiscountModal
-    || showGlobalDiscountModal
-    || showTicketModal
-    || showReturnModal
-    || showCustomerDisplayModal
-    || showFiscalSettingsModal;
+    showAddPaymentModal ||
+    showOpenShiftModal ||
+    showCloseShiftModal ||
+    showCashMovementModal ||
+    showDiscountModal ||
+    showGlobalDiscountModal ||
+    showTicketModal ||
+    showReturnModal ||
+    showShiftSummaryWorkspace ||
+    showFiscalSettingsModal;
 
   useCustomerDisplayPublisher({
     cart,
@@ -282,18 +311,18 @@ export default function Sale() {
   useEffect(() => {
     const focusInput = () => {
       if (
-        barcodeInputRef.current
-        && !showAddPaymentModal
-        && !showOpenShiftModal
-        && !showCloseShiftModal
-        && !showCashMovementModal
-        && !showDiscountModal
-        && !showGlobalDiscountModal
-        && !showTicketModal
-        && !showReturnModal
-        && !showCustomerDisplayModal
-        && !showFiscalSettingsModal
-        && currentShift
+        barcodeInputRef.current &&
+        !showAddPaymentModal &&
+        !showOpenShiftModal &&
+        !showCloseShiftModal &&
+        !showCashMovementModal &&
+        !showDiscountModal &&
+        !showGlobalDiscountModal &&
+        !showTicketModal &&
+        !showReturnModal &&
+        !showShiftSummaryWorkspace &&
+        !showFiscalSettingsModal &&
+        currentShift
       ) {
         barcodeInputRef.current.focus();
       }
@@ -311,7 +340,7 @@ export default function Sale() {
     showGlobalDiscountModal,
     showTicketModal,
     showReturnModal,
-    showCustomerDisplayModal,
+    showShiftSummaryWorkspace,
     showFiscalSettingsModal,
     currentShift,
   ]);
@@ -353,6 +382,31 @@ export default function Sale() {
     posFullscreenRef.current?.requestFullscreen?.();
   };
 
+  const openReturnWorkspace = () => {
+    setShowCashMovementModal(false);
+    setShowShiftSummaryWorkspace(false);
+    setIsProductWorkspaceOpen(false);
+    setIsPaymentWorkspaceOpen(false);
+    setShowReturnModal(true);
+  };
+
+  const openCashMovementWorkspace = () => {
+    setShowReturnModal(false);
+    setShowShiftSummaryWorkspace(false);
+    setIsProductWorkspaceOpen(false);
+    setIsPaymentWorkspaceOpen(false);
+    setShowCashMovementModal(true);
+  };
+
+  const openShiftSummaryWorkspace = () => {
+    setShowReturnModal(false);
+    setShowCashMovementModal(false);
+    setIsProductWorkspaceOpen(false);
+    setIsPaymentWorkspaceOpen(false);
+    setShowShiftSummaryWorkspace(true);
+    void loadClosingSummary();
+  };
+
   const handleReturn = (saleId: string, type: 'full' | 'partial') => {
     setShowReturnModal(false);
     pushActivity({
@@ -373,15 +427,14 @@ export default function Sale() {
     handleAddPayment(method);
   };
 
-  const handleOpenShiftWithCurrency = useCallback(async (
-    initialCash: number,
-    openingNote?: string,
-    selectedCurrencyCode?: string,
-  ) => {
-    const openingCurrency = normalizeBusinessCurrencyCode(selectedCurrencyCode, transactionCurrency);
-    setStoredFiscalSettings(createDefaultPosFiscalSettings(openingCurrency));
-    await handleOpenShift(initialCash, openingNote, openingCurrency);
-  }, [handleOpenShift, setStoredFiscalSettings, transactionCurrency]);
+  const handleOpenShiftWithCurrency = useCallback(
+    async (initialCash: number, openingNote?: string, selectedCurrencyCode?: string) => {
+      const openingCurrency = normalizeBusinessCurrencyCode(selectedCurrencyCode, transactionCurrency);
+      setStoredFiscalSettings(createDefaultPosFiscalSettings(openingCurrency));
+      await handleOpenShift(initialCash, openingNote, openingCurrency);
+    },
+    [handleOpenShift, setStoredFiscalSettings, transactionCurrency],
+  );
 
   useSaleKeyboardShortcuts({
     barcodeInputRef,
@@ -390,7 +443,9 @@ export default function Sale() {
     isModalOpen: isAnySaleModalOpen,
     onAddToCart: addToCart,
     onAddPayment: openPaymentModal,
-    onCompleteSale: () => { void completeSale(); },
+    onCompleteSale: () => {
+      void completeSale();
+    },
     onClearCart: clearCart,
   });
 
@@ -463,10 +518,14 @@ export default function Sale() {
     });
   }, [discountRules, saleProducts, selectedItemForDiscount]);
 
-  const globalDiscountRules = useMemo(() => getEligibleDiscountRules(discountRules, {
-    amount: totals.subtotal,
-    scope: 'order',
-  }), [discountRules, totals.subtotal]);
+  const globalDiscountRules = useMemo(
+    () =>
+      getEligibleDiscountRules(discountRules, {
+        amount: totals.subtotal,
+        scope: 'order',
+      }),
+    [discountRules, totals.subtotal],
+  );
 
   const closeTicketModal = () => {
     setShowTicketModal(false);
@@ -505,135 +564,230 @@ export default function Sale() {
       <div
         ref={posFullscreenRef}
         data-pos-fullscreen-root
+        data-pos-terminal-mode
         className="rounded-xl bg-[#F7F8FA] p-3 sm:p-4 dark:bg-[#111827]"
       >
         <div data-pos-terminal-shell className="mx-auto flex min-h-0 w-full flex-col">
-          <ShiftBar
-            shift={currentShift}
-            onOpenCashMovement={() => setShowCashMovementModal(true)}
-            onCloseShift={() => { void openCloseShiftModal(); }}
-            onOpenReturn={() => setShowReturnModal(true)}
-            onToggleFullscreen={toggleFullscreenMode}
-            onOpenCustomerDisplay={() => setShowCustomerDisplayModal(true)}
-            fiscalSummary={fiscalSummary}
-            fiscalDetail={`${fiscalSettings.taxRate}%`}
-            onOpenFiscalSettings={() => setShowFiscalSettingsModal(true)}
-          />
-
-          <div className="mt-3 space-y-2">
-            {!learningModeActive ? (
-              <IndiceSignalBar
-                salesTrendLabel={currentShift.totalSales > 0 ? '+18% ritmo de turno' : 'ritmo base de turno'}
-                lowStockCount={stockSignals.lowStockProducts.length}
-                suspendedCount={suspendedSales.length}
-                activeAlertCount={smartAlerts.length}
-                isShiftActive={Boolean(currentShift)}
-              />
-            ) : null}
-
-            {smartAlerts.length > 0 && <SmartAlertsStrip alerts={smartAlerts} />}
+          <div data-pos-fixed-header>
+            <ShiftBar
+              shift={currentShift}
+              onOpenCashMovement={openCashMovementWorkspace}
+              onOpenShiftSummary={openShiftSummaryWorkspace}
+              onCloseShift={() => {
+                setShowShiftSummaryWorkspace(false);
+                void openCloseShiftModal();
+              }}
+              onOpenReturn={openReturnWorkspace}
+              onToggleFullscreen={toggleFullscreenMode}
+              fiscalSummary={fiscalSummary}
+              fiscalDetail={`${fiscalSettings.taxRate}%`}
+              onOpenFiscalSettings={() => setShowFiscalSettingsModal(true)}
+            />
           </div>
 
-          {[cartNotice, checkoutNotice, shiftCurrencyMismatchNotice, shiftNotice, shiftError, registerContextError].filter(Boolean).length > 0 && (
-            <div className="mt-2 space-y-2">
-              {cartNotice && <OperationalNotice message={cartNotice} onDismiss={clearCartNotice} />}
-              {checkoutNotice && <OperationalNotice message={checkoutNotice} onDismiss={clearCheckoutNotice} />}
-              {shiftCurrencyMismatchNotice && <OperationalNotice message={shiftCurrencyMismatchNotice} />}
-              {shiftNotice && <OperationalNotice message={shiftNotice} onDismiss={clearShiftNotice} />}
-              {shiftError && <OperationalNotice message={shiftError} onDismiss={clearShiftError} />}
-              {registerContextError && <OperationalNotice message={registerContextError} onDismiss={clearRegisterContextError} />}
-            </div>
-          )}
+          <main data-pos-workspace-body>
+            <div data-pos-secondary-status className="mt-2 space-y-2">
+              {!learningModeActive && smartAlerts.length === 0 ? (
+                <IndiceSignalBar
+                  salesTrendLabel={currentShift.totalSales > 0 ? '+18% ritmo de turno' : 'ritmo base de turno'}
+                  lowStockCount={stockSignals.lowStockProducts.length}
+                  suspendedCount={suspendedSales.length}
+                  activeAlertCount={smartAlerts.length}
+                  isShiftActive={Boolean(currentShift)}
+                />
+              ) : null}
 
-          <div
-            data-pos-workspace-grid
-            className="mt-4 grid min-h-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(620px,1fr)_minmax(420px,520px)] 2xl:h-[clamp(560px,calc(100vh-25rem),720px)] 2xl:grid-cols-[minmax(560px,1fr)_minmax(420px,520px)_minmax(320px,400px)]"
-          >
-            <div data-pos-products-column className="flex min-h-0 min-w-0 flex-col gap-4 xl:row-span-2 2xl:row-span-1">
-              <PendingPreTicketsPanel
-                preTickets={preTickets}
-                onPullPreTicket={pullPreTicket}
-                onRetry={() => void reloadPreTickets()}
-                formatCurrency={formatSaleCurrency}
-                queueError={preTicketQueueError}
-                isRefreshing={isRefreshingPreTickets}
-                lastUpdatedAt={preTicketsLastUpdatedAt}
-                claimingPreTicketIds={claimingPreTicketIds}
-              />
-
-              <QuickProductsPanel
-                categories={categories}
-                filteredQuickProducts={filteredQuickProducts}
-                selectedCategory={selectedCategory}
-                selectedQuickQuantity={selectedQuickQuantity}
-                blockSalesWithoutStock={blockSalesWithoutStock}
-                onSelectCategory={setSelectedCategory}
-                onAddToCart={addToCart}
-                formatCurrency={formatSaleCurrency}
-              />
+              {smartAlerts.length > 0 && <SmartAlertsStrip alerts={smartAlerts} />}
             </div>
 
-            <div data-pos-ticket-column className="min-h-0 min-w-0 xl:col-start-2 xl:row-start-1 2xl:col-start-auto 2xl:row-start-auto">
-              <SaleTicketPanel
-                cart={cart}
-                barcodeInput={barcodeInput}
-                barcodeInputRef={barcodeInputRef}
-                lastAddedItem={lastAddedItem}
-                totals={totals}
-                products={saleProducts}
-                onBarcodeInputChange={setBarcodeInput}
-                onBarcodeSubmit={handleBarcodeSubmit}
-                onClearCart={clearCart}
-                onUpdateQuantity={updateQuantity}
-                onRemoveItem={removeItem}
-                onOpenItemDiscount={openItemDiscountModal}
-                onOpenGlobalDiscount={openGlobalDiscountModal}
-                onOpenProductPanel={(product) => setSidePanel({ type: 'product', product })}
-                formatCurrency={formatSaleCurrency}
-              />
-            </div>
+            {[cartNotice, checkoutNotice, shiftCurrencyMismatchNotice, shiftNotice, shiftError, registerContextError].filter(Boolean)
+              .length > 0 && (
+              <div className="mt-2 space-y-2">
+                {cartNotice && <OperationalNotice message={cartNotice} onDismiss={clearCartNotice} />}
+                {checkoutNotice && <OperationalNotice message={checkoutNotice} onDismiss={clearCheckoutNotice} />}
+                {shiftCurrencyMismatchNotice && <OperationalNotice message={shiftCurrencyMismatchNotice} />}
+                {shiftNotice && <OperationalNotice message={shiftNotice} onDismiss={clearShiftNotice} />}
+                {shiftError && <OperationalNotice message={shiftError} onDismiss={clearShiftError} />}
+                {registerContextError && <OperationalNotice message={registerContextError} onDismiss={clearRegisterContextError} />}
+              </div>
+            )}
 
-            <div data-pos-payment-column className="min-h-0 min-w-0 xl:col-start-2 xl:row-start-2 2xl:col-start-auto 2xl:row-start-auto">
-              <SalePaymentPanel
-                totals={totals}
-                payments={payments}
-                cartItemCount={cart.length}
-                selectedQuickQuantity={selectedQuickQuantity}
-                suspendedSales={suspendedSales}
-                recentActivities={recentActivities}
-                onRemovePayment={removePayment}
-                onSuspendSale={suspendCurrentSale}
-                onResumeSuspendedSale={resumeSuspendedSale}
-                onDiscardSuspendedSale={discardSuspendedSale}
-                onQuantityChange={setSelectedQuickQuantity}
-                onOpenSalePanel={openSalePanel}
-                onOpenReturn={() => setShowReturnModal(true)}
-                onFullscreen={toggleFullscreenMode}
-                onOpenCustomerDisplay={() => setShowCustomerDisplayModal(true)}
-                onExactPayment={handleExactPayment}
-                onAddPayment={openPaymentModal}
-                onCompleteSale={() => { void completeSale(); }}
-                isCompletingSale={isCompletingSale}
-                checkoutNotice={checkoutNotice}
-                onClearCheckoutNotice={clearCheckoutNotice}
-                formatCurrency={formatSaleCurrency}
-              />
+            <div
+              data-pos-workspace-grid
+              className="mt-3 grid min-h-0 grid-cols-1 gap-3 xl:grid-cols-[minmax(620px,1fr)_minmax(420px,520px)] 2xl:h-[clamp(600px,calc(100vh-15rem),780px)] 2xl:grid-cols-[minmax(480px,1.25fr)_minmax(380px,0.95fr)_minmax(280px,0.65fr)]"
+            >
+              <div
+                data-pos-products-column
+                data-workspace-active={isProductWorkspaceOpen ? 'true' : undefined}
+                data-workspace-hidden={isPaymentWorkspaceOpen ? 'true' : undefined}
+                style={isPaymentWorkspaceOpen ? { display: 'none' } : undefined}
+                className="flex min-h-0 min-w-0 flex-col gap-4 xl:row-span-2 2xl:row-span-1"
+              >
+                {showShiftSummaryWorkspace ? (
+                  <ShiftSummaryWorkspace
+                    isOpen
+                    shift={currentShift}
+                    summary={closingSummary}
+                    isLoading={isLoadingClosingSummary}
+                    error={closingSummaryError}
+                    onClose={() => setShowShiftSummaryWorkspace(false)}
+                    onRefresh={loadClosingSummary}
+                  />
+                ) : showReturnModal ? (
+                  <ReturnModal isOpen workspaceMode onClose={() => setShowReturnModal(false)} onConfirm={handleReturn} />
+                ) : showCashMovementModal ? (
+                  <CashMovementModal
+                    isOpen
+                    workspaceMode
+                    onClose={() => setShowCashMovementModal(false)}
+                    onConfirm={handleCashMovement}
+                    isSubmitting={isCreatingCashMovement}
+                    currency={currentShift.currencyCode || transactionCurrency}
+                  />
+                ) : (
+                  <>
+                    <div data-pos-pre-tickets>
+                      <PendingPreTicketsPanel
+                        preTickets={preTickets}
+                        onPullPreTicket={pullPreTicket}
+                        onRetry={() => void reloadPreTickets()}
+                        formatCurrency={formatSaleCurrency}
+                        queueError={preTicketQueueError}
+                        isRefreshing={isRefreshingPreTickets}
+                        lastUpdatedAt={preTicketsLastUpdatedAt}
+                        claimingPreTicketIds={claimingPreTicketIds}
+                      />
+                    </div>
+
+                    <div data-pos-quick-products className="min-h-0 flex-1">
+                      <QuickProductsPanel
+                        categories={categories}
+                        filteredQuickProducts={filteredQuickProducts}
+                        selectedCategory={selectedCategory}
+                        selectedQuickQuantity={selectedQuickQuantity}
+                        blockSalesWithoutStock={blockSalesWithoutStock}
+                        onSelectCategory={setSelectedCategory}
+                        onAddToCart={addToCart}
+                        searchRequestId={productSearchRequestId}
+                        workspaceMode={isProductWorkspaceOpen}
+                        formatCurrency={formatSaleCurrency}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div data-pos-ticket-column className="min-h-0 min-w-0 xl:col-start-2 xl:row-start-1 2xl:col-start-auto 2xl:row-start-auto">
+                <SaleTicketPanel
+                  cart={cart}
+                  barcodeInput={barcodeInput}
+                  barcodeInputRef={barcodeInputRef}
+                  lastAddedItem={lastAddedItem}
+                  totals={totals}
+                  products={saleProducts}
+                  onBarcodeInputChange={setBarcodeInput}
+                  onBarcodeSubmit={handleBarcodeSubmit}
+                  onClearCart={clearCart}
+                  onUpdateQuantity={updateQuantity}
+                  onRemoveItem={removeItem}
+                  onOpenItemDiscount={openItemDiscountModal}
+                  onOpenGlobalDiscount={openGlobalDiscountModal}
+                  onOpenProductPanel={(product) => setSidePanel({ type: 'product', product })}
+                  formatCurrency={formatSaleCurrency}
+                />
+              </div>
+
+              <div
+                data-pos-payment-column
+                data-workspace-active={isPaymentWorkspaceOpen ? 'true' : undefined}
+                style={isPaymentWorkspaceOpen ? { display: 'block', gridColumn: '1', gridRow: '1' } : undefined}
+                className="h-full min-h-0 min-w-0 overflow-hidden xl:col-start-2 xl:row-start-2 2xl:col-start-auto 2xl:row-start-auto"
+              >
+                <SalePaymentPanel
+                  totals={totals}
+                  payments={payments}
+                  cartItemCount={cart.reduce((sum, item) => sum + item.quantity, 0)}
+                  selectedQuickQuantity={selectedQuickQuantity}
+                  suspendedSales={suspendedSales}
+                  recentActivities={recentActivities}
+                  onRemovePayment={removePayment}
+                  onSuspendSale={suspendCurrentSale}
+                  onResumeSuspendedSale={resumeSuspendedSale}
+                  onDiscardSuspendedSale={discardSuspendedSale}
+                  onQuantityChange={setSelectedQuickQuantity}
+                  onOpenSalePanel={openSalePanel}
+                  onOpenReturn={openReturnWorkspace}
+                  onFullscreen={toggleFullscreenMode}
+                  onExactPayment={handleExactPayment}
+                  onAddPayment={openPaymentModal}
+                  onConfirmWorkspacePayment={confirmWorkspacePayment}
+                  creditRules={creditRules}
+                  creditCustomers={creditCustomers}
+                  currency={transactionCurrency}
+                  onCompleteSale={() => {
+                    void completeSale();
+                  }}
+                  isCompletingSale={isCompletingSale}
+                  checkoutNotice={checkoutNotice}
+                  checkoutRequestId={checkoutRequestId}
+                  workspaceMode={isPaymentWorkspaceOpen}
+                  onClearCheckoutNotice={clearCheckoutNotice}
+                  formatCurrency={formatSaleCurrency}
+                />
+              </div>
             </div>
-          </div>
+          </main>
+
+          <footer data-pos-fixed-footer aria-label="Resumen y cobro del punto de venta">
+            <div className="min-w-0">
+              <p className="text-[11px] text-gray-400">Ticket actual</p>
+              <p className="truncate text-sm text-white">
+                {cart.reduce((sum, item) => sum + item.quantity, 0)} artículos · Caja {currentShift.cashRegisterCode}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setIsPaymentWorkspaceOpen(false);
+                setShowReturnModal(false);
+                setShowCashMovementModal(false);
+                setShowShiftSummaryWorkspace(false);
+                setIsProductWorkspaceOpen((current) => !current);
+              }}
+              aria-pressed={isProductWorkspaceOpen}
+              className={`inline-flex min-h-14 items-center justify-center rounded-lg border px-6 text-base font-medium text-[#222831] transition ${isProductWorkspaceOpen ? 'border-[#FF6B5E] bg-[#FF6B5E] hover:bg-[#ff5a4b]' : 'border-white/20 bg-white hover:bg-gray-100'}`}
+            >
+              {isProductWorkspaceOpen ? 'Ocultar catálogo' : 'Buscar producto'}
+            </button>
+            <div className="text-center">
+              <p className="text-[11px] text-gray-400">Total a cobrar</p>
+              <p className="text-3xl font-medium leading-none text-white">{formatSaleCurrency(totals.total)}</p>
+            </div>
+            <div className="flex items-center justify-end gap-4">
+              <div className="hidden text-right text-[11px] text-gray-300 sm:block">
+                <p>Subtotal {formatSaleCurrency(totals.subtotal)}</p>
+                <p>IVA {formatSaleCurrency(totals.tax)}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsProductWorkspaceOpen(false);
+                  setShowReturnModal(false);
+                  setShowCashMovementModal(false);
+                  setShowShiftSummaryWorkspace(false);
+                  setIsPaymentWorkspaceOpen(true);
+                }}
+                disabled={cart.length === 0 || isPaymentWorkspaceOpen}
+                className={`min-h-14 rounded-lg px-8 text-lg font-medium transition disabled:cursor-not-allowed ${isPaymentWorkspaceOpen ? 'bg-[#59C3A5] text-[#0B4F40]' : 'bg-[#FF6B5E] text-[#222831] hover:bg-[#ff5a4b] disabled:opacity-45'}`}
+              >
+                {isPaymentWorkspaceOpen ? 'Cobro en curso' : 'Cobrar'}
+              </button>
+            </div>
+          </footer>
         </div>
       </div>
 
-      <SaleSidePanel
-        panel={sidePanel}
-        onClose={() => setSidePanel(null)}
-        formatCurrency={formatSaleCurrency}
-      />
-
-      <CustomerDisplaySetupModal
-        isOpen={showCustomerDisplayModal}
-        shift={currentShift}
-        onClose={() => setShowCustomerDisplayModal(false)}
-      />
+      <SaleSidePanel panel={sidePanel} onClose={() => setSidePanel(null)} formatCurrency={formatSaleCurrency} />
 
       <PosFiscalSettingsModal
         isOpen={showFiscalSettingsModal}
@@ -655,8 +809,6 @@ export default function Sale() {
         closingSummary={closingSummary}
         isLoadingClosingSummary={isLoadingClosingSummary}
         closingSummaryError={closingSummaryError}
-        showCashMovementModal={showCashMovementModal}
-        isCreatingCashMovement={isCreatingCashMovement}
         selectedItemForDiscount={selectedItemForDiscount}
         showDiscountModal={showDiscountModal}
         showGlobalDiscountModal={showGlobalDiscountModal}
@@ -669,32 +821,21 @@ export default function Sale() {
         totals={totals}
         lastSale={lastSale}
         showTicketModal={showTicketModal}
-        showReturnModal={showReturnModal}
         onCloseAddPayment={closeAddPaymentModal}
         onConfirmAddPayment={confirmAddPayment}
         onCloseShiftModal={closeCloseShiftModal}
         onConfirmCloseShift={handleCloseShift}
-        onCloseCashMovementModal={() => setShowCashMovementModal(false)}
-        onConfirmCashMovement={handleCashMovement}
         onCloseItemDiscount={closeItemDiscountModal}
         onConfirmItemDiscount={confirmItemDiscount}
         onCloseGlobalDiscount={() => setShowGlobalDiscountModal(false)}
         onConfirmGlobalDiscount={confirmGlobalDiscount}
         onCloseTicket={closeTicketModal}
-        onCloseReturn={() => setShowReturnModal(false)}
-        onConfirmReturn={handleReturn}
       />
     </>
   );
 }
 
-function OperationalNotice({
-  message,
-  onDismiss,
-}: {
-  message: string;
-  onDismiss?: () => void;
-}) {
+function OperationalNotice({ message, onDismiss }: { message: string; onDismiss?: () => void }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
       <span className="flex min-w-0 items-center gap-2">

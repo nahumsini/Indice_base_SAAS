@@ -90,6 +90,25 @@ function StandaloneModuleShell({
   currentModule: PageId;
   onNavigate: (page?: string) => void;
 }) {
+  if (currentModule === 'inventory') {
+    return (
+      <div className="flex h-full min-h-0 flex-col overflow-hidden">
+        <div className="mx-auto w-full max-w-[1600px] shrink-0 px-8 pt-6">
+          <FavoritesBar
+            onNavigate={(page) => {
+              if (resolvePageId(page) === currentModule) return;
+              onNavigate(page);
+            }}
+            currentModule={currentModule}
+          />
+        </div>
+        <div className="min-h-0 flex-1">
+          {children}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="max-w-[1600px] mx-auto px-8 pt-6">

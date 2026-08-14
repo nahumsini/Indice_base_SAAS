@@ -139,6 +139,10 @@ export function useSaleCheckout({
       method: selectedPaymentMethod,
       amount,
       reference,
+      cashReceived: selectedPaymentMethod === 'cash' ? receivedCash : undefined,
+      change: selectedPaymentMethod === 'cash' && receivedCash != null
+        ? Math.max(toMoney(receivedCash - amount), 0)
+        : undefined,
       creditDetails,
     };
 
@@ -149,6 +153,30 @@ export function useSaleCheckout({
     }
 
     closeAddPaymentModal();
+  };
+
+  const confirmWorkspacePayment = (
+    method: PaymentMethod,
+    amount: number,
+    reference?: string,
+    receivedCash?: number,
+    creditDetails?: CreditPaymentDetails,
+  ) => {
+    const newPayment: Payment = {
+      id: `payment-${Date.now()}`,
+      method,
+      amount,
+      reference,
+      cashReceived: method === 'cash' ? receivedCash : undefined,
+      change: method === 'cash' && receivedCash != null
+        ? Math.max(toMoney(receivedCash - amount), 0)
+        : undefined,
+      creditDetails,
+    };
+
+    setPayments((currentPayments) => [...currentPayments, newPayment]);
+    if (method === 'cash' && receivedCash) setCashReceived(receivedCash);
+    setCheckoutNotice('');
   };
 
   const removePayment = (paymentId: string) => {
@@ -324,22 +352,12 @@ export function useSaleCheckout({
       id: `payment-${Date.now()}`,
       method: 'cash',
       amount: totals.remaining,
-    };
-
-    const nextPayments = [...payments, exactPayment];
-    const nextTotals: SaleTotals = {
-      ...totals,
-      paid: totals.total,
-      remaining: 0,
+      cashReceived: totals.remaining,
       change: 0,
-      isPaid: true,
     };
 
-    setPayments(nextPayments);
-
-    setTimeout(() => {
-      void completeSale(nextPayments, nextTotals);
-    }, 100);
+    setPayments((currentPayments) => [...currentPayments, exactPayment]);
+    setCheckoutNotice('Pago exacto agregado. Finaliza la venta para cerrar el cobro.');
   };
 
   return {
@@ -359,6 +377,7 @@ export function useSaleCheckout({
     closeAddPaymentModal,
     handleAddPayment,
     confirmAddPayment,
+    confirmWorkspacePayment,
     removePayment,
     completeSale,
     handleExactPayment,

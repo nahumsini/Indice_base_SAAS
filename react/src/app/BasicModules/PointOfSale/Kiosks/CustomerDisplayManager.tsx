@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Monitor, Power, RefreshCw, ShieldOff, Trash2, Wifi, WifiOff } from 'lucide-react';
+import { Monitor, Plus, Power, RefreshCw, ShieldOff, Trash2, Wifi, WifiOff } from 'lucide-react';
+import {
+  selfServiceKioskApi,
+  type PosCashRegisterOption,
+} from '../SelfServiceKiosk/selfServiceKioskApi';
 import {
   customerDisplayApi,
   type CustomerDisplayAdminItem,
@@ -14,6 +18,7 @@ import {
   type PointOfSaleKioskTranslations,
   usePointOfSaleKioskTranslations,
 } from './kioskTranslations';
+import { CustomerDisplaySetupModal } from './CustomerDisplaySetupModal';
 
 type LifecycleAction = 'disable' | 'enable' | 'revoke' | 'delete';
 type PendingAction = { action: LifecycleAction; kiosk: CustomerDisplayAdminItem };
@@ -22,17 +27,24 @@ type PendingAction = { action: LifecycleAction; kiosk: CustomerDisplayAdminItem 
 export function CustomerDisplayManager() {
   const { copy, locale } = usePointOfSaleKioskTranslations();
   const [items, setItems] = useState<CustomerDisplayAdminItem[]>([]);
+  const [registers, setRegisters] = useState<PosCashRegisterOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [reason, setReason] = useState('');
+  const [showSetup, setShowSetup] = useState(false);
 
   const reload = async () => {
     setLoading(true);
     setError('');
     try {
-      setItems(await customerDisplayApi.listAdmin());
+      const [displays, cashRegisters] = await Promise.all([
+        customerDisplayApi.listAdmin(),
+        selfServiceKioskApi.listCashRegisters(),
+      ]);
+      setItems(displays);
+      setRegisters(cashRegisters.filter((register) => register.active));
     } catch (requestError) {
       setError(requestError instanceof Error
         ? requestError.message
@@ -80,15 +92,26 @@ export function CustomerDisplayManager() {
             {copy.customerDisplayAdmin.description}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void reload()}
-          disabled={loading}
-          className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          {copy.common.update}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => void reload()}
+            disabled={loading}
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            {copy.common.update}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowSetup(true)}
+            disabled={loading || registers.length === 0}
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#FF6B5E] px-4 text-sm font-medium text-[#222831] disabled:opacity-50"
+          >
+            <Plus className="h-4 w-4" />
+            {copy.customerDisplayAdmin.newDisplay}
+          </button>
+        </div>
       </div>
 
       {error ? (
@@ -104,6 +127,11 @@ export function CustomerDisplayManager() {
       {!loading && items.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-300 p-10 text-center text-sm font-medium text-slate-500 dark:border-slate-700">
           {copy.customerDisplayAdmin.empty}
+        </div>
+      ) : null}
+      {!loading && registers.length === 0 ? (
+        <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+          {copy.customerDisplayAdmin.registerRequired}
         </div>
       ) : null}
 
@@ -177,6 +205,13 @@ export function CustomerDisplayManager() {
           onReasonChange={setReason}
           onCancel={() => setPending(null)}
           onConfirm={() => void executeAction()}
+        />
+      ) : null}
+      {showSetup ? (
+        <CustomerDisplaySetupModal
+          registers={registers}
+          onClose={() => setShowSetup(false)}
+          onGenerated={() => void reload()}
         />
       ) : null}
     </section>
