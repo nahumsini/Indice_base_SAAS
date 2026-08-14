@@ -46,6 +46,18 @@ const trialExtension = read(
 const accountSuccess = read(
   "src/app/PlatformAdmin/AccountCreation/components/AccountCreationSuccess.tsx",
 );
+const quickTestAccount = read(
+  "src/app/PlatformAdmin/QuickTestAccount/QuickTestAccountModal.tsx",
+);
+const quickTestFlow = read(
+  "src/app/PlatformAdmin/QuickTestAccount/hooks/useQuickTestAccountFlow.ts",
+);
+const quickTestUtils = read(
+  "src/app/PlatformAdmin/QuickTestAccount/quickTestAccountUtils.ts",
+);
+const quickTestDetails = read(
+  "src/app/PlatformAdmin/QuickTestAccount/components/QuickDetailsStep.tsx",
+);
 const accountSpanishCopy = read(
   "src/app/PlatformAdmin/AccountCreation/translations/es-MX.ts",
 );
@@ -145,6 +157,23 @@ test("alta de cuenta avanza por empresa propietario y acceso", () => {
   assert.match(accountFlow, /confirmedProducts\.has\(code\)/);
   assert.match(accountSuccess, /copy\.success\.loadedModules/);
   assert.match(accountSuccess, /created\.products/);
+});
+
+test("cuenta de prueba rápida prepara datos y conserva la revisión de acceso", () => {
+  assert.match(page, /Cuenta de prueba rápida/);
+  assert.match(page, /<QuickTestAccountModal/);
+  assert.match(page, /setAccountCreationPreset\(form\)/);
+  assert.match(page, /initialStep=\{accountCreationPreset \? "access" : undefined\}/);
+  assert.match(accountFlow, /initialForm \? null : readAccountCreationDraft\(\)/);
+  assert.match(accountFlow, /initialStep \?\? restoredDraft\?\.step \?\? "company"/);
+  assert.match(quickTestAccount, /IndiceModalWizardStepper/);
+  assert.match(quickTestFlow, /\["people", "commerce", "complete"\]/);
+  assert.match(quickTestUtils, /account_type: "SUPER_ADMIN"/);
+  assert.match(quickTestUtils, /extra_seats: requiredExtraSeats\(employeeCount\)/);
+  assert.match(quickTestUtils, /product_codes: selectQuickScenarioProductCodes/);
+  assert.match(quickTestDetails, /employee_count/);
+  assert.match(quickTestDetails, /trialDayOptions/);
+  assert.doesNotMatch(quickTestFlow, /onCreate/);
 });
 
 test("la tabla suma los lugares adicionales concedidos durante la prueba", () => {

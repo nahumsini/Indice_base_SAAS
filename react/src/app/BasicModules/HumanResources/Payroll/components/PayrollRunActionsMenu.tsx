@@ -1,66 +1,26 @@
 import {
-  Ban,
-  CheckCircle2,
-  Download,
-  MoreHorizontal,
+  FileSpreadsheet,
   Pencil,
-  PlayCircle,
   Printer,
-  Wallet,
 } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '../../../../components/ui/dropdown-menu';
-import type { PayrollRunSummary } from '../../../../api/humanResources';
 import type { PayrollRunActionsCopy } from '../translations/types';
 
 type PayrollRunActionsMenuProps = {
   copy: PayrollRunActionsCopy;
-  run: PayrollRunSummary;
   isBusy: boolean;
-  canPrepareAction: boolean;
-  canApproveAction: boolean;
-  canPayAction: boolean;
-  canCancelAction: boolean;
   onOpen: () => void;
-  onProcess: () => void;
-  onApprove: () => void;
-  onMarkPaid: () => void;
-  onCancel: () => void;
   onExportPdf: () => void;
   onExportCsv: () => void;
 };
 
 export function PayrollRunActionsMenu({
   copy,
-  run,
   isBusy,
-  canPrepareAction,
-  canApproveAction,
-  canPayAction,
-  canCancelAction,
   onOpen,
-  onProcess,
-  onApprove,
-  onMarkPaid,
-  onCancel,
   onExportPdf,
   onExportCsv,
 }: PayrollRunActionsMenuProps) {
-  const canProcess = run.status === 'draft';
-  const canApprove = run.status === 'processed';
-  const canPay = run.status === 'approved';
-  const isPaid = run.status === 'paid';
-  const isBlocked = run.users_count === 0 && run.status !== 'paid' && run.status !== 'cancelled';
-  const reviewTone = isBlocked
-    ? 'border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300'
-    : run.status === 'draft'
-      ? 'border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300'
-      : 'border-blue-200 bg-white text-blue-600 hover:bg-blue-50 dark:border-blue-900/50 dark:bg-slate-900 dark:text-blue-300';
   const actionButtonClassName = 'h-10 w-10 rounded-xl p-0 shadow-none transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:scale-100 disabled:opacity-35';
 
   return (
@@ -71,34 +31,10 @@ export function PayrollRunActionsMenu({
         onClick={onOpen}
         title={copy.reviewPayroll}
         aria-label={copy.reviewPayroll}
-        className={`${actionButtonClassName} border ${reviewTone}`}
+        className={`${actionButtonClassName} border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300`}
       >
         <Pencil className="h-4 w-4" />
       </Button>
-
-      {canPrepareAction ? <Button
-        type="button"
-        variant="outline"
-        disabled={isBusy || !canProcess}
-        onClick={onProcess}
-        title={copy.processPayroll}
-        aria-label={copy.processPayroll}
-        className={`${actionButtonClassName} border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300`}
-      >
-        <PlayCircle className="h-4 w-4" />
-      </Button> : null}
-
-      {canApproveAction ? <Button
-        type="button"
-        variant="outline"
-        disabled={isBusy || !canApprove}
-        onClick={onApprove}
-        title={copy.approvePayroll}
-        aria-label={copy.approvePayroll}
-        className={`${actionButtonClassName} border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:border-indigo-900/50 dark:bg-indigo-950/30 dark:text-indigo-300`}
-      >
-        <CheckCircle2 className="h-4 w-4" />
-      </Button> : null}
 
       <Button
         type="button"
@@ -112,48 +48,17 @@ export function PayrollRunActionsMenu({
         <Printer className="h-4 w-4" />
       </Button>
 
-      {canPayAction ? <Button
+      <Button
         type="button"
         variant="outline"
-        disabled={isBusy || !canPay || isPaid}
-        onClick={onMarkPaid}
-        title={copy.markPayrollAsPaid}
-        aria-label={copy.markPayrollAsPaid}
+        disabled={isBusy}
+        onClick={onExportCsv}
+        title={copy.exportCsv}
+        aria-label={copy.exportCsv}
         className={`${actionButtonClassName} border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300`}
       >
-        <Wallet className="h-4 w-4" />
-      </Button> : null}
-
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={isBusy}
-            className={`${actionButtonClassName} border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800`}
-            aria-label={copy.morePayrollActions}
-            title={copy.morePayrollActions}
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuItem onClick={onOpen}>
-            <Pencil className="mr-2 h-4 w-4 text-amber-600" />
-            {copy.openDetails}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onExportCsv}>
-            <Download className="mr-2 h-4 w-4 text-slate-600" />
-            {copy.exportCsv}
-          </DropdownMenuItem>
-          {canCancelAction && (run.status === 'draft' || run.status === 'processed') ? (
-            <DropdownMenuItem onClick={onCancel} className="text-rose-600 focus:text-rose-700">
-              <Ban className="mr-2 h-4 w-4" />
-              {copy.cancel}
-            </DropdownMenuItem>
-          ) : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
+        <FileSpreadsheet className="h-4 w-4" />
+      </Button>
     </div>
   );
 }

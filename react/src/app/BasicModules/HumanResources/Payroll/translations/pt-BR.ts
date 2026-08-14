@@ -72,6 +72,7 @@ export const ptBR = {
     ...enCA.header,
     title: 'Operação da folha',
     subtitle: 'Revise, aprove e execute folhas por estrutura de trabalho e jurisdição.',
+    createFirstRun: 'Criar primeira folha',
     regenerateRuns: 'Regenerar folhas',
     preferences: 'Preferências',
   },

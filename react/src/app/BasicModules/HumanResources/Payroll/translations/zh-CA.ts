@@ -72,6 +72,7 @@ export const zhCA = {
     ...enCA.header,
     title: '薪资运营',
     subtitle: '按组织结构和辖区规则审核并执行薪资批次。',
+    createFirstRun: '创建首个薪资批次',
     regenerateRuns: '重新生成薪资',
     preferences: '偏好设置',
   },

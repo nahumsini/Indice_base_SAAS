@@ -62,6 +62,7 @@ import { useLanguage } from "../shared/context";
 import AccountCreationModal from "./AccountCreationModal";
 import AccountTypeEditModal from "./AccountTypeEditModal";
 import DistributorAssignmentModal from "./DistributorAssignmentModal";
+import { QuickTestAccountModal } from "./QuickTestAccount";
 import CompanyAccountDrawer, { type CompanyAccountTab } from "./CompanyAccountDrawer";
 import { CustomerUsersModal } from "./Customers/CustomerUsersModal";
 import ConsultingAdminTab from "./ConsultingAdminTab";
@@ -230,6 +231,9 @@ export default function PlatformAdminPage() {
     message: string;
   } | null>(null);
   const [createAccountOpen, setCreateAccountOpen] = useState(false);
+  const [quickTestAccountOpen, setQuickTestAccountOpen] = useState(false);
+  const [accountCreationPreset, setAccountCreationPreset] =
+    useState<PlatformAccountCreatePayload | null>(null);
   const [accountTypeEdit, setAccountTypeEdit] =
     useState<PlatformCompanySummary | null>(null);
   const [accountTypeEditError, setAccountTypeEditError] = useState("");
@@ -882,7 +886,11 @@ export default function PlatformAdminPage() {
                 canAssignDistributors={Boolean(context?.can_manage_accounts)}
                 canExtendTrials={context?.role === "PLATFORM_ROOT"}
                 canManageCourtesy={Boolean(context?.can_manage_benefits)}
-                onCreate={() => setCreateAccountOpen(true)}
+                onCreate={() => {
+                  setAccountCreationPreset(null);
+                  setCreateAccountOpen(true);
+                }}
+                onQuickCreate={() => setQuickTestAccountOpen(true)}
                 onOpenCourtesy={() => {
                   setCourtesyFeedback(null);
                   setCourtesyAccessOpen(true);
@@ -996,12 +1004,32 @@ export default function PlatformAdminPage() {
           existingOwnerEmails={(overview?.companies ?? []).flatMap((company) =>
             company.owner_email ? [company.owner_email] : [],
           )}
-          onClose={() => setCreateAccountOpen(false)}
+          initialForm={accountCreationPreset ?? undefined}
+          initialStep={accountCreationPreset ? "access" : undefined}
+          onClose={() => {
+            setCreateAccountOpen(false);
+            setAccountCreationPreset(null);
+          }}
           onCreate={createCompanyAccount}
           onOpenAccount={(companyId) => {
             setCreateAccountOpen(false);
+            setAccountCreationPreset(null);
             setActiveTab("customers");
             void openCompany(companyId);
+          }}
+        />
+      ) : null}
+      {quickTestAccountOpen ? (
+        <QuickTestAccountModal
+          products={activeCatalogProducts}
+          existingOwnerEmails={(overview?.companies ?? []).flatMap((company) =>
+            company.owner_email ? [company.owner_email] : [],
+          )}
+          onClose={() => setQuickTestAccountOpen(false)}
+          onContinue={(form) => {
+            setQuickTestAccountOpen(false);
+            setAccountCreationPreset(form);
+            setCreateAccountOpen(true);
           }}
         />
       ) : null}
@@ -1116,6 +1144,7 @@ function CustomersTab({
   canExtendTrials,
   canManageCourtesy,
   onCreate,
+  onQuickCreate,
   onOpenCourtesy,
   onQuery,
   onUserType,
@@ -1145,6 +1174,7 @@ function CustomersTab({
   canExtendTrials: boolean;
   canManageCourtesy: boolean;
   onCreate: () => void;
+  onQuickCreate: () => void;
   onOpenCourtesy: () => void;
   onQuery: (value: string) => void;
   onUserType: (value: string) => void;
@@ -1186,6 +1216,16 @@ function CustomersTab({
                 >
                   <Gift className="h-4 w-4" />
                   {english ? "Promotional access" : "Acceso promocional"}
+                </button>
+              ) : null}
+              {canCreate ? (
+                <button
+                  type="button"
+                  onClick={onQuickCreate}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-semibold text-[#143675]"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  {english ? "Quick test account" : "Cuenta de prueba rápida"}
                 </button>
               ) : null}
               {canCreate ? (

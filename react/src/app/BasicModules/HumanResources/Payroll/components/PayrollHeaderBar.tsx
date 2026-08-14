@@ -7,6 +7,7 @@ type PayrollHeaderBarProps = {
   copy: PayrollHeaderCopy;
   isBusy: boolean;
   isRegenerating: boolean;
+  hasRuns: boolean;
   canPrepare: boolean;
   canConfigure: boolean;
   onCreateRun: () => void;
@@ -18,6 +19,7 @@ export function PayrollHeaderBar({
   copy,
   isBusy,
   isRegenerating,
+  hasRuns,
   canPrepare,
   canConfigure,
   onCreateRun,
@@ -39,10 +41,10 @@ export function PayrollHeaderBar({
               className={hrTitleBarPrimaryActionClass}
             >
               <Plus className="h-4 w-4" />
-              {copy.createRun}
+              {hasRuns ? copy.createRun : copy.createFirstRun}
             </Button>
           ) : null}
-          {canPrepare ? (
+          {canPrepare && hasRuns ? (
             <Button
               type="button"
               variant="outline"

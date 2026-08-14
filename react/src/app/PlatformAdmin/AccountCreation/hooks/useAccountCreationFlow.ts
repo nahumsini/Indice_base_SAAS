@@ -39,6 +39,8 @@ type UseAccountCreationFlowProps = {
     payload: PlatformAccountCreatePayload,
   ) => Promise<PlatformAccountCreateResult>;
   lockedAccountType?: EditablePlatformAccountType;
+  initialForm?: Partial<PlatformAccountCreatePayload>;
+  initialStep?: AccountCreationStep;
   returnTo?: string;
 };
 
@@ -49,6 +51,8 @@ export function useAccountCreationFlow({
   onClose,
   onCreate,
   lockedAccountType,
+  initialForm,
+  initialStep,
   returnTo = "/platform-admin",
 }: UseAccountCreationFlowProps) {
   const navigate = useNavigate();
@@ -60,34 +64,38 @@ export function useAccountCreationFlow({
       ),
     [products],
   );
-  const restoredDraft = useMemo(readAccountCreationDraft, []);
+  const restoredDraft = useMemo(
+    () => (initialForm ? null : readAccountCreationDraft()),
+    [initialForm],
+  );
   const knownOwnerEmails = useMemo(
     () => new Set(existingOwnerEmails.map(normalizeEmail).filter(Boolean)),
     [existingOwnerEmails],
   );
   const [form, setForm] = useState<PlatformAccountCreatePayload>(() => {
-    const restoredEmployees = Number(restoredDraft?.form.employee_count);
+    const sourceForm = initialForm ?? restoredDraft?.form;
+    const restoredEmployees = Number(sourceForm?.employee_count);
     const employeeCount = Number.isInteger(restoredEmployees) && restoredEmployees > 0
       ? restoredEmployees
-      : restoredDraft
-        ? INCLUDED_ACCOUNT_SEATS + Number(restoredDraft.form.extra_seats || 0)
+      : sourceForm
+        ? INCLUDED_ACCOUNT_SEATS + Number(sourceForm.extra_seats || 0)
         : 0;
     return {
       ...emptyAccountCreationForm,
-      ...restoredDraft?.form,
-      account_type: lockedAccountType ?? restoredDraft?.form.account_type ?? emptyAccountCreationForm.account_type,
+      ...sourceForm,
+      account_type: lockedAccountType ?? sourceForm?.account_type ?? emptyAccountCreationForm.account_type,
       employee_count: employeeCount,
       extra_seats: requiredExtraSeats(employeeCount),
       temporary_password: generateTemporaryPassword(),
-      product_codes: restoredDraft
-        ? (restoredDraft.form.product_codes ?? []).filter((code) =>
+      product_codes: sourceForm
+        ? (sourceForm.product_codes ?? []).filter((code) =>
             selectableProducts.some((product) => product.product_code === code),
           )
         : [],
     };
   });
   const [step, setStep] = useState<AccountCreationStep>(
-    restoredDraft?.step ?? "company",
+    initialStep ?? restoredDraft?.step ?? "company",
   );
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);

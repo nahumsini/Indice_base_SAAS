@@ -72,6 +72,7 @@ export const koCA = {
     ...enCA.header,
     title: '급여 운영',
     subtitle: '조직 구조와 관할 규칙에 따라 급여 실행을 검토하고 처리합니다.',
+    createFirstRun: '첫 급여 생성',
     regenerateRuns: '급여 재생성',
     preferences: '설정',
   },

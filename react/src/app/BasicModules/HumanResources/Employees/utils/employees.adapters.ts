@@ -24,16 +24,19 @@ const normalizeEmployeePayrollTreatment = (value?: string | null): EmployeePayro
   const normalized = (value ?? '').trim().toLocaleLowerCase().replace(/[-\s]+/g, '_');
   switch (normalized) {
     case 'operational_payroll':
-    case 'accounts_payable':
     case 'no_payroll':
       return normalized;
+    case 'accounts_payable':
+    case 'cuenta_por_pagar':
+      return 'no_payroll';
     case 'fiscal':
     case 'fiscal_payroll':
     case 'nomina_fiscal':
+      return 'fiscal_payroll';
     case '':
-      return 'fiscal_payroll';
+      return 'operational_payroll';
     default:
-      return 'fiscal_payroll';
+      return 'operational_payroll';
   }
 };
 

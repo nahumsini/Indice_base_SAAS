@@ -12,7 +12,6 @@ import {
   Printer,
   Save,
   ShieldCheck,
-  CreditCard,
   Wallet,
 } from 'lucide-react';
 import { Button } from '../../../../../components/ui/button';
@@ -41,7 +40,6 @@ export type PayrollRunWorkspaceDialogProps = {
   canApproveAction: boolean;
   canCancelAction: boolean;
   canManageReporting: boolean;
-  canPayAction: boolean;
   canPrepareAction: boolean;
   canPrint: boolean;
   copy: PayrollTranslations;
@@ -61,7 +59,6 @@ export type PayrollRunWorkspaceDialogProps = {
   onDownloadPdf: (run: PayrollRunSummary) => void;
   onIncentiveApplied: (detail: PayrollRunDetailResponse) => void;
   onOpenGovernmentReporting: (run: PayrollRunSummary) => void;
-  onPay: () => void;
   onProcess: () => void;
   onPrintLine: (line: PayrollRunLine) => void;
   onSaveLine: () => void;
@@ -99,7 +96,6 @@ export function PayrollRunWorkspaceDialog({
   canApproveAction,
   canCancelAction,
   canManageReporting,
-  canPayAction,
   canPrepareAction,
   canPrint,
   copy,
@@ -119,7 +115,6 @@ export function PayrollRunWorkspaceDialog({
   onDownloadPdf,
   onIncentiveApplied,
   onOpenGovernmentReporting,
-  onPay,
   onProcess,
   onPrintLine,
   onSaveLine,
@@ -166,9 +161,9 @@ export function PayrollRunWorkspaceDialog({
   );
   const selectedLineIsDirty = selectedLine ? dirtyLineIds.has(selectedLine.id) : false;
   const runHasColombiaFiscalLines = detail?.lines.some(isColombiaFiscalPayrollLine) ?? false;
-  const canProcess = detail?.run.status === 'draft' && canPrepareAction;
-  const canApprove = detail?.run.status === 'processed' && canApproveAction;
-  const canPay = detail?.run.status === 'approved' && canPayAction;
+  const isEditableDraft = detail?.run.status === 'draft' || detail?.run.status === 'processed';
+  const canProcess = Boolean(isEditableDraft && canPrepareAction);
+  const canApprove = Boolean(isEditableDraft && canApproveAction);
   const canCancel = Boolean(
     detail
     && canCancelAction
@@ -278,27 +273,24 @@ export function PayrollRunWorkspaceDialog({
             {text.print}
           </Button>
         ) : null}
-        {(contentView === 'adjustments' || contentView === 'deductions') && selectedLineIsDirty && detail.run.status === 'draft' && canPrepareAction ? (
+        {(contentView === 'adjustments' || contentView === 'deductions') && selectedLineIsDirty && isEditableDraft && canPrepareAction ? (
           <Button type="button" onClick={onSaveLine} disabled={isSaving || !selectedLine}>
             {activeBusyKind === 'save-line' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             {copy.labels.saveLine}
           </Button>
         ) : contentView === 'collaborators' && dirtyLineIds.size > 0 ? (
           <Button type="button" onClick={selectFirstDirty} disabled={isSaving}>{text.openPending}</Button>
-        ) : contentView === 'collaborators' && canProcess ? (
+        ) : null}
+        {contentView === 'collaborators' && dirtyLineIds.size === 0 && canProcess ? (
           <Button type="button" onClick={onProcess} disabled={isSaving}>
             {activeBusyKind === 'process-run' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
             {copy.labels.process}
           </Button>
-        ) : contentView === 'collaborators' && canApprove ? (
+        ) : null}
+        {contentView === 'collaborators' && dirtyLineIds.size === 0 && canApprove ? (
           <Button type="button" onClick={onApprove} disabled={isSaving}>
             {activeBusyKind === 'approve-run' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
             {copy.labels.approve}
-          </Button>
-        ) : contentView === 'collaborators' && canPay ? (
-          <Button type="button" onClick={onPay} disabled={isSaving}>
-            {activeBusyKind === 'mark-paid' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-            {copy.labels.pay}
           </Button>
         ) : null}
       </>

@@ -135,7 +135,7 @@ prepare_nginx_host_config() {
     -e "s#127\\.0\\.0\\.1:8082#127.0.0.1:${HOST_BACKEND_PORT}#g" \
     -e "s#127\\.0\\.0\\.1:9000#127.0.0.1:${HOST_MINIO_API_PORT}#g" \
     "${source_config}" >"${prepared_config}"
-  cp "${prepared_config}" "${WEB_NGINX_HOST_CONFIG}"
+  install -m 0644 "${prepared_config}" "${WEB_NGINX_HOST_CONFIG}"
   rm -f "${prepared_config}"
 }
 

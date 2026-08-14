@@ -108,7 +108,7 @@ export const createEmptyEmployeeFormData = (): EmployeeFormData => ({
   salaryType: 'daily',
   workdayHours: '8',
   workdaysPerWeek: '5',
-  payrollTreatment: 'fiscal_payroll',
+  payrollTreatment: 'operational_payroll',
   salary: '',
   hourlyRate: '',
   payPeriod: 'weekly',
