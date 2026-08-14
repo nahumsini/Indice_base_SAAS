@@ -112,6 +112,14 @@ class HrPayrollServiceTest {
     }
 
     @Test
+    void runStatusFilterHidesCancelledRunsByDefaultButAllowsExplicitHistoryLookup() {
+        assertTrue(HrPayrollService.matchesRunStatus("draft", ""));
+        assertFalse(HrPayrollService.matchesRunStatus("cancelled", ""));
+        assertFalse(HrPayrollService.matchesRunStatus("cancelled", "all"));
+        assertTrue(HrPayrollService.matchesRunStatus("cancelled", "cancelled"));
+    }
+
+    @Test
     void fixedSalaryDeductionDoesNotTreatPeriodSalaryAsDailySalary() {
         var deduction = HrPayrollService.computeFixedSalaryDeduction(
             new BigDecimal("3000.00"),

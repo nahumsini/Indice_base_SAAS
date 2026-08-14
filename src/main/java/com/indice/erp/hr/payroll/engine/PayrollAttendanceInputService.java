@@ -96,6 +96,14 @@ public class PayrollAttendanceInputService {
                     var workedHours = workedHours(record, expectedHours);
                     regularHours = regularHours.add(workedHours.min(expectedHours));
                     overtimeHours = overtimeHours.add(workedHours.subtract(expectedHours).max(BigDecimal.ZERO));
+                    if (!hourly && expectedHours.compareTo(BigDecimal.ZERO) > 0) {
+                        var missingHours = expectedHours.subtract(workedHours).max(BigDecimal.ZERO);
+                        if (missingHours.compareTo(BigDecimal.ZERO) > 0) {
+                            var lateDeductionDayFraction = missingHours.divide(expectedHours, 4, RoundingMode.HALF_UP);
+                            unpaidAbsenceDays = unpaidAbsenceDays.add(lateDeductionDayFraction);
+                            recordSnapshot.put("lateDeductionDayFraction", lateDeductionDayFraction);
+                        }
+                    }
                 }
                 case "on_time" -> {
                     paidDays = paidDays.add(BigDecimal.ONE);

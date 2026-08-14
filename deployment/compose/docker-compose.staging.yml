@@ -78,7 +78,7 @@ services:
       SERVER_PORT: 8182
       SERVER_FORWARD_HEADERS_STRATEGY: framework
       SPRING_FLYWAY_ENABLED: "true"
-      SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:8336/${MYSQL_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
+      SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:8336/${MYSQL_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&forceConnectionTimeZoneToSession=true&useUnicode=true&characterEncoding=utf8
       SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
       APP_WEB_ALLOWED_ORIGINS: https://apptest.indiceapp.com

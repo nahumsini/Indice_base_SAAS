@@ -1,6 +1,5 @@
 import {
   AlertTriangle,
-  CheckCircle2,
   ClipboardCheck,
   CreditCard,
   FileClock,
@@ -28,11 +27,6 @@ const statusStyleConfig = {
     dotClassName: 'bg-blue-500',
     textClassName: 'text-blue-700 dark:text-blue-300',
     barClassName: 'bg-blue-500',
-  },
-  review: {
-    dotClassName: 'bg-amber-500',
-    textClassName: 'text-amber-700 dark:text-amber-300',
-    barClassName: 'bg-amber-500',
   },
   approved: {
     dotClassName: 'bg-indigo-500',
@@ -78,8 +72,9 @@ export function PayrollOperationsPanel({
     `${value} ${value === 1 ? operations.words.payrollRun : operations.words.payrollRuns}`
   );
   const blockedCount = runs.filter(isBlockedRun).length;
-  const draftCount = runs.filter((run) => run.status === 'draft' && !isBlockedRun(run)).length;
-  const reviewCount = runs.filter((run) => run.status === 'processed' && !isBlockedRun(run)).length;
+  const draftCount = runs.filter(
+    (run) => (run.status === 'draft' || run.status === 'processed') && !isBlockedRun(run),
+  ).length;
   const approvedCount = runs.filter((run) => run.status === 'approved' && !isBlockedRun(run)).length;
   const paidCount = runs.filter((run) => run.status === 'paid').length;
   const cancelledCount = runs.filter((run) => run.status === 'cancelled').length;
@@ -94,7 +89,6 @@ export function PayrollOperationsPanel({
 
   const statusDistribution = [
     { key: 'draft', count: draftCount },
-    { key: 'review', count: reviewCount },
     { key: 'approved', count: approvedCount },
     { key: 'paid', count: paidCount },
     { key: 'cancelled', count: cancelledCount },
@@ -106,8 +100,8 @@ export function PayrollOperationsPanel({
     ? `${formatRunCount(blockedCount)} ${blockedCount === 1 ? operations.words.is : operations.words.are} ${operations.insight.blocked}`
     : approvedCount > 0
       ? `${formatRunCount(approvedCount)} ${approvedCount === 1 ? operations.words.is : operations.words.are} ${operations.insight.approved}`
-      : reviewCount > 0
-        ? `${formatRunCount(reviewCount)} ${reviewCount === 1 ? operations.words.requires : operations.words.require} ${operations.insight.review}`
+      : draftCount > 0
+        ? `${formatRunCount(draftCount)} ${draftCount === 1 ? operations.words.requires : operations.words.require} ${operations.insight.review}`
         : runs.length > 0
           ? `${operations.insight.groupedPrefix} ${Math.max(jurisdictionCount, 1)} ${Math.max(jurisdictionCount, 1) === 1 ? operations.words.jurisdictionSignal : operations.words.jurisdictionSignals} ${operations.insight.groupedAnd} ${Math.max(operationalStructureCount, 1)} ${Math.max(operationalStructureCount, 1) === 1 ? operations.words.operationalStructure : operations.words.operationalStructures}.`
           : operations.insight.empty;
@@ -121,9 +115,9 @@ export function PayrollOperationsPanel({
     },
     {
       label: operations.metrics.pendingReview,
-      value: reviewCount + draftCount,
+      value: draftCount,
       Icon: FileClock,
-      valueClassName: reviewCount + draftCount > 0 ? 'text-amber-600' : 'text-[#59C3A5]',
+      valueClassName: draftCount > 0 ? 'text-amber-600' : 'text-[#59C3A5]',
     },
     {
       label: operations.metrics.pendingPayment,
@@ -136,12 +130,6 @@ export function PayrollOperationsPanel({
       value: blockedCount,
       Icon: AlertTriangle,
       valueClassName: blockedCount > 0 ? 'text-rose-600' : 'text-[#59C3A5]',
-    },
-    {
-      label: operations.metrics.processed,
-      value: reviewCount,
-      Icon: CheckCircle2,
-      valueClassName: 'text-[#59C3A5]',
     },
     {
       label: operations.metrics.payoutTotal,

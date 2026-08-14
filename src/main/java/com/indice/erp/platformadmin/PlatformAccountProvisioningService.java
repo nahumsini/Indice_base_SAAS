@@ -293,6 +293,7 @@ public class PlatformAccountProvisioningService {
     }
 
     private List<AppliedProduct> appliedProducts(long companyId) {
+        var now = java.sql.Timestamp.from(java.time.Instant.now());
         return jdbc.query(
             """
                 SELECT product.product_code, product.display_name
@@ -301,15 +302,17 @@ public class PlatformAccountProvisioningService {
                 WHERE benefit.company_id = ?
                   AND benefit.benefit_type = 'PRODUCT'
                   AND benefit.status = 'ACTIVE'
-                  AND benefit.starts_at <= CURRENT_TIMESTAMP(6)
-                  AND (benefit.ends_at IS NULL OR benefit.ends_at > CURRENT_TIMESTAMP(6))
+                  AND benefit.starts_at <= ?
+                  AND (benefit.ends_at IS NULL OR benefit.ends_at > ?)
                 ORDER BY product.sort_order, product.display_name
                 """,
             (rs, rowNum) -> new AppliedProduct(
                 rs.getString("product_code"),
                 rs.getString("display_name")
             ),
-            companyId
+            companyId,
+            now,
+            now
         );
     }
 

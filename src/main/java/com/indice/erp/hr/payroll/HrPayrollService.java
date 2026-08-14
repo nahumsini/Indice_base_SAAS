@@ -128,11 +128,11 @@ public class HrPayrollService {
     }
 
     private Map<String, Object> overview(long companyId, HrOperationalScope scope) {
+        reconcilePaidPayrollRuns(companyId);
         var preferences = ensurePreferences(companyId);
         var runs = loadRuns(companyId, scope);
 
         int draftCount = 0;
-        int processedCount = 0;
         int approvedCount = 0;
         int paidCount = 0;
         int cancelledCount = 0;
@@ -141,8 +141,7 @@ public class HrPayrollService {
 
         for (var run : runs) {
             switch (run.status()) {
-                case "draft" -> draftCount++;
-                case "processed" -> processedCount++;
+                case "draft", "processed" -> draftCount++;
                 case "approved" -> approvedCount++;
                 case "paid" -> paidCount++;
                 case "cancelled" -> cancelledCount++;
@@ -170,7 +169,9 @@ public class HrPayrollService {
         var summary = new LinkedHashMap<String, Object>();
         summary.put("runs_count", runs.size());
         summary.put("draft_count", draftCount);
-        summary.put("processed_count", processedCount);
+        // Compatibility field for older clients. Recalculation is now an action,
+        // not a visible lifecycle state.
+        summary.put("processed_count", 0);
         summary.put("approved_count", approvedCount);
         summary.put("paid_count", paidCount);
         summary.put("cancelled_count", cancelledCount);
@@ -929,6 +930,7 @@ public class HrPayrollService {
         Map<String, String> filters,
         HrOperationalScope scope
     ) {
+        reconcilePaidPayrollRuns(companyId);
         var items = loadRuns(companyId, scope).stream()
             .filter((run) -> matchesRunFilters(run, filters))
             .map(this::toRunSummaryMap)
@@ -1165,6 +1167,7 @@ public class HrPayrollService {
     }
 
     private Map<String, Object> getRunDetail(long companyId, long runId, HrOperationalScope scope) {
+        reconcilePaidPayrollRuns(companyId);
         var run = loadRun(companyId, runId, scope);
         var runLines = loadRunLines(companyId, runId, scope);
         var itemsByLineId = loadRunLineItems(runLines.stream().map(PayrollRunLineRow::id).toList());
@@ -1465,11 +1468,11 @@ public class HrPayrollService {
         HrOperationalScope scope
     ) {
         var run = loadRun(companyId, runId);
-        requireRunStatus(run, "draft");
+        requireEditableDraftStatus(run);
         hrPayrollScopeAccess.requireRunFullyInScope(companyId, scope, runId);
         recomputeRunLinesWithEngine(runId, ensurePreferences(companyId));
         recomputeRunTotals(runId);
-        updateRunStatus(runId, "processed", userId);
+        recordRunRecalculation(runId, userId);
         return Map.of("run", toRunSummaryMap(loadRun(companyId, runId, scope)));
     }
 
@@ -1498,9 +1501,18 @@ public class HrPayrollService {
         HrOperationalScope scope
     ) {
         var run = loadRun(companyId, runId);
-        requireRunStatus(run, "processed");
+        requireEditableDraftStatus(run);
         hrPayrollScopeAccess.requireRunFullyInScope(companyId, scope, runId);
-        ensureDifferentTransitionActor(runId, userId, actorRole, PayrollTransition.APPROVE);
+        var legacyProcessedRun = "processed".equals(run.status());
+        // Historical processed runs already contain their frozen calculation
+        // and compliance snapshots. Validate those records before migrating
+        // them through approval so the retired state remains auditable.
+        if (legacyProcessedRun) {
+            ensureDifferentTransitionActor(runId, userId, actorRole, PayrollTransition.APPROVE);
+        } else {
+            recomputeRunLinesWithEngine(runId, ensurePreferences(companyId));
+            recomputeRunTotals(runId);
+        }
         ensureStatutoryComplianceForApproval(runId);
         ensureColombiaGovernmentReportingReadyForApproval(companyId, runId);
         updateRunStatus(runId, "approved", userId);
@@ -1560,13 +1572,11 @@ public class HrPayrollService {
     private Map<String, Object> cancelRun(long companyId, long userId, long runId, HrOperationalScope scope) {
         var run = loadRun(companyId, runId);
         hrPayrollScopeAccess.requireRunFullyInScope(companyId, scope, runId);
-        if ("approved".equals(run.status()) || "paid".equals(run.status())) {
-            throw new IllegalArgumentException(
-                "Approved or paid payroll runs cannot be cancelled because they may have linked financial obligations."
-            );
-        }
         if ("cancelled".equals(run.status())) {
             throw new IllegalArgumentException("Payroll run is already cancelled.");
+        }
+        if (!isEditableDraftStatus(run.status())) {
+            throw new IllegalArgumentException("Payroll run in " + run.status() + " status cannot be cancelled.");
         }
         jdbcTemplate.update(
             """
@@ -1833,7 +1843,22 @@ public class HrPayrollService {
                 """,
             companyId
         );
-        return ensurePreferences(companyId);
+        return new PayrollPreferencesRow(
+            companyId,
+            "single",
+            scaled(new BigDecimal("8.00")),
+            true,
+            1,
+            1,
+            16,
+            1,
+            percentageValue(new BigDecimal("0.10000")),
+            percentageValue(new BigDecimal("0.04000")),
+            percentageValue(new BigDecimal("0.03000")),
+            percentageValue(new BigDecimal("0.07000")),
+            percentageValue(new BigDecimal("0.05000")),
+            percentageValue(new BigDecimal("0.02000"))
+        );
     }
 
     private List<PayrollRunRow> loadRuns(long companyId) {
@@ -2131,7 +2156,7 @@ public class HrPayrollService {
 	                       COALESCE(LOWER(e.pay_period), 'weekly') AS pay_period,
 	                       COALESCE(e.workday_hours, 8) AS workday_hours,
 	                       COALESCE(e.workdays_per_week, 5) AS workdays_per_week,
-	                       COALESCE(e.payroll_treatment, 'fiscal_payroll') AS payroll_treatment,
+	                       COALESCE(e.payroll_treatment, 'operational_payroll') AS payroll_treatment,
 	                       COALESCE(e.registration_country, '') AS registration_country,
 	                       COALESCE(e.state_province, '') AS state_province
                 FROM hr_users e
@@ -2140,7 +2165,7 @@ public class HrPayrollService {
                 WHERE e.company_id = ?
                   AND e.work_profile_id IS NOT NULL
                   AND COALESCE(LOWER(e.status), 'active') <> 'terminated'
-                  AND COALESCE(LOWER(e.payroll_treatment), 'fiscal_payroll') <> 'no_payroll'
+                  AND COALESCE(LOWER(e.payroll_treatment), 'operational_payroll') <> 'no_payroll'
                   AND (? = 0 OR COALESCE(LOWER(e.pay_period), 'weekly') = ?)
                   AND (e.hire_date IS NULL OR e.hire_date <= ?)
                   AND (e.contract_start_date IS NULL OR e.contract_start_date <= ?)
@@ -2776,6 +2801,25 @@ public class HrPayrollService {
             );
             default -> throw new IllegalArgumentException("Unsupported payroll run status.");
         }
+    }
+
+    private void recordRunRecalculation(long runId, long userId) {
+        jdbcTemplate.update(
+            "UPDATE payroll_runs SET status = 'draft', processed_by = ?, processed_at = ? WHERE id = ?",
+            userId,
+            Timestamp.valueOf(LocalDateTime.now()),
+            runId
+        );
+    }
+
+    private void requireEditableDraftStatus(PayrollRunRow run) {
+        if (!isEditableDraftStatus(run.status())) {
+            throw new IllegalArgumentException("Payroll run must be in draft status.");
+        }
+    }
+
+    private boolean isEditableDraftStatus(String status) {
+        return "draft".equals(status) || "processed".equals(status);
     }
 
     private void requireRunStatus(PayrollRunRow run, String expectedStatus) {
@@ -3779,7 +3823,7 @@ public class HrPayrollService {
     private void createPayrollPayablesForApprovedRun(long companyId, long userId, long runId) {
         var run = loadRun(companyId, runId);
         for (var line : loadRunLines(runId)) {
-            if (!PAYMENT_ROUTE_EXPENSES.equals(normalizePaymentRoute(line.paymentRoute()))) {
+            if (PAYMENT_ROUTE_NONE.equals(normalizePaymentRoute(line.paymentRoute()))) {
                 continue;
             }
             var total = scaled(line.netAmount()).max(BigDecimal.ZERO);
@@ -3844,7 +3888,7 @@ public class HrPayrollService {
                  AND expense.deleted_at IS NULL
                 WHERE line.company_id = ?
                   AND line.run_id = ?
-                  AND line.payment_route = 'expenses'
+                  AND COALESCE(LOWER(line.payment_route), 'payroll') <> 'none'
                   AND line.net_amount > 0
                   AND (
                     line.payable_expense_id IS NULL
@@ -3863,9 +3907,51 @@ public class HrPayrollService {
         }
     }
 
+    /**
+     * Expenses is the source of truth for settlement. Once every payable line
+     * created by an approved run is paid, payroll reflects the run as paid
+     * without requiring a second manual action in Human Resources.
+     */
+    private void reconcilePaidPayrollRuns(long companyId) {
+        jdbcTemplate.update(
+            """
+                UPDATE payroll_runs
+                SET status = 'paid',
+                    paid_at = COALESCE(payroll_runs.paid_at, CURRENT_TIMESTAMP)
+                WHERE payroll_runs.company_id = ?
+                  AND payroll_runs.status = 'approved'
+                  AND EXISTS (
+                    SELECT 1
+                    FROM payroll_run_lines line
+                    WHERE line.run_id = payroll_runs.id
+                      AND line.company_id = payroll_runs.company_id
+                      AND COALESCE(LOWER(line.payment_route), 'payroll') <> 'none'
+                      AND line.net_amount > 0
+                  )
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM payroll_run_lines line
+                    LEFT JOIN finance_expenses expense
+                      ON expense.id = line.payable_expense_id
+                     AND expense.company_id = line.company_id
+                     AND expense.deleted_at IS NULL
+                    WHERE line.run_id = payroll_runs.id
+                      AND line.company_id = payroll_runs.company_id
+                      AND COALESCE(LOWER(line.payment_route), 'payroll') <> 'none'
+                      AND line.net_amount > 0
+                      AND (
+                        line.payable_expense_id IS NULL
+                        OR expense.id IS NULL
+                        OR expense.payment_status <> 'PAID'
+                      )
+                  )
+                """,
+            companyId
+        );
+    }
+
     private boolean matchesRunFilters(PayrollRunRow run, Map<String, String> filters) {
-        var status = safe(filters.get("status")).trim().toLowerCase(Locale.ROOT);
-        if (!status.isBlank() && !status.equals(run.status())) {
+        if (!matchesRunStatus(run.status(), filters.get("status"))) {
             return false;
         }
 
@@ -3906,6 +3992,32 @@ public class HrPayrollService {
         }
 
         return true;
+    }
+
+    static boolean matchesRunStatus(String runStatus, String requestedStatus) {
+        var normalizedRunStatus = runStatus == null
+            ? ""
+            : runStatus.trim().toLowerCase(Locale.ROOT);
+        var normalizedRequestedStatus = requestedStatus == null
+            ? ""
+            : requestedStatus.trim().toLowerCase(Locale.ROOT);
+        if ("processed".equals(normalizedRunStatus)) {
+            normalizedRunStatus = "draft";
+        }
+        if ("processed".equals(normalizedRequestedStatus)) {
+            normalizedRequestedStatus = "draft";
+        }
+
+        // The default payroll screen is an operational queue. Cancelled runs remain
+        // stored for audit/history and are only returned when explicitly requested.
+        if (normalizedRequestedStatus.isBlank() || "all".equals(normalizedRequestedStatus)) {
+            return !"cancelled".equals(normalizedRunStatus);
+        }
+        return normalizedRequestedStatus.equals(normalizedRunStatus);
+    }
+
+    private String visibleRunStatus(String status) {
+        return "processed".equals(safe(status).toLowerCase(Locale.ROOT)) ? "draft" : status;
     }
 
     private boolean groupingKeyMatches(String groupingKey, String organizationalKey) {
@@ -3950,7 +4062,7 @@ public class HrPayrollService {
         body.put("pay_period", run.payPeriod());
         body.put("period_start_date", run.periodStartDate().toString());
         body.put("period_end_date", run.periodEndDate().toString());
-        body.put("status", run.status());
+        body.put("status", visibleRunStatus(run.status()));
         body.put("users_count", run.usersCount());
         body.put("gross_amount", scaled(run.grossAmount()));
         body.put("deductions_amount", scaled(run.deductionsAmount()));

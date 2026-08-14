@@ -88,7 +88,7 @@ services:
       SERVER_ADDRESS: ${SERVER_ADDRESS:-0.0.0.0}
       SERVER_FORWARD_HEADERS_STRATEGY: ${SERVER_FORWARD_HEADERS_STRATEGY:-framework}
       SPRING_FLYWAY_ENABLED: ${SPRING_FLYWAY_ENABLED:-true}
-      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-indice_db}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8}
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-indice_db}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&forceConnectionTimeZoneToSession=true&useUnicode=true&characterEncoding=utf8}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-${MYSQL_USER:-indice_user}}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-${MYSQL_PASSWORD:-indice_pass}}
       APP_STORAGE_PROVIDER: ${APP_STORAGE_PROVIDER:-minio}

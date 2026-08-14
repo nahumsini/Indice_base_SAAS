@@ -143,7 +143,7 @@ public class HrUserService {
 	                       COALESCE(SUM(
 	                           CASE
 	                               WHEN LOWER(COALESCE(status, 'active')) <> 'active' THEN 0
-                               WHEN LOWER(COALESCE(payroll_treatment, 'fiscal_payroll')) = 'no_payroll' THEN 0
+                               WHEN LOWER(COALESCE(payroll_treatment, 'operational_payroll')) = 'no_payroll' THEN 0
 	                               WHEN LOWER(COALESCE(salary_type, 'daily')) = 'hourly' THEN COALESCE(hourly_rate, 0) * COALESCE(workday_hours, 8) * COALESCE(workdays_per_week, 5) * 52 / 12
 	                               WHEN LOWER(COALESCE(pay_period, 'weekly')) = 'monthly' THEN COALESCE(salary, 0)
 	                               WHEN LOWER(COALESCE(pay_period, 'weekly')) = 'biweekly' THEN COALESCE(salary, 0) * 26 / 12
@@ -1426,7 +1426,7 @@ public class HrUserService {
         emptyProfile.put("emergency_contact_phone", "");
         emptyProfile.put("workday_hours", new BigDecimal("8.00"));
         emptyProfile.put("workdays_per_week", new BigDecimal("5.00"));
-        emptyProfile.put("payroll_treatment", "fiscal_payroll");
+        emptyProfile.put("payroll_treatment", "operational_payroll");
         return emptyProfile;
     }
 
@@ -1639,14 +1639,14 @@ public class HrUserService {
 
     private String normalizePayrollTreatment(String value) {
         if (value == null || value.isBlank()) {
-            return "fiscal_payroll";
+            return "operational_payroll";
         }
 
         var normalized = value.trim().toLowerCase(Locale.ROOT).replace('-', '_');
         return switch (normalized) {
             case "fiscal", "fiscal_payroll", "nomina_fiscal", "nomina fiscal" -> "fiscal_payroll";
             case "operational", "operational_payroll", "nomina_operativa", "nomina operativa", "internal_payroll" -> "operational_payroll";
-            case "accounts_payable", "cuenta_por_pagar", "cuenta por pagar", "expense", "expenses" -> "accounts_payable";
+            case "accounts_payable", "cuenta_por_pagar", "cuenta por pagar", "expense", "expenses" -> "no_payroll";
             case "no_payroll", "sin_nomina", "sin nomina", "excluded", "exclude" -> "no_payroll";
             default -> throw new IllegalArgumentException("Unsupported payroll_treatment.");
         };
@@ -1968,7 +1968,7 @@ public class HrUserService {
                 "",
                 new BigDecimal("8.00"),
                 new BigDecimal("5.00"),
-                "fiscal_payroll"
+                "operational_payroll"
             );
         }
 

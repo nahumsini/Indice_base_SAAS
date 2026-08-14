@@ -4,6 +4,7 @@ import type {
   PlatformAccountCreateResult,
   PlatformCatalogProduct,
 } from "../../api/platformAdmin";
+import type { AccountCreationStep } from "../accountCreationDraft";
 
 export type CreatedAccountAccess = PlatformAccountCreateResult & {
   temporaryPassword: string;
@@ -18,6 +19,8 @@ export type AccountCreationModalProps = {
   ) => Promise<PlatformAccountCreateResult>;
   onOpenAccount: (companyId: number) => void;
   lockedAccountType?: EditablePlatformAccountType;
+  initialForm?: Partial<PlatformAccountCreatePayload>;
+  initialStep?: AccountCreationStep;
   returnTo?: string;
 };
 

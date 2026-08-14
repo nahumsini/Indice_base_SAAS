@@ -264,6 +264,14 @@ type PayrollLineDraft = {
 
 const payrollTreatmentOptions = [
   {
+    value: 'operational_payroll',
+    label: 'Nómina operativa',
+    description: 'Pago interno con descuentos automáticos por faltas, retardos y permisos sin goce.',
+    routeLabel: 'Ruta: nómina interna',
+    Icon: WalletCards,
+    selectedClassName: 'border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-100',
+  },
+  {
     value: 'fiscal_payroll',
     label: 'Nómina fiscal',
     description: 'Calcula impuestos, aportaciones y obligaciones de la jurisdicción.',
@@ -272,25 +280,9 @@ const payrollTreatmentOptions = [
     selectedClassName: 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-100',
   },
   {
-    value: 'operational_payroll',
-    label: 'Nómina operativa',
-    description: 'Pago interno sin cálculo fiscal automático, útil para control operativo.',
-    routeLabel: 'Ruta: nómina interna',
-    Icon: WalletCards,
-    selectedClassName: 'border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-100',
-  },
-  {
-    value: 'accounts_payable',
-    label: 'Cuenta por pagar',
-    description: 'Al aprobar la corrida crea una cuenta por pagar en Gastos por el neto.',
-    routeLabel: 'Ruta: gastos',
-    Icon: ReceiptText,
-    selectedClassName: 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100',
-  },
-  {
     value: 'no_payroll',
     label: 'Sin nómina',
-    description: 'Excluye al colaborador de nuevas corridas automáticas.',
+    description: 'Conserva su asistencia, pero lo excluye de pagos, descuentos y nuevas corridas.',
     routeLabel: 'Ruta: excluida',
     Icon: Ban,
     selectedClassName: 'border-rose-300 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-100',
@@ -592,7 +584,6 @@ type PayrollBusyKind =
   | 'save-line'
   | 'process-run'
   | 'approve-run'
-  | 'mark-paid'
   | 'cancel-run'
   | 'government-reporting'
   | 'download-csv'
@@ -1179,7 +1170,7 @@ export default function Payroll() {
     }
   };
 
-  const handleRunAction = async (action: 'process' | 'approve' | 'pay') => {
+  const handleRunAction = async (action: 'process' | 'approve') => {
     if (!selectedRunDetail) {
       return;
     }
@@ -1187,9 +1178,7 @@ export default function Payroll() {
     try {
       const busyConfig = action === 'process'
         ? { kind: 'process-run' as const, title: copy.busy.processTitle, description: copy.busy.processDescription }
-        : action === 'approve'
-          ? { kind: 'approve-run' as const, title: copy.busy.approveTitle, description: copy.busy.approveDescription }
-          : { kind: 'mark-paid' as const, title: copy.busy.payTitle, description: copy.busy.payDescription };
+        : { kind: 'approve-run' as const, title: copy.busy.approveTitle, description: copy.busy.approveDescription };
 
       await runBusyTask(busyConfig, async () => {
         switch (action) {
@@ -1200,10 +1189,6 @@ export default function Payroll() {
           case 'approve':
             await humanResourcesApi.approvePayrollRun(selectedRunDetail.run.id);
             setSuccessMessage(copy.success.approved);
-            break;
-          case 'pay':
-            await humanResourcesApi.markPayrollRunPaid(selectedRunDetail.run.id);
-            setSuccessMessage(copy.success.paid);
             break;
         }
 
@@ -1276,63 +1261,6 @@ export default function Payroll() {
       }, 450);
     } catch (error) {
       setRunDialogNotice({ tone: 'error', message: toErrorMessage(error, copy) });
-    }
-  };
-
-  const handleProcessRunFromTable = async (run: PayrollRunSummary) => {
-    try {
-      await runBusyTask({
-        kind: 'process-run',
-        title: copy.busy.processTitle,
-        description: copy.busy.processDescription,
-      }, async () => {
-        await humanResourcesApi.processPayrollRun(run.id);
-        setSuccessMessage(copy.success.processed);
-        await loadPayroll(filters, { background: true });
-        if (selectedRunDetail?.run.id === run.id) {
-          await refreshOpenRun(run.id);
-        }
-      });
-    } catch (error) {
-      setErrorMessage(toErrorMessage(error, copy));
-    }
-  };
-
-  const handlePayRunFromTable = async (run: PayrollRunSummary) => {
-    try {
-      await runBusyTask({
-        kind: 'mark-paid',
-        title: copy.busy.payTitle,
-        description: copy.busy.payDescription,
-      }, async () => {
-        await humanResourcesApi.markPayrollRunPaid(run.id);
-        setSuccessMessage(copy.success.paid);
-        await loadPayroll(filters, { background: true });
-        if (selectedRunDetail?.run.id === run.id) {
-          await refreshOpenRun(run.id);
-        }
-      });
-    } catch (error) {
-      setErrorMessage(toErrorMessage(error, copy));
-    }
-  };
-
-  const handleApproveRunFromTable = async (run: PayrollRunSummary) => {
-    try {
-      await runBusyTask({
-        kind: 'approve-run',
-        title: copy.busy.approveTitle,
-        description: copy.busy.approveDescription,
-      }, async () => {
-        await humanResourcesApi.approvePayrollRun(run.id);
-        setSuccessMessage(copy.success.approved);
-        await loadPayroll(filters, { background: true });
-        if (selectedRunDetail?.run.id === run.id) {
-          await refreshOpenRun(run.id);
-        }
-      });
-    } catch (error) {
-      setErrorMessage(toErrorMessage(error, copy));
     }
   };
 
@@ -1582,14 +1510,14 @@ export default function Payroll() {
 
     const statusClassNames: Record<PayrollRunSummary['status'], string> = {
       draft: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300',
-      processed: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300',
+      processed: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300',
       approved: 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900/40 dark:bg-indigo-950/30 dark:text-indigo-300',
       paid: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300',
       cancelled: 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
     };
 
     return {
-      label: run.status === 'processed' ? copy.operationalStatus.review : copy.statuses[run.status],
+      label: run.status === 'processed' ? copy.statuses.draft : copy.statuses[run.status],
       className: statusClassNames[run.status],
     };
   };
@@ -1623,6 +1551,7 @@ export default function Payroll() {
         copy={copy.header}
         isBusy={isSaving}
         isRegenerating={activeBusyKind === 'regenerate-runs'}
+        hasRuns={(overview?.summary.runs_count ?? 0) > 0}
         canPrepare={capabilities.can_prepare}
         canConfigure={capabilities.can_configure}
         onCreateRun={() => setIsCreateRunDialogOpen(true)}
@@ -1731,9 +1660,9 @@ export default function Payroll() {
                 options={[
                   { value: '', label: copy.labels.all },
                   { value: 'draft', label: copy.statuses.draft },
-                  { value: 'processed', label: copy.statuses.processed },
                   { value: 'approved', label: copy.statuses.approved },
                   { value: 'paid', label: copy.statuses.paid },
+                  { value: 'cancelled', label: copy.statuses.cancelled },
                 ]}
               />
             </div>
@@ -1802,17 +1731,8 @@ export default function Payroll() {
                     actions={(
                       <PayrollRunActionsMenu
                         copy={copy.runActions}
-                        run={run}
                         isBusy={isSaving}
-                        canPrepareAction={capabilities.can_prepare}
-                        canApproveAction={capabilities.can_approve}
-                        canPayAction={capabilities.can_pay}
-                        canCancelAction={capabilities.can_cancel}
                         onOpen={() => void openRunDetail(run.id)}
-                        onProcess={() => void handleProcessRunFromTable(run)}
-                        onApprove={() => void handleApproveRunFromTable(run)}
-                        onMarkPaid={() => void handlePayRunFromTable(run)}
-                        onCancel={() => setRunToCancel(run)}
                         onExportPdf={() => void handleDownload('pdf', run)}
                         onExportCsv={() => void handleDownload('csv', run)}
                       />
@@ -2019,17 +1939,8 @@ export default function Payroll() {
                           <TableCell className="px-5 py-5 align-middle">
                             <PayrollRunActionsMenu
                               copy={copy.runActions}
-                              run={run}
                               isBusy={isSaving}
-                              canPrepareAction={capabilities.can_prepare}
-                              canApproveAction={capabilities.can_approve}
-                              canPayAction={capabilities.can_pay}
-                              canCancelAction={capabilities.can_cancel}
                               onOpen={() => void openRunDetail(run.id)}
-                              onProcess={() => void handleProcessRunFromTable(run)}
-                              onApprove={() => void handleApproveRunFromTable(run)}
-                              onMarkPaid={() => void handlePayRunFromTable(run)}
-                              onCancel={() => setRunToCancel(run)}
                               onExportPdf={() => void handleDownload('pdf', run)}
                               onExportCsv={() => void handleDownload('csv', run)}
                             />
@@ -2143,7 +2054,6 @@ export default function Payroll() {
           detail={selectedRunDetail}
           canPrepareAction={capabilities.can_prepare}
           canApproveAction={capabilities.can_approve}
-          canPayAction={capabilities.can_pay}
           canCancelAction={capabilities.can_cancel}
           canManageReporting={capabilities.can_manage_reporting}
           canPrint={isCompanyPrintIdentityReady}
@@ -2164,7 +2074,6 @@ export default function Payroll() {
           onSaveLine={() => void handleSaveLine()}
           onProcess={() => void handleRunAction('process')}
           onApprove={() => void handleRunAction('approve')}
-          onPay={() => void handleRunAction('pay')}
           onCancel={(run) => {
             setResumeRunDialogAfterCancel(true);
             setIsRunDialogOpen(false);
@@ -2927,7 +2836,6 @@ function PayrollRunDialog({
   detail,
   canPrepareAction,
   canApproveAction,
-  canPayAction,
   canCancelAction,
   canManageReporting,
   selectedLineId,
@@ -2939,7 +2847,6 @@ function PayrollRunDialog({
   onSaveLine,
   onProcess,
   onApprove,
-  onPay,
   onCancel,
   onDownloadCsv,
   onDownloadPdf,
@@ -2955,7 +2862,6 @@ function PayrollRunDialog({
   detail: PayrollRunDetailResponse | null;
   canPrepareAction: boolean;
   canApproveAction: boolean;
-  canPayAction: boolean;
   canCancelAction: boolean;
   canManageReporting: boolean;
   selectedLineId: number | null;
@@ -2967,7 +2873,6 @@ function PayrollRunDialog({
   onSaveLine: () => void;
   onProcess: () => void;
   onApprove: () => void;
-  onPay: () => void;
   onCancel: (run: PayrollRunSummary) => void;
   onDownloadCsv: (run: PayrollRunSummary) => void;
   onDownloadPdf: (run: PayrollRunSummary) => void;
@@ -2977,7 +2882,6 @@ function PayrollRunDialog({
   const isDraft = detail?.run.status === 'draft' && canPrepareAction;
   const canProcess = detail?.run.status === 'draft' && canPrepareAction;
   const canApprove = detail?.run.status === 'processed' && canApproveAction;
-  const canPay = detail?.run.status === 'approved' && canPayAction;
   const canCancel = Boolean(
     detail
       && canCancelAction
@@ -3045,12 +2949,6 @@ function PayrollRunDialog({
             <Button onClick={onApprove} disabled={isSaving}>
               {activeBusyKind === 'approve-run' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
               {copy.labels.approve}
-            </Button>
-          ) : null}
-          {canPay ? (
-            <Button onClick={onPay} disabled={isSaving}>
-              {activeBusyKind === 'mark-paid' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-              {copy.labels.pay}
             </Button>
           ) : null}
           {canCancel && detail ? (

@@ -1,4 +1,4 @@
-import { Ban, FileCheck2, ReceiptText, WalletCards } from 'lucide-react';
+import { Ban, FileCheck2, WalletCards } from 'lucide-react';
 import type { EmployeeModalTranslations } from '../../../translations/types';
 import { AutoAssignedOrganizationField } from '../fields/AutoAssignedOrganizationField';
 import { CreatableOptionField } from '../fields/CreatableOptionField';
@@ -18,6 +18,13 @@ import { ScheduleOnHireFields } from './ScheduleOnHireFields';
 
 const payrollTreatmentOptions = [
   {
+    value: 'operational_payroll',
+    label: 'Nómina operativa',
+    description: 'Calcula el pago interno y descuenta faltas, retardos y permisos sin goce.',
+    Icon: WalletCards,
+    tone: 'sky',
+  },
+  {
     value: 'fiscal_payroll',
     label: 'Nómina fiscal',
     description: 'Calcula impuestos, seguridad social y aportaciones patronales.',
@@ -25,23 +32,9 @@ const payrollTreatmentOptions = [
     tone: 'emerald',
   },
   {
-    value: 'operational_payroll',
-    label: 'Nómina operativa',
-    description: 'Paga desde nómina interna sin cálculo fiscal.',
-    Icon: WalletCards,
-    tone: 'sky',
-  },
-  {
-    value: 'accounts_payable',
-    label: 'Cuenta por pagar',
-    description: 'Al aprobar la corrida crea una cuenta por pagar en Gastos.',
-    Icon: ReceiptText,
-    tone: 'amber',
-  },
-  {
     value: 'no_payroll',
     label: 'Sin nómina',
-    description: 'No se incluye en corridas automáticas.',
+    description: 'Registra asistencia sin generar pagos, descuentos ni corridas.',
     Icon: Ban,
     tone: 'slate',
   },
