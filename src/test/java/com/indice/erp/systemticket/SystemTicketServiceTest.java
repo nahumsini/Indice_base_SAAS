@@ -60,7 +60,8 @@ class SystemTicketServiceTest {
 
         assertThat(workspace.tickets()).isEmpty();
         verify(jdbcTemplate).query(
-            argThat(sql -> sql.contains("WHERE ticket.distributor_company_id = ?")),
+            argThat(sql -> sql.contains("WHERE ticket.distributor_company_id = ?\nORDER BY")
+                && !sql.contains("?ORDER BY")),
             any(RowMapper.class),
             eq(31L)
         );

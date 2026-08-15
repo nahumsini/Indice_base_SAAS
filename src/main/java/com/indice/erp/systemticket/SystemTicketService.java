@@ -158,7 +158,7 @@ public class SystemTicketService {
     }
 
     private List<Ticket> loadTickets(Long distributorCompanyId) {
-        var scopeSql = distributorCompanyId == null ? "" : "WHERE ticket.distributor_company_id = ?";
+        var scopeSql = distributorCompanyId == null ? "" : "WHERE ticket.distributor_company_id = ?\n";
         var sql = """
             SELECT ticket.id, ticket.folio, ticket.distributor_company_id,
                    distributor.name AS distributor_name, ticket.reported_by_user_id,
