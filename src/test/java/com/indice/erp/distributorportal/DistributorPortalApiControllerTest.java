@@ -47,7 +47,7 @@ class DistributorPortalApiControllerTest {
             "Distributor Owner",
             "DISTRIBUTOR",
             "superadmin",
-            List.of("CONTRACTS_ACCESS", "CONSULTING")
+            List.of("CONTRACTS_ACCESS", "CONSULTING", "SYSTEM_TICKETS")
         ));
 
         mockMvc.perform(get("/api/v1/distributor-portal/context"))
@@ -55,7 +55,8 @@ class DistributorPortalApiControllerTest {
             .andExpect(jsonPath("$.account_type").value("DISTRIBUTOR"))
             .andExpect(jsonPath("$.operator_name").value("Distributor Owner"))
             .andExpect(jsonPath("$.available_tabs[0]").value("CONTRACTS_ACCESS"))
-            .andExpect(jsonPath("$.available_tabs[1]").value("CONSULTING"));
+            .andExpect(jsonPath("$.available_tabs[1]").value("CONSULTING"))
+            .andExpect(jsonPath("$.available_tabs[2]").value("SYSTEM_TICKETS"));
     }
 
     @Test

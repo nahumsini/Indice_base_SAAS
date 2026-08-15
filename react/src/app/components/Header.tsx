@@ -13,6 +13,7 @@ import { NotificationCenter } from './NotificationCenter';
 import { useEffect, useState } from 'react';
 import { authApi } from '../api/auth';
 import type { AuthSessionResponse } from '../api/auth.types';
+import { platformAdminApi } from '../api/platformAdmin';
 import { configCenterApi, type ConfigCenterCurrentUser } from '../api/configCenter';
 import type { AppNotification } from '../api/notifications';
 import { NotificationMenu } from './notifications/NotificationMenu';
@@ -53,6 +54,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
   const [currentUserEmail, setCurrentUserEmail] = useState('');
   const [currentUserAvatarUrl, setCurrentUserAvatarUrl] = useState('');
   const [authSession, setAuthSession] = useState<AuthSessionResponse | null>(null);
+  const [platformAdminRole, setPlatformAdminRole] = useState('');
   const [switchingCompanyId, setSwitchingCompanyId] = useState<number | null>(null);
   const [companySwitchError, setCompanySwitchError] = useState('');
   const notifications = useNotifications();
@@ -79,6 +81,20 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
         if (active) {
           setAuthSession(session);
         }
+        if (!session) {
+          return;
+        }
+        platformAdminApi.getContext()
+          .then((context) => {
+            if (active) {
+              setPlatformAdminRole(context.role);
+            }
+          })
+          .catch(() => {
+            if (active) {
+              setPlatformAdminRole('');
+            }
+          });
       })
       .catch(() => {
         // Profile loading still provides a safe header fallback.
@@ -152,7 +168,8 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
     .join('')
     .toUpperCase() || 'U';
   const currentUserPrimaryName = currentUserName.trim().split(/\s+/)[0] || 'User';
-  const isRootAccount = normalizeAccessRole(authSession?.user.role) === 'root';
+  const isRootAccount = platformAdminRole === 'PLATFORM_ROOT'
+    || normalizeAccessRole(authSession?.user.role) === 'root';
   const isDistributorAccount = authSession?.company.commercial_account_type === 'DISTRIBUTOR';
 
   const handleLogout = async () => {

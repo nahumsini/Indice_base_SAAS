@@ -49,6 +49,7 @@ export function CustomerTableRow({
   onOpenCompany: (company: PlatformCompanySummary | number) => void;
   onOpenUsers: (company: PlatformCompanySummary) => void;
 }) {
+  const accountType = normalizeAccountType(company.user_type);
   const status = basicCommercialStatus(company);
   const seats =
     (company.included_seats || 0) +
@@ -100,13 +101,13 @@ export function CustomerTableRow({
         </div>
       </td>
       <td className={cellClass}>
-        <UserTypeBadge type={company.user_type} english={english} />
+        <UserTypeBadge type={accountType} english={english} />
       </td>
       <td className={cellClass}>
         <CustomerTraceabilityCell
           company={company}
           copy={copy}
-          canAssign={Boolean(canAssignDistributors && company.user_type === "SUPER_ADMIN")}
+          canAssign={Boolean(canAssignDistributors && accountType === "SUPER_ADMIN")}
           onAssign={onAssignDistributor}
         />
       </td>
@@ -220,7 +221,7 @@ export function CustomerTableRow({
         className={`${cellClass} sticky right-0 z-10 bg-white text-right shadow-[-8px_0_16px_-16px_rgba(15,23,42,0.45)] transition-colors group-hover:bg-[#f8fbff]`}
       >
         <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
-          {canEditTypes && company.user_type !== "ROOT" ? (
+          {canEditTypes && accountType !== "ROOT" ? (
             <button
               type="button"
               onClick={() => onEditType?.(company)}
@@ -287,6 +288,16 @@ function UserTypeBadge({
     ],
   }[type];
   return <TableBadge label={presentation[0]} className={presentation[1]} />;
+}
+
+function normalizeAccountType(
+  type: PlatformCompanySummary["user_type"] | null | undefined,
+): PlatformCompanySummary["user_type"] {
+  if (type === "ROOT" || type === "DISTRIBUTOR") return type;
+
+  // Older local backends did not expose user_type in the overview payload.
+  // Tenant companies are SUPER_ADMIN unless the API identifies another type.
+  return "SUPER_ADMIN";
 }
 
 function CommercialStatusBadge({

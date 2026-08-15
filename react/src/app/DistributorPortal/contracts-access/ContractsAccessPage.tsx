@@ -39,6 +39,7 @@ const managementContext: PlatformAdminContext = {
   can_manage_modules: true,
   can_manage_consulting: true,
   can_manage_accounts: true,
+  can_manage_system_tickets: false,
 };
 
 export function ContractsAccessPage({ copy, locale }: { copy: DistributorPortalCopy; locale: string }) {

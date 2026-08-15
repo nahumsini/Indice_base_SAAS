@@ -67,6 +67,7 @@ public class PlatformAdminService {
         body.put("can_manage_modules", access.allows("PLATFORM_MODULES_WRITE"));
         body.put("can_manage_consulting", access.allows("PLATFORM_CONSULTING_WRITE"));
         body.put("can_manage_accounts", access.allows("PLATFORM_ACCOUNTS_WRITE") && access.allows("PLATFORM_BENEFITS_WRITE"));
+        body.put("can_manage_system_tickets", access.allows("SYSTEM_TICKETS_MANAGE"));
         return body;
     }
 

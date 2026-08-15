@@ -14,6 +14,8 @@ const consultingShared = read('src/app/PlatformAdmin/ConsultingAdminTab.tsx');
 const sessionModal = read('src/app/PlatformAdmin/ConsultingSessions/SessionCreateModal.tsx');
 const routes = read('src/app/routes.tsx');
 const header = read('src/app/components/Header.tsx');
+const systemTickets = read('src/app/SystemTickets/SystemTicketsWorkspace.tsx');
+const systemTicketsApi = read('src/app/SystemTickets/systemTicketsApi.ts');
 
 test('el distribuidor entra desde su menu a contratos y accesos', () => {
   assert.match(header, /isDistributorAccount/);
@@ -21,6 +23,16 @@ test('el distribuidor entra desde su menu a contratos y accesos', () => {
   assert.match(routes, /path: '\/distributor-portal'/);
   assert.match(routes, /requireDistributorPortalSession/);
   assert.match(page, /copy\.tabs\.contractsAccess/);
+});
+
+test('tickets de sistema permite reportar y seguir solo los folios del distribuidor', () => {
+  assert.match(page, /ticketCopy\.tab/);
+  assert.match(page, /portal="distributor"/);
+  assert.match(systemTickets, /SystemTicketsWorkspace/);
+  assert.match(systemTickets, /systemTicketsApi\.create/);
+  assert.match(systemTickets, /copy\.active/);
+  assert.match(systemTicketsApi, /endpoints\.distributorPortal\.systemTickets/);
+  assert.doesNotMatch(systemTickets, /localStorage/);
 });
 
 test('la cartera usa un API dedicado con los mismos flujos operativos de Root', () => {

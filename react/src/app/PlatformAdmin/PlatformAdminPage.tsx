@@ -41,6 +41,7 @@ import {
   Settings2,
   ShieldCheck,
   Sparkles,
+  TicketCheck,
   Users,
   X,
 } from "lucide-react";
@@ -59,6 +60,7 @@ import {
 } from "../components/frontend-os";
 import { DataTablePagination } from "../components/table/DataTablePagination";
 import { useLanguage } from "../shared/context";
+import { SystemTicketsWorkspace } from "../SystemTickets";
 import AccountCreationModal from "./AccountCreationModal";
 import AccountTypeEditModal from "./AccountTypeEditModal";
 import DistributorAssignmentModal from "./DistributorAssignmentModal";
@@ -115,7 +117,7 @@ import {
 } from "../api/platformAdmin";
 
 type AdminTab =
-  "customers" | "billing" | "catalog" | "consulting" | "audit";
+  "customers" | "billing" | "catalog" | "consulting" | "systemTickets" | "audit";
 type BillingSortKey =
   "customer" | "invoice" | "status" | "amount" | "paid" | "period";
 type CatalogPriceSortKey =
@@ -173,6 +175,12 @@ const tabDefinitions: {
     icon: Boxes,
   },
   { id: "consulting", es: "Consultorías", en: "Consulting", icon: Handshake },
+  {
+    id: "systemTickets",
+    es: "Tickets de sistema",
+    en: "System tickets",
+    icon: TicketCheck,
+  },
   { id: "audit", es: "Auditoría", en: "Audit", icon: ClipboardList },
 ];
 
@@ -199,6 +207,10 @@ export default function PlatformAdminPage() {
   );
   const [activeTab, setActiveTab] = useState<AdminTab>("customers");
   const [context, setContext] = useState<PlatformAdminContext | null>(null);
+  const visibleTabs = useMemo(
+    () => tabs.filter((tab) => tab.id !== "systemTickets" || Boolean(context?.can_manage_system_tickets)),
+    [context?.can_manage_system_tickets, tabs],
+  );
   const [overview, setOverview] = useState<PlatformOverview | null>(null);
   const [billing, setBilling] = useState<PlatformBilling | null>(null);
   const [catalog, setCatalog] = useState<PlatformCatalog | null>(null);
@@ -830,7 +842,7 @@ export default function PlatformAdminPage() {
             english ? "Administration sections" : "Secciones de administración"
           }
         >
-          {tabs.map((tab) => {
+          {visibleTabs.map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
             return (
@@ -954,6 +966,9 @@ export default function PlatformAdminPage() {
                 canManage={Boolean(context?.can_manage_consulting)}
                 companies={companies}
               />
+            ) : null}
+            {activeTab === "systemTickets" && context?.can_manage_system_tickets ? (
+              <SystemTicketsWorkspace portal="root" locale={currentLanguage.code} />
             ) : null}
             {activeTab === "audit" ? (
               <AuditTab english={english} data={auditLog} />

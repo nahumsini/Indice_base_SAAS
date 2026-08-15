@@ -9,6 +9,7 @@ export interface PlatformAdminContext {
   can_manage_modules: boolean;
   can_manage_consulting: boolean;
   can_manage_accounts: boolean;
+  can_manage_system_tickets: boolean;
 }
 
 export type PlatformAccountType = 'ROOT' | 'SUPER_ADMIN' | 'DISTRIBUTOR';
