@@ -14,7 +14,7 @@ export interface DistributorPortalContext {
   operator_name: string;
   account_type: 'DISTRIBUTOR';
   role: string;
-  available_tabs: Array<'CONTRACTS_ACCESS' | 'CONSULTING'>;
+  available_tabs: Array<'CONTRACTS_ACCESS' | 'CONSULTING' | 'SYSTEM_TICKETS'>;
 }
 
 export interface DistributorClient {

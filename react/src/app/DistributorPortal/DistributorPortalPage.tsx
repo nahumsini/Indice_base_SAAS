@@ -1,17 +1,20 @@
 import { useState } from 'react';
-import { ArrowLeft, FileKey2, Handshake } from 'lucide-react';
+import { ArrowLeft, FileKey2, Handshake, TicketCheck } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { IndiceBrandLogo } from '../Auth/components/IndiceBrandLogo';
 import { useLanguage } from '../shared/context';
 import { ContractsAccessPage } from './contracts-access/ContractsAccessPage';
 import { getDistributorPortalCopy } from './contracts-access/translations';
 import { DistributorConsultingPage } from './DistributorConsultingPage';
+import { SystemTicketsWorkspace } from '../SystemTickets';
+import { getSystemTicketCopy } from '../SystemTickets/translations';
 
 export default function DistributorPortalPage() {
   const navigate = useNavigate();
   const { currentLanguage } = useLanguage();
   const copy = getDistributorPortalCopy(currentLanguage.code);
-  const [activeTab, setActiveTab] = useState<'contracts' | 'consulting'>('contracts');
+  const ticketCopy = getSystemTicketCopy(currentLanguage.code);
+  const [activeTab, setActiveTab] = useState<'contracts' | 'consulting' | 'tickets'>('contracts');
 
   return (
     <div className="min-h-screen bg-[#F7F8FA] text-[#222831] dark:bg-slate-950 dark:text-white">
@@ -34,12 +37,17 @@ export default function DistributorPortalPage() {
             <button type="button" onClick={() => setActiveTab('consulting')} className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition ${activeTab === 'consulting' ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
               <Handshake className="h-4 w-4" />{copy.tabs.consulting}
             </button>
+            <button type="button" onClick={() => setActiveTab('tickets')} className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition ${activeTab === 'tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              <TicketCheck className="h-4 w-4" />{ticketCopy.tab}
+            </button>
           </div>
         </nav>
         <div className="h-1 bg-[linear-gradient(90deg,#59C3A5_0_25%,#F4C84A_25%_50%,#FF6B5E_50%_75%,#2563EB_75%)]" />
       </header>
       <main className="mx-auto max-w-[1600px] px-5 py-6">
-        {activeTab === 'contracts' ? <ContractsAccessPage copy={copy} locale={currentLanguage.code} /> : <DistributorConsultingPage />}
+        {activeTab === 'contracts' ? <ContractsAccessPage copy={copy} locale={currentLanguage.code} /> : null}
+        {activeTab === 'consulting' ? <DistributorConsultingPage /> : null}
+        {activeTab === 'tickets' ? <SystemTicketsWorkspace portal="distributor" locale={currentLanguage.code} /> : null}
       </main>
     </div>
   );

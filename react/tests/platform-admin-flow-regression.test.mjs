@@ -25,6 +25,12 @@ const customerTableUtils = read(
   "src/app/PlatformAdmin/Customers/customerTableUtils.ts",
 );
 const account = read("src/app/PlatformAdmin/AccountCreationModal.tsx");
+
+test("la tabla tolera respuestas antiguas sin tipo de cuenta", () => {
+  assert.match(customerRow, /normalizeAccountType\(company\.user_type\)/);
+  assert.match(customerRow, /return "SUPER_ADMIN"/);
+  assert.match(customerRow, /<UserTypeBadge type=\{accountType\}/);
+});
 const accountFlow = read(
   "src/app/PlatformAdmin/AccountCreation/hooks/useAccountCreationFlow.ts",
 );
@@ -75,6 +81,7 @@ const accountDraft = read(
   "src/app/PlatformAdmin/accountCreationDraft.ts",
 );
 const routes = read("src/app/routes.tsx");
+const header = read("src/app/components/Header.tsx");
 const accountTypeEdit = read("src/app/PlatformAdmin/AccountTypeEditModal.tsx");
 const distributorAssignment = read(
   "src/app/PlatformAdmin/DistributorAssignmentModal.tsx",
@@ -105,6 +112,30 @@ const coverage = read(
 const moduleWorkOrders = read(
   "src/app/PlatformAdmin/ModuleWorkOrders/useModuleWorkOrders.ts",
 );
+const systemTickets = read("src/app/SystemTickets/SystemTicketsWorkspace.tsx");
+const systemTicketsApi = read("src/app/SystemTickets/systemTicketsApi.ts");
+
+test("el encabezado reconoce Root desde la autoridad real de plataforma", () => {
+  assert.match(header, /platformAdminApi\.getContext\(\)/);
+  assert.match(header, /platformAdminRole === 'PLATFORM_ROOT'/);
+  assert.doesNotMatch(
+    header,
+    /const isRootAccount = normalizeAccessRole\(authSession\?\.user\.role\) === 'root';/,
+  );
+});
+
+test("Root administra todos los tickets de sistema enviados por distribuidores", () => {
+  assert.match(page, /id: "systemTickets"/);
+  assert.match(page, /Tickets de sistema/);
+  assert.match(page, /context\?\.can_manage_system_tickets/);
+  assert.match(page, /portal="root"/);
+  assert.match(systemTickets, /ticket\.distributor_name/);
+  assert.match(systemTickets, /systemTicketsApi\.update/);
+  assert.match(systemTicketsApi, /endpoints\.platformAdmin\.systemTickets/);
+  assert.match(systemTickets, /systemTicketsApi\.create\(portal, form\)/);
+  assert.match(systemTickets, /setCreateOpen\(true\)/);
+  assert.doesNotMatch(systemTickets, /localStorage/);
+});
 
 test("clientes concentra el acceso promocional sin recuperar la pestaña eliminada", () => {
   assert.doesNotMatch(page, /id:\s*["']courtesy["']/);
@@ -228,7 +259,7 @@ test("tipo de cuenta se persiste sin permitir conceder Root desde el alta", () =
 
 test("el tipo de cuenta se edita por modal y conserva Root fuera del flujo", () => {
   assert.match(customerTableCopy, /editType: "Editar tipo de usuario"/);
-  assert.match(customerRow, /company\.user_type !== "ROOT"/);
+  assert.match(customerRow, /accountType !== "ROOT"/);
   assert.match(page, /AccountTypeEditModal/);
   assert.match(accountTypeEdit, /Editar tipo de usuario/);
   assert.match(accountTypeEdit, /<option value="SUPER_ADMIN">/);
@@ -278,7 +309,7 @@ test("la tabla separa el creador histórico del distribuidor vigente", () => {
 });
 
 test("una cuenta cliente asigna cambia o retira su distribuidor por modal", () => {
-  assert.match(customerRow, /company\.user_type === "SUPER_ADMIN"/);
+  assert.match(customerRow, /accountType === "SUPER_ADMIN"/);
   assert.match(customerRow, /onAssignDistributor/);
   assert.match(customerTableCopy, /assignDistributor: "Asignar distribuidor"/);
   assert.match(page, /DistributorAssignmentModal/);

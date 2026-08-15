@@ -52,7 +52,7 @@ class DistributorPortalServiceTest {
 
         assertThat(context.account_type()).isEqualTo("DISTRIBUTOR");
         assertThat(context.operator_name()).isEqualTo("Owner");
-        assertThat(context.available_tabs()).containsExactly("CONTRACTS_ACCESS", "CONSULTING");
+        assertThat(context.available_tabs()).containsExactly("CONTRACTS_ACCESS", "CONSULTING", "SYSTEM_TICKETS");
     }
 
     @Test
