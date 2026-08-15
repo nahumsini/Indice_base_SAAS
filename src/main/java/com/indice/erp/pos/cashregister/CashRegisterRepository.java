@@ -41,6 +41,17 @@ public class CashRegisterRepository {
             mapper::mapRow, params.toArray()).stream().findFirst();
     }
 
+    public Optional<CashRegisterRecord> findFirstActiveByWarehouse(PosContext context, long warehouseId) {
+        var params = scopedParams(context);
+        params.add(1, warehouseId);
+        return jdbcTemplate.query(baseSelect() + """
+            WHERE register.company_id = ? AND register.warehouse_id = ? AND register.deleted_at IS NULL
+              AND register.is_active = TRUE AND register.status = 'ACTIVE'
+              AND """ + PosSqlSupport.scopePredicate("register", context.scope()) + """
+            ORDER BY register.id ASC LIMIT 1
+            """, mapper::mapRow, params.toArray()).stream().findFirst();
+    }
+
     public Optional<WarehouseSummary> findWarehouse(PosContext context, long warehouseId) {
         var params = scopedParams(context);
         params.add(1, warehouseId);

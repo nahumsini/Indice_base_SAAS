@@ -17,5 +17,6 @@ export const enUS = {
     descuentos: 'Discounts',
     kpis: 'KPIs',
     kiosks: 'Kiosks',
+    cajas: 'Registers',
   },
 } as const;

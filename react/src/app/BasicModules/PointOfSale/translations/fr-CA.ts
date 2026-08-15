@@ -17,5 +17,6 @@ export const frCA = {
     descuentos: 'Remises',
     kpis: 'ICP',
     kiosks: 'Bornes',
+    cajas: 'Caisses',
   },
 } as const;

@@ -74,6 +74,7 @@ export const MODULE_TAB_SCOPE_CATALOG: Partial<Record<PageId, TabScopeDefinition
       descuentos: 'descuentos',
       kpis: 'kpis',
       kiosks: 'kiosks',
+      cajas: 'cajas',
     },
   },
   inventory: {

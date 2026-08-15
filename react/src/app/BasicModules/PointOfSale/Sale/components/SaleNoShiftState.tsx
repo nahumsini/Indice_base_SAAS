@@ -93,6 +93,13 @@ export function SaleNoShiftState({
     }
   };
 
+  const handleEnsureWarehouseRegister = async (warehouseId: string) => {
+    const createdOrExisting = await posBackendApi.ensureCashRegisterForWarehouse(warehouseId);
+    await onRetry();
+    onSelectCashRegister(String(createdOrExisting.id));
+    return String(createdOrExisting.id);
+  };
+
   return (
     <>
       <div className="flex min-h-[calc(100vh-240px)] items-center justify-center">
@@ -185,6 +192,7 @@ export function SaleNoShiftState({
           onClose={onCloseOpenShiftModal}
           onConfirm={onOpenShift}
           onSelectCashRegister={onSelectCashRegister}
+          onEnsureWarehouseRegister={handleEnsureWarehouseRegister}
         />
       )}
 

@@ -121,6 +121,8 @@ test('KPIs y Kioscos conservan la jerarquia operativa y la identidad coral del P
   const kpiCard = readFileSync(resolve(pointOfSaleRoot, 'KPIs/components/PosKpiCard.tsx'), 'utf8');
   const closingTable = readFileSync(resolve(pointOfSaleRoot, 'KPIs/components/PosKpiCashClosingTable.tsx'), 'utf8');
   const kiosks = readFileSync(resolve(pointOfSaleRoot, 'Kiosks/KiosksWorkspace.tsx'), 'utf8');
+  const kioskCenter = readFileSync(resolve(pointOfSaleRoot, 'Kiosks/KioskCenterWorkspace.tsx'), 'utf8');
+  const restaurantKiosks = readFileSync(resolve(pointOfSaleRoot, 'Kiosks/RestaurantKioskWorkspace.tsx'), 'utf8');
   const selfService = readFileSync(resolve(pointOfSaleRoot, 'Kiosks/SelfServiceKioskManager.tsx'), 'utf8');
   const customerDisplay = readFileSync(resolve(pointOfSaleRoot, 'Kiosks/CustomerDisplayManager.tsx'), 'utf8');
   const customerDisplaySetup = readFileSync(resolve(pointOfSaleRoot, 'Kiosks/CustomerDisplaySetupModal.tsx'), 'utf8');
@@ -133,15 +135,17 @@ test('KPIs y Kioscos conservan la jerarquia operativa y la identidad coral del P
   assert.match(filters, /rounded-2xl[\s\S]*min-h-11 rounded-xl/);
   assert.doesNotMatch(kpiCard, /shadow-sm/);
   assert.match(closingTable, /h-11 rounded-xl[\s\S]*focus:border-\[#FF6B5E\]/);
-  assert.match(kiosks, /rounded-2xl[\s\S]*h-11[\s\S]*bg-\[#FF6B5E\]/);
-  assert.doesNotMatch(kiosks, /bg-teal-600|shadow-sm/);
+  assert.match(kioskCenter, /rounded-xl[\s\S]*h-11[\s\S]*bg-\[#FF6B5E\]/);
+  assert.doesNotMatch(kioskCenter, /bg-teal-600|shadow-sm/);
   assert.match(selfService, /h-11[\s\S]*bg-\[#FF6B5E\]/);
   assert.doesNotMatch(selfService, /rounded-lg border border-slate-200 bg-white p-5 shadow-sm/);
   assert.doesNotMatch(customerDisplay, /rounded-lg border border-slate-200 bg-white p-5 shadow-sm/);
-  assert.match(kiosks, /useState<KioskSection>\('customer-display'\)/);
-  assert.match(kiosks, /waiterTab[\s\S]*kitchenTab[\s\S]*tablesTab/);
-  assert.match(kiosks, /selfCheckoutTab/);
-  assert.match(kiosks, /setSection\('self-checkout'\)[\s\S]*<SelfCheckoutWorkspace/);
+  assert.match(kiosks, /useState<KioskWorkspaceView>\('center'\)/);
+  assert.match(kioskCenter, /restaurant-waiter[\s\S]*restaurant-tables[\s\S]*restaurant-kitchen/);
+  assert.match(kioskCenter, /selfCheckoutTab/);
+  assert.match(kiosks, /view === 'self-service'[\s\S]*<SelfCheckoutWorkspace/);
+  assert.match(restaurantKiosks, /syncOrder[\s\S]*syncInventory[\s\S]*syncStatus/);
+  assert.match(kioskCenter, /EditCustomerDisplayModal[\s\S]*CustomerDisplayAccessModal[\s\S]*CustomerDisplayLifecycleModal/);
   assert.match(selfCheckout, /catalogTitle[\s\S]*cartTitle[\s\S]*paymentTitle/);
   assert.match(selfCheckout, /scopeTitle[\s\S]*methodsTitle[\s\S]*peripheralsTitle[\s\S]*securityTitle/);
   assert.match(selfCheckout, /SelfCheckoutOrientation = 'horizontal' \| 'vertical'/);
@@ -173,4 +177,18 @@ test('Kioscos normaliza las colecciones paginadas antes de filtrar cajas', () =>
   assert.match(kioskApi, /return collectionFromResponse\(response\)/);
   assert.match(kioskManager, /register\.active && register\.unitId != null && register\.businessId != null/);
   assert.match(kioskManager, /registerScopeRequired/);
+});
+
+test('Cajas concentra la operación en vivo y los cortes cerrados del día', () => {
+  const cashRegisters = readFileSync(resolve(pointOfSaleRoot, 'CashRegisters/CashRegistersWorkspace.tsx'), 'utf8');
+
+  assert.match(cashRegisters, /sessionView.*'all'.*'open'.*'closed'/);
+  assert.match(cashRegisters, /Cortes cerrados hoy/);
+  assert.match(cashRegisters, /Ventas de hoy/);
+  assert.match(cashRegisters, /Ticket promedio del día/);
+  assert.match(cashRegisters, /shift\.status === 'CLOSED' && isToday\(shift\.closedAt \|\| shift\.openedAt\)/);
+  assert.match(cashRegisters, /Cortes de hoy/);
+  assert.match(cashRegisters, /<ClosedSessionCard/);
+  assert.match(cashRegisters, /Efectivo contado/);
+  assert.match(cashRegisters, /Diferencia/);
 });

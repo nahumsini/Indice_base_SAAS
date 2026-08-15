@@ -277,6 +277,23 @@ public class CustomerDisplayService {
         return adminView(definition, device);
     }
 
+    public Map<String, Object> publicAccess(PosContext context, long kioskDefinitionId) {
+        var definition = requireAdminDefinition(context, kioskDefinitionId);
+        var effectiveStatus = definition.effectiveStatus(clock.instant());
+        if (!effectiveStatus.operational()) {
+            throw PosApiException.conflict("Customer display must be active before opening its public link.");
+        }
+        var device = repository.findDeviceById(context.companyId(), definition.legacyReferenceId())
+            .orElseThrow(() -> PosApiException.notFound("Customer display not found."));
+        var rawToken = secrets.reveal(device.deviceToken());
+        return Map.of(
+            "kioskId", definition.id(),
+            "name", definition.name(),
+            "displayUrl", displayUrl(rawToken),
+            "publicTokenHint", definition.publicTokenHint()
+        );
+    }
+
     @Transactional
     public Map<String, Object> rename(
             PosContext context,

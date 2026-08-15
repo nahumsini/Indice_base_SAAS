@@ -600,11 +600,11 @@ export default function Sale() {
               {smartAlerts.length > 0 && <SmartAlertsStrip alerts={smartAlerts} />}
             </div>
 
-            {[cartNotice, checkoutNotice, shiftCurrencyMismatchNotice, shiftNotice, shiftError, registerContextError].filter(Boolean)
+            {[cartNotice, checkoutNotice.startsWith('Venta ') ? '' : checkoutNotice, shiftCurrencyMismatchNotice, shiftNotice, shiftError, registerContextError].filter(Boolean)
               .length > 0 && (
               <div className="mt-2 space-y-2">
                 {cartNotice && <OperationalNotice message={cartNotice} onDismiss={clearCartNotice} />}
-                {checkoutNotice && <OperationalNotice message={checkoutNotice} onDismiss={clearCheckoutNotice} />}
+                {checkoutNotice && !checkoutNotice.startsWith('Venta ') && <OperationalNotice message={checkoutNotice} onDismiss={clearCheckoutNotice} />}
                 {shiftCurrencyMismatchNotice && <OperationalNotice message={shiftCurrencyMismatchNotice} />}
                 {shiftNotice && <OperationalNotice message={shiftNotice} onDismiss={clearShiftNotice} />}
                 {shiftError && <OperationalNotice message={shiftError} onDismiss={clearShiftError} />}

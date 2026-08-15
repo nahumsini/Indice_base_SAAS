@@ -88,6 +88,21 @@ class CustomerDisplayServiceTest {
         then(repository).should().delete(7L, 11L);
     }
 
+    @Test
+    void authenticatedAdministrationCanRecoverTheProtectedDisplayUrl() {
+        var definition = definition(KioskDefinitionStatus.ACTIVE);
+        var device = device();
+        var context = new PosContext(8L, 7L, "Admin", "root", true, PosScope.corporateOffice());
+        given(registry.requireById(7L, definition.id())).willReturn(definition);
+        given(repository.findDeviceById(7L, 11L)).willReturn(Optional.of(device));
+        given(secrets.reveal("protected-token")).willReturn("raw-device-token");
+
+        var access = service.publicAccess(context, definition.id());
+
+        assertThat(access.get("displayUrl")).isEqualTo("/pos-display/raw-device-token");
+        assertThat(access.get("publicTokenHint")).isEqualTo("tokenhint");
+    }
+
     private KioskResolvedDefinition definition(KioskDefinitionStatus status) {
         return new KioskResolvedDefinition(
             101L, 7L, PointOfSaleKioskCapabilities.OWNER_MODULE,

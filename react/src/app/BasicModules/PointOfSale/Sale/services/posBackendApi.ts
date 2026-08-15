@@ -23,6 +23,8 @@ export type PosCashRegisterCreatePayload = {
   notes?: string | null;
 };
 
+export type PosCashRegisterUpdatePayload = PosCashRegisterCreatePayload;
+
 export type PosWarehouseSummary = {
   id: number;
   warehouseCode?: string | null;
@@ -256,6 +258,22 @@ export const posBackendApi = {
     return apiClient<PosCashRegisterResponse>(`${posBasePath}/cash-registers`, {
       method: 'POST',
       body: JSON.stringify(payload),
+    });
+  },
+  ensureCashRegisterForWarehouse(warehouseId: number | string) {
+    return apiClient<PosCashRegisterResponse>(`${posBasePath}/cash-registers/warehouses/${warehouseId}/ensure`, {
+      method: 'POST',
+    });
+  },
+  updateCashRegister(registerId: number | string, payload: PosCashRegisterUpdatePayload) {
+    return apiClient<PosCashRegisterResponse>(`${posBasePath}/cash-registers/${registerId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+  deleteCashRegister(registerId: number | string) {
+    return apiClient<{ success: boolean }>(`${posBasePath}/cash-registers/${registerId}`, {
+      method: 'DELETE',
     });
   },
   shifts() {

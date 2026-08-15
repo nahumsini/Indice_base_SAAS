@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Coins, LogIn, Monitor, StickyNote, Warehouse } from 'lucide-react';
+import { AlertTriangle, Coins, Loader2, LogIn, Monitor, StickyNote, Warehouse } from 'lucide-react';
 import {
   PosModalFrame,
   posModalModuleFooterClassName,
@@ -25,6 +25,7 @@ interface OpenShiftModalProps {
   onClose: () => void;
   onConfirm: (initialCash: number, openingNote?: string, currencyCode?: string) => void | Promise<void>;
   onSelectCashRegister?: (cashRegisterId: string) => void;
+  onEnsureWarehouseRegister?: (warehouseId: string) => Promise<string>;
 }
 
 const quickAmounts = [0, 500, 1000, 2000, 5000];
@@ -46,12 +47,14 @@ export function OpenShiftModal({
   onClose,
   onConfirm,
   onSelectCashRegister,
+  onEnsureWarehouseRegister,
 }: OpenShiftModalProps) {
   const [selectedWarehouseId, setSelectedWarehouseId] = useState('');
   const [selectedCurrencyCode, setSelectedCurrencyCode] = useState(() => normalizeBusinessCurrencyCode(preferredCurrencyCode));
   const [initialCash, setInitialCash] = useState('0.00');
   const [openingNote, setOpeningNote] = useState('');
   const [error, setError] = useState('');
+  const [isProvisioningRegister, setIsProvisioningRegister] = useState(false);
   const amountInputRef = useRef<HTMLInputElement>(null);
 
   const activeRegisters = useMemo(
@@ -59,10 +62,8 @@ export function OpenShiftModal({
     [cashRegisters],
   );
   const availableWarehouses = useMemo(
-    () => warehouses
-      .filter((warehouse) => activeRegisters.some((register) => register.warehouseId === warehouse.id))
-      .sort((first, second) => first.name.localeCompare(second.name)),
-    [activeRegisters, warehouses],
+    () => [...warehouses].sort((first, second) => first.name.localeCompare(second.name)),
+    [warehouses],
   );
   const selectedWarehouse = useMemo(
     () => warehouses.find((warehouse) => toId(warehouse.id) === selectedWarehouseId) ?? null,
@@ -88,6 +89,7 @@ export function OpenShiftModal({
     setInitialCash('0.00');
     setOpeningNote('');
     setError('');
+    setIsProvisioningRegister(false);
     setTimeout(() => amountInputRef.current?.focus(), 100);
   }, [isOpen]); // Reset only when the modal opens; changing context must preserve entered cash.
 
@@ -104,7 +106,7 @@ export function OpenShiftModal({
   if (!isOpen) return null;
 
   const hasWarehouseBlocker = warehouses.length === 0;
-  const hasRegisterBlocker = !hasWarehouseBlocker && availableWarehouses.length === 0;
+  const hasRegisterBlocker = !hasWarehouseBlocker && activeRegisters.length === 0 && !onEnsureWarehouseRegister;
   const contextReady = Boolean(selectedWarehouse && selectedRegister && registerContext);
   const amount = Number(initialCash);
   const contextSummary = contextReady
@@ -115,7 +117,29 @@ export function OpenShiftModal({
       selectedCurrencyCode,
       registerContext.responsibleUserName,
     ].filter(Boolean).join(' · ')
-    : 'Selecciona un almacén con una caja activa';
+    : isProvisioningRegister
+      ? 'Preparando la caja predeterminada del almacén…'
+      : 'Selecciona un almacén para preparar su caja';
+
+  const handleWarehouseChange = async (warehouseId: string) => {
+    setSelectedWarehouseId(warehouseId);
+    setError('');
+    const existing = activeRegisters.find((register) => toId(register.warehouseId) === warehouseId);
+    if (existing) {
+      onSelectCashRegister?.(toId(existing.id));
+      return;
+    }
+    if (!onEnsureWarehouseRegister) return;
+    setIsProvisioningRegister(true);
+    try {
+      const registerId = await onEnsureWarehouseRegister(warehouseId);
+      onSelectCashRegister?.(registerId);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'No fue posible preparar la caja del almacén.');
+    } finally {
+      setIsProvisioningRegister(false);
+    }
+  };
 
   const handleConfirm = () => {
     if (isSubmitting) return;
@@ -157,7 +181,7 @@ export function OpenShiftModal({
         <button
           type="button"
           onClick={handleConfirm}
-          disabled={isSubmitting || !contextReady || Number.isNaN(amount) || amount < 0}
+          disabled={isSubmitting || isProvisioningRegister || !contextReady || Number.isNaN(amount) || amount < 0}
           className={posModalPrimaryActionClassName}
         >
           {isSubmitting ? 'Abriendo...' : 'Abrir caja'}
@@ -169,7 +193,7 @@ export function OpenShiftModal({
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{error || (hasWarehouseBlocker
             ? 'POS requiere un almacén antes de abrir caja.'
-            : 'No hay cajas activas vinculadas a los almacenes disponibles.')}</span>
+            : 'No fue posible preparar una caja activa para los almacenes disponibles.')}</span>
         </div>
       ) : null}
 
@@ -186,11 +210,14 @@ export function OpenShiftModal({
           disabled={isSubmitting || availableWarehouses.length === 0}
           options={availableWarehouses.map((warehouse) => ({ id: toId(warehouse.id), name: warehouse.name }))}
           placeholder="Selecciona un almacén"
-          onChange={(warehouseId) => {
-            setSelectedWarehouseId(warehouseId);
-            setError('');
-          }}
+          onChange={(warehouseId) => { void handleWarehouseChange(warehouseId); }}
         />
+
+        {isProvisioningRegister ? (
+          <div className="flex items-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200">
+            <Loader2 className="h-4 w-4 animate-spin" /> Preparando una caja para este almacén…
+          </div>
+        ) : null}
 
         {warehouseRegisters.length > 1 ? (
           <SelectField

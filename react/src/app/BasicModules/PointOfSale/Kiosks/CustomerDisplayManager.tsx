@@ -24,7 +24,7 @@ type LifecycleAction = 'disable' | 'enable' | 'revoke' | 'delete';
 type PendingAction = { action: LifecycleAction; kiosk: CustomerDisplayAdminItem };
 
 /** Exportable workspace for the shared POS kiosk administration tab. */
-export function CustomerDisplayManager() {
+export function CustomerDisplayManager({ startWithSetup = false }: { startWithSetup?: boolean }) {
   const { copy, locale } = usePointOfSaleKioskTranslations();
   const [items, setItems] = useState<CustomerDisplayAdminItem[]>([]);
   const [registers, setRegisters] = useState<PosCashRegisterOption[]>([]);
@@ -33,7 +33,7 @@ export function CustomerDisplayManager() {
   const [error, setError] = useState('');
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [reason, setReason] = useState('');
-  const [showSetup, setShowSetup] = useState(false);
+  const [showSetup, setShowSetup] = useState(startWithSetup);
 
   const reload = async () => {
     setLoading(true);

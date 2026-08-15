@@ -70,6 +70,13 @@ export type CustomerDisplayAdminItem = {
   configurationVersion: number;
 };
 
+export type CustomerDisplayPublicAccess = {
+  kioskId: number;
+  name: string;
+  displayUrl: string;
+  publicTokenHint: string;
+};
+
 type KioskV2Response<T> = {
   data: T;
   meta: { requestId: string };
@@ -180,6 +187,12 @@ export const customerDisplayApi = {
     const response = await apiClient<KioskV2Response<CustomerDisplayAdminItem>>(
       `/api/v2/point-of-sale/kiosks/${kioskId}`,
       { method: 'PUT', body: JSON.stringify(payload) },
+    );
+    return response.data;
+  },
+  async publicAccess(kioskId: number) {
+    const response = await apiClient<KioskV2Response<CustomerDisplayPublicAccess>>(
+      `/api/v2/point-of-sale/kiosks/${kioskId}/public-access`,
     );
     return response.data;
   },

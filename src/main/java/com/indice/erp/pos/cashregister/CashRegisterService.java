@@ -9,6 +9,7 @@ import com.indice.erp.pos.status.CashRegisterStatus;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Locale;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,6 +59,36 @@ public class CashRegisterService {
         var command = mapper.toCreateCommand(context, request, warehouse);
         validator.requireCodeAvailable(repository, context, command.code(), null);
         return mapper.toResponse(repository.insert(context, command));
+    }
+
+    @Transactional
+    public CashRegisterResponse ensureForWarehouse(PosContext context, long warehouseId) {
+        var warehouse = repository.findWarehouse(context, warehouseId)
+            .orElseThrow(() -> new NoSuchElementException("Warehouse not found."));
+        validator.requireWarehouseScope(warehouse);
+        var existing = repository.findFirstActiveByWarehouse(context, warehouseId);
+        if (existing.isPresent()) {
+            return mapper.toResponse(existing.get());
+        }
+
+        var base = ((warehouse.warehouseCode() == null || warehouse.warehouseCode().isBlank())
+            ? warehouse.name() : warehouse.warehouseCode())
+            .replaceAll("[^A-Za-z0-9]", "")
+            .toUpperCase(Locale.ROOT);
+        if (base.isBlank()) {
+            base = "POS";
+        }
+        base = base.substring(0, Math.min(base.length(), 48));
+        var sequence = 1;
+        var code = base + "-" + String.format("%02d", sequence);
+        while (repository.existsByCode(context, code, null)) {
+            sequence++;
+            code = base + "-" + String.format("%02d", sequence);
+        }
+        var request = new CashRegisterCreateRequest(
+            warehouseId, code, "Caja " + warehouse.name(), CashRegisterStatus.ACTIVE, true,
+            "Caja aprovisionada automáticamente desde el almacén.", null, null);
+        return mapper.toResponse(repository.insert(context, mapper.toCreateCommand(context, request, warehouse)));
     }
 
     @Transactional

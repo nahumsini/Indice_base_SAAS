@@ -17,5 +17,6 @@ export const esCO = {
     descuentos: 'Descuentos',
     kpis: 'KPIs',
     kiosks: 'Kioscos',
+    cajas: 'Cajas',
   },
 } as const;

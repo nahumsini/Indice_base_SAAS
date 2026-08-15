@@ -53,6 +53,17 @@ public class CashRegisterController {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(access.context(), request));
     }
 
+    @PostMapping("/warehouses/{warehouseId}/ensure")
+    public ResponseEntity<?> ensureForWarehouse(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long warehouseId) {
+        var access = guard.requireWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.ensureForWarehouse(access.context(), warehouseId));
+    }
+
     @PutMapping("/{registerId}")
     public ResponseEntity<?> update(
             HttpSession session,

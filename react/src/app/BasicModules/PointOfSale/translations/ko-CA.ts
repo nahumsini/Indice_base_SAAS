@@ -11,6 +11,7 @@ export const koCA = {
   },
   tabs: {
     kiosks: '키오스크',
+    cajas: '계산대',
     sale: '판매',
     cortes: '현금 마감',
     clientes: '고객',

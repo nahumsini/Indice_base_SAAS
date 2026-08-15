@@ -46,9 +46,10 @@ class PointOfSaleKioskAdminV2ControllerAuthorizationTest {
 
         controller.list(session, null);
         controller.detail(session, 11L);
+        controller.publicAccess(session, 11L);
         controller.audit(session, 11L);
 
-        verify(guard, times(3)).requireAdminReadAccess(session);
+        verify(guard, times(4)).requireAdminReadAccess(session);
         verify(guard, never()).requireReadAccess(session);
         verifyNoManagementInteractions();
     }

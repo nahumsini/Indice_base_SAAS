@@ -120,6 +120,18 @@ public class PointOfSaleKioskAdminV2Controller {
         return ResponseEntity.ok(responses.success(data, null, null));
     }
 
+    @GetMapping("/{kioskId}/public-access")
+    public ResponseEntity<?> publicAccess(HttpSession session, @PathVariable long kioskId) {
+        var access = guard.requireAdminReadAccess(session);
+        if (access.denied()) return access.error();
+        var definition = definition(access.context().companyId(), kioskId);
+        if (!PointOfSaleKioskCapabilities.CUSTOMER_DISPLAY_TYPE.equals(definition.kioskType())) {
+            throw new UnsupportedOperationException("This POS kiosk type uses a different link flow.");
+        }
+        return ResponseEntity.ok(responses.success(
+            customerDisplays.publicAccess(access.context(), kioskId), null, null));
+    }
+
     @PutMapping("/{kioskId}")
     public ResponseEntity<?> update(
             HttpSession session,

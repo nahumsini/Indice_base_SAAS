@@ -1,6 +1,6 @@
 import { createLearningModeControl, type LearningModeControl } from '../../../learningMode';
 
-export type PointOfSaleLearningTabId = 'sale' | 'cortes' | 'clientes' | 'facturacion' | 'descuentos' | 'kpis' | 'kiosks';
+export type PointOfSaleLearningTabId = 'sale' | 'cortes' | 'clientes' | 'facturacion' | 'descuentos' | 'kpis' | 'kiosks' | 'cajas';
 
 const control = createLearningModeControl;
 
@@ -12,9 +12,24 @@ export const pointOfSaleLearningLabels: Record<PointOfSaleLearningTabId, string>
   descuentos: 'Descuentos',
   kpis: 'KPIs de punto de venta',
   kiosks: 'Kioscos de punto de venta',
+  cajas: 'Administración de cajas',
 };
 
 export const pointOfSaleLearningControls: Record<PointOfSaleLearningTabId, readonly LearningModeControl[]> = {
+  cajas: [
+    control({
+      id: 'pos-register-management', emoji: '🏪', kind: 'Administración operativa', title: 'Administrar cajas por almacén',
+      purpose: 'Asegura que cada almacén tenga capacidad de abrir turnos y permite agregar cajas para operación simultánea.',
+      behavior: 'Muestra almacenes, cajas, disponibilidad y responsables con turno abierto sin perder la trazabilidad de inventario.',
+      whenToUse: 'Úsalo al inaugurar una sucursal, agregar una terminal o corregir la asignación de una caja.',
+      result: 'Cada usuario abre una sola caja a la vez y cada caja conserva un único responsable activo.', focus: 'la capacidad operativa por almacén',
+      stories: {
+        emily: 'Emily prepara una caja adicional cuando una cafetería agrega un segundo mostrador.',
+        juanito: 'Juanito ve qué almacén todavía no tiene caja y la deja lista antes de iniciar la jornada.',
+        camila: 'Camila corrige la asignación de una caja sin perder la trazabilidad de los turnos históricos.',
+      },
+    }),
+  ],
   kiosks: [
     control({
       id: 'pos-kiosk-management', emoji: '🖥️', kind: 'Administración de extensiones', title: 'Configurar kioscos POS',
