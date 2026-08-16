@@ -8,6 +8,62 @@ export type ExecutiveKpiCard = {
   status: ExecutiveKpiStatus;
 };
 
+export type ExecutiveDomainMetric = {
+  id: string;
+  label: string;
+  value: number;
+  previousValue: number | null;
+  absoluteChange: number | null;
+  percentChange: number | null;
+  unit: 'money' | 'percent' | 'count' | string;
+  direction: 'up' | 'down' | 'context' | string;
+  status: ExecutiveKpiStatus;
+  available: boolean;
+  comparisonAvailable: boolean;
+  partial: boolean;
+  excludedCurrencies: string[];
+  basis: 'period' | 'periodEnd' | 'currentSnapshot' | string;
+  description: string;
+};
+
+export type ExecutiveDomainSignal = {
+  id: string;
+  severity: ExecutiveKpiStatus;
+  message: string;
+  value: number;
+};
+
+export type ExecutiveKpiDomain = {
+  id: 'processTasks' | 'expenses' | 'pettyCash' | 'inventory' | 'sales' | string;
+  label: string;
+  status: ExecutiveKpiStatus;
+  metrics: ExecutiveDomainMetric[];
+  signals: ExecutiveDomainSignal[];
+  dataQuality: {
+    decisionReady: boolean;
+    invalidRecords: number;
+    issues: string[];
+  };
+};
+
+export type ExecutiveKpiDomains = {
+  contractVersion: string;
+  comparisonRange: { from: string; to: string };
+  preferredCurrency: string;
+  items: ExecutiveKpiDomain[];
+  dataQuality: {
+    decisionReady: boolean;
+    partial: boolean;
+    excludedCurrencies: string[];
+    issues: string[];
+    generatedFrom: string;
+    generatedAt: string;
+    snapshotDate: string;
+    exchangeRateDate: string;
+    note: string;
+  };
+};
+
 export type ExecutiveUnitRow = {
   unitId?: number | null;
   unitName: string;
@@ -77,6 +133,7 @@ export type ExecutiveKpiResponse = {
     nativeCurrencies: string[];
     generatedAt: string;
     scopeLabel: string;
+    authoritativeContract: string;
   };
   summary: Record<string, number>;
   kpiCards: ExecutiveKpiCard[];
@@ -99,6 +156,7 @@ export type ExecutiveKpiResponse = {
     topReceivables: ExecutiveUnitRow[];
     attention: ExecutiveUnitRow[];
   };
+  domains: ExecutiveKpiDomains;
 };
 
 export type ExecutivePanelPeriod = 'monthly' | 'bimonthly' | 'quarterly' | 'semester' | 'annual' | 'custom';

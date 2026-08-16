@@ -18,6 +18,42 @@ public class ExecutiveKpiRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    public boolean scopeExists(ExecutiveKpiScope scope) {
+        if (scope.unitId() != null) {
+            var unitCount = jdbcTemplate.queryForObject(
+                    """
+                    SELECT COUNT(*)
+                    FROM units
+                    WHERE id = ?
+                      AND (company_id = ? OR company_id IS NULL)
+                      AND LOWER(COALESCE(status, 'active')) IN ('active', 'activo')
+                    """,
+                    Integer.class,
+                    scope.unitId(),
+                    scope.companyId());
+            if (unitCount == null || unitCount == 0) return false;
+        }
+        if (scope.businessId() != null) {
+            var params = new ArrayList<Object>();
+            params.add(scope.businessId());
+            params.add(scope.companyId());
+            var sql = new StringBuilder("""
+                    SELECT COUNT(*)
+                    FROM businesses
+                    WHERE id = ?
+                      AND (company_id = ? OR company_id IS NULL)
+                      AND LOWER(COALESCE(status, 'active')) IN ('active', 'activo')
+                    """);
+            if (scope.unitId() != null) {
+                sql.append(" AND unit_id = ?");
+                params.add(scope.unitId());
+            }
+            var businessCount = jdbcTemplate.queryForObject(sql.toString(), Integer.class, params.toArray());
+            if (businessCount == null || businessCount == 0) return false;
+        }
+        return true;
+    }
+
     public List<Map<String, Object>> loadOrganizationRows(ExecutiveKpiScope scope) {
         var params = new ArrayList<Object>();
         params.add(scope.companyId());
@@ -336,15 +372,42 @@ public class ExecutiveKpiRepository {
     }
 
     public List<String> loadNativeCurrencies(ExecutiveKpiScope scope) {
-        var params = List.<Object>of(scope.companyId(), scope.from().toString(), scope.to().toString());
-        return jdbcTemplate.query("""
+        var salesFilter = scopedFilter(scope, "sale", "sale_date");
+        var expenseFilter = scopedFilter(scope, "expense", "expense_date");
+        var fundFilter = scopedFilter(scope, "fund", null);
+        var params = new ArrayList<Object>();
+        params.addAll(salesFilter.params());
+        params.addAll(expenseFilter.params());
+        params.addAll(fundFilter.params());
+        params.add(scope.companyId());
+        var sql = """
                 SELECT DISTINCT currency
-                FROM sales_records
-                WHERE company_id = ?
-                  AND deleted_at IS NULL
-                  AND sale_date BETWEEN ? AND ?
+                FROM (
+                    SELECT sale.currency AS currency
+                    FROM sales_records sale
+                    WHERE sale.deleted_at IS NULL
+                """ + salesFilter.sql() + """
+                    UNION ALL
+                    SELECT expense.currency_code AS currency
+                    FROM finance_expenses expense
+                    WHERE expense.deleted_at IS NULL AND expense.status NOT IN ('CANCELLED', 'REJECTED')
+                """ + expenseFilter.sql() + """
+                    UNION ALL
+                    SELECT fund.currency_code AS currency
+                    FROM finance_petty_cash_funds fund
+                    WHERE fund.deleted_at IS NULL AND fund.status <> 'CLOSED'
+                """ + fundFilter.sql() + """
+                    UNION ALL
+                    SELECT product.currency AS currency
+                    FROM sales_inventory_balances balance
+                    JOIN sales_products product ON product.id = balance.product_id
+                        AND product.company_id = balance.company_id AND product.deleted_at IS NULL
+                    WHERE balance.company_id = ? AND balance.deleted_at IS NULL AND balance.uses_inventory = 1
+                ) currencies
+                WHERE currency IS NOT NULL AND TRIM(currency) <> ''
                 ORDER BY currency
-                """, (rs, rowNum) -> rs.getString("currency"), params.toArray());
+                """;
+        return jdbcTemplate.query(sql, (rs, rowNum) -> rs.getString("currency"), params.toArray());
     }
 
     public static List<Map<String, Object>> mergeOrgRows(

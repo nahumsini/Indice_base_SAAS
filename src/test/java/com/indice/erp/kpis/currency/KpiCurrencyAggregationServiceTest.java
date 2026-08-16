@@ -52,4 +52,24 @@ class KpiCurrencyAggregationServiceTest {
         assertThat(result.excludedCurrencies()).containsExactly("CAD");
         assertThat(result.nativeTotals()).hasSize(2);
     }
+
+    @Test
+    void excludesMalformedSourceCurrencyInsteadOfFailingTheWholeDashboard() {
+        var result = service.aggregate(
+            List.of(
+                new KpiMoneyAmount(new BigDecimal("100.00"), "MXN"),
+                new KpiMoneyAmount(new BigDecimal("50.00"), "pesos")
+            ),
+            "MXN",
+            Map.of("USD", BigDecimal.ONE, "MXN", new BigDecimal("17.00")),
+            "daily",
+            LocalDate.of(2026, 8, 6),
+            "official"
+        );
+
+        assertThat(result.preferredTotal()).isEqualByComparingTo("100.00");
+        assertThat(result.partial()).isTrue();
+        assertThat(result.excludedRecords()).isEqualTo(1);
+        assertThat(result.excludedCurrencies()).containsExactly("MONEDA_INVALIDA:pesos");
+    }
 }

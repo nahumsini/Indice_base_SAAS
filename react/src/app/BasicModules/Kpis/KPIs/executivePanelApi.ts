@@ -2,10 +2,11 @@ import { endpoints } from '../../../api/endpoints';
 import { apiClient } from '../../../lib/apiClient';
 import type { ExecutiveKpiResponse, ExecutivePanelFilters } from './types';
 
-const buildQuery = (filters: ExecutivePanelFilters) => {
+const buildQuery = (filters: ExecutivePanelFilters, preferredCurrency: string) => {
   const params = new URLSearchParams();
 
   params.set('period', filters.period);
+  params.set('preferredCurrency', preferredCurrency);
   if (filters.search.trim()) params.set('search', filters.search.trim());
   if (filters.unitId) params.set('unitId', filters.unitId);
   if (filters.businessId) params.set('businessId', filters.businessId);
@@ -19,8 +20,8 @@ const buildQuery = (filters: ExecutivePanelFilters) => {
 };
 
 export const executivePanelApi = {
-  get(filters: ExecutivePanelFilters) {
-    const query = buildQuery(filters);
+  get(filters: ExecutivePanelFilters, preferredCurrency = 'MXN') {
+    const query = buildQuery(filters, preferredCurrency);
     return apiClient<ExecutiveKpiResponse>(`${endpoints.kpis.executivePanel}${query ? `?${query}` : ''}`);
   },
 };

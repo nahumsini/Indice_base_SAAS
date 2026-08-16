@@ -33,7 +33,12 @@ public class KpiCurrencyAggregationService {
 
         for (var item : amounts == null ? List.<KpiMoneyAmount>of() : amounts) {
             if (item == null || item.amount() == null) continue;
-            var nativeCurrency = normalizeCurrency(item.currency());
+            var nativeCurrency = validCurrency(item.currency());
+            if (nativeCurrency == null) {
+                excludedRecords++;
+                excludedCurrencies.add(invalidCurrencyLabel(item.currency()));
+                continue;
+            }
             nativeTotals.merge(nativeCurrency, item.amount(), BigDecimal::add);
 
             var converted = convert(item.amount(), nativeCurrency, targetCurrency, normalizedRates);
@@ -96,6 +101,16 @@ public class KpiCurrencyAggregationService {
             throw new IllegalArgumentException("currency must use a three-letter ISO code");
         }
         return normalized;
+    }
+
+    private String validCurrency(String currency) {
+        var normalized = currency == null ? "" : currency.trim().toUpperCase(Locale.ROOT);
+        return normalized.matches("[A-Z]{3}") ? normalized : null;
+    }
+
+    private String invalidCurrencyLabel(String currency) {
+        var value = currency == null ? "" : currency.trim();
+        return value.isBlank() ? "MONEDA_SIN_CODIGO" : "MONEDA_INVALIDA:" + value;
     }
 
     private String normalizeMode(String mode) {
