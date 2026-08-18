@@ -45,6 +45,7 @@ const BILLING_SIGNUP_REFERENCE_STORAGE_KEY = 'indice:billing-signup-reference';
 const emptyForm: BillingSignupRequest = {
   fullName: '',
   email: '',
+  confirmEmail: '',
   password: '',
   companyName: '',
   countryCode: 'MX',
@@ -55,6 +56,7 @@ const emptyForm: BillingSignupRequest = {
   extraSeats: 0,
   selectedProductCodes: [],
   courtesyCode: '',
+  emailVerificationReference: '',
 };
 
 const brandInputClasses = 'h-12 rounded-xl border-slate-200 bg-white text-base font-normal shadow-sm focus-visible:border-[var(--indice-brand-aqua)] focus-visible:ring-[var(--indice-brand-aqua)]/25';
@@ -69,6 +71,8 @@ type SignupCopy = {
   loadPlansError: string;
   accountIncompleteError: string;
   paymentAccountIncompleteError: string;
+  emailVerificationRequiredError: string;
+  emailVerificationCodeRequired: string;
   checkoutIncompleteError: string;
   checkoutError: string;
   premiumBadge: string;
@@ -111,6 +115,9 @@ type SignupCopy = {
   ownerPlaceholder: string;
   emailLabel: string;
   emailPlaceholder: string;
+  confirmEmailLabel: string;
+  confirmEmailPlaceholder: string;
+  emailMismatchError: string;
   passwordLabel: string;
   passwordPlaceholder: string;
   countryLabel: string;
@@ -122,6 +129,18 @@ type SignupCopy = {
   companySizeLabel: string;
   companySizePlaceholder: string;
   continueToBilling: string;
+  emailVerificationTitle: string;
+  emailVerificationBody: string;
+  sendVerificationCode: string;
+  sendingVerificationCode: string;
+  verificationCodeLabel: string;
+  verificationCodePlaceholder: string;
+  verifyEmailCode: string;
+  verifyingEmailCode: string;
+  resendCode: string;
+  emailVerifiedMessage: string;
+  emailVerificationSent: (maskedEmail: string) => string;
+  resendAvailableIn: (seconds: number) => string;
   draftNote: string;
   countryLabels: Record<string, string>;
   industryLabels: Record<string, string>;
@@ -387,6 +406,8 @@ const esSignupCopy: SignupCopy = {
   loadPlansError: 'No pudimos cargar los planes disponibles.',
   accountIncompleteError: 'Completa nombre, empresa, correo y contraseña antes de continuar.',
   paymentAccountIncompleteError: 'Regresa y completa los datos de la cuenta antes del pago.',
+  emailVerificationRequiredError: 'Verifica tu correo antes de continuar al pago.',
+  emailVerificationCodeRequired: 'Ingresa el código de verificación enviado a tu correo.',
   checkoutIncompleteError: 'Completa tus datos y elige al menos un producto disponible.',
   checkoutError: 'No pudimos iniciar el pago seguro. Intenta nuevamente.',
   premiumBadge: 'Prueba premium',
@@ -429,6 +450,9 @@ const esSignupCopy: SignupCopy = {
   ownerPlaceholder: 'Nombre completo',
   emailLabel: 'Correo principal',
   emailPlaceholder: 'tu@empresa.com',
+  confirmEmailLabel: 'Confirmar correo',
+  confirmEmailPlaceholder: 'Repite tu correo',
+  emailMismatchError: 'Los correos deben coincidir.',
   passwordLabel: 'Contraseña',
   passwordPlaceholder: 'Mínimo 10 caracteres',
   countryLabel: 'País de operación',
@@ -440,6 +464,18 @@ const esSignupCopy: SignupCopy = {
   companySizeLabel: 'Tamaño de empresa',
   companySizePlaceholder: '1-10, 11-50, 51-200...',
   continueToBilling: 'Continuar y elegir módulos',
+  emailVerificationTitle: 'Verifica tu correo',
+  emailVerificationBody: 'Enviaremos un código a tu correo antes de elegir módulos y pago.',
+  sendVerificationCode: 'Enviar código de verificación',
+  sendingVerificationCode: 'Enviando código...',
+  verificationCodeLabel: 'Código de verificación',
+  verificationCodePlaceholder: '000000',
+  verifyEmailCode: 'Verificar correo',
+  verifyingEmailCode: 'Verificando...',
+  resendCode: 'Reenviar código',
+  emailVerifiedMessage: 'Correo verificado. Ya puedes continuar.',
+  emailVerificationSent: (maskedEmail) => `Código enviado a ${maskedEmail}.`,
+  resendAvailableIn: (seconds) => `Puedes reenviar en ${seconds}s.`,
   draftNote: 'Tus datos se guardan en este navegador mientras terminas el registro.',
   countryLabels: {
     MX: 'México',
@@ -483,6 +519,8 @@ const enSignupCopy: SignupCopy = {
   loadPlansError: 'We could not load the available plans.',
   accountIncompleteError: 'Complete name, company, email, and password before continuing.',
   paymentAccountIncompleteError: 'Go back and complete the account details before payment.',
+  emailVerificationRequiredError: 'Verify your email before continuing to payment.',
+  emailVerificationCodeRequired: 'Enter the verification code sent to your email.',
   checkoutIncompleteError: 'Complete your details and choose at least one available product.',
   checkoutError: 'We could not start secure payment. Try again.',
   premiumBadge: 'Premium trial',
@@ -525,6 +563,9 @@ const enSignupCopy: SignupCopy = {
   ownerPlaceholder: 'Full name',
   emailLabel: 'Primary email',
   emailPlaceholder: 'you@company.com',
+  confirmEmailLabel: 'Confirm email',
+  confirmEmailPlaceholder: 'Repeat your email',
+  emailMismatchError: 'Email and confirm email must match.',
   passwordLabel: 'Password',
   passwordPlaceholder: 'Minimum 10 characters',
   countryLabel: 'Operating country',
@@ -536,6 +577,18 @@ const enSignupCopy: SignupCopy = {
   companySizeLabel: 'Company size',
   companySizePlaceholder: '1-10, 11-50, 51-200...',
   continueToBilling: 'Continue and choose modules',
+  emailVerificationTitle: 'Verify your email',
+  emailVerificationBody: 'We will send a code to your email before module selection and payment.',
+  sendVerificationCode: 'Send verification code',
+  sendingVerificationCode: 'Sending code...',
+  verificationCodeLabel: 'Verification code',
+  verificationCodePlaceholder: '000000',
+  verifyEmailCode: 'Verify email',
+  verifyingEmailCode: 'Verifying...',
+  resendCode: 'Resend code',
+  emailVerifiedMessage: 'Email verified. You can continue.',
+  emailVerificationSent: (maskedEmail) => `Code sent to ${maskedEmail}.`,
+  resendAvailableIn: (seconds) => `You can resend in ${seconds}s.`,
   draftNote: 'Your details are saved in this browser while you finish signup.',
   countryLabels: {
     MX: 'Mexico',
@@ -1181,6 +1234,7 @@ const normalizeDraft = (value: unknown): BillingSignupRequest | null => {
     ...emptyForm,
     fullName: typeof draft.fullName === 'string' ? draft.fullName : emptyForm.fullName,
     email: typeof draft.email === 'string' ? draft.email : emptyForm.email,
+    confirmEmail: typeof draft.confirmEmail === 'string' ? draft.confirmEmail : emptyForm.confirmEmail,
     password: typeof draft.password === 'string' ? draft.password : emptyForm.password,
     companyName: typeof draft.companyName === 'string' ? draft.companyName : emptyForm.companyName,
     countryCode: typeof draft.countryCode === 'string' ? draft.countryCode : emptyForm.countryCode,
@@ -1193,6 +1247,9 @@ const normalizeDraft = (value: unknown): BillingSignupRequest | null => {
       ? draft.selectedProductCodes.filter((code): code is string => typeof code === 'string')
       : [],
     courtesyCode: typeof draft.courtesyCode === 'string' ? draft.courtesyCode : '',
+    emailVerificationReference: typeof draft.emailVerificationReference === 'string'
+      ? draft.emailVerificationReference
+      : '',
   };
 };
 
@@ -1226,6 +1283,7 @@ const saveSignupDraft = (form: BillingSignupRequest) => {
     ...sanitizedForm,
     password: '',
     courtesyCode: '',
+    emailVerificationReference: '',
   }));
 };
 
@@ -1259,6 +1317,12 @@ export default function SignupPage() {
   const [accountAttempted, setAccountAttempted] = useState(false);
   const [showOptionalDetails, setShowOptionalDetails] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [emailVerification, setEmailVerification] = useState({
+    maskedEmail: '',
+    verifiedEmail: form.emailVerificationReference ? form.email.trim().toLowerCase() : '',
+    resendAvailableInSeconds: 0,
+  });
   const idempotencyKey = useRef(newIdempotencyKey());
 
   useEffect(() => {
@@ -1308,6 +1372,17 @@ export default function SignupPage() {
     saveSignupDraft(form);
   }, [form]);
 
+  useEffect(() => {
+    if (emailVerification.resendAvailableInSeconds <= 0) return undefined;
+    const timer = window.setInterval(() => {
+      setEmailVerification((current) => ({
+        ...current,
+        resendAvailableInSeconds: Math.max(0, current.resendAvailableInSeconds - 1),
+      }));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [emailVerification.resendAvailableInSeconds]);
+
   const selectedCount = form.selectedProductCodes.length;
   const basicProducts = config?.products.filter((product) => product.productType === 'BASIC') ?? [];
   const selectedBasicCount = basicProducts.filter((product) => form.selectedProductCodes.includes(product.code)).length;
@@ -1348,14 +1423,26 @@ export default function SignupPage() {
     config?.provisioningEnabled
     && (config.checkoutEnabled || (config.courtesyEnabled && courtesyRequested)),
   );
+  const normalizedEmail = form.email.trim().toLowerCase();
+  const normalizedConfirmEmail = form.confirmEmail.trim().toLowerCase();
+  const emailsMatch = normalizedEmail.length > 0 && normalizedEmail === normalizedConfirmEmail;
+  const emailVerificationRequired = config?.emailVerificationRequired !== false;
+  const emailVerified = Boolean(
+    !emailVerificationRequired
+    || (form.emailVerificationReference
+      && emailVerification.verifiedEmail
+      && emailVerification.verifiedEmail === normalizedEmail),
+  );
   const accountDetailsComplete = useMemo(() => (
     form.fullName.trim().length >= 2
     && form.companyName.trim().length >= 2
     && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())
+    && form.email.trim().toLowerCase() === form.confirmEmail.trim().toLowerCase()
     && isValidAccountPassword(form.password)
-  ), [form.companyName, form.email, form.fullName, form.password]);
+  ), [form.companyName, form.confirmEmail, form.email, form.fullName, form.password]);
   const canSubmit = platformReady
     && accountDetailsComplete
+    && emailVerified
     && validSelection
     && estimatedAmount !== null
     && !submitting;
@@ -1367,7 +1454,18 @@ export default function SignupPage() {
   const visibleSignupEstimate = signupEstimatedAmount(selectedTier, form.extraSeats, form.billingInterval);
 
   const update = <K extends keyof BillingSignupRequest>(key: K, value: BillingSignupRequest[K]) => {
-    setForm((current) => ({ ...current, [key]: value }));
+    const resetVerification = key === 'email' || key === 'confirmEmail' || key === 'fullName' || key === 'companyName';
+    setForm((current) => {
+      const next = { ...current, [key]: value };
+      if (resetVerification) {
+        next.emailVerificationReference = '';
+      }
+      return next;
+    });
+    if (resetVerification) {
+      setVerificationCode('');
+      setEmailVerification({ maskedEmail: '', verifiedEmail: '', resendAvailableInSeconds: 0 });
+    }
     setError('');
   };
 
@@ -1386,11 +1484,92 @@ export default function SignupPage() {
   const selectAllProducts = () => update('selectedProductCodes', availableProductCodes);
   const clearProducts = () => update('selectedProductCodes', basicProducts.slice(0, 1).map((product) => product.code));
 
-  const continueToBilling = (event: FormEvent<HTMLFormElement>) => {
+  const startEmailVerification = async () => {
+    const response = await billingSignupApi.startEmailVerification({
+      fullName: form.fullName.trim(),
+      email: normalizedEmail,
+      confirmEmail: normalizedConfirmEmail,
+      companyName: form.companyName.trim(),
+    });
+    setForm((current) => ({
+      ...current,
+      email: normalizedEmail,
+      confirmEmail: normalizedConfirmEmail,
+      emailVerificationReference: response.verificationReference,
+    }));
+    setEmailVerification({
+      maskedEmail: response.maskedEmail,
+      verifiedEmail: '',
+      resendAvailableInSeconds: response.resendAvailableInSeconds,
+    });
+    setVerificationCode('');
+  };
+
+  const verifyEmailCode = async () => {
+    const cleanedCode = verificationCode.replace(/\D/g, '');
+    if (!form.emailVerificationReference || cleanedCode.length !== 6) {
+      setError(copy.emailVerificationCodeRequired);
+      return false;
+    }
+    const response = await billingSignupApi.verifyEmail(form.emailVerificationReference, cleanedCode);
+    if (!response.verified) {
+      setError(response.message || copy.emailVerificationCodeRequired);
+      return false;
+    }
+    setEmailVerification({
+      maskedEmail: response.maskedEmail || emailVerification.maskedEmail,
+      verifiedEmail: normalizedEmail,
+      resendAvailableInSeconds: 0,
+    });
+    setError('');
+    return true;
+  };
+
+  const resendEmailVerification = async () => {
+    if (!form.emailVerificationReference || submitting) return;
+    try {
+      setSubmitting(true);
+      setError('');
+      const response = await billingSignupApi.resendEmailVerification(form.emailVerificationReference);
+      setEmailVerification((current) => ({
+        ...current,
+        maskedEmail: response.maskedEmail || current.maskedEmail,
+        resendAvailableInSeconds: response.resendAvailableInSeconds,
+      }));
+      if (response.message) {
+        setError(response.message);
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : copy.checkoutError);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const continueToBilling = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setAccountAttempted(true);
     if (!accountDetailsComplete) {
       setError(copy.accountIncompleteError);
+      return;
+    }
+    if (emailVerificationRequired && !emailVerified) {
+      try {
+        setSubmitting(true);
+        setError('');
+        if (!form.emailVerificationReference) {
+          await startEmailVerification();
+          return;
+        }
+        if (await verifyEmailCode()) {
+          saveSignupDraft({ ...form, emailVerificationReference: form.emailVerificationReference });
+          navigate('/signup/billing');
+        }
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : copy.checkoutError);
+      } finally {
+        setSubmitting(false);
+      }
       return;
     }
     saveSignupDraft(form);
@@ -1401,6 +1580,10 @@ export default function SignupPage() {
     event.preventDefault();
     if (!accountDetailsComplete) {
       setError(copy.accountIncompleteError);
+      return;
+    }
+    if (emailVerificationRequired && !emailVerified) {
+      setError(copy.emailVerificationRequiredError);
       return;
     }
     if (!canSubmit) {
@@ -1414,10 +1597,12 @@ export default function SignupPage() {
         ...form,
         fullName: form.fullName.trim(),
         email: form.email.trim().toLowerCase(),
+        confirmEmail: form.confirmEmail.trim().toLowerCase(),
         companyName: form.companyName.trim(),
         phone: phoneDigitsOnly(form.phone),
         industry: form.industry.trim(),
         companySize: form.companySize.trim(),
+        emailVerificationReference: form.emailVerificationReference,
       }, idempotencyKey.current);
       sessionStorage.setItem(BILLING_SIGNUP_REFERENCE_STORAGE_KEY, checkout.signupReference);
       if (checkout.checkoutUrl) {
@@ -1476,7 +1661,17 @@ export default function SignupPage() {
   const companyInvalid = accountAttempted && form.companyName.trim().length < 2;
   const ownerInvalid = accountAttempted && form.fullName.trim().length < 2;
   const emailInvalid = accountAttempted && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim());
+  const confirmEmailInvalid = accountAttempted && !emailsMatch;
   const passwordInvalid = accountAttempted && !isValidAccountPassword(form.password);
+  const accountSubmitLabel = submitting
+    ? form.emailVerificationReference && !emailVerified
+      ? copy.verifyingEmailCode
+      : copy.sendingVerificationCode
+    : emailVerified || !emailVerificationRequired
+      ? experienceCopy.continueLabel
+      : form.emailVerificationReference
+        ? copy.verifyEmailCode
+        : copy.sendVerificationCode;
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(89,195,165,0.14),_transparent_32%),radial-gradient(circle_at_top_right,_rgba(37,99,235,0.08),_transparent_30%),linear-gradient(135deg,_#F8FAFC_0%,_#EEF3F8_55%,_#F8FAFC_100%)] px-4 py-4 font-sans text-[#222831] sm:px-6 sm:py-5 lg:px-8 lg:py-7">
@@ -1796,6 +1991,14 @@ export default function SignupPage() {
                     {emailInvalid ? <span className="block text-xs font-normal text-red-600">{experienceCopy.validEmail}</span> : null}
                   </label>
                   <label className="space-y-2 text-sm font-medium text-slate-700">
+                    {copy.confirmEmailLabel}
+                    <span className="relative block">
+                      <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <Input type="email" value={form.confirmEmail} onChange={(event) => update('confirmEmail', event.target.value)} maxLength={190} className={`${brandInputClasses} pl-10`} placeholder={copy.confirmEmailPlaceholder} autoComplete="email" aria-invalid={confirmEmailInvalid} required />
+                    </span>
+                    {confirmEmailInvalid ? <span className="block text-xs font-normal text-red-600">{copy.emailMismatchError}</span> : null}
+                  </label>
+                  <label className="space-y-2 text-sm font-medium text-slate-700">
                     {copy.passwordLabel}
                     <span className="relative block">
                       <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -1818,6 +2021,51 @@ export default function SignupPage() {
                     </span>
                   </label>
                 </fieldset>
+
+                {accountDetailsComplete && emailVerificationRequired ? (
+                  <section className={`rounded-2xl border px-4 py-4 ${emailVerified ? 'border-emerald-200 bg-emerald-50' : 'border-[var(--indice-brand-border)] bg-[var(--indice-brand-soft)]'}`}>
+                    <div className="flex gap-3">
+                      <ShieldCheck className={`mt-1 h-5 w-5 shrink-0 ${emailVerified ? 'text-emerald-700' : 'text-[var(--indice-brand-action)]'}`} />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm font-semibold text-slate-900">{copy.emailVerificationTitle}</h3>
+                        <p className="mt-1 text-sm leading-6 text-slate-600">
+                          {emailVerified
+                            ? copy.emailVerifiedMessage
+                            : form.emailVerificationReference
+                              ? copy.emailVerificationSent(emailVerification.maskedEmail || normalizedEmail)
+                              : copy.emailVerificationBody}
+                        </p>
+                        {form.emailVerificationReference && !emailVerified ? (
+                          <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+                            <label className="space-y-2 text-sm font-medium text-slate-700">
+                              {copy.verificationCodeLabel}
+                              <Input
+                                value={verificationCode}
+                                onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                maxLength={6}
+                                className={brandInputClasses}
+                                placeholder={copy.verificationCodePlaceholder}
+                                autoComplete="one-time-code"
+                              />
+                            </label>
+                            <Button type="submit" disabled={submitting} className="h-12 rounded-xl bg-[var(--indice-brand-action)] px-5 text-sm font-medium text-white hover:bg-[var(--indice-brand-action-hover)]">
+                              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                              {submitting ? copy.verifyingEmailCode : copy.verifyEmailCode}
+                            </Button>
+                            <Button type="button" variant="outline" disabled={submitting || emailVerification.resendAvailableInSeconds > 0} onClick={resendEmailVerification} className="h-12 rounded-xl border-slate-200 bg-white px-5 text-sm font-medium text-slate-700">
+                              {copy.resendCode}
+                            </Button>
+                          </div>
+                        ) : null}
+                        {!emailVerified && emailVerification.resendAvailableInSeconds > 0 ? (
+                          <p className="mt-2 text-xs font-medium text-slate-500">{copy.resendAvailableIn(emailVerification.resendAvailableInSeconds)}</p>
+                        ) : null}
+                      </div>
+                    </div>
+                  </section>
+                ) : null}
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/70">
                   <button type="button" onClick={() => setShowOptionalDetails((visible) => !visible)} className="flex w-full items-center justify-between gap-4 rounded-2xl px-4 py-3 text-left" aria-expanded={showOptionalDetails}>
@@ -1854,8 +2102,9 @@ export default function SignupPage() {
 
                 {error ? <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</div> : null}
 
-                <Button type="submit" className="h-12 w-full rounded-xl bg-[var(--indice-brand-action)] text-base font-medium text-white shadow-sm shadow-emerald-950/15 hover:bg-[var(--indice-brand-action-hover)]">
-                  {experienceCopy.continueLabel} <ArrowRight className="h-5 w-5" />
+                <Button type="submit" disabled={submitting} className="h-12 w-full rounded-xl bg-[var(--indice-brand-action)] text-base font-medium text-white shadow-sm shadow-emerald-950/15 hover:bg-[var(--indice-brand-action-hover)]">
+                  {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+                  {accountSubmitLabel} {!submitting ? <ArrowRight className="h-5 w-5" /> : null}
                 </Button>
                 <div className="flex flex-col items-center justify-center gap-1 text-center text-xs leading-5 text-slate-500 sm:flex-row sm:gap-2">
                   <span className="inline-flex items-center gap-1.5 text-[var(--indice-brand-action)]"><CreditCard className="h-3.5 w-3.5" />{experienceCopy.noCharge}</span>

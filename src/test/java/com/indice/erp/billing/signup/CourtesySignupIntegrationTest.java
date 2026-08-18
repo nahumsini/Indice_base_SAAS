@@ -2,6 +2,7 @@ package com.indice.erp.billing.signup;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.indice.erp.billing.BillingHashing;
 import com.indice.erp.platformadmin.CourtesyCodeService;
 import java.util.List;
 import java.util.UUID;
@@ -42,6 +43,7 @@ class CourtesySignupIntegrationTest {
             )
         );
         var clearCode = String.valueOf(created.get("code"));
+        var verificationReference = verifiedEmail(email, "Courtesy Owner", "Courtesy Company");
         var product = jdbc.queryForObject(
             """
                 SELECT p.product_code
@@ -54,8 +56,8 @@ class CourtesySignupIntegrationTest {
         );
         var response = signup.createCheckout(
             new BillingSignupRequest(
-                "Courtesy Owner", email, "very-secure-password", "Courtesy Company",
-                "US", null, null, null, "MONTH", 0, List.of(product), clearCode
+                "Courtesy Owner", email, email, "very-secure-password", "Courtesy Company",
+                "US", null, null, null, "MONTH", 0, List.of(product), clearCode, verificationReference
             ),
             "courtesy-signup-" + discriminator
         );
@@ -119,11 +121,12 @@ class CourtesySignupIntegrationTest {
                 null, null, "Selected product account", "SELECTED-PRODUCT"
             )
         );
+        var verificationReference = verifiedEmail(email, "Selected Owner", "Selected Courtesy Company");
 
         var response = signup.createCheckout(
             new BillingSignupRequest(
-                "Selected Owner", email, "very-secure-password", "Selected Courtesy Company",
-                "MX", null, null, null, "MONTH", 0, List.of(product), String.valueOf(created.get("code"))
+                "Selected Owner", email, email, "very-secure-password", "Selected Courtesy Company",
+                "MX", null, null, null, "MONTH", 0, List.of(product), String.valueOf(created.get("code")), verificationReference
             ),
             "courtesy-selected-signup-" + discriminator
         );
@@ -165,5 +168,31 @@ class CourtesySignupIntegrationTest {
             userId
         );
         return userId;
+    }
+
+    private String verifiedEmail(String email, String fullName, String companyName) {
+        var reference = BillingHashing.randomReference();
+        jdbc.update(
+            """
+                INSERT INTO billing_signup_email_verifications (
+                    verification_reference, email_normalized, full_name, company_name, otp_hash,
+                    destination_hint, status, attempt_count, max_attempts, resend_count,
+                    last_sent_at, email_sent_at, expires_at, verified_at, verified_expires_at
+                ) VALUES (
+                    ?, LOWER(?), ?, ?, REPEAT('0', 64),
+                    ?, 'VERIFIED', 0, 5, 0,
+                    CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6),
+                    TIMESTAMPADD(MINUTE, 10, CURRENT_TIMESTAMP(6)),
+                    CURRENT_TIMESTAMP(6),
+                    TIMESTAMPADD(DAY, 1, CURRENT_TIMESTAMP(6))
+                )
+                """,
+            reference,
+            email,
+            fullName,
+            companyName,
+            email
+        );
+        return reference;
     }
 }

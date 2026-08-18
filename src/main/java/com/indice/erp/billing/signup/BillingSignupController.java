@@ -2,6 +2,7 @@ package com.indice.erp.billing.signup;
 
 import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.billing.catalog.CommercialOfferSelectionService;
+import com.indice.erp.billing.stripe.BillingSignupCheckoutReconciliationService;
 import com.indice.erp.billing.stripe.StripePhaseTwoProperties;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
@@ -22,20 +23,26 @@ public class BillingSignupController {
     private final SessionCsrfService csrf;
     private final CommercialOfferSelectionService offers;
     private final BillingSignupService service;
+    private final BillingSignupEmailVerificationService emailVerificationService;
     private final BillingSignupIntentRepository repository;
+    private final BillingSignupCheckoutReconciliationService reconciliation;
     private final StripePhaseTwoProperties properties;
 
     public BillingSignupController(
         SessionCsrfService csrf,
         CommercialOfferSelectionService offers,
         BillingSignupService service,
+        BillingSignupEmailVerificationService emailVerificationService,
         BillingSignupIntentRepository repository,
+        BillingSignupCheckoutReconciliationService reconciliation,
         StripePhaseTwoProperties properties
     ) {
         this.csrf = csrf;
         this.offers = offers;
         this.service = service;
+        this.emailVerificationService = emailVerificationService;
         this.repository = repository;
+        this.reconciliation = reconciliation;
         this.properties = properties;
     }
 
@@ -51,10 +58,41 @@ public class BillingSignupController {
             Map.entry("automaticCharge", true),
             Map.entry("includedSeats", 5),
             Map.entry("currency", "USD"),
+            Map.entry("emailVerificationRequired", true),
             Map.entry("launchCountries", java.util.List.of("MX", "CA", "US", "CO", "BR")),
             Map.entry("products", offers.activeProducts("MONTH")),
             Map.entry("prices", offers.activePrices())
         );
+    }
+
+    @PostMapping("/email-verification/start")
+    public ResponseEntity<BillingSignupEmailVerificationResponse> startEmailVerification(
+        @RequestBody BillingSignupEmailVerificationStartRequest request,
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
+    ) {
+        csrf.requireCsrf(session, csrfToken);
+        return ResponseEntity.status(HttpStatus.CREATED).body(emailVerificationService.start(request));
+    }
+
+    @PostMapping("/email-verification/resend")
+    public BillingSignupEmailVerificationResponse resendEmailVerification(
+        @RequestBody BillingSignupEmailVerificationResendRequest request,
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
+    ) {
+        csrf.requireCsrf(session, csrfToken);
+        return emailVerificationService.resend(request);
+    }
+
+    @PostMapping("/email-verification/verify")
+    public BillingSignupEmailVerificationResponse verifyEmail(
+        @RequestBody BillingSignupEmailVerificationVerifyRequest request,
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
+    ) {
+        csrf.requireCsrf(session, csrfToken);
+        return emailVerificationService.verify(request);
     }
 
     @PostMapping("/checkout")
@@ -78,6 +116,7 @@ public class BillingSignupController {
         if (intent == null) {
             return ResponseEntity.notFound().build();
         }
+        intent = reconciliation.reconcileIfCompleted(intent);
         var provisioned = intent.provisioned();
         var requiresReview = "REQUIRES_REVIEW".equals(intent.provisioningStatus());
         var message = provisioned

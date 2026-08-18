@@ -42,6 +42,7 @@ public class BillingSignupService {
     private final BillingProvisioningProperties provisioningProperties;
     private final CourtesyCodeService courtesyCodes;
     private final BillingTenantProvisioningService tenantProvisioning;
+    private final BillingSignupEmailVerificationService emailVerificationService;
 
     public BillingSignupService(
         CommercialOfferSelectionService offerSelectionService,
@@ -55,7 +56,8 @@ public class BillingSignupService {
         Clock clock,
         BillingProvisioningProperties provisioningProperties,
         CourtesyCodeService courtesyCodes,
-        BillingTenantProvisioningService tenantProvisioning
+        BillingTenantProvisioningService tenantProvisioning,
+        BillingSignupEmailVerificationService emailVerificationService
     ) {
         this.offerSelectionService = offerSelectionService;
         this.repository = repository;
@@ -69,6 +71,7 @@ public class BillingSignupService {
         this.provisioningProperties = provisioningProperties;
         this.courtesyCodes = courtesyCodes;
         this.tenantProvisioning = tenantProvisioning;
+        this.emailVerificationService = emailVerificationService;
     }
 
     public boolean provisioningEnabled() {
@@ -76,9 +79,30 @@ public class BillingSignupService {
     }
 
     public SignupCheckoutResponse createCheckout(BillingSignupRequest request, String idempotencyKey) {
+        return createCheckout(request, idempotencyKey, false);
+    }
+
+    public SignupCheckoutResponse createTrustedCourtesySignup(BillingSignupRequest request, String idempotencyKey) {
+        return createCheckout(request, idempotencyKey, true);
+    }
+
+    private SignupCheckoutResponse createCheckout(BillingSignupRequest request, String idempotencyKey, boolean trustedEmailBypass) {
         validate(request, idempotencyKey);
         var courtesySignup = courtesyCodes.isCourtesy(request.courtesyCode());
+        if (trustedEmailBypass && !courtesySignup) {
+            throw new IllegalArgumentException("Trusted email bypass is only allowed for courtesy signup.");
+        }
         if (!courtesySignup) secrets.requireEnabled();
+        var emailVerification = trustedEmailBypass
+            ? new BillingSignupEmailVerificationService.VerifiedEmail(
+                request.email().trim().toLowerCase(Locale.ROOT),
+                null,
+                clock.instant()
+            )
+            : emailVerificationService.requireVerified(
+                request.email(),
+                request.emailVerificationReference()
+            );
 
         var extraSeats = request.extraSeats() == null ? 0 : request.extraSeats();
         var selection = offerSelectionService.select(request.selectedProductCodes(), request.billingInterval(), extraSeats);
@@ -97,7 +121,9 @@ public class BillingSignupService {
             request,
             normalizedRequest.email(),
             passwordEncoder.encode(request.password()),
-            selection
+            selection,
+            emailVerification.verificationReference(),
+            emailVerification.verifiedAt()
         );
 
         if (courtesySignup) {
@@ -237,6 +263,10 @@ public class BillingSignupService {
         var email = request.email() == null ? "" : request.email().trim().toLowerCase(Locale.ROOT);
         if (email.length() > 190 || !EMAIL.matcher(email).matches()) {
             throw new IllegalArgumentException("A valid email is required.");
+        }
+        var confirmEmail = request.confirmEmail() == null ? "" : request.confirmEmail().trim().toLowerCase(Locale.ROOT);
+        if (!email.equals(confirmEmail)) {
+            throw new IllegalArgumentException("Email and confirm email must match.");
         }
         var password = request.password() == null ? "" : request.password();
         if (password.length() < 10 || password.getBytes(StandardCharsets.UTF_8).length > 72) {

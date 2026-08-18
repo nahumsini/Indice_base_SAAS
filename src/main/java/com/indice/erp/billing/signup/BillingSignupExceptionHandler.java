@@ -16,6 +16,11 @@ public class BillingSignupExceptionHandler {
         return response(HttpStatus.CONFLICT, "SIGNUP_IDEMPOTENCY_CONFLICT", exception.getMessage());
     }
 
+    @ExceptionHandler(BillingSignupEmailVerificationException.class)
+    public ResponseEntity<?> emailVerification(BillingSignupEmailVerificationException exception) {
+        return response(exception.status(), exception.code(), exception.getMessage());
+    }
+
     @ExceptionHandler(StripePhaseTwoUnavailableException.class)
     public ResponseEntity<?> unavailable(StripePhaseTwoUnavailableException exception) {
         return response(HttpStatus.SERVICE_UNAVAILABLE, "BILLING_CHECKOUT_UNAVAILABLE", exception.getMessage());

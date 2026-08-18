@@ -45,9 +45,10 @@ test('payable creation never inserts a local phantom record after a failed reque
 });
 
 test('signup and login share the exact delivered credential contract', async () => {
-  const [loginPage, signupPage, signupCompletePage, routes] = await Promise.all([
+  const [loginPage, signupPage, signupApi, signupCompletePage, routes] = await Promise.all([
     readFile(new URL('../src/app/Auth/LoginPage.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/Auth/SignupPage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/api/billingSignup.ts', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/Auth/SignupCompletePage.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/routes.tsx', import.meta.url), 'utf8'),
   ]);
@@ -56,6 +57,15 @@ test('signup and login share the exact delivered credential contract', async () 
   assert.match(routes, /path:\s*'\/signup'/);
   assert.match(routes, /path:\s*'\/signup\/complete'/);
   assert.match(signupPage, /isValidAccountPassword\(form\.password\)/);
+  assert.match(signupPage, /form\.confirmEmail/);
+  assert.match(signupPage, /startEmailVerification/);
+  assert.match(signupPage, /verifyEmailCode/);
+  assert.match(signupPage, /emailVerificationReference:\s*form\.emailVerificationReference/);
+  assert.match(signupApi, /confirmEmail:\s*string/);
+  assert.match(signupApi, /emailVerificationReference:\s*string/);
+  assert.match(signupApi, /startEmailVerification/);
+  assert.match(signupApi, /resendEmailVerification/);
+  assert.match(signupApi, /verifyEmail/);
   assert.match(signupCompletePage, /companyName:\s*loginPrefill\.companyName/);
   assert.match(signupCompletePage, /email:\s*loginPrefill\.email/);
   assert.match(loginPage, /password,\s*\n\s*\}\)/);

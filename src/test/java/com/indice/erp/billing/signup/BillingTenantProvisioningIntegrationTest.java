@@ -191,8 +191,8 @@ class BillingTenantProvisioningIntegrationTest {
         var product = offers.activeBasicProducts().getFirst();
         var selection = offers.select(List.of(product.code()), "MONTH", 0);
         var request = new BillingSignupRequest(
-            "Premium Owner", email, "very-secure-password", "Phase 3 Premium Company",
-            "MX", "+529981234567", "Services", "6-20", "MONTH", 0, List.of(product.code()), null
+            "Premium Owner", email, email, "very-secure-password", "Phase 3 Premium Company",
+            "MX", "+529981234567", "Services", "6-20", "MONTH", 0, List.of(product.code()), null, null
         );
         var discriminator = UUID.randomUUID().toString();
         var intent = signupIntents.createOrLoad(
@@ -202,7 +202,9 @@ class BillingTenantProvisioningIntegrationTest {
             request,
             email,
             "$2a$10$phase3-test-hash",
-            selection
+            selection,
+            null,
+            null
         );
         var customerId = "cus_phase3_" + discriminator.replace("-", "");
         signupIntents.markCustomerCreated(intent.id(), customerId);

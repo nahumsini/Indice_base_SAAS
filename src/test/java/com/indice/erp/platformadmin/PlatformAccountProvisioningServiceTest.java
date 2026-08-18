@@ -67,7 +67,7 @@ class PlatformAccountProvisioningServiceTest {
         when(jdbc.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
         when(courtesyCodes.createAfterAuthorization(eq(9L), eq("account-request-1:access"), any()))
             .thenReturn(Map.of("code", "IND-DEMO-SAFE-CODE"));
-        when(signup.createCheckout(any(), eq("account-request-1:signup")))
+        when(signup.createTrustedCourtesySignup(any(), eq("account-request-1:signup")))
             .thenReturn(new BillingSignupService.SignupCheckoutResponse(
                 "signup-ref", "COURTESY_COMPLETED", null, null, null, false, true
             ));
@@ -85,7 +85,7 @@ class PlatformAccountProvisioningServiceTest {
             .containsEntry("product_codes", List.of("basic_hr", "basic_process_tasks"));
         verify(access).require(9L, "PLATFORM_ACCOUNTS_WRITE");
         verify(courtesyCodes).createAfterAuthorization(eq(9L), eq("account-request-1:access"), any());
-        verify(signup).createCheckout(any(), eq("account-request-1:signup"));
+        verify(signup).createTrustedCourtesySignup(any(), eq("account-request-1:signup"));
         verify(jdbc).update(
             anyString(),
             eq("DISTRIBUTOR"),
@@ -102,7 +102,7 @@ class PlatformAccountProvisioningServiceTest {
         assertThat(detail.getValue().toString()).doesNotContain("DemoSegura2026!");
 
         var signupRequest = ArgumentCaptor.forClass(BillingSignupRequest.class);
-        verify(signup).createCheckout(signupRequest.capture(), eq("account-request-1:signup"));
+        verify(signup).createTrustedCourtesySignup(signupRequest.capture(), eq("account-request-1:signup"));
         assertThat(signupRequest.getValue().companySize()).isEqualTo("7");
         assertThat(signupRequest.getValue().extraSeats()).isEqualTo(2);
     }
@@ -116,7 +116,7 @@ class PlatformAccountProvisioningServiceTest {
             .hasMessageContaining("at least 10 characters");
 
         verify(courtesyCodes, never()).create(anyLong(), anyString(), any());
-        verify(signup, never()).createCheckout(any(), anyString());
+        verify(signup, never()).createTrustedCourtesySignup(any(), anyString());
     }
 
     @Test
@@ -128,7 +128,7 @@ class PlatformAccountProvisioningServiceTest {
             .hasMessageContaining("SUPER_ADMIN or DISTRIBUTOR");
 
         verify(courtesyCodes, never()).create(anyLong(), anyString(), any());
-        verify(signup, never()).createCheckout(any(), anyString());
+        verify(signup, never()).createTrustedCourtesySignup(any(), anyString());
     }
 
     @Test
@@ -144,7 +144,7 @@ class PlatformAccountProvisioningServiceTest {
             .hasMessageContaining("7, 15 or 30");
 
         verify(courtesyCodes, never()).create(anyLong(), anyString(), any());
-        verify(signup, never()).createCheckout(any(), anyString());
+        verify(signup, never()).createTrustedCourtesySignup(any(), anyString());
     }
 
     @Test
@@ -163,7 +163,7 @@ class PlatformAccountProvisioningServiceTest {
             .hasMessageContaining("must match the exact employee count");
 
         verify(courtesyCodes, never()).create(anyLong(), anyString(), any());
-        verify(signup, never()).createCheckout(any(), anyString());
+        verify(signup, never()).createTrustedCourtesySignup(any(), anyString());
     }
 
     private PlatformAccountProvisioningService.CreateAccountRequest request(String password, String accountType) {

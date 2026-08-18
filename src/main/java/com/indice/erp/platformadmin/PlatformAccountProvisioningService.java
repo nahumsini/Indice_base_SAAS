@@ -156,9 +156,10 @@ public class PlatformAccountProvisioningService {
             throw new IllegalStateException("The secure access code could not be generated.");
         }
 
-        var checkout = signup.createCheckout(
+        var checkout = signup.createTrustedCourtesySignup(
             new BillingSignupRequest(
                 ownerName,
+                email,
                 email,
                 password,
                 companyName,
@@ -169,7 +170,8 @@ public class PlatformAccountProvisioningService {
                 "MONTH",
                 extraSeats,
                 productCodes,
-                courtesyCode
+                courtesyCode,
+                null
             ),
             requestKey + ":signup"
         );
