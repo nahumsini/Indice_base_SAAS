@@ -61,7 +61,7 @@ class SpecificPosCheckoutTest {
     @Test
     void checkoutRequiresOpenShift() {
         var service = service();
-        when(cashRegisterService.requireRegister(context(), 20L)).thenReturn(register());
+        when(cashRegisterService.requireOperationalRegister(context(), 20L)).thenReturn(register());
         when(shiftRepository.findOpenByUserAndRegister(context(), 20L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.checkout(context(), request("CASH", "10.0000")))
@@ -104,6 +104,19 @@ class SpecificPosCheckoutTest {
         assertThatThrownBy(() -> validator.validateTotals(calculator.totals(lines, payments)))
             .isInstanceOf(PosApiException.class)
             .hasMessage("Paid amount must equal total amount.");
+    }
+
+    @Test
+    void checkoutRejectsShiftWhoseWarehouseScopeDiffersFromRegister() {
+        var mismatchedShift = new ShiftRecord(
+            40L, 1L, 5L, 6L, 99L, 20L, "Register 1", 10L, null, ShiftStatus.OPEN,
+            BigDecimal.ZERO, BigDecimal.ZERO, null, null, "MXN", Instant.now(), null, null, null,
+            10L, null, Instant.now(), Instant.now(), 0L, null, null
+        );
+
+        assertThatThrownBy(() -> validator.requireOpenShift(context(), mismatchedShift, register()))
+            .isInstanceOf(PosApiException.class)
+            .hasMessage("Open shift scope does not match the cash register warehouse. Close the shift and open a new one.");
     }
 
     @Test
@@ -174,7 +187,7 @@ class SpecificPosCheckoutTest {
     }
 
     private CheckoutService readyService() {
-        when(cashRegisterService.requireRegister(context(), 20L)).thenReturn(register());
+        when(cashRegisterService.requireOperationalRegister(context(), 20L)).thenReturn(register());
         when(shiftRepository.findOpenByUserAndRegister(context(), 20L)).thenReturn(Optional.of(shift()));
         when(ticketRepository.existsTicketNumber(eq(context()), any())).thenReturn(false);
         when(salesRecordSummaryRepository.insert(eq(context()), any())).thenReturn(500L);

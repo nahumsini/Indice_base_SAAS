@@ -8,6 +8,7 @@ export interface Shift {
   businessUnitName: string;
   businessId: string;
   businessName: string;
+  warehouseId: string;
   warehouseName?: string;
   cashRegisterId: string;
   cashRegisterCode: string;

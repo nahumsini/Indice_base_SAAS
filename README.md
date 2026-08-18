@@ -24,7 +24,9 @@ make dev
 ```
 
 `make dev` starts the safe local development stack without resetting the
-database:
+database. During backend initialization, the application restores and verifies
+the isolated local login `demo@example.com` / `demo123` with the same password
+encoder used by authentication. Optional demo datasets remain separate:
 
 - local MySQL in `indice-mysql-fresh` on `127.0.0.1:3307`
 - MinIO, minio-init, and face-service
@@ -37,11 +39,16 @@ Useful local commands:
 make infra     # Start MySQL, MinIO, minio-init, and face-service only
 make backend   # Run only Spring Boot on http://127.0.0.1:8082
 make frontend  # Run only React/Vite on http://127.0.0.1:5174
+make restore-local-demo-login # Restore only demo@example.com / demo123
+make seed-local-demo # Refresh demo data and restore the local demo password
 make up        # Alias for make dev
 make db-repair # Repair Flyway metadata without resetting local data
 make ps        # Show local infrastructure status
 make down      # Stop local infrastructure containers
 ```
+
+To preserve locally edited demo records for a particular run, use
+`LOCAL_DEMO_SEED_ON_DEV=false make dev`.
 
 `make backend` and `make dev` supply development-only kiosk secrets and disable
 the legacy kiosk-secret sentinel check for the existing local database. They

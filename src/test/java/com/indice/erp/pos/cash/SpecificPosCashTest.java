@@ -258,9 +258,11 @@ class SpecificPosCashTest {
 
     private CashClosingSummaryRow closingRow(Long id, String closedAt) {
         return new CashClosingSummaryRow(
-            id, 40L, 20L, 30L, new BigDecimal("10"), new BigDecimal("90"),
+            id, 40L, 20L, "REG-1", "Register 1", 30L, "Warehouse 1",
+            5L, "Unit 1", 6L, "Business 1", "Company 1",
+            new BigDecimal("10"), new BigDecimal("90"),
             new BigDecimal("100"), new BigDecimal("100"), BigDecimal.ZERO,
-            new BigDecimal("150"), 3, 10L, "MXN", Instant.parse(closedAt)
+            new BigDecimal("150"), 3, 10L, "User 1", "MXN", Instant.parse(closedAt)
         );
     }
 

@@ -84,11 +84,27 @@ export function useSaleRegisterContext(): SaleRegisterContextState {
     void refreshContext();
   }, [refreshContext]);
 
-  const activeCashRegisters = useMemo(
-    () => (posContext?.cashRegisters ?? []).filter((register) => register.active && register.status === 'ACTIVE'),
-    [posContext?.cashRegisters],
+  const warehouses = useMemo(
+    () => (posContext?.warehouses ?? []).filter((warehouse) => (
+      warehouse.status?.toLocaleLowerCase() === 'active'
+      && Number.isFinite(Number(warehouse.id))
+      && Number.isFinite(Number(warehouse.unitId))
+      && Number.isFinite(Number(warehouse.businessId))
+    )),
+    [posContext?.warehouses],
   );
-  const warehouses = useMemo(() => posContext?.warehouses ?? [], [posContext?.warehouses]);
+  const activeCashRegisters = useMemo(
+    () => (posContext?.cashRegisters ?? []).filter((register) => {
+      if (!register.active || register.status !== 'ACTIVE') return false;
+      const warehouse = warehouses.find((candidate) => candidate.id === register.warehouseId);
+      return Boolean(
+        warehouse
+        && warehouse.unitId === register.unitId
+        && warehouse.businessId === register.businessId,
+      );
+    }),
+    [posContext?.cashRegisters, warehouses],
+  );
 
   useEffect(() => {
     const currentShiftRegisterId = toId(posContext?.currentOpenShift?.cashRegisterId);
@@ -122,6 +138,7 @@ export function useSaleRegisterContext(): SaleRegisterContextState {
       businessUnitName: warehouse?.unitName || 'Unidad no asignada',
       businessId: toId(selectedRegister.businessId ?? warehouse?.businessId),
       businessName: warehouse?.businessName || warehouse?.name || 'Negocio no asignado',
+      warehouseId: toId(selectedRegister.warehouseId),
       warehouseName: selectedRegister.warehouseName || warehouse?.name || '',
       cashRegisterId: toId(selectedRegister.id),
       cashRegisterCode: selectedRegister.code,

@@ -23,6 +23,23 @@ public class CashRegisterValidator {
         if (warehouse == null) {
             throw PosApiException.badRequest("warehouseId is required.");
         }
+        if (!"active".equalsIgnoreCase(warehouse.status())) {
+            throw PosApiException.conflict("Warehouse is inactive.");
+        }
+        if (warehouse.unitId() == null || warehouse.businessId() == null) {
+            throw PosApiException.badRequest("Warehouse must be assigned to a business unit and business.");
+        }
+    }
+
+    public void requireWarehouseMatch(CashRegisterRecord register, WarehouseSummary warehouse) {
+        requireWarehouseScope(warehouse);
+        if (!register.warehouseId().equals(warehouse.id())
+                || !java.util.Objects.equals(register.unitId(), warehouse.unitId())
+                || !java.util.Objects.equals(register.businessId(), warehouse.businessId())) {
+            throw PosApiException.conflict(
+                "Cash register scope does not match its warehouse. Update the cash register before operating it."
+            );
+        }
     }
 
     public void requireDeletable(boolean hasOpenShift) {

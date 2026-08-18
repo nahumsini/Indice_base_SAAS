@@ -1,6 +1,6 @@
 export const enUS = {
   title: 'Point of Sale',
-  subtitle: 'Run counter sales, invoicing, register closings, customers, discounts, and operational KPIs.',
+  subtitle: 'Run counter sales, receipts, register closings, customers, kiosks, and operational KPIs.',
   back: 'Back',
   navLabel: 'Point of sale sections',
   loading: {
@@ -13,8 +13,6 @@ export const enUS = {
     sale: 'Sale',
     cortes: 'Register closings',
     clientes: 'Customers',
-    facturacion: 'Invoicing',
-    descuentos: 'Discounts',
     kpis: 'KPIs',
     kiosks: 'Kiosks',
     cajas: 'Registers',

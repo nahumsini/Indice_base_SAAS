@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowRightLeft, Eye, PackageOpen, Plus, Search, Trash2 } from 'lucide-react';
+import { AlertTriangle, ArrowRightLeft, Eye, PackageOpen, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { Button } from '../../../../../components/ui/button';
 import { Input } from '../../../../../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../../components/ui/table';
@@ -12,11 +12,13 @@ type WarehouseSummary = ReturnType<typeof getWarehouseInventorySummary>;
 const headClass = 'h-12 whitespace-nowrap px-3 text-sm font-medium text-slate-500 dark:text-slate-300';
 const numberClass = 'px-3 py-3 text-right text-sm font-medium tabular-nums text-slate-950 dark:text-white';
 
-export function WarehouseManagerView({ warehouses, summaries, t, onCreate, onRequestDelete, onViewInventory }: {
+export function WarehouseManagerView({ warehouses, summaries, invalidWarehouseIds = new Set<string>(), t, onCreate, onEdit, onRequestDelete, onViewInventory }: {
   warehouses: InventoryWarehouse[];
   summaries: Map<string, WarehouseSummary>;
+  invalidWarehouseIds?: Set<string>;
   t: InventoryTranslations;
   onCreate: () => void;
+  onEdit?: (warehouse: InventoryWarehouse) => void;
   onRequestDelete: (warehouse: InventoryWarehouse) => void;
   onViewInventory?: (warehouseId: string) => void;
 }) {
@@ -63,10 +65,11 @@ export function WarehouseManagerView({ warehouses, summaries, t, onCreate, onReq
                 {filteredWarehouses.map((warehouse) => {
                   const summary = summaries.get(warehouse.id);
                   const hasStock = (summary?.totalUnits ?? 0) > 0;
+                  const invalidAssignment = invalidWarehouseIds.has(warehouse.id);
                   return (
                     <TableRow key={warehouse.id} className="border-slate-100 transition-colors hover:bg-[#FF6B5E]/[0.04] dark:border-slate-700 dark:hover:bg-slate-700/50">
                       <TableCell className="px-4 py-3">
-                        <div className="flex min-w-0 items-start gap-3"><span className="mt-0.5 h-9 w-1 shrink-0 rounded-full bg-[#FF6B5E]" aria-hidden="true" /><div className="min-w-0"><p className="truncate text-sm font-medium text-slate-950 dark:text-white">{warehouse.name}</p><div className="mt-1 flex flex-wrap items-center gap-1.5"><span className="rounded-full border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 px-2 py-0.5 text-[11px] font-normal text-[#B63B32]">{t.operational.warehouseTypes[warehouse.type]}</span><span className="truncate text-xs text-slate-500">{warehouse.jurisdiction || t.common.notAvailable}</span></div></div></div>
+                        <div className="flex min-w-0 items-start gap-3"><span className="mt-0.5 h-9 w-1 shrink-0 rounded-full bg-[#FF6B5E]" aria-hidden="true" /><div className="min-w-0"><p className="truncate text-sm font-medium text-slate-950 dark:text-white">{warehouse.name}</p><div className="mt-1 flex flex-wrap items-center gap-1.5"><span className="rounded-full border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 px-2 py-0.5 text-[11px] font-normal text-[#B63B32]">{t.operational.warehouseTypes[warehouse.type]}</span>{invalidAssignment ? <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700"><AlertTriangle className="h-3 w-3" />{t.operational.modals.organizationMissing}</span> : null}<span className="truncate text-xs text-slate-500">{warehouse.jurisdiction || t.common.notAvailable}</span></div></div></div>
                       </TableCell>
                       <TableCell className="px-3 py-3 text-sm text-slate-700 dark:text-slate-200"><p className="truncate">{warehouse.businessUnitName || t.common.notAvailable}</p>{warehouse.businessName ? <p className="mt-0.5 truncate text-xs text-slate-500">{warehouse.businessName}</p> : null}</TableCell>
                       <TableCell className="px-3 py-3 text-sm text-slate-700 dark:text-slate-200">{warehouse.responsibleName || t.common.notAvailable}</TableCell>
@@ -74,7 +77,7 @@ export function WarehouseManagerView({ warehouses, summaries, t, onCreate, onReq
                       <TableCell className={numberClass}>{formatInventoryNumber(summary?.totalUnits ?? 0)}</TableCell>
                       <TableCell className={numberClass}>{formatInventoryCurrency(summary?.estimatedValue ?? 0)}</TableCell>
                       <TableCell className="px-3 py-3 text-center"><span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-normal ${warehouse.status === 'active' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>{warehouse.status === 'active' ? t.filters.active : t.filters.inactive}</span></TableCell>
-                      <TableCell className="px-4 py-3 text-right"><div className="flex justify-end gap-2">{onViewInventory ? <Button type="button" variant="outline" size="icon" className="h-9 w-9 rounded-lg border-slate-200 bg-white text-slate-700 hover:bg-slate-50" onClick={() => onViewInventory(warehouse.id)} aria-label={t.operational.actions.viewInventory} title={t.operational.actions.viewInventory}><Eye className="h-4 w-4" /></Button> : null}<Button type="button" variant="outline" size="icon" className={`h-9 w-9 rounded-lg ${hasStock ? 'border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100' : 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100'}`} onClick={() => onRequestDelete(warehouse)} aria-label={hasStock ? t.operational.modals.transferAndDeleteWarehouse : t.operational.modals.deleteWarehouse} title={hasStock ? t.operational.modals.transferAndDeleteWarehouse : t.operational.modals.deleteWarehouse}>{hasStock ? <ArrowRightLeft className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}</Button></div></TableCell>
+                      <TableCell className="px-4 py-3 text-right"><div className="flex justify-end gap-2">{onViewInventory ? <Button type="button" variant="outline" size="icon" className="h-9 w-9 rounded-lg border-slate-200 bg-white text-slate-700 hover:bg-slate-50" onClick={() => onViewInventory(warehouse.id)} aria-label={t.operational.actions.viewInventory} title={t.operational.actions.viewInventory}><Eye className="h-4 w-4" /></Button> : null}{onEdit ? <Button type="button" variant="outline" size="icon" className="h-9 w-9 rounded-lg border-slate-200 bg-white text-slate-700 hover:border-[#FF6B5E] hover:text-[#B63B32]" onClick={() => onEdit(warehouse)} aria-label={t.operational.modals.editWarehouseTitle} title={t.operational.modals.editWarehouseTitle}><Pencil className="h-4 w-4" /></Button> : null}<Button type="button" variant="outline" size="icon" className={`h-9 w-9 rounded-lg ${hasStock ? 'border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100' : 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100'}`} onClick={() => onRequestDelete(warehouse)} aria-label={hasStock ? t.operational.modals.transferAndDeleteWarehouse : t.operational.modals.deleteWarehouse} title={hasStock ? t.operational.modals.transferAndDeleteWarehouse : t.operational.modals.deleteWarehouse}>{hasStock ? <ArrowRightLeft className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}</Button></div></TableCell>
                     </TableRow>
                   );
                 })}

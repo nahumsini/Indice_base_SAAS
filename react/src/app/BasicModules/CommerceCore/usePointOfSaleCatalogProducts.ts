@@ -3,7 +3,7 @@ import { salesApi } from '../Sales/salesApi';
 import { useSalesCrm } from '../Sales/salesCrmContext';
 import { buildPointOfSaleCatalogProducts, type CommerceInventoryBalanceSnapshot } from './posCatalog';
 
-export function usePointOfSaleCatalogProducts() {
+export function usePointOfSaleCatalogProducts(warehouseId?: number | string | null) {
   const { products: salesProducts } = useSalesCrm();
   const [inventoryBalances, setInventoryBalances] = useState<CommerceInventoryBalanceSnapshot[]>([]);
   const [balanceLoadError, setBalanceLoadError] = useState<string | null>(null);
@@ -28,8 +28,8 @@ export function usePointOfSaleCatalogProducts() {
   }, [reloadInventoryBalances]);
 
   const products = useMemo(
-    () => buildPointOfSaleCatalogProducts(salesProducts, inventoryBalances),
-    [inventoryBalances, salesProducts],
+    () => buildPointOfSaleCatalogProducts(salesProducts, inventoryBalances, warehouseId),
+    [inventoryBalances, salesProducts, warehouseId],
   );
 
   const saleCurrency = useMemo(

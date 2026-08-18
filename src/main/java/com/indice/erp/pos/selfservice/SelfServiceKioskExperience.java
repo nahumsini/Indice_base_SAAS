@@ -85,7 +85,7 @@ public class SelfServiceKioskExperience implements PointOfSaleKioskExperience {
         if (context.definition() == null
                 || context.definition().legacyReferenceId() == null
                 || !SelfServiceKioskService.OWNER_MODULE.equals(context.definition().ownerModule())
-                || !SelfServiceKioskService.KIOSK_TYPE.equals(context.definition().kioskType())) {
+                || !SelfServiceKioskService.supportsPublicType(context.definition().kioskType())) {
             throw new IllegalArgumentException("Self-service kiosk definition is invalid.");
         }
         return context.definition();

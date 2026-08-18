@@ -6,6 +6,7 @@ import com.indice.erp.kiosk.engine.KioskRegistryService;
 import com.indice.erp.pos.PosRequestGuard;
 import com.indice.erp.pos.customerdisplay.CustomerDisplayService;
 import com.indice.erp.pos.selfservice.SelfServiceKioskService;
+import com.indice.erp.pos.shift.ShiftRepository;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +28,7 @@ class PointOfSaleKioskAdminV2ControllerAuthorizationTest {
     private final SelfServiceKioskService selfService = mock(SelfServiceKioskService.class);
     private final KioskRegistryService registry = mock(KioskRegistryService.class);
     private final KioskCenterService center = mock(KioskCenterService.class);
+    private final ShiftRepository shifts = mock(ShiftRepository.class);
     private final KioskV2ResponseFactory responses = mock(KioskV2ResponseFactory.class);
     private final ObjectMapper objectMapper = mock(ObjectMapper.class);
     private final Validator validator = mock(Validator.class);
@@ -37,7 +39,7 @@ class PointOfSaleKioskAdminV2ControllerAuthorizationTest {
     void setUp() {
         controller = new PointOfSaleKioskAdminV2Controller(
             guard, customerDisplays, selfService, registry, center,
-            responses, objectMapper, validator);
+            shifts, responses, objectMapper, validator);
     }
 
     @Test
@@ -74,7 +76,7 @@ class PointOfSaleKioskAdminV2ControllerAuthorizationTest {
     private void verifyNoManagementInteractions() {
         verifyNoInteractions(
             customerDisplays, selfService, registry, center,
-            responses, objectMapper, validator);
+            shifts, responses, objectMapper, validator);
     }
 
     private PosRequestGuard.Result forbidden() {

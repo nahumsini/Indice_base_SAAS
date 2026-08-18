@@ -35,16 +35,6 @@ export function buildInitialActivities(): OperationalActivity[] {
       tone: 'warning',
     },
     {
-      id: 'activity-invoice-generated',
-      type: 'invoice',
-      title: 'Factura generada',
-      description: 'Factura de cliente enviada por correo',
-      timestamp: new Date(now - 44 * 60 * 1000),
-      actor: 'Finanzas',
-      badge: 'PDF/XML',
-      tone: 'neutral',
-    },
-    {
       id: 'activity-return-processed',
       type: 'return',
       title: 'Devolucion procesada',

@@ -37,9 +37,9 @@ export function WarehouseFormView({
   return (
     <section className="mx-auto max-w-3xl">
       <div className="grid gap-4 md:grid-cols-2">
-        <InputField label={t.operational.modals.warehouseName} value={draft.name} onChange={(name) => onChange({ ...draft, name })} />
+        <InputField label={`${t.operational.modals.warehouseName} *`} value={draft.name} onChange={(name) => onChange({ ...draft, name })} />
         <SelectField label={t.operational.modals.warehouseType} value={draft.type} options={warehouseTypes.map((type) => ({ value: type, label: t.operational.warehouseTypes[type] }))} onValueChange={(type) => onChange({ ...draft, type: type as InventoryWarehouse['type'] })} />
-        <SelectField label={t.operational.modals.businessUnit} value={draft.businessUnitId || 'none'} options={[{ value: 'none', label: t.common.none }, ...sortInventoryOptions(businessUnits.map((unit) => ({ value: unit.id, label: unit.name })))]} onValueChange={(businessUnitId) => {
+        <SelectField label={`${t.operational.modals.businessUnit} *`} value={draft.businessUnitId || 'none'} options={[{ value: 'none', label: t.locationModal.validation.businessUnit }, ...sortInventoryOptions(businessUnits.map((unit) => ({ value: unit.id, label: unit.name })))]} onValueChange={(businessUnitId) => {
           if (businessUnitId === 'none') {
             onChange({ ...draft, businessUnitId: '', businessUnitName: '', businessId: '', businessName: '' });
             return;
@@ -54,7 +54,7 @@ export function WarehouseFormView({
             jurisdiction: formatJurisdiction(unit?.city, unit?.country) || draft.jurisdiction,
           });
         }} />
-        <SelectField label={t.operational.modals.business} value={draft.businessId || 'none'} options={[{ value: 'none', label: t.common.none }, ...sortInventoryOptions(availableBusinesses.map((business) => ({ value: business.id, label: business.name })))]} onValueChange={(businessId) => {
+        <SelectField disabled={!draft.businessUnitId} label={`${t.operational.modals.business} *`} value={draft.businessId || 'none'} options={[{ value: 'none', label: t.locationModal.validation.business }, ...sortInventoryOptions(availableBusinesses.map((business) => ({ value: business.id, label: business.name })))]} onValueChange={(businessId) => {
           if (businessId === 'none') {
             onChange({ ...draft, businessId: '', businessName: '' });
             return;
@@ -66,7 +66,7 @@ export function WarehouseFormView({
             businessName: business?.name,
             businessUnitId: business?.businessUnitId ?? draft.businessUnitId,
             businessUnitName: business?.businessUnitName ?? draft.businessUnitName,
-            jurisdiction: formatJurisdiction(business?.city, business?.country) || draft.jurisdiction,
+            jurisdiction: formatJurisdiction(business?.city, business?.country) || business?.address || draft.jurisdiction,
           });
         }} />
         <SelectField
@@ -106,16 +106,18 @@ function SelectField({
   label,
   value,
   options,
+  disabled = false,
   onValueChange,
 }: {
   label: string;
   value: string;
   options: Array<{ value: string; label: string }>;
+  disabled?: boolean;
   onValueChange: (value: string) => void;
 }) {
   return (
     <InventoryModalField label={label}>
-      <Select value={value} onValueChange={onValueChange}>
+      <Select value={value} onValueChange={onValueChange} disabled={disabled}>
         <SelectTrigger className={inventoryModalControlClassName}><SelectValue /></SelectTrigger>
         <SelectContent>{options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
       </Select>

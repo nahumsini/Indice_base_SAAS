@@ -280,6 +280,7 @@ public class KioskPublicV2Controller {
         if (!featureFlags.adapterEnabled(definition.ownerModule())) {
             throw new UnsupportedOperationException("Kiosk module adapter is not enabled.");
         }
+        kioskRegistry.touchPresence(definition.id());
         return new ResolvedRequest(
             definition,
             context(definition.ownerModule(), token, request).resolved(definition, null));
@@ -292,6 +293,9 @@ public class KioskPublicV2Controller {
         var definition = kioskRegistry.resolvePublicForBootstrap(token);
         if (!featureFlags.adapterEnabled(definition.ownerModule())) {
             throw new UnsupportedOperationException("Kiosk module adapter is not enabled.");
+        }
+        if (definition.effectiveStatus(Instant.now()).operational()) {
+            kioskRegistry.touchPresence(definition.id());
         }
         return new ResolvedRequest(
             definition,

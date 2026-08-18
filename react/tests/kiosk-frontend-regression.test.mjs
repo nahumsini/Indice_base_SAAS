@@ -257,6 +257,161 @@ test('kiosk center is an administrative multi-kiosk builder and never an in-app 
   assert.match(mobileSource, /Abre este Multikiosco en tu celular/);
 });
 
+test('POS kiosk administration keeps one canonical table with direct actions and printable QR posters', async () => {
+  const [workspace, api, translations, qrPoster] = await Promise.all([
+    readFile(new URL('../src/app/BasicModules/PointOfSale/Kiosks/KioskCenterWorkspace.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/Kiosks/posKioskAdminApi.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/Kiosks/kioskTranslations.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/Kiosks/kioskQrPosterPdf.ts', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(workspace, /posKioskAdminApi\.list\(\)/);
+  assert.doesNotMatch(workspace, /MoreHorizontal|onMore=/);
+  for (const action of ['onEdit', 'onAccess', 'onCopy', 'onDownloadQrPdf', 'onRotate', 'onToggle', 'onDelete']) {
+    assert.match(workspace, new RegExp(`${action}=`));
+  }
+  assert.match(api, /\/api\/v2\/point-of-sale\/kiosks/);
+  assert.match(api, /rotate-public-access-token/);
+  assert.match(api, /NEVER_CONNECTED/);
+  assert.match(api, /sourceRegisterOpen/);
+  assert.match(workspace, /shift: center\.shiftStatus/);
+  assert.match(workspace, /resolveKioskShiftState/);
+  assert.match(workspace, /readyCount/);
+  assert.match(workspace, /setInterval\(refreshOperationalState, 20_000\)/);
+  assert.match(translations, /scope: 'Asignación'/);
+  assert.match(translations, /shiftStatus: 'Turno de caja'/);
+  assert.match(translations, /shiftOpen: 'Turno abierto'/);
+  assert.match(translations, /shiftClosed: 'Caja cerrada'/);
+  assert.match(translations, /shiftChecking: 'Verificando turno'/);
+  assert.match(translations, /enabledStatus: 'Habilitado'/);
+  assert.match(translations, /disponibles ahora/);
+  assert.match(translations, /link: 'Acceso'/);
+  assert.match(translations, /copied: 'Enlace copiado'/);
+  assert.match(workspace, /downloadKioskQrPosterPdf/);
+  assert.match(workspace, /row\.kioskType === 'self_service' \|\| row\.kioskType === 'self_checkout'/);
+  assert.match(workspace, /kioskType: row\.kioskType === 'self_checkout' \? 'self_checkout' : 'self_service'/);
+  assert.match(qrPoster, /AUTOCOBRO MÓVIL/);
+  assert.match(qrPoster, /kioskType: 'self_service' \| 'self_checkout'/);
+  assert.match(translations, /downloadQrPdf: 'Descargar QR en PDF'/);
+  assert.match(translations, /rotateAccess: 'Regenerar acceso'/);
+  assert.match(translations, /deleteKiosk: 'Eliminar kiosco'/);
+});
+
+test('self-checkout creation opens the six-step configuration flow with real POS scope inputs', async () => {
+  const creationFlow = await readFile(new URL('../src/app/BasicModules/PointOfSale/Kiosks/SelfCheckoutCreationFlow.tsx', import.meta.url), 'utf8');
+  const wizard = await readFile(new URL('../src/app/BasicModules/PointOfSale/Kiosks/SelfCheckoutSetupWizard.tsx', import.meta.url), 'utf8');
+  const router = await readFile(new URL('../src/app/BasicModules/PointOfSale/Kiosks/KiosksWorkspace.tsx', import.meta.url), 'utf8');
+  const center = await readFile(new URL('../src/app/BasicModules/PointOfSale/Kiosks/KioskCenterWorkspace.tsx', import.meta.url), 'utf8');
+  const api = await readFile(new URL('../src/app/BasicModules/PointOfSale/Kiosks/posKioskAdminApi.ts', import.meta.url), 'utf8');
+
+  assert.match(router, /<SelfCheckoutCreationFlow/);
+  assert.match(router, /<StandardKioskCreationFlow/);
+  assert.doesNotMatch(router, /<SelfCheckoutWorkspace/);
+  assert.doesNotMatch(router, /SelfServiceKioskManager|CustomerDisplayManager/);
+  assert.match(router, /setCenterRefreshKey\(\(current\) => current \+ 1\)/);
+  assert.match(router, /finishCreation\(kiosk\.name\)/);
+  assert.match(center, /setNotice\(copy\.center\.createdFeedback\(createdKioskName\)\)/);
+  assert.match(center, /setTypeFilter\('all'\)[\s\S]*void reload\(\)/);
+  assert.match(creationFlow, /posBackendApi\.context\(\)/);
+  assert.match(creationFlow, /usePointOfSaleCatalogProducts\(\)/);
+  assert.match(creationFlow, /readStoredDiscountRules\(\)/);
+  assert.match(creationFlow, /posKioskAdminApi\.createSelfCheckout\(draft\)/);
+  assert.match(api, /\?type=self_checkout/);
+  assert.match(wizard, /experience: 'self-checkout'/);
+  assert.match(wizard, /steps\.experience[\s\S]*steps\.general[\s\S]*steps\.assignment[\s\S]*steps\.catalog[\s\S]*steps\.access[\s\S]*steps\.summary/);
+  assert.match(wizard, /selectedWarehouse\.unitName[\s\S]*selectedWarehouse\.businessName/);
+  assert.match(wizard, /catalogMode === 'selected'[\s\S]*selectedProductIds/);
+  assert.match(wizard, /sessionTimeoutMinutes[\s\S]*supervisorExitRequired/);
+});
+
+test('all operational kiosk types create with steps and return to the canonical table', async () => {
+  const [router, center, standardCreation, editModal] = await Promise.all([
+    readFile(new URL('../src/app/BasicModules/PointOfSale/Kiosks/KiosksWorkspace.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/Kiosks/KioskCenterWorkspace.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/Kiosks/StandardKioskCreationFlow.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/Kiosks/KioskEditModal.tsx', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(router, /creationType === 'customer-display' \|\| creationType === 'self-service'/);
+  assert.match(router, /<StandardKioskCreationFlow/);
+  assert.match(router, /<SelfCheckoutCreationFlow/);
+  assert.doesNotMatch(router, /SelfServiceKioskManager|SelfCheckoutWorkspace|CustomerDisplayManager/);
+  assert.match(standardCreation, /const steps = \['Experiencia', 'Información', 'Asignación', 'Catálogo', 'Acceso', 'Resumen'\]/);
+  assert.match(standardCreation, /Después regresarás a la tabla/);
+  assert.match(center, /<KioskEditModal/);
+  assert.doesNotMatch(center, /onOpenView|EditCustomerDisplayModal/);
+  assert.match(editModal, /title="Editar kiosco"/);
+  assert.match(editModal, /El acceso y el estado operativo se administran desde la tabla/);
+});
+
+test('self-checkout public links render the dedicated catalog and migrate legacy routes', async () => {
+  const [routes, legacyExperience, checkoutExperience, previewExperience, translations, api] = await Promise.all([
+    readFile(new URL('../src/app/routes.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/SelfServiceKiosk/SelfServiceKiosk.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/SelfCheckoutKiosk/SelfCheckoutKiosk.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/Kiosks/SelfCheckoutWorkspace.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/Kiosks/kioskTranslations.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/SelfServiceKiosk/selfServiceKioskApi.ts', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(routes, /path: '\/pos-self-checkout\/:publicAccessToken'[\s\S]*SelfCheckoutKioskRoute/);
+  assert.match(legacyExperience, /response\.kioskType === 'self_checkout'/);
+  assert.match(legacyExperience, /navigate\(`\/pos-self-checkout\/\$\{encodeURIComponent\(publicAccessToken\)\}`/);
+  assert.match(api, /kioskType: 'self_service' \| 'self_checkout'/);
+  assert.match(checkoutExperience, /selfServiceKioskApi\.bootstrap\(publicAccessToken\)/);
+  assert.match(checkoutExperience, /bootstrap\?\.items/);
+  assert.match(checkoutExperience, /changeQuantity/);
+  assert.match(checkoutExperience, /import \{ KioskPublicShell \}/);
+  assert.match(checkoutExperience, /<KioskPublicShell[\s\S]*moduleScope="point-of-sale-self-checkout"/);
+  assert.match(checkoutExperience, /selfServiceKioskApi\.createPreticket/);
+  assert.match(checkoutExperience, /receipt\.claimCode/);
+  assert.match(checkoutExperience, /setTimeout\(\(\) => \{[\s\S]*5000\)/);
+  assert.doesNotMatch(checkoutExperience, /key: 'transfer'/);
+  assert.doesNotMatch(previewExperience, /copy\.transferPayment/);
+  assert.doesNotMatch(translations, /cardTerminalBadge: 'Mercado Pago Point'/);
+  assert.match(translations, /cardTerminalBadge: 'Terminal de pago'/);
+});
+
+test('every public POS kiosk blocks its experience when the source register is closed', async () => {
+  const [checkout, selfService, customerDisplay, closedState, translations] = await Promise.all([
+    readFile(new URL('../src/app/BasicModules/PointOfSale/SelfCheckoutKiosk/SelfCheckoutKiosk.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/SelfServiceKiosk/SelfServiceKiosk.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/CustomerDisplay/CustomerDisplay.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/SelfServiceKiosk/SourceRegisterClosedState.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/Kiosks/kioskTranslations.ts', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(checkout, /!bootstrap\.sourceRegisterOpen/);
+  assert.match(selfService, /!bootstrap\.sourceRegisterOpen/);
+  assert.match(customerDisplay, /state\.status === 'CLOSED'/);
+  assert.match(closedState, /sourceRegisterClosed/);
+  assert.match(translations, /La caja origen está cerrada\./);
+});
+
+test('customer display mirrors cash received and change while the cashier captures payment', async () => {
+  const [display, publisher, paymentPanel, api, translations] = await Promise.all([
+    readFile(new URL('../src/app/BasicModules/PointOfSale/CustomerDisplay/CustomerDisplay.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/Sale/hooks/useCustomerDisplayPublisher.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/Sale/components/SalePaymentPanel.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/shared/customerDisplay/customerDisplayApi.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/Kiosks/kioskTranslations.ts', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(paymentPanel, /onPaymentPreviewChange/);
+  assert.match(paymentPanel, /cashReceived: workspaceMethod === 'cash'/);
+  assert.match(publisher, /return paymentPreview \? 'READY_TO_PAY' : 'ACTIVE'/);
+  assert.match(publisher, /pending: true/);
+  assert.match(api, /cashReceived\?: number \| null/);
+  assert.match(display, /pendingCashPayment/);
+  assert.match(display, /cashStillDue/);
+  assert.match(display, /changeToDeliver/);
+  assert.match(display, /lockDesktopViewport/);
+  assert.match(display, /minimalContent/);
+  assert.match(display, /requestFullscreen/);
+  assert.match(translations, /Efectivo recibido/);
+  assert.match(translations, /Tu cambio/);
+});
+
 test('multi-kiosk mobile client binds parent and child sessions without exposing child public links', async () => {
   const source = await readFile(new URL('../src/app/api/multiKiosks.ts', import.meta.url), 'utf8');
   assert.match(source, /\/api\/v2\/multi-kiosks\/public/);

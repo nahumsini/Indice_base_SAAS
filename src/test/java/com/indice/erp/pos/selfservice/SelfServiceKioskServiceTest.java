@@ -10,6 +10,7 @@ import com.indice.erp.pos.PosContext;
 import com.indice.erp.pos.PosScope;
 import com.indice.erp.pos.cashregister.CashRegisterRecord;
 import com.indice.erp.pos.cashregister.CashRegisterRepository;
+import com.indice.erp.pos.shift.ShiftRepository;
 import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.CatalogItem;
 import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.PreticketCreateRequest;
 import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.PreticketItemRequest;
@@ -39,6 +40,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class SelfServiceKioskServiceTest {
@@ -50,6 +52,8 @@ class SelfServiceKioskServiceTest {
     @Mock
     private CashRegisterRepository cashRegisters;
     @Mock
+    private ShiftRepository shifts;
+    @Mock
     private KioskRegistryService registry;
 
     private SelfServiceKioskService service;
@@ -57,8 +61,9 @@ class SelfServiceKioskServiceTest {
     @BeforeEach
     void setUp() {
         service = new SelfServiceKioskService(
-            repository, cashRegisters, registry, new ObjectMapper(),
+            repository, cashRegisters, shifts, registry, new ObjectMapper(),
             Clock.fixed(NOW, ZoneOffset.UTC));
+        lenient().when(shifts.hasOpenShift(anyLong(), anyLong())).thenReturn(true);
     }
 
     @Test
@@ -66,7 +71,7 @@ class SelfServiceKioskServiceTest {
         var kiosk = kiosk();
         var response = new PreticketResponse(
             41L, kiosk.id(), kiosk.cashRegisterId(), kiosk.cashRegisterName(),
-            "SS-20260718-A1B2C3D4", "A1B2C3D4", "PENDING", "MXN", "Ana", 1,
+            "SS-20260718-A1B2C3D4", "123", "PENDING", "MXN", "Ana", 1,
             new BigDecimal("250.0000"), new BigDecimal("250.0000"),
             NOW.plusSeconds(7200), NOW, List.of());
         given(repository.findById(kiosk.id())).willReturn(Optional.of(kiosk));
@@ -93,6 +98,12 @@ class SelfServiceKioskServiceTest {
             .containsExactlyInAnyOrder(
                 "preticketNumber", "claimCode", "status", "currencyCode",
                 "itemCount", "totalAmount", "expiresAt");
+        var claimCode = ArgumentCaptor.forClass(String.class);
+        then(repository).should().insertPreticket(
+            eq(kiosk), anyString(), claimCode.capture(), eq("MXN"), eq("Ana"),
+            eq(null), eq(null), eq(1), eq(new BigDecimal("250.0000")), any());
+        assertThat(claimCode.getValue()).matches("\\d{3}");
+        then(repository).should().lockClaimCodeAllocation(kiosk.companyId(), kiosk.cashRegisterId());
         var line = ArgumentCaptor.forClass(SelfServiceKioskDtos.PreticketItemResponse.class);
         then(repository).should().insertPreticketItem(eq(kiosk.companyId()), eq(41L), line.capture(), anyInt());
         assertThat(line.getValue().unitPrice()).isEqualByComparingTo("125.0000");
@@ -151,9 +162,63 @@ class SelfServiceKioskServiceTest {
                 "code", "name", "companyName", "unitName", "businessName",
                 "warehouseName", "cashRegisterName", "currencyCode", "showStock",
                 "customerNameRequired", "maxItemsPerTicket", "preticketTtlMinutes",
-                "fulfillmentPolicy", "items");
+                "fulfillmentPolicy", "items", "kioskType", "availabilityState",
+                "sourceRegisterOpen");
         assertThat(bootstrap.items()).singleElement()
             .extracting(CatalogItem::productId).isEqualTo(91L);
+    }
+
+    @Test
+    void bootstrapsAnActiveSelfCheckoutFromTheSharedCatalogDomain() {
+        var kiosk = kiosk();
+        allowPublic(kiosk);
+        given(repository.catalog(kiosk)).willReturn(List.of(new CatalogItem(
+            91L, "SKU-91", "Producto seguro", null, "General",
+            new BigDecimal("125.00"), "MXN", new BigDecimal("10.00"), true, true)));
+        var selfCheckout = definition(
+            kiosk, SelfServiceKioskService.OWNER_MODULE, "self_checkout",
+            kiosk.companyId(), kiosk.unitId(), kiosk.businessId(), kiosk.warehouseId());
+
+        var bootstrap = service.bootstrap(selfCheckout);
+
+        assertThat(bootstrap.name()).isEqualTo(kiosk.name());
+        assertThat(bootstrap.kioskType()).isEqualTo("self_checkout");
+        assertThat(bootstrap.fulfillmentPolicy()).isEqualTo("SELF_CHECKOUT_PAYMENT_REQUIRED");
+        assertThat(bootstrap.items()).singleElement()
+            .extracting(CatalogItem::productId).isEqualTo(91L);
+    }
+
+    @Test
+    void keepsThePublicLinkAvailableButHidesCatalogWhenTheSourceRegisterIsClosed() {
+        var kiosk = kiosk();
+        allowPublic(kiosk);
+        given(shifts.hasOpenShift(kiosk.companyId(), kiosk.cashRegisterId())).willReturn(false);
+
+        var bootstrap = service.bootstrap(definition(kiosk));
+
+        assertThat(bootstrap.sourceRegisterOpen()).isFalse();
+        assertThat(bootstrap.availabilityState()).isEqualTo("SOURCE_REGISTER_CLOSED");
+        assertThat(bootstrap.items()).isEmpty();
+        then(repository).should(never()).catalog(any());
+    }
+
+    @Test
+    void blocksAnOperationIfTheSourceRegisterClosesAfterBootstrap() {
+        var kiosk = kiosk();
+        allowPublic(kiosk);
+        given(shifts.hasOpenShift(kiosk.companyId(), kiosk.cashRegisterId())).willReturn(false);
+
+        assertThatThrownBy(() -> service.createPreticket(
+            definition(kiosk), new PreticketCreateRequest(
+                "Ana", null, null,
+                List.of(new PreticketItemRequest(91L, BigDecimal.ONE)))))
+            .isInstanceOf(PosApiException.class)
+            .hasMessageContaining("source cash register is closed");
+
+        then(repository).should(never()).catalog(any());
+        then(repository).should(never()).insertPreticket(
+            any(), anyString(), anyString(), anyString(), any(), any(), any(),
+            anyInt(), any(), any());
     }
 
     @Test
@@ -342,6 +407,63 @@ class SelfServiceKioskServiceTest {
             eq(context.companyId()), eq(response.kioskId()), eq(response.id()),
             eq("SELF_SERVICE_PRETICKET_CLAIM_RELEASED"), eq("SUCCEEDED"),
             any(), any(), eq(context.userId()), anyString());
+    }
+
+    @Test
+    void authenticatedAdministrationRecoversTheCurrentProtectedSelfServiceLink() {
+        var context = cashierContext();
+        var kiosk = kiosk();
+        var definition = definition(kiosk);
+        given(repository.find(context, kiosk.id())).willReturn(Optional.of(kiosk));
+        given(registry.requireByLegacyReference(
+            context.companyId(), SelfServiceKioskService.OWNER_MODULE, kiosk.id()))
+            .willReturn(definition);
+        given(registry.recoverPublicToken(
+            context.companyId(), SelfServiceKioskService.OWNER_MODULE, kiosk.id()))
+            .willReturn("pss_current_token");
+
+        var access = service.publicAccess(context, kiosk.id());
+
+        assertThat(access.get("displayUrl")).isEqualTo("/pos-self-service/pss_current_token");
+        assertThat(access.get("publicTokenHint")).isEqualTo(kiosk.tokenHint());
+    }
+
+    @Test
+    void authenticatedAdministrationUsesTheDedicatedSelfCheckoutRoute() {
+        var context = cashierContext();
+        var kiosk = kiosk();
+        var definition = definition(
+            kiosk, SelfServiceKioskService.OWNER_MODULE, "self_checkout",
+            kiosk.companyId(), kiosk.unitId(), kiosk.businessId(), kiosk.warehouseId());
+        given(repository.find(context, kiosk.id())).willReturn(Optional.of(kiosk));
+        given(registry.requireByLegacyReference(
+            context.companyId(), SelfServiceKioskService.OWNER_MODULE, kiosk.id()))
+            .willReturn(definition);
+        given(registry.recoverPublicToken(
+            context.companyId(), SelfServiceKioskService.OWNER_MODULE, kiosk.id()))
+            .willReturn("psc_current_token");
+
+        var access = service.publicAccess(context, kiosk.id());
+
+        assertThat(access.get("displayUrl")).isEqualTo("/pos-self-checkout/psc_current_token");
+    }
+
+    @Test
+    void deletingAnOperationalSelfServiceKioskRevokesEngineAccessAndPreservesHistory() {
+        var context = cashierContext();
+        var kiosk = kiosk();
+        given(repository.find(context, kiosk.id())).willReturn(Optional.of(kiosk));
+        given(registry.requireByLegacyReference(
+            context.companyId(), SelfServiceKioskService.OWNER_MODULE, kiosk.id()))
+            .willReturn(definition(kiosk));
+        given(repository.delete(context, kiosk.id())).willReturn(true);
+
+        service.delete(context, kiosk.id(), "cleanup");
+
+        then(registry).should().deleteDefinition(
+            context.companyId(), SelfServiceKioskService.OWNER_MODULE,
+            kiosk.id(), context.userId(), "cleanup");
+        then(repository).should().delete(context, kiosk.id());
     }
 
     private void allowPublic(SelfServiceKioskRepository.KioskRecord kiosk) {

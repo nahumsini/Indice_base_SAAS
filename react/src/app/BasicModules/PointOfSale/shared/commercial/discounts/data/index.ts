@@ -16,6 +16,7 @@ export const discountRules: DiscountRule[] = [
     stackable: false,
     priority: 20,
     status: 'active',
+    enabledChannels: ['pos', 'sales'],
   },
   {
     id: 'disc-002',
@@ -32,6 +33,7 @@ export const discountRules: DiscountRule[] = [
     stackable: false,
     priority: 10,
     status: 'active',
+    enabledChannels: ['sales', 'pos'],
   },
   {
     id: 'disc-003',
@@ -46,6 +48,7 @@ export const discountRules: DiscountRule[] = [
     stackable: true,
     priority: 1,
     status: 'active',
+    enabledChannels: ['pos'],
   },
   {
     id: 'disc-004',
@@ -61,5 +64,6 @@ export const discountRules: DiscountRule[] = [
     stackable: false,
     priority: 15,
     status: 'scheduled',
+    enabledChannels: ['pos', 'sales', 'kiosk', 'publicCatalog'],
   },
 ];

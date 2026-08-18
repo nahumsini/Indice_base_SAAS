@@ -12,12 +12,12 @@ import type { CreateContactInput, SalesCatalogItem, SalesContact, SalesOpportuni
 import type { InventoryWarehouse } from '../../Inventory/types/inventoryTypes';
 import type { SalesWorkflowValidationCode } from '../../types/salesWorkflow';
 import { defaultSalesCurrency } from '../../utils/salesCurrency';
-import { salesBusinessOptions, salesBusinessUnitOptions } from '../data/salesBusinessOptions';
 import { getSalesOperationalContext } from '../data/salesOperationalContext';
 import type { SalesRecordsTranslations } from '../translations';
 import type { CommissionRecord } from '../types/commissions';
 import type { SaleLifecycleSignals, SaleLine, SaleRecord, SaleRecordDraft, SalesBusinessOption, SalesCurrentSeller } from '../types/salesTypes';
 import { formatCommissionType } from '../utils/commissionRules';
+import { getSalesWarehouseScope, isSalesWarehouseReady, warehouseMatchesSaleScope } from '../utils/salesWarehouseScope';
 import { formatSalesCurrency, formatSalesDate } from '../utils/salesFormatters';
 import { getSalesPaymentMethodForStorage, isSalesCreditPaymentMethod, normalizeSalesPaymentMethod } from '../utils/salesPaymentMethods';
 import {
@@ -41,39 +41,14 @@ function getTodayIsoDate() {
   return `${year}-${month}-${day}`;
 }
 
-function getDefaultBusinessScope() {
-  const businessUnit = salesBusinessUnitOptions[0];
-  const business = salesBusinessOptions.find((item) => item.businessUnitId === businessUnit?.id) ?? salesBusinessOptions[0];
-
-  return {
-    businessUnitId: businessUnit?.id ?? '',
-    businessUnitName: businessUnit?.name ?? '',
-    businessId: business?.id ?? '',
-    businessName: business?.name ?? '',
-  };
-}
-
-function getWarehouseBusinessScope(warehouse?: InventoryWarehouse) {
-  if (!warehouse) return getDefaultBusinessScope();
-
-  const fallback = getDefaultBusinessScope();
-
-  return {
-    businessUnitId: warehouse.businessUnitId || fallback.businessUnitId,
-    businessUnitName: warehouse.businessUnitName || fallback.businessUnitName,
-    businessId: warehouse.businessId || fallback.businessId,
-    businessName: warehouse.businessName || fallback.businessName,
-  };
-}
-
 function getInitialDraft(
   record?: SaleRecord | null,
   currentSeller?: SalesCurrentSeller,
   warehouses: InventoryWarehouse[] = [],
 ): SaleRecordDraft {
   if (record) return record;
-  const warehouse = warehouses.find((item) => item.status === 'active');
-  const businessScope = getWarehouseBusinessScope(warehouse);
+  const warehouse = warehouses.find(isSalesWarehouseReady);
+  const businessScope = getSalesWarehouseScope(warehouse);
 
   return {
     ...businessScope,
@@ -214,7 +189,7 @@ export function SalesDetailModal({
   const businessOptions = useMemo(() => {
     const warehouseBusinesses = new Map<string, SalesBusinessOption>();
     warehouses
-      .filter((warehouse) => warehouse.status === 'active')
+      .filter(isSalesWarehouseReady)
       .forEach((warehouse) => {
         if (!warehouse.businessId || !warehouse.businessName || !warehouse.businessUnitId || !warehouse.businessUnitName) return;
         warehouseBusinesses.set(warehouse.businessId, {
@@ -226,7 +201,7 @@ export function SalesDetailModal({
         });
       });
 
-    return warehouseBusinesses.size ? [...warehouseBusinesses.values()] : salesBusinessOptions;
+    return [...warehouseBusinesses.values()];
   }, [warehouses]);
   const operationalContext = useMemo(() => getSalesOperationalContext(form.businessId), [form.businessId]);
 
@@ -247,14 +222,10 @@ export function SalesDetailModal({
     [form],
   );
   const originStepReady = Boolean(form.customerName.trim());
+  const selectedWarehouse = warehouses.find((warehouse) => warehouse.id === form.warehouseId);
   const operationStepReady = Boolean(
-    form.businessUnitId
-    && form.businessUnitId !== 'none'
-    && form.businessId
-    && form.businessId !== 'none'
-    && form.saleDate
-    && form.warehouseId
-    && form.warehouseId !== 'none',
+    form.saleDate
+    && warehouseMatchesSaleScope(selectedWarehouse, form),
   );
   const createReady = originStepReady && operationStepReady && createValidation.valid;
   const activeCreateStepIndex = salesCreateStepIds.indexOf(activeCreateStep);

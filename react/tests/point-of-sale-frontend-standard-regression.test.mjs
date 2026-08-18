@@ -98,22 +98,20 @@ test('El resumen del corte actual se consulta sin abandonar el workspace de vent
   assert.match(shiftHook, /getShiftClosingSummary\(shiftId\)/);
 });
 
-test('Cortes, Facturacion y Descuentos comparten superficies y acciones del POS refinado', () => {
+test('Cortes conserva las superficies del POS y las funciones fiscales quedan fuera del modulo general', () => {
   const cortes = readFileSync(resolve(pointOfSaleRoot, 'Cortes/Cortes.tsx'), 'utf8');
   const cortesFilters = readFileSync(resolve(pointOfSaleRoot, 'Cortes/components/CortesFiltersBar.tsx'), 'utf8');
   const cortesTable = readFileSync(resolve(pointOfSaleRoot, 'Cortes/components/CortesTable.tsx'), 'utf8');
-  const billing = readFileSync(resolve(pointOfSaleRoot, 'Facturacion/Facturacion.tsx'), 'utf8');
-  const discounts = readFileSync(resolve(pointOfSaleRoot, 'Descuentos/Descuentos.tsx'), 'utf8');
+  const moduleSource = readFileSync(resolve(pointOfSaleRoot, 'PuntoDeVenta.tsx'), 'utf8');
 
   assert.match(cortesFilters, /rounded-2xl[\s\S]*h-11 w-full rounded-xl/);
   assert.match(cortesTable, /overflow-hidden rounded-xl/);
   assert.match(cortesTable, /inline-flex h-11 w-11[\s\S]*hover:bg-\[#FF6B5E\]\/10/);
   assert.doesNotMatch(cortes, /bg-\[#FF6B5E\][^'"\n]*shadow-sm/);
-  assert.match(billing, /rounded-2xl border border-slate-200 bg-white p-5/);
-  assert.match(billing, /h-11 w-11[\s\S]*border-\[#FF6B5E\]\/25/);
-  assert.doesNotMatch(billing, /rounded-lg border border-slate-200 bg-white shadow-sm/);
-  assert.match(discounts, /overflow-hidden rounded-xl/);
-  assert.match(discounts, /h-11 w-11[\s\S]*border-\[#FF6B5E\]\/25/);
+  assert.doesNotMatch(moduleSource, /id: 'facturacion'/);
+  assert.doesNotMatch(moduleSource, /import\('\.\/Facturacion'\)/);
+  assert.doesNotMatch(moduleSource, /id: 'descuentos'/);
+  assert.match(moduleSource, /descuentos: '\/inventory\/discounts'/);
 });
 
 test('KPIs y Kioscos conservan la jerarquia operativa y la identidad coral del POS', () => {
@@ -122,11 +120,11 @@ test('KPIs y Kioscos conservan la jerarquia operativa y la identidad coral del P
   const closingTable = readFileSync(resolve(pointOfSaleRoot, 'KPIs/components/PosKpiCashClosingTable.tsx'), 'utf8');
   const kiosks = readFileSync(resolve(pointOfSaleRoot, 'Kiosks/KiosksWorkspace.tsx'), 'utf8');
   const kioskCenter = readFileSync(resolve(pointOfSaleRoot, 'Kiosks/KioskCenterWorkspace.tsx'), 'utf8');
+  const standardCreation = readFileSync(resolve(pointOfSaleRoot, 'Kiosks/StandardKioskCreationFlow.tsx'), 'utf8');
+  const kioskEdit = readFileSync(resolve(pointOfSaleRoot, 'Kiosks/KioskEditModal.tsx'), 'utf8');
+  const selfCheckoutCreation = readFileSync(resolve(pointOfSaleRoot, 'Kiosks/SelfCheckoutCreationFlow.tsx'), 'utf8');
+  const selfCheckoutWizard = readFileSync(resolve(pointOfSaleRoot, 'Kiosks/SelfCheckoutSetupWizard.tsx'), 'utf8');
   const restaurantKiosks = readFileSync(resolve(pointOfSaleRoot, 'Kiosks/RestaurantKioskWorkspace.tsx'), 'utf8');
-  const selfService = readFileSync(resolve(pointOfSaleRoot, 'Kiosks/SelfServiceKioskManager.tsx'), 'utf8');
-  const customerDisplay = readFileSync(resolve(pointOfSaleRoot, 'Kiosks/CustomerDisplayManager.tsx'), 'utf8');
-  const customerDisplaySetup = readFileSync(resolve(pointOfSaleRoot, 'Kiosks/CustomerDisplaySetupModal.tsx'), 'utf8');
-  const selfCheckout = readFileSync(resolve(pointOfSaleRoot, 'Kiosks/SelfCheckoutWorkspace.tsx'), 'utf8');
   const publicSelfCheckout = readFileSync(resolve(pointOfSaleRoot, 'SelfCheckoutKiosk/SelfCheckoutKiosk.tsx'), 'utf8');
   const routes = readFileSync(resolve(root, 'src/app/routes.tsx'), 'utf8');
   const sale = readFileSync(resolve(pointOfSaleRoot, 'Sale/Sale.tsx'), 'utf8');
@@ -137,46 +135,52 @@ test('KPIs y Kioscos conservan la jerarquia operativa y la identidad coral del P
   assert.match(closingTable, /h-11 rounded-xl[\s\S]*focus:border-\[#FF6B5E\]/);
   assert.match(kioskCenter, /rounded-xl[\s\S]*h-11[\s\S]*bg-\[#FF6B5E\]/);
   assert.doesNotMatch(kioskCenter, /bg-teal-600|shadow-sm/);
-  assert.match(selfService, /h-11[\s\S]*bg-\[#FF6B5E\]/);
-  assert.doesNotMatch(selfService, /rounded-lg border border-slate-200 bg-white p-5 shadow-sm/);
-  assert.doesNotMatch(customerDisplay, /rounded-lg border border-slate-200 bg-white p-5 shadow-sm/);
-  assert.match(kiosks, /useState<KioskWorkspaceView>\('center'\)/);
+  assert.match(kiosks, /useState<CreatableKioskExperience \| null>\(null\)/);
+  assert.match(kiosks, /<StandardKioskCreationFlow/);
+  assert.match(kiosks, /<SelfCheckoutCreationFlow/);
+  assert.match(kiosks, /finishCreation/);
+  assert.doesNotMatch(kiosks, /SelfServiceKioskManager|SelfCheckoutWorkspace|CustomerDisplayManager/);
   assert.match(kioskCenter, /restaurant-waiter[\s\S]*restaurant-tables[\s\S]*restaurant-kitchen/);
   assert.match(kioskCenter, /selfCheckoutTab/);
-  assert.match(kiosks, /view === 'self-service'[\s\S]*<SelfCheckoutWorkspace/);
+  assert.match(kioskCenter, /advisor-queue/);
+  assert.match(kioskCenter, /maturity: 'prototype'/);
+  assert.match(kioskCenter, /maturity: 'planned'/);
+  assert.match(kioskCenter, /isCreatableKioskExperience/);
+  assert.match(kioskCenter, /customerExperiences[\s\S]*operationExperiences/);
+  assert.match(kioskCenter, /<KioskStatusBadge status=/);
+  assert.match(kioskCenter, /<KioskEditModal/);
+  assert.doesNotMatch(kioskCenter, /onOpenView|onOpenExperience|EditCustomerDisplayModal/);
   assert.match(restaurantKiosks, /syncOrder[\s\S]*syncInventory[\s\S]*syncStatus/);
-  assert.match(kioskCenter, /EditCustomerDisplayModal[\s\S]*CustomerDisplayAccessModal[\s\S]*CustomerDisplayLifecycleModal/);
-  assert.match(selfCheckout, /catalogTitle[\s\S]*cartTitle[\s\S]*paymentTitle/);
-  assert.match(selfCheckout, /scopeTitle[\s\S]*methodsTitle[\s\S]*peripheralsTitle[\s\S]*securityTitle/);
-  assert.match(selfCheckout, /SelfCheckoutOrientation = 'horizontal' \| 'vertical'/);
-  assert.match(selfCheckout, /SelfCheckoutStep = 'products' \| 'cart' \| 'payment'/);
-  assert.match(selfCheckout, /HorizontalSelfCheckoutPreview[\s\S]*VerticalSelfCheckoutPreview/);
-  assert.match(selfCheckout, /requestFullscreen[\s\S]*exitFullscreen/);
-  assert.match(selfCheckout, /naturalWaterImage[\s\S]*vanillaIceCreamImage[\s\S]*freshSandwichImage[\s\S]*orangeJuiceImage/);
-  assert.match(selfCheckout, /<img[\s\S]*object-cover/);
+  assert.match(kioskCenter, /KioskSensitiveActionModal/);
+  assert.match(kioskCenter, /onCopy[\s\S]*onRotate[\s\S]*onToggle[\s\S]*onDelete/);
+  assert.doesNotMatch(kioskCenter, /MoreHorizontal/);
+  assert.match(standardCreation, /const steps = \['Experiencia', 'Información', 'Asignación', 'Catálogo', 'Acceso', 'Resumen'\]/);
+  assert.match(standardCreation, /customerDisplayApi\.createPairingCode/);
+  assert.match(standardCreation, /selfServiceKioskApi\.createAdmin/);
+  assert.match(standardCreation, /Crear no abre un menú adicional/);
+  assert.match(kioskEdit, /modalType="standard-form"/);
+  assert.match(kioskEdit, /posKioskAdminApi\.update/);
+  assert.match(kioskEdit, /selfServiceKioskApi\.updateAdmin/);
+  assert.match(selfCheckoutCreation, /<SelfCheckoutSetupWizard/);
+  assert.match(selfCheckoutWizard, /steps\.experience[\s\S]*steps\.general[\s\S]*steps\.assignment[\s\S]*steps\.catalog[\s\S]*steps\.access[\s\S]*steps\.summary/);
   assert.match(routes, /path: '\/pos-self-checkout\/:publicAccessToken'/);
   assert.match(publicSelfCheckout, /selfServiceKioskApi\.bootstrap\(publicAccessToken\)/);
   assert.match(publicSelfCheckout, /SelfCheckoutStep = 'products' \| 'cart' \| 'payment'/);
   assert.match(publicSelfCheckout, /requestFullscreen[\s\S]*exitFullscreen/);
   assert.match(publicSelfCheckout, /<img[\s\S]*object-cover/);
-  assert.match(selfService, /\/pos-self-checkout\//);
-  assert.match(selfService, /selfCheckoutLinkHelp/);
-  assert.match(customerDisplay, /selfServiceKioskApi\.listCashRegisters\(\)/);
-  assert.match(customerDisplay, /<CustomerDisplaySetupModal/);
-  assert.match(customerDisplaySetup, /customerDisplayApi\.createPairingCode/);
   assert.doesNotMatch(sale, /CustomerDisplaySetupModal|onOpenCustomerDisplay/);
   assert.doesNotMatch(shiftBar, /Pantalla del cliente|onOpenCustomerDisplay/);
 });
 
 test('Kioscos normaliza las colecciones paginadas antes de filtrar cajas', () => {
   const kioskApi = readFileSync(resolve(pointOfSaleRoot, 'SelfServiceKiosk/selfServiceKioskApi.ts'), 'utf8');
-  const kioskManager = readFileSync(resolve(pointOfSaleRoot, 'Kiosks/SelfServiceKioskManager.tsx'), 'utf8');
+  const creationFlow = readFileSync(resolve(pointOfSaleRoot, 'Kiosks/StandardKioskCreationFlow.tsx'), 'utf8');
 
   assert.match(kioskApi, /function collectionFromResponse/);
   assert.match(kioskApi, /response\.items \?\? response\.data \?\? response\.rows \?\? response\.content \?\? \[\]/);
   assert.match(kioskApi, /return collectionFromResponse\(response\)/);
-  assert.match(kioskManager, /register\.active && register\.unitId != null && register\.businessId != null/);
-  assert.match(kioskManager, /registerScopeRequired/);
+  assert.match(creationFlow, /item\.active && item\.unitId && item\.businessId && item\.warehouseId/);
+  assert.match(creationFlow, /No hay cajas activas con almacén, unidad y negocio completos/);
 });
 
 test('Cajas concentra la operación en vivo y los cortes cerrados del día', () => {
@@ -191,4 +195,21 @@ test('Cajas concentra la operación en vivo y los cortes cerrados del día', () 
   assert.match(cashRegisters, /<ClosedSessionCard/);
   assert.match(cashRegisters, /Efectivo contado/);
   assert.match(cashRegisters, /Diferencia/);
+});
+
+test('Venta mantiene caja, turno, catálogo e inventario dentro del mismo almacén operativo', () => {
+  const sale = readFileSync(resolve(pointOfSaleRoot, 'Sale/Sale.tsx'), 'utf8');
+  const registerContext = readFileSync(resolve(pointOfSaleRoot, 'Sale/hooks/useSaleRegisterContext.ts'), 'utf8');
+  const catalog = readFileSync(resolve(root, 'src/app/BasicModules/CommerceCore/posCatalog.ts'), 'utf8');
+  const cart = readFileSync(resolve(pointOfSaleRoot, 'Sale/hooks/useSaleCart.ts'), 'utf8');
+  const audits = readFileSync(resolve(pointOfSaleRoot, 'Arqueos/hooks/useCashAudits.ts'), 'utf8');
+
+  assert.match(sale, /usePointOfSaleCatalogProducts\(\s*registerContext\?\.warehouseId/);
+  assert.match(registerContext, /warehouse\.status\?\.toLocaleLowerCase\(\) === 'active'/);
+  assert.match(registerContext, /warehouse\.unitId === register\.unitId[\s\S]*warehouse\.businessId === register\.businessId/);
+  assert.match(catalog, /balances\.filter\(\(balance\) => String\(balance\.warehouseId \?\? ''\) === selectedWarehouseId\)/);
+  assert.match(cart, /requestedQuantityByProduct[\s\S]*blockedProductIds[\s\S]*acceptedRequests/);
+  assert.match(audits, /warehouseId: String\(row\.warehouseId\)/);
+  assert.match(audits, /businessUnitId: row\.unitId == null \? '' : String\(row\.unitId\)/);
+  assert.match(audits, /businessId: row\.businessId == null \? '' : String\(row\.businessId\)/);
 });

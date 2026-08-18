@@ -109,3 +109,27 @@ test('la venta toma vendedor autenticado y almacén para confirmar inventario', 
   assert.match(form, /businessUnitId: warehouse\?\.businessUnitId \?\? ''/);
   assert.match(form, /businessId: warehouse\?\.businessId \?\? ''/);
 });
+
+test('Ventas sólo utiliza almacenes activos con asignación organizacional real', () => {
+  const page = read('src/app/BasicModules/Sales/Sales/Sales.tsx');
+  const modal = read('src/app/BasicModules/Sales/Sales/components/SalesDetailModal.tsx');
+  const form = read('src/app/BasicModules/Sales/Sales/components/SalesCreateForm.tsx');
+  const scope = read('src/app/BasicModules/Sales/Sales/utils/salesWarehouseScope.ts');
+
+  assert.match(page, /warehousesResult\.value\.filter\(isSalesWarehouseReady\)/);
+  assert.match(scope, /warehouse\.status === 'active'/);
+  assert.match(scope, /isDatabaseId\(warehouse\.businessUnitId\)/);
+  assert.match(scope, /isDatabaseId\(warehouse\.businessId\)/);
+  assert.match(modal, /warehouseMatchesSaleScope\(selectedWarehouse, form\)/);
+  assert.doesNotMatch(modal, /salesBusinessOptions|salesBusinessUnitOptions/);
+  assert.match(form, /warehouses\.filter\(isSalesWarehouseReady\)/);
+});
+
+test('el contrato de venta exige un único almacén, unidad y negocio por operación', () => {
+  const bridge = read('src/app/BasicModules/Sales/services/salesWorkflowBridge.ts');
+
+  assert.match(bridge, /if \(!sale\.warehouseId\) errors\.push\('missingWarehouse'\)/);
+  assert.match(bridge, /line\.warehouseId !== sale\.warehouseId/);
+  assert.match(bridge, /line\.businessUnitId !== sale\.businessUnitId/);
+  assert.match(bridge, /line\.businessId !== sale\.businessId/);
+});

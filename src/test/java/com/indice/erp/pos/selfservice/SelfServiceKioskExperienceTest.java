@@ -83,7 +83,8 @@ class SelfServiceKioskExperienceTest {
         given(service.bootstrap(definition)).willReturn(new BootstrapResponse(
             "SELF-SERVICE-01", "Autoservicio", "Indice", "Unidad", "Negocio",
             "Almacen", "Caja", "MXN", false, false, 30, 120,
-            "PRETICKET_REQUIRES_CASHIER_CONFIRMATION", List.of()));
+            "PRETICKET_REQUIRES_CASHIER_CONFIRMATION", List.of(), "self_service",
+            "READY", true));
 
         var result = experience.bootstrap(context);
 
@@ -91,6 +92,27 @@ class SelfServiceKioskExperienceTest {
         assertThat(result).doesNotContainKeys(
             "kioskId", "cashRegisterId", "warehouseId", "unitId", "businessId", "companyId");
         assertThat(result).containsEntry("code", "SELF-SERVICE-01");
+    }
+
+    @Test
+    void acceptsSelfCheckoutAsTheSharedPublicCatalogRuntime() {
+        var service = mock(SelfServiceKioskService.class);
+        var experience = new SelfServiceKioskExperience(
+            service, new ObjectMapper().findAndRegisterModules(), mock(Validator.class));
+        var definition = new KioskResolvedDefinition(
+            700L, 7L, SelfServiceKioskService.OWNER_MODULE,
+            "self_checkout", 17L, "SELF-CHECKOUT-01", "Autocobro",
+            KioskDefinitionStatus.ACTIVE, 2L, 3L, 11L,
+            KioskAccessLevel.PUBLIC, null, "hint", false, 1, 1);
+        var context = KioskExecutionContext.publicLink(
+            SelfServiceKioskService.OWNER_MODULE, "token").resolved(definition, null);
+        given(service.bootstrap(definition)).willReturn(new BootstrapResponse(
+            "SELF-CHECKOUT-01", "Autocobro", "Indice", "Unidad", "Negocio",
+            "Almacen", "Caja", "MXN", false, false, 30, 120,
+            "SELF_CHECKOUT_PAYMENT_REQUIRED", List.of(), "self_checkout", "READY", true));
+
+        assertThat(experience.bootstrap(context)).containsEntry("name", "Autocobro");
+        verify(service).bootstrap(definition);
     }
 
     private KioskResolvedDefinition definition(

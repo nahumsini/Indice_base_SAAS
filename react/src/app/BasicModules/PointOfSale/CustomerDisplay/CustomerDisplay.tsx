@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
+import { Banknote, CheckCircle2, Maximize2, Minimize2, Monitor, Wifi } from 'lucide-react';
 import { KioskPublicShell } from '../../../components/kiosk-engine/KioskPublicShell';
 import { useKioskSessionBoundary } from '../../../components/kiosk-engine/useKioskSessionBoundary';
 import { ApiClientError } from '../../../lib/apiClient';
@@ -177,6 +178,7 @@ function LiveCustomerDisplay({ deviceToken }: { deviceToken: string }) {
   const [error, setError] = useState('');
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [pollGeneration, setPollGeneration] = useState(0);
+  const [fullscreenActive, setFullscreenActive] = useState(Boolean(document.fullscreenElement));
   const { isOnline } = useKioskSessionBoundary({
     active: false,
     inactivityTimeoutSeconds: 60,
@@ -236,10 +238,32 @@ function LiveCustomerDisplay({ deviceToken }: { deviceToken: string }) {
   }, [copy, deviceToken, isOnline, pollGeneration]);
 
   const items = useMemo(() => Array.isArray(state?.items) ? state.items : [], [state?.items]);
+  const payments = useMemo(() => Array.isArray(state?.payments) ? state.payments : [], [state?.payments]);
   const currency = state?.currencyCode || 'MXN';
   const isIdle = !state || items.length === 0 || state.status === 'IDLE';
   const discountAmount = toNumber(state?.discountAmount ?? 0);
   const hasDiscount = discountAmount > 0;
+  const pendingCashPayment = payments.find((payment) => (
+    payment.pending && payment.paymentMethod.trim().toUpperCase() === 'CASH'
+  ));
+  const pendingCashReceived = toNumber(pendingCashPayment?.cashReceived);
+  const pendingCashChange = toNumber(pendingCashPayment?.changeAmount);
+  const pendingCashAmount = toNumber(pendingCashPayment?.amount);
+  const pendingCashShortfall = Math.max(pendingCashAmount - pendingCashReceived, 0);
+
+  useEffect(() => {
+    const syncFullscreenState = () => setFullscreenActive(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', syncFullscreenState);
+    return () => document.removeEventListener('fullscreenchange', syncFullscreenState);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen?.();
+      return;
+    }
+    await document.documentElement.requestFullscreen?.();
+  };
 
   if (!state) {
     const statusMessage = !isOnline
@@ -271,18 +295,45 @@ function LiveCustomerDisplay({ deviceToken }: { deviceToken: string }) {
     );
   }
 
+  if (state.status === 'CLOSED') {
+    return (
+      <KioskPublicShell
+        maxWidthClassName="max-w-2xl"
+        header={(
+          <header className="bg-[#222831] px-6 py-5 text-white">
+            <p className="text-xs font-medium text-[#F4C84A]">{copy.customerDisplayPublic.liveEyebrow}</p>
+            <h1 className="mt-1 text-2xl font-medium">{state.kioskName}</h1>
+          </header>
+        )}
+      >
+        <div role="status" className="grid flex-1 place-items-center p-8 text-center">
+          <div>
+            <MonitorStatusIcon online={false} />
+            <h2 className="mt-5 text-2xl font-medium">{copy.customerDisplayPublic.sourceRegisterClosed}</h2>
+            <p className="mt-3 text-base text-gray-600 dark:text-gray-300">
+              {copy.customerDisplayPublic.sourceRegisterClosedDescription(state.cashRegisterName)}
+            </p>
+          </div>
+        </div>
+      </KioskPublicShell>
+    );
+  }
+
   return (
     <KioskPublicShell
       maxWidthClassName="max-w-[1920px]"
+      lockDesktopViewport
+      minimalContent
+      moduleScope="pos-customer-display"
       errorMessage={error || null}
       header={(
-        <header className="flex flex-col gap-4 bg-[#222831] px-4 py-4 text-white sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8 lg:py-6">
+        <header className="flex shrink-0 flex-col gap-4 bg-gradient-to-r from-[#14745F] via-[#0F8F82] to-[#18B7A6] px-4 py-4 text-white sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8 lg:py-5">
           <div className="flex min-w-0 items-center gap-3 sm:gap-5">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white text-base font-medium text-[#222831] sm:h-20 sm:w-20 sm:rounded-3xl sm:text-xl" aria-hidden="true">
-              POS
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/25 bg-white/15 sm:h-20 sm:w-20 sm:rounded-3xl" aria-hidden="true">
+              <Monitor className="h-7 w-7 sm:h-9 sm:w-9" />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-medium text-[#F4C84A] sm:text-sm">{copy.customerDisplayPublic.liveEyebrow}</p>
+              <p className="text-xs font-medium text-white/80 sm:text-sm">{copy.customerDisplayPublic.liveEyebrow}</p>
               <h1 className="truncate text-2xl font-medium sm:text-3xl lg:text-4xl">{state.kioskName || state.cashRegisterName || copy.customerDisplayPublic.defaultRegister}</h1>
               <p className="mt-1 truncate text-sm font-medium text-gray-200 sm:text-lg">{state.companyName}</p>
               <p className="hidden text-sm font-medium text-gray-300 sm:block lg:text-base">
@@ -293,14 +344,28 @@ function LiveCustomerDisplay({ deviceToken }: { deviceToken: string }) {
               </p>
             </div>
           </div>
-          <div className="rounded-2xl bg-white/10 px-4 py-3 text-left sm:shrink-0 sm:px-6 sm:py-4 sm:text-right">
-            <p className="text-xs font-medium text-gray-300 sm:text-sm">{copy.customerDisplayPublic.status}</p>
-            <p className="text-xl font-medium sm:text-2xl">{statusLabel(state.status, copy)}</p>
+          <div className="flex items-center gap-2 sm:shrink-0">
+            <div className="flex min-h-14 flex-1 items-center gap-3 rounded-2xl border border-white/20 bg-white/10 px-4 py-2.5 sm:flex-none sm:px-5">
+              <Wifi className="h-5 w-5" aria-hidden="true" />
+              <div>
+                <p className="text-xs font-medium text-white/70">{copy.customerDisplayPublic.status}</p>
+                <p className="text-base font-medium sm:text-lg">{statusLabel(state.status, copy)}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => { void toggleFullscreen(); }}
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/25 bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/30"
+              aria-label={fullscreenActive ? copy.customerDisplayPublic.exitFullscreen : copy.customerDisplayPublic.fullscreen}
+              title={fullscreenActive ? copy.customerDisplayPublic.exitFullscreen : copy.customerDisplayPublic.fullscreen}
+            >
+              {fullscreenActive ? <Minimize2 className="h-6 w-6" /> : <Maximize2 className="h-6 w-6" />}
+            </button>
           </div>
         </header>
       )}
     >
-        <section className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
+        <section className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(340px,430px)] xl:overflow-hidden">
           <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900 sm:rounded-3xl">
             <div className="border-b border-gray-200 px-4 py-4 dark:border-gray-700 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
               <p className="text-sm font-medium tracking-normal text-[#FF6B5E]">{copy.customerDisplayPublic.currentReceipt}</p>
@@ -335,6 +400,33 @@ function LiveCustomerDisplay({ deviceToken }: { deviceToken: string }) {
           </div>
 
           <aside className="flex min-h-0 flex-col gap-4 sm:gap-5">
+            {pendingCashPayment ? (
+              <div className="rounded-2xl border border-[#14745F]/20 bg-[#E8FBF5] p-5 text-[#222831] shadow-sm sm:rounded-3xl sm:p-6">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#59C3A5] text-[#0B4F40]" aria-hidden="true">
+                    <Banknote className="h-6 w-6" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-medium text-[#14745F]">{copy.customerDisplayPublic.cashPayment}</p>
+                    <p className="text-xl font-medium sm:text-2xl">{copy.customerDisplayPublic.cashierCapturing}</p>
+                  </div>
+                </div>
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <PaymentAmount
+                    label={copy.customerDisplayPublic.cashReceived}
+                    value={formatMoney(pendingCashReceived, currency, locale)}
+                  />
+                  <PaymentAmount
+                    label={pendingCashShortfall > 0
+                      ? copy.customerDisplayPublic.cashStillDue
+                      : copy.customerDisplayPublic.changeToDeliver}
+                    value={formatMoney(pendingCashShortfall > 0 ? pendingCashShortfall : pendingCashChange, currency, locale)}
+                    emphasized={pendingCashShortfall === 0}
+                  />
+                </div>
+              </div>
+            ) : null}
+
             <div className={`rounded-2xl p-5 shadow-xl sm:rounded-3xl sm:p-7 ${state.status === 'PAID' ? 'bg-[#59C3A5] text-[#222831]' : 'bg-[#222831] text-white'}`}>
               <p className="text-base font-medium opacity-80 sm:text-lg">{copy.customerDisplayPublic.total}</p>
               <p className="mt-3 break-words text-4xl font-medium leading-none sm:mt-4 sm:text-5xl lg:text-6xl">
@@ -352,7 +444,11 @@ function LiveCustomerDisplay({ deviceToken }: { deviceToken: string }) {
                 />
               )}
               <TotalTile label={copy.customerDisplayPublic.tax} value={formatMoney(state.taxAmount ?? 0, currency, locale)} />
-              <TotalTile label={copy.customerDisplayPublic.paid} value={formatMoney(state.paidAmount ?? 0, currency, locale)} tone="aqua" />
+              <TotalTile
+                label={pendingCashPayment ? copy.customerDisplayPublic.cashReceived : copy.customerDisplayPublic.paid}
+                value={formatMoney(state.paidAmount ?? 0, currency, locale)}
+                tone="aqua"
+              />
               <TotalTile
                 label={Number(state.changeAmount ?? 0) > 0 ? copy.customerDisplayPublic.change : copy.customerDisplayPublic.due}
                 value={formatMoney(Number(state.changeAmount ?? 0) > 0 ? state.changeAmount ?? 0 : state.balanceAmount ?? 0, currency, locale)}
@@ -410,6 +506,24 @@ function DisplayItemRow({ item, currency, copy, locale }: {
       </div>
       <p className="col-span-2 text-right text-2xl font-medium sm:col-span-1 sm:text-3xl lg:text-4xl">{formatMoney(item.lineTotalAmount, currency, locale)}</p>
     </article>
+  );
+}
+
+function PaymentAmount({
+  label,
+  value,
+  emphasized = false,
+}: {
+  label: string;
+  value: string;
+  emphasized?: boolean;
+}) {
+  return (
+    <div className={`rounded-2xl border p-3 sm:p-4 ${emphasized ? 'border-[#14745F]/25 bg-[#59C3A5] text-[#0B4F40]' : 'border-[#14745F]/15 bg-white'}`}>
+      <p className="text-xs font-medium opacity-75 sm:text-sm">{label}</p>
+      <p className="mt-1 break-words text-2xl font-medium leading-none sm:text-3xl">{value}</p>
+      {emphasized ? <CheckCircle2 className="mt-3 h-5 w-5" aria-hidden="true" /> : null}
+    </div>
   );
 }
 

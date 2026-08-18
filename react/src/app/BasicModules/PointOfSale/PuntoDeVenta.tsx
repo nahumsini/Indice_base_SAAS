@@ -18,8 +18,6 @@ import {
 const Sale = lazy(() => import('./Sale/Sale'));
 const Cortes = lazy(() => import('./Cortes'));
 const Clientes = lazy(() => import('../Sales/Contactos'));
-const Facturacion = lazy(() => import('./Facturacion'));
-const Descuentos = lazy(() => import('./Descuentos'));
 const KPIs = lazy(() => import('./KPIs'));
 const KiosksWorkspace = lazy(() => import('./Kiosks/KiosksWorkspace'));
 const CashRegistersWorkspace = lazy(() => import('./CashRegisters/CashRegistersWorkspace'));
@@ -33,8 +31,6 @@ const pointOfSaleTabIds = [
   'sale',
   'cortes',
   'clientes',
-  'facturacion',
-  'descuentos',
   'kpis',
   'kiosks',
   'cajas',
@@ -51,6 +47,10 @@ const legacyPointOfSaleTabAliases: Partial<Record<string, PointOfSaleTabId>> = {
 };
 
 const externalTabRedirects: Record<string, string> = {
+  descuentos: '/inventory/discounts',
+  discounts: '/inventory/discounts',
+  promociones: '/inventory/discounts',
+  promotions: '/inventory/discounts',
   producto: '/inventory/products',
   productos: '/inventory/products',
   product: '/inventory/products',
@@ -117,8 +117,6 @@ function PuntoDeVentaContent({ learningModeActive = false, onNavigate }: PuntoDe
     { id: 'sale' as const, label: t.tabs.sale, emoji: '🧾', component: Sale },
     { id: 'cortes' as const, label: t.tabs.cortes, emoji: '💵', component: Cortes },
     { id: 'clientes' as const, label: t.tabs.clientes, emoji: '👤', component: Clientes },
-    { id: 'facturacion' as const, label: t.tabs.facturacion, emoji: '🧾', component: Facturacion },
-    { id: 'descuentos' as const, label: t.tabs.descuentos, emoji: '🏷️', component: Descuentos },
     { id: 'kpis' as const, label: t.tabs.kpis, emoji: '📊', component: KPIs },
   ], [t]);
 

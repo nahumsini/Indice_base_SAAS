@@ -1,6 +1,6 @@
 export const esMX = {
   title: 'Punto de venta',
-  subtitle: 'Opera ventas de mostrador, facturación, cortes, clientes, descuentos e indicadores operativos.',
+  subtitle: 'Opera ventas de mostrador, tickets, cortes, clientes, kioscos e indicadores operativos.',
   back: 'Regresar',
   navLabel: 'Secciones de punto de venta',
   loading: {
@@ -13,8 +13,6 @@ export const esMX = {
     sale: 'Venta',
     cortes: 'Cortes',
     clientes: 'Clientes',
-    facturacion: 'Facturación',
-    descuentos: 'Descuentos',
     kpis: 'KPIs',
     kiosks: 'Kioscos',
     cajas: 'Cajas',

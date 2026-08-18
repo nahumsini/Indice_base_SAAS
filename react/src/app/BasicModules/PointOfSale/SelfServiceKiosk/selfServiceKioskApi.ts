@@ -26,9 +26,12 @@ export type SelfServiceBootstrap = {
   customerNameRequired: boolean;
   maxItemsPerTicket: number;
   preticketTtlMinutes: number;
-  fulfillmentPolicy: 'PRETICKET_REQUIRES_CASHIER_CONFIRMATION';
+  fulfillmentPolicy: 'PRETICKET_REQUIRES_CASHIER_CONFIRMATION' | 'SELF_CHECKOUT_PAYMENT_REQUIRED';
   items: SelfServiceCatalogItem[];
   csrfToken: string;
+  kioskType: 'self_service' | 'self_checkout';
+  availabilityState: 'READY' | 'SOURCE_REGISTER_CLOSED';
+  sourceRegisterOpen: boolean;
 };
 
 export type SelfServicePreticket = {

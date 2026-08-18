@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -28,12 +29,15 @@ class KioskRegistryServiceTest {
 
     @Mock
     private JdbcTemplate jdbcTemplate;
+    @Mock
+    private KioskPayloadProtectionService payloadProtection;
 
     private KioskRegistryService service;
 
     @BeforeEach
     void setUp() {
-        service = new KioskRegistryService(jdbcTemplate, new ObjectMapper());
+        service = new KioskRegistryService(
+            jdbcTemplate, new ObjectMapper(), payloadProtection);
     }
 
     @Test
@@ -77,6 +81,51 @@ class KioskRegistryServiceTest {
             .isInstanceOf(KioskUnavailableException.class)
             .hasMessage("Kiosk not found.");
         verify(jdbcTemplate, never()).update(anyString(), any(Object[].class));
+    }
+
+    @Test
+    void rotatingPublicAccessStoresOnlyProtectedRecoveryMaterialAndRevokesOldSessions() {
+        var definition = new KioskResolvedDefinition(
+            17L, 7L, "POINT_OF_SALE", "self_service", 31L,
+            "SELF-31", "Autoservicio", KioskDefinitionStatus.ACTIVE,
+            2L, 3L, 5L, KioskAccessLevel.PUBLIC, null, "oldhint", false, 1, 1);
+        org.mockito.BDDMockito.given(jdbcTemplate.query(
+            anyString(), any(RowMapper.class), any(Object[].class)))
+            .willReturn(List.of(definition));
+        org.mockito.BDDMockito.given(payloadProtection.protect("new-public-token"))
+            .willReturn("enc.v1.protected");
+
+        service.replacePublicToken(7L, "POINT_OF_SALE", 31L, "new-public-token", 8L);
+
+        verify(payloadProtection).protect("new-public-token");
+        verify(jdbcTemplate).update(
+            org.mockito.ArgumentMatchers.contains("protected_public_token"), any(Object[].class));
+        verify(jdbcTemplate).update(
+            org.mockito.ArgumentMatchers.contains("UPDATE kiosk_sessions"), any(Object[].class));
+        verify(jdbcTemplate, never()).update(
+            org.mockito.ArgumentMatchers.contains("new-public-token"), any(Object[].class));
+    }
+
+    @Test
+    void resolvesCollidingLegacyIdsWithTheKioskTypeAsPartOfTheIdentity() {
+        var definition = new KioskResolvedDefinition(
+            17L, 7L, "POINT_OF_SALE", "self_checkout", 31L,
+            "CHECKOUT-31", "Autocobro", KioskDefinitionStatus.ACTIVE,
+            2L, 3L, 5L, KioskAccessLevel.PUBLIC, null, "hint", false, 1, 1);
+        org.mockito.BDDMockito.given(jdbcTemplate.query(
+            anyString(), any(RowMapper.class), any(Object[].class)))
+            .willReturn(List.of(definition));
+
+        var resolved = service.requireByLegacyReference(
+            7L, "POINT_OF_SALE", "self_checkout", 31L);
+
+        assertThat(resolved.kioskType()).isEqualTo("self_checkout");
+        var sql = ArgumentCaptor.forClass(String.class);
+        var parameters = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate).query(sql.capture(), any(RowMapper.class), parameters.capture());
+        assertThat(sql.getValue()).contains("definition.kiosk_type = ?");
+        assertThat(parameters.getValue())
+            .containsExactly(7L, "POINT_OF_SALE", 31L, "self_checkout");
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

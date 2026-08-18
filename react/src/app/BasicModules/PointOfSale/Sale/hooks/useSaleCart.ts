@@ -104,18 +104,27 @@ export function useSaleCart({ products, taxOverride }: UseSaleCartOptions) {
       return { addedCount: 0, insufficientStock: [] };
     }
 
-    const insufficientStock = requests.flatMap(({ product, quantity }) => {
+    const requestedQuantityByProduct = requests.reduce<Map<string, number>>((totals, request) => {
+      totals.set(request.product.id, (totals.get(request.product.id) ?? 0) + request.quantity);
+      return totals;
+    }, new Map());
+    const blockedProductIds = new Set(requests.flatMap(({ product }) => {
       const currentInCart = cart.find((item) => item.productId === product.id)?.quantity || 0;
-      return product.useInventory && currentInCart + quantity > product.currentStock
-        ? [product.name]
+      const requestedQuantity = requestedQuantityByProduct.get(product.id) ?? 0;
+      return product.useInventory && currentInCart + requestedQuantity > product.currentStock
+        ? [product.id]
         : [];
-    });
+    }));
+    const insufficientStock = Array.from(new Set(
+      requests.filter(({ product }) => blockedProductIds.has(product.id)).map(({ product }) => product.name),
+    ));
+    const acceptedRequests = requests.filter(({ product }) => !blockedProductIds.has(product.id));
 
     setCart((currentCart) => {
       let nextCart = [...currentCart];
       let lastItemId: string | null = null;
 
-      requests.forEach(({ product, quantity }) => {
+      acceptedRequests.forEach(({ product, quantity }) => {
         const existingItem = nextCart.find((item) => item.productId === product.id);
 
         if (existingItem) {
@@ -142,7 +151,7 @@ export function useSaleCart({ products, taxOverride }: UseSaleCartOptions) {
     if (insufficientStock.length > 0) {
       setCartNotice(`Revisa existencia antes de cobrar: ${insufficientStock.join(', ')}.`);
     }
-    return { addedCount: requests.length, insufficientStock };
+    return { addedCount: acceptedRequests.length, insufficientStock };
   }, [cart, taxOverride]);
 
   const applyDiscount = useCallback((itemId: string, discount: number, type: SaleItem['discountType']) => {

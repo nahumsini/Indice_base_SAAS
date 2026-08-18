@@ -74,6 +74,15 @@ public class SelfServiceKioskRepository {
               ON warehouse.id = register.warehouse_id
              AND warehouse.company_id = register.company_id
              AND warehouse.deleted_at IS NULL
+            JOIN units unit
+              ON unit.id = register.unit_id
+             AND (unit.company_id = register.company_id OR unit.company_id IS NULL)
+             AND LOWER(COALESCE(unit.status, 'active')) = 'active'
+            JOIN businesses business
+              ON business.id = register.business_id
+             AND business.unit_id = unit.id
+             AND (business.company_id = register.company_id OR business.company_id IS NULL)
+             AND LOWER(COALESCE(business.status, 'active')) = 'active'
             WHERE register.company_id = ? AND register.id = ?
               AND register.deleted_at IS NULL
               AND register.is_active = 1
@@ -253,6 +262,24 @@ public class SelfServiceKioskRepository {
             return statement;
         }, keys);
         return keys.getKey().longValue();
+    }
+
+    public void lockClaimCodeAllocation(long companyId, long cashRegisterId) {
+        jdbcTemplate.queryForObject("""
+            SELECT id FROM pos_cash_registers
+            WHERE company_id = ? AND id = ?
+            FOR UPDATE
+            """, Long.class, companyId, cashRegisterId);
+    }
+
+    public boolean activeClaimCodeExists(long companyId, long cashRegisterId, String claimCode) {
+        var count = jdbcTemplate.queryForObject("""
+            SELECT COUNT(*) FROM pos_self_service_pretickets
+            WHERE company_id = ? AND cash_register_id = ? AND claim_code = ?
+              AND status IN ('PENDING', 'CLAIMED')
+              AND expires_at > CURRENT_TIMESTAMP
+            """, Long.class, companyId, cashRegisterId, claimCode);
+        return count != null && count > 0;
     }
 
     public void insertPreticketItem(

@@ -1,6 +1,6 @@
 export const esMX = {
   title: 'Inventarios',
-  subtitle: 'Administra productos, stock, proveedores y compras operativas desde un solo espacio.',
+  subtitle: 'Administra productos, stock, proveedores, compras, descuentos y disponibilidad por canal desde un solo espacio.',
   navLabel: 'Secciones de inventarios',
   loading: {
     openingTitle: 'Cargando inventarios',
@@ -14,5 +14,6 @@ export const esMX = {
     warehouses: 'Almacenes',
     providers: 'Proveedores',
     purchaseOrders: 'Órdenes de compra',
+    discounts: 'Descuentos',
   },
 } as const;

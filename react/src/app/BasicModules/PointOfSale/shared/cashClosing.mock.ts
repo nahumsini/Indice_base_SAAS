@@ -7,6 +7,7 @@ export const mockCashRegisterContext: CashRegisterContext = {
   businessUnitName: 'Retail North',
   businessId: 'business-downtown-store',
   businessName: 'Downtown Store',
+  warehouseId: 'warehouse-downtown-store',
   cashRegisterId: 'register-pos-01',
   cashRegisterCode: 'POS-01',
   cashRegisterName: 'Cash Register 01',

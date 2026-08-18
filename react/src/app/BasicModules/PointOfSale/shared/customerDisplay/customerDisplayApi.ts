@@ -17,6 +17,9 @@ export type CustomerDisplayItem = {
 export type CustomerDisplayPayment = {
   paymentMethod: string;
   amount: number;
+  cashReceived?: number | null;
+  changeAmount?: number | null;
+  pending?: boolean;
 };
 
 type CustomerDisplayPairingCodeWireResponse = {

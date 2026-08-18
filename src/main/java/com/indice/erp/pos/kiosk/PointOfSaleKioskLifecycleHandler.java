@@ -30,7 +30,8 @@ public class PointOfSaleKioskLifecycleHandler implements KioskLifecycleHandler {
             return false;
         }
         return PointOfSaleKioskCapabilities.CUSTOMER_DISPLAY_TYPE.equals(definition.kioskType())
-            || PointOfSaleKioskCapabilities.SELF_SERVICE_TYPE.equals(definition.kioskType());
+            || PointOfSaleKioskCapabilities.SELF_SERVICE_TYPE.equals(definition.kioskType())
+            || PointOfSaleKioskCapabilities.SELF_CHECKOUT_TYPE.equals(definition.kioskType());
     }
 
     @Override

@@ -58,7 +58,7 @@ public class ShiftService {
 
     @Transactional
     public ShiftResponse open(PosContext context, ShiftOpenRequest request) {
-        var register = cashRegisterService.requireRegister(context, request.cashRegisterId());
+        var register = cashRegisterService.requireOperationalRegister(context, request.cashRegisterId());
         validator.validateOpen(
             register,
             repository.hasBlockingShiftForRegister(context, register.id()),

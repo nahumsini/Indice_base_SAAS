@@ -6,7 +6,7 @@ import type { OperationalActivity } from './OperationalActivityFeed';
 import { OperationalActivityFeed } from './OperationalActivityFeed';
 import type { SuspendedSale } from './SuspendedSalesPanel';
 import { TouchCheckoutModal } from './TouchCheckoutModal';
-import type { CreditPaymentDetails, Payment, PaymentMethod } from '../types/sale.types';
+import type { CreditPaymentDetails, Payment, PaymentMethod, PaymentPreview } from '../types/sale.types';
 import type { SaleTotals } from '../utils/saleCalculations';
 import mxn20Banknote from '../../../../../assets/pos/cash/mxn-20-sample.jpg';
 import mxn50Banknote from '../../../../../assets/pos/cash/mxn-50-sample.jpg';
@@ -113,6 +113,7 @@ interface SalePaymentPanelProps {
   onExactPayment: () => void;
   onAddPayment: (method: PaymentMethod) => void;
   onConfirmWorkspacePayment?: (method: PaymentMethod, amount: number, reference?: string, cashReceived?: number, creditDetails?: CreditPaymentDetails) => void;
+  onPaymentPreviewChange?: (preview: PaymentPreview | null) => void;
   creditRules?: CreditRule[];
   creditCustomers?: Customer[];
   currency?: string;
@@ -143,6 +144,7 @@ export function SalePaymentPanel({
   onExactPayment,
   onAddPayment,
   onConfirmWorkspacePayment,
+  onPaymentPreviewChange,
   creditRules = [],
   creditCustomers = [],
   currency = 'MXN',
@@ -207,6 +209,26 @@ export function SalePaymentPanel({
       overdueBalance: 0,
     });
   }, [totals.remaining, workspaceAmountValue, workspaceCreditRule, workspaceCustomer, workspaceMethod]);
+
+  useEffect(() => {
+    if (!workspaceMode || !workspaceMethod) {
+      onPaymentPreviewChange?.(null);
+      return;
+    }
+    onPaymentPreviewChange?.({
+      method: workspaceMethod,
+      amount: workspaceAmountValue,
+      cashReceived: workspaceMethod === 'cash' ? workspaceCashReceivedValue : undefined,
+      change: workspaceMethod === 'cash' ? workspaceChangeValue : undefined,
+    });
+  }, [
+    onPaymentPreviewChange,
+    workspaceAmountValue,
+    workspaceCashReceivedValue,
+    workspaceChangeValue,
+    workspaceMethod,
+    workspaceMode,
+  ]);
 
   useEffect(() => {
     if (

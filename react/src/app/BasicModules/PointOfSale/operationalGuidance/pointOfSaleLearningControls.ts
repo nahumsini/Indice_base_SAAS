@@ -1,6 +1,6 @@
 import { createLearningModeControl, type LearningModeControl } from '../../../learningMode';
 
-export type PointOfSaleLearningTabId = 'sale' | 'cortes' | 'clientes' | 'facturacion' | 'descuentos' | 'kpis' | 'kiosks' | 'cajas';
+export type PointOfSaleLearningTabId = 'sale' | 'cortes' | 'clientes' | 'kpis' | 'kiosks' | 'cajas';
 
 const control = createLearningModeControl;
 
@@ -8,8 +8,6 @@ export const pointOfSaleLearningLabels: Record<PointOfSaleLearningTabId, string>
   sale: 'Terminal de venta',
   cortes: 'Cortes de caja',
   clientes: 'Clientes',
-  facturacion: 'Facturación',
-  descuentos: 'Descuentos',
   kpis: 'KPIs de punto de venta',
   kiosks: 'Kioscos de punto de venta',
   cajas: 'Administración de cajas',
@@ -204,106 +202,6 @@ export const pointOfSaleLearningControls: Record<PointOfSaleLearningTabId, reado
         emily: 'Emily revisa el historial antes de atender una cuenta corporativa y evita repetir preguntas.',
         juanito: 'Juanito actualiza datos en una sola ficha y sus reportes dejan de fragmentar al mismo cliente.',
         camila: 'Camila abre la ficha y el vendedor continúa la conversación aunque ella no esté.',
-      },
-    }),
-  ],
-  facturacion: [
-    control({
-      id: 'invoice-filters', emoji: '🔎', kind: 'Filtros', title: 'Buscar ventas por facturar',
-      purpose: 'Encuentra tickets por folio, cliente, fecha o estado fiscal.',
-      behavior: 'Acota la lista de operaciones elegibles sin cambiar la venta.',
-      whenToUse: 'Úsalo cuando el cliente solicite factura o durante la revisión diaria.',
-      result: 'Evita facturar el ticket equivocado o duplicar una operación.', focus: 'la selección correcta de la venta',
-      stories: {
-        emily: 'Emily localiza el pedido corporativo por folio y confirma la cafetería antes de facturar.',
-        juanito: 'Juanito valida fecha, total y estado; el documento fiscal corresponde exactamente a la venta.',
-        camila: 'Camila busca el ticket del cliente y no necesita reconstruir productos desde una nota.',
-      },
-    }),
-    control({
-      id: 'invoice-generate', emoji: '🧾', kind: 'Acción del registro', title: 'Generar factura',
-      purpose: 'Emite el documento fiscal a partir de una venta existente.',
-      behavior: 'Valida datos fiscales, uso, método, moneda e impuestos antes de confirmar.',
-      whenToUse: 'Úsalo cuando la venta esté cerrada y los datos del receptor hayan sido confirmados.',
-      result: 'Mantiene factura y ticket conectados.', focus: 'la emisión fiscal correcta',
-      stories: {
-        emily: 'Emily factura el servicio de café desde la venta y conserva productos, impuestos y total.',
-        juanito: 'Juanito revisa RFC, régimen y total antes de emitir; evita cancelaciones por datos incompletos.',
-        camila: 'Camila genera la factura sin volver a capturar las piezas vendidas.',
-      },
-    }),
-    control({
-      id: 'invoice-files', emoji: '📄', kind: 'Acciones del registro', title: 'Consultar y descargar documentos',
-      purpose: 'Accede a representación, archivo fiscal y estado de la factura.',
-      behavior: 'Abre o descarga los documentos ligados al ticket.',
-      whenToUse: 'Úsalo al entregar al cliente o atender una aclaración.',
-      result: 'Evita buscar archivos en carpetas externas.', focus: 'la entrega de documentos fiscales',
-      stories: {
-        emily: 'Emily descarga los archivos y los entrega al cliente desde el mismo expediente.',
-        juanito: 'Juanito verifica que ambos documentos correspondan al folio y total correctos.',
-        camila: 'Camila reenvía una factura sin pedir al contador que la busque.',
-      },
-    }),
-    control({
-      id: 'invoice-status', emoji: '🔄', kind: 'Seguimiento fiscal', title: 'Revisar estado y cancelación',
-      purpose: 'Consulta vigencia y administra excepciones con trazabilidad.',
-      behavior: 'Muestra estado actual y solicita motivo y confirmación para cancelar cuando corresponda.',
-      whenToUse: 'Úsalo ante una devolución, error fiscal o solicitud válida.',
-      result: 'Evita documentos activos que ya no representan la operación.', focus: 'la vigencia fiscal',
-      stories: {
-        emily: 'Emily revisa el estado antes de reemitir y evita dos facturas para el mismo servicio.',
-        juanito: 'Juanito registra motivo y fecha; ventas y contabilidad mantienen totales conciliables.',
-        camila: 'Camila cancela con evidencia y el equipo sabe qué documento ya no debe entregar.',
-      },
-    }),
-  ],
-  descuentos: [
-    control({
-      id: 'discount-columns', emoji: '🧩', kind: 'Botón de configuración', title: 'Columnas',
-      purpose: 'Selecciona los datos visibles de las reglas de descuento.',
-      behavior: 'Organiza nombre, alcance, vigencia, condición, valor, prioridad y estado.',
-      whenToUse: 'Úsalo para auditar promociones y autorizaciones.',
-      result: 'Hace visibles reglas que podrían afectar el margen.', focus: 'la lectura de descuentos',
-      stories: {
-        emily: 'Emily muestra vigencia y cafeterías aplicables para que una promoción no se extienda por error.',
-        juanito: 'Juanito deja porcentaje, condición y prioridad juntos para calcular el impacto real.',
-        camila: 'Camila muestra familia de piezas y estado para que el mostrador aplique la regla correcta.',
-      },
-    }),
-    control({
-      id: 'discount-create', emoji: '➕', kind: 'Botón de acción', title: 'Nueva regla de descuento',
-      purpose: 'Define quién, cuándo y sobre qué puede aplicar un descuento.',
-      behavior: 'Abre el formulario y valida alcance, condición, valor, vigencia y combinación.',
-      whenToUse: 'Úsalo antes de lanzar una promoción o autorizar una condición recurrente.',
-      result: 'Evita descuentos improvisados que erosionan margen.', focus: 'las reglas de descuento',
-      stories: {
-        emily: 'Emily crea una promoción con fechas y productos específicos para todas sus cafeterías.',
-        juanito: 'Juanito simula el impacto antes de activar; vender más no significa ganar menos sin darse cuenta.',
-        camila: 'Camila formaliza el descuento a talleres frecuentes y el mostrador deja de preguntarle cada vez.',
-      },
-    }),
-    control({
-      id: 'discount-status-edit', emoji: '✏️', kind: 'Acciones del registro', title: 'Editar y activar o desactivar',
-      purpose: 'Ajusta reglas y controla si pueden aplicarse en la terminal.',
-      behavior: 'Editar abre la configuración; el control de estado cambia disponibilidad sin borrar historial.',
-      whenToUse: 'Úsalo cuando cambie la promoción o termine su autorización.',
-      result: 'Evita que una regla vencida continúe afectando ventas.', focus: 'la vigencia de promociones',
-      stories: {
-        emily: 'Emily desactiva la promoción al terminar el periodo y todas las sucursales dejan de aplicarla.',
-        juanito: 'Juanito cambia el valor solo después de revisar margen y conserva la regla identificable.',
-        camila: 'Camila apaga un descuento estacional y el equipo ya no lo ofrece por costumbre.',
-      },
-    }),
-    control({
-      id: 'discount-kpis-filters', emoji: '📊', kind: 'Indicadores y filtros', title: 'Medir uso e impacto',
-      purpose: 'Revisa reglas activas, aplicación y efecto comercial antes de decidir.',
-      behavior: 'Los filtros segmentan y los indicadores resumen el conjunto seleccionado.',
-      whenToUse: 'Úsalo durante y después de una promoción.',
-      result: 'Distingue una promoción efectiva de una reducción innecesaria de precio.', focus: 'el impacto medible del descuento',
-      stories: {
-        emily: 'Emily compara uso por cafetería y corrige dónde la promoción no está llegando.',
-        juanito: 'Juanito contrasta venta adicional contra margen cedido antes de repetir la regla.',
-        camila: 'Camila descubre qué descuento convierte talleres recurrentes sin regalar margen en mostrador.',
       },
     }),
   ],

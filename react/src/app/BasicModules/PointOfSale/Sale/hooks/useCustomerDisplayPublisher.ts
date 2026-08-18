@@ -5,7 +5,7 @@ import {
   type CustomerDisplaySnapshotPayload,
   type CustomerDisplayStatus,
 } from '../../shared/customerDisplay/customerDisplayApi';
-import type { Payment, SaleItem } from '../types/sale.types';
+import type { Payment, PaymentPreview, SaleItem } from '../types/sale.types';
 import type { Shift } from '../types/shift.types';
 import type { SaleTotals } from '../utils/saleCalculations';
 
@@ -17,6 +17,7 @@ interface UseCustomerDisplayPublisherParams {
   totals: SaleTotals;
   currentShift: Shift | null;
   currencyCode: string;
+  paymentPreview?: PaymentPreview | null;
 }
 
 export function useCustomerDisplayPublisher({
@@ -25,12 +26,32 @@ export function useCustomerDisplayPublisher({
   totals,
   currentShift,
   currencyCode,
+  paymentPreview = null,
 }: UseCustomerDisplayPublisherParams) {
   const snapshot = useMemo(() => {
     if (!currentShift) {
       return null;
     }
-    const status = resolveStatus(cart.length, totals.isPaid);
+    const status = resolveStatus(cart.length, totals.isPaid, paymentPreview);
+    const previewCashReceived = paymentPreview?.method === 'cash'
+      ? Math.max(paymentPreview.cashReceived ?? 0, 0)
+      : 0;
+    const previewAppliedAmount = paymentPreview?.method === 'cash'
+      ? Math.min(previewCashReceived, Math.max(paymentPreview.amount, 0))
+      : 0;
+    const displayPaidAmount = totals.paid + previewCashReceived;
+    const displayBalanceAmount = paymentPreview?.method === 'cash'
+      ? Math.max(totals.remaining - previewAppliedAmount, 0)
+      : Math.max(totals.remaining, 0);
+    const previewDisplayPayment: CustomerDisplayPayment | null = paymentPreview
+      ? {
+          paymentMethod: paymentPreview.method.trim().toUpperCase(),
+          amount: Math.max(paymentPreview.amount, 0),
+          cashReceived: paymentPreview.method === 'cash' ? previewCashReceived : null,
+          changeAmount: paymentPreview.method === 'cash' ? Math.max(paymentPreview.change ?? 0, 0) : null,
+          pending: true,
+        }
+      : null;
     const payload: CustomerDisplaySnapshotPayload = {
       cashRegisterId: Number(currentShift.cashRegisterId),
       shiftId: Number(currentShift.id),
@@ -48,23 +69,32 @@ export function useCustomerDisplayPublisher({
           lineTotalAmount: item.total,
         };
       }),
-      payments: payments.map(toDisplayPayment),
+      payments: [
+        ...payments.map(toDisplayPayment),
+        ...(previewDisplayPayment ? [previewDisplayPayment] : []),
+      ],
       subtotalAmount: totals.subtotal,
       discountAmount: cart.reduce((sum, item) => sum + Math.max((item.price * item.quantity) - item.subtotal, 0), 0),
       taxAmount: totals.tax,
       totalAmount: totals.total,
-      paidAmount: totals.paid,
-      changeAmount: totals.change,
-      balanceAmount: Math.max(totals.remaining, 0),
+      paidAmount: paymentPreview?.method === 'cash' ? displayPaidAmount : totals.paid,
+      changeAmount: paymentPreview?.method === 'cash'
+        ? Math.max(paymentPreview.change ?? 0, 0)
+        : totals.change,
+      balanceAmount: displayBalanceAmount,
       ticketNumber: null,
       customerMessage: status === 'IDLE'
         ? 'Caja lista'
+        : status === 'READY_TO_PAY' && paymentPreview?.method === 'cash'
+        ? 'El cajero está registrando tu pago en efectivo'
+        : status === 'READY_TO_PAY'
+        ? 'El cajero está preparando tu forma de pago'
         : status === 'PAID'
         ? 'Pago completo'
         : 'Revisa tus productos y total en pantalla',
     };
     return payload;
-  }, [cart, currencyCode, currentShift, payments, totals]);
+  }, [cart, currencyCode, currentShift, paymentPreview, payments, totals]);
 
   const snapshotKey = useMemo(() => JSON.stringify(snapshot), [snapshot]);
 
@@ -83,16 +113,24 @@ export function useCustomerDisplayPublisher({
   }, [snapshot, snapshotKey]);
 }
 
-function resolveStatus(cartItemCount: number, isPaid: boolean): CustomerDisplayStatus {
+function resolveStatus(
+  cartItemCount: number,
+  isPaid: boolean,
+  paymentPreview: PaymentPreview | null,
+): CustomerDisplayStatus {
   if (cartItemCount === 0) {
     return 'IDLE';
   }
-  return isPaid ? 'PAID' : 'ACTIVE';
+  if (isPaid) return 'PAID';
+  return paymentPreview ? 'READY_TO_PAY' : 'ACTIVE';
 }
 
 function toDisplayPayment(payment: Payment): CustomerDisplayPayment {
   return {
     paymentMethod: payment.method.trim().toUpperCase(),
     amount: payment.amount,
+    cashReceived: payment.cashReceived ?? null,
+    changeAmount: payment.change ?? null,
+    pending: false,
   };
 }

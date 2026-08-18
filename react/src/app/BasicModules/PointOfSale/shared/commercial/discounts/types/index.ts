@@ -1,6 +1,7 @@
 export type DiscountScope = 'product' | 'category' | 'customer' | 'order' | 'manual';
 export type DiscountType = 'percentage' | 'fixedAmount';
 export type DiscountRuleStatus = 'active' | 'scheduled' | 'expired' | 'inactive';
+export type DiscountChannel = 'pos' | 'sales' | 'kiosk' | 'publicCatalog';
 
 export interface DiscountRule {
   id: string;
@@ -20,6 +21,7 @@ export interface DiscountRule {
   stackable?: boolean;
   priority?: number;
   status: DiscountRuleStatus;
+  enabledChannels: DiscountChannel[];
 }
 
 export interface DiscountEligibilityContext {
@@ -29,4 +31,5 @@ export interface DiscountEligibilityContext {
   customerType?: 'individual' | 'business';
   scope?: DiscountScope;
   date?: Date;
+  channel?: DiscountChannel;
 }

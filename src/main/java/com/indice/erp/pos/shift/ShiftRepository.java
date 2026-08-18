@@ -71,6 +71,20 @@ public class ShiftRepository {
         return count != null && count > 0;
     }
 
+    /**
+     * Public kiosk runtimes do not have a signed-in POS user or a scoped {@link PosContext}.
+     * Their operational authority comes from the source register, which remains usable while
+     * that register has an operational shift (OPEN or CLOSING).
+     */
+    public boolean hasOpenShift(long companyId, long registerId) {
+        var count = jdbcTemplate.queryForObject("""
+            SELECT COUNT(*) FROM pos_shifts
+            WHERE company_id = ? AND cash_register_id = ? AND deleted_at IS NULL
+              AND status IN ('OPEN', 'CLOSING')
+            """, Long.class, companyId, registerId);
+        return count != null && count > 0;
+    }
+
     public boolean hasBlockingShiftForUser(PosContext context, long userId) {
         var count = jdbcTemplate.queryForObject("""
             SELECT COUNT(*) FROM pos_shifts

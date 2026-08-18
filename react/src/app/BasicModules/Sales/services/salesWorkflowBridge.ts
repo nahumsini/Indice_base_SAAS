@@ -192,12 +192,15 @@ export function validateSaleDraftForBackendReadiness(sale: SaleRecordDraft): Sal
   if (!sale.customerName.trim()) errors.push('missingCustomer');
   if (!sale.businessUnitId) errors.push('missingBusinessUnit');
   if (!sale.businessId) errors.push('missingBusiness');
+  if (!sale.warehouseId) errors.push('missingWarehouse');
 
   sale.saleLines.forEach((line) => {
     if (!line.productId) errors.push('missingProduct');
     if (!(Number(line.quantity) > 0)) errors.push('invalidQuantity');
     if (!(Number(line.unitPrice) > 0)) errors.push('missingUnitPrice');
-    if (!line.warehouseId) errors.push('missingWarehouse');
+    if (!line.warehouseId || line.warehouseId !== sale.warehouseId) errors.push('missingWarehouse');
+    if (!line.businessUnitId || line.businessUnitId !== sale.businessUnitId) errors.push('missingBusinessUnit');
+    if (!line.businessId || line.businessId !== sale.businessId) errors.push('missingBusiness');
     if (!line.availabilityStatus) errors.push('missingAvailability');
   });
 

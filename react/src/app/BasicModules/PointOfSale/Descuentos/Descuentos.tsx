@@ -123,7 +123,7 @@ export default function Descuentos() {
       ? rules.map((item) => (item.id === rule.id ? rule : item))
       : [rule, ...rules];
 
-    persistRules(nextRules, `Regla "${rule.name}" guardada y disponible para POS.`);
+    persistRules(nextRules, `Regla "${rule.name}" guardada para ${formatChannels(rule)}.`);
     setEditingRule(null);
   };
 
@@ -144,11 +144,11 @@ export default function Descuentos() {
   return (
     <div className="space-y-5">
       <PointOfSaleTitleBar
-        eyebrow="Motor comercial POS"
+        eyebrow="Política comercial de productos"
         icon="🏷️"
         rhIndent
         title="Descuentos"
-        subtitle="Configura reglas, controla autorizaciones y aplica promociones elegibles desde Venta."
+        subtitle="Configura promociones una vez y habilítalas para POS, Ventas, kioscos o catálogo público."
         actions={(
           <>
           <button
@@ -223,10 +223,10 @@ export default function Descuentos() {
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-gray-800">
         <div className="overflow-x-auto">
-          <table className="min-w-[1160px] w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
+          <table className="min-w-[1280px] w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
             <thead className="bg-slate-50 dark:bg-gray-900/40">
               <tr>
-                {['Regla', 'Alcance', 'Descuento', 'Condicion', 'Vigencia', 'Preview', 'Control', 'Estado', 'Acciones'].map((header) => (
+                {['Regla', 'Alcance', 'Canales', 'Descuento', 'Condicion', 'Vigencia', 'Preview', 'Control', 'Estado', 'Acciones'].map((header) => (
                   <th key={header} className={`px-5 py-5 text-sm font-medium text-slate-500 dark:text-slate-400 ${header === 'Acciones' ? 'text-right' : 'text-left'}`}>{header}</th>
                 ))}
               </tr>
@@ -239,6 +239,7 @@ export default function Descuentos() {
                     <p className="line-clamp-2 text-xs font-medium text-slate-500 dark:text-slate-400">{rule.description}</p>
                   </td>
                   <td className="px-5 py-4 font-medium text-slate-700 dark:text-slate-200">{scopeLabels[rule.scope]}</td>
+                  <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{formatChannels(rule)}</td>
                   <td className="px-5 py-4 font-medium text-slate-950 dark:text-white">{formatDiscount(rule, saleCurrency)}</td>
                   <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{formatCondition(rule, saleCurrency)}</td>
                   <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{formatDate(rule.startsAt)} - {formatDate(rule.endsAt)}</td>
@@ -284,7 +285,7 @@ function createEmptyRule(): DiscountRule {
   return {
     id: `new-disc-${Date.now()}`,
     name: 'Nueva promocion',
-    description: 'Regla comercial disponible para el punto de venta.',
+    description: 'Regla comercial compartida por los canales habilitados.',
     scope: 'order',
     discountType: 'percentage',
     value: 5,
@@ -294,7 +295,18 @@ function createEmptyRule(): DiscountRule {
     stackable: false,
     priority: 1,
     status: 'active',
+    enabledChannels: ['pos', 'sales'],
   };
+}
+
+function formatChannels(rule: DiscountRule) {
+  const labels = {
+    pos: 'POS',
+    sales: 'Ventas',
+    kiosk: 'Kioscos',
+    publicCatalog: 'Catálogo',
+  } as const;
+  return rule.enabledChannels.map((channel) => labels[channel]).join(' · ') || 'Sin publicar';
 }
 
 function formatDiscount(rule: DiscountRule, currency: string) {

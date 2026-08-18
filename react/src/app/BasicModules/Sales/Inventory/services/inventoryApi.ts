@@ -1,6 +1,8 @@
 import { salesApi } from '../../salesApi';
 import type { SalesCatalogItem } from '../../types';
 import type {
+  InventoryBusiness,
+  InventoryBusinessUnit,
   InventoryOperationalMovement,
   InventoryStockRow,
   InventoryWarehouse,
@@ -81,7 +83,43 @@ const toNumber = (value: number | string | undefined | null) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const toId = (value: number | string | undefined | null) => String(value ?? '');
+const toId = (value: unknown) => String(value ?? '');
+
+function toBusinessUnits(units: Array<Record<string, unknown>>): InventoryBusinessUnit[] {
+  return units
+    .map((unit) => ({
+      id: toId(unit.id),
+      name: String(unit.name ?? '').trim(),
+      code: toId(unit.id),
+    }))
+    .filter((unit) => isDatabaseId(unit.id) && unit.name.length > 0);
+}
+
+function toBusinesses(
+  businesses: Array<Record<string, unknown>>,
+  units: InventoryBusinessUnit[],
+): InventoryBusiness[] {
+  const unitNames = new Map(units.map((unit) => [unit.id, unit.name]));
+
+  return businesses
+    .map((business) => {
+      const businessUnitId = toId(business.unitId ?? business.unit_id);
+      return {
+        id: toId(business.id),
+        name: String(business.name ?? '').trim(),
+        code: toId(business.id),
+        businessUnitId,
+        businessUnitName: unitNames.get(businessUnitId) ?? '',
+        address: String(business.address ?? '').trim() || undefined,
+      };
+    })
+    .filter((business) => (
+      isDatabaseId(business.id)
+      && isDatabaseId(business.businessUnitId)
+      && business.name.length > 0
+      && business.businessUnitName.length > 0
+    ));
+}
 
 function toWarehouse(row: ApiInventoryWarehouse): InventoryWarehouse {
   return {
@@ -105,7 +143,7 @@ function toWarehousePayload(warehouse: InventoryWarehouse) {
   return {
     name: warehouse.name,
     type: warehouse.type,
-    businessUnitId: warehouse.businessUnitId,
+    businessUnitId: isDatabaseId(warehouse.businessUnitId) ? warehouse.businessUnitId : undefined,
     businessUnitName: warehouse.businessUnitName,
     businessId: isDatabaseId(warehouse.businessId) ? warehouse.businessId : undefined,
     businessName: warehouse.businessName,
@@ -240,19 +278,22 @@ export const inventoryApi = {
   },
 
   async loadWorkspace(products: SalesCatalogItem[]) {
-    const [warehousesResponse, balancesResponse, movementsResponse] = await Promise.all([
+    const [context, warehousesResponse, balancesResponse, movementsResponse] = await Promise.all([
+      salesApi.context(),
       salesApi.list<ApiInventoryWarehouse>('inventory-warehouses'),
       salesApi.list<ApiInventoryBalance>('inventory-balances'),
       salesApi.list<ApiInventoryMovement>('inventory-movements'),
     ]);
 
+    const businessUnits = toBusinessUnits(context.units);
+    const businesses = toBusinesses(context.businesses, businessUnits);
     const warehouses = warehousesResponse.items.map(toWarehouse);
     const warehouseIds = new Set(warehouses.map((warehouse) => warehouse.id));
     const activeBalances = balancesResponse.items.filter((balance) => warehouseIds.has(toId(balance.warehouseId)));
     const stockRows = applyBalancesToRows(products, activeBalances);
     const movements = movementsResponse.items.map(toMovement);
 
-    return { warehouses, stockRows, movements };
+    return { warehouses, stockRows, movements, businessUnits, businesses };
   },
 
   buildRowsFromExisting(products: SalesCatalogItem[], currentRows: InventoryStockRow[]) {

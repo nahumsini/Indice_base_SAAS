@@ -27,7 +27,24 @@ public final class SelfServiceKioskDtos {
         Boolean showStock,
         Boolean customerNameRequired,
         @Min(1) @Max(100) Integer maxItemsPerTicket,
-        @Min(15) @Max(1440) Integer preticketTtlMinutes
+        @Min(15) @Max(43200) Integer preticketTtlMinutes
+    ) {
+    }
+
+    /**
+     * Administrative creation contract for a self-checkout station. The POS resolves the
+     * station's operational cash register from the selected warehouse so the UI keeps the
+     * assignment flow centered on warehouse, business and unit.
+     */
+    public record SelfCheckoutCreateRequest(
+        @NotNull Long warehouseId,
+        @NotBlank @Size(max = 180) String name,
+        Instant expiresAt,
+        String catalogMode,
+        List<String> productIds,
+        Boolean discountsEnabled,
+        @Min(1) @Max(60) Integer sessionTimeoutMinutes,
+        Boolean supervisorExitRequired
     ) {
     }
 
@@ -37,7 +54,7 @@ public final class SelfServiceKioskDtos {
         Boolean showStock,
         Boolean customerNameRequired,
         @Min(1) @Max(100) Integer maxItemsPerTicket,
-        @Min(15) @Max(1440) Integer preticketTtlMinutes,
+        @Min(15) @Max(43200) Integer preticketTtlMinutes,
         @NotNull Long version
     ) {
     }
@@ -106,7 +123,10 @@ public final class SelfServiceKioskDtos {
         int maxItemsPerTicket,
         int preticketTtlMinutes,
         String fulfillmentPolicy,
-        List<CatalogItem> items
+        List<CatalogItem> items,
+        String kioskType,
+        String availabilityState,
+        boolean sourceRegisterOpen
     ) {
     }
 

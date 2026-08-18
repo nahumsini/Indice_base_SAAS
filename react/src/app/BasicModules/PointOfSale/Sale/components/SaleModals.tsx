@@ -10,6 +10,7 @@ import type {
   CreditPaymentDetails,
   Payment,
   PaymentMethod,
+  PaymentPreview,
   SaleItem,
 } from "../types/sale.types";
 import type { Shift } from "../types/shift.types";
@@ -50,6 +51,7 @@ interface SaleModalsProps {
     cashReceived?: number,
     creditDetails?: CreditPaymentDetails,
   ) => void;
+  onPaymentPreviewChange?: (preview: PaymentPreview | null) => void;
   onCloseShiftModal: () => void;
   onConfirmCloseShift: (closing: CashClosingInput) => void;
   onCloseItemDiscount: () => void;
@@ -89,6 +91,7 @@ export function SaleModals({
   showTicketModal,
   onCloseAddPayment,
   onConfirmAddPayment,
+  onPaymentPreviewChange,
   onCloseShiftModal,
   onConfirmCloseShift,
   onCloseItemDiscount,
@@ -110,6 +113,7 @@ export function SaleModals({
         creditRules={creditRules}
         creditCustomers={creditCustomers}
         onConfirm={onConfirmAddPayment}
+        onPaymentPreviewChange={onPaymentPreviewChange}
       />
 
       <CloseShiftModal

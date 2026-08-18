@@ -20,15 +20,24 @@ import freshSandwichImage from '../../../../assets/pos/self-checkout/fresh-sandw
 import naturalWaterImage from '../../../../assets/pos/self-checkout/natural-water.png';
 import orangeJuiceImage from '../../../../assets/pos/self-checkout/orange-juice.png';
 import vanillaIceCreamImage from '../../../../assets/pos/self-checkout/vanilla-ice-cream.png';
+import {
+  completeKioskIdempotentOperation,
+  kioskIdempotencyKeyFor,
+} from '../../../components/kiosk-engine/kioskIdempotency';
+import { KioskPublicShell } from '../../../components/kiosk-engine/KioskPublicShell';
 import { usePointOfSaleKioskTranslations } from '../Kiosks/kioskTranslations';
+import { SourceRegisterClosedState } from '../SelfServiceKiosk/SourceRegisterClosedState';
 import {
   selfServiceKioskApi,
   type SelfServiceBootstrap,
   type SelfServiceCatalogItem,
+  type SelfServicePreticketReceipt,
 } from '../SelfServiceKiosk/selfServiceKioskApi';
 
 type SelfCheckoutStep = 'products' | 'cart' | 'payment';
-type PaymentMethod = 'card' | 'cash' | 'transfer';
+type PaymentMethod = 'card' | 'cash';
+
+const cashHandoffOperation = 'pos-self-checkout-cash-handoff';
 
 const numberValue = (value: number | string | null | undefined) => Number(value ?? 0);
 
@@ -58,6 +67,9 @@ export default function SelfCheckoutKiosk() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [cashReceipt, setCashReceipt] = useState<SelfServicePreticketReceipt | null>(null);
+  const [submittingPayment, setSubmittingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
   const [loading, setLoading] = useState(true);
   const [unavailable, setUnavailable] = useState(false);
   const [online, setOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine);
@@ -106,6 +118,18 @@ export default function SelfCheckoutKiosk() {
     return () => { cancelled = true; };
   }, [publicAccessToken, reloadKey]);
 
+  useEffect(() => {
+    if (!cashReceipt) return;
+    const timer = window.setTimeout(() => {
+      setCashReceipt(null);
+      setCart({});
+      setStep('products');
+      setPaymentMethod(null);
+      setPaymentError('');
+    }, 5000);
+    return () => window.clearTimeout(timer);
+  }, [cashReceipt]);
+
   const categories = useMemo(() => Array.from(new Set(
     (bootstrap?.items ?? [])
       .map((item) => item.category)
@@ -132,8 +156,9 @@ export default function SelfCheckoutKiosk() {
     (total, line) => total + numberValue(line.product.unitPrice) * line.quantity,
     0,
   );
-  const tax = subtotal * 0.16;
-  const total = subtotal + tax;
+  // Public catalog prices are the cashier-authoritative amounts. Taxes must
+  // come from POS pricing rules, never from a hard-coded kiosk percentage.
+  const total = subtotal;
 
   const changeQuantity = (item: SelfServiceCatalogItem, delta: number) => {
     setCart((current) => {
@@ -157,6 +182,32 @@ export default function SelfCheckoutKiosk() {
       return;
     }
     await terminalRef.current?.requestFullscreen();
+  };
+
+  const submitCashHandoff = async () => {
+    if (!bootstrap || cartLines.length === 0 || submittingPayment || !online) return;
+    const payload = {
+      items: cartLines.map((line) => ({
+        productId: line.product.productId,
+        quantity: line.quantity,
+      })),
+    };
+    setSubmittingPayment(true);
+    setPaymentError('');
+    try {
+      const receipt = await selfServiceKioskApi.createPreticket(
+        publicAccessToken,
+        bootstrap.csrfToken,
+        payload,
+        kioskIdempotencyKeyFor(cashHandoffOperation, payload),
+      );
+      completeKioskIdempotentOperation(cashHandoffOperation);
+      setCashReceipt(receipt);
+    } catch {
+      setPaymentError(copy.selfCheckoutFrame.cashHandoffError);
+    } finally {
+      setSubmittingPayment(false);
+    }
   };
 
   if (loading) {
@@ -192,6 +243,15 @@ export default function SelfCheckoutKiosk() {
     );
   }
 
+  if (!bootstrap.sourceRegisterOpen) {
+    return (
+      <SourceRegisterClosedState
+        registerName={bootstrap.cashRegisterName}
+        onRetry={() => setReloadKey((current) => current + 1)}
+      />
+    );
+  }
+
   const steps: Array<{ key: SelfCheckoutStep; label: string; icon: typeof Barcode }> = [
     { key: 'products', label: copy.selfCheckoutFrame.catalogTitle, icon: Barcode },
     { key: 'cart', label: copy.selfCheckoutFrame.cartTitle, icon: ShoppingCart },
@@ -199,66 +259,91 @@ export default function SelfCheckoutKiosk() {
   ];
 
   return (
-    <div ref={terminalRef} className="flex min-h-dvh flex-col overflow-hidden bg-slate-100 text-slate-950">
-      <header className="flex min-h-20 shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#FF6B5E] text-[#222831]">
-            <ShoppingCart className="h-6 w-6" />
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-lg font-medium">{bootstrap.name}</p>
-            <p className="truncate text-xs text-slate-500">
-              {bootstrap.companyName} · {bootstrap.warehouseName} · {bootstrap.cashRegisterName}
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => void toggleFullscreen()}
-          className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700"
-        >
-          <Maximize2 className="h-5 w-5" />
-          <span className="hidden sm:inline">
-            {isFullscreen ? copy.selfCheckoutFrame.exitFullscreen : copy.selfCheckoutFrame.fullscreen}
-          </span>
-        </button>
-      </header>
-
-      {!online ? (
-        <div role="status" className="flex shrink-0 items-center justify-center gap-2 bg-amber-50 px-4 py-2 text-xs font-medium text-amber-800">
-          <WifiOff className="h-4 w-4" /> {copy.selfServicePublic.offline}
-        </div>
-      ) : null}
-
-      <ol className="grid shrink-0 grid-cols-3 gap-2 border-b border-slate-200 bg-white p-3 sm:px-6">
-        {steps.map((item, index) => {
-          const Icon = item.icon;
-          const active = item.key === step;
-          const completed = steps.findIndex((candidate) => candidate.key === step) > index;
-          const disabled = item.key !== 'products' && itemCount === 0;
-          return (
-            <li key={item.key}>
+    <div ref={terminalRef} className="min-h-dvh bg-slate-100 text-slate-950">
+      <KioskPublicShell
+        immersive={isFullscreen}
+        lockDesktopViewport
+        maxWidthClassName="max-w-[1680px]"
+        minimalContent
+        moduleScope="point-of-sale-self-checkout"
+        header={(
+          <>
+            <header className="flex min-h-20 shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#FF6B5E] text-[#222831]">
+                  <ShoppingCart className="h-6 w-6" />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-lg font-medium">{bootstrap.name}</p>
+                  <p className="truncate text-xs text-slate-500">
+                    {bootstrap.companyName} · {bootstrap.warehouseName} · {bootstrap.cashRegisterName}
+                  </p>
+                </div>
+              </div>
               <button
                 type="button"
-                disabled={disabled}
-                onClick={() => setStep(item.key)}
-                aria-current={active ? 'step' : undefined}
-                className={`flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border px-3 text-xs font-medium ${active
-                  ? 'border-[#FF6B5E] bg-[#FF6B5E]/10 text-[#B63B32]'
-                  : completed
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                    : 'border-slate-200 bg-white text-slate-500 disabled:opacity-45'}`}
+                onClick={() => void toggleFullscreen()}
+                className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700"
               >
-                {completed ? <CheckCircle2 className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
-                <span>{index + 1}. {item.label}</span>
+                <Maximize2 className="h-5 w-5" />
+                <span className="hidden sm:inline">
+                  {isFullscreen ? copy.selfCheckoutFrame.exitFullscreen : copy.selfCheckoutFrame.fullscreen}
+                </span>
               </button>
-            </li>
-          );
-        })}
-      </ol>
+            </header>
 
-      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5">
-        {step === 'products' ? (
+            {!online ? (
+              <div role="status" className="flex shrink-0 items-center justify-center gap-2 bg-amber-50 px-4 py-2 text-xs font-medium text-amber-800">
+                <WifiOff className="h-4 w-4" /> {copy.selfServicePublic.offline}
+              </div>
+            ) : null}
+
+            <ol className="grid shrink-0 grid-cols-3 gap-2 border-b border-slate-200 bg-white p-3 sm:px-6">
+              {steps.map((item, index) => {
+                const Icon = item.icon;
+                const active = item.key === step;
+                const completed = steps.findIndex((candidate) => candidate.key === step) > index;
+                const disabled = item.key !== 'products' && itemCount === 0;
+                return (
+                  <li key={item.key}>
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => setStep(item.key)}
+                      aria-current={active ? 'step' : undefined}
+                      className={`flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border px-3 text-xs font-medium ${active
+                        ? 'border-[#FF6B5E] bg-[#FF6B5E]/10 text-[#B63B32]'
+                        : completed
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                          : 'border-slate-200 bg-white text-slate-500 disabled:opacity-45'}`}
+                    >
+                      {completed ? <CheckCircle2 className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
+                      <span>{index + 1}. {item.label}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </>
+        )}
+      >
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-0">
+        {cashReceipt ? (
+          <CashHandoffSuccess
+            receipt={cashReceipt}
+            registerName={bootstrap.cashRegisterName}
+            currency={bootstrap.currencyCode}
+            locale={locale}
+            onNew={() => {
+              setCashReceipt(null);
+              setCart({});
+              setStep('products');
+              setPaymentMethod(null);
+            }}
+          />
+        ) : null}
+        {!cashReceipt && step === 'products' ? (
           <CatalogStep
             bootstrap={bootstrap}
             products={visibleProducts}
@@ -272,30 +357,30 @@ export default function SelfCheckoutKiosk() {
             onQuantityChange={changeQuantity}
           />
         ) : null}
-        {step === 'cart' ? (
+        {!cashReceipt && step === 'cart' ? (
           <CartStep
             bootstrap={bootstrap}
             lines={cartLines}
             locale={locale}
             subtotal={subtotal}
-            tax={tax}
             total={total}
             onQuantityChange={changeQuantity}
           />
         ) : null}
-        {step === 'payment' ? (
+        {!cashReceipt && step === 'payment' ? (
           <PaymentStep
             copy={copy.selfCheckoutFrame}
             currency={bootstrap.currencyCode}
             locale={locale}
             paymentMethod={paymentMethod}
             total={total}
+            error={paymentError}
             onPaymentMethodChange={setPaymentMethod}
           />
         ) : null}
-      </main>
+          </main>
 
-      <footer className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-slate-200 bg-[#222831] px-4 py-3 text-white sm:grid-cols-[1fr_auto_1fr] sm:px-6">
+          {!cashReceipt ? <footer className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-slate-200 bg-[#222831] px-4 py-3 text-white sm:grid-cols-[1fr_auto_1fr] sm:px-6">
         <div>
           <p className="text-[11px] text-slate-300">{itemCount} {copy.selfCheckoutFrame.units}</p>
           <p className="text-xl font-medium sm:text-2xl">{formatCurrency(total, bootstrap.currencyCode, locale)}</p>
@@ -321,15 +406,25 @@ export default function SelfCheckoutKiosk() {
           ) : (
             <button
               type="button"
-              disabled
-              title={copy.selfCheckoutFrame.securePayment}
-              className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-[#FF6B5E] px-5 text-sm font-medium text-[#222831] opacity-50"
+              disabled={!paymentMethod || paymentMethod === 'card' || submittingPayment || !online}
+              title={paymentMethod === 'card' ? copy.selfCheckoutFrame.cardTerminalPending : copy.selfCheckoutFrame.securePayment}
+              onClick={() => void submitCashHandoff()}
+              className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-[#FF6B5E] px-5 text-sm font-medium text-[#222831] disabled:opacity-50"
             >
-              <CreditCard className="h-5 w-5" /> {copy.selfCheckoutFrame.completePayment}
+              {paymentMethod === 'cash' ? <Banknote className="h-5 w-5" /> : <CreditCard className="h-5 w-5" />}
+              {submittingPayment
+                ? copy.selfCheckoutFrame.generatingCashCode
+                : paymentMethod === 'cash'
+                  ? copy.selfCheckoutFrame.payAtRegister
+                  : paymentMethod === 'card'
+                    ? copy.selfCheckoutFrame.cardTerminalPending
+                    : copy.selfCheckoutFrame.completePayment}
             </button>
           )}
         </div>
-      </footer>
+          </footer> : null}
+        </div>
+      </KioskPublicShell>
     </div>
   );
 }
@@ -431,12 +526,11 @@ function CategoryButton({ active, label, onClick }: { active: boolean; label: st
   );
 }
 
-function CartStep({ bootstrap, lines, locale, subtotal, tax, total, onQuantityChange }: {
+function CartStep({ bootstrap, lines, locale, subtotal, total, onQuantityChange }: {
   bootstrap: SelfServiceBootstrap;
   lines: Array<{ product: SelfServiceCatalogItem; quantity: number }>;
   locale: string;
   subtotal: number;
-  tax: number;
   total: number;
   onQuantityChange: (item: SelfServiceCatalogItem, delta: number) => void;
 }) {
@@ -464,7 +558,6 @@ function CartStep({ bootstrap, lines, locale, subtotal, tax, total, onQuantityCh
         <h2 className="text-lg font-medium">{copy.selfCheckoutFrame.cartTitle}</h2>
         <dl className="mt-4 space-y-3 text-sm">
           <div className="flex justify-between"><dt className="text-slate-500">{copy.selfCheckoutFrame.subtotal}</dt><dd>{formatCurrency(subtotal, bootstrap.currencyCode, locale)}</dd></div>
-          <div className="flex justify-between"><dt className="text-slate-500">{copy.selfCheckoutFrame.tax}</dt><dd>{formatCurrency(tax, bootstrap.currencyCode, locale)}</dd></div>
           <div className="flex justify-between border-t border-slate-200 pt-3 text-lg"><dt>{copy.selfCheckoutFrame.total}</dt><dd className="font-medium">{formatCurrency(total, bootstrap.currencyCode, locale)}</dd></div>
         </dl>
       </aside>
@@ -472,18 +565,18 @@ function CartStep({ bootstrap, lines, locale, subtotal, tax, total, onQuantityCh
   );
 }
 
-function PaymentStep({ copy, currency, locale, paymentMethod, total, onPaymentMethodChange }: {
+function PaymentStep({ copy, currency, locale, paymentMethod, total, error, onPaymentMethodChange }: {
   copy: ReturnType<typeof usePointOfSaleKioskTranslations>['copy']['selfCheckoutFrame'];
   currency: string;
   locale: string;
   paymentMethod: PaymentMethod | null;
   total: number;
+  error: string;
   onPaymentMethodChange: (value: PaymentMethod) => void;
 }) {
   const methods: Array<{ key: PaymentMethod; icon: typeof CreditCard; title: string; description: string }> = [
-    { key: 'card', icon: CreditCard, title: copy.cardPayment, description: copy.cardPaymentDescription },
     { key: 'cash', icon: Banknote, title: copy.cashPayment, description: copy.cashPaymentDescription },
-    { key: 'transfer', icon: Barcode, title: copy.transferPayment, description: copy.transferPaymentDescription },
+    { key: 'card', icon: CreditCard, title: copy.cardPayment, description: copy.cardPaymentDescription },
   ];
   return (
     <section className="mx-auto w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-5 sm:p-7">
@@ -492,14 +585,21 @@ function PaymentStep({ copy, currency, locale, paymentMethod, total, onPaymentMe
         <p className="mt-1 text-4xl font-medium text-[#B63B32] sm:text-5xl">{formatCurrency(total, currency, locale)}</p>
         <h2 className="mt-6 text-xl font-medium">{copy.choosePaymentMethod}</h2>
       </div>
-      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+      <div className="mx-auto mt-5 grid max-w-2xl gap-3 sm:grid-cols-2">
         {methods.map((method) => {
           const Icon = method.icon;
           const selected = paymentMethod === method.key;
           return (
             <button type="button" key={method.key} onClick={() => onPaymentMethodChange(method.key)} className={`min-h-36 rounded-2xl border p-4 text-left ${selected ? 'border-[#FF6B5E] bg-[#FF6B5E]/10' : 'border-slate-200 bg-white'}`}>
               <Icon className="h-7 w-7 text-[#B63B32]" />
-              <span className="mt-3 block text-base font-medium">{method.title}</span>
+              <span className="mt-3 flex items-center gap-2 text-base font-medium">
+                {method.title}
+                {method.key === 'card' ? (
+                  <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-amber-800">
+                    {copy.cardTerminalBadge}
+                  </span>
+                ) : null}
+              </span>
               <span className="mt-1 block text-xs leading-5 text-slate-500">{method.description}</span>
             </button>
           );
@@ -508,6 +608,48 @@ function PaymentStep({ copy, currency, locale, paymentMethod, total, onPaymentMe
       <p className="mt-5 rounded-xl bg-amber-50 px-4 py-3 text-center text-xs font-medium text-amber-800">
         {copy.securePayment}
       </p>
+      {error ? <p role="alert" className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-center text-xs font-medium text-red-700">{error}</p> : null}
+    </section>
+  );
+}
+
+function CashHandoffSuccess({ receipt, registerName, currency, locale, onNew }: {
+  receipt: SelfServicePreticketReceipt;
+  registerName: string;
+  currency: string;
+  locale: string;
+  onNew: () => void;
+}) {
+  const { copy } = usePointOfSaleKioskTranslations();
+  return (
+    <section className="grid min-h-full place-items-center px-3 py-6 sm:px-6">
+      <div className="w-full max-w-3xl rounded-3xl border border-emerald-200 bg-white p-6 text-center shadow-sm sm:p-10">
+        <span className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-emerald-50 text-emerald-600 ring-8 ring-emerald-50/60">
+          <CheckCircle2 className="h-11 w-11" />
+        </span>
+        <p className="mt-6 text-sm font-medium text-emerald-700">{copy.selfCheckoutFrame.cashCodeReady}</p>
+        <h1 className="mt-2 text-2xl font-medium sm:text-4xl">{copy.selfCheckoutFrame.showCashCode}</h1>
+        <div className="mx-auto mt-6 max-w-xl rounded-3xl border-2 border-dashed border-[#FF6B5E] bg-[#FF6B5E]/10 px-5 py-8">
+          <p className="font-mono text-[clamp(5rem,20vw,9rem)] font-medium leading-none tracking-[0.08em] text-[#B63B32] tabular-nums">
+            {receipt.claimCode}
+          </p>
+        </div>
+        <div className="mx-auto mt-5 grid max-w-xl grid-cols-2 gap-3 text-left">
+          <div className="rounded-2xl bg-slate-100 p-4">
+            <p className="text-xs text-slate-500">{copy.selfCheckoutFrame.cashRegister}</p>
+            <p className="mt-1 truncate text-base font-medium">{registerName}</p>
+          </div>
+          <div className="rounded-2xl bg-slate-100 p-4">
+            <p className="text-xs text-slate-500">{copy.selfCheckoutFrame.total}</p>
+            <p className="mt-1 text-base font-medium">{formatCurrency(numberValue(receipt.totalAmount), currency, locale)}</p>
+          </div>
+        </div>
+        <p className="mt-5 text-sm leading-6 text-slate-600">{copy.selfCheckoutFrame.cashHandoffInstructions(registerName)}</p>
+        <p className="mt-2 text-xs font-medium text-slate-400">{copy.selfCheckoutFrame.returningToCatalog}</p>
+        <button type="button" onClick={onNew} className="mt-5 min-h-12 rounded-xl border border-slate-300 bg-white px-6 text-sm font-medium text-slate-700">
+          {copy.selfCheckoutFrame.newPurchase}
+        </button>
+      </div>
     </section>
   );
 }

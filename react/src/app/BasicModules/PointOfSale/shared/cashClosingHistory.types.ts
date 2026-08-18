@@ -15,7 +15,15 @@ export interface PosCashClosingSummaryRow {
   id: number;
   shiftId: number;
   cashRegisterId: number;
+  cashRegisterCode?: string | null;
+  cashRegisterName?: string | null;
   warehouseId: number;
+  warehouseName?: string | null;
+  unitId?: number | null;
+  unitName?: string | null;
+  businessId?: number | null;
+  businessName?: string | null;
+  companyName?: string | null;
   openingCashAmount: number | string;
   cashSalesAmount: number | string;
   expectedCashAmount: number | string;
@@ -24,6 +32,7 @@ export interface PosCashClosingSummaryRow {
   totalSalesAmount: number | string;
   ticketsCount: number;
   closedByUserId: number;
+  closedByUserName?: string | null;
   closedAt: string;
   currencyCode?: string | null;
 }

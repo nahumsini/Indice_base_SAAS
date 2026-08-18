@@ -1,6 +1,6 @@
 export const enCA = {
   title: 'Inventory',
-  subtitle: 'Manage products, stock, providers, and operating purchases from one workspace.',
+  subtitle: 'Manage products, stock, providers, purchasing, discounts, and channel availability from one workspace.',
   navLabel: 'Inventory sections',
   loading: {
     openingTitle: 'Loading Inventory',
@@ -14,5 +14,6 @@ export const enCA = {
     warehouses: 'Warehouses',
     providers: 'Providers',
     purchaseOrders: 'Purchase orders',
+    discounts: 'Discounts',
   },
 } as const;

@@ -25,6 +25,10 @@ MINIO_PUBLIC_ENDPOINT ?= http://127.0.0.1:$(MINIO_API_HOST_PORT)
 MINIO_SERVICE_PUBLIC_ENDPOINT ?= http://host.docker.internal:$(MINIO_API_HOST_PORT)
 VITE_BACKEND_URL ?= http://127.0.0.1:8082
 VITE_API_BASE_URL ?=
+LOCAL_DEMO_SEED_ON_DEV ?= true
+LOCAL_DEMO_LOGIN_EMAIL ?= demo@example.com
+LOCAL_DEMO_LOGIN_COMPANY ?= Empresa Demo Spring
+LOCAL_DEMO_LOGIN_PASSWORD ?= demo123
 
 # Local-only kiosk secrets. Production must continue providing its own secrets
 # through the deployment environment.
@@ -40,7 +44,7 @@ export MINIO_CONSOLE_HOST_PORT
 
 .DEFAULT_GOAL := help
 
-.PHONY: help dev up prepare minio-port-check mysql infra db-repair db-reset frontend-install backend frontend ps logs down
+.PHONY: help dev up prepare minio-port-check mysql infra db-repair db-reset restore-local-demo-login seed-local-demo seed-local-pos-kiosk-catalog frontend-install backend frontend ps logs down
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage: make <target>\n\nTargets:\n"} /^[a-zA-Z0-9_.-]+:.*##/ {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -61,8 +65,32 @@ dev: prepare ## Start the full local dev stack
 	APP_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET="$(LOCAL_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET)" \
 	APP_KIOSK_TOKEN_PROTECTION_SECRET="$(LOCAL_KIOSK_TOKEN_PROTECTION_SECRET)" \
 	APP_BILLING_PROVISIONING_ENABLED="$(LOCAL_BILLING_PROVISIONING_ENABLED)" \
+	APP_LOCAL_DEMO_LOGIN_ENABLED="$(LOCAL_DEMO_SEED_ON_DEV)" \
+	APP_LOCAL_DEMO_LOGIN_EMAIL="$(LOCAL_DEMO_LOGIN_EMAIL)" \
+	APP_LOCAL_DEMO_LOGIN_COMPANY_NAME="$(LOCAL_DEMO_LOGIN_COMPANY)" \
+	APP_LOCAL_DEMO_LOGIN_PASSWORD="$(LOCAL_DEMO_LOGIN_PASSWORD)" \
 	./mvnw spring-boot:run -P$(SPRING_PROFILE) \
 		-Dspring-boot.run.jvmArguments="$(LOCAL_BACKEND_JVM_ARGUMENTS)" & backend_pid=$$!; \
+	echo "Waiting for backend readiness before exposing the frontend..."; \
+	backend_ready=""; \
+	for attempt in $$(seq 1 120); do \
+		if ! kill -0 "$$backend_pid" 2>/dev/null; then \
+			wait "$$backend_pid" || status=$$?; \
+			echo "Backend stopped before becoming ready."; \
+			exit "$${status:-1}"; \
+		fi; \
+		if curl --silent --fail --max-time 2 \
+			"http://127.0.0.1:8082/api/v1/auth/csrf" >/dev/null; then \
+			backend_ready="yes"; \
+			break; \
+		fi; \
+		sleep 1; \
+	done; \
+	if [[ "$$backend_ready" != "yes" ]]; then \
+		echo "Backend readiness timed out after 120 seconds."; \
+		exit 1; \
+	fi; \
+	echo "Backend ready. Starting the frontend."; \
 	echo "Starting frontend with Vite on http://$(FRONTEND_HOST):$(FRONTEND_PORT)"; \
 	VITE_BACKEND_URL="$(VITE_BACKEND_URL)" \
 	VITE_API_BASE_URL="$(VITE_API_BASE_URL)" \
@@ -127,6 +155,21 @@ db-repair: ## Repair Flyway metadata without resetting the database
 	MYSQL_ROOT_PASSWORD="$(DB_ROOT_PASSWORD)" \
 	./scripts/db-repair.sh
 
+seed-local-demo: mysql ## Refresh synthetic local demo data and restore its documented password
+	@docker exec -i "$(DB_CONTAINER)" mysql \
+		-u "$(DB_USER)" -p"$(DB_PASSWORD)" -D "$(DB_NAME)" \
+		< scripts/seed-local-demo-data.sql
+
+seed-local-pos-kiosk-catalog: mysql ## Create 10 demo products with stock for POS kiosks
+	@docker exec -i "$(DB_CONTAINER)" mysql \
+		-u "$(DB_USER)" -p"$(DB_PASSWORD)" -D "$(DB_NAME)" \
+		< scripts/seed-local-pos-kiosk-catalog.sql
+
+restore-local-demo-login: mysql ## Restore only the documented local demo credentials
+	@docker exec -i "$(DB_CONTAINER)" mysql \
+		-u "$(DB_USER)" -p"$(DB_PASSWORD)" -D "$(DB_NAME)" \
+		< scripts/restore-local-demo-login.sql
+
 db-reset: ## Destructively reset the local MySQL database
 	@echo "WARNING: this will drop and recreate $(DB_NAME) inside $(DB_CONTAINER)."
 	@CONTAINER_NAME="$(DB_CONTAINER)" \
@@ -146,6 +189,10 @@ backend: ## Run only the Spring Boot backend with the MinIO profile
 	APP_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET="$(LOCAL_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET)" \
 	APP_KIOSK_TOKEN_PROTECTION_SECRET="$(LOCAL_KIOSK_TOKEN_PROTECTION_SECRET)" \
 	APP_BILLING_PROVISIONING_ENABLED="$(LOCAL_BILLING_PROVISIONING_ENABLED)" \
+	APP_LOCAL_DEMO_LOGIN_ENABLED="$(LOCAL_DEMO_SEED_ON_DEV)" \
+	APP_LOCAL_DEMO_LOGIN_EMAIL="$(LOCAL_DEMO_LOGIN_EMAIL)" \
+	APP_LOCAL_DEMO_LOGIN_COMPANY_NAME="$(LOCAL_DEMO_LOGIN_COMPANY)" \
+	APP_LOCAL_DEMO_LOGIN_PASSWORD="$(LOCAL_DEMO_LOGIN_PASSWORD)" \
 	./mvnw spring-boot:run -P$(SPRING_PROFILE) \
 		-Dspring-boot.run.jvmArguments="$(LOCAL_BACKEND_JVM_ARGUMENTS)"
 

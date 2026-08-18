@@ -24,6 +24,16 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 @ExtendWith(MockitoExtension.class)
 class SessionAuthServiceTest {
 
+    @Test
+    void localDemoPasswordHashMatchesDocumentedPassword() {
+        var encoder = new BCryptPasswordEncoder();
+
+        assertTrue(encoder.matches(
+            "demo123",
+            "$2a$12$r4v9ajhCqzMS9en6YqQCuOYnQy.y3GEMpSoaFVfW0i9YvN1ub/8xy"
+        ));
+    }
+
     @Mock
     private JdbcTemplate jdbcTemplate;
 

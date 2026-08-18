@@ -24,10 +24,15 @@ public class KioskRegistryService {
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+    private final KioskPayloadProtectionService payloadProtection;
 
-    public KioskRegistryService(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
+    public KioskRegistryService(
+            JdbcTemplate jdbcTemplate,
+            ObjectMapper objectMapper,
+            KioskPayloadProtectionService payloadProtection) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
+        this.payloadProtection = payloadProtection;
     }
 
     @Transactional
@@ -127,14 +132,24 @@ public class KioskRegistryService {
             long companyId,
             String ownerModule,
             long legacyReferenceId) {
+        return requireByLegacyReference(companyId, ownerModule, null, legacyReferenceId);
+    }
+
+    public KioskResolvedDefinition requireByLegacyReference(
+            long companyId,
+            String ownerModule,
+            String kioskType,
+            long legacyReferenceId) {
+        var typePredicate = kioskType == null ? "" : " AND definition.kiosk_type = ?";
+        var arguments = kioskType == null
+            ? new Object[] { companyId, ownerModule, legacyReferenceId }
+            : new Object[] { companyId, ownerModule, legacyReferenceId, kioskType };
         var definitions = jdbcTemplate.query(
             definitionSelect()
                 + " WHERE definition.company_id = ? AND definition.owner_module = ?"
-                + " AND definition.legacy_reference_id = ? LIMIT 1",
+                + " AND definition.legacy_reference_id = ?" + typePredicate + " LIMIT 1",
             this::mapDefinition,
-            companyId,
-            ownerModule,
-            legacyReferenceId
+            arguments
         );
         if (definitions.isEmpty()) {
             throw new NoSuchElementException("Kiosk definition not found.");
@@ -294,7 +309,8 @@ public class KioskRegistryService {
         var status = fromLegacyStatus(legacyStatus, expiresAt);
         KioskResolvedDefinition previous = null;
         try {
-            previous = requireByLegacyReference(companyId, ownerModule, legacyReferenceId);
+            previous = requireByLegacyReference(
+                companyId, ownerModule, kioskType, legacyReferenceId);
         } catch (NoSuchElementException ignored) {
             // The module row is being registered in the Engine for the first time.
         }
@@ -313,10 +329,11 @@ public class KioskRegistryService {
                     company_id, owner_module, kiosk_type, legacy_reference_id, code, name,
                     status, unit_id, business_id, location_id, access_level,
                     audience, employee_center_enabled, employee_assignment_policy, expires_at,
-                    public_token_hash, public_token_hint, legacy_token_recoverable,
+                    public_token_hash, public_token_hint, protected_public_token,
+                    legacy_token_recoverable,
                     theme_key, default_locale, configuration_version, adapter_version,
                     created_by, updated_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?)
                 ON DUPLICATE KEY UPDATE
                     kiosk_type = VALUES(kiosk_type), code = VALUES(code), name = VALUES(name),
                     status = VALUES(status), unit_id = VALUES(unit_id), business_id = VALUES(business_id)%s,
@@ -329,10 +346,11 @@ public class KioskRegistryService {
             unitId, businessId, locationId, accessLevel.name(),
             employeeCenterDefault(ownerModule, kioskType) ? "EMPLOYEE" : "EXTERNAL",
             employeeCenterDefault(ownerModule, kioskType), "EXPLICIT", timestamp(expiresAt),
-            sha256(publicToken), tokenHint(publicToken),
+            sha256(publicToken), tokenHint(publicToken), payloadProtection.protect(publicToken),
             legacyTokenRecoverable, themeKey, defaultLocale, actorId, actorId
         );
-        var saved = requireByLegacyReference(companyId, ownerModule, legacyReferenceId);
+        var saved = requireByLegacyReference(
+            companyId, ownerModule, kioskType, legacyReferenceId);
         if (previous == null) {
             auditLifecycle(saved, "KIOSK_CREATED", "SUCCEEDED", actorId, null);
             auditLifecycle(saved, "KIOSK_TOKEN_ISSUED", "SUCCEEDED", actorId, null);
@@ -355,21 +373,91 @@ public class KioskRegistryService {
             long legacyReferenceId,
             String publicToken,
             long actorId) {
-        var definition = requireByLegacyReference(companyId, ownerModule, legacyReferenceId);
+        replacePublicToken(
+            companyId, ownerModule, null, legacyReferenceId, publicToken, actorId);
+    }
+
+    @Transactional
+    public void replacePublicToken(
+            long companyId,
+            String ownerModule,
+            String kioskType,
+            long legacyReferenceId,
+            String publicToken,
+            long actorId) {
+        var definition = requireByLegacyReference(
+            companyId, ownerModule, kioskType, legacyReferenceId);
         if (definition.status().terminal()) {
             throw new IllegalStateException("A revoked kiosk cannot rotate its link.");
         }
         jdbcTemplate.update(
             """
                 UPDATE kiosk_definitions
-                SET public_token_hash = ?, public_token_hint = ?, legacy_token_recoverable = 0,
+                SET public_token_hash = ?, public_token_hint = ?, protected_public_token = ?,
+                    legacy_token_recoverable = 0,
                     updated_by = ?, configuration_version = configuration_version + 1
                 WHERE id = ?
                 """,
-            sha256(publicToken), tokenHint(publicToken), actorId, definition.id()
+            sha256(publicToken), tokenHint(publicToken), payloadProtection.protect(publicToken),
+            actorId, definition.id()
         );
         revokeSessions(definition.id());
         auditLifecycle(definition, "KIOSK_TOKEN_ROTATED", "SUCCEEDED", actorId, null);
+    }
+
+    public String recoverPublicToken(
+            long companyId,
+            String ownerModule,
+            long legacyReferenceId) {
+        return recoverPublicToken(companyId, ownerModule, null, legacyReferenceId);
+    }
+
+    public String recoverPublicToken(
+            long companyId,
+            String ownerModule,
+            String kioskType,
+            long legacyReferenceId) {
+        var definition = requireByLegacyReference(
+            companyId, ownerModule, kioskType, legacyReferenceId);
+        var values = jdbcTemplate.query(
+            """
+                SELECT protected_public_token
+                FROM kiosk_definitions
+                WHERE id = ? AND company_id = ? AND owner_module = ?
+                LIMIT 1
+                """,
+            (rs, rowNum) -> rs.getString("protected_public_token"),
+            definition.id(), companyId, ownerModule);
+        if (values.isEmpty() || values.getFirst() == null || values.getFirst().isBlank()) {
+            throw new IllegalStateException(
+                "The current kiosk link is not recoverable. Regenerate access to issue a new link.");
+        }
+        return payloadProtection.reveal(values.getFirst());
+    }
+
+    public boolean publicTokenRecoverable(long companyId, long kioskDefinitionId) {
+        var available = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM kiosk_definitions
+                WHERE id = ? AND company_id = ?
+                  AND protected_public_token IS NOT NULL
+                  AND protected_public_token <> ''
+                """,
+            Integer.class, kioskDefinitionId, companyId);
+        return available != null && available > 0;
+    }
+
+    public void touchPresence(long kioskDefinitionId) {
+        jdbcTemplate.update(
+            """
+                UPDATE kiosk_definitions
+                SET last_seen_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                  AND (last_seen_at IS NULL
+                       OR last_seen_at < CURRENT_TIMESTAMP - INTERVAL 30 SECOND)
+                """,
+            kioskDefinitionId);
     }
 
     @Transactional
@@ -380,7 +468,21 @@ public class KioskRegistryService {
             KioskDefinitionStatus target,
             long actorId,
             String reason) {
-        var definition = requireByLegacyReference(companyId, ownerModule, legacyReferenceId);
+        return transition(
+            companyId, ownerModule, null, legacyReferenceId, target, actorId, reason);
+    }
+
+    @Transactional
+    public KioskResolvedDefinition transition(
+            long companyId,
+            String ownerModule,
+            String kioskType,
+            long legacyReferenceId,
+            KioskDefinitionStatus target,
+            long actorId,
+            String reason) {
+        var definition = requireByLegacyReference(
+            companyId, ownerModule, kioskType, legacyReferenceId);
         requireTransition(definition.status(), target);
         jdbcTemplate.update(
             """
@@ -394,7 +496,8 @@ public class KioskRegistryService {
             revokeSessions(definition.id());
         }
         auditLifecycle(definition, "KIOSK_" + target.name(), "SUCCEEDED", actorId, reason);
-        return requireByLegacyReference(companyId, ownerModule, legacyReferenceId);
+        return requireByLegacyReference(
+            companyId, ownerModule, kioskType, legacyReferenceId);
     }
 
     @Transactional
@@ -481,7 +584,20 @@ public class KioskRegistryService {
             long legacyReferenceId,
             long actorId,
             String reason) {
-        var definition = requireByLegacyReference(companyId, ownerModule, legacyReferenceId);
+        deleteDefinition(
+            companyId, ownerModule, null, legacyReferenceId, actorId, reason);
+    }
+
+    @Transactional
+    public void deleteDefinition(
+            long companyId,
+            String ownerModule,
+            String kioskType,
+            long legacyReferenceId,
+            long actorId,
+            String reason) {
+        var definition = requireByLegacyReference(
+            companyId, ownerModule, kioskType, legacyReferenceId);
         auditLifecycle(definition, "KIOSK_DELETED", "SUCCEEDED", actorId, reason);
         revokeSessions(definition.id());
         jdbcTemplate.update("DELETE FROM kiosk_definitions WHERE id = ?", definition.id());

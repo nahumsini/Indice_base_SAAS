@@ -69,3 +69,11 @@ export interface Payment {
   change?: number;
   creditDetails?: CreditPaymentDetails;
 }
+
+/** Transient tender data mirrored to the paired customer display before a payment is committed. */
+export interface PaymentPreview {
+  method: PaymentMethod;
+  amount: number;
+  cashReceived?: number;
+  change?: number;
+}

@@ -12,7 +12,7 @@ import {
   type CreditRule,
 } from '../../shared/commercial/credit';
 import type { Customer } from '../../shared/commercial/customers';
-import type { CreditPaymentDetails, PaymentMethod } from '../types/sale.types';
+import type { CreditPaymentDetails, PaymentMethod, PaymentPreview } from '../types/sale.types';
 
 interface AddPaymentModalProps {
   isOpen: boolean;
@@ -28,6 +28,7 @@ interface AddPaymentModalProps {
     cashReceived?: number,
     creditDetails?: CreditPaymentDetails,
   ) => void;
+  onPaymentPreviewChange?: (preview: PaymentPreview | null) => void;
 }
 
 export function AddPaymentModal({
@@ -38,7 +39,8 @@ export function AddPaymentModal({
   currency,
   creditRules,
   creditCustomers,
-  onConfirm
+  onConfirm,
+  onPaymentPreviewChange,
 }: AddPaymentModalProps) {
   const [amount, setAmount] = useState('');
   const [reference, setReference] = useState('');
@@ -89,6 +91,20 @@ export function AddPaymentModal({
   };
 
   const amountValue = parseFloat(amount) || 0;
+  const cashReceivedValue = parseFloat(cashReceived) || 0;
+
+  useEffect(() => {
+    if (!isOpen || !paymentMethod) {
+      onPaymentPreviewChange?.(null);
+      return;
+    }
+    onPaymentPreviewChange?.({
+      method: paymentMethod,
+      amount: amountValue,
+      cashReceived: paymentMethod === 'cash' ? cashReceivedValue : undefined,
+      change: paymentMethod === 'cash' ? Math.max(cashReceivedValue - amountValue, 0) : undefined,
+    });
+  }, [amountValue, cashReceivedValue, isOpen, onPaymentPreviewChange, paymentMethod]);
   const selectedCustomer = useMemo(
     () => creditCustomers.find((customer) => customer.id === selectedCustomerId),
     [creditCustomers, selectedCustomerId],

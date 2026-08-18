@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -25,18 +25,46 @@ import freshSandwichImage from '../../../../assets/pos/self-checkout/fresh-sandw
 import naturalWaterImage from '../../../../assets/pos/self-checkout/natural-water.png';
 import orangeJuiceImage from '../../../../assets/pos/self-checkout/orange-juice.png';
 import vanillaIceCreamImage from '../../../../assets/pos/self-checkout/vanilla-ice-cream.png';
+import { usePointOfSaleCatalogProducts } from '../../CommerceCore/usePointOfSaleCatalogProducts';
+import { readStoredDiscountRules } from '../shared/commercial/discounts';
+import { posBackendApi, type PosWarehouseSummary } from '../Sale/services/posBackendApi';
 import { usePointOfSaleKioskTranslations } from './kioskTranslations';
+import { SelfCheckoutSetupWizard, type SelfCheckoutSetupDraft } from './SelfCheckoutSetupWizard';
 
 type SelfCheckoutOrientation = 'horizontal' | 'vertical';
 type SelfCheckoutStep = 'products' | 'cart' | 'payment';
 
-export function SelfCheckoutWorkspace() {
+export function SelfCheckoutWorkspace({ startWithSetup = false }: { startWithSetup?: boolean }) {
   const { copy } = usePointOfSaleKioskTranslations();
+  const { products } = usePointOfSaleCatalogProducts();
   const [orientation, setOrientation] = useState<SelfCheckoutOrientation>('horizontal');
   const [step, setStep] = useState<SelfCheckoutStep>('products');
   const [quantities, setQuantities] = useState([1, 1, 0, 0]);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showSetup, setShowSetup] = useState(startWithSetup);
+  const [preparedDraft, setPreparedDraft] = useState<SelfCheckoutSetupDraft | null>(null);
+  const [warehouses, setWarehouses] = useState<PosWarehouseSummary[]>([]);
+  const [loadingScope, setLoadingScope] = useState(true);
+  const [scopeError, setScopeError] = useState('');
   const previewRef = useRef<HTMLDivElement>(null);
+  const discounts = useMemo(() => readStoredDiscountRules(), []);
+
+  useEffect(() => {
+    let mounted = true;
+    setLoadingScope(true);
+    void posBackendApi.context()
+      .then((context) => {
+        if (!mounted) return;
+        setWarehouses(context.warehouses.filter((warehouse) => String(warehouse.status || 'active').toLowerCase() === 'active'));
+        setScopeError('');
+      })
+      .catch((error) => {
+        if (!mounted) return;
+        setScopeError(error instanceof Error ? error.message : copy.selfCheckoutFrame.scopeLoadError);
+      })
+      .finally(() => mounted && setLoadingScope(false));
+    return () => { mounted = false; };
+  }, [copy.selfCheckoutFrame.scopeLoadError]);
 
   useEffect(() => {
     const handleFullscreenChange = () => setIsFullscreen(document.fullscreenElement === previewRef.current);
@@ -92,7 +120,17 @@ export function SelfCheckoutWorkspace() {
             </p>
           </div>
         </div>
+        <button type="button" onClick={() => setShowSetup(true)} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#FF6B5E] px-4 text-sm font-medium text-[#222831] shadow-sm transition hover:bg-[#F45D50]">
+          <Plus className="h-4 w-4" />{copy.selfCheckoutSetup.openSetup}
+        </button>
       </div>
+
+      {preparedDraft ? (
+        <div role="status" className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+          <div><p className="text-sm font-medium">{copy.selfCheckoutSetup.preparedTitle}</p><p className="mt-1 text-xs leading-5">{copy.selfCheckoutSetup.preparedDescription}</p></div>
+        </div>
+      ) : null}
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
         <div>
@@ -233,6 +271,17 @@ export function SelfCheckoutWorkspace() {
           </div>
         </aside>
       </div>
+      {showSetup ? (
+        <SelfCheckoutSetupWizard
+          warehouses={warehouses}
+          products={products}
+          discounts={discounts}
+          loadingScope={loadingScope}
+          scopeError={scopeError}
+          onClose={() => setShowSetup(false)}
+          onComplete={(draft) => { setPreparedDraft(draft); setShowSetup(false); }}
+        />
+      ) : null}
     </section>
   );
 }
@@ -587,7 +636,6 @@ function PreviewPayment({ copy, subtotal, tax, total }: {
   const methods = [
     { icon: CreditCard, label: copy.cardPayment, description: copy.cardPaymentDescription },
     { icon: Banknote, label: copy.cashPayment, description: copy.cashPaymentDescription },
-    { icon: BadgeDollarSign, label: copy.transferPayment, description: copy.transferPaymentDescription },
   ];
 
   return (
@@ -601,7 +649,7 @@ function PreviewPayment({ copy, subtotal, tax, total }: {
         </div>
       </div>
       <p className="mt-5 text-sm font-medium text-slate-950 dark:text-white">{copy.choosePaymentMethod}</p>
-      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
         {methods.map(({ icon: Icon, label, description }, index) => (
           <button
             key={label}

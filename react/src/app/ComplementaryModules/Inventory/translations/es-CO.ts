@@ -1,6 +1,6 @@
 export const esCO = {
   title: 'Inventarios',
-  subtitle: 'Gestiona productos, inventario, proveedores y compras operativas desde un solo espacio.',
+  subtitle: 'Gestiona productos, inventario, proveedores, compras, descuentos y disponibilidad por canal desde un solo espacio.',
   navLabel: 'Secciones de inventarios',
   loading: {
     openingTitle: 'Cargando inventarios',
@@ -14,5 +14,6 @@ export const esCO = {
     warehouses: 'Almacenes',
     providers: 'Proveedores',
     purchaseOrders: 'Órdenes de compra',
+    discounts: 'Descuentos',
   },
 } as const;

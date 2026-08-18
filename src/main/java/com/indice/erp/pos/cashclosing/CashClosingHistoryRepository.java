@@ -38,12 +38,26 @@ public class CashClosingHistoryRepository {
         params.add(filter.limit());
         params.add(filter.offset());
         return jdbcTemplate.query("""
-            SELECT closing.id, closing.shift_id, closing.cash_register_id, closing.warehouse_id,
+            SELECT closing.id, closing.shift_id, closing.cash_register_id,
+                   register.code AS cash_register_code, register.name AS cash_register_name,
+                   closing.warehouse_id, warehouse.name AS warehouse_name,
+                   closing.unit_id, unit.name AS unit_name,
+                   closing.business_id, business.name AS business_name,
+                   company.name AS company_name,
                    closing.opening_cash_amount, closing.cash_sales_amount, closing.expected_cash_amount,
                    closing.counted_cash_amount, closing.over_short_amount, closing.total_sales_amount,
-                   closing.tickets_count, closing.closed_by_user_id, shift.currency_code, closing.closed_at
+                   closing.tickets_count, closing.closed_by_user_id,
+                   COALESCE(NULLIF(TRIM(closed_by.full_name), ''), closed_by.email) AS closed_by_user_name,
+                   shift.currency_code, closing.closed_at
             FROM pos_cash_closings closing
             JOIN pos_shifts shift ON shift.id = closing.shift_id
+            JOIN pos_cash_registers register ON register.id = closing.cash_register_id
+            JOIN sales_inventory_warehouses warehouse ON warehouse.id = closing.warehouse_id
+            LEFT JOIN units unit ON unit.id = closing.unit_id AND unit.company_id = closing.company_id
+            LEFT JOIN businesses business ON business.id = closing.business_id
+              AND business.company_id = closing.company_id
+            JOIN companies company ON company.id = closing.company_id
+            JOIN users closed_by ON closed_by.id = closing.closed_by_user_id
             """ + where + """
             ORDER BY closing.closed_at DESC, closing.id DESC
             LIMIT ? OFFSET ?
@@ -108,11 +122,15 @@ public class CashClosingHistoryRepository {
     private CashClosingSummaryRow mapSummaryRow(ResultSet rs, int rowNum) throws SQLException {
         return new CashClosingSummaryRow(
             rs.getLong("id"), rs.getLong("shift_id"), rs.getLong("cash_register_id"),
-            rs.getLong("warehouse_id"), rs.getBigDecimal("opening_cash_amount"),
+            rs.getString("cash_register_code"), rs.getString("cash_register_name"),
+            rs.getLong("warehouse_id"), rs.getString("warehouse_name"),
+            PosSqlSupport.nullableLong(rs, "unit_id"), rs.getString("unit_name"),
+            PosSqlSupport.nullableLong(rs, "business_id"), rs.getString("business_name"),
+            rs.getString("company_name"), rs.getBigDecimal("opening_cash_amount"),
             rs.getBigDecimal("cash_sales_amount"), rs.getBigDecimal("expected_cash_amount"),
             rs.getBigDecimal("counted_cash_amount"), rs.getBigDecimal("over_short_amount"),
             rs.getBigDecimal("total_sales_amount"), rs.getInt("tickets_count"),
-            rs.getLong("closed_by_user_id"), rs.getString("currency_code"),
+            rs.getLong("closed_by_user_id"), rs.getString("closed_by_user_name"), rs.getString("currency_code"),
             PosSqlSupport.instant(rs, "closed_at")
         );
     }

@@ -1,6 +1,6 @@
 import { createLearningModeControl, type LearningModeControl } from '../../../learningMode';
 
-export type InventoryLearningTabId = 'products' | 'inventory' | 'warehouses' | 'providers' | 'purchase-orders';
+export type InventoryLearningTabId = 'products' | 'inventory' | 'warehouses' | 'providers' | 'purchase-orders' | 'discounts';
 
 const control = createLearningModeControl;
 
@@ -10,6 +10,7 @@ export const inventoryLearningLabels: Record<InventoryLearningTabId, string> = {
   warehouses: 'Almacenes',
   providers: 'Proveedores',
   'purchase-orders': 'Órdenes de compra',
+  discounts: 'Descuentos y promociones',
 };
 
 export const inventoryLearningControls: Record<InventoryLearningTabId, readonly LearningModeControl[]> = {
@@ -224,6 +225,47 @@ export const inventoryLearningControls: Record<InventoryLearningTabId, readonly 
         emily: 'Emily filtra órdenes atrasadas y sabe qué cafeterías podrían quedarse sin insumos.',
         juanito: 'Juanito abre una orden y reconcilia pedido, recepción y factura antes de autorizar pago.',
         camila: 'Camila encuentra órdenes con piezas pendientes y da una respuesta concreta al mostrador.',
+      },
+    }),
+  ],
+  discounts: [
+    control({
+      id: 'inventory-discount-create', emoji: '🏷️', kind: 'Política comercial de producto', title: 'Crear descuento o promoción',
+      purpose: 'Define desde el catálogo qué productos, categorías o clientes reciben una condición comercial.',
+      behavior: 'Configura valor, vigencia, alcance, prioridad y autorización antes de publicar la regla a los canales de venta.',
+      whenToUse: 'Úsalo antes de habilitar una promoción para POS, Ventas, catálogo público o kioscos.',
+      result: 'Una sola regla gobierna todos los canales sin permitir que cada terminal invente descuentos.',
+      focus: 'la política comercial asociada al producto',
+      stories: {
+        emily: 'Emily crea una promoción para bebidas seleccionadas y decide en qué cafeterías y canales estará disponible.',
+        juanito: 'Juanito revisa costo y margen antes de publicar el descuento para POS y Ventas.',
+        camila: 'Camila habilita una condición para familias de refacciones sin configurarla caja por caja.',
+      },
+    }),
+    control({
+      id: 'inventory-discount-channels', emoji: '📡', kind: 'Publicación por canal', title: 'Habilitar en POS, Ventas y kioscos',
+      purpose: 'Controla qué canales pueden consultar y aplicar cada regla aprobada.',
+      behavior: 'Publica la misma definición comercial con alcance por empresa, unidad, negocio, almacén y canal.',
+      whenToUse: 'Úsalo cuando una promoción no deba operar igual en mostrador, venta asistida o autoservicio.',
+      result: 'POS y Ventas consumen reglas vigentes sin administrar copias independientes.',
+      focus: 'la distribución controlada de promociones',
+      stories: {
+        emily: 'Emily publica una promoción en POS y self-checkout, pero no en pedidos corporativos.',
+        juanito: 'Juanito activa una regla para tiendas concretas y evita diferencias de precio entre terminales.',
+        camila: 'Camila permite el descuento en venta asistida y exige autorización cuando se solicita desde mostrador.',
+      },
+    }),
+    control({
+      id: 'inventory-discount-governance', emoji: '🛡️', kind: 'Vigencia y autorización', title: 'Controlar margen, combinación y aprobación',
+      purpose: 'Protege el margen al definir límites, reglas combinables y responsables de autorización.',
+      behavior: 'Valida la regla contra precio, costo y otras promociones antes de permitir su uso operativo.',
+      whenToUse: 'Úsalo para descuentos manuales, promociones acumulables o condiciones especiales de cliente.',
+      result: 'Los canales aplican solamente condiciones vigentes y autorizadas.',
+      focus: 'la protección del margen y la trazabilidad',
+      stories: {
+        emily: 'Emily impide combinar dos promociones que dejarían una bebida por debajo del margen permitido.',
+        juanito: 'Juanito exige aprobación para excepciones y conserva quién autorizó cada aplicación.',
+        camila: 'Camila establece un máximo por familia y deja de autorizar descuentos por mensajes informales.',
       },
     }),
   ],

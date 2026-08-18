@@ -47,9 +47,22 @@ public class CashRegisterRepository {
         return jdbcTemplate.query(baseSelect() + """
             WHERE register.company_id = ? AND register.warehouse_id = ? AND register.deleted_at IS NULL
               AND register.is_active = TRUE AND register.status = 'ACTIVE'
-              AND """ + PosSqlSupport.scopePredicate("register", context.scope()) + """
+              AND """ + warehouseScopePredicate(context) + """
             ORDER BY register.id ASC LIMIT 1
             """, mapper::mapRow, params.toArray()).stream().findFirst();
+    }
+
+    public boolean synchronizeScopeFromWarehouse(
+            PosContext context,
+            long registerId,
+            WarehouseSummary warehouse) {
+        return jdbcTemplate.update("""
+            UPDATE pos_cash_registers
+            SET unit_id = ?, business_id = ?, updated_by_user_id = ?, version = version + 1
+            WHERE company_id = ? AND id = ? AND warehouse_id = ? AND deleted_at IS NULL
+            """,
+            warehouse.unitId(), warehouse.businessId(), context.userId(), context.companyId(),
+            registerId, warehouse.id()) > 0;
     }
 
     public Optional<WarehouseSummary> findWarehouse(PosContext context, long warehouseId) {
@@ -57,6 +70,7 @@ public class CashRegisterRepository {
         params.add(1, warehouseId);
         return jdbcTemplate.query(warehouseSelect() + """
             WHERE warehouse.company_id = ? AND warehouse.id = ? AND warehouse.deleted_at IS NULL
+              AND LOWER(COALESCE(warehouse.status, 'active')) = 'active'
               AND """ + warehouseScopePredicate(context),
             this::mapWarehouse, params.toArray()).stream().findFirst();
     }
@@ -165,8 +179,22 @@ public class CashRegisterRepository {
 
     private String warehouseSelect() {
         return """
-            SELECT id, warehouse_code, name, business_unit_id, business_unit_name, business_id, business_name, status
+            SELECT warehouse.id, warehouse.warehouse_code, warehouse.name,
+                   CAST(warehouse.business_unit_id AS UNSIGNED) AS business_unit_id,
+                   unit.name AS business_unit_name,
+                   CAST(warehouse.business_id AS UNSIGNED) AS business_id,
+                   business.name AS business_name,
+                   warehouse.status
             FROM sales_inventory_warehouses warehouse
+            JOIN units unit
+              ON unit.id = CAST(warehouse.business_unit_id AS UNSIGNED)
+             AND (unit.company_id = warehouse.company_id OR unit.company_id IS NULL)
+             AND (unit.status = 'active' OR unit.status IS NULL OR unit.status = '')
+            JOIN businesses business
+              ON business.id = CAST(warehouse.business_id AS UNSIGNED)
+             AND business.unit_id = unit.id
+             AND (business.company_id = warehouse.company_id OR business.company_id IS NULL)
+             AND (business.status = 'active' OR business.status IS NULL OR business.status = '')
             """;
     }
 

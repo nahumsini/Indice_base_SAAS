@@ -15,6 +15,7 @@ public final class PointOfSaleKioskCapabilities {
     public static final String CUSTOMER_DISPLAY_PAIR = "pos.customer-display.pair";
     public static final String CUSTOMER_DISPLAY_STATE_READ = "pos.customer-display.state.read";
     public static final String SELF_SERVICE_TYPE = "self_service";
+    public static final String SELF_CHECKOUT_TYPE = "self_checkout";
     public static final String SELF_SERVICE_CATALOG_READ = "pos.self-service.catalog.read";
     public static final String SELF_SERVICE_PRETICKET_CREATE = "pos.self-service.preticket.create";
 

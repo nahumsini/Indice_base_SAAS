@@ -1,6 +1,6 @@
 export const enCA = {
   title: 'Point of Sale',
-  subtitle: 'Run counter sales, billing, cash closings, customers, discounts, and operational KPIs.',
+  subtitle: 'Run counter sales, tickets, cash closings, customers, kiosks, and operational KPIs.',
   back: 'Back',
   navLabel: 'Point of sale sections',
   loading: {
@@ -13,8 +13,6 @@ export const enCA = {
     sale: 'Sale',
     cortes: 'Cash closings',
     clientes: 'Customers',
-    facturacion: 'Billing',
-    descuentos: 'Discounts',
     kpis: 'KPIs',
     kiosks: 'Kiosks',
     cajas: 'Registers',

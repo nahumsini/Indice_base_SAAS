@@ -93,6 +93,45 @@ public class CustomerDisplayRepository {
         return count != null && count > 0;
     }
 
+    public boolean hasOperationalRegisterAssignment(
+            long companyId,
+            long cashRegisterId,
+            Long unitId,
+            Long businessId,
+            long warehouseId) {
+        if (unitId == null || businessId == null) {
+            return false;
+        }
+        var count = jdbcTemplate.queryForObject("""
+            SELECT COUNT(*)
+            FROM pos_cash_registers register
+            JOIN sales_inventory_warehouses warehouse
+              ON warehouse.id = register.warehouse_id
+             AND warehouse.company_id = register.company_id
+             AND warehouse.deleted_at IS NULL
+            JOIN units unit
+              ON unit.id = register.unit_id
+             AND (unit.company_id = register.company_id OR unit.company_id IS NULL)
+             AND LOWER(COALESCE(unit.status, 'active')) = 'active'
+            JOIN businesses business
+              ON business.id = register.business_id
+             AND business.unit_id = unit.id
+             AND (business.company_id = register.company_id OR business.company_id IS NULL)
+             AND LOWER(COALESCE(business.status, 'active')) = 'active'
+            WHERE register.company_id = ? AND register.id = ?
+              AND register.deleted_at IS NULL
+              AND register.is_active = 1
+              AND UPPER(register.status) = 'ACTIVE'
+              AND register.unit_id = ? AND register.business_id = ?
+              AND register.warehouse_id = ?
+              AND LOWER(COALESCE(warehouse.status, 'active')) = 'active'
+              AND TRIM(warehouse.business_unit_id) = CAST(? AS CHAR)
+              AND TRIM(warehouse.business_id) = CAST(? AS CHAR)
+            """, Long.class, companyId, cashRegisterId, unitId, businessId,
+            warehouseId, unitId, businessId);
+        return count != null && count > 0;
+    }
+
     public CustomerDisplayDeviceRecord insertDevice(
             long companyId,
             Long unitId,
@@ -218,6 +257,24 @@ public class CustomerDisplayRepository {
             SET name = ?, updated_by_user_id = ?, version = version + 1
             WHERE company_id = ? AND id = ? AND deleted_at IS NULL
             """, name, userId, companyId, deviceId);
+    }
+
+    public void replaceDeviceToken(
+            long companyId,
+            long deviceId,
+            String protectedToken,
+            String tokenHash,
+            String tokenHint,
+            long userId) {
+        jdbcTemplate.update(
+            """
+                UPDATE pos_customer_display_devices
+                SET device_token = ?, device_token_hash = ?, device_token_hint = ?,
+                    updated_by_user_id = ?, version = version + 1
+                WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+                  AND status <> 'REVOKED'
+                """,
+            protectedToken, tokenHash, tokenHint, userId, companyId, deviceId);
     }
 
     public void delete(long companyId, long deviceId) {

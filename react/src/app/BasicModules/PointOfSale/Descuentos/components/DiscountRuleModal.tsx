@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { BadgePercent, CheckCircle } from 'lucide-react';
-import type { DiscountRule, DiscountRuleStatus, DiscountScope, DiscountType } from '../../shared/commercial/discounts';
+import type { DiscountChannel, DiscountRule, DiscountRuleStatus, DiscountScope, DiscountType } from '../../shared/commercial/discounts';
 import {
   PosModalFrame,
   posModalModuleFooterClassName,
@@ -40,6 +40,13 @@ const scopeLabels: Record<DiscountScope, string> = {
 const discountTypeLabels: Record<DiscountType, string> = {
   percentage: 'Porcentaje',
   fixedAmount: 'Monto fijo',
+};
+
+const channelLabels: Record<DiscountChannel, string> = {
+  pos: 'Punto de venta',
+  sales: 'Ventas',
+  kiosk: 'Kioscos',
+  publicCatalog: 'Catálogo público',
 };
 
 const toDateInputValue = (date: Date) => date.toISOString().slice(0, 10);
@@ -90,6 +97,11 @@ export function DiscountRuleModal({
       return;
     }
 
+    if (draft.enabledChannels.length === 0) {
+      setError('Habilita al menos un canal comercial.');
+      return;
+    }
+
     if (draft.scope === 'product' && !draft.productId) {
       setError('Selecciona el producto al que aplica la regla.');
       return;
@@ -107,11 +119,11 @@ export function DiscountRuleModal({
     <PosModalFrame
       modalType="standard-form"
       closeLabel="Cerrar regla de descuento"
-      eyebrow="Descuentos POS"
+      eyebrow="Política comercial de productos"
       icon={<BadgePercent className="h-6 w-6" />}
       onClose={onClose}
       size="md"
-      subtitle="Define alcance, vigencia y control operativo para POS."
+      subtitle="Define alcance, vigencia y los canales autorizados para consumir la regla."
       title={draft.id.startsWith('new') ? 'Nueva regla de descuento' : 'Editar regla de descuento'}
       tone="coral"
       footerClassName={posModalModuleFooterClassName}
@@ -189,6 +201,24 @@ export function DiscountRuleModal({
             </select>
           </Field>
         </div>
+
+        <section>
+          <p className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">Canales habilitados</p>
+          <div className="grid gap-3 md:grid-cols-2">
+            {(Object.entries(channelLabels) as Array<[DiscountChannel, string]>).map(([channel, label]) => (
+              <Toggle
+                key={channel}
+                checked={draft.enabledChannels.includes(channel)}
+                label={label}
+                onChange={(checked) => updateDraft({
+                  enabledChannels: checked
+                    ? Array.from(new Set([...draft.enabledChannels, channel]))
+                    : draft.enabledChannels.filter((candidate) => candidate !== channel),
+                })}
+              />
+            ))}
+          </div>
+        </section>
 
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="Producto">

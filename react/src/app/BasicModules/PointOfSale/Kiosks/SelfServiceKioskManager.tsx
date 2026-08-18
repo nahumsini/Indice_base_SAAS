@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Copy, ExternalLink, Link2, Pencil, Plus, Power, QrCode, RefreshCw, ShieldOff, Store, Trash2 } from 'lucide-react';
 import {
   PosModalFrame,
@@ -43,7 +43,7 @@ const toLocalDateTimeInput = (value?: string | null) => {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 };
 
-export function SelfServiceKioskManager() {
+export function SelfServiceKioskManager({ startWithSetup = false, startEditingId = null }: { startWithSetup?: boolean; startEditingId?: number | null }) {
   const { copy } = usePointOfSaleKioskTranslations();
   const [items, setItems] = useState<SelfServiceKioskAdmin[]>([]);
   const [registers, setRegisters] = useState<PosCashRegisterOption[]>([]);
@@ -56,6 +56,8 @@ export function SelfServiceKioskManager() {
   const [actionReason, setActionReason] = useState('');
   const [actionBusy, setActionBusy] = useState(false);
   const [error, setError] = useState('');
+  const openedInitialSetup = useRef(false);
+  const openedInitialEdit = useRef(false);
 
   const reload = async () => {
     setLoading(true);
@@ -84,6 +86,12 @@ export function SelfServiceKioskManager() {
     setEditing('new');
   };
 
+  useEffect(() => {
+    if (!startWithSetup || loading || registers.length === 0 || openedInitialSetup.current) return;
+    openedInitialSetup.current = true;
+    openCreate();
+  }, [loading, registers, startWithSetup]);
+
   const openEdit = (kiosk: SelfServiceKioskAdmin) => {
     setForm({
       cashRegisterId: String(kiosk.cashRegisterId),
@@ -96,6 +104,14 @@ export function SelfServiceKioskManager() {
     });
     setEditing(kiosk);
   };
+
+  useEffect(() => {
+    if (!startEditingId || loading || openedInitialEdit.current) return;
+    const kiosk = items.find((item) => item.id === startEditingId);
+    if (!kiosk) return;
+    openedInitialEdit.current = true;
+    openEdit(kiosk);
+  }, [items, loading, startEditingId]);
 
   const save = async () => {
     const cashRegisterId = Number(form.cashRegisterId);

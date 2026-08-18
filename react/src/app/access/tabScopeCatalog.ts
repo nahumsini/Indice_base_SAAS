@@ -70,8 +70,6 @@ export const MODULE_TAB_SCOPE_CATALOG: Partial<Record<PageId, TabScopeDefinition
       sale: 'sale',
       cortes: 'cortes',
       clientes: 'clientes',
-      facturacion: 'facturacion',
-      descuentos: 'descuentos',
       kpis: 'kpis',
       kiosks: 'kiosks',
       cajas: 'cajas',
@@ -85,6 +83,7 @@ export const MODULE_TAB_SCOPE_CATALOG: Partial<Record<PageId, TabScopeDefinition
       warehouses: 'inventory',
       providers: 'providers',
       'purchase-orders': 'purchase-orders',
+      discounts: 'products',
     },
   },
   receivables: {

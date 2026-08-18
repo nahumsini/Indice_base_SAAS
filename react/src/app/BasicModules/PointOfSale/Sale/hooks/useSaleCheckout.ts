@@ -110,7 +110,7 @@ export function useSaleCheckout({
     }
 
     if (isBackendUnsupportedPayment(method)) {
-      setCheckoutNotice('Las ventas a credito se convierten desde Facturacion o Sales en el modulo de Cartera.');
+      setCheckoutNotice('Las ventas a credito se administran desde el modulo de Cartera.');
       return;
     }
 
@@ -318,7 +318,7 @@ export function useSaleCheckout({
       if (syncResults.some((result) => result.status === 'rejected')) {
         console.warn('[POS] Checkout saved, but post-checkout data sync failed.', syncResults);
         setCheckoutNotice(
-          `Venta ${saleNumber} guardada. Actualiza la vista si no ves facturacion o inventario al momento.`,
+          `Venta ${saleNumber} guardada. Actualiza la vista si no ves el comprobante comercial o el movimiento de inventario al momento.`,
         );
       }
 

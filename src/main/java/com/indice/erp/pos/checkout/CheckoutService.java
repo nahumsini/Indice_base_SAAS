@@ -72,9 +72,9 @@ public class CheckoutService {
     @Transactional
     public PosCheckoutResponse checkout(PosContext context, PosCheckoutRequest request) {
         validator.validateRequest(request);
-        var register = cashRegisterService.requireRegister(context, request.cashRegisterId());
+        var register = cashRegisterService.requireOperationalRegister(context, request.cashRegisterId());
         var shift = shiftRepository.findOpenByUserAndRegister(context, register.id()).orElse(null);
-        validator.requireOpenShift(context, shift, register.id());
+        validator.requireOpenShift(context, shift, register);
 
         var currency = CheckoutCalculator.normalizeCurrency(request.currencyCode());
         requireShiftCurrency(shift, currency);

@@ -1,6 +1,6 @@
 export const ptBR = {
   title: 'Inventários',
-  subtitle: 'Gerencie produtos, estoque, fornecedores e compras operacionais em um único espaço.',
+  subtitle: 'Gerencie produtos, estoque, fornecedores, compras, descontos e disponibilidade por canal em um único espaço.',
   navLabel: 'Seções de inventário',
   loading: {
     openingTitle: 'Carregando inventários',
@@ -14,5 +14,6 @@ export const ptBR = {
     warehouses: 'Armazéns',
     providers: 'Fornecedores',
     purchaseOrders: 'Ordens de compra',
+    discounts: 'Descontos',
   },
 } as const;

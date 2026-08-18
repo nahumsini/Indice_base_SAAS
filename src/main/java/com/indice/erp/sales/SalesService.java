@@ -135,7 +135,14 @@ public class SalesService {
     @Transactional
     public Map<String, Object> update(long companyId, long userId, String collection, long id, Map<String, Object> payload) {
         var definition = definition(collection);
-        var normalizedPayload = normalizeBeforeSave(companyId, collection, payload);
+        var updatePayload = payload;
+        if ("inventory-warehouses".equals(collection) || "inventory-balances".equals(collection)) {
+            updatePayload = new LinkedHashMap<>(get(companyId, collection, id));
+            if (payload != null) {
+                updatePayload.putAll(payload);
+            }
+        }
+        var normalizedPayload = normalizeBeforeSave(companyId, collection, updatePayload);
         if ("sales".equals(collection)) {
             removeClientCommissionCalculation(normalizedPayload);
             if (commissionInputsChanged(payload)) {
@@ -502,7 +509,23 @@ public class SalesService {
         if ("products".equals(collection)) {
             removeEmbeddedProductImages(normalized);
         }
+        if ("inventory-balances".equals(collection)) {
+            inheritInventoryBalanceWarehouseScope(companyId, normalized);
+        }
         return normalized;
+    }
+
+    private void inheritInventoryBalanceWarehouseScope(long companyId, Map<String, Object> payload) {
+        var warehouseId = SalesPayloadSupport.longValue(payload, "warehouseId");
+        if (warehouseId == null) {
+            return;
+        }
+        var warehouse = salesRepository.get(companyId, definition("inventory-warehouses"), warehouseId);
+        payload.put("warehouseName", warehouse.get("name"));
+        payload.put("businessUnitId", warehouse.get("businessUnitId"));
+        payload.put("businessUnitName", warehouse.get("businessUnitName"));
+        payload.put("businessId", warehouse.get("businessId"));
+        payload.put("businessName", warehouse.get("businessName"));
     }
 
     private void removeEmbeddedProductImages(Map<String, Object> payload) {

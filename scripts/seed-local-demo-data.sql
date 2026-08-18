@@ -22,6 +22,58 @@ CALL assert_local_seed_database()//
 DROP PROCEDURE assert_local_seed_database//
 DELIMITER ;
 
+-- Long-lived local databases can predate the avatar object-storage columns.
+-- Repair this small compatibility gap before the seed references them. The
+-- production schema is still owned by Flyway; this guard only makes the local
+-- demo seed recoverable when an older database was retained.
+SET @has_avatar_object_key = (
+  SELECT COUNT(*)
+  FROM information_schema.columns
+  WHERE table_schema = DATABASE()
+    AND table_name = 'user_profiles'
+    AND column_name = 'avatar_object_key'
+);
+SET @seed_schema_sql = IF(
+  @has_avatar_object_key = 0,
+  'ALTER TABLE `user_profiles` ADD COLUMN `avatar_object_key` varchar(512) DEFAULT NULL',
+  'SELECT 1'
+);
+PREPARE seed_schema_stmt FROM @seed_schema_sql;
+EXECUTE seed_schema_stmt;
+DEALLOCATE PREPARE seed_schema_stmt;
+
+SET @has_avatar_content_type = (
+  SELECT COUNT(*)
+  FROM information_schema.columns
+  WHERE table_schema = DATABASE()
+    AND table_name = 'user_profiles'
+    AND column_name = 'avatar_content_type'
+);
+SET @seed_schema_sql = IF(
+  @has_avatar_content_type = 0,
+  'ALTER TABLE `user_profiles` ADD COLUMN `avatar_content_type` varchar(100) DEFAULT NULL',
+  'SELECT 1'
+);
+PREPARE seed_schema_stmt FROM @seed_schema_sql;
+EXECUTE seed_schema_stmt;
+DEALLOCATE PREPARE seed_schema_stmt;
+
+SET @has_avatar_updated_at = (
+  SELECT COUNT(*)
+  FROM information_schema.columns
+  WHERE table_schema = DATABASE()
+    AND table_name = 'user_profiles'
+    AND column_name = 'avatar_updated_at'
+);
+SET @seed_schema_sql = IF(
+  @has_avatar_updated_at = 0,
+  'ALTER TABLE `user_profiles` ADD COLUMN `avatar_updated_at` datetime DEFAULT NULL',
+  'SELECT 1'
+);
+PREPARE seed_schema_stmt FROM @seed_schema_sql;
+EXECUTE seed_schema_stmt;
+DEALLOCATE PREPARE seed_schema_stmt;
+
 SET @seed_password_hash = '$2y$12$4s7mj2iDLKOSDtJY9Zz5qukpJvNLtWAF87NhuEEF7kxuEH6G1r3ge';
 
 DROP TEMPORARY TABLE IF EXISTS tmp_local_seed_companies;
@@ -94,6 +146,7 @@ INSERT INTO users (email, password_hash, full_name)
 SELECT p.email, @seed_password_hash, p.full_name
 FROM tmp_local_seed_people p
 ON DUPLICATE KEY UPDATE
+  password_hash = VALUES(password_hash),
   full_name = VALUES(full_name),
   updated_at = CURRENT_TIMESTAMP;
 

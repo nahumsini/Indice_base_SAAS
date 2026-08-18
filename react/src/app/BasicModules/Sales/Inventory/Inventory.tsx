@@ -4,7 +4,6 @@ import { useSalesCrm } from '../salesCrmContext';
 import { financeReferenceDataService, providersService } from '../../Expenses/services';
 import type { ProviderRecord } from '../../Expenses/Providers/useProveedoresLogic';
 import type { FinanceReferenceUser } from '../../Expenses/types/finance-reference.types';
-import { inventoryBusinesses, inventoryBusinessUnits } from './mocks/inventoryBusinessStructureMocks';
 import { InventoryColumnsModal } from './components/InventoryColumnsModal';
 import { InventoryFilters } from './components/InventoryFilters';
 import { InventoryHeader } from './components/InventoryHeader';
@@ -35,6 +34,8 @@ import type {
   InventoryOperationalMovement,
   InventoryOperationalMovementFiltersState,
   InventoryOperationalView,
+  InventoryBusiness,
+  InventoryBusinessUnit,
   InventoryMovementEntryType,
   InventoryStockRow,
   InventoryWarehouse,
@@ -69,6 +70,8 @@ export default function Inventory({ warehouseManagementMode = false }: { warehou
   const [activeView, setActiveView] = useState<InventoryOperationalView>('stock');
   const [movementViewMode, setMovementViewMode] = useState<'table' | 'kanban'>('table');
   const [warehouses, setWarehouses] = useState<InventoryWarehouse[]>(initialInventoryWarehouses);
+  const [businessUnits, setBusinessUnits] = useState<InventoryBusinessUnit[]>([]);
+  const [businesses, setBusinesses] = useState<InventoryBusiness[]>([]);
   const [providers, setProviders] = useState<ProviderRecord[]>([]);
   const [referenceUsers, setReferenceUsers] = useState<FinanceReferenceUser[]>([]);
   const [stockRows, setStockRows] = useState<InventoryStockRow[]>(() => buildInventoryStockRows(products));
@@ -93,6 +96,8 @@ export default function Inventory({ warehouseManagementMode = false }: { warehou
       .then((workspace) => {
         if (!isMounted) return;
         setWarehouses(workspace.warehouses);
+        setBusinessUnits(workspace.businessUnits);
+        setBusinesses(workspace.businesses);
         setStockRows(workspace.stockRows);
         setMovements(workspace.movements);
       })
@@ -181,11 +186,16 @@ export default function Inventory({ warehouseManagementMode = false }: { warehou
       || row.distributions.some((distribution) => distribution.warehouseId === stockFilters.warehouseId);
     const matchesCategory = stockFilters.category === 'all' || row.category === stockFilters.category;
     const matchesType = stockFilters.itemType === 'all' || row.type === stockFilters.itemType;
-    const matchesUnit = stockFilters.businessUnitId === 'all' || row.businessUnitId === stockFilters.businessUnitId;
-    const matchesBusiness = stockFilters.businessId === 'all' || row.businessId === stockFilters.businessId;
+    const distributionWarehouses = row.distributions
+      .map((distribution) => warehouses.find((warehouse) => warehouse.id === distribution.warehouseId))
+      .filter((warehouse): warehouse is InventoryWarehouse => Boolean(warehouse));
+    const matchesUnit = stockFilters.businessUnitId === 'all'
+      || distributionWarehouses.some((warehouse) => warehouse.businessUnitId === stockFilters.businessUnitId);
+    const matchesBusiness = stockFilters.businessId === 'all'
+      || distributionWarehouses.some((warehouse) => warehouse.businessId === stockFilters.businessId);
     const matchesTracking = stockFilters.tracking === 'all' || (stockFilters.tracking === 'tracked' ? row.usesInventory : !row.usesInventory);
     return matchesSearch && matchesWarehouse && matchesCategory && matchesType && matchesUnit && matchesBusiness && matchesTracking;
-  }), [stockFilters, stockRows]);
+  }), [stockFilters, stockRows, warehouses]);
 
   const categoryOptions = useMemo(() => Array.from(new Set(
     stockRows.map((row) => row.category).filter(Boolean),
@@ -330,6 +340,19 @@ export default function Inventory({ warehouseManagementMode = false }: { warehou
 
     const persistedWarehouse = await inventoryApi.createWarehouse(localWarehouse);
     setWarehouses((current) => [persistedWarehouse, ...current]);
+  };
+
+  const handleUpdateWarehouse = async (warehouseId: string, draft: CreateWarehouseDraft) => {
+    const currentWarehouse = warehouses.find((warehouse) => warehouse.id === warehouseId);
+    if (!currentWarehouse) return;
+    const persistedWarehouse = await inventoryApi.updateWarehouse({
+      ...currentWarehouse,
+      ...draft,
+      id: warehouseId,
+    });
+    setWarehouses((current) => current.map((warehouse) => (
+      warehouse.id === warehouseId ? persistedWarehouse : warehouse
+    )));
   };
 
   const handleDeleteWarehouse = async (warehouseId: string) => {
@@ -503,11 +526,12 @@ export default function Inventory({ warehouseManagementMode = false }: { warehou
       <WarehouseManagementWorkspace
         warehouses={warehouses}
         rows={stockRows}
-        businessUnits={inventoryBusinessUnits}
-        businesses={inventoryBusinesses}
+        businessUnits={businessUnits}
+        businesses={businesses}
         responsibleOptions={warehouseResponsibleOptions}
         t={t}
         onSubmit={handleCreateWarehouse}
+        onUpdate={handleUpdateWarehouse}
         onDeleteWarehouse={handleDeleteWarehouse}
         onTransferAndDeleteWarehouse={handleTransferAndDeleteWarehouse}
         onViewInventory={(warehouseId) => navigate(`/inventory/inventory?warehouseId=${encodeURIComponent(warehouseId)}`)}
@@ -534,8 +558,8 @@ export default function Inventory({ warehouseManagementMode = false }: { warehou
         activeView={activeView}
         filters={activeView === 'movements' ? movementFilters : stockFilters}
         warehouses={warehouses}
-        businessUnits={inventoryBusinessUnits}
-        businesses={inventoryBusinesses}
+        businessUnits={businessUnits}
+        businesses={businesses}
         categoryOptions={categoryOptions}
         responsibleOptions={movementResponsibleOptions}
         t={t}

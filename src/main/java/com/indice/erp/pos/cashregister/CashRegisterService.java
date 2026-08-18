@@ -1,6 +1,7 @@
 package com.indice.erp.pos.cashregister;
 
 import com.indice.erp.pos.PosContext;
+import com.indice.erp.pos.PosApiException;
 import com.indice.erp.pos.cashregister.dto.CashRegisterCreateRequest;
 import com.indice.erp.pos.cashregister.dto.CashRegisterResponse;
 import com.indice.erp.pos.cashregister.dto.CashRegisterUpdateRequest;
@@ -47,6 +48,11 @@ public class CashRegisterService {
     public List<CashRegisterResponse> activeRegisters(PosContext context) {
         return repository.findAll(context).stream()
             .filter(register -> register.active() && register.status() == CashRegisterStatus.ACTIVE)
+            .filter(register -> repository.findWarehouse(context, register.warehouseId())
+                .filter(warehouse -> register.warehouseId().equals(warehouse.id())
+                    && java.util.Objects.equals(register.unitId(), warehouse.unitId())
+                    && java.util.Objects.equals(register.businessId(), warehouse.businessId()))
+                .isPresent())
             .map(mapper::toResponse)
             .toList();
     }
@@ -68,7 +74,7 @@ public class CashRegisterService {
         validator.requireWarehouseScope(warehouse);
         var existing = repository.findFirstActiveByWarehouse(context, warehouseId);
         if (existing.isPresent()) {
-            return mapper.toResponse(existing.get());
+            return mapper.toResponse(reconcileWarehouseScope(context, existing.get(), warehouse));
         }
 
         var base = ((warehouse.warehouseCode() == null || warehouse.warehouseCode().isBlank())
@@ -91,11 +97,27 @@ public class CashRegisterService {
         return mapper.toResponse(repository.insert(context, mapper.toCreateCommand(context, request, warehouse)));
     }
 
+    private CashRegisterRecord reconcileWarehouseScope(
+            PosContext context,
+            CashRegisterRecord register,
+            com.indice.erp.pos.context.dto.WarehouseSummary warehouse) {
+        if (java.util.Objects.equals(register.unitId(), warehouse.unitId())
+                && java.util.Objects.equals(register.businessId(), warehouse.businessId())) {
+            return register;
+        }
+        if (!repository.synchronizeScopeFromWarehouse(context, register.id(), warehouse)) {
+            throw new NoSuchElementException("Cash register not found.");
+        }
+        return repository.findFirstActiveByWarehouse(context, warehouse.id())
+            .orElseThrow(() -> new NoSuchElementException("Cash register not found."));
+    }
+
     @Transactional
     public CashRegisterResponse update(PosContext context, long registerId, CashRegisterUpdateRequest request) {
         requireRegister(context, registerId);
         var warehouse = repository.findWarehouse(context, request.warehouseId())
             .orElseThrow(() -> new NoSuchElementException("Warehouse not found."));
+        validator.requireWarehouseScope(warehouse);
         var command = mapper.toUpdateCommand(context, request, warehouse);
         validator.requireCodeAvailable(repository, context, command.code(), registerId);
         if (!repository.update(context, registerId, command)) {
@@ -117,5 +139,16 @@ public class CashRegisterService {
     public CashRegisterRecord requireRegister(PosContext context, long registerId) {
         return repository.findById(context, registerId)
             .orElseThrow(() -> new NoSuchElementException("Cash register not found."));
+    }
+
+    public CashRegisterRecord requireOperationalRegister(PosContext context, long registerId) {
+        var register = requireRegister(context, registerId);
+        validator.requireOperable(register);
+        var warehouse = repository.findWarehouse(context, register.warehouseId())
+            .orElseThrow(() -> PosApiException.conflict(
+                "Cash register warehouse is inactive, unavailable, or missing its business assignment."
+            ));
+        validator.requireWarehouseMatch(register, warehouse);
+        return register;
     }
 }

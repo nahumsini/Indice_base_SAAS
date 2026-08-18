@@ -11,11 +11,13 @@ import com.indice.erp.pos.PosContext;
 import com.indice.erp.pos.cashregister.CashRegisterRecord;
 import com.indice.erp.pos.cashregister.CashRegisterRepository;
 import com.indice.erp.pos.kiosk.PointOfSaleKioskCapabilities;
+import com.indice.erp.pos.shift.ShiftRepository;
 import com.indice.erp.pos.status.CashRegisterStatus;
 import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.AdminResponse;
 import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.BootstrapResponse;
 import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.CatalogItem;
 import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.CreateRequest;
+import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.SelfCheckoutCreateRequest;
 import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.PreticketCreateRequest;
 import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.PreticketItemResponse;
 import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.PreticketListResponse;
@@ -51,16 +53,24 @@ public class SelfServiceKioskService {
 
     public static final String OWNER_MODULE = "POINT_OF_SALE";
     public static final String KIOSK_TYPE = "self_service";
+
+    public static boolean supportsPublicType(String kioskType) {
+        return PointOfSaleKioskCapabilities.SELF_SERVICE_TYPE.equals(kioskType)
+            || PointOfSaleKioskCapabilities.SELF_CHECKOUT_TYPE.equals(kioskType);
+    }
+
     private static final int DEFAULT_MAX_ITEMS = 30;
     private static final int DEFAULT_TTL_MINUTES = 120;
     private static final BigDecimal MAX_AGGREGATED_QUANTITY = new BigDecimal("9999.0000");
     private static final BigDecimal MAX_STORED_AMOUNT = new BigDecimal("99999999999.9999");
+    private static final int CLAIM_CODE_SPACE = 1_000;
     private static final Pattern ISO_CURRENCY = Pattern.compile("[A-Z]{3}");
     private static final String HUMAN_CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final SelfServiceKioskRepository repository;
     private final CashRegisterRepository cashRegisters;
+    private final ShiftRepository shifts;
     private final KioskRegistryService registry;
     private final ObjectMapper objectMapper;
     private final Clock clock;
@@ -69,19 +79,22 @@ public class SelfServiceKioskService {
     public SelfServiceKioskService(
             SelfServiceKioskRepository repository,
             CashRegisterRepository cashRegisters,
+            ShiftRepository shifts,
             KioskRegistryService registry,
             ObjectMapper objectMapper) {
-        this(repository, cashRegisters, registry, objectMapper, Clock.systemUTC());
+        this(repository, cashRegisters, shifts, registry, objectMapper, Clock.systemUTC());
     }
 
     SelfServiceKioskService(
             SelfServiceKioskRepository repository,
             CashRegisterRepository cashRegisters,
+            ShiftRepository shifts,
             KioskRegistryService registry,
             ObjectMapper objectMapper,
             Clock clock) {
         this.repository = repository;
         this.cashRegisters = cashRegisters;
+        this.shifts = shifts;
         this.registry = registry;
         this.objectMapper = objectMapper;
         this.clock = clock;
@@ -92,8 +105,71 @@ public class SelfServiceKioskService {
         return repository.list(context).stream().map(record -> admin(record, null)).toList();
     }
 
+    @Transactional(readOnly = true)
+    public Map<String, Object> publicAccess(PosContext context, long kioskId) {
+        var current = require(context, kioskId);
+        var definition = definition(context.companyId(), kioskId);
+        var effectiveStatus = definition.effectiveStatus(clock.instant());
+        if (effectiveStatus.terminal() || effectiveStatus == KioskDefinitionStatus.EXPIRED) {
+            throw PosApiException.conflict("Self-service kiosk access is no longer available.");
+        }
+        final String token;
+        try {
+            token = registry.recoverPublicToken(
+                context.companyId(), OWNER_MODULE, definition.kioskType(), kioskId);
+        } catch (IllegalStateException unavailable) {
+            throw PosApiException.conflict(unavailable.getMessage());
+        }
+        return Map.of(
+            "kioskId", definition.id(),
+            "name", current.name(),
+            "displayUrl", publicDisplayUrl(definition.kioskType(), token),
+            "publicTokenHint", definition.publicTokenHint()
+        );
+    }
+
     @Transactional
     public AdminResponse create(PosContext context, CreateRequest request) {
+        return create(context, request, KIOSK_TYPE, "pos-self-service");
+    }
+
+    @Transactional
+    public AdminResponse createSelfCheckout(
+            PosContext context,
+            SelfCheckoutCreateRequest request) {
+        var warehouse = cashRegisters.findWarehouse(context, request.warehouseId())
+            .orElseThrow(() -> PosApiException.notFound("Warehouse not found."));
+        if (warehouse.unitId() == null || warehouse.businessId() == null) {
+            throw PosApiException.badRequest(
+                "El almacén debe tener unidad de negocio y negocio antes de crear el autocobro.");
+        }
+        var register = cashRegisters.findFirstActiveByWarehouse(context, request.warehouseId())
+            .orElseThrow(() -> PosApiException.conflict(
+                "El almacén seleccionado necesita una caja POS activa antes de crear el autocobro."));
+        if (!Objects.equals(register.unitId(), warehouse.unitId())
+                || !Objects.equals(register.businessId(), warehouse.businessId())) {
+            if (!cashRegisters.synchronizeScopeFromWarehouse(context, register.id(), warehouse)) {
+                throw PosApiException.conflict(
+                    "No fue posible sincronizar la caja POS con el alcance del almacén.");
+            }
+            register = cashRegisters.findFirstActiveByWarehouse(context, request.warehouseId())
+                .orElseThrow(() -> PosApiException.conflict(
+                    "No fue posible recuperar la caja POS después de sincronizarla."));
+        }
+        var createRequest = new CreateRequest(
+            register.id(), request.name(), null, request.expiresAt(), true, false, 100, 120);
+        return create(
+            context,
+            createRequest,
+            PointOfSaleKioskCapabilities.SELF_CHECKOUT_TYPE,
+            "pos-self-checkout");
+    }
+
+    private AdminResponse create(
+            PosContext context,
+            CreateRequest request,
+            String kioskType,
+            String themeKey) {
         var register = cashRegisters.findById(context, request.cashRegisterId())
             .orElseThrow(() -> PosApiException.notFound("Cash register not found."));
         if (!register.active()) {
@@ -115,10 +191,10 @@ public class SelfServiceKioskService {
             defaulted(request.maxItemsPerTicket(), DEFAULT_MAX_ITEMS),
             defaulted(request.preticketTtlMinutes(), DEFAULT_TTL_MINUTES));
         var definition = registry.registerLegacyDefinitionWithLocation(
-            context.companyId(), OWNER_MODULE, KIOSK_TYPE, id, code, request.name().trim(),
+            context.companyId(), OWNER_MODULE, kioskType, id, code, request.name().trim(),
             "active", register.unitId(), register.businessId(), register.warehouseId(),
             request.expiresAt(), token, false, KioskAccessLevel.PUBLIC,
-            "pos-self-service", "es-MX", context.userId());
+            themeKey, "es-MX", context.userId());
         if (definition.legacyReferenceId() == null || definition.legacyReferenceId() != id) {
             throw new IllegalStateException("Self-service kiosk registry binding failed.");
         }
@@ -143,12 +219,15 @@ public class SelfServiceKioskService {
                 showStock, nameRequired, maxItems, ttl, request.version())) {
             throw PosApiException.conflict("Self-service kiosk changed; reload before saving again.");
         }
-        registry.requireByLegacyReference(context.companyId(), OWNER_MODULE, kioskId);
+        var definition = definition(context.companyId(), kioskId);
+        var selfCheckout = PointOfSaleKioskCapabilities.SELF_CHECKOUT_TYPE.equals(
+            definition.kioskType());
         registry.registerLegacyDefinitionWithLocation(
-            context.companyId(), OWNER_MODULE, KIOSK_TYPE, kioskId, current.code(), request.name().trim(),
+            context.companyId(), OWNER_MODULE, definition.kioskType(), kioskId,
+            current.code(), request.name().trim(),
             current.status(), current.unitId(), current.businessId(), current.warehouseId(),
             request.expiresAt(), "registry-managed", false, KioskAccessLevel.PUBLIC,
-            "pos-self-service", "es-MX", context.userId());
+            selfCheckout ? "pos-self-checkout" : "pos-self-service", "es-MX", context.userId());
         audit(context.companyId(), kioskId, null, "SELF_SERVICE_KIOSK_UPDATED", context.userId(),
             Map.of("configuration_version", request.version() + 1));
         return admin(require(context, kioskId), null);
@@ -168,7 +247,9 @@ public class SelfServiceKioskService {
                 current.unitId(), current.businessId(), current.warehouseId());
         }
         registry.transition(
-            context.companyId(), OWNER_MODULE, kioskId, engineTarget, context.userId(), request.reason());
+            context.companyId(), OWNER_MODULE, definition(
+                context.companyId(), kioskId).kioskType(), kioskId,
+            engineTarget, context.userId(), request.reason());
         if (!repository.updateStatus(context, kioskId, target)) {
             throw PosApiException.notFound("Self-service kiosk not found.");
         }
@@ -182,7 +263,10 @@ public class SelfServiceKioskService {
         var current = require(context, kioskId);
         requireMutable(current);
         var token = generateToken();
-        registry.replacePublicToken(context.companyId(), OWNER_MODULE, kioskId, token, context.userId());
+        var definition = definition(context.companyId(), kioskId);
+        registry.replacePublicToken(
+            context.companyId(), OWNER_MODULE, definition.kioskType(), kioskId,
+            token, context.userId());
         if (!repository.updateTokenHint(context, kioskId, tokenHint(token))) {
             throw PosApiException.notFound("Self-service kiosk not found.");
         }
@@ -194,13 +278,8 @@ public class SelfServiceKioskService {
     @Transactional
     public void delete(PosContext context, long kioskId, String reason) {
         var current = require(context, kioskId);
-        var definition = registry.requireByLegacyReference(
-            context.companyId(), OWNER_MODULE, kioskId);
+        var definition = definition(context.companyId(), kioskId);
         var effective = definition.effectiveStatus(clock.instant());
-        if (effective != KioskDefinitionStatus.REVOKED
-                && effective != KioskDefinitionStatus.EXPIRED) {
-            throw PosApiException.conflict("Revoke or let the self-service kiosk expire before deleting it.");
-        }
         audit(context.companyId(), kioskId, null, "SELF_SERVICE_KIOSK_DELETED",
             context.userId(), Map.of(
                 "code", current.code(),
@@ -208,7 +287,8 @@ public class SelfServiceKioskService {
                 "status", effective.name(),
                 "reason", reason == null ? "" : reason.trim()));
         registry.deleteDefinition(
-            context.companyId(), OWNER_MODULE, kioskId, context.userId(), reason);
+            context.companyId(), OWNER_MODULE, definition.kioskType(), kioskId,
+            context.userId(), reason);
         if (!repository.delete(context, kioskId)) {
             throw PosApiException.notFound("Self-service kiosk not found.");
         }
@@ -217,7 +297,8 @@ public class SelfServiceKioskService {
     @Transactional(readOnly = true)
     public BootstrapResponse bootstrap(KioskResolvedDefinition definition) {
         var kiosk = requirePublic(definition);
-        var moduleItems = repository.catalog(kiosk);
+        var sourceRegisterOpen = shifts.hasOpenShift(kiosk.companyId(), kiosk.cashRegisterId());
+        var moduleItems = sourceRegisterOpen ? repository.catalog(kiosk) : List.<CatalogItem>of();
         var items = moduleItems.stream()
             .map(item -> kiosk.showStock() ? item : new CatalogItem(
                 item.productId(), item.sku(), item.name(), item.description(), item.category(),
@@ -229,7 +310,12 @@ public class SelfServiceKioskService {
             kiosk.code(), kiosk.name(), kiosk.companyName(), kiosk.unitName(),
             kiosk.businessName(), kiosk.warehouseName(), kiosk.cashRegisterName(), currency,
             kiosk.showStock(), kiosk.customerNameRequired(), kiosk.maxItems(), kiosk.ttlMinutes(),
-            "PRETICKET_REQUIRES_CASHIER_CONFIRMATION", items);
+            PointOfSaleKioskCapabilities.SELF_CHECKOUT_TYPE.equals(definition.kioskType())
+                ? "SELF_CHECKOUT_PAYMENT_REQUIRED"
+                : "PRETICKET_REQUIRES_CASHIER_CONFIRMATION",
+            items, definition.kioskType(),
+            sourceRegisterOpen ? "READY" : "SOURCE_REGISTER_CLOSED",
+            sourceRegisterOpen);
     }
 
     @Transactional
@@ -237,6 +323,7 @@ public class SelfServiceKioskService {
             KioskResolvedDefinition definition,
             PreticketCreateRequest request) {
         var kiosk = requirePublic(definition);
+        requireOpenSourceRegister(kiosk);
         if (kiosk.customerNameRequired() && blank(request.customerName())) {
             throw PosApiException.badRequest("Customer name is required.");
         }
@@ -288,7 +375,7 @@ public class SelfServiceKioskService {
         var now = clock.instant();
         var number = "SS-" + LocalDate.ofInstant(now, ZoneOffset.UTC).toString().replace("-", "")
             + "-" + randomFragment(10);
-        var claimCode = randomFragment(10);
+        var claimCode = generateClaimCode(kiosk);
         var expiresAt = now.plus(kiosk.ttlMinutes(), ChronoUnit.MINUTES);
         var preticketId = repository.insertPreticket(
             kiosk, number, claimCode, currency == null ? "MXN" : currency.toUpperCase(Locale.ROOT),
@@ -301,6 +388,12 @@ public class SelfServiceKioskService {
             Map.of("preticket_number", number, "item_count", lines.size(),
                 "total_amount", total, "policy", "DIRECT_PRETICKET_ONLY"));
         return receipt(repository.findPreticket(kiosk.companyId(), preticketId).orElseThrow());
+    }
+
+    private void requireOpenSourceRegister(SelfServiceKioskRepository.KioskRecord kiosk) {
+        if (!shifts.hasOpenShift(kiosk.companyId(), kiosk.cashRegisterId())) {
+            throw PosApiException.conflict("The source cash register is closed.");
+        }
     }
 
     @Transactional(readOnly = true)
@@ -382,7 +475,7 @@ public class SelfServiceKioskService {
         if (definition == null
                 || definition.legacyReferenceId() == null
                 || !OWNER_MODULE.equals(definition.ownerModule())
-                || !KIOSK_TYPE.equals(definition.kioskType())
+                || !supportsPublicType(definition.kioskType())
                 || definition.effectiveStatus(clock.instant()) != KioskDefinitionStatus.ACTIVE) {
             throw PosApiException.notFound("Self-service kiosk not found.");
         }
@@ -435,14 +528,37 @@ public class SelfServiceKioskService {
                 && !row.expiresAt().isAfter(clock.instant())
             ? "EXPIRED"
             : row.status();
+        var publicUrl = token == null ? null : publicDisplayUrl(
+            definition(row.companyId(), row.id()).kioskType(), token);
         return new AdminResponse(
             row.id(), row.companyId(), row.companyName(), row.unitId(), row.unitName(),
             row.businessId(), row.businessName(), row.warehouseId(), row.warehouseName(),
             row.cashRegisterId(), row.cashRegisterCode(), row.cashRegisterName(), row.code(),
             row.name(), effectiveStatus, row.expiresAt(), row.tokenHint(), token,
-            token == null ? null : "/pos-self-service/" + token,
+            publicUrl,
             row.showStock(), row.customerNameRequired(), row.maxItems(), row.ttlMinutes(),
             row.version(), row.createdAt(), row.updatedAt());
+    }
+
+    private String publicDisplayUrl(String kioskType, String token) {
+        var route = PointOfSaleKioskCapabilities.SELF_CHECKOUT_TYPE.equals(kioskType)
+            ? "/pos-self-checkout/"
+            : "/pos-self-service/";
+        return route + token;
+    }
+
+    private KioskResolvedDefinition definition(long companyId, long kioskId) {
+        for (var kioskType : List.of(
+                PointOfSaleKioskCapabilities.SELF_SERVICE_TYPE,
+                PointOfSaleKioskCapabilities.SELF_CHECKOUT_TYPE)) {
+            try {
+                return registry.requireByLegacyReference(
+                    companyId, OWNER_MODULE, kioskType, kioskId);
+            } catch (java.util.NoSuchElementException ignored) {
+                // Both experiences share one legacy table; the registry owns the type.
+            }
+        }
+        throw new java.util.NoSuchElementException("Self-service kiosk definition not found.");
     }
 
     private void requireMutable(SelfServiceKioskRepository.KioskRecord kiosk) {
@@ -498,6 +614,19 @@ public class SelfServiceKioskService {
                 SECURE_RANDOM.nextInt(HUMAN_CODE_ALPHABET.length())));
         }
         return value.toString();
+    }
+
+    private String generateClaimCode(SelfServiceKioskRepository.KioskRecord kiosk) {
+        repository.lockClaimCodeAllocation(kiosk.companyId(), kiosk.cashRegisterId());
+        var start = SECURE_RANDOM.nextInt(CLAIM_CODE_SPACE);
+        for (var offset = 0; offset < CLAIM_CODE_SPACE; offset++) {
+            var candidate = String.format(Locale.ROOT, "%03d", (start + offset) % CLAIM_CODE_SPACE);
+            if (!repository.activeClaimCodeExists(
+                    kiosk.companyId(), kiosk.cashRegisterId(), candidate)) {
+                return candidate;
+            }
+        }
+        throw PosApiException.conflict("No short pre-ticket codes are currently available.");
     }
 
     private String tokenHint(String token) {

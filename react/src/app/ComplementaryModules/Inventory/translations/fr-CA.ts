@@ -1,6 +1,6 @@
 export const frCA = {
   title: 'Inventaire',
-  subtitle: 'Gérez les produits, le stock, les fournisseurs et les achats opérationnels dans un seul espace.',
+  subtitle: 'Gérez les produits, le stock, les fournisseurs, les achats, les rabais et leur disponibilité par canal.',
   navLabel: 'Sections d’inventaire',
   loading: {
     openingTitle: 'Chargement de l’inventaire',
@@ -14,5 +14,6 @@ export const frCA = {
     warehouses: 'Entrepôts',
     providers: 'Fournisseurs',
     purchaseOrders: 'Bons de commande',
+    discounts: 'Rabais',
   },
 } as const;

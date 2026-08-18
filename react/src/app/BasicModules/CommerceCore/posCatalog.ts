@@ -3,6 +3,7 @@ import type { SalesCatalogItem, SalesProductTaxCategory } from '../Sales/types';
 
 export type CommerceInventoryBalanceSnapshot = {
   productId?: number | string;
+  warehouseId?: number | string;
   availableQuantity?: number | string;
   reservedQuantity?: number | string;
   minimumQuantity?: number | string;
@@ -108,8 +109,13 @@ export function toPointOfSaleProduct(
 export function buildPointOfSaleCatalogProducts(
   products: SalesCatalogItem[],
   balances: CommerceInventoryBalanceSnapshot[],
+  warehouseId?: number | string | null,
 ) {
-  const stockByProductId = buildStockByProductId(balances);
+  const selectedWarehouseId = warehouseId == null ? '' : String(warehouseId);
+  const warehouseBalances = selectedWarehouseId
+    ? balances.filter((balance) => String(balance.warehouseId ?? '') === selectedWarehouseId)
+    : balances;
+  const stockByProductId = buildStockByProductId(warehouseBalances);
 
   return products
     .filter(shouldExposeInPointOfSale)

@@ -20,6 +20,7 @@ import { inventoryApi } from '../Inventory/services/inventoryApi';
 import type { InventoryWarehouse } from '../Inventory/types/inventoryTypes';
 import { salesApi } from '../salesApi';
 import type { SalesCurrentSeller } from './types/salesTypes';
+import { isSalesWarehouseReady } from './utils/salesWarehouseScope';
 
 function SaleCancelDialog({
   record,
@@ -111,7 +112,11 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
     void Promise.allSettled([inventoryApi.loadWarehouses(), salesApi.context()])
       .then(([warehousesResult, contextResult]) => {
         if (cancelled) return;
-        setWarehouses(warehousesResult.status === 'fulfilled' ? warehousesResult.value : []);
+        setWarehouses(
+          warehousesResult.status === 'fulfilled'
+            ? warehousesResult.value.filter(isSalesWarehouseReady)
+            : [],
+        );
         if (contextResult.status !== 'fulfilled') return;
         const currentUser = contextResult.value.users.find(
           (user) => user.userCompanyId === contextResult.value.currentUserCompanyId,

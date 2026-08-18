@@ -21,6 +21,7 @@ const createEmptyDraft = (): CreateWarehouseDraft => ({
 export function WarehouseManagementWorkspace({
   warehouses, rows, businessUnits, businesses, responsibleOptions, t,
   onSubmit, onDeleteWarehouse, onTransferAndDeleteWarehouse, onViewInventory,
+  onUpdate,
 }: {
   warehouses: InventoryWarehouse[];
   rows: InventoryStockRow[];
@@ -29,6 +30,7 @@ export function WarehouseManagementWorkspace({
   responsibleOptions: WarehouseResponsibleOption[];
   t: InventoryTranslations;
   onSubmit: (draft: CreateWarehouseDraft) => Promise<void>;
+  onUpdate: (warehouseId: string, draft: CreateWarehouseDraft) => Promise<void>;
   onDeleteWarehouse: (warehouseId: string) => Promise<void>;
   onTransferAndDeleteWarehouse: (sourceWarehouseId: string, targetWarehouseId: string) => Promise<void>;
   onViewInventory: (warehouseId: string) => void;
@@ -36,6 +38,7 @@ export function WarehouseManagementWorkspace({
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createView, setCreateView] = useState<'form' | 'discard'>('form');
   const [draft, setDraft] = useState<CreateWarehouseDraft>(createEmptyDraft);
+  const [editingWarehouse, setEditingWarehouse] = useState<InventoryWarehouse | null>(null);
   const [selectedWarehouse, setSelectedWarehouse] = useState<InventoryWarehouse | null>(null);
   const [targetWarehouseId, setTargetWarehouseId] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -46,15 +49,41 @@ export function WarehouseManagementWorkspace({
   const metrics = useMemo(() => getWarehouseMetrics(warehouses, rows), [rows, warehouses]);
   const selectedSummary = selectedWarehouse ? summaries.get(selectedWarehouse.id) : undefined;
   const hasSelectedStock = (selectedSummary?.totalUnits ?? 0) > 0;
-  const canCreate = draft.name.trim().length > 0;
+  const invalidWarehouseIds = useMemo(() => new Set(warehouses
+    .filter((warehouse) => {
+      const business = businesses.find((item) => item.id === warehouse.businessId);
+      return !warehouse.businessUnitId || !business || business.businessUnitId !== warehouse.businessUnitId;
+    })
+    .map((warehouse) => warehouse.id)), [businesses, warehouses]);
+  const selectedBusiness = businesses.find((business) => business.id === draft.businessId);
+  const canCreate = draft.name.trim().length > 0
+    && Boolean(draft.businessUnitId)
+    && Boolean(draft.businessId)
+    && selectedBusiness?.businessUnitId === draft.businessUnitId;
   const canDelete = Boolean(selectedWarehouse) && (!hasSelectedStock || Boolean(targetWarehouseId));
-  const hasDraftChanges = JSON.stringify(draft) !== JSON.stringify(createEmptyDraft());
+  const editingDraft = editingWarehouse ? toDraft(editingWarehouse) : createEmptyDraft();
+  const hasDraftChanges = JSON.stringify(draft) !== JSON.stringify(editingDraft);
 
   const resetCreateModal = () => {
     setIsCreateOpen(false);
     setCreateView('form');
     setDraft(createEmptyDraft());
+    setEditingWarehouse(null);
     setCreateError(false);
+  };
+  const openCreateModal = () => {
+    setEditingWarehouse(null);
+    setDraft(createEmptyDraft());
+    setCreateError(false);
+    setCreateView('form');
+    setIsCreateOpen(true);
+  };
+  const openEditModal = (warehouse: InventoryWarehouse) => {
+    setEditingWarehouse(warehouse);
+    setDraft(toDraft(warehouse));
+    setCreateError(false);
+    setCreateView('form');
+    setIsCreateOpen(true);
   };
   const requestCreateClose = () => {
     if (isCreating) return;
@@ -72,7 +101,9 @@ export function WarehouseManagementWorkspace({
     setIsCreating(true);
     setCreateError(false);
     try {
-      await onSubmit({ ...draft, name: draft.name.trim(), responsibleName: draft.responsibleName || t.common.notAvailable, jurisdiction: draft.jurisdiction || t.common.notAvailable, status: 'active' });
+      const normalizedDraft = { ...draft, name: draft.name.trim(), responsibleName: draft.responsibleName || t.common.notAvailable, jurisdiction: draft.jurisdiction || t.common.notAvailable, status: draft.status || 'active' };
+      if (editingWarehouse) await onUpdate(editingWarehouse.id, normalizedDraft);
+      else await onSubmit(normalizedDraft);
       resetCreateModal();
     } catch {
       setCreateError(true);
@@ -99,14 +130,14 @@ export function WarehouseManagementWorkspace({
   return (
     <section className="space-y-5">
       <SalesTitleBar icon={<Warehouse className="h-5 w-5" />} rhIndent title={t.operational.modals.manageWarehousesTitle} subtitle={t.operational.modals.manageWarehousesDescription} />
-      <WarehouseManagerView warehouses={warehouses} summaries={summaries} t={t} onCreate={() => setIsCreateOpen(true)} onViewInventory={onViewInventory} onRequestDelete={(warehouse) => { setSelectedWarehouse(warehouse); setTargetWarehouseId(''); setDeleteError(false); }} />
+      <WarehouseManagerView warehouses={warehouses} summaries={summaries} invalidWarehouseIds={invalidWarehouseIds} t={t} onCreate={openCreateModal} onEdit={openEditModal} onViewInventory={onViewInventory} onRequestDelete={(warehouse) => { setSelectedWarehouse(warehouse); setTargetWarehouseId(''); setDeleteError(false); }} />
       <p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-normal text-slate-600">{t.operational.insight.warehouses(metrics.activeWarehouses, metrics.storedItems, metrics.attentionWarehouses)}</p>
 
       <SalesModalFrame
         open={isCreateOpen}
         onOpenChange={(open) => { if (!open) requestCreateClose(); }}
         busy={isCreating}
-        title={createView === 'discard' ? t.common.unsavedChanges : t.operational.modals.createWarehouseTitle}
+        title={createView === 'discard' ? t.common.unsavedChanges : editingWarehouse ? t.operational.modals.editWarehouseTitle : t.operational.modals.createWarehouseTitle}
         description={createView === 'discard' ? t.common.unsavedChanges : t.operational.modals.createWarehouseHelp}
         icon={createView === 'discard' ? <AlertTriangle className="h-5 w-5" /> : <Warehouse className="h-5 w-5" />}
         modalType={createView === 'discard' ? 'confirmation' : 'standard-form'}
@@ -116,10 +147,16 @@ export function WarehouseManagementWorkspace({
         footer={createView === 'discard' ? (
           <Button type="button" className="h-11 gap-2 rounded-lg bg-red-600 px-5 font-normal text-white hover:bg-red-700" onClick={resetCreateModal}><Trash2 className="h-4 w-4" />{t.common.discardChanges}</Button>
         ) : (
-          <Button type="button" className={salesTitleBarPrimaryActionClassName} disabled={!canCreate || isCreating} onClick={() => void createWarehouse()}><Plus className="h-4 w-4" />{createError ? t.common.retry : t.operational.actions.createWarehouse}</Button>
+          <Button type="button" className={salesTitleBarPrimaryActionClassName} disabled={!canCreate || isCreating} onClick={() => void createWarehouse()}><Plus className="h-4 w-4" />{createError ? t.common.retry : editingWarehouse ? t.common.save : t.operational.actions.createWarehouse}</Button>
         )}
       >
-        {createView === 'discard' ? <IndiceModalValidation tone="warning" messages={[t.common.unsavedChanges]} /> : <div className="space-y-4">{createError ? <IndiceModalValidation messages={[t.common.operationFailed]} /> : null}<WarehouseFormView draft={draft} businessUnits={businessUnits} businesses={businesses} responsibleOptions={responsibleOptions} t={t} onChange={setDraft} /></div>}
+        {createView === 'discard' ? <IndiceModalValidation tone="warning" messages={[t.common.unsavedChanges]} /> : <div className="space-y-4">
+          {createError ? <IndiceModalValidation messages={[t.common.operationFailed]} /> : null}
+          {businessUnits.length === 0 || businesses.length === 0 ? (
+            <IndiceModalValidation tone="warning" messages={[t.operational.modals.organizationRequired]} />
+          ) : null}
+          <WarehouseFormView draft={draft} businessUnits={businessUnits} businesses={businesses} responsibleOptions={responsibleOptions} t={t} onChange={setDraft} />
+        </div>}
       </SalesModalFrame>
 
       <SalesModalFrame
@@ -139,4 +176,9 @@ export function WarehouseManagementWorkspace({
       </SalesModalFrame>
     </section>
   );
+}
+
+function toDraft(warehouse: InventoryWarehouse): CreateWarehouseDraft {
+  const { id: _id, lastMovementAt: _lastMovementAt, ...draft } = warehouse;
+  return draft;
 }

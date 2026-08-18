@@ -25,6 +25,7 @@ import { FormField, salesFieldClassName, SectionCard } from './SalesModalPrimiti
 import { SalesCustomerSelector } from './SalesCustomerSelector';
 import { SalesLineItemsEditor } from './SalesLineItemsEditor';
 import { SalesPaymentAccountField } from './SalesPaymentAccountField';
+import { isSalesWarehouseReady } from '../utils/salesWarehouseScope';
 
 export type SalesCreateStepId = 'origin' | 'operation' | 'payment' | 'review';
 
@@ -216,7 +217,7 @@ function OperationStep({
 > & { mode: 'operation' | 'payment' }) {
   const operationalContext = getSalesOperationalContext(form.businessId);
   const selectedPaymentMethod = normalizeSalesPaymentMethod(form.paymentMethod);
-  const availableWarehouses = warehouses.filter((warehouse) => warehouse.status === 'active');
+  const availableWarehouses = warehouses.filter(isSalesWarehouseReady);
   const evidenceFiles = form.paymentEvidenceFiles ?? [];
 
   const updateEvidenceFiles = (files: File[]) => {
@@ -235,7 +236,7 @@ function OperationStep({
             <Select
               value={form.warehouseId || 'none'}
               onValueChange={(warehouseId) => {
-                const warehouse = warehouses.find((item) => item.id === warehouseId);
+                const warehouse = availableWarehouses.find((item) => item.id === warehouseId);
                 onFormChange({
                   warehouseId,
                   warehouseName: warehouse?.name ?? '',

@@ -14,6 +14,7 @@ import com.indice.erp.pos.customerdisplay.dto.CustomerDisplayPaymentPayload;
 import com.indice.erp.pos.customerdisplay.dto.CustomerDisplaySnapshotRequest;
 import com.indice.erp.pos.customerdisplay.dto.CustomerDisplayStateResponse;
 import com.indice.erp.pos.shift.ShiftRepository;
+import com.indice.erp.pos.status.CashRegisterStatus;
 import com.indice.erp.pos.status.ShiftStatus;
 import com.indice.erp.kiosk.engine.KioskAccessLevel;
 import com.indice.erp.kiosk.engine.KioskDefinitionStatus;
@@ -29,6 +30,7 @@ import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -78,15 +80,7 @@ public class CustomerDisplayService {
 
     @Transactional
     public CustomerDisplayPairingCodeResponse createPairingCode(PosContext context, CustomerDisplayPairingCodeRequest request) {
-        var register = cashRegisterRepository.findById(context, request.cashRegisterId())
-            .orElseThrow(() -> PosApiException.notFound("Cash register not found."));
-        if (!register.active()) {
-            throw PosApiException.conflict("Customer display requires an active cash register.");
-        }
-        if (register.unitId() == null || register.businessId() == null) {
-            throw PosApiException.badRequest(
-                "Assign a business unit and business to the cash register before creating a kiosk.");
-        }
+        var register = requireOperationalRegister(context, request.cashRegisterId());
         var pairingCode = generateUniquePairingCode();
         var expiresAt = clock.instant().plus(15, ChronoUnit.MINUTES);
         var name = displayName(request.deviceName(), register);
@@ -137,6 +131,7 @@ public class CustomerDisplayService {
         var device = repository.findPairableDeviceByCodeHashes(
                 secrets.pairingHash(code), secrets.hash(code))
             .orElseThrow(() -> PosApiException.notFound("Pairing code expired or not found."));
+        requirePublicOperationalAssignment(device);
         var rawToken = secrets.reveal(device.deviceToken());
         var paired = repository.activatePairing(device, displayName(request.deviceName(), device));
         return new CustomerDisplayPairResponse(
@@ -150,12 +145,17 @@ public class CustomerDisplayService {
 
     @Transactional
     public CustomerDisplayStateResponse publishSnapshot(PosContext context, CustomerDisplaySnapshotRequest request) {
-        var register = cashRegisterRepository.findById(context, request.cashRegisterId())
-            .orElseThrow(() -> PosApiException.notFound("Cash register not found."));
+        var register = requireOperationalRegister(context, request.cashRegisterId());
         var shift = shiftRepository.findById(context, request.shiftId())
             .orElseThrow(() -> PosApiException.notFound("Shift not found."));
         if (!shift.cashRegisterId().equals(register.id())) {
             throw PosApiException.badRequest("Shift does not belong to this cash register.");
+        }
+        if (!Objects.equals(shift.unitId(), register.unitId())
+                || !Objects.equals(shift.businessId(), register.businessId())
+                || !Objects.equals(shift.warehouseId(), register.warehouseId())) {
+            throw PosApiException.conflict(
+                "Open shift scope does not match the cash register warehouse. Close the shift and open a new one.");
         }
         if (shift.status() != ShiftStatus.OPEN && shift.status() != ShiftStatus.CLOSING) {
             throw PosApiException.badRequest("Customer display can only publish an open shift.");
@@ -200,7 +200,11 @@ public class CustomerDisplayService {
         var token = normalizeToken(deviceToken);
         var device = repository.findActiveDeviceByTokenHash(secrets.hash(token))
             .orElseThrow(() -> PosApiException.notFound("Customer display not found."));
+        requirePublicOperationalAssignment(device);
         repository.touchDeviceIfStale(device.id());
+        if (!shiftRepository.hasOpenShift(device.companyId(), device.cashRegisterId())) {
+            return closedState(device);
+        }
         return repository.findLatestSnapshot(device.companyId(), device.cashRegisterId())
             .map(snapshot -> toStateResponse(device, snapshot, true))
             .orElseGet(() -> emptyState(device));
@@ -208,9 +212,32 @@ public class CustomerDisplayService {
 
     public CustomerDisplayDeviceRecord requirePairableDevice(String pairingCode) {
         var normalized = normalizePairingCode(pairingCode);
-        return repository.findPairableDeviceByCodeHashes(
+        var device = repository.findPairableDeviceByCodeHashes(
                 secrets.pairingHash(normalized), secrets.hash(normalized))
             .orElseThrow(() -> PosApiException.notFound("Pairing code expired or not found."));
+        requirePublicOperationalAssignment(device);
+        return device;
+    }
+
+    private CashRegisterRecord requireOperationalRegister(PosContext context, long cashRegisterId) {
+        var register = cashRegisterRepository.findById(context, cashRegisterId)
+            .orElseThrow(() -> PosApiException.notFound("Cash register not found."));
+        if (register.status() != CashRegisterStatus.ACTIVE || !register.active()
+                || !repository.hasOperationalRegisterAssignment(
+                    context.companyId(), register.id(), register.unitId(), register.businessId(),
+                    register.warehouseId())) {
+            throw PosApiException.conflict(
+                "Customer display requires an active cash register with a valid warehouse assignment.");
+        }
+        return register;
+    }
+
+    private void requirePublicOperationalAssignment(CustomerDisplayDeviceRecord device) {
+        if (!repository.hasOperationalRegisterAssignment(
+                device.companyId(), device.cashRegisterId(), device.unitId(), device.businessId(),
+                device.warehouseId())) {
+            throw PosApiException.notFound("Customer display not found.");
+        }
     }
 
     public String publicTokenForPairingCode(String pairingCode) {
@@ -240,6 +267,9 @@ public class CustomerDisplayService {
         var token = normalizeToken(deviceToken);
         var device = repository.findActiveDeviceByTokenHash(secrets.hash(token))
             .orElseThrow(() -> PosApiException.notFound("Customer display not found."));
+        requirePublicOperationalAssignment(device);
+        var sourceRegisterOpen = shiftRepository.hasOpenShift(
+            device.companyId(), device.cashRegisterId());
         var result = new LinkedHashMap<String, Object>();
         result.put("kioskType", PointOfSaleKioskCapabilities.CUSTOMER_DISPLAY_TYPE);
         result.put("name", device.name());
@@ -248,6 +278,9 @@ public class CustomerDisplayService {
         result.put("cashRegisterName", device.cashRegisterName());
         result.put("pollIntervalMs", 1000);
         result.put("onlineOnly", true);
+        result.put("availabilityState",
+            sourceRegisterOpen ? "READY" : "SOURCE_REGISTER_CLOSED");
+        result.put("sourceRegisterOpen", sourceRegisterOpen);
         return Map.copyOf(result);
     }
 
@@ -280,8 +313,8 @@ public class CustomerDisplayService {
     public Map<String, Object> publicAccess(PosContext context, long kioskDefinitionId) {
         var definition = requireAdminDefinition(context, kioskDefinitionId);
         var effectiveStatus = definition.effectiveStatus(clock.instant());
-        if (!effectiveStatus.operational()) {
-            throw PosApiException.conflict("Customer display must be active before opening its public link.");
+        if (effectiveStatus.terminal() || effectiveStatus == KioskDefinitionStatus.EXPIRED) {
+            throw PosApiException.conflict("Customer display access is no longer available.");
         }
         var device = repository.findDeviceById(context.companyId(), definition.legacyReferenceId())
             .orElseThrow(() -> PosApiException.notFound("Customer display not found."));
@@ -291,6 +324,32 @@ public class CustomerDisplayService {
             "name", definition.name(),
             "displayUrl", displayUrl(rawToken),
             "publicTokenHint", definition.publicTokenHint()
+        );
+    }
+
+    @Transactional
+    public Map<String, Object> rotatePublicAccess(
+            PosContext context,
+            long kioskDefinitionId) {
+        var definition = requireAdminDefinition(context, kioskDefinitionId);
+        var effectiveStatus = definition.effectiveStatus(clock.instant());
+        if (effectiveStatus.terminal() || effectiveStatus == KioskDefinitionStatus.EXPIRED) {
+            throw PosApiException.conflict("Customer display access can no longer be regenerated.");
+        }
+        var device = repository.findDeviceById(context.companyId(), definition.legacyReferenceId())
+            .orElseThrow(() -> PosApiException.notFound("Customer display not found."));
+        var token = generateUniqueToken();
+        repository.replaceDeviceToken(
+            context.companyId(), device.id(), secrets.protect(token), secrets.hash(token),
+            secrets.hint(token), context.userId());
+        kioskRegistry.replacePublicToken(
+            context.companyId(), PointOfSaleKioskCapabilities.OWNER_MODULE,
+            definition.legacyReferenceId(), token, context.userId());
+        return Map.of(
+            "kioskId", definition.id(),
+            "name", definition.name(),
+            "displayUrl", displayUrl(token),
+            "publicTokenHint", secrets.hint(token)
         );
     }
 
@@ -335,12 +394,6 @@ public class CustomerDisplayService {
     @Transactional
     public void delete(PosContext context, long kioskDefinitionId, String reason) {
         var definition = requireAdminDefinition(context, kioskDefinitionId);
-        var effectiveStatus = definition.effectiveStatus(clock.instant());
-        if (effectiveStatus != KioskDefinitionStatus.REVOKED
-                && effectiveStatus != KioskDefinitionStatus.EXPIRED) {
-            throw PosApiException.conflict(
-                "Revoke or let the customer display expire before deleting it.");
-        }
         kioskRegistry.deleteDefinition(
             context.companyId(), PointOfSaleKioskCapabilities.OWNER_MODULE,
             definition.legacyReferenceId(), context.userId(), trimToNull(reason));
@@ -373,7 +426,11 @@ public class CustomerDisplayService {
         result.put("status", definition.effectiveStatus(clock.instant()).name());
         result.put("accessLevel", definition.accessLevel().name());
         result.put("unitId", definition.unitId());
+        result.put("unitName", device.unitName());
         result.put("businessId", definition.businessId());
+        result.put("businessName", device.businessName());
+        result.put("warehouseId", device.warehouseId());
+        result.put("warehouseName", device.warehouseName());
         result.put("cashRegisterId", device.cashRegisterId());
         result.put("cashRegisterCode", device.cashRegisterCode());
         result.put("cashRegisterName", device.cashRegisterName());
@@ -383,6 +440,8 @@ public class CustomerDisplayService {
         result.put("connected", device.lastSeenAt() != null
             && device.lastSeenAt().isAfter(clock.instant().minus(90, ChronoUnit.SECONDS)));
         result.put("configurationVersion", definition.configurationVersion());
+        result.put("version", device.version());
+        result.put("updatedAt", instant(device.updatedAt()));
         return java.util.Collections.unmodifiableMap(result);
     }
 
@@ -477,6 +536,16 @@ public class CustomerDisplayService {
             PosJsonSupport.toJsonNode("[]"),
             device.lastSeenAt(),
             true
+        );
+    }
+
+    private CustomerDisplayStateResponse closedState(CustomerDisplayDeviceRecord device) {
+        return new CustomerDisplayStateResponse(
+            null, device.name(), device.companyName(), device.unitName(), device.businessName(),
+            device.warehouseName(), device.cashRegisterId(), device.cashRegisterCode(),
+            device.cashRegisterName(), "CLOSED", "MXN", 0, ZERO, ZERO, ZERO, ZERO, ZERO,
+            ZERO, ZERO, null, "La caja origen está cerrada", PosJsonSupport.toJsonNode("[]"),
+            PosJsonSupport.toJsonNode("[]"), device.lastSeenAt(), false
         );
     }
 

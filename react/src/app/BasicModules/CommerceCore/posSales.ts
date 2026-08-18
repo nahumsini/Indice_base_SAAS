@@ -66,7 +66,7 @@ export function buildSaleRecordFromPointOfSale({
       marginAmount: lineMargin,
       businessUnitId: shift.businessUnitId,
       businessId: shift.businessId,
-      warehouseId: shift.cashRegisterId,
+      warehouseId: shift.warehouseId,
       availabilityStatus: product?.useInventory ? 'available' : 'pending_validation',
     } satisfies SaleRecord['saleLines'][number];
   });

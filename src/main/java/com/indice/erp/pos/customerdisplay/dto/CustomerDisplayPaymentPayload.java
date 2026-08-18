@@ -4,5 +4,8 @@ import java.math.BigDecimal;
 
 public record CustomerDisplayPaymentPayload(
         String paymentMethod,
-        BigDecimal amount) {
+        BigDecimal amount,
+        BigDecimal cashReceived,
+        BigDecimal changeAmount,
+        Boolean pending) {
 }

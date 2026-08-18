@@ -53,6 +53,7 @@ export type InventoryBusiness = {
   code: string;
   businessUnitId: string;
   businessUnitName: string;
+  address?: string;
   city?: string;
   country?: string;
 };

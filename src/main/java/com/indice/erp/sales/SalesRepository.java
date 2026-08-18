@@ -502,10 +502,10 @@ class SalesRepository {
                     firstDecimal(SalesPayloadSupport.decimalValue(line, "unitCost"), (BigDecimal) balance.get("unitCost")),
                     warehouseId,
                     warehouse.get("name"),
-                    firstNonBlank(SalesPayloadSupport.stringValue(line, "businessUnitId"), stringValue(payloadCustomField(payload, "businessUnitId"))),
-                    stringValue(payloadCustomField(payload, "businessUnitName")),
-                    firstNonBlank(SalesPayloadSupport.stringValue(line, "businessId"), stringValue(payloadCustomField(payload, "businessId"))),
-                    stringValue(payloadCustomField(payload, "businessName")),
+                    stringValue(warehouse.get("businessUnitId")),
+                    stringValue(warehouse.get("businessUnitName")),
+                    stringValue(warehouse.get("businessId")),
+                    stringValue(warehouse.get("businessName")),
                     saleNumber,
                     sellerName,
                     saleDate,
@@ -787,6 +787,62 @@ class SalesRepository {
                 companyId,
                 id);
         return count != null && count > 0;
+    }
+
+    Map<String, Object> organizationAssignment(long companyId, long unitId, long businessId) {
+        return jdbcTemplate.query(
+                """
+                        SELECT unit.id AS unit_id,
+                               unit.name AS unit_name,
+                               business.id AS business_id,
+                               business.name AS business_name,
+                               business.address AS business_address
+                        FROM units unit
+                        JOIN businesses business ON business.unit_id = unit.id
+                        WHERE unit.id = ?
+                          AND business.id = ?
+                          AND (unit.company_id = ? OR unit.company_id IS NULL)
+                          AND (business.company_id = ? OR business.company_id IS NULL)
+                          AND (unit.status = 'active' OR unit.status IS NULL OR unit.status = '')
+                          AND (business.status = 'active' OR business.status IS NULL OR business.status = '')
+                        """,
+                (rs, rowNum) -> {
+                    var row = new LinkedHashMap<String, Object>();
+                    row.put("businessUnitId", rs.getLong("unit_id"));
+                    row.put("businessUnitName", rs.getString("unit_name"));
+                    row.put("businessId", rs.getLong("business_id"));
+                    row.put("businessName", rs.getString("business_name"));
+                    row.put("businessAddress", rs.getString("business_address"));
+                    return row;
+                },
+                unitId,
+                businessId,
+                companyId,
+                companyId).stream().findFirst().orElse(null);
+    }
+
+    Map<String, Object> activeWarehouseAssignment(long companyId, long warehouseId) {
+        return jdbcTemplate.query(
+                """
+                        SELECT id, name, business_unit_id, business_unit_name, business_id, business_name
+                        FROM sales_inventory_warehouses
+                        WHERE company_id = ?
+                          AND id = ?
+                          AND deleted_at IS NULL
+                          AND LOWER(status) = 'active'
+                        """,
+                (rs, rowNum) -> {
+                    var row = new LinkedHashMap<String, Object>();
+                    row.put("warehouseId", rs.getLong("id"));
+                    row.put("warehouseName", rs.getString("name"));
+                    row.put("businessUnitId", rs.getString("business_unit_id"));
+                    row.put("businessUnitName", rs.getString("business_unit_name"));
+                    row.put("businessId", rs.getString("business_id"));
+                    row.put("businessName", rs.getString("business_name"));
+                    return row;
+                },
+                companyId,
+                warehouseId).stream().findFirst().orElse(null);
     }
 
     Map<String, Object> kpis(long companyId) {

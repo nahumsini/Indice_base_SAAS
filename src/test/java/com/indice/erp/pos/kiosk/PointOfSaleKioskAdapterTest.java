@@ -31,6 +31,24 @@ class PointOfSaleKioskAdapterTest {
         assertThat(adapter.capabilities(definition("self_service")))
             .extracting(KioskCapabilityDescriptor::key)
             .containsExactly("pos.self-service.catalog.read");
+        assertThat(adapter.capabilities(definition("self_checkout")))
+            .extracting(KioskCapabilityDescriptor::key)
+            .containsExactly("pos.self-service.catalog.read");
+    }
+
+    @Test
+    void routesSelfCheckoutThroughTheSharedSelfServiceExperience() {
+        var adapter = new PointOfSaleKioskAdapter(List.of(
+            experience("self_service", "pos.self-service.catalog.read")
+        ));
+        var context = KioskExecutionContext.publicLink(
+            PointOfSaleKioskCapabilities.OWNER_MODULE, "token")
+            .resolved(definition("self_checkout"), null);
+
+        assertThat(adapter.bootstrap(context)).isEmpty();
+        assertThat(adapter.execute(context,
+            KioskActionRequest.of("pos.self-service.catalog.read", Map.of())))
+            .containsEntry("type", "self_service");
     }
 
     @Test

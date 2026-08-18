@@ -3,6 +3,7 @@ package com.indice.erp.pos.checkout;
 import com.indice.erp.pos.PosApiException;
 import com.indice.erp.pos.PosContext;
 import com.indice.erp.pos.checkout.dto.PosCheckoutRequest;
+import com.indice.erp.pos.cashregister.CashRegisterRecord;
 import com.indice.erp.pos.shift.ShiftRecord;
 import com.indice.erp.pos.status.ShiftStatus;
 import java.math.BigDecimal;
@@ -12,15 +13,22 @@ import org.springframework.stereotype.Component;
 @Component
 public class CheckoutValidator {
 
-    public void requireOpenShift(PosContext context, ShiftRecord shift, long cashRegisterId) {
+    public void requireOpenShift(PosContext context, ShiftRecord shift, CashRegisterRecord register) {
         if (shift == null) {
             throw PosApiException.badRequest("Open shift required for checkout.");
         }
         if (!shift.openedByUserId().equals(context.userId())) {
             throw PosApiException.forbidden("Open shift belongs to another user.");
         }
-        if (!shift.cashRegisterId().equals(cashRegisterId)) {
+        if (!shift.cashRegisterId().equals(register.id())) {
             throw PosApiException.badRequest("Open shift does not belong to the selected cash register.");
+        }
+        if (!shift.warehouseId().equals(register.warehouseId())
+                || !java.util.Objects.equals(shift.unitId(), register.unitId())
+                || !java.util.Objects.equals(shift.businessId(), register.businessId())) {
+            throw PosApiException.conflict(
+                "Open shift scope does not match the cash register warehouse. Close the shift and open a new one."
+            );
         }
         if (shift.status() != ShiftStatus.OPEN) {
             throw PosApiException.conflict("Checkout requires an OPEN shift.");

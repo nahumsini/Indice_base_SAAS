@@ -1,6 +1,6 @@
 export const zhCA = {
   title: '库存',
-  subtitle: '在一个工作区中管理产品、库存、供应商和运营采购。',
+  subtitle: '在一个工作区中管理产品、库存、供应商、采购、折扣和渠道可用性。',
   navLabel: '库存模块',
   loading: {
     openingTitle: '正在加载库存',
@@ -14,5 +14,6 @@ export const zhCA = {
     warehouses: '仓库',
     providers: '供应商',
     purchaseOrders: '采购订单',
+    discounts: '折扣',
   },
 } as const;

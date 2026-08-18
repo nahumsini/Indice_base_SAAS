@@ -1,6 +1,6 @@
 export const frCA = {
   title: 'Point de vente',
-  subtitle: 'Gérez les ventes au comptoir, la facturation, les fermetures de caisse, les clients, les remises et les ICP.',
+  subtitle: 'Gérez les ventes au comptoir, les reçus, les fermetures de caisse, les clients, les bornes et les ICP.',
   back: 'Retour',
   navLabel: 'Sections du point de vente',
   loading: {
@@ -13,8 +13,6 @@ export const frCA = {
     sale: 'Vente',
     cortes: 'Fermetures de caisse',
     clientes: 'Clients',
-    facturacion: 'Facturation',
-    descuentos: 'Remises',
     kpis: 'ICP',
     kiosks: 'Bornes',
     cajas: 'Caisses',

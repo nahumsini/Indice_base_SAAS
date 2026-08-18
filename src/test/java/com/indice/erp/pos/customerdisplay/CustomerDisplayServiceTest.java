@@ -23,6 +23,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 
 @ExtendWith(MockitoExtension.class)
 class CustomerDisplayServiceTest {
@@ -47,6 +49,8 @@ class CustomerDisplayServiceTest {
         var device = device();
         given(secrets.hash("raw-device-token")).willReturn("token-hash");
         given(repository.findActiveDeviceByTokenHash("token-hash")).willReturn(Optional.of(device));
+        given(repository.hasOperationalRegisterAssignment(7L, 31L, 2L, 3L, 5L)).willReturn(true);
+        given(shifts.hasOpenShift(7L, 31L)).willReturn(true);
         given(repository.findLatestSnapshot(7L, 31L)).willReturn(Optional.empty());
 
         var response = service.publicState("raw-device-token");
@@ -61,18 +65,48 @@ class CustomerDisplayServiceTest {
     }
 
     @Test
-    void refusesPhysicalDeletionWhileCustomerDisplayIsOperational() {
+    void publicReadReturnsAClosedStateInsteadOfAStaleSaleWhenTheSourceRegisterIsClosed() {
+        var device = device();
+        given(secrets.hash("raw-device-token")).willReturn("token-hash");
+        given(repository.findActiveDeviceByTokenHash("token-hash")).willReturn(Optional.of(device));
+        given(repository.hasOperationalRegisterAssignment(7L, 31L, 2L, 3L, 5L)).willReturn(true);
+        given(shifts.hasOpenShift(7L, 31L)).willReturn(false);
+
+        var response = service.publicState("raw-device-token");
+
+        assertThat(response.status()).isEqualTo("CLOSED");
+        assertThat(response.customerMessage()).isEqualTo("La caja origen está cerrada");
+        assertThat(response.connected()).isFalse();
+        then(repository).should().touchDeviceIfStale(device.id());
+        then(repository).shouldHaveNoMoreInteractions();
+    }
+
+    @Test
+    void publicReadRejectsADeviceWhoseRegisterWarehouseAssignmentIsNoLongerOperational() {
+        var device = device();
+        given(secrets.hash("raw-device-token")).willReturn("token-hash");
+        given(repository.findActiveDeviceByTokenHash("token-hash")).willReturn(Optional.of(device));
+
+        assertThatThrownBy(() -> service.publicState("raw-device-token"))
+            .isInstanceOf(com.indice.erp.pos.PosApiException.class)
+            .hasMessage("Customer display not found.");
+
+        then(repository).should().findActiveDeviceByTokenHash("token-hash");
+        then(repository).should().hasOperationalRegisterAssignment(7L, 31L, 2L, 3L, 5L);
+        then(repository).shouldHaveNoMoreInteractions();
+    }
+
+    @Test
+    void deletingAnOperationalDisplayRevokesEngineAccessAndRemovesOnlyItsConfiguration() {
         var definition = definition(KioskDefinitionStatus.ACTIVE);
         given(registry.requireById(7L, definition.id())).willReturn(definition);
+        var context = new PosContext(8L, 7L, "Admin", "root", true, PosScope.corporateOffice());
 
-        assertThatThrownBy(() -> service.delete(
-            new PosContext(8L, 7L, "Admin", "root", true, PosScope.corporateOffice()),
-            definition.id(), "cleanup"))
-            .hasMessageContaining("Revoke or let the customer display expire");
+        service.delete(context, definition.id(), "cleanup");
 
-        then(registry).should().requireById(7L, definition.id());
-        then(registry).shouldHaveNoMoreInteractions();
-        then(repository).shouldHaveNoInteractions();
+        then(registry).should().deleteDefinition(
+            7L, PointOfSaleKioskCapabilities.OWNER_MODULE, 11L, 8L, "cleanup");
+        then(repository).should().delete(7L, 11L);
     }
 
     @Test
@@ -101,6 +135,29 @@ class CustomerDisplayServiceTest {
 
         assertThat(access.get("displayUrl")).isEqualTo("/pos-display/raw-device-token");
         assertThat(access.get("publicTokenHint")).isEqualTo("tokenhint");
+    }
+
+    @Test
+    void regeneratingDisplayAccessReplacesBothLegacyAndEngineLookupTokens() {
+        var definition = definition(KioskDefinitionStatus.ACTIVE);
+        var device = device();
+        var context = new PosContext(8L, 7L, "Admin", "root", true, PosScope.corporateOffice());
+        given(registry.requireById(7L, definition.id())).willReturn(definition);
+        given(repository.findDeviceById(7L, 11L)).willReturn(Optional.of(device));
+        given(secrets.hash(anyString())).willReturn("new-token-hash");
+        given(secrets.protect(anyString())).willReturn("enc.v1.new-token");
+        given(secrets.hint(anyString())).willReturn("new-hint");
+
+        var access = service.rotatePublicAccess(context, definition.id());
+
+        assertThat(access.get("displayUrl")).asString().startsWith("/pos-display/posd_");
+        assertThat(access.get("publicTokenHint")).isEqualTo("new-hint");
+        then(repository).should().replaceDeviceToken(
+            eq(7L), eq(11L), eq("enc.v1.new-token"), eq("new-token-hash"),
+            eq("new-hint"), eq(8L));
+        then(registry).should().replacePublicToken(
+            eq(7L), eq(PointOfSaleKioskCapabilities.OWNER_MODULE), eq(11L),
+            anyString(), eq(8L));
     }
 
     private KioskResolvedDefinition definition(KioskDefinitionStatus status) {

@@ -44,6 +44,12 @@ public class PointOfSaleKioskAdapter implements KioskModuleAdapter {
                 allCapabilities.add(capability);
             }
         }
+        // Autocobro currently reuses the proven self-service catalog runtime.
+        // Keep a single capability owner while exposing it under both POS kiosk types.
+        var selfService = byType.get(PointOfSaleKioskCapabilities.SELF_SERVICE_TYPE);
+        if (selfService != null) {
+            byType.putIfAbsent(PointOfSaleKioskCapabilities.SELF_CHECKOUT_TYPE, selfService);
+        }
         experiencesByType = Map.copyOf(byType);
         experiencesByCapability = Map.copyOf(byCapability);
         capabilities = Set.copyOf(allCapabilities);

@@ -1,6 +1,6 @@
 export const esCO = {
   title: 'Punto de venta',
-  subtitle: 'Gestiona ventas de mostrador, facturación, cierres de caja, clientes, descuentos e indicadores operativos.',
+  subtitle: 'Gestiona ventas de mostrador, comprobantes, cierres de caja, clientes, kioscos e indicadores operativos.',
   back: 'Regresar',
   navLabel: 'Secciones de punto de venta',
   loading: {
@@ -13,8 +13,6 @@ export const esCO = {
     sale: 'Venta',
     cortes: 'Cierres de caja',
     clientes: 'Clientes',
-    facturacion: 'Facturación',
-    descuentos: 'Descuentos',
     kpis: 'KPIs',
     kiosks: 'Kioscos',
     cajas: 'Cajas',

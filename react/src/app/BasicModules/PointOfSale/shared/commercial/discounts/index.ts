@@ -10,6 +10,7 @@ export {
 } from './utils';
 export type {
   DiscountEligibilityContext,
+  DiscountChannel,
   DiscountRule,
   DiscountRuleStatus,
   DiscountScope,

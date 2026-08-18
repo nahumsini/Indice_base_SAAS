@@ -53,11 +53,15 @@ test('Almacenes vive en una pestaña propia y conserva los manejadores reales de
   assert.match(tabScopeSource, /warehouses:\s*'inventory'/);
   assert.doesNotMatch(inventorySource, /<CreateWarehouseModal/);
   assert.match(inventorySource, /onSubmit=\{handleCreateWarehouse\}/);
+  assert.match(inventorySource, /onUpdate=\{handleUpdateWarehouse\}/);
   assert.match(inventorySource, /onDeleteWarehouse=\{handleDeleteWarehouse\}/);
   assert.match(inventorySource, /onTransferAndDeleteWarehouse=\{handleTransferAndDeleteWarehouse\}/);
   assert.match(workspaceSource, /WarehouseManagerView/);
   assert.match(workspaceSource, /WarehouseFormView/);
   assert.match(workspaceSource, /WarehouseDeleteView/);
+  assert.match(workspaceSource, /selectedBusiness\?\.businessUnitId === draft\.businessUnitId/);
+  assert.match(workspaceSource, /invalidWarehouseIds/);
+  assert.match(workspaceSource, /onUpdate\(editingWarehouse\.id, normalizedDraft\)/);
   assert.match(workspaceSource, /createView === 'discard' \? 'confirmation' : 'standard-form'/);
   assert.match(workspaceSource, /hasSelectedStock \? 'standard-form' : 'confirmation'/);
   assert.match(workspaceSource, /busy=\{isCreating\}/);
@@ -90,5 +94,24 @@ test('Almacenes vive en una pestaña propia y conserva los manejadores reales de
   assert.match(movementModalSource, /adjustmentLabels\.difference/);
   const movementEntriesSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Inventory/utils/inventoryMovementEntries.ts'), 'utf8');
   assert.match(movementEntriesSource, /adjustmentDirection === 'increase' \? quantity : -quantity/);
+  assert.match(inventoryApiSource, /salesApi\.context\(\)/);
+  assert.match(inventoryApiSource, /businessUnitId: isDatabaseId\(warehouse\.businessUnitId\) \? warehouse\.businessUnitId : undefined/);
   assert.match(inventoryApiSource, /businessId: isDatabaseId\(warehouse\.businessId\) \? warehouse\.businessId : undefined/);
+  assert.doesNotMatch(inventorySource, /inventoryBusinessStructureMocks/);
+});
+
+test('Descuentos se administra desde Inventarios y se publica hacia los canales comerciales', () => {
+  const moduleSource = readFileSync(resolve(root, 'src/app/ComplementaryModules/Inventory/Multiinventarios.tsx'), 'utf8');
+  const guidanceSource = readFileSync(resolve(root, 'src/app/ComplementaryModules/Inventory/operationalGuidance/inventoryLearningControls.ts'), 'utf8');
+  const discountsSource = readFileSync(resolve(root, 'src/app/BasicModules/PointOfSale/Descuentos/Descuentos.tsx'), 'utf8');
+  const tabScopeSource = readFileSync(resolve(root, 'src/app/access/tabScopeCatalog.ts'), 'utf8');
+
+  assert.match(moduleSource, /'discounts'/);
+  assert.match(moduleSource, /PointOfSale\/Descuentos/);
+  assert.match(moduleSource, /descuentos:\s*'discounts'/);
+  assert.match(moduleSource, /t\.tabs\.discounts/);
+  assert.match(tabScopeSource, /discounts:\s*'products'/);
+  assert.match(guidanceSource, /Habilitar en POS, Ventas y kioscos/);
+  assert.match(guidanceSource, /política comercial asociada al producto/);
+  assert.match(discountsSource, /overflow-hidden rounded-xl/);
 });

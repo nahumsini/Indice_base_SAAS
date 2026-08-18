@@ -6,6 +6,7 @@ const DISCOUNT_RULES_STORAGE_KEY = 'indice.pos.discountRules';
 function reviveDiscountRule(rule: DiscountRule): DiscountRule {
   return {
     ...rule,
+    enabledChannels: rule.enabledChannels?.length ? rule.enabledChannels : ['pos', 'sales'],
     startsAt: new Date(String(rule.startsAt)),
     endsAt: new Date(String(rule.endsAt)),
   };
@@ -76,6 +77,7 @@ export function getEligibleDiscountRules(
 
   return rules
     .filter((rule) => isDiscountActive(rule, date))
+    .filter((rule) => !context.channel || rule.enabledChannels.includes(context.channel))
     .filter((rule) => !rule.minimumAmount || context.amount >= rule.minimumAmount)
     .filter((rule) => {
       if (context.scope && rule.scope !== context.scope && rule.scope !== 'manual') {

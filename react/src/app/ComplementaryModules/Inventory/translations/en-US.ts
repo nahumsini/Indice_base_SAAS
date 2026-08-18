@@ -1,6 +1,6 @@
 export const enUS = {
   title: 'Inventory',
-  subtitle: 'Manage products, stock, suppliers, and operational purchasing from one workspace.',
+  subtitle: 'Manage products, stock, suppliers, purchasing, discounts, and channel availability from one workspace.',
   navLabel: 'Inventory sections',
   loading: {
     openingTitle: 'Loading Inventory',
@@ -14,5 +14,6 @@ export const enUS = {
     warehouses: 'Warehouses',
     providers: 'Suppliers',
     purchaseOrders: 'Purchase orders',
+    discounts: 'Discounts',
   },
 } as const;

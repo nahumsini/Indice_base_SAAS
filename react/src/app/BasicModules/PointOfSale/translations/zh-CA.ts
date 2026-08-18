@@ -1,6 +1,6 @@
 export const zhCA = {
   title: '销售点',
-  subtitle: '管理柜台销售、开票、收银结算、客户、折扣和运营关键指标。',
+  subtitle: '管理柜台销售、收据、收银结算、客户、自助终端和运营关键指标。',
   back: '返回',
   navLabel: '销售点模块',
   loading: {
@@ -15,8 +15,6 @@ export const zhCA = {
     sale: '销售',
     cortes: '收银结算',
     clientes: '客户',
-    facturacion: '开票',
-    descuentos: '折扣',
     kpis: '关键指标',
   },
 } as const;

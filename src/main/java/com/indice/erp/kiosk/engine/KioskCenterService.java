@@ -132,10 +132,15 @@ public class KioskCenterService {
                    definition.business_id, business.name AS business_name,
                    definition.location_id, definition.access_level, definition.expires_at,
                    definition.public_token_hint, definition.configuration_version,
-                   definition.adapter_version,
+                   definition.adapter_version, definition.last_seen_at,
+                   (definition.protected_public_token IS NOT NULL
+                    AND definition.protected_public_token <> '') AS access_recoverable,
                    (SELECT MAX(session.last_activity_at)
                       FROM kiosk_sessions session
-                     WHERE session.kiosk_definition_id = definition.id) AS last_activity_at,
+                     WHERE session.kiosk_definition_id = definition.id) AS session_activity_at,
+                   (SELECT MAX(COALESCE(action.completed_at, action.requested_at))
+                      FROM kiosk_actions action
+                     WHERE action.kiosk_definition_id = definition.id) AS action_activity_at,
                    (SELECT COUNT(*)
                       FROM kiosk_actions action
                      WHERE action.kiosk_definition_id = definition.id
@@ -179,8 +184,13 @@ public class KioskCenterService {
         row.put("public_token_hint", rs.getString("public_token_hint"));
         row.put("configuration_version", rs.getInt("configuration_version"));
         row.put("adapter_version", rs.getInt("adapter_version"));
-        var lastActivity = rs.getTimestamp("last_activity_at");
-        put(row, "last_activity_at", lastActivity == null ? null : lastActivity.toInstant().toString());
+        row.put("access_recoverable", rs.getBoolean("access_recoverable"));
+        var lastSeen = instant(rs.getTimestamp("last_seen_at"));
+        var sessionActivity = instant(rs.getTimestamp("session_activity_at"));
+        var actionActivity = instant(rs.getTimestamp("action_activity_at"));
+        put(row, "last_seen_at", lastSeen == null ? null : lastSeen.toString());
+        var lastActivity = latest(lastSeen, sessionActivity, actionActivity);
+        put(row, "last_activity_at", lastActivity == null ? null : lastActivity.toString());
         var failures = rs.getInt("recent_failures");
         row.put("risk_signals", riskSignals(status, expiresAt, failures));
         return Map.copyOf(row);
@@ -229,6 +239,20 @@ public class KioskCenterService {
         if (value != null) {
             target.put(key, value);
         }
+    }
+
+    private Instant instant(java.sql.Timestamp value) {
+        return value == null ? null : value.toInstant();
+    }
+
+    private Instant latest(Instant... values) {
+        Instant latest = null;
+        for (var value : values) {
+            if (value != null && (latest == null || value.isAfter(latest))) {
+                latest = value;
+            }
+        }
+        return latest;
     }
 
     private Long parseLong(String value) {

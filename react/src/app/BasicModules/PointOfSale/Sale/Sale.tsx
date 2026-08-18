@@ -34,7 +34,7 @@ import { useSaleShift } from './hooks/useSaleShift';
 import { useSaleSmartAlerts } from './hooks/useSaleSmartAlerts';
 import { usePendingPreTickets } from './hooks/usePendingPreTickets';
 import { useSuspendedSales } from './hooks/useSuspendedSales';
-import type { PaymentMethod, SaleItem } from './types/sale.types';
+import type { PaymentMethod, PaymentPreview, SaleItem } from './types/sale.types';
 import { useLearningModeHeaderActions } from '../../../learningMode';
 import { formatPosDisplayCurrency } from './utils/posCurrencyDisplay';
 import {
@@ -47,7 +47,7 @@ import {
 export default function Sale() {
   const learningModeActive = useLearningModeHeaderActions()?.active ?? false;
   const navigate = useNavigate();
-  const { products: saleProducts, saleCurrency, reloadInventoryBalances } = usePointOfSaleCatalogProducts();
+  const [customerDisplayPaymentPreview, setCustomerDisplayPaymentPreview] = useState<PaymentPreview | null>(null);
   const { reloadSalesRecords } = useSalesCrm();
   const creditCustomers = usePointOfSaleCustomers();
   const {
@@ -62,6 +62,9 @@ export default function Sale() {
     refreshContext: refreshRegisterContext,
     clearError: clearRegisterContextError,
   } = useSaleRegisterContext();
+  const { products: saleProducts, saleCurrency, reloadInventoryBalances } = usePointOfSaleCatalogProducts(
+    registerContext?.warehouseId,
+  );
   const baseTransactionCurrency = useMemo(() => {
     const productCurrency = saleProducts.find((product) => product.currency?.trim())?.currency;
     return (currentOpenShift?.currencyCode || saleCurrency || productCurrency || defaultBusinessCurrency).trim().toUpperCase();
@@ -306,6 +309,7 @@ export default function Sale() {
     totals,
     currentShift,
     currencyCode: transactionCurrency,
+    paymentPreview: customerDisplayPaymentPreview,
   });
 
   useEffect(() => {
@@ -515,6 +519,7 @@ export default function Sale() {
       amount: selectedItemForDiscount.price * selectedItemForDiscount.quantity,
       productId: selectedItemForDiscount.productId,
       category: product?.department,
+      channel: 'pos',
     });
   }, [discountRules, saleProducts, selectedItemForDiscount]);
 
@@ -523,6 +528,7 @@ export default function Sale() {
       getEligibleDiscountRules(discountRules, {
         amount: totals.subtotal,
         scope: 'order',
+        channel: 'pos',
       }),
     [discountRules, totals.subtotal],
   );
@@ -721,6 +727,7 @@ export default function Sale() {
                   onExactPayment={handleExactPayment}
                   onAddPayment={openPaymentModal}
                   onConfirmWorkspacePayment={confirmWorkspacePayment}
+                  onPaymentPreviewChange={setCustomerDisplayPaymentPreview}
                   creditRules={creditRules}
                   creditCustomers={creditCustomers}
                   currency={transactionCurrency}
@@ -823,6 +830,7 @@ export default function Sale() {
         showTicketModal={showTicketModal}
         onCloseAddPayment={closeAddPaymentModal}
         onConfirmAddPayment={confirmAddPayment}
+        onPaymentPreviewChange={setCustomerDisplayPaymentPreview}
         onCloseShiftModal={closeCloseShiftModal}
         onConfirmCloseShift={handleCloseShift}
         onCloseItemDiscount={closeItemDiscountModal}
