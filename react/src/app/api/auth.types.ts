@@ -30,3 +30,13 @@ export interface AuthSessionResponse {
   companies: Array<AuthSessionResponse['company']>;
   csrfToken: string;
 }
+
+export interface MfaRequiredResponse {
+  mfaRequired: true;
+  challengeId: string;
+  maskedDestination: string;
+  expiresInSeconds: number;
+  resendAvailableInSeconds: number;
+}
+
+export type LoginResponse = AuthSessionResponse | MfaRequiredResponse;

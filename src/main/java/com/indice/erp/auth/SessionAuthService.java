@@ -5,6 +5,9 @@ import com.indice.erp.billing.subscription.CompanySubscriptionStatus;
 import com.indice.erp.billing.subscription.CompanySubscriptionStatusProvider;
 import com.indice.erp.tenant.TenantScope;
 import jakarta.servlet.http.HttpSession;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -24,27 +27,42 @@ public class SessionAuthService {
     public static final String SESSION_USER_NAME = "auth.user.name";
     public static final String SESSION_ROLE = "auth.user.role";
     public static final String SESSION_LOGIN_CSRF = "auth.login.csrf";
+    public static final String SESSION_CREATED_AT = "auth.session.created_at";
+    public static final String SESSION_LAST_SEEN_AT = "auth.session.last_seen_at";
 
     private final JdbcTemplate jdbcTemplate;
     private final BCryptPasswordEncoder passwordEncoder;
     private final LoginAuditService loginAuditService;
     private final CompanySubscriptionStatusProvider subscriptionStatusProvider;
+    private final AuthSecurityProperties securityProperties;
+    private final Clock clock;
 
     @Autowired
     public SessionAuthService(
         JdbcTemplate jdbcTemplate,
         BCryptPasswordEncoder passwordEncoder,
         LoginAuditService loginAuditService,
-        CompanySubscriptionStatusProvider subscriptionStatusProvider
+        CompanySubscriptionStatusProvider subscriptionStatusProvider,
+        AuthSecurityProperties securityProperties,
+        Clock clock
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.passwordEncoder = passwordEncoder;
         this.loginAuditService = loginAuditService;
         this.subscriptionStatusProvider = subscriptionStatusProvider;
+        this.securityProperties = securityProperties;
+        this.clock = clock;
     }
 
     SessionAuthService(JdbcTemplate jdbcTemplate, BCryptPasswordEncoder passwordEncoder) {
-        this(jdbcTemplate, passwordEncoder, LoginAuditService.noop(), (companyId) -> CompanySubscriptionStatus.activeLegacy());
+        this(
+            jdbcTemplate,
+            passwordEncoder,
+            LoginAuditService.noop(),
+            (companyId) -> CompanySubscriptionStatus.activeLegacy(),
+            new AuthSecurityProperties(),
+            Clock.systemUTC()
+        );
     }
 
     public String ensureLoginCsrf(HttpSession session) {
@@ -76,23 +94,36 @@ public class SessionAuthService {
         return authenticateAndStoreSession(companyName, email, password, session, auditContext);
     }
 
-    private LoginAttemptResult authenticateAndStoreSession(
+    public LoginCredentialVerificationResult verifyLoginCredentials(
         String companyName,
         String email,
-        String password,
-        HttpSession session,
-        LoginAuditContext auditContext
+        String password
     ) {
-
-        var normalizedEmail = email == null ? "" : email.trim().toLowerCase();
-        var normalizedCompanyName = companyName == null ? "" : companyName.trim().toLowerCase();
+        var normalizedEmail = normalizeEmail(email);
+        var normalizedCompanyName = normalizeCompanyName(companyName);
         if (normalizedCompanyName.isBlank()) {
-            recordLogin(normalizedEmail, null, null, null, false, "Company name is required.", auditContext);
-            return new LoginAttemptResult(false, "Company name is required.");
+            return LoginCredentialVerificationResult.failure(
+                "Company name is required.",
+                AuthFailureReason.MISSING_COMPANY,
+                normalizedEmail,
+                normalizedCompanyName,
+                null,
+                null,
+                null,
+                null
+            );
         }
         if (normalizedEmail.isBlank() || password == null || password.isBlank()) {
-            recordLogin(normalizedEmail, null, null, null, false, "Invalid company, email, or password.", auditContext);
-            return new LoginAttemptResult(false, "Invalid company, email, or password.");
+            return LoginCredentialVerificationResult.failure(
+                "Invalid company, email, or password.",
+                AuthFailureReason.MISSING_EMAIL_OR_PASSWORD,
+                normalizedEmail,
+                normalizedCompanyName,
+                null,
+                null,
+                null,
+                null
+            );
         }
 
         var users = jdbcTemplate.query(
@@ -112,14 +143,30 @@ public class SessionAuthService {
         );
 
         if (users.isEmpty()) {
-            recordLogin(normalizedEmail, null, null, null, false, "Invalid company, email, or password.", auditContext);
-            return new LoginAttemptResult(false, "Invalid company, email, or password.");
+            return LoginCredentialVerificationResult.failure(
+                "Invalid company, email, or password.",
+                AuthFailureReason.USER_NOT_FOUND,
+                normalizedEmail,
+                normalizedCompanyName,
+                null,
+                null,
+                null,
+                null
+            );
         }
 
         var user = users.getFirst();
         if (!matchesPassword(password, user.passwordHash())) {
-            recordLogin(normalizedEmail, user.id(), null, null, false, "Invalid company, email, or password.", auditContext);
-            return new LoginAttemptResult(false, "Invalid company, email, or password.");
+            return LoginCredentialVerificationResult.failure(
+                "Invalid company, email, or password.",
+                AuthFailureReason.PASSWORD_INVALID,
+                normalizedEmail,
+                normalizedCompanyName,
+                user.id(),
+                null,
+                null,
+                null
+            );
         }
 
         var companies = jdbcTemplate.query(
@@ -156,22 +203,106 @@ public class SessionAuthService {
         );
 
         if (companies.isEmpty()) {
-            recordLogin(normalizedEmail, user.id(), null, null, false, "Invalid company, email, or password.", auditContext);
-            return new LoginAttemptResult(false, "Invalid company, email, or password.");
+            var companyId = resolveCompanyId(normalizedCompanyName);
+            return LoginCredentialVerificationResult.failure(
+                "Invalid company, email, or password.",
+                companyId == null ? AuthFailureReason.COMPANY_NOT_FOUND : AuthFailureReason.MEMBERSHIP_NOT_FOUND,
+                normalizedEmail,
+                normalizedCompanyName,
+                user.id(),
+                companyId,
+                null,
+                null
+            );
         }
 
         var companyRole = companies.getFirst();
-        session.setAttribute(SESSION_USER_ID, user.id());
-        session.setAttribute(SESSION_COMPANY_ID, companyRole.companyId());
-        session.setAttribute(SESSION_USER_COMPANY_ID, companyRole.userCompanyId());
-        session.setAttribute(SESSION_USER_NAME, user.fullName());
-        session.setAttribute(SESSION_ROLE, normalizeRole(companyRole.role()));
-        recordLogin(normalizedEmail, user.id(), companyRole.companyId(), companyRole.role(), true, "", auditContext);
+        var login = new AuthenticatedLogin(
+            user.id(),
+            companyRole.companyId(),
+            companyRole.userCompanyId(),
+            user.fullName(),
+            normalizedEmail,
+            companyName == null ? normalizedCompanyName : companyName.trim(),
+            normalizeRole(companyRole.role())
+        );
+        return LoginCredentialVerificationResult.success(login, normalizedEmail, normalizedCompanyName);
+    }
+
+    public void storeAuthenticatedSession(HttpSession session, AuthenticatedLogin login) {
+        var role = normalizeRole(login.role());
+        session.setAttribute(SESSION_USER_ID, login.userId());
+        session.setAttribute(SESSION_COMPANY_ID, login.companyId());
+        session.setAttribute(SESSION_USER_COMPANY_ID, login.userCompanyId());
+        session.setAttribute(SESSION_USER_NAME, login.fullName());
+        session.setAttribute(SESSION_ROLE, role);
+        var now = clock.instant();
+        session.setAttribute(SESSION_CREATED_AT, now);
+        session.setAttribute(SESSION_LAST_SEEN_AT, now);
+        applySessionIdleTimeout(session, role);
+    }
+
+    public boolean enforceSessionTimeout(HttpSession session, LoginAuditContext auditContext) {
+        var userId = session.getAttribute(SESSION_USER_ID);
+        if (!(userId instanceof Number userIdNumber)) {
+            return true;
+        }
+        var now = clock.instant();
+        var createdAt = sessionInstant(session.getAttribute(SESSION_CREATED_AT), now);
+        var lastSeenAt = sessionInstant(session.getAttribute(SESSION_LAST_SEEN_AT), now);
+        var role = sessionRole(session);
+        var idleTimeoutSeconds = securityProperties.getSessionIdleTimeoutSecondsForRole(role);
+        session.setMaxInactiveInterval(idleTimeoutSeconds);
+        var absoluteExpired = createdAt.plus(Duration.ofSeconds(securityProperties.getSessionAbsoluteTimeoutSeconds())).isBefore(now);
+        var idleExpired = lastSeenAt.plus(Duration.ofSeconds(idleTimeoutSeconds)).isBefore(now);
+        if (absoluteExpired || idleExpired) {
+            var companyId = session.getAttribute(SESSION_COMPANY_ID);
+            var userCompanyId = session.getAttribute(SESSION_USER_COMPANY_ID);
+            loginAuditService.record(LoginAuditEvent.builder()
+                .eventType("SESSION_TIMEOUT")
+                .stage("SESSION")
+                .outcome("BLOCKED")
+                .userId(userIdNumber.longValue())
+                .companyId(companyId instanceof Number companyNumber ? companyNumber.longValue() : null)
+                .userCompanyId(userCompanyId instanceof Number membershipNumber ? membershipNumber.longValue() : null)
+                .role(role)
+                .failureReasonCode(absoluteExpired
+                    ? AuthFailureReason.SESSION_ABSOLUTE_TIMEOUT
+                    : AuthFailureReason.SESSION_IDLE_TIMEOUT)
+                .failureMessageSafe("Authenticated session expired.")
+                .context(auditContext)
+                .build());
+            logout(session);
+            return false;
+        }
+        session.setAttribute(SESSION_CREATED_AT, createdAt);
+        session.setAttribute(SESSION_LAST_SEEN_AT, now);
+        return true;
+    }
+
+    private LoginAttemptResult authenticateAndStoreSession(
+        String companyName,
+        String email,
+        String password,
+        HttpSession session,
+        LoginAuditContext auditContext
+    ) {
+        var result = verifyLoginCredentials(companyName, email, password);
+        if (!result.success()) {
+            recordLogin(result.emailNormalized(), result.userId(), result.companyId(), result.role(), false, result.message(), auditContext);
+            return new LoginAttemptResult(false, result.message());
+        }
+
+        storeAuthenticatedSession(session, result.login());
+        recordLogin(result.emailNormalized(), result.userId(), result.companyId(), result.role(), true, "", auditContext);
 
         return new LoginAttemptResult(true, "");
     }
 
     public Optional<AuthSessionUser> currentUser(HttpSession session) {
+        if (!enforceSessionTimeout(session, LoginAuditContext.empty())) {
+            return Optional.empty();
+        }
         var userId = session.getAttribute(SESSION_USER_ID);
         var companyId = session.getAttribute(SESSION_COMPANY_ID);
 
@@ -189,6 +320,7 @@ public class SessionAuthService {
         var role = normalizeRole(activeAccess.get().role());
         session.setAttribute(SESSION_USER_COMPANY_ID, activeAccess.get().userCompanyId());
         session.setAttribute(SESSION_ROLE, role);
+        applySessionIdleTimeout(session, role);
 
         return Optional.of(new AuthSessionUser(
             userIdNumber.longValue(),
@@ -239,7 +371,9 @@ public class SessionAuthService {
 
         session.setAttribute(SESSION_COMPANY_ID, membership.get().companyId());
         session.setAttribute(SESSION_USER_COMPANY_ID, membership.get().userCompanyId());
-        session.setAttribute(SESSION_ROLE, normalizeRole(membership.get().role()));
+        var role = normalizeRole(membership.get().role());
+        session.setAttribute(SESSION_ROLE, role);
+        applySessionIdleTimeout(session, role);
         return true;
     }
 
@@ -265,6 +399,46 @@ public class SessionAuthService {
 
     private String normalizeRole(String value) {
         return value == null ? null : value.trim().toLowerCase();
+    }
+
+    private String sessionRole(HttpSession session) {
+        var role = session.getAttribute(SESSION_ROLE);
+        return role instanceof String value ? normalizeRole(value) : null;
+    }
+
+    private void applySessionIdleTimeout(HttpSession session, String role) {
+        session.setMaxInactiveInterval(securityProperties.getSessionIdleTimeoutSecondsForRole(role));
+    }
+
+    private String normalizeEmail(String value) {
+        return value == null ? "" : value.trim().toLowerCase();
+    }
+
+    private String normalizeCompanyName(String value) {
+        return value == null ? "" : value.trim().toLowerCase();
+    }
+
+    private Long resolveCompanyId(String normalizedCompanyName) {
+        var ids = jdbcTemplate.query(
+            "SELECT id FROM companies WHERE LOWER(TRIM(name)) = ? LIMIT 1",
+            (rs, rowNum) -> rs.getLong("id"),
+            normalizedCompanyName
+        );
+        return ids.isEmpty() ? null : ids.getFirst();
+    }
+
+    private Instant sessionInstant(Object value, Instant fallback) {
+        if (value instanceof Instant instant) {
+            return instant;
+        }
+        if (value instanceof String stringValue) {
+            try {
+                return Instant.parse(stringValue);
+            } catch (RuntimeException ignored) {
+                return fallback;
+            }
+        }
+        return fallback;
     }
 
     private Optional<CompanyRole> loadActiveSessionAccess(long userId, long companyId) {

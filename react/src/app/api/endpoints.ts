@@ -1,6 +1,8 @@
 export const endpoints = {
   auth: {
     login: '/api/v1/auth/login',
+    loginOtpVerify: '/api/v1/auth/login/otp/verify',
+    loginOtpResend: '/api/v1/auth/login/otp/resend',
     register: '/api/v1/auth/register',
     csrf: '/api/v1/auth/csrf',
     signupTrial: '/api/v1/auth/signup/trial',
@@ -11,6 +13,9 @@ export const endpoints = {
   },
   billingSignup: {
     config: '/api/v1/billing/signup/config',
+    emailVerificationStart: '/api/v1/billing/signup/email-verification/start',
+    emailVerificationResend: '/api/v1/billing/signup/email-verification/resend',
+    emailVerificationVerify: '/api/v1/billing/signup/email-verification/verify',
     checkout: '/api/v1/billing/signup/checkout',
     status: '/api/v1/billing/signup/status',
   },

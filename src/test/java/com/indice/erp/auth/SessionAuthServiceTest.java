@@ -5,14 +5,20 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.indice.erp.billing.subscription.CompanySubscriptionStatus;
+import java.time.Duration;
+import java.time.Instant;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -83,6 +89,7 @@ class SessionAuthServiceTest {
         assertEquals(11L, session.getAttribute(SessionAuthService.SESSION_USER_COMPANY_ID));
         assertEquals("Demo User", session.getAttribute(SessionAuthService.SESSION_USER_NAME));
         assertEquals("admin", session.getAttribute(SessionAuthService.SESSION_ROLE));
+        assertEquals(7_200, session.getMaxInactiveInterval());
     }
 
     @Test
@@ -186,7 +193,8 @@ class SessionAuthServiceTest {
         var session = new MockHttpSession();
         session.setAttribute(SessionAuthService.SESSION_USER_ID, 5L);
         session.setAttribute(SessionAuthService.SESSION_COMPANY_ID, 7L);
-        session.setAttribute(SessionAuthService.SESSION_ROLE, "admin");
+        session.setAttribute(SessionAuthService.SESSION_ROLE, "root");
+        session.setMaxInactiveInterval(1_800);
         stubCompanyMemberships(5L, List.of(
             new MembershipRow(11L, 7L, "Empresa Uno", "admin", null, null),
             new MembershipRow(12L, 9L, "Empresa Dos", "user", 20L, 30L)
@@ -196,6 +204,50 @@ class SessionAuthServiceTest {
         assertEquals(9L, session.getAttribute(SessionAuthService.SESSION_COMPANY_ID));
         assertEquals(12L, session.getAttribute(SessionAuthService.SESSION_USER_COMPANY_ID));
         assertEquals("user", session.getAttribute(SessionAuthService.SESSION_ROLE));
+        assertEquals(7_200, session.getMaxInactiveInterval());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "root,1800",
+        "superadmin,3600",
+        "owner,3600",
+        "dueno,3600",
+        "admin,7200",
+        "manager,7200",
+        "approver,7200",
+        "contributor,7200",
+        "viewer,7200",
+        "user,7200",
+        "unexpected,1800"
+    })
+    void storeAuthenticatedSessionUsesRoleIdleTimeout(String role, int expectedSeconds) {
+        var service = serviceWith(LoginAuditService.noop(), new AuthSecurityProperties(), new MutableClock(Instant.now()));
+        var session = new MockHttpSession();
+
+        service.storeAuthenticatedSession(session, loginWithRole(role));
+
+        assertEquals(expectedSeconds, session.getMaxInactiveInterval());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "root,1800",
+        "superadmin,3600",
+        "admin,7200",
+        "user,7200",
+        "unexpected,1800"
+    })
+    void enforceSessionTimeoutAllowsRoleAtIdleBoundary(String role, int idleSeconds) {
+        var clock = new MutableClock(Instant.parse("2026-08-18T12:00:00Z"));
+        var service = serviceWith(LoginAuditService.noop(), new AuthSecurityProperties(), clock);
+        var session = activeSession(role, clock.instant());
+
+        clock.advance(Duration.ofSeconds(idleSeconds));
+
+        assertTrue(service.enforceSessionTimeout(session, LoginAuditContext.empty()));
+        assertFalse(session.isInvalid());
+        assertEquals(idleSeconds, session.getMaxInactiveInterval());
     }
 
     @Test
@@ -230,6 +282,83 @@ class SessionAuthServiceTest {
 
         assertTrue(service.currentUser(session).isEmpty());
         assertTrue(session.isInvalid());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "root,1800",
+        "superadmin,3600",
+        "admin,7200",
+        "user,7200",
+        "unexpected,1800"
+    })
+    void enforceSessionTimeoutInvalidatesRoleIdleSessionAndAuditsIt(String role, int idleSeconds) {
+        var auditService = mock(LoginAuditService.class);
+        var clock = new MutableClock(Instant.parse("2026-08-18T12:00:00Z"));
+        var service = serviceWith(auditService, new AuthSecurityProperties(), clock);
+        var session = activeSession(role, clock.instant());
+
+        clock.advance(Duration.ofSeconds(idleSeconds + 1L));
+
+        assertFalse(service.enforceSessionTimeout(session, new LoginAuditContext("127.0.0.1", "JUnit", "session-1")));
+        assertTrue(session.isInvalid());
+        verify(auditService).record(ArgumentMatchers.argThat(event ->
+            "SESSION_TIMEOUT".equals(event.eventType())
+                && "BLOCKED".equals(event.outcome())
+                && AuthFailureReason.SESSION_IDLE_TIMEOUT.equals(event.failureReasonCode())
+                && event.userId().equals(5L)
+                && event.companyId().equals(7L)
+                && event.userCompanyId().equals(11L)
+        ));
+    }
+
+    @Test
+    void enforceSessionTimeoutStillHonorsAbsoluteTimeout() {
+        var auditService = mock(LoginAuditService.class);
+        var properties = new AuthSecurityProperties();
+        properties.setSessionAbsoluteTimeoutSeconds(7_200);
+        var base = Instant.parse("2026-08-18T12:00:00Z");
+        var clock = new MutableClock(base);
+        var service = serviceWith(auditService, properties, clock);
+        var session = activeSession("root", base);
+        session.setAttribute(SessionAuthService.SESSION_LAST_SEEN_AT, base.plusSeconds(7_200));
+
+        clock.advance(Duration.ofSeconds(7_201));
+
+        assertFalse(service.enforceSessionTimeout(session, LoginAuditContext.empty()));
+        verify(auditService).record(ArgumentMatchers.argThat(event ->
+            AuthFailureReason.SESSION_ABSOLUTE_TIMEOUT.equals(event.failureReasonCode())
+        ));
+    }
+
+    private SessionAuthService serviceWith(
+        LoginAuditService auditService,
+        AuthSecurityProperties properties,
+        MutableClock clock
+    ) {
+        return new SessionAuthService(
+            jdbcTemplate,
+            passwordEncoder,
+            auditService,
+            companyId -> CompanySubscriptionStatus.activeLegacy(),
+            properties,
+            clock
+        );
+    }
+
+    private AuthenticatedLogin loginWithRole(String role) {
+        return new AuthenticatedLogin(5L, 7L, 11L, "Session User", "session@example.com", "Indice", role);
+    }
+
+    private MockHttpSession activeSession(String role, Instant timestamp) {
+        var session = new MockHttpSession();
+        session.setAttribute(SessionAuthService.SESSION_USER_ID, 5L);
+        session.setAttribute(SessionAuthService.SESSION_COMPANY_ID, 7L);
+        session.setAttribute(SessionAuthService.SESSION_USER_COMPANY_ID, 11L);
+        session.setAttribute(SessionAuthService.SESSION_ROLE, role);
+        session.setAttribute(SessionAuthService.SESSION_CREATED_AT, timestamp);
+        session.setAttribute(SessionAuthService.SESSION_LAST_SEEN_AT, timestamp);
+        return session;
     }
 
     private String mapStringRow(RowMapper<String> rowMapper, String moduleSlug) throws Exception {
