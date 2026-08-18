@@ -58,6 +58,31 @@ Local stack with extra admin/debug ports:
 
 ## Preflight de despliegue
 
+### Base aislada para las pruebas del backend
+
+El preflight ejecuta las pruebas de integración y nunca debe apuntarlas a la
+base funcional ni a producción. Antes de correrlo, prepara una instancia MySQL
+8 desechable con la configuración predeterminada de
+`src/test/resources/application.properties`:
+
+```bash
+docker run --rm -d --name indice-mysql-tests \
+  -p 127.0.0.1:3307:3306 \
+  -e MYSQL_DATABASE=indice_test_db \
+  -e MYSQL_USER=indice_test_user \
+  -e MYSQL_PASSWORD=indice_test_pass \
+  -e MYSQL_ROOT_PASSWORD=indice_test_root \
+  mysql:8.0
+```
+
+Si el puerto `3307` ya pertenece a otra instancia local, crea en ella
+`indice_test_db` y otorga acceso exclusivo a `indice_test_user`, o configura
+`TEST_DATASOURCE_URL`, `TEST_DATASOURCE_USERNAME` y
+`TEST_DATASOURCE_PASSWORD` para otra instancia aislada. Las pruebas pueden
+crear y modificar datos; nunca uses `indice_db` ni credenciales productivas.
+Si levantaste el contenedor desechable del ejemplo, elimínalo al terminar con
+`docker stop indice-mysql-tests`.
+
 Antes de publicar, ejecuta la validación completa con el archivo de entorno real:
 
 ```bash
@@ -75,12 +100,17 @@ las credenciales. Para comprobar solamente el repositorio con la plantilla:
 `--example` permite los valores inseguros documentales de `.env.example`; nunca
 debe usarse como autorización para desplegar esos valores en producción.
 
+El preflight sólo aprueba el código y la configuración. No crea
+`deployment/env/.env`, no genera secretos productivos y no publica imágenes en
+un registry.
+
 Los tiempos estándar enviados al backend son: RH 3 minutos; Expenses 5 minutos
 de inactividad y 8 horas de sesión; Caja Chica 15 minutos y 4 horas; Procesos y
 Tareas 30 minutos y 8 horas. Para cambiarlos en un ambiente, modifica únicamente
 su archivo `deployment/env/.env` y vuelve a crear el contenedor del backend.
 
-Antes de una instalación que incluya las migraciones V134/V135, comprueba que no
+El objetivo actual del esquema es **V196**. Antes de una instalación que incluya
+las migraciones V134/V135, comprueba que no
 existan kioskos nuevos con alcance organizacional incompleto. Las consultas son
 de solo lectura y deben devolver `0`:
 
@@ -99,6 +129,41 @@ WHERE COALESCE(kiosk.unit_id, cash_register.unit_id) IS NULL
 No inventes un Unit/Business para hacer pasar la migración. Reasigna o elimina
 el kiosko incompleto desde el módulo antes del despliegue; V134/V135 se detienen
 de forma deliberada si no pueden preservar una frontera de autorización real.
+
+V193 sincroniza el alcance de cada caja usando el almacén como asignación
+canónica. Antes de actualizar una base longeva, esta auditoría también debe
+devolver `0`; cualquier fila requiere corregir la asignación del almacén desde
+Inventarios/Punto de venta:
+
+```sql
+SELECT COUNT(*) AS registers_with_unresolved_warehouse_scope
+FROM pos_cash_registers cash_register
+LEFT JOIN sales_inventory_warehouses warehouse
+  ON warehouse.id = cash_register.warehouse_id
+ AND warehouse.company_id = cash_register.company_id
+WHERE cash_register.deleted_at IS NULL
+  AND (
+    warehouse.id IS NULL
+    OR warehouse.deleted_at IS NOT NULL
+    OR warehouse.business_unit_id IS NULL
+    OR warehouse.business_unit_id NOT REGEXP '^[0-9]+$'
+    OR warehouse.business_id IS NULL
+    OR warehouse.business_id NOT REGEXP '^[0-9]+$'
+  );
+```
+
+### Checklist de liberación
+
+- [ ] `deployment/env/.env` existe únicamente en el host y contiene URLs HTTPS,
+      credenciales reales y dos secretos de kiosco distintos de al menos 32 caracteres.
+- [ ] La base productiva tiene respaldo verificado y las auditorías de alcance devuelven `0`.
+- [ ] `./deployment/scripts/preflight.sh` pasa usando el `.env` real.
+- [ ] Las imágenes se etiquetan con un identificador inmutable (commit o versión),
+      no solamente con `latest`.
+- [ ] El stack inicia correctamente y Flyway reporta el esquema en V196.
+- [ ] `./deployment/scripts/smoke-test.sh` pasa por la URL pública.
+- [ ] Se valida inicio de sesión, carga de archivos, un flujo POS y un enlace de kiosco.
+- [ ] Existe un procedimiento de rollback que conserva la base y los volúmenes.
 
 ## Endpoints
 

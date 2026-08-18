@@ -22,7 +22,7 @@ if [[ ! -f "${ENV_FILE}" ]]; then
   exit 1
 fi
 
-for command in bash docker git npm; do
+for command in bash docker git java npm; do
   if ! command -v "${command}" >/dev/null 2>&1; then
     echo "Missing required command: ${command}" >&2
     exit 1

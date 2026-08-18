@@ -166,10 +166,11 @@ class ExecutiveKpiDomainRepositoryIntegrationTest {
         jdbc.update("""
                 INSERT INTO process_tasks
                     (company_id, folio, title, status, due_date, completed_at, cancelled_at,
-                     completion_percent, audited, business_id, unit_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+                     completion_percent, audited, business_id, unit_id, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
                 """, companyId, "TASK-" + suffix + '-' + token, "Task " + suffix, status, dueDate,
-                completedAt, cancelledAt, "completed".equals(status) ? 100 : 0, businessId, unitId);
+                completedAt, cancelledAt, "completed".equals(status) ? 100 : 0, businessId, unitId,
+                dueDate + " 08:00:00");
     }
 
     private void insertExpense(
