@@ -22,6 +22,17 @@ test('Kanban normaliza todas las etapas operativas entregadas por la API', () =>
   }
 });
 
+test('las relaciones vacías del CRM permanecen vacías al volver a guardar', () => {
+  const source = read('src/app/BasicModules/Sales/adapters/salesApiAdapters.ts');
+
+  assert.match(
+    source,
+    /if \(value === null \|\| value === undefined \|\| value === ''\) return undefined;/,
+  );
+  assert.match(source, /unitId: contact\.unitId \?\? undefined/);
+  assert.match(source, /ownerUserCompanyId: opportunity\.ownerUserCompanyId \?\? undefined/);
+});
+
 test('una venta directa requiere cliente, pero no fuerza cotización ni partidas', () => {
   const bridge = read('src/app/BasicModules/Sales/services/salesWorkflowBridge.ts');
   const modal = read('src/app/BasicModules/Sales/Sales/components/SalesDetailModal.tsx');
