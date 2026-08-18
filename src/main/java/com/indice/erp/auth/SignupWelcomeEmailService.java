@@ -1,8 +1,6 @@
 package com.indice.erp.auth;
 
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -17,11 +15,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 @Service
-class SignupWelcomeEmailService {
+public class SignupWelcomeEmailService {
 
     private static final Logger log = LoggerFactory.getLogger(SignupWelcomeEmailService.class);
     private static final String SENDGRID_URL = "https://api.sendgrid.com/v3/mail/send";
-    private static final String SUBJECT = "Welcome to Indice";
+    private static final String SUBJECT = "Welcome to Índice - your workspace is ready";
+    private static final String DEFAULT_SUPPORT_EMAIL = "support@indiceapp.com";
 
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
     private final RestClient restClient;
@@ -56,23 +55,32 @@ class SignupWelcomeEmailService {
     }
 
     void sendWelcome(SignupProfile profile, SignupBillingInfo billing) {
+        sendWorkspaceWelcome(new WorkspaceWelcomeEmail(
+            profile.fullName(),
+            profile.email(),
+            profile.companyName(),
+            billing.trialEnd()
+        ));
+    }
+
+    public void sendWorkspaceWelcome(WorkspaceWelcomeEmail welcome) {
         if (!enabled) {
-            log.info("Signup welcome email disabled for {}", profile.email());
+            log.info("Signup welcome email disabled for {}", welcome.email());
             return;
         }
         try {
             if ("sendgrid".equals(provider)) {
-                sendWithSendGrid(profile, billing);
+                sendWithSendGrid(welcome);
             } else {
-                sendWithSmtp(profile, billing);
+                sendWithSmtp(welcome);
             }
-            log.info("Signup welcome email sent to {}", profile.email());
+            log.info("Signup welcome email sent to {}", welcome.email());
         } catch (RuntimeException ex) {
-            log.warn("Unable to send signup welcome email to {}", profile.email(), ex);
+            log.warn("Unable to send signup welcome email to {}", welcome.email(), ex);
         }
     }
 
-    private void sendWithSmtp(SignupProfile profile, SignupBillingInfo billing) {
+    private void sendWithSmtp(WorkspaceWelcomeEmail welcome) {
         var mailSender = mailSenderProvider.getIfAvailable();
         if (mailSender == null) {
             throw new IllegalStateException("Mail sender is not configured.");
@@ -84,13 +92,13 @@ class SignupWelcomeEmailService {
         if (!replyToAddress.isBlank()) {
             message.setReplyTo(replyToAddress);
         }
-        message.setTo(profile.email());
+        message.setTo(welcome.email());
         message.setSubject(SUBJECT);
-        message.setText(body(profile, billing));
+        message.setText(body(welcome));
         mailSender.send(message);
     }
 
-    private void sendWithSendGrid(SignupProfile profile, SignupBillingInfo billing) {
+    private void sendWithSendGrid(WorkspaceWelcomeEmail welcome) {
         if (sendgridApiKey.isBlank() || fromAddress.isBlank()) {
             throw new IllegalStateException("SendGrid API key or from address is not configured.");
         }
@@ -98,18 +106,18 @@ class SignupWelcomeEmailService {
             .uri(SENDGRID_URL)
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + sendgridApiKey)
             .contentType(MediaType.APPLICATION_JSON)
-            .body(sendGridPayload(profile, billing))
+            .body(sendGridPayload(welcome))
             .retrieve()
             .toBodilessEntity();
     }
 
-    private Map<String, Object> sendGridPayload(SignupProfile profile, SignupBillingInfo billing) {
+    private Map<String, Object> sendGridPayload(WorkspaceWelcomeEmail welcome) {
         var from = new LinkedHashMap<String, Object>();
         from.put("email", fromAddress);
         if (!fromName.isBlank()) {
             from.put("name", fromName);
         }
-        var recipient = Map.<String, Object>of("email", profile.email());
+        var recipient = Map.<String, Object>of("email", welcome.email());
         var personalization = Map.<String, Object>of("to", java.util.List.of(recipient), "subject", SUBJECT);
         var payload = new LinkedHashMap<String, Object>();
         payload.put("personalizations", java.util.List.of(personalization));
@@ -117,29 +125,68 @@ class SignupWelcomeEmailService {
         if (!replyToAddress.isBlank()) {
             payload.put("reply_to", Map.of("email", replyToAddress));
         }
-        payload.put("content", java.util.List.of(Map.of("type", "text/plain", "value", body(profile, billing))));
+        payload.put("content", java.util.List.of(Map.of("type", "text/plain", "value", body(welcome))));
         return payload;
     }
 
-    private String body(SignupProfile profile, SignupBillingInfo billing) {
+    private String body(WorkspaceWelcomeEmail welcome) {
+        var trialCopy = welcome.trialEnd() == null
+            ? ""
+            : """
+
+                Your account includes a 30-day trial. During the trial, you can configure your team, review your modules, and prepare your workspace before billing begins.
+                """;
         return """
             Hi %s,
 
-            Your Indice account for %s is ready.
+            Welcome to Índice.
 
-            Your 30-day free trial includes all Basic modules. After the trial, your selected paid plan continues if payment succeeds.
+            Your workspace, %s, has been created successfully. You can now sign in and start using your selected modules.
 
-            Selected plan: %s
-            Trial ends: %s
-            Sign in: %s
-            """.formatted(profile.fullName(), profile.companyName(), billing.plan().planId(), date(billing.trialEnd()), loginUrl);
+            To log in, use:
+
+            Workspace / Company: %s
+            Email: %s
+            Password: The password you created during signup
+
+            Sign in here:
+            %s%s
+
+            If you need help getting started, contact us at %s.
+
+            Welcome aboard,
+
+            The Índice Team
+            """.formatted(
+                firstName(welcome.fullName()),
+                welcome.companyName(),
+                welcome.companyName(),
+                welcome.email(),
+                loginUrl,
+                trialCopy,
+                supportEmail()
+            );
     }
 
-    private String date(Instant value) {
-        return value == null ? "" : DateTimeFormatter.ISO_LOCAL_DATE.format(value.atOffset(ZoneOffset.UTC));
+    private String firstName(String fullName) {
+        var cleaned = clean(fullName, "there");
+        var space = cleaned.indexOf(' ');
+        return space > 0 ? cleaned.substring(0, space) : cleaned;
+    }
+
+    private String supportEmail() {
+        return replyToAddress.isBlank() ? DEFAULT_SUPPORT_EMAIL : replyToAddress;
     }
 
     private String clean(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
+    }
+
+    public record WorkspaceWelcomeEmail(
+        String fullName,
+        String email,
+        String companyName,
+        Instant trialEnd
+    ) {
     }
 }

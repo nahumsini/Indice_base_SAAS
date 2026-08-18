@@ -6,6 +6,8 @@ import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 public class SignupService {
@@ -84,7 +86,7 @@ public class SignupService {
             companyId
         );
         accountProvisioner.provision(companyId, userId, userCompanyId, profile, billing);
-        welcomeEmailService.sendWelcome(profile, billing);
+        sendWelcomeAfterCommit(profile, billing);
 
         return new SignupResult(userId, companyId, userCompanyId);
     }
@@ -128,6 +130,19 @@ public class SignupService {
             throw new IllegalStateException("Database did not return a generated id.");
         }
         return key.longValue();
+    }
+
+    private void sendWelcomeAfterCommit(SignupProfile profile, SignupBillingInfo billing) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            welcomeEmailService.sendWelcome(profile, billing);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                welcomeEmailService.sendWelcome(profile, billing);
+            }
+        });
     }
 
     private String requireEmail(String value) {

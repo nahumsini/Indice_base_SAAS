@@ -46,16 +46,20 @@ class SignupWelcomeEmailServiceTest {
             .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer sg-secret"))
             .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath("$.personalizations[0].to[0].email").value("ada@example.com"))
-            .andExpect(jsonPath("$.personalizations[0].subject").value("Welcome to Indice"))
+            .andExpect(jsonPath("$.personalizations[0].subject").value("Welcome to Índice - your workspace is ready"))
             .andExpect(jsonPath("$.from.email").value("no-reply@indice.test"))
             .andExpect(jsonPath("$.from.name").value("Indice ERP"))
             .andExpect(jsonPath("$.reply_to.email").value("support@indice.test"))
             .andExpect(jsonPath("$.content[0].type").value("text/plain"))
-            .andExpect(jsonPath("$.content[0].value", containsString("Hi Ada Owner,")))
+            .andExpect(jsonPath("$.content[0].value", containsString("Hi Ada,")))
+            .andExpect(jsonPath("$.content[0].value", containsString("Welcome to Índice.")))
             .andExpect(jsonPath("$.content[0].value", containsString("Ada Studio")))
-            .andExpect(jsonPath("$.content[0].value", containsString("Selected plan: basic")))
-            .andExpect(jsonPath("$.content[0].value", containsString("Trial ends: 2026-08-31")))
-            .andExpect(jsonPath("$.content[0].value", containsString("Sign in: https://app.indice.test/login")))
+            .andExpect(jsonPath("$.content[0].value", containsString("Workspace / Company: Ada Studio")))
+            .andExpect(jsonPath("$.content[0].value", containsString("Email: ada@example.com")))
+            .andExpect(jsonPath("$.content[0].value", containsString("Password: The password you created during signup")))
+            .andExpect(jsonPath("$.content[0].value", containsString("Sign in here:\nhttps://app.indice.test/login")))
+            .andExpect(jsonPath("$.content[0].value", containsString("Your account includes a 30-day trial.")))
+            .andExpect(jsonPath("$.content[0].value", containsString("contact us at support@indice.test")))
             .andRespond(withAccepted());
 
         service.sendWelcome(profile(), billing());
@@ -114,12 +118,16 @@ class SignupWelcomeEmailServiceTest {
         assertEquals("no-reply@indice.test", message.getValue().getFrom());
         assertEquals("support@indice.test", message.getValue().getReplyTo());
         assertArrayEquals(new String[] { "ada@example.com" }, message.getValue().getTo());
-        assertEquals("Welcome to Indice", message.getValue().getSubject());
-        assertTrue(message.getValue().getText().contains("Hi Ada Owner,"));
+        assertEquals("Welcome to Índice - your workspace is ready", message.getValue().getSubject());
+        assertTrue(message.getValue().getText().contains("Hi Ada,"));
+        assertTrue(message.getValue().getText().contains("Welcome to Índice."));
         assertTrue(message.getValue().getText().contains("Ada Studio"));
-        assertTrue(message.getValue().getText().contains("Selected plan: basic"));
-        assertTrue(message.getValue().getText().contains("Trial ends: 2026-08-31"));
-        assertTrue(message.getValue().getText().contains("Sign in: https://app.indice.test/login"));
+        assertTrue(message.getValue().getText().contains("Workspace / Company: Ada Studio"));
+        assertTrue(message.getValue().getText().contains("Email: ada@example.com"));
+        assertTrue(message.getValue().getText().contains("Password: The password you created during signup"));
+        assertTrue(message.getValue().getText().contains("Sign in here:\nhttps://app.indice.test/login"));
+        assertTrue(message.getValue().getText().contains("Your account includes a 30-day trial."));
+        assertTrue(message.getValue().getText().contains("contact us at support@indice.test"));
     }
 
     private SignupWelcomeEmailService service(
