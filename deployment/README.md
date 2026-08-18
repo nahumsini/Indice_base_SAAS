@@ -109,8 +109,9 @@ de inactividad y 8 horas de sesión; Caja Chica 15 minutos y 4 horas; Procesos y
 Tareas 30 minutos y 8 horas. Para cambiarlos en un ambiente, modifica únicamente
 su archivo `deployment/env/.env` y vuelve a crear el contenedor del backend.
 
-El objetivo actual del esquema es **V196**. Antes de una instalación que incluya
-las migraciones V134/V135, comprueba que no
+El preflight informa automáticamente la migración Flyway más alta incluida en
+la liberación; compárala con el historial de la base antes de publicar. Antes
+de una instalación que incluya las migraciones V134/V135, comprueba que no
 existan kioskos nuevos con alcance organizacional incompleto. Las consultas son
 de solo lectura y deben devolver `0`:
 
@@ -160,7 +161,7 @@ WHERE cash_register.deleted_at IS NULL
 - [ ] `./deployment/scripts/preflight.sh` pasa usando el `.env` real.
 - [ ] Las imágenes se etiquetan con un identificador inmutable (commit o versión),
       no solamente con `latest`.
-- [ ] El stack inicia correctamente y Flyway reporta el esquema en V196.
+- [ ] El stack inicia correctamente y Flyway reporta la versión indicada por el preflight.
 - [ ] `./deployment/scripts/smoke-test.sh` pasa por la URL pública.
 - [ ] Se valida inicio de sesión, carga de archivos, un flujo POS y un enlace de kiosco.
 - [ ] Existe un procedimiento de rollback que conserva la base y los volúmenes.
@@ -194,45 +195,84 @@ Dev override adds:
 
 ## Host-Network VPS Deploy
 
-Some VPS/cPanel environments cannot reliably reach Docker bridge published ports from Apache/Nginx on the host. In that case, run the public web container, backend, and MinIO with host networking while still reading the official deployment `.env`:
+Some VPS/cPanel environments cannot reliably reach Docker bridge published ports from Apache/Nginx on the host. In that case, run the public web container, backend, and MinIO with host networking while still reading the environment dedicated to that deployment.
+
+Before running the command, build or pull images tagged with the exact Git commit. Production rejects mutable application tags such as `latest`:
 
 ```bash
-APP_DIR=/home/corazon/apptest.indiceapp.com \
+RELEASE_SHA="$(git rev-parse --short=12 HEAD)"
+docker build -f deployment/docker/backend/Dockerfile -t "indice-erp-backend:${RELEASE_SHA}" .
+docker build -f deployment/docker/web/Dockerfile -t "indice-erp-web:${RELEASE_SHA}" .
+```
+
+Production (`app.indiceapp.com`) must use its production checkout, environment,
+URL and backend port together. The dedicated checkout shown below must exist
+and contain the release being deployed; do not substitute the APPTEST checkout:
+
+```bash
+RELEASE_SHA="$(git rev-parse --short=12 HEAD)"
+APP_DIR=/home/corazon/app.indiceapp.com \
 DEPLOY_ENV_FILE=/home/corazon/apps/indice-erp-docker/current/deployment/env/.env \
-PUBLIC_URL=https://apptest.indiceapp.com \
+PUBLIC_URL=https://app.indiceapp.com \
+HOST_BACKEND_PORT=8083 \
+WEB_IMAGE="indice-erp-web:${RELEASE_SHA}" \
+BACKEND_IMAGE="indice-erp-backend:${RELEASE_SHA}" \
 ./deployment/scripts/up-host-network.sh
 ```
 
-The script preserves the datasource from the `.env`, forces only host-network runtime bindings, keeps MinIO data mounted, prepares `nginx.host.conf`, uses the frontend bundled in `WEB_IMAGE`, and validates local plus public health checks. This prevents a stale host-side `react/dist` from overwriting a freshly built web image.
+APPTEST must use a separate environment file and its own ports. Never point this command at the production `.env`:
+
+```bash
+RELEASE_SHA="$(git rev-parse --short=12 HEAD)"
+APP_DIR=/home/corazon/apptest.indiceapp.com \
+DEPLOY_ENV_FILE=/home/corazon/apps/indice-erp-docker/apptest/deployment/env/.env \
+PUBLIC_URL=https://apptest.indiceapp.com \
+HOST_BACKEND_PORT=8082 \
+WEB_IMAGE="indice-erp-web:${RELEASE_SHA}" \
+BACKEND_IMAGE="indice-erp-backend:${RELEASE_SHA}" \
+./deployment/scripts/up-host-network.sh
+```
+
+The script performs all file, image, free-space and configuration checks before stopping a container. It preserves the datasource from the `.env`, honors `BACKEND_HOST_PORT` when `HOST_BACKEND_PORT` is omitted, keeps MinIO data mounted, prepares `nginx.host.conf`, and validates local health plus the complete public web/MinIO/CSRF/login route. A synthetic login intentionally expects `401`; it proves the request reaches the backend without using a real account.
+
+If any replacement or smoke check fails, the containers that were active before the command are restored automatically. After success, that previous set remains stopped with the `-rollback` suffix. This application rollback does not reverse Flyway migrations, so a verified database backup and migration compatibility review remain mandatory.
+
+The deployment refuses to start when less than 10 GiB is free. Override the threshold only after an operator reviews `df -h` and `docker system df`; do not delete database or MinIO volumes to free space.
+
+Before the real execution, run the same production command once with
+`DEPLOY_DRY_RUN=true`. It validates environment, files, image tags, local image
+availability, writable runtime paths and free space without changing a
+container. Remove the flag only after the dry run passes.
 
 To intentionally publish a locally built frontend over the image, opt in explicitly with `PUBLISH_LOCAL_FRONTEND_DIST=true` after running `npm run build`. The script fails if that flag is set and `react/dist/index.html` is missing.
 
 ## Frontend Container Publish
 
-For APPTEST:
+For a frontend-only APPTEST update, use the helper so the correct host-network Nginx configuration is selected:
 
 ```bash
 cd /home/corazon/apptest.indiceapp.com/react
 npm ci --no-audit --no-fund
 npm run build
 cd ..
-docker cp "$PWD/react/dist/." indice-erp-web-1:/usr/share/nginx/html/
-docker cp "$PWD/deployment/docker/web/nginx.conf" indice-erp-web-1:/etc/nginx/conf.d/default.conf
-docker exec indice-erp-web-1 sh -c "nginx -t && nginx -s reload"
-curl -s https://apptest.indiceapp.com/ | grep -o "/assets/index-[^\"]*\.js" | head
-curl -sI https://apptest.indiceapp.com/storage/minio/health/live
+PUBLIC_URL=https://apptest.indiceapp.com \
+APP_DIR=/home/corazon/apptest.indiceapp.com \
+WEB_CONTAINER=indice-erp-web-1 \
+WEB_NGINX_BACKEND_PORT=8082 \
+./deployment/scripts/publish-web-dist.sh
 ```
 
 The public asset hash must match the asset in `react/dist/index.html`.
 If `/etc/nginx/conf.d/default.conf` is bind-mounted and direct `docker cp` cannot overwrite it, `deployment/scripts/publish-web-dist.sh` detects the host-mounted source path, writes there when permitted, and then reloads Nginx.
 If a deployment intentionally runs the web container in host-network mode, publish `deployment/docker/web/nginx.host.conf` explicitly with `WEB_NGINX_CONFIG=.../nginx.host.conf`, or let the helper auto-detect a bind-mounted `nginx-host.conf`. If the host backend listens on a non-default port, set `WEB_NGINX_BACKEND_PORT`, for example `WEB_NGINX_BACKEND_PORT=8083`.
 
-Equivalent repo helper:
+For production, change all four production-specific values together:
 
 ```bash
-PUBLIC_URL=https://apptest.indiceapp.com \
-APP_DIR=/home/corazon/apptest.indiceapp.com \
+PUBLIC_URL=https://app.indiceapp.com \
+APP_DIR=/home/corazon/app.indiceapp.com \
 WEB_CONTAINER=indice-erp-web-1 \
+WEB_NGINX_BACKEND_PORT=8083 \
 ./deployment/scripts/publish-web-dist.sh
 ```
 
@@ -245,6 +285,20 @@ Run the smoke test after startup:
 ```bash
 ./deployment/scripts/smoke-test.sh
 ```
+
+The smoke test verifies the public page, backend proxy, object storage, CSRF cookie/token exchange and login routing. It submits only a reserved invalid synthetic identity and requires an HTTP `401`; it never uses or changes a real account.
+
+## Host-Network Rollback
+
+Use rollback only when the previous application version is compatible with the current database schema. The command swaps the active set with the retained `-rollback` set and verifies local MinIO, backend and web health:
+
+```bash
+CONFIRM_ROLLBACK=true \
+HOST_BACKEND_PORT=8083 \
+./deployment/scripts/rollback-host-network.sh
+```
+
+After a successful rollback, the version that was just replaced becomes the new stopped `-rollback` set, so the operation can be reversed. The script never removes the database or MinIO data volume. If a release introduced an incompatible migration, restore the verified database backup under the separate database recovery procedure before starting the previous backend.
 
 Tail logs:
 

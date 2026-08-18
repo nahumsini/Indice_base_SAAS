@@ -108,6 +108,7 @@ const toNumber = (value: unknown, fallback = 0) => {
 };
 
 const toOptionalNumber = (value: unknown) => {
+  if (value === null || value === undefined || value === '') return undefined;
   const number = toNumber(value, Number.NaN);
   return Number.isFinite(number) ? number : undefined;
 };
