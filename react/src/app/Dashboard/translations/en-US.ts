@@ -10,6 +10,13 @@ export const enUS = {
     aiModules: "Artificial intelligence",
     aiLabel: "AI modules",
   },
+  kpiComparison: {
+    unavailable: "Data unavailable",
+    versusPrevious: "vs previous period",
+    currentSnapshot: "Current snapshot",
+    periodEnd: "Balance at period end",
+    noComparison: "No comparable period",
+  },
   operationalJourney: {
     eyebrow: "Learning mode",
     title: "Your learning journey",

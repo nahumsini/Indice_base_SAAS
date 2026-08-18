@@ -10,6 +10,13 @@ export const ptBR = {
     aiModules: "Inteligência artificial",
     aiLabel: "Módulos de IA",
   },
+  kpiComparison: {
+    unavailable: "Dado indisponível",
+    versusPrevious: "vs período anterior",
+    currentSnapshot: "Leitura atual",
+    periodEnd: "Saldo no fim do período",
+    noComparison: "Sem período comparável",
+  },
   operationalJourney: {
     eyebrow: "Modo aprendiz",
     title: "Sua jornada de aprendizagem",

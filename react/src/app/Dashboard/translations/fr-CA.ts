@@ -10,6 +10,13 @@ export const frCA = {
     aiModules: "Intelligence artificielle",
     aiLabel: "Modules IA",
   },
+  kpiComparison: {
+    unavailable: "Donnée indisponible",
+    versusPrevious: "par rapport à la période précédente",
+    currentSnapshot: "Lecture actuelle",
+    periodEnd: "Solde à la fin de la période",
+    noComparison: "Aucune période comparable",
+  },
   operationalJourney: {
     eyebrow: "Mode apprentissage",
     title: "Votre parcours d’apprentissage",

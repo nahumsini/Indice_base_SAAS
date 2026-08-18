@@ -383,22 +383,22 @@ public class ExecutiveKpiRepository {
         var sql = """
                 SELECT DISTINCT currency
                 FROM (
-                    SELECT sale.currency AS currency
+                    SELECT CONVERT(sale.currency USING utf8mb4) COLLATE utf8mb4_unicode_ci AS currency
                     FROM sales_records sale
                     WHERE sale.deleted_at IS NULL
                 """ + salesFilter.sql() + """
                     UNION ALL
-                    SELECT expense.currency_code AS currency
+                    SELECT CONVERT(expense.currency_code USING utf8mb4) COLLATE utf8mb4_unicode_ci AS currency
                     FROM finance_expenses expense
                     WHERE expense.deleted_at IS NULL AND expense.status NOT IN ('CANCELLED', 'REJECTED')
                 """ + expenseFilter.sql() + """
                     UNION ALL
-                    SELECT fund.currency_code AS currency
+                    SELECT CONVERT(fund.currency_code USING utf8mb4) COLLATE utf8mb4_unicode_ci AS currency
                     FROM finance_petty_cash_funds fund
                     WHERE fund.deleted_at IS NULL AND fund.status <> 'CLOSED'
                 """ + fundFilter.sql() + """
                     UNION ALL
-                    SELECT product.currency AS currency
+                    SELECT CONVERT(product.currency USING utf8mb4) COLLATE utf8mb4_unicode_ci AS currency
                     FROM sales_inventory_balances balance
                     JOIN sales_products product ON product.id = balance.product_id
                         AND product.company_id = balance.company_id AND product.deleted_at IS NULL

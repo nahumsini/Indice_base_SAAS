@@ -9,6 +9,7 @@ export interface DashboardKpiCardData {
   change: string;
   isPositive: boolean;
   tone?: 'positive' | 'negative' | 'neutral';
+  trend?: 'up' | 'down' | 'flat';
 }
 
 export interface DashboardKpiModuleLabels {
@@ -25,38 +26,31 @@ export interface DashboardKpiModuleLabels {
 }
 
 export const defaultDashboardKpiIds = [
-  'activeEmployees',
-  'pendingTasks',
+  'monthlyRevenue',
   'monthlyExpenses',
+  'budgetUtilization',
   'pendingExpenses',
   'overdueExpenses',
-  'completedTasks',
+  'salesConversion',
   'taskCompletionRate',
   'overdueTasks',
-  'newHires',
+  'lowStockItems',
 ] as const;
 
 const liveDashboardKpiIds = new Set<string>([
-  'weeklyRevenue',
   'dailyExchangeRate',
   'monthlyRevenue',
   'averageTicket',
   'salesConversion',
-  'activeClients',
   'monthlyExpenses',
   'pendingExpenses',
   'overdueExpenses',
-  'budgetAvailable',
   'budgetUtilization',
-  'cashDue7Days',
-  'activeEmployees',
-  'newHires',
-  'absenteeismRate',
-  'payrollCost',
-  'pendingTasks',
-  'completedTasks',
   'taskCompletionRate',
   'overdueTasks',
+  'pettyCashBalance',
+  'inventoryValue',
+  'lowStockItems',
 ]);
 
 export const dashboardKpiModuleRouteById: Readonly<Record<string, PageId>> = {

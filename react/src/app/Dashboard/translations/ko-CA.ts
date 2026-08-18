@@ -10,6 +10,13 @@ export const koCA = {
     aiModules: "인공지능",
     aiLabel: "AI 모듈",
   },
+  kpiComparison: {
+    unavailable: "데이터 없음",
+    versusPrevious: "이전 기간 대비",
+    currentSnapshot: "현재 기준",
+    periodEnd: "기간 종료 잔액",
+    noComparison: "비교 기간 없음",
+  },
   operationalJourney: {
     eyebrow: "학습 모드",
     title: "나의 학습 여정",
