@@ -10,6 +10,13 @@ export const esMX = {
     aiModules: "Inteligencia artificial",
     aiLabel: "Módulos de IA",
   },
+  kpiComparison: {
+    unavailable: "Dato no disponible",
+    versusPrevious: "vs periodo anterior",
+    currentSnapshot: "Lectura actual",
+    periodEnd: "Saldo al cierre del periodo",
+    noComparison: "Sin periodo comparable",
+  },
   operationalJourney: {
     eyebrow: "Modo aprendiz · Metodología Índice",
     title: "Haz tu operación más clara, inteligente y escalable",

@@ -12,6 +12,7 @@ interface KPICardProps {
   change: string;
   isPositive: boolean;
   tone?: 'positive' | 'negative' | 'neutral';
+  trend?: 'up' | 'down' | 'flat';
 }
 
 interface KpiModuleIdentity {
@@ -53,22 +54,15 @@ const kpiModuleIdentity: Record<string, KpiModuleIdentity> = {
   dailyExchangeRate: moduleIdentities.system,
 };
 
-export function KPICard({ kpiId, title, value, change, isPositive, tone }: KPICardProps) {
-  const trendClasses = tone === 'neutral'
-    ? {
-        icon: ArrowRightLeft,
-        badge: 'border-[#59C3A5]/35 bg-[#E7F3F2] text-[#257B68] dark:border-[#59C3A5]/35 dark:bg-[#59C3A5]/10 dark:text-[#8FE0CA]',
-      }
-    : isPositive
-    ? {
-        icon: TrendingUp,
-        badge: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300',
-      }
-    : {
-        icon: TrendingDown,
-        badge: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300',
-      };
-  const TrendIcon = trendClasses.icon;
+export function KPICard({ kpiId, title, value, change, isPositive, tone, trend }: KPICardProps) {
+  const resolvedTone = tone ?? (isPositive ? 'positive' : 'negative');
+  const badgeClasses = resolvedTone === 'neutral'
+    ? 'border-[#59C3A5]/35 bg-[#E7F3F2] text-[#257B68] dark:border-[#59C3A5]/35 dark:bg-[#59C3A5]/10 dark:text-[#8FE0CA]'
+    : resolvedTone === 'positive'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
+      : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300';
+  const resolvedTrend = trend ?? (isPositive ? 'up' : 'down');
+  const TrendIcon = resolvedTrend === 'up' ? TrendingUp : resolvedTrend === 'down' ? TrendingDown : ArrowRightLeft;
   const identity = kpiId ? kpiModuleIdentity[kpiId] ?? moduleIdentities.system : moduleIdentities.system;
 
   return (
@@ -88,7 +82,7 @@ export function KPICard({ kpiId, title, value, change, isPositive, tone }: KPICa
             <p className="min-w-0 truncate text-2xl font-semibold leading-none text-slate-950 dark:text-white">
               {value}
             </p>
-            <div className={`mx-auto inline-flex max-w-full items-center justify-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold leading-5 ${trendClasses.badge}`}>
+            <div className={`mx-auto inline-flex max-w-full items-center justify-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold leading-5 ${badgeClasses}`}>
               <TrendIcon className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">{change}</span>
             </div>

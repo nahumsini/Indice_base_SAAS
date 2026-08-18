@@ -61,7 +61,7 @@ export function MainDashboard({
       null,
     );
   const [selectedKPIIds, setSelectedKPIIds] = useLocalStorageState<string[]>(
-    "indice.dashboard.selectedKpis",
+    "indice.dashboard.selectedKpis.v2",
     [...defaultDashboardKpiIds],
   );
 
