@@ -1,6 +1,6 @@
 import { ApiClientError, apiClient } from '../lib/apiClient';
 import { getCachedAuthSession, setCachedAuthSession, setCachedCsrfToken } from './authSessionStore';
-import type { AuthSessionResponse } from './auth.types';
+import type { AuthSessionResponse, LoginResponse, MfaRequiredResponse } from './auth.types';
 import { endpoints } from './endpoints';
 
 export type { AuthSessionResponse } from './auth.types';
@@ -9,6 +9,15 @@ export interface LoginCredentials {
   companyName: string;
   email: string;
   password: string;
+}
+
+export interface LoginOtpVerifyPayload {
+  challengeId: string;
+  otpCode: string;
+}
+
+export interface LoginOtpResendPayload {
+  challengeId: string;
 }
 
 export interface AccountSignupPayload {
@@ -65,6 +74,10 @@ const clearPendingSessionRequest = () => {
   sessionRequest = null;
 };
 
+const isMfaRequiredResponse = (response: LoginResponse): response is MfaRequiredResponse => (
+  'mfaRequired' in response && response.mfaRequired === true
+);
+
 const fetchSessionOrNull = async () => {
   try {
     const session = await apiClient<AuthSessionResponse>(endpoints.auth.me);
@@ -109,7 +122,7 @@ export const authApi = {
     clearPendingSessionRequest();
     await this.csrf();
     try {
-      const session = await apiClient<AuthSessionResponse>(endpoints.auth.login, {
+      const response = await apiClient<LoginResponse>(endpoints.auth.login, {
         method: 'POST',
         body: JSON.stringify({
           companyName,
@@ -118,16 +131,37 @@ export const authApi = {
         }),
       });
 
-      cacheSession(session);
-      return session;
+      if (isMfaRequiredResponse(response)) {
+        setCachedAuthSession(undefined);
+        return response;
+      }
+
+      cacheSession(response);
+      return response;
     } catch (error) {
-      if (error instanceof ApiClientError && error.status === 401) {
+      if (error instanceof ApiClientError && [401, 423].includes(error.status)) {
         cacheSession(null);
-        throw new Error(error.message || 'Invalid company, email, or password.');
+        throw new Error(error.message || 'Invalid login or account temporarily locked.');
       }
 
       throw error;
     }
+  },
+
+  async verifyLoginOtp({ challengeId, otpCode }: LoginOtpVerifyPayload) {
+    const session = await apiClient<AuthSessionResponse>(endpoints.auth.loginOtpVerify, {
+      method: 'POST',
+      body: JSON.stringify({ challengeId, otpCode }),
+    });
+    cacheSession(session);
+    return session;
+  },
+
+  resendLoginOtp({ challengeId }: LoginOtpResendPayload) {
+    return apiClient<MfaRequiredResponse>(endpoints.auth.loginOtpResend, {
+      method: 'POST',
+      body: JSON.stringify({ challengeId }),
+    });
   },
 
   async register(payload: AccountSignupPayload) {

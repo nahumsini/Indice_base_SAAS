@@ -2,6 +2,8 @@ package com.indice.erp.config;
 
 import com.indice.erp.access.tab.TabPermissionInterceptor;
 import com.indice.erp.access.module.ModuleAccessInterceptor;
+import com.indice.erp.auth.AuthSecurityProperties;
+import com.indice.erp.auth.AuthSessionTimeoutInterceptor;
 import com.indice.erp.billing.lifecycle.CommercialLifecycleInterceptor;
 import com.indice.erp.billing.subscription.ModuleEntitlementInterceptor;
 import com.indice.erp.billing.subscription.SubscriptionAccessInterceptor;
@@ -17,10 +19,11 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
-@EnableConfigurationProperties(AppWebProperties.class)
+@EnableConfigurationProperties({AppWebProperties.class, AuthSecurityProperties.class})
 public class WebConfig implements WebMvcConfigurer {
 
     private final AppWebProperties appWebProperties;
+    private final ObjectProvider<AuthSessionTimeoutInterceptor> authSessionTimeoutInterceptor;
     private final ObjectProvider<EntitlementShadowInterceptor> entitlementShadowInterceptor;
     private final ObjectProvider<CommercialLifecycleInterceptor> commercialLifecycleInterceptor;
     private final ObjectProvider<SubscriptionAccessInterceptor> subscriptionAccessInterceptor;
@@ -30,6 +33,7 @@ public class WebConfig implements WebMvcConfigurer {
 
     public WebConfig(
         AppWebProperties appWebProperties,
+        ObjectProvider<AuthSessionTimeoutInterceptor> authSessionTimeoutInterceptor,
         ObjectProvider<EntitlementShadowInterceptor> entitlementShadowInterceptor,
         ObjectProvider<CommercialLifecycleInterceptor> commercialLifecycleInterceptor,
         ObjectProvider<SubscriptionAccessInterceptor> subscriptionAccessInterceptor,
@@ -38,6 +42,7 @@ public class WebConfig implements WebMvcConfigurer {
         ObjectProvider<ModuleAccessInterceptor> moduleAccessInterceptor
     ) {
         this.appWebProperties = appWebProperties;
+        this.authSessionTimeoutInterceptor = authSessionTimeoutInterceptor;
         this.entitlementShadowInterceptor = entitlementShadowInterceptor;
         this.commercialLifecycleInterceptor = commercialLifecycleInterceptor;
         this.subscriptionAccessInterceptor = subscriptionAccessInterceptor;
@@ -57,6 +62,9 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        authSessionTimeoutInterceptor.ifAvailable((interceptor) ->
+            registry.addInterceptor(interceptor).addPathPatterns("/api/**").order(-200)
+        );
         commercialLifecycleInterceptor.ifAvailable((interceptor) ->
             registry.addInterceptor(interceptor).addPathPatterns("/api/**").order(-100)
         );

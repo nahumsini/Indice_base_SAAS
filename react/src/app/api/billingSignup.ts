@@ -25,6 +25,7 @@ export type BillingSignupConfig = {
   checkoutEnabled: boolean;
   courtesyEnabled: boolean;
   provisioningEnabled: boolean;
+  emailVerificationRequired: boolean;
   trialDays: number;
   cardRequired: boolean;
   automaticCharge: boolean;
@@ -38,6 +39,7 @@ export type BillingSignupConfig = {
 export type BillingSignupRequest = {
   fullName: string;
   email: string;
+  confirmEmail: string;
   password: string;
   companyName: string;
   countryCode: string;
@@ -48,6 +50,26 @@ export type BillingSignupRequest = {
   extraSeats: number;
   selectedProductCodes: string[];
   courtesyCode: string;
+  emailVerificationReference: string;
+};
+
+export type BillingSignupEmailVerificationStartRequest = {
+  fullName: string;
+  email: string;
+  confirmEmail: string;
+  companyName: string;
+};
+
+export type BillingSignupEmailVerificationResponse = {
+  started: boolean;
+  verified: boolean;
+  blocked: boolean;
+  verificationReference: string;
+  maskedEmail: string;
+  expiresInSeconds: number;
+  resendAvailableInSeconds: number;
+  verifiedExpiresAt: string | null;
+  message: string;
 };
 
 export type BillingSignupCheckout = {
@@ -71,6 +93,27 @@ export type BillingSignupStatus = {
 
 export const billingSignupApi = {
   config: () => apiClient<BillingSignupConfig>(endpoints.billingSignup.config),
+
+  startEmailVerification: (request: BillingSignupEmailVerificationStartRequest) => (
+    apiClient<BillingSignupEmailVerificationResponse>(endpoints.billingSignup.emailVerificationStart, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    })
+  ),
+
+  resendEmailVerification: (verificationReference: string) => (
+    apiClient<BillingSignupEmailVerificationResponse>(endpoints.billingSignup.emailVerificationResend, {
+      method: 'POST',
+      body: JSON.stringify({ verificationReference }),
+    })
+  ),
+
+  verifyEmail: (verificationReference: string, otpCode: string) => (
+    apiClient<BillingSignupEmailVerificationResponse>(endpoints.billingSignup.emailVerificationVerify, {
+      method: 'POST',
+      body: JSON.stringify({ verificationReference, otpCode }),
+    })
+  ),
 
   checkout: (request: BillingSignupRequest, idempotencyKey: string) => (
     apiClient<BillingSignupCheckout>(endpoints.billingSignup.checkout, {

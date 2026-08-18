@@ -28,7 +28,9 @@ public class BillingSignupIntentRepository {
         BillingSignupRequest request,
         String emailNormalized,
         String passwordHash,
-        CommercialOfferSelection selection
+        CommercialOfferSelection selection,
+        String emailVerificationReference,
+        Instant emailVerifiedAt
     ) {
         var existing = findByIdempotencyHash(idempotencyHash);
         if (existing != null) {
@@ -45,9 +47,10 @@ public class BillingSignupIntentRepository {
                             public_token_hash, request_idempotency_hash, request_fingerprint,
                             catalog_version_id, offer_code, billing_interval, currency,
                             included_seats, requested_extra_seats, estimated_amount_cents,
-                            full_name, email_normalized, password_hash, company_name,
+                            full_name, email_normalized, email_verification_reference, email_verified_at,
+                            password_hash, company_name,
                             country_code, phone, industry, company_size
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                     new String[] {"id"}
                 );
@@ -67,12 +70,18 @@ public class BillingSignupIntentRepository {
                 }
                 statement.setString(11, request.fullName().trim());
                 statement.setString(12, emailNormalized);
-                statement.setString(13, passwordHash);
-                statement.setString(14, request.companyName().trim());
-                statement.setString(15, request.countryCode().trim().toUpperCase(java.util.Locale.ROOT));
-                statement.setString(16, blankToNull(request.phone()));
-                statement.setString(17, blankToNull(request.industry()));
-                statement.setString(18, blankToNull(request.companySize()));
+                statement.setString(13, emailVerificationReference);
+                if (emailVerifiedAt == null) {
+                    statement.setNull(14, java.sql.Types.TIMESTAMP);
+                } else {
+                    statement.setTimestamp(14, Timestamp.from(emailVerifiedAt));
+                }
+                statement.setString(15, passwordHash);
+                statement.setString(16, request.companyName().trim());
+                statement.setString(17, request.countryCode().trim().toUpperCase(java.util.Locale.ROOT));
+                statement.setString(18, blankToNull(request.phone()));
+                statement.setString(19, blankToNull(request.industry()));
+                statement.setString(20, blankToNull(request.companySize()));
                 return statement;
             }, keyHolder);
         } catch (DuplicateKeyException exception) {
@@ -143,7 +152,7 @@ public class BillingSignupIntentRepository {
                 SELECT i.id, i.status, i.provisioning_status, i.catalog_version_id,
                        i.full_name, i.email_normalized, i.password_hash, i.company_name,
                        i.country_code, i.phone, i.included_seats, i.requested_extra_seats,
-                       i.stripe_customer_id,
+                       i.stripe_customer_id, i.email_verified_at,
                        i.completed_at, i.company_id, i.owner_user_id, i.owner_user_company_id
                 FROM billing_signup_intents i
                 WHERE i.id = ?
@@ -163,6 +172,7 @@ public class BillingSignupIntentRepository {
                 rs.getInt("included_seats"),
                 rs.getInt("requested_extra_seats"),
                 rs.getString("stripe_customer_id"),
+                instant(rs.getTimestamp("email_verified_at")),
                 instant(rs.getTimestamp("completed_at")),
                 (Long) rs.getObject("company_id"),
                 (Long) rs.getObject("owner_user_id"),
@@ -537,6 +547,7 @@ public class BillingSignupIntentRepository {
         int includedSeats,
         int requestedExtraSeats,
         String stripeCustomerId,
+        Instant emailVerifiedAt,
         Instant completedAt,
         Long companyId,
         Long ownerUserId,

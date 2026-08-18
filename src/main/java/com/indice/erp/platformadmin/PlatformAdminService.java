@@ -1109,21 +1109,55 @@ public class PlatformAdminService {
                        event.actor_user_id, actor.email AS actor_email,
                        event.detail_json, event.occurred_at
                 FROM (
-                    SELECT billing_event.id, billing_event.event_category,
-                           billing_event.action_code, billing_event.outcome,
-                           billing_event.request_id, billing_event.stripe_event_id,
-                           billing_event.stripe_object_id, billing_event.company_id,
-                           billing_event.actor_user_id, billing_event.detail_json,
+                    SELECT billing_event.id,
+                           CAST(billing_event.event_category AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS event_category,
+                           CAST(billing_event.action_code AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS action_code,
+                           CAST(billing_event.outcome AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS outcome,
+                           CAST(billing_event.request_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS request_id,
+                           CAST(billing_event.stripe_event_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS stripe_event_id,
+                           CAST(billing_event.stripe_object_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS stripe_object_id,
+                           billing_event.company_id,
+                           billing_event.actor_user_id,
+                           CAST(billing_event.detail_json AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS detail_json,
                            billing_event.occurred_at
                     FROM billing_audit_events billing_event
                     UNION ALL
-                    SELECT -platform_event.id AS id, 'PLATFORM_ADMIN' AS event_category,
-                           platform_event.action_code, platform_event.outcome,
-                           platform_event.request_id, NULL AS stripe_event_id,
-                           NULL AS stripe_object_id, platform_event.company_id,
-                           platform_event.actor_user_id, platform_event.detail_json,
+                    SELECT -platform_event.id AS id,
+                           CAST('PLATFORM_ADMIN' AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS event_category,
+                           CAST(platform_event.action_code AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS action_code,
+                           CAST(platform_event.outcome AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS outcome,
+                           CAST(platform_event.request_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS request_id,
+                           CAST(NULL AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS stripe_event_id,
+                           CAST(NULL AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS stripe_object_id,
+                           platform_event.company_id,
+                           platform_event.actor_user_id,
+                           CAST(platform_event.detail_json AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS detail_json,
                            platform_event.occurred_at
                     FROM platform_audit_events platform_event
+                    UNION ALL
+                    SELECT (auth_event.id * -1) - 1000000000 AS id,
+                           CAST('AUTH_LOGIN' AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS event_category,
+                           CAST(CONCAT(auth_event.event_type, ':', auth_event.stage) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS action_code,
+                           CAST(auth_event.outcome AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS outcome,
+                           CAST(auth_event.request_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS request_id,
+                           CAST(NULL AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS stripe_event_id,
+                           CAST(NULL AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS stripe_object_id,
+                           auth_event.company_id,
+                           auth_event.user_id AS actor_user_id,
+                           CAST(JSON_OBJECT(
+                               'email', auth_event.email_normalized,
+                               'company_name', auth_event.company_name_normalized,
+                               'user_company_id', auth_event.user_company_id,
+                               'role', auth_event.role,
+                               'failure_reason_code', auth_event.failure_reason_code,
+                               'failure_message', auth_event.failure_message_safe,
+                               'ip_address', auth_event.ip_address,
+                               'user_agent', auth_event.user_agent,
+                               'lockout_until', auth_event.lockout_until,
+                               'attempts_used', auth_event.attempts_used
+                           ) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS detail_json,
+                           auth_event.created_at AS occurred_at
+                    FROM user_login_audit auth_event
                 ) event
                 LEFT JOIN companies company ON company.id = event.company_id
                 LEFT JOIN users actor ON actor.id = event.actor_user_id

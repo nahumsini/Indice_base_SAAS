@@ -226,12 +226,13 @@ class StripePhaseTwoIntegrationTest {
         var product = offers.activeBasicProducts().getFirst();
         var selection = offers.select(List.of(product.code()), "MONTH", 0);
         var request = new BillingSignupRequest(
-            "Premium Owner", "owner-" + idempotency + "@example.com", "very-secure-password",
-            "Premium Company", "MX", null, null, null, "MONTH", 0, List.of(product.code()), null
+            "Premium Owner", "owner-" + idempotency + "@example.com", "owner-" + idempotency + "@example.com",
+            "very-secure-password", "Premium Company", "MX", null, null, null, "MONTH", 0, List.of(product.code()),
+            null, null
         );
         var intent = signupIntents.createOrLoad(
             BillingHashing.randomReference(), BillingHashing.sha256(idempotency), BillingHashing.sha256("fp-" + idempotency),
-            request, request.email(), "$2a$10$test", selection
+            request, request.email(), "$2a$10$test", selection, null, null
         );
         signupIntents.markCustomerCreated(intent.id(), customerId);
         return signupIntents.findById(intent.id());

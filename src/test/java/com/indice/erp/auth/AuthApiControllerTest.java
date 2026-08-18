@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -37,6 +38,20 @@ class AuthApiControllerTest {
     @MockBean
     private LoginAuditService loginAuditService;
 
+    @MockBean
+    private AuthLockoutService lockoutService;
+
+    @MockBean
+    private LoginMfaChallengeService mfaChallengeService;
+
+    @MockBean
+    private AuthSecurityProperties securityProperties;
+
+    @BeforeEach
+    void allowMvcSliceSessionTimeoutInterceptor() {
+        given(sessionAuthService.enforceSessionTimeout(any(), any(LoginAuditContext.class))).willReturn(true);
+    }
+
     @Test
     void meReturnsUnauthorizedWhenSessionIsMissing() throws Exception {
         given(sessionAuthService.currentSession(any())).willReturn(Optional.empty());
@@ -57,24 +72,65 @@ class AuthApiControllerTest {
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.message").value("Invalid CSRF token."));
 
-        verify(loginAuditService).record(eq("demo@example.com"), isNull(), isNull(), isNull(), eq(false),
-            eq("Invalid CSRF token."), any(LoginAuditContext.class));
+        verify(loginAuditService).record(any(LoginAuditEvent.class));
         verifyNoInteractions(sessionAuthService);
     }
 
     @Test
-    void loginReturnsSessionPayloadWhenCredentialsAreValid() throws Exception {
-        var session = sessionResponse(1L, "Empresa Demo Spring");
-
-        given(sessionAuthService.loginJson(eq("Empresa Demo Spring"), eq("demo@example.com"), eq("demo123"), any(), any(LoginAuditContext.class)))
-            .willReturn(new LoginAttemptResult(true, ""));
-        given(sessionAuthService.currentSession(any())).willReturn(Optional.of(session));
-        given(sessionCsrfService.ensureCsrf(any())).willReturn("csrf-token");
+    void loginStartsMfaChallengeWhenCredentialsAreValid() throws Exception {
+        var login = authenticatedLogin();
+        given(lockoutService.passwordLockout(eq("demo@example.com"), eq("empresa demo spring")))
+            .willReturn(AuthLockoutService.LockoutState.open());
+        given(sessionAuthService.verifyLoginCredentials(eq("Empresa Demo Spring"), eq("demo@example.com"), eq("demo123")))
+            .willReturn(LoginCredentialVerificationResult.success(login, "demo@example.com", "empresa demo spring"));
+        given(securityProperties.isMfaEnabled()).willReturn(true);
+        given(securityProperties.isMfaRequired()).willReturn(true);
+        given(mfaChallengeService.startChallenge(eq(login), any(), any(LoginAuditContext.class)))
+            .willReturn(LoginMfaChallengeService.MfaStartResult.started(
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                "d***@example.com",
+                300,
+                30
+            ));
 
         mockMvc.perform(post("/api/v1/auth/login")
                 .header("X-CSRF-Token", "csrf-token")
                 .contentType(APPLICATION_JSON)
                 .content(loginPayload()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.mfaRequired").value(true))
+            .andExpect(jsonPath("$.challengeId").value("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"))
+            .andExpect(jsonPath("$.maskedDestination").value("d***@example.com"))
+            .andExpect(jsonPath("$.expiresInSeconds").value(300))
+            .andExpect(jsonPath("$.resendAvailableInSeconds").value(30));
+
+        verify(sessionCsrfService).requireCsrf(any(), eq("csrf-token"));
+        verify(loginAuditService).record(any(LoginAuditEvent.class));
+    }
+
+    @Test
+    void otpVerificationReturnsSessionPayloadWhenCodeIsValid() throws Exception {
+        var session = sessionResponse(1L, "Empresa Demo Spring");
+        var login = authenticatedLogin();
+
+        given(mfaChallengeService.verify(
+            eq("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"),
+            eq("123456"),
+            any(),
+            any(LoginAuditContext.class)
+        )).willReturn(LoginMfaChallengeService.MfaVerifyResult.success(login));
+        given(sessionAuthService.currentSession(any())).willReturn(Optional.of(session));
+        given(sessionCsrfService.ensureCsrf(any())).willReturn("csrf-token");
+
+        mockMvc.perform(post("/api/v1/auth/login/otp/verify")
+                .header("X-CSRF-Token", "csrf-token")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {
+                      "challengeId": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                      "otpCode": "123456"
+                    }
+                    """))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.user.id").value(1))
             .andExpect(jsonPath("$.user.name").value("Usuario Demo"))
@@ -88,6 +144,37 @@ class AuthApiControllerTest {
             .andExpect(jsonPath("$.company.subscription.access_allowed").value(true))
             .andExpect(jsonPath("$.companies[0].scope.type").value("corporate_office"))
             .andExpect(jsonPath("$.csrfToken").value("csrf-token"));
+
+        verify(sessionAuthService).storeAuthenticatedSession(any(), eq(login));
+        verify(sessionCsrfService).rotateCsrf(any());
+    }
+
+    @Test
+    void loginLocksAccountAfterTooManyFailedCredentials() throws Exception {
+        given(lockoutService.passwordLockout(eq("demo@example.com"), eq("empresa demo spring")))
+            .willReturn(AuthLockoutService.LockoutState.open(4));
+        given(sessionAuthService.verifyLoginCredentials(eq("Empresa Demo Spring"), eq("demo@example.com"), eq("demo123")))
+            .willReturn(LoginCredentialVerificationResult.failure(
+                "Invalid company, email, or password.",
+                AuthFailureReason.PASSWORD_INVALID,
+                "demo@example.com",
+                "empresa demo spring",
+                1L,
+                1L,
+                null,
+                null
+            ));
+        given(lockoutService.recordPasswordFailure(any(LoginCredentialVerificationResult.class)))
+            .willReturn(new AuthLockoutService.LockoutState(5, java.time.Instant.parse("2026-08-18T20:30:00Z"), true));
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                .header("X-CSRF-Token", "csrf-token")
+                .contentType(APPLICATION_JSON)
+                .content(loginPayload()))
+            .andExpect(status().isLocked())
+            .andExpect(jsonPath("$.message").value("Invalid login or account temporarily locked."));
+
+        verify(loginAuditService).record(any(LoginAuditEvent.class));
     }
 
     @Test
@@ -197,6 +284,18 @@ class AuthApiControllerTest {
             ),
             company,
             List.of(company)
+        );
+    }
+
+    private AuthenticatedLogin authenticatedLogin() {
+        return new AuthenticatedLogin(
+            1L,
+            1L,
+            10L,
+            "Usuario Demo",
+            "demo@example.com",
+            "Empresa Demo Spring",
+            "admin"
         );
     }
 

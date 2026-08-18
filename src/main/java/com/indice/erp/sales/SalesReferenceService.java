@@ -16,9 +16,9 @@ class SalesReferenceService {
     }
 
     void validateEntityPayload(long companyId, String collection, Map<String, Object> payload) {
-        validateUnit(companyId, SalesPayloadSupport.longValue(payload, "unitId"));
-        validateBusiness(companyId, SalesPayloadSupport.longValue(payload, "businessId"));
-        validateUserCompany(companyId, SalesPayloadSupport.longValue(payload, "ownerUserCompanyId"));
+        validateUnit(companyId, nullableReference(payload, "unitId"));
+        validateBusiness(companyId, nullableReference(payload, "businessId"));
+        validateUserCompany(companyId, nullableReference(payload, "ownerUserCompanyId"));
         validateUserCompany(companyId, SalesPayloadSupport.longValue(payload, "assignedSellerUserCompanyId"));
         validateUserCompany(companyId, SalesPayloadSupport.longValue(payload, "sellerUserCompanyId"));
 
@@ -45,6 +45,15 @@ class SalesReferenceService {
             validateSalesReference(companyId, "sales_inventory_warehouses", SalesPayloadSupport.longValue(payload, "fromWarehouseId"), "fromWarehouseId");
             validateSalesReference(companyId, "sales_inventory_warehouses", SalesPayloadSupport.longValue(payload, "toWarehouseId"), "toWarehouseId");
         }
+    }
+
+    private static Long nullableReference(Map<String, Object> payload, String field) {
+        var value = SalesPayloadSupport.longValue(payload, field);
+        if (value != null && value <= 0L) {
+            payload.put(field, null);
+            return null;
+        }
+        return value;
     }
 
     private void validateWarehouseAssignment(long companyId, Map<String, Object> payload) {

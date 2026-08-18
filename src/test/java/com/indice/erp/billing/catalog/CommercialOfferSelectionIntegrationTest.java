@@ -3,6 +3,7 @@ package com.indice.erp.billing.catalog;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.Map;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +21,29 @@ class CommercialOfferSelectionIntegrationTest {
     private JdbcTemplate jdbcTemplate;
 
     @Test
+    void exposesTheConfirmedStripeTestPriceMatrix() {
+        var prices = service.activePrices().stream()
+            .filter(price -> "BASE".equals(price.priceType()) || "extra_seat".equals(price.billableCode()))
+            .collect(java.util.stream.Collectors.toMap(
+                price -> price.billableCode() + ":" + price.billingInterval(),
+                CommercialOfferSelectionService.PublicPrice::unitAmountCents
+            ));
+
+        assertThat(prices).containsAllEntriesOf(Map.ofEntries(
+            Map.entry("basic_1:MONTH", 6_900L),
+            Map.entry("basic_1:YEAR", 66_240L),
+            Map.entry("basic_2:MONTH", 10_900L),
+            Map.entry("basic_2:YEAR", 104_640L),
+            Map.entry("basic_3:MONTH", 14_900L),
+            Map.entry("basic_3:YEAR", 143_040L),
+            Map.entry("basic_all:MONTH", 19_900L),
+            Map.entry("basic_all:YEAR", 191_040L),
+            Map.entry("extra_seat:MONTH", 1_200L),
+            Map.entry("extra_seat:YEAR", 11_520L)
+        ));
+    }
+
+    @Test
     void buildsLaunchOffersFromTheVersionedCatalogUsingPublicPlanPrices() {
         var products = service.activeBasicProducts();
         assertThat(products).hasSize(6);
@@ -33,7 +57,8 @@ class CommercialOfferSelectionIntegrationTest {
 
         var threeAnnual = service.select(products.subList(0, 3).stream().map(p -> p.code()).toList(), "YEAR", 1);
         assertThat(threeAnnual.offerCode()).isEqualTo("basic_3");
-        assertThat(threeAnnual.estimatedAmountCents()).isEqualTo(157_440);
+        assertThat(threeAnnual.extraSeatUnitAmountCents()).isEqualTo(11_520);
+        assertThat(threeAnnual.estimatedAmountCents()).isEqualTo(154_560);
 
         for (int count = 4; count <= products.size(); count++) {
             var fourOrMore = service.select(

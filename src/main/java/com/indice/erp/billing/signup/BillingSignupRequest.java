@@ -5,6 +5,7 @@ import java.util.List;
 public record BillingSignupRequest(
     String fullName,
     String email,
+    String confirmEmail,
     String password,
     String companyName,
     String countryCode,
@@ -14,6 +15,7 @@ public record BillingSignupRequest(
     String billingInterval,
     Integer extraSeats,
     List<String> selectedProductCodes,
-    String courtesyCode
+    String courtesyCode,
+    String emailVerificationReference
 ) {
 }

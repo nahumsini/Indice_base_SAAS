@@ -50,6 +50,9 @@ class BillingSignupServiceTest {
     @Mock
     private BillingTenantProvisioningService tenantProvisioning;
 
+    @Mock
+    private BillingSignupEmailVerificationService emailVerificationService;
+
     private StripePhaseTwoProperties properties;
     private BillingSignupService service;
 
@@ -67,7 +70,7 @@ class BillingSignupServiceTest {
             offers, repository, gateway, properties, secrets, audit,
             new BCryptPasswordEncoder(4), new ObjectMapper(),
             Clock.fixed(Instant.parse("2026-07-21T12:00:00Z"), ZoneOffset.UTC),
-            provisioningProperties, courtesyCodes, tenantProvisioning
+            provisioningProperties, courtesyCodes, tenantProvisioning, emailVerificationService
         );
     }
 
@@ -79,8 +82,8 @@ class BillingSignupServiceTest {
             5, 0, 5_900L, 5_900L, 1_200L, List.of(product)
         );
         var request = new BillingSignupRequest(
-            "Premium Owner", "owner@example.com", "very-secure-password", "Premium Company",
-            "MX", null, null, null, "MONTH", 0, List.of("basic_hr"), null
+            "Premium Owner", "owner@example.com", "owner@example.com", "very-secure-password", "Premium Company",
+            "MX", null, null, null, "MONTH", 0, List.of("basic_hr"), null, "e".repeat(64)
         );
         var pending = new BillingSignupIntent(
             17L, "a".repeat(64), "b".repeat(64), "c".repeat(64), "PENDING",
@@ -92,7 +95,11 @@ class BillingSignupServiceTest {
             Instant.parse("2026-07-21T12:30:00Z")
         );
         when(offers.select(any(), anyString(), anyInt())).thenReturn(selection);
-        when(repository.createOrLoad(anyString(), anyString(), anyString(), any(), anyString(), anyString(), any()))
+        when(emailVerificationService.requireVerified(anyString(), anyString()))
+            .thenReturn(new BillingSignupEmailVerificationService.VerifiedEmail(
+                "owner@example.com", "e".repeat(64), Instant.parse("2026-07-21T11:59:00Z")
+            ));
+        when(repository.createOrLoad(anyString(), anyString(), anyString(), any(), anyString(), anyString(), any(), anyString(), any()))
             .thenReturn(pending, completed);
         when(repository.checkoutSpec(17L)).thenReturn(new BillingSignupIntentRepository.CheckoutSpec(
             17L, "a".repeat(64), "basic_1", "MONTH", "USD", 0,
@@ -118,12 +125,30 @@ class BillingSignupServiceTest {
     @Test
     void rejectsPasswordsThatBcryptWouldSilentlyTruncate() {
         var request = new BillingSignupRequest(
-            "Premium Owner", "owner@example.com", "🔐".repeat(20), "Premium Company",
-            "MX", null, null, null, "MONTH", 0, List.of("basic_hr"), null
+            "Premium Owner", "owner@example.com", "owner@example.com", "🔐".repeat(20), "Premium Company",
+            "MX", null, null, null, "MONTH", 0, List.of("basic_hr"), null, "e".repeat(64)
         );
 
         assertThatThrownBy(() -> service.createCheckout(request, "idempotency-key-password-limit"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("no more than 72 bytes");
+    }
+
+    @Test
+    void rejectsCheckoutUntilEmailIsVerified() {
+        var request = new BillingSignupRequest(
+            "Premium Owner", "owner@example.com", "owner@example.com", "very-secure-password", "Premium Company",
+            "MX", null, null, null, "MONTH", 0, List.of("basic_hr"), null, ""
+        );
+        when(emailVerificationService.requireVerified("owner@example.com", ""))
+            .thenThrow(new BillingSignupEmailVerificationException(
+                org.springframework.http.HttpStatus.BAD_REQUEST,
+                "EMAIL_NOT_VERIFIED",
+                "Verify your email before continuing to payment."
+            ));
+
+        assertThatThrownBy(() -> service.createCheckout(request, "idempotency-key-email-verify"))
+            .isInstanceOf(BillingSignupEmailVerificationException.class)
+            .hasMessageContaining("Verify your email");
     }
 }

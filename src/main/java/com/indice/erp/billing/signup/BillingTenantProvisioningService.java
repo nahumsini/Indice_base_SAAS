@@ -1,5 +1,6 @@
 package com.indice.erp.billing.signup;
 
+import com.indice.erp.auth.SignupWelcomeEmailService;
 import com.indice.erp.billing.audit.BillingAuditService;
 import com.indice.erp.billing.BillingHashing;
 import com.indice.erp.billing.lifecycle.CommercialLifecycleService;
@@ -14,15 +15,19 @@ import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class BillingTenantProvisioningService {
 
     private static final Duration TRIAL_DURATION = Duration.ofDays(30);
+    private static final int MAX_PROVISIONING_LOCK_RETRIES = 3;
 
     private final BillingProvisioningProperties properties;
     private final BillingSignupIntentRepository signupIntents;
@@ -32,6 +37,8 @@ public class BillingTenantProvisioningService {
     private final CompanyEntitlementProjectionService entitlementProjection;
     private final CommercialLifecycleService commercialLifecycle;
     private final StorageQuotaService storageQuota;
+    private final SignupWelcomeEmailService welcomeEmailService;
+    private final TransactionTemplate transactions;
 
     public BillingTenantProvisioningService(
         BillingProvisioningProperties properties,
@@ -41,7 +48,9 @@ public class BillingTenantProvisioningService {
         Clock clock,
         CompanyEntitlementProjectionService entitlementProjection,
         CommercialLifecycleService commercialLifecycle,
-        StorageQuotaService storageQuota
+        StorageQuotaService storageQuota,
+        SignupWelcomeEmailService welcomeEmailService,
+        TransactionTemplate transactions
     ) {
         this.properties = properties;
         this.signupIntents = signupIntents;
@@ -51,14 +60,32 @@ public class BillingTenantProvisioningService {
         this.entitlementProjection = entitlementProjection;
         this.commercialLifecycle = commercialLifecycle;
         this.storageQuota = storageQuota;
+        this.welcomeEmailService = welcomeEmailService;
+        this.transactions = transactions;
     }
 
-    @Transactional
     public ProvisioningResult provisionIfEligible(long intentId) {
         if (!properties.isEnabled()) {
             return ProvisioningResult.disabled(intentId);
         }
+        for (int attempt = 1; attempt <= MAX_PROVISIONING_LOCK_RETRIES; attempt++) {
+            try {
+                var result = transactions.execute(status -> provisionInTransaction(intentId));
+                if (result == null) {
+                    throw new IllegalStateException("Tenant provisioning did not return a result.");
+                }
+                return result;
+            } catch (PessimisticLockingFailureException exception) {
+                if (attempt == MAX_PROVISIONING_LOCK_RETRIES) {
+                    throw exception;
+                }
+                waitBeforeRetry(attempt);
+            }
+        }
+        throw new IllegalStateException("Tenant provisioning retry loop exited unexpectedly.");
+    }
 
+    private ProvisioningResult provisionInTransaction(long intentId) {
         var intent = signupIntents.lockProvisioningSpec(intentId);
         if (intent == null) {
             return new ProvisioningResult(intentId, "NOT_FOUND", null, null, false);
@@ -169,7 +196,17 @@ public class BillingTenantProvisioningService {
             intent.stripeCustomerId(), companyId, intentId,
             auditDetail
         );
+        sendWelcomeAfterCommit(intent, trial);
         return new ProvisioningResult(intentId, "PROVISIONED", companyId, ownerUserId, true);
+    }
+
+    private void waitBeforeRetry(int attempt) {
+        try {
+            Thread.sleep(25L * attempt);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Tenant provisioning retry was interrupted.", exception);
+        }
     }
 
     public boolean enabled() {
@@ -490,6 +527,28 @@ public class BillingTenantProvisioningService {
             throw new IllegalStateException("Could not obtain the generated identifier for " + entity + ".");
         }
         return key.longValue();
+    }
+
+    private void sendWelcomeAfterCommit(
+        BillingSignupIntentRepository.ProvisioningSpec intent,
+        TrialWindow trial
+    ) {
+        var email = new SignupWelcomeEmailService.WorkspaceWelcomeEmail(
+            intent.fullName(),
+            intent.email(),
+            intent.companyName(),
+            trial == null ? null : trial.endsAt()
+        );
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            welcomeEmailService.sendWorkspaceWelcome(email);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                welcomeEmailService.sendWorkspaceWelcome(email);
+            }
+        });
     }
 
     private String blankToNull(String value) {
