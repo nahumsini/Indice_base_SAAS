@@ -72,6 +72,8 @@ resolve_protected_value() {
 
 if [[ "${USE_EXAMPLE}" == "false" ]]; then
   required_keys=(
+    WEB_IMAGE
+    BACKEND_IMAGE
     MINIO_ROOT_USER
     MINIO_ROOT_PASSWORD
     WEB_PUBLIC_URL
@@ -84,6 +86,14 @@ if [[ "${USE_EXAMPLE}" == "false" ]]; then
 
   for key in "${required_keys[@]}"; do
     require_env_value "${key}"
+  done
+
+  for key in WEB_IMAGE BACKEND_IMAGE; do
+    image="$(read_env_value "${key}")"
+    if [[ "${image}" == "latest" || "${image}" == *:latest ]]; then
+      echo "${key} must use an immutable release tag or digest, not ${image}." >&2
+      exit 1
+    fi
   done
 
   datasource_url="$(read_env_value SPRING_DATASOURCE_URL)"
@@ -241,6 +251,17 @@ docker compose \
   --env-file "${ENV_FILE}" \
   -f "${DEPLOY_DIR}/compose/docker-compose.yml" \
   config --quiet
+
+latest_migration=0
+for migration in "${ROOT_DIR}"/src/main/resources/db/migration/V*__*.sql; do
+  [[ -e "${migration}" ]] || continue
+  version="${migration##*/V}"
+  version="${version%%__*}"
+  if [[ "${version}" =~ ^[0-9]+$ ]] && (( version > latest_migration )); then
+    latest_migration="${version}"
+  fi
+done
+echo "Latest Flyway migration in this release: V${latest_migration}"
 
 echo "Checking repository diff..."
 git -C "${ROOT_DIR}" diff --check

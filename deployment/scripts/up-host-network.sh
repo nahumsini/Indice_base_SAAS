@@ -45,7 +45,7 @@ load_env_file
 
 PUBLIC_URL="${PUBLIC_URL:-${WEB_PUBLIC_URL:-http://localhost:8080}}"
 HOST_WEB_PORT="${HOST_WEB_PORT:-${WEB_HOST_PORT:-8080}}"
-HOST_BACKEND_PORT="${HOST_BACKEND_PORT:-8082}"
+HOST_BACKEND_PORT="${HOST_BACKEND_PORT:-${BACKEND_HOST_PORT:-8082}}"
 HOST_MINIO_API_PORT="${HOST_MINIO_API_PORT:-${MINIO_API_HOST_PORT:-9000}}"
 HOST_MINIO_CONSOLE_PORT="${HOST_MINIO_CONSOLE_PORT:-${MINIO_CONSOLE_HOST_PORT:-9001}}"
 HOST_FACE_SERVICE_PORT="${HOST_FACE_SERVICE_PORT:-${FACE_SERVICE_HOST_PORT:-8091}}"
@@ -58,8 +58,20 @@ WEB_IMAGE="${WEB_IMAGE:-indice-erp-web:latest}"
 BACKEND_IMAGE="${BACKEND_IMAGE:-indice-erp-backend:latest}"
 MINIO_IMAGE="${MINIO_IMAGE:-minio/minio:latest}"
 MINIO_DATA_VOLUME="${MINIO_DATA_VOLUME:-indice-erp_minio-data}"
-WEB_NGINX_HOST_CONFIG="${WEB_NGINX_HOST_CONFIG:-/home/corazon/apps/indice-erp-docker/current/deployment/docker/web/nginx-host.conf}"
+WEB_NGINX_HOST_CONFIG="${WEB_NGINX_HOST_CONFIG:-$(dirname "${ENV_FILE}")/../runtime/nginx-host.conf}"
 PUBLISH_LOCAL_FRONTEND_DIST="${PUBLISH_LOCAL_FRONTEND_DIST:-false}"
+ALLOW_MUTABLE_APP_IMAGES="${ALLOW_MUTABLE_APP_IMAGES:-false}"
+DEPLOY_MIN_FREE_MB="${DEPLOY_MIN_FREE_MB:-10240}"
+DEPLOY_DRY_RUN="${DEPLOY_DRY_RUN:-false}"
+DEPLOY_BACKUP_SUFFIX="rollback"
+DEPLOY_CANDIDATE_SUFFIX="candidate-$(date +%Y%m%d%H%M%S)-$$"
+
+for command in curl df docker grep install mktemp sed; do
+  if ! command -v "${command}" >/dev/null 2>&1; then
+    echo "Missing required command: ${command}" >&2
+    exit 1
+  fi
+done
 
 require_env() {
   local key="$1"
@@ -72,6 +84,59 @@ require_env() {
 require_env SPRING_DATASOURCE_URL
 require_env SPRING_DATASOURCE_USERNAME
 require_env SPRING_DATASOURCE_PASSWORD
+
+require_immutable_image() {
+  local variable_name="$1"
+  local image="${!variable_name}"
+
+  if [[ "${ALLOW_MUTABLE_APP_IMAGES}" != "true" && ( "${image}" == "latest" || "${image}" == *:latest ) ]]; then
+    echo "${variable_name} must use an immutable version tag or digest, not ${image}." >&2
+    echo "Set ALLOW_MUTABLE_APP_IMAGES=true only for a deliberate non-production recovery." >&2
+    exit 1
+  fi
+  if ! docker image inspect "${image}" >/dev/null 2>&1; then
+    echo "Required Docker image is not available locally: ${image}" >&2
+    exit 1
+  fi
+}
+
+validate_disk_space() {
+  local available_kb required_kb
+  if [[ ! "${DEPLOY_MIN_FREE_MB}" =~ ^[0-9]+$ ]]; then
+    echo "DEPLOY_MIN_FREE_MB must be a non-negative integer." >&2
+    exit 1
+  fi
+  available_kb="$(df -Pk "${APP_DIR}" | awk 'NR == 2 { print $4 }')"
+  required_kb=$((DEPLOY_MIN_FREE_MB * 1024))
+  if [[ -z "${available_kb}" || "${available_kb}" -lt "${required_kb}" ]]; then
+    echo "Deployment stopped: less than ${DEPLOY_MIN_FREE_MB} MiB is free on the APP_DIR filesystem." >&2
+    df -Ph "${APP_DIR}" >&2
+    exit 1
+  fi
+}
+
+validate_inputs() {
+  local source_config="${APP_DIR}/deployment/docker/web/nginx.host.conf"
+
+  [[ -f "${source_config}" ]] || { echo "Missing ${source_config}" >&2; exit 1; }
+  [[ -r "${source_config}" ]] || { echo "Cannot read ${source_config}" >&2; exit 1; }
+  mkdir -p "$(dirname "${WEB_NGINX_HOST_CONFIG}")"
+  [[ -w "$(dirname "${WEB_NGINX_HOST_CONFIG}")" ]] || {
+    echo "Cannot write Nginx host configuration directory: $(dirname "${WEB_NGINX_HOST_CONFIG}")" >&2
+    exit 1
+  }
+  if [[ "${PUBLISH_LOCAL_FRONTEND_DIST}" == "true" && ! -f "${APP_DIR}/react/dist/index.html" ]]; then
+    echo "PUBLISH_LOCAL_FRONTEND_DIST=true but ${APP_DIR}/react/dist/index.html is missing." >&2
+    exit 1
+  fi
+  require_immutable_image WEB_IMAGE
+  require_immutable_image BACKEND_IMAGE
+  docker image inspect "${MINIO_IMAGE}" >/dev/null 2>&1 || {
+    echo "Required Docker image is not available locally: ${MINIO_IMAGE}" >&2
+    exit 1
+  }
+  validate_disk_space
+}
 
 prepare_backend_env() {
   local output="$1"
@@ -139,13 +204,76 @@ prepare_nginx_host_config() {
   rm -f "${prepared_config}"
 }
 
+REPLACED_CONTAINERS=()
+DEPLOY_SUCCEEDED=false
+
+candidate_name() {
+  printf '%s-%s' "$1" "${DEPLOY_CANDIDATE_SUFFIX}"
+}
+
+preserve_current_container() {
+  local container="$1"
+  local candidate
+  candidate="$(candidate_name "${container}")"
+  if docker container inspect "${container}" >/dev/null 2>&1; then
+    docker rename "${container}" "${candidate}"
+    if ! docker stop "${candidate}" >/dev/null; then
+      docker rename "${candidate}" "${container}" >/dev/null 2>&1 || true
+      echo "Could not stop ${container}; its original name was restored." >&2
+      return 1
+    fi
+  fi
+  REPLACED_CONTAINERS+=("${container}")
+}
+
+restore_previous_containers() {
+  local index container candidate
+  [[ "${DEPLOY_SUCCEEDED}" == "true" ]] && return 0
+  echo "Deployment failed. Restoring the previous containers..." >&2
+  for ((index=${#REPLACED_CONTAINERS[@]}-1; index>=0; index--)); do
+    container="${REPLACED_CONTAINERS[index]}"
+    candidate="$(candidate_name "${container}")"
+    docker rm -f "${container}" >/dev/null 2>&1 || true
+    if docker container inspect "${candidate}" >/dev/null 2>&1; then
+      docker rename "${candidate}" "${container}" >/dev/null
+      docker start "${container}" >/dev/null
+    fi
+  done
+  echo "Previous containers restored. Review the failed container logs before retrying." >&2
+}
+
+finalize_rollback_containers() {
+  local container candidate rollback
+  for container in "${REPLACED_CONTAINERS[@]}"; do
+    candidate="$(candidate_name "${container}")"
+    rollback="${container}-${DEPLOY_BACKUP_SUFFIX}"
+    if docker container inspect "${candidate}" >/dev/null 2>&1; then
+      docker rm -f "${rollback}" >/dev/null 2>&1 || true
+      docker rename "${candidate}" "${rollback}"
+    fi
+  done
+}
+
+validate_inputs
+
+if [[ "${DEPLOY_DRY_RUN}" == "true" ]]; then
+  echo "Host-network deployment validation passed (dry run). No containers were changed."
+  echo "Backend image: ${BACKEND_IMAGE}"
+  echo "Web image: ${WEB_IMAGE}"
+  echo "Backend port: ${HOST_BACKEND_PORT}"
+  exit 0
+fi
+trap restore_previous_containers ERR INT TERM
+
 echo "Using env file: ${ENV_FILE}"
 echo "Using public URL: ${PUBLIC_URL}"
-echo "Using datasource: ${SPRING_DATASOURCE_URL}"
+echo "Using backend image: ${BACKEND_IMAGE}"
+echo "Using web image: ${WEB_IMAGE}"
+echo "Free-space safety threshold: ${DEPLOY_MIN_FREE_MB} MiB"
 echo "Starting host-network MinIO, backend, and web containers."
 
 MINIO_DATA_MOUNT="$(resolve_minio_data_mount)"
-docker rm -f "${MINIO_CONTAINER}" >/dev/null 2>&1 || true
+preserve_current_container "${MINIO_CONTAINER}"
 docker run -d \
   --name "${MINIO_CONTAINER}" \
   --restart unless-stopped \
@@ -192,7 +320,7 @@ BACKEND_ENV_FILE="$(mktemp)"
 trap 'rm -f "${BACKEND_ENV_FILE}"' EXIT
 prepare_backend_env "${BACKEND_ENV_FILE}"
 
-docker rm -f "${BACKEND_CONTAINER}" >/dev/null 2>&1 || true
+preserve_current_container "${BACKEND_CONTAINER}"
 docker run -d \
   --name "${BACKEND_CONTAINER}" \
   --restart unless-stopped \
@@ -206,7 +334,7 @@ curl --fail --silent --show-error "http://127.0.0.1:${HOST_BACKEND_PORT}/api/v1/
 
 prepare_nginx_host_config
 
-docker rm -f "${WEB_CONTAINER}" >/dev/null 2>&1 || true
+preserve_current_container "${WEB_CONTAINER}"
 docker run -d \
   --name "${WEB_CONTAINER}" \
   --restart unless-stopped \
@@ -215,10 +343,6 @@ docker run -d \
   "${WEB_IMAGE}" >/dev/null
 
 if [[ "${PUBLISH_LOCAL_FRONTEND_DIST}" == "true" ]]; then
-  if [[ ! -f "${APP_DIR}/react/dist/index.html" ]]; then
-    echo "PUBLISH_LOCAL_FRONTEND_DIST=true but ${APP_DIR}/react/dist/index.html is missing." >&2
-    exit 1
-  fi
   echo "Publishing explicitly requested local frontend dist into ${WEB_CONTAINER}."
   docker cp "${APP_DIR}/react/dist/." "${WEB_CONTAINER}:/usr/share/nginx/html/"
 fi
@@ -229,6 +353,14 @@ curl --fail --silent --show-error "http://127.0.0.1:${HOST_WEB_PORT}/api/v1/heal
 
 if [[ -n "${PUBLIC_URL}" ]]; then
   curl --fail --silent --show-error "${PUBLIC_URL}/api/v1/health" >/dev/null
+  DEPLOY_ENV_FILE="${ENV_FILE}" \
+  WEB_PUBLIC_URL="${PUBLIC_URL}" \
+  "${APP_DIR}/deployment/scripts/smoke-test.sh"
 fi
 
+DEPLOY_SUCCEEDED=true
+trap - ERR INT TERM
+finalize_rollback_containers
+
 echo "Host-network stack is healthy."
+echo "The previous application containers remain stopped with the -${DEPLOY_BACKUP_SUFFIX} suffix."
