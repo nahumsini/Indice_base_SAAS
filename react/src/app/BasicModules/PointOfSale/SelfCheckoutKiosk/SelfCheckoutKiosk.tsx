@@ -595,7 +595,7 @@ function PaymentStep({ copy, currency, locale, paymentMethod, total, error, onPa
               <span className="mt-3 flex items-center gap-2 text-base font-medium">
                 {method.title}
                 {method.key === 'card' ? (
-                  <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-amber-800">
+                  <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-medium text-amber-800">
                     {copy.cardTerminalBadge}
                   </span>
                 ) : null}
@@ -630,7 +630,7 @@ function CashHandoffSuccess({ receipt, registerName, currency, locale, onNew }: 
         <p className="mt-6 text-sm font-medium text-emerald-700">{copy.selfCheckoutFrame.cashCodeReady}</p>
         <h1 className="mt-2 text-2xl font-medium sm:text-4xl">{copy.selfCheckoutFrame.showCashCode}</h1>
         <div className="mx-auto mt-6 max-w-xl rounded-3xl border-2 border-dashed border-[#FF6B5E] bg-[#FF6B5E]/10 px-5 py-8">
-          <p className="font-mono text-[clamp(5rem,20vw,9rem)] font-medium leading-none tracking-[0.08em] text-[#B63B32] tabular-nums">
+          <p className="font-mono text-[clamp(5rem,20vw,9rem)] font-medium leading-none tracking-normal text-[#B63B32] tabular-nums">
             {receipt.claimCode}
           </p>
         </div>

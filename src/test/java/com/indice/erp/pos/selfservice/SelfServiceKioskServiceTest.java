@@ -10,6 +10,7 @@ import com.indice.erp.pos.PosContext;
 import com.indice.erp.pos.PosScope;
 import com.indice.erp.pos.cashregister.CashRegisterRecord;
 import com.indice.erp.pos.cashregister.CashRegisterRepository;
+import com.indice.erp.pos.kiosk.PointOfSaleKioskCapabilities;
 import com.indice.erp.pos.shift.ShiftRepository;
 import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.CatalogItem;
 import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.PreticketCreateRequest;
@@ -416,10 +417,12 @@ class SelfServiceKioskServiceTest {
         var definition = definition(kiosk);
         given(repository.find(context, kiosk.id())).willReturn(Optional.of(kiosk));
         given(registry.requireByLegacyReference(
-            context.companyId(), SelfServiceKioskService.OWNER_MODULE, kiosk.id()))
+            context.companyId(), SelfServiceKioskService.OWNER_MODULE,
+            PointOfSaleKioskCapabilities.SELF_SERVICE_TYPE, kiosk.id()))
             .willReturn(definition);
         given(registry.recoverPublicToken(
-            context.companyId(), SelfServiceKioskService.OWNER_MODULE, kiosk.id()))
+            context.companyId(), SelfServiceKioskService.OWNER_MODULE,
+            PointOfSaleKioskCapabilities.SELF_SERVICE_TYPE, kiosk.id()))
             .willReturn("pss_current_token");
 
         var access = service.publicAccess(context, kiosk.id());
@@ -437,10 +440,12 @@ class SelfServiceKioskServiceTest {
             kiosk.companyId(), kiosk.unitId(), kiosk.businessId(), kiosk.warehouseId());
         given(repository.find(context, kiosk.id())).willReturn(Optional.of(kiosk));
         given(registry.requireByLegacyReference(
-            context.companyId(), SelfServiceKioskService.OWNER_MODULE, kiosk.id()))
+            context.companyId(), SelfServiceKioskService.OWNER_MODULE,
+            PointOfSaleKioskCapabilities.SELF_SERVICE_TYPE, kiosk.id()))
             .willReturn(definition);
         given(registry.recoverPublicToken(
-            context.companyId(), SelfServiceKioskService.OWNER_MODULE, kiosk.id()))
+            context.companyId(), SelfServiceKioskService.OWNER_MODULE,
+            PointOfSaleKioskCapabilities.SELF_CHECKOUT_TYPE, kiosk.id()))
             .willReturn("psc_current_token");
 
         var access = service.publicAccess(context, kiosk.id());
@@ -454,7 +459,8 @@ class SelfServiceKioskServiceTest {
         var kiosk = kiosk();
         given(repository.find(context, kiosk.id())).willReturn(Optional.of(kiosk));
         given(registry.requireByLegacyReference(
-            context.companyId(), SelfServiceKioskService.OWNER_MODULE, kiosk.id()))
+            context.companyId(), SelfServiceKioskService.OWNER_MODULE,
+            PointOfSaleKioskCapabilities.SELF_SERVICE_TYPE, kiosk.id()))
             .willReturn(definition(kiosk));
         given(repository.delete(context, kiosk.id())).willReturn(true);
 
@@ -462,6 +468,7 @@ class SelfServiceKioskServiceTest {
 
         then(registry).should().deleteDefinition(
             context.companyId(), SelfServiceKioskService.OWNER_MODULE,
+            PointOfSaleKioskCapabilities.SELF_SERVICE_TYPE,
             kiosk.id(), context.userId(), "cleanup");
         then(repository).should().delete(context, kiosk.id());
     }
