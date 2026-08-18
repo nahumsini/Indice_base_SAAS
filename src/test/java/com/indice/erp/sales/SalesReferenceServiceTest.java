@@ -1,9 +1,11 @@
 package com.indice.erp.sales;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.LinkedHashMap;
@@ -15,6 +17,21 @@ class SalesReferenceServiceTest {
 
     private final SalesRepository repository = mock(SalesRepository.class);
     private final SalesReferenceService service = new SalesReferenceService(repository);
+
+    @Test
+    void nullableOrganizationReferencesAcceptLegacyZeroValues() {
+        var payload = new LinkedHashMap<String, Object>();
+        payload.put("unitId", 0);
+        payload.put("businessId", "0");
+        payload.put("ownerUserCompanyId", 0L);
+
+        service.validateEntityPayload(7L, "opportunities", payload);
+
+        assertNull(payload.get("unitId"));
+        assertNull(payload.get("businessId"));
+        assertNull(payload.get("ownerUserCompanyId"));
+        verifyNoInteractions(repository);
+    }
 
     @Test
     void warehouseRequiresUnitAndBusiness() {
