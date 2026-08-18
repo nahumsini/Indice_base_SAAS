@@ -1,8 +1,9 @@
 package com.indice.erp.kpis.executive;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.time.YearMonth;
+import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -13,14 +14,25 @@ import org.springframework.stereotype.Service;
 @Service
 public class ExecutiveKpiService {
 
-    private final ExecutiveKpiRepository repository;
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("America/Toronto");
+    private static final java.util.Set<String> ALLOWED_PERIODS = java.util.Set.of(
+            "monthly", "bimonthly", "quarterly", "semester", "annual", "custom");
+    private static final java.util.Set<String> ALLOWED_RISKS = java.util.Set.of(
+            "all", "healthy", "watch", "critical");
 
-    public ExecutiveKpiService(ExecutiveKpiRepository repository) {
+    private final ExecutiveKpiRepository repository;
+    private final ExecutiveKpiDomainService domainService;
+
+    public ExecutiveKpiService(ExecutiveKpiRepository repository, ExecutiveKpiDomainService domainService) {
         this.repository = repository;
+        this.domainService = domainService;
     }
 
     public Map<String, Object> getExecutivePanel(long companyId, long userId, Map<String, String> params) {
         var scope = parseScope(companyId, params);
+        if (!repository.scopeExists(scope)) {
+            throw new IllegalArgumentException("The selected unit or business does not belong to this company.");
+        }
         var orgRows = repository.loadOrganizationRows(scope);
         var sales = repository.loadSalesByOrg(scope);
         var collections = repository.loadCollectionsByOrg(scope);
@@ -55,10 +67,11 @@ public class ExecutiveKpiService {
                 "search", scope.search(),
                 "risk", scope.risk()));
         body.put("context", Map.of(
-                "currency", "MXN",
+                "currency", scope.preferredCurrency(),
                 "nativeCurrencies", repository.loadNativeCurrencies(scope),
-                "generatedAt", LocalDateTime.now().toString(),
-                "scopeLabel", scopeLabel(scope)));
+                "generatedAt", Instant.now().toString(),
+                "scopeLabel", scopeLabel(scope),
+                "authoritativeContract", "domains/2.1"));
         body.put("summary", summary);
         body.put("kpiCards", buildCards(summary));
         body.put("unitRows", rows);
@@ -69,12 +82,16 @@ public class ExecutiveKpiService {
         body.put("absenteeism", repository.loadAbsenteeism(scope));
         body.put("alerts", buildAlerts(summary, rows));
         body.put("rankings", buildRankings(rows));
+        body.put("domains", domainService.build(scope));
         return body;
     }
 
     private ExecutiveKpiScope parseScope(long companyId, Map<String, String> params) {
-        var today = LocalDate.now();
+        var today = LocalDate.now(BUSINESS_ZONE);
         var period = normalize(params.get("period"), "monthly");
+        if (!ALLOWED_PERIODS.contains(period)) {
+            throw new IllegalArgumentException("period must be monthly, bimonthly, quarterly, semester, annual, or custom.");
+        }
         LocalDate from;
         LocalDate to;
 
@@ -96,6 +113,14 @@ public class ExecutiveKpiService {
         if (to.isBefore(from)) {
             throw new IllegalArgumentException("to must be greater than or equal to from.");
         }
+        if (to.isAfter(today)) {
+            throw new IllegalArgumentException("to cannot be later than the current business date.");
+        }
+
+        var risk = normalize(params.get("risk"), "all");
+        if (!ALLOWED_RISKS.contains(risk)) {
+            throw new IllegalArgumentException("risk must be all, healthy, watch, or critical.");
+        }
 
         return new ExecutiveKpiScope(
                 companyId,
@@ -104,8 +129,10 @@ public class ExecutiveKpiService {
                 period,
                 positiveLong(params.get("unitId")),
                 positiveLong(params.get("businessId")),
-                normalize(params.get("search"), ""),
-                normalize(params.get("risk"), "all"));
+                normalizeSearch(params.get("search")),
+                risk,
+                normalizeCurrency(params.get("preferredCurrency")),
+                today);
     }
 
     private Map<String, Object> buildSummary(List<Map<String, Object>> rows) {
@@ -262,12 +289,31 @@ public class ExecutiveKpiService {
 
     private Long positiveLong(String value) {
         if (value == null || value.isBlank()) return null;
-        var parsed = Long.parseLong(value);
-        return parsed > 0 ? parsed : null;
+        try {
+            var parsed = Long.parseLong(value.trim());
+            if (parsed <= 0) throw new IllegalArgumentException("scope identifiers must be positive integers.");
+            return parsed;
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("scope identifiers must be positive integers.");
+        }
     }
 
     private String normalize(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim().toLowerCase();
+    }
+
+    private String normalizeCurrency(String value) {
+        var currency = value == null || value.isBlank() ? "MXN" : value.trim().toUpperCase();
+        if (!currency.matches("[A-Z]{3}")) {
+            throw new IllegalArgumentException("preferredCurrency must use a three-letter ISO code.");
+        }
+        return currency;
+    }
+
+    private String normalizeSearch(String value) {
+        if (value == null || value.isBlank()) return "";
+        var normalized = value.trim().replaceAll("\\s+", " ").toLowerCase();
+        return normalized.length() <= 120 ? normalized : normalized.substring(0, 120);
     }
 
     private Object nullable(Object value) {

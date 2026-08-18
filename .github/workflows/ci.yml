@@ -83,7 +83,7 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: react
-        run: npm ci
+        run: npm ci --no-audit --no-fund
 
       - name: Typecheck frontend
         working-directory: react
@@ -126,7 +126,10 @@ jobs:
         run: docker compose --env-file deployment/env/.env.example -f deployment/compose/docker-compose.staging.yml config --quiet
 
       - name: Build backend image
-        run: docker build -f deployment/docker/backend/Dockerfile -t indice-erp-backend:ci .
+        run: docker build --network=host -f deployment/docker/backend/Dockerfile -t indice-erp-backend:ci .
+
+      - name: Smoke backend image with server runtime settings
+        run: bash scripts/ci-backend-runtime-smoke.sh indice-erp-backend:ci
 
       - name: Build web image
         run: docker build -f deployment/docker/web/Dockerfile -t indice-erp-web:ci .

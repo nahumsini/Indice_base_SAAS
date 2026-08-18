@@ -31,6 +31,8 @@ import type {
   ExecutiveAlert,
   ExecutiveBreakdownRow,
   ExecutiveKpiCard,
+  ExecutiveKpiDomain,
+  ExecutiveDomainMetric,
   ExecutiveKpiResponse,
   ExecutiveKpiStatus,
   ExecutivePanelFilters,
@@ -41,6 +43,7 @@ import type {
 import { LearningModeTitleBarBridge } from '../../../learningMode';
 import { printStandardKpiReport } from '../../shared/print/standardKpiPrintReport';
 import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
+import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 
 const periodOptions: Array<{ label: string; value: ExecutivePanelPeriod }> = [
   { label: 'Mensual', value: 'monthly' },
@@ -114,6 +117,7 @@ const matrixPageSizeOptions = [10, 25, 50, 100] as const;
 
 export default function KPIs() {
   const { identity: companyPrintIdentity, isReady: isCompanyPrintIdentityReady } = useCompanyPrintIdentity();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
   const [filters, setFilters] = useState<ExecutivePanelFilters>(initialFilters);
   const [data, setData] = useState<ExecutiveKpiResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -123,7 +127,7 @@ export default function KPIs() {
     setLoading(true);
     setError('');
     try {
-      const response = await executivePanelApi.get(filters);
+      const response = await executivePanelApi.get(filters, preferredCurrency);
       setData(response);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo cargar el panel ejecutivo.');
@@ -135,18 +139,7 @@ export default function KPIs() {
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.period, filters.unitId, filters.businessId, filters.risk, filters.from, filters.to]);
-
-  const filteredRows = useMemo(() => {
-    const rows = data?.unitRows ?? [];
-    const search = filters.search.trim().toLowerCase();
-    return rows.filter((row) => {
-      const matchesSearch = !search
-        || `${row.unitName} ${row.businessName}`.toLowerCase().includes(search);
-      const matchesRisk = filters.risk === 'all' || row.status === filters.risk;
-      return matchesSearch && matchesRisk;
-    });
-  }, [data?.unitRows, filters.risk, filters.search]);
+  }, [filters.period, filters.unitId, filters.businessId, filters.risk, filters.from, filters.to, preferredCurrency]);
 
   const units = useMemo(() => uniqueOptions(data?.unitRows ?? [], 'unitId', 'unitName'), [data?.unitRows]);
   const businesses = useMemo(() => {
@@ -155,7 +148,6 @@ export default function KPIs() {
       : (data?.unitRows ?? []);
     return uniqueOptions(rows, 'businessId', 'businessName');
   }, [data?.unitRows, filters.unitId]);
-
   const handleFilterChange = <K extends keyof ExecutivePanelFilters>(key: K, value: ExecutivePanelFilters[K]) => {
     setFilters((current) => ({
       ...current,
@@ -169,68 +161,58 @@ export default function KPIs() {
       return;
     }
 
-    exportExecutivePanelCsv(data, filteredRows);
+    exportExecutivePanelCsv(data);
   };
 
   const handlePrint = () => {
     if (!data) return;
 
     printStandardKpiReport({
-      charts: [
-        {
-          rows: data.salesBySource.map((row) => ({
-            label: row.source || 'Sin fuente',
-            value: row.total,
-            valueLabel: formatMoney(row.total),
-          })),
-          title: 'Ventas por fuente',
-        },
-        {
-          rows: data.expensesByAccount.map((row) => ({
-            label: row.accountName || 'Sin cuenta',
-            value: row.total,
-            valueLabel: formatMoney(row.total),
-          })),
-          title: 'Gastos por cuenta',
-        },
-      ],
+      charts: [],
       companyIdentity: companyPrintIdentity,
       documentName: 'Panel Ejecutivo de KPIs',
       locale: 'es-MX',
       meta: [
         { label: 'Periodo', value: `${data.range.from} / ${data.range.to}` },
         { label: 'Alcance', value: data.context.scopeLabel || 'Empresa completa' },
-        { label: 'Moneda', value: data.context.nativeCurrencies?.join(', ') || data.context.currency || 'MXN' },
+        { label: 'Moneda', value: data.domains.preferredCurrency },
+        { label: 'Comparación', value: `${data.domains.comparisonRange.from} / ${data.domains.comparisonRange.to}` },
+        { label: 'Contrato', value: data.domains.contractVersion },
+        { label: 'Calidad', value: data.domains.dataQuality.decisionReady ? 'Apto para decisión' : 'Revisión requerida' },
       ],
-      metrics: data.kpiCards.map((card) => ({
-        detail: `${statusLabels[card.status]} · ${card.description}`,
-        label: card.title,
-        value: formatValue(card.value, card.id),
-      })),
+      metrics: data.domains.items.map((domain) => {
+        const metric = domain.metrics[0];
+        return {
+          detail: `${statusLabels[domain.status]} · ${metric?.description ?? domain.label}`,
+          label: domain.label,
+          value: metric ? formatDomainMetric(metric, data.domains.preferredCurrency) : '—',
+        };
+      }),
       reportTitle: 'Panel ejecutivo de KPIs',
-      subtitle: 'Lectura directiva consolidada de ventas, gastos, cartera, cajas chicas y ejecución operativa.',
+      subtitle: 'Lectura consolidada de tareas y procesos, gastos, caja chica, inventarios y ventas.',
       tables: [
         {
-          emptyLabel: 'No hay unidades para los filtros seleccionados.',
-          headers: ['Unidad', 'Negocio', 'Ventas', 'Gastos', 'Utilidad', 'Margen', 'CxC', 'CxP', 'Estado'],
-          rows: filteredRows.map((row) => [
-            row.unitName,
-            row.businessName,
-            formatMoney(row.salesTotal),
-            formatMoney(row.expensesTotal),
-            formatMoney(row.operatingProfit),
-            formatPercent(row.operatingMargin),
-            formatMoney(row.receivablesTotal),
-            formatMoney(row.payablesTotal),
-            statusLabels[row.status],
-          ]),
-          title: 'Matriz por unidad y negocio',
+          emptyLabel: 'No hay indicadores para los filtros seleccionados.',
+          headers: ['Dominio', 'Indicador', 'Actual', 'Anterior', 'Variación', 'Estado'],
+          rows: data.domains.items.flatMap((domain) => domain.metrics.map((metric) => [
+            domain.label,
+            metric.label,
+            formatDomainMetric(metric, data.domains.preferredCurrency),
+            metric.previousValue === null ? 'No comparable' : formatDomainMetric({ ...metric, value: metric.previousValue }, data.domains.preferredCurrency),
+            metric.percentChange === null ? 'No comparable' : `${metric.percentChange >= 0 ? '+' : ''}${metric.percentChange.toFixed(1)}%`,
+            statusLabels[metric.status],
+          ])),
+          title: 'Indicadores por dominio',
         },
         {
-          emptyLabel: 'No hay alertas ejecutivas.',
-          headers: ['Estado', 'Alerta', 'Lectura'],
-          rows: data.alerts.map((alert) => [statusLabels[alert.status], alert.title, alert.description]),
-          title: 'Alertas ejecutivas',
+          emptyLabel: 'No hay señales operativas.',
+          headers: ['Dominio', 'Estado', 'Lectura'],
+          rows: data.domains.items.flatMap((domain) => domain.signals.map((signal) => [
+            domain.label,
+            statusLabels[signal.severity],
+            signal.message,
+          ])),
+          title: 'Señales operativas',
         },
       ],
     });
@@ -270,62 +252,14 @@ export default function KPIs() {
 
       <ContextStrip data={data} loading={loading} />
 
-      <KpiGrid items={data?.kpiCards ?? []} loading={loading} />
+      <DecisionReadiness data={data} loading={loading} />
 
-      <ExecutiveInsight data={data} loading={loading} />
-
-      <section className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-        <FinancialMap rows={filteredRows} summary={data?.summary ?? null} loading={loading} />
-        <PettyCashPulse data={data} rows={filteredRows} loading={loading} />
-      </section>
-
-      <section className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
-        <UnitMatrix rows={filteredRows} loading={loading} />
-        <AlertPanel alerts={data?.alerts ?? []} loading={loading} />
-      </section>
-
-      <section className="grid gap-5 xl:grid-cols-3">
-        <BreakdownPanel
-          title="Ventas por fuente"
-          description="POS, ventas comerciales y ventas a credito dentro del periodo."
-          icon={BriefcaseBusiness}
-          items={data?.salesBySource ?? []}
-          labelKey="source"
-          loading={loading}
-        />
-        <BreakdownPanel
-          title="Gastos por cuenta"
-          description="Concentracion del gasto registrada en cuentas contables."
-          icon={Landmark}
-          items={data?.expensesByAccount ?? []}
-          labelKey="accountName"
-          loading={loading}
-        />
-        <RankingPanel rows={data?.rankings?.attention ?? []} loading={loading} />
-      </section>
-
-      <ExecutiveRankings data={data} loading={loading} />
-
-      <section className="grid gap-5 xl:grid-cols-2">
-        <PeopleSignalPanel
-          description="Colaboradores con tareas vencidas, bajo avance o score operativo bajo."
-          emptyText="Sin focos operativos por colaborador."
-          icon={BarChart3}
-          items={data?.lowProductivity ?? []}
-          kind="productivity"
-          loading={loading}
-          title="Desempeno operativo"
-        />
-        <PeopleSignalPanel
-          description="Ausencias y retardos visibles dentro del periodo seleccionado."
-          emptyText="Sin focos de asistencia en el periodo."
-          icon={CalendarDays}
-          items={data?.absenteeism ?? []}
-          kind="attendance"
-          loading={loading}
-          title="Ausentismo y puntualidad"
-        />
-      </section>
+      <DomainHealthWorkspace
+        contractVersion={data?.domains?.contractVersion ?? '2.1'}
+        domains={data?.domains?.items ?? []}
+        loading={loading}
+        preferredCurrency={data?.domains?.preferredCurrency ?? preferredCurrency}
+      />
     </div>
   );
 }
@@ -461,14 +395,47 @@ function FiltersBar({
 }
 
 function ContextStrip({ data, loading }: { data: ExecutiveKpiResponse | null; loading: boolean }) {
-  const nativeCurrencies = data?.context.nativeCurrencies?.length ? data.context.nativeCurrencies.join(', ') : data?.context.currency ?? 'MXN';
+  const currency = data?.domains?.preferredCurrency ?? data?.context.currency ?? 'MXN';
 
   return (
     <section className="grid gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:grid-cols-4">
       <ContextItem icon={CalendarDays} label="Periodo" value={loading ? 'Cargando' : `${data?.range.from ?? ''} / ${data?.range.to ?? ''}`} />
-      <ContextItem icon={CircleDollarSign} label="Moneda" value={nativeCurrencies} />
+      <ContextItem icon={CircleDollarSign} label="Moneda consolidada" value={currency} />
       <ContextItem icon={Building2} label="Alcance" value={data?.context.scopeLabel ?? 'Empresa completa'} />
       <ContextItem icon={RefreshCw} label="Actualizacion" value={data?.context.generatedAt ? new Date(data.context.generatedAt).toLocaleString('es-MX') : 'Pendiente'} />
+    </section>
+  );
+}
+
+function DecisionReadiness({ data, loading }: { data: ExecutiveKpiResponse | null; loading: boolean }) {
+  if (loading || !data) {
+    return <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"><Skeleton /></section>;
+  }
+
+  const quality = data.domains.dataQuality;
+  const ready = quality.decisionReady;
+  return (
+    <section className={cn(
+      'rounded-xl border px-4 py-4 text-sm shadow-sm',
+      ready
+        ? 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-100'
+        : 'border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-100',
+    )}>
+      <div className="flex items-start gap-3">
+        {ready ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" /> : <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />}
+        <div>
+          <p className="font-medium">{ready ? 'Datos aptos para la decisión diaria' : 'Revisión requerida antes de decidir'}</p>
+          <p className="mt-1 leading-5">{quality.note}</p>
+          {!ready && quality.issues.length > 0 ? (
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              {quality.issues.slice(0, 6).map((issue) => <li key={issue}>{issue}</li>)}
+            </ul>
+          ) : null}
+          <p className="mt-2 text-xs opacity-80">
+            Lectura consistente: {new Date(quality.generatedAt).toLocaleString('es-MX')} · Corte operativo: {quality.snapshotDate} · Tipo de cambio: {quality.exchangeRateDate}
+          </p>
+        </div>
+      </div>
     </section>
   );
 }
@@ -501,6 +468,114 @@ function KpiGrid({ items, loading }: { items: ExecutiveKpiCard[]; loading: boole
       })}
     </section>
   );
+}
+
+const domainIcons: Record<string, LucideIcon> = {
+  processTasks: CheckCircle2,
+  expenses: WalletCards,
+  pettyCash: CreditCard,
+  inventory: Building2,
+  sales: BriefcaseBusiness,
+};
+
+function DomainHealthWorkspace({
+  contractVersion,
+  domains,
+  loading,
+  preferredCurrency,
+}: {
+  contractVersion: string;
+  domains: ExecutiveKpiDomain[];
+  loading: boolean;
+  preferredCurrency: string;
+}) {
+  const items = loading
+    ? Array.from({ length: 5 }, (_, index) => ({ id: `loading-${index}`, label: '', status: 'healthy', metrics: [], signals: [] } as ExecutiveKpiDomain))
+    : domains;
+
+  return (
+    <section className="space-y-3">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h3 className="text-lg font-medium text-slate-950 dark:text-white">Salud por dominio</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Indicadores calculados en backend y comparados con el periodo anterior equivalente.</p>
+        </div>
+        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Consolidado en {preferredCurrency}</span>
+      </div>
+      <div className="grid gap-4 xl:grid-cols-2">
+        {items.map((domain) => {
+          const Icon = domainIcons[domain.id] ?? BarChart3;
+          return (
+            <article key={domain.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              {loading ? <Skeleton /> : (
+                <>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <div>
+                        <h4 className="font-medium text-slate-950 dark:text-white">{domain.label}</h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Contrato ejecutivo {contractVersion}</p>
+                      </div>
+                    </div>
+                    <StatusBadge status={domain.status} />
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {domain.metrics.slice(0, 4).map((metric) => (
+                      <DomainMetric key={metric.id} metric={metric} preferredCurrency={preferredCurrency} />
+                    ))}
+                  </div>
+                  {domain.signals.length > 0 ? (
+                    <div className="mt-4 space-y-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+                      {domain.signals.slice(0, 2).map((signal) => (
+                        <p key={signal.id} className="flex items-start gap-2 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                          <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', signal.severity === 'critical' ? 'bg-rose-500' : signal.severity === 'watch' ? 'bg-amber-500' : 'bg-emerald-500')} />
+                          {signal.message}
+                        </p>
+                      ))}
+                    </div>
+                  ) : null}
+                  {!domain.dataQuality.decisionReady ? (
+                    <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-200">
+                      Calidad pendiente: {domain.dataQuality.issues.join(' ')}
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function DomainMetric({ metric, preferredCurrency }: { metric: ExecutiveDomainMetric; preferredCurrency: string }) {
+  const favorable = metric.absoluteChange !== null && (
+    metric.direction === 'up' ? metric.absoluteChange >= 0 : metric.direction === 'down' ? metric.absoluteChange <= 0 : true
+  );
+  return (
+    <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-950/40" title={metric.description}>
+      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{metric.label}</p>
+      <p className="mt-1 text-xl font-medium text-slate-950 dark:text-white">{metric.available ? formatDomainMetric(metric, preferredCurrency) : 'Sin datos'}</p>
+      <p className={cn('mt-1 text-xs', metric.comparisonAvailable ? (favorable ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300') : 'text-slate-400')}>
+        {metric.comparisonAvailable && metric.percentChange !== null
+          ? `${metric.percentChange >= 0 ? '+' : ''}${metric.percentChange.toFixed(1)}% vs. periodo anterior`
+          : metric.basis === 'currentSnapshot' ? 'Lectura actual'
+            : metric.basis === 'periodEnd' ? 'Lectura al cierre del periodo'
+              : 'Sin base comparable'}
+        {metric.partial ? ' · Parcial' : ''}
+      </p>
+    </div>
+  );
+}
+
+function formatDomainMetric(metric: ExecutiveDomainMetric, preferredCurrency: string) {
+  if (!metric.available) return 'Sin datos';
+  if (metric.unit === 'money') return formatMoney(metric.value, preferredCurrency);
+  if (metric.unit === 'percent') return formatPercent(metric.value);
+  return new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 }).format(metric.value || 0);
 }
 
 function ExecutiveInsight({ data, loading }: { data: ExecutiveKpiResponse | null; loading: boolean }) {
@@ -1426,9 +1501,9 @@ function formatValue(value: number | string, id: string) {
   return formatMoney(value);
 }
 
-function formatMoney(value: number) {
+function formatMoney(value: number, currency = 'MXN') {
   return new Intl.NumberFormat('es-MX', {
-    currency: 'MXN',
+    currency,
     maximumFractionDigits: 0,
     style: 'currency',
   }).format(value || 0);
@@ -1438,51 +1513,40 @@ function formatPercent(value: number) {
   return `${Number(value || 0).toFixed(1)}%`;
 }
 
-function exportExecutivePanelCsv(data: ExecutiveKpiResponse, rows: ExecutiveUnitRow[]) {
+function exportExecutivePanelCsv(data: ExecutiveKpiResponse) {
   const csvRows: Array<Array<string | number>> = [
     ['Panel ejecutivo de KPIs'],
     ['Periodo', data.range.period],
     ['Desde', data.range.from],
     ['Hasta', data.range.to],
+    ['Moneda consolidada', data.domains.preferredCurrency],
+    ['Contrato', data.domains.contractVersion],
+    ['Periodo comparativo', `${data.domains.comparisonRange.from} / ${data.domains.comparisonRange.to}`],
+    ['Cobertura parcial', data.domains.dataQuality.partial ? 'Si' : 'No'],
     [],
-    ['Resumen'],
-    ['Ventas', data.summary.salesTotal],
-    ['Cobrado', data.summary.collectedTotal],
-    ['Cuentas por cobrar', data.summary.receivablesTotal],
-    ['Gastos', data.summary.expensesTotal],
-    ['Cuentas por pagar', data.summary.payablesTotal],
-    ['Utilidad operativa', data.summary.operatingProfit],
-    ['Margen operativo', data.summary.operatingMargin],
-    ['Score ejecutivo', data.summary.executiveScore],
+    ['Indicadores por dominio'],
+    ['Dominio', 'Indicador', 'Valor actual', 'Valor anterior', 'Variacion absoluta', 'Variacion porcentual', 'Unidad', 'Estado', 'Cobertura parcial', 'Definicion'],
+    ...data.domains.items.flatMap((domain) => domain.metrics.map((metric) => [
+      domain.label,
+      metric.label,
+      metric.value,
+      metric.previousValue ?? '',
+      metric.absoluteChange ?? '',
+      metric.percentChange ?? '',
+      metric.unit === 'money' ? data.domains.preferredCurrency : metric.unit,
+      statusLabels[metric.status],
+      metric.partial ? 'Si' : 'No',
+      metric.description,
+    ])),
     [],
-    ['Cajas chicas'],
-    ['Fondos', data.pettyCash.funds],
-    ['Limite total', data.pettyCash.limitTotal],
-    ['Saldo total', data.pettyCash.balanceTotal],
-    ['Fondos en atencion', data.pettyCash.attention],
-    [],
-    ['KPIs'],
-    ['Indicador', 'Valor', 'Estado', 'Lectura'],
-    ...data.kpiCards.map((card) => [card.title, card.value, statusLabels[card.status], card.description]),
-    [],
-    ['Matriz por unidad y negocio'],
-    ['Unidad', 'Negocio', 'Ventas', 'Gastos', 'Utilidad', 'Margen', 'CxC', 'CxP', 'Fondos caja chica', 'Saldo caja chica', 'Tareas cerradas', 'Tareas totales', 'Asistencia', 'Estado'],
-    ...rows.map((row) => [
-      row.unitName,
-      row.businessName,
-      row.salesTotal,
-      row.expensesTotal,
-      row.operatingProfit,
-      row.operatingMargin,
-      row.receivablesTotal,
-      row.payablesTotal,
-      row.pettyCashFunds,
-      row.pettyCashBalance,
-      row.closedTasks,
-      row.totalTasks,
-      row.attendanceRate,
-      statusLabels[row.status],
-    ]),
+    ['Señales operativas'],
+    ['Dominio', 'Estado', 'Lectura', 'Valor'],
+    ...data.domains.items.flatMap((domain) => domain.signals.map((signal) => [
+      domain.label,
+      statusLabels[signal.severity],
+      signal.message,
+      signal.value,
+    ])),
   ];
 
   const csv = csvRows.map((row) => row.map(csvCell).join(',')).join('\r\n');
