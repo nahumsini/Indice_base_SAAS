@@ -13,8 +13,8 @@ export const frCA = {
     sale: 'Vente',
     cortes: 'Fermetures de caisse',
     clientes: 'Clients',
-    kpis: 'ICP',
+    kpis: 'Indicateurs',
     kiosks: 'Bornes',
-    cajas: 'Caisses',
+    cajas: 'Caisses et quarts',
   },
 } as const;

@@ -46,11 +46,19 @@ public class CashRegisterController {
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @Valid @RequestBody CashRegisterCreateRequest request) {
-        var access = guard.requireWriteAccess(session, csrfToken);
+        var access = guard.requireAdminWriteAccess(session, csrfToken);
         if (access.denied()) {
             return access.error();
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(access.context(), request));
+    }
+
+    @GetMapping("/warehouses/{warehouseId}/next-code")
+    public ResponseEntity<?> nextCode(HttpSession session, @PathVariable long warehouseId) {
+        var access = guard.requireAdminReadAccess(session);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.nextCode(access.context(), warehouseId));
     }
 
     @PostMapping("/warehouses/{warehouseId}/ensure")
@@ -58,7 +66,7 @@ public class CashRegisterController {
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @PathVariable long warehouseId) {
-        var access = guard.requireWriteAccess(session, csrfToken);
+        var access = guard.requireAdminWriteAccess(session, csrfToken);
         return access.denied()
             ? access.error()
             : ResponseEntity.ok(service.ensureForWarehouse(access.context(), warehouseId));
@@ -70,7 +78,7 @@ public class CashRegisterController {
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @PathVariable long registerId,
             @Valid @RequestBody CashRegisterUpdateRequest request) {
-        var access = guard.requireWriteAccess(session, csrfToken);
+        var access = guard.requireAdminWriteAccess(session, csrfToken);
         return access.denied() ? access.error() : ResponseEntity.ok(service.update(access.context(), registerId, request));
     }
 
@@ -79,7 +87,7 @@ public class CashRegisterController {
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @PathVariable long registerId) {
-        var access = guard.requireWriteAccess(session, csrfToken);
+        var access = guard.requireAdminWriteAccess(session, csrfToken);
         return access.denied() ? access.error() : ResponseEntity.ok(service.delete(access.context(), registerId));
     }
 }

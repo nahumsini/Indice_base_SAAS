@@ -11,10 +11,10 @@ export const koCA = {
   },
   tabs: {
     kiosks: '키오스크',
-    cajas: '계산대',
+    cajas: '계산대 및 근무조',
     sale: '판매',
     cortes: '현금 마감',
     clientes: '고객',
-    kpis: 'KPI',
+    kpis: '지표',
   },
 } as const;

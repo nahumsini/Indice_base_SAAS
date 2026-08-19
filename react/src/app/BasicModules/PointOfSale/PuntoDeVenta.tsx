@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useRef } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef } from 'react';
 import { Navigate, useParams } from 'react-router';
 import { IndiceModuleShell } from '../../components/frontend-os';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
@@ -6,6 +6,7 @@ import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { SalesCrmProvider } from '../Sales/salesCrmContext';
 import { usePointOfSaleResolvedLocale, usePointOfSaleTranslations } from './hooks/usePointOfSaleTranslations';
 import { PointOfSaleLegacyLocalizer } from './PointOfSaleLegacyLocalizer';
+import { posBackendApi } from './Sale/services/posBackendApi';
 import {
   LearningModeHeaderActionsProvider,
   learningModeGuideThemes,
@@ -106,18 +107,44 @@ export default function PuntoDeVenta({ learningModeActive = false, onNavigate }:
 function PuntoDeVentaContent({ learningModeActive = false, onNavigate }: PuntoDeVentaProps) {
   const t = usePointOfSaleTranslations();
   const locale = usePointOfSaleResolvedLocale();
+  const params = useParams();
   const mainContentRef = useRef<HTMLDivElement>(null);
+  const enteredWithoutExplicitTab = useRef(!params['*']?.split('/').filter(Boolean)[0]);
+  const operationalLandingResolved = useRef(false);
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<PointOfSaleTabId>(
     'sale',
     pointOfSaleTabIds,
     legacyPointOfSaleTabAliases,
   );
 
+  useEffect(() => {
+    if (!enteredWithoutExplicitTab.current || operationalLandingResolved.current || isTabLoading) {
+      return;
+    }
+
+    operationalLandingResolved.current = true;
+    let cancelled = false;
+    void posBackendApi.context()
+      .then((context) => {
+        if (cancelled) return;
+        const hasActiveCashRegister = context.cashRegisters.some((cashRegister) => (
+          cashRegister.active && cashRegister.status === 'ACTIVE'
+        ));
+        const landingTab: PointOfSaleTabId = hasActiveCashRegister ? 'sale' : 'cajas';
+        if (landingTab !== activeTab) {
+          setActiveTab(landingTab);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => { cancelled = true; };
+  }, [activeTab, isTabLoading, setActiveTab]);
+
   const tabs = useMemo(() => [
-    { id: 'kiosks' as const, label: t.tabs.kiosks, emoji: '🖥️', component: KiosksWorkspace },
     { id: 'cajas' as const, label: t.tabs.cajas, emoji: '🏪', component: CashRegistersWorkspace },
     { id: 'sale' as const, label: t.tabs.sale, emoji: '🧾', component: Sale },
     { id: 'cortes' as const, label: t.tabs.cortes, emoji: '💵', component: Cortes },
+    { id: 'kiosks' as const, label: t.tabs.kiosks, emoji: '🖥️', component: KiosksWorkspace },
     { id: 'clientes' as const, label: t.tabs.clientes, emoji: '👤', component: Clientes },
     { id: 'kpis' as const, label: t.tabs.kpis, emoji: '📊', component: KPIs },
   ], [t]);

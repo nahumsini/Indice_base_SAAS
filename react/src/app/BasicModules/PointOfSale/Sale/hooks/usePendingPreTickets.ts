@@ -4,13 +4,14 @@ import type { Product } from '../../shared/commercial/products';
 import type { PreTicket } from '../../shared/commercial/pretickets';
 import { selfServiceKioskApi, type SelfServicePreticket } from '../../SelfServiceKiosk/selfServiceKioskApi';
 import type { OperationalActivity } from '../components/OperationalActivityFeed';
-import { resolvePreticketProductRequests } from '../utils/preticketQueuePolicy';
-import type { CartBatchResult } from './useSaleCart';
+import { cartLinesFromPreticket, resolvePreticketProductRequests } from '../utils/preticketQueuePolicy';
+import type { CartBatchResult, PreticketCartLineRequest } from './useSaleCart';
 
 interface UsePendingPreTicketsOptions {
   cashRegisterId?: number;
   products: Product[];
-  addProductsToCart: (requests: Array<{ product: Product; quantity: number }>) => CartBatchResult;
+  cartHasItems: boolean;
+  replaceCartWithPreticket: (requests: PreticketCartLineRequest[]) => CartBatchResult;
   pushActivity: (activity: Omit<OperationalActivity, 'id' | 'timestamp'>) => void;
   formatCurrency: (amount: number) => string;
 }
@@ -35,7 +36,8 @@ const toPreTicket = (source: SelfServicePreticket): PreTicket => ({
 export function usePendingPreTickets({
   cashRegisterId,
   products,
-  addProductsToCart,
+  cartHasItems,
+  replaceCartWithPreticket,
   pushActivity,
   formatCurrency,
 }: UsePendingPreTicketsOptions) {
@@ -45,6 +47,7 @@ export function usePendingPreTickets({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
   const [claimingPreTicketIds, setClaimingPreTicketIds] = useState<string[]>([]);
+  const [activePreticket, setActivePreticket] = useState<SelfServicePreticket | null>(null);
   const requestSequence = useRef(0);
   const claimLocks = useRef(new Set<string>());
   const activeCashRegister = useRef(cashRegisterId);
@@ -101,10 +104,21 @@ export function usePendingPreTickets({
 
   const pullPreTicket = async (preTicketId: string) => {
     if (!cashRegisterId || !Number.isFinite(cashRegisterId)) return;
-    if (claimLocks.current.has(preTicketId)) return;
+    if (claimLocks.current.size > 0 || claimLocks.current.has(preTicketId)) return;
     const requestedRegisterId = cashRegisterId;
     const preTicket = preTickets.find((candidate) => candidate.id === preTicketId);
     if (!preTicket) return;
+    if (cartHasItems || activePreticket) {
+      pushActivity({
+        type: 'sale',
+        title: 'Termina el ticket actual',
+        description: 'Cancela o cobra el ticket activo antes de cargar un pedido de kiosco.',
+        actor: copy.pendingPretickets.engineActor,
+        badge: 'Ticket ocupado',
+        tone: 'warning',
+      });
+      return;
+    }
     claimLocks.current.add(preTicketId);
     setClaimingPreTicketIds((current) => [...current, preTicketId]);
     let claimNeedsRelease = false;
@@ -149,7 +163,7 @@ export function usePendingPreTickets({
         return;
       }
 
-      const cartResult = addProductsToCart(resolvedClaim.requests);
+      const cartResult = replaceCartWithPreticket(cartLinesFromPreticket(claimed, resolvedClaim.requests));
       if (cartResult.addedCount !== resolvedClaim.requests.length) {
         await selfServiceKioskApi.releasePreticket(Number(preTicketId), requestedRegisterId)
           .catch(() => undefined);
@@ -157,6 +171,7 @@ export function usePendingPreTickets({
         throw new Error('PRETICKET_CART_REJECTED');
       }
       claimNeedsRelease = false;
+      setActivePreticket(claimed);
       setQueue((current) => current.cashRegisterId === requestedRegisterId
         ? { ...current, items: current.items.filter((candidate) => candidate.id !== preTicketId) }
         : current);
@@ -194,6 +209,26 @@ export function usePendingPreTickets({
     }
   };
 
+  const releaseActivePreticket = async () => {
+    if (!activePreticket) return true;
+    try {
+      await selfServiceKioskApi.releasePreticket(activePreticket.id, activePreticket.cashRegisterId);
+      setActivePreticket(null);
+      void reloadPreTickets();
+      return true;
+    } catch {
+      pushActivity({
+        type: 'sale',
+        title: 'No se pudo liberar el preticket',
+        description: 'El ticket permanece reservado para evitar que otro cajero lo cobre al mismo tiempo.',
+        actor: copy.pendingPretickets.engineActor,
+        badge: copy.pendingPretickets.unavailableBadge,
+        tone: 'warning',
+      });
+      return false;
+    }
+  };
+
   return {
     preTickets,
     pullPreTicket,
@@ -202,5 +237,9 @@ export function usePendingPreTickets({
     isRefreshing,
     lastUpdatedAt,
     claimingPreTicketIds,
+    activePreticketId: activePreticket?.id,
+    activePreticketCode: activePreticket?.claimCode || activePreticket?.preticketNumber,
+    releaseActivePreticket,
+    completeActivePreticket: () => setActivePreticket(null),
   };
 }

@@ -127,7 +127,7 @@ export function DiscountModal({
       icon={<Percent className="h-6 w-6" />}
       onClose={onClose}
       size="sm"
-      subtitle="Aplica descuentos manuales o reglas disponibles para la línea."
+      subtitle="Selecciona una regla vigente para esta línea; POS la validará nuevamente al cobrar."
       title="Aplicar descuento"
       tone="coral"
       footerClassName={posModalModuleFooterClassName}
@@ -183,8 +183,8 @@ export function DiscountModal({
         {eligibleRules.length > 0 ? (
           <section>
             <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Reglas disponibles</p>
-            <div className="space-y-2">
-              {eligibleRules.slice(0, 4).map((rule) => (
+            <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+              {eligibleRules.map((rule) => (
                 <button
                   key={rule.id}
                   type="button"

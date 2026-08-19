@@ -18,11 +18,19 @@ public class CheckoutLookupRepository {
         return jdbcTemplate.query("""
             SELECT id,
                    COALESCE(NULLIF(fiscal_legal_name, ''), NULLIF(company_name, ''), contact_person) AS snapshot_name,
-                   fiscal_tax_id
+                   fiscal_tax_id,
+                   CASE
+                       WHEN NULLIF(TRIM(fiscal_legal_name), '') IS NOT NULL
+                         OR (NULLIF(TRIM(company_name), '') IS NOT NULL
+                             AND TRIM(company_name) <> COALESCE(TRIM(contact_person), ''))
+                       THEN 'business'
+                       ELSE 'individual'
+                   END AS customer_type
             FROM sales_contacts
             WHERE company_id = ? AND id = ? AND deleted_at IS NULL
             """, (rs, rowNum) -> new CustomerSnapshot(
-            rs.getLong("id"), rs.getString("snapshot_name"), rs.getString("fiscal_tax_id")
+            rs.getLong("id"), rs.getString("snapshot_name"), rs.getString("fiscal_tax_id"),
+            rs.getString("customer_type")
         ), context.companyId(), customerId).stream().findFirst();
     }
 

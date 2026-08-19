@@ -52,6 +52,14 @@ public class CashRegisterRepository {
             """, mapper::mapRow, params.toArray()).stream().findFirst();
     }
 
+    public void lockCodeAllocation(long companyId) {
+        jdbcTemplate.queryForObject(
+            "SELECT id FROM companies WHERE id = ? FOR UPDATE",
+            Long.class,
+            companyId
+        );
+    }
+
     public boolean synchronizeScopeFromWarehouse(
             PosContext context,
             long registerId,

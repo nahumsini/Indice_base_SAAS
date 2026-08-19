@@ -131,7 +131,7 @@ export function CloseShiftModal({
           ) : (
             <>
               <CheckCircle className="h-5 w-5" />
-              Cerrar turno
+              Cerrar turno y generar corte
             </>
           )}
         </button>

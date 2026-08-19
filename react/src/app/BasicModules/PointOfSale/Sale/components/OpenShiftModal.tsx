@@ -165,14 +165,14 @@ export function OpenShiftModal({
   return (
     <PosModalFrame
       modalType="standard-form"
-      closeLabel="Cerrar apertura de caja"
+      closeLabel="Cerrar apertura de turno"
       eyebrow="Inicio de turno"
       icon={<LogIn className="h-6 w-6" />}
       isCloseDisabled={isSubmitting}
       onClose={onClose}
       size="md"
       subtitle="Selecciona un almacén y registra el efectivo inicial."
-      title="Abrir caja"
+      title="Abrir turno"
       tone="coral"
       footerClassName={posModalModuleFooterClassName}
       footerLeading={<button type="button" onClick={onClose} disabled={isSubmitting} className={posModalSecondaryActionClassName}>Cancelar</button>}
@@ -184,7 +184,7 @@ export function OpenShiftModal({
           disabled={isSubmitting || isProvisioningRegister || !contextReady || Number.isNaN(amount) || amount < 0}
           className={posModalPrimaryActionClassName}
         >
-          {isSubmitting ? 'Abriendo...' : 'Abrir caja'}
+          {isSubmitting ? 'Abriendo...' : 'Abrir turno'}
         </button>
       )}
     >
@@ -192,7 +192,7 @@ export function OpenShiftModal({
         <div className="mb-4 flex gap-2 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-normal text-orange-800 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{error || (hasWarehouseBlocker
-            ? 'POS requiere un almacén antes de abrir caja.'
+            ? 'POS requiere un almacén antes de abrir turno.'
             : 'No fue posible preparar una caja activa para los almacenes disponibles.')}</span>
         </div>
       ) : null}

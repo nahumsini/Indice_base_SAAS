@@ -62,6 +62,7 @@ export type PosContextResponse = {
   warehouses: PosWarehouseSummary[];
   cashRegisters: PosCashRegisterResponse[];
   currentOpenShift?: PosShiftResponse | null;
+  canManageCashRegisters?: boolean;
   scope?: {
     type?: string | null;
     unitId?: number | null;
@@ -172,6 +173,7 @@ export type PosCheckoutPaymentPayload = {
 export type PosCheckoutPayload = {
   cashRegisterId: number;
   customerId?: number | null;
+  preticketId?: number | null;
   currencyCode: string;
   items: PosCheckoutItemPayload[];
   payments: PosCheckoutPaymentPayload[];
@@ -260,6 +262,9 @@ export const posBackendApi = {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+  },
+  nextCashRegisterCode(warehouseId: number | string) {
+    return apiClient<{ code: string }>(`${posBasePath}/cash-registers/warehouses/${warehouseId}/next-code`);
   },
   ensureCashRegisterForWarehouse(warehouseId: number | string) {
     return apiClient<PosCashRegisterResponse>(`${posBasePath}/cash-registers/warehouses/${warehouseId}/ensure`, {

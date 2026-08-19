@@ -33,6 +33,7 @@ export default function CashRegistersWorkspace() {
   const [notice, setNotice] = useState('');
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<PosCashRegisterResponse | null>(null);
+  const canManageCashRegisters = context?.canManageCashRegisters === true;
 
   const refreshLive = async () => {
     const shiftResponse = await posBackendApi.shifts();
@@ -150,7 +151,7 @@ export default function CashRegistersWorkspace() {
       subtitle={copy.header.subtitle}
       actions={<div className="flex flex-col gap-2 sm:flex-row">
         <button type="button" onClick={() => void reload()} className={pointOfSaleTitleBarSecondaryActionClassName}><RefreshCw className="h-4 w-4" />{copy.header.refresh}</button>
-        <button type="button" onClick={() => setCreating(true)} className={pointOfSaleTitleBarPrimaryActionClassName}><Plus className="h-4 w-4" />{copy.header.newRegister}</button>
+        {canManageCashRegisters ? <button type="button" onClick={() => setCreating(true)} className={pointOfSaleTitleBarPrimaryActionClassName}><Plus className="h-4 w-4" />{copy.header.newRegister}</button> : null}
       </div>}
     />
 
@@ -186,7 +187,7 @@ export default function CashRegistersWorkspace() {
                 <td className="px-4 py-4">{register ? <><strong className="block font-medium text-slate-900 dark:text-white">{register.name}</strong><span className="text-xs text-slate-500">{register.code}</span></> : <span className="text-slate-500">{copy.row.noRegister}</span>}</td>
                 <td className="px-4 py-4"><StatusBadge copy={copy} register={register} shift={shift} closedToday={closedShifts.length > 0} /></td>
                 <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{shift ? `${userNames[shift.openedByUserId] || copy.common.user(shift.openedByUserId)} · ${new Date(shift.openedAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}` : closedShifts.length > 0 ? copy.row.closedTodayCount(closedShifts.length) : copy.common.available}</td>
-                <td className="px-4 py-4 text-right">{register ? <button type="button" onClick={() => setEditing(register)} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 font-medium text-slate-700 dark:border-slate-700 dark:text-slate-200"><Pencil className="h-4 w-4" />{copy.row.edit}</button> : <button type="button" disabled={saving} onClick={() => void provision(warehouse.id)} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#FF6B5E] px-3 font-medium text-[#222831] disabled:opacity-60"><Plus className="h-4 w-4" />{copy.row.prepare}</button>}</td>
+                <td className="px-4 py-4 text-right">{canManageCashRegisters ? (register ? <button type="button" onClick={() => setEditing(register)} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 font-medium text-slate-700 dark:border-slate-700 dark:text-slate-200"><Pencil className="h-4 w-4" />{copy.row.edit}</button> : <button type="button" disabled={saving} onClick={() => void provision(warehouse.id)} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#FF6B5E] px-3 font-medium text-[#222831] disabled:opacity-60"><Plus className="h-4 w-4" />{copy.row.prepare}</button>) : <span className="text-xs text-slate-500">Solo administración</span>}</td>
               </tr>, expanded && register ? <tr key={`session-${register.id}`}><td colSpan={8} className="bg-slate-50 px-6 py-5 dark:bg-slate-950/50"><SessionFolder copy={copy} locale={locale} register={register} shift={shift} summary={summary} userName={shift ? userNames[shift.openedByUserId] : undefined} closedShifts={closedShifts} summaries={summaries} userNames={userNames} /></td></tr> : null];
             })}
             {!loading && rows.length === 0 ? <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-500">{copy.operation.noResults}</td></tr> : null}
@@ -195,8 +196,8 @@ export default function CashRegistersWorkspace() {
       </div>
     </section>
 
-    <CreateCashRegisterModal isOpen={creating} warehouses={context?.warehouses ?? []} isSubmitting={saving} onClose={() => setCreating(false)} onConfirm={create} />
-    {editing ? <EditRegisterModal copy={copy} register={editing} warehouses={context?.warehouses ?? []} saving={saving} onClose={() => setEditing(null)} onSave={update} /> : null}
+    {canManageCashRegisters ? <CreateCashRegisterModal isOpen={creating} warehouses={context?.warehouses ?? []} isSubmitting={saving} onClose={() => setCreating(false)} onConfirm={create} /> : null}
+    {canManageCashRegisters && editing ? <EditRegisterModal copy={copy} register={editing} warehouses={context?.warehouses ?? []} saving={saving} onClose={() => setEditing(null)} onSave={update} /> : null}
   </div>;
 }
 

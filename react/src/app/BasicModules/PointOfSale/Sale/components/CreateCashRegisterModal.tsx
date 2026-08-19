@@ -4,6 +4,7 @@ import type {
   PosCashRegisterCreatePayload,
   PosWarehouseSummary,
 } from '../services/posBackendApi';
+import { posBackendApi } from '../services/posBackendApi';
 import {
   PosModalFrame,
   posModalModuleFooterClassName,
@@ -38,6 +39,7 @@ export function CreateCashRegisterModal({
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [codeCustomized, setCodeCustomized] = useState(false);
 
   const selectedWarehouse = useMemo(
     () => warehouses.find((warehouse) => String(warehouse.id) === warehouseId),
@@ -52,9 +54,33 @@ export function CreateCashRegisterModal({
     const defaultWarehouse = firstWarehouse;
     setWarehouseId(defaultWarehouse ? String(defaultWarehouse.id) : '');
     setCode(buildDefaultCode(defaultWarehouse));
+    setCodeCustomized(false);
     setName(defaultWarehouse ? copy.createModal.defaultName(defaultWarehouse.name) : copy.createModal.defaultFallbackName);
     setError('');
   }, [copy, firstWarehouse, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !selectedWarehouse || codeCustomized) {
+      return;
+    }
+
+    let cancelled = false;
+    setCode(buildDefaultCode(selectedWarehouse));
+    void posBackendApi.nextCashRegisterCode(selectedWarehouse.id)
+      .then((response) => {
+        if (!cancelled && response.code) setCode(response.code);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [codeCustomized, isOpen, selectedWarehouse]);
+
+  const handleWarehouseChange = (nextWarehouseId: string) => {
+    const nextWarehouse = warehouses.find((warehouse) => String(warehouse.id) === nextWarehouseId);
+    setWarehouseId(nextWarehouseId);
+    setCodeCustomized(false);
+    setCode(buildDefaultCode(nextWarehouse));
+    setName(nextWarehouse ? copy.createModal.defaultName(nextWarehouse.name) : copy.createModal.defaultFallbackName);
+  };
 
   const handleSubmit = () => {
     if (isSubmitting) {
@@ -82,7 +108,7 @@ export function CreateCashRegisterModal({
 
     void onConfirm({
       warehouseId: nextWarehouseId,
-      code: nextCode,
+      code: codeCustomized ? nextCode : '',
       name: nextName,
       status: 'ACTIVE',
       active: true,
@@ -148,7 +174,7 @@ export function CreateCashRegisterModal({
             <Warehouse className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
             <select
               value={warehouseId}
-              onChange={(event) => setWarehouseId(event.target.value)}
+              onChange={(event) => handleWarehouseChange(event.target.value)}
               disabled={isSubmitting || warehouses.length === 0}
               className="min-h-14 w-full rounded-lg border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             >
@@ -174,12 +200,18 @@ export function CreateCashRegisterModal({
             </label>
             <input
               value={code}
-              onChange={(event) => setCode(event.target.value)}
+              onChange={(event) => {
+                setCodeCustomized(true);
+                setCode(event.target.value);
+              }}
               disabled={isSubmitting}
               maxLength={64}
               placeholder="POS-01"
               className="min-h-14 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             />
+            <p className="mt-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+              {codeCustomized ? 'Código personalizado.' : 'El backend reservará el siguiente consecutivo disponible al crear.'}
+            </p>
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">

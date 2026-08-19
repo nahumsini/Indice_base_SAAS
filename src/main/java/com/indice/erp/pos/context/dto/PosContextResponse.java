@@ -8,5 +8,6 @@ public record PosContextResponse(
         List<WarehouseSummary> warehouses,
         List<CashRegisterResponse> cashRegisters,
         ShiftResponse currentOpenShift,
-        PosScopeResponse scope) {
+        PosScopeResponse scope,
+        boolean canManageCashRegisters) {
 }

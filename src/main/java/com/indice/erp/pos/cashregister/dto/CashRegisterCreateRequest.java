@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Size;
 
 public record CashRegisterCreateRequest(
         @NotNull Long warehouseId,
-        @NotBlank @Size(max = 64) String code,
+        @Size(max = 64) String code,
         @NotBlank @Size(max = 160) String name,
         CashRegisterStatus status,
         Boolean active,

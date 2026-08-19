@@ -13,8 +13,8 @@ export const ptBR = {
     sale: 'Venda',
     cortes: 'Fechamentos de caixa',
     clientes: 'Clientes',
-    kpis: 'KPIs',
+    kpis: 'Indicadores',
     kiosks: 'Quiosques',
-    cajas: 'Caixas',
+    cajas: 'Caixas e turnos',
   },
 } as const;

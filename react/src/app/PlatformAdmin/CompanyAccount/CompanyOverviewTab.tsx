@@ -22,7 +22,7 @@ export function CompanyOverviewTab({
   accessLabel: string;
   canManagePublicDemo: boolean;
   saving: boolean;
-  onUpdatePublicDemo: (enabled: boolean) => Promise<void>;
+  onUpdatePublicDemo?: (enabled: boolean) => Promise<void>;
 }) {
   const origin = commercialOrigin(company);
   const plan = company.offer_code ? humanize(company.offer_code) : "Sin plan";
@@ -82,7 +82,7 @@ export function CompanyOverviewTab({
             role="switch"
             aria-checked={Boolean(company.public_demo_enabled)}
             disabled={!canManagePublicDemo || saving || company.user_type !== "SUPER_ADMIN"}
-            onClick={() => void onUpdatePublicDemo(!company.public_demo_enabled)}
+            onClick={() => void onUpdatePublicDemo?.(!company.public_demo_enabled)}
             className={`relative h-8 w-14 shrink-0 rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 disabled:cursor-not-allowed disabled:opacity-50 ${
               company.public_demo_enabled ? "bg-blue-600" : "bg-slate-300"
             }`}

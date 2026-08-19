@@ -11,10 +11,10 @@ export const esMX = {
   },
   tabs: {
     sale: 'Venta',
-    cortes: 'Cortes',
+    cortes: 'Cortes de caja',
     clientes: 'Clientes',
-    kpis: 'KPIs',
+    kpis: 'Indicadores',
     kiosks: 'Kioscos',
-    cajas: 'Cajas',
+    cajas: 'Cajas y turnos',
   },
 } as const;

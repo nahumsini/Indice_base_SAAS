@@ -18,6 +18,10 @@ import com.indice.erp.pos.checkout.dto.PosCheckoutItemRequest;
 import com.indice.erp.pos.checkout.dto.PosCheckoutPaymentRequest;
 import com.indice.erp.pos.checkout.dto.PosCheckoutRequest;
 import com.indice.erp.pos.payment.PaymentMapper;
+import com.indice.erp.pos.discount.DiscountRuleService;
+import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.PreticketItemResponse;
+import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.PreticketResponse;
+import com.indice.erp.pos.selfservice.SelfServiceKioskRepository;
 import com.indice.erp.pos.payment.PaymentRecord;
 import com.indice.erp.pos.payment.PaymentRepository;
 import com.indice.erp.pos.shift.ShiftRecord;
@@ -52,6 +56,8 @@ class SpecificPosCheckoutTest {
     @Mock TicketRepository ticketRepository;
     @Mock PaymentRepository paymentRepository;
     @Mock InventoryDeductionService inventoryDeductionService;
+    @Mock DiscountRuleService discountRuleService;
+    @Mock SelfServiceKioskRepository selfServiceKioskRepository;
 
     private final TicketMapper ticketMapper = new TicketMapper();
     private final PaymentMapper paymentMapper = new PaymentMapper();
@@ -186,6 +192,32 @@ class SpecificPosCheckoutTest {
         verify(shiftRepository, never()).increaseExpectedCash(eq(context()), eq(40L), any());
     }
 
+    @Test
+    void claimedPreticketCompletesAtomicallyWithItsPosTicket() {
+        when(cashRegisterService.requireOperationalRegister(context(), 20L)).thenReturn(register());
+        when(shiftRepository.findOpenByUserAndRegister(context(), 20L)).thenReturn(Optional.of(shift()));
+        when(ticketRepository.existsTicketNumber(eq(context()), any())).thenReturn(false);
+        when(salesRecordSummaryRepository.insert(eq(context()), any())).thenReturn(500L);
+        when(lookupRepository.findProduct(context(), 700L)).thenReturn(Optional.of(stockProduct()));
+        when(selfServiceKioskRepository.lockClaimedForCheckout(eq(context()), eq(41L), any(CashRegisterRecord.class)))
+            .thenReturn(Optional.of(preticket()));
+        when(ticketRepository.insert(eq(context()), any())).thenReturn(ticket());
+        when(ticketRepository.insertItems(eq(context()), eq(100L), any())).thenReturn(List.of(ticketItemWithProduct()));
+        when(paymentRepository.insertAll(eq(context()), eq(100L), any())).thenReturn(List.of(paymentRecord(PaymentMethod.CARD)));
+        when(selfServiceKioskRepository.completeClaim(eq(context()), eq(41L), any(CashRegisterRecord.class), eq(100L)))
+            .thenReturn(true);
+        var service = new CheckoutService(
+            cashRegisterService, shiftRepository, lookupRepository, salesRecordSummaryRepository,
+            ticketRepository, paymentRepository, inventoryDeductionService, ticketMapper, paymentMapper,
+            calculator, validator, discountRuleService, selfServiceKioskRepository);
+
+        service.checkout(context(), new PosCheckoutRequest(
+            20L, null, 41L, "MXN", List.of(itemWithProduct("1", "10", "0", "0")),
+            List.of(payment("CARD", "10.0000")), null));
+
+        verify(selfServiceKioskRepository).completeClaim(eq(context()), eq(41L), any(CashRegisterRecord.class), eq(100L));
+    }
+
     private CheckoutService readyService() {
         when(cashRegisterService.requireOperationalRegister(context(), 20L)).thenReturn(register());
         when(shiftRepository.findOpenByUserAndRegister(context(), 20L)).thenReturn(Optional.of(shift()));
@@ -246,6 +278,17 @@ class SpecificPosCheckoutTest {
 
     private ProductSnapshot stockProduct() {
         return new ProductSnapshot(700L, "SKU-700", "Coffee", "Product", true);
+    }
+
+    private PreticketResponse preticket() {
+        var now = Instant.now();
+        return new PreticketResponse(
+            41L, 51L, 20L, "Register 1", "SS-1", "1234", "CLAIMED", "MXN",
+            null, 1, new BigDecimal("10.0000"), BigDecimal.ZERO, null,
+            new BigDecimal("10.0000"), now.plusSeconds(600), now,
+            List.of(new PreticketItemResponse(
+                700L, "SKU-700", "Coffee", BigDecimal.ONE, new BigDecimal("10.0000"),
+                BigDecimal.ZERO, null, new BigDecimal("10.0000"))));
     }
 
     private TicketRecord ticket() {

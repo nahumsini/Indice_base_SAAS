@@ -23,17 +23,20 @@ interface SaleNoShiftStateProps {
   registerContext: CashRegisterContext | null;
   warehouses: PosWarehouseSummary[];
   activeCashRegisters: PosCashRegisterResponse[];
+  canManageCashRegisters: boolean;
   selectedCashRegisterId: string;
   preferredCurrencyCode: string;
   isLoading: boolean;
   isOpeningShift: boolean;
   error: string;
+  notice?: string;
   onOpenShiftModal: () => void;
   onCloseOpenShiftModal: () => void;
   onOpenShift: (initialCash: number, openingNote?: string, currencyCode?: string) => void | Promise<void>;
   onSelectCashRegister: (cashRegisterId: string) => void;
   onRetry: () => void | Promise<void>;
   onClearError: () => void;
+  onClearNotice?: () => void;
 }
 
 export function SaleNoShiftState({
@@ -41,17 +44,20 @@ export function SaleNoShiftState({
   registerContext,
   warehouses,
   activeCashRegisters,
+  canManageCashRegisters,
   selectedCashRegisterId,
   preferredCurrencyCode,
   isLoading,
   isOpeningShift,
   error,
+  notice = '',
   onOpenShiftModal,
   onCloseOpenShiftModal,
   onOpenShift,
   onSelectCashRegister,
   onRetry,
   onClearError,
+  onClearNotice,
 }: SaleNoShiftStateProps) {
   const navigate = useNavigate();
   const [isCreateRegisterModalOpen, setIsCreateRegisterModalOpen] = useState(false);
@@ -62,17 +68,21 @@ export function SaleNoShiftState({
   const hasCashRegisters = activeCashRegisters.length > 0;
   const title = isLoading
     ? 'Cargando punto de venta'
-    : hasCashRegisters
-      ? 'Abre la caja'
+    : notice && hasCashRegisters
+      ? 'Turno cerrado'
+      : hasCashRegisters
+        ? 'Abre un turno'
       : 'Configura POS para operar';
   const description = isLoading
     ? 'Estamos leyendo cajas y turnos activos desde POS.'
-    : hasCashRegisters
-      ? 'Confirma el fondo inicial para habilitar la terminal de venta.'
+    : notice && hasCashRegisters
+      ? 'El corte quedó guardado. Puedes consultarlo o iniciar el siguiente turno.'
+      : hasCashRegisters
+        ? 'Selecciona una caja y confirma el fondo inicial para habilitar la terminal.'
       : 'POS necesita un almacén y una caja vinculada antes de abrir turno.';
 
   const goToWarehouses = () => {
-    navigate('/inventory/inventory');
+    navigate('/inventory/warehouses');
   };
 
   const handleCreateCashRegister = async (payload: PosCashRegisterCreatePayload) => {
@@ -118,15 +128,15 @@ export function SaleNoShiftState({
             <PosSetupProgress hasWarehouses={hasWarehouses} hasCashRegisters={hasCashRegisters} />
           )}
 
-          {(error || setupError || setupNotice) && (
+          {(error || notice || setupError || setupNotice) && (
             <div className={`mb-4 rounded-lg border px-4 py-3 text-left text-sm font-medium ${
-              setupNotice
+              setupNotice || notice
                 ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200'
                 : 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200'
             }`}>
               <span className="flex gap-2">
-                {setupNotice ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />}
-                <span>{setupNotice || setupError || error}</span>
+                {setupNotice || notice ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />}
+                <span>{setupNotice || notice || setupError || error}</span>
               </span>
             </div>
           )}
@@ -144,20 +154,42 @@ export function SaleNoShiftState({
                   onSecondary={onRetry}
                 />
               ) : (
-                <FirstUseAction
-                  icon={Monitor}
-                  title="Paso 2: crea una caja vinculada"
-                  description="Ya hay almacenes disponibles. Crea una caja POS ligera para seleccionar almacén, código y nombre; después podrás abrir turno."
-                  primaryLabel="Crear caja"
-                  secondaryLabel="Ir a almacenes"
-                  onPrimary={() => setIsCreateRegisterModalOpen(true)}
-                  onSecondary={goToWarehouses}
-                />
+                canManageCashRegisters ? (
+                  <FirstUseAction
+                    icon={Monitor}
+                    title="Paso 2: crea una caja vinculada"
+                    description="Ya hay almacenes disponibles. Crea una caja POS ligera para seleccionar almacén, código y nombre; después podrás abrir turno."
+                    primaryLabel="Crear caja"
+                    secondaryLabel="Ir a almacenes"
+                    onPrimary={() => setIsCreateRegisterModalOpen(true)}
+                    onSecondary={goToWarehouses}
+                  />
+                ) : (
+                  <div className="flex gap-3">
+                    <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                    <div>
+                      <h3 className="font-medium text-gray-950 dark:text-white">Se necesita una caja activa</h3>
+                      <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Solicita a un administrador que cree una caja vinculada a este almacén. Los cajeros pueden abrir turnos, pero no cambiar la estructura operativa.</p>
+                    </div>
+                  </div>
+                )
               )}
             </div>
           )}
 
           <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+            {notice && hasCashRegisters ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onClearNotice?.();
+                  navigate('/point-of-sale/cortes');
+                }}
+                className="rounded-lg border border-gray-300 bg-white px-5 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
+              >
+                Ver corte
+              </button>
+            ) : null}
             {error && (
               <button
                 type="button"
@@ -173,7 +205,7 @@ export function SaleNoShiftState({
                 disabled={isLoading || isOpeningShift}
                 className="rounded-lg bg-orange-600 px-6 py-3 font-medium text-white shadow-md transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isOpeningShift ? 'Abriendo...' : 'Abrir caja'}
+                {isOpeningShift ? 'Abriendo...' : notice ? 'Abrir otro turno' : 'Abrir turno'}
               </button>
             )}
           </div>
@@ -192,17 +224,19 @@ export function SaleNoShiftState({
           onClose={onCloseOpenShiftModal}
           onConfirm={onOpenShift}
           onSelectCashRegister={onSelectCashRegister}
-          onEnsureWarehouseRegister={handleEnsureWarehouseRegister}
+          onEnsureWarehouseRegister={canManageCashRegisters ? handleEnsureWarehouseRegister : undefined}
         />
       )}
 
-      <CreateCashRegisterModal
-        isOpen={isCreateRegisterModalOpen}
-        warehouses={warehouses}
-        isSubmitting={isCreatingRegister}
-        onClose={() => setIsCreateRegisterModalOpen(false)}
-        onConfirm={handleCreateCashRegister}
-      />
+      {canManageCashRegisters ? (
+        <CreateCashRegisterModal
+          isOpen={isCreateRegisterModalOpen}
+          warehouses={warehouses}
+          isSubmitting={isCreatingRegister}
+          onClose={() => setIsCreateRegisterModalOpen(false)}
+          onConfirm={handleCreateCashRegister}
+        />
+      ) : null}
     </>
   );
 }

@@ -36,7 +36,7 @@ export interface CompanyAccountDrawerProps {
   onGrantProduct: (productCode: string) => Promise<void>;
   onUpdateTrialProducts: (productCodes: string[]) => Promise<void>;
   onRefreshCompany: () => Promise<void>;
-  onUpdatePublicDemo: (enabled: boolean) => Promise<void>;
+  onUpdatePublicDemo?: (enabled: boolean) => Promise<void>;
   onRevokeBenefit: (reference: string, label?: string, grantCount?: number) => void;
   feedback: { type: "success" | "error"; message: string } | null;
   initialTab?: CompanyAccountTab;
@@ -208,7 +208,7 @@ export function CompanyAccountDrawer({
             activeUserCount={activeUserCount}
             availableSeats={availableSeats}
             accessLabel={accessLabel}
-            canManagePublicDemo={Boolean(context?.can_manage_accounts)}
+            canManagePublicDemo={Boolean(context?.can_manage_accounts && onUpdatePublicDemo)}
             saving={saving}
             onUpdatePublicDemo={onUpdatePublicDemo}
           />

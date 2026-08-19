@@ -43,7 +43,7 @@ export type SelfServicePreticket = {
   cashRegisterName: string;
   preticketNumber: string;
   claimCode: string;
-  status: 'PENDING' | 'CLAIMED' | 'CANCELLED' | 'EXPIRED';
+  status: 'PENDING' | 'CLAIMED' | 'COMPLETED' | 'CANCELLED' | 'EXPIRED';
   currencyCode: string;
   customerName?: string | null;
   itemCount: number;

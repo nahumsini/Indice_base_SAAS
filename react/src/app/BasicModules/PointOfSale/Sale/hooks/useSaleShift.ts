@@ -76,6 +76,7 @@ export function useSaleShift({
   const [isClosingShift, setIsClosingShift] = useState(false);
   const [isLoadingClosingSummary, setIsLoadingClosingSummary] = useState(false);
   const [isCreatingCashMovement, setIsCreatingCashMovement] = useState(false);
+  const [autoOpenShiftSuppressed, setAutoOpenShiftSuppressed] = useState(false);
 
   const backendShiftId = useMemo(() => toShiftId(backendCurrentShift?.id), [backendCurrentShift?.id]);
 
@@ -101,6 +102,7 @@ export function useSaleShift({
       };
     });
     setShowOpenShiftModal(false);
+    setAutoOpenShiftSuppressed(false);
   }, [backendCurrentShift, backendShiftId, registerContext]);
 
   const loadCashMovements = useCallback(async (shiftId: number, cashierName: string) => {
@@ -123,10 +125,10 @@ export function useSaleShift({
   }, [currentShift?.cashierName, currentShift?.id, loadCashMovements]);
 
   useEffect(() => {
-    if (!isRegisterContextLoading && !backendShiftId && !currentShift && canOpenShift) {
+    if (!isRegisterContextLoading && !backendShiftId && !currentShift && canOpenShift && !autoOpenShiftSuppressed) {
       setShowOpenShiftModal(true);
     }
-  }, [backendShiftId, canOpenShift, currentShift, isRegisterContextLoading]);
+  }, [autoOpenShiftSuppressed, backendShiftId, canOpenShift, currentShift, isRegisterContextLoading]);
 
   const handleOpenShift = async (initialCash: number, openingNote?: string, selectedCurrencyCode?: string) => {
     if (!registerContext) {
@@ -162,13 +164,14 @@ export function useSaleShift({
 
       setCurrentShift(newShift);
       setShowOpenShiftModal(false);
-      setShiftNotice(`Caja abierta. Fondo inicial: ${formatCurrency(initialCash)}.`);
+      setAutoOpenShiftSuppressed(false);
+      setShiftNotice(`Turno abierto. Fondo inicial: ${formatCurrency(initialCash)}.`);
       pushActivity({
         type: 'shift',
-        title: 'Caja abierta',
+        title: 'Turno abierto',
         description: `${newShift.cashRegisterCode} · Fondo inicial ${formatCurrency(initialCash)}`,
         actor: newShift.cashierName,
-        badge: 'Caja abierta',
+        badge: 'Turno abierto',
         tone: 'info',
       });
       void refreshRegisterContext();
@@ -255,17 +258,15 @@ export function useSaleShift({
       });
       const difference = toNumber(closedBackendShift.overShortAmount) || closing.countedCash - toNumber(closingSummary.expectedCashAmount);
       setShiftNotice(
-        `Caja cerrada. Tickets: ${closingSummary.ticketsCount} · Total: ${formatCurrency(toNumber(closingSummary.totalSalesAmount))} · Diferencia: ${formatCurrency(difference)}.`,
+        `Turno cerrado y corte generado. Tickets: ${closingSummary.ticketsCount} · Total: ${formatCurrency(toNumber(closingSummary.totalSalesAmount))} · Diferencia: ${formatCurrency(difference)}.`,
       );
 
       setCurrentShift(null);
       setShowCloseShiftModal(false);
       setClosingSummary(null);
       setCashMovements([]);
+      setAutoOpenShiftSuppressed(true);
       await refreshRegisterContext();
-      if (canOpenShift) {
-        setTimeout(() => setShowOpenShiftModal(true), 500);
-      }
     } catch (error) {
       const message = getPosRequestErrorMessage(error, 'No se pudo cerrar el turno.');
       setClosingSummaryError(message);

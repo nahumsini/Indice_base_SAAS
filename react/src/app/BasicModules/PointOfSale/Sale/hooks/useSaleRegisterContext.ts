@@ -20,6 +20,7 @@ export type SaleRegisterContextState = {
   warehouses: PosWarehouseSummary[];
   activeCashRegisters: PosCashRegisterResponse[];
   currentOpenShift: PosShiftResponse | null;
+  canManageCashRegisters: boolean;
   selectedCashRegisterId: string;
   isLoading: boolean;
   error: string;
@@ -161,6 +162,7 @@ export function useSaleRegisterContext(): SaleRegisterContextState {
       warehouses,
       activeCashRegisters,
       currentOpenShift: posContext?.currentOpenShift ?? null,
+      canManageCashRegisters: posContext?.canManageCashRegisters === true,
       selectedCashRegisterId,
       isLoading,
       error,
@@ -173,6 +175,7 @@ export function useSaleRegisterContext(): SaleRegisterContextState {
       error,
       isLoading,
       posContext?.currentOpenShift,
+      posContext?.canManageCashRegisters,
       refreshContext,
       registerContext,
       selectedCashRegisterId,

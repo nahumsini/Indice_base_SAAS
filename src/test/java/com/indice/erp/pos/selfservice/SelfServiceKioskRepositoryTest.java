@@ -128,6 +128,27 @@ class SelfServiceKioskRepositoryTest {
             5L, 7L, 41L, 13L, 2L, 3L, 11L, 3L);
     }
 
+    @Test
+    void completingAClaimLinksTheTicketAndRequiresTheSameCashierRegisterAndScope() {
+        var jdbcTemplate = mock(JdbcTemplate.class);
+        var repository = new SelfServiceKioskRepository(jdbcTemplate);
+        when(jdbcTemplate.update(anyString(), any(Object[].class))).thenReturn(1);
+
+        assertThat(repository.completeClaim(context(), 41L, register(), 91L)).isTrue();
+
+        var sql = ArgumentCaptor.forClass(String.class);
+        var arguments = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate).update(sql.capture(), arguments.capture());
+        assertThat(sql.getValue())
+            .contains("preticket.status = 'COMPLETED'")
+            .contains("preticket.pos_ticket_id = ?")
+            .contains("preticket.claimed_by_user_id = ?")
+            .contains("preticket.status = 'CLAIMED'")
+            .contains("preticket.business_id = ?");
+        assertThat(arguments.getValue()).containsExactly(
+            91L, 7L, 41L, 13L, 5L, 2L, 3L, 11L, 3L);
+    }
+
     private PosContext context() {
         return new PosContext(
             5L, 7L, "Cashier", "cashier", true, PosScope.businessOffice(2L, 3L));

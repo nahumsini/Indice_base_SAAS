@@ -3,6 +3,7 @@ package com.indice.erp.pos.cashregister;
 import com.indice.erp.pos.PosContext;
 import com.indice.erp.pos.PosScope;
 import com.indice.erp.pos.context.dto.WarehouseSummary;
+import com.indice.erp.pos.cashregister.dto.CashRegisterCreateRequest;
 import com.indice.erp.pos.shift.ShiftRepository;
 import com.indice.erp.pos.status.CashRegisterStatus;
 import java.time.Instant;
@@ -11,11 +12,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
@@ -71,6 +74,24 @@ class CashRegisterServiceTest {
         assertThat(response.businessId()).isEqualTo(WAREHOUSE.businessId());
         then(repository).should(never()).synchronizeScopeFromWarehouse(
             CONTEXT, aligned.id(), WAREHOUSE);
+    }
+
+    @Test
+    void creatingWithoutACodeAllocatesTheNextCompanySequenceUnderLock() {
+        given(repository.findWarehouse(CONTEXT, WAREHOUSE.id())).willReturn(Optional.of(WAREHOUSE));
+        given(repository.existsByCode(CONTEXT, "WH01-01", null)).willReturn(true);
+        given(repository.existsByCode(CONTEXT, "WH01-02", null)).willReturn(false);
+        given(repository.insert(any(), any())).willReturn(register(WAREHOUSE.unitId(), WAREHOUSE.businessId(), 1L));
+        var request = new CashRegisterCreateRequest(
+            WAREHOUSE.id(), null, "Caja secundaria", CashRegisterStatus.ACTIVE, true,
+            null, null, null);
+
+        service.create(CONTEXT, request);
+
+        var command = ArgumentCaptor.forClass(CashRegisterCommand.class);
+        then(repository).should().lockCodeAllocation(CONTEXT.companyId());
+        then(repository).should().insert(org.mockito.ArgumentMatchers.eq(CONTEXT), command.capture());
+        assertThat(command.getValue().code()).isEqualTo("WH01-02");
     }
 
     private CashRegisterRecord register(Long unitId, Long businessId, long version) {

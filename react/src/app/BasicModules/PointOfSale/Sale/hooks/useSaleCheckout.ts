@@ -27,6 +27,11 @@ interface UseSaleCheckoutOptions {
   refreshRegisterContext?: () => Promise<void>;
   syncCheckoutData?: () => Promise<void>;
   onCreditCheckoutCompleted?: (candidateSaleId: string, saleNumber: string) => void;
+  inventoryBalancesLoading?: boolean;
+  inventoryBalancesError?: string | null;
+  customerId?: string;
+  preticketId?: number;
+  onCheckoutCompleted?: () => void;
 }
 
 const toNumber = (value: number | string | null | undefined) => {
@@ -71,6 +76,11 @@ export function useSaleCheckout({
   refreshRegisterContext,
   syncCheckoutData,
   onCreditCheckoutCompleted,
+  inventoryBalancesLoading = false,
+  inventoryBalancesError,
+  customerId,
+  preticketId,
+  onCheckoutCompleted,
 }: UseSaleCheckoutOptions) {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
@@ -194,6 +204,20 @@ export function useSaleCheckout({
       return;
     }
 
+    const hasInventoryItems = cart.some((item) => (
+      products.find((product) => product.id === item.productId)?.useInventory === true
+    ));
+
+    if (hasInventoryItems && inventoryBalancesLoading) {
+      setCheckoutNotice('Espera a que terminen de cargar las existencias del almacén antes de cobrar.');
+      return;
+    }
+
+    if (hasInventoryItems && inventoryBalancesError) {
+      setCheckoutNotice('No se puede cobrar este ticket hasta validar las existencias del almacén. Actualiza inventario e inténtalo de nuevo.');
+      return;
+    }
+
     if (salePayments.length === 0) {
       setCheckoutNotice('Agrega al menos un pago antes de cobrar.');
       return;
@@ -253,7 +277,8 @@ export function useSaleCheckout({
     try {
       const response = await posBackendApi.checkout({
         cashRegisterId,
-        customerId: toBackendId(creditPayment?.creditDetails?.customerId),
+        customerId: toBackendId(creditPayment?.creditDetails?.customerId ?? customerId),
+        preticketId: preticketId ?? null,
         currencyCode: checkoutCurrency,
         items: toPosCheckoutItems(completedItems, products),
         payments: toPosCheckoutPayments(completedPayments),
@@ -289,6 +314,7 @@ export function useSaleCheckout({
 
       resetCart();
       clearPayments();
+      onCheckoutCompleted?.();
       setCheckoutNotice(
         closesAsCredit
           ? `Venta ${saleNumber} guardada como credito. Abriendo Cartera para configurar la venta a credito.`

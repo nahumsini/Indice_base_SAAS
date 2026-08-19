@@ -1,5 +1,6 @@
 import type { FormEvent, RefObject } from 'react';
-import { Barcode, Minus, Package, Percent, Plus, ScanLine, ShoppingCart, Trash2, X } from 'lucide-react';
+import { Barcode, Minus, Package, Percent, Plus, ScanLine, ShoppingCart, Trash2, UserRound, X } from 'lucide-react';
+import type { Customer } from '../../shared/commercial/customers';
 import type { Product } from '../../shared/commercial/products';
 import type { SaleItem } from '../types/sale.types';
 import type { SaleTotals } from '../utils/saleCalculations';
@@ -12,6 +13,10 @@ interface SaleTicketPanelProps {
   lastAddedItem: string | null;
   totals: SaleTotals;
   products: Product[];
+  customers: Customer[];
+  selectedCustomerId: string;
+  preticketLocked?: boolean;
+  preticketCode?: string;
   onBarcodeInputChange: (value: string) => void;
   onBarcodeSubmit: (event: FormEvent) => void;
   onClearCart: () => void;
@@ -20,6 +25,7 @@ interface SaleTicketPanelProps {
   onOpenItemDiscount: (item: SaleItem) => void;
   onOpenGlobalDiscount: () => void;
   onOpenProductPanel: (product: Product) => void;
+  onSelectCustomer: (customerId: string) => void;
   formatCurrency: (amount: number) => string;
 }
 
@@ -30,6 +36,10 @@ export function SaleTicketPanel({
   lastAddedItem,
   totals,
   products,
+  customers,
+  selectedCustomerId,
+  preticketLocked = false,
+  preticketCode,
   onBarcodeInputChange,
   onBarcodeSubmit,
   onClearCart,
@@ -38,6 +48,7 @@ export function SaleTicketPanel({
   onOpenItemDiscount,
   onOpenGlobalDiscount,
   onOpenProductPanel,
+  onSelectCustomer,
   formatCurrency,
 }: SaleTicketPanelProps) {
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -78,7 +89,8 @@ export function SaleTicketPanel({
             type="text"
             value={barcodeInput}
             onChange={(event) => onBarcodeInputChange(event.target.value)}
-            placeholder="Escanea código de barras..."
+            placeholder={preticketLocked ? 'Preticket bloqueado para cobro' : 'Escanea código de barras...'}
+            disabled={preticketLocked}
             className="min-h-14 w-full rounded-xl border-2 border-gray-300 bg-white py-3 pl-12 pr-4 font-mono text-lg transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-gray-600 dark:bg-gray-800 dark:focus:ring-[#FF6B5E]/25"
             autoComplete="off"
           />
@@ -87,6 +99,27 @@ export function SaleTicketPanel({
           <span>Escaner activo para venta continua</span>
             <span className="hidden rounded bg-white px-2 py-1 font-medium text-[#222831] shadow-sm dark:bg-gray-800 dark:text-gray-300 sm:inline">Enter para agregar</span>
         </div>
+        <label className="relative mt-3 block">
+          <UserRound className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <select
+            value={selectedCustomerId}
+            onChange={(event) => onSelectCustomer(event.target.value)}
+            className="min-h-11 w-full rounded-xl border border-gray-300 bg-white py-2 pl-11 pr-4 text-sm font-medium text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+            aria-label="Cliente del ticket"
+          >
+            <option value="">Público general</option>
+            {customers.filter((customer) => customer.status === 'active').map((customer) => (
+              <option key={customer.id} value={customer.id}>
+                {customer.name} · {customer.customerType === 'business' ? 'Empresa' : 'Persona'}
+              </option>
+            ))}
+          </select>
+        </label>
+        {preticketLocked ? (
+          <p className="mt-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-medium text-sky-800 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200">
+            Pedido de kiosco {preticketCode ? `· ${preticketCode}` : ''}: productos, cantidades, precios y descuentos quedan protegidos hasta cobrar o cancelar.
+          </p>
+        ) : null}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
@@ -181,6 +214,7 @@ export function SaleTicketPanel({
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+                          disabled={preticketLocked}
                           className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 transition hover:border-[#FF6B5E]/40 hover:bg-[#FF6B5E]/10 active:scale-95 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                           aria-label={`Restar ${item.name}`}
                         >
@@ -191,6 +225,7 @@ export function SaleTicketPanel({
                         </span>
                         <button
                           onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                          disabled={preticketLocked}
                           className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 transition hover:border-[#FF6B5E]/40 hover:bg-[#FF6B5E]/10 active:scale-95 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                           aria-label={`Sumar ${item.name}`}
                         >
@@ -201,6 +236,7 @@ export function SaleTicketPanel({
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => onOpenItemDiscount(item)}
+                          disabled={preticketLocked}
                           className="flex h-10 min-w-10 items-center justify-center rounded-lg border border-[#FF6B5E]/20 bg-[#FF6B5E]/10 px-2.5 text-sm font-medium text-[#B63B32] transition hover:bg-[#FF6B5E]/20 active:scale-95 dark:text-[#FFB0AA]"
                           title="Aplicar descuento"
                           aria-label={`Aplicar descuento a ${item.name}`}
@@ -209,6 +245,7 @@ export function SaleTicketPanel({
                         </button>
                         <button
                           onClick={() => onRemoveItem(item.id)}
+                          disabled={preticketLocked}
                           className="flex h-10 min-w-10 items-center justify-center rounded-lg bg-red-50 px-2.5 text-sm font-medium text-red-600 transition hover:bg-red-100 active:scale-95 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
                           aria-label={`Quitar ${item.name}`}
                         >
@@ -241,7 +278,8 @@ export function SaleTicketPanel({
         {cart.length > 0 && (
           <button
             onClick={onOpenGlobalDiscount}
-            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#FF6B5E] px-4 py-2 text-sm font-medium text-[#222831] transition hover:bg-[#ff5a4b]"
+            disabled={preticketLocked}
+            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#FF6B5E] px-4 py-2 text-sm font-medium text-[#222831] transition hover:bg-[#ff5a4b] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Percent className="h-4 w-4" />
             <span>Descuento a toda la venta</span>

@@ -426,10 +426,64 @@ public class SelfServiceKioskRepository {
               AND """ + PosSqlSupport.scopePredicate("preticket", context.scope()), params.toArray()) > 0;
     }
 
+    public Optional<PreticketResponse> lockClaimedForCheckout(
+            PosContext context,
+            long preticketId,
+            CashRegisterRecord cashRegister) {
+        var params = new ArrayList<Object>();
+        params.add(context.companyId());
+        params.add(preticketId);
+        params.add(cashRegister.id());
+        params.add(context.userId());
+        params.add(cashRegister.unitId());
+        params.add(cashRegister.businessId());
+        params.add(cashRegister.warehouseId());
+        PosSqlSupport.appendScopeParams(params, context.scope());
+        var rows = jdbcTemplate.query(preticketSelect() + """
+            WHERE preticket.company_id = ? AND preticket.id = ?
+              AND preticket.cash_register_id = ?
+              AND preticket.claimed_by_user_id = ?
+              AND preticket.unit_id = ? AND preticket.business_id = ?
+              AND preticket.warehouse_id = ?
+              AND preticket.status = 'CLAIMED'
+              AND preticket.expires_at > CURRENT_TIMESTAMP
+              AND """ + PosSqlSupport.scopePredicate("preticket", context.scope())
+            + " FOR UPDATE", this::mapPreticketWithoutItems, params.toArray());
+        return rows.stream().findFirst().map(this::withItems);
+    }
+
+    public boolean completeClaim(
+            PosContext context,
+            long preticketId,
+            CashRegisterRecord cashRegister,
+            long ticketId) {
+        var params = new ArrayList<Object>();
+        params.add(ticketId);
+        params.add(context.companyId());
+        params.add(preticketId);
+        params.add(cashRegister.id());
+        params.add(context.userId());
+        params.add(cashRegister.unitId());
+        params.add(cashRegister.businessId());
+        params.add(cashRegister.warehouseId());
+        PosSqlSupport.appendScopeParams(params, context.scope());
+        return jdbcTemplate.update("""
+            UPDATE pos_self_service_pretickets preticket
+            SET preticket.status = 'COMPLETED', preticket.pos_ticket_id = ?,
+                preticket.completed_at = CURRENT_TIMESTAMP
+            WHERE preticket.company_id = ? AND preticket.id = ?
+              AND preticket.cash_register_id = ?
+              AND preticket.claimed_by_user_id = ?
+              AND preticket.unit_id = ? AND preticket.business_id = ?
+              AND preticket.warehouse_id = ?
+              AND preticket.status = 'CLAIMED'
+              AND """ + PosSqlSupport.scopePredicate("preticket", context.scope()), params.toArray()) > 0;
+    }
+
     public int expirePending() {
         return jdbcTemplate.update("""
             UPDATE pos_self_service_pretickets SET status = 'EXPIRED'
-            WHERE status = 'PENDING' AND expires_at <= CURRENT_TIMESTAMP
+            WHERE status IN ('PENDING', 'CLAIMED') AND expires_at <= CURRENT_TIMESTAMP
             """);
     }
 

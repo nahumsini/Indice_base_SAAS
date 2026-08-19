@@ -101,7 +101,7 @@ export function toPointOfSaleProduct(
     taxRate: taxRateByCategory[product.taxCategory] ?? 0,
     cfdi: product.taxCategory,
     status: product.status === 'Active' ? 'active' : 'inactive',
-    useInventory: product.type === 'Product' || product.stockPrepared || product.warehousePrepared || currentStock > 0,
+    useInventory: Boolean(product.stockPrepared || product.warehousePrepared),
     currentStock,
     minStock,
     maxStock: Math.max(currentStock, minStock),

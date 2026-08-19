@@ -56,6 +56,7 @@ export default function Sale() {
     warehouses,
     activeCashRegisters,
     currentOpenShift,
+    canManageCashRegisters,
     selectedCashRegisterId,
     isLoading: isRegisterContextLoading,
     error: registerContextError,
@@ -63,9 +64,13 @@ export default function Sale() {
     refreshContext: refreshRegisterContext,
     clearError: clearRegisterContextError,
   } = useSaleRegisterContext();
-  const { products: saleProducts, saleCurrency, reloadInventoryBalances } = usePointOfSaleCatalogProducts(
-    registerContext?.warehouseId,
-  );
+  const {
+    balanceLoadError,
+    isLoadingInventoryBalances,
+    products: saleProducts,
+    saleCurrency,
+    reloadInventoryBalances,
+  } = usePointOfSaleCatalogProducts(registerContext?.warehouseId);
   const baseTransactionCurrency = useMemo(() => {
     const productCurrency = saleProducts.find((product) => product.currency?.trim())?.currency;
     return (currentOpenShift?.currencyCode || saleCurrency || productCurrency || defaultBusinessCurrency).trim().toUpperCase();
@@ -116,7 +121,7 @@ export default function Sale() {
     clearCartNotice,
     handleBarcodeSubmit,
     addToCart,
-    addProductsToCart,
+    replaceCartWithPreticket,
     updateQuantity,
     applyDiscount,
     applyGlobalDiscount,
@@ -135,10 +140,15 @@ export default function Sale() {
     isRefreshing: isRefreshingPreTickets,
     lastUpdatedAt: preTicketsLastUpdatedAt,
     claimingPreTicketIds,
+    activePreticketId,
+    activePreticketCode,
+    releaseActivePreticket,
+    completeActivePreticket,
   } = usePendingPreTickets({
     cashRegisterId: Number(registerContext?.cashRegisterId) || undefined,
     products: saleProducts,
-    addProductsToCart,
+    cartHasItems: cart.length > 0,
+    replaceCartWithPreticket,
     pushActivity,
     formatCurrency: formatSaleCurrency,
   });
@@ -198,7 +208,12 @@ export default function Sale() {
   const [isPaymentWorkspaceOpen, setIsPaymentWorkspaceOpen] = useState(false);
   const [discountRules, setDiscountRules] = useState<DiscountRule[]>([]);
   const [discountRulesError, setDiscountRulesError] = useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [creditRules, setCreditRules] = useState<CreditRule[]>(() => readStoredCreditRules());
+  const selectedCustomer = useMemo(
+    () => creditCustomers.find((customer) => customer.id === selectedCustomerId),
+    [creditCustomers, selectedCustomerId],
+  );
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const posFullscreenRef = useRef<HTMLDivElement>(null);
@@ -270,7 +285,22 @@ export default function Sale() {
     refreshRegisterContext,
     syncCheckoutData,
     onCreditCheckoutCompleted: openCreditSaleInReceivables,
+    inventoryBalancesLoading: isLoadingInventoryBalances,
+    inventoryBalancesError: balanceLoadError,
+    customerId: selectedCustomerId,
+    preticketId: activePreticketId,
+    onCheckoutCompleted: () => {
+      setSelectedCustomerId('');
+      completeActivePreticket();
+    },
   });
+
+  useEffect(() => {
+    const creditCustomerId = payments.find((payment) => payment.creditDetails?.customerId)?.creditDetails?.customerId;
+    if (creditCustomerId && creditCustomerId !== selectedCustomerId) {
+      setSelectedCustomerId(creditCustomerId);
+    }
+  }, [payments, selectedCustomerId]);
   const openProductPanel = useCallback((product: Product) => {
     setSidePanel({ type: 'product', product });
   }, []);
@@ -351,14 +381,18 @@ export default function Sale() {
     currentShift,
   ]);
 
-  const clearCart = () => {
-    if (cart.length === 0 && payments.length === 0) {
+  const clearCart = async () => {
+    if (cart.length === 0 && payments.length === 0 && !activePreticketId) {
       return;
     }
 
+    if (activePreticketId && !(await releaseActivePreticket())) {
+      return;
+    }
     resetCart();
     setPayments([]);
     setCashReceived(0);
+    setSelectedCustomerId('');
     pushActivity({
       type: 'sale',
       title: 'Venta cancelada',
@@ -456,6 +490,10 @@ export default function Sale() {
   });
 
   const openItemDiscountModal = async (item: SaleItem) => {
+    if (activePreticketId) {
+      setDiscountRulesError('El descuento del preticket ya fue calculado en kiosco. Cancela el pedido para iniciar un ticket editable.');
+      return;
+    }
     setSelectedItemForDiscount(item);
     setShowDiscountModal(true);
     setDiscountRules([]);
@@ -467,6 +505,7 @@ export default function Sale() {
         amount: item.price * item.quantity,
         productId: product?.salesProductBackendId ?? null,
         category: product?.department,
+        customerType: selectedCustomer?.customerType,
         scope: 'product',
         currencyCode: transactionCurrency,
         warehouseId: registerContext?.warehouseId ? Number(registerContext.warehouseId) : null,
@@ -524,6 +563,10 @@ export default function Sale() {
   };
 
   const openGlobalDiscountModal = async () => {
+    if (activePreticketId) {
+      setDiscountRulesError('El descuento del preticket ya fue calculado en kiosco. Cancela el pedido para iniciar un ticket editable.');
+      return;
+    }
     setShowGlobalDiscountModal(true);
     setDiscountRules([]);
     setDiscountRulesError('');
@@ -532,6 +575,7 @@ export default function Sale() {
         channel: 'pos',
         amount: totals.subtotal,
         scope: 'order',
+        customerType: selectedCustomer?.customerType,
         currencyCode: transactionCurrency,
         warehouseId: registerContext?.warehouseId ? Number(registerContext.warehouseId) : null,
         unitId: registerContext?.businessUnitId ? Number(registerContext.businessUnitId) : null,
@@ -556,11 +600,13 @@ export default function Sale() {
         registerContext={registerContext}
         warehouses={warehouses}
         activeCashRegisters={activeCashRegisters}
+        canManageCashRegisters={canManageCashRegisters}
         selectedCashRegisterId={selectedCashRegisterId}
         preferredCurrencyCode={transactionCurrency}
         isLoading={isRegisterContextLoading}
         isOpeningShift={isOpeningShift}
         error={registerContextError || shiftError}
+        notice={shiftNotice}
         onOpenShiftModal={() => setShowOpenShiftModal(true)}
         onCloseOpenShiftModal={() => setShowOpenShiftModal(false)}
         onOpenShift={handleOpenShiftWithCurrency}
@@ -570,6 +616,7 @@ export default function Sale() {
           clearRegisterContextError();
           clearShiftError();
         }}
+        onClearNotice={clearShiftNotice}
       />
     );
   }
@@ -615,11 +662,12 @@ export default function Sale() {
               {smartAlerts.length > 0 && <SmartAlertsStrip alerts={smartAlerts} />}
             </div>
 
-            {[cartNotice, checkoutNotice.startsWith('Venta ') ? '' : checkoutNotice, shiftCurrencyMismatchNotice, shiftNotice, shiftError, registerContextError, discountRulesError].filter(Boolean)
+            {[cartNotice, checkoutNotice.startsWith('Venta ') ? '' : checkoutNotice, balanceLoadError, shiftCurrencyMismatchNotice, shiftNotice, shiftError, registerContextError, discountRulesError].filter(Boolean)
               .length > 0 && (
               <div className="mt-2 space-y-2">
                 {cartNotice && <OperationalNotice message={cartNotice} onDismiss={clearCartNotice} />}
                 {checkoutNotice && !checkoutNotice.startsWith('Venta ') && <OperationalNotice message={checkoutNotice} onDismiss={clearCheckoutNotice} />}
+                {balanceLoadError && <OperationalNotice message={`${balanceLoadError} POS bloqueará el cobro de productos con stock hasta recuperarlas.`} onRetry={() => void reloadInventoryBalances()} />}
                 {shiftCurrencyMismatchNotice && <OperationalNotice message={shiftCurrencyMismatchNotice} />}
                 {shiftNotice && <OperationalNotice message={shiftNotice} onDismiss={clearShiftNotice} />}
                 {shiftError && <OperationalNotice message={shiftError} onDismiss={clearShiftError} />}
@@ -683,7 +731,9 @@ export default function Sale() {
                         selectedQuickQuantity={selectedQuickQuantity}
                         blockSalesWithoutStock={blockSalesWithoutStock}
                         onSelectCategory={setSelectedCategory}
-                        onAddToCart={addToCart}
+                        onAddToCart={(product, quantity) => {
+                          if (!activePreticketId) addToCart(product, quantity);
+                        }}
                         searchRequestId={productSearchRequestId}
                         workspaceMode={isProductWorkspaceOpen}
                         formatCurrency={formatSaleCurrency}
@@ -701,6 +751,10 @@ export default function Sale() {
                   lastAddedItem={lastAddedItem}
                   totals={totals}
                   products={saleProducts}
+                  customers={creditCustomers}
+                  selectedCustomerId={selectedCustomerId}
+                  preticketLocked={Boolean(activePreticketId)}
+                  preticketCode={activePreticketCode}
                   onBarcodeInputChange={setBarcodeInput}
                   onBarcodeSubmit={handleBarcodeSubmit}
                   onClearCart={clearCart}
@@ -709,6 +763,7 @@ export default function Sale() {
                   onOpenItemDiscount={openItemDiscountModal}
                   onOpenGlobalDiscount={openGlobalDiscountModal}
                   onOpenProductPanel={(product) => setSidePanel({ type: 'product', product })}
+                  onSelectCustomer={setSelectedCustomerId}
                   formatCurrency={formatSaleCurrency}
                 />
               </div>
@@ -727,7 +782,13 @@ export default function Sale() {
                   suspendedSales={suspendedSales}
                   recentActivities={recentActivities}
                   onRemovePayment={removePayment}
-                  onSuspendSale={suspendCurrentSale}
+                  onSuspendSale={() => {
+                    if (activePreticketId) {
+                      setDiscountRulesError('Los pretickets reclamados no se pueden suspender; cóbralos o cancélalos para liberarlos.');
+                      return;
+                    }
+                    suspendCurrentSale();
+                  }}
                   onResumeSuspendedSale={resumeSuspendedSale}
                   onDiscardSuspendedSale={discardSuspendedSale}
                   onQuantityChange={setSelectedQuickQuantity}
@@ -853,22 +914,33 @@ export default function Sale() {
   );
 }
 
-function OperationalNotice({ message, onDismiss }: { message: string; onDismiss?: () => void }) {
+function OperationalNotice({ message, onDismiss, onRetry }: { message: string; onDismiss?: () => void; onRetry?: () => void }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
       <span className="flex min-w-0 items-center gap-2">
         <AlertTriangle className="h-4 w-4 shrink-0" />
         <span className="min-w-0">{message}</span>
       </span>
-      {onDismiss && (
-        <button
-          type="button"
-          onClick={onDismiss}
-          className="min-h-9 rounded-xl px-3 py-1 text-xs font-medium text-amber-700 transition hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-500/20"
-        >
-          Cerrar
-        </button>
-      )}
+      <span className="flex shrink-0 items-center gap-1">
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="min-h-9 rounded-xl px-3 py-1 text-xs font-medium text-amber-700 transition hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-500/20"
+          >
+            Reintentar
+          </button>
+        )}
+        {onDismiss && (
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="min-h-9 rounded-xl px-3 py-1 text-xs font-medium text-amber-700 transition hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-500/20"
+          >
+            Cerrar
+          </button>
+        )}
+      </span>
     </div>
   );
 }

@@ -19,6 +19,12 @@ interface CartProductRequest {
   quantity: number;
 }
 
+export interface PreticketCartLineRequest extends CartProductRequest {
+  unitPrice: number;
+  discountAmount: number;
+  discountRuleId?: number | null;
+}
+
 export interface CartBatchResult {
   addedCount: number;
   insufficientStock: string[];
@@ -154,6 +160,38 @@ export function useSaleCart({ products, taxOverride }: UseSaleCartOptions) {
     return { addedCount: acceptedRequests.length, insufficientStock };
   }, [cart, taxOverride]);
 
+  const replaceCartWithPreticket = useCallback((requests: PreticketCartLineRequest[]): CartBatchResult => {
+    if (requests.length === 0 || requests.some(({ quantity, unitPrice, discountAmount }) => (
+      !Number.isFinite(quantity) || quantity <= 0
+      || !Number.isFinite(unitPrice) || unitPrice < 0
+      || !Number.isFinite(discountAmount) || discountAmount < 0
+    ))) {
+      return { addedCount: 0, insufficientStock: [] };
+    }
+
+    const insufficientStock = requests
+      .filter(({ product, quantity }) => product.useInventory && quantity > product.currentStock)
+      .map(({ product }) => product.name);
+    if (insufficientStock.length > 0) {
+      setCartNotice(`Revisa existencia antes de cargar el preticket: ${insufficientStock.join(', ')}.`);
+      return { addedCount: 0, insufficientStock };
+    }
+
+    const nextCart = requests.map(({ product, quantity, unitPrice, discountAmount, discountRuleId }) => (
+      recalculateSaleItem(buildSaleItem(product, quantity, taxOverride), {
+        price: unitPrice,
+        discount: discountAmount / quantity,
+        discountType: 'fixed',
+        discountRuleId: discountRuleId ?? undefined,
+      })
+    )).map((item, index) => ({ ...item, id: `preticket-item-${Date.now()}-${index}-${item.productId}` }));
+
+    setCart(nextCart);
+    setLastAddedItem(nextCart[nextCart.length - 1]?.id ?? null);
+    setCartNotice('');
+    return { addedCount: nextCart.length, insufficientStock: [] };
+  }, [taxOverride]);
+
   const applyDiscount = useCallback((itemId: string, discount: number, type: SaleItem['discountType'], discountRuleId?: number) => {
     setCart((currentCart) => currentCart.map((item) => {
       if (item.id !== itemId) {
@@ -229,6 +267,7 @@ export function useSaleCart({ products, taxOverride }: UseSaleCartOptions) {
     handleBarcodeSubmit,
     addToCart,
     addProductsToCart,
+    replaceCartWithPreticket,
     updateQuantity,
     applyDiscount,
     applyGlobalDiscount,

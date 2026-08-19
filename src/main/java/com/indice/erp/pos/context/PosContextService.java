@@ -31,7 +31,8 @@ public class PosContextService {
             cashRegisterRepository.listWarehouses(context),
             cashRegisterService.activeRegisters(context),
             shiftService.currentOpenShift(context),
-            new PosScopeResponse(context.scope().type(), context.scope().unitId(), context.scope().businessId())
+            new PosScopeResponse(context.scope().type(), context.scope().unitId(), context.scope().businessId()),
+            context.canManageOtherUsers()
         );
     }
 }

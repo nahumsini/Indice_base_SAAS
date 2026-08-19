@@ -13,8 +13,8 @@ export const enUS = {
     sale: 'Sale',
     cortes: 'Register closings',
     clientes: 'Customers',
-    kpis: 'KPIs',
+    kpis: 'Indicators',
     kiosks: 'Kiosks',
-    cajas: 'Registers',
+    cajas: 'Registers & shifts',
   },
 } as const;

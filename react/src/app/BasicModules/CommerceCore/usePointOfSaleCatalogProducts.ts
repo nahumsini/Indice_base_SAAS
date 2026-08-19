@@ -16,7 +16,10 @@ export function usePointOfSaleCatalogProducts(warehouseId?: number | string | nu
   const reloadInventoryBalances = useCallback(async () => {
     setIsLoadingInventoryBalances(true);
     try {
-      const response = await salesApi.list<CommerceInventoryBalanceSnapshot>('inventory-balances');
+      const response = await salesApi.list<CommerceInventoryBalanceSnapshot>(
+        'inventory-balances',
+        warehouseId == null || warehouseId === '' ? undefined : { warehouseId },
+      );
       setInventoryBalances(response.items);
       setBalanceLoadError(null);
     } catch (error) {
@@ -25,7 +28,7 @@ export function usePointOfSaleCatalogProducts(warehouseId?: number | string | nu
     } finally {
       setIsLoadingInventoryBalances(false);
     }
-  }, []);
+  }, [warehouseId]);
 
   useEffect(() => {
     void reloadInventoryBalances();

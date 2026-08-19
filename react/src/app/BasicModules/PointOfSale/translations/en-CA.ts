@@ -13,8 +13,8 @@ export const enCA = {
     sale: 'Sale',
     cortes: 'Cash closings',
     clientes: 'Customers',
-    kpis: 'KPIs',
+    kpis: 'Indicators',
     kiosks: 'Kiosks',
-    cajas: 'Registers',
+    cajas: 'Registers & shifts',
   },
 } as const;

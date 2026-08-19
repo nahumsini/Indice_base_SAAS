@@ -12,7 +12,7 @@ import {
   kioskIdempotencyKeyFor as taskKioskIdempotencyKeyFor,
 } from '../src/app/BasicModules/ProcessesTasks/Kiosk/kioskIdempotency.ts';
 import { runTaskCompletionWithBestEffortEvidence } from '../src/app/BasicModules/ProcessesTasks/Kiosk/publicTaskKioskEvidence.ts';
-import { resolvePreticketProductRequests } from '../src/app/BasicModules/PointOfSale/Sale/utils/preticketQueuePolicy.ts';
+import { cartLinesFromPreticket, resolvePreticketProductRequests } from '../src/app/BasicModules/PointOfSale/Sale/utils/preticketQueuePolicy.ts';
 import { applyPublicCatalogPriceVisibility } from '../src/app/BasicModules/Sales/Productos/publicCatalog/utils/publicCatalogVisibility.ts';
 
 function memorySessionStorage() {
@@ -180,6 +180,44 @@ test('pre-ticket product resolution is all-or-nothing', () => {
     products,
   );
   assert.deepEqual(invalidQuantity, { ok: false, requests: [] });
+});
+
+test('POS preserves and distributes the kiosk order discount when loading a claimed pre-ticket', () => {
+  const products = [
+    { id: 'local-1', salesProductBackendId: 101, name: 'Uno' },
+    { id: 'local-2', salesProductBackendId: 102, name: 'Dos' },
+  ];
+  const lines = cartLinesFromPreticket({
+    id: 41,
+    kioskId: 8,
+    cashRegisterId: 5,
+    cashRegisterName: 'Caja 01',
+    preticketNumber: 'SS-1',
+    claimCode: '1234',
+    status: 'CLAIMED',
+    currencyCode: 'MXN',
+    itemCount: 2,
+    subtotalAmount: 30,
+    discountAmount: 3,
+    discountRuleId: 9,
+    totalAmount: 27,
+    expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    createdAt: new Date().toISOString(),
+    items: [
+      { productId: 101, productName: 'Uno', quantity: 1, unitPrice: 10, discountAmount: 0, lineTotal: 10 },
+      { productId: 102, productName: 'Dos', quantity: 1, unitPrice: 20, discountAmount: 0, lineTotal: 20 },
+    ],
+  }, [
+    { product: products[0], quantity: 1 },
+    { product: products[1], quantity: 1 },
+  ]);
+
+  assert.deepEqual(lines.map(({ unitPrice, discountAmount, discountRuleId }) => (
+    [unitPrice, discountAmount, discountRuleId]
+  )), [
+    [10, 1, 9],
+    [20, 2, 9],
+  ]);
 });
 
 test('task kiosk manager keeps compact actions inside replacement modal views', async () => {

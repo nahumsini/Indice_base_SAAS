@@ -11,7 +11,7 @@ export const zhCA = {
   },
   tabs: {
     kiosks: '自助终端',
-    cajas: '收银台',
+    cajas: '收银台与班次',
     sale: '销售',
     cortes: '收银结算',
     clientes: '客户',

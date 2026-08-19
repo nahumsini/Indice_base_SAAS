@@ -13,8 +13,8 @@ export const esCO = {
     sale: 'Venta',
     cortes: 'Cierres de caja',
     clientes: 'Clientes',
-    kpis: 'KPIs',
+    kpis: 'Indicadores',
     kiosks: 'Kioscos',
-    cajas: 'Cajas',
+    cajas: 'Cajas y turnos',
   },
 } as const;

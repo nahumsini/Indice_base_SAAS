@@ -62,9 +62,25 @@ public class CashRegisterService {
         var warehouse = repository.findWarehouse(context, request.warehouseId())
             .orElseThrow(() -> new NoSuchElementException("Warehouse not found."));
         validator.requireWarehouseScope(warehouse);
-        var command = mapper.toCreateCommand(context, request, warehouse);
+        var requestedCode = request.code() == null ? "" : request.code().trim();
+        if (requestedCode.isBlank()) {
+            repository.lockCodeAllocation(context.companyId());
+            requestedCode = nextAvailableCode(context, warehouse);
+        }
+        var effectiveRequest = new CashRegisterCreateRequest(
+            request.warehouseId(), requestedCode, request.name(), request.status(), request.active(),
+            request.notes(), request.customFields(), request.metadata());
+        var command = mapper.toCreateCommand(context, effectiveRequest, warehouse);
         validator.requireCodeAvailable(repository, context, command.code(), null);
         return mapper.toResponse(repository.insert(context, command));
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> nextCode(PosContext context, long warehouseId) {
+        var warehouse = repository.findWarehouse(context, warehouseId)
+            .orElseThrow(() -> new NoSuchElementException("Warehouse not found."));
+        validator.requireWarehouseScope(warehouse);
+        return Map.of("code", nextAvailableCode(context, warehouse));
     }
 
     @Transactional
@@ -72,11 +88,22 @@ public class CashRegisterService {
         var warehouse = repository.findWarehouse(context, warehouseId)
             .orElseThrow(() -> new NoSuchElementException("Warehouse not found."));
         validator.requireWarehouseScope(warehouse);
+        repository.lockCodeAllocation(context.companyId());
         var existing = repository.findFirstActiveByWarehouse(context, warehouseId);
         if (existing.isPresent()) {
             return mapper.toResponse(reconcileWarehouseScope(context, existing.get(), warehouse));
         }
 
+        var code = nextAvailableCode(context, warehouse);
+        var request = new CashRegisterCreateRequest(
+            warehouseId, code, "Caja " + warehouse.name(), CashRegisterStatus.ACTIVE, true,
+            "Caja aprovisionada automáticamente desde el almacén.", null, null);
+        return mapper.toResponse(repository.insert(context, mapper.toCreateCommand(context, request, warehouse)));
+    }
+
+    private String nextAvailableCode(
+            PosContext context,
+            com.indice.erp.pos.context.dto.WarehouseSummary warehouse) {
         var base = ((warehouse.warehouseCode() == null || warehouse.warehouseCode().isBlank())
             ? warehouse.name() : warehouse.warehouseCode())
             .replaceAll("[^A-Za-z0-9]", "")
@@ -91,10 +118,7 @@ public class CashRegisterService {
             sequence++;
             code = base + "-" + String.format("%02d", sequence);
         }
-        var request = new CashRegisterCreateRequest(
-            warehouseId, code, "Caja " + warehouse.name(), CashRegisterStatus.ACTIVE, true,
-            "Caja aprovisionada automáticamente desde el almacén.", null, null);
-        return mapper.toResponse(repository.insert(context, mapper.toCreateCommand(context, request, warehouse)));
+        return code;
     }
 
     private CashRegisterRecord reconcileWarehouseScope(
