@@ -81,9 +81,9 @@ export function MovementProductLines({
   return (
     <InventoryModalSection>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-medium text-slate-900">{t.operational.modals.products}</h3>
-          <p className="mt-1 text-xs font-medium text-slate-500">{t.operational.modals.products}: {items.length}</p>
+        <div className="flex items-center gap-2">
+          <h3 className="text-base font-medium text-slate-900 dark:text-white">{t.operational.modals.products}</h3>
+          <span className="inline-flex min-w-7 items-center justify-center rounded-full bg-[#FF6B5E]/10 px-2 py-1 text-xs font-medium tabular-nums text-[#B63B32]">{items.length}</span>
         </div>
         {layout === 'stacked' ? <Button
           type="button"
@@ -96,7 +96,7 @@ export function MovementProductLines({
         </Button> : null}
       </div>
 
-      <div className={layout === 'workspace' ? 'grid min-h-0 gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]' : ''}>
+      <div className={layout === 'workspace' ? 'grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]' : ''}>
       <div className={`${layout === 'workspace' ? 'min-h-0' : 'mb-4'} rounded-lg border border-slate-200 bg-slate-50/70 p-3`}>
         <InventoryModalField label={t.operational.modals.searchProducts}>
           <span className="relative">
@@ -109,11 +109,12 @@ export function MovementProductLines({
             />
           </span>
         </InventoryModalField>
-        <div className={`mt-3 grid gap-2 ${layout === 'workspace' ? 'max-h-[360px] overflow-y-auto pr-1 md:grid-cols-2' : 'md:grid-cols-2'}`}>
+        <div className={`mt-3 grid gap-2 ${layout === 'workspace' ? 'max-h-[420px] overflow-y-auto pr-1 sm:grid-cols-2' : 'md:grid-cols-2'}`}>
           {searchResults.map((row) => (
             <button
               key={row.productId}
               type="button"
+              aria-label={`${t.operational.modals.addProduct}: ${row.name}`}
               className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left transition hover:border-[#FF6B5E]/40 hover:bg-[#FF6B5E]/5"
               onClick={() => addProductLine(row.productId)}
             >
@@ -121,23 +122,25 @@ export function MovementProductLines({
                 <span className="block truncate text-sm font-medium text-slate-900">{row.name}</span>
                 <span className="block truncate text-xs font-medium text-slate-500">{row.sku} · {row.category}</span>
               </span>
-              <span className="shrink-0 rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-2 py-1 text-xs font-medium text-[#B63B32]">
-                {t.operational.modals.addProduct}
+              <span
+                aria-hidden="true"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32]"
+              >
+                <Plus className="h-4 w-4" />
               </span>
             </button>
           ))}
         </div>
       </div>
 
-      <div className={`${layout === 'workspace' ? 'rounded-lg border border-slate-200 bg-white p-3' : ''} space-y-3`}>
-        {layout === 'workspace' ? <div className="border-b border-slate-200 pb-3"><h4 className="text-sm font-medium text-slate-900">{t.operational.modals.products}</h4><p className="mt-1 text-xs text-slate-500">{t.operational.modals.products}: {items.length}</p></div> : null}
+      <div className={`${layout === 'workspace' ? 'max-h-[31rem] overflow-y-auto rounded-lg border border-slate-200 bg-white p-3 pr-2 dark:border-slate-700 dark:bg-slate-900/40' : ''} space-y-3`}>
         {items.map((item) => {
           const row = rows.find((stockRow) => stockRow.productId === item.productId);
           const available = row?.distributions.find((distribution) => distribution.warehouseId === fromWarehouseId)?.available ?? 0;
           const hasAvailabilityIssue = needsAvailabilityCheck && item.quantity > available;
 
           return (
-            <div key={item.id} className={`grid gap-3 rounded-lg border p-3 md:grid-cols-[minmax(0,1fr)_140px_auto] ${hasAvailabilityIssue ? 'border-red-200 bg-red-50/60' : 'border-slate-200 bg-slate-50/70'}`}>
+            <div key={item.id} className={`grid gap-3 rounded-lg border p-3 sm:grid-cols-[minmax(0,1fr)_7rem_auto] ${hasAvailabilityIssue ? 'border-red-200 bg-red-50/60 dark:border-red-800 dark:bg-red-950/30' : 'border-slate-200 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-900/70'}`}>
               <InventoryModalField label={t.operational.modals.product}>
                 <Select value={item.productId} onValueChange={(productId) => updateLine(item.id, { productId })}>
                   <SelectTrigger className={inventoryModalControlClassName}>

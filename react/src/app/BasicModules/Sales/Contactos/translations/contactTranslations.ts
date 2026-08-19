@@ -16,6 +16,7 @@ export const enCA = {
     label: 'Search',
     placeholder: 'Search contact, company, phone, email, owner, or fiscal data',
     visibleContacts: 'Visible contacts',
+    clearFilters: 'Clear filters',
   },
   table: {
     columns: {
@@ -248,6 +249,7 @@ export const esMX: ContactCopy = {
     label: 'Buscar',
     placeholder: 'Buscar contacto, empresa, teléfono, email, responsable o dato fiscal',
     visibleContacts: 'Contactos visibles',
+    clearFilters: 'Limpiar filtros',
   },
   table: {
     columns: {
@@ -448,7 +450,7 @@ export const contactTranslations = {
       importContacts: 'Importer des contacts',
       addContact: 'Ajouter un contact',
     },
-    search: { title: 'Filtres', label: 'Rechercher', placeholder: 'Rechercher contact, entreprise, téléphone, courriel, responsable ou fiscal', visibleContacts: 'Contacts visibles' },
+    search: { title: 'Filtres', label: 'Rechercher', placeholder: 'Rechercher contact, entreprise, téléphone, courriel, responsable ou fiscal', visibleContacts: 'Contacts visibles', clearFilters: 'Effacer les filtres' },
     table: { ...enCA.table, emptyTitle: 'Aucun contact trouvé', noCompany: 'Aucune entreprise', noPhone: 'Aucun téléphone', noEmail: 'Aucun courriel' },
     modal: { ...enCA.modal, createTitle: 'Ajouter un contact', editTitle: 'Modifier le contact', cancel: 'Annuler', saveChanges: 'Enregistrer', saveContact: 'Enregistrer le contact' },
     importModal: { ...enCA.importModal, title: 'Importer des contacts', cancel: 'Annuler', importContacts: 'Importer des contacts' },
@@ -462,7 +464,7 @@ export const contactTranslations = {
       importContacts: 'Importar contatos',
       addContact: 'Adicionar contato',
     },
-    search: { title: 'Filtros', label: 'Buscar', placeholder: 'Buscar contato, empresa, telefone, email, responsável ou dado fiscal', visibleContacts: 'Contatos visíveis' },
+    search: { title: 'Filtros', label: 'Buscar', placeholder: 'Buscar contato, empresa, telefone, email, responsável ou dado fiscal', visibleContacts: 'Contatos visíveis', clearFilters: 'Limpar filtros' },
     table: { ...esMX.table, noCompany: 'Sem empresa', noPhone: 'Sem telefone', noEmail: 'Sem email' },
     modal: { ...esMX.modal, createTitle: 'Adicionar contato', editTitle: 'Editar contato', saveContact: 'Salvar contato', saveChanges: 'Salvar alterações' },
     importModal: { ...esMX.importModal, title: 'Importar contatos', importContacts: 'Importar contatos' },
@@ -470,7 +472,7 @@ export const contactTranslations = {
   'ko-CA': {
     ...enCA,
     header: { title: '연락처', subtitle: '고객, 세무 데이터, 견적, 영업 기회를 위한 관계 디렉터리입니다.', columnsAction: '열', importContacts: '연락처 가져오기', addContact: '연락처 추가' },
-    search: { title: '필터', label: '검색', placeholder: '연락처, 회사, 전화번호, 이메일, 담당자 또는 세금 정보 검색', visibleContacts: '표시된 연락처' },
+    search: { title: '필터', label: '검색', placeholder: '연락처, 회사, 전화번호, 이메일, 담당자 또는 세금 정보 검색', visibleContacts: '표시된 연락처', clearFilters: '필터 지우기' },
     table: { ...enCA.table, emptyTitle: '연락처가 없습니다', noCompany: '회사 없음', noPhone: '전화 없음', noEmail: '이메일 없음' },
     modal: { ...enCA.modal, createTitle: '연락처 추가', editTitle: '연락처 편집', cancel: '취소', saveChanges: '변경 저장', saveContact: '연락처 저장' },
     importModal: { ...enCA.importModal, title: '연락처 가져오기', cancel: '취소', importContacts: '연락처 가져오기' },
@@ -478,7 +480,7 @@ export const contactTranslations = {
   'zh-CA': {
     ...enCA,
     header: { title: '联系人', subtitle: '用于客户、税务资料、报价和销售机会的商业关系目录。', columnsAction: '列', importContacts: '导入联系人', addContact: '添加联系人' },
-    search: { title: '筛选', label: '搜索', placeholder: '搜索联系人、公司、电话、邮箱、负责人或税务资料', visibleContacts: '可见联系人' },
+    search: { title: '筛选', label: '搜索', placeholder: '搜索联系人、公司、电话、邮箱、负责人或税务资料', visibleContacts: '可见联系人', clearFilters: '清除筛选' },
     table: { ...enCA.table, emptyTitle: '未找到联系人', noCompany: '无公司', noPhone: '无电话', noEmail: '无邮箱' },
     modal: { ...enCA.modal, createTitle: '添加联系人', editTitle: '编辑联系人', cancel: '取消', saveChanges: '保存更改', saveContact: '保存联系人' },
     importModal: { ...enCA.importModal, title: '导入联系人', cancel: '取消', importContacts: '导入联系人' },

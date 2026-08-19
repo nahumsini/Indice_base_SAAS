@@ -6,6 +6,8 @@ import com.indice.erp.kiosk.engine.KioskAccessLevel;
 import com.indice.erp.kiosk.engine.KioskDefinitionStatus;
 import com.indice.erp.kiosk.engine.KioskRegistryService;
 import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
+import com.indice.erp.pos.discount.DiscountDtos.EvaluationRequest;
+import com.indice.erp.pos.discount.DiscountRuleService;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogAdminAccess.AdminContext;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.AdminResponse;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.BootstrapResponse;
@@ -52,6 +54,8 @@ public class SalesPublicCatalogService {
     private final ObjectMapper objectMapper;
     private final SalesPublicCatalogLinkCodec linkCodec;
     private final Clock clock;
+    @Autowired
+    private DiscountRuleService discountRules;
 
     @Autowired
     public SalesPublicCatalogService(
@@ -236,7 +240,10 @@ public class SalesPublicCatalogService {
             catalog.contactCtaLabel(), catalog.contactMethod(), catalog.contactValue(),
             catalog.showPrices(), catalog.showWholesalePrices(), catalog.showStockStatus(),
             catalog.showItemTypeBadges(), catalog.showCategories(), catalog.allowCart(),
-            catalog.allowPurchaseRequest(), "REVIEW_REQUIRED", items);
+            catalog.allowPurchaseRequest(), "REVIEW_REQUIRED", items,
+            discountRules == null ? List.of() : discountRules.publishedRules(
+                catalog.companyId(), catalog.unitId(), catalog.businessId(), null,
+                "PUBLIC_CATALOG", items.stream().map(PublicItem::currency).findFirst().orElse("MXN")));
     }
 
     @Transactional
@@ -268,27 +275,57 @@ public class SalesPublicCatalogService {
                 throw new IllegalArgumentException("A request cannot mix currencies.");
             }
             var unitPrice = money(price(catalog, product, quantity));
-            var lineTotal = money(unitPrice.multiply(quantity));
+            var lineSubtotal = money(unitPrice.multiply(quantity));
+            var automatic = discountRules == null ? null : discountRules.bestAutomaticRule(
+                catalog.companyId(), catalog.unitId(), catalog.businessId(),
+                new EvaluationRequest("PUBLIC_CATALOG", lineSubtotal, product.id(), product.category(),
+                    null, "PRODUCT", product.currency(), null, catalog.unitId(), catalog.businessId()));
+            var lineDiscount = automatic == null ? BigDecimal.ZERO.setScale(4) : money(automatic.discountAmount());
+            var lineTotal = money(lineSubtotal.subtract(lineDiscount));
             requireStoredAmount(lineTotal);
             lines.add(new RequestItemResponse(
                 product.id(), product.sku(), product.name(), quantity, unitPrice,
-                lineTotal));
+                lineDiscount, automatic == null ? null : automatic.rule().id(), lineTotal));
         }
-        var total = lines.stream().map(RequestItemResponse::lineTotal)
+        var subtotal = lines.stream().map(line -> money(line.unitPrice().multiply(line.quantity())))
             .reduce(BigDecimal.ZERO.setScale(4), BigDecimal::add);
+        var lineDiscountTotal = lines.stream().map(RequestItemResponse::discountAmount)
+            .reduce(BigDecimal.ZERO.setScale(4), BigDecimal::add);
+        var orderRule = discountRules == null ? null : discountRules.bestAutomaticRule(
+            catalog.companyId(), catalog.unitId(), catalog.businessId(),
+            new EvaluationRequest("PUBLIC_CATALOG", subtotal, null, null, null, "ORDER",
+                currency == null ? "MXN" : currency, null, catalog.unitId(), catalog.businessId()));
+        var orderDiscount = orderRule == null ? BigDecimal.ZERO.setScale(4) : money(orderRule.discountAmount());
+        if (orderDiscount.signum() > 0 && lineDiscountTotal.signum() > 0) {
+            if (orderDiscount.compareTo(lineDiscountTotal) >= 0) {
+                lines.replaceAll(line -> new RequestItemResponse(
+                    line.productId(), line.sku(), line.productName(), line.quantity(), line.unitPrice(),
+                    BigDecimal.ZERO.setScale(4), null, money(line.unitPrice().multiply(line.quantity()))));
+                lineDiscountTotal = BigDecimal.ZERO.setScale(4);
+            } else {
+                orderDiscount = BigDecimal.ZERO.setScale(4);
+                orderRule = null;
+            }
+        }
+        var discountTotal = money(lineDiscountTotal.add(orderDiscount));
+        var total = money(subtotal.subtract(discountTotal));
         requireStoredAmount(total);
         var now = clock.instant();
         var number = "PCR-" + LocalDate.ofInstant(now, ZoneOffset.UTC).toString().replace("-", "")
             + "-" + fragment(8);
-        var requestId = repository.insertRequest(
-            catalog, number, request, currency == null ? "MXN" : currency.toUpperCase(Locale.ROOT),
-            lines.size(), total);
+        var requestId = discountRules == null
+            ? repository.insertRequest(
+                catalog, number, request, currency == null ? "MXN" : currency.toUpperCase(Locale.ROOT),
+                lines.size(), total)
+            : repository.insertRequest(
+                catalog, number, request, currency == null ? "MXN" : currency.toUpperCase(Locale.ROOT),
+                lines.size(), subtotal, discountTotal, orderRule == null ? null : orderRule.rule().id(), total);
         for (int index = 0; index < lines.size(); index++) {
             repository.insertRequestItem(catalog.companyId(), requestId, lines.get(index), index);
         }
         audit(catalog.companyId(), catalog.id(), requestId, "PUBLIC_CATALOG_REQUEST_SUBMITTED", null,
             Map.of("request_number", number, "item_count", lines.size(),
-                "estimated_total", total, "policy", "REVIEW_REQUIRED"));
+                "estimated_total", total, "discount_amount", discountTotal, "policy", "REVIEW_REQUIRED"));
         return repository.findRequest(catalog.companyId(), requestId).orElseThrow();
     }
 

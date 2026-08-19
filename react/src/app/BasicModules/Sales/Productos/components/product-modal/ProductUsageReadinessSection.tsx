@@ -59,7 +59,7 @@ export function ProductUsageReadinessSection({
         <p className="mt-1 text-sm font-medium leading-6 text-slate-500">{t.usage.description}</p>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-3">
         <ToggleRow
           label={t.usage.toggles.activeItem.label}
           description={t.usage.toggles.activeItem.description}
@@ -77,12 +77,6 @@ export function ProductUsageReadinessSection({
           description={t.usage.toggles.readyForPOS.description}
           checked={isReadyForPos(form)}
           onCheckedChange={(checked) => setVisibility(checked ? 'POS ready' : 'Commercial')}
-        />
-        <ToggleRow
-          label={t.usage.toggles.usesInventory.label}
-          description={t.usage.toggles.usesInventory.description}
-          checked={form.usesInventory}
-          onCheckedChange={(checked) => onFormChange((current) => ({ ...current, usesInventory: checked }))}
         />
       </div>
 

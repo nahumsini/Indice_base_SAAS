@@ -25,6 +25,8 @@ const tabEmojiMap: Record<SalesGuidanceTabId, string> = {
   inventory: '🏬',
   contracts: '📝',
   'after-sales': '🤝',
+  commissions: '🧮',
+  'payment-accounts': '💳',
   kpis: '📊',
 };
 

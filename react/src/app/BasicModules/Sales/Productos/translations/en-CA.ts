@@ -328,6 +328,24 @@ export const enCA = {
       inventory: 'Inventory',
     },
   },
+  inventoryTracking: {
+    title: 'Inventory control',
+    description: 'Choose whether this item requires stock quantities and warehouse movements.',
+    unavailableForType: 'This item type is sold or used without inventory tracking.',
+    filterSuffix: '(No inventory)',
+    tracked: {
+      label: 'Track stock',
+      description: 'Require quantities, warehouses, stock movements and availability checks.',
+    },
+    untracked: {
+      label: 'Sell without inventory',
+      description: 'Keep it in the catalog without requiring or deducting stock.',
+    },
+    badges: {
+      tracked: 'Tracks inventory',
+      untracked: 'No inventory',
+    },
+  },
   readiness: {
     title: 'Operational readiness',
     labels: {
@@ -615,6 +633,7 @@ export const enCA = {
     removeCartItem: (name: string) => `Remove ${name} from the cart`,
     decreaseCartItem: (name: string) => `Decrease the quantity of ${name}`,
     increaseCartItem: (name: string) => `Increase the quantity of ${name}`,
+    discount: 'Discount',
     estimatedTotal: 'Estimated total',
     wholesaleNote: (price: string, quantity: number) => `Wholesale suggestion: ${price} from ${quantity}+ units.`,
     taxAvailabilityNote: 'Taxes and availability may be confirmed by the business.',

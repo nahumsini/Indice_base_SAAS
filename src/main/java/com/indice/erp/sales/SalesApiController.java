@@ -447,6 +447,32 @@ public class SalesApiController {
         }
     }
 
+    @PostMapping("/inventory-operations/commit")
+    public ResponseEntity<?> commitInventoryOperation(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestBody(required = false) Map<String, Object> payload) {
+        var user = currentUser(session);
+        if (user.isEmpty()) {
+            return unauthorized();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
+        }
+
+        try {
+            return ResponseEntity.status(HttpStatus.CREATED).body(salesService.commitInventoryOperation(
+                    user.get().companyId(),
+                    user.get().userId(),
+                    payload == null ? Map.<String, Object>of() : payload));
+        } catch (NoSuchElementException ex) {
+            return notFound(ex);
+        } catch (IllegalArgumentException ex) {
+            return badRequest(ex);
+        }
+    }
+
     @PostMapping("/{collection}")
     public ResponseEntity<?> create(
             HttpSession session,

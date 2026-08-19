@@ -29,6 +29,10 @@ LOCAL_DEMO_SEED_ON_DEV ?= true
 LOCAL_DEMO_LOGIN_EMAIL ?= demo@example.com
 LOCAL_DEMO_LOGIN_COMPANY ?= Empresa Demo Spring
 LOCAL_DEMO_LOGIN_PASSWORD ?= demo123
+# Demo workspaces run without outbound email. These switches only apply to the
+# local Make targets; deployed environments keep the secure application defaults.
+LOCAL_AUTH_MFA_REQUIRED ?= false
+LOCAL_SIGNUP_EMAIL_VERIFICATION_ENABLED ?= false
 
 # Local-only kiosk secrets. Production must continue providing its own secrets
 # through the deployment environment.
@@ -69,6 +73,8 @@ dev: prepare ## Start the full local dev stack
 	APP_LOCAL_DEMO_LOGIN_EMAIL="$(LOCAL_DEMO_LOGIN_EMAIL)" \
 	APP_LOCAL_DEMO_LOGIN_COMPANY_NAME="$(LOCAL_DEMO_LOGIN_COMPANY)" \
 	APP_LOCAL_DEMO_LOGIN_PASSWORD="$(LOCAL_DEMO_LOGIN_PASSWORD)" \
+	APP_AUTH_MFA_REQUIRED="$(LOCAL_AUTH_MFA_REQUIRED)" \
+	APP_BILLING_SIGNUP_EMAIL_VERIFICATION_ENABLED="$(LOCAL_SIGNUP_EMAIL_VERIFICATION_ENABLED)" \
 	./mvnw spring-boot:run -P$(SPRING_PROFILE) \
 		-Dspring-boot.run.jvmArguments="$(LOCAL_BACKEND_JVM_ARGUMENTS)" & backend_pid=$$!; \
 	echo "Waiting for backend readiness before exposing the frontend..."; \
@@ -193,6 +199,8 @@ backend: ## Run only the Spring Boot backend with the MinIO profile
 	APP_LOCAL_DEMO_LOGIN_EMAIL="$(LOCAL_DEMO_LOGIN_EMAIL)" \
 	APP_LOCAL_DEMO_LOGIN_COMPANY_NAME="$(LOCAL_DEMO_LOGIN_COMPANY)" \
 	APP_LOCAL_DEMO_LOGIN_PASSWORD="$(LOCAL_DEMO_LOGIN_PASSWORD)" \
+	APP_AUTH_MFA_REQUIRED="$(LOCAL_AUTH_MFA_REQUIRED)" \
+	APP_BILLING_SIGNUP_EMAIL_VERIFICATION_ENABLED="$(LOCAL_SIGNUP_EMAIL_VERIFICATION_ENABLED)" \
 	./mvnw spring-boot:run -P$(SPRING_PROFILE) \
 		-Dspring-boot.run.jvmArguments="$(LOCAL_BACKEND_JVM_ARGUMENTS)"
 

@@ -381,6 +381,7 @@ export const zhCA = {
     requestQuote: '请求报价',
     cart: '目录购物车',
     emptyCart: '购物车为空。',
+    discount: '折扣',
     estimatedTotal: '预计总额',
     selectedProducts: (count: number) => `已选择 ${count} 个产品`,
     wholesaleNote: (price: string, quantity: number) => `批发建议：${quantity}+ 件起 ${price}。`,

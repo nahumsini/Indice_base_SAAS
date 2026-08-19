@@ -514,6 +514,7 @@ export const frCA = {
     cart: 'Panier du catalogue',
     cartHelper: 'Preparez un panier visuel. Aucun paiement, reservation d inventaire ou commande n est cree.',
     emptyCart: 'Le panier est vide.',
+    discount: 'Rabais',
     estimatedTotal: 'Total estime',
     wholesaleNote: (price: string, quantity: number) => `Suggestion de gros : ${price} a partir de ${quantity}+ unites.`,
     taxAvailabilityNote: 'Les taxes et disponibilites peuvent etre confirmees par l entreprise.',

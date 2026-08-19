@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.auth.SessionCsrfService;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -93,6 +94,29 @@ class SalesApiControllerCsrfTest {
         then(sessionCsrfService).should().requireCsrf(any(), eq("csrf-token"));
     }
 
+    @Test
+    void inventoryOperationCommitAllowsValidCsrfToken() throws Exception {
+        given(salesService.commitInventoryOperation(eq(7L), eq(1L), any(Map.class)))
+            .willReturn(Map.of(
+                "balances", List.of(Map.of("id", 31)),
+                "movements", List.of(Map.of("id", 41))));
+
+        mockMvc.perform(post("/api/v1/sales/inventory-operations/commit")
+                .header("X-CSRF-Token", "csrf-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "balances": [{"productId": 3, "warehouseId": 4, "available": 2}],
+                      "movements": [{"productId": 3, "toWarehouseId": 4, "quantity": 2}]
+                    }
+                    """))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.balances[0].id").value(31))
+            .andExpect(jsonPath("$.movements[0].id").value(41));
+
+        then(sessionCsrfService).should().requireCsrf(any(), eq("csrf-token"));
+    }
+
     private static Stream<Arguments> mutatingSalesRequests() {
         return Stream.of(
             Arguments.of(HttpMethod.POST, "/api/v1/sales/files", """
@@ -164,6 +188,12 @@ class SalesApiControllerCsrfTest {
                 }
                 """),
             Arguments.of(HttpMethod.DELETE, "/api/v1/sales/commission-cut-schedule/11", null),
+            Arguments.of(HttpMethod.POST, "/api/v1/sales/inventory-operations/commit", """
+                {
+                  "balances": [{"productId": 3, "warehouseId": 4, "available": 2}],
+                  "movements": [{"productId": 3, "toWarehouseId": 4, "quantity": 2}]
+                }
+                """),
             Arguments.of(HttpMethod.POST, "/api/v1/sales/products", """
                 {
                   "name": "Demo Product"

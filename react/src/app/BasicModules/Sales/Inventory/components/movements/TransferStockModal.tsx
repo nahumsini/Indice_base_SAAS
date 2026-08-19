@@ -89,8 +89,8 @@ export function TransferStockModal({
   editingMovement?: InventoryOperationalMovement | null;
   editingMovementLines?: InventoryOperationalMovement[];
   onOpenChange: (open: boolean) => void;
-  onSubmit: (draft: TransferStockDraft) => void;
-  onSaveEdit?: (movementId: string, draft: TransferStockDraft) => void;
+  onSubmit: (draft: TransferStockDraft) => Promise<void>;
+  onSaveEdit?: (movementId: string, draft: TransferStockDraft) => Promise<void>;
 }) {
   const activeWarehouses = useMemo(() => [...warehouses].filter((warehouse) => warehouse.status === 'active').sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: 'base' })), [warehouses]);
   const supplierOptions = useMemo(() => [...suppliers].filter((supplier) => supplier.name.trim()).sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: 'base' })), [suppliers]);
@@ -107,21 +107,24 @@ export function TransferStockModal({
   });
   const [activeStep, setActiveStep] = useState<MovementWizardStep>('movement');
   const [showStepError, setShowStepError] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const rules = movementRules[draft.movementType];
   const usesFromWarehouse = rules.from === 'warehouse';
   const usesToWarehouse = rules.to === 'warehouse';
   const sourceIsSupplier = isSupplierSource(draft.fromWarehouseId);
   const needsAvailabilityCheck = rules.needsAvailability && !sourceIsSupplier && (draft.movementType !== 'adjustment' || draft.adjustmentDirection !== 'increase');
-  const fromLocationOptions = useMemo(() => [
-    { value: SUPPLIER_SOURCE_ID, label: t.operational.modals.supplier },
-    ...sortInventoryOptions(activeWarehouses.map((warehouse) => ({ value: warehouse.id, label: warehouse.name }))),
-  ], [activeWarehouses, t]);
+  const fromLocationOptions = useMemo(
+    () => sortInventoryOptions(activeWarehouses.map((warehouse) => ({ value: warehouse.id, label: warehouse.name }))),
+    [activeWarehouses],
+  );
 
   useEffect(() => {
     if (!open) return;
     setActiveStep('movement');
     setShowStepError(false);
+    setSaveError(null);
 
     if (editingMovement) {
       const editableMovementType = movementTypes.includes(editingMovement.movementType as InventoryMovementEntryType)
@@ -165,19 +168,23 @@ export function TransferStockModal({
     });
   }, [activeWarehouses, editingMovement, editingMovementLines, initialMovementType, initialProductId, initialWarehouseId, open, rows, supplierOptions, t]);
 
-  const hasValidItems = draft.items.length > 0 && draft.items.every((item) => item.productId && item.quantity > 0);
-  const hasValidLocations = (!usesFromWarehouse || draft.fromWarehouseId)
-    && (!usesToWarehouse || draft.toWarehouseId)
+  const hasValidItems = draft.items.length > 0 && draft.items.every((item) => (
+    item.quantity > 0 && rows.some((row) => row.productId === item.productId)
+  ));
+  const hasValidLocations = (!usesFromWarehouse || activeWarehouses.some((warehouse) => warehouse.id === draft.fromWarehouseId))
+    && (!usesToWarehouse || activeWarehouses.some((warehouse) => warehouse.id === draft.toWarehouseId))
     && (!(usesFromWarehouse && usesToWarehouse && !sourceIsSupplier) || draft.fromWarehouseId !== draft.toWarehouseId);
   const hasValidStock = !needsAvailabilityCheck || draft.items.every((item) => {
     const row = rows.find((stockRow) => stockRow.productId === item.productId);
     const available = row?.distributions.find((distribution) => distribution.warehouseId === draft.fromWarehouseId)?.available ?? 0;
     return item.quantity <= available;
   });
-  const hasValidSupplier = draft.movementType !== 'supplierReceipt' || Boolean(draft.supplierName);
+  const hasValidSupplier = draft.movementType !== 'supplierReceipt'
+    || supplierOptions.some((supplier) => supplier.name === draft.supplierName);
   const hasValidReason = draft.movementType !== 'adjustment' || Boolean(draft.reason.trim());
-  const canSubmit = hasValidItems && hasValidLocations && hasValidStock && hasValidSupplier && hasValidReason;
-  const movementStepValid = hasValidLocations && hasValidSupplier && hasValidReason;
+  const hasValidDate = Boolean(draft.date);
+  const canSubmit = hasValidItems && hasValidLocations && hasValidStock && hasValidSupplier && hasValidReason && hasValidDate;
+  const movementStepValid = hasValidLocations && hasValidSupplier && hasValidReason && hasValidDate;
   const productsStepValid = hasValidItems && hasValidStock;
   const steps = useMemo(() => [
     { id: 'movement' as const, label: draft.movementType === 'adjustment' ? t.operational.adjustmentLabels.criteria : t.operational.adjustmentLabels.route },
@@ -201,6 +208,23 @@ export function TransferStockModal({
   const goBack = () => {
     setShowStepError(false);
     setActiveStep((current) => current === 'review' ? 'products' : 'movement');
+  };
+  const submit = async () => {
+    if (!canSubmit || isSaving) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      if (editingMovement && onSaveEdit) {
+        await onSaveEdit(editingMovement.id, draft);
+      } else {
+        await onSubmit(draft);
+      }
+      onOpenChange(false);
+    } catch (error) {
+      setSaveError(getOperationErrorMessage(error, t.common.operationFailed));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleTypeChange = (movementType: InventoryMovementEntryType) => {
@@ -237,7 +261,10 @@ export function TransferStockModal({
   return (
     <SalesModalFrame
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={(nextOpen) => {
+        if (!isSaving) onOpenChange(nextOpen);
+      }}
+      busy={isSaving}
       title={title}
       description={subtitle}
       icon={<HeaderIcon className="h-5 w-5" />}
@@ -246,8 +273,8 @@ export function TransferStockModal({
       bodyClassName="!max-h-none flex-1 space-y-4 overflow-y-auto bg-slate-50/70 px-6 py-5"
       footerLeading={(
         <div className="flex items-center gap-2">
-          <Button type="button" variant="outline" className={transferActionClassNames.secondary} onClick={() => onOpenChange(false)}>{t.common.cancel}</Button>
-          {activeStep !== 'movement' ? <Button type="button" variant="outline" className={transferActionClassNames.secondary} onClick={goBack}>{t.common.back}</Button> : null}
+          <Button type="button" variant="outline" className={transferActionClassNames.secondary} disabled={isSaving} onClick={() => onOpenChange(false)}>{t.common.cancel}</Button>
+          {activeStep !== 'movement' ? <Button type="button" variant="outline" className={transferActionClassNames.secondary} disabled={isSaving} onClick={goBack}>{t.common.back}</Button> : null}
         </div>
       )}
       footerSummary={`${t.operational.modals.products}: ${draft.items.length} · ${fromLocationLabel} → ${toLocationLabel}`}
@@ -255,21 +282,15 @@ export function TransferStockModal({
         activeStep === 'review' ? <Button
           type="button"
           className={transferActionClassNames.primary}
-          disabled={!canSubmit}
-          onClick={() => {
-            if (editingMovement && onSaveEdit) {
-              onSaveEdit(editingMovement.id, draft);
-              return;
-            }
-
-            onSubmit(draft);
-          }}
+          disabled={!canSubmit || isSaving}
+          onClick={() => void submit()}
         >
           {isEditing ? t.common.save : t.operational.modals.registerMovement}
         </Button> : <Button type="button" className={transferActionClassNames.primary} onClick={continueWizard}>{t.common.continue}</Button>
       )}
     >
           <IndiceModalWizardStepper accent="coral" activeStepId={activeStep} progressLabel={title} steps={steps} />
+          {saveError ? <IndiceModalValidation messages={[saveError]} /> : null}
           {showStepError ? <IndiceModalValidation messages={[activeStep === 'movement' ? t.common.completeMovementData : t.common.reviewProductQuantities]} /> : null}
           <IndiceModalSummary
             columns={3}
@@ -344,6 +365,10 @@ export function TransferStockModal({
           ) : null}
     </SalesModalFrame>
   );
+}
+
+function getOperationErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message.trim() ? error.message : fallback;
 }
 
 function InputField({ label, value, type = 'text', onChange }: { label: string; value: string; type?: string; onChange: (value: string) => void }) {

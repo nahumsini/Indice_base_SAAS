@@ -22,6 +22,7 @@ export const enCA = {
   },
   filters: {
     title: 'Filters',
+    clear: 'Clear filters',
     search: 'Search',
     searchPlaceholder: 'Opportunity, company, or contact',
     focus: 'Focus',
@@ -475,6 +476,7 @@ export const esMX: ProspectosCopy = {
   },
   filters: {
     title: 'Filtros',
+    clear: 'Limpiar filtros',
     search: 'Buscar',
     searchPlaceholder: 'Oportunidad, empresa o contacto',
     focus: 'Enfoque',

@@ -24,6 +24,7 @@ public class BillingSignupController {
     private final CommercialOfferSelectionService offers;
     private final BillingSignupService service;
     private final BillingSignupEmailVerificationService emailVerificationService;
+    private final BillingSignupEmailVerificationProperties emailVerificationProperties;
     private final BillingSignupIntentRepository repository;
     private final BillingSignupCheckoutReconciliationService reconciliation;
     private final StripePhaseTwoProperties properties;
@@ -33,6 +34,7 @@ public class BillingSignupController {
         CommercialOfferSelectionService offers,
         BillingSignupService service,
         BillingSignupEmailVerificationService emailVerificationService,
+        BillingSignupEmailVerificationProperties emailVerificationProperties,
         BillingSignupIntentRepository repository,
         BillingSignupCheckoutReconciliationService reconciliation,
         StripePhaseTwoProperties properties
@@ -41,6 +43,7 @@ public class BillingSignupController {
         this.offers = offers;
         this.service = service;
         this.emailVerificationService = emailVerificationService;
+        this.emailVerificationProperties = emailVerificationProperties;
         this.repository = repository;
         this.reconciliation = reconciliation;
         this.properties = properties;
@@ -58,7 +61,7 @@ public class BillingSignupController {
             Map.entry("automaticCharge", true),
             Map.entry("includedSeats", 5),
             Map.entry("currency", "USD"),
-            Map.entry("emailVerificationRequired", true),
+            Map.entry("emailVerificationRequired", emailVerificationProperties.isEnabled()),
             Map.entry("launchCountries", java.util.List.of("MX", "CA", "US", "CO", "BR")),
             Map.entry("products", offers.activeProducts("MONTH")),
             Map.entry("prices", offers.activePrices())

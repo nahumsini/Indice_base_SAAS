@@ -13,6 +13,7 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import com.indice.erp.pos.discount.DiscountDtos.RuleResponse;
 
 public final class SelfServiceKioskDtos {
 
@@ -126,8 +127,19 @@ public final class SelfServiceKioskDtos {
         List<CatalogItem> items,
         String kioskType,
         String availabilityState,
-        boolean sourceRegisterOpen
+        boolean sourceRegisterOpen,
+        List<RuleResponse> discountRules
     ) {
+        public BootstrapResponse(
+                String code, String name, String companyName, String unitName, String businessName,
+                String warehouseName, String cashRegisterName, String currencyCode, boolean showStock,
+                boolean customerNameRequired, int maxItemsPerTicket, int preticketTtlMinutes,
+                String fulfillmentPolicy, List<CatalogItem> items, String kioskType,
+                String availabilityState, boolean sourceRegisterOpen) {
+            this(code, name, companyName, unitName, businessName, warehouseName, cashRegisterName,
+                currencyCode, showStock, customerNameRequired, maxItemsPerTicket, preticketTtlMinutes,
+                fulfillmentPolicy, items, kioskType, availabilityState, sourceRegisterOpen, List.of());
+        }
     }
 
     public record PreticketItemRequest(
@@ -150,8 +162,15 @@ public final class SelfServiceKioskDtos {
         String productName,
         BigDecimal quantity,
         BigDecimal unitPrice,
+        BigDecimal discountAmount,
+        Long discountRuleId,
         BigDecimal lineTotal
     ) {
+        public PreticketItemResponse(
+                Long productId, String sku, String productName, BigDecimal quantity,
+                BigDecimal unitPrice, BigDecimal lineTotal) {
+            this(productId, sku, productName, quantity, unitPrice, BigDecimal.ZERO, null, lineTotal);
+        }
     }
 
     public record PreticketResponse(
@@ -166,11 +185,22 @@ public final class SelfServiceKioskDtos {
         String customerName,
         int itemCount,
         BigDecimal subtotalAmount,
+        BigDecimal discountAmount,
+        Long discountRuleId,
         BigDecimal totalAmount,
         Instant expiresAt,
         Instant createdAt,
         List<PreticketItemResponse> items
     ) {
+        public PreticketResponse(
+                Long id, Long kioskId, Long cashRegisterId, String cashRegisterName,
+                String preticketNumber, String claimCode, String status, String currencyCode,
+                String customerName, int itemCount, BigDecimal subtotalAmount, BigDecimal totalAmount,
+                Instant expiresAt, Instant createdAt, List<PreticketItemResponse> items) {
+            this(id, kioskId, cashRegisterId, cashRegisterName, preticketNumber, claimCode, status,
+                currencyCode, customerName, itemCount, subtotalAmount, BigDecimal.ZERO, null,
+                totalAmount, expiresAt, createdAt, items);
+        }
     }
 
     /**
@@ -183,9 +213,16 @@ public final class SelfServiceKioskDtos {
         String status,
         String currencyCode,
         int itemCount,
+        BigDecimal discountAmount,
         BigDecimal totalAmount,
         Instant expiresAt
     ) {
+        public PreticketReceiptResponse(
+                String preticketNumber, String claimCode, String status, String currencyCode,
+                int itemCount, BigDecimal totalAmount, Instant expiresAt) {
+            this(preticketNumber, claimCode, status, currencyCode, itemCount, BigDecimal.ZERO,
+                totalAmount, expiresAt);
+        }
     }
 
     public record PreticketListResponse(List<PreticketResponse> items, int count) {

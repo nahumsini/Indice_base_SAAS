@@ -18,6 +18,7 @@ export function PublicCatalogMobileCart({
   cartItems,
   config,
   total,
+  discountAmount = 0,
   t,
   onOpenChange,
   onChangeQuantity,
@@ -29,6 +30,7 @@ export function PublicCatalogMobileCart({
   cartItems: PublicCatalogCartItem[];
   config: PublicCatalogConfig;
   total: number;
+  discountAmount?: number;
   t: ProductsTranslations;
   onOpenChange: (open: boolean) => void;
   onChangeQuantity: (itemId: string, quantity: number) => void;
@@ -78,6 +80,8 @@ export function PublicCatalogMobileCart({
                 onOpenChange(false);
                 onRequestPurchase();
               }}
+              total={total}
+              discountAmount={discountAmount}
             />
           </div>
         </DrawerContent>

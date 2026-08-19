@@ -27,6 +27,8 @@ import {
 import { KioskPublicShell } from '../../../components/kiosk-engine/KioskPublicShell';
 import { usePointOfSaleKioskTranslations } from '../Kiosks/kioskTranslations';
 import { SourceRegisterClosedState } from '../SelfServiceKiosk/SourceRegisterClosedState';
+import { calculateAutomaticDiscounts } from '../shared/commercial/discounts';
+import { mapDiscountRule } from '../shared/commercial/discounts/services/discountRulesApi';
 import {
   selfServiceKioskApi,
   type SelfServiceBootstrap,
@@ -156,9 +158,17 @@ export default function SelfCheckoutKiosk() {
     (total, line) => total + numberValue(line.product.unitPrice) * line.quantity,
     0,
   );
-  // Public catalog prices are the cashier-authoritative amounts. Taxes must
-  // come from POS pricing rules, never from a hard-coded kiosk percentage.
-  const total = subtotal;
+  const automaticDiscount = calculateAutomaticDiscounts(
+    (bootstrap?.discountRules ?? []).map(mapDiscountRule),
+    cartLines.map((line) => ({
+      key: line.product.productId,
+      amount: numberValue(line.product.unitPrice) * line.quantity,
+      productId: String(line.product.productId),
+      category: line.product.category ?? undefined,
+    })),
+    'kiosk',
+  );
+  const total = automaticDiscount.total;
 
   const changeQuantity = (item: SelfServiceCatalogItem, delta: number) => {
     setCart((current) => {
@@ -558,6 +568,7 @@ function CartStep({ bootstrap, lines, locale, subtotal, total, onQuantityChange 
         <h2 className="text-lg font-medium">{copy.selfCheckoutFrame.cartTitle}</h2>
         <dl className="mt-4 space-y-3 text-sm">
           <div className="flex justify-between"><dt className="text-slate-500">{copy.selfCheckoutFrame.subtotal}</dt><dd>{formatCurrency(subtotal, bootstrap.currencyCode, locale)}</dd></div>
+          {subtotal > total ? <div className="flex justify-between text-emerald-700"><dt>{copy.selfCheckoutFrame.discount}</dt><dd>-{formatCurrency(subtotal - total, bootstrap.currencyCode, locale)}</dd></div> : null}
           <div className="flex justify-between border-t border-slate-200 pt-3 text-lg"><dt>{copy.selfCheckoutFrame.total}</dt><dd className="font-medium">{formatCurrency(total, bootstrap.currencyCode, locale)}</dd></div>
         </dl>
       </aside>

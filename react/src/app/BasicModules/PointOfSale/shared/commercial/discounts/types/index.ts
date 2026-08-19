@@ -1,15 +1,19 @@
 export type DiscountScope = 'product' | 'category' | 'customer' | 'order' | 'manual';
 export type DiscountType = 'percentage' | 'fixedAmount';
-export type DiscountRuleStatus = 'active' | 'scheduled' | 'expired' | 'inactive';
+export type DiscountRuleStatus = 'active' | 'scheduled' | 'expired' | 'paused' | 'archived' | 'inactive';
 export type DiscountChannel = 'pos' | 'sales' | 'kiosk' | 'publicCatalog';
 
 export interface DiscountRule {
-  id: string;
+  id: string | number;
+  unitId?: number;
+  businessId?: number;
+  warehouseId?: number;
   name: string;
   description: string;
   scope: DiscountScope;
   discountType: DiscountType;
   value: number;
+  currencyCode?: string;
   startsAt: Date;
   endsAt: Date;
   minimumAmount?: number;
@@ -22,6 +26,9 @@ export interface DiscountRule {
   priority?: number;
   status: DiscountRuleStatus;
   enabledChannels: DiscountChannel[];
+  version?: number;
+  currentUserCanAuthorize?: boolean;
+  evaluatedDiscountAmount?: number;
 }
 
 export interface DiscountEligibilityContext {

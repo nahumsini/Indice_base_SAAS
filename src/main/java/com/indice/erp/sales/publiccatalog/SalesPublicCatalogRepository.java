@@ -257,6 +257,9 @@ public class SalesPublicCatalogRepository {
             SalesPublicCatalogDtos.PurchaseRequest request,
             String currency,
             int itemCount,
+            java.math.BigDecimal subtotal,
+            java.math.BigDecimal discount,
+            Long discountRuleId,
             java.math.BigDecimal total) {
         var keys = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -265,8 +268,8 @@ public class SalesPublicCatalogRepository {
                     company_id, catalog_id, catalog_code_snapshot, catalog_name_snapshot,
                     unit_id, business_id, request_number, status, customer_name,
                     contact_value, preferred_contact_method, message, currency_code,
-                    item_count, estimated_total
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'SUBMITTED', ?, ?, ?, ?, ?, ?, ?)
+                    item_count, subtotal_amount, discount_amount, discount_rule_id, estimated_total
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'SUBMITTED', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, Statement.RETURN_GENERATED_KEYS);
             statement.setLong(1, catalog.companyId());
             statement.setLong(2, catalog.id());
@@ -281,20 +284,34 @@ public class SalesPublicCatalogRepository {
             statement.setString(11, trim(request.message()));
             statement.setString(12, currency);
             statement.setInt(13, itemCount);
-            statement.setBigDecimal(14, total);
+            statement.setBigDecimal(14, subtotal);
+            statement.setBigDecimal(15, discount);
+            statement.setObject(16, discountRuleId);
+            statement.setBigDecimal(17, total);
             return statement;
         }, keys);
         return keys.getKey().longValue();
+    }
+
+    public long insertRequest(
+            CatalogRecord catalog,
+            String requestNumber,
+            SalesPublicCatalogDtos.PurchaseRequest request,
+            String currency,
+            int itemCount,
+            java.math.BigDecimal total) {
+        return insertRequest(catalog, requestNumber, request, currency, itemCount,
+            total, java.math.BigDecimal.ZERO, null, total);
     }
 
     public void insertRequestItem(long companyId, long requestId, RequestItemResponse item, int sortOrder) {
         jdbcTemplate.update("""
             INSERT INTO sales_public_catalog_request_items (
                 company_id, request_id, product_id, sku, product_name,
-                quantity, unit_price, line_total, sort_order
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                quantity, unit_price, discount_amount, discount_rule_id, line_total, sort_order
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, companyId, requestId, item.productId(), item.sku(), item.productName(),
-            item.quantity(), item.unitPrice(), item.lineTotal(), sortOrder);
+            item.quantity(), item.unitPrice(), item.discountAmount(), item.discountRuleId(), item.lineTotal(), sortOrder);
     }
 
     public Optional<RequestResponse> findRequest(long companyId, long requestId) {
@@ -407,17 +424,19 @@ public class SalesPublicCatalogRepository {
 
     private RequestResponse withItems(RequestResponse row) {
         var items = jdbcTemplate.query("""
-            SELECT product_id, sku, product_name, quantity, unit_price, line_total
+            SELECT product_id, sku, product_name, quantity, unit_price, discount_amount, discount_rule_id, line_total
             FROM sales_public_catalog_request_items
             WHERE request_id = ? ORDER BY sort_order, id
             """, (rs, rowNum) -> new RequestItemResponse(
                 rs.getLong("product_id"), rs.getString("sku"), rs.getString("product_name"),
                 rs.getBigDecimal("quantity"), rs.getBigDecimal("unit_price"),
+                rs.getBigDecimal("discount_amount"), rs.getObject("discount_rule_id", Long.class),
                 rs.getBigDecimal("line_total")), row.id());
         return new RequestResponse(
             row.id(), row.catalogId(), row.requestNumber(), row.status(), row.customerName(),
             row.contact(), row.preferredContactMethod(), row.message(), row.currencyCode(),
-            row.itemCount(), row.estimatedTotal(), row.createdAt(), items);
+            row.itemCount(), row.subtotalAmount(), row.discountAmount(), row.discountRuleId(),
+            row.estimatedTotal(), row.createdAt(), items);
     }
 
     private String catalogSelect() {
@@ -477,7 +496,9 @@ public class SalesPublicCatalogRepository {
             rs.getString("status"), rs.getString("customer_name"), rs.getString("contact_value"),
             rs.getString("preferred_contact_method"), rs.getString("message"),
             rs.getString("currency_code"), rs.getInt("item_count"),
-            rs.getBigDecimal("estimated_total"), instant(rs, "created_at"), List.of());
+            rs.getBigDecimal("subtotal_amount"), rs.getBigDecimal("discount_amount"),
+            rs.getObject("discount_rule_id", Long.class), rs.getBigDecimal("estimated_total"),
+            instant(rs, "created_at"), List.of());
     }
 
     private Instant instant(ResultSet rs, String column) throws SQLException {

@@ -140,12 +140,19 @@ function toWarehouse(row: ApiInventoryWarehouse): InventoryWarehouse {
 }
 
 function toWarehousePayload(warehouse: InventoryWarehouse) {
+  if (!warehouse.name.trim()) {
+    throw new Error('Escribe un nombre para el almacén.');
+  }
+  if (!isDatabaseId(warehouse.businessUnitId) || !isDatabaseId(warehouse.businessId)) {
+    throw new Error('Selecciona una unidad de negocio y uno de sus negocios.');
+  }
+
   return {
-    name: warehouse.name,
+    name: warehouse.name.trim(),
     type: warehouse.type,
-    businessUnitId: isDatabaseId(warehouse.businessUnitId) ? warehouse.businessUnitId : undefined,
+    businessUnitId: warehouse.businessUnitId,
     businessUnitName: warehouse.businessUnitName,
-    businessId: isDatabaseId(warehouse.businessId) ? warehouse.businessId : undefined,
+    businessId: warehouse.businessId,
     businessName: warehouse.businessName,
     jurisdiction: warehouse.jurisdiction,
     responsibleUserId: warehouse.responsibleUserId,
@@ -306,14 +313,72 @@ export const inventoryApi = {
   },
 
   async updateWarehouse(warehouse: InventoryWarehouse) {
-    if (!isDatabaseId(warehouse.id)) return warehouse;
+    if (!isDatabaseId(warehouse.id)) {
+      throw new Error('El almacén no tiene un identificador válido. Actualiza la página e inténtalo de nuevo.');
+    }
     const row = await salesApi.update<ApiInventoryWarehouse>('inventory-warehouses', warehouse.id, toWarehousePayload(warehouse));
     return toWarehouse(row);
   },
 
   async deleteWarehouse(warehouseId: string) {
-    if (!isDatabaseId(warehouseId)) return;
+    if (!isDatabaseId(warehouseId)) {
+      throw new Error('El almacén no tiene un identificador válido. Actualiza la página e inténtalo de nuevo.');
+    }
     await salesApi.delete('inventory-warehouses', warehouseId);
+  },
+
+  async commitInventoryOperation(rows: InventoryStockRow[], movements: InventoryOperationalMovement[]) {
+    if (movements.length === 0) {
+      throw new Error('Agrega al menos un producto antes de guardar el movimiento.');
+    }
+
+    const balancesByKey = new Map<string, Record<string, unknown>>();
+    const movementPayloads = movements.map((movement) => {
+      if (!isDatabaseId(movement.productId) || Math.abs(movement.quantity) <= 0) {
+        throw new Error(`No fue posible preparar el movimiento de ${movement.productName}.`);
+      }
+
+      const stockRow = rows.find((row) => row.productId === movement.productId);
+      const affectedWarehouseIds = [movement.fromWarehouseId, movement.toWarehouseId]
+        .filter((warehouseId): warehouseId is string => isDatabaseId(warehouseId));
+      if (!stockRow || affectedWarehouseIds.length === 0) {
+        throw new Error(`No fue posible preparar los saldos de ${movement.productName}.`);
+      }
+
+      affectedWarehouseIds.forEach((warehouseId) => {
+        const distribution = stockRow.distributions.find((item) => item.warehouseId === warehouseId);
+        if (!distribution) {
+          throw new Error(`No fue posible preparar el saldo de ${movement.productName}.`);
+        }
+
+        const balancePayload: Record<string, unknown> = toBalancePayload(stockRow, distribution);
+        if (distribution.balanceId && isDatabaseId(distribution.balanceId)) {
+          balancePayload.id = distribution.balanceId;
+        }
+        balancesByKey.set(`${movement.productId}:${warehouseId}`, balancePayload);
+      });
+      return toMovementPayload(movement);
+    });
+
+    const response = await salesApi.commitInventoryOperation<ApiInventoryBalance, ApiInventoryMovement>({
+      balances: Array.from(balancesByKey.values()),
+      movements: movementPayloads,
+    });
+    const balanceIds = new Map(response.balances.map((balance) => [
+      `${toId(balance.productId)}:${toId(balance.warehouseId)}`,
+      toId(balance.id),
+    ]));
+
+    return {
+      stockRows: rows.map((row) => ({
+        ...row,
+        distributions: row.distributions.map((distribution) => {
+          const balanceId = balanceIds.get(`${row.productId}:${distribution.warehouseId}`);
+          return balanceId ? { ...distribution, balanceId } : distribution;
+        }),
+      })),
+      movements: response.movements.map(toMovement),
+    };
   },
 
   async persistStockRows(rows: InventoryStockRow[]) {

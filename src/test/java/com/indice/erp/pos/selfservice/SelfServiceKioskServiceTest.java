@@ -98,7 +98,7 @@ class SelfServiceKioskServiceTest {
             .map(java.lang.reflect.RecordComponent::getName).toList())
             .containsExactlyInAnyOrder(
                 "preticketNumber", "claimCode", "status", "currencyCode",
-                "itemCount", "totalAmount", "expiresAt");
+                "itemCount", "discountAmount", "totalAmount", "expiresAt");
         var claimCode = ArgumentCaptor.forClass(String.class);
         then(repository).should().insertPreticket(
             eq(kiosk), anyString(), claimCode.capture(), eq("MXN"), eq("Ana"),
@@ -164,7 +164,7 @@ class SelfServiceKioskServiceTest {
                 "warehouseName", "cashRegisterName", "currencyCode", "showStock",
                 "customerNameRequired", "maxItemsPerTicket", "preticketTtlMinutes",
                 "fulfillmentPolicy", "items", "kioskType", "availabilityState",
-                "sourceRegisterOpen");
+                "sourceRegisterOpen", "discountRules");
         assertThat(bootstrap.items()).singleElement()
             .extracting(CatalogItem::productId).isEqualTo(91L);
     }

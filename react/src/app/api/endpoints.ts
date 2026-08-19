@@ -51,6 +51,9 @@ export const endpoints = {
     list: '/api/v1/notifications',
     readAll: '/api/v1/notifications/read-all',
   },
+  workspaceState: {
+    base: '/api/v1/workspace-state',
+  },
   billing: {
     subscription: '/api/v1/billing/subscription',
     cancelSubscription: '/api/v1/billing/subscription/cancel',

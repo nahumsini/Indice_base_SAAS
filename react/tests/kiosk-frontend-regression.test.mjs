@@ -314,7 +314,8 @@ test('self-checkout creation opens the six-step configuration flow with real POS
   assert.match(center, /setTypeFilter\('all'\)[\s\S]*void reload\(\)/);
   assert.match(creationFlow, /posBackendApi\.context\(\)/);
   assert.match(creationFlow, /usePointOfSaleCatalogProducts\(\)/);
-  assert.match(creationFlow, /readStoredDiscountRules\(\)/);
+  assert.match(creationFlow, /listPublishedDiscountRules\(\{/);
+  assert.doesNotMatch(creationFlow, /readStoredDiscountRules|localStorage/);
   assert.match(creationFlow, /posKioskAdminApi\.createSelfCheckout\(draft\)/);
   assert.match(api, /\?type=self_checkout/);
   assert.match(wizard, /experience: 'self-checkout'/);

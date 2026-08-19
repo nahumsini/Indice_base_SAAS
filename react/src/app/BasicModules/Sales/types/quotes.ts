@@ -22,6 +22,9 @@ export type SalesQuoteItem = {
   convertedUnitPrice?: number;
   convertedUnitCost?: number;
   discountPercent: number;
+  discountRuleId?: number;
+  discountRuleName?: string;
+  discountAmount?: number;
   taxPercent: number;
   subtotal?: number;
   marginAmount?: number;

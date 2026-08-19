@@ -193,6 +193,30 @@ export const esMX = {
         },
       ],
     },
+    commissions: {
+      label: 'Comisiones',
+      ctaLabel: 'Revisar comisiones',
+      title: 'Convierte resultados de venta en incentivos trazables',
+      summary: 'Usa Comisiones para definir políticas, revisar resultados generados y enviar cortes controlados a Recursos Humanos y nómina.',
+      value: 'Un ciclo documentado conecta cada incentivo con una venta elegible, una regla aprobada y un solo traspaso a nómina.',
+      steps: [
+        { title: 'Define políticas antes de calcular', description: 'Configura participantes, productos elegibles, porcentajes y vigencia antes de generar resultados.' },
+        { title: 'Revisa los resultados generados', description: 'Confirma venta, responsable, regla e importe antes de incluir una comisión en el corte.' },
+        { title: 'Envía un corte controlado', description: 'Crea y rastrea el traspaso a Recursos Humanos para evitar pagos duplicados.' },
+      ],
+    },
+    'payment-accounts': {
+      label: 'Cuentas de pago',
+      ctaLabel: 'Revisar cuentas de pago',
+      title: 'Mantén controlados los destinos de cobro',
+      summary: 'Usa Cuentas de pago para mantener las cuentas bancarias, de efectivo e internas disponibles en los flujos comerciales.',
+      value: 'Un catálogo compartido evita enviar pagos a destinos inactivos, duplicados o poco claros.',
+      steps: [
+        { title: 'Crea una cuenta verificada', description: 'Registra tipo, moneda, alcance empresarial y contexto identificador seguro antes de utilizarla.' },
+        { title: 'Mantén vigente el estado', description: 'Desactiva cuentas que ya no deben recibir pagos nuevos sin borrar su historial.' },
+        { title: 'Respeta la propiedad financiera', description: 'Reconoce las cuentas administradas por Caja chica y edítalas desde su flujo financiero propietario.' },
+      ],
+    },
     kpis: {
       label: 'KPIs',
       ctaLabel: 'Revisar KPIs',

@@ -148,7 +148,12 @@ export function useProductsCatalog(t: ProductsTranslations) {
   );
   const typeOptions = [
     { value: 'all', label: t.filters.allTypes },
-    ...productTypes.map((type) => ({ value: type, label: t.typeLabels[type] })),
+    ...productTypes.map((type) => ({
+      value: type,
+      label: type === 'Service' || type === 'Subscription' || type === 'Operational item'
+        ? `${t.typeLabels[type]} ${t.inventoryTracking.filterSuffix}`
+        : t.typeLabels[type],
+    })),
   ];
   const statusOptions = [
     { value: 'all', label: t.filters.allStatuses },

@@ -1,12 +1,10 @@
 export { discountRules } from './data';
 export {
   calculateDiscountPreview,
+  calculateAutomaticDiscounts,
   getDiscountRuleAmount,
   getEligibleDiscountRules,
   isDiscountActive,
-  readStoredDiscountRules,
-  resetStoredDiscountRules,
-  saveStoredDiscountRules,
 } from './utils';
 export type {
   DiscountEligibilityContext,

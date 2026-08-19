@@ -288,7 +288,9 @@ export default function Inventory({ warehouseManagementMode = false }: { warehou
 
   const handleAddInventory = async (draft: AddInventoryDraft) => {
     const warehouse = warehouses.find((item) => item.id === draft.destinationWarehouseId);
-    if (!warehouse) return;
+    if (!warehouse) {
+      throw new Error('El almacén seleccionado ya no está disponible. Actualiza la página e inténtalo de nuevo.');
+    }
 
     const receiptDraft = {
       movementType: 'supplierReceipt' as const,
@@ -304,33 +306,35 @@ export default function Inventory({ warehouseManagementMode = false }: { warehou
 
     const nextStockRows = applyMovementEntryToStockRows(stockRows, receiptDraft, undefined, warehouse);
     const createdMovements = createInventoryMovementEntries({ draft: receiptDraft, rows: stockRows, currentLength: movements.length, toWarehouse: warehouse });
+    if (createdMovements.length !== draft.items.length) {
+      throw new Error('Uno de los productos ya no está disponible. Revisa la selección e inténtalo de nuevo.');
+    }
 
-    const [persistedRows, persistedMovements] = await Promise.all([
-      inventoryApi.persistStockRows(nextStockRows),
-      inventoryApi.createMovements(createdMovements),
-    ]);
-    setStockRows(syncInventoryStockRows(products, persistedRows.length > 0 ? persistedRows : nextStockRows));
-    setMovements((current) => [...(persistedMovements.length > 0 ? persistedMovements : createdMovements), ...current]);
-    setIsAddInventoryOpen(false);
+    const receipt = await inventoryApi.commitInventoryOperation(nextStockRows, createdMovements);
+    setStockRows(syncInventoryStockRows(products, receipt.stockRows));
+    setMovements((current) => [...receipt.movements, ...current]);
     setActiveView('movements');
   };
 
-  const handleTransferStock = (draft: TransferStockDraft) => {
+  const handleTransferStock = async (draft: TransferStockDraft) => {
     const fromWarehouse = warehouses.find((item) => item.id === draft.fromWarehouseId);
     const toWarehouse = warehouses.find((item) => item.id === draft.toWarehouseId);
     const sourceIsSupplier = isSupplierSource(draft.fromWarehouseId);
     const needsFromWarehouse = ['transfer', 'storeReplenishment', 'sale', 'adjustment', 'writeOff'].includes(draft.movementType) && !sourceIsSupplier;
     const needsToWarehouse = ['supplierReceipt', 'transfer', 'storeReplenishment', 'return'].includes(draft.movementType);
-    if ((needsFromWarehouse && !fromWarehouse) || (needsToWarehouse && !toWarehouse)) return;
+    if ((needsFromWarehouse && !fromWarehouse) || (needsToWarehouse && !toWarehouse)) {
+      throw new Error('Uno de los almacenes seleccionados ya no está disponible. Actualiza la página e inténtalo de nuevo.');
+    }
 
     const nextStockRows = applyMovementEntryToStockRows(stockRows, draft, fromWarehouse, toWarehouse);
     const createdMovements = createInventoryMovementEntries({ draft, rows: stockRows, currentLength: movements.length, fromWarehouse, toWarehouse });
+    if (createdMovements.length !== draft.items.length) {
+      throw new Error('Uno de los productos ya no está disponible. Revisa la selección e inténtalo de nuevo.');
+    }
 
-    setStockRows(nextStockRows);
-    setMovements((current) => [...createdMovements, ...current]);
-    persistStockRows(nextStockRows);
-    persistMovements(createdMovements);
-    setIsTransferOpen(false);
+    const operation = await inventoryApi.commitInventoryOperation(nextStockRows, createdMovements);
+    setStockRows(syncInventoryStockRows(products, operation.stockRows));
+    setMovements((current) => [...operation.movements, ...current]);
     setActiveView('movements');
   };
 
@@ -344,7 +348,9 @@ export default function Inventory({ warehouseManagementMode = false }: { warehou
 
   const handleUpdateWarehouse = async (warehouseId: string, draft: CreateWarehouseDraft) => {
     const currentWarehouse = warehouses.find((warehouse) => warehouse.id === warehouseId);
-    if (!currentWarehouse) return;
+    if (!currentWarehouse) {
+      throw new Error('El almacén ya no está disponible. Actualiza la página e inténtalo de nuevo.');
+    }
     const persistedWarehouse = await inventoryApi.updateWarehouse({
       ...currentWarehouse,
       ...draft,
@@ -432,7 +438,7 @@ export default function Inventory({ warehouseManagementMode = false }: { warehou
     setIsTransferOpen(true);
   };
 
-  const handleSaveMovementEdit = (movementId: string, draft: TransferStockDraft) => {
+  const handleSaveMovementEdit = async (movementId: string, draft: TransferStockDraft) => {
     const nextMovements = updateMovementGroupFromDraft({
       movements,
       movementId,
@@ -446,17 +452,13 @@ export default function Inventory({ warehouseManagementMode = false }: { warehou
       ? nextMovements.filter((movement) => getOperationalMovementGroupId(movement) === movementGroupId)
       : [];
 
-    setMovements((current) => updateMovementGroupFromDraft({
-      movements: current,
-      movementId,
-      draft,
-      warehouses,
-      stockRows,
-    }));
-    updatedLines.forEach((movement) => {
-      void inventoryApi.updateMovement(movement)
-        .catch((error) => console.warn('[Sales Inventory] movement edit could not sync.', error));
-    });
+    if (!targetMovement || updatedLines.length === 0) {
+      throw new Error('El movimiento ya no está disponible. Actualiza la página e inténtalo de nuevo.');
+    }
+
+    const persistedLines = await Promise.all(updatedLines.map((movement) => inventoryApi.updateMovement(movement)));
+    const persistedById = new Map(persistedLines.map((movement) => [movement.id, movement]));
+    setMovements(nextMovements.map((movement) => persistedById.get(movement.id) ?? movement));
     setEditingMovement(null);
   };
 

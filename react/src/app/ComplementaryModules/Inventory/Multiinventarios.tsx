@@ -1,8 +1,9 @@
-import { lazy, Suspense, useMemo, useRef, type ComponentType } from 'react';
+import { lazy, Suspense, useMemo, useRef, type ComponentType, type ReactNode } from 'react';
 import { IndiceModuleShell } from '../../components/frontend-os';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { SalesCrmProvider } from '../../BasicModules/Sales/salesCrmContext';
+import { WarehouseColorIcon } from '../../BasicModules/Sales/Inventory/components/warehouses/WarehouseColorIcon';
 import { useInventoryModuleTranslations } from './hooks/useInventoryModuleTranslations';
 import {
   LearningModeHeaderActionsProvider,
@@ -11,7 +12,6 @@ import {
 } from '../../learningMode';
 import {
   inventoryLearningControls,
-  inventoryLearningLabels,
 } from './operationalGuidance/inventoryLearningControls';
 
 const Productos = lazy(() => import('../../BasicModules/Sales/Productos'));
@@ -23,8 +23,8 @@ const Descuentos = lazy(() => import('../../BasicModules/PointOfSale/Descuentos'
 
 const inventoryTabIds = [
   'products',
-  'inventory',
   'warehouses',
+  'inventory',
   'providers',
   'purchase-orders',
   'discounts',
@@ -70,16 +70,16 @@ const legacyInventoryTabAliases: Partial<Record<string, InventoryTabId>> = {
 type InventoryTab = {
   id: InventoryTabId;
   label: string;
-  emoji: string;
+  icon: ReactNode;
   component: ComponentType;
 };
 
 export default function Multiinventarios({ learningModeActive = false, onNavigate }: { learningModeActive?: boolean; onNavigate?: (page?: string) => void }) {
   return (
     <LearningModeHeaderActionsProvider active={learningModeActive}>
-    <SalesCrmProvider>
-      <InventoryWorkspace learningModeActive={learningModeActive} onNavigate={onNavigate} />
-    </SalesCrmProvider>
+      <SalesCrmProvider>
+        <InventoryWorkspace learningModeActive={learningModeActive} onNavigate={onNavigate} />
+      </SalesCrmProvider>
     </LearningModeHeaderActionsProvider>
   );
 }
@@ -94,12 +94,12 @@ function InventoryWorkspace({ learningModeActive, onNavigate }: { learningModeAc
   );
 
   const inventoryTabs = useMemo<InventoryTab[]>(() => [
-    { id: 'products', label: t.tabs.products, emoji: '📦', component: Productos },
-    { id: 'inventory', label: t.tabs.inventory, emoji: '🏬', component: Inventario },
-    { id: 'warehouses', label: t.tabs.warehouses, emoji: '🏭', component: Almacenes },
-    { id: 'providers', label: t.tabs.providers, emoji: '🏢', component: Proveedores },
-    { id: 'purchase-orders', label: t.tabs.purchaseOrders, emoji: '📋', component: OrdenesCompra },
-    { id: 'discounts', label: t.tabs.discounts, emoji: '🏷️', component: Descuentos },
+    { id: 'products', label: t.tabs.products, icon: '📦', component: Productos },
+    { id: 'warehouses', label: t.tabs.warehouses, icon: <WarehouseColorIcon className="h-[18px] w-[18px]" />, component: Almacenes },
+    { id: 'inventory', label: t.tabs.inventory, icon: '🏬', component: Inventario },
+    { id: 'providers', label: t.tabs.providers, icon: '🏢', component: Proveedores },
+    { id: 'purchase-orders', label: t.tabs.purchaseOrders, icon: '📋', component: OrdenesCompra },
+    { id: 'discounts', label: t.tabs.discounts, icon: '🏷️', component: Descuentos },
   ], [t]);
 
   const activeTabConfig = inventoryTabs.find((tab) => tab.id === activeTab) ?? inventoryTabs[0];
@@ -112,7 +112,7 @@ function InventoryWorkspace({ learningModeActive, onNavigate }: { learningModeAc
       currentModule="inventory"
       guide={learningModeActive ? (
         <SimpleModuleLearningGuide
-          activeContextLabel={inventoryLearningLabels[activeTab]}
+          activeContextLabel={activeTabConfig.label}
           controls={inventoryLearningControls[activeTab]}
           guideId="inventory-learning-guide"
           moduleTitle={t.title}
@@ -125,21 +125,21 @@ function InventoryWorkspace({ learningModeActive, onNavigate }: { learningModeAc
       onNavigate={onNavigate}
       onTabChange={setActiveTab}
       subtitle={t.subtitle}
-      tabs={inventoryTabs.map(tab => ({ id: tab.id, label: tab.label, icon: tab.emoji }))}
+      tabs={inventoryTabs.map(tab => ({ id: tab.id, label: tab.label, icon: tab.icon }))}
       title={t.title}
       tone="coral"
     >
-        <Suspense
-          fallback={(
-            <LoadingBarOverlay
-              isVisible
-              title={t.loading.fallbackTitle}
-              description={t.loading.fallbackDescription}
-            />
-          )}
-        >
-          <ActiveComponent />
-        </Suspense>
+      <Suspense
+        fallback={(
+          <LoadingBarOverlay
+            isVisible
+            title={t.loading.fallbackTitle}
+            description={t.loading.fallbackDescription}
+          />
+        )}
+      >
+        <ActiveComponent />
+      </Suspense>
     </IndiceModuleShell>
   );
 }

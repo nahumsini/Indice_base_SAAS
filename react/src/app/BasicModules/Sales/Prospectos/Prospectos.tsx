@@ -60,10 +60,50 @@ import {
 import { filterOpportunitiesForPeriodView, sortOpportunities } from './utils/prospectosMetrics';
 import { initialOpportunityForm } from './utils/prospectosStatus';
 import { useProspectosTranslations } from './hooks/useProspectosTranslations';
+import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 
 interface ProspectosProps {
   learningModeActive?: boolean;
 }
+
+type ProspectosWorkspaceState = {
+  searchQuery: string;
+  focusFilter: OpportunityFocusFilter;
+  periodFilter: OpportunityPeriodFilter;
+  stageFilter: string;
+  ownerFilter: string;
+  temperatureFilter: string;
+  sourceFilter: string;
+  statusFilter: string;
+  activeView: 'table' | 'kanban' | 'agenda';
+  sortColumn: OpportunityColumnId;
+  sortDirection: 'asc' | 'desc';
+  currentPage: number;
+  pageSize: number;
+};
+
+const prospectosWorkspaceDefaults: ProspectosWorkspaceState = {
+  searchQuery: '',
+  focusFilter: 'all',
+  periodFilter: 'all',
+  stageFilter: 'all',
+  ownerFilter: 'all',
+  temperatureFilter: 'all',
+  sourceFilter: 'all',
+  statusFilter: 'all',
+  activeView: 'table',
+  sortColumn: 'opportunity',
+  sortDirection: 'asc',
+  currentPage: 1,
+  pageSize: 10,
+};
+
+const prospectosWorkspaceUrlFields: Partial<Record<keyof ProspectosWorkspaceState, string>> = {
+  searchQuery: 'q', focusFilter: 'focus', periodFilter: 'period', stageFilter: 'stage',
+  ownerFilter: 'owner', temperatureFilter: 'temperature', sourceFilter: 'source',
+  statusFilter: 'status', activeView: 'view', sortColumn: 'sort', sortDirection: 'direction',
+  currentPage: 'page', pageSize: 'pageSize',
+};
 
 export default function Prospectos({ learningModeActive = false }: ProspectosProps) {
   const { currentLanguage } = useLanguage();
@@ -102,6 +142,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   const [temperatureFilter, setTemperatureFilter] = useState('all');
   const [sourceFilter, setSourceFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [paginationState, setPaginationState] = useState({ currentPage: 1, pageSize: 10 });
   const { exchangeRateMetadata, preferredCurrency } = usePreferredBusinessCurrency();
   const [form, setForm] = useState<OpportunityFormState>({
     ...initialOpportunityForm,
@@ -119,9 +160,57 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     columnWidths,
     tableMinWidth,
     sortState,
+    setSortState,
     handleSort,
     handleResizeColumn,
   } = useProspectosViewState();
+
+  const workspaceState = useMemo<ProspectosWorkspaceState>(() => ({
+    searchQuery, focusFilter, periodFilter, stageFilter, ownerFilter, temperatureFilter,
+    sourceFilter, statusFilter, activeView, sortColumn: sortState.columnId,
+    sortDirection: sortState.direction, ...paginationState,
+  }), [
+    activeView, focusFilter, ownerFilter, paginationState, periodFilter, searchQuery,
+    sortState, sourceFilter, stageFilter, statusFilter, temperatureFilter,
+  ]);
+
+  useWorkspaceNavigationMemory({
+    moduleKey: 'sales',
+    tabKey: 'prospects',
+    state: workspaceState,
+    defaults: prospectosWorkspaceDefaults,
+    urlFields: prospectosWorkspaceUrlFields,
+    onRestore: (restored) => {
+      setSearchQuery(restored.searchQuery);
+      setFocusFilter(restored.focusFilter);
+      setPeriodFilter(restored.periodFilter);
+      setStageFilter(restored.stageFilter);
+      setOwnerFilter(restored.ownerFilter);
+      setTemperatureFilter(restored.temperatureFilter);
+      setSourceFilter(restored.sourceFilter);
+      setStatusFilter(restored.statusFilter);
+      setActiveView(restored.activeView);
+      setSortState({ columnId: restored.sortColumn, direction: restored.sortDirection });
+      setPaginationState({ currentPage: restored.currentPage, pageSize: restored.pageSize });
+    },
+  });
+
+  const resetPage = () => setPaginationState((current) => ({ ...current, currentPage: 1 }));
+  const changeFilter = <Value,>(setter: (value: Value) => void) => (value: Value) => {
+    setter(value);
+    resetPage();
+  };
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setFocusFilter('all');
+    setPeriodFilter('all');
+    setStageFilter('all');
+    setOwnerFilter('all');
+    setTemperatureFilter('all');
+    setSourceFilter('all');
+    setStatusFilter('all');
+    resetPage();
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -556,14 +645,15 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         sourceFilter={sourceFilter}
         statusFilter={statusFilter}
         ownerSelectOptions={ownerSelectOptions}
-        onSearchChange={setSearchQuery}
-        onFocusFilterChange={setFocusFilter}
-        onPeriodFilterChange={setPeriodFilter}
-        onStageFilterChange={setStageFilter}
-        onOwnerFilterChange={setOwnerFilter}
-        onTemperatureFilterChange={setTemperatureFilter}
-        onSourceFilterChange={setSourceFilter}
-        onStatusFilterChange={setStatusFilter}
+        onSearchChange={changeFilter(setSearchQuery)}
+        onFocusFilterChange={changeFilter(setFocusFilter)}
+        onPeriodFilterChange={changeFilter(setPeriodFilter)}
+        onStageFilterChange={changeFilter(setStageFilter)}
+        onOwnerFilterChange={changeFilter(setOwnerFilter)}
+        onTemperatureFilterChange={changeFilter(setTemperatureFilter)}
+        onSourceFilterChange={changeFilter(setSourceFilter)}
+        onStatusFilterChange={changeFilter(setStatusFilter)}
+        onClearFilters={handleClearFilters}
       />
 
       {!learningModeActive ? <ProspectosKpiStrip
@@ -612,7 +702,10 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
           ownerSelectOptions={ownerSelectOptions}
           resolveOpportunityOwnerValue={resolveOpportunityOwnerValue}
           getOwnerPayloadFromValue={getOwnerPayloadFromValue}
-          onSort={handleSort}
+          onSort={(columnId) => {
+            handleSort(columnId);
+            resetPage();
+          }}
           onUpdateOpportunity={handleUpdateOpportunity}
           onOpenFiles={setFilesOpportunity}
           onOpenHistory={setHistoryOpportunity}
@@ -620,6 +713,8 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
           onDelete={handleDeleteOpportunity}
           onScheduleChange={handleScheduleChange}
           onResizeColumn={handleResizeColumn}
+          paginationState={paginationState}
+          onPaginationChange={setPaginationState}
         />
       ) : null}
 

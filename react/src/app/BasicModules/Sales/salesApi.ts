@@ -104,6 +104,17 @@ export const salesApi = {
       method: 'DELETE',
     });
   },
+  commitInventoryOperation<TBalance = Record<string, unknown>, TMovement = Record<string, unknown>>(
+    payload: { balances: Record<string, unknown>[]; movements: Record<string, unknown>[] },
+  ) {
+    return apiClient<{ balances: TBalance[]; movements: TMovement[] }>(
+      `${endpoints.sales.base}/inventory-operations/commit`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
   previewCommissionRule(payload: Record<string, unknown>) {
     return apiClient<{ commissionAmount: number; currency: string }>(`${endpoints.sales.base}/commission-rules/preview`, {
       method: 'POST',

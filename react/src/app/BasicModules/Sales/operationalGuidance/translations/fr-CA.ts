@@ -118,6 +118,26 @@ export const frCA = {
         { title: 'Garder les incidents tracables', description: 'Chaque probleme doit avoir responsable, statut et prochaine action.' },
       ],
     },
+    commissions: {
+      label: 'Commissions', ctaLabel: 'Reviser les commissions', title: 'Transformer les ventes en incitatifs tracables',
+      summary: 'Utilisez Commissions pour definir les politiques, revoir les resultats et transmettre des lots controles aux RH et a la paie.',
+      value: 'Un cycle documente relie chaque incitatif a une vente admissible, une regle approuvee et un seul transfert a la paie.',
+      steps: [
+        { title: 'Definir les politiques avant le calcul', description: 'Configurez participants, produits admissibles, pourcentages et validite avant de generer les resultats.' },
+        { title: 'Reviser les resultats generes', description: 'Confirmez vente, vendeur, regle et montant avant d inclure une commission dans un lot.' },
+        { title: 'Transmettre un lot controle', description: 'Creez et suivez le transfert aux RH pour eviter les paiements doubles.' },
+      ],
+    },
+    'payment-accounts': {
+      label: 'Comptes de paiement', ctaLabel: 'Reviser les comptes de paiement', title: 'Controler les destinations d encaissement',
+      summary: 'Utilisez Comptes de paiement pour maintenir les comptes bancaires, de caisse et internes offerts aux flux commerciaux.',
+      value: 'Un catalogue partage evite les paiements vers des destinations inactives, dupliquees ou ambigues.',
+      steps: [
+        { title: 'Creer un compte verifie', description: 'Enregistrez type, devise, portee commerciale et contexte d identification securitaire avant utilisation.' },
+        { title: 'Maintenir le statut a jour', description: 'Desactivez les comptes qui ne doivent plus recevoir de nouveaux paiements sans effacer leur historique.' },
+        { title: 'Respecter la responsabilite financiere', description: 'Modifiez les comptes geres par Petite caisse uniquement dans leur flux financier proprietaire.' },
+      ],
+    },
     kpis: {
       label: 'ICP',
       ctaLabel: 'Reviser les ICP',

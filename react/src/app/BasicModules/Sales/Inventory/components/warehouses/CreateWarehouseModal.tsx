@@ -181,6 +181,7 @@ export function CreateWarehouseModal({
       ) : null}
       {view === 'create' ? (
         <WarehouseFormView
+          activeStep="identity"
           draft={draft}
           businessUnits={businessUnits}
           businesses={businesses}

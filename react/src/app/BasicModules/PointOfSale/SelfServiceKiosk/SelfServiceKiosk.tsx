@@ -18,6 +18,8 @@ import {
   type SelfServicePreticketReceipt,
 } from './selfServiceKioskApi';
 import { SourceRegisterClosedState } from './SourceRegisterClosedState';
+import { calculateAutomaticDiscounts } from '../shared/commercial/discounts';
+import { mapDiscountRule } from '../shared/commercial/discounts/services/discountRulesApi';
 
 const numberValue = (value: number | string | null | undefined) => Number(value ?? 0);
 const preticketOperation = 'pos-self-service-preticket';
@@ -166,10 +168,17 @@ export default function SelfServiceKiosk() {
     return product && quantity > 0 ? [{ product, quantity }] : [];
   }), [bootstrap?.items, cart]);
 
-  const total = cartLines.reduce(
-    (sum, line) => sum + numberValue(line.product.unitPrice) * line.quantity,
-    0,
+  const automaticDiscount = calculateAutomaticDiscounts(
+    (bootstrap?.discountRules ?? []).map(mapDiscountRule),
+    cartLines.map((line) => ({
+      key: line.product.productId,
+      amount: numberValue(line.product.unitPrice) * line.quantity,
+      productId: String(line.product.productId),
+      category: line.product.category ?? undefined,
+    })),
+    'kiosk',
   );
+  const total = automaticDiscount.total;
   const itemCount = cartLines.reduce((sum, line) => sum + line.quantity, 0);
 
   const changeQuantity = (item: SelfServiceCatalogItem, delta: number) => {
@@ -431,13 +440,17 @@ function CartPanel({ bootstrap, cartLines, total, customerName, customerEmail, c
 }) {
   const { copy, locale } = usePointOfSaleKioskTranslations();
   const itemCount = cartLines.reduce((sum, line) => sum + line.quantity, 0);
+  const subtotal = cartLines.reduce((sum, line) => sum + numberValue(line.product.unitPrice) * line.quantity, 0);
   return <div>
     {!hideHeading ? <div className="flex items-center gap-2"><span className="grid h-10 w-10 place-items-center rounded-xl bg-teal-100 text-teal-700"><ShoppingBasket className="h-5 w-5" /></span><div><h2 className="text-lg font-medium">{copy.selfServicePublic.selection}</h2><p className="text-xs text-slate-500">{itemCount} {copy.selfServicePublic.items}</p></div><span className="ml-auto rounded-full bg-teal-100 px-2.5 py-1 text-xs font-medium text-teal-800">{itemCount}</span></div> : null}
     <div className={`${hideHeading ? '' : 'mt-4'} max-h-64 space-y-2 overflow-y-auto pr-1`}>
       {cartLines.length === 0 ? <p className="rounded-xl bg-white px-3 py-10 text-center text-sm font-medium text-slate-500 dark:bg-slate-950">{copy.selfServicePublic.emptyCart}</p> : null}
       {cartLines.map(({ product, quantity }) => <div key={product.productId} className="flex items-center gap-3 rounded-xl bg-white p-3 shadow-sm dark:bg-slate-950"><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{product.name}</p><p className="text-xs text-slate-500">{quantity} × {formatCurrency(product.unitPrice, product.currencyCode, locale)}</p></div><strong className="text-sm">{formatCurrency(numberValue(product.unitPrice) * quantity, product.currencyCode, locale)}</strong><button type="button" onClick={() => onRemove(product.productId)} aria-label={copy.selfServicePublic.deleteItem(product.name)} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></button></div>)}
     </div>
-    <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-4 dark:border-slate-700"><span className="font-medium">{copy.selfServicePublic.estimatedTotal}</span><strong className="text-2xl text-teal-700">{formatCurrency(total, bootstrap.currencyCode, locale)}</strong></div>
+    <div className="mt-4 space-y-2 border-t border-slate-200 pt-4 dark:border-slate-700">
+      {subtotal > total ? <div className="flex items-center justify-between text-sm text-emerald-700"><span>{copy.selfCheckoutFrame.discount}</span><strong>-{formatCurrency(subtotal - total, bootstrap.currencyCode, locale)}</strong></div> : null}
+      <div className="flex items-center justify-between"><span className="font-medium">{copy.selfServicePublic.estimatedTotal}</span><strong className="text-2xl text-teal-700">{formatCurrency(total, bootstrap.currencyCode, locale)}</strong></div>
+    </div>
     <div className="mt-4 grid gap-3">
       <KioskCustomerField label={`${copy.selfServicePublic.name}${bootstrap.customerNameRequired ? ' *' : ` (${copy.selfServicePublic.optional})`}`} value={customerName} onChange={onNameChange} autoComplete="name" />
       <KioskCustomerField label={`${copy.selfServicePublic.email} (${copy.selfServicePublic.optional})`} value={customerEmail} onChange={onEmailChange} autoComplete="email" type="email" />

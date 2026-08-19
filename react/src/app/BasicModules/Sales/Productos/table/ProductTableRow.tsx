@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Copy, Images, PencilLine, Power, Trash2 } from 'lucide-react';
 import { Checkbox } from '../../../../components/ui/checkbox';
+import { Badge } from '../../../../components/ui/badge';
 import {
   TableCell,
   TableRow,
@@ -104,7 +105,19 @@ export function ProductTableRow({
           !hasDedicatedSkuColumn && !hasCategoryColumn && 'xl:grid-cols-[minmax(0,1fr)_minmax(150px,0.58fr)]',
         )}>
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-slate-950 dark:text-white">{product.name}</p>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <p className="min-w-0 truncate text-sm font-medium text-slate-950 dark:text-white">{product.name}</p>
+              <Badge className={cn(
+                'shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                product.stockPrepared || product.warehousePrepared
+                  ? 'border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66]'
+                  : 'border-slate-200 bg-slate-100 text-slate-600',
+              )}>
+                {product.stockPrepared || product.warehousePrepared
+                  ? t.inventoryTracking.badges.tracked
+                  : t.inventoryTracking.badges.untracked}
+              </Badge>
+            </div>
             <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-500">{product.description}</p>
             <div className="mt-2">
               <ProductHealthIndicators product={product} t={t} limit={2} />

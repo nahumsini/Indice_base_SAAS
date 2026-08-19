@@ -124,7 +124,7 @@ function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) 
         backLabel={copy.back}
         contentRef={moduleContentRef}
         currentModule="sales"
-        guide={learningModeActive && activeTab !== 'payment-accounts' && activeTab !== 'commissions' ? (
+        guide={learningModeActive ? (
           <OperationalModuleGuide
             activeTabId={activeTab}
             copy={guidanceCopy}

@@ -86,7 +86,7 @@ export function buildSaleItem(product: Product, quantity: number, taxOverride?: 
 
 export function recalculateSaleItem(
   item: SaleItem,
-  updates: Partial<Pick<SaleItem, 'price' | 'unitCost' | 'quantity' | 'discount' | 'discountType' | 'taxRate' | 'taxCode' | 'taxLabel' | 'taxJurisdiction' | 'taxIsCustom' | 'currency'>>,
+  updates: Partial<Pick<SaleItem, 'price' | 'unitCost' | 'quantity' | 'discount' | 'discountType' | 'discountRuleId' | 'taxRate' | 'taxCode' | 'taxLabel' | 'taxJurisdiction' | 'taxIsCustom' | 'currency'>>,
 ): SaleItem {
   const nextItem = {
     ...item,

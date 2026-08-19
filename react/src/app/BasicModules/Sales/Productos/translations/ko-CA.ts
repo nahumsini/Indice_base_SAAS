@@ -381,6 +381,7 @@ export const koCA = {
     requestQuote: '견적 요청',
     cart: '카탈로그 장바구니',
     emptyCart: '장바구니가 비어 있습니다.',
+    discount: '할인',
     estimatedTotal: '예상 합계',
     selectedProducts: (count: number) => `선택된 제품 ${count}개`,
     wholesaleNote: (price: string, quantity: number) => `도매 제안: ${quantity}+개부터 ${price}.`,

@@ -1,16 +1,4 @@
-import { discountRules as defaultDiscountRules } from '../data';
 import type { DiscountEligibilityContext, DiscountRule } from '../types';
-
-const DISCOUNT_RULES_STORAGE_KEY = 'indice.pos.discountRules';
-
-function reviveDiscountRule(rule: DiscountRule): DiscountRule {
-  return {
-    ...rule,
-    enabledChannels: rule.enabledChannels?.length ? rule.enabledChannels : ['pos', 'sales'],
-    startsAt: new Date(String(rule.startsAt)),
-    endsAt: new Date(String(rule.endsAt)),
-  };
-}
 
 export function calculateDiscountPreview(rule: DiscountRule, amount: number) {
   if (rule.minimumAmount && amount < rule.minimumAmount) {
@@ -28,41 +16,6 @@ export function calculateDiscountPreview(rule: DiscountRule, amount: number) {
 
 export function isDiscountActive(rule: DiscountRule, date = new Date()) {
   return rule.status === 'active' && rule.startsAt <= date && rule.endsAt >= date;
-}
-
-export function readStoredDiscountRules(): DiscountRule[] {
-  if (typeof window === 'undefined') {
-    return defaultDiscountRules;
-  }
-
-  try {
-    const serialized = window.localStorage.getItem(DISCOUNT_RULES_STORAGE_KEY);
-    if (!serialized) {
-      return defaultDiscountRules;
-    }
-
-    return (JSON.parse(serialized) as DiscountRule[]).map(reviveDiscountRule);
-  } catch (error) {
-    console.warn('Unable to read POS discount rules', error);
-    return defaultDiscountRules;
-  }
-}
-
-export function saveStoredDiscountRules(rules: DiscountRule[]) {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  try {
-    window.localStorage.setItem(DISCOUNT_RULES_STORAGE_KEY, JSON.stringify(rules));
-  } catch (error) {
-    console.warn('Unable to save POS discount rules', error);
-  }
-}
-
-export function resetStoredDiscountRules() {
-  saveStoredDiscountRules(defaultDiscountRules);
-  return defaultDiscountRules;
 }
 
 export function getDiscountRuleAmount(rule: DiscountRule, amount: number) {
@@ -103,4 +56,37 @@ export function getEligibleDiscountRules(
       return true;
     })
     .sort((first, second) => (second.priority ?? 0) - (first.priority ?? 0));
+}
+
+export function calculateAutomaticDiscounts(
+  rules: DiscountRule[],
+  lines: Array<{ key: string | number; amount: number; productId?: string; category?: string }>,
+  channel: NonNullable<DiscountEligibilityContext['channel']>,
+) {
+  const lineApplications = lines.map((line) => {
+    const candidates = getEligibleDiscountRules(rules, {
+      amount: line.amount,
+      productId: line.productId,
+      category: line.category,
+      channel,
+    }).filter((rule) => !rule.requiresAuthorization && ['product', 'category'].includes(rule.scope));
+    const rule = candidates.reduce<DiscountRule | undefined>((best, candidate) => (
+      !best || calculateDiscountPreview(candidate, line.amount) > calculateDiscountPreview(best, line.amount)
+        ? candidate : best
+    ), undefined);
+    return { key: line.key, rule, amount: rule ? calculateDiscountPreview(rule, line.amount) : 0 };
+  });
+  const subtotal = lines.reduce((sum, line) => sum + line.amount, 0);
+  const orderCandidates = getEligibleDiscountRules(rules, { amount: subtotal, scope: 'order', channel })
+    .filter((rule) => !rule.requiresAuthorization && rule.scope === 'order');
+  const orderRule = orderCandidates.reduce<DiscountRule | undefined>((best, candidate) => (
+    !best || calculateDiscountPreview(candidate, subtotal) > calculateDiscountPreview(best, subtotal)
+      ? candidate : best
+  ), undefined);
+  const orderAmount = orderRule ? calculateDiscountPreview(orderRule, subtotal) : 0;
+  const lineAmount = lineApplications.reduce((sum, application) => sum + application.amount, 0);
+  if (orderAmount >= lineAmount && orderAmount > 0) {
+    return { subtotal, discountAmount: orderAmount, total: subtotal - orderAmount, orderRule, lineApplications: [] };
+  }
+  return { subtotal, discountAmount: lineAmount, total: subtotal - lineAmount, orderRule: undefined, lineApplications };
 }

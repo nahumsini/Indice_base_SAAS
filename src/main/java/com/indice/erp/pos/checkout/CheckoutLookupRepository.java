@@ -28,12 +28,13 @@ public class CheckoutLookupRepository {
 
     public Optional<ProductSnapshot> findProduct(PosContext context, long productId) {
         return jdbcTemplate.query("""
-            SELECT id, sku, name, type, inventory_ready
+            SELECT id, sku, name, type, category, inventory_ready
             FROM sales_products
             WHERE company_id = ? AND id = ? AND deleted_at IS NULL
             """, (rs, rowNum) -> new ProductSnapshot(
-            rs.getLong("id"), rs.getString("sku"), rs.getString("name"), rs.getString("type"),
+            rs.getLong("id"), rs.getString("sku"), rs.getString("name"), rs.getString("type"), rs.getString("category"),
             rs.getBoolean("inventory_ready")
         ), context.companyId(), productId).stream().findFirst();
     }
+
 }

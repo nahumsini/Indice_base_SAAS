@@ -118,6 +118,26 @@ export const zhCA = {
         { title: '保持问题可追踪', description: '运营问题应有负责人、状态和下一步动作直到解决。' },
       ],
     },
+    commissions: {
+      label: '佣金', ctaLabel: '审核佣金', title: '将销售结果转化为可追溯的激励',
+      summary: '使用佣金定义政策、审核生成结果，并将受控批次提交给人力资源和薪资团队。',
+      value: '文档化流程可将每项激励与合格销售、已批准规则和一次薪资交接关联。',
+      steps: [
+        { title: '计算前定义政策', description: '在销售产生结果前设置参与者、合格产品、比例和有效期。' },
+        { title: '审核生成结果', description: '在将佣金纳入批次前确认销售、销售员、规则和金额。' },
+        { title: '提交受控批次', description: '创建并跟踪人力资源交接，避免重复支付。' },
+      ],
+    },
+    'payment-accounts': {
+      label: '付款账户', ctaLabel: '审核付款账户', title: '控制收款去向',
+      summary: '使用付款账户管理商业付款流程可用的银行、现金和内部账户。',
+      value: '共享账户目录可避免向已停用、重复或不明确的去向付款。',
+      steps: [
+        { title: '创建已验证账户', description: '使用前记录类型、币种、业务范围和安全识别信息。' },
+        { title: '保持状态最新', description: '停用不应再接收新付款的账户，但保留其历史。' },
+        { title: '遵守财务归属', description: '由零用金管理的账户只能在其所属财务流程中编辑。' },
+      ],
+    },
     kpis: {
       label: 'KPI',
       ctaLabel: '查看 KPI',

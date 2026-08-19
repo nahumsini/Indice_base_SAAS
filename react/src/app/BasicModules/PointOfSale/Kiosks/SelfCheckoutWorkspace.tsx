@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -26,7 +26,8 @@ import naturalWaterImage from '../../../../assets/pos/self-checkout/natural-wate
 import orangeJuiceImage from '../../../../assets/pos/self-checkout/orange-juice.png';
 import vanillaIceCreamImage from '../../../../assets/pos/self-checkout/vanilla-ice-cream.png';
 import { usePointOfSaleCatalogProducts } from '../../CommerceCore/usePointOfSaleCatalogProducts';
-import { readStoredDiscountRules } from '../shared/commercial/discounts';
+import type { DiscountRule } from '../shared/commercial/discounts';
+import { listPublishedDiscountRules } from '../shared/commercial/discounts/services/discountRulesApi';
 import { posBackendApi, type PosWarehouseSummary } from '../Sale/services/posBackendApi';
 import { usePointOfSaleKioskTranslations } from './kioskTranslations';
 import { SelfCheckoutSetupWizard, type SelfCheckoutSetupDraft } from './SelfCheckoutSetupWizard';
@@ -47,15 +48,22 @@ export function SelfCheckoutWorkspace({ startWithSetup = false }: { startWithSet
   const [loadingScope, setLoadingScope] = useState(true);
   const [scopeError, setScopeError] = useState('');
   const previewRef = useRef<HTMLDivElement>(null);
-  const discounts = useMemo(() => readStoredDiscountRules(), []);
+  const [discounts, setDiscounts] = useState<DiscountRule[]>([]);
 
   useEffect(() => {
     let mounted = true;
     setLoadingScope(true);
     void posBackendApi.context()
-      .then((context) => {
+      .then(async (context) => {
         if (!mounted) return;
-        setWarehouses(context.warehouses.filter((warehouse) => String(warehouse.status || 'active').toLowerCase() === 'active'));
+        const activeWarehouses = context.warehouses.filter((warehouse) => String(warehouse.status || 'active').toLowerCase() === 'active');
+        setWarehouses(activeWarehouses);
+        const lists = await Promise.all(activeWarehouses.map((warehouse) => listPublishedDiscountRules({
+          channel: 'kiosk', currencyCode: context.currentOpenShift?.currencyCode ?? 'MXN',
+          warehouseId: warehouse.id, unitId: warehouse.unitId, businessId: warehouse.businessId,
+        })));
+        if (!mounted) return;
+        setDiscounts(Array.from(new Map(lists.flat().map((rule) => [rule.id, rule])).values()));
         setScopeError('');
       })
       .catch((error) => {

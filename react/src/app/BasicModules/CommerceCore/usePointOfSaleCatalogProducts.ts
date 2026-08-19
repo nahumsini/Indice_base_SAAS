@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { salesApi } from '../Sales/salesApi';
 import { useSalesCrm } from '../Sales/salesCrmContext';
-import { buildPointOfSaleCatalogProducts, type CommerceInventoryBalanceSnapshot } from './posCatalog';
+import {
+  buildPointOfSaleCatalogProducts,
+  buildPurchasingCatalogProducts,
+  type CommerceInventoryBalanceSnapshot,
+} from './posCatalog';
 
 export function usePointOfSaleCatalogProducts(warehouseId?: number | string | null) {
   const { products: salesProducts } = useSalesCrm();
@@ -32,9 +36,16 @@ export function usePointOfSaleCatalogProducts(warehouseId?: number | string | nu
     [inventoryBalances, salesProducts, warehouseId],
   );
 
+  const purchasingProducts = useMemo(
+    () => buildPurchasingCatalogProducts(salesProducts, inventoryBalances, warehouseId),
+    [inventoryBalances, salesProducts, warehouseId],
+  );
+
   const saleCurrency = useMemo(
-    () => products.find((product) => product.currency)?.currency ?? 'MXN',
-    [products],
+    () => products.find((product) => product.currency)?.currency
+      ?? purchasingProducts.find((product) => product.currency)?.currency
+      ?? 'MXN',
+    [products, purchasingProducts],
   );
 
   return {
@@ -42,6 +53,7 @@ export function usePointOfSaleCatalogProducts(warehouseId?: number | string | nu
     inventoryBalances,
     isLoadingInventoryBalances,
     products,
+    purchasingProducts,
     reloadInventoryBalances,
     saleCurrency,
     salesProducts,

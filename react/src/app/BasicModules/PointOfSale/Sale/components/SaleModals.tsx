@@ -58,11 +58,13 @@ interface SaleModalsProps {
   onConfirmItemDiscount: (
     discount: number,
     type: SaleItem["discountType"],
+    rule?: DiscountRule,
   ) => void;
   onCloseGlobalDiscount: () => void;
   onConfirmGlobalDiscount: (
     discount: number,
     type: SaleItem["discountType"],
+    rule?: DiscountRule,
   ) => void;
   onCloseTicket: () => void;
 }

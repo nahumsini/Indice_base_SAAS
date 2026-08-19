@@ -11,6 +11,11 @@ import { useSalesRecords } from './Sales/hooks/useSalesRecords';
 import { useSalesTranslations } from './Sales/hooks/useSalesTranslations';
 import { commissionRulesService } from './Sales/services/commissionRulesService';
 import type { CommissionRule } from './Sales/types/commissions';
+import {
+  SalesTitleBar,
+  salesTitleBarPrimaryActionClassName,
+  salesTitleBarSecondaryActionClassName,
+} from './components/SalesTitleBar';
 
 type WorkspaceSection = 'generated' | 'cuts';
 
@@ -60,24 +65,23 @@ export default function SalesCommissions({ learningModeActive = false }: { learn
 
   return (
     <section className="space-y-5">
-      <div className="rounded-xl border border-[#FF6B5E]/25 bg-[#FF6B5E]/[0.08] p-5 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <span className="rounded-lg bg-[#FF6B5E]/15 p-2 text-[#B63B32]"><BadgePercent className="h-6 w-6" /></span>
-            <div><h2 className="text-xl font-medium text-slate-950">{t.commissionWorkspace.title}</h2><p className="mt-1 text-sm text-slate-600">{t.commissionWorkspace.subtitle}</p></div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" className="shrink-0 rounded-lg border-[#FF6B5E]/35 bg-white text-[#B63B32] shadow-sm hover:bg-[#FF6B5E]/10" onClick={() => { setSection('cuts'); setCutOpen(true); }}><CalendarRange className="h-4 w-4" />{t.commissionWorkspace.generateCut}</Button>
-            <Button className="shrink-0 rounded-lg bg-[#FF6B5E] text-[#222831] shadow-sm hover:bg-[#E85C50] focus-visible:ring-[#FF6B5E]/30" onClick={() => setRulesOpen(true)}><Settings2 className="h-4 w-4" />{t.commissionWorkspace.managePolicies}</Button>
-          </div>
-        </div>
-      </div>
+      <SalesTitleBar
+        icon={<BadgePercent className="h-6 w-6" />}
+        title={t.commissionWorkspace.title}
+        subtitle={t.commissionWorkspace.subtitle}
+        actions={(
+          <>
+            <Button variant="outline" className={salesTitleBarSecondaryActionClassName} onClick={() => { setSection('cuts'); setCutOpen(true); }}><CalendarRange className="h-4 w-4" />{t.commissionWorkspace.generateCut}</Button>
+            <Button className={salesTitleBarPrimaryActionClassName} onClick={() => setRulesOpen(true)}><Settings2 className="h-4 w-4" />{t.commissionWorkspace.managePolicies}</Button>
+          </>
+        )}
+      />
 
-      <nav className="inline-flex max-w-full flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm" aria-label={t.commissionWorkspace.sectionsLabel}>
-        {sections.map(({ id, label, icon: Icon }) => <Button key={id} type="button" variant="ghost" className={`h-11 rounded-lg px-5 text-sm font-medium focus-visible:ring-[#FF6B5E]/30 ${section === id ? 'bg-[#FF6B5E] text-[#222831] shadow-md hover:bg-[#E85C50]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'}`} onClick={() => setSection(id)}><Icon className="h-4 w-4" />{label}</Button>)}
+      <nav className="inline-flex max-w-full flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900" aria-label={t.commissionWorkspace.sectionsLabel}>
+        {sections.map(({ id, label, icon: Icon }) => <Button key={id} type="button" variant="ghost" className={`h-11 rounded-lg px-5 text-sm font-medium focus-visible:ring-[#FF6B5E]/30 ${section === id ? 'bg-[#FF6B5E] text-[#222831] shadow-md hover:bg-[#E85C50]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'}`} onClick={() => setSection(id)}><Icon className="h-4 w-4" />{label}</Button>)}
       </nav>
 
-      {error ? <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div> : null}
+      {error ? <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-300">{error}</div> : null}
 
       {section === 'generated' ? <CommissionsView learningModeActive={learningModeActive} sales={records} rules={rules} t={t} section="generated" /> : null}
       {section === 'cuts' ? <CommissionsView learningModeActive={learningModeActive} sales={records} rules={rules} t={t} section="cuts" cutCreated={cutCreated} cutRefreshKey={cutRefreshKey} /> : null}

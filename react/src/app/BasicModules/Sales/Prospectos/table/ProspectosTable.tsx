@@ -106,6 +106,8 @@ export function ProspectosTable({
   onDelete,
   onScheduleChange,
   onResizeColumn,
+  paginationState,
+  onPaginationChange,
 }: {
   copy: ProspectosCopy;
   opportunities: SalesOpportunity[];
@@ -125,6 +127,8 @@ export function ProspectosTable({
   onDelete: (opportunity: SalesOpportunity) => void;
   onScheduleChange: (opportunity: SalesOpportunity, date: string, time: string) => void;
   onResizeColumn: (columnId: OpportunityColumnId, width: number) => void;
+  paginationState?: { currentPage: number; pageSize: number };
+  onPaginationChange?: (state: { currentPage: number; pageSize: number }) => void;
 }) {
   const {
     currentPage,
@@ -138,7 +142,9 @@ export function ProspectosTable({
     totalCount,
     totalPages,
   } = useTablePagination({
-    resetKey: `${sortState.columnId}:${sortState.direction}:${opportunities.map((opportunity) => opportunity.id).join('|')}`,
+    controlledCurrentPage: paginationState?.currentPage,
+    controlledPageSize: paginationState?.pageSize,
+    onPaginationChange,
     rows: opportunities,
   });
 

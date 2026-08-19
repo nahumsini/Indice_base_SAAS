@@ -39,6 +39,14 @@ function shouldExposeInPointOfSale(product: SalesCatalogItem) {
   return product.status === 'Active' && (product.posPrepared || product.visibility === 'POS ready');
 }
 
+function shouldExposeInPurchasing(product: SalesCatalogItem) {
+  if (product.status !== 'Active' || product.backendId == null) return false;
+  return product.type === 'Product'
+    || product.type === 'Operational item'
+    || product.stockPrepared
+    || product.warehousePrepared;
+}
+
 function buildStockByProductId(balances: CommerceInventoryBalanceSnapshot[]) {
   return balances.reduce<Map<string, StockSnapshot>>((stockByProductId, balance) => {
     const productId = String(balance.productId ?? '');
@@ -119,5 +127,21 @@ export function buildPointOfSaleCatalogProducts(
 
   return products
     .filter(shouldExposeInPointOfSale)
+    .map((product) => toPointOfSaleProduct(product, stockForProduct(product, stockByProductId)));
+}
+
+export function buildPurchasingCatalogProducts(
+  products: SalesCatalogItem[],
+  balances: CommerceInventoryBalanceSnapshot[],
+  warehouseId?: number | string | null,
+) {
+  const selectedWarehouseId = warehouseId == null ? '' : String(warehouseId);
+  const warehouseBalances = selectedWarehouseId
+    ? balances.filter((balance) => String(balance.warehouseId ?? '') === selectedWarehouseId)
+    : balances;
+  const stockByProductId = buildStockByProductId(warehouseBalances);
+
+  return products
+    .filter(shouldExposeInPurchasing)
     .map((product) => toPointOfSaleProduct(product, stockForProduct(product, stockByProductId)));
 }

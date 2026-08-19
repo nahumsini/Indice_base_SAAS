@@ -18,7 +18,7 @@ interface DiscountModalProps {
   currentDiscountType: 'percentage' | 'fixed';
   currency?: string;
   eligibleRules?: DiscountRule[];
-  onConfirm: (discount: number, type: 'percentage' | 'fixed') => void;
+  onConfirm: (discount: number, type: 'percentage' | 'fixed', rule?: DiscountRule) => void;
 }
 
 export function DiscountModal({
@@ -36,6 +36,7 @@ export function DiscountModal({
   const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>(currentDiscountType);
   const [discount, setDiscount] = useState(currentDiscount.toString());
   const [error, setError] = useState('');
+  const [selectedRule, setSelectedRule] = useState<DiscountRule | undefined>();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const formatCurrency = (amount: number) => new Intl.NumberFormat('es-MX', {
@@ -48,6 +49,7 @@ export function DiscountModal({
       setDiscountType(currentDiscountType);
       setDiscount(currentDiscount.toString());
       setError('');
+      setSelectedRule(undefined);
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen, currentDiscount, currentDiscountType]);
@@ -77,7 +79,22 @@ export function DiscountModal({
       return;
     }
 
-    onConfirm(nextDiscountValue, discountType);
+    if (selectedRule?.evaluatedDiscountAmount != null
+      && discountAmount > selectedRule.evaluatedDiscountAmount + 0.005) {
+      setError(`La regla permite como máximo ${formatCurrency(selectedRule.evaluatedDiscountAmount)}.`);
+      return;
+    }
+
+    if (nextDiscountValue > 0 && !selectedRule) {
+      setError('Selecciona una regla autorizada para aplicar el descuento.');
+      return;
+    }
+    if (selectedRule?.requiresAuthorization && selectedRule.currentUserCanAuthorize === false) {
+      setError('Esta regla requiere autorizacion de supervisor.');
+      return;
+    }
+
+    onConfirm(nextDiscountValue, discountType, selectedRule);
     onClose();
   };
 
@@ -87,16 +104,15 @@ export function DiscountModal({
   };
 
   const handleApplyRule = (rule: DiscountRule) => {
-    if (rule.discountType === 'percentage') {
-      setDiscountType('percentage');
-      setDiscount(String(rule.value));
-      setError(rule.requiresAuthorization ? 'Esta regla requiere autorizacion de supervisor antes de cobrar.' : '');
-      return;
-    }
-
+    setSelectedRule(rule);
     setDiscountType('fixed');
-    setDiscount(String(Number((rule.value / Math.max(itemQuantity, 1)).toFixed(2))));
-    setError(rule.requiresAuthorization ? 'Esta regla requiere autorizacion de supervisor antes de cobrar.' : '');
+    const effectiveAmount = rule.evaluatedDiscountAmount ?? (rule.discountType === 'percentage'
+      ? baseTotal * (rule.value / 100)
+      : rule.value);
+    setDiscount(String(Number((effectiveAmount / Math.max(itemQuantity, 1)).toFixed(4))));
+    setError(rule.requiresAuthorization && rule.currentUserCanAuthorize === false
+      ? 'Esta regla requiere autorizacion de supervisor.'
+      : '');
   };
 
   if (!isOpen) {
@@ -173,7 +189,7 @@ export function DiscountModal({
                   key={rule.id}
                   type="button"
                   onClick={() => handleApplyRule(rule)}
-                  className="flex w-full items-center justify-between gap-3 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-left text-sm transition hover:bg-orange-100 dark:border-orange-800 dark:bg-orange-900/20 dark:hover:bg-orange-900/30"
+                  className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-sm transition ${selectedRule?.id === rule.id ? 'border-orange-500 bg-orange-100 ring-2 ring-orange-500/20 dark:bg-orange-900/40' : 'border-orange-200 bg-orange-50 hover:bg-orange-100 dark:border-orange-800 dark:bg-orange-900/20 dark:hover:bg-orange-900/30'}`}
                 >
                   <span className="min-w-0">
                     <span className="block truncate font-medium text-gray-950 dark:text-white">{rule.name}</span>

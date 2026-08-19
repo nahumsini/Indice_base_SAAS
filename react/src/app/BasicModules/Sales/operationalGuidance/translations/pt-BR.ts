@@ -118,6 +118,26 @@ export const ptBR = {
         { title: 'Mantenha incidentes rastreaveis', description: 'Problemas precisam de responsavel, status e proxima acao ate a solucao.' },
       ],
     },
+    commissions: {
+      label: 'Comissões', ctaLabel: 'Revisar comissões', title: 'Transforme vendas em incentivos rastreáveis',
+      summary: 'Use Comissões para definir políticas, revisar resultados e enviar lotes controlados para RH e folha de pagamento.',
+      value: 'Um ciclo documentado conecta cada incentivo a uma venda elegível, uma regra aprovada e um único repasse para a folha.',
+      steps: [
+        { title: 'Defina políticas antes do cálculo', description: 'Configure participantes, produtos elegíveis, percentuais e validade antes de gerar resultados.' },
+        { title: 'Revise os resultados gerados', description: 'Confirme venda, vendedor, regra e valor antes de incluir uma comissão no lote.' },
+        { title: 'Envie um lote controlado', description: 'Crie e acompanhe o repasse ao RH para evitar pagamentos duplicados.' },
+      ],
+    },
+    'payment-accounts': {
+      label: 'Contas de pagamento', ctaLabel: 'Revisar contas de pagamento', title: 'Controle os destinos de recebimento',
+      summary: 'Use Contas de pagamento para manter as contas bancárias, de caixa e internas disponíveis nos fluxos comerciais.',
+      value: 'Um catálogo compartilhado evita pagamentos para destinos inativos, duplicados ou pouco claros.',
+      steps: [
+        { title: 'Crie uma conta verificada', description: 'Registre tipo, moeda, escopo empresarial e contexto identificador seguro antes de usar a conta.' },
+        { title: 'Mantenha o status atualizado', description: 'Desative contas que não devem receber novos pagamentos sem apagar o histórico.' },
+        { title: 'Respeite a responsabilidade financeira', description: 'Edite contas administradas pelo Caixa pequeno somente no fluxo financeiro proprietário.' },
+      ],
+    },
     kpis: {
       label: 'KPIs',
       ctaLabel: 'Revisar KPIs',

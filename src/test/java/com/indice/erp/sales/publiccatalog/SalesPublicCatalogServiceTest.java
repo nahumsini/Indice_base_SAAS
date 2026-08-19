@@ -226,7 +226,7 @@ class SalesPublicCatalogServiceTest {
             "code", "companyName", "unitName", "businessName", "title", "description",
             "coverImageUrl", "contactCtaLabel", "contactMethod", "contactValue", "showPrices",
             "showWholesalePrices", "showStockStatus", "showItemTypeBadges", "showCategories",
-            "allowCart", "allowPurchaseRequest", "submissionPolicy", "items");
+            "allowCart", "allowPurchaseRequest", "submissionPolicy", "items", "discountRules");
         assertThat(payload).doesNotContainKeys("catalogId", "companyId", "unitId", "businessId");
         assertThat(payload).containsEntry("companyName", catalog.companyName())
             .containsEntry("unitName", catalog.unitName())

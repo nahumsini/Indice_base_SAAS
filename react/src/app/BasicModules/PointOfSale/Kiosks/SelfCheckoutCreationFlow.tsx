@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePointOfSaleCatalogProducts } from '../../CommerceCore/usePointOfSaleCatalogProducts';
-import { readStoredDiscountRules } from '../shared/commercial/discounts';
+import type { DiscountRule } from '../shared/commercial/discounts';
+import { listPublishedDiscountRules } from '../shared/commercial/discounts/services/discountRulesApi';
 import { posBackendApi, type PosWarehouseSummary } from '../Sale/services/posBackendApi';
 import { usePointOfSaleKioskTranslations } from './kioskTranslations';
 import { posKioskAdminApi, type PosKioskAdminItem } from './posKioskAdminApi';
@@ -15,7 +16,7 @@ export function SelfCheckoutCreationFlow({
 }) {
   const { copy } = usePointOfSaleKioskTranslations();
   const { products } = usePointOfSaleCatalogProducts();
-  const discounts = useMemo(() => readStoredDiscountRules(), []);
+  const [discounts, setDiscounts] = useState<DiscountRule[]>([]);
   const [warehouses, setWarehouses] = useState<PosWarehouseSummary[]>([]);
   const [loadingScope, setLoadingScope] = useState(true);
   const [scopeError, setScopeError] = useState('');
@@ -25,11 +26,18 @@ export function SelfCheckoutCreationFlow({
   useEffect(() => {
     let mounted = true;
     void posBackendApi.context()
-      .then((context) => {
+      .then(async (context) => {
         if (!mounted) return;
-        setWarehouses(context.warehouses.filter((warehouse) => (
+        const activeWarehouses = context.warehouses.filter((warehouse) => (
           String(warehouse.status || 'active').toLowerCase() === 'active'
-        )));
+        ));
+        setWarehouses(activeWarehouses);
+        const lists = await Promise.all(activeWarehouses.map((warehouse) => listPublishedDiscountRules({
+          channel: 'kiosk', currencyCode: context.currentOpenShift?.currencyCode ?? 'MXN',
+          warehouseId: warehouse.id, unitId: warehouse.unitId, businessId: warehouse.businessId,
+        })));
+        if (!mounted) return;
+        setDiscounts(Array.from(new Map(lists.flat().map((rule) => [rule.id, rule])).values()));
         setScopeError('');
       })
       .catch((error) => {

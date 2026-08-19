@@ -7,6 +7,9 @@ import com.indice.erp.pos.cashregister.CashRegisterService;
 import com.indice.erp.pos.checkout.dto.PosCheckoutRequest;
 import com.indice.erp.pos.checkout.dto.PosCheckoutResponse;
 import com.indice.erp.pos.checkout.dto.PosPrintableSummary;
+import com.indice.erp.pos.discount.DiscountDtos.EvaluationRequest;
+import com.indice.erp.pos.discount.DiscountDtos.RuleResponse;
+import com.indice.erp.pos.discount.DiscountRuleService;
 import com.indice.erp.pos.payment.PaymentInsertCommand;
 import com.indice.erp.pos.payment.PaymentMapper;
 import com.indice.erp.pos.payment.PaymentRepository;
@@ -26,6 +29,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class CheckoutService {
@@ -43,7 +47,9 @@ public class CheckoutService {
     private final PaymentMapper paymentMapper;
     private final CheckoutCalculator calculator;
     private final CheckoutValidator validator;
+    private final DiscountRuleService discountRuleService;
 
+    @Autowired
     public CheckoutService(
             CashRegisterService cashRegisterService,
             ShiftRepository shiftRepository,
@@ -55,7 +61,8 @@ public class CheckoutService {
             TicketMapper ticketMapper,
             PaymentMapper paymentMapper,
             CheckoutCalculator calculator,
-            CheckoutValidator validator) {
+            CheckoutValidator validator,
+            DiscountRuleService discountRuleService) {
         this.cashRegisterService = cashRegisterService;
         this.shiftRepository = shiftRepository;
         this.lookupRepository = lookupRepository;
@@ -67,6 +74,23 @@ public class CheckoutService {
         this.paymentMapper = paymentMapper;
         this.calculator = calculator;
         this.validator = validator;
+        this.discountRuleService = discountRuleService;
+    }
+
+    CheckoutService(
+            CashRegisterService cashRegisterService,
+            ShiftRepository shiftRepository,
+            CheckoutLookupRepository lookupRepository,
+            SalesRecordSummaryRepository salesRecordSummaryRepository,
+            TicketRepository ticketRepository,
+            PaymentRepository paymentRepository,
+            InventoryDeductionService inventoryDeductionService,
+            TicketMapper ticketMapper,
+            PaymentMapper paymentMapper,
+            CheckoutCalculator calculator,
+            CheckoutValidator validator) {
+        this(cashRegisterService, shiftRepository, lookupRepository, salesRecordSummaryRepository, ticketRepository,
+            paymentRepository, inventoryDeductionService, ticketMapper, paymentMapper, calculator, validator, null);
     }
 
     @Transactional
@@ -80,6 +104,8 @@ public class CheckoutService {
         requireShiftCurrency(shift, currency);
         var customer = customer(context, request.customerId());
         var lines = calculator.lines(request.items(), currency, productResolver(context));
+        var appliedDiscountRules = validateDiscountRules(
+            context, request, lines, currency, register.warehouseId(), register.unitId(), register.businessId());
         var payments = calculator.payments(request.payments(), currency);
         var totals = calculator.totals(lines, payments);
         validator.validateLines(lines);
@@ -101,6 +127,7 @@ public class CheckoutService {
             trimToNull(request.notes()), context.userId(), metadataJson(inventoryExpected)
         ));
         var itemRecords = ticketRepository.insertItems(context, ticket.id(), itemCommands(lines));
+        recordDiscountApplications(context, ticket.id(), lines, itemRecords, appliedDiscountRules);
         inventoryDeductionService.deduct(context, shift, ticket, lines, itemRecords);
         var paymentRecords = paymentRepository.insertAll(context, ticket.id(), paymentCommands(context, shift, payments));
         increaseShiftExpectedCash(context, shift, totals.cashPaidAmount());
@@ -113,6 +140,88 @@ public class CheckoutService {
                 ticket.subtotalAmount(), ticket.discountAmount(), ticket.taxAmount(), ticket.totalAmount(),
                 ticket.paidAmount(), ticket.completedAt())
         );
+    }
+
+    private List<RuleResponse> validateDiscountRules(
+            PosContext context,
+            PosCheckoutRequest request,
+            List<CheckoutLine> lines,
+            String currency,
+            Long warehouseId,
+            Long unitId,
+            Long businessId) {
+        var validated = new java.util.ArrayList<RuleResponse>(lines.size());
+        var orderAmount = lines.stream().map(line -> line.quantity().multiply(line.unitPrice()))
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        for (var index = 0; index < lines.size(); index++) {
+            var line = lines.get(index);
+            var item = request.items().get(index);
+            if (line.discountAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                validated.add(null);
+                continue;
+            }
+            if (item.discountRuleId() == null) {
+                throw PosApiException.badRequest("A discount rule is required for every discounted item.");
+            }
+            if (discountRuleService == null) {
+                throw PosApiException.badRequest("Discount validation is unavailable.");
+            }
+            var product = line.productId() == null ? null : lookupRepository.findProduct(context, line.productId()).orElse(null);
+            var evaluation = new EvaluationRequest(
+                "POS", line.quantity().multiply(line.unitPrice()), line.productId(),
+                product == null ? null : product.category(), null, "ORDER", currency, warehouseId,
+                unitId, businessId);
+            validated.add(discountRuleService.requireApplicable(
+                context, item.discountRuleId(), evaluation, line.discountAmount(), orderAmount));
+        }
+        validateAggregateDiscounts(context, lines, validated, currency, warehouseId, unitId, businessId, orderAmount);
+        return validated;
+    }
+
+    private void validateAggregateDiscounts(
+            PosContext context,
+            List<CheckoutLine> lines,
+            List<RuleResponse> rules,
+            String currency,
+            Long warehouseId,
+            Long unitId,
+            Long businessId,
+            BigDecimal orderAmount) {
+        var ruleIds = rules.stream().filter(java.util.Objects::nonNull).map(RuleResponse::id).distinct().toList();
+        for (var ruleId : ruleIds) {
+            var firstIndex = java.util.stream.IntStream.range(0, rules.size())
+                .filter(index -> rules.get(index) != null && rules.get(index).id() == ruleId)
+                .findFirst().orElseThrow();
+            var baseAmount = java.util.stream.IntStream.range(0, rules.size())
+                .filter(index -> rules.get(index) != null && rules.get(index).id() == ruleId)
+                .mapToObj(index -> lines.get(index).quantity().multiply(lines.get(index).unitPrice()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+            var discountAmount = java.util.stream.IntStream.range(0, rules.size())
+                .filter(index -> rules.get(index) != null && rules.get(index).id() == ruleId)
+                .mapToObj(index -> lines.get(index).discountAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+            var line = lines.get(firstIndex);
+            var product = line.productId() == null ? null : lookupRepository.findProduct(context, line.productId()).orElse(null);
+            var evaluation = new EvaluationRequest("POS", baseAmount, line.productId(),
+                product == null ? null : product.category(), null, "ORDER", currency, warehouseId,
+                unitId, businessId);
+            discountRuleService.requireApplicable(context, ruleId, evaluation, discountAmount, orderAmount);
+        }
+    }
+
+    private void recordDiscountApplications(
+            PosContext context,
+            long ticketId,
+            List<CheckoutLine> lines,
+            List<com.indice.erp.pos.ticket.TicketItemRecord> itemRecords,
+            List<RuleResponse> appliedRules) {
+        for (var index = 0; index < appliedRules.size(); index++) {
+            var rule = appliedRules.get(index);
+            if (rule != null) {
+                discountRuleService.recordApplication(
+                    context, rule, ticketId, itemRecords.get(index).id(), lines.get(index).discountAmount());
+            }
+        }
     }
 
     private CheckoutCalculator.ProductResolver productResolver(PosContext context) {

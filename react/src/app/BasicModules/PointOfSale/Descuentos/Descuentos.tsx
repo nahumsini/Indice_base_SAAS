@@ -15,9 +15,6 @@ import { usePointOfSaleCatalogProducts } from '../../CommerceCore/usePointOfSale
 import {
   calculateDiscountPreview,
   getEligibleDiscountRules,
-  readStoredDiscountRules,
-  resetStoredDiscountRules,
-  saveStoredDiscountRules,
   type DiscountRule,
   type DiscountRuleStatus,
   type DiscountScope,
@@ -31,11 +28,14 @@ import {
 import { DiscountKpiCard } from './components/DiscountKpiCard';
 import { DiscountRuleModal } from './components/DiscountRuleModal';
 import { useLearningModeHeaderActions } from '../../../learningMode';
+import { useDiscountRules } from './hooks/useDiscountRules';
 
 const statusLabels: Record<DiscountRuleStatus, string> = {
   active: 'Activa',
   scheduled: 'Programada',
   expired: 'Vencida',
+  paused: 'Pausada',
+  archived: 'Archivada',
   inactive: 'Inactiva',
 };
 
@@ -51,6 +51,8 @@ const statusClasses: Record<DiscountRuleStatus, string> = {
   active: 'border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-900/30 dark:text-emerald-300',
   scheduled: 'border-blue-200 bg-blue-100 text-blue-700 dark:border-blue-500/30 dark:bg-blue-900/30 dark:text-blue-300',
   expired: 'border-red-200 bg-red-100 text-red-700 dark:border-red-500/30 dark:bg-red-900/30 dark:text-red-300',
+  paused: 'border-amber-200 bg-amber-100 text-amber-700 dark:border-amber-500/30 dark:bg-amber-900/30 dark:text-amber-300',
+  archived: 'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200',
   inactive: 'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200',
 };
 
@@ -62,7 +64,7 @@ const formatCurrency = (amount: number, currency = 'MXN') => new Intl.NumberForm
 export default function Descuentos() {
   const learningModeActive = useLearningModeHeaderActions()?.active ?? false;
   const { products, saleCurrency } = usePointOfSaleCatalogProducts();
-  const [rules, setRules] = useState<DiscountRule[]>(() => readStoredDiscountRules());
+  const { rules, isLoading, isSaving, error, reload, save, toggle } = useDiscountRules();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<DiscountRuleStatus | 'all'>('all');
   const [scope, setScope] = useState<DiscountScope | 'all'>('all');
@@ -75,7 +77,10 @@ export default function Descuentos() {
   ), [products]);
 
   const productOptions = useMemo(() => (
-    products.map((product) => ({ id: product.id, name: product.name })).sort((a, b) => a.name.localeCompare(b.name))
+    products
+      .filter((product) => product.salesProductBackendId)
+      .map((product) => ({ id: String(product.salesProductBackendId), name: product.name }))
+      .sort((a, b) => a.name.localeCompare(b.name))
   ), [products]);
 
   const filteredRules = useMemo(() => rules.filter((rule) => {
@@ -112,33 +117,23 @@ export default function Descuentos() {
     previewImpact: activeEligibleRules.reduce((sum, rule) => sum + calculateDiscountPreview(rule, previewAmount), 0),
   }), [activeEligibleRules, previewAmount, rules]);
 
-  const persistRules = (nextRules: DiscountRule[], message: string) => {
-    setRules(nextRules);
-    saveStoredDiscountRules(nextRules);
-    setNotice(message);
+  const saveRule = async (rule: DiscountRule) => {
+    try {
+      const saved = await save({ ...rule, currencyCode: saleCurrency });
+      setNotice(`Regla "${saved.name}" guardada para ${formatChannels(saved)}.`);
+      setEditingRule(null);
+    } catch {
+      // The hook exposes the backend message in the page and keeps the modal open.
+    }
   };
 
-  const saveRule = (rule: DiscountRule) => {
-    const nextRules = rules.some((item) => item.id === rule.id)
-      ? rules.map((item) => (item.id === rule.id ? rule : item))
-      : [rule, ...rules];
-
-    persistRules(nextRules, `Regla "${rule.name}" guardada para ${formatChannels(rule)}.`);
-    setEditingRule(null);
-  };
-
-  const toggleRuleStatus = (rule: DiscountRule) => {
-    const nextStatus: DiscountRuleStatus = rule.status === 'active' ? 'inactive' : 'active';
-    persistRules(
-      rules.map((item) => (item.id === rule.id ? { ...item, status: nextStatus } : item)),
-      `Regla "${rule.name}" ${nextStatus === 'active' ? 'activada' : 'desactivada'}.`,
-    );
-  };
-
-  const restoreDefaults = () => {
-    const defaultRules = resetStoredDiscountRules();
-    setRules(defaultRules);
-    setNotice('Reglas de descuento restauradas a la configuracion base.');
+  const toggleRuleStatus = async (rule: DiscountRule) => {
+    try {
+      const saved = await toggle(rule);
+      setNotice(`Regla "${saved.name}" ${saved.status === 'active' ? 'activada' : 'pausada'}.`);
+    } catch {
+      // The hook exposes the backend message.
+    }
   };
 
   return (
@@ -152,11 +147,12 @@ export default function Descuentos() {
         actions={(
           <>
           <button
-            onClick={restoreDefaults}
+            onClick={() => void reload()}
+            disabled={isLoading || isSaving}
             className={pointOfSaleTitleBarSecondaryActionClassName}
           >
             <RefreshCw className="h-4 w-4" />
-            Restaurar
+            Actualizar
           </button>
           <button
             onClick={() => setEditingRule(createEmptyRule())}
@@ -187,6 +183,12 @@ export default function Descuentos() {
       {notice && (
         <div className="rounded-[20px] border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100">
           {notice}
+        </div>
+      )}
+
+      {error && (
+        <div role="alert" className="rounded-[20px] border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-100">
+          {error}
         </div>
       )}
 
@@ -232,6 +234,9 @@ export default function Descuentos() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+              {isLoading ? (
+                <tr><td colSpan={10} className="px-5 py-12 text-center text-slate-500">Cargando reglas de descuento...</td></tr>
+              ) : null}
               {rulesPagination.paginatedRows.map((rule) => (
                 <tr key={rule.id} className="transition hover:bg-slate-50/80 dark:hover:bg-gray-700/40">
                   <td className="px-5 py-4">
@@ -248,7 +253,7 @@ export default function Descuentos() {
                   <td className="px-5 py-4"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${statusClasses[rule.status]}`}>{statusLabels[rule.status]}</span></td>
                   <td className="px-5 py-4 text-right">
                     <div className="inline-flex items-center justify-end gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-gray-900">
-                      <button onClick={() => toggleRuleStatus(rule)} className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 transition hover:border-[#FF6B5E]/35 hover:bg-[#FFF3F1] hover:text-[#B63B32] dark:border-slate-700 dark:bg-gray-800 dark:text-slate-200 dark:hover:bg-[#FF6B5E]/10">
+                      <button disabled={isSaving || rule.status === 'archived' || rule.status === 'expired'} onClick={() => void toggleRuleStatus(rule)} className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 transition hover:border-[#FF6B5E]/35 hover:bg-[#FFF3F1] hover:text-[#B63B32] disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-gray-800 dark:text-slate-200 dark:hover:bg-[#FF6B5E]/10">
                         {rule.status === 'active' ? 'Pausar' : 'Activar'}
                       </button>
                       <button onClick={() => setEditingRule(rule)} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] transition hover:bg-[#FF6B5E]/20 dark:border-[#FF6B5E]/30 dark:text-[#FFB0AA]" aria-label={`Editar regla ${rule.name}`} title="Editar regla">
@@ -275,7 +280,8 @@ export default function Descuentos() {
         categories={categories}
         products={productOptions}
         onClose={() => setEditingRule(null)}
-        onSave={saveRule}
+        onSave={(rule) => void saveRule(rule)}
+        isSaving={isSaving}
       />
     </div>
   );
@@ -289,6 +295,7 @@ function createEmptyRule(): DiscountRule {
     scope: 'order',
     discountType: 'percentage',
     value: 5,
+    currencyCode: 'MXN',
     startsAt: new Date(),
     endsAt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate()),
     requiresAuthorization: false,

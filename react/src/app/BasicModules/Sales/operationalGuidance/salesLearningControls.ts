@@ -454,6 +454,82 @@ export const salesLearningControls: Partial<Record<
       },
     }),
   ],
+  commissions: [
+    createControl({
+      id: 'commission-policies', emoji: '⚙️', kind: 'Botón de configuración', title: 'Administrar políticas',
+      purpose: 'Define participantes, productos elegibles, porcentajes y vigencia antes de calcular incentivos.',
+      behavior: 'Abre el administrador de reglas sin modificar ventas ni resultados ya cerrados.',
+      whenToUse: 'Configúralo antes de iniciar un periodo o cuando cambie formalmente el esquema de compensación.',
+      result: 'Evita cálculos improvisados y conserva una regla explicable para cada resultado.', focus: 'las reglas de comisión',
+      examples: {
+        emily: 'Emily estandariza porcentajes por producto y vigencia para que todas sus cafeterías calculen incentivos con el mismo criterio.',
+        juanito: 'Juanito relaciona cada porcentaje con una regla aprobada. Puede reconstruir por qué se generó cada importe.',
+        camila: 'Camila documenta el acuerdo antes del periodo. El pago deja de depender de conversaciones recordadas de forma distinta.',
+      },
+    }),
+    createControl({
+      id: 'commission-sections-filters', emoji: '🔎', kind: 'Vistas y filtros', title: 'Revisar generadas y cortes',
+      purpose: 'Separa los resultados calculados de los lotes ya preparados para Recursos Humanos.',
+      behavior: 'Cambia de sección y filtra por responsable, producto, periodo, estado o código sin alterar los registros.',
+      whenToUse: 'Úsalo para validar resultados antes del corte y para rastrear entregas posteriores.',
+      result: 'Distingue claramente lo calculado de lo formalmente enviado a pago.', focus: 'la revisión de comisiones',
+      examples: {
+        emily: 'Emily revisa resultados por sucursal y después consulta el corte entregado al equipo responsable.',
+        juanito: 'Juanito filtra el periodo exacto y compara los importes con el corte sin mezclar ciclos distintos.',
+        camila: 'Camila identifica qué comisiones siguen pendientes y cuáles ya forman parte de un corte controlado.',
+      },
+    }),
+    createControl({
+      id: 'commission-cut', emoji: '🧾c', kind: 'Botón de acción', title: 'Generar corte',
+      purpose: 'Agrupa resultados validados y crea un traspaso trazable para Recursos Humanos y nómina.',
+      behavior: 'Abre el formulario del periodo, valida los registros elegibles y genera un corte identificable.',
+      whenToUse: 'Úsalo una sola vez cuando el periodo y sus resultados ya fueron revisados.',
+      result: 'Reduce el riesgo de omisiones y pagos duplicados.', focus: 'el traspaso controlado a nómina',
+      examples: {
+        emily: 'Emily crea un corte por periodo y entrega a Recursos Humanos una sola versión revisada.',
+        juanito: 'Juanito conserva código, fechas, empleados e importes para conciliar el pago posteriormente.',
+        camila: 'Camila deja de enviar sumas sueltas por mensaje y entrega un corte que el equipo puede rastrear.',
+      },
+    }),
+  ],
+  'payment-accounts': [
+    createControl({
+      id: 'payment-account-columns', emoji: '🧩', kind: 'Botón de configuración', title: 'Columnas',
+      purpose: 'Define qué datos de identificación, alcance, moneda y estado aparecen en la tabla.',
+      behavior: 'Abre el configurador para mostrar, ocultar y ordenar columnas sin modificar cuentas.',
+      whenToUse: 'Úsalo antes de una revisión financiera o comercial enfocada.',
+      result: 'Hace visibles los datos necesarios sin exponer información innecesaria.', focus: 'la lectura segura de cuentas de pago',
+      examples: {
+        emily: 'Emily muestra negocio, unidad, moneda y estado para confirmar qué cuenta corresponde a cada cafetería.',
+        juanito: 'Juanito organiza tipo, identificador y saldo para conciliar sin perder el contexto empresarial.',
+        camila: 'Camila deja visibles nombre y estado para que el equipo seleccione una cuenta vigente sin confusiones.',
+      },
+    }),
+    createControl({
+      id: 'payment-account-create', emoji: '➕', kind: 'Botón de acción', title: 'Agregar cuenta de pago',
+      purpose: 'Registra un destino verificado para los cobros y pagos del negocio.',
+      behavior: 'Abre el formulario y valida tipo, moneda, alcance e identificación antes de guardar.',
+      whenToUse: 'Úsalo cuando exista una nueva cuenta autorizada que deba participar en el flujo.',
+      result: 'Mantiene un catálogo único y reduce destinos duplicados o informales.', focus: 'el alta controlada de cuentas',
+      examples: {
+        emily: 'Emily registra la cuenta de una nueva sucursal con moneda y alcance correctos antes de recibir pagos.',
+        juanito: 'Juanito valida el identificador y el negocio asociado para que cada movimiento tenga un destino explicable.',
+        camila: 'Camila agrega la cuenta autorizada y evita que el equipo copie datos bancarios desde mensajes antiguos.',
+      },
+    }),
+    createControl({
+      id: 'payment-account-status', emoji: '🛡️', kind: 'Filtros y acciones', title: 'Buscar, editar y controlar estado',
+      purpose: 'Encuentra cuentas por tipo o estado y mantiene disponible solo lo que puede usarse.',
+      behavior: 'Los filtros acotan la tabla; las acciones editan, activan, desactivan o eliminan con las protecciones correspondientes.',
+      whenToUse: 'Úsalo cuando cambien los datos o una cuenta deje de aceptar nuevas operaciones.',
+      result: 'Evita utilizar cuentas inactivas y conserva el límite con Caja chica.', focus: 'la vigencia del catálogo financiero',
+      examples: {
+        emily: 'Emily desactiva una cuenta anterior sin borrar el historial que sus gerentes todavía necesitan consultar.',
+        juanito: 'Juanito filtra cuentas activas y confirma moneda y alcance antes de registrar un pago.',
+        camila: 'Camila reconoce una cuenta de Caja chica y la administra desde su flujo propietario en lugar de duplicarla.',
+      },
+    }),
+  ],
   contracts: [
     createControl({
       id: 'create-contract',

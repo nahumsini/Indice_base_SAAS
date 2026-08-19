@@ -8,6 +8,8 @@ import com.indice.erp.kiosk.engine.KioskRegistryService;
 import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
 import com.indice.erp.pos.PosApiException;
 import com.indice.erp.pos.PosContext;
+import com.indice.erp.pos.discount.DiscountDtos.EvaluationRequest;
+import com.indice.erp.pos.discount.DiscountRuleService;
 import com.indice.erp.pos.cashregister.CashRegisterRecord;
 import com.indice.erp.pos.cashregister.CashRegisterRepository;
 import com.indice.erp.pos.kiosk.PointOfSaleKioskCapabilities;
@@ -74,6 +76,8 @@ public class SelfServiceKioskService {
     private final KioskRegistryService registry;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    @Autowired
+    private DiscountRuleService discountRules;
 
     @Autowired
     public SelfServiceKioskService(
@@ -315,7 +319,9 @@ public class SelfServiceKioskService {
                 : "PRETICKET_REQUIRES_CASHIER_CONFIRMATION",
             items, definition.kioskType(),
             sourceRegisterOpen ? "READY" : "SOURCE_REGISTER_CLOSED",
-            sourceRegisterOpen);
+            sourceRegisterOpen,
+            discountRules == null ? List.of() : discountRules.publishedRules(
+                kiosk.companyId(), kiosk.unitId(), kiosk.businessId(), kiosk.warehouseId(), "KIOSK", currency));
     }
 
     @Transactional
@@ -363,30 +369,61 @@ public class SelfServiceKioskService {
             }
             var unitPrice = money(product.unitPrice());
             requireStoredAmount(unitPrice, "Product price");
-            var lineTotal = money(unitPrice.multiply(quantity));
+            var lineSubtotal = money(unitPrice.multiply(quantity));
+            var automatic = discountRules == null ? null : discountRules.bestAutomaticRule(
+                kiosk.companyId(), kiosk.unitId(), kiosk.businessId(),
+                new EvaluationRequest("KIOSK", lineSubtotal, product.productId(), product.category(),
+                    null, "PRODUCT", productCurrency, kiosk.warehouseId(), kiosk.unitId(), kiosk.businessId()));
+            var lineDiscount = automatic == null ? BigDecimal.ZERO.setScale(4) : money(automatic.discountAmount());
+            var lineTotal = money(lineSubtotal.subtract(lineDiscount));
             requireStoredAmount(lineTotal, "Preticket line total");
             lines.add(new PreticketItemResponse(
                 product.productId(), product.sku(), product.name(), quantity, unitPrice,
-                lineTotal));
+                lineDiscount, automatic == null ? null : automatic.rule().id(), lineTotal));
         }
-        var total = lines.stream().map(PreticketItemResponse::lineTotal)
+        var subtotal = lines.stream().map(line -> money(line.unitPrice().multiply(line.quantity())))
             .reduce(BigDecimal.ZERO.setScale(4), BigDecimal::add);
+        var lineDiscountTotal = lines.stream().map(PreticketItemResponse::discountAmount)
+            .reduce(BigDecimal.ZERO.setScale(4), BigDecimal::add);
+        var orderRule = discountRules == null ? null : discountRules.bestAutomaticRule(
+            kiosk.companyId(), kiosk.unitId(), kiosk.businessId(),
+            new EvaluationRequest("KIOSK", subtotal, null, null, null, "ORDER",
+                currency == null ? "MXN" : currency, kiosk.warehouseId(), kiosk.unitId(), kiosk.businessId()));
+        var orderDiscount = orderRule == null ? BigDecimal.ZERO.setScale(4) : money(orderRule.discountAmount());
+        if (orderDiscount.signum() > 0 && lineDiscountTotal.signum() > 0) {
+            if (orderDiscount.compareTo(lineDiscountTotal) >= 0) {
+                lines.replaceAll(line -> new PreticketItemResponse(
+                    line.productId(), line.sku(), line.productName(), line.quantity(), line.unitPrice(),
+                    BigDecimal.ZERO.setScale(4), null, money(line.unitPrice().multiply(line.quantity()))));
+                lineDiscountTotal = BigDecimal.ZERO.setScale(4);
+            } else {
+                orderDiscount = BigDecimal.ZERO.setScale(4);
+                orderRule = null;
+            }
+        }
+        var discountTotal = money(lineDiscountTotal.add(orderDiscount));
+        var total = money(subtotal.subtract(discountTotal));
         requireStoredAmount(total, "Preticket total");
         var now = clock.instant();
         var number = "SS-" + LocalDate.ofInstant(now, ZoneOffset.UTC).toString().replace("-", "")
             + "-" + randomFragment(10);
         var claimCode = generateClaimCode(kiosk);
         var expiresAt = now.plus(kiosk.ttlMinutes(), ChronoUnit.MINUTES);
-        var preticketId = repository.insertPreticket(
-            kiosk, number, claimCode, currency == null ? "MXN" : currency.toUpperCase(Locale.ROOT),
-            trim(request.customerName()), trim(request.customerEmail()), trim(request.customerPhone()),
-            lines.size(), total, expiresAt);
+        var preticketId = discountRules == null
+            ? repository.insertPreticket(
+                kiosk, number, claimCode, currency == null ? "MXN" : currency.toUpperCase(Locale.ROOT),
+                trim(request.customerName()), trim(request.customerEmail()), trim(request.customerPhone()),
+                lines.size(), total, expiresAt)
+            : repository.insertPreticket(
+                kiosk, number, claimCode, currency == null ? "MXN" : currency.toUpperCase(Locale.ROOT),
+                trim(request.customerName()), trim(request.customerEmail()), trim(request.customerPhone()),
+                lines.size(), subtotal, discountTotal, orderRule == null ? null : orderRule.rule().id(), total, expiresAt);
         for (int index = 0; index < lines.size(); index++) {
             repository.insertPreticketItem(kiosk.companyId(), preticketId, lines.get(index), index);
         }
         audit(kiosk.companyId(), kiosk.id(), preticketId, "SELF_SERVICE_PRETICKET_CREATED", null,
             Map.of("preticket_number", number, "item_count", lines.size(),
-                "total_amount", total, "policy", "DIRECT_PRETICKET_ONLY"));
+                "total_amount", total, "discount_amount", discountTotal, "policy", "DIRECT_PRETICKET_ONLY"));
         return receipt(repository.findPreticket(kiosk.companyId(), preticketId).orElseThrow());
     }
 
@@ -658,7 +695,7 @@ public class SelfServiceKioskService {
     private PreticketReceiptResponse receipt(PreticketResponse response) {
         return new PreticketReceiptResponse(
             response.preticketNumber(), response.claimCode(), response.status(),
-            response.currencyCode(), response.itemCount(), response.totalAmount(),
+            response.currencyCode(), response.itemCount(), response.discountAmount(), response.totalAmount(),
             response.expiresAt());
     }
 

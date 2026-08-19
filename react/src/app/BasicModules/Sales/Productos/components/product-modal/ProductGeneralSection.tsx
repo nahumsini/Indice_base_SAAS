@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
-import { Barcode, ChevronDown, Settings2, Wand2 } from 'lucide-react';
+import { Barcode, Boxes, ChevronDown, PackageX, Settings2, Wand2 } from 'lucide-react';
 import { Button } from '../../../../../components/ui/button';
 import {
   Collapsible,
@@ -7,7 +7,9 @@ import {
   CollapsibleTrigger,
 } from '../../../../../components/ui/collapsible';
 import { Input } from '../../../../../components/ui/input';
+import { RadioGroup, RadioGroupItem } from '../../../../../components/ui/radio-group';
 import { Textarea } from '../../../../../components/ui/textarea';
+import { cn } from '../../../../../components/ui/utils';
 import type {
   SalesProductStatus,
   SalesProductType,
@@ -40,6 +42,7 @@ export function ProductGeneralSection({
   onQuickCreateCategory: (name: string) => void;
 }) {
   const shouldShowBarcode = form.type === 'Product' || form.type === 'Package';
+  const canConfigureInventory = form.type === 'Product' || form.type === 'Package';
 
   const handleTypeChange = (value: string) => {
     const nextType = value as SalesProductType;
@@ -85,6 +88,71 @@ export function ProductGeneralSection({
         onValueChange={(value) => onFormChange((current) => ({ ...current, category: value }))}
         onCreateCategory={onQuickCreateCategory}
       />
+
+      <div className="space-y-3 md:col-span-2">
+        <div>
+          <p className="text-sm font-medium text-slate-700">{t.inventoryTracking.title}</p>
+          <p className="mt-1 text-xs font-medium leading-5 text-slate-500">
+            {canConfigureInventory ? t.inventoryTracking.description : t.inventoryTracking.unavailableForType}
+          </p>
+        </div>
+        <RadioGroup
+          className="grid gap-3 md:grid-cols-2"
+          value={form.usesInventory ? 'tracked' : 'untracked'}
+          onValueChange={(value) => onFormChange((current) => ({ ...current, usesInventory: value === 'tracked' }))}
+        >
+          {([
+            {
+              value: 'tracked',
+              icon: Boxes,
+              label: t.inventoryTracking.tracked.label,
+              description: t.inventoryTracking.tracked.description,
+              disabled: !canConfigureInventory,
+            },
+            {
+              value: 'untracked',
+              icon: PackageX,
+              label: t.inventoryTracking.untracked.label,
+              description: t.inventoryTracking.untracked.description,
+              disabled: false,
+            },
+          ] as const).map((option) => {
+            const Icon = option.icon;
+            const selected = (form.usesInventory ? 'tracked' : 'untracked') === option.value;
+
+            return (
+              <label
+                key={option.value}
+                className={cn(
+                  'flex min-h-[92px] items-start gap-3 rounded-xl border p-4 transition-colors',
+                  selected
+                    ? 'border-[#FF6B5E] bg-[#FF6B5E]/8 shadow-sm'
+                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50',
+                  option.disabled && 'cursor-not-allowed opacity-50 hover:border-slate-200 hover:bg-white',
+                  !option.disabled && 'cursor-pointer',
+                )}
+              >
+                <RadioGroupItem
+                  value={option.value}
+                  disabled={option.disabled}
+                  aria-label={option.label}
+                  className="mt-1 border-slate-300 text-[#FF6B5E] data-[state=checked]:border-[#FF6B5E]"
+                />
+                <span className={cn(
+                  'grid h-10 w-10 shrink-0 place-items-center rounded-lg',
+                  selected ? 'bg-[#FF6B5E]/15 text-[#B63B32]' : 'bg-slate-100 text-slate-500',
+                )}>
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-slate-950">{option.label}</span>
+                  <span className="mt-1 block text-xs font-medium leading-5 text-slate-500">{option.description}</span>
+                </span>
+              </label>
+            );
+          })}
+        </RadioGroup>
+      </div>
 
       <div className="space-y-2">
         <label className="text-sm font-medium text-slate-700">{t.form.fields.sku}</label>

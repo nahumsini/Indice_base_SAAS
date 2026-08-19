@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import com.indice.erp.pos.discount.DiscountDtos.RuleResponse;
 
 public final class SalesPublicCatalogDtos {
 
@@ -117,8 +118,21 @@ public final class SalesPublicCatalogDtos {
         boolean allowCart,
         boolean allowPurchaseRequest,
         String submissionPolicy,
-        List<PublicItem> items
+        List<PublicItem> items,
+        List<RuleResponse> discountRules
     ) {
+        public BootstrapResponse(
+                String code, String companyName, String unitName, String businessName, String title,
+                String description, String coverImageUrl, String contactCtaLabel, String contactMethod,
+                String contactValue, boolean showPrices, boolean showWholesalePrices,
+                boolean showStockStatus, boolean showItemTypeBadges, boolean showCategories,
+                boolean allowCart, boolean allowPurchaseRequest, String submissionPolicy,
+                List<PublicItem> items) {
+            this(code, companyName, unitName, businessName, title, description, coverImageUrl,
+                contactCtaLabel, contactMethod, contactValue, showPrices, showWholesalePrices,
+                showStockStatus, showItemTypeBadges, showCategories, allowCart,
+                allowPurchaseRequest, submissionPolicy, items, List.of());
+        }
     }
 
     public record RequestItem(
@@ -142,8 +156,15 @@ public final class SalesPublicCatalogDtos {
         String productName,
         BigDecimal quantity,
         BigDecimal unitPrice,
+        BigDecimal discountAmount,
+        Long discountRuleId,
         BigDecimal lineTotal
     ) {
+        public RequestItemResponse(
+                Long productId, String sku, String productName, BigDecimal quantity,
+                BigDecimal unitPrice, BigDecimal lineTotal) {
+            this(productId, sku, productName, quantity, unitPrice, BigDecimal.ZERO, null, lineTotal);
+        }
     }
 
     public record RequestResponse(
@@ -157,10 +178,22 @@ public final class SalesPublicCatalogDtos {
         String message,
         String currencyCode,
         int itemCount,
+        BigDecimal subtotalAmount,
+        BigDecimal discountAmount,
+        Long discountRuleId,
         BigDecimal estimatedTotal,
         Instant createdAt,
         List<RequestItemResponse> items
     ) {
+        public RequestResponse(
+                Long id, Long catalogId, String requestNumber, String status, String customerName,
+                String contact, String preferredContactMethod, String message, String currencyCode,
+                int itemCount, BigDecimal estimatedTotal, Instant createdAt,
+                List<RequestItemResponse> items) {
+            this(id, catalogId, requestNumber, status, customerName, contact,
+                preferredContactMethod, message, currencyCode, itemCount, estimatedTotal,
+                BigDecimal.ZERO, null, estimatedTotal, createdAt, items);
+        }
     }
 
     public record RequestListResponse(List<RequestResponse> items, int count) {

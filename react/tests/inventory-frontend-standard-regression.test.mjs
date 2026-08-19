@@ -9,6 +9,7 @@ const governedPaths = [
   'src/app/BasicModules/Sales/Inventory',
   'src/app/ComplementaryModules/Inventory',
   'src/app/BasicModules/PointOfSale/OrdenesCompra',
+  'src/app/BasicModules/PointOfSale/Descuentos',
   'src/app/BasicModules/Expenses/Providers',
   'src/app/components/frontend-os',
   'src/app/components/indice-modal',
@@ -42,6 +43,9 @@ test('Almacenes vive en una pestaña propia y conserva los manejadores reales de
   const moduleSource = readFileSync(resolve(root, 'src/app/ComplementaryModules/Inventory/Multiinventarios.tsx'), 'utf8');
   const inventorySource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Inventory/Inventory.tsx'), 'utf8');
   const workspaceSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Inventory/components/warehouses/WarehouseManagementWorkspace.tsx'), 'utf8');
+  const warehouseManagerSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Inventory/components/warehouses/WarehouseManagerView.tsx'), 'utf8');
+  const warehouseFormSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Inventory/components/warehouses/WarehouseFormView.tsx'), 'utf8');
+  const warehouseColumnsSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Inventory/components/warehouses/WarehouseColumnsModal.tsx'), 'utf8');
   const filtersSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Inventory/components/InventoryFilters.tsx'), 'utf8');
   const receiptModalSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Inventory/components/movements/AddInventoryModal.tsx'), 'utf8');
   const tabScopeSource = readFileSync(resolve(root, 'src/app/access/tabScopeCatalog.ts'), 'utf8');
@@ -50,6 +54,12 @@ test('Almacenes vive en una pestaña propia y conserva los manejadores reales de
   assert.match(moduleSource, /'warehouses'/);
   assert.match(moduleSource, /Inventory\/Warehouses/);
   assert.match(moduleSource, /almacenes:\s*'warehouses'/);
+  assert.match(moduleSource, /WarehouseColorIcon/);
+  assert.doesNotMatch(moduleSource, /warehouses[^\n]+🏭/);
+  assert.ok(
+    moduleSource.indexOf("{ id: 'warehouses'") < moduleSource.indexOf("{ id: 'inventory'"),
+    'Almacenes debe aparecer antes de Inventario en la navegacion del modulo',
+  );
   assert.match(tabScopeSource, /warehouses:\s*'inventory'/);
   assert.doesNotMatch(inventorySource, /<CreateWarehouseModal/);
   assert.match(inventorySource, /onSubmit=\{handleCreateWarehouse\}/);
@@ -62,14 +72,38 @@ test('Almacenes vive en una pestaña propia y conserva los manejadores reales de
   assert.match(workspaceSource, /selectedBusiness\?\.businessUnitId === draft\.businessUnitId/);
   assert.match(workspaceSource, /invalidWarehouseIds/);
   assert.match(workspaceSource, /onUpdate\(editingWarehouse\.id, normalizedDraft\)/);
-  assert.match(workspaceSource, /createView === 'discard' \? 'confirmation' : 'standard-form'/);
+  assert.match(workspaceSource, /createView === 'discard' \? 'confirmation' : 'wizard'/);
   assert.match(workspaceSource, /hasSelectedStock \? 'standard-form' : 'confirmation'/);
   assert.match(workspaceSource, /busy=\{isCreating\}/);
   assert.match(workspaceSource, /busy=\{isDeleting\}/);
   assert.match(workspaceSource, /overflow-y-auto overscroll-contain/);
   assert.match(workspaceSource, /scrollbar-gutter:stable/);
   assert.match(workspaceSource, /unsavedChanges/);
+  assert.match(workspaceSource, /actions=\{/);
+  assert.match(workspaceSource, /WarehouseColumnsModal/);
+  assert.match(workspaceSource, /indice\.inventory\.warehouses\.columns/);
   assert.doesNotMatch(workspaceSource, /max-w-(?:3xl|4xl)/);
+  assert.match(warehouseFormSource, /activeStep: 'identity' \| 'assignment' \| 'review'/);
+  assert.match(warehouseFormSource, /IndiceModalSummary/);
+  assert.match(warehouseFormSource, /warehouseNameHelp/);
+  assert.match(warehouseFormSource, /step="1"/);
+  assert.match(warehouseFormSource, /step="2"/);
+  assert.match(warehouseFormSource, /step="3"/);
+  assert.doesNotMatch(warehouseFormSource, /modals\.warehouseType/);
+  assert.doesNotMatch(warehouseFormSource, /modals\.addressNote/);
+  assert.match(warehouseManagerSource, /SalesFilterBar/);
+  assert.match(warehouseManagerSource, /SalesFilterSearch/);
+  assert.match(warehouseManagerSource, /SalesFilterSelect/);
+  assert.match(warehouseManagerSource, /clearFilters/);
+  assert.match(warehouseManagerSource, /businessUnitFilter/);
+  assert.match(warehouseManagerSource, /businessFilter/);
+  assert.match(warehouseManagerSource, /filterLabels\.business/);
+  assert.doesNotMatch(warehouseManagerSource, /typeFilter/);
+  assert.doesNotMatch(warehouseManagerSource, /filterLabels\.warehouseType/);
+  assert.match(warehouseManagerSource, /DataTablePagination/);
+  assert.match(warehouseManagerSource, /visibleColumns\.map/);
+  assert.match(warehouseColumnsSource, /ColumnasConfigModal/);
+  assert.match(warehouseColumnsSource, /fixedColumns/);
   assert.doesNotMatch(filtersSource, /filterLabels\.businessUnit/);
   assert.doesNotMatch(filtersSource, /filterLabels\.business\}/);
   assert.match(filtersSource, /businessUnitId:\s*warehouse\?\.businessUnitId/);
@@ -92,11 +126,16 @@ test('Almacenes vive en una pestaña propia y conserva los manejadores reales de
   assert.match(movementModalSource, /adjustmentDirection/);
   assert.match(movementModalSource, /adjustmentLabels\.criteria/);
   assert.match(movementModalSource, /adjustmentLabels\.difference/);
+  assert.match(movementModalSource, /await onSubmit\(draft\)/);
+  assert.match(movementModalSource, /setSaveError\(getOperationErrorMessage/);
+  assert.match(movementModalSource, /busy=\{isSaving\}/);
   const movementEntriesSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Inventory/utils/inventoryMovementEntries.ts'), 'utf8');
   assert.match(movementEntriesSource, /adjustmentDirection === 'increase' \? quantity : -quantity/);
   assert.match(inventoryApiSource, /salesApi\.context\(\)/);
-  assert.match(inventoryApiSource, /businessUnitId: isDatabaseId\(warehouse\.businessUnitId\) \? warehouse\.businessUnitId : undefined/);
-  assert.match(inventoryApiSource, /businessId: isDatabaseId\(warehouse\.businessId\) \? warehouse\.businessId : undefined/);
+  assert.match(inventoryApiSource, /if \(!isDatabaseId\(warehouse\.businessUnitId\) \|\| !isDatabaseId\(warehouse\.businessId\)\)/);
+  assert.match(inventoryApiSource, /businessUnitId: warehouse\.businessUnitId/);
+  assert.match(inventoryApiSource, /businessId: warehouse\.businessId/);
+  assert.match(inventoryApiSource, /commitInventoryOperation/);
   assert.doesNotMatch(inventorySource, /inventoryBusinessStructureMocks/);
 });
 
@@ -104,6 +143,7 @@ test('Descuentos se administra desde Inventarios y se publica hacia los canales 
   const moduleSource = readFileSync(resolve(root, 'src/app/ComplementaryModules/Inventory/Multiinventarios.tsx'), 'utf8');
   const guidanceSource = readFileSync(resolve(root, 'src/app/ComplementaryModules/Inventory/operationalGuidance/inventoryLearningControls.ts'), 'utf8');
   const discountsSource = readFileSync(resolve(root, 'src/app/BasicModules/PointOfSale/Descuentos/Descuentos.tsx'), 'utf8');
+  const discountModalSource = readFileSync(resolve(root, 'src/app/BasicModules/PointOfSale/Descuentos/components/DiscountRuleModal.tsx'), 'utf8');
   const tabScopeSource = readFileSync(resolve(root, 'src/app/access/tabScopeCatalog.ts'), 'utf8');
 
   assert.match(moduleSource, /'discounts'/);
@@ -114,4 +154,49 @@ test('Descuentos se administra desde Inventarios y se publica hacia los canales 
   assert.match(guidanceSource, /Habilitar en POS, Ventas y kioscos/);
   assert.match(guidanceSource, /política comercial asociada al producto/);
   assert.match(discountsSource, /overflow-hidden rounded-xl/);
+  assert.match(discountModalSource, /type DiscountWizardStepId = 'benefit' \| 'reach' \| 'review'/);
+  assert.match(discountModalSource, /modalType="wizard"/);
+  assert.match(discountModalSource, /IndiceModalWizardStepper/);
+  assert.match(discountModalSource, /IndiceModalSummary/);
+  assert.match(discountModalSource, /IndiceModalValidation/);
+  assert.match(discountModalSource, /const validationError = validateStep\(activeStep\)/);
+  assert.match(discountModalSource, /for \(const step of wizardSteps\)/);
+  assert.match(discountModalSource, /onSave\(draft\)/);
+  assert.match(discountModalSource, /draft\.scope === 'customer' && !draft\.customerType/);
+});
+
+test('El shell de Inventarios mantiene navegacion, idioma y modo aprendiz coherentes', () => {
+  const moduleSource = readFileSync(resolve(root, 'src/app/ComplementaryModules/Inventory/Multiinventarios.tsx'), 'utf8');
+  const purchaseOrdersSource = readFileSync(resolve(root, 'src/app/BasicModules/PointOfSale/OrdenesCompra/OrdenesCompra.tsx'), 'utf8');
+  const createPurchaseOrderSource = readFileSync(resolve(root, 'src/app/BasicModules/PointOfSale/OrdenesCompra/components/CreatePurchaseOrderModal.tsx'), 'utf8');
+  const commerceCatalogSource = readFileSync(resolve(root, 'src/app/BasicModules/CommerceCore/posCatalog.ts'), 'utf8');
+
+  assert.match(moduleSource, /IndiceModuleShell/);
+  assert.match(moduleSource, /LearningModeHeaderActionsProvider/);
+  assert.match(moduleSource, /activeContextLabel=\{activeTabConfig\.label\}/);
+  assert.ok(
+    moduleSource.indexOf("'warehouses'") < moduleSource.indexOf("'inventory'"),
+    'Almacenes debe preceder a Inventario tambien en el catalogo de rutas validas',
+  );
+  assert.match(purchaseOrdersSource, /useLearningModeHeaderActions/);
+  assert.match(purchaseOrdersSource, /!learningModeActive \? \(/);
+  assert.match(purchaseOrdersSource, /<PurchaseOrderKpis/);
+  assert.match(purchaseOrdersSource, /<SupplierSubmissionKpis/);
+  assert.match(createPurchaseOrderSource, /type PurchaseStep = 'reference' \| 'items' \| 'review'/);
+  assert.match(createPurchaseOrderSource, /modalType="wizard"/);
+  assert.match(createPurchaseOrderSource, /IndiceModalWizardStepper/);
+  assert.match(createPurchaseOrderSource, /IndiceModalSummary/);
+  assert.match(createPurchaseOrderSource, /IndiceModalValidation/);
+  assert.match(createPurchaseOrderSource, /IndiceConfirmationDialog/);
+  assert.match(createPurchaseOrderSource, /if \(!order\) \{/);
+  assert.match(createPurchaseOrderSource, /order = await onSubmit\(/);
+  assert.match(createPurchaseOrderSource, /setCreatedOrder\(order\)/);
+  assert.match(createPurchaseOrderSource, /await onSubmitInvoice\(/);
+  assert.match(createPurchaseOrderSource, /setSaveError\(getPurchaseOrderSaveError/);
+  assert.match(purchaseOrdersSource, /products=\{purchasingProducts\}/);
+  assert.match(commerceCatalogSource, /buildPurchasingCatalogProducts/);
+  assert.match(createPurchaseOrderSource, /selectedProviderProductIds/);
+  assert.match(createPurchaseOrderSource, /role="combobox"/);
+  assert.match(createPurchaseOrderSource, /bulkInput\.split/);
+  assert.match(createPurchaseOrderSource, /onUpdate\?\.\(line\.id, 'quantity'/);
 });

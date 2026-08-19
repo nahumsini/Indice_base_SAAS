@@ -165,6 +165,66 @@ public class SalesService {
         return get(companyId, collection, id);
     }
 
+    /**
+     * Persists an inventory operation as a single transaction. Balance updates
+     * and movement history must either finish together or roll back together.
+     */
+    @Transactional
+    public Map<String, Object> commitInventoryOperation(
+            long companyId,
+            long userId,
+            Map<String, Object> payload) {
+        var balanceRows = requirePayloadRows(payload, "balances");
+        var movementRows = requirePayloadRows(payload, "movements");
+        var balanceKeys = new java.util.HashSet<String>();
+
+        for (var balance : balanceRows) {
+            var productId = requirePositiveId(balance, "productId");
+            var warehouseId = requirePositiveId(balance, "warehouseId");
+            balanceKeys.add(productId + ":" + warehouseId);
+        }
+
+        for (var movement : movementRows) {
+            var productId = requirePositiveId(movement, "productId");
+            var fromWarehouseId = optionalPositiveId(movement, "fromWarehouseId");
+            var toWarehouseId = optionalPositiveId(movement, "toWarehouseId");
+            var quantity = SalesPayloadSupport.decimalValue(movement, "quantity");
+            if (quantity == null || quantity.signum() == 0) {
+                throw new IllegalArgumentException("Cada movimiento debe tener una cantidad distinta de cero.");
+            }
+            if (fromWarehouseId == null && toWarehouseId == null) {
+                throw new IllegalArgumentException("Cada movimiento debe indicar al menos un almacén.");
+            }
+            if (fromWarehouseId != null && !balanceKeys.contains(productId + ":" + fromWarehouseId)) {
+                throw new IllegalArgumentException("Cada movimiento debe incluir el saldo del almacén de origen.");
+            }
+            if (toWarehouseId != null && !balanceKeys.contains(productId + ":" + toWarehouseId)) {
+                throw new IllegalArgumentException("Cada movimiento debe incluir el saldo del almacén de destino.");
+            }
+        }
+
+        var persistedBalances = new ArrayList<Map<String, Object>>();
+        for (var balance : balanceRows) {
+            var balancePayload = new LinkedHashMap<>(balance);
+            var balanceId = SalesPayloadSupport.longValue(balancePayload, "id");
+            balancePayload.remove("id");
+            balancePayload.remove("ID");
+            persistedBalances.add(balanceId != null && balanceId > 0
+                    ? update(companyId, userId, "inventory-balances", balanceId, balancePayload)
+                    : create(companyId, userId, "inventory-balances", balancePayload));
+        }
+
+        var persistedMovements = new ArrayList<Map<String, Object>>();
+        for (var movement : movementRows) {
+            persistedMovements.add(create(companyId, userId, "inventory-movements", movement));
+        }
+
+        var result = new LinkedHashMap<String, Object>();
+        result.put("balances", persistedBalances);
+        result.put("movements", persistedMovements);
+        return result;
+    }
+
     private static void removeClientCommissionCalculation(Map<String, Object> payload) {
         List.of(
                 "commissionRate", "commissionAmount", "commissionRuleId", "commissionRuleCode",
@@ -1030,6 +1090,42 @@ public class SalesService {
     private static long longId(Map<String, Object> item) {
         var id = item.get("id");
         return id instanceof Number number ? number.longValue() : Long.parseLong(String.valueOf(id));
+    }
+
+    private static List<Map<String, Object>> requirePayloadRows(Map<String, Object> payload, String key) {
+        var value = SalesPayloadSupport.value(payload == null ? Map.of() : payload, key);
+        if (!(value instanceof List<?> rows) || rows.isEmpty()) {
+            throw new IllegalArgumentException("La operación debe incluir " + key + ".");
+        }
+
+        var result = new ArrayList<Map<String, Object>>();
+        for (var row : rows) {
+            if (!(row instanceof Map<?, ?> source)) {
+                throw new IllegalArgumentException("La operación contiene un registro inválido en " + key + ".");
+            }
+            var mapped = new LinkedHashMap<String, Object>();
+            for (var entry : source.entrySet()) {
+                mapped.put(String.valueOf(entry.getKey()), entry.getValue());
+            }
+            result.add(mapped);
+        }
+        return result;
+    }
+
+    private static long requirePositiveId(Map<String, Object> payload, String key) {
+        var value = SalesPayloadSupport.longValue(payload, key);
+        if (value == null || value <= 0) {
+            throw new IllegalArgumentException("La operación contiene un identificador inválido: " + key + ".");
+        }
+        return value;
+    }
+
+    private static Long optionalPositiveId(Map<String, Object> payload, String key) {
+        var rawValue = SalesPayloadSupport.value(payload, key);
+        if (rawValue == null || (rawValue instanceof String text && text.isBlank())) {
+            return null;
+        }
+        return requirePositiveId(payload, key);
     }
 
     private static void putIfAbsent(Map<String, Object> payload, String key, Object value) {

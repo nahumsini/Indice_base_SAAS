@@ -1,4 +1,5 @@
 import { apiClient } from '../../../lib/apiClient';
+import type { DiscountRuleWire } from '../shared/commercial/discounts/services/discountRulesApi';
 
 export type SelfServiceCatalogItem = {
   productId: number;
@@ -32,6 +33,7 @@ export type SelfServiceBootstrap = {
   kioskType: 'self_service' | 'self_checkout';
   availabilityState: 'READY' | 'SOURCE_REGISTER_CLOSED';
   sourceRegisterOpen: boolean;
+  discountRules: DiscountRuleWire[];
 };
 
 export type SelfServicePreticket = {
@@ -46,6 +48,8 @@ export type SelfServicePreticket = {
   customerName?: string | null;
   itemCount: number;
   subtotalAmount: number | string;
+  discountAmount: number | string;
+  discountRuleId?: number | null;
   totalAmount: number | string;
   expiresAt: string;
   createdAt: string;
@@ -55,6 +59,8 @@ export type SelfServicePreticket = {
     productName: string;
     quantity: number | string;
     unitPrice: number | string;
+    discountAmount: number | string;
+    discountRuleId?: number | null;
     lineTotal: number | string;
   }>;
 };
@@ -68,6 +74,7 @@ export type SelfServicePreticketReceipt = {
   status: 'PENDING';
   currencyCode: string;
   itemCount: number;
+  discountAmount: number | string;
   totalAmount: number | string;
   expiresAt: string;
 };

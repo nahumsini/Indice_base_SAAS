@@ -7,7 +7,8 @@ import { usePointOfSaleCatalogProducts } from '../../CommerceCore/usePointOfSale
 import { usePointOfSaleCustomers } from '../../CommerceCore/usePointOfSaleCustomers';
 import { useSalesCrm } from '../../Sales/salesCrmContext';
 import { readStoredCreditRules, type CreditRule } from '../shared/commercial/credit';
-import { getEligibleDiscountRules, readStoredDiscountRules, type DiscountRule } from '../shared/commercial/discounts';
+import type { DiscountRule } from '../shared/commercial/discounts';
+import { evaluateDiscountRules } from '../shared/commercial/discounts/services/discountRulesApi';
 import type { Product } from '../shared/commercial/products';
 import { CashMovementModal } from './components/CashMovementModal';
 import { IndiceSignalBar } from './components/IndiceSignalBar';
@@ -195,7 +196,8 @@ export default function Sale() {
   const [productSearchRequestId, setProductSearchRequestId] = useState(0);
   const [isProductWorkspaceOpen, setIsProductWorkspaceOpen] = useState(false);
   const [isPaymentWorkspaceOpen, setIsPaymentWorkspaceOpen] = useState(false);
-  const [discountRules, setDiscountRules] = useState<DiscountRule[]>(() => readStoredDiscountRules());
+  const [discountRules, setDiscountRules] = useState<DiscountRule[]>([]);
+  const [discountRulesError, setDiscountRulesError] = useState('');
   const [creditRules, setCreditRules] = useState<CreditRule[]>(() => readStoredCreditRules());
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
@@ -453,10 +455,27 @@ export default function Sale() {
     onClearCart: clearCart,
   });
 
-  const openItemDiscountModal = (item: SaleItem) => {
-    setDiscountRules(readStoredDiscountRules());
+  const openItemDiscountModal = async (item: SaleItem) => {
     setSelectedItemForDiscount(item);
     setShowDiscountModal(true);
+    setDiscountRules([]);
+    setDiscountRulesError('');
+    const product = saleProducts.find((candidate) => candidate.id === item.productId);
+    try {
+      setDiscountRules(await evaluateDiscountRules({
+        channel: 'pos',
+        amount: item.price * item.quantity,
+        productId: product?.salesProductBackendId ?? null,
+        category: product?.department,
+        scope: 'product',
+        currencyCode: transactionCurrency,
+        warehouseId: registerContext?.warehouseId ? Number(registerContext.warehouseId) : null,
+        unitId: registerContext?.businessUnitId ? Number(registerContext.businessUnitId) : null,
+        businessId: registerContext?.businessId ? Number(registerContext.businessId) : null,
+      }));
+    } catch (nextError) {
+      setDiscountRulesError(nextError instanceof Error ? nextError.message : 'No se pudieron consultar las reglas.');
+    }
   };
 
   const closeItemDiscountModal = () => {
@@ -464,17 +483,17 @@ export default function Sale() {
     setSelectedItemForDiscount(null);
   };
 
-  const confirmItemDiscount = (discount: number, type: SaleItem['discountType']) => {
+  const confirmItemDiscount = (discount: number, type: SaleItem['discountType'], rule?: DiscountRule) => {
     if (!selectedItemForDiscount) {
       return;
     }
 
-    applyDiscount(selectedItemForDiscount.id, discount, type);
+    applyDiscount(selectedItemForDiscount.id, discount, type, typeof rule?.id === 'number' ? rule.id : undefined);
     closeItemDiscountModal();
   };
 
-  const confirmGlobalDiscount = (discount: number, type: SaleItem['discountType']) => {
-    applyGlobalDiscount(discount, type);
+  const confirmGlobalDiscount = (discount: number, type: SaleItem['discountType'], rule?: DiscountRule) => {
+    applyGlobalDiscount(discount, type, typeof rule?.id === 'number' ? rule.id : undefined);
     setShowGlobalDiscountModal(false);
   };
 
@@ -504,34 +523,24 @@ export default function Sale() {
     });
   };
 
-  const openGlobalDiscountModal = () => {
-    setDiscountRules(readStoredDiscountRules());
+  const openGlobalDiscountModal = async () => {
     setShowGlobalDiscountModal(true);
-  };
-
-  const itemDiscountRules = useMemo(() => {
-    if (!selectedItemForDiscount) {
-      return [];
-    }
-
-    const product = saleProducts.find((candidate) => candidate.id === selectedItemForDiscount.productId);
-    return getEligibleDiscountRules(discountRules, {
-      amount: selectedItemForDiscount.price * selectedItemForDiscount.quantity,
-      productId: selectedItemForDiscount.productId,
-      category: product?.department,
-      channel: 'pos',
-    });
-  }, [discountRules, saleProducts, selectedItemForDiscount]);
-
-  const globalDiscountRules = useMemo(
-    () =>
-      getEligibleDiscountRules(discountRules, {
+    setDiscountRules([]);
+    setDiscountRulesError('');
+    try {
+      setDiscountRules(await evaluateDiscountRules({
+        channel: 'pos',
         amount: totals.subtotal,
         scope: 'order',
-        channel: 'pos',
-      }),
-    [discountRules, totals.subtotal],
-  );
+        currencyCode: transactionCurrency,
+        warehouseId: registerContext?.warehouseId ? Number(registerContext.warehouseId) : null,
+        unitId: registerContext?.businessUnitId ? Number(registerContext.businessUnitId) : null,
+        businessId: registerContext?.businessId ? Number(registerContext.businessId) : null,
+      }));
+    } catch (nextError) {
+      setDiscountRulesError(nextError instanceof Error ? nextError.message : 'No se pudieron consultar las reglas.');
+    }
+  };
 
   const closeTicketModal = () => {
     setShowTicketModal(false);
@@ -606,7 +615,7 @@ export default function Sale() {
               {smartAlerts.length > 0 && <SmartAlertsStrip alerts={smartAlerts} />}
             </div>
 
-            {[cartNotice, checkoutNotice.startsWith('Venta ') ? '' : checkoutNotice, shiftCurrencyMismatchNotice, shiftNotice, shiftError, registerContextError].filter(Boolean)
+            {[cartNotice, checkoutNotice.startsWith('Venta ') ? '' : checkoutNotice, shiftCurrencyMismatchNotice, shiftNotice, shiftError, registerContextError, discountRulesError].filter(Boolean)
               .length > 0 && (
               <div className="mt-2 space-y-2">
                 {cartNotice && <OperationalNotice message={cartNotice} onDismiss={clearCartNotice} />}
@@ -615,6 +624,7 @@ export default function Sale() {
                 {shiftNotice && <OperationalNotice message={shiftNotice} onDismiss={clearShiftNotice} />}
                 {shiftError && <OperationalNotice message={shiftError} onDismiss={clearShiftError} />}
                 {registerContextError && <OperationalNotice message={registerContextError} onDismiss={clearRegisterContextError} />}
+                {discountRulesError && <OperationalNotice message={discountRulesError} onDismiss={() => setDiscountRulesError('')} />}
               </div>
             )}
 
@@ -819,8 +829,8 @@ export default function Sale() {
         selectedItemForDiscount={selectedItemForDiscount}
         showDiscountModal={showDiscountModal}
         showGlobalDiscountModal={showGlobalDiscountModal}
-        itemDiscountRules={itemDiscountRules}
-        globalDiscountRules={globalDiscountRules}
+        itemDiscountRules={discountRules}
+        globalDiscountRules={discountRules}
         creditRules={creditRules}
         creditCustomers={creditCustomers}
         currency={transactionCurrency}

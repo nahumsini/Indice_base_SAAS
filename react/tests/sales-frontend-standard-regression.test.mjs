@@ -50,3 +50,59 @@ test('el motor compartido de barras KPI respeta tipografía y contexto monetario
   assert.match(engineSource, /preferredCurrency/);
   assert.match(engineSource, /excludedRecords/);
 });
+
+test('la memoria de navegación conserva contexto por empresa, usuario, módulo y pestaña', () => {
+  const memorySource = readFileSync(resolve(root, 'src/app/hooks/useWorkspaceNavigationMemory.ts'), 'utf8');
+  const routedTabSource = readFileSync(resolve(root, 'src/app/hooks/useRoutedModuleTab.ts'), 'utf8');
+  const prospectsSource = readFileSync(resolve(salesRoot, 'Prospectos/Prospectos.tsx'), 'utf8');
+  const contactsSource = readFileSync(resolve(salesRoot, 'Contactos/Contactos.tsx'), 'utf8');
+
+  assert.match(memorySource, /session\.company\.id.*session\.user\.id.*moduleKey.*tabKey/s);
+  assert.match(memorySource, /workspaceStateApi\.save/);
+  assert.match(routedTabSource, /workspaceStateApi\.get.*'navigation'/s);
+  assert.match(prospectsSource, /tabKey: 'prospects'/);
+  assert.match(contactsSource, /tabKey: 'contacts'/);
+});
+
+test('Prospectos y Contactos limpian filtros sin restablecer la vista del usuario', () => {
+  const prospectsSource = readFileSync(resolve(salesRoot, 'Prospectos/Prospectos.tsx'), 'utf8');
+  const contactsSource = readFileSync(resolve(salesRoot, 'Contactos/Contactos.tsx'), 'utf8');
+
+  assert.match(prospectsSource, /const handleClearFilters = \(\) =>/);
+  assert.match(contactsSource, /const handleClearFilters = \(\) =>/);
+  assert.doesNotMatch(prospectsSource.match(/const handleClearFilters[\s\S]*?\n  };/)?.[0] ?? '', /setActiveView|setSortState/);
+  assert.doesNotMatch(contactsSource.match(/const handleClearFilters[\s\S]*?\n  };/)?.[0] ?? '', /setSortState|setVisibleContactColumns/);
+});
+
+test('Productos expone el control de inventario desde el primer paso y lo refleja en la tabla', () => {
+  const generalSectionSource = readFileSync(resolve(salesRoot, 'Productos/components/product-modal/ProductGeneralSection.tsx'), 'utf8');
+  const usageSectionSource = readFileSync(resolve(salesRoot, 'Productos/components/product-modal/ProductUsageReadinessSection.tsx'), 'utf8');
+  const tableRowSource = readFileSync(resolve(salesRoot, 'Productos/table/ProductTableRow.tsx'), 'utf8');
+  const catalogHookSource = readFileSync(resolve(salesRoot, 'Productos/hooks/useProductsCatalog.ts'), 'utf8');
+
+  assert.match(generalSectionSource, /t\.inventoryTracking\.tracked\.label/);
+  assert.match(generalSectionSource, /t\.inventoryTracking\.untracked\.label/);
+  assert.match(generalSectionSource, /nextType === 'Product' \|\| nextType === 'Package'/);
+  assert.match(generalSectionSource, /usesInventory: value === 'tracked'/);
+  assert.doesNotMatch(usageSectionSource, /toggles\.usesInventory/);
+  assert.match(tableRowSource, /t\.inventoryTracking\.badges\.tracked/);
+  assert.match(tableRowSource, /t\.inventoryTracking\.badges\.untracked/);
+  assert.match(catalogHookSource, /type === 'Service' \|\| type === 'Subscription' \|\| type === 'Operational item'/);
+  assert.match(catalogHookSource, /t\.inventoryTracking\.filterSuffix/);
+});
+
+test('Modo aprendiz cubre todas las pestañas visibles de Ventas y Comisiones usa la barra compartida', () => {
+  const salesModuleSource = readFileSync(resolve(salesRoot, 'Ventas.tsx'), 'utf8');
+  const guidanceTypeSource = readFileSync(resolve(salesRoot, 'operationalGuidance/types.ts'), 'utf8');
+  const guidanceSource = readFileSync(resolve(salesRoot, 'operationalGuidance/translations/en-CA.ts'), 'utf8');
+  const commissionsSource = readFileSync(resolve(salesRoot, 'SalesCommissions.tsx'), 'utf8');
+
+  assert.match(salesModuleSource, /guide=\{learningModeActive \? \(/);
+  assert.doesNotMatch(salesModuleSource, /activeTab !== 'payment-accounts'|activeTab !== 'commissions'/);
+  assert.match(guidanceTypeSource, /SalesGuidanceTabId = SalesTabId/);
+  assert.match(guidanceSource, /commissions:/);
+  assert.match(guidanceSource, /'payment-accounts':/);
+  assert.match(commissionsSource, /<SalesTitleBar/);
+  assert.match(commissionsSource, /salesTitleBarPrimaryActionClassName/);
+  assert.match(commissionsSource, /salesTitleBarSecondaryActionClassName/);
+});

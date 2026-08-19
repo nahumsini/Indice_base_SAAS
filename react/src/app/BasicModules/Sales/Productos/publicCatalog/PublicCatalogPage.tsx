@@ -182,6 +182,7 @@ export function PublicCatalogPage({
           online={online}
           token={publicAccessToken}
           csrfToken={bootstrap.csrfToken}
+          discountRules={bootstrap.discountRules}
         />
       ) : null}
     </KioskPublicShell>

@@ -26,6 +26,7 @@ export interface SaleItem {
   quantity: number;
   discount: number; // Percentage or fixed amount
   discountType: 'percentage' | 'fixed';
+  discountRuleId?: number;
   subtotal: number;
   tax: number;
   total: number;

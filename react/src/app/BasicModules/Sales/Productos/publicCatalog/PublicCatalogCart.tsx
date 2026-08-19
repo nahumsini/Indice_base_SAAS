@@ -14,6 +14,8 @@ export function PublicCatalogCart({
   onChangeQuantity,
   onRemoveItem,
   onRequestPurchase,
+  total: totalOverride,
+  discountAmount = 0,
 }: {
   variant?: 'desktop' | 'mobile';
   items: PublicCatalogItem[];
@@ -23,8 +25,10 @@ export function PublicCatalogCart({
   onChangeQuantity: (itemId: string, quantity: number) => void;
   onRemoveItem: (itemId: string) => void;
   onRequestPurchase: () => void;
+  total?: number;
+  discountAmount?: number;
 }) {
-  const total = calculatePublicCatalogCartTotal(items, cartItems);
+  const total = totalOverride ?? calculatePublicCatalogCartTotal(items, cartItems);
   const totalCurrency = cartItems.map((cartItem) => items.find((item) => item.id === cartItem.itemId)?.currency).find(Boolean);
   const mobile = variant === 'mobile';
 
@@ -92,6 +96,12 @@ export function PublicCatalogCart({
       </div>
 
       <div className="mt-4 rounded-xl border border-[#FF6B5E]/20 bg-[#FF6B5E]/5 p-3">
+        {discountAmount > 0 ? (
+          <div className="mb-2 flex items-center justify-between text-sm font-medium text-emerald-700">
+            <span>{t.publicCatalog.discount}</span>
+            <span>-{formatProductCurrency(discountAmount, totalCurrency)}</span>
+          </div>
+        ) : null}
         <div className="flex items-center justify-between text-lg">
           <span className="font-medium text-slate-950 dark:text-white">{t.publicCatalog.estimatedTotal}</span>
           <span className="font-medium text-[#B63B32] dark:text-[#FF9B91]">

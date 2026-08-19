@@ -480,6 +480,7 @@ export const ptBR = {
     cart: 'Carrinho do catalogo',
     cartHelper: 'Monte um carrinho visual. Nenhum pagamento, reserva de estoque ou pedido real e criado.',
     emptyCart: 'Seu carrinho esta vazio.',
+    discount: 'Desconto',
     estimatedTotal: 'Total estimado',
     wholesaleNote: (price: string, quantity: number) => `Sugestao de atacado: ${price} a partir de ${quantity}+ unidades.`,
     taxAvailabilityNote: 'Impostos e disponibilidade podem ser confirmados pela empresa.',

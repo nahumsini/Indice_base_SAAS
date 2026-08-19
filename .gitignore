@@ -63,6 +63,8 @@ react/.env.local
 handoff/
 output/pdf/
 tmp/pdfs/
+tmp/db-backups/
+tmp/deployment/
 explanation/
 
 ### Figma prototype exports ###

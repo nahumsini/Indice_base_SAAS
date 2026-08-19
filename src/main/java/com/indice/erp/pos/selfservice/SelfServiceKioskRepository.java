@@ -232,6 +232,9 @@ public class SelfServiceKioskRepository {
             String customerEmail,
             String customerPhone,
             int itemCount,
+            BigDecimal subtotal,
+            BigDecimal discount,
+            Long discountRuleId,
             BigDecimal total,
             Instant expiresAt) {
         var keys = new GeneratedKeyHolder();
@@ -240,8 +243,9 @@ public class SelfServiceKioskRepository {
                 INSERT INTO pos_self_service_pretickets (
                     company_id, unit_id, business_id, kiosk_id, cash_register_id, warehouse_id, preticket_number,
                     claim_code, status, currency_code, customer_name, customer_email,
-                    customer_phone, item_count, subtotal_amount, total_amount, expires_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?)
+                    customer_phone, item_count, subtotal_amount, discount_amount, discount_rule_id,
+                    total_amount, expires_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, Statement.RETURN_GENERATED_KEYS);
             statement.setLong(1, kiosk.companyId());
             statement.setLong(2, kiosk.unitId());
@@ -256,12 +260,29 @@ public class SelfServiceKioskRepository {
             statement.setString(11, customerEmail);
             statement.setString(12, customerPhone);
             statement.setInt(13, itemCount);
-            statement.setBigDecimal(14, total);
-            statement.setBigDecimal(15, total);
-            statement.setTimestamp(16, Timestamp.from(expiresAt));
+            statement.setBigDecimal(14, subtotal);
+            statement.setBigDecimal(15, discount);
+            statement.setObject(16, discountRuleId);
+            statement.setBigDecimal(17, total);
+            statement.setTimestamp(18, Timestamp.from(expiresAt));
             return statement;
         }, keys);
         return keys.getKey().longValue();
+    }
+
+    public long insertPreticket(
+            KioskRecord kiosk,
+            String number,
+            String claimCode,
+            String currency,
+            String customerName,
+            String customerEmail,
+            String customerPhone,
+            int itemCount,
+            BigDecimal total,
+            Instant expiresAt) {
+        return insertPreticket(kiosk, number, claimCode, currency, customerName, customerEmail,
+            customerPhone, itemCount, total, BigDecimal.ZERO, null, total, expiresAt);
     }
 
     public void lockClaimCodeAllocation(long companyId, long cashRegisterId) {
@@ -290,10 +311,10 @@ public class SelfServiceKioskRepository {
         jdbcTemplate.update("""
             INSERT INTO pos_self_service_preticket_items (
                 company_id, preticket_id, product_id, sku, product_name,
-                quantity, unit_price, line_total, sort_order
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                quantity, unit_price, discount_amount, discount_rule_id, line_total, sort_order
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, companyId, preticketId, item.productId(), item.sku(), item.productName(),
-            item.quantity(), item.unitPrice(), item.lineTotal(), sortOrder);
+            item.quantity(), item.unitPrice(), item.discountAmount(), item.discountRuleId(), item.lineTotal(), sortOrder);
     }
 
     public Optional<PreticketResponse> findPreticket(long companyId, long preticketId) {
@@ -472,17 +493,18 @@ public class SelfServiceKioskRepository {
 
     private PreticketResponse withItems(PreticketResponse row) {
         var items = jdbcTemplate.query("""
-            SELECT product_id, sku, product_name, quantity, unit_price, line_total
+            SELECT product_id, sku, product_name, quantity, unit_price, discount_amount, discount_rule_id, line_total
             FROM pos_self_service_preticket_items
             WHERE preticket_id = ? ORDER BY sort_order, id
             """, (rs, rowNum) -> new PreticketItemResponse(
                 rs.getLong("product_id"), rs.getString("sku"), rs.getString("product_name"),
                 rs.getBigDecimal("quantity"), rs.getBigDecimal("unit_price"),
+                rs.getBigDecimal("discount_amount"), rs.getObject("discount_rule_id", Long.class),
                 rs.getBigDecimal("line_total")), row.id());
         return new PreticketResponse(
             row.id(), row.kioskId(), row.cashRegisterId(), row.cashRegisterName(),
             row.preticketNumber(), row.claimCode(), row.status(), row.currencyCode(),
-            row.customerName(), row.itemCount(), row.subtotalAmount(), row.totalAmount(),
+            row.customerName(), row.itemCount(), row.subtotalAmount(), row.discountAmount(), row.discountRuleId(), row.totalAmount(),
             row.expiresAt(), row.createdAt(), items);
     }
 
@@ -532,7 +554,8 @@ public class SelfServiceKioskRepository {
             rs.getString("cash_register_name"), rs.getString("preticket_number"),
             rs.getString("claim_code"), rs.getString("status"), rs.getString("currency_code"),
             rs.getString("customer_name"), rs.getInt("item_count"),
-            rs.getBigDecimal("subtotal_amount"), rs.getBigDecimal("total_amount"),
+            rs.getBigDecimal("subtotal_amount"), rs.getBigDecimal("discount_amount"),
+            rs.getObject("discount_rule_id", Long.class), rs.getBigDecimal("total_amount"),
             instant(rs, "expires_at"), instant(rs, "created_at"), List.of());
     }
 

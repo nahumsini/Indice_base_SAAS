@@ -193,6 +193,30 @@ export const enCA = {
         },
       ],
     },
+    commissions: {
+      label: 'Commissions',
+      ctaLabel: 'Review commissions',
+      title: 'Turn sales results into traceable incentives',
+      summary: 'Use Commissions to define policies, review generated results, and send controlled cuts to HR and payroll.',
+      value: 'A documented commission cycle connects each incentive to an eligible sale, an approved rule, and one payroll handoff.',
+      steps: [
+        { title: 'Define policies before calculating', description: 'Set participants, eligible products, percentages, and validity before sales generate results.' },
+        { title: 'Review generated results', description: 'Confirm the sale, seller, rule, and amount before including a commission in a cut.' },
+        { title: 'Send one controlled cut', description: 'Create and track the HR handoff so the same result is not paid twice.' },
+      ],
+    },
+    'payment-accounts': {
+      label: 'Payment accounts',
+      ctaLabel: 'Review payment accounts',
+      title: 'Keep collection destinations controlled',
+      summary: 'Use Payment accounts to maintain the bank, cash, and internal accounts available to commercial payment flows.',
+      value: 'A shared account catalogue prevents payments from being sent to inactive, duplicated, or unclear destinations.',
+      steps: [
+        { title: 'Create one verified account', description: 'Record type, currency, business scope, and safe identifying context before using an account.' },
+        { title: 'Keep status current', description: 'Deactivate accounts that should no longer receive new payments without erasing their history.' },
+        { title: 'Respect financial ownership', description: 'Recognize petty-cash-managed accounts and edit them only from their owning financial workflow.' },
+      ],
+    },
     kpis: {
       label: 'KPIs',
       ctaLabel: 'Review KPIs',

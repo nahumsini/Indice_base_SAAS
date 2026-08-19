@@ -154,7 +154,7 @@ export function useSaleCart({ products, taxOverride }: UseSaleCartOptions) {
     return { addedCount: acceptedRequests.length, insufficientStock };
   }, [cart, taxOverride]);
 
-  const applyDiscount = useCallback((itemId: string, discount: number, type: SaleItem['discountType']) => {
+  const applyDiscount = useCallback((itemId: string, discount: number, type: SaleItem['discountType'], discountRuleId?: number) => {
     setCart((currentCart) => currentCart.map((item) => {
       if (item.id !== itemId) {
         return item;
@@ -163,14 +163,16 @@ export function useSaleCart({ products, taxOverride }: UseSaleCartOptions) {
       return recalculateSaleItem(item, {
         discount,
         discountType: type,
+        discountRuleId,
       });
     }));
   }, []);
 
-  const applyGlobalDiscount = useCallback((discount: number, type: SaleItem['discountType']) => {
+  const applyGlobalDiscount = useCallback((discount: number, type: SaleItem['discountType'], discountRuleId?: number) => {
     setCart((currentCart) => currentCart.map((item) => recalculateSaleItem(item, {
       discount,
       discountType: type,
+      discountRuleId,
     })));
   }, []);
 

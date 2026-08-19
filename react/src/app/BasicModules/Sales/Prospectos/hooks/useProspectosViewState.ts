@@ -98,6 +98,7 @@ export function useProspectosViewState() {
     columnWidths,
     tableMinWidth,
     sortState,
+    setSortState,
     handleSort,
     handleResizeColumn,
   };

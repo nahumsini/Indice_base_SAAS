@@ -11,6 +11,8 @@ import {
 } from '../../components/SalesFilterBar';
 import type { ProspectosCopy } from '../translations';
 import type { OpportunityFocusFilter, OpportunityPeriodFilter } from '../types/prospectosTypes';
+import { RotateCcw } from 'lucide-react';
+import { Button } from '../../../../components/ui/button';
 
 export function ProspectosFilters({
   copy,
@@ -31,6 +33,7 @@ export function ProspectosFilters({
   onTemperatureFilterChange,
   onSourceFilterChange,
   onStatusFilterChange,
+  onClearFilters,
 }: {
   copy: ProspectosCopy;
   searchQuery: string;
@@ -50,6 +53,7 @@ export function ProspectosFilters({
   onTemperatureFilterChange: (value: string) => void;
   onSourceFilterChange: (value: string) => void;
   onStatusFilterChange: (value: string) => void;
+  onClearFilters: () => void;
 }) {
   const focusOptions: Array<{ value: OpportunityFocusFilter; label: string }> = [
     { value: 'all', label: copy.filters.focusOptions.all },
@@ -71,7 +75,16 @@ export function ProspectosFilters({
   ];
 
   return (
-    <SalesFilterBar title={copy.filters.title} gridClassName="xl:grid-cols-4">
+    <SalesFilterBar
+      title={copy.filters.title}
+      gridClassName="xl:grid-cols-4"
+      summary={(
+        <Button type="button" variant="outline" className="gap-2" onClick={onClearFilters}>
+          <RotateCcw className="h-4 w-4" />
+          {copy.filters.clear}
+        </Button>
+      )}
+    >
       <SalesFilterSearch
         label={copy.filters.search}
         value={searchQuery}

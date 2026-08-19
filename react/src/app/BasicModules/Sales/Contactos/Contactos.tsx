@@ -6,6 +6,7 @@ import {
   PencilLine,
   Phone,
   Plus,
+  RotateCcw,
   Trash2,
   UploadCloud,
 } from 'lucide-react';
@@ -32,6 +33,7 @@ import {
 import { Textarea } from '../../../components/ui/textarea';
 import { cn } from '../../../components/ui/utils';
 import { useTablePagination } from '../../../hooks/useTablePagination';
+import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 import type { ColumnConfig } from '../../../components/rh/ColumnasConfigModal';
 import { ColumnasConfigModal } from '../../../components/rh/ColumnasConfigModal';
 import {
@@ -91,6 +93,32 @@ import {
   sortContacts,
 } from './utils/contactPageUtils';
 
+type ContactosWorkspaceState = {
+  searchQuery: string;
+  sortColumn: ContactSortColumn;
+  sortDirection: ContactSortState['direction'];
+  currentPage: number;
+  pageSize: number;
+  visibleColumns: ContactColumnId[];
+};
+
+const contactosWorkspaceDefaults: ContactosWorkspaceState = {
+  searchQuery: '',
+  sortColumn: 'contact',
+  sortDirection: 'asc',
+  currentPage: 1,
+  pageSize: 10,
+  visibleColumns: defaultContactVisibleColumns,
+};
+
+const contactosWorkspaceUrlFields: Partial<Record<keyof ContactosWorkspaceState, string>> = {
+  searchQuery: 'q',
+  sortColumn: 'sort',
+  sortDirection: 'direction',
+  currentPage: 'page',
+  pageSize: 'pageSize',
+};
+
 export default function Contactos({ learningModeActive = false }: ContactosProps) {
   const t = useContactosTranslations();
   const learningCopy = useContactosLearningTranslations();
@@ -104,6 +132,7 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
   const [contactFormError, setContactFormError] = useState('');
   const [sortState, setSortState] = useState<ContactSortState>({ columnId: 'contact', direction: 'asc' });
   const [visibleContactColumns, setVisibleContactColumns] = useState<ContactColumnId[]>(defaultContactVisibleColumns);
+  const [paginationState, setPaginationState] = useState({ currentPage: 1, pageSize: 10 });
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [ownerOptions, setOwnerOptions] = useState<SalesOwnerOption[]>([]);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
@@ -250,6 +279,29 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
     () => sortContacts(filteredContacts, sortState),
     [filteredContacts, sortState],
   );
+
+  const workspaceState = useMemo<ContactosWorkspaceState>(() => ({
+    searchQuery,
+    sortColumn: sortState.columnId,
+    sortDirection: sortState.direction,
+    visibleColumns: visibleContactColumns,
+    ...paginationState,
+  }), [paginationState, searchQuery, sortState, visibleContactColumns]);
+
+  useWorkspaceNavigationMemory({
+    moduleKey: 'sales',
+    tabKey: 'contacts',
+    state: workspaceState,
+    defaults: contactosWorkspaceDefaults,
+    urlFields: contactosWorkspaceUrlFields,
+    onRestore: (restored) => {
+      setSearchQuery(restored.searchQuery);
+      setSortState({ columnId: restored.sortColumn, direction: restored.sortDirection });
+      setVisibleContactColumns(restored.visibleColumns);
+      setPaginationState({ currentPage: restored.currentPage, pageSize: restored.pageSize });
+    },
+  });
+
   const {
     currentPage,
     onPageChange,
@@ -262,7 +314,9 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
     totalCount,
     totalPages,
   } = useTablePagination({
-    resetKey: `${searchQuery}:${sortState.columnId}:${sortState.direction}:${contacts.map((contact) => contact.id).join('|')}`,
+    controlledCurrentPage: paginationState.currentPage,
+    controlledPageSize: paginationState.pageSize,
+    onPaginationChange: setPaginationState,
     rows: sortedContacts,
   });
 
@@ -272,6 +326,17 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
         ? { columnId, direction: current.direction === 'asc' ? 'desc' : 'asc' }
         : { columnId, direction: 'asc' }
     ));
+    setPaginationState((current) => ({ ...current, currentPage: 1 }));
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setPaginationState((current) => ({ ...current, currentPage: 1 }));
+  };
+
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setPaginationState((current) => ({ ...current, currentPage: 1 }));
   };
 
   const renderSortableHead = (columnId: ContactSortColumn, label: string, className?: string) => (
@@ -553,13 +618,27 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
 
       <SalesFilterBar
         title={t.search.title}
-        summary={`${t.search.visibleContacts}: ${sortedContacts.length}`}
+        summary={(
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <span>{`${t.search.visibleContacts}: ${sortedContacts.length}`}</span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!searchQuery}
+              onClick={handleClearFilters}
+            >
+              <RotateCcw className="h-4 w-4" />
+              {t.search.clearFilters}
+            </Button>
+          </div>
+        )}
         gridClassName="md:grid-cols-1"
       >
         <SalesFilterSearch
           label={t.search.label}
           value={searchQuery}
-          onValueChange={setSearchQuery}
+          onValueChange={handleSearchChange}
           placeholder={t.search.placeholder}
         />
       </SalesFilterBar>

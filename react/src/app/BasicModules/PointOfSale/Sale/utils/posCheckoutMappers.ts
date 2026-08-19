@@ -37,6 +37,7 @@ export function toPosCheckoutItems(items: SaleItem[], products: Product[]): PosC
       unitPrice: money(item.price),
       discountAmount: money(lineDiscountAmount(item)),
       taxAmount: money(item.tax),
+      discountRuleId: item.discountRuleId ?? null,
     };
   });
 }

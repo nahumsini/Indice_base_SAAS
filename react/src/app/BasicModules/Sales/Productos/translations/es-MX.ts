@@ -330,6 +330,24 @@ export const esMX: ProductsTranslations = {
       inventory: 'Inventario',
     },
   },
+  inventoryTracking: {
+    title: 'Control de inventario',
+    description: 'Elige si este item requiere existencias y movimientos por almacén.',
+    unavailableForType: 'Este tipo de item se vende o utiliza sin controlar existencias.',
+    filterSuffix: '(Sin inventario)',
+    tracked: {
+      label: 'Controlar existencias',
+      description: 'Requiere cantidades, almacenes, movimientos y validación de disponibilidad.',
+    },
+    untracked: {
+      label: 'Vender sin inventario',
+      description: 'Permanece en el catálogo sin exigir ni descontar existencias.',
+    },
+    badges: {
+      tracked: 'Controla inventario',
+      untracked: 'Sin inventario',
+    },
+  },
   readiness: {
     title: 'Preparación operativa',
     labels: {
@@ -617,6 +635,7 @@ export const esMX: ProductsTranslations = {
     removeCartItem: (name: string) => `Quitar ${name} del carrito`,
     decreaseCartItem: (name: string) => `Disminuir la cantidad de ${name}`,
     increaseCartItem: (name: string) => `Aumentar la cantidad de ${name}`,
+    discount: 'Descuento',
     estimatedTotal: 'Total estimado',
     wholesaleNote: (price: string, quantity: number) => `Sugerencia mayoreo: ${price} desde ${quantity}+ unidades.`,
     taxAvailabilityNote: 'Impuestos y disponibilidad pueden ser confirmados por el negocio.',

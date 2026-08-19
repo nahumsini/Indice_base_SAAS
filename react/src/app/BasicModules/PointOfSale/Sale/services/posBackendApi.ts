@@ -159,6 +159,7 @@ export type PosCheckoutItemPayload = {
   unitPrice: number;
   discountAmount: number;
   taxAmount: number;
+  discountRuleId?: number | null;
 };
 
 export type PosCheckoutPaymentPayload = {

@@ -26,18 +26,26 @@ export function paginateTableRows<Row>(rows: readonly Row[], currentPage: number
 }
 
 export function useTablePagination<Row>({
+  controlledCurrentPage,
+  controlledPageSize,
   initialPageSize = DEFAULT_TABLE_PAGE_SIZE_OPTIONS[0],
+  onPaginationChange,
   pageSizeOptions = DEFAULT_TABLE_PAGE_SIZE_OPTIONS,
   resetKey,
   rows,
 }: {
+  controlledCurrentPage?: number;
+  controlledPageSize?: number;
   initialPageSize?: number;
+  onPaginationChange?: (state: { currentPage: number; pageSize: number }) => void;
   pageSizeOptions?: readonly number[];
   resetKey?: string | number;
   rows: readonly Row[];
 }) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(initialPageSize);
+  const [internalCurrentPage, setInternalCurrentPage] = useState(1);
+  const [internalPageSize, setInternalPageSize] = useState(initialPageSize);
+  const currentPage = controlledCurrentPage ?? internalCurrentPage;
+  const pageSize = controlledPageSize ?? internalPageSize;
   const totalCount = rows.length;
   const totalPages = getTablePageCount(totalCount, pageSize);
   const safeCurrentPage = clampTablePage(currentPage, totalCount, pageSize);
@@ -55,25 +63,31 @@ export function useTablePagination<Row>({
       return;
     }
 
-    setCurrentPage(1);
+    setInternalCurrentPage(1);
+    onPaginationChange?.({ currentPage: 1, pageSize });
   }, [resetKey]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
+      setInternalCurrentPage(totalPages);
+      onPaginationChange?.({ currentPage: totalPages, pageSize });
     }
   }, [currentPage, totalPages]);
 
   return {
     currentPage: safeCurrentPage,
-    onPageChange: setCurrentPage,
+    onPageChange: (nextPage: number) => {
+      setInternalCurrentPage(nextPage);
+      onPaginationChange?.({ currentPage: nextPage, pageSize });
+    },
     onPageSizeChange: (nextPageSize: number) => {
       const resolvedPageSize = pageSizeOptions.includes(nextPageSize)
         ? nextPageSize
         : pageSizeOptions[0] ?? initialPageSize;
 
-      setPageSize(resolvedPageSize);
-      setCurrentPage(1);
+      setInternalPageSize(resolvedPageSize);
+      setInternalCurrentPage(1);
+      onPaginationChange?.({ currentPage: 1, pageSize: resolvedPageSize });
     },
     pageEnd,
     pageSize,

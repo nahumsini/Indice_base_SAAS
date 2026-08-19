@@ -51,7 +51,7 @@ class SelfServiceKioskExperienceTest {
         assertThat(captured.getValue()).isSameAs(definition);
         assertThat(result.keySet()).containsExactlyInAnyOrder(
             "preticketNumber", "claimCode", "status", "currencyCode",
-            "itemCount", "totalAmount", "expiresAt");
+            "itemCount", "discountAmount", "totalAmount", "expiresAt");
         assertThat(result).doesNotContainKeys(
             "id", "kioskId", "cashRegisterId", "customerName", "items");
     }

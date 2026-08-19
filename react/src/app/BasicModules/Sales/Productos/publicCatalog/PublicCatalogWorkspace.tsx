@@ -15,6 +15,8 @@ import { PublicCatalogMobileCard } from './PublicCatalogMobileCard';
 import { PublicCatalogMobileCart } from './PublicCatalogMobileCart';
 import { PublicCatalogMobileFilters } from './PublicCatalogMobileFilters';
 import { PublicCatalogRequestModal } from './PublicCatalogRequestModal';
+import { calculateAutomaticDiscounts } from '../../../PointOfSale/shared/commercial/discounts';
+import { mapDiscountRule, type DiscountRuleWire } from '../../../PointOfSale/shared/commercial/discounts/services/discountRulesApi';
 
 type PublicCatalogWorkspaceProps = {
   config: PublicCatalogConfig;
@@ -23,6 +25,7 @@ type PublicCatalogWorkspaceProps = {
   online?: boolean;
   token?: string;
   csrfToken?: string;
+  discountRules?: DiscountRuleWire[];
 };
 
 export function PublicCatalogWorkspace({
@@ -32,6 +35,7 @@ export function PublicCatalogWorkspace({
   online = true,
   token,
   csrfToken,
+  discountRules = [],
 }: PublicCatalogWorkspaceProps) {
   const t = useProductsTranslations();
   const isMobile = useIsMobile();
@@ -58,7 +62,21 @@ export function PublicCatalogWorkspace({
       : [],
     [config.showItemTypeBadges, experienceItems],
   );
-  const estimatedTotal = calculatePublicCatalogCartTotal(experienceItems, cartItems);
+  const subtotal = calculatePublicCatalogCartTotal(experienceItems, cartItems);
+  const automaticDiscount = calculateAutomaticDiscounts(
+    discountRules.map(mapDiscountRule),
+    cartItems.flatMap((cartItem) => {
+      const item = experienceItems.find((candidate) => candidate.id === cartItem.itemId);
+      return item ? [{
+        key: item.id,
+        amount: getPublicCatalogUnitPrice(item, cartItem.quantity).unitPrice * cartItem.quantity,
+        productId: item.id,
+        category: item.category,
+      }] : [];
+    }),
+    'publicCatalog',
+  );
+  const estimatedTotal = automaticDiscount.total;
 
   const handleAddToCart = (item: PublicCatalogItem) => {
     if (!config.allowCart && !config.allowPurchaseRequest) return;
@@ -126,6 +144,7 @@ export function PublicCatalogWorkspace({
           cartItems={cartItems}
           config={config}
           total={estimatedTotal}
+          discountAmount={automaticDiscount.discountAmount}
           t={t}
           onOpenChange={setMobileCartOpen}
           onChangeQuantity={handleChangeQuantity}
@@ -156,6 +175,8 @@ export function PublicCatalogWorkspace({
             cartItems={cartItems}
             config={config}
             t={t}
+            total={estimatedTotal}
+            discountAmount={automaticDiscount.discountAmount}
             onChangeQuantity={handleChangeQuantity}
             onRemoveItem={removeCartItem}
             onRequestPurchase={() => setRequestOpen(true)}

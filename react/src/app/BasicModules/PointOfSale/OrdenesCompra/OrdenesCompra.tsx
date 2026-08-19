@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
+import { useLearningModeHeaderActions } from '../../../learningMode';
 import { buildSalesProductInputFromPointOfSale } from '../../CommerceCore/posProductMutations';
 import { toPointOfSaleProduct } from '../../CommerceCore/posCatalog';
 import { usePointOfSaleCatalogProducts } from '../../CommerceCore/usePointOfSaleCatalogProducts';
@@ -28,8 +29,15 @@ import type {
 } from './types/purchaseOrder.types';
 
 export default function OrdenesCompra() {
+  const learningModeActive = useLearningModeHeaderActions()?.active ?? false;
   const { copy } = usePurchaseOrderTranslations();
-  const { balanceLoadError, products, saleCurrency, reloadInventoryBalances } = usePointOfSaleCatalogProducts();
+  const {
+    balanceLoadError,
+    products,
+    purchasingProducts,
+    saleCurrency,
+    reloadInventoryBalances,
+  } = usePointOfSaleCatalogProducts();
   const { createProductRecord } = useSalesCrm();
   const {
     createOrder,
@@ -156,15 +164,17 @@ export default function OrdenesCompra() {
         onChange={setFilters}
       />
 
-      {workspaceMode === 'orders' ? (
-        <PurchaseOrderKpis
-          currency={saleCurrency}
-          invoices={supplierInvoices}
-          orders={filteredOrders}
-        />
-      ) : (
-        <SupplierSubmissionKpis submissions={filteredSupplierSubmissions} />
-      )}
+      {!learningModeActive ? (
+        workspaceMode === 'orders' ? (
+          <PurchaseOrderKpis
+            currency={saleCurrency}
+            invoices={supplierInvoices}
+            orders={filteredOrders}
+          />
+        ) : (
+          <SupplierSubmissionKpis submissions={filteredSupplierSubmissions} />
+        )
+      ) : null}
 
       {workspaceMode === 'orders' ? (
         <>
@@ -190,7 +200,7 @@ export default function OrdenesCompra() {
 
       {showCreateOrder ? (
         <CreatePurchaseOrderModal
-          products={products}
+          products={purchasingProducts}
           providers={providers}
           saleCurrency={saleCurrency}
           saving={saving}

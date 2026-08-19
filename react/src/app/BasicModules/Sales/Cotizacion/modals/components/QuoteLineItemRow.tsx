@@ -1,4 +1,5 @@
-import { Trash2 } from 'lucide-react';
+import { useEffect } from 'react';
+import { BadgePercent, Trash2 } from 'lucide-react';
 import { Button } from '../../../../../components/ui/button';
 import { Input } from '../../../../../components/ui/input';
 import {
@@ -10,6 +11,7 @@ import {
 } from '../../../../../components/ui/select';
 import { Textarea } from '../../../../../components/ui/textarea';
 import { ProductThumbnail } from '../../../Productos/components/ProductThumbnail';
+import { evaluateSalesDiscountRules } from '../../../../PointOfSale/shared/commercial/discounts/services/discountRulesApi';
 import type { SalesCatalogItem, SalesQuoteItem } from '../../../types';
 import type { QuotesTranslations } from '../../translations';
 import type { QuoteFormState } from '../../types/quoteBuilderTypes';
@@ -106,6 +108,45 @@ export function QuoteLineItemRow({
     onUpdate(patch);
   };
 
+  useEffect(() => {
+    const productId = product?.backendId;
+    const amount = Math.max(0, item.quantity * item.unitPrice);
+    if (!productId || amount <= 0) return;
+    let active = true;
+    const timer = window.setTimeout(() => {
+      void evaluateSalesDiscountRules({
+        channel: 'sales',
+        amount,
+        productId,
+        category: product.category,
+        currencyCode: quoteCurrency,
+        warehouseId: item.warehouseId ? Number(item.warehouseId) : null,
+        unitId: item.businessUnitId ? Number(item.businessUnitId) : null,
+        businessId: item.businessId ? Number(item.businessId) : null,
+      }).then((rules) => {
+        if (!active) return;
+        const rule = rules
+          .filter((candidate) => !candidate.requiresAuthorization && candidate.scope !== 'manual' && candidate.scope !== 'order')
+          .sort((left, right) => (right.evaluatedDiscountAmount ?? 0) - (left.evaluatedDiscountAmount ?? 0))[0];
+        if (!rule) {
+          if (item.discountRuleId != null) onUpdate({ discountPercent: 0, discountRuleId: undefined, discountRuleName: undefined, discountAmount: undefined });
+          return;
+        }
+        const discountAmount = Math.min(amount, rule.evaluatedDiscountAmount ?? 0);
+        onUpdate({
+          discountPercent: Number(((discountAmount / amount) * 100).toFixed(4)),
+          discountRuleId: Number(rule.id),
+          discountRuleName: rule.name,
+          discountAmount,
+        });
+      }).catch(() => undefined);
+    }, 250);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [form.currency, item.businessId, item.businessUnitId, item.quantity, item.unitPrice, item.warehouseId, product?.backendId, product?.category]);
+
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -139,7 +180,15 @@ export function QuoteLineItemRow({
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium text-slate-500">{t.labels.discount}</label>
-          <Input className={coralFieldClassName} type="number" min={0} max={100} value={item.discountPercent} onChange={(event) => onUpdate({ discountPercent: Number(event.target.value) || 0 })} />
+          <Input className={coralFieldClassName} type="number" min={0} max={100} value={item.discountPercent} onChange={(event) => onUpdate({
+            discountPercent: Number(event.target.value) || 0,
+            discountRuleId: undefined,
+            discountRuleName: undefined,
+            discountAmount: undefined,
+          })} />
+          {item.discountRuleName ? (
+            <p className="flex items-center gap-1 text-[11px] font-medium text-emerald-700"><BadgePercent className="h-3 w-3" />{item.discountRuleName}</p>
+          ) : null}
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium text-slate-500">{t.taxBuilder.taxPreset}</label>

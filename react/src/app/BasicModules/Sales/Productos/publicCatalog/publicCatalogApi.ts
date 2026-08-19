@@ -1,5 +1,6 @@
 import { apiClient } from '../../../../lib/apiClient';
 import type { PublicCatalogConfig, PublicCatalogItem, PublicCatalogContactMethod } from './types/publicCatalogTypes';
+import type { DiscountRuleWire } from '../../../PointOfSale/shared/commercial/discounts/services/discountRulesApi';
 
 type AdminCatalog = {
   id: number;
@@ -68,6 +69,7 @@ export type PublicCatalogBootstrap = {
     publicInventoryStatus?: PublicCatalogItem['publicInventoryStatus'] | null;
     readyForSales: boolean;
   }>;
+  discountRules: DiscountRuleWire[];
   csrfToken: string;
 };
 
@@ -83,6 +85,9 @@ export type PublicCatalogRequestResult = {
   currencyCode: string;
   itemCount: number;
   estimatedTotal: number | string;
+  subtotalAmount?: number | string;
+  discountAmount?: number | string;
+  discountRuleId?: number | null;
   createdAt: string;
   items: Array<{
     productId: number;
@@ -91,6 +96,8 @@ export type PublicCatalogRequestResult = {
     quantity: number | string;
     unitPrice: number | string;
     lineTotal: number | string;
+    discountAmount?: number | string;
+    discountRuleId?: number | null;
   }>;
 };
 
