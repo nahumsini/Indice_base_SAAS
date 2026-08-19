@@ -5,6 +5,7 @@ import {
   type CortesPeriodFilter,
   getCortesPeriodRange,
 } from '../utils/cortesUtils';
+import type { CortesCopy } from '../cortesTranslations';
 
 export type CortesFilterOption = {
   label: string;
@@ -14,6 +15,7 @@ export type CortesFilterOption = {
 interface CortesFiltersBarProps {
   cashiers: CortesFilterOption[];
   cashRegisters: CortesFilterOption[];
+  copy: CortesCopy;
   filters: CortesFilters;
   onChange: <Key extends keyof CortesFilters>(key: Key, value: CortesFilters[Key]) => void;
   warehouses: CortesFilterOption[];
@@ -22,6 +24,7 @@ interface CortesFiltersBarProps {
 export function CortesFiltersBar({
   cashiers,
   cashRegisters,
+  copy,
   filters,
   onChange,
   warehouses,
@@ -45,74 +48,75 @@ export function CortesFiltersBar({
     <section className="rounded-2xl border border-[#FF6B5E]/20 bg-white p-4 dark:border-[#FF6B5E]/25 dark:bg-slate-900 sm:p-5">
       <div className="mb-4">
         <div>
-          <h3 className="text-base font-medium text-[#222831] dark:text-white">Filtros</h3>
+          <h3 className="text-base font-medium text-[#222831] dark:text-white">{copy.filters.title}</h3>
           <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
-            Filtra por jornada, contexto operativo y diferencias de caja.
+            {copy.filters.description}
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
         <SearchField
+          copy={copy}
           value={filters.search}
           onChange={(value) => onChange('search', value)}
         />
         <SelectField
-          label="Periodo"
+          label={copy.filters.period}
           value={filters.period}
-          options={periodOptions}
+          options={periodOptions(copy)}
           onChange={(value) => handlePeriodChange(value as CortesPeriodFilter)}
         />
         <SelectField
-          label="Diferencia"
+          label={copy.filters.difference}
           value={filters.difference}
-          options={differenceOptions}
+          options={differenceOptions(copy)}
           onChange={(value) => onChange('difference', value as CortesDifferenceFilter)}
         />
         <SelectField
-          label="Almacen"
+          label={copy.filters.warehouse}
           value={filters.warehouseId || 'all'}
-          options={[allOption('Todos'), ...warehouses]}
+          options={[allOption(copy.common.all), ...warehouses]}
           onChange={(value) => onChange('warehouseId', value === 'all' ? '' : value)}
         />
         <SelectField
-          label="Caja"
+          label={copy.filters.cashRegister}
           value={filters.cashRegisterId || 'all'}
-          options={[allOption('Todos'), ...cashRegisters]}
+          options={[allOption(copy.common.all), ...cashRegisters]}
           onChange={(value) => onChange('cashRegisterId', value === 'all' ? '' : value)}
         />
         <SelectField
-          label="Cajero"
+          label={copy.filters.cashier}
           value={filters.userId || 'all'}
-          options={[allOption('Todos'), ...cashiers]}
+          options={[allOption(copy.common.all), ...cashiers]}
           onChange={(value) => onChange('userId', value === 'all' ? '' : value)}
         />
       </div>
 
       {filters.period === 'custom' ? (
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:max-w-xl">
-          <DateInput label="Desde" value={filters.dateFrom} onChange={(value) => handleCustomDateChange('dateFrom', value)} />
-          <DateInput label="Hasta" value={filters.dateTo} onChange={(value) => handleCustomDateChange('dateTo', value)} />
+          <DateInput label={copy.filters.from} value={filters.dateFrom} onChange={(value) => handleCustomDateChange('dateFrom', value)} />
+          <DateInput label={copy.filters.to} value={filters.dateTo} onChange={(value) => handleCustomDateChange('dateTo', value)} />
         </div>
       ) : null}
     </section>
   );
 }
 
-const periodOptions: Array<{ label: string; value: CortesPeriodFilter }> = [
-  { label: 'Hoy', value: 'today' },
-  { label: 'Ayer', value: 'yesterday' },
-  { label: 'Esta semana', value: 'week' },
-  { label: 'Este mes', value: 'month' },
-  { label: 'Personalizado', value: 'custom' },
+const periodOptions = (copy: CortesCopy): Array<{ label: string; value: CortesPeriodFilter }> => [
+  { label: copy.filters.periods.today, value: 'today' },
+  { label: copy.filters.periods.yesterday, value: 'yesterday' },
+  { label: copy.filters.periods.week, value: 'week' },
+  { label: copy.filters.periods.month, value: 'month' },
+  { label: copy.filters.periods.custom, value: 'custom' },
 ];
 
-const differenceOptions: Array<{ label: string; value: CortesDifferenceFilter }> = [
-  { label: 'Todos', value: 'all' },
-  { label: 'Cuadrados', value: 'balanced' },
-  { label: 'Con diferencia', value: 'withDifference' },
-  { label: 'Faltantes', value: 'short' },
-  { label: 'Sobrantes', value: 'over' },
+const differenceOptions = (copy: CortesCopy): Array<{ label: string; value: CortesDifferenceFilter }> => [
+  { label: copy.filters.differences.all, value: 'all' },
+  { label: copy.filters.differences.balanced, value: 'balanced' },
+  { label: copy.filters.differences.withDifference, value: 'withDifference' },
+  { label: copy.filters.differences.short, value: 'short' },
+  { label: copy.filters.differences.over, value: 'over' },
 ];
 
 const allOption = (label: string): CortesFilterOption => ({ label, value: 'all' });
@@ -140,22 +144,24 @@ function DateInput({
 }
 
 function SearchField({
+  copy,
   value,
   onChange,
 }: {
+  copy: CortesCopy;
   value: string;
   onChange: (value: string) => void;
 }) {
   return (
     <label className="space-y-2 md:col-span-2 xl:col-span-2">
-      <FilterLabel>Buscar</FilterLabel>
+      <FilterLabel>{copy.filters.search}</FilterLabel>
       <span className="relative block">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input
           type="search"
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          placeholder="Folio, caja, turno o usuario"
+          placeholder={copy.filters.searchPlaceholder}
           className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm font-medium text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
         />
       </span>

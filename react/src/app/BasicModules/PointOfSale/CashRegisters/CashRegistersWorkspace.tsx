@@ -5,6 +5,7 @@ import { PointOfSaleTitleBar, pointOfSaleTitleBarPrimaryActionClassName, pointOf
 import { CreateCashRegisterModal } from '../Sale/components/CreateCashRegisterModal';
 import { PosModalFrame, posModalModuleFooterClassName, posModalPrimaryActionClassName, posModalSecondaryActionClassName } from '../Sale/components/PosModalFrame';
 import { posBackendApi, type PosCashRegisterCreatePayload, type PosCashRegisterResponse, type PosContextResponse, type PosShiftClosingSummaryResponse, type PosShiftResponse, type PosWarehouseSummary } from '../Sale/services/posBackendApi';
+import { useCashRegistersCopy, type CashRegistersCopy } from './cashRegistersTranslations';
 
 type Row = {
   warehouse: PosWarehouseSummary;
@@ -16,6 +17,7 @@ type Row = {
 const unwrap = <T,>(value: T[] | { items?: T[] } | null | undefined): T[] => Array.isArray(value) ? value : value?.items ?? [];
 
 export default function CashRegistersWorkspace() {
+  const { copy, locale } = useCashRegistersCopy();
   const [context, setContext] = useState<PosContextResponse | null>(null);
   const [registers, setRegisters] = useState<PosCashRegisterResponse[]>([]);
   const [shifts, setShifts] = useState<PosShiftResponse[]>([]);
@@ -60,7 +62,7 @@ export default function CashRegistersWorkspace() {
       }
       await refreshLive();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'No fue posible cargar las cajas.');
+      setError(requestError instanceof Error ? requestError.message : copy.notices.loadError);
     } finally {
       setLoading(false);
     }
@@ -97,10 +99,10 @@ export default function CashRegistersWorkspace() {
     setSaving(true); setError(''); setNotice('');
     try {
       const register = await posBackendApi.ensureCashRegisterForWarehouse(warehouseId);
-      setNotice(`${register.code} · ${register.name} quedó disponible para abrir turno.`);
+      setNotice(copy.notices.provisioned(register.code, register.name));
       await reload();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'No fue posible preparar la caja.');
+      setError(requestError instanceof Error ? requestError.message : copy.notices.provisionError);
     } finally { setSaving(false); }
   };
 
@@ -109,9 +111,9 @@ export default function CashRegistersWorkspace() {
     try {
       const register = await posBackendApi.createCashRegister(payload);
       setCreating(false);
-      setNotice(`${register.code} · ${register.name} fue creada.`);
+      setNotice(copy.notices.created(register.code, register.name));
       await reload();
-    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : 'No fue posible crear la caja.'); }
+    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : copy.notices.createError); }
     finally { setSaving(false); }
   };
 
@@ -121,9 +123,9 @@ export default function CashRegistersWorkspace() {
     try {
       const register = await posBackendApi.updateCashRegister(editing.id, payload);
       setEditing(null);
-      setNotice(`${register.code} · ${register.name} fue actualizada.`);
+      setNotice(copy.notices.updated(register.code, register.name));
       await reload();
-    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : 'No fue posible actualizar la caja.'); }
+    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : copy.notices.updateError); }
     finally { setSaving(false); }
   };
 
@@ -143,58 +145,58 @@ export default function CashRegistersWorkspace() {
   return <div className="space-y-5">
     <PointOfSaleTitleBar
       icon={<Monitor className="h-6 w-6" />}
-      eyebrow="Administración operativa"
-      title="Cajas"
-      subtitle="Administra las cajas ligadas a cada almacén y consulta quién tiene un turno abierto."
+      eyebrow={copy.header.eyebrow}
+      title={copy.header.title}
+      subtitle={copy.header.subtitle}
       actions={<div className="flex flex-col gap-2 sm:flex-row">
-        <button type="button" onClick={() => void reload()} className={pointOfSaleTitleBarSecondaryActionClassName}><RefreshCw className="h-4 w-4" />Actualizar</button>
-        <button type="button" onClick={() => setCreating(true)} className={pointOfSaleTitleBarPrimaryActionClassName}><Plus className="h-4 w-4" />Nueva caja</button>
+        <button type="button" onClick={() => void reload()} className={pointOfSaleTitleBarSecondaryActionClassName}><RefreshCw className="h-4 w-4" />{copy.header.refresh}</button>
+        <button type="button" onClick={() => setCreating(true)} className={pointOfSaleTitleBarPrimaryActionClassName}><Plus className="h-4 w-4" />{copy.header.newRegister}</button>
       </div>}
     />
 
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      <Metric label="Cajas activas" value={activeCount} icon={<Monitor className="h-5 w-5" />} />
-      <Metric label="Turnos abiertos" value={openCount} icon={<Building2 className="h-5 w-5" />} />
-      <Metric label="Cortes cerrados hoy" value={closedToday.length} icon={<CheckCircle2 className="h-5 w-5" />} />
-      <Metric label="Ventas de hoy" value={formatMoney(todaySales, todayCurrency)} icon={<Activity className="h-5 w-5" />} />
-      <Metric label="Tickets de hoy" value={todayTickets} icon={<ReceiptText className="h-5 w-5" />} />
-      <Metric label="Ticket promedio del día" value={formatMoney(todayTickets > 0 ? todaySales / todayTickets : 0, todayCurrency)} icon={<CircleDollarSign className="h-5 w-5" />} />
+      <Metric label={copy.metrics.activeRegisters} value={activeCount} icon={<Monitor className="h-5 w-5" />} />
+      <Metric label={copy.metrics.openShifts} value={openCount} icon={<Building2 className="h-5 w-5" />} />
+      <Metric label={copy.metrics.closedToday} value={closedToday.length} icon={<CheckCircle2 className="h-5 w-5" />} />
+      <Metric label={copy.metrics.todaySales} value={formatMoney(todaySales, todayCurrency, locale)} icon={<Activity className="h-5 w-5" />} />
+      <Metric label={copy.metrics.todayTickets} value={todayTickets} icon={<ReceiptText className="h-5 w-5" />} />
+      <Metric label={copy.metrics.averageTicket} value={formatMoney(todayTickets > 0 ? todaySales / todayTickets : 0, todayCurrency, locale)} icon={<CircleDollarSign className="h-5 w-5" />} />
     </div>
 
     {(error || notice) ? <div className={`rounded-lg border px-4 py-3 text-sm ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>{error || notice}</div> : null}
 
     <section className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
       <div className="flex flex-col gap-4 border-b border-slate-200 p-4 dark:border-slate-700">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-lg font-medium text-slate-950 dark:text-white">Operación de cajas del día</h2><p className="text-sm text-slate-500 dark:text-slate-300">Supervisa sesiones abiertas y conserva visibles los cortes cerrados hoy.</p>{lastLiveUpdate ? <p className="mt-1 flex items-center gap-1 text-xs text-emerald-700"><Activity className="h-3.5 w-3.5" />En vivo · actualizado {lastLiveUpdate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p> : null}</div>
-        <label className="relative block sm:w-80"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar almacén o caja" className="min-h-11 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3 text-sm dark:border-slate-600 dark:bg-slate-950" /></label></div>
-        <div className="flex flex-wrap gap-2">{([['all', 'Todas las cajas'], ['open', `Sesiones abiertas (${openCount})`], ['closed', `Cortes de hoy (${closedToday.length})`]] as const).map(([id, label]) => <button key={id} type="button" onClick={() => setSessionView(id)} className={`min-h-10 rounded-lg border px-4 text-sm font-medium transition ${sessionView === id ? 'border-[#FF6B5E] bg-[#FF6B5E] text-[#222831]' : 'border-slate-200 bg-white text-slate-600 hover:border-[#FF6B5E]/50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'}`}>{label}</button>)}</div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-lg font-medium text-slate-950 dark:text-white">{copy.operation.title}</h2><p className="text-sm text-slate-500 dark:text-slate-300">{copy.operation.subtitle}</p>{lastLiveUpdate ? <p className="mt-1 flex items-center gap-1 text-xs text-emerald-700"><Activity className="h-3.5 w-3.5" />{copy.operation.liveUpdated(lastLiveUpdate.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' }))}</p> : null}</div>
+        <label className="relative block sm:w-80"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={copy.operation.searchPlaceholder} className="min-h-11 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3 text-sm dark:border-slate-600 dark:bg-slate-950" /></label></div>
+        <div className="flex flex-wrap gap-2">{([['all', copy.operation.allRegisters], ['open', copy.operation.openSessions(openCount)], ['closed', copy.operation.todayClosings(closedToday.length)]] as const).map(([id, label]) => <button key={id} type="button" onClick={() => setSessionView(id)} className={`min-h-10 rounded-lg border px-4 text-sm font-medium transition ${sessionView === id ? 'border-[#FF6B5E] bg-[#FF6B5E] text-[#222831]' : 'border-slate-200 bg-white text-slate-600 hover:border-[#FF6B5E]/50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'}`}>{label}</button>)}</div>
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-slate-200 text-left text-sm dark:divide-slate-700">
-          <thead className="bg-slate-50 text-xs text-slate-500 dark:bg-slate-950/60 dark:text-slate-300"><tr><th className="w-12 px-3 py-3"><span className="sr-only">Expandir</span></th><th className="px-4 py-3 font-medium">Almacén</th><th className="px-4 py-3 font-medium">Unidad</th><th className="px-4 py-3 font-medium">Negocio</th><th className="px-4 py-3 font-medium">Caja</th><th className="px-4 py-3 font-medium">Estado</th><th className="px-4 py-3 font-medium">Responsable actual</th><th className="px-4 py-3 text-right font-medium">Acciones</th></tr></thead>
+          <thead className="bg-slate-50 text-xs text-slate-500 dark:bg-slate-950/60 dark:text-slate-300"><tr><th className="w-12 px-3 py-3"><span className="sr-only">{copy.operation.expand}</span></th>{copy.operation.columns.map((column, index) => <th key={column} className={`px-4 py-3 font-medium ${index === copy.operation.columns.length - 1 ? 'text-right' : ''}`}>{column}</th>)}</tr></thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {loading ? <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-500"><Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />Cargando cajas…</td></tr> : rows.map(({ warehouse, register, shift, closedShifts }) => {
+            {loading ? <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-500"><Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />{copy.operation.loading}</td></tr> : rows.map(({ warehouse, register, shift, closedShifts }) => {
               const expanded = register ? expandedRegisters.has(register.id) : false;
               const summary = shift ? summaries[shift.id] : undefined;
               return [<tr key={`${warehouse.id}-${register?.id ?? 'missing'}`} className={expanded ? 'bg-[#FFF8F7] dark:bg-[#FF6B5E]/5' : undefined}>
-                <td className="px-3 py-4">{register ? <button type="button" onClick={() => toggleRegister(register.id)} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 hover:border-[#FF6B5E] hover:text-[#B63B32] dark:border-slate-700" aria-label={expanded ? 'Contraer caja' : 'Expandir caja'}>{expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</button> : null}</td>
-                <td className="px-4 py-4"><strong className="block font-medium text-slate-950 dark:text-white">{warehouse.name}</strong><span className="text-xs text-slate-500">{warehouse.warehouseCode || `Almacén ${warehouse.id}`}</span></td>
-                <td className="px-4 py-4 text-slate-700 dark:text-slate-200">{warehouse.unitName || (warehouse.unitId ? `Unidad ${warehouse.unitId}` : 'No vinculada')}</td>
-                <td className="px-4 py-4 text-slate-700 dark:text-slate-200">{warehouse.businessName || (warehouse.businessId ? `Negocio ${warehouse.businessId}` : 'No vinculado')}</td>
-                <td className="px-4 py-4">{register ? <><strong className="block font-medium text-slate-900 dark:text-white">{register.name}</strong><span className="text-xs text-slate-500">{register.code}</span></> : <span className="text-slate-500">Sin caja configurada</span>}</td>
-                <td className="px-4 py-4"><StatusBadge register={register} shift={shift} closedToday={closedShifts.length > 0} /></td>
-                <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{shift ? `${userNames[shift.openedByUserId] || `Usuario ${shift.openedByUserId}`} · ${new Date(shift.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : closedShifts.length > 0 ? `${closedShifts.length} corte${closedShifts.length === 1 ? '' : 's'} cerrado${closedShifts.length === 1 ? '' : 's'} hoy` : 'Disponible'}</td>
-                <td className="px-4 py-4 text-right">{register ? <button type="button" onClick={() => setEditing(register)} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 font-medium text-slate-700 dark:border-slate-700 dark:text-slate-200"><Pencil className="h-4 w-4" />Editar</button> : <button type="button" disabled={saving} onClick={() => void provision(warehouse.id)} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#FF6B5E] px-3 font-medium text-[#222831] disabled:opacity-60"><Plus className="h-4 w-4" />Preparar caja</button>}</td>
-              </tr>, expanded && register ? <tr key={`session-${register.id}`}><td colSpan={8} className="bg-slate-50 px-6 py-5 dark:bg-slate-950/50"><SessionFolder register={register} shift={shift} summary={summary} userName={shift ? userNames[shift.openedByUserId] : undefined} closedShifts={closedShifts} summaries={summaries} userNames={userNames} /></td></tr> : null];
+                <td className="px-3 py-4">{register ? <button type="button" onClick={() => toggleRegister(register.id)} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 hover:border-[#FF6B5E] hover:text-[#B63B32] dark:border-slate-700" aria-label={expanded ? copy.operation.collapse : copy.operation.expand}>{expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</button> : null}</td>
+                <td className="px-4 py-4"><strong className="block font-medium text-slate-950 dark:text-white">{warehouse.name}</strong><span className="text-xs text-slate-500">{warehouse.warehouseCode || copy.common.warehouse(warehouse.id)}</span></td>
+                <td className="px-4 py-4 text-slate-700 dark:text-slate-200">{warehouse.unitName || (warehouse.unitId ? copy.common.unit(warehouse.unitId) : copy.common.notLinked)}</td>
+                <td className="px-4 py-4 text-slate-700 dark:text-slate-200">{warehouse.businessName || (warehouse.businessId ? copy.common.business(warehouse.businessId) : copy.common.notLinked)}</td>
+                <td className="px-4 py-4">{register ? <><strong className="block font-medium text-slate-900 dark:text-white">{register.name}</strong><span className="text-xs text-slate-500">{register.code}</span></> : <span className="text-slate-500">{copy.row.noRegister}</span>}</td>
+                <td className="px-4 py-4"><StatusBadge copy={copy} register={register} shift={shift} closedToday={closedShifts.length > 0} /></td>
+                <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{shift ? `${userNames[shift.openedByUserId] || copy.common.user(shift.openedByUserId)} · ${new Date(shift.openedAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}` : closedShifts.length > 0 ? copy.row.closedTodayCount(closedShifts.length) : copy.common.available}</td>
+                <td className="px-4 py-4 text-right">{register ? <button type="button" onClick={() => setEditing(register)} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 font-medium text-slate-700 dark:border-slate-700 dark:text-slate-200"><Pencil className="h-4 w-4" />{copy.row.edit}</button> : <button type="button" disabled={saving} onClick={() => void provision(warehouse.id)} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#FF6B5E] px-3 font-medium text-[#222831] disabled:opacity-60"><Plus className="h-4 w-4" />{copy.row.prepare}</button>}</td>
+              </tr>, expanded && register ? <tr key={`session-${register.id}`}><td colSpan={8} className="bg-slate-50 px-6 py-5 dark:bg-slate-950/50"><SessionFolder copy={copy} locale={locale} register={register} shift={shift} summary={summary} userName={shift ? userNames[shift.openedByUserId] : undefined} closedShifts={closedShifts} summaries={summaries} userNames={userNames} /></td></tr> : null];
             })}
-            {!loading && rows.length === 0 ? <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-500">No hay resultados para esta búsqueda.</td></tr> : null}
+            {!loading && rows.length === 0 ? <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-500">{copy.operation.noResults}</td></tr> : null}
           </tbody>
         </table>
       </div>
     </section>
 
     <CreateCashRegisterModal isOpen={creating} warehouses={context?.warehouses ?? []} isSubmitting={saving} onClose={() => setCreating(false)} onConfirm={create} />
-    {editing ? <EditRegisterModal register={editing} warehouses={context?.warehouses ?? []} saving={saving} onClose={() => setEditing(null)} onSave={update} /> : null}
+    {editing ? <EditRegisterModal copy={copy} register={editing} warehouses={context?.warehouses ?? []} saving={saving} onClose={() => setEditing(null)} onSave={update} /> : null}
   </div>;
 }
 
@@ -202,7 +204,9 @@ function Metric({ label, value, icon, warning = false }: { label: string; value:
   return <div className={`rounded-lg border bg-white p-4 dark:bg-slate-900 ${warning ? 'border-orange-300 dark:border-orange-500/40' : 'border-slate-200 dark:border-slate-700'}`}><div className="flex items-center justify-between text-slate-500"><span className="text-sm">{label}</span>{icon}</div><strong className="mt-2 block text-2xl font-medium text-slate-950 dark:text-white">{value}</strong></div>;
 }
 
-function SessionFolder({ register, shift, summary, userName, closedShifts, summaries, userNames }: {
+function SessionFolder({ copy, locale, register, shift, summary, userName, closedShifts, summaries, userNames }: {
+  copy: CashRegistersCopy;
+  locale: string;
   register: PosCashRegisterResponse;
   shift: PosShiftResponse | null;
   summary?: PosShiftClosingSummaryResponse;
@@ -211,47 +215,47 @@ function SessionFolder({ register, shift, summary, userName, closedShifts, summa
   summaries: Record<number, PosShiftClosingSummaryResponse>;
   userNames: Record<number, string>;
 }) {
-  if (!shift && closedShifts.length === 0) return <div className="rounded-lg border border-dashed border-slate-300 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-lg bg-emerald-100 text-emerald-700"><Monitor className="h-5 w-5" /></div><div><strong className="font-medium text-slate-950 dark:text-white">Caja disponible</strong><p className="text-sm text-slate-500">{register.name} no tiene actividad registrada hoy.</p></div></div></div>;
+  if (!shift && closedShifts.length === 0) return <div className="rounded-lg border border-dashed border-slate-300 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-lg bg-emerald-100 text-emerald-700"><Monitor className="h-5 w-5" /></div><div><strong className="font-medium text-slate-950 dark:text-white">{copy.session.availableTitle}</strong><p className="text-sm text-slate-500">{copy.session.availableDescription(register.name)}</p></div></div></div>;
 
   const orderedClosedShifts = [...closedShifts].sort((left, right) => new Date(right.closedAt || right.openedAt).getTime() - new Date(left.closedAt || left.openedAt).getTime());
   return <div className="space-y-4">
-    {shift ? <OpenSessionCard shift={shift} summary={summary} userName={userName} /> : null}
+    {shift ? <OpenSessionCard copy={copy} locale={locale} shift={shift} summary={summary} userName={userName} /> : null}
     {orderedClosedShifts.length > 0 ? <div className="space-y-3">
-      <div className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300"><CheckCircle2 className="h-4 w-4 text-violet-600" />Cortes cerrados hoy ({orderedClosedShifts.length})</div>
-      {orderedClosedShifts.map((closedShift) => <ClosedSessionCard key={closedShift.id} shift={closedShift} summary={summaries[closedShift.id]} userName={userNames[closedShift.openedByUserId]} closedByUserName={closedShift.closedByUserId ? userNames[closedShift.closedByUserId] : undefined} />)}
+      <div className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300"><CheckCircle2 className="h-4 w-4 text-violet-600" />{copy.session.closedTodayTitle(orderedClosedShifts.length)}</div>
+      {orderedClosedShifts.map((closedShift) => <ClosedSessionCard key={closedShift.id} copy={copy} locale={locale} shift={closedShift} summary={summaries[closedShift.id]} userName={userNames[closedShift.openedByUserId]} closedByUserName={closedShift.closedByUserId ? userNames[closedShift.closedByUserId] : undefined} />)}
     </div> : null}
   </div>;
 }
 
-function OpenSessionCard({ shift, summary, userName }: { shift: PosShiftResponse; summary?: PosShiftClosingSummaryResponse; userName?: string }) {
+function OpenSessionCard({ copy, locale, shift, summary, userName }: { copy: CashRegistersCopy; locale: string; shift: PosShiftResponse; summary?: PosShiftClosingSummaryResponse; userName?: string }) {
   const currency = summary?.currencyCode || shift.currencyCode;
   return <div className="rounded-lg border border-[#FF6B5E]/25 bg-white p-5 dark:bg-slate-900">
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex items-center gap-2"><span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500" /><strong className="font-medium text-slate-950 dark:text-white">Sesión abierta · Turno {shift.id}</strong></div><p className="mt-1 text-sm text-slate-500">{userName || `Usuario ${shift.openedByUserId}`} · inició {new Date(shift.openedAt).toLocaleString()}</p></div><span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800">Monitoreo en tiempo real</span></div>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex items-center gap-2"><span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500" /><strong className="font-medium text-slate-950 dark:text-white">{copy.session.openTitle(shift.id)}</strong></div><p className="mt-1 text-sm text-slate-500">{copy.session.openedBy(userName || copy.common.user(shift.openedByUserId), new Date(shift.openedAt).toLocaleString(locale))}</p></div><span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800">{copy.session.realTime}</span></div>
     <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-      <LiveValue icon={<CircleDollarSign className="h-4 w-4" />} label="Venta acumulada" value={summary ? formatMoney(Number(summary.totalSalesAmount), currency) : 'Actualizando…'} highlight />
-      <LiveValue icon={<ReceiptText className="h-4 w-4" />} label="Tickets" value={summary ? String(summary.ticketsCount) : '—'} />
-      <LiveValue icon={<ReceiptText className="h-4 w-4" />} label="Ticket promedio" value={summary ? formatMoney(summary.ticketsCount > 0 ? Number(summary.totalSalesAmount) / summary.ticketsCount : 0, currency) : '—'} />
-      <LiveValue icon={<CircleDollarSign className="h-4 w-4" />} label="Venta en efectivo" value={summary ? formatMoney(Number(summary.cashSalesAmount), currency) : '—'} />
-      <LiveValue icon={<CircleDollarSign className="h-4 w-4" />} label="Efectivo esperado" value={summary ? formatMoney(Number(summary.expectedCashAmount), currency) : '—'} />
-      <LiveValue icon={<CircleDollarSign className="h-4 w-4" />} label="Fondo inicial" value={summary ? formatMoney(Number(summary.openingCashAmount), currency) : formatMoney(Number(shift.openingAmount || 0), currency)} />
+      <LiveValue icon={<CircleDollarSign className="h-4 w-4" />} label={copy.session.salesAccumulated} value={summary ? formatMoney(Number(summary.totalSalesAmount), currency, locale) : copy.session.updating} highlight />
+      <LiveValue icon={<ReceiptText className="h-4 w-4" />} label={copy.session.tickets} value={summary ? String(summary.ticketsCount) : '—'} />
+      <LiveValue icon={<ReceiptText className="h-4 w-4" />} label={copy.session.averageTicket} value={summary ? formatMoney(summary.ticketsCount > 0 ? Number(summary.totalSalesAmount) / summary.ticketsCount : 0, currency, locale) : '—'} />
+      <LiveValue icon={<CircleDollarSign className="h-4 w-4" />} label={copy.session.cashSales} value={summary ? formatMoney(Number(summary.cashSalesAmount), currency, locale) : '—'} />
+      <LiveValue icon={<CircleDollarSign className="h-4 w-4" />} label={copy.session.expectedCash} value={summary ? formatMoney(Number(summary.expectedCashAmount), currency, locale) : '—'} />
+      <LiveValue icon={<CircleDollarSign className="h-4 w-4" />} label={copy.session.openingFund} value={summary ? formatMoney(Number(summary.openingCashAmount), currency, locale) : formatMoney(Number(shift.openingAmount || 0), currency, locale)} />
     </div>
   </div>;
 }
 
-function ClosedSessionCard({ shift, summary, userName, closedByUserName }: { shift: PosShiftResponse; summary?: PosShiftClosingSummaryResponse; userName?: string; closedByUserName?: string }) {
+function ClosedSessionCard({ copy, locale, shift, summary, userName, closedByUserName }: { copy: CashRegistersCopy; locale: string; shift: PosShiftResponse; summary?: PosShiftClosingSummaryResponse; userName?: string; closedByUserName?: string }) {
   const currency = summary?.currencyCode || shift.currencyCode;
   const tickets = summary?.ticketsCount ?? 0;
   const sales = Number(summary?.totalSalesAmount || 0);
   const difference = Number(summary?.overShortAmount ?? shift.overShortAmount ?? 0);
   return <div className="rounded-lg border border-violet-200 bg-white p-5 dark:border-violet-500/30 dark:bg-slate-900">
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><div className="flex items-center gap-2"><span className="grid h-6 w-6 place-items-center rounded-full bg-violet-100 text-violet-700"><CheckCircle2 className="h-4 w-4" /></span><strong className="font-medium text-slate-950 dark:text-white">Corte cerrado · Turno {shift.id}</strong></div><p className="mt-1 text-sm text-slate-500">{userName || `Usuario ${shift.openedByUserId}`} · {new Date(shift.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} a {shift.closedAt ? new Date(shift.closedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}{closedByUserName ? ` · cerró ${closedByUserName}` : ''}</p></div><span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-medium text-violet-800">Sesión cerrada</span></div>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><div className="flex items-center gap-2"><span className="grid h-6 w-6 place-items-center rounded-full bg-violet-100 text-violet-700"><CheckCircle2 className="h-4 w-4" /></span><strong className="font-medium text-slate-950 dark:text-white">{copy.session.closedTitle(shift.id)}</strong></div><p className="mt-1 text-sm text-slate-500">{userName || copy.common.user(shift.openedByUserId)} · {new Date(shift.openedAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })} - {shift.closedAt ? new Date(shift.closedAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '—'}{closedByUserName ? ` · ${copy.session.closedBy(closedByUserName)}` : ''}</p></div><span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-medium text-violet-800">{copy.session.closedStatus}</span></div>
     <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-      <LiveValue icon={<CircleDollarSign className="h-4 w-4" />} label="Venta del corte" value={summary ? formatMoney(sales, currency) : 'Actualizando…'} highlight />
-      <LiveValue icon={<ReceiptText className="h-4 w-4" />} label="Tickets" value={summary ? String(tickets) : '—'} />
-      <LiveValue icon={<ReceiptText className="h-4 w-4" />} label="Ticket promedio" value={summary ? formatMoney(tickets > 0 ? sales / tickets : 0, currency) : '—'} />
-      <LiveValue icon={<CircleDollarSign className="h-4 w-4" />} label="Efectivo esperado" value={summary ? formatMoney(Number(summary.expectedCashAmount), currency) : '—'} />
-      <LiveValue icon={<CircleDollarSign className="h-4 w-4" />} label="Efectivo contado" value={summary ? formatMoney(Number(summary.countedCashAmount || 0), currency) : '—'} />
-      <LiveValue icon={<CircleDollarSign className="h-4 w-4" />} label="Diferencia" value={summary ? formatMoney(difference, currency) : '—'} alert={Boolean(summary && Math.abs(difference) >= 0.01)} />
+      <LiveValue icon={<CircleDollarSign className="h-4 w-4" />} label={copy.session.closingSales} value={summary ? formatMoney(sales, currency, locale) : copy.session.updating} highlight />
+      <LiveValue icon={<ReceiptText className="h-4 w-4" />} label={copy.session.tickets} value={summary ? String(tickets) : '—'} />
+      <LiveValue icon={<ReceiptText className="h-4 w-4" />} label={copy.session.averageTicket} value={summary ? formatMoney(tickets > 0 ? sales / tickets : 0, currency, locale) : '—'} />
+      <LiveValue icon={<CircleDollarSign className="h-4 w-4" />} label={copy.session.expectedCash} value={summary ? formatMoney(Number(summary.expectedCashAmount), currency, locale) : '—'} />
+      <LiveValue icon={<CircleDollarSign className="h-4 w-4" />} label={copy.session.countedCash} value={summary ? formatMoney(Number(summary.countedCashAmount || 0), currency, locale) : '—'} />
+      <LiveValue icon={<CircleDollarSign className="h-4 w-4" />} label={copy.session.difference} value={summary ? formatMoney(difference, currency, locale) : '—'} alert={Boolean(summary && Math.abs(difference) >= 0.01)} />
     </div>
   </div>;
 }
@@ -261,8 +265,8 @@ function LiveValue({ icon, label, value, highlight = false, alert = false }: { i
   return <div className={`rounded-lg border p-3 ${tone}`}><div className={`flex items-center gap-1.5 text-xs ${alert ? 'text-red-600' : 'text-slate-500'}`}>{icon}{label}</div><strong className={`mt-1 block text-base font-medium ${alert ? 'text-red-700 dark:text-red-300' : 'text-slate-950 dark:text-white'}`}>{value}</strong></div>;
 }
 
-function formatMoney(value: number, currency: string) {
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency, minimumFractionDigits: 2 }).format(Number.isFinite(value) ? value : 0);
+function formatMoney(value: number, currency: string, locale = 'en-CA') {
+  return new Intl.NumberFormat(locale, { style: 'currency', currency, minimumFractionDigits: 2 }).format(Number.isFinite(value) ? value : 0);
 }
 
 function isToday(value?: string | null) {
@@ -271,19 +275,19 @@ function isToday(value?: string | null) {
   return !Number.isNaN(date.getTime()) && date.toDateString() === new Date().toDateString();
 }
 
-function StatusBadge({ register, shift, closedToday }: { register: PosCashRegisterResponse | null; shift: PosShiftResponse | null; closedToday: boolean }) {
-  const label = !register ? 'Requiere caja' : shift ? (shift.status === 'CLOSING' ? 'En cierre' : 'Turno abierto') : closedToday ? 'Cerrada hoy' : register.active && register.status === 'ACTIVE' ? 'Disponible' : 'Inactiva';
+function StatusBadge({ copy, register, shift, closedToday }: { copy: CashRegistersCopy; register: PosCashRegisterResponse | null; shift: PosShiftResponse | null; closedToday: boolean }) {
+  const label = !register ? copy.row.statuses.needsRegister : shift ? (shift.status === 'CLOSING' ? copy.row.statuses.closing : copy.row.statuses.open) : closedToday ? copy.row.statuses.closedToday : register.active && register.status === 'ACTIVE' ? copy.row.statuses.available : copy.row.statuses.inactive;
   const tone = !register ? 'bg-orange-100 text-orange-800' : shift ? 'bg-sky-100 text-sky-800' : closedToday ? 'bg-violet-100 text-violet-800' : register.active && register.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600';
   return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${tone}`}>{label}</span>;
 }
 
-function EditRegisterModal({ register, warehouses, saving, onClose, onSave }: { register: PosCashRegisterResponse; warehouses: PosWarehouseSummary[]; saving: boolean; onClose: () => void; onSave: (payload: PosCashRegisterCreatePayload) => Promise<void> }) {
+function EditRegisterModal({ copy, register, warehouses, saving, onClose, onSave }: { copy: CashRegistersCopy; register: PosCashRegisterResponse; warehouses: PosWarehouseSummary[]; saving: boolean; onClose: () => void; onSave: (payload: PosCashRegisterCreatePayload) => Promise<void> }) {
   const [warehouseId, setWarehouseId] = useState(String(register.warehouseId));
   const [code, setCode] = useState(register.code);
   const [name, setName] = useState(register.name);
   const [active, setActive] = useState(register.active && register.status === 'ACTIVE');
   const payload = { warehouseId: Number(warehouseId), code: code.trim().toUpperCase(), name: name.trim(), status: active ? 'ACTIVE' as const : 'INACTIVE' as const, active, notes: register.notes };
-  return <PosModalFrame modalType="standard-form" closeLabel="Cerrar edición" eyebrow="Administración de cajas" icon={<Pencil className="h-6 w-6" />} isCloseDisabled={saving} onClose={onClose} size="md" subtitle="Actualiza identidad, almacén y disponibilidad operativa." title="Editar caja" tone="coral" footerClassName={posModalModuleFooterClassName} footerLeading={<button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>Cancelar</button>} footer={<button type="button" disabled={saving || !code.trim() || !name.trim()} onClick={() => void onSave(payload)} className={posModalPrimaryActionClassName}>{saving ? 'Guardando…' : 'Guardar cambios'}</button>}>
-    <div className="space-y-4"><label className="block text-sm font-medium">Almacén<select value={warehouseId} onChange={(event) => setWarehouseId(event.target.value)} className="mt-2 min-h-12 w-full rounded-lg border border-slate-300 bg-white px-3 dark:border-slate-600 dark:bg-slate-950">{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}</select></label><div className="grid gap-4 sm:grid-cols-2"><label className="block text-sm font-medium">Código<input value={code} onChange={(event) => setCode(event.target.value)} className="mt-2 min-h-12 w-full rounded-lg border border-slate-300 px-3 dark:border-slate-600 dark:bg-slate-950" /></label><label className="block text-sm font-medium">Nombre<input value={name} onChange={(event) => setName(event.target.value)} className="mt-2 min-h-12 w-full rounded-lg border border-slate-300 px-3 dark:border-slate-600 dark:bg-slate-950" /></label></div><label className="flex items-center justify-between rounded-lg border border-slate-200 p-4 dark:border-slate-700"><span><strong className="block text-sm font-medium">Caja activa</strong><span className="text-xs text-slate-500">Permite abrir nuevos turnos en esta caja.</span></span><input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} className="h-5 w-5" /></label></div>
+  return <PosModalFrame modalType="standard-form" closeLabel={copy.editModal.closeLabel} eyebrow={copy.editModal.eyebrow} icon={<Pencil className="h-6 w-6" />} isCloseDisabled={saving} onClose={onClose} size="md" subtitle={copy.editModal.subtitle} title={copy.editModal.title} tone="coral" footerClassName={posModalModuleFooterClassName} footerLeading={<button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>{copy.editModal.cancel}</button>} footer={<button type="button" disabled={saving || !code.trim() || !name.trim()} onClick={() => void onSave(payload)} className={posModalPrimaryActionClassName}>{saving ? copy.editModal.saving : copy.editModal.save}</button>}>
+    <div className="space-y-4"><label className="block text-sm font-medium">{copy.editModal.warehouse}<select value={warehouseId} onChange={(event) => setWarehouseId(event.target.value)} className="mt-2 min-h-12 w-full rounded-lg border border-slate-300 bg-white px-3 dark:border-slate-600 dark:bg-slate-950">{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}</select></label><div className="grid gap-4 sm:grid-cols-2"><label className="block text-sm font-medium">{copy.editModal.code}<input value={code} onChange={(event) => setCode(event.target.value)} className="mt-2 min-h-12 w-full rounded-lg border border-slate-300 px-3 dark:border-slate-600 dark:bg-slate-950" /></label><label className="block text-sm font-medium">{copy.editModal.name}<input value={name} onChange={(event) => setName(event.target.value)} className="mt-2 min-h-12 w-full rounded-lg border border-slate-300 px-3 dark:border-slate-600 dark:bg-slate-950" /></label></div><label className="flex items-center justify-between rounded-lg border border-slate-200 p-4 dark:border-slate-700"><span><strong className="block text-sm font-medium">{copy.editModal.activeTitle}</strong><span className="text-xs text-slate-500">{copy.editModal.activeHelp}</span></span><input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} className="h-5 w-5" /></label></div>
   </PosModalFrame>;
 }

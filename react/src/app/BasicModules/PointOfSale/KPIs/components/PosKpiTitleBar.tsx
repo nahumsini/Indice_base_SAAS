@@ -4,14 +4,15 @@ import {
   PointOfSaleTitleBar,
   pointOfSaleTitleBarSecondaryActionClassName,
 } from '../../shared/components/PointOfSaleTitleBar';
+import type { PosKpiCopy } from '../posKpiTranslations';
 
-export function PosKpiTitleBar({ disabled = false, onPrint }: { disabled?: boolean; onPrint: () => void }) {
+export function PosKpiTitleBar({ copy, disabled = false, onPrint }: { copy: PosKpiCopy; disabled?: boolean; onPrint: () => void }) {
   return (
     <PointOfSaleTitleBar
       icon={<BarChart3 className="h-5 w-5" />}
-      eyebrow="Retail operativo"
-      title="KPIs de punto de venta"
-      subtitle="Lectura ejecutiva de cierres, tickets, mezcla de pago y diferencias de caja por periodo."
+      eyebrow={copy.titleBar.eyebrow}
+      title={copy.titleBar.title}
+      subtitle={copy.titleBar.subtitle}
       actions={(
         <Button
           type="button"
@@ -21,7 +22,7 @@ export function PosKpiTitleBar({ disabled = false, onPrint }: { disabled?: boole
           className={pointOfSaleTitleBarSecondaryActionClassName}
         >
           <Printer className="h-4 w-4" />
-          Imprimir reporte
+          {copy.titleBar.print}
         </Button>
       )}
     />

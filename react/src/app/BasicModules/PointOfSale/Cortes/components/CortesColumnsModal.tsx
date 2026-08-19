@@ -1,9 +1,11 @@
 import { ArrowDown, ArrowUp, Columns3, RotateCcw, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { CortesModalFrame } from './CortesModalFrame';
-import { cortesColumnOptions, defaultCortesColumns, type CortesColumnId } from '../utils/cortesColumns';
+import type { CortesCopy } from '../cortesTranslations';
+import { defaultCortesColumns, type CortesColumnId } from '../utils/cortesColumns';
 
 interface CortesColumnsModalProps {
+  copy: CortesCopy;
   open: boolean;
   visibleColumns: CortesColumnId[];
   onClose: () => void;
@@ -11,6 +13,7 @@ interface CortesColumnsModalProps {
 }
 
 export function CortesColumnsModal({
+  copy,
   open,
   visibleColumns,
   onClose,
@@ -18,13 +21,19 @@ export function CortesColumnsModal({
 }: CortesColumnsModalProps) {
   const [search, setSearch] = useState('');
   const [draftColumns, setDraftColumns] = useState<CortesColumnId[]>(visibleColumns);
+  const columnOptions = useMemo(() => (
+    Object.entries(copy.table.columns).map(([id, label]) => ({
+      id: id as CortesColumnId,
+      label,
+    }))
+  ), [copy.table.columns]);
 
   const filteredOptions = useMemo(() => {
     const term = search.trim().toLowerCase();
     return term === ''
-      ? cortesColumnOptions
-      : cortesColumnOptions.filter((option) => option.label.toLowerCase().includes(term));
-  }, [search]);
+      ? columnOptions
+      : columnOptions.filter((option) => option.label.toLowerCase().includes(term));
+  }, [columnOptions, search]);
 
   const toggleColumn = (columnId: CortesColumnId) => {
     setDraftColumns((current) => (
@@ -58,14 +67,14 @@ export function CortesColumnsModal({
   return (
     <CortesModalFrame
       modalType="standard-form"
-      closeLabel="Cerrar configuración de columnas"
-      eyebrow="Tabla de cortes"
+      closeLabel={copy.columnsModal.closeLabel}
+      eyebrow={copy.columnsModal.eyebrow}
       icon={<Columns3 className="h-5 w-5" />}
       onClose={onClose}
       open={open}
       size="md"
-      title="Configurar columnas"
-      subtitle="Selecciona la información visible en la tabla de cortes."
+      title={copy.columnsModal.title}
+      subtitle={copy.columnsModal.subtitle}
       footer={(
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
           <button
@@ -73,14 +82,14 @@ export function CortesColumnsModal({
             onClick={onClose}
             className="h-11 rounded-lg border border-slate-200 px-5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
           >
-            Cancelar
+            {copy.columnsModal.cancel}
           </button>
           <button
             type="button"
             onClick={applyColumns}
             className="h-11 rounded-lg bg-[#222831] px-5 text-sm font-medium text-white shadow-sm transition hover:bg-[#111827]"
           >
-            Aplicar cambios
+            {copy.columnsModal.apply}
           </button>
         </div>
       )}
@@ -89,17 +98,17 @@ export function CortesColumnsModal({
         <div className="grid gap-3 sm:grid-cols-3">
           <button
             type="button"
-            onClick={() => setDraftColumns(cortesColumnOptions.map((option) => option.id))}
+            onClick={() => setDraftColumns(columnOptions.map((option) => option.id))}
             className="h-10 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
           >
-            Todas
+            {copy.columnsModal.all}
           </button>
           <button
             type="button"
             onClick={() => setDraftColumns([])}
             className="h-10 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
           >
-            Ninguna
+            {copy.columnsModal.none}
           </button>
           <button
             type="button"
@@ -107,7 +116,7 @@ export function CortesColumnsModal({
             className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             <RotateCcw className="h-4 w-4" />
-            Restaurar
+            {copy.columnsModal.restore}
           </button>
         </div>
 
@@ -116,7 +125,7 @@ export function CortesColumnsModal({
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar columna"
+            placeholder={copy.columnsModal.searchPlaceholder}
             className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm font-medium text-slate-950 outline-none transition focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
           />
         </label>
@@ -145,8 +154,8 @@ export function CortesColumnsModal({
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      aria-label={`Subir ${option.label}`}
-                      title={`Subir ${option.label}`}
+                      aria-label={copy.columnsModal.moveUp(option.label)}
+                      title={copy.columnsModal.moveUp(option.label)}
                       disabled={selectedIndex === 0}
                       onClick={() => moveColumn(option.id, 'up')}
                       className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
@@ -155,8 +164,8 @@ export function CortesColumnsModal({
                     </button>
                     <button
                       type="button"
-                      aria-label={`Bajar ${option.label}`}
-                      title={`Bajar ${option.label}`}
+                      aria-label={copy.columnsModal.moveDown(option.label)}
+                      title={copy.columnsModal.moveDown(option.label)}
                       disabled={selectedIndex === draftColumns.length - 1}
                       onClick={() => moveColumn(option.id, 'down')}
                       className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"

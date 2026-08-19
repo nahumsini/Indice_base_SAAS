@@ -1,10 +1,10 @@
 export const esCO = {
-  title: 'Punto de venta',
+  title: 'Punto de Venta',
   subtitle: 'Gestiona ventas de mostrador, comprobantes, cierres de caja, clientes, kioscos e indicadores operativos.',
   back: 'Regresar',
   navLabel: 'Secciones de punto de venta',
   loading: {
-    openingTitle: 'Abriendo punto de venta',
+    openingTitle: 'Abriendo Punto de Venta',
     openingDescription: 'Preparando el espacio operativo seleccionado.',
     fallbackTitle: 'Cargando vista',
     fallbackDescription: 'Cargando únicamente la sección operativa seleccionada.',

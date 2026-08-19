@@ -1,30 +1,33 @@
 import { AlertTriangle, BadgeDollarSign, Banknote, CheckCircle2, Gauge, ReceiptText } from 'lucide-react';
 import { OperationalKpiArea } from '../../../shared/operational/OperationalKpiArea';
+import type { CortesCopy } from '../cortesTranslations';
 import type { CortesAnalytics } from '../utils/cortesUtils';
 import { formatCurrency } from '../utils/cortesUtils';
 
 interface CortesKpiAreaProps {
   analytics: CortesAnalytics;
+  copy: CortesCopy;
 }
 
 export function CortesKpiArea({
   analytics,
+  copy,
 }: CortesKpiAreaProps) {
   const hasDifference = analytics.shortCount > 0 || analytics.overCount > 0;
   const differenceLabel = analytics.convertedNetDifference > 0
-    ? `Sobrante neto ${formatCurrency(analytics.convertedNetDifference, analytics.preferredCurrency)}`
+    ? copy.kpis.netOver(formatCurrency(analytics.convertedNetDifference, analytics.preferredCurrency))
     : analytics.convertedNetDifference < 0
-    ? `Faltante neto ${formatCurrency(Math.abs(analytics.convertedNetDifference), analytics.preferredCurrency)}`
-    : 'Sin diferencia neta';
+    ? copy.kpis.netShort(formatCurrency(Math.abs(analytics.convertedNetDifference), analytics.preferredCurrency))
+    : copy.kpis.noNetDifference;
 
   const insight = analytics.closingCount === 0
-    ? 'No hay cortes en el periodo filtrado; cierra un turno desde Venta para alimentar el historial.'
+    ? copy.kpis.noClosingsInsight
     : hasDifference
-    ? `${analytics.shortCount + analytics.overCount} corte(s) requieren revision antes de cerrar el control operativo.`
-    : `${analytics.closingCount} corte(s) balanceados en el periodo; el efectivo contado coincide con lo esperado.`;
+    ? copy.kpis.reviewInsight(analytics.shortCount + analytics.overCount)
+    : copy.kpis.balancedInsight(analytics.closingCount);
   const currencyInsight = analytics.hasMultipleSalesCurrencies
-    ? `Cobrado en ${analytics.totalSalesLabel}; equivalente ${analytics.convertedSalesLabel} en ${analytics.preferredCurrency}.`
-    : `Cobrado ${analytics.totalSalesLabel}; divisa preferida ${analytics.preferredCurrency}.`;
+    ? copy.kpis.chargedMultiCurrency(analytics.totalSalesLabel, analytics.convertedSalesLabel, analytics.preferredCurrency)
+    : copy.kpis.chargedSingleCurrency(analytics.totalSalesLabel, analytics.preferredCurrency);
 
   return (
     <OperationalKpiArea
@@ -33,21 +36,21 @@ export function CortesKpiArea({
           id: 'sales',
           icon: <BadgeDollarSign className="h-4 w-4" />,
           iconClassName: 'text-[#FF6B5E]',
-          label: `ventas en ${analytics.preferredCurrency}`,
+          label: copy.kpis.salesLabel(analytics.preferredCurrency),
           value: analytics.convertedSalesLabel,
           valueClassName: 'text-[#FF6B5E]',
         },
         {
           id: 'closings',
           icon: <ReceiptText className="h-4 w-4" />,
-          label: 'cortes',
+          label: copy.kpis.closings,
           value: analytics.closingCount,
         },
         {
           id: 'tickets',
           icon: <Gauge className="h-4 w-4" />,
           iconClassName: 'text-blue-600',
-          label: 'tickets',
+          label: copy.kpis.tickets,
           value: analytics.totalTickets,
           valueClassName: 'text-blue-600',
         },
@@ -55,7 +58,7 @@ export function CortesKpiArea({
           id: 'expected',
           icon: <Banknote className="h-4 w-4" />,
           iconClassName: 'text-emerald-600',
-          label: `esperado ${analytics.preferredCurrency}`,
+          label: copy.kpis.expected(analytics.preferredCurrency),
           value: formatCurrency(analytics.convertedExpectedCash, analytics.preferredCurrency),
           valueClassName: 'text-emerald-600',
         },
@@ -63,7 +66,7 @@ export function CortesKpiArea({
           id: 'difference',
           icon: <AlertTriangle className="h-4 w-4" />,
           iconClassName: hasDifference ? 'text-amber-600' : 'text-emerald-600',
-          label: `diferencia ${analytics.preferredCurrency}`,
+          label: copy.kpis.difference(analytics.preferredCurrency),
           value: formatCurrency(analytics.convertedNetDifference, analytics.preferredCurrency),
           valueClassName: hasDifference ? 'text-amber-700' : 'text-emerald-600',
         },
@@ -78,19 +81,19 @@ export function CortesKpiArea({
         ...(analytics.shortCount > 0 ? [{
           id: 'short',
           icon: <AlertTriangle className="h-3.5 w-3.5" />,
-          label: `${analytics.shortCount} faltante(s)`,
+          label: copy.kpis.shortChip(analytics.shortCount),
           tone: 'danger' as const,
         }] : []),
         ...(analytics.overCount > 0 ? [{
           id: 'over',
           icon: <AlertTriangle className="h-3.5 w-3.5" />,
-          label: `${analytics.overCount} sobrante(s)`,
+          label: copy.kpis.overChip(analytics.overCount),
           tone: 'warning' as const,
         }] : []),
         ...(analytics.balancedCount > 0 ? [{
           id: 'balanced',
           icon: <CheckCircle2 className="h-3.5 w-3.5" />,
-          label: `${analytics.balancedCount} cuadrado(s)`,
+          label: copy.kpis.balancedChip(analytics.balancedCount),
           tone: 'success' as const,
         }] : []),
       ]}
@@ -99,19 +102,19 @@ export function CortesKpiArea({
           id: 'balanced',
           className: 'bg-emerald-500',
           count: analytics.balancedCount,
-          label: 'Cuadrados',
+          label: copy.kpis.balanced,
         },
         {
           id: 'over',
           className: 'bg-[#F4C84A]',
           count: analytics.overCount,
-          label: 'Sobrantes',
+          label: copy.kpis.over,
         },
         {
           id: 'short',
           className: 'bg-rose-500',
           count: analytics.shortCount,
-          label: 'Faltantes',
+          label: copy.kpis.short,
         },
       ]}
       insight={analytics.closingCount > 0 ? `${insight} ${differenceLabel}. ${currencyInsight}` : insight}

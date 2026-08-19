@@ -4,7 +4,8 @@ import { IndiceModuleShell } from '../../components/frontend-os';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { SalesCrmProvider } from '../Sales/salesCrmContext';
-import { usePointOfSaleTranslations } from './hooks/usePointOfSaleTranslations';
+import { usePointOfSaleResolvedLocale, usePointOfSaleTranslations } from './hooks/usePointOfSaleTranslations';
+import { PointOfSaleLegacyLocalizer } from './PointOfSaleLegacyLocalizer';
 import {
   LearningModeHeaderActionsProvider,
   learningModeGuideThemes,
@@ -104,6 +105,7 @@ export default function PuntoDeVenta({ learningModeActive = false, onNavigate }:
 
 function PuntoDeVentaContent({ learningModeActive = false, onNavigate }: PuntoDeVentaProps) {
   const t = usePointOfSaleTranslations();
+  const locale = usePointOfSaleResolvedLocale();
   const mainContentRef = useRef<HTMLDivElement>(null);
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<PointOfSaleTabId>(
     'sale',
@@ -147,17 +149,19 @@ function PuntoDeVentaContent({ learningModeActive = false, onNavigate }: PuntoDe
       title={t.title}
       tone="coral"
     >
-        <Suspense
-          fallback={(
-            <LoadingBarOverlay
-              isVisible
-              title={t.loading.fallbackTitle}
-              description={t.loading.fallbackDescription}
-            />
-          )}
-        >
-          <ActiveComponent />
-        </Suspense>
+        <PointOfSaleLegacyLocalizer locale={locale}>
+          <Suspense
+            fallback={(
+              <LoadingBarOverlay
+                isVisible
+                title={t.loading.fallbackTitle}
+                description={t.loading.fallbackDescription}
+              />
+            )}
+          >
+            <ActiveComponent />
+          </Suspense>
+        </PointOfSaleLegacyLocalizer>
     </IndiceModuleShell>
   );
 }

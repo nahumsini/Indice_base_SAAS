@@ -1,5 +1,5 @@
 export const ptBR = {
-  title: 'Ponto de venda',
+  title: 'Ponto de Venda',
   subtitle: 'Opere vendas de balcão, comprovantes, fechamentos de caixa, clientes, quiosques e KPIs operacionais.',
   back: 'Voltar',
   navLabel: 'Seções do ponto de venda',

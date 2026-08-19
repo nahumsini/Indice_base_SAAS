@@ -1,7 +1,9 @@
 import { Columns3, Printer, RefreshCw } from 'lucide-react';
 import { LearningModeTitleBarBridge } from '../../../../learningMode';
+import type { CortesCopy } from '../cortesTranslations';
 
 interface CortesHeaderProps {
+  copy: CortesCopy;
   loading: boolean;
   onColumns: () => void;
   onPrintReport: () => void;
@@ -9,6 +11,7 @@ interface CortesHeaderProps {
 }
 
 export function CortesHeader({
+  copy,
   loading,
   onColumns,
   onPrintReport,
@@ -16,9 +19,9 @@ export function CortesHeader({
 }: CortesHeaderProps) {
   const actionLayout = (
     <div className="flex flex-wrap items-center gap-3">
-      <button type="button" onClick={onColumns} className="inline-flex h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-[#B63B32] shadow-none transition hover:bg-[#FF6B5E] hover:text-[#222831] dark:border-slate-700 dark:bg-slate-800 dark:text-white"><Columns3 className="h-4 w-4" />Columnas</button>
-      <button type="button" onClick={onRefresh} disabled={loading} className="inline-flex h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-none transition hover:bg-[#FF6B5E]/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-white"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Actualizar</button>
-      <button type="button" onClick={onPrintReport} className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#FF6B5E] px-4 text-sm font-medium text-[#222831] shadow-sm transition hover:bg-[#E85D52]"><Printer className="h-4 w-4" />Imprimir reporte</button>
+      <button type="button" onClick={onColumns} className="inline-flex h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-[#B63B32] shadow-none transition hover:bg-[#FF6B5E] hover:text-[#222831] dark:border-slate-700 dark:bg-slate-800 dark:text-white"><Columns3 className="h-4 w-4" />{copy.header.columns}</button>
+      <button type="button" onClick={onRefresh} disabled={loading} className="inline-flex h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-none transition hover:bg-[#FF6B5E]/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-white"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{copy.header.refresh}</button>
+      <button type="button" onClick={onPrintReport} className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#FF6B5E] px-4 text-sm font-medium text-[#222831] shadow-sm transition hover:bg-[#E85D52]"><Printer className="h-4 w-4" />{copy.header.printReport}</button>
     </div>
   );
 
@@ -31,10 +34,10 @@ export function CortesHeader({
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#FF6B5E]/25 bg-white text-xl leading-none shadow-sm" aria-hidden="true">
               💵
             </span>
-            Cortes de caja
+            {copy.header.title}
           </h2>
           <p className="max-w-3xl text-sm text-slate-600 dark:text-slate-400">
-            Consulta cierres por periodo, almacen, caja y responsable para auditar ventas, efectivo esperado y diferencias.
+            {copy.header.description}
           </p>
         </div>
 

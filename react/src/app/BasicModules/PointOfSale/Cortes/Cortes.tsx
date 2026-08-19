@@ -29,6 +29,8 @@ import {
 } from './utils/cortesUtils';
 import { buildCortesPrintReportHtml } from './utils/cortesPrintReport';
 import { useLearningModeHeaderActions } from '../../../learningMode';
+import { usePointOfSaleResolvedLocale } from '../hooks/usePointOfSaleTranslations';
+import { getCortesCopy } from './cortesTranslations';
 
 const todayRange = getCortesPeriodRange('today');
 
@@ -56,7 +58,7 @@ function arrayFromResponse<T>(response: unknown): T[] {
   return [];
 }
 
-function getSelectedOptionLabel(options: CortesFilterOption[], value: string, emptyLabel = 'Todos') {
+function getSelectedOptionLabel(options: CortesFilterOption[], value: string, emptyLabel = 'All') {
   if (!value) {
     return emptyLabel;
   }
@@ -77,6 +79,8 @@ const initialFilters: CortesFilters = {
 
 export default function Cortes() {
   const learningModeActive = useLearningModeHeaderActions()?.active ?? false;
+  const locale = usePointOfSaleResolvedLocale();
+  const copy = useMemo(() => getCortesCopy(locale), [locale]);
   const [filters, setFilters] = useState<CortesFilters>(initialFilters);
   const [viewMode, setViewMode] = useState<CortesViewMode>('table');
   const [sortKey, setSortKey] = useState<CortesSortKey>('closedAt');
@@ -138,7 +142,7 @@ export default function Cortes() {
           setFilterOptionsError(
             loadError instanceof Error && loadError.message
               ? loadError.message
-              : 'No se pudieron cargar los selectores reales de POS.',
+              : copy.main.filterOptionsError,
           );
         }
       }
@@ -149,7 +153,7 @@ export default function Cortes() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [copy.main.filterOptionsError]);
 
   const visibleRows = useMemo(() => {
     const filteredRows = filterCortesRows(rows, filters);
@@ -251,10 +255,10 @@ export default function Cortes() {
       .filter((id) => Number.isFinite(id))
       .sort((first, second) => first - second)
       .map((id) => ({
-        label: `Usuario ${id}`,
+        label: copy.common.user(id),
         value: String(id),
       }));
-  }, [rows, shifts]);
+  }, [copy, rows, shifts]);
 
   const updateFilter = <Key extends keyof CortesFilters>(key: Key, value: CortesFilters[Key]) => {
     setFilters((current) => {
@@ -320,16 +324,16 @@ export default function Cortes() {
     const reportWindow = window.open('', '_blank', 'width=1280,height=900,scrollbars=yes,resizable=yes');
 
     if (!reportWindow) {
-      setNotice('No se pudo abrir la vista de impresion. Revisa permisos de ventanas emergentes del navegador.');
+      setNotice(copy.main.printPopupBlocked);
       return;
     }
 
     reportWindow.document.open();
-    reportWindow.document.write('<!doctype html><title>Preparando reporte</title><body style="font-family:Arial,Helvetica,sans-serif;padding:32px;"><strong>Preparando reporte de cortes...</strong></body>');
+    reportWindow.document.write(`<!doctype html><title>${copy.main.preparingReportTitle}</title><body style="font-family:Arial,Helvetica,sans-serif;padding:32px;"><strong>${copy.main.preparingReportBody}</strong></body>`);
     reportWindow.document.close();
 
     let reportRows = visibleRows;
-    let reportScopeNote = `Incluye ${visibleRows.length} corte(s) visibles con los filtros actuales.`;
+    let reportScopeNote = copy.main.reportScopeVisible(visibleRows.length);
 
     try {
       const response = await cashClosingsApi.list({
@@ -343,25 +347,27 @@ export default function Cortes() {
       });
       reportRows = sortCortesRows(filterCortesRows(response.items, filters), sortKey, sortDirection);
       reportScopeNote = response.count > response.items.length
-        ? `Incluye los primeros ${response.items.length} corte(s) del filtro real. El endpoint reporta ${response.count} corte(s) antes de filtros locales de busqueda o diferencia.`
-        : `Incluye ${reportRows.length} corte(s) filtrado(s) desde el historial real de POS.`;
+        ? copy.main.reportScopePartial(response.items.length, response.count)
+        : copy.main.reportScopeFiltered(reportRows.length);
     } catch (printError) {
-      reportScopeNote = 'No fue posible consultar el historial completo para impresion; este reporte usa los cortes visibles actualmente en pantalla.';
+      reportScopeNote = copy.main.reportScopeFallback;
       setNotice(printError instanceof Error && printError.message
-        ? `Reporte preparado con filas visibles: ${printError.message}`
-        : 'Reporte preparado con filas visibles porque no fue posible consultar el historial completo.');
+        ? copy.main.reportFallbackWithReason(printError.message)
+        : copy.main.reportFallback);
     }
 
     const reportAnalytics = await loadReportAnalytics(reportRows);
     const reportHtml = buildCortesPrintReportHtml({
       analytics: reportAnalytics,
-      cashRegisterLabel: getSelectedOptionLabel(cashRegisterOptions, filters.cashRegisterId),
-      cashierLabel: getSelectedOptionLabel(cashierOptions, filters.userId),
+      cashRegisterLabel: getSelectedOptionLabel(cashRegisterOptions, filters.cashRegisterId, copy.common.all),
+      cashierLabel: getSelectedOptionLabel(cashierOptions, filters.userId, copy.common.all),
+      copy,
       filters,
+      locale,
       preferredCurrency,
       rows: reportRows,
       scopeNote: reportScopeNote,
-      warehouseLabel: getSelectedOptionLabel(warehouseOptions, filters.warehouseId),
+      warehouseLabel: getSelectedOptionLabel(warehouseOptions, filters.warehouseId, copy.common.all),
     });
 
     reportWindow.document.open();
@@ -369,32 +375,34 @@ export default function Cortes() {
     reportWindow.document.close();
     reportWindow.focus();
     reportWindow.setTimeout(() => reportWindow.print(), 350);
-    setNotice(`Reporte imprimible preparado con ${reportRows.length} corte(s) filtrado(s).`);
+    setNotice(copy.main.reportPrepared(reportRows.length));
   };
 
   const printSelectedReport = async () => {
     if (selectedRows.length === 0) {
-      setNotice('Selecciona uno o mas cortes para preparar el reporte.');
+      setNotice(copy.main.selectRowsForReport);
       return;
     }
 
     const reportWindow = window.open('', '_blank', 'width=1280,height=900,scrollbars=yes,resizable=yes');
 
     if (!reportWindow) {
-      setNotice('No se pudo abrir la vista de impresion. Revisa permisos de ventanas emergentes del navegador.');
+      setNotice(copy.main.printPopupBlocked);
       return;
     }
 
     const reportRows = sortCortesRows(selectedRows, sortKey, sortDirection);
     const reportHtml = buildCortesPrintReportHtml({
       analytics: await loadReportAnalytics(reportRows),
-      cashRegisterLabel: getSelectedOptionLabel(cashRegisterOptions, filters.cashRegisterId),
-      cashierLabel: getSelectedOptionLabel(cashierOptions, filters.userId),
+      cashRegisterLabel: getSelectedOptionLabel(cashRegisterOptions, filters.cashRegisterId, copy.common.all),
+      cashierLabel: getSelectedOptionLabel(cashierOptions, filters.userId, copy.common.all),
+      copy,
       filters,
+      locale,
       preferredCurrency,
       rows: reportRows,
-      scopeNote: `Incluye ${reportRows.length} corte(s) seleccionados manualmente para auditoria.`,
-      warehouseLabel: getSelectedOptionLabel(warehouseOptions, filters.warehouseId),
+      scopeNote: copy.main.reportScopeSelected(reportRows.length),
+      warehouseLabel: getSelectedOptionLabel(warehouseOptions, filters.warehouseId, copy.common.all),
     });
 
     reportWindow.document.open();
@@ -402,28 +410,29 @@ export default function Cortes() {
     reportWindow.document.close();
     reportWindow.focus();
     reportWindow.setTimeout(() => reportWindow.print(), 350);
-    setNotice(`Reporte imprimible preparado con ${reportRows.length} corte(s) seleccionados.`);
+    setNotice(copy.main.selectedReportPrepared(reportRows.length));
   };
 
   const handleRowDownload = (row: PosCashClosingSummaryRow) => {
-    setNotice(`El corte COR-${row.id} esta listo para descarga desde el detalle.`);
+    setNotice(copy.main.downloadReady(row.id));
     openDetail(row);
   };
 
   const handleRowPrint = (row: PosCashClosingSummaryRow) => {
-    setNotice(`Abriendo COR-${row.id} para impresion.`);
+    setNotice(copy.main.openingForPrint(row.id));
     openDetail(row);
   };
 
   return (
     <div className="space-y-6">
       <CortesHeader
+        copy={copy}
         loading={loading}
         onColumns={() => setIsColumnsOpen(true)}
         onPrintReport={printFilteredReport}
         onRefresh={() => {
           refresh();
-          setNotice('Cortes actualizados desde el historial real de POS.');
+          setNotice(copy.main.refreshed);
         }}
       />
 
@@ -441,7 +450,7 @@ export default function Cortes() {
 
       {monetaryError ? (
         <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">
-          No fue posible consolidar los importes en la divisa preferida. Las filas continúan visibles en su divisa nativa.
+          {copy.main.monetaryError}
         </div>
       ) : null}
 
@@ -454,38 +463,41 @@ export default function Cortes() {
       <CortesFiltersBar
         cashiers={cashierOptions}
         cashRegisters={cashRegisterOptions}
+        copy={copy}
         filters={filters}
         warehouses={warehouseOptions}
         onChange={updateFilter}
       />
-      {!learningModeActive ? <CortesKpiArea analytics={analytics} /> : null}
+      {!learningModeActive ? <CortesKpiArea analytics={analytics} copy={copy} /> : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="inline-flex w-fit rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-800">
-          <ViewButton active={viewMode === 'table'} icon={<Table2 className="h-4 w-4" />} label="Tabla" onClick={() => setViewMode('table')} />
-          <ViewButton active={viewMode === 'day'} icon={<LayoutList className="h-4 w-4" />} label="Por dia" onClick={() => setViewMode('day')} />
+          <ViewButton active={viewMode === 'table'} icon={<Table2 className="h-4 w-4" />} label={copy.main.table} onClick={() => setViewMode('table')} />
+          <ViewButton active={viewMode === 'day'} icon={<LayoutList className="h-4 w-4" />} label={copy.main.byDay} onClick={() => setViewMode('day')} />
         </div>
 
         <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-          Mostrando {visibleRows.length} de {totalCount} corte(s) - Preferida {analytics.convertedSalesLabel} - Cobrado {analytics.totalSalesLabel}
+          {copy.main.showing(visibleRows.length, totalCount, analytics.convertedSalesLabel, analytics.totalSalesLabel)}
         </p>
       </div>
 
       {loading ? (
         <div className="rounded-xl border border-[#FF6B5E]/25 bg-[#FF6B5E]/[0.06] px-4 py-3 text-sm font-medium text-[#B63B32] dark:border-[#FF6B5E]/30 dark:bg-[#FF6B5E]/10 dark:text-[#FFB0AA]">
-          Cargando cortes reales del punto de venta...
+          {copy.main.loadingClosings}
         </div>
       ) : null}
 
       {viewMode === 'table' ? (
         <>
           <CortesBulkActionsBar
+            copy={copy}
             selectedCount={selectedRows.length}
             onClearSelection={() => setSelectedRowIds([])}
             onPrintSelected={printSelectedReport}
           />
           <CortesTable
             allVisibleSelected={allVisibleSelected}
+            copy={copy}
             loading={loading}
             rows={visibleRows}
             selectedRowIds={selectedRowIds}
@@ -502,6 +514,7 @@ export default function Cortes() {
         </>
       ) : (
         <CortesDayView
+          copy={copy}
           preferredCurrency={preferredCurrency}
           rows={visibleRows}
           onSelect={openDetail}
@@ -511,7 +524,7 @@ export default function Cortes() {
       <PointOfSaleTablePagination
         attached={false}
         currentPage={currentPage}
-        itemLabel="cortes"
+        itemLabel={copy.main.itemLabel}
         onPageChange={(page) => setOffset((page - 1) * pageSize)}
         onPageSizeChange={(nextPageSize) => {
           setPageSize(nextPageSize);
@@ -525,6 +538,7 @@ export default function Cortes() {
       />
 
       <CortesColumnsModal
+        copy={copy}
         open={isColumnsOpen}
         visibleColumns={visibleColumns}
         onClose={() => setIsColumnsOpen(false)}
@@ -532,12 +546,14 @@ export default function Cortes() {
       />
 
       <CorteDetailModal
+        copy={copy}
         detail={selectedDetail}
         error={detailError}
+        locale={locale}
         loading={detailLoading}
         open={isDetailOpen}
         onClose={closeDetail}
-        onDownload={() => setNotice('La descarga PDF del corte queda preparada para la siguiente fase documental.')}
+        onDownload={() => setNotice(copy.main.pdfPending)}
       />
     </div>
   );

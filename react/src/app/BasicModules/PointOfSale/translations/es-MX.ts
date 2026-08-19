@@ -1,10 +1,10 @@
 export const esMX = {
-  title: 'Punto de venta',
+  title: 'Punto de Venta',
   subtitle: 'Opera ventas de mostrador, tickets, cortes, clientes, kioscos e indicadores operativos.',
   back: 'Regresar',
   navLabel: 'Secciones de punto de venta',
   loading: {
-    openingTitle: 'Abriendo punto de venta',
+    openingTitle: 'Abriendo Punto de Venta',
     openingDescription: 'Preparando el espacio operativo seleccionado.',
     fallbackTitle: 'Cargando pestaña',
     fallbackDescription: 'Descargando solo la sección operativa seleccionada.',

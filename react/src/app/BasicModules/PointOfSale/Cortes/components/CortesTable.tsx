@@ -1,7 +1,8 @@
 import { ArrowDownUp, Download, Eye, Loader2, Printer } from 'lucide-react';
 import type { ReactNode } from 'react';
+import type { CortesCopy } from '../cortesTranslations';
 import type { PosCashClosingSummaryRow } from '../types/cashClosingHistory.types';
-import { cortesColumnLabels, type CortesColumnId } from '../utils/cortesColumns';
+import { type CortesColumnId } from '../utils/cortesColumns';
 import {
   type CortesSortDirection,
   type CortesSortKey,
@@ -12,6 +13,7 @@ import {
 } from '../utils/cortesUtils';
 
 interface CortesTableProps {
+  copy: CortesCopy;
   loading: boolean;
   rows: PosCashClosingSummaryRow[];
   selectedRowIds: number[];
@@ -42,6 +44,7 @@ const sortableColumns: Partial<Record<CortesColumnId, CortesSortKey>> = {
 };
 
 export function CortesTable({
+  copy,
   loading,
   rows,
   selectedRowIds,
@@ -63,9 +66,9 @@ export function CortesTable({
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
       <div className="flex flex-col gap-1 border-b border-slate-200 px-5 py-4 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-lg font-medium text-slate-950 dark:text-white">Historial de cortes</h3>
+          <h3 className="text-lg font-medium text-slate-950 dark:text-white">{copy.table.title}</h3>
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-            {rows.length} registro(s) visibles
+            {copy.table.visibleRecords(rows.length)}
           </p>
         </div>
       </div>
@@ -79,7 +82,7 @@ export function CortesTable({
                   type="checkbox"
                   checked={allVisibleSelected}
                   disabled={rows.length === 0}
-                  aria-label="Seleccionar cortes visibles"
+                  aria-label={copy.table.selectVisible}
                   onChange={onToggleVisibleSelection}
                   className="h-4 w-4 rounded border-slate-300 text-[#FF6B5E] focus:ring-[#FF6B5E] disabled:cursor-not-allowed disabled:opacity-50"
                 />
@@ -92,17 +95,17 @@ export function CortesTable({
                       onClick={() => onSort(sortableColumns[column]!)}
                       className="inline-flex items-center gap-2 transition hover:text-slate-900 dark:hover:text-white"
                     >
-                      {cortesColumnLabels[column]}
+                      {copy.table.columns[column]}
                       <ArrowDownUp className={`h-3.5 w-3.5 ${sortKey === sortableColumns[column] ? 'text-[#FF6B5E]' : ''}`} />
                       {sortKey === sortableColumns[column] ? (
-                        <span className="sr-only">{sortDirection === 'asc' ? 'ascendente' : 'descendente'}</span>
+                        <span className="sr-only">{sortDirection === 'asc' ? copy.table.ascending : copy.table.descending}</span>
                       ) : null}
                     </button>
-                  ) : cortesColumnLabels[column]}
+                  ) : copy.table.columns[column]}
                 </th>
               ))}
               <th className="px-5 py-3 text-right text-xs font-medium tracking-normal text-slate-500 dark:text-slate-400">
-                Acciones
+                {copy.table.actions}
               </th>
             </tr>
           </thead>
@@ -112,7 +115,7 @@ export function CortesTable({
                 <td colSpan={columnSpan} className="px-6 py-12">
                   <div className="flex items-center justify-center gap-3 rounded-lg border border-blue-100 bg-blue-50 px-4 py-5 text-sm font-medium text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Cargando cortes reales del punto de venta...
+                    {copy.table.loading}
                   </div>
                 </td>
               </tr>
@@ -123,7 +126,7 @@ export function CortesTable({
                   <input
                     type="checkbox"
                     checked={selectedIdSet.has(row.id)}
-                    aria-label={`Seleccionar COR-${row.id}`}
+                    aria-label={copy.table.selectRow(row.id)}
                     onChange={() => onToggleRowSelection(row.id)}
                     className="h-4 w-4 rounded border-slate-300 text-[#FF6B5E] focus:ring-[#FF6B5E]"
                   />
@@ -132,19 +135,20 @@ export function CortesTable({
                   <td key={`${row.id}-${column}`} className="px-5 py-4 align-middle text-slate-700 dark:text-slate-200">
                     <CortesTableCell
                       column={column}
+                      copy={copy}
                       row={row}
                     />
                   </td>
                 ))}
                 <td className="px-5 py-4 text-right">
                   <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-800">
-                    <IconButton label={`Ver corte COR-${row.id}`} onClick={() => onSelect(row)}>
+                    <IconButton label={copy.table.viewRow(row.id)} onClick={() => onSelect(row)}>
                       <Eye className="h-4 w-4" />
                     </IconButton>
-                    <IconButton label={`Imprimir COR-${row.id}`} onClick={() => onPrint(row)}>
+                    <IconButton label={copy.table.printRow(row.id)} onClick={() => onPrint(row)}>
                       <Printer className="h-4 w-4" />
                     </IconButton>
-                    <IconButton label={`Descargar COR-${row.id}`} onClick={() => onDownload(row)}>
+                    <IconButton label={copy.table.downloadRow(row.id)} onClick={() => onDownload(row)}>
                       <Download className="h-4 w-4" />
                     </IconButton>
                   </div>
@@ -156,9 +160,9 @@ export function CortesTable({
 
         {!loading && rows.length === 0 ? (
           <div className="px-6 py-12 text-center">
-            <p className="text-lg font-medium text-slate-900 dark:text-white">No hay cortes con estos filtros</p>
+            <p className="text-lg font-medium text-slate-900 dark:text-white">{copy.table.emptyTitle}</p>
             <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
-              Ajusta el periodo o revisa si ya existe un turno cerrado en Venta.
+              {copy.table.emptyDescription}
             </p>
           </div>
         ) : null}
@@ -169,9 +173,11 @@ export function CortesTable({
 
 function CortesTableCell({
   column,
+  copy,
   row,
 }: {
   column: CortesColumnId;
+  copy: CortesCopy;
   row: PosCashClosingSummaryRow;
 }) {
   const status = getClosingStatus(row);
@@ -188,16 +194,16 @@ function CortesTableCell({
     return <span className="font-medium">{formatDateTime(row.closedAt)}</span>;
   }
   if (column === 'context') {
-    return <strong className="text-slate-950 dark:text-white">Almacen {row.warehouseId}</strong>;
+    return <strong className="text-slate-950 dark:text-white">{copy.common.warehouse(row.warehouseId)}</strong>;
   }
   if (column === 'cashRegister') {
-    return <strong className="text-slate-950 dark:text-white">Caja {row.cashRegisterId}</strong>;
+    return <strong className="text-slate-950 dark:text-white">{copy.common.cashRegister(row.cashRegisterId)}</strong>;
   }
   if (column === 'cashier') {
-    return <strong className="text-slate-950 dark:text-white">Usuario {row.closedByUserId}</strong>;
+    return <strong className="text-slate-950 dark:text-white">{copy.common.user(row.closedByUserId)}</strong>;
   }
   if (column === 'shift') {
-    return <strong className="text-slate-950 dark:text-white">Turno {row.shiftId}</strong>;
+    return <strong className="text-slate-950 dark:text-white">{copy.common.shift(row.shiftId)}</strong>;
   }
   if (column === 'tickets') {
     return <strong className="text-slate-950 dark:text-white">{row.ticketsCount}</strong>;
@@ -238,7 +244,7 @@ function CortesTableCell({
     );
   }
 
-  return <StatusBadge status={status} />;
+  return <StatusBadge copy={copy} status={status} />;
 }
 
 function MoneyCell({
@@ -271,13 +277,13 @@ function MoneyCell({
   );
 }
 
-function StatusBadge({ status }: { status: ReturnType<typeof getClosingStatus> }) {
+function StatusBadge({ copy, status }: { copy: CortesCopy; status: ReturnType<typeof getClosingStatus> }) {
   const className = status === 'balanced'
     ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200'
     : status === 'over'
     ? 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200'
     : 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200';
-  const label = status === 'balanced' ? 'Cuadrado' : status === 'over' ? 'Sobrante' : 'Faltante';
+  const label = status === 'balanced' ? copy.table.status.balanced : status === 'over' ? copy.table.status.over : copy.table.status.short;
 
   return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${className}`}>{label}</span>;
 }

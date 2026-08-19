@@ -130,7 +130,7 @@ export function useSaleShift({
 
   const handleOpenShift = async (initialCash: number, openingNote?: string, selectedCurrencyCode?: string) => {
     if (!registerContext) {
-      setShiftError('No cash register configured. Create a cash register from POS setup before opening a shift.');
+      setShiftError('No hay una caja configurada. Crea una caja desde la configuración POS antes de abrir turno.');
       return;
     }
 

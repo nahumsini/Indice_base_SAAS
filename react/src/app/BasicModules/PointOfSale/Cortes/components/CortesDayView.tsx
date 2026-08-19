@@ -1,4 +1,5 @@
 import { CalendarDays, ChevronRight } from 'lucide-react';
+import type { CortesCopy } from '../cortesTranslations';
 import type { PosCashClosingSummaryRow } from '../types/cashClosingHistory.types';
 import {
   formatClosingAmount,
@@ -9,12 +10,14 @@ import {
 } from '../utils/cortesUtils';
 
 interface CortesDayViewProps {
+  copy: CortesCopy;
   preferredCurrency: string;
   rows: PosCashClosingSummaryRow[];
   onSelect: (row: PosCashClosingSummaryRow) => void;
 }
 
 export function CortesDayView({
+  copy,
   preferredCurrency,
   rows,
   onSelect,
@@ -36,14 +39,14 @@ export function CortesDayView({
               <div>
                 <h3 className="text-lg font-medium text-slate-950 dark:text-white">{formatDateLabel(`${group.date}T00:00:00`)}</h3>
                 <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                  {group.analytics.closingCount} corte(s) - {group.analytics.totalTickets} ticket(s)
+                  {copy.day.summary(group.analytics.closingCount, group.analytics.totalTickets)}
                 </p>
               </div>
             </div>
 
             <div className="grid gap-3 text-sm font-medium text-slate-700 dark:text-slate-200 sm:grid-cols-3">
-              <span>Cobrado {group.analytics.totalSalesLabel}</span>
-              <span>Detalle en divisa nativa</span>
+              <span>{copy.day.charged(group.analytics.totalSalesLabel)}</span>
+              <span>{copy.day.nativeDetail}</span>
             </div>
           </div>
 
@@ -57,10 +60,10 @@ export function CortesDayView({
               >
                 <div>
                   <p className="text-sm font-medium text-slate-950 dark:text-white">
-                    COR-{row.id} - Caja {row.cashRegisterId} - Almacen {row.warehouseId}
+                    {copy.day.rowTitle(row.id, row.cashRegisterId, row.warehouseId)}
                   </p>
                   <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-                    {formatDateTime(row.closedAt)} - Usuario {row.closedByUserId} - Turno {row.shiftId}
+                    {copy.day.rowMeta(formatDateTime(row.closedAt), row.closedByUserId, row.shiftId)}
                   </p>
                 </div>
 
@@ -70,10 +73,10 @@ export function CortesDayView({
                     {formatClosingAmount(toNumber(row.totalSalesAmount), row).nativeLabel}
                   </span>
                   <span>
-                    Contado {formatClosingAmount(
+                    {copy.day.counted(formatClosingAmount(
                       toNumber(row.countedCashAmount),
                       row,
-                    ).nativeLabel}
+                    ).nativeLabel)}
                   </span>
                   <span className={toNumber(row.overShortAmount) === 0 ? 'text-emerald-600' : 'text-amber-700'}>
                     {toNumber(row.overShortAmount) > 0 ? '+' : ''}{formatClosingAmount(
@@ -92,9 +95,9 @@ export function CortesDayView({
 
       {groups.length === 0 ? (
         <div className="rounded-lg border border-slate-200 bg-white px-6 py-12 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
-          <p className="text-lg font-medium text-slate-950 dark:text-white">No hay dias con cortes visibles</p>
+          <p className="text-lg font-medium text-slate-950 dark:text-white">{copy.day.emptyTitle}</p>
           <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
-            Ajusta el periodo para consultar cierres anteriores.
+            {copy.day.emptyDescription}
           </p>
         </div>
       ) : null}

@@ -15,7 +15,6 @@ import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyConte
 import { useKpiMonetaryAggregate, useKpiMonetaryAggregates, type KpiMonetaryBatchQuery } from '../../shared/kpiMonetaryApi';
 import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
 import { printStandardKpiReport } from '../../shared/print/standardKpiPrintReport';
-import { useLanguage } from '../../../shared/context';
 import { PosKpiCashClosingTable } from './components/PosKpiCashClosingTable';
 import { PosKpiContextStrip } from './components/PosKpiContextStrip';
 import { PosKpiFilters } from './components/PosKpiFilters';
@@ -29,11 +28,12 @@ import {
   type PosKpiAnalytics,
   type PosKpiPeriod,
 } from './utils/posKpiAnalytics';
+import { usePosKpiCopy, type PosKpiCopy } from './posKpiTranslations';
 
 const percent = (value: number) => `${value.toFixed(1)}%`;
 
 export default function KPIs() {
-  const { currentLanguage } = useLanguage();
+  const { copy, locale } = usePosKpiCopy();
   const { preferredCurrency } = usePreferredBusinessCurrency();
   const { identity: companyPrintIdentity, isReady: isCompanyPrintIdentityReady } = useCompanyPrintIdentity();
   const [period, setPeriod] = useState<PosKpiPeriod>('today');
@@ -79,12 +79,13 @@ export default function KPIs() {
     const totalCashSales = cashAggregate.data?.preferredTotal ?? 0;
     const netDifference = differenceAggregate.data?.preferredTotal ?? 0;
     const tickets = baseAnalytics.tickets;
-    const registerNames = new Map(details.map((detail) => [String(detail.cashRegisterId), detail.cashRegister?.name || detail.cashRegister?.code || `Caja ${detail.cashRegisterId}`]));
-    const warehouses = Array.from(new Set(rows.map((row) => row.warehouseId))).map((id) => ({ name: `Almacen ${id}`, value: groupedAggregates.data[`warehouse-${id}`]?.preferredTotal ?? 0, detail: 'venta cerrada' }));
-    const registers = Array.from(new Set(rows.map((row) => row.cashRegisterId))).map((id) => ({ name: registerNames.get(String(id)) ?? `Caja ${id}`, value: groupedAggregates.data[`register-${id}`]?.preferredTotal ?? 0, detail: 'venta cerrada' }));
+    const registerNames = new Map(details.map((detail) => [String(detail.cashRegisterId), detail.cashRegister?.name || detail.cashRegister?.code || copy.common.cashRegister(detail.cashRegisterId)]));
+    const warehouses = Array.from(new Set(rows.map((row) => row.warehouseId))).map((id) => ({ name: copy.common.warehouse(id), value: groupedAggregates.data[`warehouse-${id}`]?.preferredTotal ?? 0, detail: copy.common.closedSale }));
+    const registers = Array.from(new Set(rows.map((row) => row.cashRegisterId))).map((id) => ({ name: registerNames.get(String(id)) ?? copy.common.cashRegister(id), value: groupedAggregates.data[`register-${id}`]?.preferredTotal ?? 0, detail: copy.common.closedSale }));
     const hours = Array.from(new Set(rows.map((row) => new Date(row.closedAt).getHours()))).sort((a, b) => a - b).map((hour) => ({ hour: String(hour), sales: groupedAggregates.data[`hour-${hour}`]?.preferredTotal ?? 0 }));
     return {
       ...baseAnalytics,
+      periodLabel: copy.period.labels[period],
       revenue,
       totalCashSales,
       averageTicket: tickets > 0 ? revenue / tickets : 0,
@@ -97,18 +98,18 @@ export default function KPIs() {
       topCashRegisters: registers.sort((a, b) => b.value - a.value).slice(0, 5),
       topWarehouses: warehouses.sort((a, b) => b.value - a.value).slice(0, 5),
     };
-  }, [baseAnalytics, cashAggregate.data, countedAggregate.data, details, differenceAggregate.data, expectedAggregate.data, groupedAggregates.data, revenueAggregate.data, rows]);
+  }, [baseAnalytics, cashAggregate.data, copy, countedAggregate.data, details, differenceAggregate.data, expectedAggregate.data, groupedAggregates.data, period, revenueAggregate.data, rows]);
 
-  const formatCurrency = (amount: number, currency = preferredCurrency) => new Intl.NumberFormat(currentLanguage.code, { style: 'currency', currency }).format(amount);
+  const formatCurrency = (amount: number, currency = preferredCurrency) => new Intl.NumberFormat(locale, { style: 'currency', currency }).format(amount);
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const paginatedRows = rows.slice((page - 1) * pageSize, page * pageSize);
   const maxHourlySales = Math.max(...analytics.hourlySales.map((entry) => entry.sales), 0);
   const hasDifference = Math.abs(analytics.netDifference) >= 1;
-  const insight = getInsight(analytics);
+  const insight = getInsight(analytics, copy);
   const paymentBreakdownNote = detailError
     || (detailFetchLimited
-      ? 'El desglose por metodo muestra efectivo del listado; usa un periodo mas corto para cargar todos los metodos.'
-      : 'El desglose monetario por método se mostrará cuando el backend entregue la agregación autoritativa por forma de pago.');
+      ? copy.states.paymentBreakdownLimited
+      : copy.states.paymentBreakdownPending);
   const nativeBreakdown = revenueAggregate.data?.nativeTotals.map(({ amount, currency }) => formatCurrency(amount, currency)).join(' / ') ?? '—';
 
   useEffect(() => {
@@ -129,67 +130,67 @@ export default function KPIs() {
     {
       detail: analytics.periodLabel,
       icon: ShoppingCart,
-      label: 'Venta POS',
+      label: copy.cards.revenue,
       tone: 'coral',
       value: formatCurrency(analytics.revenue),
     },
     {
-      detail: `Ticket prom. ${formatCurrency(analytics.averageTicket)}`,
+      detail: copy.cards.averageTicket(formatCurrency(analytics.averageTicket)),
       icon: Receipt,
-      label: 'Tickets',
+      label: copy.cards.tickets,
       tone: 'blue',
       value: String(analytics.tickets),
     },
     {
-      detail: 'Cobro cash registrado',
+      detail: copy.cards.cashRegistered,
       icon: Banknote,
-      label: 'Venta efectivo',
+      label: copy.cards.cashSales,
       tone: 'green',
       value: formatCurrency(analytics.totalCashSales),
     },
     {
-      detail: `${percent(analytics.overShortRate)} sobre efectivo`,
+      detail: copy.cards.overShortRate(percent(analytics.overShortRate)),
       icon: Scale,
-      label: 'Diferencia caja',
+      label: copy.cards.cashDifference,
       tone: hasDifference ? 'red' : 'green',
       value: `${analytics.netDifference > 0 ? '+' : ''}${formatCurrency(analytics.netDifference)}`,
     },
     {
-      detail: 'Calculado por backend',
+      detail: copy.cards.backendCalculated,
       icon: TrendingUp,
-      label: 'Efectivo esperado',
+      label: copy.cards.expectedCash,
       tone: 'blue',
       value: formatCurrency(analytics.expectedCash),
     },
     {
-      detail: 'Reportado en cierres',
+      detail: copy.cards.reportedClosings,
       icon: Wallet,
-      label: 'Efectivo contado',
+      label: copy.cards.countedCash,
       tone: 'purple',
       value: formatCurrency(analytics.countedCash),
     },
     {
-      detail: `${analytics.totalCount} registros disponibles`,
+      detail: copy.cards.recordsAvailable(analytics.totalCount),
       icon: Clock3,
-      label: 'Cierres',
+      label: copy.cards.closings,
       tone: 'coral',
       value: String(analytics.closings),
     },
     {
-      detail: analytics.topWarehouses[0]?.name ?? 'Sin almacen dominante',
+      detail: analytics.topWarehouses[0]?.name ?? copy.cards.noDominantWarehouse,
       icon: Package,
-      label: 'Almacen lider',
+      label: copy.cards.topWarehouse,
       tone: 'yellow',
       value: analytics.topWarehouses[0] ? formatCurrency(analytics.topWarehouses[0].value) : formatCurrency(0),
     },
-  ], [analytics, formatCurrency, hasDifference]);
+  ], [analytics, copy, formatCurrency, hasDifference]);
 
   const handlePrintReport = () => {
     const registerNameById = new Map(details.map((detail) => [
       String(detail.cashRegisterId),
-      detail.cashRegister?.name || detail.cashRegister?.code || `Caja ${detail.cashRegisterId}`,
+      detail.cashRegister?.name || detail.cashRegister?.code || copy.common.cashRegister(detail.cashRegisterId),
     ]));
-    const dateFormatter = new Intl.DateTimeFormat(currentLanguage.code, {
+    const dateFormatter = new Intl.DateTimeFormat(locale, {
       dateStyle: 'medium',
       timeStyle: 'short',
     });
@@ -202,7 +203,7 @@ export default function KPIs() {
             value: item.amount,
             valueLabel: `${formatCurrency(item.amount)} · ${item.percentage}%`,
           })),
-          title: 'Mezcla de pago',
+          title: copy.report.paymentMix,
         },
         {
           rows: analytics.hourlySales.map((item) => ({
@@ -210,7 +211,7 @@ export default function KPIs() {
             value: item.sales,
             valueLabel: formatCurrency(item.sales),
           })),
-          title: 'Venta por hora',
+          title: copy.report.salesByHour,
         },
         {
           rows: analytics.topCashRegisters.map((item) => ({
@@ -218,7 +219,7 @@ export default function KPIs() {
             value: item.value,
             valueLabel: formatCurrency(item.value),
           })),
-          title: 'Cajas con mayor venta',
+          title: copy.report.topRegisters,
         },
         {
           rows: analytics.topWarehouses.map((item) => ({
@@ -226,38 +227,38 @@ export default function KPIs() {
             value: item.value,
             valueLabel: formatCurrency(item.value),
           })),
-          title: 'Almacenes con mayor venta',
+          title: copy.report.topWarehouses,
         },
       ],
       companyIdentity: companyPrintIdentity,
-      documentName: 'KPIs de punto de venta',
-      locale: currentLanguage.code,
+      documentName: copy.report.documentName,
+      locale,
       meta: [
-        { label: 'Periodo', value: analytics.periodLabel },
-        { label: 'Moneda preferida', value: preferredCurrency },
-        { label: 'Cierres incluidos', value: String(analytics.closings) },
-        { label: 'Registros disponibles', value: String(analytics.totalCount) },
+        { label: copy.report.period, value: analytics.periodLabel },
+        { label: copy.report.preferredCurrency, value: preferredCurrency },
+        { label: copy.report.includedClosings, value: String(analytics.closings) },
+        { label: copy.report.availableRecords, value: String(analytics.totalCount) },
       ],
       metrics: kpiCards.map((card) => ({ detail: card.detail, label: card.label, value: card.value })),
-      reportTitle: 'KPIs de punto de venta',
-      subtitle: 'Lectura ejecutiva de cierres, tickets, mezcla de pago y diferencias de caja por periodo.',
+      reportTitle: copy.report.title,
+      subtitle: copy.report.subtitle,
       tables: [
         {
-          emptyLabel: 'No hay cierres de caja en el periodo.',
-          headers: ['Cierre', 'Fecha', 'Caja', 'Almacén', 'Tickets', 'Venta', 'Diferencia'],
+          emptyLabel: copy.report.emptyTable,
+          headers: [...copy.report.headers],
           rows: rows.map((row) => {
             const currency = row.currencyCode ?? preferredCurrency;
             return [
               String(row.id),
               dateFormatter.format(new Date(row.closedAt)),
-              registerNameById.get(String(row.cashRegisterId)) ?? `Caja ${row.cashRegisterId}`,
-              `Almacén ${row.warehouseId}`,
+              registerNameById.get(String(row.cashRegisterId)) ?? copy.common.cashRegister(row.cashRegisterId),
+              copy.common.warehouse(row.warehouseId),
               String(row.ticketsCount),
               formatCurrency(Number(row.totalSalesAmount ?? 0), currency),
               `${Number(row.overShortAmount ?? 0) > 0 ? '+' : ''}${formatCurrency(Number(row.overShortAmount ?? 0), currency)}`,
             ];
           }),
-          title: 'Detalle de cierres de caja',
+          title: copy.report.tableTitle,
         },
       ],
     });
@@ -265,9 +266,10 @@ export default function KPIs() {
 
   return (
     <div className="space-y-5">
-      <PosKpiTitleBar disabled={!isCompanyPrintIdentityReady || loading} onPrint={handlePrintReport} />
+      <PosKpiTitleBar copy={copy} disabled={!isCompanyPrintIdentityReady || loading} onPrint={handlePrintReport} />
 
       <PosKpiFilters
+        copy={copy}
         loading={loading}
         period={period}
         onPeriodChange={handlePeriodChange}
@@ -277,7 +279,7 @@ export default function KPIs() {
       {loading ? (
         <div className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-900 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-100">
           <RefreshCw className="h-4 w-4 animate-spin" />
-          Cargando cierres reales de POS para el periodo seleccionado.
+          {copy.states.loading}
         </div>
       ) : null}
 
@@ -292,14 +294,14 @@ export default function KPIs() {
             onClick={refresh}
             className="inline-flex min-h-11 items-center justify-center rounded-xl border border-rose-200 bg-white px-3 text-sm font-medium text-rose-700 transition hover:bg-rose-100 dark:border-rose-800 dark:bg-slate-900 dark:text-rose-300 dark:hover:bg-rose-900/30"
           >
-            Reintentar
+            {copy.common.retry}
           </button>
         </div>
       ) : null}
 
       {!loading && !error && rows.length === 0 ? (
         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
-          No hay cierres de caja reales en este periodo. Abre y cierra un turno para alimentar estos KPIs.
+          {copy.states.empty}
         </div>
       ) : null}
 
@@ -308,16 +310,18 @@ export default function KPIs() {
         nativeBreakdown={nativeBreakdown}
         preferredCurrency={preferredCurrency}
         rateDate={revenueAggregate.data?.exchangeRate.effectiveDate ?? ''}
-        rateLabel={revenueAggregate.data?.exchangeRate.mode === 'configured' ? 'Tasa configurada' : 'Tasa diaria'}
+        copy={copy}
+        rateLabel={revenueAggregate.data?.exchangeRate.mode === 'configured' ? copy.context.configuredRate : copy.context.dailyRate}
         totalCount={analytics.totalCount}
       />
 
       <PosKpiGrid items={kpiCards} />
 
-      <PosKpiSignals analytics={analytics} insight={insight} />
+      <PosKpiSignals analytics={analytics} copy={copy} insight={insight} />
 
       <PosKpiOperatingPanels
         analytics={analytics}
+        copy={copy}
         formatCurrency={formatCurrency}
         maxHourlySales={maxHourlySales}
         paymentBreakdownNote={paymentBreakdownNote}
@@ -325,8 +329,10 @@ export default function KPIs() {
       />
 
       <PosKpiCashClosingTable
+        copy={copy}
         formatCurrency={formatCurrency}
         items={paginatedRows}
+        locale={locale}
         page={page}
         pageSize={pageSize}
         totalItems={rows.length}
@@ -337,30 +343,30 @@ export default function KPIs() {
   );
 }
 
-function getInsight(analytics: PosKpiAnalytics) {
+function getInsight(analytics: PosKpiAnalytics, copy: PosKpiCopy) {
   if (Math.abs(analytics.netDifference) >= 1) {
     return {
       tone: 'risk' as const,
-      text: `Hay una diferencia neta de caja de ${analytics.netDifference > 0 ? '+' : ''}${analytics.netDifference.toFixed(2)} ${analytics.primaryCurrency}; revisa arqueos antes de cerrar el periodo.`,
+      text: copy.insights.difference(`${analytics.netDifference > 0 ? '+' : ''}${analytics.netDifference.toFixed(2)}`, analytics.primaryCurrency),
     };
   }
 
   if (analytics.closings === 0) {
     return {
       tone: 'info' as const,
-      text: `No hay cierres POS visibles en ${analytics.periodLabel}; los KPIs se activan cuando se cierre el primer turno.`,
+      text: copy.insights.noClosings(analytics.periodLabel),
     };
   }
 
   if (analytics.tickets > 0) {
     return {
       tone: 'success' as const,
-      text: `${analytics.tickets} tickets cerrados en ${analytics.periodLabel}; la venta POS ya esta lista para seguimiento financiero.`,
+      text: copy.insights.tickets(analytics.tickets, analytics.periodLabel),
     };
   }
 
   return {
     tone: 'info' as const,
-    text: `${analytics.closings} cierres sin tickets en ${analytics.periodLabel}; revisa operaciones antes de comparar ventas.`,
+    text: copy.insights.closingsWithoutTickets(analytics.closings, analytics.periodLabel),
   };
 }

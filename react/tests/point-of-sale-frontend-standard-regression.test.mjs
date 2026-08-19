@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import test from 'node:test';
@@ -14,6 +15,61 @@ function collectFiles(path) {
     return entry.isDirectory() ? collectFiles(child) : sourceExtensions.test(entry.name) ? [child] : [];
   });
 }
+
+function countOccurrences(source, needle) {
+  return source.split(needle).length - 1;
+}
+
+test('Punto de Venta mantiene nombre traducido en todos los idiomas soportados', () => {
+  const languageContext = readFileSync(resolve(root, 'src/app/context/LanguageContext.tsx'), 'utf8');
+  const moduleCatalog = readFileSync(resolve(root, 'src/app/config/moduleCatalog.ts'), 'utf8');
+  const mainDashboard = readFileSync(resolve(root, 'src/app/Dashboard/MainDashboard.tsx'), 'utf8');
+  const expectedDashboardLabels = [
+    ['Punto de Venta', 2],
+    ['Point of Sale', 2],
+    ['Point de vente', 1],
+    ['Ponto de Venda', 1],
+    ['판매 시점 관리', 1],
+    ['销售点', 1],
+  ];
+  const expectedPageTitles = [
+    ['en-CA.ts', 'Point of Sale'],
+    ['en-US.ts', 'Point of Sale'],
+    ['es-CO.ts', 'Punto de Venta'],
+    ['es-MX.ts', 'Punto de Venta'],
+    ['fr-CA.ts', 'Point de vente'],
+    ['ko-CA.ts', '판매 시점 관리'],
+    ['pt-BR.ts', 'Ponto de Venda'],
+    ['zh-CA.ts', '销售点'],
+  ];
+
+  assert.match(moduleCatalog, /title: \(t\) => t\.modules\.puntoVenta/);
+  assert.match(mainDashboard, /pointOfSale: t\.modules\.puntoVenta/);
+  for (const [label, expectedCount] of expectedDashboardLabels) {
+    assert.equal(
+      countOccurrences(languageContext, `puntoVenta: '${label}'`),
+      expectedCount,
+      `Expected ${expectedCount} dashboard module label(s) for ${label}`,
+    );
+  }
+  for (const [fileName, title] of expectedPageTitles) {
+    const source = readFileSync(resolve(pointOfSaleRoot, 'translations', fileName), 'utf8');
+    assert.ok(source.includes(`title: '${title}'`), `${fileName} must translate the POS page title`);
+  }
+});
+
+test('Punto de Venta ejecuta la auditoria i18n de tabs y catalogos soportados', () => {
+  const result = spawnSync(process.execPath, ['scripts/pos-i18n-audit.mjs'], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+
+  assert.equal(
+    result.status,
+    0,
+    [result.stdout, result.stderr].filter(Boolean).join('\n'),
+  );
+});
 
 test('Punto de Venta respeta la escala tipográfica del Frontend Engine V2', () => {
   const violations = collectFiles(pointOfSaleRoot).flatMap((file) => {
@@ -185,16 +241,22 @@ test('Kioscos normaliza las colecciones paginadas antes de filtrar cajas', () =>
 
 test('Cajas concentra la operación en vivo y los cortes cerrados del día', () => {
   const cashRegisters = readFileSync(resolve(pointOfSaleRoot, 'CashRegisters/CashRegistersWorkspace.tsx'), 'utf8');
+  const cashRegisterTranslations = readFileSync(resolve(pointOfSaleRoot, 'CashRegisters/cashRegistersTranslations.ts'), 'utf8');
 
   assert.match(cashRegisters, /sessionView.*'all'.*'open'.*'closed'/);
-  assert.match(cashRegisters, /Cortes cerrados hoy/);
-  assert.match(cashRegisters, /Ventas de hoy/);
-  assert.match(cashRegisters, /Ticket promedio del día/);
+  assert.match(cashRegisterTranslations, /closedToday: 'Cortes cerrados hoy'/);
+  assert.match(cashRegisterTranslations, /todaySales: 'Ventas de hoy'/);
+  assert.match(cashRegisterTranslations, /averageTicket: 'Ticket promedio del día'/);
+  assert.match(cashRegisters, /copy\.metrics\.closedToday/);
+  assert.match(cashRegisters, /copy\.metrics\.todaySales/);
+  assert.match(cashRegisters, /copy\.metrics\.averageTicket/);
   assert.match(cashRegisters, /shift\.status === 'CLOSED' && isToday\(shift\.closedAt \|\| shift\.openedAt\)/);
-  assert.match(cashRegisters, /Cortes de hoy/);
+  assert.match(cashRegisterTranslations, /todayClosings: \(count\) => `Cortes de hoy/);
   assert.match(cashRegisters, /<ClosedSessionCard/);
-  assert.match(cashRegisters, /Efectivo contado/);
-  assert.match(cashRegisters, /Diferencia/);
+  assert.match(cashRegisterTranslations, /countedCash: 'Efectivo contado'/);
+  assert.match(cashRegisterTranslations, /difference: 'Diferencia'/);
+  assert.match(cashRegisters, /copy\.session\.countedCash/);
+  assert.match(cashRegisters, /copy\.session\.difference/);
 });
 
 test('Venta mantiene caja, turno, catálogo e inventario dentro del mismo almacén operativo', () => {

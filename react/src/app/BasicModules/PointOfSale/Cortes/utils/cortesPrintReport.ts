@@ -3,6 +3,8 @@ import {
   formatDocumentPrintDateTime,
   getDocumentPrintLabels,
 } from '../../../shared/print/documentPrintContract';
+import type { PointOfSaleLocale } from '../../translations';
+import type { CortesCopy } from '../cortesTranslations';
 import type { PosCashClosingSummaryRow } from '../types/cashClosingHistory.types';
 import {
   type CortesAnalytics,
@@ -19,7 +21,9 @@ interface CortesPrintReportParams {
   analytics: CortesAnalytics;
   cashRegisterLabel: string;
   cashierLabel: string;
+  copy: CortesCopy;
   filters: CortesFilters;
+  locale: PointOfSaleLocale;
   preferredCurrency: string;
   rows: PosCashClosingSummaryRow[];
   scopeNote?: string;
@@ -97,13 +101,13 @@ export function buildCortesPrintReportHtml({
   cashRegisterLabel,
   cashierLabel,
   filters,
+  locale,
   preferredCurrency,
   rows,
   scopeNote,
   warehouseLabel,
 }: CortesPrintReportParams) {
   const generatedAt = new Date();
-  const locale = 'es-MX';
   const printLabels = getDocumentPrintLabels(locale);
   const documentId = buildDocumentId(generatedAt);
   const dateRange = filters.dateFrom === filters.dateTo

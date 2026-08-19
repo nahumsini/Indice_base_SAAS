@@ -10,6 +10,7 @@ import {
   posModalPrimaryActionClassName,
   posModalSecondaryActionClassName,
 } from './PosModalFrame';
+import { useCashRegistersCopy } from '../../CashRegisters/cashRegistersTranslations';
 
 interface CreateCashRegisterModalProps {
   isOpen: boolean;
@@ -31,6 +32,7 @@ export function CreateCashRegisterModal({
   onClose,
   onConfirm,
 }: CreateCashRegisterModalProps) {
+  const { copy } = useCashRegistersCopy();
   const firstWarehouse = warehouses[0];
   const [warehouseId, setWarehouseId] = useState('');
   const [code, setCode] = useState('');
@@ -50,9 +52,9 @@ export function CreateCashRegisterModal({
     const defaultWarehouse = firstWarehouse;
     setWarehouseId(defaultWarehouse ? String(defaultWarehouse.id) : '');
     setCode(buildDefaultCode(defaultWarehouse));
-    setName(defaultWarehouse ? `Caja ${defaultWarehouse.name}` : 'Caja POS');
+    setName(defaultWarehouse ? copy.createModal.defaultName(defaultWarehouse.name) : copy.createModal.defaultFallbackName);
     setError('');
-  }, [firstWarehouse, isOpen]);
+  }, [copy, firstWarehouse, isOpen]);
 
   const handleSubmit = () => {
     if (isSubmitting) {
@@ -64,17 +66,17 @@ export function CreateCashRegisterModal({
     const nextName = name.trim();
 
     if (!Number.isFinite(nextWarehouseId) || nextWarehouseId <= 0) {
-      setError('Selecciona un almacen para operar esta caja.');
+      setError(copy.createModal.selectWarehouseError);
       return;
     }
 
     if (!nextCode) {
-      setError('Agrega un codigo operativo para la caja.');
+      setError(copy.createModal.codeError);
       return;
     }
 
     if (!nextName) {
-      setError('Agrega un nombre claro para la caja.');
+      setError(copy.createModal.nameError);
       return;
     }
 
@@ -84,7 +86,7 @@ export function CreateCashRegisterModal({
       name: nextName,
       status: 'ACTIVE',
       active: true,
-      notes: 'Caja creada desde configuracion inicial POS.',
+      notes: copy.createModal.notes,
     });
   };
 
@@ -95,14 +97,14 @@ export function CreateCashRegisterModal({
   return (
     <PosModalFrame
       modalType="standard-form"
-      closeLabel="Cerrar configuracion de caja"
-      eyebrow="Configuración POS"
+      closeLabel={copy.createModal.closeLabel}
+      eyebrow={copy.createModal.eyebrow}
       icon={<Monitor className="h-6 w-6" />}
       isCloseDisabled={isSubmitting}
       onClose={onClose}
       size="md"
-      subtitle="Vincula la caja a un almacén para poder abrir el turno."
-      title="Crear caja POS"
+      subtitle={copy.createModal.subtitle}
+      title={copy.createModal.title}
       tone="coral"
       footerClassName={posModalModuleFooterClassName}
       footer={(
@@ -113,7 +115,7 @@ export function CreateCashRegisterModal({
             disabled={isSubmitting}
             className={posModalSecondaryActionClassName}
           >
-            Cancelar
+            {copy.createModal.cancel}
           </button>
           <button
             type="button"
@@ -122,14 +124,14 @@ export function CreateCashRegisterModal({
             className={posModalPrimaryActionClassName}
           >
             <CheckCircle className="h-5 w-5" />
-            {isSubmitting ? 'Creando caja...' : 'Crear caja'}
+            {isSubmitting ? copy.createModal.creating : copy.createModal.create}
           </button>
         </div>
       )}
     >
       <div className="space-y-5">
         <section className="rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-medium text-orange-800 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200">
-          Cada caja opera desde un almacen. El inventario y los cierres POS usan esa relacion como base operativa.
+          {copy.createModal.info}
         </section>
 
         {error ? (
@@ -140,7 +142,7 @@ export function CreateCashRegisterModal({
 
         <section>
           <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Almacen
+            {copy.createModal.warehouse}
           </label>
           <div className="relative">
             <Warehouse className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
@@ -160,15 +162,15 @@ export function CreateCashRegisterModal({
           </div>
           <p className="mt-2 text-xs font-medium text-gray-500 dark:text-gray-400">
             {selectedWarehouse?.unitName || selectedWarehouse?.businessName
-              ? `${selectedWarehouse.unitName ?? 'Unidad no asignada'} - ${selectedWarehouse.businessName ?? 'Negocio no asignado'}`
-              : 'La caja heredara la unidad y negocio del almacen seleccionado.'}
+              ? `${selectedWarehouse.unitName ?? copy.createModal.unitNotAssigned} - ${selectedWarehouse.businessName ?? copy.createModal.businessNotAssigned}`
+              : copy.createModal.inheritance}
           </p>
         </section>
 
         <section className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Codigo de caja
+              {copy.createModal.code}
             </label>
             <input
               value={code}
@@ -181,14 +183,14 @@ export function CreateCashRegisterModal({
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Nombre de caja
+              {copy.createModal.name}
             </label>
             <input
               value={name}
               onChange={(event) => setName(event.target.value)}
               disabled={isSubmitting}
               maxLength={160}
-              placeholder="Caja principal"
+              placeholder={copy.createModal.placeholder}
               className="min-h-14 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             />
           </div>

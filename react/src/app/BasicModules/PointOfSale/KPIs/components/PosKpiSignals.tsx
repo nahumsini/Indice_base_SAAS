@@ -1,6 +1,7 @@
 import { AlertTriangle, ArrowUpRight, Scale, Ticket } from 'lucide-react';
 import { cn } from '../../../../components/ui/utils';
 import type { PosKpiAnalytics } from '../utils/posKpiAnalytics';
+import type { PosKpiCopy } from '../posKpiTranslations';
 
 function percent(value: number) {
   return `${Math.round(value)}%`;
@@ -29,9 +30,11 @@ function ProgressLine({ danger = false, value }: { danger?: boolean; value: numb
 
 export function PosKpiSignals({
   analytics,
+  copy,
   insight,
 }: {
   analytics: PosKpiAnalytics;
+  copy: PosKpiCopy;
   insight: { text: string; tone: 'info' | 'risk' | 'success' };
 }) {
   const cashAccuracy = analytics.totalCashSales > 0
@@ -43,16 +46,16 @@ export function PosKpiSignals({
     <section className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
       <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h3 className="text-lg font-medium text-slate-950 dark:text-white">Senales ejecutivas POS</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Lectura de caja, tickets y estabilidad operativa del periodo.</p>
+          <h3 className="text-lg font-medium text-slate-950 dark:text-white">{copy.signals.title}</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{copy.signals.subtitle}</p>
         </div>
-        <StatusPill label={hasRisk ? 'Requiere revision' : analytics.closings > 0 ? 'Operativo' : 'Sin cierres'} tone={hasRisk ? 'red' : analytics.closings > 0 ? 'green' : 'blue'} />
+        <StatusPill label={hasRisk ? copy.signals.requiresReview : analytics.closings > 0 ? copy.signals.operational : copy.signals.noClosings} tone={hasRisk ? 'red' : analytics.closings > 0 ? 'green' : 'blue'} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="rounded-xl border border-slate-200 p-5 dark:border-slate-800">
           <div className="mb-3 flex items-center justify-between">
-            <p className="font-medium text-slate-700 dark:text-slate-200">Precision de caja</p>
+            <p className="font-medium text-slate-700 dark:text-slate-200">{copy.signals.cashAccuracy}</p>
             <Scale className="h-5 w-5 text-[#B63B32] dark:text-[#FFB0AA]" />
           </div>
           <p className="mb-4 text-3xl font-medium text-slate-950 dark:text-white">{percent(cashAccuracy)}</p>
@@ -61,16 +64,16 @@ export function PosKpiSignals({
 
         <div className="rounded-xl border border-slate-200 p-5 dark:border-slate-800">
           <div className="mb-3 flex items-center justify-between">
-            <p className="font-medium text-slate-700 dark:text-slate-200">Tickets cerrados</p>
+            <p className="font-medium text-slate-700 dark:text-slate-200">{copy.signals.closedTickets}</p>
             <Ticket className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
           </div>
           <p className="mb-4 text-3xl font-medium text-slate-950 dark:text-white">{analytics.tickets}</p>
-          <p className="text-sm text-slate-500 dark:text-slate-400">{analytics.closings} cierres alimentan la lectura.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{copy.signals.closingsFeed(analytics.closings)}</p>
         </div>
 
         <div className="rounded-xl border border-slate-200 p-5 dark:border-slate-800">
           <div className="mb-3 flex items-center justify-between">
-            <p className="font-medium text-slate-700 dark:text-slate-200">Lectura ejecutiva</p>
+            <p className="font-medium text-slate-700 dark:text-slate-200">{copy.signals.executiveReadout}</p>
             {hasRisk ? <AlertTriangle className="h-5 w-5 text-rose-600 dark:text-rose-300" /> : <ArrowUpRight className="h-5 w-5 text-blue-600 dark:text-blue-300" />}
           </div>
           <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">{insight.text}</p>

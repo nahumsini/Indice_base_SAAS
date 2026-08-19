@@ -1,5 +1,6 @@
 import { BarChart3, CreditCard, Package, Users, Wallet, type LucideIcon } from 'lucide-react';
 import type { PosKpiAnalytics } from '../utils/posKpiAnalytics';
+import type { PosKpiCopy } from '../posKpiTranslations';
 
 function EmptyText({ text }: { text: string }) {
   return <p className="rounded-xl bg-slate-50 p-4 text-sm font-medium text-slate-500 dark:bg-slate-950 dark:text-slate-400">{text}</p>;
@@ -7,12 +8,14 @@ function EmptyText({ text }: { text: string }) {
 
 export function PosKpiOperatingPanels({
   analytics,
+  copy,
   formatCurrency,
   maxHourlySales,
   paymentBreakdownNote,
   preferredCurrency,
 }: {
   analytics: PosKpiAnalytics;
+  copy: PosKpiCopy;
   formatCurrency: (amount: number) => string;
   maxHourlySales: number;
   paymentBreakdownNote: string;
@@ -21,20 +24,21 @@ export function PosKpiOperatingPanels({
   return (
     <>
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)]">
-        <HourlySalesChart rows={analytics.hourlySales} max={maxHourlySales} formatCurrency={formatCurrency} />
-        <PaymentMixPanel rows={analytics.paymentMix} formatCurrency={formatCurrency} note={paymentBreakdownNote} />
+        <HourlySalesChart copy={copy} rows={analytics.hourlySales} max={maxHourlySales} formatCurrency={formatCurrency} />
+        <PaymentMixPanel copy={copy} rows={analytics.paymentMix} formatCurrency={formatCurrency} note={paymentBreakdownNote} />
       </section>
 
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <TopList title="Cajas con venta" icon={Users} rows={analytics.topCashRegisters} formatValue={formatCurrency} emptyText="Sin cierres por caja en el periodo" />
-        <TopList title="Almacenes POS" icon={Package} rows={analytics.topWarehouses} formatValue={formatCurrency} emptyText="Sin cierres por almacen en el periodo" />
-        <CurrencyPanel totals={analytics.currencyTotals} formatCurrency={formatCurrency} primaryCurrency={preferredCurrency} />
+        <TopList title={copy.operating.topRegisters} icon={Users} rows={analytics.topCashRegisters} formatValue={formatCurrency} emptyText={copy.operating.noRegisterClosings} />
+        <TopList title={copy.operating.topWarehouses} icon={Package} rows={analytics.topWarehouses} formatValue={formatCurrency} emptyText={copy.operating.noWarehouseClosings} />
+        <CurrencyPanel copy={copy} totals={analytics.currencyTotals} formatCurrency={formatCurrency} primaryCurrency={preferredCurrency} />
       </section>
     </>
   );
 }
 
-function HourlySalesChart({ rows, max, formatCurrency }: {
+function HourlySalesChart({ copy, rows, max, formatCurrency }: {
+  copy: PosKpiCopy;
   rows: Array<{ hour: string; sales: number }>;
   max: number;
   formatCurrency: (amount: number) => string;
@@ -43,13 +47,13 @@ function HourlySalesChart({ rows, max, formatCurrency }: {
     <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-medium text-slate-950 dark:text-white">Ventas por cierre</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Ritmo operativo segun hora de arqueo.</p>
+          <h3 className="text-lg font-medium text-slate-950 dark:text-white">{copy.operating.salesByClosing}</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{copy.operating.salesByClosingHelp}</p>
         </div>
         <BarChart3 className="h-5 w-5 text-[#B63B32] dark:text-[#FFB0AA]" />
       </div>
       {rows.length === 0 ? (
-        <EmptyText text="Sin cierres de caja en el periodo." />
+        <EmptyText text={copy.operating.noClosings} />
       ) : (
         <div className="flex h-72 items-end gap-3">
           {rows.map((entry) => (
@@ -70,7 +74,8 @@ function HourlySalesChart({ rows, max, formatCurrency }: {
   );
 }
 
-function PaymentMixPanel({ rows, formatCurrency, note }: {
+function PaymentMixPanel({ copy, rows, formatCurrency, note }: {
+  copy: PosKpiCopy;
   rows: Array<{ method: string; amount: number; percentage: number }>;
   formatCurrency: (amount: number) => string;
   note?: string;
@@ -79,9 +84,9 @@ function PaymentMixPanel({ rows, formatCurrency, note }: {
     <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
       <div className="mb-4 flex items-center gap-2">
         <CreditCard className="h-5 w-5 text-[#B63B32] dark:text-[#FFB0AA]" />
-        <h3 className="text-lg font-medium text-slate-950 dark:text-white">Mezcla de pago</h3>
+        <h3 className="text-lg font-medium text-slate-950 dark:text-white">{copy.operating.paymentMix}</h3>
       </div>
-      {rows.length === 0 ? <EmptyText text="Sin pagos registrados en el periodo." /> : (
+      {rows.length === 0 ? <EmptyText text={copy.operating.noPayments} /> : (
         <div className="space-y-4">
           {rows.map((payment) => (
             <div key={payment.method}>
@@ -92,7 +97,7 @@ function PaymentMixPanel({ rows, formatCurrency, note }: {
               <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                 <div className="h-full rounded-full bg-[#FF6B5E]" style={{ width: `${payment.percentage}%` }} />
               </div>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{payment.percentage}% cobrado</p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{payment.percentage}% {copy.operating.charged}</p>
             </div>
           ))}
         </div>
@@ -135,7 +140,8 @@ function TopList({ title, icon: Icon, rows, formatValue, emptyText }: {
   );
 }
 
-function CurrencyPanel({ totals, formatCurrency, primaryCurrency }: {
+function CurrencyPanel({ copy, totals, formatCurrency, primaryCurrency }: {
+  copy: PosKpiCopy;
   totals: Array<{ currency: string; amount: number }>;
   formatCurrency: (amount: number) => string;
   primaryCurrency: string;
@@ -144,14 +150,14 @@ function CurrencyPanel({ totals, formatCurrency, primaryCurrency }: {
     <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
       <div className="mb-4 flex items-center gap-2">
         <Wallet className="h-5 w-5 text-[#B63B32] dark:text-[#FFB0AA]" />
-        <h3 className="text-lg font-medium text-slate-950 dark:text-white">Divisas POS</h3>
+        <h3 className="text-lg font-medium text-slate-950 dark:text-white">{copy.operating.currencies}</h3>
       </div>
       <div className="space-y-3">
-        {totals.length === 0 ? <EmptyText text="Sin divisas registradas en el periodo." /> : totals.map((total) => (
+        {totals.length === 0 ? <EmptyText text={copy.operating.noCurrencies} /> : totals.map((total) => (
           <div key={total.currency} className="flex items-center justify-between rounded-xl bg-slate-50 p-3 dark:bg-slate-950">
             <span className="text-sm font-medium text-slate-950 dark:text-white">{total.currency}</span>
             <span className="text-sm font-medium text-slate-950 dark:text-white">
-              {total.currency === primaryCurrency ? formatCurrency(total.amount) : `${total.amount.toLocaleString('es-MX')} ${total.currency}`}
+              {total.currency === primaryCurrency ? formatCurrency(total.amount) : `${total.amount.toLocaleString()} ${total.currency}`}
             </span>
           </div>
         ))}
