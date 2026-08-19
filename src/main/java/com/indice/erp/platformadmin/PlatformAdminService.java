@@ -78,7 +78,7 @@ public class PlatformAdminService {
         var pattern = "%" + query + "%";
         var companies = jdbcTemplate.query(
             """
-                SELECT company.id, company.name,
+                SELECT company.id, company.name, company.public_demo_enabled,
                        CASE
                            WHEN EXISTS (
                                SELECT 1
@@ -323,6 +323,7 @@ public class PlatformAdminService {
                 var row = new LinkedHashMap<String, Object>();
                 row.put("id", rs.getLong("id"));
                 row.put("name", rs.getString("name"));
+                row.put("public_demo_enabled", rs.getBoolean("public_demo_enabled"));
                 row.put("user_type", rs.getString("user_type"));
                 row.put("distributor_company_id", rs.getObject("distributor_company_id"));
                 row.put("distributor_company_name", nullable(rs.getString("distributor_company_name")));
@@ -548,7 +549,7 @@ public class PlatformAdminService {
     public Map<String, Object> companyAfterAuthorization(long companyId) {
         var companies = jdbcTemplate.query(
             """
-                SELECT company.id, company.name, policy.mode,
+                SELECT company.id, company.name, company.public_demo_enabled, policy.mode,
                        CASE
                            WHEN EXISTS (
                                SELECT 1
@@ -630,6 +631,7 @@ public class PlatformAdminService {
                 var row = new LinkedHashMap<String, Object>();
                 row.put("id", rs.getLong("id"));
                 row.put("name", rs.getString("name"));
+                row.put("public_demo_enabled", rs.getBoolean("public_demo_enabled"));
                 row.put("user_type", rs.getString("user_type"));
                 row.put("distributor_company_id", rs.getObject("distributor_company_id"));
                 row.put("distributor_company_name", nullable(rs.getString("distributor_company_name")));
@@ -745,6 +747,62 @@ public class PlatformAdminService {
         return Map.of(
             "company_id", companyId,
             "user_type", accountType,
+            "changed", changed
+        );
+    }
+
+    @Transactional
+    public Map<String, Object> updatePublicDemoAccess(
+        long actorUserId,
+        long companyId,
+        PublicDemoUpdateRequest request
+    ) {
+        accessService.require(actorUserId, "PLATFORM_ACCOUNTS_WRITE");
+        if (request == null || request.enabled() == null) {
+            throw new IllegalArgumentException("The public demo setting is required.");
+        }
+        var rows = jdbcTemplate.query(
+            """
+                SELECT commercial_account_type, public_demo_enabled
+                FROM companies
+                WHERE id = ?
+                LIMIT 1
+                """,
+            (rs, rowNum) -> Map.<String, Object>of(
+                "account_type", rs.getString("commercial_account_type"),
+                "enabled", rs.getBoolean("public_demo_enabled")
+            ),
+            companyId
+        );
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException("Company not found.");
+        }
+        var current = rows.getFirst();
+        if (!"SUPER_ADMIN".equals(current.get("account_type"))) {
+            throw new IllegalStateException("Only customer accounts can be enabled as public demos.");
+        }
+        var previous = Boolean.TRUE.equals(current.get("enabled"));
+        var enabled = request.enabled();
+        var changed = previous != enabled;
+        if (changed) {
+            jdbcTemplate.update(
+                "UPDATE companies SET public_demo_enabled = ? WHERE id = ?",
+                enabled,
+                companyId
+            );
+            audit.record(
+                actorUserId,
+                enabled ? "PUBLIC_DEMO_ENABLED" : "PUBLIC_DEMO_DISABLED",
+                "COMPANY",
+                String.valueOf(companyId),
+                companyId,
+                "SUCCESS",
+                Map.of("previous_enabled", previous, "public_demo_enabled", enabled)
+            );
+        }
+        return Map.of(
+            "company_id", companyId,
+            "public_demo_enabled", enabled,
             "changed", changed
         );
     }
@@ -1893,6 +1951,9 @@ public class PlatformAdminService {
     }
 
     public record AccountTypeUpdateRequest(String account_type) {
+    }
+
+    public record PublicDemoUpdateRequest(Boolean enabled) {
     }
 
     public record DistributorAssignmentRequest(Long distributor_company_id) {

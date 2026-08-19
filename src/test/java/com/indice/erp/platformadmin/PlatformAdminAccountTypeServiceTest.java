@@ -101,4 +101,43 @@ class PlatformAdminAccountTypeServiceTest {
 
         verify(jdbc, never()).update(anyString(), any(), any());
     }
+
+    @Test
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    void enablesAndAuditsPublicDemoAccessForACustomerAccount() {
+        when(jdbc.query(anyString(), any(RowMapper.class), eq(44L))).thenReturn((List) List.of(
+            Map.of("account_type", "SUPER_ADMIN", "enabled", false)
+        ));
+
+        var result = service.updatePublicDemoAccess(
+            9L,
+            44L,
+            new PlatformAdminService.PublicDemoUpdateRequest(true)
+        );
+
+        assertThat(result)
+            .containsEntry("company_id", 44L)
+            .containsEntry("public_demo_enabled", true)
+            .containsEntry("changed", true);
+        verify(jdbc).update("UPDATE companies SET public_demo_enabled = ? WHERE id = ?", true, 44L);
+        verify(audit).record(eq(9L), eq("PUBLIC_DEMO_ENABLED"), eq("COMPANY"), eq("44"), eq(44L), eq("SUCCESS"), any());
+    }
+
+    @Test
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    void refusesToExposeADistributorAsAPublicDemo() {
+        when(jdbc.query(anyString(), any(RowMapper.class), eq(44L))).thenReturn((List) List.of(
+            Map.of("account_type", "DISTRIBUTOR", "enabled", false)
+        ));
+
+        assertThatThrownBy(() -> service.updatePublicDemoAccess(
+            9L,
+            44L,
+            new PlatformAdminService.PublicDemoUpdateRequest(true)
+        ))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("customer accounts");
+
+        verify(jdbc, never()).update(anyString(), any(), any());
+    }
 }

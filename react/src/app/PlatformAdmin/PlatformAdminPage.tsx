@@ -630,6 +630,31 @@ export default function PlatformAdminPage() {
     }
   };
 
+  const updatePublicDemoAccess = async (enabled: boolean) => {
+    if (!selected || saving) return;
+    setSaving(true);
+    setError("");
+    setAccountFeedback(null);
+    try {
+      await platformAdminApi.updatePublicDemoAccess(selected.id, enabled);
+      await refreshOverviewAndCompany();
+      setAccountFeedback({
+        type: "success",
+        message: enabled
+          ? "La empresa ya aparece en /demo y acepta sus credenciales existentes sin MFA únicamente por esa ruta."
+          : "La empresa dejó de aceptar accesos desde /demo. El inicio de sesión normal no cambió.",
+      });
+    } catch (saveError) {
+      const message = saveError instanceof Error
+        ? saveError.message
+        : "No se pudo actualizar el acceso demo público.";
+      setError(message);
+      setAccountFeedback({ type: "error", message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const submitBenefit = async (event: FormEvent) => {
     event.preventDefault();
     if (!selected || saving) return;
@@ -994,6 +1019,7 @@ export default function PlatformAdminPage() {
           onGrantProduct={(productCode) => void grantProductAccess(productCode)}
           onUpdateTrialProducts={updateTrialProducts}
           onRefreshCompany={refreshOverviewAndCompany}
+          onUpdatePublicDemo={updatePublicDemoAccess}
           onRevokeBenefit={(reference, label, grantCount) =>
             setRevocation({ kind: "benefit", reference, label, grantCount })
           }

@@ -77,6 +77,27 @@ class DashboardModuleAccessRepositoryTest {
         assertEquals(Set.of(), access.moduleSlugs());
     }
 
+    @Test
+    void publicDemoGetsOperationalModulesWithoutCompanyEntitlements() {
+        var repository = new DashboardModuleAccessRepository(jdbcTemplate);
+        when(jdbcTemplate.query(
+            argThat((String sql) -> containsSql(sql, "slug <> 'config_center'")),
+            org.mockito.ArgumentMatchers.<RowMapper<Object>>any()
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            ResultSet sales = mock(ResultSet.class);
+            ResultSet inventory = mock(ResultSet.class);
+            when(sales.getString("slug")).thenReturn("crm");
+            when(inventory.getString("slug")).thenReturn("inventory");
+            return List.of(rowMapper.mapRow(sales, 0), rowMapper.mapRow(inventory, 1));
+        });
+
+        var access = repository.loadPublicDemoAccess();
+
+        assertEquals(Set.of("crm", "inventory"), access.moduleSlugs());
+    }
+
     private void mockUserCompanyAccess(long userId, long companyId, long userCompanyId, String role) {
         when(jdbcTemplate.query(
             argThat((String sql) -> containsSql(sql, "FROM user_companies")),

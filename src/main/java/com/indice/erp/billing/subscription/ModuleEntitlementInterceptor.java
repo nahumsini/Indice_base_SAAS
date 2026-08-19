@@ -33,6 +33,9 @@ public class ModuleEntitlementInterceptor implements HandlerInterceptor {
             return true;
         }
         var session = request.getSession(false);
+        if (session != null && Boolean.TRUE.equals(session.getAttribute(SessionAuthService.SESSION_PUBLIC_DEMO))) {
+            return true;
+        }
         var companyId = session == null ? null : session.getAttribute(SessionAuthService.SESSION_COMPANY_ID);
         if (!(companyId instanceof Number companyIdNumber)) {
             return true;

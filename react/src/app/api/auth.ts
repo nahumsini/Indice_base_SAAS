@@ -11,6 +11,11 @@ export interface LoginCredentials {
   password: string;
 }
 
+export interface PublicDemoCompany {
+  id: number;
+  name: string;
+}
+
 export interface LoginOtpVerifyPayload {
   challengeId: string;
   otpCode: string;
@@ -144,6 +149,31 @@ export const authApi = {
         throw new Error(error.message || 'Invalid login or account temporarily locked.');
       }
 
+      throw error;
+    }
+  },
+
+  getPublicDemos() {
+    return apiClient<{ companies: PublicDemoCompany[] }>(endpoints.auth.publicDemos);
+  },
+
+  async demoLogin({ companyName, email, password }: LoginCredentials) {
+    setCachedAuthSession(undefined);
+    setCachedCsrfToken(null);
+    clearPendingSessionRequest();
+    await this.csrf();
+    try {
+      const response = await apiClient<AuthSessionResponse>(endpoints.auth.demoLogin, {
+        method: 'POST',
+        body: JSON.stringify({ companyName, email, password }),
+      });
+      cacheSession(response);
+      return response;
+    } catch (error) {
+      if (error instanceof ApiClientError && [401, 403, 423].includes(error.status)) {
+        cacheSession(null);
+        throw new Error(error.message || 'No se pudo iniciar la demostración.');
+      }
       throw error;
     }
   },

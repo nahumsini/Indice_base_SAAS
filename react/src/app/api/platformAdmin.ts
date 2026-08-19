@@ -127,6 +127,7 @@ export interface PlatformConsultingAppointmentCreate {
 export interface PlatformCompanySummary {
   id: number;
   name: string;
+  public_demo_enabled?: boolean;
   user_type: PlatformAccountType;
   distributor_company_id?: number | null;
   distributor_company_name?: string | null;
@@ -515,6 +516,12 @@ export interface PlatformAccountTypeUpdateResult {
   changed: boolean;
 }
 
+export interface PlatformPublicDemoUpdateResult {
+  company_id: number;
+  public_demo_enabled: boolean;
+  changed: boolean;
+}
+
 export interface PlatformDistributorAssignmentResult {
   company_id: number;
   distributor_company_id: number | null;
@@ -572,6 +579,10 @@ export const platformAdminApi = {
   updateCompanyAccountType: (companyId: number, accountType: EditablePlatformAccountType) => apiClient<PlatformAccountTypeUpdateResult>(
     `${companyPath(companyId)}/account-type`,
     { method: 'PATCH', body: JSON.stringify({ account_type: accountType }) },
+  ),
+  updatePublicDemoAccess: (companyId: number, enabled: boolean) => apiClient<PlatformPublicDemoUpdateResult>(
+    `${companyPath(companyId)}/public-demo`,
+    { method: 'PATCH', body: JSON.stringify({ enabled }) },
   ),
   updateCompanyDistributor: (companyId: number, distributorCompanyId: number | null) => apiClient<PlatformDistributorAssignmentResult>(
     `${companyPath(companyId)}/distributor`,

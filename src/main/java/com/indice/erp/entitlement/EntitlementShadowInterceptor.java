@@ -65,6 +65,9 @@ public class EntitlementShadowInterceptor implements HandlerInterceptor {
         if (authService == null || contextResolver == null || shadowDecisionService == null) {
             return true;
         }
+        if (authService.isPublicDemoSession(httpSession)) {
+            return true;
+        }
         var session = authService.currentSession(httpSession);
         if (session.isEmpty()) {
             return true;

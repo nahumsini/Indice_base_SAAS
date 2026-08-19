@@ -25,6 +25,7 @@ public class CommercialLifecycleInterceptor implements HandlerInterceptor {
         if (isRecoverySurface(request.getRequestURI())) return true;
         var session = request.getSession(false);
         if (session == null) return true;
+        if (auth.isPublicDemoSession(session)) return true;
         var user = auth.currentUser(session).orElse(null);
         if (user == null) return true;
         try {

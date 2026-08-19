@@ -56,6 +56,80 @@ public class AuthApiController {
         return ResponseEntity.ok(Map.of("csrfToken", sessionCsrfService.ensureCsrf(session)));
     }
 
+    @GetMapping("/public-demos")
+    public ResponseEntity<?> publicDemos() {
+        return ResponseEntity.ok(Map.of("companies", sessionAuthService.publicDemoCompanies()));
+    }
+
+    @PostMapping("/demo-login")
+    public ResponseEntity<?> demoLogin(
+        @RequestBody LoginRequest request,
+        HttpSession session,
+        HttpServletRequest servletRequest,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
+    ) {
+        try {
+            sessionCsrfService.requireCsrf(session, csrfToken);
+        } catch (IllegalArgumentException ex) {
+            recordPasswordAudit(request, "BLOCKED", AuthFailureReason.CSRF_INVALID, ex.getMessage(),
+                null, null, null, null, null, LoginAuditContext.from(servletRequest, session));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ex.getMessage()));
+        }
+        if (request == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                "message", "Invalid company, email, or password."
+            ));
+        }
+
+        var auditContext = LoginAuditContext.from(servletRequest, session);
+        var emailNormalized = normalize(request.email());
+        var companyNameNormalized = normalize(request.companyName());
+        var lockout = lockoutService.passwordLockout(emailNormalized, companyNameNormalized);
+        if (lockout.locked()) {
+            recordPasswordAudit(request, "BLOCKED", AuthFailureReason.ACCOUNT_LOCKED,
+                "Account is temporarily locked.", null, null, null, null, lockout, auditContext);
+            return ResponseEntity.status(HttpStatus.LOCKED).body(Map.of(
+                "message", "Invalid login or account temporarily locked."
+            ));
+        }
+
+        var verification = sessionAuthService.verifyLoginCredentials(
+            request.companyName(), request.email(), request.password()
+        );
+        if (!verification.success()) {
+            var lockable = !verification.emailNormalized().isBlank() && !verification.companyNameNormalized().isBlank();
+            var failureLockout = lockable
+                ? lockoutService.recordPasswordFailure(verification)
+                : AuthLockoutService.LockoutState.open();
+            recordCredentialAudit(verification, failureLockout.locked() ? "BLOCKED" : "FAILURE",
+                verification.failureReasonCode(), verification.message(), failureLockout, auditContext);
+            return ResponseEntity.status(failureLockout.locked() ? HttpStatus.LOCKED : HttpStatus.UNAUTHORIZED).body(Map.of(
+                "message", failureLockout.locked()
+                    ? "Invalid login or account temporarily locked."
+                    : "Invalid company, email, or password."
+            ));
+        }
+
+        if (!sessionAuthService.isPublicDemoCompany(verification.login().companyId())) {
+            recordCredentialAudit(verification, "BLOCKED", "PUBLIC_DEMO_NOT_ENABLED",
+                "The company is not enabled for public demo access.", AuthLockoutService.LockoutState.open(), auditContext);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                "message", "Esta empresa no está habilitada para acceso demo público."
+            ));
+        }
+
+        recordCredentialAudit(verification, "SUCCESS", null,
+            "Password accepted for public demo access.", AuthLockoutService.LockoutState.open(), auditContext);
+        servletRequest.changeSessionId();
+        sessionAuthService.storePublicDemoSession(session, verification.login());
+        sessionCsrfService.rotateCsrf(session);
+        return sessionAuthService.currentSession(session)
+            .<ResponseEntity<?>>map(body -> ResponseEntity.ok(sessionBody(body, session)))
+            .orElseGet(() -> ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "message", "Demo session was created but could not be loaded."
+            )));
+    }
+
     @PostMapping("/login")
     public ResponseEntity<?> login(
         @RequestBody LoginRequest request,
@@ -285,7 +359,8 @@ public class AuthApiController {
             "user", body.user(),
             "company", body.company(),
             "companies", body.companies(),
-            "csrfToken", sessionCsrfService.ensureCsrf(session)
+            "csrfToken", sessionCsrfService.ensureCsrf(session),
+            "demoMode", sessionAuthService.isPublicDemoSession(session)
         );
     }
 

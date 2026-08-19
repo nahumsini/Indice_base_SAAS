@@ -1,4 +1,4 @@
-import { Building2 } from "lucide-react";
+import { Building2, ExternalLink, ShieldCheck } from "lucide-react";
 import type { PlatformCompanyDetail } from "../../api/platformAdmin";
 import { WorkspaceSection, SummaryDatum, StatusPill } from "./CompanyAccountPrimitives";
 import { commercialOrigin, formatDate, formatMoney, humanize } from "./companyAccountUtils";
@@ -10,6 +10,9 @@ export function CompanyOverviewTab({
   activeUserCount,
   availableSeats,
   accessLabel,
+  canManagePublicDemo,
+  saving,
+  onUpdatePublicDemo,
 }: {
   company: PlatformCompanyDetail;
   activeProductCount: number;
@@ -17,6 +20,9 @@ export function CompanyOverviewTab({
   activeUserCount: number;
   availableSeats: number;
   accessLabel: string;
+  canManagePublicDemo: boolean;
+  saving: boolean;
+  onUpdatePublicDemo: (enabled: boolean) => Promise<void>;
 }) {
   const origin = commercialOrigin(company);
   const plan = company.offer_code ? humanize(company.offer_code) : "Sin plan";
@@ -45,6 +51,48 @@ export function CompanyOverviewTab({
           hint={`${availableSeats} lugar(es) disponible(s)`}
         />
         <SummaryDatum label="Próximo evento" value={formatDate(nextEvent)} hint={nextEvent ? "Fecha comercial registrada" : "Sin fecha programada"} />
+      </div>
+      <div className="border-t border-slate-100 p-4 sm:p-5">
+        <div className={`flex flex-col gap-4 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between ${
+          company.public_demo_enabled
+            ? "border-blue-200 bg-blue-50/70"
+            : "border-slate-200 bg-slate-50"
+        }`}>
+          <div className="flex items-start gap-3">
+            <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${
+              company.public_demo_enabled ? "bg-blue-600 text-white" : "bg-white text-slate-500 ring-1 ring-slate-200"
+            }`}>
+              <ShieldCheck className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="font-semibold text-slate-900">Demo pública con credenciales</p>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
+                Permite que esta empresa aparezca en <code className="rounded bg-white px-1.5 py-0.5 text-xs text-blue-700">/demo</code>.
+                Sus credenciales existentes podrán iniciar una sesión demo de 60 minutos sin MFA; el acceso normal no cambia.
+              </p>
+              {company.public_demo_enabled ? (
+                <a href="/demo" target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-900">
+                  Abrir página de demos <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              ) : null}
+            </div>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={Boolean(company.public_demo_enabled)}
+            disabled={!canManagePublicDemo || saving || company.user_type !== "SUPER_ADMIN"}
+            onClick={() => void onUpdatePublicDemo(!company.public_demo_enabled)}
+            className={`relative h-8 w-14 shrink-0 rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 disabled:cursor-not-allowed disabled:opacity-50 ${
+              company.public_demo_enabled ? "bg-blue-600" : "bg-slate-300"
+            }`}
+            aria-label={company.public_demo_enabled ? "Deshabilitar demo pública" : "Habilitar demo pública"}
+          >
+            <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow-sm transition ${
+              company.public_demo_enabled ? "left-7" : "left-1"
+            }`} />
+          </button>
+        </div>
       </div>
     </WorkspaceSection>
   );

@@ -486,6 +486,25 @@ public class PlatformAdminApiController {
         }
     }
 
+    @PatchMapping("/companies/{companyId}/public-demo")
+    public ResponseEntity<?> updatePublicDemoAccess(
+        HttpSession session,
+        @PathVariable long companyId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody PlatformAdminService.PublicDemoUpdateRequest request
+    ) {
+        try {
+            var current = auth.currentUser(session).orElse(null);
+            if (current == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            }
+            csrf.requireCsrf(session, csrfToken);
+            return ResponseEntity.ok(service.updatePublicDemoAccess(current.userId(), companyId, request));
+        } catch (RuntimeException exception) {
+            return error(exception);
+        }
+    }
+
     @PatchMapping("/companies/{companyId}/distributor")
     public ResponseEntity<?> updateCompanyDistributor(
         HttpSession session,

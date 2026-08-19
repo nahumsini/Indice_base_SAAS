@@ -29,6 +29,7 @@ export interface AuthSessionResponse {
   };
   companies: Array<AuthSessionResponse['company']>;
   csrfToken: string;
+  demoMode?: boolean;
 }
 
 export interface MfaRequiredResponse {

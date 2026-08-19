@@ -230,6 +230,23 @@ class SessionAuthServiceTest {
         assertEquals(expectedSeconds, session.getMaxInactiveInterval());
     }
 
+    @Test
+    void publicDemoSessionIsScopedToOneHourAndCannotSwitchCompanies() {
+        var clock = new MutableClock(Instant.parse("2026-08-18T12:00:00Z"));
+        var service = serviceWith(LoginAuditService.noop(), new AuthSecurityProperties(), clock);
+        var session = new MockHttpSession();
+
+        service.storePublicDemoSession(session, loginWithRole("admin"));
+
+        assertTrue(service.isPublicDemoSession(session));
+        assertEquals(3_600, session.getMaxInactiveInterval());
+        assertFalse(service.switchActiveCompany(session, 9L));
+
+        clock.advance(Duration.ofSeconds(3_600));
+        assertFalse(service.enforceSessionTimeout(session, LoginAuditContext.empty()));
+        assertTrue(session.isInvalid());
+    }
+
     @ParameterizedTest
     @CsvSource({
         "root,1800",

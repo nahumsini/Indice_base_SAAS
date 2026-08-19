@@ -53,6 +53,18 @@ class SubscriptionAccessInterceptorTest {
         assertTrue(interceptor.preHandle(request, new MockHttpServletResponse(), new Object()));
     }
 
+    @Test
+    void allowsPublicDemoSessionWhenSubscriptionIsMissing() throws Exception {
+        var interceptor = new SubscriptionAccessInterceptor(
+            (companyId) -> CompanySubscriptionStatus.blocked("missing_subscription"),
+            objectMapper
+        );
+        var request = request("/api/v1/modules", 7L);
+        request.getSession().setAttribute(SessionAuthService.SESSION_PUBLIC_DEMO, true);
+
+        assertTrue(interceptor.preHandle(request, new MockHttpServletResponse(), new Object()));
+    }
+
     private MockHttpServletRequest request(String path, long companyId) {
         var request = new MockHttpServletRequest("GET", path);
         request.setRequestURI(path);

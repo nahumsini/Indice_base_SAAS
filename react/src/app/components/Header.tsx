@@ -168,9 +168,11 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
     .join('')
     .toUpperCase() || 'U';
   const currentUserPrimaryName = currentUserName.trim().split(/\s+/)[0] || 'User';
-  const isRootAccount = platformAdminRole === 'PLATFORM_ROOT'
-    || normalizeAccessRole(authSession?.user.role) === 'root';
-  const isDistributorAccount = authSession?.company.commercial_account_type === 'DISTRIBUTOR';
+  const isPublicDemoSession = authSession?.demoMode === true;
+  const isRootAccount = !isPublicDemoSession && (platformAdminRole === 'PLATFORM_ROOT'
+    || normalizeAccessRole(authSession?.user.role) === 'root');
+  const isDistributorAccount = !isPublicDemoSession
+    && authSession?.company.commercial_account_type === 'DISTRIBUTOR';
 
   const handleLogout = async () => {
     if (isLoggingOut) {
@@ -258,6 +260,17 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
 
           {/* Sección derecha - Acciones */}
           <div className="flex flex-shrink-0 items-center gap-2">
+            {isPublicDemoSession ? (
+              <div
+                className="hidden items-center gap-2 rounded-full border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 shadow-sm sm:flex dark:border-amber-500/35 dark:bg-amber-500/10 dark:text-amber-200"
+                title={currentLanguage.code.startsWith('es')
+                  ? 'Sesión temporal con datos ficticios'
+                  : 'Temporary session with fictitious data'}
+              >
+                <MonitorSmartphone className="h-4 w-4" />
+                {currentLanguage.code.startsWith('es') ? 'Modo demo' : 'Demo mode'}
+              </div>
+            ) : null}
             {(authSession?.companies?.length ?? 0) > 1 ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -434,12 +447,22 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                 
                 {/* Menu options */}
                 <div className="bg-white py-1 dark:bg-[#222831]">
-                  <DropdownMenuItem onClick={() => navigate('/home-panel/profile')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
-                    <User className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">{copy.actions.profile}</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className="my-0 bg-[#59C3A5]/15 dark:bg-[#59C3A5]/20" />
-                  {isAdminAccessRole(authSession?.user.role) ? (
+                  {isPublicDemoSession ? (
+                    <div className="px-4 py-3 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                      {currentLanguage.code.startsWith('es')
+                        ? 'Estás explorando datos ficticios. La administración de la cuenta está protegida.'
+                        : 'You are exploring fictitious data. Account administration is protected.'}
+                    </div>
+                  ) : (
+                    <>
+                      <DropdownMenuItem onClick={() => navigate('/home-panel/profile')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
+                        <User className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">{copy.actions.profile}</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator className="my-0 bg-[#59C3A5]/15 dark:bg-[#59C3A5]/20" />
+                    </>
+                  )}
+                  {isAdminAccessRole(authSession?.user.role) && !isPublicDemoSession ? (
                     <>
                       <DropdownMenuItem onClick={() => navigate('/kiosk-center')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
                         <MonitorSmartphone className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
@@ -472,10 +495,12 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                       <DropdownMenuSeparator className="my-0 bg-[#59C3A5]/15 dark:bg-[#59C3A5]/20" />
                     </>
                   ) : null}
-                  <DropdownMenuItem onClick={() => navigate('/home-panel/business-structure')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
-                    <Settings className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">{copy.actions.settings}</span>
-                  </DropdownMenuItem>
+                  {!isPublicDemoSession ? (
+                    <DropdownMenuItem onClick={() => navigate('/home-panel/business-structure')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
+                      <Settings className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">{copy.actions.settings}</span>
+                    </DropdownMenuItem>
+                  ) : null}
                   <DropdownMenuSeparator className="my-0 bg-[#59C3A5]/15 dark:bg-[#59C3A5]/20 sm:hidden" />
                   {/* Operational journey on mobile - menu only */}
                   <DropdownMenuItem 

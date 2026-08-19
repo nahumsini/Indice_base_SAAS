@@ -57,6 +57,22 @@ class DashboardModuleAccessRepository {
         return DashboardModuleAccess.only(moduleSlugs);
     }
 
+    DashboardModuleAccess loadPublicDemoAccess() {
+        var moduleSlugs = new LinkedHashSet<>(jdbcTemplate.query(
+            """
+                SELECT slug
+                FROM modules
+                WHERE COALESCE(is_active, 1) = 1
+                  AND COALESCE(assignment_enabled, 1) = 1
+                  AND LOWER(COALESCE(lifecycle_status, 'released')) IN ('pilot', 'released')
+                  AND slug <> 'config_center'
+                ORDER BY sort_order ASC, id ASC
+                """,
+            (rs, rowNum) -> normalizeModuleSlug(rs.getString("slug"))
+        ));
+        return DashboardModuleAccess.only(moduleSlugs);
+    }
+
     private Set<String> listCompanyEntitlements(long companyId) {
         return new LinkedHashSet<>(jdbcTemplate.query(
             """

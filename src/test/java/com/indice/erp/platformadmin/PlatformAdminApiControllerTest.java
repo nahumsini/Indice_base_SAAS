@@ -416,6 +416,29 @@ class PlatformAdminApiControllerTest {
     }
 
     @Test
+    void platformRootCanEnablePublicDemoAccess() throws Exception {
+        var platformRoot = new AuthSessionUser(99L, 7L, "Platform Root", "root");
+        given(auth.currentUser(any())).willReturn(Optional.of(platformRoot));
+        given(service.updatePublicDemoAccess(eq(99L), eq(44L), any()))
+            .willReturn(Map.of(
+                "company_id", 44L,
+                "public_demo_enabled", true,
+                "changed", true
+            ));
+
+        mockMvc.perform(patch("/api/v1/platform-admin/companies/44/public-demo")
+                .header("X-CSRF-Token", "csrf-test")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    { "enabled": true }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.company_id").value(44L))
+            .andExpect(jsonPath("$.public_demo_enabled").value(true))
+            .andExpect(jsonPath("$.changed").value(true));
+    }
+
+    @Test
     void platformRootCanAssignAClientToADistributor() throws Exception {
         var platformRoot = new AuthSessionUser(99L, 7L, "Platform Root", "root");
         given(auth.currentUser(any())).willReturn(Optional.of(platformRoot));

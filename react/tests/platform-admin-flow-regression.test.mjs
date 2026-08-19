@@ -88,6 +88,9 @@ const distributorAssignment = read(
 );
 const platformApi = read("src/app/api/platformAdmin.ts");
 const company = read("src/app/PlatformAdmin/CompanyAccountDrawer.tsx");
+const companyOverview = read(
+  "src/app/PlatformAdmin/CompanyAccount/CompanyOverviewTab.tsx",
+);
 const companyModules = read(
   "src/app/PlatformAdmin/CompanyAccount/CompanyModulesTab.tsx",
 );
@@ -278,6 +281,16 @@ test("el estado comercial distingue activo prueba demo e inactivo", () => {
   assert.match(customerTableUtils, /company\.temporary_benefits/);
   assert.match(platformApi, /temporary_benefits\?: number/);
   assert.match(customerRow, /basicCommercialStatus\(company\)/);
+});
+
+test("Root habilita demos públicas por empresa sin modificar el login normal", () => {
+  assert.match(platformApi, /public_demo_enabled\?: boolean/);
+  assert.match(platformApi, /updatePublicDemoAccess/);
+  assert.match(platformApi, /\/public-demo/);
+  assert.match(companyOverview, /Demo pública con credenciales/);
+  assert.match(companyOverview, /role="switch"/);
+  assert.match(companyOverview, /\/demo/);
+  assert.match(page, /updatePublicDemoAccess/);
 });
 
 test("la tabla de clientes conserva identidad y acciones con el patrón Índice", () => {

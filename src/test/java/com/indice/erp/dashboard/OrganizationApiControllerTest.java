@@ -88,6 +88,25 @@ class OrganizationApiControllerTest {
     }
 
     @Test
+    void publicDemoListsOperationalCatalogWithoutPaidPlan() throws Exception {
+        var currentUser = new AuthSessionUser(11L, 7L, "Demo User", "superadmin");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(sessionAuthService.isPublicDemoSession(any())).willReturn(true);
+        given(organizationService.listPublicDemoModules(11L)).willReturn(List.of(
+            new ModuleListItem(
+                "inventory", "Inventarios", "Demo inventory", "complementary", "demo",
+                "bi-box", null, false, false, "/inventory"
+            )
+        ));
+
+        mockMvc.perform(get("/api/v1/modules").header("X-CSRF-Token", "csrf-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].slug").value("inventory"));
+
+        verify(organizationService).listPublicDemoModules(11L);
+    }
+
+    @Test
     void unitsReturnsUnauthorizedWhenSessionIsMissing() throws Exception {
         given(sessionAuthService.currentUser(any())).willReturn(Optional.empty());
 

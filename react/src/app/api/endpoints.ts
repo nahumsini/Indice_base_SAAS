@@ -1,6 +1,8 @@
 export const endpoints = {
   auth: {
     login: '/api/v1/auth/login',
+    demoLogin: '/api/v1/auth/demo-login',
+    publicDemos: '/api/v1/auth/public-demos',
     loginOtpVerify: '/api/v1/auth/login/otp/verify',
     loginOtpResend: '/api/v1/auth/login/otp/resend',
     register: '/api/v1/auth/register',

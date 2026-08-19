@@ -38,4 +38,13 @@ class ModuleEntitlementInterceptorTest {
         assertTrue(interceptor.preHandle(billingRequest, new MockHttpServletResponse(), new Object()));
         assertTrue(interceptor.preHandle(publicRequest, new MockHttpServletResponse(), new Object()));
     }
+
+    @Test
+    void allowsPublicDemoSessionWithoutPaidEntitlement() throws Exception {
+        var request = new MockHttpServletRequest("GET", "/api/v1/hr/users");
+        request.getSession(true).setAttribute(SessionAuthService.SESSION_COMPANY_ID, 20L);
+        request.getSession().setAttribute(SessionAuthService.SESSION_PUBLIC_DEMO, true);
+
+        assertTrue(interceptor.preHandle(request, new MockHttpServletResponse(), new Object()));
+    }
 }

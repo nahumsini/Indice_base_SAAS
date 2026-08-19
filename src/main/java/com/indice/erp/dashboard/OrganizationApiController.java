@@ -47,6 +47,9 @@ public class OrganizationApiController {
         }
 
         var user = currentUser.get();
+        if (sessionAuthService.isPublicDemoSession(session)) {
+            return ResponseEntity.ok(organizationService.listPublicDemoModules(user.userId()));
+        }
         return ResponseEntity.ok(organizationService.listModules(user.userId(), user.companyId(), user.role()));
     }
 

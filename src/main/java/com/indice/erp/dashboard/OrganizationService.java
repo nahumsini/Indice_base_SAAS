@@ -45,6 +45,10 @@ public class OrganizationService {
         return moduleCatalogRepository.listModules(userId, moduleAccess);
     }
 
+    public List<ModuleListItem> listPublicDemoModules(long userId) {
+        return moduleCatalogRepository.listModules(userId, moduleAccessRepository.loadPublicDemoAccess());
+    }
+
     public List<UnitSummary> listUnits(long companyId) {
         var corporateUnit = ensureHeadquartersBusinesses(companyId);
         var units = jdbcTemplate.query(

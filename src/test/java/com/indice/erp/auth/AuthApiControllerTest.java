@@ -114,6 +114,65 @@ class AuthApiControllerTest {
     }
 
     @Test
+    void publicDemoLoginSkipsMfaOnlyForAnEnabledCompany() throws Exception {
+        var session = sessionResponse(1L, "Empresa Demo Spring");
+        var login = authenticatedLogin();
+        given(lockoutService.passwordLockout(eq("demo@example.com"), eq("empresa demo spring")))
+            .willReturn(AuthLockoutService.LockoutState.open());
+        given(sessionAuthService.verifyLoginCredentials(eq("Empresa Demo Spring"), eq("demo@example.com"), eq("demo123")))
+            .willReturn(LoginCredentialVerificationResult.success(login, "demo@example.com", "empresa demo spring"));
+        given(sessionAuthService.isPublicDemoCompany(1L)).willReturn(true);
+        given(sessionAuthService.currentSession(any())).willReturn(Optional.of(session));
+        given(sessionAuthService.isPublicDemoSession(any())).willReturn(true);
+        given(sessionCsrfService.ensureCsrf(any())).willReturn("demo-csrf");
+
+        mockMvc.perform(post("/api/v1/auth/demo-login")
+                .header("X-CSRF-Token", "csrf-token")
+                .contentType(APPLICATION_JSON)
+                .content(loginPayload()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.company.id").value(1))
+            .andExpect(jsonPath("$.demoMode").value(true))
+            .andExpect(jsonPath("$.csrfToken").value("demo-csrf"));
+
+        verify(sessionAuthService).storePublicDemoSession(any(), eq(login));
+        verifyNoInteractions(mfaChallengeService);
+        verifyNoInteractions(loginSecurityEmailService);
+    }
+
+    @Test
+    void publicDemoLoginRejectsValidCredentialsForANormalCompany() throws Exception {
+        var login = authenticatedLogin();
+        given(lockoutService.passwordLockout(eq("demo@example.com"), eq("empresa demo spring")))
+            .willReturn(AuthLockoutService.LockoutState.open());
+        given(sessionAuthService.verifyLoginCredentials(eq("Empresa Demo Spring"), eq("demo@example.com"), eq("demo123")))
+            .willReturn(LoginCredentialVerificationResult.success(login, "demo@example.com", "empresa demo spring"));
+        given(sessionAuthService.isPublicDemoCompany(1L)).willReturn(false);
+
+        mockMvc.perform(post("/api/v1/auth/demo-login")
+                .header("X-CSRF-Token", "csrf-token")
+                .contentType(APPLICATION_JSON)
+                .content(loginPayload()))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Esta empresa no está habilitada para acceso demo público."));
+
+        verify(sessionAuthService, never()).storePublicDemoSession(any(), any());
+        verifyNoInteractions(mfaChallengeService);
+    }
+
+    @Test
+    void publicDemoDirectoryReturnsOnlyTheServiceProjection() throws Exception {
+        given(sessionAuthService.publicDemoCompanies()).willReturn(List.of(
+            new SessionAuthService.PublicDemoCompany(12L, "Supermercado Horizonte")
+        ));
+
+        mockMvc.perform(get("/api/v1/auth/public-demos"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.companies[0].id").value(12))
+            .andExpect(jsonPath("$.companies[0].name").value("Supermercado Horizonte"));
+    }
+
+    @Test
     void loginSendsSecurityEmailWhenMfaIsNotRequired() throws Exception {
         var session = sessionResponse(1L, "Empresa Demo Spring");
         var login = authenticatedLogin();

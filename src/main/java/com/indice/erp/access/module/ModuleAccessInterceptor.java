@@ -54,6 +54,9 @@ public class ModuleAccessInterceptor implements HandlerInterceptor {
         if (session == null) {
             return true;
         }
+        if (sessionAuthService.isPublicDemoSession(session)) {
+            return true;
+        }
         var currentUser = sessionAuthService.currentUser(session);
         if (currentUser.isEmpty()) {
             return true;

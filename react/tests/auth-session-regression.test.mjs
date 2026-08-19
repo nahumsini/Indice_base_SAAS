@@ -71,3 +71,20 @@ test('signup and login share the exact delivered credential contract', async () 
   assert.match(loginPage, /password,\s*\n\s*\}\)/);
   assert.doesNotMatch(loginPage, /password:\s*password\.trim\(\)/);
 });
+
+test('public demos use an isolated credential route without changing secure login', async () => {
+  const [demoPage, authApiSource, routes, endpoints] = await Promise.all([
+    readFile(new URL('../src/app/Auth/PublicDemoPage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/api/auth.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/routes.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/api/endpoints.ts', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(routes, /path:\s*'\/demo'/);
+  assert.match(demoPage, /authApi\.getPublicDemos\(\)/);
+  assert.match(demoPage, /authApi\.demoLogin/);
+  assert.match(demoPage, /Sesión temporal/);
+  assert.match(authApiSource, /async demoLogin/);
+  assert.match(endpoints, /demoLogin:\s*'\/api\/v1\/auth\/demo-login'/);
+  assert.match(endpoints, /login:\s*'\/api\/v1\/auth\/login'/);
+});

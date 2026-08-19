@@ -32,9 +32,13 @@ public class SubscriptionAccessInterceptor implements HandlerInterceptor {
         if (!path.startsWith("/api/v1/") || isExcluded(path)) {
             return true;
         }
-        var companyId = request.getSession(false) == null
+        var session = request.getSession(false);
+        if (session != null && Boolean.TRUE.equals(session.getAttribute(SessionAuthService.SESSION_PUBLIC_DEMO))) {
+            return true;
+        }
+        var companyId = session == null
             ? null
-            : request.getSession(false).getAttribute(SessionAuthService.SESSION_COMPANY_ID);
+            : session.getAttribute(SessionAuthService.SESSION_COMPANY_ID);
         if (!(companyId instanceof Number companyIdNumber)) {
             return true;
         }

@@ -29,6 +29,9 @@ public class SessionAuthService {
     public static final String SESSION_LOGIN_CSRF = "auth.login.csrf";
     public static final String SESSION_CREATED_AT = "auth.session.created_at";
     public static final String SESSION_LAST_SEEN_AT = "auth.session.last_seen_at";
+    public static final String SESSION_PUBLIC_DEMO = "auth.public_demo";
+    public static final String SESSION_PUBLIC_DEMO_EXPIRES_AT = "auth.public_demo.expires_at";
+    private static final Duration PUBLIC_DEMO_SESSION_DURATION = Duration.ofMinutes(60);
 
     private final JdbcTemplate jdbcTemplate;
     private final BCryptPasswordEncoder passwordEncoder;
@@ -239,7 +242,41 @@ public class SessionAuthService {
         var now = clock.instant();
         session.setAttribute(SESSION_CREATED_AT, now);
         session.setAttribute(SESSION_LAST_SEEN_AT, now);
+        session.removeAttribute(SESSION_PUBLIC_DEMO);
+        session.removeAttribute(SESSION_PUBLIC_DEMO_EXPIRES_AT);
         applySessionIdleTimeout(session, role);
+    }
+
+    public void storePublicDemoSession(HttpSession session, AuthenticatedLogin login) {
+        storeAuthenticatedSession(session, login);
+        session.setAttribute(SESSION_PUBLIC_DEMO, true);
+        session.setAttribute(SESSION_PUBLIC_DEMO_EXPIRES_AT, clock.instant().plus(PUBLIC_DEMO_SESSION_DURATION));
+        session.setMaxInactiveInterval((int) PUBLIC_DEMO_SESSION_DURATION.toSeconds());
+    }
+
+    public boolean isPublicDemoSession(HttpSession session) {
+        return session != null && Boolean.TRUE.equals(session.getAttribute(SESSION_PUBLIC_DEMO));
+    }
+
+    public boolean isPublicDemoCompany(long companyId) {
+        return Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+            "SELECT public_demo_enabled FROM companies WHERE id = ?",
+            Boolean.class,
+            companyId
+        ));
+    }
+
+    public List<PublicDemoCompany> publicDemoCompanies() {
+        return jdbcTemplate.query(
+            """
+                SELECT id, name
+                FROM companies
+                WHERE public_demo_enabled = TRUE
+                  AND commercial_account_type = 'SUPER_ADMIN'
+                ORDER BY name, id
+                """,
+            (rs, rowNum) -> new PublicDemoCompany(rs.getLong("id"), rs.getString("name"))
+        );
     }
 
     public boolean enforceSessionTimeout(HttpSession session, LoginAuditContext auditContext) {
@@ -252,10 +289,17 @@ public class SessionAuthService {
         var lastSeenAt = sessionInstant(session.getAttribute(SESSION_LAST_SEEN_AT), now);
         var role = sessionRole(session);
         var idleTimeoutSeconds = securityProperties.getSessionIdleTimeoutSecondsForRole(role);
+        var demoExpiresAt = isPublicDemoSession(session)
+            ? sessionInstant(session.getAttribute(SESSION_PUBLIC_DEMO_EXPIRES_AT), createdAt)
+            : null;
+        if (demoExpiresAt != null) {
+            idleTimeoutSeconds = Math.min(idleTimeoutSeconds, (int) PUBLIC_DEMO_SESSION_DURATION.toSeconds());
+        }
         session.setMaxInactiveInterval(idleTimeoutSeconds);
         var absoluteExpired = createdAt.plus(Duration.ofSeconds(securityProperties.getSessionAbsoluteTimeoutSeconds())).isBefore(now);
         var idleExpired = lastSeenAt.plus(Duration.ofSeconds(idleTimeoutSeconds)).isBefore(now);
-        if (absoluteExpired || idleExpired) {
+        var demoExpired = demoExpiresAt != null && !demoExpiresAt.isAfter(now);
+        if (absoluteExpired || idleExpired || demoExpired) {
             var companyId = session.getAttribute(SESSION_COMPANY_ID);
             var userCompanyId = session.getAttribute(SESSION_USER_COMPANY_ID);
             loginAuditService.record(LoginAuditEvent.builder()
@@ -266,7 +310,7 @@ public class SessionAuthService {
                 .companyId(companyId instanceof Number companyNumber ? companyNumber.longValue() : null)
                 .userCompanyId(userCompanyId instanceof Number membershipNumber ? membershipNumber.longValue() : null)
                 .role(role)
-                .failureReasonCode(absoluteExpired
+                .failureReasonCode(absoluteExpired || demoExpired
                     ? AuthFailureReason.SESSION_ABSOLUTE_TIMEOUT
                     : AuthFailureReason.SESSION_IDLE_TIMEOUT)
                 .failureMessageSafe("Authenticated session expired.")
@@ -333,9 +377,15 @@ public class SessionAuthService {
 
     public Optional<AuthSessionResponse> currentSession(HttpSession session) {
         return currentUser(session).map(user -> {
+            var publicDemoSession = isPublicDemoSession(session);
             var access = loadSessionAccess(user.userId(), user.companyId());
             var memberships = loadActiveCompanyMemberships(user.userId()).stream()
-                .map(membership -> toCompanyInfo(membership, membership.companyId() == user.companyId()))
+                .filter(membership -> !publicDemoSession || membership.companyId() == user.companyId())
+                .map(membership -> toCompanyInfo(
+                    membership,
+                    membership.companyId() == user.companyId(),
+                    publicDemoSession
+                ))
                 .toList();
             var activeCompany = memberships.stream()
                 .filter(AuthSessionResponse.CompanyInfo::active)
@@ -357,6 +407,9 @@ public class SessionAuthService {
     }
 
     public boolean switchActiveCompany(HttpSession session, long companyId) {
+        if (isPublicDemoSession(session)) {
+            return false;
+        }
         var userId = session.getAttribute(SESSION_USER_ID);
         if (!(userId instanceof Number userIdNumber)) {
             return false;
@@ -379,6 +432,9 @@ public class SessionAuthService {
 
     public void logout(HttpSession session) {
         session.invalidate();
+    }
+
+    public record PublicDemoCompany(long id, String name) {
     }
 
     private boolean matchesPassword(String rawPassword, String encodedPassword) {
@@ -504,7 +560,11 @@ public class SessionAuthService {
         );
     }
 
-    private AuthSessionResponse.CompanyInfo toCompanyInfo(CompanyMembership membership, boolean active) {
+    private AuthSessionResponse.CompanyInfo toCompanyInfo(
+        CompanyMembership membership,
+        boolean active,
+        boolean publicDemoSession
+    ) {
         var scope = TenantScope.from(membership.unitId(), membership.businessId());
         return new AuthSessionResponse.CompanyInfo(
             membership.companyId(),
@@ -514,7 +574,9 @@ public class SessionAuthService {
             normalizeRole(membership.role()),
             new AuthSessionResponse.ScopeInfo(scope.type(), scope.unit_id(), scope.business_id()),
             active,
-            subscriptionInfo(subscriptionStatusProvider.currentStatus(membership.companyId()))
+            publicDemoSession
+                ? new AuthSessionResponse.SubscriptionInfo("demo", "public-demo", "", true, "")
+                : subscriptionInfo(subscriptionStatusProvider.currentStatus(membership.companyId()))
         );
     }
 
