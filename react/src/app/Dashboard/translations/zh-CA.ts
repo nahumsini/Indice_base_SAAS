@@ -10,6 +10,13 @@ export const zhCA = {
     aiModules: "人工智能",
     aiLabel: "AI 模块",
   },
+  kpiComparison: {
+    unavailable: "数据不可用",
+    versusPrevious: "较上一期间",
+    currentSnapshot: "当前数据",
+    periodEnd: "期末余额",
+    noComparison: "无可比期间",
+  },
   operationalJourney: {
     eyebrow: "学习模式",
     title: "你的学习旅程",

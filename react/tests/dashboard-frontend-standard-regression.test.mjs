@@ -23,6 +23,18 @@ const mainDashboardSource = readFileSync(
   resolve(root, 'src/app/Dashboard/MainDashboard.tsx'),
   'utf8',
 );
+const dashboardDataSource = readFileSync(
+  resolve(root, 'src/app/Dashboard/dashboardData.ts'),
+  'utf8',
+);
+const dashboardLiveKpisSource = readFileSync(
+  resolve(root, 'src/app/Dashboard/hooks/useDashboardLiveKpis.ts'),
+  'utf8',
+);
+const kpiCardSource = readFileSync(
+  resolve(root, 'src/app/components/KPICard.tsx'),
+  'utf8',
+);
 const globalHeaderSource = readFileSync(resolve(root, 'src/app/components/Header.tsx'), 'utf8');
 const panelInicialHeaderSource = readFileSync(
   resolve(moduleRoot, 'components/PanelInicialHeader.tsx'),
@@ -268,4 +280,35 @@ test('Panel Inicial usa apiClient para todas las APIs protegidas por CSRF', () =
   assert.match(personalPerformanceApiSource, /getPersonalPerformance[\s\S]*apiClient<PersonalPerformanceResponse>[\s\S]*csrf: true/);
   assert.match(personalPerformanceApiSource, /savePersonalPerformance[\s\S]*apiClient<PersonalPerformanceResponse>[\s\S]*method: 'PUT'[\s\S]*csrf: true/);
   assert.doesNotMatch(personalPerformanceApiSource, /\bfetch\(/);
+});
+
+test('el dashboard usa el contrato ejecutivo y nunca inventa tendencias', () => {
+  assert.match(dashboardLiveKpisSource, /executivePanelApi\.get/);
+  assert.match(dashboardLiveKpisSource, /response\.domains\.items/);
+  assert.match(dashboardLiveKpisSource, /metric\.comparisonAvailable/);
+  assert.match(dashboardLiveKpisSource, /metric\.percentChange/);
+  assert.match(dashboardLiveKpisSource, /catch \{[\s\S]*executiveMetricCards\(copy\)\.forEach[\s\S]*copy\.kpiComparison\.unavailable/);
+  assert.doesNotMatch(dashboardLiveKpisSource, /change:\s*copy\.kpis\.(?:monthlyRevenue|averageTicket|salesConversion|monthlyExpenses|taskCompletionRate|overdueTasks)\.change/);
+  assert.doesNotMatch(dashboardLiveKpisSource, /salesApi\.kpis|listProcessTaskKpis|loadFinanceDashboardOverview/);
+
+  assert.match(kpiCardSource, /trend\?: 'up' \| 'down' \| 'flat'/);
+  assert.match(kpiCardSource, /resolvedTrend === 'up'/);
+  assert.match(kpiCardSource, /resolvedTone/);
+});
+
+test('la seleccion inicial prioriza resultados, obligaciones y riesgos operativos', () => {
+  const defaults = dashboardDataSource.split('const liveDashboardKpiIds')[0] ?? '';
+
+  assert.match(defaults, /'monthlyRevenue'/);
+  assert.match(defaults, /'budgetUtilization'/);
+  assert.match(defaults, /'pendingExpenses'/);
+  assert.match(defaults, /'overdueExpenses'/);
+  assert.match(defaults, /'salesConversion'/);
+  assert.match(defaults, /'taskCompletionRate'/);
+  assert.match(defaults, /'overdueTasks'/);
+  assert.match(defaults, /'lowStockItems'/);
+  assert.doesNotMatch(defaults, /'activeEmployees'/);
+  assert.doesNotMatch(defaults, /'newHires'/);
+  assert.doesNotMatch(defaults, /'completedTasks'/);
+  assert.match(mainDashboardSource, /indice\.dashboard\.selectedKpis\.v2/);
 });
