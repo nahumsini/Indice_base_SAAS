@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -70,6 +71,9 @@ class AuthLoginSecurityIntegrationTest {
 
     @MockBean
     private LoginOtpEmailService emailService;
+
+    @MockBean
+    private LoginSecurityEmailService loginSecurityEmailService;
 
     private final AtomicReference<String> deliveredOtp = new AtomicReference<>();
 
@@ -138,6 +142,10 @@ class AuthLoginSecurityIntegrationTest {
             "MFA_CHALLENGE:MFA:SUCCESS:MFA_REQUIRED",
             "MFA_VERIFY:MFA:SUCCESS:"
         );
+        verify(loginSecurityEmailService).sendLoginSuccess(
+            any(AuthenticatedLogin.class),
+            any(LoginAuditContext.class)
+        );
 
         jdbc.update(
             "INSERT INTO platform_administrators (user_id, platform_role, status, mfa_required, created_by_user_id) VALUES (?, 'PLATFORM_ROOT', 'ACTIVE', 0, ?)",
@@ -184,6 +192,12 @@ class AuthLoginSecurityIntegrationTest {
             .andExpect(jsonPath("$.message").value("Invalid login or account temporarily locked."));
 
         verify(emailService, never()).sendOtp(any(AuthenticatedLogin.class), anyString(), anyInt());
+        verify(loginSecurityEmailService, times(5)).sendPasswordFailure(
+            any(LoginCredentialVerificationResult.class),
+            any(AuthLockoutService.LockoutState.class),
+            any(LoginAuditContext.class)
+        );
+        verify(loginSecurityEmailService, never()).sendLoginSuccess(any(), any());
         assertThat(lockoutFailureCount(account.email())).isEqualTo(5);
         assertThat(lockoutUntilIsSet(account.email())).isTrue();
         assertThat(auditReasonCount(account.email(), AuthFailureReason.PASSWORD_INVALID)).isEqualTo(5);

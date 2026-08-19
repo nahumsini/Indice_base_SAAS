@@ -21,6 +21,7 @@ public class AuthApiController {
     private final LoginAuditService loginAuditService;
     private final AuthLockoutService lockoutService;
     private final LoginMfaChallengeService mfaChallengeService;
+    private final LoginSecurityEmailService loginSecurityEmailService;
     private final AuthSecurityProperties securityProperties;
 
     public AuthApiController(
@@ -29,6 +30,7 @@ public class AuthApiController {
         LoginAuditService loginAuditService,
         AuthLockoutService lockoutService,
         LoginMfaChallengeService mfaChallengeService,
+        LoginSecurityEmailService loginSecurityEmailService,
         AuthSecurityProperties securityProperties
     ) {
         this.sessionAuthService = sessionAuthService;
@@ -36,6 +38,7 @@ public class AuthApiController {
         this.loginAuditService = loginAuditService;
         this.lockoutService = lockoutService;
         this.mfaChallengeService = mfaChallengeService;
+        this.loginSecurityEmailService = loginSecurityEmailService;
         this.securityProperties = securityProperties;
     }
 
@@ -97,6 +100,7 @@ public class AuthApiController {
                 : AuthLockoutService.LockoutState.open();
             recordCredentialAudit(verification, failureLockout.locked() ? "BLOCKED" : "FAILURE",
                 verification.failureReasonCode(), verification.message(), failureLockout, auditContext);
+            loginSecurityEmailService.sendPasswordFailure(verification, failureLockout, auditContext);
             return ResponseEntity.status(failureLockout.locked() ? HttpStatus.LOCKED : HttpStatus.UNAUTHORIZED).body(Map.of(
                 "message", failureLockout.locked()
                     ? "Invalid login or account temporarily locked."
@@ -126,6 +130,7 @@ public class AuthApiController {
         servletRequest.changeSessionId();
         sessionAuthService.storeAuthenticatedSession(session, verification.login());
         sessionCsrfService.rotateCsrf(session);
+        loginSecurityEmailService.sendLoginSuccess(verification.login(), auditContext);
         return sessionAuthService.currentSession(session)
             .<ResponseEntity<?>>map(body -> ResponseEntity.ok(sessionBody(body, session)))
             .orElseGet(() -> ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
@@ -167,6 +172,7 @@ public class AuthApiController {
         servletRequest.changeSessionId();
         sessionAuthService.storeAuthenticatedSession(session, result.login());
         sessionCsrfService.rotateCsrf(session);
+        loginSecurityEmailService.sendLoginSuccess(result.login(), LoginAuditContext.from(servletRequest, session));
         return sessionAuthService.currentSession(session)
             .<ResponseEntity<?>>map(body -> ResponseEntity.ok(sessionBody(body, session)))
             .orElseGet(() -> ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(

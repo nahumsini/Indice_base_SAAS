@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -43,6 +44,9 @@ class AuthApiControllerTest {
 
     @MockBean
     private LoginMfaChallengeService mfaChallengeService;
+
+    @MockBean
+    private LoginSecurityEmailService loginSecurityEmailService;
 
     @MockBean
     private AuthSecurityProperties securityProperties;
@@ -106,6 +110,34 @@ class AuthApiControllerTest {
 
         verify(sessionCsrfService).requireCsrf(any(), eq("csrf-token"));
         verify(loginAuditService).record(any(LoginAuditEvent.class));
+        verifyNoInteractions(loginSecurityEmailService);
+    }
+
+    @Test
+    void loginSendsSecurityEmailWhenMfaIsNotRequired() throws Exception {
+        var session = sessionResponse(1L, "Empresa Demo Spring");
+        var login = authenticatedLogin();
+
+        given(lockoutService.passwordLockout(eq("demo@example.com"), eq("empresa demo spring")))
+            .willReturn(AuthLockoutService.LockoutState.open());
+        given(sessionAuthService.verifyLoginCredentials(eq("Empresa Demo Spring"), eq("demo@example.com"), eq("demo123")))
+            .willReturn(LoginCredentialVerificationResult.success(login, "demo@example.com", "empresa demo spring"));
+        given(securityProperties.isMfaEnabled()).willReturn(false);
+        given(sessionAuthService.currentSession(any())).willReturn(Optional.of(session));
+        given(sessionCsrfService.ensureCsrf(any())).willReturn("csrf-token");
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                .header("X-CSRF-Token", "csrf-token")
+                .contentType(APPLICATION_JSON)
+                .content(loginPayload()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.user.id").value(1))
+            .andExpect(jsonPath("$.company.id").value(1))
+            .andExpect(jsonPath("$.csrfToken").value("csrf-token"));
+
+        verify(sessionAuthService).storeAuthenticatedSession(any(), eq(login));
+        verify(sessionCsrfService).rotateCsrf(any());
+        verify(loginSecurityEmailService).sendLoginSuccess(eq(login), any(LoginAuditContext.class));
     }
 
     @Test
@@ -147,6 +179,7 @@ class AuthApiControllerTest {
 
         verify(sessionAuthService).storeAuthenticatedSession(any(), eq(login));
         verify(sessionCsrfService).rotateCsrf(any());
+        verify(loginSecurityEmailService).sendLoginSuccess(eq(login), any(LoginAuditContext.class));
     }
 
     @Test
@@ -175,6 +208,12 @@ class AuthApiControllerTest {
             .andExpect(jsonPath("$.message").value("Invalid login or account temporarily locked."));
 
         verify(loginAuditService).record(any(LoginAuditEvent.class));
+        verify(loginSecurityEmailService).sendPasswordFailure(
+            any(LoginCredentialVerificationResult.class),
+            any(AuthLockoutService.LockoutState.class),
+            any(LoginAuditContext.class)
+        );
+        verify(loginSecurityEmailService, never()).sendLoginSuccess(any(), any());
     }
 
     @Test
