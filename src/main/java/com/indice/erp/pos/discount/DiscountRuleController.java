@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -85,6 +86,19 @@ public class DiscountRuleController {
             @Valid @RequestBody StatusRequest request) {
         var access = guard.requireAdminWriteAccess(session, csrfToken);
         return access.denied() ? access.error() : ResponseEntity.ok(service.transition(access.context(), ruleId, request));
+    }
+
+    @DeleteMapping("/{ruleId}")
+    @RequiresCapability("sales")
+    public ResponseEntity<?> delete(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long ruleId,
+            @RequestParam(required = false) Long version) {
+        var access = guard.requireAdminWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.delete(access.context(), ruleId, version));
     }
 
     @PostMapping("/evaluate")

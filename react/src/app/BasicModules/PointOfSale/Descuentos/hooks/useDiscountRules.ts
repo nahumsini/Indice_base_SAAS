@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { DiscountRule } from '../../shared/commercial/discounts';
 import {
+  deleteDiscountRule,
   listDiscountRules,
   saveDiscountRule,
   setDiscountRuleStatus,
@@ -58,5 +59,19 @@ export function useDiscountRules() {
     }
   };
 
-  return { rules, isLoading, isSaving, error, reload, save, toggle };
+  const remove = async (rule: DiscountRule) => {
+    setIsSaving(true);
+    setError('');
+    try {
+      await deleteDiscountRule(rule);
+      setRules((current) => current.filter((item) => item.id !== rule.id));
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'No se pudo eliminar la regla.');
+      throw nextError;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return { rules, isLoading, isSaving, error, reload, save, toggle, remove };
 }

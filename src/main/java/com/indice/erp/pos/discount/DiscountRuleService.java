@@ -18,6 +18,7 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -79,6 +80,16 @@ public class DiscountRuleService {
             throw PosApiException.conflict("The discount rule changed. Reload it before trying again.");
         }
         return response(require(context, ruleId));
+    }
+
+    @Transactional
+    public Map<String, Object> delete(PosContext context, long ruleId, Long expectedVersion) {
+        var current = require(context, ruleId);
+        var version = expectedVersion == null ? current.version() : expectedVersion;
+        if (!repository.softDelete(context, ruleId, version)) {
+            throw PosApiException.conflict("The discount rule changed. Reload it before deleting it.");
+        }
+        return Map.of("success", true, "id", ruleId);
     }
 
     public EvaluationResponse evaluate(PosContext context, EvaluationRequest request) {

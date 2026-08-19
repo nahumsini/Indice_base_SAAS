@@ -84,6 +84,15 @@ export async function setDiscountRuleStatus(rule: DiscountRule, status: 'ACTIVE'
   return mapDiscountRule(response);
 }
 
+export async function deleteDiscountRule(rule: DiscountRule) {
+  const query = new URLSearchParams();
+  if (rule.version != null) query.set('version', String(rule.version));
+  const suffix = query.size > 0 ? `?${query.toString()}` : '';
+  return apiClient<{ success: boolean; id: number }>(`/api/v1/pos/discounts/${rule.id}${suffix}`, {
+    method: 'DELETE',
+  });
+}
+
 export async function evaluateDiscountRules(input: DiscountEvaluationInput) {
   return evaluateAt('/api/v1/pos/discounts/evaluate', input);
 }

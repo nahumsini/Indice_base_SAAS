@@ -3,13 +3,17 @@ import {
   CalendarClock,
   CheckCircle,
   Edit2,
+  Pause,
+  Play,
   Plus,
   RefreshCw,
   Search,
   ShieldCheck,
   SlidersHorizontal,
   Tag,
+  Trash2,
 } from 'lucide-react';
+import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { useTablePagination } from '../../../hooks/useTablePagination';
 import { usePointOfSaleCatalogProducts } from '../../CommerceCore/usePointOfSaleCatalogProducts';
 import {
@@ -64,12 +68,13 @@ const formatCurrency = (amount: number, currency = 'MXN') => new Intl.NumberForm
 export default function Descuentos() {
   const learningModeActive = useLearningModeHeaderActions()?.active ?? false;
   const { products, saleCurrency } = usePointOfSaleCatalogProducts();
-  const { rules, isLoading, isSaving, error, reload, save, toggle } = useDiscountRules();
+  const { rules, isLoading, isSaving, error, reload, save, toggle, remove } = useDiscountRules();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<DiscountRuleStatus | 'all'>('all');
   const [scope, setScope] = useState<DiscountScope | 'all'>('all');
   const [previewAmount, setPreviewAmount] = useState(2500);
   const [editingRule, setEditingRule] = useState<DiscountRule | null>(null);
+  const [rulePendingDeletion, setRulePendingDeletion] = useState<DiscountRule | null>(null);
   const [notice, setNotice] = useState('');
 
   const categories = useMemo(() => (
@@ -133,6 +138,18 @@ export default function Descuentos() {
       setNotice(`Regla "${saved.name}" ${saved.status === 'active' ? 'activada' : 'pausada'}.`);
     } catch {
       // The hook exposes the backend message.
+    }
+  };
+
+  const deleteRule = async () => {
+    if (!rulePendingDeletion) return;
+    try {
+      const ruleName = rulePendingDeletion.name;
+      await remove(rulePendingDeletion);
+      setRulePendingDeletion(null);
+      setNotice(`Regla "${ruleName}" eliminada.`);
+    } catch {
+      // The hook exposes the backend message and keeps the confirmation open.
     }
   };
 
@@ -253,11 +270,26 @@ export default function Descuentos() {
                   <td className="px-5 py-4"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${statusClasses[rule.status]}`}>{statusLabels[rule.status]}</span></td>
                   <td className="px-5 py-4 text-right">
                     <div className="inline-flex items-center justify-end gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-gray-900">
-                      <button disabled={isSaving || rule.status === 'archived' || rule.status === 'expired'} onClick={() => void toggleRuleStatus(rule)} className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 transition hover:border-[#FF6B5E]/35 hover:bg-[#FFF3F1] hover:text-[#B63B32] disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-gray-800 dark:text-slate-200 dark:hover:bg-[#FF6B5E]/10">
-                        {rule.status === 'active' ? 'Pausar' : 'Activar'}
+                      <button
+                        disabled={isSaving || rule.status === 'archived' || rule.status === 'expired'}
+                        onClick={() => void toggleRuleStatus(rule)}
+                        className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border bg-white transition disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 ${rule.status === 'active' ? 'border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-500/30 dark:text-amber-300 dark:hover:bg-amber-500/10' : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-300 dark:hover:bg-emerald-500/10'}`}
+                        aria-label={rule.status === 'active' ? `Pausar regla ${rule.name}` : `Activar regla ${rule.name}`}
+                        title={rule.status === 'active' ? 'Pausar regla' : 'Activar regla'}
+                      >
+                        {rule.status === 'active' ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                       </button>
                       <button onClick={() => setEditingRule(rule)} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] transition hover:bg-[#FF6B5E]/20 dark:border-[#FF6B5E]/30 dark:text-[#FFB0AA]" aria-label={`Editar regla ${rule.name}`} title="Editar regla">
                         <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        disabled={isSaving}
+                        onClick={() => setRulePendingDeletion(rule)}
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-600 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20"
+                        aria-label={`Eliminar regla ${rule.name}`}
+                        title="Eliminar regla"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </td>
@@ -282,6 +314,18 @@ export default function Descuentos() {
         onClose={() => setEditingRule(null)}
         onSave={(rule) => void saveRule(rule)}
         isSaving={isSaving}
+      />
+
+      <ConfirmDeleteDialog
+        isVisible={Boolean(rulePendingDeletion)}
+        title="¿Eliminar esta regla de descuento?"
+        itemName={rulePendingDeletion?.name}
+        description="La regla dejará de mostrarse y de aplicarse en todos los canales. Las ventas anteriores conservarán su historial."
+        cancelLabel="Cancelar"
+        confirmLabel="Eliminar regla"
+        confirmDisabled={isSaving}
+        onCancel={() => setRulePendingDeletion(null)}
+        onConfirm={() => void deleteRule()}
       />
     </div>
   );

@@ -88,6 +88,14 @@ public class DiscountRuleRepository {
             """, status, context.userId(), context.companyId(), ruleId, version) > 0;
     }
 
+    public boolean softDelete(PosContext context, long ruleId, long version) {
+        return jdbcTemplate.update("""
+            UPDATE pos_discount_rules
+            SET deleted_at = CURRENT_TIMESTAMP, updated_by_user_id = ?, version = version + 1
+            WHERE company_id = ? AND id = ? AND version = ? AND deleted_at IS NULL
+            """, context.userId(), context.companyId(), ruleId, version) > 0;
+    }
+
     public boolean productExists(PosContext context, long productId) {
         var count = jdbcTemplate.queryForObject("""
             SELECT COUNT(*) FROM sales_products

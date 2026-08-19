@@ -170,6 +170,19 @@ test('Cortes conserva las superficies del POS y las funciones fiscales quedan fu
   assert.match(moduleSource, /descuentos: '\/inventory\/discounts'/);
 });
 
+test('Descuentos ofrece controles compactos y eliminación confirmada con persistencia real', () => {
+  const discounts = readFileSync(resolve(pointOfSaleRoot, 'Descuentos/Descuentos.tsx'), 'utf8');
+  const hook = readFileSync(resolve(pointOfSaleRoot, 'Descuentos/hooks/useDiscountRules.ts'), 'utf8');
+  const api = readFileSync(resolve(pointOfSaleRoot, 'shared/commercial/discounts/services/discountRulesApi.ts'), 'utf8');
+
+  assert.match(discounts, /<Play className="h-4 w-4"/);
+  assert.match(discounts, /<Pause className="h-4 w-4"/);
+  assert.match(discounts, /<Trash2 className="h-4 w-4"/);
+  assert.match(discounts, /<ConfirmDeleteDialog/);
+  assert.match(hook, /await deleteDiscountRule\(rule\)/);
+  assert.match(api, /method: 'DELETE'/);
+});
+
 test('KPIs y Kioscos conservan la jerarquia operativa y la identidad coral del POS', () => {
   const filters = readFileSync(resolve(pointOfSaleRoot, 'KPIs/components/PosKpiFilters.tsx'), 'utf8');
   const kpiCard = readFileSync(resolve(pointOfSaleRoot, 'KPIs/components/PosKpiCard.tsx'), 'utf8');
