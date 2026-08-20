@@ -29,7 +29,7 @@ interface ColumnasConfigModalProps {
   onSave: (columns: ColumnConfig[]) => void;
   defaultColumns?: ColumnConfig[];
   fixedColumns?: ColumnConfig[];
-  theme?: 'default' | 'processes' | 'humanResources' | 'sales' | 'receivables' | 'expenses';
+  theme?: 'default' | 'processes' | 'humanResources' | 'sales' | 'pointOfSale' | 'receivables' | 'expenses';
 }
 
 interface DraggableColumnItemProps {
@@ -171,7 +171,7 @@ export function ColumnasConfigModal({
       };
     }
 
-    if (theme === 'sales') {
+    if (theme === 'sales' || theme === 'pointOfSale') {
       return {
         accent: 'text-[#FF6B5E]',
         checkbox:
@@ -180,8 +180,9 @@ export function ColumnasConfigModal({
         footer: 'bg-[#FF6B5E]',
         header: 'bg-[#FF6B5E]',
         interactive: 'hover:border-[#FF6B5E]/40 hover:bg-[#FF6B5E]/5',
-        primary:
-          'h-10 rounded-xl bg-white px-5 text-sm font-bold text-[#B63B32] shadow-sm hover:bg-slate-100 hover:text-[#B63B32] focus-visible:ring-white/40 dark:bg-white dark:text-[#B63B32] dark:hover:bg-slate-100',
+        primary: theme === 'pointOfSale'
+          ? 'h-10 rounded-xl bg-white px-5 text-sm font-medium text-[#B63B32] shadow-sm hover:bg-slate-100 hover:text-[#B63B32] focus-visible:ring-white/40 dark:bg-white dark:text-[#B63B32] dark:hover:bg-slate-100'
+          : 'h-10 rounded-xl bg-white px-5 text-sm font-bold text-[#B63B32] shadow-sm hover:bg-slate-100 hover:text-[#B63B32] focus-visible:ring-white/40 dark:bg-white dark:text-[#B63B32] dark:hover:bg-slate-100',
       };
     }
 
@@ -210,6 +211,8 @@ export function ColumnasConfigModal({
     };
   })();
   const usesProcessesTheme = theme === 'processes';
+  const usesPointOfSaleTheme = theme === 'pointOfSale';
+  const usesDarkHeaderText = usesProcessesTheme || usesPointOfSaleTheme;
   const copy = (() => {
     if (currentLanguage.code.startsWith('es')) {
       return {
@@ -411,24 +414,45 @@ export function ColumnasConfigModal({
           <DialogDescription>{copy.description}</DialogDescription>
         </DialogHeader>
 
-        <div className={cn('shrink-0 px-6 py-4', usesProcessesTheme ? 'text-slate-950' : 'text-white', modalTheme.header)}>
+        <div className={cn('shrink-0 px-6 py-4', usesDarkHeaderText ? 'text-[#222831]' : 'text-white', modalTheme.header)}>
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 items-start gap-3">
-              <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-sm', usesProcessesTheme ? 'border border-[#9A6B05]/15 bg-white/35 text-slate-950' : 'bg-white/15 text-white')}>
+              <span className={cn(
+                'flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-sm',
+                usesProcessesTheme
+                  ? 'border border-[#9A6B05]/15 bg-white/35 text-slate-950'
+                  : usesPointOfSaleTheme
+                    ? 'border border-[#222831]/15 bg-white/25 text-[#222831]'
+                    : 'bg-white/15 text-white',
+              )}>
                 <Columns3 className="h-5 w-5" />
               </span>
               <div className="min-w-0">
-                <h2 className={cn('pr-4 text-xl font-semibold leading-tight tracking-tight', usesProcessesTheme ? 'text-slate-950' : 'text-white')} aria-hidden="true">
+                <h2 className={cn('pr-4 text-xl font-semibold leading-tight tracking-tight', usesDarkHeaderText ? 'text-[#222831]' : 'text-white')} aria-hidden="true">
                   {copy.title}
                 </h2>
-                <span className={cn('mt-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold', usesProcessesTheme ? 'border border-[#9A6B05]/20 bg-white/30 text-slate-800' : 'border border-white/25 bg-white/15 text-white')}>
+                <span className={cn(
+                  'mt-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold',
+                  usesProcessesTheme
+                    ? 'border border-[#9A6B05]/20 bg-white/30 text-slate-800'
+                    : usesPointOfSaleTheme
+                      ? 'border border-[#222831]/20 bg-white/25 text-[#222831]'
+                      : 'border border-white/25 bg-white/15 text-white',
+                )}>
                   {copy.visibleCount(visibleCount, totalColumns)}
                 </span>
               </div>
             </div>
             <button
               onClick={handleCancel}
-              className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors', usesProcessesTheme ? 'border border-[#9A6B05]/25 bg-white/35 text-slate-950 hover:bg-white/60' : 'border border-white/25 bg-white/10 text-white hover:bg-white/20')}
+              className={cn(
+                'flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors',
+                usesProcessesTheme
+                  ? 'border border-[#9A6B05]/25 bg-white/35 text-slate-950 hover:bg-white/60'
+                  : usesPointOfSaleTheme
+                    ? 'border border-[#222831]/20 bg-white/20 text-[#222831] hover:bg-white/35'
+                    : 'border border-white/25 bg-white/10 text-white hover:bg-white/20',
+              )}
               aria-label={copy.close}
             >
               <X className="h-4 w-4" />
@@ -529,7 +553,9 @@ export function ColumnasConfigModal({
             variant="outline"
             className={usesProcessesTheme
               ? 'h-10 rounded-xl border-[#9A6B05]/30 bg-transparent px-5 text-sm font-semibold text-slate-950 shadow-none hover:bg-white/35 hover:text-slate-950'
-              : moduleModalOutlineButtonClassName}
+              : usesPointOfSaleTheme
+                ? 'h-10 rounded-xl border-[#222831]/35 bg-white/10 px-5 text-sm font-medium text-[#222831] shadow-none hover:bg-white/25 hover:text-[#222831]'
+                : moduleModalOutlineButtonClassName}
             onClick={handleCancel}
           >
             {copy.cancel}

@@ -12,6 +12,7 @@ interface PendingPreTicketsPanelProps {
   isRefreshing: boolean;
   lastUpdatedAt: Date | null;
   claimingPreTicketIds: string[];
+  workspaceMode?: boolean;
 }
 
 export function PendingPreTicketsPanel({
@@ -23,6 +24,7 @@ export function PendingPreTicketsPanel({
   isRefreshing,
   lastUpdatedAt,
   claimingPreTicketIds,
+  workspaceMode = false,
 }: PendingPreTicketsPanelProps) {
   const { copy, locale } = usePointOfSaleKioskTranslations();
   const [isOpen, setIsOpen] = useState(false);
@@ -33,43 +35,62 @@ export function PendingPreTicketsPanel({
   const filteredPreTickets = normalizedQuery
     ? preTickets.filter((preTicket) => `${preTicket.code} ${preTicket.customerName}`.toLocaleLowerCase(locale).includes(normalizedQuery))
     : preTickets;
+  const expanded = workspaceMode || isOpen;
+  const headerIdentity = (
+    <div className="flex min-w-0 items-center gap-3">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#F4C84A]/25 dark:bg-[#F4C84A]/15" aria-hidden="true">
+        <ReceiptText className="h-5 w-5" />
+      </span>
+      <div className="min-w-0">
+        <h3 className="truncate text-base font-medium text-[#222831] dark:text-white">{copy.pendingPretickets.title}</h3>
+        <p className="truncate text-sm font-medium text-gray-500 dark:text-gray-400">
+          {preTickets.length === 0
+            ? copy.pendingPretickets.emptySummary
+            : nextPreTicket
+              ? copy.pendingPretickets.summary(preTickets.length, nextPreTicket.code, formatCurrency(nextPreTicket.total))
+              : copy.pendingPretickets.readySummary(preTickets.length)}
+        </p>
+        {lastUpdatedAt ? (
+          <p className="mt-0.5 text-[11px] font-medium text-gray-400">
+            {copy.pendingPretickets.lastUpdatedAt(lastUpdatedAt.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }))}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
 
   return (
-    <div className="overflow-hidden rounded-lg border border-[#F4C84A]/35 bg-white shadow-sm dark:border-[#F4C84A]/20 dark:bg-gray-800">
-      <button
-        type="button"
-        onClick={() => setIsOpen((current) => !current)}
-        className="flex min-h-11 w-full items-center justify-between gap-3 px-5 py-4 text-left transition hover:bg-[#F4C84A]/10 dark:hover:bg-[#F4C84A]/10"
-        aria-expanded={isOpen}
-        aria-controls={panelId}
-      >
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#F4C84A]/25 dark:bg-[#F4C84A]/15" aria-hidden="true">
-            <ReceiptText className="h-5 w-5" />
-          </span>
-          <div className="min-w-0">
-            <h3 className="truncate text-base font-medium text-[#222831] dark:text-white">{copy.pendingPretickets.title}</h3>
-            <p className="truncate text-sm font-medium text-gray-500 dark:text-gray-400">
-              {preTickets.length === 0
-                ? copy.pendingPretickets.emptySummary
-                : nextPreTicket
-                  ? copy.pendingPretickets.summary(preTickets.length, nextPreTicket.code, formatCurrency(nextPreTicket.total))
-                  : copy.pendingPretickets.readySummary(preTickets.length)}
-            </p>
-            {lastUpdatedAt ? (
-              <p className="mt-0.5 text-[11px] font-medium text-gray-400">
-                {copy.pendingPretickets.lastUpdatedAt(lastUpdatedAt.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }))}
-              </p>
-            ) : null}
-          </div>
+    <div className={`${workspaceMode ? 'flex h-full min-h-0 flex-col rounded-xl' : 'rounded-lg shadow-sm'} overflow-hidden border border-[#F4C84A]/35 bg-white dark:border-[#F4C84A]/20 dark:bg-gray-800`}>
+      {workspaceMode ? (
+        <div className="flex min-h-11 items-center justify-between gap-3 px-5 py-4">
+          {headerIdentity}
+          <button
+            type="button"
+            onClick={onRetry}
+            disabled={isRefreshing}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#222831] text-white transition hover:bg-[#303844] disabled:cursor-wait disabled:opacity-60 dark:bg-gray-700 dark:text-gray-200"
+            aria-label={isRefreshing ? copy.pendingPretickets.refreshing : copy.pendingPretickets.retry}
+          >
+            <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
         </div>
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#222831] text-white dark:bg-gray-700 dark:text-gray-200" aria-hidden="true">
-          {isRefreshing ? <Loader2 className="h-5 w-5 animate-spin" /> : isOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-        </span>
-      </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setIsOpen((current) => !current)}
+          className="flex min-h-11 w-full items-center justify-between gap-3 px-5 py-4 text-left transition hover:bg-[#F4C84A]/10 dark:hover:bg-[#F4C84A]/10"
+          aria-expanded={expanded}
+          aria-controls={panelId}
+        >
+          {headerIdentity}
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#222831] text-white dark:bg-gray-700 dark:text-gray-200" aria-hidden="true">
+            {isRefreshing ? <Loader2 className="h-5 w-5 animate-spin" /> : expanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+          </span>
+        </button>
+      )}
 
-      {isOpen ? (
-        <div id={panelId} className="max-h-80 space-y-2 overflow-y-auto border-t border-gray-200 p-3 dark:border-gray-700">
+      {expanded ? (
+        <div id={panelId} className={`${workspaceMode ? 'min-h-0 flex-1 space-y-3 p-4' : 'max-h-80 space-y-2 p-3'} overflow-y-auto border-t border-gray-200 dark:border-gray-700`}>
           {queueError ? (
             <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
               <span>{copy.pendingPretickets.loadError}</span>

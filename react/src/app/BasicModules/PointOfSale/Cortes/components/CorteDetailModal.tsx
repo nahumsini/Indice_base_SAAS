@@ -168,6 +168,7 @@ export function CorteDetailModal({
               <LineItem label={copy.detail.cash} value={formatCurrency(getPaymentTotal(detail, 'CASH'), currencyCode)} />
               <LineItem label={copy.detail.card} value={formatCurrency(getPaymentTotal(detail, 'CARD'), currencyCode)} />
               <LineItem label={copy.detail.transfer} value={formatCurrency(getPaymentTotal(detail, 'TRANSFER'), currencyCode)} />
+              <LineItem label={copy.detail.credit} value={formatCurrency(getPaymentTotal(detail, 'CREDIT'), currencyCode)} />
               <LineItem label={copy.detail.wallet} value={formatCurrency(getPaymentTotal(detail, 'WALLET'), currencyCode)} />
             </DetailSection>
 

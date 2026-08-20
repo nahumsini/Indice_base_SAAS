@@ -145,7 +145,7 @@ function PuntoDeVentaContent({ learningModeActive = false, onNavigate }: PuntoDe
     { id: 'sale' as const, label: t.tabs.sale, emoji: '🧾', component: Sale },
     { id: 'cortes' as const, label: t.tabs.cortes, emoji: '💵', component: Cortes },
     { id: 'kiosks' as const, label: t.tabs.kiosks, emoji: '🖥️', component: KiosksWorkspace },
-    { id: 'clientes' as const, label: t.tabs.clientes, emoji: '👤', component: Clientes },
+    { id: 'clientes' as const, label: t.tabs.clientes, emoji: '👥', component: Clientes },
     { id: 'kpis' as const, label: t.tabs.kpis, emoji: '📊', component: KPIs },
   ], [t]);
 
@@ -186,7 +186,9 @@ function PuntoDeVentaContent({ learningModeActive = false, onNavigate }: PuntoDe
               />
             )}
           >
-            <ActiveComponent />
+            {activeTab === 'clientes'
+              ? <Clientes titleBarTitle={t.tabs.clientes} />
+              : <ActiveComponent />}
           </Suspense>
         </PointOfSaleLegacyLocalizer>
     </IndiceModuleShell>

@@ -9,12 +9,15 @@ export const koCA = {
     fallbackTitle: '작업 공간 로딩 중',
     fallbackDescription: '선택한 POS 섹션만 불러오고 있습니다.',
   },
+  titleBars: {
+    saleSubtitle: '활성 계산대를 선택하고 근무조를 연 뒤 판매 상품을 추가하세요.',
+  },
   tabs: {
     kiosks: '키오스크',
     cajas: '계산대 및 근무조',
     sale: '판매',
     cortes: '현금 마감',
     clientes: '고객',
-    kpis: '지표',
+    kpis: 'KPIs',
   },
 } as const;

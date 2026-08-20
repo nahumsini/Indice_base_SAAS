@@ -37,7 +37,7 @@ const expectedTabLabels = {
     sale: 'Sale',
     cortes: 'Cash closings',
     clientes: 'Customers',
-    kpis: 'Indicators',
+    kpis: 'KPIs',
   },
   'en-US': {
     kiosks: 'Kiosks',
@@ -45,7 +45,7 @@ const expectedTabLabels = {
     sale: 'Sale',
     cortes: 'Register closings',
     clientes: 'Customers',
-    kpis: 'Indicators',
+    kpis: 'KPIs',
   },
   'es-MX': {
     kiosks: 'Kioscos',
@@ -53,7 +53,7 @@ const expectedTabLabels = {
     sale: 'Venta',
     cortes: 'Cortes de caja',
     clientes: 'Clientes',
-    kpis: 'Indicadores',
+    kpis: 'KPIs',
   },
   'es-CO': {
     kiosks: 'Kioscos',
@@ -61,7 +61,7 @@ const expectedTabLabels = {
     sale: 'Venta',
     cortes: 'Cierres de caja',
     clientes: 'Clientes',
-    kpis: 'Indicadores',
+    kpis: 'KPIs',
   },
   'fr-CA': {
     kiosks: 'Bornes',
@@ -69,7 +69,7 @@ const expectedTabLabels = {
     sale: 'Vente',
     cortes: 'Fermetures de caisse',
     clientes: 'Clients',
-    kpis: 'Indicateurs',
+    kpis: 'KPIs',
   },
   'pt-BR': {
     kiosks: 'Quiosques',
@@ -77,7 +77,7 @@ const expectedTabLabels = {
     sale: 'Venda',
     cortes: 'Fechamentos de caixa',
     clientes: 'Clientes',
-    kpis: 'Indicadores',
+    kpis: 'KPIs',
   },
   'ko-CA': {
     kiosks: '키오스크',
@@ -85,7 +85,7 @@ const expectedTabLabels = {
     sale: '판매',
     cortes: '현금 마감',
     clientes: '고객',
-    kpis: '지표',
+    kpis: 'KPIs',
   },
   'zh-CA': {
     kiosks: '自助终端',
@@ -93,7 +93,7 @@ const expectedTabLabels = {
     sale: '销售',
     cortes: '收银结算',
     clientes: '客户',
-    kpis: '关键指标',
+    kpis: 'KPIs',
   },
 };
 

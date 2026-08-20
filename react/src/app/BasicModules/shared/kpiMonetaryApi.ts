@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '../../lib/apiClient';
 
 export type KpiMonetaryMetric =
@@ -40,9 +40,16 @@ export type KpiMonetaryMetric =
   | 'POS_SALES_TOTAL'
   | 'POS_CLOSING_TOTAL'
   | 'POS_CLOSING_CASH_SALES'
+  | 'POS_CLOSING_CARD_SALES'
+  | 'POS_CLOSING_TRANSFER_SALES'
+  | 'POS_CLOSING_CREDIT_SALES'
   | 'POS_CLOSING_EXPECTED_CASH'
   | 'POS_CLOSING_COUNTED_CASH'
   | 'POS_CLOSING_DIFFERENCE'
+  | 'POS_CLOSING_ABSOLUTE_DIFFERENCE'
+  | 'POS_CLOSING_SHORTAGE'
+  | 'POS_CLOSING_OVERAGE'
+  | 'POS_CLOSING_REFUNDS'
   | 'PURCHASE_ORDER_TOTAL'
   | 'SUPPLIER_SUBMISSION_TOTAL'
   | 'SALES_TOTAL'
@@ -76,13 +83,19 @@ type Query = {
 
 export type KpiMonetaryBatchQuery = Query & { key: string };
 
+const normalizeQuery = <T extends Query>(query: T) => {
+  const { ids, ...rest } = query;
+  if (ids === undefined) return rest;
+  return {
+    ...rest,
+    ids: ids.map((id) => Number(id)).filter((id) => Number.isSafeInteger(id) && id > 0),
+  };
+};
+
 export async function getKpiMonetaryAggregate(query: Query) {
   return apiClient<KpiMonetaryAggregate>('/api/v1/kpis/monetary-aggregate/query', {
     method: 'POST',
-    body: JSON.stringify({
-      ...query,
-      ids: query.ids?.map((id) => Number(id)).filter((id) => Number.isSafeInteger(id) && id > 0) ?? [],
-    }),
+    body: JSON.stringify(normalizeQuery(query)),
   });
 }
 
@@ -90,10 +103,7 @@ export async function getKpiMonetaryAggregates(queries: KpiMonetaryBatchQuery[])
   const response = await apiClient<{ results: Record<string, KpiMonetaryAggregate> }>('/api/v1/kpis/monetary-aggregate/batch', {
     method: 'POST',
     body: JSON.stringify({
-      queries: queries.map((query) => ({
-        ...query,
-        ids: query.ids?.map((id) => Number(id)).filter((id) => Number.isSafeInteger(id) && id > 0) ?? [],
-      })),
+      queries: queries.map(normalizeQuery),
     }),
   });
   return response.results;
@@ -101,15 +111,21 @@ export async function getKpiMonetaryAggregates(queries: KpiMonetaryBatchQuery[])
 
 export function useKpiMonetaryAggregate(query: Query) {
   const idsKey = useMemo(() => query.ids?.join(',') ?? '', [query.ids]);
+  const idsProvided = query.ids !== undefined;
+  const [revision, setRevision] = useState(0);
   const [data, setData] = useState<KpiMonetaryAggregate | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const refresh = useCallback(() => setRevision((current) => current + 1), []);
 
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
     setError(null);
-    getKpiMonetaryAggregate({ ...query, ids: idsKey ? idsKey.split(',') : [] })
+    getKpiMonetaryAggregate({
+      ...query,
+      ids: idsProvided ? (idsKey ? idsKey.split(',') : []) : undefined,
+    })
       .then((result) => {
         if (!controller.signal.aborted) setData(result);
       })
@@ -123,9 +139,9 @@ export function useKpiMonetaryAggregate(query: Query) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [idsKey, query.from, query.metric, query.preferredCurrency, query.to]);
+  }, [idsKey, idsProvided, query.from, query.metric, query.preferredCurrency, query.to, revision]);
 
-  return { data, error, loading };
+  return { data, error, loading, refresh };
 }
 
 export function useKpiMonetaryAggregates(queries: KpiMonetaryBatchQuery[]) {

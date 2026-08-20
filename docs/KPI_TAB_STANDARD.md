@@ -171,6 +171,11 @@ Visual contract:
 - responsive wrapping
 - no filters scattered between charts
 
+For a small bounded period set, a segmented selector may replace the period dropdown while
+remaining inside the shared filter-bar shell. It must use the same label, height, radius,
+focus, responsive, and accessibility rules as the other controls. Refresh is a view-level
+action and belongs in the title bar unless it directly changes the filter scope.
+
 ---
 
 ## 6. Data Context Strip
@@ -223,7 +228,8 @@ Every monetary KPI aggregation must:
 1. group amounts by native currency;
 2. retain the native-currency breakdown;
 3. convert each native subtotal to the preferred currency;
-4. present the consolidated preferred-currency total as the primary KPI value;
+4. expose the native breakdown and the consolidated preferred-currency total as
+   different monetary bases, following the presentation rule in Section 6.2;
 5. identify the preferred currency, represented native currencies, exchange-rate
    mode, source, and effective date;
 6. disclose records excluded because a valid exchange rate is unavailable.
@@ -245,6 +251,70 @@ Authoritative monetary aggregates and conversion snapshots belong to the backend
 Frontend utilities may adapt an existing backend response for presentation during
 migration, but a module is not financially complete until its KPI endpoint returns
 the native totals, preferred total, rate context, exclusions, and calculation scope.
+
+### 6.2 Multi-currency operational KPI bar
+
+A compact operational KPI bar that combines sales, payment composition, and activity
+counts uses two explicitly different monetary bases:
+
+- **native basis** answers which currencies were actually received;
+- **preferred basis** provides one converted amount for comparison, ratios, and averages.
+
+Neither value replaces the other. The native breakdown provides traceability, while the
+preferred total provides a comparable analytical basis.
+
+Use this order:
+
+1. native sales breakdown;
+2. payment-method composition;
+3. total in the preferred currency;
+4. derived monetary averages;
+5. non-monetary counts and exception indicators.
+
+Approved compact pattern:
+
+```txt
+Sales by currency          Cash     Card     Transfer     Credit
+MXN $4,389.44 / USD US$90  ...      ...      ...          ...
+
+Total in preferred currency - MXN     Average ticket     Average closing
+MXN $5,970.22                         MXN $373.14         MXN $663.36
+```
+
+Presentation rules:
+
+- Show every native subtotal separately and always include its ISO currency code, such
+  as `MXN`, `USD`, or `CAD`. A currency symbol alone is not sufficient.
+- Never display one raw sum of amounts from different native currencies.
+- Payment-method totals in the same operational bar use one common basis: the converted
+  preferred-currency aggregate returned by the backend. The bar or its labels must make
+  that ISO currency context explicit.
+- Place `Total in preferred currency - {ISO}` immediately after the payment-method
+  composition. Do not hide it in a tooltip, an unlabeled chip, or the global currency
+  selector.
+- Calculate `Average ticket` as the converted preferred total divided by the number of
+  tickets included in that converted total.
+- Calculate `Average closing` as the converted preferred total divided by the number of
+  closings included in that converted total.
+- If a currency is excluded because no valid rate exists, exclude its records from the
+  related average denominator too. Mark the preferred total and affected averages as
+  partial or unavailable and name the excluded currencies.
+- Counts such as tickets and closings remain unconverted and must not imply a currency.
+- Routine success labels such as `Balanced` do not occupy the limited right-side KPI
+  area by default. Reserve that area for useful counts and actionable exceptions such as
+  shortages, overages, stale rates, or excluded currencies.
+- The leading native-sales item may use the active module accent color. Color identifies
+  the module or metric role, never a permanent currency mapping.
+
+When only one native currency is represented, retain its ISO code. The native sales value
+and the preferred total may be numerically equal, but their labels still describe different
+roles. They may be visually condensed only when the distinction remains explicit and no
+future multi-currency state would change the meaning of the bar.
+
+This operational-bar rule is intentionally different from an analytical KPI card. On an
+analytics dashboard, the consolidated preferred total may remain the primary card value
+with the native breakdown as nearby context. In an operational payment-composition bar,
+the native breakdown leads and the converted preferred total follows the composition.
 
 ---
 
@@ -795,6 +865,8 @@ Use this template before coding a KPI:
 
 - Preferred currency behavior:
 - Native context:
+- Operational multi-currency bar order, if used:
+- Payment-method and average calculation basis:
 - Freshness:
 - Warnings:
 
@@ -866,6 +938,9 @@ A KPI tab is complete only when:
 - [ ] The table paginates with `10, 25, 50, 100, 200`.
 - [ ] Critical insights offer a drill-down path.
 - [ ] Monetary totals never sum mixed raw currencies.
+- [ ] Operational multi-currency bars separate ISO-labeled native totals from the
+      consolidated preferred-currency total.
+- [ ] Payment-method totals and monetary averages use the same declared conversion basis.
 - [ ] Currency, exchange-rate date, and freshness are visible when relevant.
 - [ ] Loading, empty, partial, error, and permission states exist.
 - [ ] Light mode and dark mode work.

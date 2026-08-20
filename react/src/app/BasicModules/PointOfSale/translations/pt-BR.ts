@@ -9,11 +9,14 @@ export const ptBR = {
     fallbackTitle: 'Carregando área',
     fallbackDescription: 'Baixando apenas a seção de ponto de venda selecionada.',
   },
+  titleBars: {
+    saleSubtitle: 'Opere em um caixa ativo e abra um turno antes de adicionar produtos à venda.',
+  },
   tabs: {
     sale: 'Venda',
     cortes: 'Fechamentos de caixa',
     clientes: 'Clientes',
-    kpis: 'Indicadores',
+    kpis: 'KPIs',
     kiosks: 'Quiosques',
     cajas: 'Caixas e turnos',
   },

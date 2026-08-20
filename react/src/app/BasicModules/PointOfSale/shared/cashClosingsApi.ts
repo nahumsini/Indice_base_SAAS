@@ -24,6 +24,7 @@ export const cashClosingsApi = {
     appendParam(params, 'warehouseId', filters.warehouseId);
     appendParam(params, 'shiftId', filters.shiftId);
     appendParam(params, 'userId', filters.userId);
+    appendParam(params, 'search', filters.search);
     appendParam(params, 'limit', filters.limit ?? 50);
     appendParam(params, 'offset', filters.offset ?? 0);
 

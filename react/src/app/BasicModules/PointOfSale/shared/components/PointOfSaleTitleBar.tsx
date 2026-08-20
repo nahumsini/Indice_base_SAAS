@@ -8,7 +8,6 @@ export const pointOfSaleTitleBarSecondaryActionClassName = 'inline-flex min-h-11
 export function PointOfSaleTitleBar({
   actions,
   className,
-  eyebrow,
   icon,
   rhIndent = false,
   subtitle,
@@ -23,5 +22,5 @@ export function PointOfSaleTitleBar({
   title: string;
 }) {
   void rhIndent;
-  return <IndiceTitleBar actions={actions} className={className} eyebrow={eyebrow} icon={icon} subtitle={subtitle} title={title} tone="coral" />;
+  return <IndiceTitleBar actions={actions} className={className} icon={icon} subtitle={subtitle} title={title} tone="coral" />;
 }

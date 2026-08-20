@@ -9,11 +9,14 @@ export const esCO = {
     fallbackTitle: 'Cargando vista',
     fallbackDescription: 'Cargando únicamente la sección operativa seleccionada.',
   },
+  titleBars: {
+    saleSubtitle: 'Opera desde una caja activa y abre un turno antes de agregar productos a la venta.',
+  },
   tabs: {
     sale: 'Venta',
     cortes: 'Cierres de caja',
     clientes: 'Clientes',
-    kpis: 'Indicadores',
+    kpis: 'KPIs',
     kiosks: 'Kioscos',
     cajas: 'Cajas y turnos',
   },

@@ -1,67 +1,104 @@
-import type {
-  PosCashClosingDetailResponse,
-  PosCashClosingSummaryRow,
-} from '../../shared/cashClosingHistory.types';
+import type { PosCashClosingSummaryRow } from '../../shared/cashClosingHistory.types';
 
-export type PosKpiPeriod = 'today' | 'this_week' | 'this_month' | 'all';
+export type PosKpiPeriod = 'today' | 'this_week' | 'this_month' | 'custom';
+
+export interface PosKpiFiltersState {
+  search: string;
+  period: PosKpiPeriod;
+  dateFrom: string;
+  dateTo: string;
+  warehouseId: string;
+  cashRegisterId: string;
+  userId: string;
+}
 
 export interface PosKpiRankedRow {
+  id: number;
   name: string;
   value: number;
-  detail: string;
+  tickets: number;
+  closings: number;
+  share: number;
 }
 
 export interface PosKpiPaymentMixRow {
-  method: string;
+  method: 'CASH' | 'CARD' | 'TRANSFER' | 'CREDIT';
   amount: number;
   percentage: number;
 }
 
-export interface PosKpiHourlySalesRow {
-  hour: string;
+export interface PosKpiTrendRow {
+  key: string;
+  label: string;
+  current: number;
+  previous: number;
+}
+
+export interface PosKpiPerformanceRow {
+  cashRegisterId: number;
+  cashRegisterName: string;
+  cashRegisterCode: string;
+  warehouseId: number;
+  warehouseName: string;
   sales: number;
+  tickets: number;
+  averageTicket: number;
+  closings: number;
+  cashAccuracy: number | null;
+  refunds: number;
+  lastClosingAt: string;
+}
+
+export interface PosKpiComparison {
+  current: number;
+  previous: number;
+  delta: number | null;
+  direction: 'up' | 'down' | 'flat' | 'unavailable';
 }
 
 export interface PosKpiAnalytics {
   periodLabel: string;
-  primaryCurrency: string;
   revenue: number;
-  totalCashSales: number;
   tickets: number;
   averageTicket: number;
+  averageClosing: number;
   closings: number;
   totalCount: number;
+  totalCashSales: number;
+  absoluteDifference: number;
+  shortage: number;
+  overage: number;
   netDifference: number;
-  overShortRate: number;
-  expectedCash: number;
-  countedCash: number;
+  cashAccuracy: number | null;
+  refunds: number;
+  refundRate: number;
+  registerCoverage: number;
+  registersWithSales: number;
+  activeRegisters: number;
+  comparisons: {
+    revenue: PosKpiComparison;
+    tickets: PosKpiComparison;
+    averageTicket: PosKpiComparison;
+    averageClosing: PosKpiComparison;
+    cashAccuracy: PosKpiComparison;
+    absoluteDifference: PosKpiComparison;
+    refunds: PosKpiComparison;
+    registerCoverage: PosKpiComparison;
+  };
   currencyTotals: Array<{ currency: string; amount: number }>;
   paymentMix: PosKpiPaymentMixRow[];
-  hourlySales: PosKpiHourlySalesRow[];
+  trend: PosKpiTrendRow[];
   topCashRegisters: PosKpiRankedRow[];
   topWarehouses: PosKpiRankedRow[];
+  performance: PosKpiPerformanceRow[];
 }
 
-export const periodOptions: Array<{ value: PosKpiPeriod; label: string }> = [
-  { value: 'today', label: 'Hoy' },
-  { value: 'this_week', label: 'Semana' },
-  { value: 'this_month', label: 'Mes' },
-  { value: 'all', label: 'Todo' },
-];
-
-const periodLabels: Record<PosKpiPeriod, string> = {
-  today: 'Hoy',
-  this_week: 'Esta semana',
-  this_month: 'Este mes',
-  all: 'Todo el historial',
-};
-
-const toNumber = (value: number | string | null | undefined) => {
+export const toNumber = (value: number | string | null | undefined) => {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const toDateInputValue = (date: Date) => {
+export const toDateInputValue = (date: Date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
@@ -75,78 +112,89 @@ const startOfWeek = (date: Date) => {
 };
 
 export function getDateRangeForPeriod(period: PosKpiPeriod, now = new Date()) {
-  if (period === 'all') {
-    return {};
-  }
-
   const dateTo = toDateInputValue(now);
-
-  if (period === 'today') {
-    return { dateFrom: dateTo, dateTo };
-  }
-
-  if (period === 'this_week') {
-    return { dateFrom: toDateInputValue(startOfWeek(now)), dateTo };
-  }
-
+  if (period === 'today' || period === 'custom') return { dateFrom: dateTo, dateTo };
+  if (period === 'this_week') return { dateFrom: toDateInputValue(startOfWeek(now)), dateTo };
   return {
     dateFrom: toDateInputValue(new Date(now.getFullYear(), now.getMonth(), 1)),
     dateTo,
   };
 }
 
-function groupSum<T>(items: T[], getKey: (item: T) => string, getValue: (item: T) => number) {
-  return items.reduce((map, item) => {
-    const key = getKey(item);
-    map.set(key, (map.get(key) ?? 0) + getValue(item));
-    return map;
-  }, new Map<string, number>());
+export function getPreviousDateRange(dateFrom: string, dateTo: string) {
+  const from = new Date(`${dateFrom}T00:00:00`);
+  const to = new Date(`${dateTo}T00:00:00`);
+  const spanInDays = Math.max(1, Math.round((to.getTime() - from.getTime()) / 86_400_000) + 1);
+  const previousTo = new Date(from);
+  previousTo.setDate(previousTo.getDate() - 1);
+  const previousFrom = new Date(previousTo);
+  previousFrom.setDate(previousFrom.getDate() - spanInDays + 1);
+  return { dateFrom: toDateInputValue(previousFrom), dateTo: toDateInputValue(previousTo) };
 }
 
-function resolvePrimaryCurrency(rows: PosCashClosingSummaryRow[], details: PosCashClosingDetailResponse[]) {
-  return details.find((detail) => detail.shift?.currencyCode)?.shift?.currencyCode
-    ?? rows.find((row) => row.currencyCode)?.currencyCode
-    ?? 'MXN';
-}
-
-export function buildPosKpiAnalytics({
-  rows,
-  details,
-  period,
-  totalCount,
-  preferredCurrency,
-}: {
-  rows: PosCashClosingSummaryRow[];
-  details: PosCashClosingDetailResponse[];
-  period: PosKpiPeriod;
-  totalCount: number;
-  preferredCurrency: string;
-}): PosKpiAnalytics {
-  const primaryCurrency = preferredCurrency;
-  const nativeCurrencyTotals = groupSum(
-    rows,
-    (row) => row.currencyCode ?? resolvePrimaryCurrency(rows, details),
-    (row) => toNumber(row.totalSalesAmount),
-  );
-  const tickets = rows.reduce((sum, row) => sum + Number(row.ticketsCount ?? 0), 0);
-
+export function comparison(current: number, previous: number): PosKpiComparison {
+  if (previous === 0) {
+    return {
+      current,
+      previous,
+      delta: current === 0 ? 0 : null,
+      direction: current === 0 ? 'flat' : 'unavailable',
+    };
+  }
+  const delta = ((current - previous) / Math.abs(previous)) * 100;
   return {
-    periodLabel: periodLabels[period],
-    primaryCurrency,
-    revenue: 0,
-    totalCashSales: 0,
-    tickets,
-    averageTicket: 0,
-    closings: rows.length,
-    totalCount,
-    netDifference: 0,
-    overShortRate: 0,
-    expectedCash: 0,
-    countedCash: 0,
-    currencyTotals: Array.from(nativeCurrencyTotals.entries()).map(([currency, amount]) => ({ currency, amount })),
-    paymentMix: [],
-    hourlySales: [],
-    topCashRegisters: [],
-    topWarehouses: [],
+    current,
+    previous,
+    delta,
+    direction: Math.abs(delta) < 0.05 ? 'flat' : delta > 0 ? 'up' : 'down',
   };
+}
+
+export function pointComparison(current: number | null, previous: number | null): PosKpiComparison {
+  if (current === null || previous === null) {
+    return { current: current ?? 0, previous: previous ?? 0, delta: null, direction: 'unavailable' };
+  }
+  const delta = current - previous;
+  return {
+    current,
+    previous,
+    delta,
+    direction: Math.abs(delta) < 0.05 ? 'flat' : delta > 0 ? 'up' : 'down',
+  };
+}
+
+export function sumTickets(rows: PosCashClosingSummaryRow[]) {
+  return rows.reduce((total, row) => total + toNumber(row.ticketsCount), 0);
+}
+
+export function uniqueRegistersWithSales(rows: PosCashClosingSummaryRow[]) {
+  return new Set(rows.filter((row) => toNumber(row.totalSalesAmount) > 0 || row.ticketsCount > 0).map((row) => row.cashRegisterId)).size;
+}
+
+export function groupRowsByRegister(rows: PosCashClosingSummaryRow[]) {
+  return rows.reduce((groups, row) => {
+    const current = groups.get(row.cashRegisterId) ?? [];
+    current.push(row);
+    groups.set(row.cashRegisterId, current);
+    return groups;
+  }, new Map<number, PosCashClosingSummaryRow[]>());
+}
+
+export function groupRowsByWarehouse(rows: PosCashClosingSummaryRow[]) {
+  return rows.reduce((groups, row) => {
+    const current = groups.get(row.warehouseId) ?? [];
+    current.push(row);
+    groups.set(row.warehouseId, current);
+    return groups;
+  }, new Map<number, PosCashClosingSummaryRow[]>());
+}
+
+export function groupRowsByDay(rows: PosCashClosingSummaryRow[]) {
+  return rows.reduce((groups, row) => {
+    const key = row.closedAt.slice(0, 10);
+    const current = groups.get(key) ?? [];
+    current.push(row);
+    groups.set(key, current);
+    return groups;
+  }, new Map<string, PosCashClosingSummaryRow[]>());
 }

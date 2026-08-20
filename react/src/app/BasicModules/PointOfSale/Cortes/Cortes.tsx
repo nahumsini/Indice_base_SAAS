@@ -23,16 +23,16 @@ import {
   type CortesSortKey,
   type CortesViewMode,
   buildCortesAnalytics,
-  filterCortesRows,
   getCortesPeriodRange,
   sortCortesRows,
 } from './utils/cortesUtils';
 import { buildCortesPrintReportHtml } from './utils/cortesPrintReport';
 import { useLearningModeHeaderActions } from '../../../learningMode';
+import { configCenterApi } from '../../../api/configCenter';
 import { usePointOfSaleResolvedLocale } from '../hooks/usePointOfSaleTranslations';
 import { getCortesCopy } from './cortesTranslations';
 
-const todayRange = getCortesPeriodRange('today');
+const initialMonthRange = getCortesPeriodRange('month');
 
 function arrayFromResponse<T>(response: unknown): T[] {
   if (Array.isArray(response)) {
@@ -68,26 +68,44 @@ function getSelectedOptionLabel(options: CortesFilterOption[], value: string, em
 
 const initialFilters: CortesFilters = {
   cashRegisterId: '',
-  dateFrom: todayRange.dateFrom,
-  dateTo: todayRange.dateTo,
-  difference: 'all',
-  period: 'today',
+  dateFrom: initialMonthRange.dateFrom,
+  dateTo: initialMonthRange.dateTo,
+  period: 'month',
   search: '',
   userId: '',
   warehouseId: '',
 };
 
+function getInitialFiltersFromLocation(): CortesFilters {
+  if (typeof window === 'undefined') {
+    return initialFilters;
+  }
+
+  const query = new URLSearchParams(window.location.search);
+  const dateFrom = query.get('dateFrom') || initialFilters.dateFrom;
+  const dateTo = query.get('dateTo') || initialFilters.dateTo;
+  const hasExplicitRange = Boolean(query.get('dateFrom') && query.get('dateTo'));
+
+  return {
+    ...initialFilters,
+    cashRegisterId: query.get('cashRegisterId') || '',
+    dateFrom,
+    dateTo,
+    period: hasExplicitRange ? 'custom' : initialFilters.period,
+    warehouseId: query.get('warehouseId') || '',
+  };
+}
+
 export default function Cortes() {
   const learningModeActive = useLearningModeHeaderActions()?.active ?? false;
   const locale = usePointOfSaleResolvedLocale();
   const copy = useMemo(() => getCortesCopy(locale), [locale]);
-  const [filters, setFilters] = useState<CortesFilters>(initialFilters);
+  const [filters, setFilters] = useState<CortesFilters>(getInitialFiltersFromLocation);
   const [viewMode, setViewMode] = useState<CortesViewMode>('table');
   const [sortKey, setSortKey] = useState<CortesSortKey>('closedAt');
   const [sortDirection, setSortDirection] = useState<CortesSortDirection>('desc');
   const [pageSize, setPageSize] = useState(10);
   const [offset, setOffset] = useState(0);
-  const [notice, setNotice] = useState('');
   const [isColumnsOpen, setIsColumnsOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedRowIds, setSelectedRowIds] = useState<number[]>([]);
@@ -95,8 +113,15 @@ export default function Cortes() {
   const [warehouses, setWarehouses] = useState<PosWarehouseSummary[]>([]);
   const [cashRegisters, setCashRegisters] = useState<PosCashRegisterResponse[]>([]);
   const [shifts, setShifts] = useState<PosShiftResponse[]>([]);
+  const [userNames, setUserNames] = useState<Record<number, string>>({});
   const [filterOptionsError, setFilterOptionsError] = useState('');
   const { preferredCurrency } = usePreferredBusinessCurrency();
+  const [debouncedSearch, setDebouncedSearch] = useState(initialFilters.search);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => setDebouncedSearch(filters.search), 300);
+    return () => window.clearTimeout(timeoutId);
+  }, [filters.search]);
 
   const {
     clearSelectedDetail,
@@ -115,6 +140,7 @@ export default function Cortes() {
     dateTo: filters.dateTo,
     limit: pageSize,
     offset,
+    search: debouncedSearch,
     userId: filters.userId,
     warehouseId: filters.warehouseId,
   });
@@ -125,18 +151,28 @@ export default function Cortes() {
     async function loadFilterOptions() {
       setFilterOptionsError('');
       try {
-        const [context, shiftRows] = await Promise.all([
+        const [contextResult, shiftsResult, usersResult] = await Promise.allSettled([
           posBackendApi.context(),
           posBackendApi.shifts(),
+          configCenterApi.getUsers(),
         ]);
+
+        if (contextResult.status === 'rejected') throw contextResult.reason;
+        if (shiftsResult.status === 'rejected') throw shiftsResult.reason;
 
         if (cancelled) {
           return;
         }
 
-        setWarehouses(arrayFromResponse<PosWarehouseSummary>(context.warehouses));
-        setCashRegisters(arrayFromResponse<PosCashRegisterResponse>(context.cashRegisters));
-        setShifts(arrayFromResponse<PosShiftResponse>(shiftRows));
+        setWarehouses(arrayFromResponse<PosWarehouseSummary>(contextResult.value.warehouses));
+        setCashRegisters(arrayFromResponse<PosCashRegisterResponse>(contextResult.value.cashRegisters));
+        setShifts(arrayFromResponse<PosShiftResponse>(shiftsResult.value));
+        setUserNames(usersResult.status === 'fulfilled'
+          ? Object.fromEntries(usersResult.value.users.map((user) => [
+            user.id,
+            [user.nombres, user.apellidos].filter(Boolean).join(' ') || user.email,
+          ]))
+          : {});
       } catch (loadError) {
         if (!cancelled) {
           setFilterOptionsError(
@@ -155,10 +191,25 @@ export default function Cortes() {
     };
   }, [copy.main.filterOptionsError]);
 
-  const visibleRows = useMemo(() => {
-    const filteredRows = filterCortesRows(rows, filters);
-    return sortCortesRows(filteredRows, sortKey, sortDirection);
-  }, [filters, rows, sortDirection, sortKey]);
+  const warehouseNames = useMemo<Record<number, string>>(
+    () => Object.fromEntries(warehouses.map((warehouse) => [warehouse.id, warehouse.name])),
+    [warehouses],
+  );
+  const cashRegisterNames = useMemo<Record<number, string>>(
+    () => Object.fromEntries(cashRegisters.map((register) => [register.id, register.name])),
+    [cashRegisters],
+  );
+  const resolvedRows = useMemo(() => rows.map((row) => ({
+    ...row,
+    cashRegisterName: row.cashRegisterName || cashRegisterNames[row.cashRegisterId],
+    closedByUserName: row.closedByUserName || userNames[row.closedByUserId],
+    warehouseName: row.warehouseName || warehouseNames[row.warehouseId],
+  })), [cashRegisterNames, rows, userNames, warehouseNames]);
+
+  const visibleRows = useMemo(
+    () => sortCortesRows(resolvedRows, sortKey, sortDirection),
+    [resolvedRows, sortDirection, sortKey],
+  );
   const totalPages = Math.max(1, Math.ceil(totalCount / Math.max(1, pageSize)));
   const currentPage = Math.min(totalPages, Math.floor(offset / pageSize) + 1);
   const pageStart = totalCount === 0 ? 0 : Math.min(offset + 1, totalCount);
@@ -192,6 +243,10 @@ export default function Cortes() {
   const closingIds = useMemo(() => visibleRows.map((row) => row.id), [visibleRows]);
   const monetaryQueries = useMemo(() => [
     { key: 'sales', metric: 'POS_CLOSING_TOTAL' as const, preferredCurrency, ids: closingIds },
+    { key: 'cash', metric: 'POS_CLOSING_CASH_SALES' as const, preferredCurrency, ids: closingIds },
+    { key: 'card', metric: 'POS_CLOSING_CARD_SALES' as const, preferredCurrency, ids: closingIds },
+    { key: 'transfer', metric: 'POS_CLOSING_TRANSFER_SALES' as const, preferredCurrency, ids: closingIds },
+    { key: 'credit', metric: 'POS_CLOSING_CREDIT_SALES' as const, preferredCurrency, ids: closingIds },
     { key: 'expected', metric: 'POS_CLOSING_EXPECTED_CASH' as const, preferredCurrency, ids: closingIds },
     { key: 'counted', metric: 'POS_CLOSING_COUNTED_CASH' as const, preferredCurrency, ids: closingIds },
     { key: 'difference', metric: 'POS_CLOSING_DIFFERENCE' as const, preferredCurrency, ids: closingIds },
@@ -207,6 +262,10 @@ export default function Cortes() {
     const ids = reportRows.map((row) => row.id);
     const aggregates = await getKpiMonetaryAggregates([
       { key: 'sales', metric: 'POS_CLOSING_TOTAL', preferredCurrency, ids },
+      { key: 'cash', metric: 'POS_CLOSING_CASH_SALES', preferredCurrency, ids },
+      { key: 'card', metric: 'POS_CLOSING_CARD_SALES', preferredCurrency, ids },
+      { key: 'transfer', metric: 'POS_CLOSING_TRANSFER_SALES', preferredCurrency, ids },
+      { key: 'credit', metric: 'POS_CLOSING_CREDIT_SALES', preferredCurrency, ids },
       { key: 'expected', metric: 'POS_CLOSING_EXPECTED_CASH', preferredCurrency, ids },
       { key: 'counted', metric: 'POS_CLOSING_COUNTED_CASH', preferredCurrency, ids },
       { key: 'difference', metric: 'POS_CLOSING_DIFFERENCE', preferredCurrency, ids },
@@ -215,14 +274,13 @@ export default function Cortes() {
   };
 
   const warehouseOptions = useMemo<CortesFilterOption[]>(() => (
-    warehouses.map((warehouse) => ({
-      label: [
-        warehouse.name,
-        warehouse.businessName,
-      ].filter(Boolean).join(' - '),
-      value: String(warehouse.id),
-    }))
-  ), [warehouses]);
+    warehouses
+      .map((warehouse) => ({
+        label: [warehouse.name, warehouse.unitName, warehouse.businessName].filter(Boolean).join(' - '),
+        value: String(warehouse.id),
+      }))
+      .sort((first, second) => first.label.localeCompare(second.label, locale))
+  ), [locale, warehouses]);
 
   const cashRegisterOptions = useMemo<CortesFilterOption[]>(() => (
     cashRegisters
@@ -231,19 +289,23 @@ export default function Cortes() {
         label: `${register.name} - ${register.code}`,
         value: String(register.id),
       }))
-  ), [cashRegisters, filters.warehouseId]);
+      .sort((first, second) => first.label.localeCompare(second.label, locale))
+  ), [cashRegisters, filters.warehouseId, locale]);
 
   const cashierOptions = useMemo<CortesFilterOption[]>(() => {
     const cashierIds = new Set<number>();
 
-    shifts.forEach((shift) => {
-      if (shift.openedByUserId) {
-        cashierIds.add(Number(shift.openedByUserId));
-      }
-      if (shift.closedByUserId) {
-        cashierIds.add(Number(shift.closedByUserId));
-      }
-    });
+    shifts
+      .filter((shift) => !filters.warehouseId || String(shift.warehouseId) === filters.warehouseId)
+      .filter((shift) => !filters.cashRegisterId || String(shift.cashRegisterId) === filters.cashRegisterId)
+      .forEach((shift) => {
+        if (shift.openedByUserId) {
+          cashierIds.add(Number(shift.openedByUserId));
+        }
+        if (shift.closedByUserId) {
+          cashierIds.add(Number(shift.closedByUserId));
+        }
+      });
 
     rows.forEach((row) => {
       if (row.closedByUserId) {
@@ -255,10 +317,10 @@ export default function Cortes() {
       .filter((id) => Number.isFinite(id))
       .sort((first, second) => first - second)
       .map((id) => ({
-        label: copy.common.user(id),
+        label: userNames[id] || copy.common.user(id),
         value: String(id),
       }));
-  }, [copy, rows, shifts]);
+  }, [copy, filters.cashRegisterId, filters.warehouseId, rows, shifts, userNames]);
 
   const updateFilter = <Key extends keyof CortesFilters>(key: Key, value: CortesFilters[Key]) => {
     setFilters((current) => {
@@ -269,6 +331,10 @@ export default function Cortes() {
         if (selectedRegister && value && String(selectedRegister.warehouseId) !== String(value)) {
           next.cashRegisterId = '';
         }
+      }
+
+      if (key === 'warehouseId' || key === 'cashRegisterId') {
+        next.userId = '';
       }
 
       return next;
@@ -324,7 +390,6 @@ export default function Cortes() {
     const reportWindow = window.open('', '_blank', 'width=1280,height=900,scrollbars=yes,resizable=yes');
 
     if (!reportWindow) {
-      setNotice(copy.main.printPopupBlocked);
       return;
     }
 
@@ -342,18 +407,22 @@ export default function Cortes() {
         dateTo: filters.dateTo,
         limit: 200,
         offset: 0,
+        search: filters.search,
         userId: filters.userId,
         warehouseId: filters.warehouseId,
       });
-      reportRows = sortCortesRows(filterCortesRows(response.items, filters), sortKey, sortDirection);
+      const resolvedReportRows = response.items.map((row) => ({
+        ...row,
+        cashRegisterName: row.cashRegisterName || cashRegisterNames[row.cashRegisterId],
+        closedByUserName: row.closedByUserName || userNames[row.closedByUserId],
+        warehouseName: row.warehouseName || warehouseNames[row.warehouseId],
+      }));
+      reportRows = sortCortesRows(resolvedReportRows, sortKey, sortDirection);
       reportScopeNote = response.count > response.items.length
         ? copy.main.reportScopePartial(response.items.length, response.count)
         : copy.main.reportScopeFiltered(reportRows.length);
-    } catch (printError) {
+    } catch {
       reportScopeNote = copy.main.reportScopeFallback;
-      setNotice(printError instanceof Error && printError.message
-        ? copy.main.reportFallbackWithReason(printError.message)
-        : copy.main.reportFallback);
     }
 
     const reportAnalytics = await loadReportAnalytics(reportRows);
@@ -375,19 +444,16 @@ export default function Cortes() {
     reportWindow.document.close();
     reportWindow.focus();
     reportWindow.setTimeout(() => reportWindow.print(), 350);
-    setNotice(copy.main.reportPrepared(reportRows.length));
   };
 
   const printSelectedReport = async () => {
     if (selectedRows.length === 0) {
-      setNotice(copy.main.selectRowsForReport);
       return;
     }
 
     const reportWindow = window.open('', '_blank', 'width=1280,height=900,scrollbars=yes,resizable=yes');
 
     if (!reportWindow) {
-      setNotice(copy.main.printPopupBlocked);
       return;
     }
 
@@ -410,18 +476,33 @@ export default function Cortes() {
     reportWindow.document.close();
     reportWindow.focus();
     reportWindow.setTimeout(() => reportWindow.print(), 350);
-    setNotice(copy.main.selectedReportPrepared(reportRows.length));
   };
 
   const handleRowDownload = (row: PosCashClosingSummaryRow) => {
-    setNotice(copy.main.downloadReady(row.id));
     openDetail(row);
   };
 
   const handleRowPrint = (row: PosCashClosingSummaryRow) => {
-    setNotice(copy.main.openingForPrint(row.id));
     openDetail(row);
   };
+
+  const renderPagination = (attached: boolean) => (
+    <PointOfSaleTablePagination
+      attached={attached}
+      currentPage={currentPage}
+      itemLabel={copy.main.itemLabel}
+      onPageChange={(page) => setOffset((page - 1) * pageSize)}
+      onPageSizeChange={(nextPageSize) => {
+        setPageSize(nextPageSize);
+        setOffset(0);
+      }}
+      pageEnd={pageEnd}
+      pageSize={pageSize}
+      pageStart={pageStart}
+      totalCount={totalCount}
+      totalPages={totalPages}
+    />
+  );
 
   return (
     <div className="space-y-6">
@@ -430,17 +511,8 @@ export default function Cortes() {
         loading={loading}
         onColumns={() => setIsColumnsOpen(true)}
         onPrintReport={printFilteredReport}
-        onRefresh={() => {
-          refresh();
-          setNotice(copy.main.refreshed);
-        }}
+        onRefresh={refresh}
       />
-
-      {notice ? (
-        <div className="rounded-xl border border-[#F4C84A]/25 bg-[#F4C84A]/10 px-4 py-3 text-sm font-medium text-[#9A6B05] dark:border-[#F4C84A]/30 dark:bg-[#F4C84A]/15 dark:text-[#F4C84A]">
-          {notice}
-        </div>
-      ) : null}
 
       {error ? (
         <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
@@ -481,12 +553,6 @@ export default function Cortes() {
         </p>
       </div>
 
-      {loading ? (
-        <div className="rounded-xl border border-[#FF6B5E]/25 bg-[#FF6B5E]/[0.06] px-4 py-3 text-sm font-medium text-[#B63B32] dark:border-[#FF6B5E]/30 dark:bg-[#FF6B5E]/10 dark:text-[#FFB0AA]">
-          {copy.main.loadingClosings}
-        </div>
-      ) : null}
-
       {viewMode === 'table' ? (
         <>
           <CortesBulkActionsBar
@@ -496,9 +562,13 @@ export default function Cortes() {
             onPrintSelected={printSelectedReport}
           />
           <CortesTable
+            key={visibleColumns.join(':')}
             allVisibleSelected={allVisibleSelected}
+            cashRegisterNames={cashRegisterNames}
+            cashierNames={userNames}
             copy={copy}
             loading={loading}
+            pagination={renderPagination(true)}
             rows={visibleRows}
             selectedRowIds={selectedRowIds}
             sortDirection={sortDirection}
@@ -510,6 +580,7 @@ export default function Cortes() {
             onSort={handleSort}
             onToggleRowSelection={toggleRowSelection}
             onToggleVisibleSelection={toggleVisibleSelection}
+            warehouseNames={warehouseNames}
           />
         </>
       ) : (
@@ -521,21 +592,7 @@ export default function Cortes() {
         />
       )}
 
-      <PointOfSaleTablePagination
-        attached={false}
-        currentPage={currentPage}
-        itemLabel={copy.main.itemLabel}
-        onPageChange={(page) => setOffset((page - 1) * pageSize)}
-        onPageSizeChange={(nextPageSize) => {
-          setPageSize(nextPageSize);
-          setOffset(0);
-        }}
-        pageEnd={pageEnd}
-        pageSize={pageSize}
-        pageStart={pageStart}
-        totalCount={totalCount}
-        totalPages={totalPages}
-      />
+      {viewMode === 'day' ? renderPagination(false) : null}
 
       <CortesColumnsModal
         copy={copy}
@@ -553,7 +610,7 @@ export default function Cortes() {
         loading={detailLoading}
         open={isDetailOpen}
         onClose={closeDetail}
-        onDownload={() => setNotice(copy.main.pdfPending)}
+        onDownload={() => undefined}
       />
     </div>
   );

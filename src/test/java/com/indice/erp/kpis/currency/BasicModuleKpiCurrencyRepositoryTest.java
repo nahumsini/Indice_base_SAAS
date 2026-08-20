@@ -38,4 +38,62 @@ class BasicModuleKpiCurrencyRepositoryTest {
             .contains("expense_date <= ?")
             .doesNotContain("42");
     }
+
+    @Test
+    void readsCardSalesFromThePersistedClosingPaymentSnapshot() {
+        var jdbc = mock(JdbcTemplate.class);
+        var repository = new BasicModuleKpiCurrencyRepository(jdbc);
+
+        repository.load(
+            BasicModuleKpiMetric.POS_CLOSING_CARD_SALES,
+            42L,
+            null,
+            null,
+            List.of(15L),
+            true
+        );
+
+        var sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbc).query(sql.capture(), any(RowMapper.class), eq(42L), eq(15L));
+        org.assertj.core.api.Assertions.assertThat(sql.getValue())
+            .contains("FROM pos_cash_closings c")
+            .contains("JSON_TABLE")
+            .contains("payment.payment_method = 'CARD'")
+            .contains("c.id IN (?)")
+            .contains("c.company_id = ?");
+    }
+
+    @Test
+    void readsVarianceAndRefundMetricsFromThePersistedClosing() {
+        assertClosingMetricSql(
+            BasicModuleKpiMetric.POS_CLOSING_ABSOLUTE_DIFFERENCE,
+            "ABS(c.over_short_amount)"
+        );
+        assertClosingMetricSql(
+            BasicModuleKpiMetric.POS_CLOSING_SHORTAGE,
+            "c.over_short_amount < 0"
+        );
+        assertClosingMetricSql(
+            BasicModuleKpiMetric.POS_CLOSING_OVERAGE,
+            "c.over_short_amount > 0"
+        );
+        assertClosingMetricSql(
+            BasicModuleKpiMetric.POS_CLOSING_REFUNDS,
+            "c.total_refunds_amount"
+        );
+    }
+
+    private void assertClosingMetricSql(BasicModuleKpiMetric metric, String expectedExpression) {
+        var jdbc = mock(JdbcTemplate.class);
+        var repository = new BasicModuleKpiCurrencyRepository(jdbc);
+
+        repository.load(metric, 42L, null, null, List.of(15L), true);
+
+        var sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbc).query(sql.capture(), any(RowMapper.class), eq(42L), eq(15L));
+        org.assertj.core.api.Assertions.assertThat(sql.getValue())
+            .contains(expectedExpression)
+            .contains("c.id IN (?)")
+            .contains("c.company_id = ?");
+    }
 }

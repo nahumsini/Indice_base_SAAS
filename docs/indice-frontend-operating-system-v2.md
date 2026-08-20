@@ -613,7 +613,7 @@ preserving the same semantic hierarchy.
 - Form labels: `400` by default and `500` only when the label carries necessary
   hierarchy.
 - Inputs and selected values: `400`.
-- Table headers: `500`; table cells `400`.
+- Table headers: `400`; table cells `400`. The active sort uses module color, not additional weight.
 - Card titles and record names: `500`; descriptions `400`.
 - KPI labels: `400`; KPI values `500`, or `600` only for a documented critical
   value.
@@ -796,6 +796,21 @@ Visual:
 - compact
 - operational
 - no heavy shadows
+- no eyebrow or accent-colour micro-label above the title; the icon, title, and subtitle
+  carry the complete identity of the view
+
+Active terminal exception:
+
+- a full transactional terminal may replace the standard title bar only while an active
+  operating session requires persistent register, operator, elapsed-time, fiscal, and
+  close-session controls
+- the specialized terminal header replaces the title bar; never render both and consume
+  the operational workspace twice
+- it must preserve a clear view identity, the active operating context, keyboard-accessible
+  actions, responsive behavior, and the module accent for the primary operation
+- loading, setup, empty, blocked, and no-session states still use the standard shared title bar
+- document the exception beside the owning workspace; Point of Sale `Venta` uses its active
+  shift header as the approved reference
 
 Example:
 
@@ -840,6 +855,23 @@ Input standard:
 - neutral border
 - focus ring: module color
 
+Operational list behavior:
+
+- use the shared `IndiceFilterBar`, `IndiceFilterSearch`, and `IndiceFilterSelect` primitives
+- keep the bar header to `Filters` by default; result counters, live timestamps, notices,
+  and refresh actions belong in the title bar, data context, or table footer
+- expose only filters that materially narrow the current dataset
+- allow an inline clear action inside search when a query is active
+- debounce remote search by approximately 250-350 ms; local in-memory search may update immediately
+- reset table pagination to page 1 whenever a filter changes
+- when filters depend on one another, changing the parent narrows the child options and clears
+  a child value that is no longer valid
+
+Analytical views may use `IndiceFilterSegmented` inside the same shared card for a small,
+bounded choice such as Today, Week, Month, or All. The segmented control must keep its label,
+44px minimum height, 12px radius, module focus treatment, and `aria-pressed` state. It is a
+filter control, not a substitute for tabs.
+
 Do not scatter filters across the screen.
 
 ---
@@ -849,6 +881,30 @@ Do not scatter filters across the screen.
 KPIs should be decision-oriented only.
 
 Avoid vanity metrics.
+
+Operational list views may replace analytical KPIs with a compact status navigator when
+the user needs to find work that requires attention. These cards are optional and must:
+
+- represent mutually understandable operational states, not decorative totals
+- expose a short label, current count, semantic icon, and one-line explanation
+- act as a faceted filter when the corresponding state can narrow the table
+- show selection through border, color, and `aria-pressed`, without increasing font weight
+- update their counts from the current base scope, such as search, organization, warehouse,
+  business, unit, or date
+- ignore the selected status facet when calculating sibling-card counts, so another state
+  remains discoverable and selectable
+- return to the unfiltered state when the selected card is activated again
+
+A hybrid operational strip may include at most one non-clickable transactional aggregate
+when it is essential to the current workflow, for example the real sales accumulated during
+today's POS operation. That aggregate must come from the backend source of truth, include
+open, closing, and closed-today activity as applicable, consolidate into the global preferred
+currency before summing, disclose that currency, and refresh with the live operational data.
+Daily transaction aggregates must use the completed transaction timestamp with half-open
+day boundaries in the approved operational time zone. Do not infer a day's sales from the
+opening or closing date of a shift, because one shift may span multiple calendar days.
+Keep any additional sales, ticket, average, or closing analysis in the analytics tab or
+selected-row detail.
 
 For complete KPI-tab composition, analytics behavior, formulas, comparisons, charts,
 rankings, responsive rules, and the implementation checklist, also follow:
@@ -899,7 +955,11 @@ Rules:
 - never sum raw values from different currencies
 - counts, percentages, dates and operational statuses are never converted
 - row-level and legally relevant values preserve their native currency
-- multi-currency KPI areas show the native breakdown as secondary context
+- analytical KPI cards may show the preferred total as the primary value and the native
+  breakdown as secondary context
+- operational payment-composition bars lead with the ISO-labeled native breakdown, show
+  payment methods on one converted basis, and then show a separately labeled total in the
+  preferred currency; follow Section 6.2 of `KPI_TAB_STANDARD.md`
 - missing or stale exchange-rate information must produce a visible warning state
 - the control and its exchange-rate popover use USD as the exchange-rate base
 - the user preference persists across navigation and sessions
@@ -911,11 +971,220 @@ and opens the same currency and exchange-rate experience everywhere.
 
 ## 15. Table Standard
 
-Reference:
+### 15.1 Approved reference and ownership
 
-- Expenses tables
-- current standardized pagination pattern
-- Human Resources table rhythm
+Normative visual and interaction reference:
+
+- `react/src/app/BasicModules/PointOfSale/CashRegisters/CashRegistersWorkspace.tsx`
+- route: `/point-of-sale/cajas`
+- approved surface: `Cajas y turnos`
+
+This reference combines the Human Resources density, the shared filter and pagination
+primitives, and the approved POS action treatment. New operational tables must use this
+contract unless a documented view-type or mobile constraint requires a different
+presentation.
+
+The table engine owns presentation and interaction only. The module remains owner of:
+
+- data fetching and mutation
+- permissions
+- business validation
+- available columns
+- sorting semantics
+- filters
+- row actions and their consequences
+- API and backend error handling
+
+### 15.2 Required composition
+
+Use this vertical order:
+
+1. module or tab title bar
+2. feedback, warning, or insight strip when useful
+3. shared `IndiceFilterBar`
+4. optional decision-oriented KPI strip or operational status navigator when useful
+5. table shell
+6. shared pagination attached to the table shell
+
+Do not place a second title, description, search field, and segmented filters inside the
+table shell. Search and contextual filters belong in the separate shared filter bar.
+
+The table shell uses:
+
+- full available width
+- white or neutral background
+- `24px` corner radius
+- neutral one-pixel border
+- subtle shadow only
+- horizontal overflow at the table boundary, never at the whole page
+- the same dark-mode hierarchy as the shared filter bar
+
+### 15.3 Header contract
+
+Every table header uses:
+
+| Property | Standard |
+|---|---|
+| Header row height | `52px` |
+| Header text | `13px` |
+| Weight | `400` |
+| Line height | `16px` |
+| Case | Sentence case |
+| Default color | Neutral slate |
+| Active sort color | Module color |
+
+Rules:
+
+- all labels, including `Actions`, use exactly the same size and weight
+- headers align with their column data
+- identity and descriptive text align left
+- numeric and monetary values align right
+- compact statuses may align center
+- `Actions` is always the final visible column and normally aligns right
+- do not rename `Actions` to `Manage`, `Controls`, or an entity-specific verb
+- do not use bold text, uppercase, or smaller type to distinguish the actions header
+
+Sortable headers:
+
+- support ascending and descending order
+- expose `aria-sort`
+- use one accessible button covering the label and sort icon
+- show the active direction icon persistently
+- reveal an inactive sort icon on hover or keyboard focus
+- change color, not font weight, for the active sort
+- reset pagination when sort changes
+- preserve deterministic secondary ordering when two values compare equally
+
+### 15.4 Column width and resizing contract
+
+Desktop operational tables with three or more data columns should support direct column
+resizing when users compare records repeatedly. Small bounded tables may keep fixed widths.
+
+#### Optional leading control column
+
+The first narrow utility column is not mandatory. Its presence and type are selected
+explicitly for each table by the product owner or by the implementation request. A table
+may use:
+
+1. an expand or collapse chevron for hierarchical rows, details, sessions, or secondary content
+2. a selection checkbox for bulk operations
+3. both controls only when the request explicitly requires both behaviors
+4. no leading control column
+
+Do not infer or add expansion, selection, or bulk behavior merely because another table
+uses it. When an implementation request does not specify a leading control:
+
+- preserve the existing behavior during a migration
+- use no leading control for a new table
+- ask only when the missing decision blocks a required workflow
+
+Leading control rules:
+
+- keep the utility column fixed and compact; it is not sortable or user-resizable
+- use the same width and alignment in the header and every body row
+- provide an accessible hidden header label for expansion controls
+- show a header checkbox only when select-all is a real supported operation
+- keep row alignment when a specific row cannot expand; do not shift its data columns
+- use an icon button for expansion and an actual checkbox control for selection
+- provide visible keyboard focus and an accessible label for every control
+- both controls may share one leading area only when their targets remain clear and usable
+
+Required resize behavior:
+
+- drag the right boundary of the header to resize columns
+- before user customization, assign every column enough minimum width to show its complete header label, sort icon, padding, and resize handle; never make a truncated header the default or minimum state
+- define a useful content minimum for every resizable column and use the larger value between the content minimum and the complete-header minimum
+- choose one resize mode explicitly per table: `bounded` preserves total width by resizing two adjacent columns, while `expandable` changes one column independently and lets the table grow inside its local horizontal scroll container
+- use `expandable` for wide operational tables whose complete headers or comparison fields would otherwise be compressed; increasing a column must increase the table width instead of stealing space from its neighbor
+- keep structural columns such as selection or row expansion fixed when appropriate
+- persist widths in browser storage with a unique, versioned table key
+- restore safe defaults when stored values are missing, invalid, or from an old version
+- support `ArrowLeft` and `ArrowRight` on a focused separator
+- allow a larger keyboard step with `Shift`
+- restore defaults with double-click or `Home`
+- expose the separator role, orientation, current value, minimum, maximum, and accessible label
+- show a subtle divider at rest and the module color on hover, focus, or drag
+
+Use `table-layout: fixed` with a declared `colgroup` when the table supports resizing.
+Long non-critical text may truncate, but the full value must remain available through a
+tooltip, detail row, expansion, or another accessible disclosure. Never truncate a critical
+amount, status, or action.
+
+Column resizing is a presentation preference. It must never modify backend data or the
+user's permission scope.
+
+### 15.5 Row and cell typography
+
+| Content | Size | Weight | Treatment |
+|---|---:|---:|---|
+| Ordinary cell | `14px` | `400` | Neutral primary text |
+| Primary record identity | `14px` | `600` maximum | One line when practical |
+| Supporting code or metadata | `12px` | `400` | Neutral secondary text |
+| Status badge | `12px` | `500` maximum | Semantic text and tone |
+
+Default operational rows use a minimum height of `64px`. Use consistent horizontal cell
+padding. Keep a primary identity and one supporting metadata line in the same cell when
+they describe the same entity, for example warehouse name plus code, unit, and business.
+
+Do not create separate visible columns for metadata that is only useful as context. Group
+it below the primary identity when that produces a clearer operational scan.
+
+### 15.6 Status contract
+
+Statuses use compact semantic badges with readable text. Color may reinforce meaning but
+must never be the only signal. Keep labels short and operational, such as `Available`,
+`Shift open`, `Closed today`, or `Register required`.
+
+Do not use status badges as action buttons. State-changing actions belong in the final
+actions group.
+
+### 15.7 Row action group
+
+Actions always appear in the final column inside one neutral action group, not as loose
+icons distributed across the row.
+
+Action group presentation:
+
+- inline flex container
+- neutral border and soft neutral background
+- `12px` corner radius
+- `6px` internal padding
+- `6px` gap between buttons
+- subtle shadow
+- dark-mode equivalent
+
+Desktop icon buttons use `36px` square controls with rounded corners. On touch-first or
+mobile surfaces, use at least `44px` square controls. Every icon-only action requires an
+accessible label and tooltip.
+
+Use this semantic order when the actions exist:
+
+1. primary record action such as view, select, or edit
+2. document, copy, duplicate, share, or open
+3. enable, pause, resume, or another state transition
+4. destructive action last
+
+Use the module tone for primary record actions, neutral or purpose-specific tones for
+secondary actions, and red only for destructive actions. Destructive actions require an
+`IndiceConfirmationDialog`. Disable actions that are known to be invalid and explain why
+in their accessible label or tooltip. The backend remains the final authority.
+
+The initial width of the actions column must follow its visible action count. For compact
+desktop buttons, calculate it from cell padding, group padding, button width, borders, and
+gaps. The approved reference is approximately:
+
+| Visible actions | Suggested initial width |
+|---:|---:|
+| 1 | `74px` |
+| 2 | `116px` |
+| 3 | `158px` |
+
+For four or more actions, widen the column only when all actions are frequent and
+operationally necessary. Otherwise keep the most important actions visible and move safe
+secondary actions into an accessible overflow menu. Never hide the destructive action in
+a menu when doing so makes its presence ambiguous.
+
+### 15.8 Required functionality
 
 Every operational table must support:
 
@@ -936,17 +1205,59 @@ Mandatory pagination options:
 10, 25, 50, 100, 200
 ```
 
-Pagination must use the shared pagination style already applied across modules.
+Pagination must use the shared pagination style already applied across modules. Do not
+create new pagination UI per module.
 
-Do not create new pagination UI per module.
+Pagination changes, filters, search, and sorting must preserve a valid page. Reset to page
+one when the current page may no longer exist.
 
-Actions always go in the last column.
+### 15.9 Responsive behavior
 
-Tables must not become dashboards.
+- filters wrap through `IndiceFilterBar` before the table begins to scroll
+- the table owns its horizontal scrolling container
+- do not compress text below the approved type scale to avoid scrolling
+- keep selection and expansion controls compact and fixed when useful
+- prefer a purpose-built mobile record card when horizontal comparison is no longer the primary task
+- if the table remains on mobile, preserve readable columns, keyboard focus, and touch targets of at least `44px`
 
-Do not overload visible columns.
+### 15.10 Shared extraction target
 
-Maintain comfortable operational density.
+Repeated implementations should converge on presentation primitives equivalent to:
+
+- `IndiceTableShell`
+- `IndiceSortableTableHead`
+- `IndiceResizableTableHead`
+- `IndiceTableActionGroup`
+- `IndiceTableActionButton`
+- `DataTablePagination`
+- `usePersistentColumnWidths`
+
+These primitives must remain business-agnostic. Do not move module queries, permissions,
+labels, business validation, or action handlers into the shared table engine.
+
+### 15.11 Acceptance checklist
+
+A table is not standardized until:
+
+- filter controls use the approved separate filter bar
+- the leading control is expand, select, both, or absent exactly as requested
+- header labels share one size, weight, and vertical rhythm
+- sortable columns work in both directions and expose accessible state
+- declared alignments match their cells
+- row typography follows the primary, ordinary, and supporting hierarchy
+- statuses use semantic text and tone
+- actions are last, grouped, labelled, equipped with tooltips, and permission-aware
+- destructive actions confirm before mutation
+- resizable columns enforce minimums, persist safely, and reset accessibly when enabled
+- pagination offers `10, 25, 50, 100, 200`
+- loading, empty, error, and restricted states remain understandable
+- horizontal overflow is contained locally
+- mobile targets and keyboard navigation remain usable
+- dark mode preserves contrast and hierarchy
+- TypeScript and production build pass
+
+Tables must not become dashboards. Do not overload visible columns. Maintain comfortable
+operational density.
 
 ---
 

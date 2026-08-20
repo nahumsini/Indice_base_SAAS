@@ -7,6 +7,7 @@ export interface PosCashClosingFilters {
   warehouseId?: number | string;
   shiftId?: number | string;
   userId?: number | string;
+  search?: string;
   limit?: number;
   offset?: number;
 }
@@ -30,7 +31,9 @@ export interface PosCashClosingSummaryRow {
   countedCashAmount: number | string;
   overShortAmount: number | string;
   totalSalesAmount: number | string;
+  totalRefundsAmount: number | string;
   ticketsCount: number;
+  paymentsSummary?: PosPaymentMethodSummary[];
   closedByUserId: number;
   closedByUserName?: string | null;
   closedAt: string;

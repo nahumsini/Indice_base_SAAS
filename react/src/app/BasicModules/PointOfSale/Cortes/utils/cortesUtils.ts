@@ -12,19 +12,18 @@ import type { KpiMonetaryAggregate } from '../../../shared/kpiMonetaryApi';
 
 export type CortesViewMode = 'table' | 'day';
 export type CortesPeriodFilter = 'today' | 'yesterday' | 'week' | 'month' | 'custom';
-export type CortesDifferenceFilter = 'all' | 'balanced' | 'withDifference' | 'short' | 'over';
 export type CortesSortKey =
   | 'id'
   | 'closedAt'
   | 'warehouseId'
   | 'cashRegisterId'
-  | 'shiftId'
   | 'closedByUserId'
   | 'ticketsCount'
   | 'totalSalesAmount'
-  | 'expectedCashAmount'
-  | 'countedCashAmount'
-  | 'overShortAmount';
+  | 'cash'
+  | 'card'
+  | 'transfer'
+  | 'credit';
 
 export type CortesSortDirection = 'asc' | 'desc';
 
@@ -36,7 +35,6 @@ export interface CortesFilters {
   warehouseId: string;
   cashRegisterId: string;
   userId: string;
-  difference: CortesDifferenceFilter;
 }
 
 export interface CortesAnalytics {
@@ -48,6 +46,14 @@ export interface CortesAnalytics {
   convertedSalesLabel: string;
   salesCurrencyTotals: CortesCurrencyTotal[];
   hasMultipleSalesCurrencies: boolean;
+  cashSales: number;
+  convertedCashSales: number;
+  cardSales: number;
+  convertedCardSales: number;
+  transferSales: number;
+  convertedTransferSales: number;
+  creditSales: number;
+  convertedCreditSales: number;
   totalTickets: number;
   expectedCash: number;
   convertedExpectedCash: number;
@@ -180,11 +186,28 @@ export const getPaymentTotal = (
     .reduce((total, payment) => total + toNumber(payment.amount), 0)
 );
 
+export const getClosingPaymentTotal = (
+  row: PosCashClosingSummaryRow,
+  method: PosCashClosingPaymentMethod,
+) => {
+  if (!Array.isArray(row.paymentsSummary) || row.paymentsSummary.length === 0) {
+    return method === 'CASH' ? toNumber(row.cashSalesAmount) : 0;
+  }
+
+  return row.paymentsSummary
+    .filter((payment) => payment.paymentMethod === method)
+    .reduce((total, payment) => total + toNumber(payment.amount), 0);
+};
+
 export const buildCortesAnalytics = (
   rows: PosCashClosingSummaryRow[],
   preferredCurrency = defaultBusinessCurrency,
   monetary?: {
     sales?: KpiMonetaryAggregate;
+    cash?: KpiMonetaryAggregate;
+    card?: KpiMonetaryAggregate;
+    transfer?: KpiMonetaryAggregate;
+    credit?: KpiMonetaryAggregate;
     expected?: KpiMonetaryAggregate;
     counted?: KpiMonetaryAggregate;
     difference?: KpiMonetaryAggregate;
@@ -200,29 +223,44 @@ export const buildCortesAnalytics = (
     const expectedCash = toNumber(row.expectedCashAmount);
     const countedCash = toNumber(row.countedCashAmount);
     const netDifference = toNumber(row.overShortAmount);
+    const cashSales = getClosingPaymentTotal(row, 'CASH');
+    const cardSales = getClosingPaymentTotal(row, 'CARD');
+    const transferSales = getClosingPaymentTotal(row, 'TRANSFER');
+    const creditSales = getClosingPaymentTotal(row, 'CREDIT');
 
     totalsByCurrency.set(rowCurrency, (totalsByCurrency.get(rowCurrency) ?? 0) + totalSales);
 
     return {
       ...currentAnalytics,
       balancedCount: currentAnalytics.balancedCount + (status === 'balanced' ? 1 : 0),
+      cardSales: currentAnalytics.cardSales + cardSales,
+      cashSales: currentAnalytics.cashSales + cashSales,
       closingCount: currentAnalytics.closingCount + 1,
       countedCash: currentAnalytics.countedCash + countedCash,
+      creditSales: currentAnalytics.creditSales + creditSales,
       expectedCash: currentAnalytics.expectedCash + expectedCash,
       netDifference: currentAnalytics.netDifference + netDifference,
       overCount: currentAnalytics.overCount + (status === 'over' ? 1 : 0),
       shortCount: currentAnalytics.shortCount + (status === 'short' ? 1 : 0),
       totalSales: currentAnalytics.totalSales + totalSales,
       totalTickets: currentAnalytics.totalTickets + row.ticketsCount,
+      transferSales: currentAnalytics.transferSales + transferSales,
     };
   }, {
     balancedCount: 0,
+    cardSales: 0,
+    cashSales: 0,
     closingCount: 0,
+    convertedCardSales: 0,
+    convertedCashSales: 0,
     convertedCountedCash: 0,
+    convertedCreditSales: 0,
     convertedExpectedCash: 0,
     convertedNetDifference: 0,
     convertedSales: 0,
+    convertedTransferSales: 0,
     countedCash: 0,
+    creditSales: 0,
     expectedCash: 0,
     hasMultipleSalesCurrencies: false,
     netDifference: 0,
@@ -234,6 +272,7 @@ export const buildCortesAnalytics = (
     totalSalesLabel: formatCurrency(0, preferred),
     convertedSalesLabel: formatCurrency(0, preferred),
     totalTickets: 0,
+    transferSales: 0,
   });
 
   const salesCurrencyTotals = Array.from(totalsByCurrency.entries())
@@ -243,47 +282,29 @@ export const buildCortesAnalytics = (
       label: formatCurrency(total, currency),
       total,
     }));
+  const allRowsUsePreferredCurrency = salesCurrencyTotals.every((item) => item.currency === preferred);
+  const preferredTotal = (aggregate: KpiMonetaryAggregate | undefined, nativeTotal: number) => (
+    aggregate?.preferredTotal ?? (allRowsUsePreferredCurrency ? nativeTotal : 0)
+  );
+  const convertedSales = preferredTotal(monetary?.sales, analytics.totalSales);
 
   return {
     ...analytics,
-    convertedCountedCash: monetary?.counted?.preferredTotal ?? 0,
-    convertedExpectedCash: monetary?.expected?.preferredTotal ?? 0,
-    convertedNetDifference: monetary?.difference?.preferredTotal ?? 0,
-    convertedSales: monetary?.sales?.preferredTotal ?? 0,
-    convertedSalesLabel: formatCurrency(monetary?.sales?.preferredTotal ?? 0, preferred),
+    convertedCardSales: preferredTotal(monetary?.card, analytics.cardSales),
+    convertedCashSales: preferredTotal(monetary?.cash, analytics.cashSales),
+    convertedCountedCash: preferredTotal(monetary?.counted, analytics.countedCash),
+    convertedCreditSales: preferredTotal(monetary?.credit, analytics.creditSales),
+    convertedExpectedCash: preferredTotal(monetary?.expected, analytics.expectedCash),
+    convertedNetDifference: preferredTotal(monetary?.difference, analytics.netDifference),
+    convertedSales,
+    convertedSalesLabel: formatCurrency(convertedSales, preferred),
+    convertedTransferSales: preferredTotal(monetary?.transfer, analytics.transferSales),
     hasMultipleSalesCurrencies: salesCurrencyTotals.length > 1,
     salesCurrencyTotals,
     totalSalesLabel: salesCurrencyTotals.length > 0
       ? salesCurrencyTotals.map((item) => item.label).join(' / ')
       : formatCurrency(0, preferred),
   };
-};
-
-export const filterCortesRows = (
-  rows: PosCashClosingSummaryRow[],
-  filters: CortesFilters,
-) => {
-  const search = filters.search.trim().toLowerCase();
-
-  return rows.filter((row) => {
-    const status = getClosingStatus(row);
-    const searchable = [
-      `COR-${row.id}`,
-      row.id,
-      row.shiftId,
-      row.cashRegisterId,
-      row.warehouseId,
-      row.closedByUserId,
-    ].join(' ').toLowerCase();
-
-    const matchesSearch = search === '' || searchable.includes(search);
-    const matchesDifference = filters.difference === 'all'
-      || (filters.difference === 'balanced' && status === 'balanced')
-      || (filters.difference === 'withDifference' && status !== 'balanced')
-      || filters.difference === status;
-
-    return matchesSearch && matchesDifference;
-  });
 };
 
 export const sortCortesRows = (
@@ -293,13 +314,18 @@ export const sortCortesRows = (
 ) => {
   const multiplier = direction === 'asc' ? 1 : -1;
 
+  const valueFor = (row: PosCashClosingSummaryRow) => {
+    if (sortKey === 'closedAt') return new Date(row.closedAt).getTime();
+    if (sortKey === 'cash') return getClosingPaymentTotal(row, 'CASH');
+    if (sortKey === 'card') return getClosingPaymentTotal(row, 'CARD');
+    if (sortKey === 'transfer') return getClosingPaymentTotal(row, 'TRANSFER');
+    if (sortKey === 'credit') return getClosingPaymentTotal(row, 'CREDIT');
+    return toNumber(row[sortKey]);
+  };
+
   return [...rows].sort((first, second) => {
-    const firstValue = sortKey === 'closedAt'
-      ? new Date(first.closedAt).getTime()
-      : toNumber(first[sortKey]);
-    const secondValue = sortKey === 'closedAt'
-      ? new Date(second.closedAt).getTime()
-      : toNumber(second[sortKey]);
+    const firstValue = valueFor(first);
+    const secondValue = valueFor(second);
 
     return (firstValue - secondValue) * multiplier;
   });

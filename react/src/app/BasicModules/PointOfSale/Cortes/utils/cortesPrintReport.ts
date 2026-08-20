@@ -14,6 +14,7 @@ import {
   formatCurrency,
   formatDateTime,
   getClosingCurrency,
+  getClosingPaymentTotal,
   toNumber,
 } from './cortesUtils';
 
@@ -160,39 +161,27 @@ export function buildCortesPrintReportHtml({
         toNumber(row.totalSalesAmount),
         row,
       );
-      const expected = formatClosingAmount(
-        toNumber(row.expectedCashAmount),
-        row,
-      );
-      const counted = formatClosingAmount(
-        toNumber(row.countedCashAmount),
-        row,
-      );
-      const difference = formatClosingAmount(
-        toNumber(row.overShortAmount),
-        row,
-      );
-      const differenceAmount = toNumber(row.overShortAmount);
-      const differenceClass = differenceAmount < 0 ? 'risk' : differenceAmount > 0 ? 'warning' : 'ok';
+      const cash = formatClosingAmount(getClosingPaymentTotal(row, 'CASH'), row);
+      const card = formatClosingAmount(getClosingPaymentTotal(row, 'CARD'), row);
+      const transfer = formatClosingAmount(getClosingPaymentTotal(row, 'TRANSFER'), row);
+      const credit = formatClosingAmount(getClosingPaymentTotal(row, 'CREDIT'), row);
 
       return `
         <tr>
           <td><strong>COR-${escapeHtml(row.id)}</strong></td>
           <td>${escapeHtml(formatDateTime(row.closedAt))}</td>
-            <td>Almacén ${escapeHtml(row.warehouseId)}</td>
+          <td>Almacén ${escapeHtml(row.warehouseId)}</td>
           <td>Caja ${escapeHtml(row.cashRegisterId)}</td>
           <td>Usuario ${escapeHtml(row.closedByUserId)}</td>
-          <td>Turno ${escapeHtml(row.shiftId)}</td>
           <td class="number">${escapeHtml(row.ticketsCount)}</td>
           <td>${escapeHtml(getClosingCurrency(row))}</td>
           <td class="amount">
             <strong>${escapeHtml(sales.nativeLabel)}</strong>
           </td>
-          <td class="amount">${escapeHtml(expected.nativeLabel)}</td>
-          <td class="amount">${escapeHtml(counted.nativeLabel)}</td>
-          <td class="amount ${differenceClass}">
-            <strong>${escapeHtml(difference.nativeLabel)}</strong>
-          </td>
+          <td class="amount">${escapeHtml(cash.nativeLabel)}</td>
+          <td class="amount">${escapeHtml(card.nativeLabel)}</td>
+          <td class="amount">${escapeHtml(transfer.nativeLabel)}</td>
+          <td class="amount">${escapeHtml(credit.nativeLabel)}</td>
         </tr>
       `;
     }).join('')
@@ -377,13 +366,13 @@ export function buildCortesPrintReportHtml({
             <th>Almacén</th>
             <th>Caja</th>
             <th>Cajero</th>
-            <th>Turno</th>
             <th>Tickets</th>
             <th>Divisa</th>
             <th>Ventas</th>
-            <th>Esperado</th>
-            <th>Contado</th>
-            <th>Diferencia</th>
+            <th>Efectivo</th>
+            <th>Tarjeta</th>
+            <th>Transferencia</th>
+            <th>Crédito</th>
           </tr>
         </thead>
         <tbody>${tableRows}</tbody>

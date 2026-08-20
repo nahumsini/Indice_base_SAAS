@@ -8,6 +8,8 @@ import {
   Warehouse,
 } from 'lucide-react';
 import type { CashRegisterContext } from '../../shared/cashClosing.types';
+import { usePointOfSaleTranslations } from '../../hooks/usePointOfSaleTranslations';
+import { PointOfSaleTitleBar } from '../../shared/components/PointOfSaleTitleBar';
 import {
   posBackendApi,
   type PosCashRegisterCreatePayload,
@@ -60,6 +62,7 @@ export function SaleNoShiftState({
   onClearNotice,
 }: SaleNoShiftStateProps) {
   const navigate = useNavigate();
+  const moduleCopy = usePointOfSaleTranslations();
   const [isCreateRegisterModalOpen, setIsCreateRegisterModalOpen] = useState(false);
   const [isCreatingRegister, setIsCreatingRegister] = useState(false);
   const [setupError, setSetupError] = useState('');
@@ -103,17 +106,17 @@ export function SaleNoShiftState({
     }
   };
 
-  const handleEnsureWarehouseRegister = async (warehouseId: string) => {
-    const createdOrExisting = await posBackendApi.ensureCashRegisterForWarehouse(warehouseId);
-    await onRetry();
-    onSelectCashRegister(String(createdOrExisting.id));
-    return String(createdOrExisting.id);
-  };
-
   return (
     <>
-      <div className="flex min-h-[calc(100vh-240px)] items-center justify-center">
-        <div className="w-full max-w-4xl rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800 md:p-8">
+      <div className="space-y-5">
+        <PointOfSaleTitleBar
+          icon="🧾"
+          title={moduleCopy.tabs.sale}
+          subtitle={moduleCopy.titleBars.saleSubtitle}
+        />
+
+        <div className="flex min-h-[calc(100vh-360px)] items-center justify-center">
+          <div className="w-full max-w-4xl rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800 md:p-8">
           <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-lg bg-gray-950 text-white dark:bg-white dark:text-gray-950">
             <LogIn className="h-10 w-10" />
           </div>
@@ -177,7 +180,7 @@ export function SaleNoShiftState({
             </div>
           )}
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
             {notice && hasCashRegisters ? (
               <button
                 type="button"
@@ -208,6 +211,7 @@ export function SaleNoShiftState({
                 {isOpeningShift ? 'Abriendo...' : notice ? 'Abrir otro turno' : 'Abrir turno'}
               </button>
             )}
+            </div>
           </div>
         </div>
       </div>
@@ -224,7 +228,6 @@ export function SaleNoShiftState({
           onClose={onCloseOpenShiftModal}
           onConfirm={onOpenShift}
           onSelectCashRegister={onSelectCashRegister}
-          onEnsureWarehouseRegister={canManageCashRegisters ? handleEnsureWarehouseRegister : undefined}
         />
       )}
 

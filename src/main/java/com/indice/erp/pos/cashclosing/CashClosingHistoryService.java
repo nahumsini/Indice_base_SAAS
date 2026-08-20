@@ -24,7 +24,8 @@ public class CashClosingHistoryService {
             .sorted(Comparator.comparing(com.indice.erp.pos.cashclosing.dto.CashClosingSummaryRow::closedAt)
                 .reversed())
             .toList();
-        return new CashClosingListResponse(rows, rows.size(), sanitized.limit(), sanitized.offset());
+        var totalCount = repository.countAll(context, sanitized);
+        return new CashClosingListResponse(rows, totalCount, sanitized.limit(), sanitized.offset());
     }
 
     @Transactional(readOnly = true)

@@ -649,20 +649,44 @@ interface PointOfSaleLegacyLocalizerProps {
   locale: PointOfSaleLocale;
 }
 
+type LegacyTranslationSnapshot = {
+  source: string;
+  translated: string;
+};
+
+function resolveLegacyTranslationSnapshot(
+  currentValue: string,
+  previous: LegacyTranslationSnapshot | undefined,
+  locale: PointOfSaleLocale,
+): LegacyTranslationSnapshot {
+  const source = previous && currentValue === previous.translated
+    ? previous.source
+    : currentValue;
+
+  return {
+    source,
+    translated: translateLegacyText(source, locale),
+  };
+}
+
 export function PointOfSaleLegacyLocalizer({ children, locale }: PointOfSaleLegacyLocalizerProps) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const textOriginals = useRef(new WeakMap<Text, string>());
+  const textSnapshots = useRef(new WeakMap<Text, LegacyTranslationSnapshot>());
 
   useLayoutEffect(() => {
     const root = rootRef.current;
     if (!root) return undefined;
 
     const translateTextNode = (node: Text) => {
-      const original = textOriginals.current.get(node) ?? node.nodeValue ?? '';
-      textOriginals.current.set(node, original);
-      const translated = translateLegacyText(original, locale);
-      if (node.nodeValue !== translated) {
-        node.nodeValue = translated;
+      const currentValue = node.nodeValue ?? '';
+      const snapshot = resolveLegacyTranslationSnapshot(
+        currentValue,
+        textSnapshots.current.get(node),
+        locale,
+      );
+      textSnapshots.current.set(node, snapshot);
+      if (currentValue !== snapshot.translated) {
+        node.nodeValue = snapshot.translated;
       }
     };
 
@@ -671,12 +695,20 @@ export function PointOfSaleLegacyLocalizer({ children, locale }: PointOfSaleLega
       for (const attribute of translatableAttributes) {
         const value = element.getAttribute(attribute);
         if (!value) continue;
-        const dataKey = `posI18nOriginal${attribute.replace(/[^a-z]/gi, '')}`;
+        const attributeKey = attribute.replace(/[^a-z]/gi, '');
+        const sourceDataKey = `posI18nSource${attributeKey}`;
+        const translatedDataKey = `posI18nTranslated${attributeKey}`;
         const dataset = (element as HTMLElement).dataset;
-        const original = dataset[dataKey] ?? value;
-        dataset[dataKey] = original;
-        const translated = translateLegacyText(original, locale);
-        if (translated !== value) element.setAttribute(attribute, translated);
+        const previous = dataset[sourceDataKey] === undefined || dataset[translatedDataKey] === undefined
+          ? undefined
+          : {
+              source: dataset[sourceDataKey],
+              translated: dataset[translatedDataKey],
+            };
+        const snapshot = resolveLegacyTranslationSnapshot(value, previous, locale);
+        dataset[sourceDataKey] = snapshot.source;
+        dataset[translatedDataKey] = snapshot.translated;
+        if (snapshot.translated !== value) element.setAttribute(attribute, snapshot.translated);
       }
     };
 

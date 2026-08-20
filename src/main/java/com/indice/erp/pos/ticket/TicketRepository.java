@@ -2,7 +2,10 @@ package com.indice.erp.pos.ticket;
 
 import com.indice.erp.pos.PosContext;
 import com.indice.erp.pos.PosSqlSupport;
+import com.indice.erp.kpis.currency.KpiMoneyAmount;
 import java.sql.Statement;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -29,6 +32,30 @@ public class TicketRepository {
             ORDER BY ticket.completed_at DESC, ticket.id DESC
             LIMIT 300
             """, mapper::mapTicket, params.toArray());
+    }
+
+    public List<KpiMoneyAmount> summarizeCompletedSalesBetween(
+            PosContext context,
+            Instant fromInclusive,
+            Instant toExclusive) {
+        var params = new ArrayList<Object>();
+        params.add(context.companyId());
+        params.add(Timestamp.from(fromInclusive));
+        params.add(Timestamp.from(toExclusive));
+        PosSqlSupport.appendScopeParams(params, context.scope());
+        return jdbcTemplate.query("""
+            SELECT SUM(ticket.total_amount) AS amount, ticket.currency_code AS currency
+            FROM pos_tickets ticket
+            WHERE ticket.company_id = ? AND ticket.deleted_at IS NULL
+              AND ticket.status = 'COMPLETED'
+              AND ticket.completed_at >= ? AND ticket.completed_at < ?
+              AND """ + PosSqlSupport.scopePredicate("ticket", context.scope()) + """
+            GROUP BY ticket.currency_code
+            ORDER BY ticket.currency_code
+            """, (rs, rowNum) -> new KpiMoneyAmount(
+                rs.getBigDecimal("amount"),
+                rs.getString("currency")
+            ), params.toArray());
     }
 
     public Optional<TicketRecord> findById(PosContext context, long ticketId) {

@@ -149,6 +149,16 @@ export type PosShiftClosingSummaryResponse = {
   closedAt?: string | null;
 };
 
+export type PosDailySalesSummaryResponse = {
+  preferredCurrency: string;
+  preferredTotal: number;
+  nativeTotals: Array<{ currency: string; amount: number }>;
+  exchangeRate: { mode: string; effectiveDate?: string; source?: string };
+  partial: boolean;
+  excludedRecords: number;
+  excludedCurrencies: string[];
+};
+
 export type PosCheckoutPaymentMethod = 'CASH' | 'CARD' | 'TRANSFER' | 'WALLET' | 'CREDIT';
 
 export type PosCheckoutItemPayload = {
@@ -290,6 +300,11 @@ export const posBackendApi = {
   },
   getShiftClosingSummary(shiftId: number | string) {
     return apiClient<PosShiftClosingSummaryResponse>(`${posBasePath}/shifts/${shiftId}/closing-summary`);
+  },
+  getDailySalesSummary(preferredCurrency: string) {
+    return apiClient<PosDailySalesSummaryResponse>(
+      `${posBasePath}/tickets/daily-summary?preferredCurrency=${encodeURIComponent(preferredCurrency)}`,
+    );
   },
   openShift(payload: PosOpenShiftPayload) {
     return apiClient<PosShiftResponse>(`${posBasePath}/shifts/open`, {

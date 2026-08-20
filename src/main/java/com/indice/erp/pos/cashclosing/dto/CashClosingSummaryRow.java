@@ -2,6 +2,7 @@ package com.indice.erp.pos.cashclosing.dto;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 
 public record CashClosingSummaryRow(
         Long id,
@@ -22,7 +23,9 @@ public record CashClosingSummaryRow(
         BigDecimal countedCashAmount,
         BigDecimal overShortAmount,
         BigDecimal totalSalesAmount,
+        BigDecimal totalRefundsAmount,
         int ticketsCount,
+        List<PaymentMethodSummary> paymentsSummary,
         Long closedByUserId,
         String closedByUserName,
         String currencyCode,

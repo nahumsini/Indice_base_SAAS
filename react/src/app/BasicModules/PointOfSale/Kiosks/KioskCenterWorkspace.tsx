@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   Columns3,
   ChefHat,
   CircleCheck,
@@ -16,7 +19,6 @@ import {
   Plus,
   RefreshCw,
   RotateCcw,
-  Search,
   Power,
   ShoppingBasket,
   Trash2,
@@ -25,6 +27,16 @@ import {
   Wifi,
   WifiOff,
 } from 'lucide-react';
+import {
+  IndiceFilterBar,
+  IndiceFilterSearch,
+  IndiceFilterSelect,
+} from '../../../components/frontend-os';
+import {
+  PointOfSaleTitleBar,
+  pointOfSaleTitleBarPrimaryActionClassName,
+  pointOfSaleTitleBarSecondaryActionClassName,
+} from '../shared/components/PointOfSaleTitleBar';
 import {
   PosModalFrame,
   posModalModuleFooterClassName,
@@ -38,7 +50,6 @@ import {
   type PosKioskAdminItem,
   type PosKioskConnectionStatus,
   type PosKioskStatus,
-  type PosKioskType,
 } from './posKioskAdminApi';
 import { KioskEditModal } from './KioskEditModal';
 import { downloadKioskQrPosterPdf } from './kioskQrPosterPdf';
@@ -47,6 +58,35 @@ type KioskExperience = 'customer-display' | 'self-service' | 'self-checkout' | '
 export type CreatableKioskExperience = Extract<KioskExperience, 'customer-display' | 'self-service' | 'self-checkout'>;
 type ConnectionFilter = 'all' | PosKioskConnectionStatus;
 type ColumnId = 'type' | 'scope' | 'shift' | 'connection' | 'activity' | 'expiration' | 'link';
+type KioskSortKey = 'name' | ColumnId;
+type KioskSortDirection = 'asc' | 'desc';
+type KioskResizableColumn = KioskSortKey | 'actions';
+type KioskColumnWidths = Record<KioskResizableColumn, number>;
+
+const KIOSK_COLUMN_WIDTHS_STORAGE_KEY = 'indice:pos:kiosks:column-widths:v1';
+const KIOSK_MAX_COLUMN_WIDTH = 720;
+const KIOSK_DEFAULT_COLUMN_WIDTHS: KioskColumnWidths = {
+  name: 270,
+  type: 190,
+  scope: 250,
+  shift: 250,
+  connection: 180,
+  activity: 190,
+  expiration: 160,
+  link: 200,
+  actions: 326,
+};
+const KIOSK_CONTENT_MINIMUM_WIDTHS: KioskColumnWidths = {
+  name: 220,
+  type: 150,
+  scope: 190,
+  shift: 210,
+  connection: 150,
+  activity: 160,
+  expiration: 130,
+  link: 160,
+  actions: 326,
+};
 
 const defaultColumns: Array<{ id: ColumnId; visible: boolean }> = [
   { id: 'type', visible: true },
@@ -58,15 +98,85 @@ const defaultColumns: Array<{ id: ColumnId; visible: boolean }> = [
   { id: 'link', visible: true },
 ];
 
+function estimateHeaderWidth(label: string, sortable: boolean) {
+  const textWidth = Array.from(label).reduce((width, character) => width + (character === ' ' ? 4 : 7.4), 0);
+  return Math.ceil(textWidth + (sortable ? 76 : 54));
+}
+
+function getKioskMinimumColumnWidths(center: ReturnType<typeof usePointOfSaleKioskTranslations>['copy']['center']): KioskColumnWidths {
+  const minimums = { ...KIOSK_CONTENT_MINIMUM_WIDTHS };
+  const labels: Record<KioskSortKey, string> = {
+    name: center.name,
+    type: center.type,
+    scope: center.scope,
+    shift: center.shiftStatus,
+    connection: center.connection,
+    activity: center.lastActivity,
+    expiration: center.expires,
+    link: center.link,
+  };
+  (Object.keys(labels) as KioskSortKey[]).forEach((column) => {
+    minimums[column] = Math.max(KIOSK_CONTENT_MINIMUM_WIDTHS[column], estimateHeaderWidth(labels[column], true));
+  });
+  minimums.actions = Math.max(KIOSK_CONTENT_MINIMUM_WIDTHS.actions, estimateHeaderWidth(center.actions, false));
+  return minimums;
+}
+
+function getDefaultKioskColumnWidths(minimumWidths: KioskColumnWidths): KioskColumnWidths {
+  return Object.fromEntries(
+    (Object.keys(KIOSK_DEFAULT_COLUMN_WIDTHS) as KioskResizableColumn[]).map((column) => [
+      column,
+      Math.max(KIOSK_DEFAULT_COLUMN_WIDTHS[column], minimumWidths[column]),
+    ]),
+  ) as KioskColumnWidths;
+}
+
+function loadKioskColumnWidths(minimumWidths: KioskColumnWidths): KioskColumnWidths {
+  const defaults = getDefaultKioskColumnWidths(minimumWidths);
+  if (typeof window === 'undefined') return defaults;
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(KIOSK_COLUMN_WIDTHS_STORAGE_KEY) ?? 'null') as Partial<KioskColumnWidths> | null;
+    const columns = Object.keys(defaults) as KioskResizableColumn[];
+    if (!stored || !columns.every((column) => (
+      Number.isFinite(stored[column])
+      && Number(stored[column]) >= minimumWidths[column]
+      && Number(stored[column]) <= KIOSK_MAX_COLUMN_WIDTH
+    ))) return defaults;
+    return { ...defaults, ...stored } as KioskColumnWidths;
+  } catch {
+    return defaults;
+  }
+}
+
+function resizeKioskColumn(widths: KioskColumnWidths, column: KioskResizableColumn, delta: number, minimumWidth: number) {
+  return {
+    ...widths,
+    [column]: Math.round(Math.min(Math.max(widths[column] + delta, minimumWidth), KIOSK_MAX_COLUMN_WIDTH)),
+  };
+}
+
+function kioskCashRegisterFilterValue(row: PosKioskAdminItem) {
+  if (row.assignment.cashRegisterId != null) return `id:${row.assignment.cashRegisterId}`;
+  const code = row.assignment.cashRegisterCode?.trim() ?? '';
+  const name = row.assignment.cashRegisterName?.trim() ?? '';
+  return code || name ? `legacy:${code}:${name}` : 'unassigned';
+}
+
+function kioskCashRegisterFilterLabel(row: PosKioskAdminItem, unassignedLabel: string) {
+  const name = row.assignment.cashRegisterName?.trim();
+  const code = row.assignment.cashRegisterCode?.trim();
+  if (name && code) return `${name} · ${code}`;
+  return name || code || row.assignment.secondaryLabel?.trim() || unassignedLabel;
+}
+
 export function KioskCenterWorkspace({ onCreateView, refreshKey = 0, createdKioskName = '' }: { onCreateView: (view: CreatableKioskExperience) => void; refreshKey?: number; createdKioskName?: string }) {
   const { copy, locale } = usePointOfSaleKioskTranslations();
+  const minimumColumnWidths = useMemo(() => getKioskMinimumColumnWidths(copy.center), [copy.center]);
   const [rows, setRows] = useState<PosKioskAdminItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'all' | PosKioskType>('all');
-  const [branchFilter, setBranchFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [cashRegisterFilter, setCashRegisterFilter] = useState('all');
   const [connectionFilter, setConnectionFilter] = useState<ConnectionFilter>('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -78,6 +188,9 @@ export function KioskCenterWorkspace({ onCreateView, refreshKey = 0, createdKios
   const [pendingAction, setPendingAction] = useState<{ row: PosKioskAdminItem; action: 'rotate' | 'delete' } | null>(null);
   const [busyAction, setBusyAction] = useState('');
   const [notice, setNotice] = useState('');
+  const [sortKey, setSortKey] = useState<KioskSortKey>('name');
+  const [sortDirection, setSortDirection] = useState<KioskSortDirection>('asc');
+  const [columnWidths, setColumnWidths] = useState<KioskColumnWidths>(() => loadKioskColumnWidths(minimumColumnWidths));
 
   const reload = async () => {
     setLoading(true);
@@ -94,9 +207,7 @@ export function KioskCenterWorkspace({ onCreateView, refreshKey = 0, createdKios
   useEffect(() => {
     if (refreshKey > 0) {
       setQuery('');
-      setTypeFilter('all');
-      setBranchFilter('all');
-      setStatusFilter('all');
+      setCashRegisterFilter('all');
       setConnectionFilter('all');
       setPage(1);
       setNotice(copy.center.createdFeedback(createdKioskName));
@@ -122,32 +233,111 @@ export function KioskCenterWorkspace({ onCreateView, refreshKey = 0, createdKios
     };
   }, []);
 
-  const branches = useMemo(
-    () => Array.from(new Set(rows.map((row) => row.assignment.primaryLabel).filter(Boolean))).sort((a, b) => a.localeCompare(b, locale)),
-    [locale, rows],
-  );
+  useEffect(() => {
+    setColumnWidths((current) => {
+      const next = { ...current };
+      let changed = false;
+      (Object.keys(current) as KioskResizableColumn[]).forEach((column) => {
+        const safeWidth = Math.min(Math.max(current[column], minimumColumnWidths[column]), KIOSK_MAX_COLUMN_WIDTH);
+        if (safeWidth !== current[column]) {
+          next[column] = safeWidth;
+          changed = true;
+        }
+      });
+      return changed ? next : current;
+    });
+  }, [minimumColumnWidths]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(KIOSK_COLUMN_WIDTHS_STORAGE_KEY, JSON.stringify(columnWidths));
+    } catch {
+      // Column resizing remains available when browser storage is unavailable.
+    }
+  }, [columnWidths]);
+
+  const cashRegisters = useMemo(() => {
+    const options = new Map<string, string>();
+    rows.forEach((row) => {
+      const value = kioskCashRegisterFilterValue(row);
+      if (!options.has(value)) options.set(value, kioskCashRegisterFilterLabel(row, copy.center.unassigned));
+    });
+    return Array.from(options, ([value, label]) => ({ value, label }))
+      .sort((left, right) => left.label.localeCompare(right.label, locale));
+  }, [copy.center.unassigned, locale, rows]);
 
   const filteredRows = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase(locale);
     return rows.filter((row) => (
-      (!normalizedQuery || `${row.name} ${row.code} ${row.assignment.primaryLabel} ${row.assignment.secondaryLabel}`.toLocaleLowerCase(locale).includes(normalizedQuery))
-      && (typeFilter === 'all' || row.kioskType === typeFilter)
-      && (branchFilter === 'all' || row.assignment.primaryLabel === branchFilter)
-      && (statusFilter === 'all' || row.status === statusFilter || (statusFilter === 'INCOMPLETE' && row.configurationStatus === 'INCOMPLETE'))
+      (!normalizedQuery || `${row.name} ${row.code} ${row.assignment.primaryLabel} ${row.assignment.secondaryLabel} ${row.assignment.cashRegisterName ?? ''} ${row.assignment.cashRegisterCode ?? ''}`.toLocaleLowerCase(locale).includes(normalizedQuery))
+      && (cashRegisterFilter === 'all' || kioskCashRegisterFilterValue(row) === cashRegisterFilter)
       && (connectionFilter === 'all' || row.connectionStatus === connectionFilter)
     ));
-  }, [branchFilter, connectionFilter, locale, query, rows, statusFilter, typeFilter]);
+  }, [cashRegisterFilter, connectionFilter, locale, query, rows]);
 
-  useEffect(() => { setPage(1); }, [query, typeFilter, branchFilter, statusFilter, connectionFilter, pageSize]);
+  const sortedRows = useMemo(() => [...filteredRows].sort((left, right) => {
+    const primary = compareKioskRows(left, right, sortKey, locale);
+    const directional = sortDirection === 'asc' ? primary : -primary;
+    return directional || left.id - right.id;
+  }), [filteredRows, locale, sortDirection, sortKey]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  useEffect(() => { setPage(1); }, [query, cashRegisterFilter, connectionFilter, pageSize, sortDirection, sortKey]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedRows.length / pageSize));
   const safePage = Math.min(page, totalPages);
-  const pageStart = filteredRows.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
-  const pageEnd = Math.min(safePage * pageSize, filteredRows.length);
-  const visibleRows = filteredRows.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const pageStart = sortedRows.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const pageEnd = Math.min(safePage * pageSize, sortedRows.length);
+  const visibleRows = sortedRows.slice((safePage - 1) * pageSize, safePage * pageSize);
   const visibleColumnIds = columns.filter((column) => column.visible).map((column) => column.id);
+  const resizableColumns: KioskResizableColumn[] = ['name', ...visibleColumnIds, 'actions'];
+  const tableWidth = resizableColumns.reduce((total, column) => total + columnWidths[column], 0);
+  const defaultColumnWidths = useMemo(() => getDefaultKioskColumnWidths(minimumColumnWidths), [minimumColumnWidths]);
   const enabledCount = rows.filter((row) => row.status === 'ACTIVE').length;
   const readyCount = rows.filter((row) => row.status === 'ACTIVE' && resolveKioskShiftState(row) === 'open').length;
+
+  const sortBy = (column: KioskSortKey) => {
+    if (column === sortKey) {
+      setSortDirection((current) => current === 'asc' ? 'desc' : 'asc');
+      return;
+    }
+    setSortKey(column);
+    setSortDirection('asc');
+  };
+
+  const resizeColumnBy = (column: KioskResizableColumn, delta: number) => {
+    setColumnWidths((current) => resizeKioskColumn(current, column, delta, minimumColumnWidths[column]));
+  };
+
+  const startColumnResize = (event: React.PointerEvent<HTMLSpanElement>, column: KioskResizableColumn) => {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidths = { ...columnWidths };
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const handlePointerMove = (pointerEvent: PointerEvent) => {
+      setColumnWidths(resizeKioskColumn(
+        startWidths,
+        column,
+        pointerEvent.clientX - startX,
+        minimumColumnWidths[column],
+      ));
+    };
+    const stopColumnResize = () => {
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', stopColumnResize);
+      window.removeEventListener('pointercancel', stopColumnResize);
+    };
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', stopColumnResize);
+    window.addEventListener('pointercancel', stopColumnResize);
+  };
+
+  const resetColumnWidths = () => setColumnWidths(defaultColumnWidths);
 
   const continueCreate = () => {
     if (!isCreatableKioskExperience(selectedCreateType)) return;
@@ -226,46 +416,128 @@ export function KioskCenterWorkspace({ onCreateView, refreshKey = 0, createdKios
 
   return (
     <div className="space-y-5">
-      <section className="rounded-xl border border-[#FF6B5E]/30 bg-[#FF6B5E]/10 p-6 dark:border-[#FF6B5E]/40 dark:bg-[#FF6B5E]/15">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex min-w-0 gap-3">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-[#FF6B5E]/25 bg-white text-[#B63B32] dark:bg-slate-950"><Monitor className="h-5 w-5" /></span>
-            <div>
-              <p className="text-xs font-medium text-[#B63B32]">{copy.center.eyebrow}</p>
-              <h2 className="mt-1 text-2xl font-medium text-slate-950 dark:text-white">{copy.center.title}</h2>
-              <p className="mt-1 max-w-3xl text-sm text-slate-600 dark:text-slate-300">{copy.center.description}</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => setShowColumns(true)} className="inline-flex h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-[#B63B32] dark:border-slate-700 dark:bg-slate-900 dark:text-white"><Columns3 className="h-4 w-4" />{copy.center.columns}</button>
-            <button type="button" onClick={() => void reload()} disabled={loading} className="inline-flex h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{copy.center.refresh}</button>
-            <button type="button" onClick={() => setShowCreate(true)} className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#FF6B5E] px-4 text-sm font-medium text-[#222831]"><Plus className="h-4 w-4" />{copy.center.create}</button>
-          </div>
-        </div>
-      </section>
+      <PointOfSaleTitleBar
+        icon="🖥️"
+        title={copy.center.title}
+        subtitle={copy.center.description}
+        actions={(
+          <>
+            <button type="button" onClick={() => setShowColumns(true)} className={pointOfSaleTitleBarSecondaryActionClassName}>
+              <Columns3 className="h-4 w-4" />
+              {copy.center.columns}
+            </button>
+            <button type="button" onClick={() => void reload()} disabled={loading} className={pointOfSaleTitleBarSecondaryActionClassName}>
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              {copy.center.refresh}
+            </button>
+            <button type="button" onClick={() => setShowCreate(true)} className={pointOfSaleTitleBarPrimaryActionClassName}>
+              <Plus className="h-4 w-4" />
+              {copy.center.create}
+            </button>
+          </>
+        )}
+      />
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
-        <h3 className="text-sm font-medium text-slate-900 dark:text-white">{copy.center.filters}</h3>
-        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <FilterField label={copy.center.search} className="xl:col-span-2">
-            <span className="relative block"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={copy.center.searchPlaceholder} className="h-11 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-3 text-sm dark:border-slate-700 dark:bg-slate-900" /></span>
-          </FilterField>
-          <FilterSelect label={copy.center.type} value={typeFilter} onChange={(value) => setTypeFilter(value as 'all' | PosKioskType)} options={[['all', copy.center.allTypes], ['customer_display', copy.center.customerDisplay], ['self_service', copy.center.selfService], ['self_checkout', copy.workspace.selfCheckoutTab]]} />
-          <FilterSelect label={copy.center.branch} value={branchFilter} onChange={setBranchFilter} options={[['all', copy.center.allBranches], ...branches.map((branch) => [branch, branch] as [string, string])]} />
-          <FilterSelect label={copy.center.status} value={statusFilter} onChange={setStatusFilter} options={[['all', copy.center.allStatuses], ['ACTIVE', copy.center.enabledStatus], ['DISABLED', copy.center.disabledStatus], ['INCOMPLETE', copy.center.incomplete], ['EXPIRED', copy.center.accessExpired]]} />
-          <FilterSelect label={copy.center.connection} value={connectionFilter} onChange={(value) => setConnectionFilter(value as ConnectionFilter)} options={[['all', copy.center.allConnections], ['ONLINE', copy.center.online], ['OFFLINE', copy.center.offline], ['NEVER_CONNECTED', copy.center.neverConnected]]} />
-        </div>
-      </section>
+      <IndiceFilterBar
+        title={copy.center.filters}
+        gridClassName="lg:grid-cols-[minmax(18rem,2fr)_repeat(2,minmax(14rem,1fr))]"
+      >
+        <IndiceFilterSearch
+          label={copy.center.search}
+          value={query}
+          onValueChange={setQuery}
+          onClear={() => setQuery('')}
+          clearLabel={copy.center.search}
+          placeholder={copy.center.searchPlaceholder}
+          tone="coral"
+        />
+        <IndiceFilterSelect
+          label={copy.center.cashRegister}
+          value={cashRegisterFilter}
+          onValueChange={setCashRegisterFilter}
+          options={[
+            { value: 'all', label: copy.center.allCashRegisters },
+            ...cashRegisters.map(({ value, label }) => ({ value, label })),
+          ]}
+          tone="coral"
+        />
+        <IndiceFilterSelect
+          label={copy.center.connection}
+          value={connectionFilter}
+          onValueChange={(value) => setConnectionFilter(value as ConnectionFilter)}
+          options={[
+            { value: 'all', label: copy.center.allConnections },
+            { value: 'ONLINE', label: copy.center.online },
+            { value: 'OFFLINE', label: copy.center.offline },
+            { value: 'NEVER_CONNECTED', label: copy.center.neverConnected },
+          ]}
+          tone="coral"
+        />
+      </IndiceFilterBar>
 
       {error ? <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</div> : null}
       {notice ? <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{notice}</div> : null}
       <p className="text-sm text-slate-600 dark:text-slate-300">{copy.center.insight(filteredRows.length, rows.length, enabledCount, readyCount)}</p>
 
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
-        <div className="overflow-x-auto">
-          <table className="min-w-[1680px] text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-500 dark:border-slate-800 dark:bg-slate-900">
-              <tr><th className="px-5 py-4">{copy.center.name}</th>{visibleColumnIds.map((column) => <th key={column} className="px-5 py-4">{columnLabel(column, copy.center)}</th>)}<th className="px-5 py-4 text-right">{copy.center.actions}</th></tr>
+      <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="overflow-x-auto overscroll-x-contain">
+          <table style={{ width: `${tableWidth}px`, minWidth: '100%' }} className="table-fixed divide-y divide-slate-200 text-sm leading-5 dark:divide-slate-700">
+            <colgroup>
+              <col style={{ width: `${columnWidths.name}px` }} />
+              {visibleColumnIds.map((column) => <col key={column} style={{ width: `${columnWidths[column]}px` }} />)}
+              <col style={{ width: `${columnWidths.actions}px` }} />
+            </colgroup>
+            <thead className="bg-slate-50 text-[13px] font-normal leading-4 text-slate-500 dark:bg-slate-950/60 dark:text-slate-300">
+              <tr className="h-[52px]">
+                <KioskTableHead
+                  column="name"
+                  label={copy.center.name}
+                  sortDirection={sortDirection}
+                  sortKey={sortKey}
+                  ascendingLabel={copy.center.ascending}
+                  descendingLabel={copy.center.descending}
+                  onSort={sortBy}
+                  resizeHandle={<KioskColumnResizeHandle
+                    currentWidth={columnWidths.name}
+                    minimumWidth={minimumColumnWidths.name}
+                    label={copy.center.resizeColumn(copy.center.name)}
+                    onPointerDown={(event) => startColumnResize(event, 'name')}
+                    onResizeBy={(delta) => resizeColumnBy('name', delta)}
+                    onReset={resetColumnWidths}
+                  />}
+                />
+                {visibleColumnIds.map((column) => (
+                  <KioskTableHead
+                    key={column}
+                    column={column}
+                    label={columnLabel(column, copy.center)}
+                    sortDirection={sortDirection}
+                    sortKey={sortKey}
+                    ascendingLabel={copy.center.ascending}
+                    descendingLabel={copy.center.descending}
+                    onSort={sortBy}
+                    resizeHandle={<KioskColumnResizeHandle
+                      currentWidth={columnWidths[column]}
+                      minimumWidth={minimumColumnWidths[column]}
+                      label={copy.center.resizeColumn(columnLabel(column, copy.center))}
+                      onPointerDown={(event) => startColumnResize(event, column)}
+                      onResizeBy={(delta) => resizeColumnBy(column, delta)}
+                      onReset={resetColumnWidths}
+                    />}
+                  />
+                ))}
+                <th scope="col" className="relative px-4 text-right text-[13px] font-normal leading-4">
+                  <span className="whitespace-nowrap">{copy.center.actions}</span>
+                  <KioskColumnResizeHandle
+                    currentWidth={columnWidths.actions}
+                    minimumWidth={minimumColumnWidths.actions}
+                    label={copy.center.resizeColumn(copy.center.actions)}
+                    onPointerDown={(event) => startColumnResize(event, 'actions')}
+                    onResizeBy={(delta) => resizeColumnBy('actions', delta)}
+                    onReset={resetColumnWidths}
+                  />
+                </th>
+              </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {loading ? <tr><td colSpan={visibleColumnIds.length + 2} className="px-5 py-14 text-center text-slate-500">{copy.center.loading}</td></tr> : null}
@@ -287,7 +559,7 @@ export function KioskCenterWorkspace({ onCreateView, refreshKey = 0, createdKios
             </tbody>
           </table>
         </div>
-        <PointOfSaleTablePagination currentPage={safePage} itemLabel={copy.center.itemsLabel} onPageChange={setPage} onPageSizeChange={setPageSize} pageEnd={pageEnd} pageSize={pageSize} pageStart={pageStart} totalCount={filteredRows.length} totalPages={totalPages} />
+        <PointOfSaleTablePagination currentPage={safePage} itemLabel={copy.center.itemsLabel} onPageChange={setPage} onPageSizeChange={setPageSize} pageEnd={pageEnd} pageSize={pageSize} pageStart={pageStart} totalCount={sortedRows.length} totalPages={totalPages} />
       </section>
 
       {showCreate ? <CreateKioskModal selected={selectedCreateType} onSelected={setSelectedCreateType} onClose={() => setShowCreate(false)} onContinue={continueCreate} /> : null}
@@ -295,6 +567,86 @@ export function KioskCenterWorkspace({ onCreateView, refreshKey = 0, createdKios
       {editingKiosk ? <KioskEditModal kiosk={editingKiosk} onClose={() => setEditingKiosk(null)} onSaved={(name) => { setEditingKiosk(null); setNotice(`${name} se actualizó correctamente.`); void reload(); }} /> : null}
       {pendingAction ? <KioskSensitiveActionModal pending={pendingAction} busy={Boolean(busyAction)} onClose={() => setPendingAction(null)} onConfirm={() => void confirmSensitiveAction()} /> : null}
     </div>
+  );
+}
+
+function KioskTableHead({ column, label, sortDirection, sortKey, ascendingLabel, descendingLabel, onSort, resizeHandle }: {
+  column: KioskSortKey;
+  label: string;
+  sortDirection: KioskSortDirection;
+  sortKey: KioskSortKey;
+  ascendingLabel: string;
+  descendingLabel: string;
+  onSort: (column: KioskSortKey) => void;
+  resizeHandle: React.ReactNode;
+}) {
+  const isActive = column === sortKey;
+  const nextDirection = isActive && sortDirection === 'asc' ? 'desc' : 'asc';
+  const sortLabel = `${label}: ${nextDirection === 'asc' ? ascendingLabel : descendingLabel}`;
+  const SortIcon = !isActive ? ArrowUpDown : sortDirection === 'asc' ? ArrowUp : ArrowDown;
+  return (
+    <th
+      scope="col"
+      aria-sort={isActive ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+      className="relative px-4 text-left"
+    >
+      <button
+        type="button"
+        onClick={() => onSort(column)}
+        aria-label={sortLabel}
+        title={sortLabel}
+        className={`group inline-flex min-h-9 w-full min-w-0 items-center gap-2 rounded-md pr-2 text-left text-[13px] font-normal leading-4 outline-none transition focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/35 ${isActive ? 'text-[#B63B32] dark:text-[#FFB0AA]' : 'text-slate-500 hover:text-slate-800 dark:text-slate-300 dark:hover:text-white'}`}
+      >
+        <span className="whitespace-nowrap">{label}</span>
+        <SortIcon className={`h-3.5 w-3.5 shrink-0 transition-opacity ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'}`} aria-hidden="true" />
+      </button>
+      {resizeHandle}
+    </th>
+  );
+}
+
+function KioskColumnResizeHandle({ currentWidth, label, minimumWidth, onPointerDown, onReset, onResizeBy }: {
+  currentWidth: number;
+  label: string;
+  minimumWidth: number;
+  onPointerDown: (event: React.PointerEvent<HTMLSpanElement>) => void;
+  onReset: () => void;
+  onResizeBy: (delta: number) => void;
+}) {
+  return (
+    <span
+      role="separator"
+      aria-label={label}
+      aria-orientation="vertical"
+      aria-valuemax={KIOSK_MAX_COLUMN_WIDTH}
+      aria-valuemin={Math.round(minimumWidth)}
+      aria-valuenow={Math.round(currentWidth)}
+      aria-valuetext={`${Math.round(currentWidth)} px`}
+      tabIndex={0}
+      title={label}
+      onPointerDown={onPointerDown}
+      onDoubleClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onReset();
+      }}
+      onKeyDown={(event) => {
+        const delta = event.shiftKey ? 24 : 8;
+        if (event.key === 'ArrowLeft') {
+          event.preventDefault();
+          onResizeBy(-delta);
+        } else if (event.key === 'ArrowRight') {
+          event.preventDefault();
+          onResizeBy(delta);
+        } else if (event.key === 'Home') {
+          event.preventDefault();
+          onReset();
+        }
+      }}
+      className="group/resize absolute right-0 top-0 z-10 flex h-full w-4 translate-x-1/2 touch-none cursor-col-resize items-center justify-center outline-none"
+    >
+      <span className="h-7 w-px bg-slate-300 opacity-60 transition group-hover/resize:w-0.5 group-hover/resize:bg-[#FF6B5E] group-hover/resize:opacity-100 group-focus-visible/resize:w-0.5 group-focus-visible/resize:bg-[#FF6B5E] group-focus-visible/resize:opacity-100 dark:bg-slate-600" aria-hidden="true" />
+    </span>
   );
 }
 
@@ -314,30 +666,32 @@ function KioskRow({ row, columns, locale, busyAction, onEdit, onAccess, onCopy, 
   const { copy } = usePointOfSaleKioskTranslations();
   const busy = busyAction.endsWith(`-${row.id}`);
   const shiftState = resolveKioskShiftState(row);
-  return <tr className="align-middle hover:bg-slate-50/70 dark:hover:bg-slate-900/60">
-    <td className="px-5 py-4"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#FF6B5E]/10 text-[#B63B32]">{row.kioskType === 'customer_display' ? <Monitor className="h-5 w-5" /> : row.kioskType === 'self_checkout' ? <CreditCard className="h-5 w-5" /> : <ShoppingBasket className="h-5 w-5" />}</span><div><div className="flex flex-wrap items-center gap-2"><p className="font-medium text-slate-950 dark:text-white">{row.name}</p><KioskStatusBadge status={row.status} configurationStatus={row.configurationStatus} /></div><p className="text-xs text-slate-500">{row.code}</p></div></div></td>
-    {columns.map((column) => <td key={column} className="px-5 py-4 text-slate-600 dark:text-slate-300">{renderColumn(column, row, locale, copy)}</td>)}
-    <td className="px-5 py-4"><div className="flex justify-end gap-1.5">
-      <RowAction icon={<Pencil className="h-4 w-4" />} label={copy.center.edit} disabled={!row.actions.edit || busy} onClick={onEdit} />
-      <RowAction icon={<ExternalLink className="h-4 w-4" />} label={shiftState === 'open' ? copy.center.access : shiftState === 'unknown' ? copy.center.accessCheckingRegister : copy.center.accessWithClosedRegister} disabled={!row.actions.access || busy} onClick={onAccess} primary warning={shiftState === 'closed' || shiftState === 'unassigned'} />
-      <RowAction icon={<Copy className="h-4 w-4" />} label={copy.center.copyLink} disabled={!row.actions.copy || busy} onClick={onCopy} compact />
-      {row.kioskType === 'self_service' || row.kioskType === 'self_checkout' ? <RowAction icon={<FileDown className="h-4 w-4" />} label={copy.center.downloadQrPdf} disabled={!row.actions.access || busy} onClick={onDownloadQrPdf} compact /> : null}
-      <RowAction icon={<RefreshCw className="h-4 w-4" />} label={copy.center.rotateAccess} disabled={!row.actions.rotate || busy} onClick={onRotate} compact />
-      <RowAction icon={<Power className="h-4 w-4" />} label={row.status === 'ACTIVE' ? copy.center.disable : copy.center.enable} disabled={!row.actions.toggle || busy} onClick={onToggle} compact />
-      <RowAction icon={<Trash2 className="h-4 w-4" />} label={copy.center.deleteKiosk} disabled={!row.actions.delete || busy} onClick={onDelete} compact destructive />
+  return <tr className="h-16 align-middle transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-900/60">
+    <td className="overflow-hidden px-4 py-3"><div className="flex min-w-0 items-center gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#FF6B5E]/10 text-[#B63B32]">{row.kioskType === 'customer_display' ? <Monitor className="h-5 w-5" /> : row.kioskType === 'self_checkout' ? <CreditCard className="h-5 w-5" /> : <ShoppingBasket className="h-5 w-5" />}</span><div className="min-w-0"><div className="flex min-w-0 items-center gap-2"><p className="truncate text-sm font-medium text-slate-950 dark:text-white" title={row.name}>{row.name}</p><KioskStatusBadge status={row.status} configurationStatus={row.configurationStatus} /></div><p className="truncate text-xs font-normal text-slate-500" title={row.code}>{row.code}</p></div></div></td>
+    {columns.map((column) => <td key={column} className="overflow-hidden px-4 py-3 text-sm font-normal text-slate-700 dark:text-slate-200">{renderColumn(column, row, locale, copy)}</td>)}
+    <td className="px-3 py-3 text-right"><div className="inline-flex items-center justify-end gap-1.5 rounded-xl border border-slate-200 bg-slate-50/80 p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-800/70">
+      <RowAction icon={<Pencil className="h-4 w-4" />} label={copy.center.edit} disabled={!row.actions.edit || busy} onClick={onEdit} tone="module" />
+      <RowAction icon={<ExternalLink className="h-4 w-4" />} label={shiftState === 'open' ? copy.center.access : shiftState === 'unknown' ? copy.center.accessCheckingRegister : copy.center.accessWithClosedRegister} disabled={!row.actions.access || busy} onClick={onAccess} tone={shiftState === 'closed' || shiftState === 'unassigned' ? 'amber' : 'module'} />
+      <RowAction icon={<Copy className="h-4 w-4" />} label={copy.center.copyLink} disabled={!row.actions.copy || busy} onClick={onCopy} tone="blue" />
+      {row.kioskType === 'self_service' || row.kioskType === 'self_checkout' ? <RowAction icon={<FileDown className="h-4 w-4" />} label={copy.center.downloadQrPdf} disabled={!row.actions.access || busy} onClick={onDownloadQrPdf} /> : null}
+      <RowAction icon={<RefreshCw className="h-4 w-4" />} label={copy.center.rotateAccess} disabled={!row.actions.rotate || busy} onClick={onRotate} tone="violet" />
+      <RowAction icon={<Power className="h-4 w-4" />} label={row.status === 'ACTIVE' ? copy.center.disable : copy.center.enable} disabled={!row.actions.toggle || busy} onClick={onToggle} tone={row.status === 'ACTIVE' ? 'amber' : 'green'} />
+      <RowAction icon={<Trash2 className="h-4 w-4" />} label={copy.center.deleteKiosk} disabled={!row.actions.delete || busy} onClick={onDelete} tone="red" />
     </div></td>
   </tr>;
 }
 
-function RowAction({ icon, label, disabled, onClick, primary = false, warning = false, destructive = false, compact = false }: { icon: React.ReactNode; label: string; disabled: boolean; onClick: () => void; primary?: boolean; warning?: boolean; destructive?: boolean; compact?: boolean }) {
-  const classes = primary
-    ? warning
-      ? 'border-amber-300 bg-amber-50 text-amber-800'
-      : 'border-[#FF6B5E] bg-[#FF6B5E] text-[#222831]'
-    : destructive
-      ? 'border-red-200 text-red-700'
-      : 'border-slate-200 text-slate-700 dark:border-slate-700 dark:text-white';
-  return <button type="button" onClick={onClick} disabled={disabled} aria-label={label} title={label} className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40 ${classes}`}>{icon}{compact ? <span className="sr-only">{label}</span> : <span>{label}</span>}</button>;
+function RowAction({ icon, label, disabled, onClick, tone = 'neutral' }: { icon: React.ReactNode; label: string; disabled: boolean; onClick: () => void; tone?: 'neutral' | 'module' | 'amber' | 'blue' | 'violet' | 'green' | 'red' }) {
+  const toneClasses = {
+    neutral: 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200',
+    module: 'border-[#FFB0AA] bg-[#FFF4F2] text-[#B63B32] hover:bg-[#FFE7E3] dark:bg-[#FF6B5E]/10',
+    amber: 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-500/10',
+    blue: 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10',
+    violet: 'border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 dark:bg-violet-500/10',
+    green: 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/10',
+    red: 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-500/10',
+  }[tone];
+  return <button type="button" onClick={onClick} disabled={disabled} aria-label={label} title={label} className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/35 disabled:cursor-not-allowed disabled:opacity-40 ${toneClasses}`}>{icon}<span className="sr-only">{label}</span></button>;
 }
 
 function KioskStatusBadge({ status, configurationStatus }: { status: PosKioskStatus; configurationStatus: PosKioskAdminItem['configurationStatus'] }) {
@@ -386,12 +740,27 @@ function resolveKioskShiftState(row: PosKioskAdminItem): KioskShiftState {
   return 'unknown';
 }
 
+function kioskSortValue(row: PosKioskAdminItem, column: KioskSortKey): string | number {
+  if (column === 'name') return row.name;
+  if (column === 'type') return row.kioskType;
+  if (column === 'scope') return `${row.assignment.primaryLabel} ${row.assignment.secondaryLabel}`;
+  if (column === 'shift') return { open: 0, closed: 1, unknown: 2, unassigned: 3 }[resolveKioskShiftState(row)];
+  if (column === 'connection') return row.connectionStatus;
+  if (column === 'activity') return row.lastActivityAt ? new Date(row.lastActivityAt).getTime() : Number.NEGATIVE_INFINITY;
+  if (column === 'expiration') return row.expiresAt ? new Date(row.expiresAt).getTime() : Number.POSITIVE_INFINITY;
+  return row.publicTokenHint;
+}
+
+function compareKioskRows(left: PosKioskAdminItem, right: PosKioskAdminItem, column: KioskSortKey, locale: string) {
+  const leftValue = kioskSortValue(left, column);
+  const rightValue = kioskSortValue(right, column);
+  if (typeof leftValue === 'number' && typeof rightValue === 'number') return leftValue - rightValue;
+  return String(leftValue).localeCompare(String(rightValue), locale, { numeric: true, sensitivity: 'base' });
+}
+
 function columnLabel(column: ColumnId, center: ReturnType<typeof usePointOfSaleKioskTranslations>['copy']['center']) {
   return { type: center.type, scope: center.scope, shift: center.shiftStatus, connection: center.connection, activity: center.lastActivity, expiration: center.expires, link: center.link }[column];
 }
-
-function FilterField({ label, className = '', children }: { label: string; className?: string; children: React.ReactNode }) { return <label className={className}><span className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-300">{label}</span>{children}</label>; }
-function FilterSelect({ label, value, options, onChange }: { label: string; value: string; options: Array<[string, string]>; onChange: (value: string) => void }) { return <FilterField label={label}><select value={value} onChange={(event) => onChange(event.target.value)} className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900">{options.map(([optionValue, optionLabel]) => <option key={optionValue} value={optionValue}>{optionLabel}</option>)}</select></FilterField>; }
 
 function CreateKioskModal({ selected, onSelected, onClose, onContinue }: { selected: KioskExperience; onSelected: (value: KioskExperience) => void; onClose: () => void; onContinue: () => void }) {
   const { copy } = usePointOfSaleKioskTranslations();

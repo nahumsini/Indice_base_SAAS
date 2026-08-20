@@ -40,6 +40,7 @@ export type ContactOwnerSelectOption = {
 
 export interface ContactosProps {
   learningModeActive?: boolean;
+  titleBarTitle?: string;
 }
 
 export type FiscalCountryOption = {

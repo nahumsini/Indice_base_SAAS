@@ -6,7 +6,6 @@ import {
   PencilLine,
   Phone,
   Plus,
-  RotateCcw,
   Trash2,
   UploadCloud,
 } from 'lucide-react';
@@ -119,7 +118,7 @@ const contactosWorkspaceUrlFields: Partial<Record<keyof ContactosWorkspaceState,
   pageSize: 'pageSize',
 };
 
-export default function Contactos({ learningModeActive = false }: ContactosProps) {
+export default function Contactos({ learningModeActive = false, titleBarTitle }: ContactosProps) {
   const t = useContactosTranslations();
   const learningCopy = useContactosLearningTranslations();
   const { contacts, opportunities, quotes, addContact, updateContact, deleteContact } = useSalesCrm();
@@ -580,7 +579,7 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
       <SalesTitleBar
         icon="👥"
         rhIndent
-        title={t.header.title}
+        title={titleBarTitle ?? t.header.title}
         subtitle={t.header.subtitle}
         actions={(
           <>
@@ -618,27 +617,14 @@ export default function Contactos({ learningModeActive = false }: ContactosProps
 
       <SalesFilterBar
         title={t.search.title}
-        summary={(
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <span>{`${t.search.visibleContacts}: ${sortedContacts.length}`}</span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={!searchQuery}
-              onClick={handleClearFilters}
-            >
-              <RotateCcw className="h-4 w-4" />
-              {t.search.clearFilters}
-            </Button>
-          </div>
-        )}
         gridClassName="md:grid-cols-1"
       >
         <SalesFilterSearch
           label={t.search.label}
           value={searchQuery}
           onValueChange={handleSearchChange}
+          onClear={handleClearFilters}
+          clearLabel={t.search.clearFilters}
           placeholder={t.search.placeholder}
         />
       </SalesFilterBar>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, ReceiptText } from 'lucide-react';
 import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
 import { defaultBusinessCurrency, normalizeBusinessCurrencyCode } from '../../shared/businessCurrency';
 import { usePointOfSaleCatalogProducts } from '../../CommerceCore/usePointOfSaleCatalogProducts';
@@ -205,6 +205,7 @@ export default function Sale() {
   const [checkoutRequestId, setCheckoutRequestId] = useState(0);
   const [productSearchRequestId, setProductSearchRequestId] = useState(0);
   const [isProductWorkspaceOpen, setIsProductWorkspaceOpen] = useState(false);
+  const [isPreticketWorkspaceOpen, setIsPreticketWorkspaceOpen] = useState(false);
   const [isPaymentWorkspaceOpen, setIsPaymentWorkspaceOpen] = useState(false);
   const [discountRules, setDiscountRules] = useState<DiscountRule[]>([]);
   const [discountRulesError, setDiscountRulesError] = useState('');
@@ -345,7 +346,11 @@ export default function Sale() {
   });
 
   useEffect(() => {
-    const focusInput = () => {
+    const focusInput = (event?: MouseEvent) => {
+      const target = event?.target instanceof Element ? event.target : null;
+      if (target?.closest('button, input, select, textarea, a, [role="button"], [contenteditable="true"]')) {
+        return;
+      }
       if (
         barcodeInputRef.current &&
         !showAddPaymentModal &&
@@ -426,6 +431,7 @@ export default function Sale() {
     setShowCashMovementModal(false);
     setShowShiftSummaryWorkspace(false);
     setIsProductWorkspaceOpen(false);
+    setIsPreticketWorkspaceOpen(false);
     setIsPaymentWorkspaceOpen(false);
     setShowReturnModal(true);
   };
@@ -434,6 +440,7 @@ export default function Sale() {
     setShowReturnModal(false);
     setShowShiftSummaryWorkspace(false);
     setIsProductWorkspaceOpen(false);
+    setIsPreticketWorkspaceOpen(false);
     setIsPaymentWorkspaceOpen(false);
     setShowCashMovementModal(true);
   };
@@ -442,6 +449,7 @@ export default function Sale() {
     setShowReturnModal(false);
     setShowCashMovementModal(false);
     setIsProductWorkspaceOpen(false);
+    setIsPreticketWorkspaceOpen(false);
     setIsPaymentWorkspaceOpen(false);
     setShowShiftSummaryWorkspace(true);
     void loadClosingSummary();
@@ -631,6 +639,7 @@ export default function Sale() {
       >
         <div data-pos-terminal-shell className="mx-auto flex min-h-0 w-full flex-col">
           <div data-pos-fixed-header>
+            {/* Frontend Engine title-bar exception: an active shift uses this persistent terminal context instead of a second standard title bar. */}
             <ShiftBar
               shift={currentShift}
               onOpenCashMovement={openCashMovementWorkspace}
@@ -710,7 +719,7 @@ export default function Sale() {
                   />
                 ) : (
                   <>
-                    <div data-pos-pre-tickets>
+                    <div data-pos-pre-tickets data-workspace-active={isPreticketWorkspaceOpen ? 'true' : undefined}>
                       <PendingPreTicketsPanel
                         preTickets={preTickets}
                         onPullPreTicket={pullPreTicket}
@@ -720,6 +729,7 @@ export default function Sale() {
                         isRefreshing={isRefreshingPreTickets}
                         lastUpdatedAt={preTicketsLastUpdatedAt}
                         claimingPreTicketIds={claimingPreTicketIds}
+                        workspaceMode={isPreticketWorkspaceOpen}
                       />
                     </div>
 
@@ -823,20 +833,40 @@ export default function Sale() {
                 {cart.reduce((sum, item) => sum + item.quantity, 0)} artículos · Caja {currentShift.cashRegisterCode}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setIsPaymentWorkspaceOpen(false);
-                setShowReturnModal(false);
-                setShowCashMovementModal(false);
-                setShowShiftSummaryWorkspace(false);
-                setIsProductWorkspaceOpen((current) => !current);
-              }}
-              aria-pressed={isProductWorkspaceOpen}
-              className={`inline-flex min-h-14 items-center justify-center rounded-lg border px-6 text-base font-medium text-[#222831] transition ${isProductWorkspaceOpen ? 'border-[#FF6B5E] bg-[#FF6B5E] hover:bg-[#ff5a4b]' : 'border-white/20 bg-white hover:bg-gray-100'}`}
-            >
-              {isProductWorkspaceOpen ? 'Ocultar catálogo' : 'Buscar producto'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPaymentWorkspaceOpen(false);
+                  setIsProductWorkspaceOpen(false);
+                  setShowReturnModal(false);
+                  setShowCashMovementModal(false);
+                  setShowShiftSummaryWorkspace(false);
+                  setIsPreticketWorkspaceOpen((current) => !current);
+                }}
+                aria-pressed={isPreticketWorkspaceOpen}
+                className={`inline-flex min-h-14 items-center justify-center gap-2 rounded-lg border px-5 text-base font-medium text-[#222831] transition ${isPreticketWorkspaceOpen ? 'border-[#F4C84A] bg-[#F4C84A] hover:bg-[#e8bb35]' : 'border-white/20 bg-white hover:bg-gray-100'}`}
+              >
+                <ReceiptText className="h-5 w-5" />
+                {isPreticketWorkspaceOpen ? 'Ocultar pretickets' : 'Pretickets'}
+                <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-[#222831] px-1.5 py-0.5 text-xs text-white">{preTickets.length}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPaymentWorkspaceOpen(false);
+                  setIsPreticketWorkspaceOpen(false);
+                  setShowReturnModal(false);
+                  setShowCashMovementModal(false);
+                  setShowShiftSummaryWorkspace(false);
+                  setIsProductWorkspaceOpen((current) => !current);
+                }}
+                aria-pressed={isProductWorkspaceOpen}
+                className={`inline-flex min-h-14 items-center justify-center rounded-lg border px-6 text-base font-medium text-[#222831] transition ${isProductWorkspaceOpen ? 'border-[#FF6B5E] bg-[#FF6B5E] hover:bg-[#ff5a4b]' : 'border-white/20 bg-white hover:bg-gray-100'}`}
+              >
+                {isProductWorkspaceOpen ? 'Ocultar catálogo' : 'Buscar producto'}
+              </button>
+            </div>
             <div className="text-center">
               <p className="text-[11px] text-gray-400">Total a cobrar</p>
               <p className="text-3xl font-medium leading-none text-white">{formatSaleCurrency(totals.total)}</p>
@@ -850,6 +880,7 @@ export default function Sale() {
                 type="button"
                 onClick={() => {
                   setIsProductWorkspaceOpen(false);
+                  setIsPreticketWorkspaceOpen(false);
                   setShowReturnModal(false);
                   setShowCashMovementModal(false);
                   setShowShiftSummaryWorkspace(false);

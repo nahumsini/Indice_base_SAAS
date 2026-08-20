@@ -349,7 +349,7 @@ test('self-checkout creation opens the six-step configuration flow with real POS
   assert.match(router, /setCenterRefreshKey\(\(current\) => current \+ 1\)/);
   assert.match(router, /finishCreation\(kiosk\.name\)/);
   assert.match(center, /setNotice\(copy\.center\.createdFeedback\(createdKioskName\)\)/);
-  assert.match(center, /setTypeFilter\('all'\)[\s\S]*void reload\(\)/);
+  assert.match(center, /setCashRegisterFilter\('all'\)[\s\S]*void reload\(\)/);
   assert.match(creationFlow, /posBackendApi\.context\(\)/);
   assert.match(creationFlow, /usePointOfSaleCatalogProducts\(\)/);
   assert.match(creationFlow, /listPublishedDiscountRules\(\{/);

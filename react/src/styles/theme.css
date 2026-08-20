@@ -366,6 +366,12 @@
     height: 100%;
   }
 
+  [data-pos-terminal-mode] [data-pos-pre-tickets][data-workspace-active="true"] {
+    display: block;
+    height: 100%;
+    min-height: 0;
+  }
+
   [data-pos-terminal-mode] [data-pos-products-column][data-workspace-active="true"] [data-pos-inline-product-search] {
     display: block;
   }

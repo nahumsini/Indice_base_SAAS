@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpSession;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -24,6 +25,16 @@ public class TicketController {
     public ResponseEntity<?> list(HttpSession session) {
         var access = guard.requireReadAccess(session);
         return access.denied() ? access.error() : ResponseEntity.ok(service.list(access.context()));
+    }
+
+    @GetMapping("/daily-summary")
+    public ResponseEntity<?> dailySummary(
+            HttpSession session,
+            @RequestParam(required = false) String preferredCurrency) {
+        var access = guard.requireReadAccess(session);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.summarizeToday(access.context(), preferredCurrency));
     }
 
     @GetMapping("/{ticketId}")

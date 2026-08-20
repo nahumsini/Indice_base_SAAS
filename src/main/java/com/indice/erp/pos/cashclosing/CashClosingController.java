@@ -32,6 +32,7 @@ public class CashClosingController {
             @RequestParam(required = false) Long warehouseId,
             @RequestParam(required = false) Long shiftId,
             @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "50") int limit,
             @RequestParam(defaultValue = "0") int offset) {
         var access = guard.requireReadAccess(session);
@@ -39,7 +40,7 @@ public class CashClosingController {
             return access.error();
         }
         var filter = new CashClosingQueryFilter(
-            dateFrom, dateTo, cashRegisterId, warehouseId, shiftId, userId, limit, offset
+            dateFrom, dateTo, cashRegisterId, warehouseId, shiftId, userId, search, limit, offset
         );
         return ResponseEntity.ok(service.list(access.context(), filter));
     }

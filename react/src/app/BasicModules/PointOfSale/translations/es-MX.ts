@@ -9,11 +9,14 @@ export const esMX = {
     fallbackTitle: 'Cargando pestaña',
     fallbackDescription: 'Descargando solo la sección operativa seleccionada.',
   },
+  titleBars: {
+    saleSubtitle: 'Opera desde una caja activa y abre un turno antes de agregar productos a la venta.',
+  },
   tabs: {
     sale: 'Venta',
     cortes: 'Cortes de caja',
     clientes: 'Clientes',
-    kpis: 'Indicadores',
+    kpis: 'KPIs',
     kiosks: 'Kioscos',
     cajas: 'Cajas y turnos',
   },

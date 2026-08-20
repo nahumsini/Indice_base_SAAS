@@ -29,15 +29,19 @@ export function SalesFilterBar({
 
 export function SalesFilterSearch({
   className,
+  clearLabel,
   inputClassName,
   label,
+  onClear,
   onValueChange,
   placeholder,
   value,
 }: {
   className?: string;
+  clearLabel?: string;
   inputClassName?: string;
   label: string;
+  onClear?: () => void;
   onValueChange: (value: string) => void;
   placeholder: string;
   value: string;
@@ -45,8 +49,10 @@ export function SalesFilterSearch({
   return (
     <IndiceFilterSearch
       className={className}
+      clearLabel={clearLabel}
       inputClassName={inputClassName}
       label={label}
+      onClear={onClear}
       onValueChange={onValueChange}
       placeholder={placeholder}
       tone="coral"

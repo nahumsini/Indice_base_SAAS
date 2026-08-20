@@ -1,85 +1,110 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { cashClosingsApi } from '../../shared/cashClosingsApi';
 import type {
-  PosCashClosingDetailResponse,
+  PosCashClosingFilters,
   PosCashClosingSummaryRow,
 } from '../../shared/cashClosingHistory.types';
-import { getDateRangeForPeriod, type PosKpiPeriod } from '../utils/posKpiAnalytics';
+import {
+  getPreviousDateRange,
+  type PosKpiFiltersState,
+} from '../utils/posKpiAnalytics';
 
-const KPI_LIST_LIMIT = 200;
-const DETAIL_BREAKDOWN_LIMIT = 25;
+const PAGE_LIMIT = 200;
+const MAX_ANALYTIC_ROWS = 10_000;
 
 interface PosKpiCashClosingState {
   rows: PosCashClosingSummaryRow[];
-  details: PosCashClosingDetailResponse[];
+  previousRows: PosCashClosingSummaryRow[];
   loading: boolean;
   error: string;
-  detailError: string;
-  detailFetchLimited: boolean;
   totalCount: number;
+  previousTotalCount: number;
+  partial: boolean;
 }
 
 const initialState: PosKpiCashClosingState = {
   rows: [],
-  details: [],
+  previousRows: [],
   loading: true,
   error: '',
-  detailError: '',
-  detailFetchLimited: false,
   totalCount: 0,
+  previousTotalCount: 0,
+  partial: false,
 };
 
-export function usePosKpiCashClosings(period: PosKpiPeriod) {
+async function loadAllClosings(filters: PosCashClosingFilters) {
+  const first = await cashClosingsApi.list({ ...filters, limit: PAGE_LIMIT, offset: 0 });
+  const rows = [...(first.items ?? [])];
+  const target = Math.min(first.count, MAX_ANALYTIC_ROWS);
+
+  while (rows.length < target) {
+    const response = await cashClosingsApi.list({
+      ...filters,
+      limit: PAGE_LIMIT,
+      offset: rows.length,
+    });
+    const items = response.items ?? [];
+    if (items.length === 0) break;
+    rows.push(...items);
+  }
+
+  return {
+    rows: rows.slice(0, MAX_ANALYTIC_ROWS),
+    totalCount: first.count,
+    partial: first.count > MAX_ANALYTIC_ROWS,
+  };
+}
+
+export function usePosKpiCashClosings(filters: PosKpiFiltersState) {
   const [state, setState] = useState<PosKpiCashClosingState>(initialState);
   const [reloadKey, setReloadKey] = useState(0);
 
-  const filters = useMemo(() => ({
-    ...getDateRangeForPeriod(period),
-    limit: KPI_LIST_LIMIT,
-    offset: 0,
-  }), [period]);
+  const currentFilters = useMemo<PosCashClosingFilters>(() => ({
+    cashRegisterId: filters.cashRegisterId || undefined,
+    dateFrom: filters.dateFrom,
+    dateTo: filters.dateTo,
+    search: filters.search || undefined,
+    userId: filters.userId || undefined,
+    warehouseId: filters.warehouseId || undefined,
+  }), [
+    filters.cashRegisterId,
+    filters.dateFrom,
+    filters.dateTo,
+    filters.search,
+    filters.userId,
+    filters.warehouseId,
+  ]);
+
+  const previousFilters = useMemo<PosCashClosingFilters>(() => ({
+    ...currentFilters,
+    ...getPreviousDateRange(filters.dateFrom, filters.dateTo),
+  }), [currentFilters, filters.dateFrom, filters.dateTo]);
 
   useEffect(() => {
     let isActive = true;
 
     const loadClosings = async () => {
-      setState((current) => ({ ...current, loading: true, error: '', detailError: '' }));
+      setState((current) => ({ ...current, loading: true, error: '' }));
 
       try {
-        const response = await cashClosingsApi.list(filters);
-        const rows = response.items ?? [];
-        const shouldLoadDetails = rows.length > 0 && rows.length <= DETAIL_BREAKDOWN_LIMIT;
-        let details: PosCashClosingDetailResponse[] = [];
-        let detailError = '';
+        const [current, previous] = await Promise.all([
+          loadAllClosings(currentFilters),
+          loadAllClosings(previousFilters),
+        ]);
 
-        if (shouldLoadDetails) {
-          try {
-            details = await Promise.all(rows.map((row) => cashClosingsApi.detail(row.id)));
-          } catch (error) {
-            detailError = error instanceof Error
-              ? error.message
-              : 'No fue posible cargar el desglose por metodo de pago.';
-          }
-        }
-
-        if (!isActive) {
-          return;
-        }
+        if (!isActive) return;
 
         setState({
-          rows,
-          details,
+          rows: current.rows,
+          previousRows: previous.rows,
           loading: false,
           error: '',
-          detailError,
-          detailFetchLimited: rows.length > DETAIL_BREAKDOWN_LIMIT,
-          totalCount: response.count,
+          totalCount: current.totalCount,
+          previousTotalCount: previous.totalCount,
+          partial: current.partial || previous.partial,
         });
       } catch (error) {
-        if (!isActive) {
-          return;
-        }
-
+        if (!isActive) return;
         setState({
           ...initialState,
           loading: false,
@@ -88,12 +113,11 @@ export function usePosKpiCashClosings(period: PosKpiPeriod) {
       }
     };
 
-    loadClosings();
-
+    void loadClosings();
     return () => {
       isActive = false;
     };
-  }, [filters.dateFrom, filters.dateTo, filters.limit, filters.offset, reloadKey]);
+  }, [currentFilters, previousFilters, reloadKey]);
 
   const refresh = useCallback(() => {
     setReloadKey((current) => current + 1);

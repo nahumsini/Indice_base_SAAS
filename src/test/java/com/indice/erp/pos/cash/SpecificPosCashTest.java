@@ -161,10 +161,12 @@ class SpecificPosCashTest {
         var service = historyService();
         var filter = historyFilter(50, 0);
         when(historyRepository.findAll(eq(context()), any())).thenReturn(List.of(closingRow(1L, "2026-06-19T09:00:00Z")));
+        when(historyRepository.countAll(eq(context()), any())).thenReturn(1);
 
         var response = service.list(context(), filter);
 
         verify(historyRepository).findAll(eq(context()), any(CashClosingQueryFilter.class));
+        verify(historyRepository).countAll(eq(context()), any(CashClosingQueryFilter.class));
         assertThat(response.items()).hasSize(1);
         assertThat(response.count()).isEqualTo(1);
     }
@@ -253,7 +255,7 @@ class SpecificPosCashTest {
     }
 
     private CashClosingQueryFilter historyFilter(int limit, int offset) {
-        return new CashClosingQueryFilter(null, null, null, null, null, null, limit, offset);
+        return new CashClosingQueryFilter(null, null, null, null, null, null, null, limit, offset);
     }
 
     private CashClosingSummaryRow closingRow(Long id, String closedAt) {
@@ -262,7 +264,9 @@ class SpecificPosCashTest {
             5L, "Unit 1", 6L, "Business 1", "Company 1",
             new BigDecimal("10"), new BigDecimal("90"),
             new BigDecimal("100"), new BigDecimal("100"), BigDecimal.ZERO,
-            new BigDecimal("150"), 3, 10L, "User 1", "MXN", Instant.parse(closedAt)
+            new BigDecimal("150"), BigDecimal.ZERO, 3,
+            List.of(new PaymentMethodSummary(PaymentMethod.CASH, new BigDecimal("90"), 2)),
+            10L, "User 1", "MXN", Instant.parse(closedAt)
         );
     }
 

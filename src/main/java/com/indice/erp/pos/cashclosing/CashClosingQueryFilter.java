@@ -9,6 +9,7 @@ public record CashClosingQueryFilter(
         Long warehouseId,
         Long shiftId,
         Long userId,
+        String search,
         int limit,
         int offset) {
 
@@ -18,8 +19,9 @@ public record CashClosingQueryFilter(
     public CashClosingQueryFilter sanitized() {
         var nextLimit = limit <= 0 ? DEFAULT_LIMIT : Math.min(limit, MAX_LIMIT);
         var nextOffset = Math.max(offset, 0);
+        var nextSearch = search == null || search.isBlank() ? null : search.trim();
         return new CashClosingQueryFilter(
-            dateFrom, dateTo, cashRegisterId, warehouseId, shiftId, userId, nextLimit, nextOffset
+            dateFrom, dateTo, cashRegisterId, warehouseId, shiftId, userId, nextSearch, nextLimit, nextOffset
         );
     }
 }

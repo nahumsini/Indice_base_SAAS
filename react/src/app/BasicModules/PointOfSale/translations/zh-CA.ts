@@ -9,12 +9,15 @@ export const zhCA = {
     fallbackTitle: '正在加载工作区',
     fallbackDescription: '仅加载所选销售点区域。',
   },
+  titleBars: {
+    saleSubtitle: '选择已启用的收银台并开启班次后，再添加销售商品。',
+  },
   tabs: {
     kiosks: '自助终端',
     cajas: '收银台与班次',
     sale: '销售',
     cortes: '收银结算',
     clientes: '客户',
-    kpis: '关键指标',
+    kpis: 'KPIs',
   },
 } as const;

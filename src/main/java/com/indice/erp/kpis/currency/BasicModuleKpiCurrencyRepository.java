@@ -117,9 +117,16 @@ public class BasicModuleKpiCurrencyRepository {
             case POS_SALES_TOTAL -> new MetricDefinition("pos_tickets", "total_amount", "currency_code", "created_at", " AND deleted_at IS NULL AND status NOT IN ('CANCELLED', 'VOIDED')");
             case POS_CLOSING_TOTAL -> closingDefinition("c.total_sales_amount");
             case POS_CLOSING_CASH_SALES -> closingDefinition("c.cash_sales_amount");
+            case POS_CLOSING_CARD_SALES -> closingPaymentDefinition("CARD");
+            case POS_CLOSING_TRANSFER_SALES -> closingPaymentDefinition("TRANSFER");
+            case POS_CLOSING_CREDIT_SALES -> closingPaymentDefinition("CREDIT");
             case POS_CLOSING_EXPECTED_CASH -> closingDefinition("c.expected_cash_amount");
             case POS_CLOSING_COUNTED_CASH -> closingDefinition("c.counted_cash_amount");
             case POS_CLOSING_DIFFERENCE -> closingDefinition("c.over_short_amount");
+            case POS_CLOSING_ABSOLUTE_DIFFERENCE -> closingDefinition("ABS(c.over_short_amount)");
+            case POS_CLOSING_SHORTAGE -> closingDefinition("CASE WHEN c.over_short_amount < 0 THEN ABS(c.over_short_amount) ELSE 0 END");
+            case POS_CLOSING_OVERAGE -> closingDefinition("CASE WHEN c.over_short_amount > 0 THEN c.over_short_amount ELSE 0 END");
+            case POS_CLOSING_REFUNDS -> closingDefinition("c.total_refunds_amount");
             case PURCHASE_ORDER_TOTAL -> new MetricDefinition("pos_purchase_orders", "total_amount", "currency_code", "created_at", " AND deleted_at IS NULL AND status NOT IN ('CANCELLED', 'REJECTED')");
             case SUPPLIER_SUBMISSION_TOTAL -> new MetricDefinition("pos_supplier_submissions", "total_amount", "currency_code", "created_at", " AND deleted_at IS NULL AND status <> 'REJECTED'");
         };
@@ -135,6 +142,15 @@ public class BasicModuleKpiCurrencyRepository {
             "c.id",
             "c.company_id"
         );
+    }
+
+    private MetricDefinition closingPaymentDefinition(String paymentMethod) {
+        var amountColumn = "COALESCE((SELECT SUM(payment.amount) FROM JSON_TABLE("
+            + "COALESCE(c.payments_summary_json, JSON_ARRAY()), '$[*]' COLUMNS ("
+            + "payment_method VARCHAR(32) PATH '$.paymentMethod', "
+            + "amount DECIMAL(19,4) PATH '$.amount')) AS payment "
+            + "WHERE payment.payment_method = '" + paymentMethod + "'), 0)";
+        return closingDefinition(amountColumn);
     }
 
     private MetricDefinition inventoryBalanceDefinition(String amountColumn, String idColumn) {

@@ -9,11 +9,14 @@ export const frCA = {
     fallbackTitle: 'Chargement de l’espace',
     fallbackDescription: 'Téléchargement seulement de la section de point de vente sélectionnée.',
   },
+  titleBars: {
+    saleSubtitle: 'Utilisez une caisse active et ouvrez un quart avant d’ajouter des produits à la vente.',
+  },
   tabs: {
     sale: 'Vente',
     cortes: 'Fermetures de caisse',
     clientes: 'Clients',
-    kpis: 'Indicateurs',
+    kpis: 'KPIs',
     kiosks: 'Bornes',
     cajas: 'Caisses et quarts',
   },

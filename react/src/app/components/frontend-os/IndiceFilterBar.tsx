@@ -30,6 +30,19 @@ const focusClasses: Record<IndiceModuleTone, string> = {
   yellow: 'focus-visible:border-[#F4C84A] focus-visible:ring-[#F4C84A]/20',
 };
 
+const segmentedActiveClasses: Record<IndiceModuleTone, string> = {
+  aqua: 'border-[#59C3A5] bg-[#59C3A5]/15 text-[#176B5B]',
+  blue: 'border-[#2563EB] bg-[#2563EB]/10 text-[#1D4ED8]',
+  coral: 'border-[#FF6B5E] bg-[#FF6B5E] text-[#222831]',
+  gold: 'border-[#F4C84A] bg-[#F4C84A]/20 text-[#8A6500]',
+  gray: 'border-slate-500 bg-slate-200 text-slate-800',
+  green: 'border-[#147514] bg-[#147514]/10 text-[#147514]',
+  orange: 'border-[#FF6B5E] bg-[#FF6B5E]/15 text-[#B63B32]',
+  purple: 'border-[#2563EB] bg-[#2563EB]/10 text-[#1D4ED8]',
+  red: 'border-[#EF4444] bg-[#EF4444]/10 text-[#B91C1C]',
+  yellow: 'border-[#F4C84A] bg-[#F4C84A]/20 text-[#8A6500]',
+};
+
 export const indiceFilterControlBaseClassName =
   'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 shadow-none outline-none transition-colors placeholder:text-slate-400 focus-visible:ring-2 dark:border-slate-600 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500';
 
@@ -181,6 +194,59 @@ export function IndiceFilterSelect({
           ))}
         </SelectContent>
       </Select>
+    </div>
+  );
+}
+
+export function IndiceFilterSegmented({
+  className,
+  label,
+  onValueChange,
+  options,
+  tone,
+  value,
+}: {
+  className?: string;
+  label: string;
+  onValueChange: (value: string) => void;
+  options: IndiceFilterOption[];
+  tone: IndiceModuleTone;
+  value: string;
+}) {
+  const labelId = useId();
+
+  return (
+    <div className={cn('min-w-0 space-y-2', className)}>
+      <span id={labelId} className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+        {label}
+      </span>
+      <div
+        role="group"
+        aria-labelledby={labelId}
+        className="flex min-h-11 flex-wrap overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-900"
+      >
+        {options.map((option) => {
+          const active = option.value === value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={active}
+              disabled={option.disabled}
+              onClick={() => onValueChange(option.value)}
+              className={cn(
+                'min-h-11 min-w-[7rem] flex-1 border border-transparent px-4 text-sm font-medium transition-colors focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50',
+                focusClasses[tone],
+                active
+                  ? segmentedActiveClasses[tone]
+                  : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800',
+              )}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -67,11 +67,17 @@ test('la memoria de navegación conserva contexto por empresa, usuario, módulo 
 test('Prospectos y Contactos limpian filtros sin restablecer la vista del usuario', () => {
   const prospectsSource = readFileSync(resolve(salesRoot, 'Prospectos/Prospectos.tsx'), 'utf8');
   const contactsSource = readFileSync(resolve(salesRoot, 'Contactos/Contactos.tsx'), 'utf8');
+  const filterBarSource = readFileSync(resolve(salesRoot, 'components/SalesFilterBar.tsx'), 'utf8');
 
   assert.match(prospectsSource, /const handleClearFilters = \(\) =>/);
   assert.match(contactsSource, /const handleClearFilters = \(\) =>/);
   assert.doesNotMatch(prospectsSource.match(/const handleClearFilters[\s\S]*?\n  };/)?.[0] ?? '', /setActiveView|setSortState/);
   assert.doesNotMatch(contactsSource.match(/const handleClearFilters[\s\S]*?\n  };/)?.[0] ?? '', /setSortState|setVisibleContactColumns/);
+  assert.match(contactsSource, /onClear=\{handleClearFilters\}/);
+  assert.doesNotMatch(contactsSource, /summary=/);
+  assert.match(contactsSource, /title=\{titleBarTitle \?\? t\.header\.title\}/);
+  assert.match(filterBarSource, /clearLabel\?: string/);
+  assert.match(filterBarSource, /onClear\?: \(\) => void/);
 });
 
 test('Productos expone el control de inventario desde el primer paso y lo refleja en la tabla', () => {

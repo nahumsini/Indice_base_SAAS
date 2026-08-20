@@ -15,6 +15,7 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -46,7 +47,7 @@ public class CashClosingHistoryRepository {
                    company.name AS company_name,
                    closing.opening_cash_amount, closing.cash_sales_amount, closing.expected_cash_amount,
                    closing.counted_cash_amount, closing.over_short_amount, closing.total_sales_amount,
-                   closing.tickets_count, closing.closed_by_user_id,
+                   closing.total_refunds_amount, closing.tickets_count, closing.payments_summary_json, closing.closed_by_user_id,
                    COALESCE(NULLIF(TRIM(closed_by.full_name), ''), closed_by.email) AS closed_by_user_name,
                    shift.currency_code, closing.closed_at
             FROM pos_cash_closings closing
@@ -62,6 +63,24 @@ public class CashClosingHistoryRepository {
             ORDER BY closing.closed_at DESC, closing.id DESC
             LIMIT ? OFFSET ?
             """, this::mapSummaryRow, params.toArray());
+    }
+
+    public int countAll(PosContext context, CashClosingQueryFilter filter) {
+        var params = new ArrayList<Object>();
+        var where = historyWhere(context, filter, params);
+        var count = jdbcTemplate.queryForObject("""
+            SELECT COUNT(*)
+            FROM pos_cash_closings closing
+            JOIN pos_shifts shift ON shift.id = closing.shift_id
+            JOIN pos_cash_registers register ON register.id = closing.cash_register_id
+            JOIN sales_inventory_warehouses warehouse ON warehouse.id = closing.warehouse_id
+            LEFT JOIN units unit ON unit.id = closing.unit_id AND unit.company_id = closing.company_id
+            LEFT JOIN businesses business ON business.id = closing.business_id
+              AND business.company_id = closing.company_id
+            JOIN companies company ON company.id = closing.company_id
+            JOIN users closed_by ON closed_by.id = closing.closed_by_user_id
+            """ + where, Integer.class, params.toArray());
+        return count == null ? 0 : count;
     }
 
     public Optional<CashClosingDetailResponse> findById(PosContext context, long closingId) {
@@ -95,6 +114,8 @@ public class CashClosingHistoryRepository {
         addLongFilter(where, params, "warehouse_id", filter.warehouseId());
         addLongFilter(where, params, "shift_id", filter.shiftId());
         addLongFilter(where, params, "closed_by_user_id", filter.userId());
+        addSearchFilter(where, params, filter.search());
+        where.append('\n');
         return where.toString();
     }
 
@@ -119,6 +140,22 @@ public class CashClosingHistoryRepository {
         params.add(value);
     }
 
+    private void addSearchFilter(StringBuilder where, List<Object> params, String value) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        where.append("""
+
+              AND CONVERT(LOWER(CONCAT_WS(' ',
+                    CONCAT('COR-', closing.id), closing.id,
+                    closing.cash_register_id, register.code, register.name,
+                    closing.warehouse_id, warehouse.name, unit.name, business.name,
+                    closing.closed_by_user_id, closed_by.full_name, closed_by.email
+                  )) USING utf8mb4) COLLATE utf8mb4_unicode_ci LIKE ?
+            """);
+        params.add("%" + value.trim().toLowerCase(Locale.ROOT) + "%");
+    }
+
     private CashClosingSummaryRow mapSummaryRow(ResultSet rs, int rowNum) throws SQLException {
         return new CashClosingSummaryRow(
             rs.getLong("id"), rs.getLong("shift_id"), rs.getLong("cash_register_id"),
@@ -129,7 +166,9 @@ public class CashClosingHistoryRepository {
             rs.getString("company_name"), rs.getBigDecimal("opening_cash_amount"),
             rs.getBigDecimal("cash_sales_amount"), rs.getBigDecimal("expected_cash_amount"),
             rs.getBigDecimal("counted_cash_amount"), rs.getBigDecimal("over_short_amount"),
-            rs.getBigDecimal("total_sales_amount"), rs.getInt("tickets_count"),
+            rs.getBigDecimal("total_sales_amount"), rs.getBigDecimal("total_refunds_amount"),
+            rs.getInt("tickets_count"),
+            paymentSummary(rs.getString("payments_summary_json")),
             rs.getLong("closed_by_user_id"), rs.getString("closed_by_user_name"), rs.getString("currency_code"),
             PosSqlSupport.instant(rs, "closed_at")
         );

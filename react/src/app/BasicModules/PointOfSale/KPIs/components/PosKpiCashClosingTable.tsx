@@ -1,127 +1,185 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button } from '../../../../components/ui/button';
-import type { PosCashClosingSummaryRow } from '../../shared/cashClosingHistory.types';
+import { ArrowDown, ArrowUp, ArrowUpDown, Eye } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { PointOfSaleTablePagination } from '../../shared/components/PointOfSaleTablePagination';
 import type { PosKpiCopy } from '../posKpiTranslations';
+import type { PosKpiPerformanceRow } from '../utils/posKpiAnalytics';
 
-function toNumber(value: number | string | null | undefined) {
-  const parsed = Number(value ?? 0);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
+type SortKey = 'sales' | 'tickets' | 'averageTicket' | 'closings' | 'cashAccuracy' | 'refunds' | 'lastClosingAt';
+type SortDirection = 'asc' | 'desc';
 
-function formatDate(value: string, locale: string) {
-  return new Intl.DateTimeFormat(locale, {
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(new Date(value));
-}
-
-function DifferencePill({ value, currency, formatCurrency }: { value: number; currency: string; formatCurrency: (amount: number, currency?: string) => string }) {
-  const hasDifference = Math.abs(value) >= 1;
-  const tone = hasDifference
-    ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200'
-    : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200';
-
-  return <span className={`rounded-full border px-3 py-1 text-xs font-medium ${tone}`}>{value > 0 ? '+' : ''}{formatCurrency(value, currency)}</span>;
+function sortRows(rows: PosKpiPerformanceRow[], key: SortKey, direction: SortDirection) {
+  return [...rows].sort((first, second) => {
+    const firstValue = key === 'lastClosingAt' ? new Date(first.lastClosingAt).getTime() : first[key] ?? -1;
+    const secondValue = key === 'lastClosingAt' ? new Date(second.lastClosingAt).getTime() : second[key] ?? -1;
+    const result = Number(firstValue) - Number(secondValue);
+    return direction === 'asc' ? result : -result;
+  });
 }
 
 export function PosKpiCashClosingTable({
   copy,
+  dateFrom,
+  dateTo,
   formatCurrency,
-  items,
   locale,
-  page,
-  pageSize,
-  totalItems,
-  onPageChange,
-  onPageSizeChange,
+  rows,
 }: {
   copy: PosKpiCopy;
-  formatCurrency: (amount: number, currency?: string) => string;
-  items: PosCashClosingSummaryRow[];
+  dateFrom: string;
+  dateTo: string;
+  formatCurrency: (amount: number) => string;
   locale: string;
-  page: number;
-  pageSize: number;
-  totalItems: number;
-  onPageChange: (page: number) => void;
-  onPageSizeChange: (pageSize: number) => void;
+  rows: PosKpiPerformanceRow[];
 }) {
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const [sortKey, setSortKey] = useState<SortKey>('sales');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const sortedRows = useMemo(() => sortRows(rows, sortKey, sortDirection), [rows, sortDirection, sortKey]);
+  const totalPages = Math.max(1, Math.ceil(sortedRows.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = sortedRows.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const pageEnd = Math.min(currentPage * pageSize, sortedRows.length);
+  const visibleRows = sortedRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const dateFormatter = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' });
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection((current) => current === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDirection('desc');
+    }
+    setPage(1);
+  };
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex flex-col gap-3 border-b border-slate-100 p-5 dark:border-slate-800 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h3 className="text-lg font-medium text-slate-950 dark:text-white">{copy.table.title}</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400">{copy.table.subtitle}</p>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-          <span>{copy.table.rows}</span>
-          <select
-            value={pageSize}
-            onChange={(event) => onPageSizeChange(Number(event.target.value))}
-            className="h-11 rounded-xl border border-slate-300 bg-white px-2 text-sm font-medium outline-none focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-          >
-            {[10, 25, 50, 100, 200].map((size) => (
-              <option key={size} value={size}>{size}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[950px] text-left text-sm">
-          <thead className="bg-slate-50 text-xs tracking-normal text-slate-500 dark:bg-slate-950 dark:text-slate-400">
-            <tr>
-              {copy.table.columns.map((column) => (
-                <th key={column} className="px-5 py-4">{column}</th>
-              ))}
+    <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <header className="border-b border-slate-200 px-5 py-4 dark:border-slate-700">
+        <h3 className="text-lg font-medium text-slate-950 dark:text-white">{copy.table.title}</h3>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.table.subtitle}</p>
+      </header>
+      <div className="overflow-x-auto overscroll-x-contain">
+        <table className="min-w-[1260px] table-fixed divide-y divide-slate-200 text-sm leading-5 dark:divide-slate-700">
+          <colgroup>
+            <col className="w-[260px]" />
+            <col className="w-[130px]" />
+            <col className="w-[110px]" />
+            <col className="w-[150px]" />
+            <col className="w-[110px]" />
+            <col className="w-[140px]" />
+            <col className="w-[130px]" />
+            <col className="w-[200px]" />
+            <col className="w-[110px]" />
+          </colgroup>
+          <thead className="bg-slate-50 text-[13px] font-normal leading-4 text-slate-500 dark:bg-slate-950/60 dark:text-slate-300">
+            <tr className="h-[56px]">
+              <th className="px-5 text-left font-normal">{copy.table.columns.register}</th>
+              <SortableHead label={copy.table.columns.sales} column="sales" active={sortKey} direction={sortDirection} onSort={handleSort} align="right" />
+              <SortableHead label={copy.table.columns.tickets} column="tickets" active={sortKey} direction={sortDirection} onSort={handleSort} align="right" />
+              <SortableHead label={copy.table.columns.averageTicket} column="averageTicket" active={sortKey} direction={sortDirection} onSort={handleSort} align="right" />
+              <SortableHead label={copy.table.columns.closings} column="closings" active={sortKey} direction={sortDirection} onSort={handleSort} align="right" />
+              <SortableHead label={copy.table.columns.accuracy} column="cashAccuracy" active={sortKey} direction={sortDirection} onSort={handleSort} align="right" />
+              <SortableHead label={copy.table.columns.refunds} column="refunds" active={sortKey} direction={sortDirection} onSort={handleSort} align="right" />
+              <SortableHead label={copy.table.columns.lastClosing} column="lastClosingAt" active={sortKey} direction={sortDirection} onSort={handleSort} />
+              <th className="px-4 text-right font-normal">{copy.table.columns.actions}</th>
             </tr>
           </thead>
-          <tbody>
-            {items.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-5 py-8 text-center text-sm font-medium text-slate-500 dark:text-slate-400">
-                  {copy.table.empty}
+          <tbody className="divide-y divide-slate-100 bg-white dark:divide-slate-700 dark:bg-slate-800">
+            {visibleRows.map((row) => (
+              <tr key={row.cashRegisterId} className="h-[76px] hover:bg-slate-50/80 dark:hover:bg-slate-700/40">
+                <td className="px-5">
+                  <p className="font-medium text-slate-950 dark:text-white">{row.cashRegisterName}</p>
+                  <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{row.cashRegisterCode} · {row.warehouseName}</p>
                 </td>
-              </tr>
-            ) : items.map((item) => (
-              <tr key={item.id} className="border-t border-slate-100 dark:border-slate-800">
-                <td className="px-5 py-4">
-                  <p className="font-medium text-slate-950 dark:text-white">#{item.id}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{formatDate(item.closedAt, locale)}</p>
+                <td className="px-4 text-right tabular-nums text-slate-800 dark:text-slate-100">{formatCurrency(row.sales)}</td>
+                <td className="px-4 text-right tabular-nums text-slate-800 dark:text-slate-100">{row.tickets}</td>
+                <td className="px-4 text-right tabular-nums text-slate-800 dark:text-slate-100">{formatCurrency(row.averageTicket)}</td>
+                <td className="px-4 text-right tabular-nums text-slate-800 dark:text-slate-100">{row.closings}</td>
+                <td className="px-4 text-right">
+                  <AccuracyPill value={row.cashAccuracy} unavailable={copy.common.unavailable} />
                 </td>
-                <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{copy.common.cashRegister(item.cashRegisterId)}</td>
-                <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{copy.common.warehouse(item.warehouseId)}</td>
-                <td className="px-5 py-4 font-medium text-slate-900 dark:text-white">{item.ticketsCount}</td>
-                <td className="px-5 py-4 font-medium text-slate-900 dark:text-white">{formatCurrency(toNumber(item.totalSalesAmount), item.currencyCode)}</td>
-                <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{formatCurrency(toNumber(item.expectedCashAmount), item.currencyCode)}</td>
-                <td className="px-5 py-4">
-                  <DifferencePill value={toNumber(item.overShortAmount)} currency={item.currencyCode ?? 'MXN'} formatCurrency={formatCurrency} />
+                <td className="px-4 text-right tabular-nums text-slate-800 dark:text-slate-100">{formatCurrency(row.refunds)}</td>
+                <td className="px-4 text-slate-600 dark:text-slate-300">{dateFormatter.format(new Date(row.lastClosingAt))}</td>
+                <td className="px-4 text-right">
+                  <div className="inline-flex items-center justify-end rounded-xl border border-slate-200 bg-slate-50/80 p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-800/70">
+                    <a
+                      href={`/point-of-sale/cortes?warehouseId=${row.warehouseId}&cashRegisterId=${row.cashRegisterId}&dateFrom=${dateFrom}&dateTo=${dateTo}`}
+                      aria-label={copy.table.viewClosings(row.cashRegisterName)}
+                      title={copy.table.viewClosings(row.cashRegisterName)}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#B63B32] transition hover:bg-[#FF6B5E]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/35 dark:text-[#FFB0AA]"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </a>
+                  </div>
                 </td>
               </tr>
             ))}
+            {visibleRows.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="px-6 py-16 text-center text-sm text-slate-500 dark:text-slate-400">{copy.table.empty}</td>
+              </tr>
+            ) : null}
           </tbody>
         </table>
       </div>
-
-      <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          {copy.table.pageSummary(page, totalPages, totalItems)}
-        </p>
-        <div className="flex gap-2">
-          <Button type="button" variant="outline" className="h-11 rounded-xl border-slate-300 dark:border-slate-700" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
-            <ChevronLeft className="h-4 w-4" />
-            {copy.common.previous}
-          </Button>
-          <Button type="button" variant="outline" className="h-11 rounded-xl border-slate-300 dark:border-slate-700" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
-            {copy.common.next}
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+      <PointOfSaleTablePagination
+        attached
+        currentPage={currentPage}
+        itemLabel={copy.table.itemLabel}
+        onPageChange={setPage}
+        onPageSizeChange={(nextSize) => {
+          setPageSize(nextSize);
+          setPage(1);
+        }}
+        pageEnd={pageEnd}
+        pageSize={pageSize}
+        pageStart={pageStart}
+        totalCount={sortedRows.length}
+        totalPages={totalPages}
+      />
     </section>
   );
+}
+
+function SortableHead({
+  active,
+  align = 'left',
+  column,
+  direction,
+  label,
+  onSort,
+}: {
+  active: SortKey;
+  align?: 'left' | 'right';
+  column: SortKey;
+  direction: SortDirection;
+  label: string;
+  onSort: (key: SortKey) => void;
+}) {
+  const Icon = active !== column ? ArrowUpDown : direction === 'asc' ? ArrowUp : ArrowDown;
+  return (
+    <th className={`px-4 font-normal ${align === 'right' ? 'text-right' : 'text-left'}`}>
+      <button
+        type="button"
+        onClick={() => onSort(column)}
+        className={`inline-flex items-center gap-1.5 whitespace-nowrap font-normal transition hover:text-[#B63B32] ${align === 'right' ? 'justify-end' : ''} ${active === column ? 'text-[#B63B32]' : ''}`}
+      >
+        {label}
+        <Icon className="h-3.5 w-3.5" />
+      </button>
+    </th>
+  );
+}
+
+function AccuracyPill({ unavailable, value }: { unavailable: string; value: number | null }) {
+  if (value === null) {
+    return <span className="text-sm text-slate-400">{unavailable}</span>;
+  }
+  const tone = value >= 99.5
+    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200'
+    : value >= 98
+      ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200'
+      : 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200';
+  return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium tabular-nums ${tone}`}>{value.toFixed(1)}%</span>;
 }

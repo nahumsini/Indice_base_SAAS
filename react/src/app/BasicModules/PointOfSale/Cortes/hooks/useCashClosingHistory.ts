@@ -79,6 +79,9 @@ export function useCashClosingHistory(filters: PosCashClosingFilters) {
           selectedDetail: null,
           loading: false,
           error: error instanceof Error ? error.message : 'No fue posible cargar los cortes de caja.',
+          totalCount: 0,
+          limit: filters.limit ?? current.limit,
+          offset: filters.offset ?? 0,
         }));
       }
     };
@@ -94,6 +97,7 @@ export function useCashClosingHistory(filters: PosCashClosingFilters) {
     filters.dateTo,
     filters.limit,
     filters.offset,
+    filters.search,
     filters.shiftId,
     filters.userId,
     filters.warehouseId,

@@ -9,11 +9,14 @@ export const enUS = {
     fallbackTitle: 'Loading workspace',
     fallbackDescription: 'Loading only the selected point-of-sale section.',
   },
+  titleBars: {
+    saleSubtitle: 'Operate from an active register and open a shift before adding products to the sale.',
+  },
   tabs: {
     sale: 'Sale',
     cortes: 'Register closings',
     clientes: 'Customers',
-    kpis: 'Indicators',
+    kpis: 'KPIs',
     kiosks: 'Kiosks',
     cajas: 'Registers & shifts',
   },

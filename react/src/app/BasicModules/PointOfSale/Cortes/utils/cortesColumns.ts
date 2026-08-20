@@ -4,27 +4,25 @@ export type CortesColumnId =
   | 'context'
   | 'cashRegister'
   | 'cashier'
-  | 'shift'
   | 'tickets'
   | 'totalSales'
-  | 'expected'
-  | 'counted'
-  | 'difference'
-  | 'status';
+  | 'cash'
+  | 'card'
+  | 'transfer'
+  | 'credit';
 
 export const cortesColumnLabels: Record<CortesColumnId, string> = {
   cashier: 'Cajero',
+  card: 'Tarjeta',
   cashRegister: 'Caja',
+  cash: 'Efectivo',
   closedAt: 'Fecha cierre',
   context: 'Almacén',
-  counted: 'Contado',
-  difference: 'Diferencia',
-  expected: 'Esperado',
+  credit: 'Crédito',
   folio: 'Corte',
-  shift: 'Turno',
-  status: 'Estado',
   tickets: 'Tickets',
   totalSales: 'Ventas',
+  transfer: 'Transferencia',
 };
 
 export const defaultCortesColumns: CortesColumnId[] = [
@@ -35,10 +33,10 @@ export const defaultCortesColumns: CortesColumnId[] = [
   'cashier',
   'tickets',
   'totalSales',
-  'expected',
-  'counted',
-  'difference',
-  'status',
+  'cash',
+  'card',
+  'transfer',
+  'credit',
 ];
 
 export const cortesColumnOptions = Object.entries(cortesColumnLabels).map(([id, label]) => ({

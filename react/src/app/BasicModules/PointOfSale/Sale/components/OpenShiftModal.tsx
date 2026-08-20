@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Coins, Loader2, LogIn, Monitor, StickyNote, Warehouse } from 'lucide-react';
+import { AlertTriangle, Coins, LogIn, Monitor, StickyNote, Warehouse } from 'lucide-react';
 import {
   PosModalFrame,
   posModalModuleFooterClassName,
@@ -25,7 +25,6 @@ interface OpenShiftModalProps {
   onClose: () => void;
   onConfirm: (initialCash: number, openingNote?: string, currencyCode?: string) => void | Promise<void>;
   onSelectCashRegister?: (cashRegisterId: string) => void;
-  onEnsureWarehouseRegister?: (warehouseId: string) => Promise<string>;
 }
 
 const quickAmounts = [0, 500, 1000, 2000, 5000];
@@ -47,112 +46,76 @@ export function OpenShiftModal({
   onClose,
   onConfirm,
   onSelectCashRegister,
-  onEnsureWarehouseRegister,
 }: OpenShiftModalProps) {
-  const [selectedWarehouseId, setSelectedWarehouseId] = useState('');
   const [selectedCurrencyCode, setSelectedCurrencyCode] = useState(() => normalizeBusinessCurrencyCode(preferredCurrencyCode));
   const [initialCash, setInitialCash] = useState('0.00');
   const [openingNote, setOpeningNote] = useState('');
   const [error, setError] = useState('');
-  const [isProvisioningRegister, setIsProvisioningRegister] = useState(false);
   const amountInputRef = useRef<HTMLInputElement>(null);
 
-  const activeRegisters = useMemo(
-    () => cashRegisters.filter((register) => register.active && register.status === 'ACTIVE'),
-    [cashRegisters],
-  );
-  const availableWarehouses = useMemo(
-    () => [...warehouses].sort((first, second) => first.name.localeCompare(second.name)),
+  const warehousesById = useMemo(
+    () => new Map(warehouses.map((warehouse) => [toId(warehouse.id), warehouse])),
     [warehouses],
   );
-  const selectedWarehouse = useMemo(
-    () => warehouses.find((warehouse) => toId(warehouse.id) === selectedWarehouseId) ?? null,
-    [selectedWarehouseId, warehouses],
-  );
-  const warehouseRegisters = useMemo(
-    () => activeRegisters
-      .filter((register) => toId(register.warehouseId) === selectedWarehouseId)
-      .sort((first, second) => `${first.code} ${first.name}`.localeCompare(`${second.code} ${second.name}`)),
-    [activeRegisters, selectedWarehouseId],
+  const eligibleRegisters = useMemo(
+    () => cashRegisters
+      .filter((register) => register.active && register.status === 'ACTIVE' && warehousesById.has(toId(register.warehouseId)))
+      .sort((first, second) => {
+        const firstWarehouse = warehousesById.get(toId(first.warehouseId))?.name ?? '';
+        const secondWarehouse = warehousesById.get(toId(second.warehouseId))?.name ?? '';
+        return `${firstWarehouse} ${first.code} ${first.name}`.localeCompare(`${secondWarehouse} ${second.code} ${second.name}`);
+      }),
+    [cashRegisters, warehousesById],
   );
   const selectedRegister = useMemo(
-    () => warehouseRegisters.find((register) => toId(register.id) === selectedCashRegisterId) ?? null,
-    [selectedCashRegisterId, warehouseRegisters],
+    () => eligibleRegisters.find((register) => toId(register.id) === selectedCashRegisterId) ?? null,
+    [eligibleRegisters, selectedCashRegisterId],
+  );
+  const selectedWarehouse = useMemo(
+    () => selectedRegister ? warehousesById.get(toId(selectedRegister.warehouseId)) ?? null : null,
+    [selectedRegister, warehousesById],
   );
 
   useEffect(() => {
     if (!isOpen) return;
-    const register = activeRegisters.find((candidate) => toId(candidate.id) === selectedCashRegisterId);
-    const initialWarehouseId = toId(register?.warehouseId ?? availableWarehouses[0]?.id ?? warehouses[0]?.id);
-    setSelectedWarehouseId(initialWarehouseId);
     setSelectedCurrencyCode(normalizeBusinessCurrencyCode(preferredCurrencyCode));
     setInitialCash('0.00');
     setOpeningNote('');
     setError('');
-    setIsProvisioningRegister(false);
     setTimeout(() => amountInputRef.current?.focus(), 100);
   }, [isOpen]); // Reset only when the modal opens; changing context must preserve entered cash.
 
   useEffect(() => {
-    if (!isOpen || !onSelectCashRegister || !selectedWarehouseId) return;
-    const selectedBelongsToWarehouse = warehouseRegisters.some(
+    if (!isOpen || !onSelectCashRegister) return;
+    const selectedIsEligible = eligibleRegisters.some(
       (register) => toId(register.id) === selectedCashRegisterId,
     );
-    if (!selectedBelongsToWarehouse) {
-      onSelectCashRegister(toId(warehouseRegisters[0]?.id));
+    if (!selectedIsEligible) {
+      onSelectCashRegister(toId(eligibleRegisters[0]?.id));
     }
-  }, [isOpen, onSelectCashRegister, selectedCashRegisterId, selectedWarehouseId, warehouseRegisters]);
+  }, [eligibleRegisters, isOpen, onSelectCashRegister, selectedCashRegisterId]);
 
   if (!isOpen) return null;
 
-  const hasWarehouseBlocker = warehouses.length === 0;
-  const hasRegisterBlocker = !hasWarehouseBlocker && activeRegisters.length === 0 && !onEnsureWarehouseRegister;
-  const contextReady = Boolean(selectedWarehouse && selectedRegister && registerContext);
+  const hasRegisterBlocker = eligibleRegisters.length === 0;
+  const registerContextMatchesSelection = toId(registerContext?.cashRegisterId) === toId(selectedRegister?.id);
+  const contextReady = Boolean(selectedWarehouse && selectedRegister && registerContext && registerContextMatchesSelection);
   const amount = Number(initialCash);
   const contextSummary = contextReady
     ? [
-      selectedWarehouse.name,
-      selectedWarehouse.businessName,
       `${selectedRegister.code} · ${selectedRegister.name}`,
+      selectedWarehouse.name,
+      selectedWarehouse.unitName,
+      selectedWarehouse.businessName,
       selectedCurrencyCode,
       registerContext.responsibleUserName,
     ].filter(Boolean).join(' · ')
-    : isProvisioningRegister
-      ? 'Preparando la caja predeterminada del almacén…'
-      : 'Selecciona un almacén para preparar su caja';
-
-  const handleWarehouseChange = async (warehouseId: string) => {
-    setSelectedWarehouseId(warehouseId);
-    setError('');
-    const existing = activeRegisters.find((register) => toId(register.warehouseId) === warehouseId);
-    if (existing) {
-      onSelectCashRegister?.(toId(existing.id));
-      return;
-    }
-    if (!onEnsureWarehouseRegister) return;
-    setIsProvisioningRegister(true);
-    try {
-      const registerId = await onEnsureWarehouseRegister(warehouseId);
-      onSelectCashRegister?.(registerId);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'No fue posible preparar la caja del almacén.');
-    } finally {
-      setIsProvisioningRegister(false);
-    }
-  };
+    : 'Selecciona una caja POS disponible';
 
   const handleConfirm = () => {
     if (isSubmitting) return;
-    if (hasWarehouseBlocker) {
-      setError('Primero crea un almacén para poder abrir una caja POS.');
-      return;
-    }
-    if (!selectedWarehouseId) {
-      setError('Selecciona el almacén desde donde se descontará el inventario.');
-      return;
-    }
-    if (!selectedRegister || !registerContext) {
-      setError('No hay una caja activa vinculada al almacén seleccionado.');
+    if (!selectedRegister || !selectedWarehouse || !registerContext || !registerContextMatchesSelection) {
+      setError('Selecciona una caja POS activa y disponible.');
       return;
     }
     if (Number.isNaN(amount) || amount < 0) {
@@ -171,7 +134,7 @@ export function OpenShiftModal({
       isCloseDisabled={isSubmitting}
       onClose={onClose}
       size="md"
-      subtitle="Selecciona un almacén y registra el efectivo inicial."
+      subtitle="Selecciona una caja POS y registra el fondo inicial."
       title="Abrir turno"
       tone="coral"
       footerClassName={posModalModuleFooterClassName}
@@ -181,58 +144,44 @@ export function OpenShiftModal({
         <button
           type="button"
           onClick={handleConfirm}
-          disabled={isSubmitting || isProvisioningRegister || !contextReady || Number.isNaN(amount) || amount < 0}
+          disabled={isSubmitting || !contextReady || Number.isNaN(amount) || amount < 0}
           className={posModalPrimaryActionClassName}
         >
           {isSubmitting ? 'Abriendo...' : 'Abrir turno'}
         </button>
       )}
     >
-      {(error || hasWarehouseBlocker || hasRegisterBlocker) ? (
+      {(error || hasRegisterBlocker) ? (
         <div className="mb-4 flex gap-2 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-normal text-orange-800 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{error || (hasWarehouseBlocker
-            ? 'POS requiere un almacén antes de abrir turno.'
-            : 'No fue posible preparar una caja activa para los almacenes disponibles.')}</span>
+          <span>{error || 'No hay cajas POS activas disponibles. Crea una en Cajas y turnos.'}</span>
         </div>
       ) : null}
 
       <section className="space-y-5 rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div>
-          <h3 className="text-lg font-medium text-gray-950 dark:text-white">Contexto de operación</h3>
-          <p className="mt-1 text-sm font-normal text-gray-600 dark:text-gray-300">El almacén precarga la unidad, el negocio y las cajas disponibles.</p>
+          <h3 className="text-lg font-medium text-gray-950 dark:text-white">Caja de operación</h3>
+          <p className="mt-1 text-sm font-normal text-gray-600 dark:text-gray-300">Cada caja conserva su almacén, unidad y negocio. Si un almacén tiene varias cajas, aparecen por separado.</p>
         </div>
 
         <SelectField
-          icon={Warehouse}
-          label="Almacén"
-          value={selectedWarehouseId}
-          disabled={isSubmitting || availableWarehouses.length === 0}
-          options={availableWarehouses.map((warehouse) => ({ id: toId(warehouse.id), name: warehouse.name }))}
-          placeholder="Selecciona un almacén"
-          onChange={(warehouseId) => { void handleWarehouseChange(warehouseId); }}
+          icon={Monitor}
+          label="Caja POS"
+          value={selectedCashRegisterId}
+          disabled={isSubmitting || hasRegisterBlocker}
+          options={eligibleRegisters.map((register) => {
+            const warehouse = warehousesById.get(toId(register.warehouseId));
+            return {
+              id: toId(register.id),
+              name: `${register.code} · ${register.name}${warehouse ? ` · ${warehouse.name}` : ''}`,
+            };
+          })}
+          placeholder="Selecciona una caja POS"
+          onChange={(cashRegisterId) => {
+            onSelectCashRegister?.(cashRegisterId);
+            setError('');
+          }}
         />
-
-        {isProvisioningRegister ? (
-          <div className="flex items-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200">
-            <Loader2 className="h-4 w-4 animate-spin" /> Preparando una caja para este almacén…
-          </div>
-        ) : null}
-
-        {warehouseRegisters.length > 1 ? (
-          <SelectField
-            icon={Monitor}
-            label="Caja"
-            value={selectedCashRegisterId}
-            disabled={isSubmitting}
-            options={warehouseRegisters.map((register) => ({ id: toId(register.id), name: `${register.code} · ${register.name}` }))}
-            placeholder="Selecciona una caja"
-            onChange={(cashRegisterId) => {
-              onSelectCashRegister?.(cashRegisterId);
-              setError('');
-            }}
-          />
-        ) : null}
 
         <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-950/50">
           <p className="text-xs font-normal text-gray-500 dark:text-gray-400">Contexto precargado</p>
