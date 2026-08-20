@@ -23,9 +23,11 @@ export const enCA = {
   filters: {
     title: 'Filters',
     clear: 'Clear filters',
+    more: 'More filters',
+    hideMore: 'Hide filters',
     search: 'Search',
     searchPlaceholder: 'Opportunity, company, or contact',
-    focus: 'Focus',
+    focus: 'Quick view',
     focusOptions: {
       all: 'All opportunities',
       myPortfolio: 'My portfolio',
@@ -175,7 +177,7 @@ export const enCA = {
     },
     contact: {
       label: 'Contact',
-      description: 'Primary person connected to the sale.',
+      description: 'Primary person, phone, and email connected to the sale.',
     },
     phone: {
       label: 'Phone',
@@ -202,16 +204,16 @@ export const enCA = {
       description: 'Seller or executive responsible for follow-up.',
     },
     estimatedValue: {
-      label: 'Commercial value',
-      description: 'Smart value: estimated, quoted, or closed depending on the commercial stage.',
+      label: 'Value / forecast',
+      description: 'Current quoted total and probability-weighted forecast.',
     },
     probability: {
       label: 'Probability',
       description: 'Estimated closing probability.',
     },
     quoteSignal: {
-      label: 'Quote',
-      description: 'Status of quotes linked to the opportunity.',
+      label: 'Quotes',
+      description: 'Linked documents, status, and individual PDF download.',
     },
     pipeline: {
       label: 'Quoted pipeline',
@@ -222,8 +224,8 @@ export const enCA = {
       description: 'Target closing date.',
     },
     nextAction: {
-      label: 'Next action',
-      description: 'Next commercial step.',
+      label: 'Follow-up',
+      description: 'Next action, schedule, and last contact.',
     },
     nextActionDate: {
       label: 'Action date',
@@ -238,8 +240,8 @@ export const enCA = {
       description: 'Documents related to the opportunity.',
     },
     status: {
-      label: 'Status',
-      description: 'Operational opportunity status.',
+      label: 'Health',
+      description: 'Operational health of the opportunity.',
     },
   } satisfies Record<OpportunityColumnId, { label: string; description: string }>,
   table: {
@@ -256,6 +258,8 @@ export const enCA = {
       lost: 'Closed lost',
       quoteCount: (count: number) => `${count} ${count === 1 ? 'quote' : 'quotes'}`,
       converted: (value: string) => `Converted: ${value}`,
+      forecast: (probability: string) => `Forecast · ${probability}`,
+      estimatedPotential: (value: string) => `Potential: ${value}`,
     },
   },
   quickActions: {
@@ -399,6 +403,9 @@ export const enCA = {
     } satisfies Record<OpportunityQuoteSignalState, string>,
     noDocument: 'No commercial document',
     countDetail: (count: number, total: string) => `${count} ${count === 1 ? 'quote' : 'quotes'} · ${total}`,
+    forecastTotal: (total: string) => `Linked quoted: ${total}`,
+    pdfCount: (count: number) => `${count} PDF${count === 1 ? '' : 's'}`,
+    downloadPdf: 'Download PDF',
   },
   options: {
     stages: {
@@ -477,9 +484,11 @@ export const esMX: ProspectosCopy = {
   filters: {
     title: 'Filtros',
     clear: 'Limpiar filtros',
+    more: 'Más filtros',
+    hideMore: 'Ocultar filtros',
     search: 'Buscar',
     searchPlaceholder: 'Oportunidad, empresa o contacto',
-    focus: 'Enfoque',
+    focus: 'Vista rápida',
     focusOptions: {
       all: 'Todas',
       myPortfolio: 'Mi cartera',
@@ -610,23 +619,23 @@ export const esMX: ProspectosCopy = {
   },
   columns: {
     opportunity: { label: 'Oportunidad / empresa', description: 'Nombre comercial de la oportunidad, empresa y folio.' },
-    contact: { label: 'Contacto', description: 'Persona principal relacionada con la venta.' },
+    contact: { label: 'Contacto', description: 'Persona principal, teléfono y correo relacionados con la venta.' },
     phone: { label: 'Teléfono', description: 'Teléfono principal para llamadas o WhatsApp.' },
     email: { label: 'Email', description: 'Correo principal del contacto.' },
     source: { label: 'Origen', description: 'Fuente comercial que generó la oportunidad.' },
     stage: { label: 'Etapa', description: 'Avance dentro del pipeline comercial.' },
     temperature: { label: 'Temperatura', description: 'Prioridad comercial de la oportunidad.' },
     owner: { label: 'Responsable', description: 'Vendedor o ejecutivo responsable.' },
-    estimatedValue: { label: 'Valor comercial', description: 'Valor inteligente: estimado, cotizado o cerrado según avance comercial.' },
+    estimatedValue: { label: 'Valor / forecast', description: 'Total cotizado vigente y forecast ponderado por probabilidad.' },
     probability: { label: 'Probabilidad', description: 'Probabilidad estimada de cierre.' },
-    quoteSignal: { label: 'Cotización', description: 'Estado de cotizaciones ligadas a la oportunidad.' },
+    quoteSignal: { label: 'Cotizaciones', description: 'Documentos ligados, estado y descarga individual de PDF.' },
     pipeline: { label: 'Pipeline cotizado', description: 'Monto cotizado ligado a la oportunidad por divisa.' },
     expectedCloseDate: { label: 'Cierre esperado', description: 'Fecha objetivo de cierre.' },
-    nextAction: { label: 'Siguiente acción', description: 'Próximo paso comercial.' },
+    nextAction: { label: 'Seguimiento', description: 'Siguiente acción, agenda y último contacto.' },
     nextActionDate: { label: 'Fecha de acción', description: 'Fecha y hora programada para el siguiente contacto.' },
     lastContact: { label: 'Último contacto', description: 'Último registro de contacto comercial.' },
     files: { label: 'Archivos', description: 'Documentos relacionados con la oportunidad.' },
-    status: { label: 'Estado', description: 'Estado operativo de la oportunidad.' },
+    status: { label: 'Salud', description: 'Salud operativa de la oportunidad.' },
   },
   table: {
     actions: 'Acciones',
@@ -642,6 +651,8 @@ export const esMX: ProspectosCopy = {
       lost: 'Cierre perdido',
       quoteCount: (count) => `${count} ${count === 1 ? 'cotización' : 'cotizaciones'}`,
       converted: (value) => `Convertido: ${value}`,
+      forecast: (probability) => `Forecast · ${probability}`,
+      estimatedPotential: (value) => `Potencial: ${value}`,
     },
   },
   quickActions: {
@@ -785,6 +796,9 @@ export const esMX: ProspectosCopy = {
     },
     noDocument: 'Sin documento comercial',
     countDetail: (count, total) => `${count} ${count === 1 ? 'cotización' : 'cotizaciones'} · ${total}`,
+    forecastTotal: (total) => `Cotizado ligado: ${total}`,
+    pdfCount: (count) => `${count} PDF${count === 1 ? '' : 's'}`,
+    downloadPdf: 'Descargar PDF',
   },
   options: {
     stages: {
@@ -866,8 +880,11 @@ export const prospectosTranslations = {
     filters: {
       ...enCA.filters,
       title: 'Filtres',
+      more: 'Plus de filtres',
+      hideMore: 'Masquer les filtres',
       search: 'Rechercher',
       searchPlaceholder: 'Occasion, entreprise ou contact',
+      focus: 'Vue rapide',
       stage: 'Étape',
       owner: 'Responsable',
       source: 'Source',
@@ -966,6 +983,9 @@ export const prospectosTranslations = {
       ...esMX.filters,
       search: 'Buscar',
       searchPlaceholder: 'Oportunidade, empresa ou contato',
+      focus: 'Visão rápida',
+      more: 'Mais filtros',
+      hideMore: 'Ocultar filtros',
       owner: 'Responsável',
       all: 'Todos',
     },
@@ -1035,7 +1055,7 @@ export const prospectosTranslations = {
       createOpportunity: '기회 만들기',
       preferredCurrency: '기본 통화',
     },
-    filters: { ...enCA.filters, title: '필터', search: '검색', searchPlaceholder: '기회, 회사 또는 연락처', owner: '담당자', all: '전체' },
+    filters: { ...enCA.filters, title: '필터', search: '검색', searchPlaceholder: '기회, 회사 또는 연락처', focus: '빠른 보기', more: '필터 더 보기', hideMore: '필터 숨기기', owner: '담당자', all: '전체' },
     table: { ...enCA.table, actions: '작업', empty: '검색과 일치하는 기회가 없습니다.', noLastContact: '기록 없음' },
     modal: { ...enCA.modal, createTitle: '기회 만들기', editTitle: '기회 편집', cancel: '취소', saveChanges: '변경 저장', createOpportunity: '기회 만들기' },
     detailModal: { title: '기회 이력', description: '영업 이벤트, 후속 조치, 파일, 주요 변경의 운영 기록입니다.', close: '닫기' },
@@ -1052,7 +1072,7 @@ export const prospectosTranslations = {
       createOpportunity: '创建机会',
       preferredCurrency: '首选货币',
     },
-    filters: { ...enCA.filters, title: '筛选', search: '搜索', searchPlaceholder: '机会、公司或联系人', owner: '负责人', all: '全部' },
+    filters: { ...enCA.filters, title: '筛选', search: '搜索', searchPlaceholder: '机会、公司或联系人', focus: '快速视图', more: '更多筛选', hideMore: '隐藏筛选', owner: '负责人', all: '全部' },
     table: { ...enCA.table, actions: '操作', empty: '没有符合搜索条件的机会。', noLastContact: '无记录' },
     modal: { ...enCA.modal, createTitle: '创建机会', editTitle: '编辑机会', cancel: '取消', saveChanges: '保存更改', createOpportunity: '创建机会' },
     detailModal: { title: '机会历史', description: '销售事件、跟进、文件和关键变更的运营记录。', close: '关闭' },

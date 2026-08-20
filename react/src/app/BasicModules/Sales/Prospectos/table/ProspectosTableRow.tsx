@@ -36,7 +36,7 @@ import {
   getOpportunitySchedule,
 } from '../utils/prospectosFormatters';
 import { getOpportunityNativePipelineTotals } from '../utils/prospectosPipeline';
-import { getOpportunityQuoteSignal } from '../utils/prospectosQuoteSignals';
+import { getLinkedQuotesForOpportunity, getOpportunityQuoteSignal } from '../utils/prospectosQuoteSignals';
 import { stageClasses, statusClasses, temperatureClasses } from '../utils/prospectosStatus';
 
 function OpportunityInlineSelect<TValue extends string>({
@@ -153,6 +153,7 @@ export function ProspectosTableRow({
   onEdit,
   onDelete,
   onScheduleChange,
+  onDownloadQuote,
 }: {
   copy: ProspectosCopy;
   opportunity: SalesOpportunity;
@@ -168,7 +169,9 @@ export function ProspectosTableRow({
   onEdit: (opportunity: SalesOpportunity) => void;
   onDelete: (opportunity: SalesOpportunity) => void;
   onScheduleChange: (opportunity: SalesOpportunity, date: string, time: string) => void;
+  onDownloadQuote: (opportunity: SalesOpportunity, quote: SalesQuote) => void;
 }) {
+  const linkedQuotes = getLinkedQuotesForOpportunity(opportunity, quotes);
   const quoteSignal = getOpportunityQuoteSignal(opportunity, quotes);
   const pipeline = getOpportunityNativePipelineTotals(opportunity, quotes);
   const commercialFilesCount = opportunity.files.length + quoteSignal.quoteCount;
@@ -184,7 +187,21 @@ export function ProspectosTableRow({
           </div>
         );
       case 'contact':
-        return <span className="block min-w-0 break-words text-sm font-medium text-slate-900 dark:text-slate-200">{opportunity.contactPerson}</span>;
+        return (
+          <div className="min-w-0 max-w-full space-y-1">
+            <p className="break-words text-sm font-medium text-slate-900 dark:text-slate-200">{opportunity.contactPerson}</p>
+            {opportunity.phone ? (
+              <a className="block break-all text-xs text-slate-600 hover:text-[#2563EB] dark:text-slate-300" href={`tel:${opportunity.phone}`}>
+                {opportunity.phone}
+              </a>
+            ) : null}
+            {opportunity.email ? (
+              <a className="block break-all text-xs text-slate-600 hover:text-[#2563EB] dark:text-slate-300" href={`mailto:${opportunity.email}`}>
+                {opportunity.email}
+              </a>
+            ) : null}
+          </div>
+        );
       case 'phone':
         return <span className="block min-w-0 break-all text-sm text-slate-700 dark:text-slate-300">{opportunity.phone}</span>;
       case 'email':
@@ -236,7 +253,6 @@ export function ProspectosTableRow({
             copy={copy.table.commercialValue}
             opportunity={opportunity}
             pipeline={pipeline}
-            onEstimatedValueChange={(estimatedValue) => onUpdateOpportunity(opportunity.id, { estimatedValue })}
           />
         );
       case 'probability':
@@ -249,7 +265,14 @@ export function ProspectosTableRow({
           />
         );
       case 'quoteSignal':
-        return <OpportunityQuoteSignalBadge signal={quoteSignal} copy={copy.quoteSignal} />;
+        return (
+          <OpportunityQuoteSignalBadge
+            signal={quoteSignal}
+            copy={copy.quoteSignal}
+            quotes={linkedQuotes}
+            onDownloadQuote={(quote) => onDownloadQuote(opportunity, quote)}
+          />
+        );
       case 'pipeline':
         return <OpportunityPipelineCell pipeline={pipeline} copy={copy.kpis} />;
       case 'expectedCloseDate':
@@ -263,12 +286,18 @@ export function ProspectosTableRow({
         );
       case 'nextAction':
         return (
-          <OpportunityInlineSelect<OpportunityNextAction>
-            value={opportunity.nextAction}
-            options={opportunityNextActions}
-            getLabel={(nextAction) => copy.options.nextActions[nextAction]}
-            onValueChange={(nextAction) => onUpdateOpportunity(opportunity.id, { nextAction })}
-          />
+          <div className="min-w-0 max-w-full space-y-2">
+            <OpportunityInlineSelect<OpportunityNextAction>
+              value={opportunity.nextAction}
+              options={opportunityNextActions}
+              getLabel={(nextAction) => copy.options.nextActions[nextAction]}
+              onValueChange={(nextAction) => onUpdateOpportunity(opportunity.id, { nextAction })}
+            />
+            <OpportunityScheduleInlineEditor opportunity={opportunity} onScheduleChange={onScheduleChange} />
+            <p className="break-words text-[11px] text-slate-500 dark:text-slate-400">
+              {copy.columns.lastContact.label}: {opportunity.lastContact || copy.table.noLastContact}
+            </p>
+          </div>
         );
       case 'nextActionDate':
         return <OpportunityScheduleInlineEditor opportunity={opportunity} onScheduleChange={onScheduleChange} />;

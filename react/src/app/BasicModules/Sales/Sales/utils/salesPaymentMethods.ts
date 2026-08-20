@@ -2,8 +2,6 @@ export const salesPaymentMethodIds = [
   'cash',
   'card',
   'transfer',
-  'wallet',
-  'check',
   'credit',
 ] as const;
 
@@ -24,12 +22,6 @@ const aliases: Record<string, SalesPaymentMethodId> = {
   bank_transfer: 'transfer',
   wiretransfer: 'transfer',
   wire_transfer: 'transfer',
-  wallet: 'wallet',
-  billetera: 'wallet',
-  digitalwallet: 'wallet',
-  digital_wallet: 'wallet',
-  check: 'check',
-  cheque: 'check',
   credit: 'credit',
   credito: 'credit',
   credito_cliente: 'credit',

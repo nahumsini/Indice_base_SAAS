@@ -24,6 +24,8 @@ export const frCA = {
     secondaryAction: 'Réviser les échéances',
   },
   filters: {
+    client: 'Client',
+    allClients: 'Tous les clients',
     title: 'Filtres de devis',
     search: 'Rechercher',
     searchPlaceholder: 'Rechercher devis, client, occasion ou vendeur',

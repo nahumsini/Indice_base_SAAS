@@ -14,6 +14,7 @@ import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdent
 import { printStandardKpiReport } from '../../shared/print/standardKpiPrintReport';
 import { useLanguage } from '../../../shared/context';
 import { useSalesCrm } from '../salesCrmContext';
+import { getOpportunityNativePipelineTotals } from '../Prospectos/utils/prospectosPipeline';
 import {
   filterSalesKpiSources,
   getSalesKpiMetrics,
@@ -91,7 +92,7 @@ export default function KPIs() {
   const pipelineAggregate = useKpiMonetaryAggregate({
     metric: 'SALES_OPPORTUNITY_PIPELINE',
     preferredCurrency,
-    ids: filteredOpportunities.filter((opportunity) => opportunity.status !== 'Closed').map((opportunity) => opportunity.backendId ?? opportunity.id),
+    ids: filteredOpportunities.filter((opportunity) => !['Won', 'Lost'].includes(opportunity.stage)).map((opportunity) => opportunity.backendId ?? opportunity.id),
   });
   const groupedQueries = useMemo<KpiMonetaryBatchQuery[]>(() => {
     const queries: KpiMonetaryBatchQuery[] = [];
@@ -106,7 +107,7 @@ export default function KPIs() {
         key: `seller-pipeline-${index}`,
         metric: 'SALES_OPPORTUNITY_PIPELINE',
         preferredCurrency,
-        ids: filteredOpportunities.filter((opportunity) => opportunity.owner === row.seller && opportunity.status !== 'Closed').map((opportunity) => opportunity.backendId ?? opportunity.id),
+        ids: filteredOpportunities.filter((opportunity) => opportunity.owner === row.seller && !['Won', 'Lost'].includes(opportunity.stage)).map((opportunity) => opportunity.backendId ?? opportunity.id),
       });
     });
     const months = Array.from(new Set(filteredSources.sales.map((sale) => sale.saleDate.slice(0, 7)))).sort().slice(-6);
@@ -295,7 +296,7 @@ export default function KPIs() {
             item.company,
             item.stage,
             item.owner,
-            `${item.estimatedValue}${item.currency ? ` ${item.currency}` : ''}`,
+            getOpportunityNativePipelineTotals(item, quotes).totalLabel,
             `${item.nextAction} · ${item.nextActionDate}`,
             item.status,
           ]),
@@ -357,6 +358,7 @@ export default function KPIs() {
       <SalesProspectsPerformanceTable
         copy={copy}
         items={paginatedOpportunities}
+        quotes={quotes}
         page={page}
         pageSize={pageSize}
         totalItems={filteredOpportunities.length}

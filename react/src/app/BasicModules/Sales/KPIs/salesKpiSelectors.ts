@@ -1,5 +1,6 @@
 import type { SalesContact, SalesOpportunity, SalesQuote } from '../types';
 import type { SaleRecord } from '../Sales/types/salesTypes';
+import { getLinkedQuotesForOpportunity } from '../Prospectos/utils/prospectosQuoteSignals';
 
 export type SalesKpiFilters = {
   businessUnit: string;
@@ -93,8 +94,13 @@ function opportunityMatchesScope(
 ) {
   if (filters.businessUnit === 'all' && filters.business === 'all') return true;
 
-  return filteredQuotes.some((quote) => quote.opportunityId === opportunity.id)
-    || filteredSales.some((sale) => sale.prospectId === opportunity.id);
+  const opportunityIds = new Set([
+    opportunity.id,
+    String(opportunity.backendId ?? ''),
+  ].filter(Boolean));
+
+  return getLinkedQuotesForOpportunity(opportunity, filteredQuotes).length > 0
+    || filteredSales.some((sale) => sale.prospectId && opportunityIds.has(String(sale.prospectId)));
 }
 
 function contactMatchesScope(
@@ -240,7 +246,7 @@ export function getSalesKpiMetrics(sources: SalesKpiDataSources): SalesKpiMetric
   const closedWonQuotes = sources.quotes.filter((quote) => quote.status === 'Closed Won');
   return {
     totalProspects: sources.opportunities.length,
-    activeProspects: sources.opportunities.filter((opportunity) => opportunity.status !== 'Closed').length,
+    activeProspects: sources.opportunities.filter((opportunity) => !['Won', 'Lost'].includes(opportunity.stage)).length,
     overdueProspects: sources.opportunities.filter((opportunity) => opportunity.status === 'Overdue').length,
     pendingFollowUpProspects: sources.opportunities.filter((opportunity) => opportunity.status === 'Pending follow-up').length,
     wonProspects: sources.opportunities.filter((opportunity) => opportunity.stage === 'Won').length,

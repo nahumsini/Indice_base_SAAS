@@ -57,9 +57,15 @@ public class BasicModuleKpiCurrencyRepository {
             case SALES_TOTAL -> new MetricDefinition("sales_records", "total_amount", "currency", "sale_date", " AND deleted_at IS NULL");
             case SALES_TAX -> new MetricDefinition("sales_records", "tax_total", "currency", "sale_date", " AND deleted_at IS NULL");
             case SALES_COMMISSION -> new MetricDefinition("sales_records", "commission_amount", "currency", "sale_date", " AND deleted_at IS NULL");
-            case SALES_OPPORTUNITY_PIPELINE -> new MetricDefinition("sales_opportunities", "estimated_value", "currency", "created_at", " AND deleted_at IS NULL AND LOWER(status) <> 'closed'");
-            case SALES_OPPORTUNITY_WON -> new MetricDefinition("sales_opportunities", "estimated_value", "currency", "created_at", " AND deleted_at IS NULL AND LOWER(stage) = 'won'");
-            case SALES_OPPORTUNITY_LOST -> new MetricDefinition("sales_opportunities", "estimated_value", "currency", "created_at", " AND deleted_at IS NULL AND LOWER(stage) = 'lost'");
+            case SALES_OPPORTUNITY_PIPELINE -> opportunityQuoteDefinition(
+                " AND LOWER(COALESCE(o.stage, '')) NOT IN ('won', 'lost')"
+            );
+            case SALES_OPPORTUNITY_WON -> opportunityQuoteDefinition(
+                " AND LOWER(COALESCE(o.stage, '')) = 'won'"
+            );
+            case SALES_OPPORTUNITY_LOST -> opportunityQuoteDefinition(
+                " AND LOWER(COALESCE(o.stage, '')) = 'lost'"
+            );
             case PRODUCT_INVENTORY_VALUE -> inventoryBalanceDefinition("b.available_quantity * b.unit_cost", "b.product_id");
             case PRODUCT_ESTIMATED_PROFIT -> inventoryBalanceDefinition("b.available_quantity * (COALESCE(p.price, 0) - COALESCE(p.cost, 0))", "b.product_id");
             case INVENTORY_BALANCE_VALUE -> inventoryBalanceDefinition("b.available_quantity * b.unit_cost", "b.id");
@@ -162,6 +168,20 @@ public class BasicModuleKpiCurrencyRepository {
             " AND b.deleted_at IS NULL AND p.deleted_at IS NULL AND b.uses_inventory = 1",
             idColumn,
             "b.company_id"
+        );
+    }
+
+    private MetricDefinition opportunityQuoteDefinition(String opportunityFilter) {
+        return new MetricDefinition(
+            "sales_quotes q JOIN sales_opportunities o ON o.id = q.opportunity_id AND o.company_id = q.company_id",
+            "COALESCE(q.amount, 0)",
+            "q.currency",
+            "o.updated_at",
+            " AND q.deleted_at IS NULL AND o.deleted_at IS NULL"
+                + " AND LOWER(COALESCE(q.status, '')) IN ('draft', 'sent', 'viewed', 'negotiation', 'approved', 'closed_won')"
+                + opportunityFilter,
+            "o.id",
+            "o.company_id"
         );
     }
 

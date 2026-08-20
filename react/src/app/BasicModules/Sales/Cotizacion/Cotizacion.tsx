@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   CircleDollarSign,
   Clock3,
+  Download,
   Eye,
   FileText,
   Link2,
@@ -89,7 +90,8 @@ import { QuotePreviewModal } from './components/QuotePreviewModal';
 import { QuoteReadinessBadge } from './components/QuoteReadinessBadge';
 import { QuoteBuilderModal } from './modals/QuoteBuilderModal';
 import { useSalesTranslations } from '../Sales/hooks/useSalesTranslations';
-import { printQuotePdf } from './quotePdf';
+import { useProspectosTranslations } from '../Prospectos/translations/prospectosTranslations';
+import { downloadQuotePdf, printQuotePdf } from './quotePdf';
 import { useQuotesTranslations } from './translations';
 import type { QuoteFormState } from './types/quoteBuilderTypes';
 import type { CotizacionProps, FilterValue } from './types/quotePageTypes';
@@ -126,6 +128,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
     opportunities,
     products,
     quotes,
+    salesRecords,
     addQuote,
     updateQuote,
     addOpportunity,
@@ -135,6 +138,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
     createContactRecord,
   } = useSalesCrm();
   const salesT = useSalesTranslations();
+  const prospectosT = useProspectosTranslations();
 
   const defaultFallbackSellerValue = getDefaultQuoteSellerValue(salesOwners[0]);
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
@@ -148,9 +152,8 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [contextCurrentUserCompanyId, setContextCurrentUserCompanyId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<FilterValue>('all');
+  const [clientFilter, setClientFilter] = useState<FilterValue>('all');
   const [sellerFilter, setSellerFilter] = useState<FilterValue>('all');
-  const [opportunityFilter, setOpportunityFilter] = useState<FilterValue>('all');
   const [sortState, setSortState] = useState<QuoteSortState>({ columnId: 'created', direction: 'desc' });
   const [form, setForm] = useState<QuoteFormState>(() => ({
     clientMode: 'contact',
@@ -259,10 +262,9 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
     opportunities,
     ownerOptions,
     search,
-    statusFilter,
+    clientFilter,
     sellerFilter,
-    opportunityFilter,
-  }), [opportunities, opportunityFilter, ownerOptions, quotes, search, sellerFilter, statusFilter]);
+  }), [clientFilter, opportunities, ownerOptions, quotes, search, sellerFilter]);
 
   const getQuoteSortValue = (quote: SalesQuote, columnId: QuoteSortColumn) => {
     switch (columnId) {
@@ -315,7 +317,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
     totalCount,
     totalPages,
   } = useTablePagination({
-    resetKey: `${search}:${statusFilter}:${sellerFilter}:${opportunityFilter}:${sortState.columnId}:${sortState.direction}:${quotes.map((quote) => quote.id).join('|')}`,
+    resetKey: `${search}:${clientFilter}:${sellerFilter}:${sortState.columnId}:${sortState.direction}:${quotes.map((quote) => quote.id).join('|')}`,
     rows: sortedQuotes,
   });
   const handleSort = (columnId: QuoteSortColumn) => {
@@ -327,15 +329,25 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
   };
   const handleReviewExpirations = () => {
     setSearch('');
-    setStatusFilter('all');
+    setClientFilter('all');
     setSellerFilter('all');
-    setOpportunityFilter('all');
     setSortState({ columnId: 'expiration', direction: 'asc' });
   };
-  const statusOptions = [
-    { value: 'all', label: t.filters.allStatuses },
-    ...quoteStatuses.map((status) => ({ value: status, label: t.statusLabels[status] })),
-  ];
+  const clientOptions = useMemo(() => {
+    const clientsByKey = new Map<string, string>();
+    quotes.forEach((quote) => {
+      const key = normalizeTextKey(quote.clientName);
+      if (key && !clientsByKey.has(key)) {
+        clientsByKey.set(key, quote.clientName);
+      }
+    });
+
+    return [
+      { value: 'all', label: t.filters.allClients },
+      ...Array.from(clientsByKey, ([value, label]) => ({ value, label }))
+        .sort((left, right) => left.label.localeCompare(right.label)),
+    ];
+  }, [quotes, t.filters.allClients]);
   const sellerOptions = [
     { value: 'all', label: t.filters.allSellers },
     ...sellerSelectOptions,
@@ -504,6 +516,14 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
   );
   const printSavedQuote = (quote: SalesQuote) => {
     printQuotePdf({
+      quote,
+      contact: getQuoteContact(quote),
+      opportunity: getQuoteOpportunity(quote),
+      copy: t,
+    });
+  };
+  const downloadSavedQuote = (quote: SalesQuote) => {
+    downloadQuotePdf({
       quote,
       contact: getQuoteContact(quote),
       opportunity: getQuoteOpportunity(quote),
@@ -836,7 +856,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
 
       <SalesFilterBar
         title={t.filters.title}
-        gridClassName="xl:grid-cols-[1.5fr_repeat(3,minmax(0,1fr))]"
+        gridClassName="xl:grid-cols-[1.5fr_repeat(2,minmax(0,1fr))]"
       >
         <SalesFilterSearch
           label={t.filters.search}
@@ -844,9 +864,8 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
           onValueChange={setSearch}
           placeholder={t.filters.searchPlaceholder}
         />
-        <SalesFilterSelect label={t.filters.status} value={statusFilter} onValueChange={setStatusFilter} options={statusOptions} />
+        <SalesFilterSelect label={t.filters.client} value={clientFilter} onValueChange={setClientFilter} options={clientOptions} />
         <SalesFilterSelect label={t.filters.seller} value={sellerFilter} onValueChange={setSellerFilter} options={sellerOptions} />
-        <SalesFilterSelect label={t.filters.opportunity} value={opportunityFilter} onValueChange={setOpportunityFilter} options={opportunityOptions} />
       </SalesFilterBar>
 
       {!learningModeActive ? <OperationalKpiArea
@@ -859,28 +878,24 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
 
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="overflow-x-auto">
-          <Table className="min-w-[2040px] table-fixed">
+          <Table className="min-w-[1510px] table-fixed">
             <TableHeader>
               <TableRow className="border-slate-200 bg-slate-50 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-900">
-                {renderSortableHead('number', t.table.columns.number, 'w-[160px]')}
-                {renderSortableHead('client', t.table.columns.client, 'w-[240px]')}
-                {renderSortableHead('opportunity', t.table.columns.opportunity, 'w-[260px]')}
-                {renderSortableHead('status', t.table.columns.status, 'w-[185px]')}
-                <TableHead className="w-[190px] whitespace-normal px-5 py-5 text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.readiness}</TableHead>
+                {renderSortableHead('number', t.table.columns.number, 'w-[230px]')}
+                {renderSortableHead('opportunity', t.table.columns.opportunity, 'w-[190px]')}
+                {renderSortableHead('seller', t.table.columns.seller, 'w-[180px]')}
+                {renderSortableHead('status', t.table.columns.status, 'w-[165px]')}
+                <TableHead className="w-[160px] whitespace-normal px-4 py-5 text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.readiness}</TableHead>
                 {renderSortableHead('amount', t.table.columns.amount, 'w-[165px]')}
-                {renderSortableHead('margin', t.table.columns.margin, 'w-[150px]')}
-                {renderSortableHead('created', t.table.columns.created, 'w-[140px]')}
-                {renderSortableHead('expiration', t.table.columns.expiration, 'w-[165px]')}
-                {renderSortableHead('seller', t.table.columns.seller, 'w-[220px]')}
-                {renderSortableHead('updated', t.table.columns.updated, 'w-[140px]')}
-                {renderSortableHead('files', t.table.columns.files, 'w-[145px]')}
-                <TableHead className="w-[120px] whitespace-normal px-4 py-5 text-center text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.actions}</TableHead>
+                {renderSortableHead('updated', t.table.columns.expiration, 'w-[185px]')}
+                {renderSortableHead('files', t.table.columns.files, 'w-[135px]')}
+                <TableHead className="w-[100px] whitespace-normal px-3 py-5 text-center text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.actions}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {sortedQuotes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={13} className="px-5 py-10 text-center text-sm font-medium text-slate-500 dark:text-slate-300">
+                  <TableCell colSpan={9} className="px-5 py-10 text-center text-sm font-medium text-slate-500 dark:text-slate-300">
                     {t.table.empty}
                   </TableCell>
                 </TableRow>
@@ -888,6 +903,9 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
                 const opportunity = opportunities.find((item) => item.id === quote.opportunityId);
                 const sellerValue = getQuoteSellerSelectValue(quote, ownerOptions);
                 const quoteContact = getQuoteContact(quote);
+                const linkedSale = salesRecords.find((sale) => (
+                  sale.quoteId === quote.id || sale.quoteReference === quote.quoteNumber
+                ));
                 const tableSignals = quoteTableSignalsById.get(quote.id) ?? getQuoteTableSignals({
                   quote,
                   products,
@@ -897,11 +915,9 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
                 return (
                   <TableRow key={quote.id} className="border-slate-200 align-top hover:bg-slate-50/80 dark:border-slate-700 dark:hover:bg-slate-700/40">
                     <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-medium text-slate-950 dark:text-white">
-                      <span className="block min-w-0 break-all leading-6">{quote.quoteNumber}</span>
-                    </TableCell>
-                    <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
-                      <p className="break-words font-medium text-slate-950 dark:text-white">{quote.clientName}</p>
-                      <p className="mt-1 break-words text-sm font-medium text-slate-500 dark:text-slate-300">{quote.contactPerson}</p>
+                      <span className="block min-w-0 break-all text-xs font-medium leading-5 text-[#B63B32] dark:text-[#FFB0AA]">{quote.quoteNumber}</span>
+                      <p className="mt-1 break-words font-medium text-slate-950 dark:text-white">{quote.clientName}</p>
+                      {quote.contactPerson ? <p className="mt-1 break-words text-xs font-medium text-slate-500 dark:text-slate-300">{quote.contactPerson}</p> : null}
                     </TableCell>
                     <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
                       {opportunity ? (
@@ -911,6 +927,15 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
                       ) : (
                         <span className="text-sm font-medium text-slate-400 dark:text-slate-500">{t.common.unassigned}</span>
                       )}
+                    </TableCell>
+                    <TableCell className="overflow-hidden whitespace-normal px-4 py-5 align-top">
+                      <QuoteSellerSelect
+                        value={sellerValue}
+                        options={sellerSelectOptions}
+                        selectedLabel={quote.assignedSeller}
+                        fallbackLabel={t.common.unassigned}
+                        onValueChange={(value) => updateQuote(quote.id, getSellerPayloadFromValue(value))}
+                      />
                     </TableCell>
                     <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
                       <Select value={quote.status} onValueChange={(value) => handleStatusChange(quote, value as QuoteStatus)}>
@@ -925,44 +950,60 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
                           ))}
                         </SelectContent>
                       </Select>
-                    </TableCell>
-                    <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
-                      <QuoteReadinessBadge signal={tableSignals.readiness} t={t} />
-                    </TableCell>
-                    <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
-                      <p className="break-words font-medium text-slate-950 dark:text-white">{formatCurrency(quote.total, quote.currency)}</p>
-                      <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-300">{quote.currency ?? defaultSalesCurrency}</p>
-                    </TableCell>
-                    <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
-                      <QuoteMarginBadge signal={tableSignals.margin} t={t} />
-                    </TableCell>
-                    <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-medium text-slate-600 dark:text-slate-300">{quote.createdDate}</TableCell>
-                    <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
-                      <QuoteExpirationBadge expirationDate={quote.expirationDate} signal={tableSignals.expiration} t={t} />
-                    </TableCell>
-                    <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
-                      <QuoteSellerSelect
-                        value={sellerValue}
-                        options={sellerSelectOptions}
-                        selectedLabel={quote.assignedSeller}
-                        fallbackLabel={t.common.unassigned}
-                        onValueChange={(value) => updateQuote(quote.id, getSellerPayloadFromValue(value))}
-                      />
-                    </TableCell>
-                    <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-medium text-slate-600 dark:text-slate-300">{quote.lastUpdated}</TableCell>
-                    <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
-                      <button
-                        type="button"
-                        className="inline-flex w-full min-w-0 max-w-full items-center justify-center gap-2 rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-3 py-2 text-sm font-medium text-[#B63B32] shadow-sm transition-colors hover:bg-[#FF6B5E]/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/25 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/20"
-                        onClick={() => setSelectedFilesQuote(quote)}
-                      >
-                        <Paperclip className="h-4 w-4" />
-                        <span className="min-w-0 truncate">
-                          {quote.files.length > 0 ? `${quote.files.length + 1} docs` : t.previewModal.documentTitle}
-                        </span>
-                      </button>
+                      {linkedSale ? (
+                        <p className="mt-2 break-all text-xs font-medium leading-5 text-emerald-700 dark:text-emerald-300">
+                          {salesT.table.columns.saleNumber}: {linkedSale.saleNumber}
+                        </p>
+                      ) : null}
                     </TableCell>
                     <TableCell className="overflow-hidden whitespace-normal px-4 py-5 align-top">
+                      <QuoteReadinessBadge signal={tableSignals.readiness} t={t} />
+                    </TableCell>
+                    <TableCell className="overflow-hidden whitespace-normal px-4 py-5 align-top">
+                      <p className="break-words font-medium text-slate-950 dark:text-white">{formatCurrency(quote.total, quote.currency)}</p>
+                      <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-300">{quote.currency ?? defaultSalesCurrency}</p>
+                      <div className="mt-2"><QuoteMarginBadge signal={tableSignals.margin} t={t} /></div>
+                    </TableCell>
+                    <TableCell className="overflow-hidden whitespace-normal px-4 py-5 align-top">
+                      {opportunity?.nextAction ? (
+                        <div className="mb-2 rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-2 dark:border-blue-900/60 dark:bg-blue-950/30">
+                          <p className="break-words text-xs font-medium text-blue-800 dark:text-blue-200">
+                            {prospectosT.options.nextActions[opportunity.nextAction]}
+                          </p>
+                          {opportunity.nextActionDate ? (
+                            <p className="mt-1 break-words text-xs font-medium text-blue-600 dark:text-blue-300">{opportunity.nextActionDate}</p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                      <QuoteExpirationBadge expirationDate={quote.expirationDate} signal={tableSignals.expiration} t={t} />
+                      <p className="mt-2 break-words text-xs font-medium leading-5 text-slate-500 dark:text-slate-300">
+                        {t.table.columns.updated}: {quote.lastUpdated}
+                      </p>
+                    </TableCell>
+                    <TableCell className="overflow-hidden whitespace-normal px-3 py-5 align-top">
+                      <div className="grid gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-9 w-full gap-1.5 rounded-lg border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-2 text-xs font-medium text-[#B63B32] hover:bg-[#FF6B5E]/15 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/20"
+                          onClick={() => downloadSavedQuote(quote)}
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          PDF
+                        </Button>
+                        {quote.files.length > 0 ? (
+                          <button
+                            type="button"
+                            className="inline-flex min-w-0 items-center justify-center gap-1.5 text-xs font-medium text-slate-500 hover:text-[#B63B32] dark:text-slate-300 dark:hover:text-[#FFB0AA]"
+                            onClick={() => setSelectedFilesQuote(quote)}
+                          >
+                            <Paperclip className="h-3.5 w-3.5" />
+                            {quote.files.length}
+                          </button>
+                        ) : null}
+                      </div>
+                    </TableCell>
+                    <TableCell className="overflow-hidden whitespace-normal px-3 py-5 align-top">
                       <div className="mx-auto grid w-fit grid-cols-[repeat(2,2.25rem)] gap-1.5 rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                         <QuoteAction label={t.actions.view} icon={<Eye className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/15 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/20" onClick={() => setPreviewQuote(quote)} />
                         <QuoteAction label={t.actions.edit} icon={<PencilLine className="h-4 w-4" />} className="border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800" onClick={() => openEditQuoteBuilder(quote)} />

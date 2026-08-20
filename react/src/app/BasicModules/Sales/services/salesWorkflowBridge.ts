@@ -193,6 +193,8 @@ export function validateSaleDraftForBackendReadiness(sale: SaleRecordDraft): Sal
   if (!sale.businessUnitId) errors.push('missingBusinessUnit');
   if (!sale.businessId) errors.push('missingBusiness');
   if (!sale.warehouseId) errors.push('missingWarehouse');
+  if (!sale.saleLines.length) errors.push('missingLines');
+  if (!(Number(sale.totalAmount) > 0)) errors.push('invalidTotal');
 
   sale.saleLines.forEach((line) => {
     if (!line.productId) errors.push('missingProduct');
@@ -252,10 +254,21 @@ export function createSaleFromQuote({
     };
   });
   const inventoryMovementDrafts = saleLines.map((line, index) => prepareInventoryMovementDraft(line, saleId, index));
+  const calculatedSubtotal = saleLines.reduce((total, line) => total + line.subtotal, 0);
+  const calculatedDiscountTotal = saleLines.reduce((total, line) => (
+    total + (line.quantity * line.unitPrice * line.discountPercent / 100)
+  ), 0);
+  const calculatedTaxTotal = saleLines.reduce((total, line) => (
+    total + (line.subtotal * line.taxPercent / 100)
+  ), 0);
+  const subtotal = Number(quote.subtotal) > 0 ? Number(quote.subtotal) : calculatedSubtotal;
+  const discountTotal = Number(quote.discountTotal) > 0 ? Number(quote.discountTotal) : calculatedDiscountTotal;
+  const taxTotal = Number(quote.taxTotal) > 0 ? Number(quote.taxTotal) : calculatedTaxTotal;
+  const totalAmount = Number(quote.total) > 0 ? Number(quote.total) : subtotal + taxTotal;
   const commissionPreview = calculateCommissionPreview({
     sellerId,
     sellerName: quote.assignedSeller,
-    totalAmount: quote.total,
+    totalAmount,
     commissionRate,
   });
   const marginTotal = saleLines.reduce((total, line) => total + line.marginAmount, 0);
@@ -275,10 +288,10 @@ export function createSaleFromQuote({
     sellerName: quote.assignedSeller,
     saleDate,
     saleNumber,
-    totalAmount: quote.total,
-    subtotal: quote.subtotal,
-    discountTotal: quote.discountTotal,
-    taxTotal: quote.taxTotal,
+    totalAmount,
+    subtotal,
+    discountTotal,
+    taxTotal,
     marginTotal,
     currency,
     paymentMethod: '',
@@ -306,7 +319,7 @@ export function createSaleFromQuote({
           stage: 'Won',
           status: 'Closed',
           probability: '100%',
-          estimatedValue: String(quote.total),
+          estimatedValue: String(totalAmount),
           currency: quote.currency,
         }
       : undefined,

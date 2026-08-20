@@ -55,14 +55,13 @@ export function SalesColumnsModal({
   onVisibleColumnsChange: (columns: SalesColumnId[]) => void;
 }) {
   const handleSave = (columns: ColumnConfig[]) => {
-    const lockedColumns = salesColumnConfigs
-      .filter((column) => column.locked)
-      .map((column) => column.id);
-    const configurableColumns = columns
+    const selectedConfigurableColumns = new Set(columns
       .filter((column) => column.visible)
-      .map((column) => column.id as SalesColumnId);
+      .map((column) => column.id as SalesColumnId));
 
-    onVisibleColumnsChange([...lockedColumns, ...configurableColumns]);
+    onVisibleColumnsChange(salesColumnConfigs
+      .filter((column) => column.locked || selectedConfigurableColumns.has(column.id))
+      .map((column) => column.id));
   };
 
   return (

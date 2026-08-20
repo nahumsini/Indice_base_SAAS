@@ -137,17 +137,15 @@ export function filterQuotes({
   opportunities,
   ownerOptions,
   search,
-  statusFilter,
+  clientFilter,
   sellerFilter,
-  opportunityFilter,
 }: {
   quotes: SalesQuote[];
   opportunities: SalesOpportunity[];
   ownerOptions: SalesOwnerOption[];
   search: string;
-  statusFilter: string;
+  clientFilter: string;
   sellerFilter: string;
-  opportunityFilter: string;
 }) {
   const normalizedSearch = search.trim().toLowerCase();
 
@@ -160,11 +158,9 @@ export function filterQuotes({
       quote.assignedSeller,
       opportunity?.opportunityName ?? '',
     ].some((value) => String(value ?? '').toLowerCase().includes(normalizedSearch));
-    const matchesStatus = statusFilter === 'all' || quote.status === statusFilter;
+    const matchesClient = clientFilter === 'all' || normalizeTextKey(quote.clientName) === clientFilter;
     const matchesSeller = sellerFilter === 'all' || getQuoteSellerSelectValue(quote, ownerOptions) === sellerFilter;
-    const matchesOpportunity = opportunityFilter === 'all'
-      || (opportunityFilter === 'none' ? !quote.opportunityId : quote.opportunityId === opportunityFilter);
 
-    return matchesSearch && matchesStatus && matchesSeller && matchesOpportunity;
+    return matchesSearch && matchesClient && matchesSeller;
   });
 }

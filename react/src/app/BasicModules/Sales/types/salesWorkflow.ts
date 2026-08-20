@@ -76,6 +76,7 @@ export type SalesWorkflowValidationCode =
   | 'missingBusinessUnit'
   | 'missingBusiness'
   | 'missingLines'
+  | 'invalidTotal'
   | 'missingProduct'
   | 'invalidQuantity'
   | 'missingUnitPrice'

@@ -21,6 +21,14 @@ import type { InventoryWarehouse } from '../Inventory/types/inventoryTypes';
 import { salesApi } from '../salesApi';
 import type { SalesCurrentSeller } from './types/salesTypes';
 import { isSalesWarehouseReady } from './utils/salesWarehouseScope';
+import { receivablesApi } from '../../Receivables/services/receivablesApi';
+import type { ReceivableAccount, ReceivablePayment } from '../../Receivables/types';
+import { downloadQuotePdf } from '../Cotizacion/quotePdf';
+import { useQuotesTranslations } from '../Cotizacion/translations';
+import { buildSaleReceivableSummary } from './utils/salesOperationalSignals';
+import type { SaleReceivableSummary, SaleSourceSummary } from './types/salesTypes';
+import { downloadSaleInvoicePdf } from './utils/saleInvoicePdf';
+import { getSalesOperationalContext } from './data/salesOperationalContext';
 
 function SaleCancelDialog({
   record,
@@ -53,6 +61,7 @@ interface SalesProps {
 
 export default function Sales({ learningModeActive = false }: SalesProps) {
   const t = useSalesTranslations();
+  const quotesCopy = useQuotesTranslations();
   const navigate = useNavigate();
   const {
     quotes,
@@ -75,8 +84,6 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
     lifecycleByRecordId,
     sellers,
     customers,
-    businessUnits,
-    businesses,
     createSaleRecord,
     updateSaleRecord,
     creationWarning,
@@ -94,6 +101,8 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
   const [pendingCancelRecord, setPendingCancelRecord] = useState<SaleRecord | null>(null);
   const [warehouses, setWarehouses] = useState<InventoryWarehouse[]>([]);
   const [currentSeller, setCurrentSeller] = useState<SalesCurrentSeller>();
+  const [receivableAccounts, setReceivableAccounts] = useState<ReceivableAccount[]>([]);
+  const [receivablePayments, setReceivablePayments] = useState<ReceivablePayment[]>([]);
   const commissionRecords = useMemo(() => calculateCommissionRecords(records, commissionRules), [commissionRules, records]);
 
   useEffect(() => {
@@ -103,6 +112,23 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
         if (!cancelled) setCommissionRules(loadedRules);
       })
       .catch(() => setCommissionRulesError('No se pudieron cargar las reglas de comisión desde el backend.'));
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void receivablesApi.workspace()
+      .then((workspace) => {
+        if (cancelled) return;
+        setReceivableAccounts(workspace.receivables);
+        setReceivablePayments(workspace.payments);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setReceivableAccounts([]);
+        setReceivablePayments([]);
+      });
+
     return () => { cancelled = true; };
   }, []);
 
@@ -149,9 +175,63 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
     ?? null
   );
 
+  const receivablesByRecordId = useMemo<Record<string, SaleReceivableSummary | undefined>>(
+    () => Object.fromEntries(records.map((record) => [
+      record.id,
+      buildSaleReceivableSummary(record, receivableAccounts),
+    ])),
+    [receivableAccounts, records],
+  );
+
+  const sourceByRecordId = useMemo<Record<string, SaleSourceSummary>>(
+    () => Object.fromEntries(records.map((record) => {
+      const quote = quotes.find((item) => item.id === record.quoteId)
+        ?? quotes.find((item) => item.quoteNumber === record.quoteReference)
+        ?? null;
+      const opportunityId = record.prospectId || quote?.opportunityId;
+      const opportunity = opportunityId
+        ? opportunities.find((item) => item.id === opportunityId) ?? null
+        : null;
+
+      return [record.id, {
+        opportunityName: opportunity?.opportunityName ?? '',
+        quoteReference: quote?.quoteNumber ?? '',
+        hasQuoteDocument: Boolean(quote),
+      }];
+    })),
+    [opportunities, quotes, records],
+  );
+
   const handlePreviewSummary = (record: SaleRecord) => {
     setSummaryPreviewRecord(record);
     setIsSummaryPreviewOpen(true);
+  };
+
+  const handleDownloadQuote = (record: SaleRecord) => {
+    const quote = getQuoteForSale(record);
+    if (!quote) return;
+
+    const contact = quote.clientId
+      ? contacts.find((item) => item.id === quote.clientId) ?? null
+      : contacts.find((item) => (
+          item.company.trim().toLocaleLowerCase() === quote.clientName.trim().toLocaleLowerCase()
+          && item.contactPerson.trim().toLocaleLowerCase() === quote.contactPerson.trim().toLocaleLowerCase()
+        )) ?? null;
+    const opportunity = quote.opportunityId
+      ? opportunities.find((item) => item.id === quote.opportunityId) ?? null
+      : null;
+
+    downloadQuotePdf({ quote, contact, opportunity, copy: quotesCopy });
+  };
+
+  const handleDownloadInvoice = (record: SaleRecord) => {
+    downloadSaleInvoicePdf({
+      sale: record,
+      quote: getQuoteForSale(record),
+      operationalContext: getSalesOperationalContext(record.businessId),
+      copy: t,
+      locale: typeof navigator === 'undefined' ? 'es-MX' : navigator.language || 'es-MX',
+    });
   };
 
   const handleManageCommission = (record: SaleRecord) => {
@@ -181,6 +261,15 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
     });
     const candidateSaleId = record.backendId ? `sales:${record.backendId}` : record.id;
     navigate(`/receivables/credit-sales?candidateSaleId=${encodeURIComponent(candidateSaleId)}&openCreditSale=1`);
+  };
+
+  const handleOpenReceivables = (record: SaleRecord) => {
+    if (receivablesByRecordId[record.id]) {
+      navigate('/receivables/accounts-receivable');
+      return;
+    }
+
+    handleSendToCredit(record);
   };
 
   const handleCancelSale = (record: SaleRecord) => {
@@ -215,10 +304,12 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
           filters={filters}
           visibleColumns={visibleColumns}
           lifecycleByRecordId={lifecycleByRecordId}
+          receivablesByRecordId={receivablesByRecordId}
+          sourceByRecordId={sourceByRecordId}
+          receivableAccounts={receivableAccounts}
+          receivablePayments={receivablePayments}
           sellers={sellers}
           customers={customers}
-          businessUnits={businessUnits}
-          businesses={businesses}
           t={t}
           onFiltersChange={setFilters}
           onViewRecord={handleViewRecord}
@@ -227,6 +318,9 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
           onPrepareMovement={handlePrepareMovement}
           onSendToFinance={handleSendToFinance}
           onSendToCredit={handleSendToCredit}
+          onOpenReceivables={handleOpenReceivables}
+          onDownloadQuote={handleDownloadQuote}
+          onDownloadInvoice={handleDownloadInvoice}
           onCancelSale={handleCancelSale}
       />
 

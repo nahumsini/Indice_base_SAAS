@@ -1,4 +1,5 @@
-import type { SaleLifecycleSignals, SaleRecord, SalesColumnId } from '../types/salesTypes';
+import type { SaleLifecycleSignals, SaleReceivableSummary, SaleRecord, SalesColumnId } from '../types/salesTypes';
+import { getSaleNextActionKey, getSaleNextActionPriority } from './salesOperationalSignals';
 
 export type SortableSalesColumnId = Exclude<SalesColumnId, 'actions'>;
 export type SalesSortState = {
@@ -7,16 +8,16 @@ export type SalesSortState = {
 } | null;
 
 export const defaultSalesColumnWidths: Record<SalesColumnId, number> = {
-  saleNumber: 190,
-  customer: 260,
-  seller: 250,
-  total: 150,
+  saleNumber: 195,
+  customer: 210,
+  seller: 155,
+  total: 160,
   saleDate: 165,
   relationship: 180,
   customerHealth: 190,
   postSaleStatus: 210,
   commercialStatus: 190,
-  financeStatus: 170,
+  financeStatus: 230,
   inventoryStatus: 175,
   inventoryMovement: 210,
   commission: 180,
@@ -24,10 +25,11 @@ export const defaultSalesColumnWidths: Record<SalesColumnId, number> = {
   quoteReference: 170,
   paymentMethod: 190,
   paymentEvidence: 190,
-  deliveryStatus: 170,
+  deliveryStatus: 215,
+  nextAction: 190,
   commissionAmount: 180,
   movementReference: 210,
-  actions: 210,
+  actions: 165,
 };
 
 export const sortableSalesColumns = new Set<SalesColumnId>([
@@ -49,6 +51,7 @@ export const sortableSalesColumns = new Set<SalesColumnId>([
   'paymentMethod',
   'paymentEvidence',
   'deliveryStatus',
+  'nextAction',
   'commissionAmount',
   'movementReference',
 ]);
@@ -58,6 +61,7 @@ const salesSortCollator = new Intl.Collator('es-MX', { numeric: true, sensitivit
 function getSalesSortValue(
   record: SaleRecord,
   lifecycle: SaleLifecycleSignals | undefined,
+  receivable: SaleReceivableSummary | undefined,
   columnId: SortableSalesColumnId,
 ) {
   switch (columnId) {
@@ -98,6 +102,8 @@ function getSalesSortValue(
       return record.paymentEvidenceStatus;
     case 'deliveryStatus':
       return record.deliveryStatus;
+    case 'nextAction':
+      return getSaleNextActionPriority(getSaleNextActionKey(record, receivable));
     case 'movementReference':
       return record.inventoryMovementReference;
     default:
@@ -116,6 +122,7 @@ function compareSalesValues(left: string | number, right: string | number) {
 export function sortSalesRecords(
   records: SaleRecord[],
   lifecycleByRecordId: Record<string, SaleLifecycleSignals>,
+  receivablesByRecordId: Record<string, SaleReceivableSummary | undefined>,
   sortState: SalesSortState,
 ) {
   if (!sortState) {
@@ -125,8 +132,8 @@ export function sortSalesRecords(
   const directionFactor = sortState.direction === 'asc' ? 1 : -1;
 
   return [...records].sort((left, right) => {
-    const leftValue = getSalesSortValue(left, lifecycleByRecordId[left.id], sortState.columnId);
-    const rightValue = getSalesSortValue(right, lifecycleByRecordId[right.id], sortState.columnId);
+    const leftValue = getSalesSortValue(left, lifecycleByRecordId[left.id], receivablesByRecordId[left.id], sortState.columnId);
+    const rightValue = getSalesSortValue(right, lifecycleByRecordId[right.id], receivablesByRecordId[right.id], sortState.columnId);
     return compareSalesValues(leftValue, rightValue) * directionFactor;
   });
 }

@@ -24,6 +24,8 @@ export const zhCA = {
     secondaryAction: '查看即将到期',
   },
   filters: {
+    client: '客户',
+    allClients: '所有客户',
     title: '报价筛选',
     search: '搜索',
     searchPlaceholder: '搜索报价、客户、机会或销售负责人',

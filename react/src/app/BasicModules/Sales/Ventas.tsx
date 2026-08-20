@@ -10,7 +10,6 @@ import { IndiceModuleShell } from '../../components/frontend-os';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import {
   routedSalesTabIds,
-  type SalesTabId,
   visibleSalesModuleTabs,
 } from './salesIdentity';
 import { SalesCrmProvider } from './salesCrmContext';
@@ -39,7 +38,11 @@ const SalesPaymentAccounts = lazy(() => import('./SalesPaymentAccounts')) as Sal
 const Contrato = lazy(() => import('./Contrato')) as SalesTabLazyComponent;
 const KPIs = lazy(() => import('./KPIs')) as SalesTabLazyComponent;
 
-const salesTabComponents: Partial<Record<SalesTabId, SalesTabLazyComponent>> = {
+const salesWorkspaceTabIds = routedSalesTabIds;
+
+type SalesWorkspaceTabId = (typeof salesWorkspaceTabIds)[number];
+
+const salesTabComponents: Partial<Record<SalesWorkspaceTabId, SalesTabLazyComponent>> = {
   leads: Prospectos,
   contacts: Contactos,
   quotes: Cotizacion,
@@ -55,7 +58,7 @@ interface VentasProps {
   onNavigate: (page?: string) => void;
 }
 
-const legacySalesTabAliases: Partial<Record<string, SalesTabId>> = {
+const legacySalesTabAliases: Partial<Record<string, SalesWorkspaceTabId>> = {
   prospectos: 'leads',
   contactos: 'contacts',
   cotizacion: 'quotes',
@@ -66,8 +69,6 @@ const legacySalesTabAliases: Partial<Record<string, SalesTabId>> = {
   'cuentas-de-pago': 'payment-accounts',
   'payment-accounts': 'payment-accounts',
   productos: 'products',
-  proveedores: 'providers',
-  providers: 'providers',
   inventario: 'inventory',
   postventa: 'after-sales',
   contrato: 'contracts',
@@ -78,15 +79,20 @@ const inventoryTabRedirects: Record<string, string> = {
   productos: '/inventory/products',
   product: '/inventory/products',
   products: '/inventory/products',
+  inventario: '/inventory/inventory',
+  inventory: '/inventory/inventory',
+  stock: '/inventory/inventory',
   proveedor: '/inventory/providers',
   proveedores: '/inventory/providers',
   provider: '/inventory/providers',
   providers: '/inventory/providers',
   supplier: '/inventory/providers',
   suppliers: '/inventory/providers',
-  inventario: '/inventory/inventory',
-  inventory: '/inventory/inventory',
-  stock: '/inventory/inventory',
+  'ordenes-compra': '/inventory/purchase-orders',
+  ordenes_compra: '/inventory/purchase-orders',
+  purchaseOrders: '/inventory/purchase-orders',
+  purchase_orders: '/inventory/purchase-orders',
+  'purchase-orders': '/inventory/purchase-orders',
 };
 
 function useInventoryTabRedirect() {
@@ -110,12 +116,12 @@ function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) 
   const copy = useSalesTranslations();
   const guidanceCopy = useSalesGuidanceTranslations();
   const moduleContentRef = useRef<HTMLDivElement | null>(null);
-  const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<SalesTabId>(
-    'leads',
-    routedSalesTabIds,
+  const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<SalesWorkspaceTabId>(
+    'contacts',
+    salesWorkspaceTabIds,
     legacySalesTabAliases,
   );
-  const ActiveComponent = salesTabComponents[activeTab] || Prospectos;
+  const ActiveComponent = salesTabComponents[activeTab] || Contactos;
 
   return (
     <LearningModeHeaderActionsProvider active={learningModeActive}>
@@ -132,6 +138,11 @@ function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) 
           />
         ) : undefined}
         loadingOverlay={<SalesLoadingState isVisible={isTabLoading} title={copy.loading.openingTitle} description={copy.loading.openingDescription} />}
+        moreLabel={copy.more}
+        moreTabs={[
+          { id: 'commissions', label: copy.tabs.commissions, icon: '🧮' },
+          { id: 'payment-accounts', label: copy.tabs.paymentAccounts, icon: '💳' },
+        ]}
         onNavigate={onNavigate}
         onTabChange={setActiveTab}
         subtitle={copy.subtitle}

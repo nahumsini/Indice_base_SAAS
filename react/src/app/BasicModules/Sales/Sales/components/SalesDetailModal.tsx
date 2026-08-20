@@ -20,6 +20,7 @@ import { formatCommissionType } from '../utils/commissionRules';
 import { getSalesWarehouseScope, isSalesWarehouseReady, warehouseMatchesSaleScope } from '../utils/salesWarehouseScope';
 import { formatSalesCurrency, formatSalesDate } from '../utils/salesFormatters';
 import { getSalesPaymentMethodForStorage, isSalesCreditPaymentMethod, normalizeSalesPaymentMethod } from '../utils/salesPaymentMethods';
+import { getForecastQuotesForOpportunity, isOpportunityForecastQuote } from '../../Prospectos/utils/prospectosQuoteSignals';
 import {
   SalesCreateForm,
   salesCreateStepIds,
@@ -109,6 +110,7 @@ function parseOpportunityValue(value?: string) {
 export function SalesDetailModal({
   open,
   record,
+  requiredOpportunityId,
   quotes,
   products,
   warehouses,
@@ -127,6 +129,7 @@ export function SalesDetailModal({
 }: {
   open: boolean;
   record: SaleRecord | null;
+  requiredOpportunityId?: string;
   quotes: SalesQuote[];
   products: SalesCatalogItem[];
   warehouses: InventoryWarehouse[];
@@ -151,11 +154,11 @@ export function SalesDetailModal({
   const [stepError, setStepError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  const acceptedQuotes = useMemo(
-    () => quotes.filter((quote) => quote.status === 'Approved' || quote.status === 'Closed Won'),
+  const convertibleQuotes = useMemo(
+    () => quotes.filter(isOpportunityForecastQuote),
     [quotes],
   );
-  const quoteOptions = acceptedQuotes;
+  const quoteOptions = convertibleQuotes;
   const selectedQuote = useMemo(
     () => quotes.find((quote) => quote.id === form.quoteId) ?? quotes.find((quote) => quote.quoteNumber === form.quoteReference) ?? null,
     [form.quoteId, form.quoteReference, quotes],
@@ -169,21 +172,19 @@ export function SalesDetailModal({
     [form.prospectId, opportunities, selectedQuote?.opportunityId],
   );
   const opportunityOptions = useMemo(() => {
-    const acceptedOpportunityIds = new Set(acceptedQuotes.map((quote) => quote.opportunityId).filter(Boolean));
-
     return [...opportunities].sort((left, right) => {
-      const leftHasAcceptedQuote = acceptedOpportunityIds.has(left.id) ? 1 : 0;
-      const rightHasAcceptedQuote = acceptedOpportunityIds.has(right.id) ? 1 : 0;
+      const leftHasConvertibleQuote = getForecastQuotesForOpportunity(left, convertibleQuotes).length ? 1 : 0;
+      const rightHasConvertibleQuote = getForecastQuotesForOpportunity(right, convertibleQuotes).length ? 1 : 0;
 
-      if (leftHasAcceptedQuote !== rightHasAcceptedQuote) {
-        return rightHasAcceptedQuote - leftHasAcceptedQuote;
+      if (leftHasConvertibleQuote !== rightHasConvertibleQuote) {
+        return rightHasConvertibleQuote - leftHasConvertibleQuote;
       }
 
       return left.opportunityName.localeCompare(right.opportunityName);
     });
-  }, [acceptedQuotes, opportunities]);
+  }, [convertibleQuotes, opportunities]);
   const opportunityQuoteOptions = useMemo(
-    () => (selectedOpportunity ? quoteOptions.filter((quote) => quote.opportunityId === selectedOpportunity.id) : quoteOptions),
+    () => (selectedOpportunity ? getForecastQuotesForOpportunity(selectedOpportunity, quoteOptions) : []),
     [quoteOptions, selectedOpportunity],
   );
   const businessOptions = useMemo(() => {
@@ -221,18 +222,23 @@ export function SalesDetailModal({
     () => validateSaleDraftForBackendReadiness(form),
     [form],
   );
-  const originStepReady = Boolean(form.customerName.trim());
+  const originStepReady = Boolean(
+    form.customerName.trim()
+    && (!form.prospectId || selectedQuote),
+  );
   const selectedWarehouse = warehouses.find((warehouse) => warehouse.id === form.warehouseId);
   const operationStepReady = Boolean(
     form.saleDate
-    && warehouseMatchesSaleScope(selectedWarehouse, form),
+    && warehouseMatchesSaleScope(selectedWarehouse, form)
+    && form.saleLines.length
+    && form.totalAmount > 0
   );
   const createReady = originStepReady && operationStepReady && createValidation.valid;
   const activeCreateStepIndex = salesCreateStepIds.indexOf(activeCreateStep);
   const createFooterSummary = form.customerName.trim()
     ? t.modal.wizard.footerSummary(
       form.customerName || t.common.notAvailable,
-      form.quoteReference || t.modal.workspace.directSale,
+      form.quoteReference || (form.prospectId ? t.modal.workspace.noLinkedQuotes : t.modal.workspace.directSale),
       form.saleLines.length,
       formatSalesCurrency(form.totalAmount, form.currency),
     )
@@ -328,8 +334,8 @@ export function SalesDetailModal({
 
     setForm((current) => {
       const contact = contacts.find((item) => item.id === opportunity.contactId);
-      const linkedAcceptedQuotes = quoteOptions.filter((quote) => quote.opportunityId === opportunity.id);
-      const autoSelectedQuote = linkedAcceptedQuotes.length === 1 ? linkedAcceptedQuotes[0] : null;
+      const linkedConvertibleQuotes = getForecastQuotesForOpportunity(opportunity, quoteOptions);
+      const autoSelectedQuote = linkedConvertibleQuotes.length === 1 ? linkedConvertibleQuotes[0] : null;
       const estimatedValue = parseOpportunityValue(opportunity.estimatedValue);
       const opportunityPatch: SaleRecordDraft = {
         ...current,
@@ -359,6 +365,15 @@ export function SalesDetailModal({
     setValidationErrors([]);
     setStepError('');
   };
+
+  useEffect(() => {
+    if (!open || record || !requiredOpportunityId) return;
+
+    handleOpportunitySelection(requiredOpportunityId);
+    // The selection handler intentionally runs once for each controlled opening.
+    // Re-running it while the user chooses among linked quotes would reset the form.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSeller, open, record, requiredOpportunityId, warehouses]);
 
   const handleQuoteSelection = (quoteId: string) => {
     if (quoteId === 'none') {
@@ -447,9 +462,7 @@ export function SalesDetailModal({
   const handleCreate = async () => {
     if (isSaving) return;
 
-    const selectedQuoteIsConvertible = !selectedQuote
-      || selectedQuote.status === 'Approved'
-      || selectedQuote.status === 'Closed Won';
+    const selectedQuoteIsConvertible = !selectedQuote || isOpportunityForecastQuote(selectedQuote);
     const errors = selectedQuoteIsConvertible
       ? createValidation.errors
       : [...createValidation.errors, 'quoteNotApproved' as const];
@@ -459,7 +472,13 @@ export function SalesDetailModal({
       setStepError('');
       if (errors.some((error) => error === 'quoteNotApproved' || error === 'missingCustomer')) {
         setActiveCreateStep('origin');
-      } else if (errors.some((error) => error === 'missingBusinessUnit' || error === 'missingBusiness')) {
+      } else if (errors.some((error) => (
+        error === 'missingBusinessUnit'
+        || error === 'missingBusiness'
+        || error === 'missingWarehouse'
+        || error === 'missingLines'
+        || error === 'invalidTotal'
+      ))) {
         setActiveCreateStep('operation');
       } else {
         setActiveCreateStep('review');
@@ -591,6 +610,7 @@ export function SalesDetailModal({
             <SalesCreateForm
               activeStep={activeCreateStep}
               form={form}
+              lockCommercialSource={Boolean(requiredOpportunityId)}
               quoteOptions={opportunityQuoteOptions}
               products={products}
               warehouses={warehouses}

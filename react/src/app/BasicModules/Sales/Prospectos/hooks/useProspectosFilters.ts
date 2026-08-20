@@ -14,7 +14,6 @@ type UseProspectosFiltersInput = {
   ownerFilter: string;
   temperatureFilter: string;
   sourceFilter: string;
-  statusFilter: string;
   shouldScopeOpportunitiesByOwner: boolean;
   currentUserCompanyId: number | null;
   currentOwnerNames: string[];
@@ -74,7 +73,6 @@ export function useProspectosFilters({
   ownerFilter,
   temperatureFilter,
   sourceFilter,
-  statusFilter,
   shouldScopeOpportunitiesByOwner,
   currentUserCompanyId,
   currentOwnerNames,
@@ -115,8 +113,7 @@ export function useProspectosFilters({
         (stageFilter === 'all' || opportunity.stage === stageFilter) &&
         (ownerFilter === 'all' || resolveOpportunityOwnerValue(opportunity) === ownerFilter) &&
         (temperatureFilter === 'all' || opportunity.temperature === temperatureFilter) &&
-        (sourceFilter === 'all' || opportunity.source === sourceFilter) &&
-        (statusFilter === 'all' || opportunity.status === statusFilter)
+        (sourceFilter === 'all' || opportunity.source === sourceFilter)
       );
     });
   }, [
@@ -131,7 +128,6 @@ export function useProspectosFilters({
     shouldScopeOpportunitiesByOwner,
     sourceFilter,
     stageFilter,
-    statusFilter,
     temperatureFilter,
   ]);
 }

@@ -36,6 +36,7 @@ function customerLabel(contact: SalesContact) {
 
 export function SalesCustomerSelector({
   contacts,
+  disabled = false,
   selectedContactId,
   selectedCustomerName,
   t,
@@ -43,6 +44,7 @@ export function SalesCustomerSelector({
   onCreateCustomer,
 }: {
   contacts: SalesContact[];
+  disabled?: boolean;
   selectedContactId?: string;
   selectedCustomerName: string;
   t: SalesRecordsTranslations;
@@ -109,7 +111,12 @@ export function SalesCustomerSelector({
   return (
     <div className="space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Popover open={isPickerOpen} onOpenChange={setIsPickerOpen}>
+        <Popover
+          open={disabled ? false : isPickerOpen}
+          onOpenChange={(open) => {
+            if (!disabled) setIsPickerOpen(open);
+          }}
+        >
           <PopoverTrigger asChild>
             <Button
               type="button"
@@ -118,6 +125,7 @@ export function SalesCustomerSelector({
               aria-expanded={isPickerOpen}
               aria-label={t.modal.fields.customerName}
               className={cn(salesFieldClassName, 'h-11 flex-1 justify-between px-3 font-normal')}
+              disabled={disabled}
             >
               <span className={cn('truncate', !selectedLabel && 'text-slate-500')}>
                 {selectedLabel || t.modal.placeholders.customerSelector}
@@ -164,6 +172,7 @@ export function SalesCustomerSelector({
           type="button"
           variant="outline"
           className="h-11 rounded-xl border-emerald-200 px-4 font-medium text-emerald-800 hover:bg-emerald-50"
+          disabled={disabled}
           onClick={() => {
             setIsQuickCreateOpen((current) => !current);
             setError('');
@@ -174,7 +183,7 @@ export function SalesCustomerSelector({
         </Button>
       </div>
 
-      {isQuickCreateOpen ? (
+      {isQuickCreateOpen && !disabled ? (
         <section className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
           <div className="flex items-start gap-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-700 ring-1 ring-emerald-200">
