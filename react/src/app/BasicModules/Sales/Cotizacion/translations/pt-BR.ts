@@ -24,6 +24,8 @@ export const ptBR = {
     secondaryAction: 'Revisar vencimentos',
   },
   filters: {
+    client: 'Cliente',
+    allClients: 'Todos os clientes',
     title: 'Filtros de cotacao',
     search: 'Buscar',
     searchPlaceholder: 'Buscar cotacao, cliente, oportunidade ou vendedor',

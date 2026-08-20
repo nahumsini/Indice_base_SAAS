@@ -30,6 +30,38 @@ export type SaleLineAvailabilityStatus = SalesAvailabilityStatus;
 export type SaleLine = SalesWorkflowSaleLine;
 export type SaleInventoryMovementDraft = SalesWorkflowInventoryMovementDraft;
 
+export type SaleReceivableSummary = {
+  accountId: string;
+  paidAmount: number;
+  balance: number;
+  currency: string;
+  dueDate: string;
+  nextPaymentDate: string;
+  status: string;
+};
+
+export type SaleSourceSummary = {
+  opportunityName: string;
+  quoteReference: string;
+  hasQuoteDocument: boolean;
+};
+
+export type SaleNextActionKey =
+  | 'cancelled'
+  | 'validateCommercial'
+  | 'resolveCommercial'
+  | 'createReceivable'
+  | 'resolveFinance'
+  | 'uploadEvidence'
+  | 'validatePayment'
+  | 'collectBalance'
+  | 'resolveInventory'
+  | 'prepareInventory'
+  | 'validateInventory'
+  | 'startDelivery'
+  | 'completeDelivery'
+  | 'completed';
+
 export type SaleRecord = {
   id: string;
   backendId?: number;
@@ -168,6 +200,7 @@ export type SalesColumnId =
   | 'paymentMethod'
   | 'paymentEvidence'
   | 'deliveryStatus'
+  | 'nextAction'
   | 'commissionAmount'
   | 'movementReference';
 

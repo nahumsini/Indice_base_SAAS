@@ -24,6 +24,8 @@ export const koCA = {
     secondaryAction: '만료 임박 검토',
   },
   filters: {
+    client: '고객',
+    allClients: '모든 고객',
     title: '견적 필터',
     search: '검색',
     searchPlaceholder: '견적, 고객, 기회 또는 담당자 검색',

@@ -1,6 +1,5 @@
 import type { ColumnConfig } from '../../../../components/rh/ColumnasConfigModal';
 import {
-  salesOwners,
   type OpportunityStage,
   type OpportunityStatus,
   type OpportunityTemperature,
@@ -20,7 +19,7 @@ export const initialOpportunityForm: OpportunityFormState = {
   stage: 'New',
   temperature: 'Warm',
   ownerValue: '',
-  owner: salesOwners[0],
+  owner: '',
   estimatedValue: '0',
   probability: '25%',
   expectedCloseDate: '',
@@ -32,8 +31,8 @@ export const initialOpportunityForm: OpportunityFormState = {
   files: '',
 };
 
-export const opportunityColumnsStorageKey = 'sales-opportunities-columns-v2';
-export const opportunityColumnWidthsStorageKey = 'sales-opportunities-column-widths-v1';
+export const opportunityColumnsStorageKey = 'sales-opportunities-columns-v3';
+export const opportunityColumnWidthsStorageKey = 'sales-opportunities-column-widths-v2';
 export const agendaScheduleStorageKey = 'sales-opportunities-agenda-schedule-v1';
 export const opportunityDragDataType = 'application/x-indice-sales-opportunity-id';
 
@@ -53,40 +52,40 @@ export const spanishWeekdayAliases: Array<{ aliases: string[]; dayIndex: number 
 
 export const defaultOpportunityColumns: ColumnConfig[] = [
   { id: 'opportunity', label: 'Oportunidad / empresa', visible: true, locked: true, description: 'Nombre comercial de la oportunidad, empresa y folio.' },
-  { id: 'contact', label: 'Contacto', visible: true, description: 'Persona principal relacionada con la venta.' },
-  { id: 'phone', label: 'Teléfono', visible: true, description: 'Teléfono principal para llamadas o WhatsApp.' },
-  { id: 'email', label: 'Email', visible: true, description: 'Correo principal del contacto.' },
-  { id: 'source', label: 'Origen', visible: true, description: 'Fuente comercial que generó la oportunidad.' },
+  { id: 'contact', label: 'Contacto', visible: true, description: 'Persona principal, teléfono y correo relacionados con la venta.' },
   { id: 'stage', label: 'Etapa', visible: true, description: 'Avance dentro del pipeline comercial.' },
-  { id: 'temperature', label: 'Temperatura', visible: true, description: 'Prioridad comercial de la oportunidad.' },
   { id: 'owner', label: 'Responsable', visible: true, description: 'Vendedor o ejecutivo responsable.' },
-  { id: 'estimatedValue', label: 'Valor comercial', visible: true, description: 'Monto inteligente: estimado, cotizado o cerrado según avance comercial.' },
-  { id: 'probability', label: 'Probabilidad', visible: true, description: 'Probabilidad estimada de cierre.' },
-  { id: 'quoteSignal', label: 'Cotización', visible: true, description: 'Estado de cotizaciones ligadas a la oportunidad.' },
+  { id: 'estimatedValue', label: 'Valor / forecast', visible: true, description: 'Total de cotizaciones vigentes y forecast ponderado por probabilidad.' },
+  { id: 'quoteSignal', label: 'Cotizaciones', visible: true, description: 'Documentos ligados, estado y descarga individual de PDF.' },
+  { id: 'nextAction', label: 'Seguimiento', visible: true, description: 'Siguiente acción, agenda y último contacto.' },
   { id: 'expectedCloseDate', label: 'Cierre esperado', visible: true, description: 'Fecha objetivo de cierre.' },
-  { id: 'nextAction', label: 'Siguiente acción', visible: true, description: 'Próximo paso comercial.' },
-  { id: 'nextActionDate', label: 'Fecha de acción', visible: true, description: 'Fecha y hora programada para el siguiente contacto.' },
+  { id: 'status', label: 'Salud', visible: true, description: 'Salud operativa de la oportunidad.' },
+  { id: 'phone', label: 'Teléfono', visible: false, description: 'Teléfono principal para llamadas o WhatsApp.' },
+  { id: 'email', label: 'Email', visible: false, description: 'Correo principal del contacto.' },
+  { id: 'probability', label: 'Probabilidad', visible: false, description: 'Probabilidad estimada de cierre.' },
+  { id: 'source', label: 'Origen', visible: false, description: 'Fuente comercial que generó la oportunidad.' },
+  { id: 'temperature', label: 'Temperatura', visible: false, description: 'Prioridad comercial de la oportunidad.' },
+  { id: 'nextActionDate', label: 'Fecha de acción', visible: false, description: 'Fecha y hora programada para el siguiente contacto.' },
   { id: 'lastContact', label: 'Último contacto', visible: false, description: 'Último registro de contacto comercial.' },
-  { id: 'files', label: 'Archivos', visible: true, description: 'Documentos relacionados con la oportunidad.' },
-  { id: 'status', label: 'Estado', visible: true, description: 'Estado operativo de la oportunidad.' },
+  { id: 'files', label: 'Archivos', visible: false, description: 'Documentos relacionados con la oportunidad.' },
   { id: 'pipeline', label: 'Pipeline cotizado', visible: false, description: 'Total cotizado ligado a la oportunidad por divisa.' },
 ];
 
 export const defaultOpportunityColumnWidths: Record<OpportunityColumnId, number> = {
-  opportunity: 280,
-  contact: 180,
+  opportunity: 250,
+  contact: 250,
   phone: 150,
   email: 220,
   source: 170,
-  stage: 170,
+  stage: 150,
   temperature: 170,
-  owner: 220,
-  estimatedValue: 170,
+  owner: 190,
+  estimatedValue: 230,
   probability: 160,
-  quoteSignal: 190,
+  quoteSignal: 250,
   pipeline: 210,
-  expectedCloseDate: 170,
-  nextAction: 170,
+  expectedCloseDate: 160,
+  nextAction: 320,
   nextActionDate: 260,
   lastContact: 170,
   files: 130,

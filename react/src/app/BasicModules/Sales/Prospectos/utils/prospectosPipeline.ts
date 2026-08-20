@@ -6,7 +6,7 @@ import {
   normalizeSalesCurrencyCode,
 } from '../../utils/salesCurrency';
 import { getTodayIsoDate } from '../../utils/salesCrmUtils';
-import { getLinkedQuotesForOpportunity } from './prospectosQuoteSignals';
+import { getForecastQuotesForOpportunity } from './prospectosQuoteSignals';
 
 export type OpportunityPipelineCurrencyTotal = {
   currency: string;
@@ -55,7 +55,7 @@ export function getOpportunityNativePipelineTotals(
   opportunity: SalesOpportunity,
   quotes: SalesQuote[],
 ): OpportunityNativePipelineTotals {
-  const linkedQuotes = getLinkedQuotesForOpportunity(opportunity, quotes);
+  const linkedQuotes = getForecastQuotesForOpportunity(opportunity, quotes);
 
   return {
     quoteCount: linkedQuotes.length,
@@ -72,7 +72,7 @@ export function getOpportunityPipelineTotals(
   preferredCurrency = defaultSalesCurrency,
 ): OpportunityPipelineTotals {
   const currency = normalizeSalesCurrencyCode(preferredCurrency);
-  const linkedQuotes = getLinkedQuotesForOpportunity(opportunity, quotes);
+  const linkedQuotes = getForecastQuotesForOpportunity(opportunity, quotes);
   const exchangeRateDate = getTodayIsoDate();
 
   if (linkedQuotes.length === 0) {
@@ -103,8 +103,11 @@ export function getProspectosPipelineSummary(
   quotes: SalesQuote[],
   preferredCurrency = defaultSalesCurrency,
 ) {
-  const visibleOpportunityIds = new Set(opportunities.map((opportunity) => opportunity.id));
-  const visibleQuotes = quotes.filter((quote) => quote.opportunityId && visibleOpportunityIds.has(quote.opportunityId));
+  const visibleQuotes = Array.from(new Map(
+    opportunities
+      .flatMap((opportunity) => getForecastQuotesForOpportunity(opportunity, quotes))
+      .map((quote) => [quote.id, quote] as const),
+  ).values());
   const currency = normalizeSalesCurrencyCode(preferredCurrency);
   const exchangeRateDate = getTodayIsoDate();
   const totalsByCurrency = getTotalsByCurrency(visibleQuotes);

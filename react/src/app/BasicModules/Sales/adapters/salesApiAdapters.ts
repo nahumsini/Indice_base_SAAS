@@ -393,7 +393,7 @@ export function toFrontendQuoteItem(row: ApiRow): SalesQuoteItem {
   const unitPrice = toNumber(row.unitPrice);
   const discountPercent = toNumber(row.discountPercent);
   const taxPercent = toNumber(row.taxPercent);
-  const subtotal = quantity * unitPrice;
+  const subtotal = Math.max(quantity * unitPrice * (1 - discountPercent / 100), 0);
   const originalCurrency = toStringValue(metadata.originalCurrency);
   const quoteCurrency = toStringValue(metadata.quoteCurrency);
   const unitCost = toNumber(metadata.unitCost);

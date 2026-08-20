@@ -1,8 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import type { SalesOpportunity } from '../../types';
-import { formatSalesCurrencyAmount } from '../../utils/salesCurrency';
-import { parseSalesKpiMoney } from '../salesKpiSelectors';
+import type { SalesOpportunity, SalesQuote } from '../../types';
+import { getOpportunityNativePipelineTotals } from '../../Prospectos/utils/prospectosPipeline';
 import type { SalesKpisTranslations } from '../translations';
 
 function StatusPill({ label }: { label: string }) {
@@ -18,6 +17,7 @@ function StatusPill({ label }: { label: string }) {
 export function SalesProspectsPerformanceTable({
   copy,
   items,
+  quotes,
   page,
   pageSize,
   totalItems,
@@ -26,6 +26,7 @@ export function SalesProspectsPerformanceTable({
 }: {
   copy: SalesKpisTranslations;
   items: SalesOpportunity[];
+  quotes: SalesQuote[];
   page: number;
   pageSize: number;
   totalItems: number;
@@ -69,24 +70,30 @@ export function SalesProspectsPerformanceTable({
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => (
-              <tr key={item.id} className="border-t border-slate-100 dark:border-slate-800">
-                <td className="px-5 py-4">
-                  <p className="font-medium text-slate-950 dark:text-white">{item.opportunityName}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{item.id}</p>
-                </td>
-                <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{item.company}</td>
-                <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{item.stage}</td>
-                <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{item.owner}</td>
-                <td className="px-5 py-4 font-medium text-slate-900 dark:text-white">
-                  <p>{formatSalesCurrencyAmount(parseSalesKpiMoney(item.estimatedValue), item.currency)}</p>
-                </td>
-                <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{item.nextAction} - {item.nextActionDate}</td>
-                <td className="px-5 py-4">
-                  <StatusPill label={item.status} />
-                </td>
-              </tr>
-            ))}
+            {items.map((item) => {
+              const commercialValue = getOpportunityNativePipelineTotals(item, quotes);
+              return (
+                <tr key={item.id} className="border-t border-slate-100 dark:border-slate-800">
+                  <td className="px-5 py-4">
+                    <p className="font-medium text-slate-950 dark:text-white">{item.opportunityName}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{item.id}</p>
+                  </td>
+                  <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{item.company}</td>
+                  <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{item.stage}</td>
+                  <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{item.owner}</td>
+                  <td className="px-5 py-4 font-medium text-slate-900 dark:text-white">
+                    <p>{commercialValue.totalLabel}</p>
+                    <p className="text-xs font-normal text-slate-500 dark:text-slate-400">
+                      {commercialValue.quoteCount} {commercialValue.quoteCount === 1 ? 'cotización' : 'cotizaciones'}
+                    </p>
+                  </td>
+                  <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{item.nextAction} - {item.nextActionDate}</td>
+                  <td className="px-5 py-4">
+                    <StatusPill label={item.status} />
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

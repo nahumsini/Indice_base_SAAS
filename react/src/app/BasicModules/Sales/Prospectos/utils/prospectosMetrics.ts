@@ -28,7 +28,7 @@ import {
   parsePercentage,
 } from './prospectosFormatters';
 import { getOpportunityNativePipelineTotals, getProspectosPipelineSummary } from './prospectosPipeline';
-import { getLinkedQuotesForOpportunity, getOpportunityQuoteSignal } from './prospectosQuoteSignals';
+import { getForecastQuotesForOpportunity, getOpportunityQuoteSignal } from './prospectosQuoteSignals';
 import { opportunitySortCollator, stageLabels } from './prospectosStatus';
 
 type OpportunityPeriodRange = {
@@ -128,7 +128,7 @@ function getClosedOpportunityValueLines(
   quotes: SalesQuote[],
 ): OpportunityCommercialValueLine[] {
   const closureDate = getOpportunityClosureDate(opportunity);
-  const linkedQuotes = getLinkedQuotesForOpportunity(opportunity, quotes);
+  const linkedQuotes = getForecastQuotesForOpportunity(opportunity, quotes);
 
   if (linkedQuotes.length > 0) {
     return linkedQuotes.map((quote) => ({
@@ -138,11 +138,7 @@ function getClosedOpportunityValueLines(
     }));
   }
 
-  return [{
-    amount: parseMoney(opportunity.estimatedValue),
-    currency: normalizeSalesCurrencyCode(opportunity.currency),
-    exchangeDate: closureDate || getTodayInputValue(),
-  }];
+  return [];
 }
 
 function summarizeClosedOpportunityValue(
@@ -184,7 +180,9 @@ export function getOpportunitySortValue(
     case 'owner':
       return opportunity.owner;
     case 'estimatedValue':
-      return parseMoney(opportunity.estimatedValue);
+      return getOpportunityNativePipelineTotals(opportunity, quotes).totalsByCurrency
+        .reduce((total, currencyTotal) => total + currencyTotal.total, 0)
+        * (parsePercentage(opportunity.probability) / 100);
     case 'probability':
       return parsePercentage(opportunity.probability);
     case 'quoteSignal':

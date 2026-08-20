@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { authApi } from '../../../api/auth';
-import { humanResourcesApi } from '../../../api/humanResources';
 import { useLanguage } from '../../../shared/context';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import { useKpiMonetaryAggregates } from '../../shared/kpiMonetaryApi';
 import { formatBusinessCurrencyAmount } from '../../shared/businessCurrency';
 import {
-  salesOwners,
   type OpportunityStage,
+  type SalesContact,
   type SalesOpportunity,
+  type SalesQuote,
   useSalesCrm,
 } from '../salesCrmContext';
 import { salesApi } from '../salesApi';
@@ -22,10 +22,11 @@ import {
 } from '../utils/salesOwnerOptions';
 import { normalizeTextKey } from '../utils/salesTextUtils';
 import { useQuotesTranslations } from '../Cotizacion/translations';
+import { downloadQuotePdf } from '../Cotizacion/quotePdf';
 import { SalesDetailModal } from '../Sales/components/SalesDetailModal';
 import { useSalesRecords } from '../Sales/hooks/useSalesRecords';
 import { useSalesTranslations } from '../Sales/hooks/useSalesTranslations';
-import type { SalesCurrentSeller } from '../Sales/types/salesTypes';
+import type { SaleRecord, SalesCurrentSeller } from '../Sales/types/salesTypes';
 import { inventoryApi } from '../Inventory/services/inventoryApi';
 import type { InventoryWarehouse } from '../Inventory/types/inventoryTypes';
 import { ProspectosHeader } from './components/ProspectosHeader';
@@ -74,7 +75,6 @@ type ProspectosWorkspaceState = {
   ownerFilter: string;
   temperatureFilter: string;
   sourceFilter: string;
-  statusFilter: string;
   activeView: 'table' | 'kanban' | 'agenda';
   sortColumn: OpportunityColumnId;
   sortDirection: 'asc' | 'desc';
@@ -90,7 +90,6 @@ const prospectosWorkspaceDefaults: ProspectosWorkspaceState = {
   ownerFilter: 'all',
   temperatureFilter: 'all',
   sourceFilter: 'all',
-  statusFilter: 'all',
   activeView: 'table',
   sortColumn: 'opportunity',
   sortDirection: 'asc',
@@ -101,7 +100,7 @@ const prospectosWorkspaceDefaults: ProspectosWorkspaceState = {
 const prospectosWorkspaceUrlFields: Partial<Record<keyof ProspectosWorkspaceState, string>> = {
   searchQuery: 'q', focusFilter: 'focus', periodFilter: 'period', stageFilter: 'stage',
   ownerFilter: 'owner', temperatureFilter: 'temperature', sourceFilter: 'source',
-  statusFilter: 'status', activeView: 'view', sortColumn: 'sort', sortDirection: 'direction',
+  activeView: 'view', sortColumn: 'sort', sortDirection: 'direction',
   currentPage: 'page', pageSize: 'pageSize',
 };
 
@@ -124,6 +123,10 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   const navigate = useNavigate();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
+  const [pendingWonTransition, setPendingWonTransition] = useState<{
+    opportunity: SalesOpportunity;
+    patch: Partial<Omit<SalesOpportunity, 'id'>>;
+  } | null>(null);
   const [editingOpportunity, setEditingOpportunity] = useState<SalesOpportunity | null>(null);
   const [filesOpportunity, setFilesOpportunity] = useState<SalesOpportunity | null>(null);
   const [historyOpportunity, setHistoryOpportunity] = useState<SalesOpportunity | null>(null);
@@ -141,12 +144,11 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   const [ownerFilter, setOwnerFilter] = useState('all');
   const [temperatureFilter, setTemperatureFilter] = useState('all');
   const [sourceFilter, setSourceFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
   const [paginationState, setPaginationState] = useState({ currentPage: 1, pageSize: 10 });
   const { exchangeRateMetadata, preferredCurrency } = usePreferredBusinessCurrency();
   const [form, setForm] = useState<OpportunityFormState>({
     ...initialOpportunityForm,
-    contactId: contacts[0]?.id ?? '',
+    contactId: '',
   });
 
   const {
@@ -167,11 +169,11 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
 
   const workspaceState = useMemo<ProspectosWorkspaceState>(() => ({
     searchQuery, focusFilter, periodFilter, stageFilter, ownerFilter, temperatureFilter,
-    sourceFilter, statusFilter, activeView, sortColumn: sortState.columnId,
+    sourceFilter, activeView, sortColumn: sortState.columnId,
     sortDirection: sortState.direction, ...paginationState,
   }), [
     activeView, focusFilter, ownerFilter, paginationState, periodFilter, searchQuery,
-    sortState, sourceFilter, stageFilter, statusFilter, temperatureFilter,
+    sortState, sourceFilter, stageFilter, temperatureFilter,
   ]);
 
   useWorkspaceNavigationMemory({
@@ -188,7 +190,6 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
       setOwnerFilter(restored.ownerFilter);
       setTemperatureFilter(restored.temperatureFilter);
       setSourceFilter(restored.sourceFilter);
-      setStatusFilter(restored.statusFilter);
       setActiveView(restored.activeView);
       setSortState({ columnId: restored.sortColumn, direction: restored.sortDirection });
       setPaginationState({ currentPage: restored.currentPage, pageSize: restored.pageSize });
@@ -208,7 +209,6 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     setOwnerFilter('all');
     setTemperatureFilter('all');
     setSourceFilter('all');
-    setStatusFilter('all');
     resetPage();
   };
 
@@ -216,10 +216,9 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     let isMounted = true;
 
     const loadSalesOwners = async () => {
-      const [sessionResult, salesContextResult, hrUsersResult] = await Promise.allSettled([
+      const [sessionResult, salesContextResult] = await Promise.allSettled([
         authApi.getSessionOrNull(),
         salesApi.context(),
-        humanResourcesApi.listHrUsers(),
       ]);
 
       if (!isMounted) {
@@ -240,11 +239,8 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
       const salesContextOwners = salesContextResult.status === 'fulfilled'
         ? salesContextResult.value.users
         : [];
-      const hrOwners = hrUsersResult.status === 'fulfilled'
-        ? hrUsersResult.value.items
-        : [];
 
-      [...salesContextOwners, ...hrOwners].forEach((user) => {
+      salesContextOwners.forEach((user) => {
         const owner = normalizeSalesOwnerOption(user);
         if (owner && !ownerMap.has(owner.userCompanyId)) {
           ownerMap.set(owner.userCompanyId, owner);
@@ -270,15 +266,18 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   }, []);
 
   const ownerSelectOptions = useMemo(() => {
-    const companyOwnerOptions = ownerOptions.map((owner) => ({ value: ownerOptionValue(owner), label: owner.name }));
-    const fallbackOwnerNames = [...salesOwners, ...contacts.map((contact) => contact.owner), ...opportunities.map((opportunity) => opportunity.owner)]
-      .filter((owner, index, owners) => owner && owners.findIndex((candidate) => normalizeTextKey(candidate) === normalizeTextKey(owner)) === index);
-    const fallbackOwnerOptions = fallbackOwnerNames
-      .map((owner) => ({ value: fallbackOwnerValue(owner), label: owner }))
-      .filter((option) => !companyOwnerOptions.some((owner) => normalizeTextKey(owner.label) === normalizeTextKey(option.label)));
+    return ownerOptions.map((owner) => ({ value: ownerOptionValue(owner), label: owner.name }));
+  }, [ownerOptions]);
 
-    return [...companyOwnerOptions, ...fallbackOwnerOptions];
-  }, [contacts, opportunities, ownerOptions]);
+  const ownerFilterSelectOptions = useMemo(() => {
+    const historicalOwnerNames = opportunities.map((opportunity) => opportunity.owner)
+      .filter((owner, index, owners) => owner && owners.findIndex((candidate) => normalizeTextKey(candidate) === normalizeTextKey(owner)) === index);
+    const historicalOwnerOptions = historicalOwnerNames
+      .map((owner) => ({ value: fallbackOwnerValue(owner), label: owner }))
+      .filter((option) => !ownerSelectOptions.some((owner) => normalizeTextKey(owner.label) === normalizeTextKey(option.label)));
+
+    return [...ownerSelectOptions, ...historicalOwnerOptions];
+  }, [opportunities, ownerSelectOptions]);
 
   const ownerNameByValue = useMemo(
     () => new Map(ownerSelectOptions.map((owner) => [owner.value, owner.label])),
@@ -342,7 +341,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   } = useSalesRecords(preferredPipelineCurrency);
   const defaultOwnerValue = currentUserCompanyId
     ? `user-company:${currentUserCompanyId}`
-    : ownerSelectOptions[0]?.value ?? fallbackOwnerValue(initialOpportunityForm.owner);
+    : ownerSelectOptions[0]?.value ?? '';
 
   const resolveOpportunityOwnerValue = (opportunity: SalesOpportunity) => {
     if (opportunity.ownerUserCompanyId) {
@@ -358,10 +357,9 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     searchQuery,
     focusFilter,
     stageFilter,
-    ownerFilter,
+    ownerFilter: canViewAllVisibleOpportunities ? ownerFilter : 'all',
     temperatureFilter,
     sourceFilter,
-    statusFilter,
     shouldScopeOpportunitiesByOwner,
     currentUserCompanyId,
     currentOwnerNames,
@@ -419,10 +417,11 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
 
   const getOwnerPayloadFromValue = (value: string) => {
     const userCompanyId = getOwnerUserCompanyIdFromValue(value);
-    const ownerName = ownerNameByValue.get(value) ?? value.replace('name:', '');
+    const ownerName = ownerNameByValue.get(value)
+      ?? (value.startsWith('name:') ? value.replace('name:', '') : '');
     return {
       ownerUserCompanyId: userCompanyId,
-      owner: ownerName || initialOpportunityForm.owner,
+      owner: ownerName,
     };
   };
 
@@ -438,8 +437,8 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     }));
   }, [defaultOwnerValue, editingOpportunity, form.ownerValue, ownerSelectOptions.length]);
 
-  const handleContactChange = (contactId: string) => {
-    const contact = getContactById(contacts, contactId);
+  const handleContactChange = (contactId: string, createdContact?: SalesContact) => {
+    const contact = createdContact ?? getContactById(contacts, contactId);
     if (!contact) return;
     const matchedOwner = ownerOptions.find((owner) => normalizeTextKey(owner.name) === normalizeTextKey(contact.owner));
     const ownerValue = contact.ownerUserCompanyId
@@ -448,13 +447,13 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         ? ownerOptionValue(matchedOwner)
         : ownerOptions.length > 0
           ? defaultOwnerValue
-          : fallbackOwnerValue(contact.owner);
+          : '';
     setForm((current) => ({
       ...current,
       contactId,
       source: contact.source,
       ownerValue,
-      owner: ownerNameByValue.get(ownerValue) ?? contact.owner,
+      owner: ownerNameByValue.get(ownerValue) ?? '',
       opportunityName: current.opportunityName || `${contact.company} opportunity`,
     }));
   };
@@ -463,7 +462,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     const defaultOwnerPayload = getOwnerPayloadFromValue(defaultOwnerValue);
     setForm({
       ...initialOpportunityForm,
-      contactId: contacts[0]?.id ?? '',
+      contactId: '',
       ownerValue: defaultOwnerValue,
       owner: defaultOwnerPayload.owner,
     });
@@ -480,7 +479,18 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   };
 
   const handleOpenCreateSale = () => {
+    setPendingWonTransition(null);
     setIsSaleModalOpen(true);
+  };
+
+  const handleSendToCredit = (record: SaleRecord) => {
+    updateSaleRecord(record.id, {
+      commercialStatus: record.commercialStatus === 'pending_validation' ? 'approved' : record.commercialStatus,
+      financeStatus: 'pending',
+      paymentMethod: 'credit',
+    });
+    const candidateSaleId = record.backendId ? `sales:${record.backendId}` : record.id;
+    navigate(`/receivables/credit-sales?candidateSaleId=${encodeURIComponent(candidateSaleId)}&openCreditSale=1`);
   };
 
   const handleOpenEditOpportunity = (opportunity: SalesOpportunity) => {
@@ -524,12 +534,27 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     };
   };
 
-  const handleUpdateOpportunity = (
+  const commitOpportunityUpdate = (
     opportunityId: string,
     patch: Partial<Omit<SalesOpportunity, 'id'>>,
   ) => {
     const opportunity = opportunities.find((item) => item.id === opportunityId);
     updateOpportunity(opportunityId, opportunity ? withClosureDatePatch(opportunity, patch) : patch);
+  };
+
+  const handleUpdateOpportunity = (
+    opportunityId: string,
+    patch: Partial<Omit<SalesOpportunity, 'id'>>,
+  ) => {
+    const opportunity = opportunities.find((item) => item.id === opportunityId);
+
+    if (opportunity && patch.stage === 'Won' && opportunity.stage !== 'Won') {
+      setPendingWonTransition({ opportunity, patch });
+      setIsSaleModalOpen(true);
+      return;
+    }
+
+    commitOpportunityUpdate(opportunityId, patch);
   };
 
   const handleDeleteOpportunity = (opportunity: SalesOpportunity) => {
@@ -567,6 +592,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     const contact = getContactById(contacts, form.contactId);
     if (!contact || !form.opportunityName.trim()) return;
     const ownerPayload = getOwnerPayloadFromValue(form.ownerValue);
+    if (!ownerPayload.ownerUserCompanyId) return;
     const closesOpportunity = form.stage === 'Won' || form.stage === 'Lost';
     const isClosingTransition = closesOpportunity && (!editingOpportunity || !['Won', 'Lost'].includes(editingOpportunity.stage));
 
@@ -594,7 +620,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     };
 
     if (editingOpportunity) {
-      updateOpportunity(editingOpportunity.id, opportunityPayload);
+      handleUpdateOpportunity(editingOpportunity.id, opportunityPayload);
     } else {
       addOpportunity(opportunityPayload);
     }
@@ -604,6 +630,16 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
 
   const handleScheduleChange = (opportunity: SalesOpportunity, date: string, time: string) => {
     updateOpportunity(opportunity.id, { nextActionDate: formatOpportunitySchedule(date, time) });
+  };
+
+  const handleDownloadQuote = (opportunity: SalesOpportunity, quote: SalesQuote) => {
+    downloadQuotePdf({
+      quote,
+      contact: contacts.find((contact) => contact.id === opportunity.contactId) ?? null,
+      opportunity,
+      copy: quoteCopy,
+      locale: currentLanguage.code,
+    });
   };
 
   const handleKanbanStageChange = (opportunity: SalesOpportunity, stage: OpportunityStage) => {
@@ -643,8 +679,8 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         ownerFilter={ownerFilter}
         temperatureFilter={temperatureFilter}
         sourceFilter={sourceFilter}
-        statusFilter={statusFilter}
-        ownerSelectOptions={ownerSelectOptions}
+        showOwnerFilter={canViewAllVisibleOpportunities}
+        ownerSelectOptions={ownerFilterSelectOptions}
         onSearchChange={changeFilter(setSearchQuery)}
         onFocusFilterChange={changeFilter(setFocusFilter)}
         onPeriodFilterChange={changeFilter(setPeriodFilter)}
@@ -652,7 +688,6 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         onOwnerFilterChange={changeFilter(setOwnerFilter)}
         onTemperatureFilterChange={changeFilter(setTemperatureFilter)}
         onSourceFilterChange={changeFilter(setSourceFilter)}
-        onStatusFilterChange={changeFilter(setStatusFilter)}
         onClearFilters={handleClearFilters}
       />
 
@@ -712,6 +747,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
           onEdit={handleOpenEditOpportunity}
           onDelete={handleDeleteOpportunity}
           onScheduleChange={handleScheduleChange}
+          onDownloadQuote={handleDownloadQuote}
           onResizeColumn={handleResizeColumn}
           paginationState={paginationState}
           onPaginationChange={setPaginationState}
@@ -756,6 +792,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
 
       <CreateOpportunityModal
         copy={{ ...t.modal, options: t.options }}
+        customerCopy={salesCopy}
         isOpen={isCreateOpen}
         editingOpportunity={editingOpportunity}
         form={form}
@@ -764,6 +801,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         defaultOwnerValue={defaultOwnerValue}
         setForm={setForm}
         onContactChange={handleContactChange}
+        onCreateCustomer={createContactRecord}
         getOwnerPayloadFromValue={getOwnerPayloadFromValue}
         onOpenChange={handleOpportunityModalOpenChange}
         onSave={handleSaveOpportunity}
@@ -782,6 +820,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
       <SalesDetailModal
         open={isSaleModalOpen}
         record={null}
+        requiredOpportunityId={pendingWonTransition?.opportunity.id}
         quotes={quotes}
         products={products}
         warehouses={warehouses}
@@ -789,15 +828,25 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         contacts={contacts}
         opportunities={opportunities}
         t={salesCopy}
-        onOpenChange={setIsSaleModalOpen}
+        onOpenChange={(open) => {
+          setIsSaleModalOpen(open);
+          if (!open) {
+            setPendingWonTransition(null);
+          }
+        }}
         onCreateCustomer={createContactRecord}
         onCreate={createSaleRecord}
         onUpdate={updateSaleRecord}
+        onCreditSaleCreated={handleSendToCredit}
         onQuoteConverted={(quoteId, opportunityId) => {
           const convertedQuote = quotes.find((quote) => quote.id === quoteId);
           updateQuoteStatus(quoteId, 'Closed Won');
           if (opportunityId) {
-            handleUpdateOpportunity(opportunityId, {
+            const pendingPatch = pendingWonTransition?.opportunity.id === opportunityId
+              ? pendingWonTransition.patch
+              : {};
+            commitOpportunityUpdate(opportunityId, {
+              ...pendingPatch,
               stage: 'Won',
               status: 'Closed',
               probability: '100%',
@@ -806,6 +855,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
                 currency: convertedQuote.currency,
               } : {}),
             });
+            setPendingWonTransition(null);
           }
         }}
       />

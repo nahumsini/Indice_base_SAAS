@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, FileUp, PackageCheck, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CreditCard, FileUp, PackageCheck, X } from 'lucide-react';
 import {
   IndiceModalSummary,
   IndiceModalValidation,
@@ -34,6 +34,7 @@ export const salesCreateStepIds: SalesCreateStepId[] = ['origin', 'operation', '
 type SalesCreateFormProps = {
   activeStep: SalesCreateStepId;
   form: SaleRecordDraft;
+  lockCommercialSource?: boolean;
   quoteOptions: SalesQuote[];
   contacts: SalesContact[];
   opportunities: SalesOpportunity[];
@@ -109,6 +110,7 @@ function SalesLineItemsPreview({
 
 function OriginStep({
   form,
+  lockCommercialSource,
   quoteOptions,
   contacts,
   opportunities,
@@ -121,6 +123,7 @@ function OriginStep({
 }: Pick<
   SalesCreateFormProps,
   | 'form'
+  | 'lockCommercialSource'
   | 'quoteOptions'
   | 'contacts'
   | 'opportunities'
@@ -134,9 +137,24 @@ function OriginStep({
   return (
     <div className="space-y-4">
       <SectionCard title={t.modal.wizard.originTitle} description={t.modal.wizard.originDescription}>
+        <FormField label={`${t.modal.fields.opportunitySelector} *`}>
+          <Select value={form.prospectId ?? 'none'} onValueChange={onOpportunitySelection} disabled={lockCommercialSource}>
+            <SelectTrigger aria-label={t.modal.fields.opportunitySelector} className={salesFieldClassName}><SelectValue placeholder={t.modal.placeholders.opportunitySelector} /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">{t.modal.workspace.directSale}</SelectItem>
+              {opportunities.map((opportunity) => (
+                <SelectItem key={opportunity.id} value={opportunity.id}>
+                  {opportunity.opportunityName} · {opportunity.company}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FormField>
+
         <FormField label={`${t.modal.fields.customerName} *`}>
           <SalesCustomerSelector
             contacts={contacts}
+            disabled={lockCommercialSource}
             selectedContactId={form.contactId ?? form.customerId}
             selectedCustomerName={form.customerName}
             t={t}
@@ -145,35 +163,21 @@ function OriginStep({
           />
         </FormField>
 
-        <section className="grid gap-4 md:grid-cols-2">
-          <FormField label={t.modal.fields.opportunitySelector}>
-            <Select value={form.prospectId ?? 'none'} onValueChange={onOpportunitySelection}>
-              <SelectTrigger aria-label={t.modal.fields.opportunitySelector} className={salesFieldClassName}><SelectValue placeholder={t.modal.placeholders.opportunitySelector} /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">{t.modal.workspace.directSale}</SelectItem>
-                {opportunities.map((opportunity) => (
-                  <SelectItem key={opportunity.id} value={opportunity.id}>
-                    {opportunity.opportunityName} · {opportunity.company}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FormField>
-
-          <FormField label={t.modal.fields.quoteSelector}>
-            <Select value={form.quoteId ?? 'none'} onValueChange={onQuoteSelection}>
-              <SelectTrigger aria-label={t.modal.fields.quoteSelector} className={salesFieldClassName}><SelectValue placeholder={t.modal.placeholders.quoteSelector} /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">{t.modal.workspace.directSale}</SelectItem>
-                {quoteOptions.map((quote) => (
-                  <SelectItem key={quote.id} value={quote.id}>
-                    {quote.quoteNumber} · {quote.clientName} · {formatSalesCurrency(quote.total, quote.currency)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FormField>
-        </section>
+        <FormField label={`${t.modal.fields.quoteSelector}${form.prospectId ? ' *' : ''}`}>
+          <Select value={form.quoteId ?? 'none'} onValueChange={onQuoteSelection} disabled={!form.prospectId}>
+            <SelectTrigger aria-label={t.modal.fields.quoteSelector} className={salesFieldClassName}><SelectValue placeholder={t.modal.placeholders.quoteSelector} /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">
+                {form.prospectId ? t.modal.workspace.noLinkedQuotes : t.modal.workspace.directSale}
+              </SelectItem>
+              {quoteOptions.map((quote) => (
+                <SelectItem key={quote.id} value={quote.id}>
+                  {quote.quoteNumber} · {quote.clientName} · {formatSalesCurrency(quote.total, quote.currency)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FormField>
 
         {selectedQuote ? (
           <IndiceModalSummary
@@ -217,6 +221,7 @@ function OperationStep({
 > & { mode: 'operation' | 'payment' }) {
   const operationalContext = getSalesOperationalContext(form.businessId);
   const selectedPaymentMethod = normalizeSalesPaymentMethod(form.paymentMethod);
+  const isCreditPayment = selectedPaymentMethod === 'credit';
   const availableWarehouses = warehouses.filter(isSalesWarehouseReady);
   const evidenceFiles = form.paymentEvidenceFiles ?? [];
 
@@ -292,7 +297,15 @@ function OperationStep({
           <FormField label={t.modal.fields.paymentMethod}>
             <Select
               value={selectedPaymentMethod || undefined}
-              onValueChange={(value) => onFormChange({ paymentMethod: getSalesPaymentMethodForStorage(value) })}
+              onValueChange={(value) => onFormChange({
+                paymentMethod: getSalesPaymentMethodForStorage(value),
+                ...(value === 'credit' ? {
+                  paymentAccountId: undefined,
+                  paymentAccountName: undefined,
+                  paymentEvidenceFiles: [],
+                  paymentEvidenceStatus: 'missing' as const,
+                } : {}),
+              })}
             >
               <SelectTrigger aria-label={t.modal.fields.paymentMethod} className={salesFieldClassName}>
                 <SelectValue placeholder={t.modal.placeholders.paymentMethod} />
@@ -307,7 +320,7 @@ function OperationStep({
           <FormField label={t.modal.fields.paymentReference}>
             <Input aria-label={t.modal.fields.paymentReference} value={form.paymentReference} onChange={(event) => onFormChange({ paymentReference: event.target.value })} placeholder={t.modal.placeholders.paymentReference} className={salesFieldClassName} />
           </FormField>
-          <FormField label={t.modal.fields.paymentAccount}>
+          {!isCreditPayment ? <FormField label={t.modal.fields.paymentAccount}>
             <SalesPaymentAccountField
               businessId={form.businessId}
               businessUnitId={form.businessUnitId}
@@ -317,8 +330,8 @@ function OperationStep({
               t={t}
               onSelect={(account) => onFormChange({ paymentAccountId: account?.id, paymentAccountName: account?.name })}
             />
-          </FormField>
-          <FormField label={t.modal.fields.paymentEvidenceStatus}>
+          </FormField> : null}
+          {!isCreditPayment ? <FormField label={t.modal.fields.paymentEvidenceStatus}>
             <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-center transition hover:border-[#FF6B5E] hover:bg-[#FF6B5E]/5 dark:border-slate-700 dark:bg-slate-800/50">
               <FileUp className="mb-1 h-5 w-5 text-[#B63B32]" />
               <span className="text-sm font-medium text-slate-800 dark:text-white">{t.modal.paymentEvidence.upload}</span>
@@ -344,7 +357,13 @@ function OperationStep({
                 ))}
               </div>
             ) : null}
-          </FormField>
+          </FormField> : null}
+          {isCreditPayment ? (
+            <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-emerald-900 md:col-span-2 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-100">
+              <CreditCard className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+              <p className="text-sm leading-6">{t.modal.creditHandoff}</p>
+            </div>
+          ) : null}
           <FormField label={t.modal.fields.notes}>
             <Textarea aria-label={t.modal.fields.notes} value={form.notes} onChange={(event) => onFormChange({ notes: event.target.value })} placeholder={t.modal.placeholders.notes} className="min-h-24 rounded-xl border-slate-200 bg-white text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
           </FormField>
@@ -424,6 +443,7 @@ function ReviewStep({
 export function SalesCreateForm({
   activeStep,
   form,
+  lockCommercialSource = false,
   quoteOptions,
   contacts,
   opportunities,
@@ -454,6 +474,7 @@ export function SalesCreateForm({
       {activeStep === 'origin' ? (
         <OriginStep
           form={form}
+          lockCommercialSource={lockCommercialSource}
           quoteOptions={quoteOptions}
           contacts={contacts}
           opportunities={opportunities}

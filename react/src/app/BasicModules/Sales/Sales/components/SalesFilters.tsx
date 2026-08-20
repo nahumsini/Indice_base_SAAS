@@ -8,16 +8,12 @@ import type { SalesFiltersState, SalesFocusFilter } from '../types/salesTypes';
 
 export function SalesFilters({
   filters,
-  businessUnits,
-  businesses,
   sellers,
   customers,
   t,
   onFiltersChange,
 }: {
   filters: SalesFiltersState;
-  businessUnits: Array<{ id: string; name: string }>;
-  businesses: Array<{ id: string; name: string; businessUnitId: string }>;
   sellers: string[];
   customers: string[];
   t: SalesRecordsTranslations;
@@ -31,7 +27,6 @@ export function SalesFilters({
 
     onFiltersChange({ ...filters, [key]: value });
   };
-  const businessOptions = businesses.filter((business) => filters.businessUnit === 'all' || business.businessUnitId === filters.businessUnit);
   const focusOptions: Array<{ value: SalesFocusFilter; label: string }> = [
     { value: 'all', label: t.filters.focusOptions.all },
     { value: 'open', label: t.filters.focusOptions.open },
@@ -52,25 +47,13 @@ export function SalesFilters({
   ];
 
   return (
-    <SalesFilterBar title={t.filters.title} gridClassName="xl:grid-cols-4 2xl:grid-cols-8">
+    <SalesFilterBar title={t.filters.title} gridClassName="xl:grid-cols-6">
       <SalesFilterSearch
         className="md:col-span-2"
         label={t.filters.search}
         value={filters.search}
         onValueChange={(value) => updateFilter('search', value)}
         placeholder={t.filters.searchPlaceholder}
-      />
-      <SalesFilterSelect
-        label={t.filters.businessUnit}
-        value={filters.businessUnit}
-        onValueChange={(value) => updateFilter('businessUnit', value)}
-        options={[{ value: 'all', label: t.common.all }, ...businessUnits.map((unit) => ({ value: unit.id, label: unit.name }))]}
-      />
-      <SalesFilterSelect
-        label={t.filters.business}
-        value={filters.business}
-        onValueChange={(value) => updateFilter('business', value)}
-        options={[{ value: 'all', label: t.common.all }, ...businessOptions.map((business) => ({ value: business.id, label: business.name }))]}
       />
       <SalesFilterSelect
         label={t.filters.period}
@@ -85,16 +68,16 @@ export function SalesFilters({
         options={focusOptions}
       />
       <SalesFilterSelect
-        label={t.filters.seller}
-        value={filters.seller}
-        onValueChange={(value) => updateFilter('seller', value)}
-        options={[{ value: 'all', label: t.common.all }, ...sellers.map((seller) => ({ value: seller, label: seller }))]}
-      />
-      <SalesFilterSelect
         label={t.filters.customer}
         value={filters.customer}
         onValueChange={(value) => updateFilter('customer', value)}
         options={[{ value: 'all', label: t.common.all }, ...customers.map((customer) => ({ value: customer, label: customer }))]}
+      />
+      <SalesFilterSelect
+        label={t.filters.seller}
+        value={filters.seller}
+        onValueChange={(value) => updateFilter('seller', value)}
+        options={[{ value: 'all', label: t.common.all }, ...sellers.map((seller) => ({ value: seller, label: seller }))]}
       />
     </SalesFilterBar>
   );

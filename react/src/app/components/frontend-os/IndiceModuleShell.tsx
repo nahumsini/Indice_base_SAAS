@@ -1,9 +1,16 @@
 import type { ReactNode, Ref } from 'react';
+import { ChevronDown, MoreHorizontal } from 'lucide-react';
 import { FavoritesBar } from '../FavoritesBar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
 import { getModulePrimaryForeground, MODULE_COLORS, type IndiceModuleTone } from '../../styles/moduleColors';
 import { getCachedAuthSession } from '../../api/authSessionStore';
 import { canAccessModuleTab } from '../../access/tabScopeCatalog';
-import { resolvePageId } from '../../config/navigation';
+import { resolvePageId, type PageId } from '../../config/navigation';
 
 const MODULE_EMOJI_BY_ROUTE: Record<string, string> = {
   'human-resources': '👥',
@@ -23,6 +30,10 @@ export type IndiceModuleTab<TabId extends string> = {
   id: TabId;
   label: string;
   icon: ReactNode;
+  access?: {
+    page: PageId;
+    tabId?: string;
+  };
 };
 
 interface IndiceModuleShellProps<TabId extends string> {
@@ -33,6 +44,8 @@ interface IndiceModuleShellProps<TabId extends string> {
   currentModule: string;
   guide?: ReactNode;
   loadingOverlay?: ReactNode;
+  moreLabel?: string;
+  moreTabs?: ReadonlyArray<IndiceModuleTab<TabId>>;
   onNavigate?: (page?: string) => void;
   onTabChange: (tabId: TabId) => void;
   subtitle: string;
@@ -53,6 +66,8 @@ export function IndiceModuleShell<TabId extends string>({
   currentModule,
   guide,
   loadingOverlay,
+  moreLabel = 'More',
+  moreTabs = [],
   onNavigate,
   onTabChange,
   subtitle,
@@ -64,10 +79,16 @@ export function IndiceModuleShell<TabId extends string>({
   const activeTextColor = getModulePrimaryForeground(tone);
   const resolvedPage = resolvePageId(currentModule);
   const cachedSession = getCachedAuthSession();
-  const visibleTabs = resolvedPage && cachedSession !== undefined
-    ? tabs.filter((tab) => canAccessModuleTab(resolvedPage, tab.id, cachedSession))
-    : tabs;
-  const activeTabData = visibleTabs.find((tab) => tab.id === activeTab);
+  const canAccessTab = (tab: IndiceModuleTab<TabId>) => {
+    if (cachedSession === undefined) return true;
+    const accessPage = tab.access?.page ?? resolvedPage;
+    if (!accessPage) return true;
+    return canAccessModuleTab(accessPage, tab.access?.tabId ?? tab.id, cachedSession);
+  };
+  const visibleTabs = tabs.filter(canAccessTab);
+  const visibleMoreTabs = moreTabs.filter(canAccessTab);
+  const activeTabData = [...visibleTabs, ...visibleMoreTabs].find((tab) => tab.id === activeTab);
+  const isMoreActive = visibleMoreTabs.some((tab) => tab.id === activeTab);
   const moduleEmoji = MODULE_EMOJI_BY_ROUTE[resolvedPage ?? currentModule] ?? '◈';
 
   return (
@@ -145,6 +166,52 @@ export function IndiceModuleShell<TabId extends string>({
                   </button>
                 );
               })}
+              {visibleMoreTabs.length ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      aria-current={isMoreActive ? 'page' : undefined}
+                      className={`flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 sm:text-sm ${
+                        isMoreActive
+                          ? 'border-transparent shadow-md'
+                          : `border-transparent bg-slate-100 text-slate-600 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white ${theme.iconHover}`
+                      }`}
+                      style={isMoreActive ? {
+                        backgroundColor: theme.primary,
+                        color: activeTextColor,
+                        boxShadow: `0 8px 18px -12px ${theme.primary}`,
+                      } : undefined}
+                    >
+                      <MoreHorizontal aria-hidden="true" className="h-4 w-4" />
+                      <span>{moreLabel}</span>
+                      <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-64 rounded-xl p-1.5">
+                    {visibleMoreTabs.map((tab) => {
+                      const isActive = activeTab === tab.id;
+                      return (
+                        <DropdownMenuItem
+                          key={tab.id}
+                          aria-current={isActive ? 'page' : undefined}
+                          className="min-h-10 gap-2.5 rounded-lg px-3"
+                          onSelect={() => onTabChange(tab.id)}
+                        >
+                          <span
+                            aria-hidden="true"
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-base"
+                            style={isActive ? { backgroundColor: theme.primary, color: activeTextColor } : undefined}
+                          >
+                            {tab.icon}
+                          </span>
+                          <span className={isActive ? `${theme.text} ${theme.darkText}` : undefined}>{tab.label}</span>
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
             </div>
           </nav>
 

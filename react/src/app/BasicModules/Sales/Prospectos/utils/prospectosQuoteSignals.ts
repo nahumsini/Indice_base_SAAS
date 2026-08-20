@@ -8,9 +8,19 @@ export type OpportunityQuoteSignal = {
   label: string;
   detail: string;
   quoteCount: number;
+  forecastQuoteCount: number;
   totalQuotedValue: number;
   totalQuotedValueLabel: string;
 };
+
+export const opportunityForecastQuoteStatuses: QuoteStatus[] = [
+  'Draft',
+  'Sent',
+  'Viewed',
+  'Negotiation',
+  'Approved',
+  'Closed Won',
+];
 
 const quoteStatusPriority: Record<QuoteStatus, number> = {
   'Closed Won': 6,
@@ -52,8 +62,17 @@ export function getLinkedQuotesForOpportunity(opportunity: SalesOpportunity, quo
   return quotes.filter((quote) => quote.opportunityId && opportunityIds.has(quote.opportunityId));
 }
 
+export function isOpportunityForecastQuote(quote: SalesQuote) {
+  return opportunityForecastQuoteStatuses.includes(quote.status);
+}
+
+export function getForecastQuotesForOpportunity(opportunity: SalesOpportunity, quotes: SalesQuote[]) {
+  return getLinkedQuotesForOpportunity(opportunity, quotes).filter(isOpportunityForecastQuote);
+}
+
 export function getOpportunityQuoteSignal(opportunity: SalesOpportunity, quotes: SalesQuote[]): OpportunityQuoteSignal {
   const linkedQuotes = getLinkedQuotesForOpportunity(opportunity, quotes);
+  const forecastQuotes = linkedQuotes.filter(isOpportunityForecastQuote);
 
   if (linkedQuotes.length === 0) {
     return {
@@ -61,17 +80,20 @@ export function getOpportunityQuoteSignal(opportunity: SalesOpportunity, quotes:
       label: 'Sin cotización',
       detail: 'Sin documento comercial',
       quoteCount: 0,
+      forecastQuoteCount: 0,
       totalQuotedValue: 0,
-      totalQuotedValueLabel: formatSalesCurrencyAmount(0),
+      totalQuotedValueLabel: formatSalesCurrencyAmount(0, opportunity.currency),
     };
   }
 
-  const totalQuotedValue = linkedQuotes.reduce((total, quote) => total + quote.total, 0);
-  const totalQuotedValueLabel = formatSalesCurrencyBreakdown(
-    linkedQuotes,
-    (quote) => quote.total,
-    (quote) => quote.currency,
-  );
+  const totalQuotedValue = forecastQuotes.reduce((total, quote) => total + quote.total, 0);
+  const totalQuotedValueLabel = forecastQuotes.length > 0
+    ? formatSalesCurrencyBreakdown(
+      forecastQuotes,
+      (quote) => quote.total,
+      (quote) => quote.currency,
+    )
+    : formatSalesCurrencyAmount(0, opportunity.currency);
   const primaryQuote = [...linkedQuotes].sort((left, right) => (
     quoteStatusPriority[right.status] - quoteStatusPriority[left.status]
       || right.lastUpdated.localeCompare(left.lastUpdated)
@@ -93,6 +115,7 @@ export function getOpportunityQuoteSignal(opportunity: SalesOpportunity, quotes:
     label: labelByState[state],
     detail: `${formatQuoteCount(linkedQuotes.length)} · ${totalQuotedValueLabel}`,
     quoteCount: linkedQuotes.length,
+    forecastQuoteCount: forecastQuotes.length,
     totalQuotedValue,
     totalQuotedValueLabel,
   };

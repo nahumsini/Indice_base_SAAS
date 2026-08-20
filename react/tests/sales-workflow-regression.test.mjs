@@ -33,22 +33,36 @@ test('las relaciones vacías del CRM permanecen vacías al volver a guardar', ()
   assert.match(source, /ownerUserCompanyId: opportunity\.ownerUserCompanyId \?\? undefined/);
 });
 
-test('una venta directa requiere cliente, pero no fuerza cotización ni partidas', () => {
+test('ninguna venta puede guardarse sin partidas ni total', () => {
   const bridge = read('src/app/BasicModules/Sales/services/salesWorkflowBridge.ts');
   const modal = read('src/app/BasicModules/Sales/Sales/components/SalesDetailModal.tsx');
 
   assert.match(bridge, /if \(!sale\.customerName\.trim\(\)\) errors\.push\('missingCustomer'\)/);
-  assert.doesNotMatch(bridge, /if \(!sale\.saleLines\.length\) errors\.push\('missingLines'\)/);
-  assert.match(modal, /const originStepReady = Boolean\(form\.customerName\.trim\(\)\)/);
-  assert.match(modal, /const selectedQuoteIsConvertible = !selectedQuote/);
+  assert.match(bridge, /if \(!sale\.saleLines\.length\) errors\.push\('missingLines'\)/);
+  assert.match(bridge, /if \(!\(Number\(sale\.totalAmount\) > 0\)\) errors\.push\('invalidTotal'\)/);
+  assert.match(modal, /&& \(!form\.prospectId \|\| selectedQuote\)/);
+  assert.match(modal, /&& form\.saleLines\.length/);
+  assert.match(modal, /&& form\.totalAmount > 0/);
 });
 
 test('oportunidad y cotización se completan cuando existe una relación', () => {
   const source = read('src/app/BasicModules/Sales/Sales/components/SalesDetailModal.tsx');
 
-  assert.match(source, /linkedAcceptedQuotes\.length === 1/);
+  assert.match(source, /linkedConvertibleQuotes\.length === 1/);
   assert.match(source, /buildFormFromQuote\(opportunityPatch, autoSelectedQuote\)/);
   assert.match(source, /setForm\(\(current\) => buildFormFromQuote\(current, quote\)\)/);
+  assert.match(source, /quotes\.filter\(isOpportunityForecastQuote\)/);
+});
+
+test('el origen de la venta sigue oportunidad, cliente y cotización', () => {
+  const source = read('src/app/BasicModules/Sales/Sales/components/SalesCreateForm.tsx');
+  const opportunity = source.indexOf('<FormField label={`${t.modal.fields.opportunitySelector} *`}>');
+  const customer = source.indexOf('<FormField label={`${t.modal.fields.customerName} *`}>');
+  const quote = source.indexOf('<FormField label={`${t.modal.fields.quoteSelector}${form.prospectId');
+
+  assert.ok(opportunity >= 0 && opportunity < customer);
+  assert.ok(customer < quote);
+  assert.match(source, /disabled=!\{form\.prospectId\}|disabled=\{!form\.prospectId\}/);
 });
 
 test('alta rápida de cliente persiste antes de ligarse a la venta', () => {
@@ -69,7 +83,7 @@ test('miniatura usa la galería persistida y reinicia errores al cambiar la URL'
   assert.match(source, /\[imageUrl\]/);
 });
 
-test('nueva venta permite partidas editables y conserva la venta rápida sin partidas', () => {
+test('nueva venta permite partidas editables antes de confirmar', () => {
   const editor = read('src/app/BasicModules/Sales/Sales/components/SalesLineItemsEditor.tsx');
   const form = read('src/app/BasicModules/Sales/Sales/components/SalesCreateForm.tsx');
 
@@ -143,4 +157,38 @@ test('el contrato de venta exige un único almacén, unidad y negocio por operac
   assert.match(bridge, /line\.warehouseId !== sale\.warehouseId/);
   assert.match(bridge, /line\.businessUnitId !== sale\.businessUnitId/);
   assert.match(bridge, /line\.businessId !== sale\.businessId/);
+});
+
+test('Ganada exige registrar primero la venta desde tabla o Kanban', () => {
+  const opportunitiesPage = read('src/app/BasicModules/Sales/Prospectos/Prospectos.tsx');
+  const saleModal = read('src/app/BasicModules/Sales/Sales/components/SalesDetailModal.tsx');
+  const saleForm = read('src/app/BasicModules/Sales/Sales/components/SalesCreateForm.tsx');
+
+  assert.match(opportunitiesPage, /patch\.stage === 'Won' && opportunity\.stage !== 'Won'/);
+  assert.match(opportunitiesPage, /setPendingWonTransition\(\{ opportunity, patch \}\)/);
+  assert.match(opportunitiesPage, /onUpdateOpportunity=\{handleUpdateOpportunity\}/);
+  assert.match(opportunitiesPage, /onStageChange=\{handleKanbanStageChange\}/);
+  assert.match(opportunitiesPage, /requiredOpportunityId=\{pendingWonTransition\?\.opportunity\.id\}/);
+  assert.match(opportunitiesPage, /commitOpportunityUpdate\(opportunityId, \{/);
+  assert.match(saleModal, /if \(!createdRecord\)[\s\S]*if \(form\.quoteId\)[\s\S]*onQuoteConverted/);
+  assert.match(saleModal, /handleOpportunitySelection\(requiredOpportunityId\)/);
+  assert.match(saleForm, /lockCommercialSource=\{lockCommercialSource\}/);
+  assert.match(saleForm, /disabled=\{lockCommercialSource\}/);
+});
+
+test('Ventas limita medios de pago y entrega el crédito a Cartera desde cualquier origen', () => {
+  const paymentMethods = read('src/app/BasicModules/Sales/Sales/utils/salesPaymentMethods.ts');
+  const saleForm = read('src/app/BasicModules/Sales/Sales/components/SalesCreateForm.tsx');
+  const saleModal = read('src/app/BasicModules/Sales/Sales/components/SalesDetailModal.tsx');
+  const opportunitiesPage = read('src/app/BasicModules/Sales/Prospectos/Prospectos.tsx');
+  const salesPage = read('src/app/BasicModules/Sales/Sales/Sales.tsx');
+
+  assert.match(paymentMethods, /salesPaymentMethodIds = \[\s*'cash',\s*'card',\s*'transfer',\s*'credit',\s*\]/);
+  assert.doesNotMatch(paymentMethods, /'wallet'|'check'/);
+  assert.match(saleForm, /const isCreditPayment = selectedPaymentMethod === 'credit'/);
+  assert.match(saleForm, /t\.modal\.creditHandoff/);
+  assert.match(saleModal, /if \(closesAsCredit\)[\s\S]*onCreditSaleCreated\?\.\(createdRecord\)/);
+  assert.match(opportunitiesPage, /onCreditSaleCreated=\{handleSendToCredit\}/);
+  assert.match(opportunitiesPage, /\/receivables\/credit-sales\?candidateSaleId=/);
+  assert.match(salesPage, /onCreditSaleCreated=\{handleSendToCredit\}/);
 });

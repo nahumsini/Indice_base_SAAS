@@ -23,10 +23,11 @@ import { cn } from '../../components/ui/utils';
 import { useVentasTranslations } from '../../hooks/useVentasTranslations';
 
 export const salesTabIds = [
-  'leads',
   'contacts',
+  'leads',
   'quotes',
   'sales',
+  'kpis',
   'commissions',
   'payment-accounts',
   'products',
@@ -34,7 +35,6 @@ export const salesTabIds = [
   'inventory',
   'contracts',
   'after-sales',
-  'kpis',
 ] as const;
 
 export type SalesTabId = (typeof salesTabIds)[number];
@@ -94,10 +94,11 @@ export const salesModuleTabs: Array<{
   icon: ComponentType<{ className?: string }>;
   tone: SalesTone;
 }> = [
-  { id: 'leads', translationKey: 'prospectos', emoji: '🎯', icon: Target, tone: 'blue' },
   { id: 'contacts', translationKey: 'contactos', emoji: '👥', icon: UsersRound, tone: 'aqua' },
+  { id: 'leads', translationKey: 'prospectos', emoji: '🎯', icon: Target, tone: 'blue' },
   { id: 'quotes', translationKey: 'cotizacion', emoji: '💬', icon: Quote, tone: 'yellow' },
   { id: 'sales', translationKey: 'sales', emoji: '💰', icon: CircleDollarSign, tone: 'coral' },
+  { id: 'kpis', translationKey: 'kpis', emoji: '📊', icon: BarChart3, tone: 'blue' },
   { id: 'commissions', translationKey: 'commissions', emoji: '🧮', icon: BadgePercent, tone: 'coral' },
   { id: 'payment-accounts', translationKey: 'paymentAccounts', emoji: '💳', icon: CreditCard, tone: 'coral' },
   { id: 'products', translationKey: 'productos', emoji: '📦', icon: PackageCheck, tone: 'aqua' },
@@ -105,11 +106,10 @@ export const salesModuleTabs: Array<{
   { id: 'inventory', translationKey: 'inventario', emoji: '🏬', icon: Warehouse, tone: 'coral' },
   { id: 'contracts', translationKey: 'contrato', emoji: '📝', icon: FileSignature, tone: 'graphite' },
   { id: 'after-sales', translationKey: 'postventa', emoji: '🤝', icon: Handshake, tone: 'coral' },
-  { id: 'kpis', translationKey: 'kpis', emoji: '📊', icon: BarChart3, tone: 'blue' },
 ];
 
 export const visibleSalesModuleTabs = salesModuleTabs.filter(
-  (tab) => !['products', 'providers', 'inventory', 'contracts', 'after-sales'].includes(tab.id),
+  (tab) => ['contacts', 'leads', 'quotes', 'sales', 'kpis'].includes(tab.id),
 );
 
 const toneClasses: Record<SalesTone, {

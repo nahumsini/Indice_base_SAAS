@@ -1,5 +1,13 @@
 import type { SalesRecordsTranslations } from '../translations';
-import type { SaleLifecycleSignals, SaleRecord, SalesColumnId, SalesFiltersState } from '../types/salesTypes';
+import type { ReceivableAccount, ReceivablePayment } from '../../../Receivables/types';
+import type {
+  SaleLifecycleSignals,
+  SaleReceivableSummary,
+  SaleRecord,
+  SaleSourceSummary,
+  SalesColumnId,
+  SalesFiltersState,
+} from '../types/salesTypes';
 import { SalesFilters } from './SalesFilters';
 import { SalesKpiStrip } from './SalesKpiStrip';
 import { SalesTable } from './SalesTable';
@@ -13,10 +21,12 @@ export function SalesView({
   filters,
   visibleColumns,
   lifecycleByRecordId,
+  receivablesByRecordId,
+  sourceByRecordId,
+  receivableAccounts,
+  receivablePayments,
   sellers,
   customers,
-  businessUnits,
-  businesses,
   t,
   onFiltersChange,
   onViewRecord,
@@ -25,6 +35,9 @@ export function SalesView({
   onPrepareMovement,
   onSendToFinance,
   onSendToCredit,
+  onOpenReceivables,
+  onDownloadQuote,
+  onDownloadInvoice,
   onCancelSale,
 }: {
   learningModeActive?: boolean;
@@ -34,10 +47,12 @@ export function SalesView({
   filters: SalesFiltersState;
   visibleColumns: SalesColumnId[];
   lifecycleByRecordId: Record<string, SaleLifecycleSignals>;
+  receivablesByRecordId: Record<string, SaleReceivableSummary | undefined>;
+  sourceByRecordId: Record<string, SaleSourceSummary>;
+  receivableAccounts: ReceivableAccount[];
+  receivablePayments: ReceivablePayment[];
   sellers: string[];
   customers: string[];
-  businessUnits: Array<{ id: string; name: string }>;
-  businesses: Array<{ id: string; name: string; businessUnitId: string }>;
   t: SalesRecordsTranslations;
   onFiltersChange: (filters: SalesFiltersState) => void;
   onViewRecord: (record: SaleRecord) => void;
@@ -46,14 +61,15 @@ export function SalesView({
   onPrepareMovement: (record: SaleRecord) => void;
   onSendToFinance: (record: SaleRecord) => void;
   onSendToCredit: (record: SaleRecord) => void;
+  onOpenReceivables: (record: SaleRecord) => void;
+  onDownloadQuote: (record: SaleRecord) => void;
+  onDownloadInvoice: (record: SaleRecord) => void;
   onCancelSale: (record: SaleRecord) => void;
 }) {
   return (
     <>
       <SalesFilters
         filters={filters}
-        businessUnits={businessUnits}
-        businesses={businesses}
         sellers={sellers}
         customers={customers}
         t={t}
@@ -63,6 +79,8 @@ export function SalesView({
       {!learningModeActive ? <SalesKpiStrip
         metrics={metrics}
         records={filteredRecords}
+        receivableAccounts={receivableAccounts}
+        receivablePayments={receivablePayments}
         visibleCount={filteredRecords.length}
         totalCount={records.length}
         t={t}
@@ -72,6 +90,8 @@ export function SalesView({
         records={filteredRecords}
         visibleColumns={visibleColumns}
         lifecycleByRecordId={lifecycleByRecordId}
+        receivablesByRecordId={receivablesByRecordId}
+        sourceByRecordId={sourceByRecordId}
         t={t}
         onViewRecord={onViewRecord}
         onPreviewSummary={onPreviewSummary}
@@ -79,6 +99,9 @@ export function SalesView({
         onPrepareMovement={onPrepareMovement}
         onSendToFinance={onSendToFinance}
         onSendToCredit={onSendToCredit}
+        onOpenReceivables={onOpenReceivables}
+        onDownloadQuote={onDownloadQuote}
+        onDownloadInvoice={onDownloadInvoice}
         onCancelSale={onCancelSale}
       />
     </>

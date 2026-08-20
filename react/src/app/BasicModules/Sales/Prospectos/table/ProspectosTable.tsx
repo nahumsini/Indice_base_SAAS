@@ -105,6 +105,7 @@ export function ProspectosTable({
   onEdit,
   onDelete,
   onScheduleChange,
+  onDownloadQuote,
   onResizeColumn,
   paginationState,
   onPaginationChange,
@@ -126,6 +127,7 @@ export function ProspectosTable({
   onEdit: (opportunity: SalesOpportunity) => void;
   onDelete: (opportunity: SalesOpportunity) => void;
   onScheduleChange: (opportunity: SalesOpportunity, date: string, time: string) => void;
+  onDownloadQuote: (opportunity: SalesOpportunity, quote: SalesQuote) => void;
   onResizeColumn: (columnId: OpportunityColumnId, width: number) => void;
   paginationState?: { currentPage: number; pageSize: number };
   onPaginationChange?: (state: { currentPage: number; pageSize: number }) => void;
@@ -195,6 +197,7 @@ export function ProspectosTable({
                 onEdit={onEdit}
                 onDelete={onDelete}
                 onScheduleChange={onScheduleChange}
+                onDownloadQuote={onDownloadQuote}
               />
             ))}
 

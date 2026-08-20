@@ -9,16 +9,25 @@ import {
 import { DataTablePagination } from '../../../../components/table/DataTablePagination';
 import { useTablePagination } from '../../../../hooks/useTablePagination';
 import type { SalesRecordsTranslations } from '../translations';
-import type { SaleLifecycleSignals, SaleRecord, SalesColumnId } from '../types/salesTypes';
+import type {
+  SaleLifecycleSignals,
+  SaleReceivableSummary,
+  SaleRecord,
+  SaleSourceSummary,
+  SalesColumnId,
+} from '../types/salesTypes';
 import { defaultSalesColumnWidths, sortSalesRecords, sortableSalesColumns, type SalesSortState, type SortableSalesColumnId } from '../utils/salesTableColumns';
 import { SalesBulkActionsBar } from './SalesBulkActionsBar';
 import { SalesTableHeader } from './SalesTableHeader';
 import { SalesTableRow } from './SalesTableRow';
+import { salesColumnConfigs } from '../utils/salesStatuses';
 
 export function SalesTable({
   records,
   visibleColumns,
   lifecycleByRecordId,
+  receivablesByRecordId,
+  sourceByRecordId,
   t,
   onViewRecord,
   onPreviewSummary,
@@ -26,11 +35,16 @@ export function SalesTable({
   onPrepareMovement,
   onSendToFinance,
   onSendToCredit,
+  onOpenReceivables,
+  onDownloadQuote,
+  onDownloadInvoice,
   onCancelSale,
 }: {
   records: SaleRecord[];
   visibleColumns: SalesColumnId[];
   lifecycleByRecordId: Record<string, SaleLifecycleSignals>;
+  receivablesByRecordId: Record<string, SaleReceivableSummary | undefined>;
+  sourceByRecordId: Record<string, SaleSourceSummary>;
   t: SalesRecordsTranslations;
   onViewRecord: (record: SaleRecord) => void;
   onPreviewSummary: (record: SaleRecord) => void;
@@ -38,16 +52,23 @@ export function SalesTable({
   onPrepareMovement: (record: SaleRecord) => void;
   onSendToFinance: (record: SaleRecord) => void;
   onSendToCredit: (record: SaleRecord) => void;
+  onOpenReceivables: (record: SaleRecord) => void;
+  onDownloadQuote: (record: SaleRecord) => void;
+  onDownloadInvoice: (record: SaleRecord) => void;
   onCancelSale: (record: SaleRecord) => void;
 }) {
   const [sortState, setSortState] = useState<SalesSortState>(null);
   const [columnWidths, setColumnWidths] = useState<Record<SalesColumnId, number>>(defaultSalesColumnWidths);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
-  const tableMinWidth = visibleColumns.reduce((total, column) => total + (columnWidths[column] ?? defaultSalesColumnWidths[column]), 56);
+  const orderedVisibleColumns = useMemo(
+    () => salesColumnConfigs.filter((column) => visibleColumns.includes(column.id)).map((column) => column.id),
+    [visibleColumns],
+  );
+  const tableMinWidth = orderedVisibleColumns.reduce((total, column) => total + (columnWidths[column] ?? defaultSalesColumnWidths[column]), 56);
   const sortedRecords = useMemo(
-    () => sortSalesRecords(records, lifecycleByRecordId, sortState),
-    [lifecycleByRecordId, records, sortState],
+    () => sortSalesRecords(records, lifecycleByRecordId, receivablesByRecordId, sortState),
+    [lifecycleByRecordId, receivablesByRecordId, records, sortState],
   );
   const allRecordIds = useMemo(() => sortedRecords.map((record) => record.id), [sortedRecords]);
   const {
@@ -152,7 +173,7 @@ export function SalesTable({
           <Table className="table-fixed" style={{ minWidth: `${Math.max(tableMinWidth, 960)}px` }}>
             <TableHeader>
               <SalesTableHeader
-                visibleColumns={visibleColumns}
+                visibleColumns={orderedVisibleColumns}
                 columnWidths={columnWidths}
                 sortState={sortState}
                 allVisibleSelected={allVisibleSelected}
@@ -166,7 +187,7 @@ export function SalesTable({
             <TableBody>
               {sortedRecords.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={visibleColumns.length + 1} className="px-5 py-12 text-center">
+                  <TableCell colSpan={orderedVisibleColumns.length + 1} className="px-5 py-12 text-center">
                     <div className="mx-auto max-w-md space-y-2">
                       <p className="text-sm font-medium text-slate-900 dark:text-white">{t.table.emptyTitle}</p>
                       <p className="text-sm text-slate-500 dark:text-slate-400">{t.table.emptyDescription}</p>
@@ -178,8 +199,10 @@ export function SalesTable({
                   key={record.id}
                   record={record}
                   selected={selectedIds.has(record.id)}
-                  visibleColumns={visibleColumns}
+                  visibleColumns={orderedVisibleColumns}
                   lifecycle={lifecycleByRecordId[record.id]}
+                  receivable={receivablesByRecordId[record.id]}
+                  source={sourceByRecordId[record.id]}
                   t={t}
                   onSelectionChange={(checked) => handleToggleSelection(record.id, checked)}
                   onView={onViewRecord}
@@ -188,6 +211,9 @@ export function SalesTable({
                   onPrepareMovement={onPrepareMovement}
                   onSendToFinance={onSendToFinance}
                   onSendToCredit={onSendToCredit}
+                  onOpenReceivables={onOpenReceivables}
+                  onDownloadQuote={onDownloadQuote}
+                  onDownloadInvoice={onDownloadInvoice}
                   onCancelSale={onCancelSale}
                 />
               ))}
