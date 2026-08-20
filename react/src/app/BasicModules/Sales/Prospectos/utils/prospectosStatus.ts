@@ -32,7 +32,7 @@ export const initialOpportunityForm: OpportunityFormState = {
 };
 
 export const opportunityColumnsStorageKey = 'sales-opportunities-columns-v3';
-export const opportunityColumnWidthsStorageKey = 'sales-opportunities-column-widths-v2';
+export const opportunityColumnWidthsStorageKey = 'sales-opportunities-column-widths-v4';
 export const agendaScheduleStorageKey = 'sales-opportunities-agenda-schedule-v1';
 export const opportunityDragDataType = 'application/x-indice-sales-opportunity-id';
 
@@ -91,6 +91,29 @@ export const defaultOpportunityColumnWidths: Record<OpportunityColumnId, number>
   files: 130,
   status: 170,
 };
+
+export const minimumOpportunityColumnWidths: Record<OpportunityColumnId, number> = {
+  opportunity: 220,
+  contact: 180,
+  phone: 130,
+  email: 190,
+  source: 135,
+  stage: 125,
+  temperature: 145,
+  owner: 150,
+  estimatedValue: 185,
+  probability: 135,
+  quoteSignal: 180,
+  pipeline: 165,
+  expectedCloseDate: 145,
+  nextAction: 220,
+  nextActionDate: 200,
+  lastContact: 150,
+  files: 110,
+  status: 125,
+};
+
+export const opportunityActionsColumnWidth = 330;
 
 export const stageLabels: Record<OpportunityStage, string> = {
   New: 'Nueva',

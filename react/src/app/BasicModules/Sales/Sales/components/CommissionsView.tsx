@@ -1,29 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Clock3 } from 'lucide-react';
 import type { SaleRecord } from '../types/salesTypes';
-import type { CommissionRecord, CommissionRule } from '../types/commissions';
+import type { CommissionCut, CommissionRecord, CommissionRule } from '../types/commissions';
 import type { SalesRecordsTranslations } from '../translations';
 import { useCommissionCalculations } from '../hooks/useCommissionCalculations';
 import { CommissionDetailModal } from './CommissionDetailModal';
 import { CommissionFilters } from './CommissionFilters';
 import { CommissionKpiStrip } from './CommissionKpiStrip';
 import { CommissionTable } from './CommissionTable';
+import { CommissionCutsTable } from './CommissionCutsTable';
 import { salesApi } from '../../salesApi';
-import { formatSalesCurrency } from '../utils/salesFormatters';
 import { SalesFilterBar, SalesFilterSearch, SalesFilterSelect, salesFilterControlClassName } from '../../components/SalesFilterBar';
-
-type CommissionCut = {
-  id: number;
-  cutCode: string;
-  periodStart: string;
-  periodEnd: string;
-  status: string;
-  totalAmount: number;
-  commissionCount: number;
-  employeeCount: number;
-  appliedCount: number;
-  currencyTotals: Record<string, number>;
-};
 
 export function CommissionsView({
   learningModeActive = false,
@@ -83,10 +69,10 @@ export function CommissionsView({
         <label className="space-y-1.5 text-sm font-medium text-slate-700"><span>{copy.periodTo}</span><input type="date" className={salesFilterControlClassName} value={cutPeriodEnd} min={cutPeriodStart || undefined} onChange={(event) => setCutPeriodEnd(event.target.value)} /></label>
       </SalesFilterBar> : null}
 
-      {section === 'cuts' ? <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3"><div><h3 className="font-medium text-slate-950">{copy.title}</h3><p className="mt-1 text-xs text-slate-500">{copy.description}</p></div><span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-600">{copy.count(visibleCuts.length)}</span></div>
-        {cutsError ? <p className="p-4 text-sm text-rose-700">{cutsError}</p> : visibleCuts.length ? <div className="overflow-x-auto"><table className="min-w-full text-sm"><thead className="border-b border-slate-200 text-left text-xs text-slate-500"><tr><th className="px-4 py-3">{copy.columns.code}</th><th className="px-4 py-3">{copy.columns.period}</th><th className="px-4 py-3">{copy.columns.commissions}</th><th className="px-4 py-3">{copy.columns.employees}</th><th className="px-4 py-3">{copy.columns.total}</th><th className="px-4 py-3">{copy.columns.status}</th></tr></thead><tbody className="divide-y divide-slate-100">{visibleCuts.map((cut) => <tr key={cut.id}><td className="px-4 py-3 font-medium text-slate-950">{cut.cutCode}</td><td className="px-4 py-3 text-slate-600">{cut.periodStart} → {cut.periodEnd}</td><td className="px-4 py-3">{cut.commissionCount}</td><td className="px-4 py-3">{cut.employeeCount}</td><td className="px-4 py-3 font-medium">{Object.entries(cut.currencyTotals ?? {}).map(([currency, amount]) => <span key={currency} className="block">{formatSalesCurrency(amount, currency)}</span>)}</td><td className="px-4 py-3"><span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${cut.status === 'consumed' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>{cut.status === 'consumed' ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Clock3 className="h-3.5 w-3.5" />}{cut.status === 'consumed' ? copy.consumed : copy.applied(cut.appliedCount, cut.employeeCount)}</span></td></tr>)}</tbody></table></div> : <div className="p-8 text-center text-sm text-slate-500">{cuts.length ? copy.noMatch : copy.empty}</div>}
-      </section> : null}
+      {section === 'cuts' ? cutsError
+        ? <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{cutsError}</div>
+        : <CommissionCutsTable records={visibleCuts} totalRecords={cuts.length} copy={copy} />
+        : null}
 
       {section === 'generated' ? <><CommissionFilters
         filters={filters}

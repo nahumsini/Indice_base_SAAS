@@ -78,7 +78,6 @@ export default function KPIs() {
   const sellerRanking = useMemo(() => getSellerRanking(filteredSources), [filteredSources]);
   const filteredOpportunities = filteredSources.opportunities;
   const totalPages = Math.max(1, Math.ceil(filteredOpportunities.length / pageSize));
-  const paginatedOpportunities = filteredOpportunities.slice((page - 1) * pageSize, page * pageSize);
   const salesAggregate = useKpiMonetaryAggregate({
     metric: 'SALES_TOTAL',
     preferredCurrency,
@@ -130,10 +129,17 @@ export default function KPIs() {
     : '—';
   const salesTotal = salesAggregate.data?.preferredTotal ?? 0;
 
-  const sellerMoney = useMemo(() => new Map(sellerRanking.map((row, index) => [row.seller, {
-    pipeline: groupedAggregates.loading ? '—' : formatMoney(groupedAggregates.data[`seller-pipeline-${index}`]?.preferredTotal ?? 0),
-    sales: groupedAggregates.loading ? '—' : formatMoney(groupedAggregates.data[`seller-sales-${index}`]?.preferredTotal ?? 0),
-  }])), [groupedAggregates.data, groupedAggregates.loading, preferredCurrency, sellerRanking]);
+  const sellerMoney = useMemo(() => new Map(sellerRanking.map((row, index) => {
+    const pipelineValue = groupedAggregates.data[`seller-pipeline-${index}`]?.preferredTotal ?? 0;
+    const salesValue = groupedAggregates.data[`seller-sales-${index}`]?.preferredTotal ?? 0;
+
+    return [row.seller, {
+      pipeline: groupedAggregates.loading ? '—' : formatMoney(pipelineValue),
+      pipelineValue,
+      sales: groupedAggregates.loading ? '—' : formatMoney(salesValue),
+      salesValue,
+    }];
+  })), [groupedAggregates.data, groupedAggregates.loading, preferredCurrency, sellerRanking]);
 
   const funnelChart = useMemo(() => [
     { label: copy.cards.activeProspects.label, value: kpis.activeProspects },
@@ -357,7 +363,7 @@ export default function KPIs() {
 
       <SalesProspectsPerformanceTable
         copy={copy}
-        items={paginatedOpportunities}
+        items={filteredOpportunities}
         quotes={quotes}
         page={page}
         pageSize={pageSize}

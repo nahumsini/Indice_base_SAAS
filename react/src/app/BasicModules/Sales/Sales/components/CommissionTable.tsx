@@ -1,17 +1,24 @@
+import { useMemo, useState } from 'react';
 import { Eye } from 'lucide-react';
 import { DataTablePagination } from '../../../../components/table/DataTablePagination';
+import {
+  IndiceTableActionGroup,
+  IndiceTableColGroup,
+  IndiceTableHeaderRow,
+  IndiceOperationalTable,
+  IndiceTableShell,
+  type IndiceTableColumnDefinition,
+} from '../../../../components/table/IndiceTableEngine';
 import { Button } from '../../../../components/ui/button';
 import {
-  Table,
   TableBody,
   TableCell,
-  TableHead,
-  TableHeader,
   TableRow,
 } from '../../../../components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../../../../components/ui/tooltip';
 import { cn } from '../../../../components/ui/utils';
 import { useTablePagination } from '../../../../hooks/useTablePagination';
+import { usePersistentColumnWidths } from '../../../../hooks/usePersistentColumnWidths';
 import type { SalesRecordsTranslations } from '../translations';
 import type { CommissionRecord, CommissionStatus } from '../types/commissions';
 import { formatSalesCurrency, formatSalesDate } from '../utils/salesFormatters';
@@ -22,6 +29,42 @@ const statusClasses: Record<CommissionStatus, string> = {
   paid: 'border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66] dark:text-[#7AD8BF]',
   cancelled: 'border-slate-300 bg-slate-100 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
 };
+
+type CommissionTableColumnId =
+  | 'commissionId'
+  | 'salesRep'
+  | 'customer'
+  | 'sale'
+  | 'product'
+  | 'commissionAmount'
+  | 'status'
+  | 'createdDate';
+
+const commissionColumnWidths: Record<CommissionTableColumnId, number> = {
+  commissionId: 190,
+  salesRep: 170,
+  customer: 190,
+  sale: 170,
+  product: 190,
+  commissionAmount: 180,
+  status: 150,
+  createdDate: 160,
+};
+
+const commissionMinimumColumnWidths: Record<CommissionTableColumnId, number> = {
+  commissionId: 160,
+  salesRep: 150,
+  customer: 160,
+  sale: 150,
+  product: 160,
+  commissionAmount: 165,
+  status: 130,
+  createdDate: 145,
+};
+
+const commissionColumnIds = Object.keys(commissionColumnWidths) as CommissionTableColumnId[];
+const commissionActionsColumnWidth = 84;
+const commissionSortCollator = new Intl.Collator('es-MX', { numeric: true, sensitivity: 'base' });
 
 export function CommissionStatusBadge({
   status,
@@ -53,6 +96,44 @@ export function CommissionTable({
   onViewRecord: (record: CommissionRecord) => void;
 }) {
   const columns = t.commissions.table.columns;
+  const [sortState, setSortState] = useState<{ columnId: CommissionTableColumnId; direction: 'asc' | 'desc' }>({
+    columnId: 'createdDate',
+    direction: 'desc',
+  });
+  const { columnWidths, resizeColumn } = usePersistentColumnWidths<CommissionTableColumnId>({
+    defaults: commissionColumnWidths,
+    headerLabels: columns,
+    minWidths: commissionMinimumColumnWidths,
+    sortableColumnIds: commissionColumnIds,
+    storageKey: 'sales-commissions-column-widths-v2',
+  });
+  const sortedRecords = useMemo(() => [...records].sort((left, right) => {
+    const getSortValue = (record: CommissionRecord) => {
+      switch (sortState.columnId) {
+        case 'commissionId': return `${record.id} ${record.commissionRuleName}`;
+        case 'salesRep': return record.salesRepName;
+        case 'customer': return record.customerName;
+        case 'sale': return `${record.saleCode} ${record.saleAmount}`;
+        case 'product': return record.productName;
+        case 'commissionAmount': return record.commissionAmount;
+        case 'status': return record.status;
+        case 'createdDate': return record.createdDate;
+        default: return '';
+      }
+    };
+    const leftValue = getSortValue(left);
+    const rightValue = getSortValue(right);
+    const result = typeof leftValue === 'number' && typeof rightValue === 'number'
+      ? leftValue - rightValue
+      : commissionSortCollator.compare(String(leftValue), String(rightValue));
+    const directedResult = sortState.direction === 'asc' ? result : -result;
+    return directedResult || commissionSortCollator.compare(left.id, right.id);
+  }), [records, sortState]);
+  const handleSort = (columnId: CommissionTableColumnId) => {
+    setSortState((current) => current.columnId === columnId
+      ? { columnId, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+      : { columnId, direction: 'asc' });
+  };
   const {
     currentPage,
     onPageChange,
@@ -65,23 +146,50 @@ export function CommissionTable({
     totalCount,
     totalPages,
   } = useTablePagination({
-    resetKey: records.map((record) => record.id).join('|'),
-    rows: records,
+    resetKey: `${sortState.columnId}:${sortState.direction}:${records.map((record) => record.id).join('|')}`,
+    rows: sortedRecords,
   });
+  const commissionTableMinimumWidth = commissionColumnIds.reduce(
+    (total, columnId) => total + columnWidths[columnId],
+    commissionActionsColumnWidth,
+  );
+  const tableColumns: Array<IndiceTableColumnDefinition<CommissionTableColumnId>> = commissionColumnIds.map((columnId) => ({
+    id: columnId,
+    label: columns[columnId],
+    width: columnWidths[columnId],
+    defaultWidth: commissionColumnWidths[columnId],
+    contentMinimumWidth: commissionMinimumColumnWidths[columnId],
+    alignment: columnId === 'commissionAmount' ? 'right' : columnId === 'status' ? 'center' : 'left',
+    sortable: true,
+    resizeLabel: `${columns[columnId]}: ajustar ancho`,
+  }));
 
   return (
-    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className="overflow-x-auto">
-        <Table className="min-w-[1380px] table-fixed">
-          <TableHeader>
-            <TableRow className="border-slate-200 bg-slate-50 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-900">
-              {[columns.commissionId, columns.salesRep, columns.customer, columns.sale, columns.product, columns.commissionAmount, columns.status, columns.createdDate, columns.actions].map((column) => (
-                <TableHead key={column} className="whitespace-normal px-5 py-5 text-xs font-medium tracking-normal text-slate-500 dark:text-slate-400">
-                  {column}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
+    <IndiceTableShell
+      pagination={(
+        <DataTablePagination
+          currentPage={currentPage}
+          itemLabel={t.commissions.view.title.toLocaleLowerCase()}
+          onPageChange={onPageChange}
+          onPageSizeChange={onPageSizeChange}
+          pageEnd={pageEnd}
+          pageSize={pageSize}
+          pageSizeOptions={pageSizeOptions}
+          pageStart={pageStart}
+          totalCount={totalCount}
+          totalPages={totalPages}
+        />
+      )}
+    >
+        <IndiceOperationalTable minimumWidth={commissionTableMinimumWidth}>
+          <IndiceTableColGroup columns={tableColumns} actionsWidth={commissionActionsColumnWidth} />
+          <IndiceTableHeaderRow
+            actions={{ label: columns.actions, width: commissionActionsColumnWidth }}
+            columns={tableColumns}
+            onResize={resizeColumn}
+            onSort={handleSort}
+            sortState={sortState}
+          />
           <TableBody>
             {records.length === 0 ? (
               <TableRow>
@@ -105,10 +213,11 @@ export function CommissionTable({
                   <p className="mt-1 text-xs font-medium text-slate-500">{formatSalesCurrency(record.saleAmount, record.currency)}</p>
                 </TableCell>
                 <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-medium text-slate-700 dark:text-slate-200"><span className="block break-words">{record.productName}</span></TableCell>
-                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-medium text-slate-950 dark:text-white"><span className="block break-words">{formatSalesCurrency(record.commissionAmount, record.currency)}</span></TableCell>
-                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top"><CommissionStatusBadge status={record.status} t={t} /></TableCell>
+                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 text-right align-top font-medium tabular-nums text-slate-950 dark:text-white"><span className="block break-words">{formatSalesCurrency(record.commissionAmount, record.currency)}</span></TableCell>
+                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 text-center align-top"><CommissionStatusBadge status={record.status} t={t} /></TableCell>
                 <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-medium text-slate-700 dark:text-slate-200">{formatSalesDate(record.createdDate)}</TableCell>
-                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
+                <TableCell className="overflow-hidden whitespace-normal px-4 py-5 text-right align-top">
+                  <IndiceTableActionGroup>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -126,24 +235,12 @@ export function CommissionTable({
                       {t.commissions.table.actions.viewDetail}
                     </TooltipContent>
                   </Tooltip>
+                  </IndiceTableActionGroup>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
-        </Table>
-      </div>
-      <DataTablePagination
-        currentPage={currentPage}
-        itemLabel={t.commissions.view.title.toLocaleLowerCase()}
-        onPageChange={onPageChange}
-        onPageSizeChange={onPageSizeChange}
-        pageEnd={pageEnd}
-        pageSize={pageSize}
-        pageSizeOptions={pageSizeOptions}
-        pageStart={pageStart}
-        totalCount={totalCount}
-        totalPages={totalPages}
-      />
-    </section>
+        </IndiceOperationalTable>
+    </IndiceTableShell>
   );
 }

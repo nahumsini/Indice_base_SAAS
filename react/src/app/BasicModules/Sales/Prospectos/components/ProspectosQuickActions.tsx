@@ -3,6 +3,7 @@ import { History, Mail, MessageCircle, Paperclip, PencilLine, Phone, Trash2 } fr
 import type { SalesOpportunity } from '../../salesCrmContext';
 import { getPhoneHref, getWhatsAppHref } from '../../utils/salesCommunicationUtils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../../../../components/ui/tooltip';
+import { IndiceTableActionGroup } from '../../../../components/table/IndiceTableEngine';
 import { cn } from '../../../../components/ui/utils';
 import type { ProspectosCopy } from '../translations';
 
@@ -80,7 +81,7 @@ export function ProspectosQuickActions({
   const hasEmail = Boolean(opportunity.email.trim());
 
   return (
-    <div className="mx-auto grid w-fit grid-cols-[repeat(4,2.25rem)] gap-1.5 rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
+    <IndiceTableActionGroup>
       <OpportunityActionButton label={hasPhone ? copy.call(opportunity.contactPerson) : copy.noPhone} icon={<Phone className="h-4 w-4" />} className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15 dark:border-[#2563EB]/35 dark:bg-[#2563EB]/15 dark:text-blue-300 dark:hover:bg-[#2563EB]/25" href={hasPhone ? getPhoneHref(opportunity.phone) : undefined} disabled={!hasPhone} />
       <OpportunityActionButton label={hasPhone ? copy.whatsapp(opportunity.contactPerson) : copy.noPhone} icon={<MessageCircle className="h-4 w-4" />} className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/25" href={hasPhone ? getWhatsAppHref(opportunity.phone) : undefined} disabled={!hasPhone} />
       <OpportunityActionButton label={hasEmail ? copy.email(opportunity.contactPerson) : copy.noEmail} icon={<Mail className="h-4 w-4" />} className="border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/20 dark:border-[#59C3A5]/35 dark:bg-[#59C3A5]/15 dark:text-[#7DE0C4] dark:hover:bg-[#59C3A5]/25" href={hasEmail ? `mailto:${opportunity.email}` : undefined} disabled={!hasEmail} />
@@ -90,6 +91,6 @@ export function ProspectosQuickActions({
       {onDelete ? (
         <OpportunityActionButton label={copy.delete(opportunity.opportunityName)} icon={<Trash2 className="h-4 w-4" />} className="border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#b63b32] hover:bg-[#FF6B5E]/20 dark:border-[#FF6B5E]/35 dark:bg-[#FF6B5E]/15 dark:text-[#FFB8B1] dark:hover:bg-[#FF6B5E]/25" onClick={() => onDelete(opportunity)} />
       ) : null}
-    </div>
+    </IndiceTableActionGroup>
   );
 }

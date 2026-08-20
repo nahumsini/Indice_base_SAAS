@@ -1,51 +1,32 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ColumnConfig } from '../../../../components/rh/ColumnasConfigModal';
+import { usePersistentColumnWidths } from '../../../../hooks/usePersistentColumnWidths';
 import type { OpportunityColumnId, OpportunitySortState, OpportunityView } from '../types/prospectosTypes';
 import { getInitialOpportunityColumns, refreshOpportunityColumns } from '../utils/prospectosFilters';
 import {
   defaultOpportunityColumnWidths,
+  minimumOpportunityColumnWidths,
+  opportunityActionsColumnWidth,
   opportunityColumnsStorageKey,
   opportunityColumnWidthsStorageKey,
 } from '../utils/prospectosStatus';
 
-const columnWidthLimits = {
-  min: 120,
-  max: 440,
-};
-
-function normalizeColumnWidth(width: number) {
-  return Math.min(Math.max(Math.round(width), columnWidthLimits.min), columnWidthLimits.max);
-}
-
-function getInitialOpportunityColumnWidths(): Record<OpportunityColumnId, number> {
-  if (typeof window === 'undefined') {
-    return defaultOpportunityColumnWidths;
-  }
-
-  try {
-    const storedWidths = window.localStorage.getItem(opportunityColumnWidthsStorageKey);
-    const parsedWidths = storedWidths
-      ? JSON.parse(storedWidths) as Partial<Record<OpportunityColumnId, number>>
-      : {};
-
-    return Object.entries(defaultOpportunityColumnWidths).reduce((widths, [columnId, defaultWidth]) => {
-      const typedColumnId = columnId as OpportunityColumnId;
-      const storedWidth = parsedWidths[typedColumnId];
-      widths[typedColumnId] = typeof storedWidth === 'number' && Number.isFinite(storedWidth)
-        ? normalizeColumnWidth(storedWidth)
-        : defaultWidth;
-      return widths;
-    }, {} as Record<OpportunityColumnId, number>);
-  } catch {
-    return defaultOpportunityColumnWidths;
-  }
-}
+const opportunityColumnIds = Object.keys(defaultOpportunityColumnWidths) as OpportunityColumnId[];
 
 export function useProspectosViewState() {
   const [activeView, setActiveView] = useState<OpportunityView>('table');
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [columns, setColumns] = useState<ColumnConfig[]>(getInitialOpportunityColumns);
-  const [columnWidths, setColumnWidths] = useState<Record<OpportunityColumnId, number>>(getInitialOpportunityColumnWidths);
+  const opportunityHeaderLabels = useMemo<Partial<Record<OpportunityColumnId, string>>>(() => (
+    Object.fromEntries(columns.map((column) => [column.id, column.label]))
+  ), [columns]);
+  const { columnWidths, resizeColumn } = usePersistentColumnWidths<OpportunityColumnId>({
+    defaults: defaultOpportunityColumnWidths,
+    headerLabels: opportunityHeaderLabels,
+    minWidths: minimumOpportunityColumnWidths,
+    sortableColumnIds: opportunityColumnIds,
+    storageKey: opportunityColumnWidthsStorageKey,
+  });
   const [sortState, setSortState] = useState<OpportunitySortState>({ columnId: 'opportunity', direction: 'asc' });
 
   useEffect(() => {
@@ -55,12 +36,6 @@ export function useProspectosViewState() {
   }, [columns]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(opportunityColumnWidthsStorageKey, JSON.stringify(columnWidths));
-    }
-  }, [columnWidths]);
-
-  useEffect(() => {
     setColumns((currentColumns) => refreshOpportunityColumns(currentColumns));
   }, []);
 
@@ -68,7 +43,7 @@ export function useProspectosViewState() {
   const tableMinWidth = useMemo(
     () => Math.max(
       1320,
-      visibleColumns.reduce((total, column) => total + (columnWidths[column.id as OpportunityColumnId] ?? columnWidthLimits.min), 240),
+      visibleColumns.reduce((total, column) => total + (columnWidths[column.id as OpportunityColumnId] ?? 120), opportunityActionsColumnWidth),
     ),
     [columnWidths, visibleColumns],
   );
@@ -81,10 +56,7 @@ export function useProspectosViewState() {
   };
 
   const handleResizeColumn = (columnId: OpportunityColumnId, width: number) => {
-    setColumnWidths((currentWidths) => ({
-      ...currentWidths,
-      [columnId]: normalizeColumnWidth(width),
-    }));
+    resizeColumn(columnId, width);
   };
 
   return {

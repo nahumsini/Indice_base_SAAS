@@ -4,6 +4,7 @@ import type {
   DigitalContractSignatureRequest,
   DigitalContractStatus,
   DigitalSignatureStatus,
+  UpdateDigitalContractInput,
 } from '../Contrato/types/digitalContractTypes';
 import type { SalesContact } from './contacts';
 import type { SalesOpportunity } from './opportunities';
@@ -65,6 +66,7 @@ export type SalesCrmContextValue = {
   updateSaleRecord: (saleId: string, patch: Partial<SaleRecord>) => void;
   addPostSaleCase: (postSaleCase: CreatePostSaleCaseInput) => SalesPostSaleCase;
   addContract: (contract: CreateDigitalContractInput) => DigitalContract;
+  updateContract: (contractId: string, patch: UpdateDigitalContractInput) => void;
   updateQuoteStatus: (quoteId: string, status: QuoteStatus) => void;
   connectQuoteToOpportunity: (quoteId: string, opportunityId?: string) => void;
   updatePostSaleCaseStatus: (caseId: string, status: PostSaleStatus) => void;

@@ -27,6 +27,122 @@ test('Ventas respeta la escala tipográfica del Frontend Engine V2', () => {
   assert.deepEqual(violations, [], `Tipografía fuera del estándar:\n${violations.map(({ file, token }) => `${file}: ${token}`).join('\n')}`);
 });
 
+test('Oportunidades y Ventas usan el motor compartido de tablas operativas', () => {
+  const engineSource = readFileSync(resolve(root, 'src/app/components/table/IndiceTableEngine.tsx'), 'utf8');
+  const sizingSource = readFileSync(resolve(root, 'src/app/components/table/indiceTableColumnSizing.ts'), 'utf8');
+  const widthsHookSource = readFileSync(resolve(root, 'src/app/hooks/usePersistentColumnWidths.ts'), 'utf8');
+  const opportunitiesTableSource = readFileSync(resolve(salesRoot, 'Prospectos/table/ProspectosTable.tsx'), 'utf8');
+  const opportunitiesStateSource = readFileSync(resolve(salesRoot, 'Prospectos/hooks/useProspectosViewState.ts'), 'utf8');
+  const salesTableSource = readFileSync(resolve(salesRoot, 'Sales/components/SalesTable.tsx'), 'utf8');
+  const salesHeaderSource = readFileSync(resolve(salesRoot, 'Sales/components/SalesTableHeader.tsx'), 'utf8');
+
+  assert.match(engineSource, /rounded-\[24px\]/);
+  assert.match(engineSource, /export function IndiceOperationalTable/);
+  assert.match(engineSource, /style=\{\{ minWidth: resolvedWidth, width: resolvedWidth \}\}/);
+  assert.match(engineSource, /export function IndiceTableHeaderRow/);
+  assert.match(engineSource, /export function IndiceTableColGroup/);
+  assert.match(engineSource, /h-\[52px\].*text-\[13px\].*font-normal/);
+  assert.match(engineSource, /aria-sort=/);
+  assert.match(engineSource, /whitespace-nowrap/);
+  assert.doesNotMatch(engineSource, /break-words|whitespace-normal/);
+  assert.match(engineSource, /getIndiceTableMinimumColumnWidth/);
+  assert.match(engineSource, /width < effectiveMinimumWidth/);
+  assert.match(sizingSource, /estimateIndiceTableHeaderWidth/);
+  assert.match(sizingSource, /Array\.from\(label\.trim\(\)\)/);
+  assert.match(engineSource, /role="separator"/);
+  assert.match(engineSource, /aria-valuemin=/);
+  assert.match(engineSource, /event\.key === 'ArrowLeft'/);
+  assert.match(engineSource, /event\.key === 'ArrowRight'/);
+  assert.match(engineSource, /event\.key === 'Home'/);
+  assert.match(engineSource, /onDoubleClick=/);
+  assert.match(widthsHookSource, /window\.localStorage\.getItem\(storageKey\)/);
+  assert.match(widthsHookSource, /window\.localStorage\.setItem\(storageKey/);
+  assert.match(widthsHookSource, /headerLabels/);
+  assert.match(widthsHookSource, /sortableColumnIds/);
+
+  assert.match(opportunitiesTableSource, /<IndiceTableShell/);
+  assert.match(opportunitiesTableSource, /<IndiceOperationalTable/);
+  assert.match(opportunitiesTableSource, /<IndiceTableHeaderRow/);
+  assert.match(opportunitiesTableSource, /<IndiceTableColGroup/);
+  assert.match(opportunitiesStateSource, /usePersistentColumnWidths/);
+  assert.match(salesTableSource, /<IndiceTableShell/);
+  assert.match(salesTableSource, /<IndiceOperationalTable/);
+  assert.match(salesTableSource, /<IndiceTableColGroup/);
+  assert.match(salesTableSource, /salesColumnWidthsStorageKey/);
+  assert.match(salesHeaderSource, /<IndiceTableHeaderRow/);
+  assert.match(salesHeaderSource, /leadingControl=\{\{/);
+  assert.match(salesHeaderSource, /actions=\{/);
+});
+
+test('las tablas activas de Ventas comparten encabezados, anchos y contenedor estándar', () => {
+  const tableFiles = [
+    resolve(salesRoot, 'Contactos/Contactos.tsx'),
+    resolve(salesRoot, 'Cotizacion/Cotizacion.tsx'),
+    resolve(salesRoot, 'Contrato/Contrato.tsx'),
+    resolve(salesRoot, 'Sales/components/CommissionTable.tsx'),
+    resolve(salesRoot, 'Sales/components/CommissionCutsTable.tsx'),
+    resolve(root, 'src/app/BasicModules/Expenses/PaymentAccounts/components/PaymentAccountsTable.tsx'),
+    resolve(salesRoot, 'KPIs/components/SalesSellerRanking.tsx'),
+    resolve(salesRoot, 'KPIs/components/SalesProspectsPerformanceTable.tsx'),
+  ];
+
+  tableFiles.forEach((tableFile) => {
+    const source = readFileSync(resolve(salesRoot, tableFile), 'utf8');
+    const label = relative(root, tableFile);
+    assert.match(source, /<IndiceTableShell/, `${label} no usa el contenedor estándar`);
+    assert.match(source, /<IndiceOperationalTable/, `${label} no fija el ancho real ni el scroll con el motor compartido`);
+    assert.match(source, /<IndiceTableHeaderRow/, `${label} no usa la fila de encabezado canónica`);
+    assert.match(source, /<IndiceTableColGroup/, `${label} no declara los anchos con el motor compartido`);
+    assert.match(source, /IndiceTableColumnDefinition/, `${label} no define columnas tipadas`);
+    assert.match(source, /usePersistentColumnWidths/, `${label} no conserva los anchos elegidos`);
+    assert.match(source, /headerLabels:/, `${label} no calcula el ancho mínimo desde el título visible`);
+    assert.match(source, /sortableColumnIds:/, `${label} no reserva el espacio del indicador de orden`);
+    assert.match(source, /sortable/, `${label} no expone orden ascendente y descendente`);
+  });
+
+  const contactsSource = readFileSync(resolve(salesRoot, 'Contactos/Contactos.tsx'), 'utf8');
+  const quotesSource = readFileSync(resolve(salesRoot, 'Cotizacion/Cotizacion.tsx'), 'utf8');
+  const contractsSource = readFileSync(resolve(salesRoot, 'Contrato/Contrato.tsx'), 'utf8');
+  const commissionsSource = readFileSync(resolve(salesRoot, 'Sales/components/CommissionTable.tsx'), 'utf8');
+  const paymentAccountsSource = readFileSync(resolve(root, 'src/app/BasicModules/Expenses/PaymentAccounts/components/PaymentAccountsTable.tsx'), 'utf8');
+
+  for (const source of [contactsSource, quotesSource, contractsSource, commissionsSource, paymentAccountsSource]) {
+    assert.match(source, /<IndiceTableActionGroup/);
+    assert.match(source, /actions=\{\{/);
+  }
+
+  assert.match(quotesSource, /headerLabels: quoteColumnLabels/);
+  assert.match(quotesSource, /sortableColumnIds: quoteSortableColumnIds/);
+
+  const spanishQuotesSource = readFileSync(resolve(salesRoot, 'Cotizacion/translations/es-MX.ts'), 'utf8');
+  assert.match(spanishQuotesSource, /number: 'Cotización'/);
+  assert.match(spanishQuotesSource, /readiness: 'Validación'/);
+  assert.match(spanishQuotesSource, /amount: 'Valor'/);
+  assert.doesNotMatch(spanishQuotesSource, /Cotización \/ cliente|Valor \/ margen/);
+
+  const spanishSalesSource = readFileSync(resolve(salesRoot, 'Sales/translations/es-MX.ts'), 'utf8');
+  const englishSalesSource = readFileSync(resolve(salesRoot, 'Sales/translations/en-CA.ts'), 'utf8');
+  assert.match(spanishSalesSource, /actions: 'Acciones'/);
+  assert.match(spanishSalesSource, /nextAction: 'Siguiente acción'/);
+  assert.doesNotMatch(spanishSalesSource, /Documentos y acciones|Pendiente \/ siguiente acción/);
+  assert.match(englishSalesSource, /actions: 'Actions'/);
+  assert.match(englishSalesSource, /nextAction: 'Next action'/);
+  assert.doesNotMatch(englishSalesSource, /Documents and actions|Pending \/ next action/);
+});
+
+test('Contratos permite editar y persistir un registro existente', () => {
+  const contractsSource = readFileSync(resolve(salesRoot, 'Contrato/Contrato.tsx'), 'utf8');
+  const crmContextSource = readFileSync(resolve(salesRoot, 'salesCrmContext.tsx'), 'utf8');
+  const crmTypesSource = readFileSync(resolve(salesRoot, 'types/salesCrmContextTypes.ts'), 'utf8');
+
+  assert.match(contractsSource, /const openEditContract = \(contract: DigitalContract\)/);
+  assert.match(contractsSource, /onClick=\{\(\) => openEditContract\(contract\)\}/);
+  assert.match(contractsSource, /updateContract\(editingContractId, contractPayload\)/);
+  assert.match(crmTypesSource, /updateContract: \(contractId: string, patch: UpdateDigitalContractInput\) => void/);
+  assert.match(crmContextSource, /updateContract: \(contractId, patch\) =>/);
+  assert.match(crmContextSource, /salesApi\.update\('contracts'/);
+});
+
 test('Oportunidades limita la divisa preferida a la barra KPI y conserva la tabla transaccional', () => {
   const opportunitiesSource = readFileSync(resolve(salesRoot, 'Prospectos/Prospectos.tsx'), 'utf8');
   const kpiSource = readFileSync(resolve(salesRoot, 'Prospectos/components/ProspectosKpiStrip.tsx'), 'utf8');
@@ -191,10 +307,12 @@ test('Cotizaciones concentra la decisión comercial y deja el PDF a un clic', ()
   const pageSource = readFileSync(resolve(salesRoot, 'Cotizacion/Cotizacion.tsx'), 'utf8');
   const filterSource = readFileSync(resolve(salesRoot, 'Cotizacion/utils/quotePageUtils.ts'), 'utf8');
   const translationsSource = readFileSync(resolve(salesRoot, 'Cotizacion/translations/es-MX.ts'), 'utf8');
-  const tableSource = pageSource.match(/<Table className="min-w-\[1510px\][\s\S]*?<DataTablePagination/)?.[0] ?? '';
+  const tableSource = pageSource.match(/<IndiceTableShell[\s\S]*?<\/IndiceTableShell>/)?.[0] ?? '';
 
-  assert.match(tableSource, /renderSortableHead\('number'[\s\S]*renderSortableHead\('opportunity'[\s\S]*renderSortableHead\('seller'[\s\S]*renderSortableHead\('status'/);
-  assert.doesNotMatch(tableSource, /renderSortableHead\('client'|renderSortableHead\('margin'|renderSortableHead\('created'/);
+  assert.match(pageSource, /const quoteTableColumns:[\s\S]*quoteTableColumnIds\.map/);
+  assert.match(pageSource, /sortable: columnId !== 'readiness'/);
+  assert.match(tableSource, /<IndiceTableHeaderRow/);
+  assert.match(tableSource, /actions=\{\{ label: t\.table\.columns\.actions/);
   assert.match(tableSource, /<TableCell colSpan=\{9\}/);
   assert.match(tableSource, /<QuoteMarginBadge/);
   assert.match(tableSource, /<QuoteExpirationBadge[\s\S]*quote\.lastUpdated/);
@@ -204,10 +322,10 @@ test('Cotizaciones concentra la decisión comercial y deja el PDF a un clic', ()
   assert.match(tableSource, /opportunity\.nextActionDate/);
   assert.match(pageSource, /const downloadSavedQuote = \(quote: SalesQuote\)/);
   assert.match(tableSource, /onClick=\{\(\) => downloadSavedQuote\(quote\)\}/);
-  assert.match(translationsSource, /number: 'Cotización \/ cliente'/);
-  assert.match(translationsSource, /readiness: 'Pendiente'/);
+  assert.match(translationsSource, /number: 'Cotización'/);
+  assert.match(translationsSource, /readiness: 'Validación'/);
   assert.match(translationsSource, /productRequiresReview: 'Revisar estado, precio o visibilidad'/);
-  assert.match(translationsSource, /amount: 'Valor \/ margen'/);
+  assert.match(translationsSource, /amount: 'Valor'/);
   assert.match(translationsSource, /expiration: 'Seguimiento'/);
   assert.match(translationsSource, /files: 'Documentos'/);
   assert.match(pageSource, /gridClassName="xl:grid-cols-\[1\.5fr_repeat\(2,minmax\(0,1fr\)\)\]"/);

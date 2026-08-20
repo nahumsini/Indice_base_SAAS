@@ -59,11 +59,10 @@ export const sortPaymentAccounts = (
   return [...accounts].sort((left, right) => {
     const leftValue = left[sortField];
     const rightValue = right[sortField];
-    if (typeof leftValue === 'number' && typeof rightValue === 'number') {
-      return sortDirection === 'asc' ? leftValue - rightValue : rightValue - leftValue;
-    }
-    return sortDirection === 'asc'
-      ? String(leftValue ?? '').localeCompare(String(rightValue ?? ''))
-      : String(rightValue ?? '').localeCompare(String(leftValue ?? ''));
+    const result = typeof leftValue === 'number' && typeof rightValue === 'number'
+      ? leftValue - rightValue
+      : String(leftValue ?? '').localeCompare(String(rightValue ?? ''), undefined, { numeric: true, sensitivity: 'base' });
+    const directedResult = sortDirection === 'asc' ? result : -result;
+    return directedResult || left.id.localeCompare(right.id, undefined, { numeric: true, sensitivity: 'base' });
   });
 };

@@ -15,6 +15,14 @@ import {
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
 import { DataTablePagination } from '../../../components/table/DataTablePagination';
+import {
+  IndiceTableActionGroup,
+  IndiceTableColGroup,
+  IndiceTableHeaderRow,
+  IndiceOperationalTable,
+  IndiceTableShell,
+  type IndiceTableColumnDefinition,
+} from '../../../components/table/IndiceTableEngine';
 import { Input } from '../../../components/ui/input';
 import {
   Select,
@@ -24,16 +32,14 @@ import {
   SelectValue,
 } from '../../../components/ui/select';
 import {
-  Table,
   TableBody,
   TableCell,
-  TableHead,
-  TableHeader,
   TableRow,
 } from '../../../components/ui/table';
 import { Textarea } from '../../../components/ui/textarea';
 import { cn } from '../../../components/ui/utils';
 import { useTablePagination } from '../../../hooks/useTablePagination';
+import { usePersistentColumnWidths } from '../../../hooks/usePersistentColumnWidths';
 import {
   salesOwners,
   type SalesContact,
@@ -73,6 +79,51 @@ type FilterValue = 'all' | string;
 type ExpirationFilter = 'all' | 'next30' | 'expired';
 type CreateMode = 'upload' | 'template';
 const contractActionClassNames = getSalesModalActionClassNames('coral');
+
+type ContractTableColumnId =
+  | 'title'
+  | 'client'
+  | 'opportunity'
+  | 'quote'
+  | 'type'
+  | 'status'
+  | 'owner'
+  | 'signature'
+  | 'updated'
+  | 'expiration'
+  | 'files';
+
+const contractColumnWidths: Record<ContractTableColumnId, number> = {
+  title: 240,
+  client: 180,
+  opportunity: 220,
+  quote: 140,
+  type: 170,
+  status: 175,
+  owner: 150,
+  signature: 165,
+  updated: 150,
+  expiration: 150,
+  files: 110,
+};
+
+const contractMinimumColumnWidths: Record<ContractTableColumnId, number> = {
+  title: 190,
+  client: 160,
+  opportunity: 180,
+  quote: 120,
+  type: 150,
+  status: 150,
+  owner: 130,
+  signature: 150,
+  updated: 130,
+  expiration: 130,
+  files: 100,
+};
+
+const contractColumnIds = Object.keys(contractColumnWidths) as ContractTableColumnId[];
+const contractActionsColumnWidth = 214;
+const contractSortCollator = new Intl.Collator('es-MX', { numeric: true, sensitivity: 'base' });
 
 type ContractFormState = {
   mode: CreateMode;
@@ -250,6 +301,26 @@ function getInitialContractForm(contact?: SalesContact): ContractFormState {
   };
 }
 
+function getContractForm(contract: DigitalContract): ContractFormState {
+  return {
+    mode: contract.source === 'Template generated' ? 'template' : 'upload',
+    title: contract.title,
+    clientId: contract.clientId ?? '',
+    opportunityId: contract.relatedOpportunityId ?? 'none',
+    quoteId: contract.relatedQuoteId ?? 'none',
+    postSaleCaseId: contract.relatedPostSaleCaseId ?? 'none',
+    contractType: contract.contractType,
+    source: contract.source,
+    country: contract.country,
+    templateId: contract.templateId ?? 'none',
+    owner: contract.owner,
+    status: contract.status,
+    expirationDate: contract.expirationDate,
+    files: contract.files.map((file) => file.name).join(', '),
+    notes: contract.notes,
+  };
+}
+
 export default function Contrato() {
   const t = useDigitalContractsTranslations();
   const {
@@ -259,6 +330,7 @@ export default function Contrato() {
     postSaleCases,
     contracts,
     addContract,
+    updateContract,
     updateContractStatus,
     updateContractSignatureStatus,
     requestContractSignature,
@@ -266,6 +338,7 @@ export default function Contrato() {
 
   const [selectedContractId, setSelectedContractId] = useState(contracts[0]?.id ?? '');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingContractId, setEditingContractId] = useState<string | null>(null);
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
   const [filesContract, setFilesContract] = useState<DigitalContract | null>(null);
   const [signatureContract, setSignatureContract] = useState<DigitalContract | null>(null);
@@ -276,6 +349,17 @@ export default function Contrato() {
   const [typeFilter, setTypeFilter] = useState<FilterValue>('all');
   const [ownerFilter, setOwnerFilter] = useState<FilterValue>('all');
   const [expirationFilter, setExpirationFilter] = useState<ExpirationFilter>('all');
+  const [sortState, setSortState] = useState<{ columnId: ContractTableColumnId; direction: 'asc' | 'desc' }>({
+    columnId: 'updated',
+    direction: 'desc',
+  });
+  const { columnWidths, resizeColumn } = usePersistentColumnWidths<ContractTableColumnId>({
+    defaults: contractColumnWidths,
+    headerLabels: t.table.columns,
+    minWidths: contractMinimumColumnWidths,
+    sortableColumnIds: contractColumnIds,
+    storageKey: 'sales-contracts-column-widths-v2',
+  });
   const [form, setForm] = useState<ContractFormState>(() => getInitialContractForm(contacts[0]));
   const [signatureForm, setSignatureForm] = useState<SignatureFormState>({
     recipientName: '',
@@ -309,6 +393,33 @@ export default function Contrato() {
 
     return matchesSearch && matchesClient && matchesStatus && matchesSignature && matchesType && matchesOwner && matchesExpiration;
   }), [clientFilter, contracts, expirationFilter, opportunities, ownerFilter, quotes, search, signatureFilter, statusFilter, typeFilter]);
+  const sortedContracts = useMemo(() => [...filteredContracts].sort((left, right) => {
+    const getSortValue = (contract: DigitalContract) => {
+      const opportunity = opportunities.find((item) => item.id === contract.relatedOpportunityId);
+      const quote = quotes.find((item) => item.id === contract.relatedQuoteId);
+      switch (sortState.columnId) {
+        case 'title': return `${contract.title} ${contract.contractNumber}`;
+        case 'client': return `${contract.clientName} ${contract.contactPerson}`;
+        case 'opportunity': return opportunity?.opportunityName ?? '';
+        case 'quote': return quote?.quoteNumber ?? '';
+        case 'type': return contract.contractType;
+        case 'status': return contract.status;
+        case 'owner': return contract.owner;
+        case 'signature': return contract.signatureStatus;
+        case 'updated': return contract.lastUpdated;
+        case 'expiration': return contract.expirationDate;
+        case 'files': return contract.files.length;
+        default: return '';
+      }
+    };
+    const leftValue = getSortValue(left);
+    const rightValue = getSortValue(right);
+    const result = typeof leftValue === 'number' && typeof rightValue === 'number'
+      ? leftValue - rightValue
+      : contractSortCollator.compare(String(leftValue), String(rightValue));
+    const directedResult = sortState.direction === 'asc' ? result : -result;
+    return directedResult || contractSortCollator.compare(left.contractNumber, right.contractNumber);
+  }), [filteredContracts, opportunities, quotes, sortState]);
   const {
     currentPage,
     onPageChange,
@@ -321,9 +432,29 @@ export default function Contrato() {
     totalCount,
     totalPages,
   } = useTablePagination({
-    resetKey: `${search}:${clientFilter}:${statusFilter}:${signatureFilter}:${typeFilter}:${ownerFilter}:${expirationFilter}:${contracts.map((contract) => contract.id).join('|')}`,
-    rows: filteredContracts,
+    resetKey: `${search}:${clientFilter}:${statusFilter}:${signatureFilter}:${typeFilter}:${ownerFilter}:${expirationFilter}:${sortState.columnId}:${sortState.direction}:${contracts.map((contract) => contract.id).join('|')}`,
+    rows: sortedContracts,
   });
+
+  const handleContractSort = (columnId: ContractTableColumnId) => {
+    setSortState((current) => current.columnId === columnId
+      ? { columnId, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+      : { columnId, direction: 'asc' });
+  };
+  const contractTableMinimumWidth = contractColumnIds.reduce(
+    (total, columnId) => total + columnWidths[columnId],
+    contractActionsColumnWidth,
+  );
+  const contractTableColumns: Array<IndiceTableColumnDefinition<ContractTableColumnId>> = contractColumnIds.map((columnId) => ({
+    id: columnId,
+    label: t.table.columns[columnId],
+    width: columnWidths[columnId],
+    defaultWidth: contractColumnWidths[columnId],
+    contentMinimumWidth: contractMinimumColumnWidths[columnId],
+    alignment: columnId === 'files' ? 'right' : columnId === 'status' || columnId === 'signature' ? 'center' : 'left',
+    sortable: true,
+    resizeLabel: `${t.table.columns[columnId]}: ajustar ancho`,
+  }));
 
   const activeContracts = contracts.filter((contract) => !['Signed', 'Expired', 'Cancelled'].includes(contract.status)).length;
   const pendingSignatures = contracts.filter((contract) => contract.signatureStatus === 'Waiting' || contract.status === 'Pending signature').length;
@@ -366,7 +497,26 @@ export default function Contrato() {
     }));
   };
 
-  const handleCreateContract = () => {
+  const openCreateContract = () => {
+    setEditingContractId(null);
+    setForm(getInitialContractForm(contacts[0]));
+    setIsCreateOpen(true);
+  };
+
+  const openEditContract = (contract: DigitalContract) => {
+    setEditingContractId(contract.id);
+    setSelectedContractId(contract.id);
+    setForm(getContractForm(contract));
+    setIsCreateOpen(true);
+  };
+
+  const closeContractForm = () => {
+    setIsCreateOpen(false);
+    setEditingContractId(null);
+    setForm(getInitialContractForm(contacts[0]));
+  };
+
+  const handleSaveContract = () => {
     const contact = contacts.find((item) => item.id === form.clientId);
     if (!contact || !form.title.trim()) {
       return;
@@ -381,7 +531,10 @@ export default function Contrato() {
       responsible_seller: form.owner,
     };
 
-    const createdContract = addContract({
+    const editingContract = editingContractId
+      ? contracts.find((contract) => contract.id === editingContractId)
+      : undefined;
+    const contractPayload = {
       title: form.title.trim(),
       clientId: contact.id,
       clientName: contact.company,
@@ -392,14 +545,16 @@ export default function Contrato() {
       contractType: form.contractType,
       status: form.status,
       owner: form.owner,
-      signatureStatus: 'Not requested',
+      signatureStatus: editingContract?.signatureStatus ?? 'Not requested' as const,
       source: form.source,
       country: form.country,
       templateId: form.mode === 'template' && form.templateId !== 'none' ? form.templateId : undefined,
       dynamicFieldValues,
       expirationDate: form.expirationDate,
-      files: parseFiles(form.files || `${form.title.trim()}.pdf`, form.source),
-      lifecycle: [
+      files: form.files.trim()
+        ? parseFiles(form.files, form.source)
+        : editingContract?.files ?? parseFiles(`${form.title.trim()}.pdf`, form.source),
+      lifecycle: editingContract?.lifecycle ?? [
         { labelKey: 'created', status: 'done' },
         { labelKey: 'assigned', status: 'current' },
         { labelKey: 'documentPrepared', status: 'future' },
@@ -408,10 +563,16 @@ export default function Contrato() {
         { labelKey: 'signedVersionStored', status: 'future' },
       ],
       notes: form.notes,
-    });
-    setSelectedContractId(createdContract.id);
-    setForm(getInitialContractForm(contacts[0]));
-    setIsCreateOpen(false);
+    };
+
+    if (editingContractId) {
+      updateContract(editingContractId, contractPayload);
+      setSelectedContractId(editingContractId);
+    } else {
+      const createdContract = addContract(contractPayload);
+      setSelectedContractId(createdContract.id);
+    }
+    closeContractForm();
   };
 
   const openSignatureModal = (contract: DigitalContract) => {
@@ -449,7 +610,7 @@ export default function Contrato() {
         subtitle={t.header.subtitle}
         actions={(
           <>
-            <Button className={salesTitleBarPrimaryActionClassName} onClick={() => setIsCreateOpen(true)}>
+            <Button className={salesTitleBarPrimaryActionClassName} onClick={openCreateContract}>
               <Plus className="h-4 w-4" />
               {t.header.createContract}
             </Button>
@@ -507,7 +668,22 @@ export default function Contrato() {
       </SalesFilterBar>
 
       <div className="grid gap-5 xl:grid-cols-[1.45fr_0.8fr]">
-        <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+        <IndiceTableShell
+          pagination={(
+            <DataTablePagination
+              currentPage={currentPage}
+              itemLabel={t.header.title.toLocaleLowerCase()}
+              onPageChange={onPageChange}
+              onPageSizeChange={onPageSizeChange}
+              pageEnd={pageEnd}
+              pageSize={pageSize}
+              pageSizeOptions={pageSizeOptions}
+              pageStart={pageStart}
+              totalCount={totalCount}
+              totalPages={totalPages}
+            />
+          )}
+        >
           <div className="border-b border-slate-100 p-5">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-[#2563EB]" />
@@ -516,24 +692,15 @@ export default function Contrato() {
             <p className="mt-2 text-sm leading-6 text-slate-500">{t.sections.tableDescription}</p>
           </div>
 
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-slate-50">
-                  <TableHead className="min-w-[240px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.title}</TableHead>
-                  <TableHead className="min-w-[180px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.client}</TableHead>
-                  <TableHead className="min-w-[220px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.opportunity}</TableHead>
-                  <TableHead className="min-w-[140px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.quote}</TableHead>
-                  <TableHead className="min-w-[170px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.type}</TableHead>
-                  <TableHead className="min-w-[175px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.status}</TableHead>
-                  <TableHead className="min-w-[150px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.owner}</TableHead>
-                  <TableHead className="min-w-[165px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.signature}</TableHead>
-                  <TableHead className="min-w-[130px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.updated}</TableHead>
-                  <TableHead className="min-w-[130px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.expiration}</TableHead>
-                  <TableHead className="min-w-[100px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.files}</TableHead>
-                  <TableHead className="min-w-[160px] px-5 py-4 text-xs font-medium tracking-normal text-slate-500">{t.table.columns.actions}</TableHead>
-                </TableRow>
-              </TableHeader>
+            <IndiceOperationalTable minimumWidth={contractTableMinimumWidth}>
+              <IndiceTableColGroup columns={contractTableColumns} actionsWidth={contractActionsColumnWidth} />
+              <IndiceTableHeaderRow
+                actions={{ label: t.table.columns.actions, width: contractActionsColumnWidth }}
+                columns={contractTableColumns}
+                onResize={resizeColumn}
+                onSort={handleContractSort}
+                sortState={sortState}
+              />
               <TableBody>
                 {filteredContracts.length === 0 ? (
                   <TableRow>
@@ -610,33 +777,20 @@ export default function Contrato() {
                           {contract.files.length}
                         </button>
                       </TableCell>
-                      <TableCell className="px-5 py-4">
-                        <div className="mx-auto grid w-fit grid-cols-[repeat(4,2.25rem)] gap-1.5 rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                      <TableCell className="px-5 py-4 text-right">
+                        <IndiceTableActionGroup>
                           <ActionButton label={t.actions.preview} icon={<FileSignature className="h-4 w-4" />} className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15 dark:text-blue-300 dark:hover:bg-[#2563EB]/20" onClick={() => setSelectedContractId(contract.id)} />
                           <ActionButton label={t.actions.files} icon={<FolderOpen className="h-4 w-4" />} className="border-[#F4C84A]/40 bg-[#F4C84A]/10 text-[#9a6b05] hover:bg-[#F4C84A]/20 dark:text-[#F4C84A] dark:hover:bg-[#F4C84A]/25" onClick={() => setFilesContract(contract)} />
                           <ActionButton label={t.actions.requestSignature} icon={<Send className="h-4 w-4" />} className="border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/20 dark:text-[#7AD8BF] dark:hover:bg-[#59C3A5]/25" onClick={() => openSignatureModal(contract)} />
-                          <ActionButton label={t.actions.edit} icon={<PencilLine className="h-4 w-4" />} className="border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700" />
-                        </div>
+                          <ActionButton label={t.actions.edit} icon={<PencilLine className="h-4 w-4" />} className="border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700" onClick={() => openEditContract(contract)} />
+                        </IndiceTableActionGroup>
                       </TableCell>
                     </TableRow>
                   );
                 })}
               </TableBody>
-            </Table>
-          </div>
-          <DataTablePagination
-            currentPage={currentPage}
-            itemLabel={t.header.title.toLocaleLowerCase()}
-            onPageChange={onPageChange}
-            onPageSizeChange={onPageSizeChange}
-            pageEnd={pageEnd}
-            pageSize={pageSize}
-            pageSizeOptions={pageSizeOptions}
-            pageStart={pageStart}
-            totalCount={totalCount}
-            totalPages={totalPages}
-          />
-        </div>
+            </IndiceOperationalTable>
+        </IndiceTableShell>
 
         <aside className="space-y-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2">
@@ -706,19 +860,22 @@ export default function Contrato() {
 
       <SalesModalFrame
         open={isCreateOpen}
-        onOpenChange={setIsCreateOpen}
+        onOpenChange={(open) => {
+          if (open) setIsCreateOpen(true);
+          else closeContractForm();
+        }}
         closeLabel={t.common.cancel}
-        title={t.forms.create.title}
+        title={editingContractId ? t.actions.edit : t.forms.create.title}
         description={t.forms.create.description}
         icon={<FileSignature className="h-5 w-5" />}
         modalType="standard-form"
         bodyClassName="grid gap-4 md:grid-cols-2"
         footer={(
           <>
-            <Button variant="outline" className={contractActionClassNames.secondary} onClick={() => setIsCreateOpen(false)}>{t.common.cancel}</Button>
-            <Button className={contractActionClassNames.primary} onClick={handleCreateContract}>
-              <Plus className="h-4 w-4" />
-              {t.forms.create.submit}
+            <Button variant="outline" className={contractActionClassNames.secondary} onClick={closeContractForm}>{t.common.cancel}</Button>
+            <Button className={contractActionClassNames.primary} onClick={handleSaveContract}>
+              {editingContractId ? <PencilLine className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+              {editingContractId ? t.common.save : t.forms.create.submit}
             </Button>
           </>
         )}

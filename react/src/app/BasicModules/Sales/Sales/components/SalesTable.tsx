@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHeader,
-  TableRow,
-} from '../../../../components/ui/table';
+import { TableBody, TableCell, TableRow } from '../../../../components/ui/table';
 import { DataTablePagination } from '../../../../components/table/DataTablePagination';
+import {
+  IndiceOperationalTable,
+  IndiceTableColGroup,
+  IndiceTableShell,
+} from '../../../../components/table/IndiceTableEngine';
 import { useTablePagination } from '../../../../hooks/useTablePagination';
+import { usePersistentColumnWidths } from '../../../../hooks/usePersistentColumnWidths';
 import type { SalesRecordsTranslations } from '../translations';
 import type {
   SaleLifecycleSignals,
@@ -16,11 +16,22 @@ import type {
   SaleSourceSummary,
   SalesColumnId,
 } from '../types/salesTypes';
-import { defaultSalesColumnWidths, sortSalesRecords, sortableSalesColumns, type SalesSortState, type SortableSalesColumnId } from '../utils/salesTableColumns';
+import {
+  defaultSalesColumnWidths,
+  minimumSalesColumnWidths,
+  salesActionsColumnWidth,
+  salesColumnWidthsStorageKey,
+  sortSalesRecords,
+  sortableSalesColumns,
+  type SalesSortState,
+  type SortableSalesColumnId,
+} from '../utils/salesTableColumns';
 import { SalesBulkActionsBar } from './SalesBulkActionsBar';
 import { SalesTableHeader } from './SalesTableHeader';
 import { SalesTableRow } from './SalesTableRow';
 import { salesColumnConfigs } from '../utils/salesStatuses';
+
+const sortableSalesColumnIds = Array.from(sortableSalesColumns);
 
 export function SalesTable({
   records,
@@ -58,7 +69,13 @@ export function SalesTable({
   onCancelSale: (record: SaleRecord) => void;
 }) {
   const [sortState, setSortState] = useState<SalesSortState>(null);
-  const [columnWidths, setColumnWidths] = useState<Record<SalesColumnId, number>>(defaultSalesColumnWidths);
+  const { columnWidths, resizeColumn } = usePersistentColumnWidths({
+    defaults: defaultSalesColumnWidths,
+    headerLabels: t.table.columns,
+    minWidths: minimumSalesColumnWidths,
+    sortableColumnIds: sortableSalesColumnIds,
+    storageKey: salesColumnWidthsStorageKey,
+  });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const orderedVisibleColumns = useMemo(
@@ -120,7 +137,7 @@ export function SalesTable({
   };
 
   const handleResizeColumn = (column: SalesColumnId, width: number) => {
-    setColumnWidths((current) => ({ ...current, [column]: width }));
+    if (column !== 'actions') resizeColumn(column, width);
   };
 
   const handleToggleSelection = (recordId: string, checked: boolean) => {
@@ -154,6 +171,21 @@ export function SalesTable({
     setSelectedIds(new Set());
   };
 
+  const pagination = (
+    <DataTablePagination
+      currentPage={currentPage}
+      itemLabel={t.header.title.toLocaleLowerCase()}
+      onPageChange={onPageChange}
+      onPageSizeChange={onPageSizeChange}
+      pageEnd={pageEnd}
+      pageSize={pageSize}
+      pageSizeOptions={pageSizeOptions}
+      pageStart={pageStart}
+      totalCount={totalCount}
+      totalPages={totalPages}
+    />
+  );
+
   return (
     <div className="space-y-3">
       <SalesBulkActionsBar
@@ -168,22 +200,26 @@ export function SalesTable({
         onClearSelection={() => setSelectedIds(new Set())}
       />
 
-      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="overflow-x-auto">
-          <Table className="table-fixed" style={{ minWidth: `${Math.max(tableMinWidth, 960)}px` }}>
-            <TableHeader>
-              <SalesTableHeader
-                visibleColumns={orderedVisibleColumns}
-                columnWidths={columnWidths}
-                sortState={sortState}
-                allVisibleSelected={allVisibleSelected}
-                someVisibleSelected={someVisibleSelected}
-                t={t}
-                onSort={handleSort}
-                onResizeColumn={handleResizeColumn}
-                onToggleAllVisible={handleToggleAllVisible}
-              />
-            </TableHeader>
+      <IndiceTableShell pagination={pagination}>
+        <IndiceOperationalTable minimumWidth={Math.max(tableMinWidth, 960)}>
+            <IndiceTableColGroup
+              actionsWidth={orderedVisibleColumns.includes('actions') ? salesActionsColumnWidth : undefined}
+              columns={orderedVisibleColumns
+                .filter((column) => column !== 'actions')
+                .map((column) => ({ id: column, width: columnWidths[column] }))}
+              leadingControlWidth={56}
+            />
+            <SalesTableHeader
+              visibleColumns={orderedVisibleColumns}
+              columnWidths={columnWidths}
+              sortState={sortState}
+              allVisibleSelected={allVisibleSelected}
+              someVisibleSelected={someVisibleSelected}
+              t={t}
+              onSort={handleSort}
+              onResizeColumn={handleResizeColumn}
+              onToggleAllVisible={handleToggleAllVisible}
+            />
             <TableBody>
               {sortedRecords.length === 0 ? (
                 <TableRow>
@@ -218,21 +254,8 @@ export function SalesTable({
                 />
               ))}
             </TableBody>
-          </Table>
-        </div>
-        <DataTablePagination
-          currentPage={currentPage}
-          itemLabel={t.header.title.toLocaleLowerCase()}
-          onPageChange={onPageChange}
-          onPageSizeChange={onPageSizeChange}
-          pageEnd={pageEnd}
-          pageSize={pageSize}
-          pageSizeOptions={pageSizeOptions}
-          pageStart={pageStart}
-          totalCount={totalCount}
-          totalPages={totalPages}
-        />
-      </section>
+        </IndiceOperationalTable>
+      </IndiceTableShell>
     </div>
   );
 }

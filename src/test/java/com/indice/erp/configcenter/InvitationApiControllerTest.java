@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.billing.seats.SeatCapacityExceededException;
 import com.indice.erp.billing.seats.SeatService.SeatSnapshot;
 import java.util.Map;
@@ -28,6 +29,9 @@ class InvitationApiControllerTest {
 
     @MockBean
     private InvitationSeatCoordinator invitationSeatCoordinator;
+
+    @MockBean
+    private SessionAuthService sessionAuthService;
 
     @Test
     void getInvitationReturnsPublicInvitationDetails() throws Exception {

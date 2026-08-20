@@ -978,6 +978,9 @@ Normative visual and interaction reference:
 - `react/src/app/BasicModules/PointOfSale/CashRegisters/CashRegistersWorkspace.tsx`
 - route: `/point-of-sale/cajas`
 - approved surface: `Cajas y turnos`
+- executable shared contract: `react/src/app/components/table/IndiceTableEngine.tsx`
+- canonical width and scroll canvas: `IndiceOperationalTable`
+- canonical header renderer: `IndiceTableHeaderRow`
 
 This reference combines the Human Resources density, the shared filter and pagination
 primitives, and the approved POS action treatment. New operational tables must use this
@@ -1036,6 +1039,15 @@ Every table header uses:
 Rules:
 
 - all labels, including `Actions`, use exactly the same size and weight
+- use one primary business concept per header; supporting metadata belongs below the
+  primary value in the cell
+- do not join independent concepts with `/`, `+`, `&`, `and`, or `y`; split them into
+  separate columns only when users must compare both values independently
+- a combined cell may still contain related context, for example `Quote` with the customer
+  below it or `Value` with margin below it, but the header names only the primary concept
+- render every operational header row through `IndiceTableHeaderRow`; modules must not
+  recreate the header background, height, typography, sort control, resize handle, leading
+  utility column, or `Actions` header locally
 - headers align with their column data
 - identity and descriptive text align left
 - numeric and monetary values align right
@@ -1096,6 +1108,12 @@ Required resize behavior:
 - define a useful content minimum for every resizable column and use the larger value between the content minimum and the complete-header minimum
 - choose one resize mode explicitly per table: `bounded` preserves total width by resizing two adjacent columns, while `expandable` changes one column independently and lets the table grow inside its local horizontal scroll container
 - use `expandable` for wide operational tables whose complete headers or comparison fields would otherwise be compressed; increasing a column must increase the table width instead of stealing space from its neighbor
+- render resizable tables through `IndiceOperationalTable`; its declared width is the exact
+  sum of the current column widths, including fixed leading and actions columns, so the
+  browser cannot redistribute spare space and make the same definition look different
+  across modules
+- use only the horizontal-scroll viewport supplied by `IndiceOperationalTable`; do not wrap
+  it in a second `overflow-x-auto` container
 - keep structural columns such as selection or row expansion fixed when appropriate
 - persist widths in browser storage with a unique, versioned table key
 - restore safe defaults when stored values are missing, invalid, or from an old version
@@ -1220,17 +1238,32 @@ one when the current page may no longer exist.
 - prefer a purpose-built mobile record card when horizontal comparison is no longer the primary task
 - if the table remains on mobile, preserve readable columns, keyboard focus, and touch targets of at least `44px`
 
-### 15.10 Shared extraction target
+### 15.10 Shared table engine
 
-Repeated implementations should converge on presentation primitives equivalent to:
+Operational tables use the shared presentation primitives:
 
 - `IndiceTableShell`
-- `IndiceSortableTableHead`
+- `IndiceOperationalTable`
+- `IndiceTableHeaderRow`
+- `IndiceTableColGroup`
 - `IndiceResizableTableHead`
+- `IndiceTableUtilityHead`
+- `IndiceTableActionsHead`
 - `IndiceTableActionGroup`
 - `IndiceTableActionButton`
 - `DataTablePagination`
 - `usePersistentColumnWidths`
+
+`IndiceTableHeaderRow` receives typed column definitions containing the business id, label,
+alignment, sort capability, current and default width, content minimum, and accessible
+resize label. It is the only approved renderer for the complete operational header row.
+`IndiceTableColGroup` must consume the same visible definitions so header and body widths
+cannot drift apart.
+
+`IndiceOperationalTable` receives the exact total width calculated from those definitions.
+It owns `table-layout: fixed`, the rendered width, and the single local horizontal-scroll
+viewport. Declaring only `min-width` on a generic full-width table is not compliant because
+the browser may stretch and redistribute the columns.
 
 These primitives must remain business-agnostic. Do not move module queries, permissions,
 labels, business validation, or action handlers into the shared table engine.
@@ -1242,6 +1275,9 @@ A table is not standardized until:
 - filter controls use the approved separate filter bar
 - the leading control is expand, select, both, or absent exactly as requested
 - header labels share one size, weight, and vertical rhythm
+- each header names one primary concept and remains complete on one line
+- the complete header and `colgroup` come from the shared table engine
+- the table canvas uses the exact sum of its declared columns and owns one local horizontal scrollbar
 - sortable columns work in both directions and expose accessible state
 - declared alignments match their cells
 - row typography follows the primary, ordinary, and supporting hierarchy

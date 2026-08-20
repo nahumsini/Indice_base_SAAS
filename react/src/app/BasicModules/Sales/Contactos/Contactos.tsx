@@ -15,6 +15,14 @@ import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
 import { DataTablePagination } from '../../../components/table/DataTablePagination';
 import {
+  IndiceTableActionGroup,
+  IndiceTableColGroup,
+  IndiceTableHeaderRow,
+  IndiceOperationalTable,
+  IndiceTableShell,
+  type IndiceTableColumnDefinition,
+} from '../../../components/table/IndiceTableEngine';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -22,16 +30,14 @@ import {
   SelectValue,
 } from '../../../components/ui/select';
 import {
-  Table,
   TableBody,
   TableCell,
-  TableHead,
-  TableHeader,
   TableRow,
 } from '../../../components/ui/table';
 import { Textarea } from '../../../components/ui/textarea';
 import { cn } from '../../../components/ui/utils';
 import { useTablePagination } from '../../../hooks/useTablePagination';
+import { usePersistentColumnWidths } from '../../../hooks/usePersistentColumnWidths';
 import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 import type { ColumnConfig } from '../../../components/rh/ColumnasConfigModal';
 import { ColumnasConfigModal } from '../../../components/rh/ColumnasConfigModal';
@@ -88,9 +94,36 @@ import type { ImportedContactDraft } from './utils/contactImportUtils';
 import {
   getContactOwnerSelectValue,
   normalizePhoneImportKey,
-  SortIcon,
   sortContacts,
 } from './utils/contactPageUtils';
+
+const contactColumnWidths: Record<ContactColumnId, number> = {
+  contact: 230,
+  company: 220,
+  phone: 170,
+  email: 230,
+  source: 170,
+  owner: 220,
+  relationship: 190,
+  fiscal: 170,
+  notes: 300,
+};
+
+const contactMinimumColumnWidths: Record<ContactColumnId, number> = {
+  contact: 170,
+  company: 170,
+  phone: 140,
+  email: 190,
+  source: 140,
+  owner: 180,
+  relationship: 170,
+  fiscal: 140,
+  notes: 220,
+};
+
+const contactActionsColumnWidth = 246;
+const contactColumnWidthsStorageKey = 'sales-contacts-column-widths-v2';
+const sortableContactColumnIds: ContactColumnId[] = ['contact', 'company', 'phone', 'email', 'source', 'owner', 'notes'];
 
 type ContactosWorkspaceState = {
   searchQuery: string;
@@ -136,6 +169,13 @@ export default function Contactos({ learningModeActive = false, titleBarTitle }:
   const [ownerOptions, setOwnerOptions] = useState<SalesOwnerOption[]>([]);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [contextCurrentUserCompanyId, setContextCurrentUserCompanyId] = useState<number | null>(null);
+  const { columnWidths, resizeColumn } = usePersistentColumnWidths<ContactColumnId>({
+    defaults: contactColumnWidths,
+    headerLabels: t.table.columns,
+    minWidths: contactMinimumColumnWidths,
+    sortableColumnIds: sortableContactColumnIds,
+    storageKey: contactColumnWidthsStorageKey,
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -338,18 +378,6 @@ export default function Contactos({ learningModeActive = false, titleBarTitle }:
     setPaginationState((current) => ({ ...current, currentPage: 1 }));
   };
 
-  const renderSortableHead = (columnId: ContactSortColumn, label: string, className?: string) => (
-    <TableHead className={cn('whitespace-normal px-5 py-5', className)}>
-      <button
-        type="button"
-        className="inline-flex max-w-full items-center gap-2 text-left text-xs font-medium tracking-normal text-slate-500 transition-colors hover:text-slate-800 dark:text-slate-300 dark:hover:text-white"
-        onClick={() => handleSort(columnId)}
-      >
-        <span className="min-w-0 whitespace-normal break-words">{label}</span>
-        <SortIcon columnId={columnId} sortState={sortState} />
-      </button>
-    </TableHead>
-  );
   const contactConfigurableColumns = useMemo<ColumnConfig[]>(() => (
     (['company', 'phone', 'email', 'source', 'owner', 'relationship', 'fiscal', 'notes'] as ContactColumnId[]).map((columnId) => ({
       id: columnId,
@@ -366,6 +394,25 @@ export default function Contactos({ learningModeActive = false, titleBarTitle }:
   ), [contactConfigurableColumns]);
   const canShowContactColumn = (columnId: ContactColumnId) => visibleContactColumns.includes(columnId);
   const contactTableColumnCount = 2 + visibleContactColumns.length;
+  const renderedContactColumnIds = useMemo<ContactColumnId[]>(
+    () => ['contact', ...visibleContactColumns],
+    [visibleContactColumns],
+  );
+  const contactTableColumns = useMemo<Array<IndiceTableColumnDefinition<ContactColumnId>>>(() => (
+    renderedContactColumnIds.map((columnId) => ({
+      id: columnId,
+      label: t.table.columns[columnId],
+      width: columnWidths[columnId],
+      defaultWidth: contactColumnWidths[columnId],
+      contentMinimumWidth: contactMinimumColumnWidths[columnId],
+      sortable: sortableContactColumnIds.includes(columnId),
+      resizeLabel: `${t.table.columns[columnId]}: ajustar ancho`,
+    }))
+  ), [columnWidths, renderedContactColumnIds, t.table.columns]);
+  const contactTableMinimumWidth = useMemo(
+    () => renderedContactColumnIds.reduce((total, columnId) => total + columnWidths[columnId], contactActionsColumnWidth),
+    [columnWidths, renderedContactColumnIds],
+  );
 
   const handleOpenCreateContact = () => {
     setEditingContact(null);
@@ -629,22 +676,31 @@ export default function Contactos({ learningModeActive = false, titleBarTitle }:
         />
       </SalesFilterBar>
 
-      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <Table className="min-w-[1740px] table-fixed">
-          <TableHeader>
-            <TableRow className="border-slate-200 bg-slate-50 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-900">
-              {renderSortableHead('contact', t.table.columns.contact, 'w-[230px]')}
-              {canShowContactColumn('company') ? renderSortableHead('company', t.table.columns.company, 'w-[220px]') : null}
-              {canShowContactColumn('phone') ? renderSortableHead('phone', t.table.columns.phone, 'w-[170px]') : null}
-              {canShowContactColumn('email') ? renderSortableHead('email', t.table.columns.email, 'w-[230px]') : null}
-              {canShowContactColumn('source') ? renderSortableHead('source', t.table.columns.source, 'w-[170px]') : null}
-              {canShowContactColumn('owner') ? renderSortableHead('owner', t.table.columns.owner, 'w-[220px]') : null}
-              {canShowContactColumn('relationship') ? <TableHead className="w-[190px] whitespace-normal px-5 py-5 text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.relationship}</TableHead> : null}
-              {canShowContactColumn('fiscal') ? <TableHead className="w-[170px] whitespace-normal px-5 py-5 text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.fiscal}</TableHead> : null}
-              {canShowContactColumn('notes') ? renderSortableHead('notes', t.table.columns.notes, 'w-[300px]') : null}
-              <TableHead className="w-[170px] whitespace-normal px-4 py-5 text-center text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.actions}</TableHead>
-            </TableRow>
-          </TableHeader>
+      <IndiceTableShell
+        pagination={(
+          <DataTablePagination
+            currentPage={currentPage}
+            itemLabel={t.header.title.toLocaleLowerCase()}
+            onPageChange={onPageChange}
+            onPageSizeChange={onPageSizeChange}
+            pageEnd={pageEnd}
+            pageSize={pageSize}
+            pageSizeOptions={pageSizeOptions}
+            pageStart={pageStart}
+            totalCount={totalCount}
+            totalPages={totalPages}
+          />
+        )}
+      >
+        <IndiceOperationalTable minimumWidth={contactTableMinimumWidth}>
+          <IndiceTableColGroup columns={contactTableColumns} actionsWidth={contactActionsColumnWidth} />
+          <IndiceTableHeaderRow
+            actions={{ label: t.table.columns.actions, width: contactActionsColumnWidth }}
+            columns={contactTableColumns}
+            onResize={resizeColumn}
+            onSort={(columnId) => handleSort(columnId as ContactSortColumn)}
+            sortState={{ columnId: sortState.columnId as ContactColumnId, direction: sortState.direction }}
+          />
           <TableBody>
             {sortedContacts.length === 0 ? (
               <TableRow>
@@ -721,8 +777,8 @@ export default function Contactos({ learningModeActive = false, titleBarTitle }:
                       className="min-h-[58px] w-full min-w-0 resize-none rounded-lg border-slate-200 bg-white text-sm text-slate-800 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                     />
                   </TableCell> : null}
-                  <TableCell className="overflow-hidden whitespace-normal px-4 py-5 align-top">
-                    <div className="mx-auto grid w-fit grid-cols-[repeat(3,2.25rem)] gap-1.5 rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                  <TableCell className="overflow-hidden whitespace-normal px-4 py-5 text-right align-top">
+                    <IndiceTableActionGroup>
                       <ContactActionButton label={hasPhone ? t.actions.call(contact.contactPerson) : t.actions.noPhone} icon={<Phone className="h-4 w-4" />} className="border-[#2563EB]/25 bg-[#2563EB]/10 text-[#1D4ED8] hover:bg-[#2563EB]/15 dark:text-blue-300 dark:hover:bg-[#2563EB]/20" href={hasPhone ? getPhoneHref(contact.phone) : undefined} disabled={!hasPhone} />
                       <ContactActionButton label={hasPhone ? t.actions.whatsapp(contact.contactPerson) : t.actions.noPhone} icon={<MessageCircle className="h-4 w-4" />} className="border-[#59C3A5]/30 bg-[#59C3A5]/10 text-[#177d66] hover:bg-[#59C3A5]/20 dark:text-[#7AD8BF] dark:hover:bg-[#59C3A5]/25" href={hasPhone ? getWhatsAppHref(contact.phone) : undefined} disabled={!hasPhone} />
                       <ContactActionButton label={hasEmail ? t.actions.email(contact.contactPerson) : t.actions.noEmail} icon={<Mail className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/20 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/20" href={hasEmail ? `mailto:${contact.email}` : undefined} disabled={!hasEmail} />
@@ -738,26 +794,14 @@ export default function Contactos({ learningModeActive = false, titleBarTitle }:
                         className="border-[#FF6B5E]/30 bg-[#FF6B5E]/10 text-[#b63b32] hover:bg-[#FF6B5E]/20 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/20"
                         onClick={() => handleDeleteContact(contact)}
                       />
-                    </div>
+                    </IndiceTableActionGroup>
                   </TableCell>
                 </TableRow>
               );
             })}
           </TableBody>
-        </Table>
-        <DataTablePagination
-          currentPage={currentPage}
-          itemLabel={t.header.title.toLocaleLowerCase()}
-          onPageChange={onPageChange}
-          onPageSizeChange={onPageSizeChange}
-          pageEnd={pageEnd}
-          pageSize={pageSize}
-          pageSizeOptions={pageSizeOptions}
-          pageStart={pageStart}
-          totalCount={totalCount}
-          totalPages={totalPages}
-        />
-      </section>
+        </IndiceOperationalTable>
+      </IndiceTableShell>
 
       <ContactFormModal
         open={isContactModalOpen}

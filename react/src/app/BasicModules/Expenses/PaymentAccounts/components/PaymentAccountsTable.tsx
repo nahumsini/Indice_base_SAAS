@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ChevronDown, ChevronUp, Edit2, ExternalLink, Power, PowerOff, Search, Trash2 } from 'lucide-react';
+import { Edit2, ExternalLink, Power, PowerOff, Search, Trash2 } from 'lucide-react';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import { usePaymentAccountsResolvedLocale, usePaymentAccountsTranslations } from '../hooks/usePaymentAccountsTranslations';
 import type { FinanceTranslations } from '../../translations';
@@ -7,7 +7,44 @@ import type { PaymentAccount, PaymentSortField, SortDirection } from '../types';
 import { formatPaymentCurrency, formatPaymentDate, getTypeBadgeColor, getTypeIcon, getTypeLabel } from '../paymentAccounts.utils';
 import { defaultPaymentColumnWidths, type PaymentColumnConfig, type PaymentColumnKey } from '../paymentAccountsTableConfig';
 import { DataTablePagination } from '../../../../components/table/DataTablePagination';
+import {
+  IndiceTableActionGroup,
+  IndiceTableColGroup,
+  IndiceTableHeaderRow,
+  IndiceOperationalTable,
+  IndiceTableShell,
+  type IndiceTableColumnDefinition,
+} from '../../../../components/table/IndiceTableEngine';
 import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../../hooks/useTablePagination';
+import { usePersistentColumnWidths } from '../../../../hooks/usePersistentColumnWidths';
+
+const minimumPaymentColumnWidths: Record<PaymentColumnKey, number> = {
+  name: 190,
+  type: 130,
+  unitId: 150,
+  businessId: 150,
+  bank: 150,
+  accountNumber: 150,
+  balance: 140,
+  currency: 110,
+  lastTransaction: 160,
+  isActive: 120,
+};
+
+const defaultPaymentOperationalColumnWidths: Record<PaymentColumnKey, number> = {
+  name: defaultPaymentColumnWidths.name,
+  type: defaultPaymentColumnWidths.type,
+  unitId: defaultPaymentColumnWidths.unitId,
+  businessId: defaultPaymentColumnWidths.businessId,
+  bank: defaultPaymentColumnWidths.bank,
+  accountNumber: defaultPaymentColumnWidths.accountNumber,
+  balance: defaultPaymentColumnWidths.balance,
+  currency: defaultPaymentColumnWidths.currency,
+  lastTransaction: defaultPaymentColumnWidths.lastTransaction,
+  isActive: defaultPaymentColumnWidths.isActive,
+};
+
+const paymentActionsColumnWidth = 198;
 
 type PaymentAccountsTableProps = {
   accounts: PaymentAccount[];
@@ -43,6 +80,17 @@ export function PaymentAccountsTable({
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const tableColumns = useMemo(() => columns.filter(column => column.visible), [columns]);
+  const paymentHeaderLabels = useMemo<Partial<Record<PaymentColumnKey, string>>>(() => (
+    Object.fromEntries(columns.map((column) => [column.key, column.label]))
+  ), [columns]);
+  const sortablePaymentColumnIds = useMemo(() => columns.map((column) => column.key), [columns]);
+  const { columnWidths, resizeColumn } = usePersistentColumnWidths<PaymentColumnKey>({
+    defaults: defaultPaymentOperationalColumnWidths,
+    headerLabels: paymentHeaderLabels,
+    minWidths: minimumPaymentColumnWidths,
+    sortableColumnIds: sortablePaymentColumnIds,
+    storageKey: 'sales-payment-accounts-column-widths-v2',
+  });
   const totalPages = Math.max(1, Math.ceil(accounts.length / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const pageStartIndex = (safeCurrentPage - 1) * pageSize;
@@ -55,22 +103,64 @@ export function PaymentAccountsTable({
     setCurrentPage(1);
   }, [accounts, pageSize, tableColumns]);
 
-  const getSortIcon = (field: PaymentSortField) => (
-    <PaymentSortIcon active={sortField === field} direction={sortField === field ? sortDirection : null} tone={tone} />
+  const tableMinimumWidth = tableColumns.reduce(
+    (total, column) => total + columnWidths[column.key],
+    paymentActionsColumnWidth,
   );
+  const headerColumns: Array<IndiceTableColumnDefinition<PaymentColumnKey>> = tableColumns.map((column) => ({
+    id: column.key,
+    label: column.label,
+    width: columnWidths[column.key],
+    defaultWidth: defaultPaymentColumnWidths[column.key],
+    contentMinimumWidth: minimumPaymentColumnWidths[column.key],
+    alignment: column.key === 'balance' ? 'right' : column.key === 'isActive' ? 'center' : 'left',
+    sortable: true,
+    resizeLabel: `${column.label}: ajustar ancho`,
+  }));
+  const sortFieldByColumn = Object.fromEntries(
+    tableColumns.map((column) => [column.key, column.sortField]),
+  ) as Record<PaymentColumnKey, PaymentSortField>;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className="overflow-x-auto">
-        <table className="min-w-[1160px]">
-          <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60">
-            <tr>
-              {tableColumns.map(header => (
-                <SortableHeader key={header.key} field={header.sortField} label={header.label} width={defaultPaymentColumnWidths[header.key]} sortIcon={getSortIcon(header.sortField)} onSort={onSort} />
-              ))}
-              <th className="px-5 py-4 text-center text-xs font-medium text-slate-500 dark:text-slate-400" style={{ width: defaultPaymentColumnWidths.actions, minWidth: defaultPaymentColumnWidths.actions }}>{t.common.actions}</th>
-            </tr>
-          </thead>
+    <IndiceTableShell
+      pagination={(
+        <DataTablePagination
+          currentPage={safeCurrentPage}
+          labels={{
+            next: t.common.next,
+            page: (current, total) => `${current} / ${total}`,
+            previous: t.common.previous,
+            rowsPerPage: t.common.rowsPerPage,
+            showing: (start, end, total) => t.common.showing(start, end, total),
+          }}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(nextPageSize) => {
+            setPageSize(nextPageSize);
+            setCurrentPage(1);
+          }}
+          pageEnd={paginationEnd}
+          pageSize={pageSize}
+          pageSizeOptions={DEFAULT_TABLE_PAGE_SIZE_OPTIONS}
+          pageStart={paginationStart}
+          totalCount={accounts.length}
+          totalPages={totalPages}
+        />
+      )}
+    >
+      <IndiceOperationalTable minimumWidth={tableMinimumWidth}>
+          <IndiceTableColGroup columns={headerColumns} actionsWidth={paymentActionsColumnWidth} />
+          <IndiceTableHeaderRow
+            actions={{ label: t.common.actions, width: paymentActionsColumnWidth }}
+            columns={headerColumns}
+            onResize={resizeColumn}
+            onSort={(columnId) => onSort(sortFieldByColumn[columnId])}
+            sortState={sortField && sortDirection
+              ? {
+                columnId: tableColumns.find((column) => column.sortField === sortField)?.key ?? tableColumns[0]?.key ?? 'name',
+                direction: sortDirection,
+              }
+              : null}
+          />
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
             {paginatedAccounts.length === 0 ? <EmptyRow colSpan={tableColumns.length + 1} t={t} /> : paginatedAccounts.map(account => (
               <PaymentAccountRow
@@ -78,6 +168,7 @@ export function PaymentAccountsTable({
                 account={account}
                 businessOptions={businessOptions}
                 locale={locale}
+                columnWidths={columnWidths}
                 tableColumns={tableColumns.map(column => column.key)}
                 tone={tone}
                 t={t}
@@ -89,36 +180,15 @@ export function PaymentAccountsTable({
               />
             ))}
           </tbody>
-        </table>
-      </div>
-      <DataTablePagination
-        currentPage={safeCurrentPage}
-        labels={{
-          next: t.common.next,
-          page: (current, total) => `${current} / ${total}`,
-          previous: t.common.previous,
-          rowsPerPage: t.common.rowsPerPage,
-          showing: (start, end, total) => t.common.showing(start, end, total),
-        }}
-        onPageChange={setCurrentPage}
-        onPageSizeChange={(nextPageSize) => {
-          setPageSize(nextPageSize);
-          setCurrentPage(1);
-        }}
-        pageEnd={paginationEnd}
-        pageSize={pageSize}
-        pageSizeOptions={DEFAULT_TABLE_PAGE_SIZE_OPTIONS}
-        pageStart={paginationStart}
-        totalCount={accounts.length}
-        totalPages={totalPages}
-      />
-    </div>
+      </IndiceOperationalTable>
+    </IndiceTableShell>
   );
 }
 
 function PaymentAccountRow({
   account,
   businessOptions,
+  columnWidths,
   locale,
   onDelete,
   onEdit,
@@ -131,6 +201,7 @@ function PaymentAccountRow({
 }: {
   account: PaymentAccount;
   businessOptions: FinanceReferenceOption[];
+  columnWidths: Record<PaymentColumnKey, number>;
   locale: ReturnType<typeof usePaymentAccountsResolvedLocale>;
   tableColumns: PaymentColumnKey[];
   tone: 'green' | 'coral';
@@ -144,28 +215,28 @@ function PaymentAccountRow({
   return (
     <tr className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50">
       {tableColumns.map(columnKey => (
-        <td key={columnKey} className="px-6 py-4 align-middle text-sm text-slate-700 dark:text-slate-300" style={{ width: defaultPaymentColumnWidths[columnKey], minWidth: defaultPaymentColumnWidths[columnKey] }}>
+        <td key={columnKey} className={`px-5 py-4 align-middle text-sm font-normal text-slate-700 dark:text-slate-300 ${columnKey === 'balance' ? 'text-right tabular-nums' : columnKey === 'isActive' ? 'text-center' : 'text-left'}`} style={{ width: columnWidths[columnKey], minWidth: columnWidths[columnKey] }}>
           {renderPaymentCell(columnKey, account, unitOptions, businessOptions, t, locale, tone)}
         </td>
       ))}
-      <td className="px-6 py-4 text-center align-middle" style={{ width: defaultPaymentColumnWidths.actions, minWidth: defaultPaymentColumnWidths.actions }}>
+      <td className="px-4 py-4 text-right align-middle" style={{ width: paymentActionsColumnWidth, minWidth: paymentActionsColumnWidth }}>
         {account.source === 'petty_cash' ? (
-          <div className="mx-auto inline-flex items-center justify-center rounded-[22px] border border-slate-200 bg-white px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <button type="button" onClick={() => onNavigate?.('petty-cash')} className="inline-flex h-10 items-center gap-2 rounded-2xl border border-[#147514]/20 bg-[#147514]/5 px-4 text-sm font-medium text-[#147514] transition hover:-translate-y-0.5 hover:bg-[#147514]/12 hover:shadow-sm" title={t.paymentAccounts.table.openPettyCash}>
+          <IndiceTableActionGroup>
+            <button type="button" onClick={() => onNavigate?.('petty-cash')} className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#147514]/20 bg-[#147514]/5 px-3 text-sm font-medium text-[#147514] transition hover:bg-[#147514]/12" title={t.paymentAccounts.table.openPettyCash}>
               <ExternalLink className="h-4 w-4" />
               {t.paymentAccounts.table.open}
             </button>
-          </div>
+          </IndiceTableActionGroup>
         ) : (
-          <div className="mx-auto inline-flex items-center justify-center gap-2 rounded-[22px] border border-slate-200 bg-white px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <IndiceTableActionGroup>
             <ActionButton title={t.common.edit} onClick={() => onEdit(account)}><Edit2 className="h-4 w-4" /></ActionButton>
-            <button type="button" onClick={() => onToggleActive(account)} className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl border transition hover:-translate-y-0.5 hover:shadow-sm ${account.isActive ? 'border-[#147514]/25 bg-[#147514]/12 text-[#147514] hover:bg-[#147514]/18 dark:border-[#147514]/35 dark:bg-[#147514]/15' : 'border-slate-200 bg-slate-50 text-slate-400 hover:border-[#147514]/20 hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-900'}`} title={account.isActive ? t.paymentAccounts.table.deactivate : t.paymentAccounts.table.activate}>
+            <button type="button" onClick={() => onToggleActive(account)} className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition ${account.isActive ? 'border-[#147514]/25 bg-[#147514]/12 text-[#147514] hover:bg-[#147514]/18 dark:border-[#147514]/35 dark:bg-[#147514]/15' : 'border-slate-200 bg-slate-50 text-slate-400 hover:border-[#147514]/20 hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-900'}`} title={account.isActive ? t.paymentAccounts.table.deactivate : t.paymentAccounts.table.activate}>
               {account.isActive ? <Power className="h-4 w-4" /> : <PowerOff className="h-4 w-4" />}
             </button>
-            <button type="button" onClick={() => onDelete(account.id)} className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-rose-100 bg-rose-50/60 text-rose-600 transition hover:-translate-y-0.5 hover:bg-rose-100 hover:shadow-sm dark:border-rose-900/40 dark:bg-rose-950/20 dark:hover:bg-rose-950/30" title={t.common.delete}>
+            <button type="button" onClick={() => onDelete(account.id)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-rose-100 bg-rose-50/60 text-rose-600 transition hover:bg-rose-100 dark:border-rose-900/40 dark:bg-rose-950/20 dark:hover:bg-rose-950/30" title={t.common.delete}>
               <Trash2 className="h-4 w-4" />
             </button>
-          </div>
+          </IndiceTableActionGroup>
         )}
       </td>
     </tr>
@@ -207,7 +278,7 @@ function NameCell({ account, t, tone }: { account: PaymentAccount; t: FinanceTra
 
 function ActionButton({ children, onClick, title }: { children: ReactNode; onClick: () => void; title: string }) {
   return (
-    <button type="button" onClick={onClick} className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 text-amber-600 transition hover:-translate-y-0.5 hover:bg-amber-100 hover:shadow-sm dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-400" title={title}>
+    <button type="button" onClick={onClick} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-600 transition hover:bg-amber-100 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-400" title={title}>
       {children}
     </button>
   );
@@ -226,14 +297,6 @@ function getReferenceLabel(options: FinanceReferenceOption[], value?: string) {
   return options.find(option => option.value === value)?.label ?? value;
 }
 
-function SortableHeader({ field, label, onSort, sortIcon, width }: { field: PaymentSortField; label: string; onSort: (field: PaymentSortField) => void; sortIcon: ReactNode; width: number }) {
-  return (
-    <th className="px-5 py-4 text-left align-middle" style={{ width, minWidth: width }}>
-      <button type="button" onClick={() => onSort(field)} className="inline-flex items-center gap-2 whitespace-nowrap text-xs font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"><span>{label}</span>{sortIcon}</button>
-    </th>
-  );
-}
-
 function EmptyRow({ colSpan, t }: { colSpan: number; t: FinanceTranslations }) {
   return (
     <tr>
@@ -245,15 +308,5 @@ function EmptyRow({ colSpan, t }: { colSpan: number; t: FinanceTranslations }) {
         </div>
       </td>
     </tr>
-  );
-}
-
-function PaymentSortIcon({ active, direction, tone }: { active: boolean; direction: SortDirection; tone: 'green' | 'coral' }) {
-  const activeColor = tone === 'coral' ? 'text-[#E8564B]' : 'text-[#147514]';
-  return (
-    <span className="flex h-4 w-4 shrink-0 flex-col items-center justify-center">
-      <ChevronUp className={`-mb-1 h-3 w-3 ${active && direction === 'asc' ? activeColor : 'text-slate-400'}`} />
-      <ChevronDown className={`-mt-1 h-3 w-3 ${active && direction === 'desc' ? activeColor : 'text-slate-400'}`} />
-    </span>
   );
 }

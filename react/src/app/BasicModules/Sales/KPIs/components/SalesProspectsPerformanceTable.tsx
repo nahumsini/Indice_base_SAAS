@@ -1,8 +1,47 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button } from '../../../../components/ui/button';
+import { useMemo, useState } from 'react';
+import { DataTablePagination } from '../../../../components/table/DataTablePagination';
+import {
+  IndiceTableColGroup,
+  IndiceTableHeaderRow,
+  IndiceOperationalTable,
+  IndiceTableShell,
+  type IndiceTableColumnDefinition,
+} from '../../../../components/table/IndiceTableEngine';
+import {
+  TableBody,
+  TableCell,
+  TableRow,
+} from '../../../../components/ui/table';
+import { usePersistentColumnWidths } from '../../../../hooks/usePersistentColumnWidths';
 import type { SalesOpportunity, SalesQuote } from '../../types';
 import { getOpportunityNativePipelineTotals } from '../../Prospectos/utils/prospectosPipeline';
 import type { SalesKpisTranslations } from '../translations';
+
+type ProspectKpiColumnId = 'prospect' | 'customer' | 'stage' | 'owner' | 'value' | 'nextAction' | 'status';
+type ProspectKpiSortState = { columnId: ProspectKpiColumnId; direction: 'asc' | 'desc' };
+
+const prospectKpiColumnWidths: Record<ProspectKpiColumnId, number> = {
+  prospect: 230,
+  customer: 190,
+  stage: 150,
+  owner: 180,
+  value: 190,
+  nextAction: 250,
+  status: 160,
+};
+
+const prospectKpiMinimumWidths: Record<ProspectKpiColumnId, number> = {
+  prospect: 180,
+  customer: 160,
+  stage: 130,
+  owner: 150,
+  value: 165,
+  nextAction: 200,
+  status: 140,
+};
+
+const prospectKpiColumnIds = Object.keys(prospectKpiColumnWidths) as ProspectKpiColumnId[];
+const prospectKpiCollator = new Intl.Collator('es-MX', { numeric: true, sensitivity: 'base' });
 
 function StatusPill({ label }: { label: string }) {
   const tone = label === 'Overdue'
@@ -33,86 +72,133 @@ export function SalesProspectsPerformanceTable({
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
 }) {
+  const [sortState, setSortState] = useState<ProspectKpiSortState>({ columnId: 'prospect', direction: 'asc' });
+  const columnLabels = useMemo<Record<ProspectKpiColumnId, string>>(() => ({
+    prospect: copy.prospectsTable.columns.prospect,
+    customer: copy.prospectsTable.columns.customer,
+    stage: copy.prospectsTable.columns.stage,
+    owner: copy.prospectsTable.columns.owner,
+    value: copy.prospectsTable.columns.value,
+    nextAction: copy.prospectsTable.columns.nextAction,
+    status: copy.prospectsTable.columns.status,
+  }), [copy.prospectsTable.columns]);
+  const { columnWidths, resizeColumn } = usePersistentColumnWidths<ProspectKpiColumnId>({
+    defaults: prospectKpiColumnWidths,
+    headerLabels: columnLabels,
+    minWidths: prospectKpiMinimumWidths,
+    sortableColumnIds: prospectKpiColumnIds,
+    storageKey: 'sales-kpi-prospects-column-widths-v2',
+  });
+  const pipelineByOpportunity = useMemo(() => new Map(items.map((item) => [
+    item.id,
+    getOpportunityNativePipelineTotals(item, quotes),
+  ])), [items, quotes]);
+  const sortedItems = useMemo(() => [...items].sort((left, right) => {
+    const valueFor = (item: SalesOpportunity, columnId: ProspectKpiColumnId) => {
+      switch (columnId) {
+        case 'prospect': return item.opportunityName;
+        case 'customer': return item.company;
+        case 'stage': return item.stage;
+        case 'owner': return item.owner;
+        case 'value': return pipelineByOpportunity.get(item.id)?.totalLabel ?? '';
+        case 'nextAction': return `${item.nextActionDate} ${item.nextAction}`;
+        case 'status': return item.status;
+        default: return '';
+      }
+    };
+    const comparison = prospectKpiCollator.compare(
+      String(valueFor(left, sortState.columnId)),
+      String(valueFor(right, sortState.columnId)),
+    );
+    const directedComparison = sortState.direction === 'asc' ? comparison : -comparison;
+    return directedComparison || prospectKpiCollator.compare(left.id, right.id);
+  }), [items, pipelineByOpportunity, sortState]);
+  const paginatedItems = sortedItems.slice((page - 1) * pageSize, page * pageSize);
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const pageStart = totalItems === 0 ? 0 : ((page - 1) * pageSize) + 1;
+  const pageEnd = Math.min(page * pageSize, totalItems);
+  const tableMinimumWidth = prospectKpiColumnIds.reduce((total, columnId) => total + columnWidths[columnId], 0);
+  const tableColumns: Array<IndiceTableColumnDefinition<ProspectKpiColumnId>> = prospectKpiColumnIds.map((columnId) => ({
+    id: columnId,
+    label: columnLabels[columnId],
+    width: columnWidths[columnId],
+    defaultWidth: prospectKpiColumnWidths[columnId],
+    contentMinimumWidth: prospectKpiMinimumWidths[columnId],
+    alignment: columnId === 'value' ? 'right' : columnId === 'status' ? 'center' : 'left',
+    sortable: true,
+    resizeLabel: `${columnLabels[columnId]}: ajustar ancho`,
+  }));
+
+  const handleSort = (columnId: ProspectKpiColumnId) => {
+    setSortState((current) => current.columnId === columnId
+      ? { columnId, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+      : { columnId, direction: 'asc' });
+    onPageChange(1);
+  };
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex flex-col gap-3 border-b border-slate-100 p-5 dark:border-slate-800 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h3 className="text-lg font-medium text-slate-950 dark:text-white">{copy.prospectsTable.title}</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400">{copy.prospectsTable.subtitle}</p>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-          <span>{copy.pagination.rows}</span>
-          <select
-            value={pageSize}
-            onChange={(event) => onPageSizeChange(Number(event.target.value))}
-            className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm font-medium outline-none focus:border-[#FF6B5E] focus:ring-2 focus:ring-[#FF6B5E]/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-          >
-            {[10, 25, 50, 100, 200].map((size) => (
-              <option key={size} value={size}>{size}</option>
-            ))}
-          </select>
-        </div>
+    <IndiceTableShell
+      pagination={(
+        <DataTablePagination
+          currentPage={page}
+          itemLabel={copy.pagination.records}
+          labels={{
+            next: copy.pagination.next,
+            previous: copy.pagination.previous,
+            rowsPerPage: copy.pagination.rows,
+            page: (current, total) => `${copy.pagination.page} ${current} / ${total}`,
+          }}
+          onPageChange={onPageChange}
+          onPageSizeChange={onPageSizeChange}
+          pageEnd={pageEnd}
+          pageSize={pageSize}
+          pageSizeOptions={[10, 25, 50, 100, 200]}
+          pageStart={pageStart}
+          totalCount={totalItems}
+          totalPages={totalPages}
+        />
+      )}
+    >
+      <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-700">
+        <h3 className="text-lg font-medium text-slate-950 dark:text-white">{copy.prospectsTable.title}</h3>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{copy.prospectsTable.subtitle}</p>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[950px] text-left text-sm">
-          <thead className="bg-slate-50 text-xs tracking-normal text-slate-500 dark:bg-slate-950 dark:text-slate-400">
-            <tr>
-              <th className="px-5 py-4">{copy.prospectsTable.columns.prospect}</th>
-              <th className="px-5 py-4">{copy.prospectsTable.columns.customer}</th>
-              <th className="px-5 py-4">{copy.prospectsTable.columns.stage}</th>
-              <th className="px-5 py-4">{copy.prospectsTable.columns.owner}</th>
-              <th className="px-5 py-4">{copy.prospectsTable.columns.value}</th>
-              <th className="px-5 py-4">{copy.prospectsTable.columns.nextAction}</th>
-              <th className="px-5 py-4">{copy.prospectsTable.columns.status}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => {
-              const commercialValue = getOpportunityNativePipelineTotals(item, quotes);
-              return (
-                <tr key={item.id} className="border-t border-slate-100 dark:border-slate-800">
-                  <td className="px-5 py-4">
-                    <p className="font-medium text-slate-950 dark:text-white">{item.opportunityName}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{item.id}</p>
-                  </td>
-                  <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{item.company}</td>
-                  <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{item.stage}</td>
-                  <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{item.owner}</td>
-                  <td className="px-5 py-4 font-medium text-slate-900 dark:text-white">
-                    <p>{commercialValue.totalLabel}</p>
-                    <p className="text-xs font-normal text-slate-500 dark:text-slate-400">
-                      {commercialValue.quoteCount} {commercialValue.quoteCount === 1 ? 'cotización' : 'cotizaciones'}
-                    </p>
-                  </td>
-                  <td className="px-5 py-4 text-slate-700 dark:text-slate-200">{item.nextAction} - {item.nextActionDate}</td>
-                  <td className="px-5 py-4">
-                    <StatusPill label={item.status} />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          {copy.pagination.page} {page} / {totalPages} - {totalItems} {copy.pagination.records}
-        </p>
-        <div className="flex gap-2">
-          <Button type="button" variant="outline" className="h-9 rounded-lg border-slate-300 dark:border-slate-700" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
-            <ChevronLeft className="h-4 w-4" />
-            {copy.pagination.previous}
-          </Button>
-          <Button type="button" variant="outline" className="h-9 rounded-lg border-slate-300 dark:border-slate-700" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
-            {copy.pagination.next}
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-    </section>
+      <IndiceOperationalTable minimumWidth={tableMinimumWidth}>
+        <IndiceTableColGroup columns={tableColumns} />
+        <IndiceTableHeaderRow
+          columns={tableColumns}
+          onResize={resizeColumn}
+          onSort={handleSort}
+          sortState={sortState}
+        />
+        <TableBody>
+          {paginatedItems.map((item) => {
+            const commercialValue = pipelineByOpportunity.get(item.id) ?? getOpportunityNativePipelineTotals(item, quotes);
+            return (
+              <TableRow key={item.id} className="border-slate-100 dark:border-slate-700">
+                <TableCell className="whitespace-normal px-5 py-4">
+                  <p className="font-medium text-slate-950 dark:text-white">{item.opportunityName}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{item.id}</p>
+                </TableCell>
+                <TableCell className="whitespace-normal px-5 py-4 text-slate-700 dark:text-slate-200">{item.company}</TableCell>
+                <TableCell className="whitespace-normal px-5 py-4 text-slate-700 dark:text-slate-200">{item.stage}</TableCell>
+                <TableCell className="whitespace-normal px-5 py-4 text-slate-700 dark:text-slate-200">{item.owner}</TableCell>
+                <TableCell className="whitespace-normal px-5 py-4 text-right font-medium text-slate-900 dark:text-white">
+                  <p>{commercialValue.totalLabel}</p>
+                  <p className="text-xs font-normal text-slate-500 dark:text-slate-400">
+                    {commercialValue.quoteCount} {commercialValue.quoteCount === 1 ? 'cotización' : 'cotizaciones'}
+                  </p>
+                </TableCell>
+                <TableCell className="whitespace-normal px-5 py-4 text-slate-700 dark:text-slate-200">{item.nextAction} - {item.nextActionDate}</TableCell>
+                <TableCell className="px-5 py-4 text-center">
+                  <StatusPill label={item.status} />
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </IndiceOperationalTable>
+    </IndiceTableShell>
   );
 }

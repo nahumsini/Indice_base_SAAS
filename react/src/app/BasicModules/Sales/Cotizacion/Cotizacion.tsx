@@ -19,6 +19,14 @@ import { humanResourcesApi } from '../../../api/humanResources';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
 import { DataTablePagination } from '../../../components/table/DataTablePagination';
+import {
+  IndiceTableActionGroup,
+  IndiceTableColGroup,
+  IndiceTableHeaderRow,
+  IndiceOperationalTable,
+  IndiceTableShell,
+  type IndiceTableColumnDefinition,
+} from '../../../components/table/IndiceTableEngine';
 import { Input } from '../../../components/ui/input';
 import {
   Select,
@@ -28,15 +36,13 @@ import {
   SelectValue,
 } from '../../../components/ui/select';
 import {
-  Table,
   TableBody,
   TableCell,
-  TableHead,
-  TableHeader,
   TableRow,
 } from '../../../components/ui/table';
 import { cn } from '../../../components/ui/utils';
 import { useTablePagination } from '../../../hooks/useTablePagination';
+import { usePersistentColumnWidths } from '../../../hooks/usePersistentColumnWidths';
 import {
   SalesFilterBar,
   SalesFilterSearch,
@@ -73,7 +79,6 @@ import {
   FilterSelect,
   QuoteAction,
   QuoteSellerSelect,
-  QuoteSortableHeader,
   type QuoteSortColumn,
   type QuoteSortState,
 } from './components/QuoteUi';
@@ -119,6 +124,44 @@ import {
 import { getQuoteTableSignals } from './utils/quoteTableSignals';
 import { getDefaultTaxPresetForJurisdiction } from './utils/quoteTaxCatalog';
 
+type QuoteOperationalColumnId =
+  | 'number'
+  | 'opportunity'
+  | 'seller'
+  | 'status'
+  | 'readiness'
+  | 'amount'
+  | 'updated'
+  | 'files';
+
+const quoteColumnWidths: Record<QuoteOperationalColumnId, number> = {
+  number: 230,
+  opportunity: 190,
+  seller: 180,
+  status: 165,
+  readiness: 160,
+  amount: 165,
+  updated: 185,
+  files: 135,
+};
+
+const quoteMinimumColumnWidths: Record<QuoteOperationalColumnId, number> = {
+  number: 190,
+  opportunity: 170,
+  seller: 170,
+  status: 150,
+  readiness: 150,
+  amount: 145,
+  updated: 170,
+  files: 120,
+};
+
+const quoteTableColumnIds = Object.keys(quoteColumnWidths) as QuoteOperationalColumnId[];
+const quoteSortableColumnIds: QuoteOperationalColumnId[] = quoteTableColumnIds.filter(
+  (columnId) => columnId !== 'readiness',
+);
+const quoteActionsColumnWidth = 116;
+
 export default function Cotizacion({ learningModeActive = false }: CotizacionProps) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -155,6 +198,23 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
   const [clientFilter, setClientFilter] = useState<FilterValue>('all');
   const [sellerFilter, setSellerFilter] = useState<FilterValue>('all');
   const [sortState, setSortState] = useState<QuoteSortState>({ columnId: 'created', direction: 'desc' });
+  const quoteColumnLabels = useMemo<Record<QuoteOperationalColumnId, string>>(() => ({
+    amount: t.table.columns.amount,
+    files: t.table.columns.files,
+    number: t.table.columns.number,
+    opportunity: t.table.columns.opportunity,
+    readiness: t.table.columns.readiness,
+    seller: t.table.columns.seller,
+    status: t.table.columns.status,
+    updated: t.table.columns.expiration,
+  }), [t]);
+  const { columnWidths, resizeColumn } = usePersistentColumnWidths<QuoteOperationalColumnId>({
+    defaults: quoteColumnWidths,
+    headerLabels: quoteColumnLabels,
+    minWidths: quoteMinimumColumnWidths,
+    sortableColumnIds: quoteSortableColumnIds,
+    storageKey: 'sales-quotes-column-widths-v2',
+  });
   const [form, setForm] = useState<QuoteFormState>(() => ({
     clientMode: 'contact',
     clientId: contacts[0]?.id ?? '',
@@ -299,11 +359,11 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
     const rightValue = getQuoteSortValue(right, sortState.columnId);
     const directionMultiplier = sortState.direction === 'asc' ? 1 : -1;
 
-    if (typeof leftValue === 'number' && typeof rightValue === 'number') {
-      return (leftValue - rightValue) * directionMultiplier;
-    }
+    const result = typeof leftValue === 'number' && typeof rightValue === 'number'
+      ? leftValue - rightValue
+      : quoteSortCollator.compare(String(leftValue), String(rightValue));
 
-    return quoteSortCollator.compare(String(leftValue), String(rightValue)) * directionMultiplier;
+    return (result * directionMultiplier) || quoteSortCollator.compare(left.quoteNumber, right.quoteNumber);
   }), [filteredQuotes, opportunityNameById, products, sortState, t.statusLabels]);
   const {
     currentPage,
@@ -825,10 +885,19 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
     closeAssignmentModal();
   };
 
-  const renderSortableHead = (columnId: QuoteSortColumn, label: string, className?: string) => (
-    <TableHead className={cn('whitespace-normal px-5 py-5', className)}>
-      <QuoteSortableHeader columnId={columnId} label={label} sortState={sortState} onSort={handleSort} />
-    </TableHead>
+  const quoteTableColumns: Array<IndiceTableColumnDefinition<QuoteOperationalColumnId>> = quoteTableColumnIds.map((columnId) => ({
+    id: columnId,
+    label: quoteColumnLabels[columnId],
+    width: columnWidths[columnId],
+    defaultWidth: quoteColumnWidths[columnId],
+    contentMinimumWidth: quoteMinimumColumnWidths[columnId],
+    alignment: columnId === 'amount' || columnId === 'files' ? 'right' : columnId === 'status' || columnId === 'readiness' ? 'center' : 'left',
+    sortable: columnId !== 'readiness',
+    resizeLabel: `${quoteColumnLabels[columnId]}: ajustar ancho`,
+  }));
+  const quoteTableMinimumWidth = quoteTableColumns.reduce(
+    (total, column) => total + column.width,
+    quoteActionsColumnWidth,
   );
 
   return (
@@ -876,22 +945,31 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
         metrics={quoteMetrics}
       /> : null}
 
-      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="overflow-x-auto">
-          <Table className="min-w-[1510px] table-fixed">
-            <TableHeader>
-              <TableRow className="border-slate-200 bg-slate-50 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-900">
-                {renderSortableHead('number', t.table.columns.number, 'w-[230px]')}
-                {renderSortableHead('opportunity', t.table.columns.opportunity, 'w-[190px]')}
-                {renderSortableHead('seller', t.table.columns.seller, 'w-[180px]')}
-                {renderSortableHead('status', t.table.columns.status, 'w-[165px]')}
-                <TableHead className="w-[160px] whitespace-normal px-4 py-5 text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.readiness}</TableHead>
-                {renderSortableHead('amount', t.table.columns.amount, 'w-[165px]')}
-                {renderSortableHead('updated', t.table.columns.expiration, 'w-[185px]')}
-                {renderSortableHead('files', t.table.columns.files, 'w-[135px]')}
-                <TableHead className="w-[100px] whitespace-normal px-3 py-5 text-center text-xs font-medium tracking-normal text-slate-500 dark:text-slate-300">{t.table.columns.actions}</TableHead>
-              </TableRow>
-            </TableHeader>
+      <IndiceTableShell
+        pagination={(
+          <DataTablePagination
+            currentPage={currentPage}
+            itemLabel={t.header.title.toLocaleLowerCase()}
+            onPageChange={onPageChange}
+            onPageSizeChange={onPageSizeChange}
+            pageEnd={pageEnd}
+            pageSize={pageSize}
+            pageSizeOptions={pageSizeOptions}
+            pageStart={pageStart}
+            totalCount={totalCount}
+            totalPages={totalPages}
+          />
+        )}
+      >
+          <IndiceOperationalTable minimumWidth={quoteTableMinimumWidth}>
+            <IndiceTableColGroup columns={quoteTableColumns} actionsWidth={quoteActionsColumnWidth} />
+            <IndiceTableHeaderRow
+              actions={{ label: t.table.columns.actions, width: quoteActionsColumnWidth }}
+              columns={quoteTableColumns}
+              onResize={resizeColumn}
+              onSort={(columnId) => handleSort(columnId as QuoteSortColumn)}
+              sortState={{ columnId: sortState.columnId as QuoteOperationalColumnId, direction: sortState.direction }}
+            />
             <TableBody>
               {sortedQuotes.length === 0 ? (
                 <TableRow>
@@ -1003,31 +1081,18 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
                         ) : null}
                       </div>
                     </TableCell>
-                    <TableCell className="overflow-hidden whitespace-normal px-3 py-5 align-top">
-                      <div className="mx-auto grid w-fit grid-cols-[repeat(2,2.25rem)] gap-1.5 rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                    <TableCell className="overflow-hidden whitespace-normal px-3 py-5 text-right align-top">
+                      <IndiceTableActionGroup>
                         <QuoteAction label={t.actions.view} icon={<Eye className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/15 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/20" onClick={() => setPreviewQuote(quote)} />
                         <QuoteAction label={t.actions.edit} icon={<PencilLine className="h-4 w-4" />} className="border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800" onClick={() => openEditQuoteBuilder(quote)} />
-                      </div>
+                      </IndiceTableActionGroup>
                     </TableCell>
                   </TableRow>
                 );
               })}
             </TableBody>
-          </Table>
-        </div>
-        <DataTablePagination
-          currentPage={currentPage}
-          itemLabel={t.header.title.toLocaleLowerCase()}
-          onPageChange={onPageChange}
-          onPageSizeChange={onPageSizeChange}
-          pageEnd={pageEnd}
-          pageSize={pageSize}
-          pageSizeOptions={pageSizeOptions}
-          pageStart={pageStart}
-          totalCount={totalCount}
-          totalPages={totalPages}
-        />
-      </section>
+          </IndiceOperationalTable>
+      </IndiceTableShell>
 
       <QuoteBuilderModal
         open={isBuilderOpen}

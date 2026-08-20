@@ -120,6 +120,8 @@ export type CreateDigitalContractInput = Omit<DigitalContract, 'id' | 'contractN
   lastUpdated?: string;
 };
 
+export type UpdateDigitalContractInput = Partial<Omit<DigitalContract, 'id' | 'backendId' | 'contractNumber'>>;
+
 export const digitalContractStatuses: DigitalContractStatus[] = [
   'Draft',
   'Internal review',

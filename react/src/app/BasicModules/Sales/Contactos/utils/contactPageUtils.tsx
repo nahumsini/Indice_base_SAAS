@@ -48,7 +48,8 @@ export function sortContacts(contacts: SalesContact[], sortState: ContactSortSta
     const leftValue = getContactSortValue(left, sortState.columnId);
     const rightValue = getContactSortValue(right, sortState.columnId);
     const result = contactSortCollator.compare(leftValue, rightValue);
-    return sortState.direction === 'asc' ? result : -result;
+    const directedResult = sortState.direction === 'asc' ? result : -result;
+    return directedResult || contactSortCollator.compare(left.id, right.id);
   });
 }
 

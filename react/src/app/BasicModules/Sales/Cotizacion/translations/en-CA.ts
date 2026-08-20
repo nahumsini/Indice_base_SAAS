@@ -115,12 +115,12 @@ export const enCA = {
   table: {
     empty: 'No quotes match the current filters.',
     columns: {
-      number: 'Quote / customer',
+      number: 'Quote',
       client: 'Client',
       opportunity: 'Opportunity',
       status: 'Status',
-      readiness: 'Next step',
-      amount: 'Value / margin',
+      readiness: 'Review',
+      amount: 'Value',
       margin: 'Margin',
       created: 'Created',
       expiration: 'Follow-up',

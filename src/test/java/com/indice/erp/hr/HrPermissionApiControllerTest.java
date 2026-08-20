@@ -1,5 +1,6 @@
 package com.indice.erp.hr;
 
+import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.hr.permissions.HrMyPermissionApiController;
 import com.indice.erp.hr.permissions.HrPermissionApiException;
 import com.indice.erp.hr.permissions.HrPermissionApiExceptionHandler;
@@ -50,6 +51,9 @@ class HrPermissionApiControllerTest {
 
     @MockBean
     private HrPermissionSelfDeleteService selfDeleteService;
+
+    @MockBean
+    private SessionAuthService sessionAuthService;
 
     @Test
     void managementListReturnsUnauthorizedWhenSessionIsMissing() throws Exception {

@@ -22,6 +22,7 @@ import {
 } from '../../../../components/ui/dropdown-menu';
 import { TableCell, TableRow } from '../../../../components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../../../../components/ui/tooltip';
+import { IndiceTableActionGroup } from '../../../../components/table/IndiceTableEngine';
 import { cn } from '../../../../components/ui/utils';
 import type { SalesRecordsTranslations } from '../translations';
 import type {
@@ -265,7 +266,7 @@ export function SalesTableRow({
 
       {isVisible('actions') ? (
         <TableCell className={cn(salesCellClassName, 'px-3')}>
-          <div className="mx-auto grid w-fit grid-cols-2 gap-1.5 rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
+          <IndiceTableActionGroup>
             <RowActionButton label={t.common.view} icon={<Eye className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/20 dark:text-[#FFB0AA]" onClick={() => onView(record)} />
             <RowActionButton label={t.table.actions.downloadInvoice} icon={<FileDown className="h-4 w-4" />} className="border-violet-500/25 bg-violet-500/10 text-violet-700 hover:bg-violet-500/15 dark:text-violet-300" onClick={() => onDownloadInvoice(record)} />
             <RowActionButton label={t.table.actions.downloadQuote} icon={<FileDown className="h-4 w-4" />} className="border-emerald-500/25 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-300" disabled={!source?.hasQuoteDocument} onClick={() => onDownloadQuote(record)} />
@@ -287,7 +288,7 @@ export function SalesTableRow({
                 <DropdownMenuItem disabled={isCancelled} className="text-red-700 focus:text-red-700 dark:text-red-300" onSelect={() => onCancelSale(record)}><XCircle className="mr-2 h-4 w-4" />{isCancelled ? t.table.actions.cancelled : t.table.actions.cancelSale}</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
+          </IndiceTableActionGroup>
         </TableCell>
       ) : null}
     </TableRow>

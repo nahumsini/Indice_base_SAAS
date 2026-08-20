@@ -246,6 +246,7 @@ export const enCA = {
   } satisfies Record<OpportunityColumnId, { label: string; description: string }>,
   table: {
     actions: 'Actions',
+    resizeColumn: (column: string) => `Resize ${column} column`,
     empty: 'No opportunities match this search.',
     unlinkedOwner: 'unlinked',
     noLastContact: 'No record',
@@ -639,6 +640,7 @@ export const esMX: ProspectosCopy = {
   },
   table: {
     actions: 'Acciones',
+    resizeColumn: (column: string) => `Redimensionar columna ${column}`,
     empty: 'No hay oportunidades que coincidan con la búsqueda.',
     unlinkedOwner: 'sin vincular',
     noLastContact: 'Sin registro',

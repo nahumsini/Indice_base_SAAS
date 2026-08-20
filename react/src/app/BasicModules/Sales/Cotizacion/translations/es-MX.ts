@@ -117,12 +117,12 @@ export const esMX: QuotesTranslations = {
   table: {
     empty: 'No hay cotizaciones que coincidan con los filtros actuales.',
     columns: {
-      number: 'Cotización / cliente',
+      number: 'Cotización',
       client: 'Cliente',
       opportunity: 'Oportunidad',
       status: 'Estado',
-      readiness: 'Pendiente',
-      amount: 'Valor / margen',
+      readiness: 'Validación',
+      amount: 'Valor',
       margin: 'Margen',
       created: 'Creada',
       expiration: 'Seguimiento',

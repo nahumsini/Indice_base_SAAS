@@ -1,5 +1,6 @@
 package com.indice.erp.hr;
 
+import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.hr.permissions.HrMyPermissionApiController;
 import com.indice.erp.hr.permissions.HrPermissionApiExceptionHandler;
 import com.indice.erp.hr.permissions.HrPermissionAttachmentService;
@@ -44,6 +45,9 @@ class HrPermissionDeleteApiControllerTest {
 
     @MockBean
     private HrPermissionAttachmentService attachmentService;
+
+    @MockBean
+    private SessionAuthService sessionAuthService;
 
     @Test
     void myDeleteReturnsBadRequestWhenRequestIsAlreadyApproved() throws Exception {

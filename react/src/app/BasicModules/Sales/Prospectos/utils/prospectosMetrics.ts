@@ -218,7 +218,7 @@ export function sortOpportunities(
     const rightValue = getOpportunitySortValue(right, sortState.columnId, quotes);
 
     if (leftValue === null && rightValue === null) {
-      return 0;
+      return opportunitySortCollator.compare(left.id, right.id);
     }
     if (leftValue === null) {
       return sortState.direction === 'asc' ? 1 : -1;
@@ -231,7 +231,8 @@ export function sortOpportunities(
       ? leftValue - rightValue
       : opportunitySortCollator.compare(String(leftValue), String(rightValue));
 
-    return sortState.direction === 'asc' ? result : -result;
+    const directedResult = sortState.direction === 'asc' ? result : -result;
+    return directedResult || opportunitySortCollator.compare(left.id, right.id);
   });
 }
 

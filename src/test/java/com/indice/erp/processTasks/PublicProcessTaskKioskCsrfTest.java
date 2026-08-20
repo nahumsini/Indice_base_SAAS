@@ -1,5 +1,6 @@
 package com.indice.erp.processTasks;
 
+import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.kiosk.engine.KioskActionRequest;
 import com.indice.erp.kiosk.engine.KioskActionDispatcher;
@@ -56,6 +57,9 @@ class PublicProcessTaskKioskCsrfTest {
 
     @MockBean
     private KioskEngineFeatureFlags featureFlags;
+
+    @MockBean
+    private SessionAuthService sessionAuthService;
 
     @org.junit.jupiter.api.BeforeEach
     void enableEngine() {

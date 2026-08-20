@@ -29,8 +29,36 @@ export const defaultSalesColumnWidths: Record<SalesColumnId, number> = {
   nextAction: 190,
   commissionAmount: 180,
   movementReference: 210,
-  actions: 165,
+  actions: 198,
 };
+
+export const minimumSalesColumnWidths: Record<SalesColumnId, number> = {
+  saleNumber: 150,
+  customer: 150,
+  seller: 120,
+  total: 120,
+  saleDate: 130,
+  relationship: 140,
+  customerHealth: 160,
+  postSaleStatus: 170,
+  commercialStatus: 160,
+  financeStatus: 180,
+  inventoryStatus: 150,
+  inventoryMovement: 170,
+  commission: 140,
+  commissionStatus: 160,
+  quoteReference: 140,
+  paymentMethod: 150,
+  paymentEvidence: 160,
+  deliveryStatus: 170,
+  nextAction: 160,
+  commissionAmount: 160,
+  movementReference: 170,
+  actions: 198,
+};
+
+export const salesActionsColumnWidth = 198;
+export const salesColumnWidthsStorageKey = 'sales-records-column-widths-v2';
 
 export const sortableSalesColumns = new Set<SalesColumnId>([
   'saleNumber',
@@ -134,6 +162,8 @@ export function sortSalesRecords(
   return [...records].sort((left, right) => {
     const leftValue = getSalesSortValue(left, lifecycleByRecordId[left.id], receivablesByRecordId[left.id], sortState.columnId);
     const rightValue = getSalesSortValue(right, lifecycleByRecordId[right.id], receivablesByRecordId[right.id], sortState.columnId);
-    return compareSalesValues(leftValue, rightValue) * directionFactor;
+    const result = compareSalesValues(leftValue, rightValue);
+    if (result !== 0) return result * directionFactor;
+    return salesSortCollator.compare(left.saleNumber, right.saleNumber);
   });
 }

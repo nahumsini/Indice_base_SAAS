@@ -594,6 +594,30 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
         .catch((error) => handleSyncFailure('create contract', error));
       return createdContract;
     },
+    updateContract: (contractId, patch) => {
+      const currentContract = contracts.find((contract) => contract.id === contractId);
+      const updatedContract = currentContract
+        ? { ...currentContract, ...patch, lastUpdated: getTodayIsoDate() }
+        : undefined;
+
+      setContracts((current) => current.map((contract) => (
+        contract.id === contractId ? updatedContract ?? contract : contract
+      )));
+
+      const backendId = backendIdFrom(currentContract);
+      if (backendId !== undefined && updatedContract) {
+        void salesApi.update('contracts', backendId, toBackendContract(updatedContract, contacts, opportunities, quotes, postSaleCases))
+          .then((savedContract) => {
+            const persistedContract = toFrontendContract(savedContract as Record<string, unknown>);
+            setContracts((current) => current.map((contract) => (
+              contract.id === contractId || contract.backendId === backendId ? persistedContract : contract
+            )));
+          })
+          .catch((error) => handleSyncFailure('update contract', error));
+      } else if (currentContract) {
+        handleSyncFailure('update contract', new Error('Missing backend identifier.'));
+      }
+    },
     updateQuoteStatus: (quoteId, status) => {
       const currentQuote = quotes.find((quote) => quote.id === quoteId);
       setQuotes((current) => current.map((quote) => (

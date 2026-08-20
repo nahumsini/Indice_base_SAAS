@@ -89,6 +89,19 @@ export type CommissionOption = {
   name: string;
 };
 
+export type CommissionCut = {
+  id: number;
+  cutCode: string;
+  periodStart: string;
+  periodEnd: string;
+  status: string;
+  totalAmount: number;
+  commissionCount: number;
+  employeeCount: number;
+  appliedCount: number;
+  currencyTotals: Record<string, number>;
+};
+
 export type CommissionCalculationInput = {
   type: CommissionType;
   value: number;

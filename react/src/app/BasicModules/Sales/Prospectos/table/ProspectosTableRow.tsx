@@ -31,6 +31,7 @@ import { ProspectosQuickActions } from '../components/ProspectosQuickActions';
 import { OpportunityQuoteSignalBadge } from '../components/OpportunityQuoteSignalBadge';
 import type { ProspectosCopy } from '../translations';
 import type { OpportunityColumnId } from '../types/prospectosTypes';
+import { opportunityActionsColumnWidth } from '../utils/prospectosStatus';
 import {
   getOpportunityStatusForStage,
   getOpportunitySchedule,
@@ -342,8 +343,8 @@ export function ProspectosTableRow({
         );
       })}
       <TableCell
-        className="whitespace-normal px-4 py-5 align-top"
-        style={{ width: '240px', minWidth: '240px', maxWidth: '240px' }}
+        className="whitespace-normal px-4 py-5 text-right align-top"
+        style={{ width: opportunityActionsColumnWidth, minWidth: opportunityActionsColumnWidth, maxWidth: opportunityActionsColumnWidth }}
       >
         <ProspectosQuickActions
           copy={copy.quickActions}

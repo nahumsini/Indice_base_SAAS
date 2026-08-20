@@ -1,5 +1,6 @@
 package com.indice.erp.finance.payablekiosk;
 
+import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.finance.FinanceApiExceptionHandler;
 import com.indice.erp.kiosk.engine.KioskActionDispatcher;
 import com.indice.erp.kiosk.engine.KioskEngineFeatureFlags;
@@ -51,6 +52,9 @@ class PublicPayableKioskRateLimitTest {
 
     @MockBean
     private KioskEngineFeatureFlags flags;
+
+    @MockBean
+    private SessionAuthService sessionAuthService;
 
     @BeforeEach
     void enablePayablesEngine() {
