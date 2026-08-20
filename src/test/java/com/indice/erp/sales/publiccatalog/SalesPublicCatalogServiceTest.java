@@ -11,6 +11,8 @@ import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.RequestItem;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.RequestItemResponse;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.RequestResponse;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.SaveRequest;
+import com.indice.erp.storage.ObjectStorageProperties;
+import com.indice.erp.storage.ObjectStorageService;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -44,6 +46,8 @@ class SalesPublicCatalogServiceTest {
     private SalesPublicCatalogRepository repository;
     @Mock
     private KioskRegistryService registry;
+    @Mock
+    private ObjectStorageService objectStorageService;
 
     private SalesPublicCatalogService service;
     private SalesPublicCatalogLinkCodec linkCodec;
@@ -234,6 +238,41 @@ class SalesPublicCatalogServiceTest {
     }
 
     @Test
+    void publicBootstrapPublishesTheFullImageGalleryAndSignsStoredObjects() {
+        var catalog = catalog(true);
+        var storage = new ObjectStorageProperties();
+        storage.getMinio().setBucketSalesDocuments("sales-images");
+        storage.getMinio().setPresignExpirySeconds(321);
+        var storageAwareService = new SalesPublicCatalogService(
+            repository, registry, new ObjectMapper(), linkCodec,
+            objectStorageService, storage, Clock.fixed(NOW, ZoneOffset.UTC));
+        given(repository.findById(catalog.id())).willReturn(Optional.of(catalog));
+        given(repository.publicItems(catalog)).willReturn(List.of(product()));
+        given(repository.publicImages(catalog.companyId(), List.of(91L))).willReturn(Map.of(
+            91L, List.of(
+                new SalesPublicCatalogRepository.PublicImageSource(
+                    "https://cdn.example.test/front.jpg", "Fachada", null),
+                new SalesPublicCatalogRepository.PublicImageSource(
+                    null, "Interior", "products/91/interior.jpg"))));
+        given(objectStorageService.isEnabled()).willReturn(true);
+        given(objectStorageService.presignDownload(
+            "sales-images", "products/91/interior.jpg", 321))
+            .willReturn("https://storage.example.test/signed-interior.jpg");
+
+        var item = storageAwareService.bootstrap(catalog.id()).items().getFirst();
+
+        assertThat(item.thumbnailUrl()).isEqualTo("https://cdn.example.test/front.jpg");
+        assertThat(item.thumbnailAlt()).isEqualTo("Fachada");
+        assertThat(item.images()).containsExactly(
+            new SalesPublicCatalogDtos.PublicImage(
+                "https://cdn.example.test/front.jpg", "Fachada"),
+            new SalesPublicCatalogDtos.PublicImage(
+                "https://storage.example.test/signed-interior.jpg", "Interior"));
+        then(objectStorageService).should().presignDownload(
+            "sales-images", "products/91/interior.jpg", 321);
+    }
+
+    @Test
     void rejectsCrossTenantAndCrossScopeEngineDefinitionsBeforeServingOrAcceptingData() {
         var catalog = catalog(true);
         given(repository.findById(catalog.id())).willReturn(Optional.of(catalog));
@@ -345,7 +384,7 @@ class SalesPublicCatalogServiceTest {
     private PublicItem product() {
         return new PublicItem(
             91L, "Producto seguro", "SKU-91", "Product", "General", null, null, null,
-            new BigDecimal("125.00"), new BigDecimal("100.00"), new BigDecimal("2"),
+            List.of(), new BigDecimal("125.00"), new BigDecimal("100.00"), new BigDecimal("2"),
             "MXN", true, "inStock", true);
     }
 

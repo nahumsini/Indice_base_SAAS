@@ -5,6 +5,11 @@ export type PublicCatalogAppliedPriceType = 'public' | 'wholesale';
 export type PublicInventoryStatus = 'inStock' | 'lowStock' | 'madeToOrder' | 'noInventoryTracking' | 'serviceAvailability' | 'askAvailability';
 export type PublicCatalogStatus = 'draft' | 'active' | 'disabled' | 'revoked' | 'expired';
 
+export type PublicCatalogImage = {
+  url: string;
+  alt?: string;
+};
+
 export type PublicCatalogConfig = {
   id?: string;
   backendId?: number;
@@ -48,6 +53,7 @@ export type PublicCatalogItem = {
   description?: string;
   thumbnailUrl?: string;
   thumbnailAlt?: string;
+  images?: PublicCatalogImage[];
   publicPrice?: number;
   wholesalePrice?: number;
   wholesaleMinQuantity?: number;

@@ -1,9 +1,11 @@
-import { Image, Plus, ShoppingCart } from 'lucide-react';
+import { Plus, ShoppingCart } from 'lucide-react';
 import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
 import type { ProductsTranslations } from '../translations';
 import { formatProductCurrency } from '../utils/productFormatters';
 import type { PublicCatalogConfig, PublicCatalogItem } from './types/publicCatalogTypes';
+import { PublicCatalogExpandableDescription } from './PublicCatalogExpandableDescription';
+import { PublicCatalogImageCarousel } from './PublicCatalogImageCarousel';
 
 export function PublicCatalogMobileCard({
   item,
@@ -20,14 +22,7 @@ export function PublicCatalogMobileCard({
     <article className="w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition active:scale-[.995] dark:border-slate-800 dark:bg-slate-900">
       <div className="flex min-w-0 gap-3 p-3">
         <div className="h-28 w-[6.5rem] shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-950">
-          {item.thumbnailUrl ? (
-            <img src={item.thumbnailUrl} alt={item.thumbnailAlt || item.name} className="h-full w-full object-cover" loading="lazy" />
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-1.5 px-2 text-center text-xs font-medium text-slate-400">
-              <Image className="h-5 w-5" />
-              <span className="line-clamp-2">{item.name}</span>
-            </div>
-          )}
+          <PublicCatalogImageCarousel item={item} t={t} compact />
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -72,9 +67,12 @@ export function PublicCatalogMobileCard({
       </div>
 
       {item.description ? (
-        <p className="line-clamp-2 border-t border-slate-100 px-3 py-2 text-xs font-medium leading-5 text-slate-500 dark:border-slate-800 dark:text-slate-400">
-          {item.description}
-        </p>
+        <PublicCatalogExpandableDescription
+          description={item.description}
+          t={t}
+          compact
+          className="border-t border-slate-100 px-3 py-2 dark:border-slate-800"
+        />
       ) : null}
     </article>
   );

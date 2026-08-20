@@ -80,6 +80,9 @@ public final class SalesPublicCatalogDtos {
     public record LinkResponse(String publicUrl, String publicTokenHint, long version) {
     }
 
+    public record PublicImage(String url, String alt) {
+    }
+
     public record PublicItem(
         Long id,
         String name,
@@ -89,6 +92,7 @@ public final class SalesPublicCatalogDtos {
         String description,
         String thumbnailUrl,
         String thumbnailAlt,
+        List<PublicImage> images,
         BigDecimal publicPrice,
         BigDecimal wholesalePrice,
         BigDecimal wholesaleMinQuantity,

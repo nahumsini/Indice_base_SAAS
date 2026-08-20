@@ -61,6 +61,10 @@ export type PublicCatalogBootstrap = {
     description?: string | null;
     thumbnailUrl?: string | null;
     thumbnailAlt?: string | null;
+    images?: Array<{
+      url: string;
+      alt?: string | null;
+    }>;
     publicPrice?: number | string | null;
     wholesalePrice?: number | string | null;
     wholesaleMinQuantity?: number | string | null;

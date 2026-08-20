@@ -12,6 +12,7 @@ import com.indice.erp.sales.publiccatalog.SalesPublicCatalogAdminAccess.AdminCon
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.AdminResponse;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.BootstrapResponse;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.LinkResponse;
+import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.PublicImage;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.PublicItem;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.PurchaseRequest;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.RequestItemResponse;
@@ -21,6 +22,8 @@ import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.ReviewRequest;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.SaveRequest;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.StatusRequest;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.SubmissionResponse;
+import com.indice.erp.storage.ObjectStorageProperties;
+import com.indice.erp.storage.ObjectStorageService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.Normalizer;
@@ -53,6 +56,8 @@ public class SalesPublicCatalogService {
     private final KioskRegistryService registry;
     private final ObjectMapper objectMapper;
     private final SalesPublicCatalogLinkCodec linkCodec;
+    private final ObjectStorageService objectStorageService;
+    private final ObjectStorageProperties storageProperties;
     private final Clock clock;
     @Autowired
     private DiscountRuleService discountRules;
@@ -62,8 +67,11 @@ public class SalesPublicCatalogService {
             SalesPublicCatalogRepository repository,
             KioskRegistryService registry,
             ObjectMapper objectMapper,
-            SalesPublicCatalogLinkCodec linkCodec) {
-        this(repository, registry, objectMapper, linkCodec, Clock.systemUTC());
+            SalesPublicCatalogLinkCodec linkCodec,
+            ObjectStorageService objectStorageService,
+            ObjectStorageProperties storageProperties) {
+        this(repository, registry, objectMapper, linkCodec, objectStorageService, storageProperties,
+            Clock.systemUTC());
     }
 
     SalesPublicCatalogService(
@@ -72,10 +80,23 @@ public class SalesPublicCatalogService {
             ObjectMapper objectMapper,
             SalesPublicCatalogLinkCodec linkCodec,
             Clock clock) {
+        this(repository, registry, objectMapper, linkCodec, null, null, clock);
+    }
+
+    SalesPublicCatalogService(
+            SalesPublicCatalogRepository repository,
+            KioskRegistryService registry,
+            ObjectMapper objectMapper,
+            SalesPublicCatalogLinkCodec linkCodec,
+            ObjectStorageService objectStorageService,
+            ObjectStorageProperties storageProperties,
+            Clock clock) {
         this.repository = repository;
         this.registry = registry;
         this.objectMapper = objectMapper;
         this.linkCodec = linkCodec;
+        this.objectStorageService = objectStorageService;
+        this.storageProperties = storageProperties;
         this.clock = clock;
     }
 
@@ -233,7 +254,13 @@ public class SalesPublicCatalogService {
     }
 
     private BootstrapResponse bootstrap(SalesPublicCatalogRepository.CatalogRecord catalog) {
-        var items = repository.publicItems(catalog).stream().map(item -> publicView(catalog, item)).toList();
+        var sourceItems = repository.publicItems(catalog);
+        var imagesByProduct = repository.publicImages(
+            catalog.companyId(), sourceItems.stream().map(PublicItem::id).toList());
+        var items = sourceItems.stream()
+            .map(item -> publicView(catalog, item,
+                imagesByProduct == null ? List.of() : imagesByProduct.getOrDefault(item.id(), List.of())))
+            .toList();
         return new BootstrapResponse(
             catalog.code(), catalog.companyName(), catalog.unitName(), catalog.businessName(),
             catalog.title(), catalog.description(), catalog.coverImageUrl(),
@@ -457,20 +484,77 @@ public class SalesPublicCatalogService {
             row.version(), row.createdAt(), row.updatedAt());
     }
 
-    private PublicItem publicView(SalesPublicCatalogRepository.CatalogRecord catalog, PublicItem item) {
+    private PublicItem publicView(
+            SalesPublicCatalogRepository.CatalogRecord catalog,
+            PublicItem item,
+            List<SalesPublicCatalogRepository.PublicImageSource> imageSources) {
         var wholesaleVisible = catalog.showPrices() && catalog.showWholesalePrices()
             && validWholesale(item);
         var stockVisible = catalog.showStockStatus();
+        var images = publicImages(item, imageSources);
+        var primaryImage = images.isEmpty() ? null : images.get(0);
         return new PublicItem(
             item.id(), item.name(), item.sku(),
             catalog.showItemTypeBadges() ? item.type() : null,
             catalog.showCategories() ? item.category() : null,
             item.description(),
-            item.thumbnailUrl(), item.thumbnailAlt(), catalog.showPrices() ? item.publicPrice() : null,
+            primaryImage == null ? item.thumbnailUrl() : primaryImage.url(),
+            primaryImage == null ? item.thumbnailAlt() : primaryImage.alt(), images,
+            catalog.showPrices() ? item.publicPrice() : null,
             wholesaleVisible ? item.wholesalePrice() : null,
             wholesaleVisible ? item.wholesaleMinQuantity() : null,
             item.currency(), stockVisible && item.usesInventory(),
             stockVisible ? item.publicInventoryStatus() : null, item.readyForSales());
+    }
+
+    private List<PublicImage> publicImages(
+            PublicItem item,
+            List<SalesPublicCatalogRepository.PublicImageSource> imageSources) {
+        var images = new ArrayList<PublicImage>();
+        var seen = new java.util.LinkedHashSet<String>();
+        if (imageSources != null) {
+            for (var source : imageSources) {
+                var url = publicImageUrl(source);
+                if (url == null || !seen.add(url)) continue;
+                images.add(new PublicImage(url,
+                    firstNonBlank(source.alt(), item.thumbnailAlt(), item.name())));
+            }
+        }
+        var fallback = safePublicUrl(item.thumbnailUrl());
+        if (fallback != null && seen.add(fallback)) {
+            images.add(new PublicImage(fallback,
+                firstNonBlank(item.thumbnailAlt(), item.name())));
+        }
+        return List.copyOf(images);
+    }
+
+    private String publicImageUrl(SalesPublicCatalogRepository.PublicImageSource source) {
+        if (source == null) return null;
+        if (source.objectKey() != null && objectStorageService != null && storageProperties != null
+                && objectStorageService.isEnabled()) {
+            try {
+                return safePublicUrl(objectStorageService.presignDownload(
+                    storageProperties.getMinio().getBucketSalesDocuments(),
+                    source.objectKey(), storageProperties.getMinio().getPresignExpirySeconds()));
+            } catch (RuntimeException ignored) {
+                // A stale file must not hide other valid product images.
+            }
+        }
+        return safePublicUrl(source.url());
+    }
+
+    private String safePublicUrl(String value) {
+        if (value == null || value.isBlank()) return null;
+        var normalized = value.trim();
+        var lower = normalized.toLowerCase(Locale.ROOT);
+        return lower.startsWith("data:") || lower.startsWith("blob:") ? null : normalized;
+    }
+
+    private String firstNonBlank(String... values) {
+        for (var value : values) {
+            if (value != null && !value.isBlank()) return value.trim();
+        }
+        return null;
     }
 
     private BigDecimal price(

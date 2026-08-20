@@ -1,5 +1,7 @@
 package com.indice.erp.sales.publiccatalog;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.PublicItem;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.RequestItemResponse;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.RequestResponse;
@@ -12,6 +14,7 @@ import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
@@ -19,6 +22,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class SalesPublicCatalogRepository {
 
+    private static final ObjectMapper IMAGE_METADATA_MAPPER = new ObjectMapper();
     private final JdbcTemplate jdbcTemplate;
 
     public SalesPublicCatalogRepository(JdbcTemplate jdbcTemplate) {
@@ -249,6 +253,110 @@ public class SalesPublicCatalogRepository {
             ORDER BY selected.sort_order, product.name
             """, this::mapPublicItem, catalog.unitId(), catalog.businessId(),
             catalog.companyId(), catalog.id(), catalog.companyId());
+    }
+
+    public Map<Long, List<PublicImageSource>> publicImages(long companyId, List<Long> productIds) {
+        var uniqueProductIds = productIds == null
+            ? List.<Long>of()
+            : productIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        if (uniqueProductIds.isEmpty()) return Map.of();
+
+        var images = new LinkedHashMap<Long, List<PublicImageSource>>();
+        uniqueProductIds.forEach(id -> images.put(id, new java.util.ArrayList<>()));
+        var seen = new LinkedHashMap<Long, Set<String>>();
+        uniqueProductIds.forEach(id -> seen.put(id, new java.util.LinkedHashSet<>()));
+        var placeholders = String.join(",", java.util.Collections.nCopies(uniqueProductIds.size(), "?"));
+        var params = new java.util.ArrayList<Object>();
+        params.add(companyId);
+        params.addAll(uniqueProductIds);
+
+        var productsSql = """
+            SELECT id, name, metadata_json
+            FROM sales_products
+            WHERE company_id = ? AND deleted_at IS NULL AND id IN (%s)
+            """.formatted(placeholders);
+        jdbcTemplate.query(productsSql, (rs, rowNum) -> {
+            appendMetadataImages(
+                images.get(rs.getLong("id")), seen.get(rs.getLong("id")),
+                rs.getString("metadata_json"), rs.getString("name"));
+            return rs.getLong("id");
+        },
+            params.toArray());
+
+        var filesSql = """
+            SELECT entity_id AS product_id, object_key, url,
+                   JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.alt')) AS image_alt
+            FROM sales_files
+            WHERE company_id = ? AND entity_type = 'product' AND file_kind = 'product_image'
+              AND deleted_at IS NULL AND entity_id IN (%s)
+            ORDER BY created_at, id
+            """.formatted(placeholders);
+        jdbcTemplate.query(filesSql, (rs, rowNum) -> {
+            appendImage(
+                images.get(rs.getLong("product_id")), seen.get(rs.getLong("product_id")),
+                rs.getString("url"), rs.getString("image_alt"), rs.getString("object_key"));
+            return rs.getLong("product_id");
+        },
+            params.toArray());
+        return images;
+    }
+
+    private void appendMetadataImages(
+            List<PublicImageSource> images,
+            Set<String> seen,
+            String metadataJson,
+            String productName) {
+        if (images == null || metadataJson == null || metadataJson.isBlank()) return;
+        try {
+            var metadata = IMAGE_METADATA_MAPPER.readTree(metadataJson);
+            appendImage(images, seen, text(metadata, "imageUrl"),
+                firstNonBlank(text(metadata, "imageAlt"), productName), null);
+            var gallery = metadata.path("gallery");
+            if (gallery.isArray()) {
+                for (var image : gallery) {
+                    if (!image.isObject()) continue;
+                    appendImage(images, seen, text(image, "url"),
+                        firstNonBlank(text(image, "alt"), text(metadata, "imageAlt"), productName),
+                        firstNonBlank(text(image, "objectKey"), text(image, "object_key")));
+                }
+            }
+        } catch (Exception ignored) {
+            // Invalid legacy metadata must not make a public catalog unavailable.
+        }
+    }
+
+    private void appendImage(
+            List<PublicImageSource> images,
+            Set<String> seen,
+            String url,
+            String alt,
+            String objectKey) {
+        if (images == null || seen == null) return;
+        var normalizedUrl = trim(url);
+        var normalizedObjectKey = trim(objectKey);
+        if (normalizedObjectKey == null && !isPublicImageUrl(normalizedUrl)) return;
+        var identity = normalizedObjectKey == null ? "url:" + normalizedUrl : "object:" + normalizedObjectKey;
+        if (!seen.add(identity)) return;
+        images.add(new PublicImageSource(normalizedUrl, trim(alt), normalizedObjectKey));
+    }
+
+    private static boolean isPublicImageUrl(String value) {
+        if (value == null) return false;
+        var normalized = value.toLowerCase(java.util.Locale.ROOT);
+        return !normalized.startsWith("data:") && !normalized.startsWith("blob:");
+    }
+
+    private static String text(JsonNode node, String field) {
+        var value = node == null ? null : node.get(field);
+        return value == null || value.isNull() || !value.isValueNode() ? null : trim(value.asText());
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (var value : values) {
+            var normalized = trim(value);
+            if (normalized != null) return normalized;
+        }
+        return null;
     }
 
     public long insertRequest(
@@ -485,7 +593,7 @@ public class SalesPublicCatalogRepository {
         return new PublicItem(
             rs.getLong("id"), rs.getString("name"), rs.getString("sku"), type,
             label(rs.getString("category")), rs.getString("description"), rs.getString("image_url"),
-            rs.getString("image_alt"), rs.getBigDecimal("price"), rs.getBigDecimal("wholesale_price"),
+            rs.getString("image_alt"), List.of(), rs.getBigDecimal("price"), rs.getBigDecimal("wholesale_price"),
             rs.getBigDecimal("wholesale_min_quantity"), rs.getString("currency"), inventory,
             status, true);
     }
@@ -564,5 +672,8 @@ public class SalesPublicCatalogRepository {
     }
 
     public record RequestScope(Long unitId, Long businessId) {
+    }
+
+    public record PublicImageSource(String url, String alt, String objectKey) {
     }
 }

@@ -14,6 +14,10 @@ import {
 import { runTaskCompletionWithBestEffortEvidence } from '../src/app/BasicModules/ProcessesTasks/Kiosk/publicTaskKioskEvidence.ts';
 import { cartLinesFromPreticket, resolvePreticketProductRequests } from '../src/app/BasicModules/PointOfSale/Sale/utils/preticketQueuePolicy.ts';
 import { applyPublicCatalogPriceVisibility } from '../src/app/BasicModules/Sales/Productos/publicCatalog/utils/publicCatalogVisibility.ts';
+import {
+  publicCatalogDescriptionCanExpand,
+  publicCatalogImages,
+} from '../src/app/BasicModules/Sales/Productos/publicCatalog/utils/publicCatalogPresentation.ts';
 
 function memorySessionStorage() {
   const values = new Map();
@@ -151,6 +155,35 @@ test('public catalog removes every forbidden price field before rendering', () =
   assert.equal(retailOnly.publicPrice, 125);
   assert.equal(retailOnly.wholesalePrice, undefined);
   assert.equal(retailOnly.wholesaleMinQuantity, undefined);
+});
+
+test('public catalog presents a deduplicated image gallery with a thumbnail fallback', () => {
+  const item = {
+    id: 'product-1',
+    name: 'Habitación Bellamar',
+    type: 'service',
+    images: [
+      { url: ' https://cdn.example.test/front.jpg ', alt: 'Frente' },
+      { url: 'https://cdn.example.test/front.jpg', alt: 'Duplicada' },
+      { url: 'https://cdn.example.test/interior.jpg' },
+    ],
+    thumbnailUrl: 'https://cdn.example.test/legacy.jpg',
+  };
+
+  assert.deepEqual(publicCatalogImages(item), [
+    { url: 'https://cdn.example.test/front.jpg', alt: 'Frente' },
+    { url: 'https://cdn.example.test/interior.jpg', alt: 'Habitación Bellamar' },
+  ]);
+  assert.deepEqual(publicCatalogImages({
+    ...item,
+    images: [],
+  }), [{ url: 'https://cdn.example.test/legacy.jpg', alt: 'Habitación Bellamar' }]);
+});
+
+test('public catalog only offers read more for descriptions that exceed the card limit', () => {
+  assert.equal(publicCatalogDescriptionCanExpand('Descripción breve.'), false);
+  assert.equal(publicCatalogDescriptionCanExpand('x'.repeat(111)), true);
+  assert.equal(publicCatalogDescriptionCanExpand('x'.repeat(86), true), true);
 });
 
 test('pre-ticket product resolution is all-or-nothing', () => {

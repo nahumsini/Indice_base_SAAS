@@ -47,6 +47,9 @@ const itemsFromBootstrap = (bootstrap: PublicCatalogBootstrap): PublicCatalogIte
   description: item.description ?? undefined,
   thumbnailUrl: item.thumbnailUrl ?? undefined,
   thumbnailAlt: item.thumbnailAlt ?? undefined,
+  images: item.images
+    ?.filter((image) => Boolean(image.url))
+    .map((image) => ({ url: image.url, alt: image.alt ?? item.name })),
   publicPrice: item.publicPrice == null ? undefined : numberValue(item.publicPrice),
   wholesalePrice: item.wholesalePrice == null ? undefined : numberValue(item.wholesalePrice),
   wholesaleMinQuantity: item.wholesaleMinQuantity == null ? undefined : numberValue(item.wholesaleMinQuantity),

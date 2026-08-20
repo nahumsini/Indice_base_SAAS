@@ -45,6 +45,7 @@ export function adaptProductToPublicCatalogItem(product: SalesCatalogItem): Publ
     description: product.description,
     thumbnailUrl: mainImage?.url,
     thumbnailAlt: mainImage?.alt ?? product.imageAlt,
+    images: gallery.map((image) => ({ url: image.url, alt: image.alt ?? product.name })),
     publicPrice: product.price,
     wholesalePrice: product.packaging?.wholesalePrice,
     wholesaleMinQuantity: product.packaging?.wholesaleMinimumQuantity,
