@@ -59,8 +59,8 @@ class ExecutiveKpiDomainServiceTest {
 
         when(repository.loadProcesses(scope)).thenReturn(new ExecutiveKpiDomainRepository.ProcessSnapshot(10, 8, 1, 2, 1, 82, 0, 0, 0, 0, 0));
         when(repository.loadProcesses(previous)).thenReturn(new ExecutiveKpiDomainRepository.ProcessSnapshot(8, 4, 2, 1, 0, 60, 0, 0, 0, 0, 0));
-        when(repository.loadExpenses(scope)).thenReturn(new ExecutiveKpiDomainRepository.ExpenseSnapshot(4, 1, 2, 1, 1, 0, 0, 0, 0, 0));
-        when(repository.loadExpenses(previous)).thenReturn(new ExecutiveKpiDomainRepository.ExpenseSnapshot(3, 0, 1, 0, 0, 0, 0, 0, 0, 0));
+        when(repository.loadExpenses(scope)).thenReturn(new ExecutiveKpiDomainRepository.ExpenseSnapshot(4, 1, 2, 1, 1, 0, 0, 0, 0, 0, 0));
+        when(repository.loadExpenses(previous)).thenReturn(new ExecutiveKpiDomainRepository.ExpenseSnapshot(3, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0));
         when(repository.loadPettyCash(scope)).thenReturn(new ExecutiveKpiDomainRepository.PettyCashSnapshot(2, 1, 4, 2, 1, 0, 0, 0, 0));
         when(repository.loadInventory(scope)).thenReturn(new ExecutiveKpiDomainRepository.InventorySnapshot(20, 20, 2, 3, 70, 30, 12, 1, 2, 0, 0));
         when(repository.loadInventory(previous)).thenReturn(new ExecutiveKpiDomainRepository.InventorySnapshot(20, 20, 1, 2, 75, 25, 8, 0, 1, 0, 0));
@@ -105,6 +105,26 @@ class ExecutiveKpiDomainServiceTest {
     }
 
     @Test
+    void doesNotPublishZeroBudgetUsageWhenAllExecutedExpensesAreUnassigned() {
+        when(repository.loadExpenses(scope)).thenReturn(
+                new ExecutiveKpiDomainRepository.ExpenseSnapshot(2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2));
+        when(repository.loadBudgetValue(scope, "planned_amount")).thenReturn(List.of(
+                new KpiMoneyAmount(new BigDecimal("10000.00"), "MXN")));
+        when(repository.loadBudgetValue(scope, "actual_expense_amount")).thenReturn(List.of(
+                new KpiMoneyAmount(BigDecimal.ZERO, "MXN")));
+
+        var result = service.build(scope);
+        var expenseDomain = result.items().stream()
+                .filter(domain -> domain.id().equals("expenses"))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(metric(result, "expenses", "budgetUsage").available()).isFalse();
+        assertThat(expenseDomain.dataQuality().issues())
+                .anyMatch(issue -> issue.contains("sin una línea de presupuesto activa"));
+    }
+
+    @Test
     void reportsPartialCurrencyCoverageInsteadOfSilentlyAddingUnknownCurrencies() {
         when(repository.loadSalesValue(scope)).thenReturn(List.of(
                 new KpiMoneyAmount(new BigDecimal("100.00"), "USD"),
@@ -137,6 +157,27 @@ class ExecutiveKpiDomainServiceTest {
         assertThat(salesDomain.dataQuality().decisionReady()).isFalse();
         assertThat(salesDomain.dataQuality().issues()).anyMatch(issue -> issue.contains("importes negativos"));
         assertThat(result.dataQuality().decisionReady()).isFalse();
+    }
+
+    @Test
+    void keepsPeriodCompletionAvailableWhenOnlyAnUndatedOpenTaskAffectsTheBacklog() {
+        when(repository.loadProcesses(scope)).thenReturn(
+                new ExecutiveKpiDomainRepository.ProcessSnapshot(10, 8, 1, 2, 1, 82, 1, 0, 0, 0, 0));
+        when(repository.loadSalesValue(scope)).thenReturn(List.of());
+        when(repository.loadSalesValue(previous)).thenReturn(List.of());
+
+        var result = service.build(scope);
+        var processDomain = result.items().stream()
+                .filter(domain -> domain.id().equals("processTasks"))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(metric(result, "processTasks", "completionRate").available()).isTrue();
+        assertThat(metric(result, "processTasks", "completionRate").value()).isEqualByComparingTo("80.00");
+        assertThat(metric(result, "processTasks", "averageCompletion").available()).isTrue();
+        assertThat(metric(result, "processTasks", "overdueTasks").available()).isFalse();
+        assertThat(processDomain.dataQuality().decisionReady()).isFalse();
+        assertThat(processDomain.dataQuality().issues()).anyMatch(issue -> issue.contains("sin fecha"));
     }
 
     @Test

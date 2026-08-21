@@ -145,8 +145,8 @@ public class ExecutiveKpiDomainService {
         var completion = percent(current.closedTasks(), current.totalTasks());
         var previousCompletion = percent(previous.closedTasks(), previous.totalTasks());
         var overdueRate = percent(current.overdueTasks(), Math.max(1, current.totalTasks()));
-        var currentReliable = processPeriodReliable(current);
-        var previousReliable = processPeriodReliable(previous);
+        var currentReliable = processExecutionPeriodReliable(current);
+        var previousReliable = processExecutionPeriodReliable(previous);
         var completionAvailable = current.totalTasks() > 0 && currentReliable;
         var previousCompletionAvailable = previous.totalTasks() > 0 && previousReliable;
         var backlogAvailable = current.missingScheduleDates() == 0
@@ -178,9 +178,11 @@ public class ExecutiveKpiDomainService {
         return domain("processTasks", "Tareas y procesos", metrics, signals, quality);
     }
 
-    private boolean processPeriodReliable(ExecutiveKpiDomainRepository.ProcessSnapshot snapshot) {
-        return snapshot.missingScheduleDates() == 0
-                && snapshot.invalidCompletionRows() == 0
+    private boolean processExecutionPeriodReliable(ExecutiveKpiDomainRepository.ProcessSnapshot snapshot) {
+        // An open task without a date cannot be classified as overdue, but it is not part of the
+        // dated population used by completion and average-progress KPIs. Keep the quality warning
+        // without hiding the valid period measurement.
+        return snapshot.invalidCompletionRows() == 0
                 && snapshot.completedWithoutTimestamp() == 0
                 && snapshot.cancelledWithoutTimestamp() == 0
                 && snapshot.historicalMutableRows() == 0;
@@ -200,8 +202,10 @@ public class ExecutiveKpiDomainService {
         var actual = aggregate.apply(repository.loadBudgetValue(scope, "actual_expense_amount"));
         var budgetQuality = repository.loadBudgetQuality(scope);
         var budgetReliable = budgetQuality.invalidAmountRows() == 0 && budgetQuality.invalidCurrencyRows() == 0;
+        var budgetCoverageMissing = currentSnapshot.expenseCount() > 0
+                && currentSnapshot.expensesOutsideActiveBudget() == currentSnapshot.expenseCount();
         var budgetAvailable = value(planned).compareTo(BigDecimal.ZERO) > 0
-                && budgetReliable && !planned.partial() && !actual.partial();
+                && budgetReliable && !budgetCoverageMissing && !planned.partial() && !actual.partial();
         var budgetUsage = budgetAvailable ? percent(value(actual), value(planned)) : 0;
 
         var issues = new ArrayList<String>();
@@ -210,11 +214,14 @@ public class ExecutiveKpiDomainService {
         addIssue(issues, currentSnapshot.payableWithoutDueDate(), "cuentas por pagar sin fecha de vencimiento");
         addIssue(issues, currentSnapshot.invalidPeriodCurrencyRows(), "gastos del periodo con código de moneda inválido");
         addIssue(issues, currentSnapshot.invalidPayableCurrencyRows(), "cuentas por pagar con código de moneda inválido");
+        addIssue(issues, currentSnapshot.expensesOutsideActiveBudget(),
+                "gastos ejecutados del periodo sin una línea de presupuesto activa");
         addIssue(issues, budgetQuality.invalidAmountRows(), "líneas presupuestales con importes negativos");
         addIssue(issues, budgetQuality.invalidCurrencyRows(), "líneas presupuestales con código de moneda inválido");
         var invalidRecords = currentSnapshot.invalidPeriodAmountRows() + currentSnapshot.invalidPayableAmountRows()
                 + currentSnapshot.payableWithoutDueDate() + currentSnapshot.invalidPeriodCurrencyRows()
-                + currentSnapshot.invalidPayableCurrencyRows() + budgetQuality.invalidAmountRows()
+                + currentSnapshot.invalidPayableCurrencyRows() + currentSnapshot.expensesOutsideActiveBudget()
+                + budgetQuality.invalidAmountRows()
                 + budgetQuality.invalidCurrencyRows();
         var quality = quality(invalidRecords, issues);
         var periodReliable = currentSnapshot.invalidPeriodAmountRows() == 0
@@ -235,10 +242,10 @@ public class ExecutiveKpiDomainService {
                 current("budgetUsage", "Presupuesto consumido", budgetUsage, "percent", "down",
                         budgetAvailable ? budgetStatus(budgetUsage) : "watch", budgetAvailable,
                         planned.partial() || actual.partial(), excluded(planned, actual), BASIS_CURRENT_SNAPSHOT,
-                        "Gasto real acumulado de líneas activas sobre presupuesto activo vigente."),
+                        "Gasto ejecutado vinculado a líneas activas sobre presupuesto activo vigente; no mezcla gastos sin asignación."),
                 currentMoney("payables", "Cuentas por pagar", payables, "down",
                         value(payables).signum() > 0 ? "watch" : "healthy", payablesReliable, BASIS_CURRENT_SNAPSHOT,
-                        "Saldo actual de gastos aprobados o parcialmente pagados, sin limitarlo por fecha de origen."),
+                        "Saldo actual no pagado, independientemente de la etapa operativa; excluye registros rechazados o cancelados."),
                 currentMoney("overduePayables", "Pagos vencidos", overdue, "down",
                         value(overdue).signum() > 0 ? "critical" : "healthy", overdueReliable, BASIS_CURRENT_SNAPSHOT,
                         "Saldo actual abierto cuya fecha de pago ya venció."));

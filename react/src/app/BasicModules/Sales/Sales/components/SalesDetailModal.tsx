@@ -16,9 +16,8 @@ import { getSalesOperationalContext } from '../data/salesOperationalContext';
 import type { SalesRecordsTranslations } from '../translations';
 import type { CommissionRecord } from '../types/commissions';
 import type { SaleLifecycleSignals, SaleLine, SaleRecord, SaleRecordDraft, SalesBusinessOption, SalesCurrentSeller } from '../types/salesTypes';
-import { formatCommissionType } from '../utils/commissionRules';
 import { getSalesWarehouseScope, isSalesWarehouseReady, warehouseMatchesSaleScope } from '../utils/salesWarehouseScope';
-import { formatSalesCurrency, formatSalesDate } from '../utils/salesFormatters';
+import { formatSalesCurrency } from '../utils/salesFormatters';
 import { getSalesPaymentMethodForStorage, isSalesCreditPaymentMethod, normalizeSalesPaymentMethod } from '../utils/salesPaymentMethods';
 import { getForecastQuotesForOpportunity, isOpportunityForecastQuote } from '../../Prospectos/utils/prospectosQuoteSignals';
 import {
@@ -27,9 +26,7 @@ import {
   type SalesCreateStepId,
 } from './SalesCreateForm';
 import { SaleSummaryPreviewModal } from './SaleSummaryPreviewModal';
-import { DetailField, SectionCard } from './SalesModalPrimitives';
-import { SalesOperationalContextCard } from './SalesOperationalContextCard';
-import { SalesStatusSelectors } from './SalesStatusSelectors';
+import { SalesRecordDetailView } from './SalesRecordDetailView';
 
 const actionClassNames = getSalesModalActionClassNames('coral');
 
@@ -554,9 +551,9 @@ export function SalesDetailModal({
         eyebrow={isCreateMode ? t.modal.wizard.stepLabel(activeCreateStepIndex + 1, salesCreateStepIds.length) : undefined}
         busy={isSaving}
         closeLabel={isCreateMode ? t.common.cancel : t.common.close}
-        modalType={isCreateMode ? 'wizard' : 'large-workspace'}
-        contentClassName={isCreateMode ? 'max-h-[min(92dvh,820px)]' : 'h-[92dvh]'}
-        bodyClassName={isCreateMode ? 'min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5' : 'min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5'}
+        modalType={isCreateMode ? 'wizard' : 'standard-form'}
+        contentClassName={isCreateMode ? 'max-h-[min(92dvh,820px)]' : 'max-h-[min(90dvh,880px)]'}
+        bodyClassName={isCreateMode ? 'min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5' : 'min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5'}
         footerClassName="shrink-0"
         footerSummary={isCreateMode ? createFooterSummary : undefined}
         footerLeading={isCreateMode ? (
@@ -632,80 +629,19 @@ export function SalesDetailModal({
               onQuoteSelection={handleQuoteSelection}
             />
           ) : (
-            <>
-              <SectionCard title={t.modal.sections.general}>
-                <section className="grid gap-4 md:grid-cols-2">
-                  <DetailField label={t.modal.fields.quoteReference} value={form.quoteReference || t.common.notAvailable} />
-                  <DetailField label={t.modal.fields.saleDocumentReference} value={form.saleDocumentReference || t.common.notAvailable} />
-                  <DetailField label={t.modal.fields.customerName} value={form.customerName} />
-                  <DetailField label={t.modal.fields.sellerName} value={form.sellerName} />
-                  <DetailField label={t.modal.fields.saleDate} value={formatSalesDate(form.saleDate)} />
-                  <DetailField label={t.modal.fields.totalAmount} value={formatSalesCurrency(form.totalAmount, form.currency)} />
-                  <DetailField label={t.modal.fields.businessUnit} value={form.businessUnitName || t.common.notAvailable} />
-                  <DetailField label={t.modal.fields.business} value={form.businessName || t.common.notAvailable} />
-                </section>
-              </SectionCard>
-
-              <SalesOperationalContextCard context={operationalContext} t={t} />
-
-              <SectionCard title={t.modal.sections.payment}>
-                <DetailField label={t.modal.fields.paymentEvidenceStatus} value={t.statuses.paymentEvidence[form.paymentEvidenceStatus]} />
-              </SectionCard>
-
-              <SectionCard title={t.modal.sections.validation}>
-                {record ? <SalesStatusSelectors record={{ ...record, ...form }} t={t} onChange={handleStatusChange} /> : null}
-              </SectionCard>
-
-              <SectionCard title={t.modal.sections.inventory} description={t.modal.inventoryExecutionHelper}>
-                <section className="grid gap-4 md:grid-cols-2">
-                  <DetailField label={t.modal.fields.inventoryMovementStatus} value={t.statuses.movement[form.inventoryMovementStatus]} />
-                  <DetailField label={t.modal.fields.inventoryMovementReference} value={form.inventoryMovementReference || t.common.notAvailable} />
-                </section>
-              </SectionCard>
-
-              <SectionCard title={t.modal.sections.postSaleSnapshot} description={t.modal.postSaleSnapshotHelper}>
-                <section className="grid gap-4 md:grid-cols-2">
-                  <DetailField label={t.modal.fields.customerHealth} value={lifecycle ? t.lifecycle.health[lifecycle.health] : t.common.notAvailable} />
-                  <DetailField label={t.modal.fields.relationship} value={lifecycle ? t.lifecycle.relationship[lifecycle.relationship] : t.common.notAvailable} />
-                  <DetailField label={t.modal.fields.nextFollowUpDate} value={lifecycle?.nextFollowUpDate ?? t.common.notAvailable} />
-                  <DetailField label={t.modal.fields.renewalDate} value={lifecycle?.renewalDate ?? t.common.notAvailable} />
-                  <DetailField label={t.modal.fields.openCases} value={String(lifecycle?.openCases ?? 0)} />
-                  <DetailField label={t.modal.fields.postSaleStatus} value={lifecycle?.postSaleStatus ?? t.lifecycle.noPostSaleStatus} />
-                </section>
-              </SectionCard>
-
-              <SectionCard title={t.modal.sections.commissionBreakdown} description={t.modal.commissionBreakdownHelper}>
-                {commissionRecords.length ? (
-                  <section className="space-y-3">
-                    {commissionRecords.map((commission) => (
-                      <div key={commission.id} className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 md:grid-cols-3">
-                        <DetailField label={t.commissions.detail.fields.salesRep} value={commission.salesRepName} />
-                        <DetailField label={t.commissions.detail.fields.product} value={commission.productName} />
-                        <DetailField label={t.commissions.detail.fields.ruleName} value={commission.commissionRuleName} />
-                        <DetailField label={t.commissions.detail.fields.commissionType} value={formatCommissionType(commission.commissionType)} />
-                        <DetailField label={t.commissions.detail.fields.commissionAmount} value={formatSalesCurrency(commission.commissionAmount, commission.currency)} />
-                        <DetailField label={t.commissions.detail.fields.status} value={t.commissions.statuses[commission.status]} />
-                      </div>
-                    ))}
-                  </section>
-                ) : (
-                  <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm font-normal text-slate-500">
-                    {t.commissions.detail.noCommissionRecords}
-                  </div>
-                )}
-              </SectionCard>
-
-              <SectionCard title={t.modal.sections.notes}>
-                <DetailField label={t.modal.fields.notes} value={form.notes || t.common.notAvailable} />
-              </SectionCard>
-            </>
+            record ? (
+              <SalesRecordDetailView
+                commissionRecords={commissionRecords}
+                form={form}
+                lifecycle={lifecycle}
+                operationalContext={operationalContext}
+                record={record}
+                t={t}
+                onStatusChange={handleStatusChange}
+              />
+            ) : null
           )}
 
-          {!isCreateMode ? (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-normal text-slate-600">
-              {t.modal.inventoryHelper}
-            </div>
-          ) : null}
       </SalesModalFrame>
       <SaleSummaryPreviewModal
         open={open && isSummaryPreviewOpen}

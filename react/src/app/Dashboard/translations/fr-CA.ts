@@ -12,6 +12,11 @@ export const frCA = {
   },
   kpiComparison: {
     unavailable: "Donnée indisponible",
+    noClosedOpportunities: "Aucune occasion clôturée durant la période",
+    noTrackedInventory: "Aucun stock suivi",
+    noBudgetCoverage: "Les dépenses ne sont pas attribuées à un budget actif",
+    taskDataQuality: "Vérifiez les tâches sans date",
+    noScheduledTasks: "Aucune tâche planifiée durant la période",
     versusPrevious: "par rapport à la période précédente",
     currentSnapshot: "Lecture actuelle",
     periodEnd: "Solde à la fin de la période",

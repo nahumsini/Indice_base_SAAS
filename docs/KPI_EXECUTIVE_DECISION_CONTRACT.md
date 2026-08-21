@@ -33,18 +33,18 @@ El cálculo usa una lectura `REPEATABLE_READ` de sólo lectura. Todas las consul
 | Avance promedio | Promedio de `completion_percent`, limitado a 0-100, para tareas programadas en el periodo. Un corte histórico sin evidencia reconstruible queda no disponible. |
 | Sin responsable | Tareas actualmente abiertas con estado `pending`, `in_progress` o `paused` y sin responsable. |
 
-Invalidan las cifras afectadas: tareas abiertas sin fecha, avance fuera de 0-100, estado completado sin `completed_at`, estado cancelado sin `cancelled_at` y cortes históricos que dependen de un avance mutable.
+Invalidan las cifras afectadas: tareas abiertas sin fecha, avance fuera de 0-100, estado completado sin `completed_at`, estado cancelado sin `cancelled_at` y cortes históricos que dependen de un avance mutable. Una tarea abierta sin fecha invalida el rezago de vencidas porque no puede clasificarse temporalmente, pero no invalida el cumplimiento ni el avance promedio de la población programada que sí tiene fecha; la anomalía permanece visible en calidad de datos.
 
 ## Gastos
 
 | KPI | Fórmula y población |
 |---|---|
 | Gasto ejecutado | Suma de `total_amount` del periodo con estado `APPROVED`, `PARTIALLY_PAID`, `PAID` o `CLOSED`. Se excluyen borradores, pendientes de aprobación, rechazados y cancelados. |
-| Presupuesto consumido | `actual_expense_amount / planned_amount * 100` de presupuestos y líneas activas que se superponen al periodo. Sin presupuesto positivo se publica como no disponible. |
-| Cuentas por pagar | Suma actual de `balance_amount > 0` en estados `APPROVED` o `PARTIALLY_PAID`, sin restringir la fecha de origen. |
+| Presupuesto consumido | `actual_expense_amount / planned_amount * 100` de presupuestos y líneas activas que se superponen al periodo. Sin presupuesto positivo se publica como no disponible. Si todos los gastos ejecutados del periodo carecen de una línea presupuestaria activa, el KPI también queda no disponible y explica la desconexión en vez de publicar un 0% engañoso. |
+| Cuentas por pagar | Suma actual de `balance_amount > 0` cuyo `payment_status` sea `UNPAID`, `PARTIALLY_PAID` u `OVERDUE`, sin restringir la fecha de origen ni depender del estado operativo del flujo. Se excluyen rechazados y cancelados. |
 | Pagos vencidos | Parte de cuentas por pagar cuya `due_date` es anterior a la fecha empresarial de corte. Una cuenta abierta sin vencimiento vuelve este KPI no disponible. |
 
-Se verifican importes negativos, la igualdad `balance = max(total - paid, 0)` con tolerancia de 0.01, moneda ISO de tres letras y vigencia del presupuesto.
+Se verifican importes negativos, la igualdad `balance = max(total - paid, 0)` con tolerancia de 0.01, moneda ISO de tres letras, vigencia del presupuesto y cobertura de los gastos ejecutados por líneas presupuestarias activas.
 
 ## Caja chica
 

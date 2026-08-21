@@ -6,6 +6,7 @@ import type { SalesRecordsTranslations } from '../translations';
 import type { SaleLine, SaleRecord, SaleRecordDraft, SalesOperationalContext } from '../types/salesTypes';
 import { buildDocumentFileName } from '../../../shared/print/documentFileName';
 import { addStandardPdfFooters, applyStandardPdfMetadata, openStandardPdfForPrint } from '../../../shared/print/documentPdfEngine';
+import type { CompanyPrintIdentity } from '../../../shared/print/useCompanyPrintIdentity';
 
 const brand = {
   coral: [255, 107, 94] as const,
@@ -40,8 +41,37 @@ export type SaleInvoicePdfContext = {
   sale: SaleRecord | SaleRecordDraft;
   quote?: SalesQuote | null;
   operationalContext: SalesOperationalContext;
+  company?: CompanyPrintIdentity | null;
   copy: SalesRecordsTranslations;
   locale?: string;
+};
+
+function fitSingleLine(doc: jsPDF, value: string, maxWidth: number) {
+  if (doc.getTextWidth(value) <= maxWidth) return value;
+  let fitted = value;
+  while (fitted.length > 1 && doc.getTextWidth(`${fitted}...`) > maxWidth) fitted = fitted.slice(0, -1);
+  return `${fitted.trimEnd()}...`;
+}
+
+const loadLogoDataUrl = async (logoUrl: string) => {
+  if (!logoUrl.trim()) return '';
+  return new Promise<string>((resolve) => {
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        const context = canvas.getContext('2d');
+        if (!context) return resolve('');
+        context.drawImage(image, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      } catch { resolve(''); }
+    };
+    image.onerror = () => resolve('');
+    try { image.src = new URL(logoUrl.trim(), window.location.origin).href; } catch { resolve(''); }
+  });
 };
 
 function rgb(color: readonly number[]): [number, number, number] {
@@ -164,7 +194,7 @@ function getTaxJurisdictionNote(context: SalesOperationalContext, copy: SalesRec
   return `${jurisdiction} · ${taxLabel}${registryLabel}`;
 }
 
-export function buildSaleInvoicePdf({
+function buildLegacySaleInvoicePdf({
   sale,
   quote,
   operationalContext,
@@ -422,17 +452,209 @@ export function buildSaleInvoicePdf({
   return doc;
 }
 
+export async function buildSaleInvoicePdf({
+  sale,
+  quote,
+  operationalContext,
+  company,
+  copy,
+  locale = 'es-MX',
+}: SaleInvoicePdfContext) {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const left = 18;
+  const right = pageWidth - 18;
+  const contentWidth = right - left;
+  const currency = sale.currency || operationalContext.currency || 'MXN';
+  const saleNumber = sale.saleNumber || sale.saleDocumentReference || quote?.quoteNumber || copy.common.notAvailable;
+  const generatedAt = new Date();
+  const generatedDate = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(generatedAt);
+  const generatedTime = new Intl.DateTimeFormat(locale, { timeStyle: 'short' }).format(generatedAt);
+  const documentCopy = getCommercialSummaryCopy(locale);
+  const lines = getInvoiceLines(sale, quote);
+  const logoDataUrl = await loadLogoDataUrl(company?.logoUrl || '');
+  const language = locale.toLowerCase().split('-')[0];
+  const labels = ({
+    es: { saleData: 'Datos de la venta', quantity: 'Cantidad', discount: 'Desc. %', tax: 'Imp. %' },
+    en: { saleData: 'Sale details', quantity: 'Quantity', discount: 'Disc. %', tax: 'Tax %' },
+    fr: { saleData: 'Détails de la vente', quantity: 'Quantité', discount: 'Rem. %', tax: 'Taxe %' },
+  } as Record<string, Record<string, string>>)[language] ?? { saleData: 'Sale details', quantity: 'Quantity', discount: 'Disc. %', tax: 'Tax %' };
+
+  const ensureSpace = (currentY: number, neededHeight: number) => {
+    if (currentY + neededHeight <= pageHeight - 22) return currentY;
+    doc.addPage();
+    return 24;
+  };
+  const drawSectionTitle = (title: string, sectionY: number) => {
+    setText(doc, brand.graphite);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text(title, left, sectionY);
+    setDraw(doc, brand.border);
+    doc.line(left, sectionY + 3, right, sectionY + 3);
+  };
+
+  applyStandardPdfMetadata(doc, {
+    author: company?.name,
+    title: `${documentCopy.title} ${saleNumber}`,
+    subject: documentCopy.title,
+  });
+
+  let y = 16;
+  setText(doc, brand.graphite);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text(documentCopy.title, pageWidth / 2, y + 2, { align: 'center' });
+
+  const companyName = company?.name || sale.businessName || copy.common.notAvailable;
+  const companyHeaderWidth = 60;
+  const companyHeaderCenter = left + companyHeaderWidth / 2;
+  doc.setFontSize(8);
+  const fittedCompanyName = fitSingleLine(doc, companyName, companyHeaderWidth);
+  if (logoDataUrl) {
+    try {
+      const image = doc.getImageProperties(logoDataUrl);
+      const ratio = Math.min(34 / image.width, 8 / image.height);
+      const logoWidth = image.width * ratio;
+      const logoHeight = image.height * ratio;
+      doc.addImage(logoDataUrl, 'PNG', companyHeaderCenter - logoWidth / 2, 5, logoWidth, logoHeight, undefined, 'FAST');
+      doc.text(fittedCompanyName, companyHeaderCenter, y + 5, { align: 'center' });
+    } catch {
+      doc.text(fittedCompanyName, companyHeaderCenter, y + 2, { align: 'center' });
+    }
+  } else {
+    doc.text(fittedCompanyName, companyHeaderCenter, y + 2, { align: 'center' });
+  }
+
+  setText(doc, brand.slate);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.text(`${copy.invoice.generated}: ${generatedDate}`, right, y - 2, { align: 'right' });
+  doc.text(`${generatedTime} · ${saleNumber}`, right, y + 4, { align: 'right' });
+
+  y += 14;
+  const gap = 4;
+  const columnWidth = (contentWidth - gap * 2) / 3;
+  const columns = [left + 5, left + columnWidth + gap + 3, left + (columnWidth + gap) * 2 + 3];
+  const textWidth = columnWidth - 8;
+  setFill(doc, brand.light);
+  setDraw(doc, brand.border);
+  doc.roundedRect(left, y, contentWidth, 46, 3, 3, 'FD');
+  doc.line(left + columnWidth + gap / 2, y + 5, left + columnWidth + gap / 2, y + 41);
+  doc.line(left + (columnWidth + gap) * 2 - gap / 2, y + 5, left + (columnWidth + gap) * 2 - gap / 2, y + 41);
+  setText(doc, brand.slate);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.text(copy.invoice.billTo.toUpperCase(), columns[0], y + 7);
+  doc.text(labels.saleData.toUpperCase(), columns[1], y + 7);
+  doc.text(copy.invoice.issuedBy.toUpperCase(), columns[2], y + 7);
+  setText(doc, brand.graphite);
+  doc.setFontSize(11);
+  doc.text(fitSingleLine(doc, sale.customerName || copy.common.notAvailable, textWidth), columns[0], y + 15);
+  doc.text(fitSingleLine(doc, saleNumber, textWidth), columns[1], y + 15);
+  doc.text(fitSingleLine(doc, companyName, textWidth), columns[2], y + 15);
+  setText(doc, brand.slate);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  const customerRows = [
+    sale.sellerName ? `${copy.modal.fields.sellerName}: ${sale.sellerName}` : '',
+    sale.paymentMethod ? `${copy.modal.fields.paymentMethod}: ${sale.paymentMethod}` : '',
+    sale.paymentReference ? `${copy.modal.fields.paymentReference}: ${sale.paymentReference}` : '',
+  ].filter(Boolean);
+  const saleRows = [
+    `${copy.modal.fields.saleDate}: ${sale.saleDate || copy.common.notAvailable}`,
+    sale.quoteReference || quote?.quoteNumber ? `${copy.modal.fields.quoteReference}: ${sale.quoteReference || quote?.quoteNumber}` : '',
+    sale.businessUnitName ? `${copy.modal.fields.businessUnit}: ${sale.businessUnitName}` : '',
+    sale.businessName ? `${copy.modal.fields.business}: ${sale.businessName}` : '',
+  ].filter(Boolean);
+  const issuerRows = [
+    company?.phone ? `${company.phone}` : '',
+    company?.email ? `${company.email}` : '',
+    company?.address || '',
+    `${copy.modal.fields.currency}: ${currency}`,
+  ].filter(Boolean);
+  [customerRows, saleRows, issuerRows].forEach((rows, columnIndex) => {
+    rows.slice(0, 4).forEach((row, index) => {
+      doc.text(fitSingleLine(doc, row, textWidth), columns[columnIndex], y + 22 + index * 5.3);
+    });
+  });
+
+  y += 54;
+  y = ensureSpace(y, 70);
+  drawSectionTitle(copy.invoice.itemsTitle, y);
+  autoTable(doc, {
+    startY: y + 9,
+    head: [[copy.modal.summaryColumns.item, copy.modal.summaryColumns.sku, labels.quantity, copy.modal.summaryColumns.unitPrice, labels.discount, labels.tax, copy.modal.summaryColumns.total]],
+    body: lines.map((item) => [item.productName, item.sku, String(item.quantity), formatCurrency(item.unitPrice, currency), `${item.discountPercent}%`, `${item.taxPercent}%`, formatCurrency(getLineTotal(item), currency)]),
+    theme: 'grid',
+    margin: { left, right: pageWidth - right },
+    styles: { font: 'helvetica', fontSize: 8, cellPadding: 2.6, textColor: rgb(brand.graphite), lineColor: rgb(brand.border), lineWidth: 0.1, overflow: 'linebreak' },
+    headStyles: { fillColor: rgb(brand.light), textColor: rgb(brand.graphite), fontStyle: 'bold', fontSize: 7.2 },
+    alternateRowStyles: { fillColor: rgb(brand.light) },
+    columnStyles: {
+      0: { cellWidth: 44 }, 1: { cellWidth: 30 }, 2: { halign: 'center', cellWidth: 16 },
+      3: { halign: 'right', cellWidth: 24 }, 4: { halign: 'center', cellWidth: 17 },
+      5: { halign: 'center', cellWidth: 17 }, 6: { halign: 'right', cellWidth: 26 },
+    },
+  });
+
+  y = tableEndY(doc, y + 48) + 10;
+  y = ensureSpace(y, sale.notes.trim() ? 76 : 62);
+  const totalsX = right - 70;
+  setFill(doc, brand.coralLight);
+  setDraw(doc, [255, 199, 193]);
+  doc.roundedRect(totalsX, y, 70, 30, 3, 3, 'FD');
+  const totalRows = [[copy.invoice.subtotal, sale.subtotal], [copy.invoice.discount, sale.discountTotal], [copy.modal.fields.taxTotal, sale.taxTotal], [copy.invoice.total, sale.totalAmount]] as const;
+  totalRows.forEach(([label, value], index) => {
+    const rowY = y + 6 + index * 6.2;
+    const isTotal = index === totalRows.length - 1;
+    setText(doc, isTotal ? brand.graphite : brand.slate);
+    doc.setFont('helvetica', isTotal ? 'bold' : 'normal');
+    doc.setFontSize(isTotal ? 10 : 8);
+    doc.text(label, totalsX + 5, rowY);
+    doc.text(formatCurrency(value, currency), totalsX + 65, rowY, { align: 'right' });
+  });
+  if (sale.notes.trim()) {
+    setText(doc, brand.graphite);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text(copy.modal.fields.notes, left, y + 5);
+    setText(doc, brand.slate);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text(sale.notes, left, y + 12, { maxWidth: contentWidth - 80 });
+  }
+
+  y += 36;
+  y = ensureSpace(y, 22);
+  setFill(doc, brand.light);
+  setDraw(doc, brand.border);
+  doc.roundedRect(left, y, contentWidth, 18, 3, 3, 'FD');
+  setText(doc, brand.graphite);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.text(documentCopy.noteTitle, left + 5, y + 7);
+  setText(doc, brand.slate);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.text(documentCopy.noteBody, left + 5, y + 13, { maxWidth: contentWidth - 10 });
+
+  addStandardPdfFooters(doc, { folio: saleNumber, locale, updatedAt: generatedAt, version: '1.0' });
+  return doc;
+}
+
 export function getSaleInvoicePdfFileName(sale: SaleRecord | SaleRecordDraft) {
   const reference = sale.saleNumber || sale.saleDocumentReference || sale.quoteReference || 'sale';
   return buildDocumentFileName({ documentType: 'sale-summary', identifier: reference });
 }
 
-export function getSaleInvoicePdfBlob(context: SaleInvoicePdfContext) {
-  return buildSaleInvoicePdf(context).output('blob');
+export async function getSaleInvoicePdfBlob(context: SaleInvoicePdfContext) {
+  return (await buildSaleInvoicePdf(context)).output('blob');
 }
 
-export function downloadSaleInvoicePdf(context: SaleInvoicePdfContext) {
-  const blob = getSaleInvoicePdfBlob(context);
+export async function downloadSaleInvoicePdf(context: SaleInvoicePdfContext) {
+  const blob = await getSaleInvoicePdfBlob(context);
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -441,6 +663,6 @@ export function downloadSaleInvoicePdf(context: SaleInvoicePdfContext) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function printSaleInvoicePdf(context: SaleInvoicePdfContext) {
-  return openStandardPdfForPrint(buildSaleInvoicePdf(context), { locale: context.locale });
+export async function printSaleInvoicePdf(context: SaleInvoicePdfContext) {
+  return openStandardPdfForPrint(await buildSaleInvoicePdf(context), { locale: context.locale });
 }

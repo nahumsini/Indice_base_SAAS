@@ -11,7 +11,7 @@ import org.springframework.stereotype.Repository;
 public class ExecutiveKpiDomainRepository {
 
     private static final String ACTUAL_EXPENSE_STATUSES = "('APPROVED', 'PARTIALLY_PAID', 'PAID', 'CLOSED')";
-    private static final String PAYABLE_EXPENSE_STATUSES = "('APPROVED', 'PARTIALLY_PAID')";
+    private static final String OPEN_PAYMENT_STATUSES = "('UNPAID', 'PARTIALLY_PAID', 'OVERDUE')";
     private static final String VALID_SALE_PREDICATE =
             "LOWER(COALESCE(sale.commercial_status, '')) NOT IN ('cancelled', 'canceled', 'rejected', 'voided')";
 
@@ -123,11 +123,11 @@ public class ExecutiveKpiDomainRepository {
                            END) AS expense_count,
                        SUM(CASE WHEN expense.status = 'PENDING_APPROVAL' THEN 1 ELSE 0 END) AS pending_approval,
                        SUM(CASE
-                             WHEN expense.status IN %2$s AND expense.balance_amount > 0
+                             WHEN expense.payment_status IN %2$s AND expense.balance_amount > 0
                              THEN 1 ELSE 0
                            END) AS open_payables,
                        SUM(CASE
-                             WHEN expense.status IN %2$s AND expense.balance_amount > 0
+                             WHEN expense.payment_status IN %2$s AND expense.balance_amount > 0
                                AND expense.due_date < bounds.snapshot_date
                              THEN 1 ELSE 0
                            END) AS overdue_payables,
@@ -145,13 +145,13 @@ public class ExecutiveKpiDomainRepository {
                              THEN 1 ELSE 0
                            END) AS invalid_period_amount_rows,
                        SUM(CASE
-                             WHEN expense.status IN %2$s
+                             WHEN expense.payment_status IN %2$s
                               AND (expense.total_amount < 0 OR expense.paid_amount < 0 OR expense.balance_amount < 0
                                    OR ABS(expense.balance_amount - GREATEST(expense.total_amount - expense.paid_amount, 0)) > 0.01)
                              THEN 1 ELSE 0
                            END) AS invalid_payable_amount_rows,
                        SUM(CASE
-                             WHEN expense.status IN %2$s AND expense.balance_amount > 0 AND expense.due_date IS NULL
+                             WHEN expense.payment_status IN %2$s AND expense.balance_amount > 0 AND expense.due_date IS NULL
                              THEN 1 ELSE 0
                            END) AS payable_without_due_date,
                        SUM(CASE
@@ -161,15 +161,34 @@ public class ExecutiveKpiDomainRepository {
                              THEN 1 ELSE 0
                            END) AS invalid_period_currency_rows,
                        SUM(CASE
-                             WHEN expense.status IN %2$s AND expense.balance_amount > 0
+                             WHEN expense.payment_status IN %2$s AND expense.balance_amount > 0
                               AND (expense.currency_code IS NULL OR UPPER(TRIM(expense.currency_code)) NOT REGEXP '^[A-Z]{3}$')
                              THEN 1 ELSE 0
-                           END) AS invalid_payable_currency_rows
+                           END) AS invalid_payable_currency_rows,
+                       SUM(CASE
+                             WHEN expense.status IN %1$s
+                              AND expense.expense_date BETWEEN bounds.from_date AND bounds.to_date
+                              AND NOT EXISTS (
+                                  SELECT 1
+                                  FROM finance_budget_lines budget_line
+                                  JOIN finance_budgets budget
+                                    ON budget.id = budget_line.budget_id
+                                   AND budget.company_id = budget_line.company_id
+                                   AND budget.deleted_at IS NULL
+                                   AND budget.status = 'ACTIVE'
+                                   AND expense.expense_date BETWEEN budget.period_start AND budget.period_end
+                                  WHERE budget_line.id = expense.budget_line_id
+                                    AND budget_line.company_id = expense.company_id
+                                    AND budget_line.deleted_at IS NULL
+                                    AND budget_line.status = 'ACTIVE'
+                              )
+                             THEN 1 ELSE 0
+                           END) AS expenses_outside_active_budget
                 FROM finance_expenses expense
                 CROSS JOIN bounds
                 WHERE expense.deleted_at IS NULL
                   AND expense.status NOT IN ('CANCELLED', 'REJECTED')
-                """.formatted(ACTUAL_EXPENSE_STATUSES, PAYABLE_EXPENSE_STATUSES) + filter.sql(),
+                """.formatted(ACTUAL_EXPENSE_STATUSES, OPEN_PAYMENT_STATUSES) + filter.sql(),
                 (rs, rowNum) -> new ExpenseSnapshot(
                         integer(rs.getObject("expense_count")),
                         integer(rs.getObject("pending_approval")),
@@ -180,7 +199,8 @@ public class ExecutiveKpiDomainRepository {
                         integer(rs.getObject("invalid_payable_amount_rows")),
                         integer(rs.getObject("payable_without_due_date")),
                         integer(rs.getObject("invalid_period_currency_rows")),
-                        integer(rs.getObject("invalid_payable_currency_rows"))), params.toArray());
+                        integer(rs.getObject("invalid_payable_currency_rows")),
+                        integer(rs.getObject("expenses_outside_active_budget"))), params.toArray());
     }
 
     public PettyCashSnapshot loadPettyCash(ExecutiveKpiScope scope) {
@@ -441,7 +461,8 @@ public class ExecutiveKpiDomainRepository {
         var filter = numericScope(scope, "expense", isTotal ? "expense.expense_date" : null);
         var statusFilter = isTotal
                 ? " AND expense.status IN " + ACTUAL_EXPENSE_STATUSES
-                : " AND expense.status IN " + PAYABLE_EXPENSE_STATUSES + " AND expense.balance_amount > 0";
+                : " AND expense.payment_status IN " + OPEN_PAYMENT_STATUSES + " AND expense.balance_amount > 0"
+                        + " AND expense.status NOT IN ('CANCELLED', 'REJECTED')";
         var overdue = overdueOnly ? " AND expense.due_date < ?" : "";
         var params = new ArrayList<Object>();
         if (overdueOnly) params.add(scope.snapshotDate().toString());
@@ -632,7 +653,7 @@ public class ExecutiveKpiDomainRepository {
     public record ExpenseSnapshot(
             int expenseCount, int pendingApproval, int openPayables, int overduePayables, int missingReceipts,
             int invalidPeriodAmountRows, int invalidPayableAmountRows, int payableWithoutDueDate,
-            int invalidPeriodCurrencyRows, int invalidPayableCurrencyRows) {
+            int invalidPeriodCurrencyRows, int invalidPayableCurrencyRows, int expensesOutsideActiveBudget) {
     }
 
     public record BudgetSnapshot(int invalidAmountRows, int invalidCurrencyRows) {

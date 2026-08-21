@@ -12,6 +12,11 @@ export const zhCA = {
   },
   kpiComparison: {
     unavailable: "数据不可用",
+    noClosedOpportunities: "本期间没有已关闭的商机",
+    noTrackedInventory: "没有受控库存",
+    noBudgetCoverage: "费用尚未分配到有效预算",
+    taskDataQuality: "请检查没有日期的任务",
+    noScheduledTasks: "本期间没有已安排的任务",
     versusPrevious: "较上一期间",
     currentSnapshot: "当前数据",
     periodEnd: "期末余额",

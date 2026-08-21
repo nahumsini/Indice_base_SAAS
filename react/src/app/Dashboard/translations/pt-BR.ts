@@ -12,6 +12,11 @@ export const ptBR = {
   },
   kpiComparison: {
     unavailable: "Dado indisponível",
+    noClosedOpportunities: "Sem oportunidades fechadas no período",
+    noTrackedInventory: "Sem estoque controlado",
+    noBudgetCoverage: "Despesas sem vínculo com um orçamento ativo",
+    taskDataQuality: "Revise as tarefas sem data",
+    noScheduledTasks: "Sem tarefas programadas no período",
     versusPrevious: "vs período anterior",
     currentSnapshot: "Leitura atual",
     periodEnd: "Saldo no fim do período",

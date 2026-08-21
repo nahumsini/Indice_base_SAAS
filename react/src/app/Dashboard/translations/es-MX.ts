@@ -12,6 +12,11 @@ export const esMX = {
   },
   kpiComparison: {
     unavailable: "Dato no disponible",
+    noClosedOpportunities: "Sin oportunidades cerradas en el periodo",
+    noTrackedInventory: "Sin existencias controladas",
+    noBudgetCoverage: "Gastos sin asignar a un presupuesto activo",
+    taskDataQuality: "Revisa las tareas sin fecha",
+    noScheduledTasks: "Sin tareas programadas en el periodo",
     versusPrevious: "vs periodo anterior",
     currentSnapshot: "Lectura actual",
     periodEnd: "Saldo al cierre del periodo",

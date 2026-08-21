@@ -22,11 +22,13 @@ import {
   type QuotePdfContext,
 } from '../quotePdf';
 import { getQuoteLineExchangeRateLabel } from '../utils/quoteCurrencyConversion';
+import type { CompanyPrintIdentity } from '../../../shared/print/useCompanyPrintIdentity';
 
 type QuotePreviewModalProps = {
   quote: SalesQuote | null;
   contact?: SalesContact | null;
   opportunity?: SalesOpportunity | null;
+  company?: CompanyPrintIdentity | null;
   copy: QuotesTranslations;
   locale?: string;
   onClose: () => void;
@@ -129,21 +131,29 @@ export function QuotePreviewModal({
   quote,
   contact,
   opportunity,
+  company,
   copy,
   locale = 'es-MX',
   onClose,
 }: QuotePreviewModalProps) {
   const [isSharing, setIsSharing] = useState(false);
   const pdfContext = useMemo<QuotePdfContext | null>(() => (
-    quote ? { quote, contact, opportunity, copy, locale } : null
-  ), [contact, copy, locale, opportunity, quote]);
+    quote ? { quote, contact, opportunity, company, copy, locale } : null
+  ), [company, contact, copy, locale, opportunity, quote]);
 
   if (!quote || !pdfContext) {
     return null;
   }
 
   const quoteCurrency = quote.currency ?? 'MXN';
-  const itemCount = quote.items.reduce((total, item) => total + item.quantity, 0);
+  const unitCount = quote.items.reduce((total, item) => total + item.quantity, 0);
+  const countLabels = locale.toLowerCase().startsWith('es')
+    ? { lineItems: 'Partidas', units: 'Unidades' }
+    : locale.toLowerCase().startsWith('fr')
+      ? { lineItems: 'Lignes', units: 'Unités' }
+      : { lineItems: 'Line items', units: 'Units' };
+  const fiscalAddress = [contact?.fiscalAddressLine1, contact?.fiscalAddressLine2, contact?.fiscalCity, contact?.fiscalState, contact?.fiscalPostalCode, contact?.fiscalCountry]
+    .map((part) => part?.trim()).filter(Boolean).join(', ');
   const estimatedCost = quote.items.reduce((total, item) => (
     total + item.quantity * (item.convertedUnitCost ?? item.unitCost ?? item.originalUnitCost ?? 0)
   ), 0);
@@ -183,7 +193,8 @@ export function QuotePreviewModal({
   const metricCards = [
     { label: copy.labels.total, value: formatCurrency(quote.total, quoteCurrency), accent: 'bg-[#FF6B5E]' },
     { label: copy.labels.currency, value: quoteCurrency, accent: 'bg-[#2563EB]' },
-    { label: copy.summary.items, value: String(itemCount), accent: 'bg-[#2563EB]' },
+    { label: countLabels.lineItems, value: String(quote.items.length), accent: 'bg-[#2563EB]' },
+    { label: countLabels.units, value: String(unitCount), accent: 'bg-[#59C3A5]' },
     {
       label: copy.pricing.estimatedMargin,
       value: formatPercent(estimatedMargin),
@@ -220,11 +231,11 @@ export function QuotePreviewModal({
   const emailHref = contact?.email ? getMailToHref(contact.email, emailSubject, emailBody) : undefined;
 
   const handlePrint = () => {
-    printQuotePdf(pdfContext);
+    void printQuotePdf(pdfContext);
   };
 
   const handleDownload = () => {
-    downloadQuotePdf(pdfContext);
+    void downloadQuotePdf(pdfContext);
   };
 
   const handleSharePdf = async () => {
@@ -235,7 +246,7 @@ export function QuotePreviewModal({
 
     setIsSharing(true);
     try {
-      const blob = getQuotePdfBlob(pdfContext);
+      const blob = await getQuotePdfBlob(pdfContext);
       const file = new File([blob], getQuotePdfFileName(quote), { type: 'application/pdf' });
       const sharePayload = {
         title: emailSubject,
@@ -425,12 +436,19 @@ export function QuotePreviewModal({
                 <div className="mt-4 space-y-1 text-sm font-medium text-slate-500">
                   <p>{copy.previewModal.phone}: {contact?.phone ?? copy.common.unassigned}</p>
                   <p>{copy.previewModal.email}: {contact?.email ?? copy.common.unassigned}</p>
+                  <p>{contact?.fiscalLegalName || quote.clientName}</p>
+                  <p>{contact?.fiscalTaxId || copy.common.unassigned}</p>
+                  {fiscalAddress ? <p>{fiscalAddress}</p> : null}
                 </div>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
                 <p className="text-xs font-medium text-slate-500">{copy.previewModal.commercialBlock}</p>
-                <h2 className="mt-3 text-xl font-medium text-slate-950">{quote.assignedSeller}</h2>
+                <h2 className="mt-3 text-xl font-medium text-slate-950">{company?.name || quote.assignedSeller}</h2>
                 <div className="mt-4 grid gap-2 text-sm font-medium text-slate-500">
+                  <p>{copy.labels.seller}: {quote.assignedSeller}</p>
+                  {company?.address ? <p>{company.address}</p> : null}
+                  {company?.phone ? <p>{copy.previewModal.phone}: {company.phone}</p> : null}
+                  {company?.email ? <p>{copy.previewModal.email}: {company.email}</p> : null}
                   <p>{copy.labels.opportunity}: {opportunity?.opportunityName ?? copy.common.unassigned}</p>
                   <p>{copy.labels.status}: {copy.statusLabels[quote.status]}</p>
                   <p>{copy.labels.currency}: {quoteCurrency}</p>
@@ -472,6 +490,7 @@ export function QuotePreviewModal({
                         <td className="max-w-[240px] px-3 py-4">
                           <p className="font-medium text-slate-950">{item.productName}</p>
                           <p className="mt-1 font-medium text-slate-500">{item.sku}</p>
+                          {item.notes ? <p className="mt-2 font-normal leading-5 text-slate-600">{item.notes}</p> : null}
                           {hasCurrencyConversion(item, quoteCurrency) ? (
                             <p className="mt-1 font-medium leading-5 text-[#7C5604]">
                               {copy.pricing.catalogPrice}: {formatCurrency(item.originalUnitPrice ?? item.unitPrice, item.originalCurrency)} · {copy.pricing.exchangeRate}: 1 {item.originalCurrency} = {getQuoteLineExchangeRateLabel(item.exchangeRate)} {item.quoteCurrency ?? quoteCurrency} · {item.exchangeRateDate}
@@ -522,6 +541,19 @@ export function QuotePreviewModal({
               <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-5">
                 <h3 className="text-sm font-medium text-slate-600">{copy.labels.terms}</h3>
                 <p className="mt-3 text-sm leading-6 text-slate-600">{quote.terms || copy.previewModal.defaultTerms}</p>
+              </div>
+
+              <div className="mt-5 rounded-lg border border-slate-200 bg-white p-5">
+                <h3 className="text-sm font-medium text-slate-700">
+                  {locale.toLowerCase().startsWith('es') ? 'Aceptación de la propuesta' : 'Commercial acceptance'}
+                </h3>
+                <div className="mt-10 grid gap-8 text-xs font-medium text-slate-500 sm:grid-cols-3">
+                  {[
+                    locale.toLowerCase().startsWith('es') ? 'Nombre y firma del cliente' : 'Customer name and signature',
+                    locale.toLowerCase().startsWith('es') ? 'Fecha' : 'Date',
+                    locale.toLowerCase().startsWith('es') ? 'Responsable comercial' : 'Commercial representative',
+                  ].map((label) => <div key={label} className="border-t border-slate-400 pt-2">{label}</div>)}
+                </div>
               </div>
 
               <div className={cn(

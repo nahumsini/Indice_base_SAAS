@@ -84,7 +84,7 @@ export function KPICard({ kpiId, title, value, change, isPositive, tone, trend }
             </p>
             <div className={`mx-auto inline-flex max-w-full items-center justify-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold leading-5 ${badgeClasses}`}>
               <TrendIcon className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{change}</span>
+              <span className="line-clamp-2 text-center">{change}</span>
             </div>
           </div>
         </div>

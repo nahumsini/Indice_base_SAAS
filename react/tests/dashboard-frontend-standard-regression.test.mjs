@@ -287,6 +287,11 @@ test('el dashboard usa el contrato ejecutivo y nunca inventa tendencias', () => 
   assert.match(dashboardLiveKpisSource, /response\.domains\.items/);
   assert.match(dashboardLiveKpisSource, /metric\.comparisonAvailable/);
   assert.match(dashboardLiveKpisSource, /metric\.percentChange/);
+  assert.match(dashboardLiveKpisSource, /definition\.id === 'salesConversion'/);
+  assert.match(dashboardLiveKpisSource, /definition\.id === 'lowStockItems'/);
+  assert.match(dashboardLiveKpisSource, /definition\.id === 'budgetUtilization'/);
+  assert.match(dashboardLiveKpisSource, /context\.domain\.dataQuality\.invalidRecords/);
+  assert.match(dashboardLiveKpisSource, /if \(!metric\.available\) return '—'/);
   assert.match(dashboardLiveKpisSource, /catch \{[\s\S]*executiveMetricCards\(copy\)\.forEach[\s\S]*copy\.kpiComparison\.unavailable/);
   assert.doesNotMatch(dashboardLiveKpisSource, /change:\s*copy\.kpis\.(?:monthlyRevenue|averageTicket|salesConversion|monthlyExpenses|taskCompletionRate|overdueTasks)\.change/);
   assert.doesNotMatch(dashboardLiveKpisSource, /salesApi\.kpis|listProcessTaskKpis|loadFinanceDashboardOverview/);

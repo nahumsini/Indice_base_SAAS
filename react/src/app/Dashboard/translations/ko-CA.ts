@@ -12,6 +12,11 @@ export const koCA = {
   },
   kpiComparison: {
     unavailable: "데이터 없음",
+    noClosedOpportunities: "이 기간에 종료된 영업 기회 없음",
+    noTrackedInventory: "추적 중인 재고 없음",
+    noBudgetCoverage: "활성 예산에 연결되지 않은 비용",
+    taskDataQuality: "날짜가 없는 작업을 확인하세요",
+    noScheduledTasks: "이 기간에 예정된 작업 없음",
     versusPrevious: "이전 기간 대비",
     currentSnapshot: "현재 기준",
     periodEnd: "기간 종료 잔액",

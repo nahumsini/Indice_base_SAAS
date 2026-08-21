@@ -8,6 +8,7 @@ import { defaultSalesCurrency, formatSalesCurrencyAmount } from '../../utils/sal
 import { getSalesOperationalContext } from '../data/salesOperationalContext';
 import type { SalesRecordsTranslations } from '../translations';
 import type { SaleRecord, SaleRecordDraft } from '../types/salesTypes';
+import type { CompanyPrintIdentity } from '../../../shared/print/useCompanyPrintIdentity';
 import {
   downloadSaleInvoicePdf,
   printSaleInvoicePdf,
@@ -93,12 +94,14 @@ export function SaleSummaryPreviewModal({
   open,
   sale,
   quote,
+  company,
   t,
   onOpenChange,
 }: {
   open: boolean;
   sale: SaleRecord | SaleRecordDraft | null;
   quote?: SalesQuote | null;
+  company?: CompanyPrintIdentity | null;
   t: SalesRecordsTranslations;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -118,17 +121,18 @@ export function SaleSummaryPreviewModal({
     sale,
     quote,
     operationalContext,
+    company,
     copy: t,
     locale,
   };
   const invoiceNumber = sale.saleNumber || sale.saleDocumentReference || quote?.quoteNumber || t.common.notAvailable;
 
   const handleDownload = () => {
-    downloadSaleInvoicePdf(pdfContext);
+    void downloadSaleInvoicePdf(pdfContext);
   };
 
   const handlePrint = () => {
-    printSaleInvoicePdf(pdfContext);
+    void printSaleInvoicePdf(pdfContext);
   };
 
   return (

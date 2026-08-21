@@ -4,6 +4,7 @@ import type { MainDashboardTranslations } from '../translations';
 import { usePreferredBusinessCurrency } from '../../BasicModules/shared/BusinessCurrencyContext';
 import { executivePanelApi } from '../../BasicModules/Kpis/KPIs/executivePanelApi';
 import type {
+  ExecutiveKpiDomain,
   ExecutiveDomainMetric,
   ExecutiveKpiResponse,
 } from '../../BasicModules/Kpis/KPIs/types';
@@ -56,9 +57,8 @@ const formatMetricValue = (
   metric: ExecutiveDomainMetric,
   locale: string,
   preferredCurrency: string,
-  unavailableLabel: string,
 ) => {
-  if (!metric.available) return unavailableLabel;
+  if (!metric.available) return '—';
   if (metric.unit === 'money') return formatCurrency(metric.value, locale, preferredCurrency);
   if (metric.unit === 'percent') return formatPercent(metric.value, locale);
   return formatNumber(metric.value, locale);
@@ -101,8 +101,36 @@ const metricIsFavorable = (metric: ExecutiveDomainMetric) => {
   return metric.status === 'healthy';
 };
 
+type MetricContext = {
+  domain: ExecutiveKpiDomain;
+  metric: ExecutiveDomainMetric;
+};
+
 const buildMetricMap = (response: ExecutiveKpiResponse) =>
-  new Map(response.domains.items.flatMap((domain) => domain.metrics.map((metric) => [metric.id, metric] as const)));
+  new Map(response.domains.items.flatMap((domain) => domain.metrics.map((metric) => [
+    metric.id,
+    { domain, metric } satisfies MetricContext,
+  ] as const)));
+
+const unavailableReason = (
+  definition: MetricCardDefinition,
+  context: MetricContext,
+  copy: MainDashboardTranslations['kpiComparison'],
+) => {
+  if (context.metric.excludedCurrencies.length > 0) return copy.unavailable;
+  if (definition.id === 'salesConversion') return copy.noClosedOpportunities;
+  if (definition.id === 'lowStockItems') return copy.noTrackedInventory;
+  if (definition.id === 'budgetUtilization') return copy.noBudgetCoverage;
+  if (definition.id === 'taskCompletionRate') {
+    return context.domain.dataQuality.invalidRecords > 0
+      ? copy.taskDataQuality
+      : copy.noScheduledTasks;
+  }
+  if (definition.id === 'overdueTasks' && context.domain.dataQuality.invalidRecords > 0) {
+    return copy.taskDataQuality;
+  }
+  return copy.unavailable;
+};
 
 export function useDashboardLiveKpis(copy: MainDashboardTranslations, locale: string) {
   const {
@@ -153,17 +181,19 @@ export function useDashboardLiveKpis(copy: MainDashboardTranslations, locale: st
 
         const metrics = buildMetricMap(response);
         executiveMetricCards(copy).forEach((definition) => {
-          const metric = metrics.get(definition.metricId);
-          if (!metric) return;
+          const context = metrics.get(definition.metricId);
+          if (!context) return;
+          const { metric } = context;
           nextKpis[definition.id] = {
             title: definition.title,
             value: formatMetricValue(
               metric,
               locale,
               response.domains.preferredCurrency,
-              copy.kpiComparison.unavailable,
             ),
-            change: metricChangeLabel(metric, locale, copy.kpiComparison),
+            change: metric.available
+              ? metricChangeLabel(metric, locale, copy.kpiComparison)
+              : unavailableReason(definition, context, copy.kpiComparison),
             isPositive: metricIsFavorable(metric),
             tone: metricTone(metric),
             trend: metricTrend(metric),

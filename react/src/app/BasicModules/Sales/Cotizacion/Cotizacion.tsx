@@ -88,6 +88,7 @@ import type {
   OperationalKpiMetric,
 } from '../../shared/operational';
 import { OperationalKpiArea } from '../../shared/operational';
+import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
 import { QuoteExpirationBadge } from './components/QuoteExpirationBadge';
 import { QuoteLearningGuide } from './components/QuoteLearningGuide';
 import { QuoteMarginBadge } from './components/QuoteMarginBadge';
@@ -166,6 +167,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const t = useQuotesTranslations();
+  const { identity: companyPrintIdentity } = useCompanyPrintIdentity();
   const {
     contacts,
     opportunities,
@@ -579,6 +581,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
       quote,
       contact: getQuoteContact(quote),
       opportunity: getQuoteOpportunity(quote),
+      company: companyPrintIdentity,
       copy: t,
     });
   };
@@ -587,6 +590,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
       quote,
       contact: getQuoteContact(quote),
       opportunity: getQuoteOpportunity(quote),
+      company: companyPrintIdentity,
       copy: t,
     });
   };
@@ -1133,6 +1137,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
         quote={previewQuote}
         contact={previewContact}
         opportunity={previewOpportunity}
+        company={companyPrintIdentity}
         copy={t}
         onClose={() => setPreviewQuote(null)}
       />

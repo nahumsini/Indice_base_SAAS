@@ -64,10 +64,11 @@ class ExecutiveKpiDomainRepositoryIntegrationTest {
         assertThat(processes.overdueTasks()).isEqualTo(1);
         assertThat(expenses.expenseCount()).isEqualTo(3);
         assertThat(expenses.pendingApproval()).isEqualTo(1);
-        assertThat(expenses.openPayables()).isEqualTo(2);
+        assertThat(expenses.openPayables()).isEqualTo(4);
         assertThat(expenses.overduePayables()).isEqualTo(1);
+        assertThat(expenses.expensesOutsideActiveBudget()).isEqualTo(3);
         assertThat(total(repository.loadExpenseValue(scope, "total_amount", false))).isEqualByComparingTo("600.00");
-        assertThat(total(repository.loadExpenseValue(scope, "balance_amount", false))).isEqualByComparingTo("400.00");
+        assertThat(total(repository.loadExpenseValue(scope, "balance_amount", false))).isEqualByComparingTo("550.00");
         assertThat(total(repository.loadExpenseValue(scope, "balance_amount", true))).isEqualByComparingTo("300.00");
     }
 

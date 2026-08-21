@@ -12,6 +12,11 @@ export const enCA = {
   },
   kpiComparison: {
     unavailable: "Data unavailable",
+    noClosedOpportunities: "No closed opportunities in this period",
+    noTrackedInventory: "No tracked inventory",
+    noBudgetCoverage: "Expenses are not assigned to an active budget",
+    taskDataQuality: "Review tasks without dates",
+    noScheduledTasks: "No scheduled tasks in this period",
     versusPrevious: "vs previous period",
     currentSnapshot: "Current snapshot",
     periodEnd: "Balance at period end",

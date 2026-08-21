@@ -305,6 +305,8 @@ test('Oportunidades usa cotizaciones creadas para valor y forecast y permite des
 
 test('Cotizaciones concentra la decisión comercial y deja el PDF a un clic', () => {
   const pageSource = readFileSync(resolve(salesRoot, 'Cotizacion/Cotizacion.tsx'), 'utf8');
+  const pdfSource = readFileSync(resolve(salesRoot, 'Cotizacion/quotePdf.ts'), 'utf8');
+  const companyIdentitySource = readFileSync(resolve(salesRoot, '../shared/print/useCompanyPrintIdentity.ts'), 'utf8');
   const filterSource = readFileSync(resolve(salesRoot, 'Cotizacion/utils/quotePageUtils.ts'), 'utf8');
   const translationsSource = readFileSync(resolve(salesRoot, 'Cotizacion/translations/es-MX.ts'), 'utf8');
   const tableSource = pageSource.match(/<IndiceTableShell[\s\S]*?<\/IndiceTableShell>/)?.[0] ?? '';
@@ -334,6 +336,20 @@ test('Cotizaciones concentra la decisión comercial y deja el PDF a un clic', ()
   assert.doesNotMatch(pageSource, /statusFilter|opportunityFilter/);
   assert.match(filterSource, /normalizeTextKey\(quote\.clientName\) === clientFilter/);
   assert.doesNotMatch(filterSource, /matchesStatus|matchesOpportunity/);
+  assert.match(pageSource, /company: companyPrintIdentity/);
+  assert.match(pdfSource, /lineItems: 'Partidas'/);
+  assert.match(pdfSource, /units: 'Unidades'/);
+  assert.match(pdfSource, /contact\?\.fiscalTaxId/);
+  assert.match(pdfSource, /contactFiscalAddress/);
+  assert.match(pdfSource, /company\?\.address/);
+  assert.match(pdfSource, /loadLogoDataUrl\(company\?\.logoUrl \|\| ''\)/);
+  assert.match(pdfSource, /doc\.addImage\(companyLogoDataUrl/);
+  assert.match(pdfSource, /else \{\s*doc\.text\(fittedCompanyName, companyHeaderCenter/);
+  assert.match(pdfSource, /logoX = companyHeaderCenter - logoWidth \/ 2/);
+  assert.match(pdfSource, /fitSingleLine/);
+  assert.doesNotMatch(pdfSource, /drawInsightCard|customerSummary|drawMetricCard|drawBrandBar|documentSubtitle|canBeAccepted|signatureY/);
+  assert.match(companyIdentitySource, /address: companyAddress \|\| officeAddress/);
+  assert.match(companyIdentitySource, /phone: corporateOffice\?\.telefono/);
 });
 
 test('los KPI de Ventas consolidan oportunidades con las mismas cotizaciones ligadas', () => {
@@ -399,4 +415,17 @@ test('Ventas resume cobro, cumplimiento y siguiente acción con datos reales de 
   assert.match(kpiSource, /metric: 'RECEIVABLE_PAYMENT_AMOUNT'/);
   assert.match(kpiSource, /label: t\.kpis\.grossMargin/);
   assert.match(kpiSource, /label: t\.kpis\.averageTicket/);
+});
+
+test('el detalle de venta usa el modal estándar y conserva el alta como wizard', () => {
+  const modalSource = readFileSync(resolve(salesRoot, 'Sales/components/SalesDetailModal.tsx'), 'utf8');
+  const detailSource = readFileSync(resolve(salesRoot, 'Sales/components/SalesRecordDetailView.tsx'), 'utf8');
+
+  assert.match(modalSource, /modalType=\{isCreateMode \? 'wizard' : 'standard-form'\}/);
+  assert.doesNotMatch(modalSource, /large-workspace/);
+  assert.match(modalSource, /<SalesRecordDetailView/);
+  assert.match(detailSource, /t\.modal\.sections\.payment/);
+  assert.match(detailSource, /t\.modal\.sections\.inventory/);
+  assert.match(detailSource, /<CollapsibleDetailSection/);
+  assert.match(modalSource, /t\.modal\.previewSaleSummary/);
 });

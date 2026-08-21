@@ -29,6 +29,7 @@ import { buildSaleReceivableSummary } from './utils/salesOperationalSignals';
 import type { SaleReceivableSummary, SaleSourceSummary } from './types/salesTypes';
 import { downloadSaleInvoicePdf } from './utils/saleInvoicePdf';
 import { getSalesOperationalContext } from './data/salesOperationalContext';
+import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
 
 function SaleCancelDialog({
   record,
@@ -63,6 +64,7 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
   const t = useSalesTranslations();
   const quotesCopy = useQuotesTranslations();
   const navigate = useNavigate();
+  const { identity: companyPrintIdentity } = useCompanyPrintIdentity();
   const {
     quotes,
     products,
@@ -229,6 +231,7 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
       sale: record,
       quote: getQuoteForSale(record),
       operationalContext: getSalesOperationalContext(record.businessId),
+      company: companyPrintIdentity,
       copy: t,
       locale: typeof navigator === 'undefined' ? 'es-MX' : navigator.language || 'es-MX',
     });
@@ -377,6 +380,7 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
         open={isSummaryPreviewOpen}
         sale={summaryPreviewRecord}
         quote={summaryPreviewRecord ? getQuoteForSale(summaryPreviewRecord) : null}
+        company={companyPrintIdentity}
         t={t}
         onOpenChange={setIsSummaryPreviewOpen}
       />
