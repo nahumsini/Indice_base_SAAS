@@ -21,6 +21,7 @@ import {
   CircleAlert,
   CircleDollarSign,
   ClipboardList,
+  Columns3,
   CreditCard,
   Database,
   Download,
@@ -33,6 +34,7 @@ import {
   LayoutDashboard,
   LoaderCircle,
   Mail,
+  MoreHorizontal,
   PackageCheck,
   PencilLine,
   Plus,
@@ -59,6 +61,12 @@ import {
   IndiceTitleBar,
 } from "../components/frontend-os";
 import { DataTablePagination } from "../components/table/DataTablePagination";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
 import { useLanguage } from "../shared/context";
 import { SystemTicketsWorkspace } from "../SystemTickets";
 import AccountCreationModal from "./AccountCreationModal";
@@ -71,9 +79,14 @@ import ConsultingAdminTab from "./ConsultingAdminTab";
 import { CatalogProductCard } from "./Catalog";
 import {
   CustomersTable,
+  CustomerColumnsModal,
   TrialExtensionModal,
   basicCommercialStatus,
   compareCustomerValues,
+  getCustomerTableCopy,
+  loadCustomerTableColumnIds,
+  saveCustomerTableColumnIds,
+  type CustomerTableColumnId,
   type CustomerSortKey,
   type SortDirection,
   type TrialExtensionDays,
@@ -910,6 +923,7 @@ export default function PlatformAdminPage() {
               <CustomersTab
                 english={english}
                 totals={overview?.totals}
+                allCompanies={overview?.companies ?? []}
                 companies={companies}
                 pagedCompanies={pagedCompanies}
                 query={query}
@@ -1171,6 +1185,7 @@ export default function PlatformAdminPage() {
 function CustomersTab({
   english,
   totals,
+  allCompanies,
   companies,
   pagedCompanies,
   query,
@@ -1201,6 +1216,7 @@ function CustomersTab({
 }: {
   english: boolean;
   totals: PlatformOverview["totals"] | undefined;
+  allCompanies: PlatformCompanySummary[];
   companies: PlatformCompanySummary[];
   pagedCompanies: PlatformCompanySummary[];
   query: string;
@@ -1230,12 +1246,43 @@ function CustomersTab({
   onExtendTrial: (company: PlatformCompanySummary) => void;
 }) {
   const pages = Math.max(1, Math.ceil(companies.length / pageSize));
+  const copy = getCustomerTableCopy(english);
+  const [columnsOpen, setColumnsOpen] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState<CustomerTableColumnId[]>(
+    loadCustomerTableColumnIds,
+  );
+  useEffect(() => {
+    saveCustomerTableColumnIds(visibleColumns);
+  }, [visibleColumns]);
+  const demoAndTrialAccounts = allCompanies.filter((company) =>
+    ["demo", "trial"].includes(basicCommercialStatus(company)),
+  ).length;
+  const attentionAccounts = allCompanies.filter((company) => {
+    const paymentStatus = (company.last_invoice_status || company.last_payment_status || "").toLowerCase();
+    return basicCommercialStatus(company) === "inactive" ||
+      company.billing_amount_kind === "UNAVAILABLE" ||
+      ["past_due", "unpaid", "failed"].includes(paymentStatus);
+  }).length;
+  const pagination = (
+    <DataTablePagination
+      currentPage={page}
+      totalPages={pages}
+      pageSize={pageSize}
+      pageSizeOptions={[10, 25, 50, 100, 200]}
+      totalCount={companies.length}
+      pageStart={companies.length ? (page - 1) * pageSize + 1 : 0}
+      pageEnd={Math.min(page * pageSize, companies.length)}
+      itemLabel={english ? "accounts" : "cuentas"}
+      onPageChange={onPage}
+      onPageSizeChange={onPageSize}
+    />
+  );
+
   return (
     <div className="space-y-5">
       <IndiceTitleBar
         tone="blue"
         icon={<Building2 className="h-5 w-5" />}
-        eyebrow={english ? "Customers" : "Clientes"}
         title={
           english
             ? "Accounts, contracts and access"
@@ -1247,92 +1294,57 @@ function CustomersTab({
             : "Crea empresas, entrega accesos de demostración y administra planes y módulos desde un solo lugar."
         }
         actions={
-          canCreate || canManageCourtesy ? (
-            <div className="flex flex-wrap justify-end gap-2">
-              {canManageCourtesy ? (
-                <button
-                  type="button"
-                  onClick={onOpenCourtesy}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-semibold text-[#143675]"
-                >
-                  <Gift className="h-4 w-4" />
-                  {english ? "Promotional access" : "Acceso promocional"}
-                </button>
-              ) : null}
-              {canCreate ? (
-                <button
-                  type="button"
-                  onClick={onQuickCreate}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-semibold text-[#143675]"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  {english ? "Quick test account" : "Cuenta de prueba rápida"}
-                </button>
-              ) : null}
-              {canCreate ? (
-                <button
-                  type="button"
-                  onClick={onCreate}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 text-sm font-semibold text-white"
-                >
-                  <Plus className="h-4 w-4" />
-                  {english ? "Add account" : "Agregar cuenta"}
-                </button>
-              ) : null}
-            </div>
-          ) : undefined
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setColumnsOpen(true)}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-medium text-[#143675] transition hover:bg-blue-50"
+            >
+              <Columns3 className="h-4 w-4" />
+              {copy.columns}
+            </button>
+            {canCreate || canManageCourtesy ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-medium text-[#143675] transition hover:bg-blue-50"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                    {copy.more}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-64 rounded-xl border-blue-100 bg-white p-1.5">
+                  {canManageCourtesy ? (
+                    <DropdownMenuItem onSelect={onOpenCourtesy} className="rounded-lg py-2.5">
+                      <Gift className="h-4 w-4 text-[#2563EB]" />
+                      {english ? "Promotional access" : "Acceso promocional"}
+                    </DropdownMenuItem>
+                  ) : null}
+                  {canCreate ? (
+                    <DropdownMenuItem onSelect={onQuickCreate} className="rounded-lg py-2.5">
+                      <Sparkles className="h-4 w-4 text-[#2563EB]" />
+                      {english ? "Quick test account" : "Cuenta de prueba rápida"}
+                    </DropdownMenuItem>
+                  ) : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+            {canCreate ? (
+              <button
+                type="button"
+                onClick={onCreate}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 text-sm font-medium text-white transition hover:bg-[#1D4ED8]"
+              >
+                <Plus className="h-4 w-4" />
+                {english ? "Add account" : "Agregar cuenta"}
+              </button>
+            ) : null}
+          </div>
         }
       />
-      <section
-        className="grid gap-3 md:grid-cols-3"
-        aria-label={english ? "Customer KPIs" : "KPIs de clientes"}
-      >
-        <Metric
-          icon={CircleDollarSign}
-          label={english ? "Monthly billing" : "Facturación mensual"}
-          value={formatMoney(
-            totals?.projected_monthly_billing_cents,
-            totals?.currency,
-            english,
-          )}
-          caption={english ? "Active + scheduled" : "Activa + programada"}
-          accent="gold"
-        />
-        <Metric
-          icon={Building2}
-          label={english ? "Active customers" : "Clientes activos"}
-          value={String(totals?.active_customer_companies ?? 0)}
-          caption={
-            english
-              ? "Customer accounts only"
-              : "Sólo cuentas de clientes"
-          }
-          accent="blue"
-        />
-        <Metric
-          icon={Users}
-          label={english ? "Total active users" : "Usuarios activos totales"}
-          value={String(totals?.customer_active_users ?? 0)}
-          caption={
-            english
-              ? "Across customer companies"
-              : "En todas las empresas cliente"
-          }
-          accent="mint"
-        />
-      </section>
       <IndiceFilterBar
-        title={english ? "Commercial directory" : "Directorio comercial"}
-        subtitle={
-          english
-            ? "Find an account by company, owner email or ID."
-            : "Encuentra una cuenta por empresa, correo del propietario o ID."
-        }
-        summary={
-          english
-            ? `${companies.length} matching accounts`
-            : `${companies.length} cuentas coinciden`
-        }
+        title={english ? "Filters" : "Filtros"}
         gridClassName="lg:grid-cols-[minmax(0,1fr)_220px_260px]"
       >
         <IndiceFilterSearch
@@ -1346,7 +1358,7 @@ function CustomersTab({
           onClear={() => onQuery("")}
         />
         <IndiceFilterSelect
-          label={english ? "User type" : "Tipo de usuario"}
+          label={english ? "Account type" : "Tipo de cuenta"}
           tone="blue"
           value={userTypeFilter}
           onValueChange={onUserType}
@@ -1380,34 +1392,70 @@ function CustomersTab({
           ]}
         />
       </IndiceFilterBar>
-      <Panel title={english ? "Customer accounts" : "Cuentas de clientes"}>
-        <CustomersTable
-          english={english}
-          companies={pagedCompanies}
-          sort={sort}
-          onSort={onSort}
-          onOpenCompany={onOpenCompany}
-          onOpenUsers={onOpenUsers}
-          canEditTypes={canEditTypes}
-          canAssignDistributors={canAssignDistributors}
-          canExtendTrials={canExtendTrials}
-          onEditType={onEditType}
-          onAssignDistributor={onAssignDistributor}
-          onExtendTrial={onExtendTrial}
+      <section
+        className="grid gap-3 md:grid-cols-2 xl:grid-cols-4"
+        aria-label={english ? "Customer KPIs" : "KPIs de clientes"}
+      >
+        <Metric
+          icon={CircleDollarSign}
+          label={english ? "Monthly billing" : "Facturación mensual"}
+          value={formatMoney(
+            totals?.projected_monthly_billing_cents,
+            totals?.currency,
+            english,
+          )}
+          caption={english ? "Active + scheduled" : "Activa + programada"}
+          accent="gold"
         />
-        <DataTablePagination
-          currentPage={page}
-          totalPages={pages}
-          pageSize={pageSize}
-          pageSizeOptions={[10, 25, 50, 100, 200]}
-          totalCount={companies.length}
-          pageStart={(page - 1) * pageSize + 1}
-          pageEnd={Math.min(page * pageSize, companies.length)}
-          itemLabel={english ? "accounts" : "cuentas"}
-          onPageChange={onPage}
-          onPageSizeChange={onPageSize}
+        <Metric
+          icon={Building2}
+          label={english ? "Active customers" : "Clientes activos"}
+          value={String(totals?.active_customer_companies ?? 0)}
+          caption={
+            english
+              ? `${totals?.customer_active_users ?? 0} total active users`
+              : `${totals?.customer_active_users ?? 0} usuarios activos totales`
+          }
+          accent="blue"
         />
-      </Panel>
+        <Metric
+          icon={Sparkles}
+          label={english ? "Demo and trial" : "Demo y prueba"}
+          value={String(demoAndTrialAccounts)}
+          caption={english ? "Temporary access" : "Acceso temporal"}
+          accent="mint"
+        />
+        <Metric
+          icon={CircleAlert}
+          label={english ? "Need attention" : "Requieren atención"}
+          value={String(attentionAccounts)}
+          caption={english ? "Access or billing review" : "Revisión de acceso o cobro"}
+          accent="coral"
+        />
+      </section>
+      <CustomersTable
+        english={english}
+        companies={pagedCompanies}
+        columns={visibleColumns}
+        pagination={pagination}
+        sort={sort}
+        onSort={onSort}
+        onOpenCompany={onOpenCompany}
+        onOpenUsers={onOpenUsers}
+        canEditTypes={canEditTypes}
+        canAssignDistributors={canAssignDistributors}
+        canExtendTrials={canExtendTrials}
+        onEditType={onEditType}
+        onAssignDistributor={onAssignDistributor}
+        onExtendTrial={onExtendTrial}
+      />
+      <CustomerColumnsModal
+        copy={copy}
+        isOpen={columnsOpen}
+        onClose={() => setColumnsOpen(false)}
+        visibleColumns={visibleColumns}
+        onVisibleColumnsChange={setVisibleColumns}
+      />
     </div>
   );
 }

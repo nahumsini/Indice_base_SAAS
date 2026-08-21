@@ -12,6 +12,7 @@ import { getIndiceTableMinimumColumnWidth } from './indiceTableColumnSizing';
 
 export type IndiceTableSortDirection = 'asc' | 'desc';
 export type IndiceTableAlignment = 'left' | 'center' | 'right';
+export type IndiceTableTone = 'coral' | 'blue';
 
 export type IndiceTableColumnDefinition<ColumnId extends string> = {
   id: ColumnId;
@@ -48,6 +49,26 @@ const alignmentJustifyClassNames: Record<IndiceTableAlignment, string> = {
   left: 'justify-start',
   center: 'justify-center',
   right: 'justify-end',
+};
+
+const tableToneClassNames: Record<IndiceTableTone, {
+  active: string;
+  focus: string;
+  icon: string;
+  resize: string;
+}> = {
+  coral: {
+    active: 'text-[#B63B32] dark:text-[#FFB0AA]',
+    focus: 'focus-visible:ring-[#FF6B5E]/25',
+    icon: 'text-[#FF6B5E]',
+    resize: 'hover:border-[#FF6B5E] hover:bg-[#FF6B5E]/20 focus-visible:border-[#FF6B5E] focus-visible:bg-[#FF6B5E]/20',
+  },
+  blue: {
+    active: 'text-[#1D4ED8] dark:text-[#93C5FD]',
+    focus: 'focus-visible:ring-[#2563EB]/25',
+    icon: 'text-[#2563EB]',
+    resize: 'hover:border-[#2563EB] hover:bg-[#2563EB]/15 focus-visible:border-[#2563EB] focus-visible:bg-[#2563EB]/15',
+  },
 };
 
 function toAriaSort(direction?: IndiceTableSortDirection): AriaAttributes['aria-sort'] {
@@ -157,6 +178,7 @@ export function IndiceResizableTableHead<ColumnId extends string>({
   onSort,
   resizeLabel,
   sortable = false,
+  tone = 'coral',
   width,
 }: {
   activeDirection?: IndiceTableSortDirection;
@@ -171,8 +193,10 @@ export function IndiceResizableTableHead<ColumnId extends string>({
   onSort?: (columnId: ColumnId) => void;
   resizeLabel: string;
   sortable?: boolean;
+  tone?: IndiceTableTone;
   width: number;
 }) {
+  const toneClassNames = tableToneClassNames[tone];
   const effectiveMinimumWidth = Math.min(maxWidth, getIndiceTableMinimumColumnWidth({
     contentMinimumWidth: minWidth,
     label,
@@ -247,9 +271,10 @@ export function IndiceResizableTableHead<ColumnId extends string>({
         <button
           type="button"
           className={cn(
-            'inline-flex min-h-9 w-full min-w-0 items-center gap-2 pr-2 font-normal leading-4 text-inherit transition-colors hover:text-slate-950 focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B5E]/25 dark:hover:text-white',
+            'inline-flex min-h-9 w-full min-w-0 items-center gap-2 pr-2 font-normal leading-4 text-inherit transition-colors hover:text-slate-950 focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 dark:hover:text-white',
+            toneClassNames.focus,
             alignmentJustifyClassNames[alignment],
-            activeDirection && 'text-[#B63B32] dark:text-[#FFB0AA]',
+            activeDirection && toneClassNames.active,
           )}
           onClick={() => onSort(columnId)}
         >
@@ -258,7 +283,7 @@ export function IndiceResizableTableHead<ColumnId extends string>({
             aria-hidden="true"
             className={cn(
               'h-3.5 w-3.5 shrink-0 transition-opacity',
-              activeDirection ? 'text-[#FF6B5E] opacity-100' : 'text-slate-400 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100',
+              activeDirection ? `${toneClassNames.icon} opacity-100` : 'text-slate-400 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100',
             )}
           />
         </button>
@@ -274,7 +299,10 @@ export function IndiceResizableTableHead<ColumnId extends string>({
         aria-valuemin={effectiveMinimumWidth}
         aria-valuenow={clampedWidth}
         tabIndex={0}
-        className="absolute right-0 top-1/2 h-8 w-2 -translate-y-1/2 cursor-col-resize rounded-full border-r border-slate-300 transition-colors hover:border-[#FF6B5E] hover:bg-[#FF6B5E]/20 focus-visible:border-[#FF6B5E] focus-visible:bg-[#FF6B5E]/20 focus-visible:outline-none dark:border-slate-600"
+        className={cn(
+          'absolute right-0 top-1/2 h-8 w-2 -translate-y-1/2 cursor-col-resize rounded-full border-r border-slate-300 transition-colors focus-visible:outline-none dark:border-slate-600',
+          toneClassNames.resize,
+        )}
         onDoubleClick={() => onResize(columnId, defaultWidth)}
         onKeyDown={handleKeyDown}
         onMouseDown={handleMouseDown}
@@ -294,6 +322,7 @@ export function IndiceTableHeaderRow<ColumnId extends string>({
   onResize,
   onSort,
   sortState,
+  tone = 'coral',
 }: {
   actions?: IndiceTableActionsColumn;
   columns: Array<IndiceTableColumnDefinition<ColumnId>>;
@@ -301,6 +330,7 @@ export function IndiceTableHeaderRow<ColumnId extends string>({
   onResize: (columnId: ColumnId, width: number) => void;
   onSort?: (columnId: ColumnId) => void;
   sortState?: { columnId: ColumnId; direction: IndiceTableSortDirection } | null;
+  tone?: IndiceTableTone;
 }) {
   return (
     <TableHeader>
@@ -329,6 +359,7 @@ export function IndiceTableHeaderRow<ColumnId extends string>({
             onSort={column.sortable ? onSort : undefined}
             resizeLabel={column.resizeLabel}
             sortable={column.sortable}
+            tone={tone}
             width={column.width}
           />
         ))}

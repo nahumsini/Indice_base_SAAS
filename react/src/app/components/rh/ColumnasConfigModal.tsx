@@ -29,7 +29,7 @@ interface ColumnasConfigModalProps {
   onSave: (columns: ColumnConfig[]) => void;
   defaultColumns?: ColumnConfig[];
   fixedColumns?: ColumnConfig[];
-  theme?: 'default' | 'processes' | 'humanResources' | 'sales' | 'pointOfSale' | 'receivables' | 'expenses';
+  theme?: 'default' | 'processes' | 'humanResources' | 'sales' | 'pointOfSale' | 'receivables' | 'expenses' | 'platformAdmin';
 }
 
 interface DraggableColumnItemProps {
@@ -197,6 +197,20 @@ export function ColumnasConfigModal({
         interactive: 'hover:border-[#147514]/40 hover:bg-[#147514]/5',
         primary:
           'h-10 rounded-xl bg-white px-5 text-sm font-bold text-[#147514] shadow-sm hover:bg-slate-100 hover:text-[#147514] focus-visible:ring-white/40 dark:bg-white dark:text-[#147514] dark:hover:bg-slate-100',
+      };
+    }
+
+    if (theme === 'platformAdmin') {
+      return {
+        accent: 'text-[#2563EB]',
+        checkbox:
+          'data-[state=checked]:border-[#2563EB] data-[state=checked]:bg-[#2563EB] focus-visible:ring-[#2563EB]/30',
+        content: 'max-w-[900px] rounded-3xl',
+        footer: 'bg-[#2563EB]',
+        header: 'bg-[#2563EB]',
+        interactive: 'hover:border-[#2563EB]/40 hover:bg-[#2563EB]/5',
+        primary:
+          'h-10 rounded-xl bg-white px-5 text-sm font-medium text-[#1D4ED8] shadow-sm hover:bg-slate-100 hover:text-[#1D4ED8] focus-visible:ring-white/40 dark:bg-white dark:text-[#1D4ED8] dark:hover:bg-slate-100',
       };
     }
 

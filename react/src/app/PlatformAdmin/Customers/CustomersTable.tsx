@@ -1,13 +1,33 @@
+import type { ReactNode } from "react";
 import { Building2 } from "lucide-react";
 import type { PlatformCompanySummary } from "../../api/platformAdmin";
+import {
+  getIndiceTableMinimumWidth,
+  IndiceOperationalTable,
+  IndiceTableColGroup,
+  IndiceTableHeaderRow,
+  IndiceTableShell,
+  type IndiceTableColumnDefinition,
+} from "../../components/table/IndiceTableEngine";
+import { TableBody, TableCell, TableRow } from "../../components/ui/table";
+import { usePersistentColumnWidths } from "../../hooks/usePersistentColumnWidths";
 import { CustomerTableRow } from "./CustomerTableRow";
+import {
+  customerTableActionsWidth,
+  customerTableDefaultWidths,
+  customerTableMaximumWidths,
+  customerTableMinimumWidths,
+  getCustomerTableColumnLabels,
+  type CustomerTableColumnId,
+} from "./customerTableColumns";
 import { getCustomerTableCopy } from "./customerTableCopy";
-import { SortableCustomerHeader } from "./SortableCustomerHeader";
 import type { CustomerSortKey, SortDirection } from "./customerTableUtils";
 
 export function CustomersTable({
   english,
   companies,
+  columns,
+  pagination,
   sort,
   onSort,
   onOpenCompany,
@@ -22,6 +42,8 @@ export function CustomersTable({
 }: {
   english: boolean;
   companies: PlatformCompanySummary[];
+  columns: CustomerTableColumnId[];
+  pagination?: ReactNode;
   sort?: { key: CustomerSortKey; direction: SortDirection };
   onSort?: (key: CustomerSortKey) => void;
   onOpenCompany: (company: PlatformCompanySummary | number) => void;
@@ -35,59 +57,53 @@ export function CustomersTable({
   compact?: boolean;
 }) {
   const copy = getCustomerTableCopy(english);
-  const columns: Array<[CustomerSortKey, string, boolean?]> = [
-    ["customer", copy.account, true],
-    ["userType", copy.userType],
-    ["distributor", copy.commercialOrigin],
-    ["status", copy.status],
-    ["plan", copy.access],
-    ["users", copy.users],
-    ["rate", copy.billing],
-    ["nextEvent", copy.nextEvent],
-  ];
+  const headerLabels = getCustomerTableColumnLabels(copy);
+  const { columnWidths, resizeColumn } = usePersistentColumnWidths<CustomerTableColumnId>({
+    defaults: customerTableDefaultWidths,
+    headerLabels,
+    maxWidths: customerTableMaximumWidths,
+    minWidths: customerTableMinimumWidths,
+    sortableColumnIds: columns,
+    storageKey: "indice-platform-admin-customer-column-widths-v2",
+  });
+  const tableColumns: Array<IndiceTableColumnDefinition<CustomerTableColumnId>> = columns.map((columnId) => ({
+    id: columnId,
+    label: headerLabels[columnId],
+    width: columnWidths[columnId],
+    defaultWidth: customerTableDefaultWidths[columnId],
+    contentMinimumWidth: customerTableMinimumWidths[columnId],
+    maxWidth: customerTableMaximumWidths[columnId],
+    sortable: true,
+    resizeLabel: english
+      ? `Resize ${headerLabels[columnId]} column`
+      : `Ajustar columna ${headerLabels[columnId]}`,
+  }));
+  const minimumWidth = getIndiceTableMinimumWidth({
+    actionsWidth: customerTableActionsWidth,
+    columns: tableColumns,
+  });
 
   return (
-    <div className="max-w-full overflow-x-auto overscroll-x-contain">
-      <table
-        className="w-full min-w-[1580px] table-fixed border-collapse"
-        aria-label={copy.account}
-      >
-        <colgroup>
-          <col className="w-[230px]" />
-          <col className="w-[145px]" />
-          <col className="w-[235px]" />
-          <col className="w-[105px]" />
-          <col className="w-[260px]" />
-          <col className="w-[150px]" />
-          <col className="w-[155px]" />
-          <col className="w-[150px]" />
-          <col className="w-[170px]" />
-        </colgroup>
-        <thead className="bg-slate-50">
-          <tr>
-            {columns.map(([key, label, sticky]) => (
-              <SortableCustomerHeader
-                key={key}
-                column={key}
-                label={label}
-                copy={copy}
-                sort={sort}
-                onSort={onSort}
-                sticky={sticky}
-              />
-            ))}
-            <th className="sticky right-0 z-20 whitespace-nowrap bg-slate-50 px-4 py-3 text-right text-xs font-medium text-slate-500 shadow-[-8px_0_16px_-16px_rgba(15,23,42,0.45)]">
-              {copy.actions}
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
+    <IndiceTableShell pagination={pagination}>
+      <IndiceOperationalTable minimumWidth={minimumWidth}>
+        <IndiceTableColGroup columns={tableColumns} actionsWidth={customerTableActionsWidth} />
+        <IndiceTableHeaderRow
+          actions={{ label: copy.actions, width: customerTableActionsWidth }}
+          columns={tableColumns}
+          onResize={resizeColumn}
+          onSort={onSort}
+          sortState={sort?.direction ? { columnId: sort.key as CustomerTableColumnId, direction: sort.direction } : null}
+          tone="blue"
+        />
+        <TableBody>
           {companies.map((company) => (
             <CustomerTableRow
               key={company.id}
               company={company}
               english={english}
               copy={copy}
+              columns={columns}
+              columnWidths={columnWidths}
               compact={compact}
               canEditTypes={canEditTypes}
               onEditType={onEditType}
@@ -100,19 +116,19 @@ export function CustomersTable({
             />
           ))}
           {!companies.length ? (
-            <tr>
-              <td colSpan={9}>
-                <div className="flex flex-col items-center justify-center gap-2 px-5 py-12 text-center text-sm text-slate-500">
+            <TableRow>
+              <TableCell colSpan={columns.length + 1} className="px-6 py-14 text-center">
+                <div className="flex flex-col items-center justify-center gap-2 text-sm text-slate-500">
                   <span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-50 text-[#2563EB]">
                     <Building2 className="h-5 w-5" />
                   </span>
                   {copy.noAccounts}
                 </div>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ) : null}
-        </tbody>
-      </table>
-    </div>
+        </TableBody>
+      </IndiceOperationalTable>
+    </IndiceTableShell>
   );
 }

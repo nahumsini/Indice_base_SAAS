@@ -21,6 +21,9 @@ const customerTraceability = read(
 const customerTableCopy = read(
   "src/app/PlatformAdmin/Customers/customerTableCopy.ts",
 );
+const customerTableColumns = read(
+  "src/app/PlatformAdmin/Customers/customerTableColumns.ts",
+);
 const customerTableUtils = read(
   "src/app/PlatformAdmin/Customers/customerTableUtils.ts",
 );
@@ -220,7 +223,7 @@ test("clientes resume facturacion mensual cuentas activas y usuarios reales", ()
   assert.match(page, /active_customer_companies/);
   assert.match(page, /customer_active_users/);
   assert.match(page, /Facturaci.n mensual/);
-  assert.match(page, /Usuarios activos totales/);
+  assert.match(page, /usuarios activos totales/);
 });
 
 test("la prueba sólo permite periodos controlados de 7 15 o 30 días", () => {
@@ -251,7 +254,7 @@ test("alta de cuenta recupera el avance cuando expira la sesión Root", () => {
 });
 
 test("tipo de cuenta se persiste sin permitir conceder Root desde el alta", () => {
-  assert.match(page, /Tipo de usuario/);
+  assert.match(page, /Tipo de cuenta/);
   assert.match(customerRow, /UserTypeBadge/);
   assert.match(page, /value: "ROOT", label: "Root"/);
   assert.match(accountUtils, /account_type: "SUPER_ADMIN"/);
@@ -294,16 +297,17 @@ test("Root habilita demos públicas por empresa sin modificar el login normal", 
 });
 
 test("la tabla de clientes conserva identidad y acciones con el patrón Índice", () => {
-  assert.match(customerTable, /table-fixed/);
-  assert.match(customerTable, /sticky right-0/);
-  assert.match(customerRow, /sticky left-0/);
-  assert.match(customerRow, /bg-\[#2563EB\]/);
-  assert.match(customerRow, /Settings2/);
+  assert.match(customerTable, /IndiceTableShell pagination=\{pagination\}/);
+  assert.match(customerTable, /IndiceOperationalTable/);
+  assert.match(customerTable, /IndiceTableHeaderRow/);
+  assert.match(customerTable, /usePersistentColumnWidths/);
+  assert.match(customerTable, /tone="blue"/);
+  assert.match(customerRow, /IndiceTableActionGroup/);
   assert.match(customerTableCopy, /manage: "Administrar"/);
 });
 
 test("la tabla separa el creador histórico del distribuidor vigente", () => {
-  assert.match(customerTableCopy, /commercialOrigin: "Trazabilidad"/);
+  assert.match(customerTableCopy, /commercialOrigin: "Origen"/);
   assert.match(customerTableCopy, /createdByDistributor: "Creado por distribuidor"/);
   assert.match(customerTableCopy, /distributorAccount: "Cuenta distribuidora"/);
   assert.match(customerTraceability, /company\.creation_origin === "DISTRIBUTOR_PORTAL"/);
@@ -352,7 +356,7 @@ test("la cuenta separa módulos activos de los disponibles para agregar", () => 
 });
 
 test("usuarios incluidos ocupan y liberan lugares con invitaciones controladas", () => {
-  assert.match(customerTable, /\["users", copy\.users\]/);
+  assert.match(customerTableColumns, /users: copy\.users/);
   assert.match(customerRow, /onOpenUsers\(company\)/);
   assert.match(customerRow, /copy\.manageUsers/);
   assert.match(page, /openCompanyUsers/);

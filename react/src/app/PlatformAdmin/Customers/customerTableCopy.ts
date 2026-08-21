@@ -8,6 +8,8 @@ export type CustomerTableCopy = {
   users: string;
   nextEvent: string;
   actions: string;
+  columns: string;
+  more: string;
   manage: string;
   editType: string;
   noAccounts: string;
@@ -53,14 +55,16 @@ export type CustomerTableCopy = {
 const copies: Record<"en-CA" | "es-MX", CustomerTableCopy> = {
   "en-CA": {
     account: "Account",
-    userType: "User type",
-    commercialOrigin: "Traceability",
+    userType: "Account type",
+    commercialOrigin: "Origin",
     status: "Status",
-    access: "Plan and access",
+    access: "Plan",
     billing: "Billing",
     users: "Users",
     nextEvent: "Next event",
     actions: "Actions",
+    columns: "Columns",
+    more: "More",
     manage: "Manage",
     editType: "Edit user type",
     noAccounts: "No accounts match these filters.",
@@ -104,14 +108,16 @@ const copies: Record<"en-CA" | "es-MX", CustomerTableCopy> = {
   },
   "es-MX": {
     account: "Cuenta",
-    userType: "Tipo de usuario",
-    commercialOrigin: "Trazabilidad",
+    userType: "Tipo de cuenta",
+    commercialOrigin: "Origen",
     status: "Estado",
-    access: "Plan y acceso",
+    access: "Plan",
     billing: "Facturación",
     users: "Usuarios",
     nextEvent: "Próximo evento",
     actions: "Acciones",
+    columns: "Columnas",
+    more: "Más",
     manage: "Administrar",
     editType: "Editar tipo de usuario",
     noAccounts: "No hay cuentas que coincidan con los filtros.",
