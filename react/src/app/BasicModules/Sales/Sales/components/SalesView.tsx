@@ -39,6 +39,7 @@ export function SalesView({
   onDownloadQuote,
   onDownloadInvoice,
   onCancelSale,
+  onDeleteSale,
 }: {
   learningModeActive?: boolean;
   records: SaleRecord[];
@@ -65,6 +66,7 @@ export function SalesView({
   onDownloadQuote: (record: SaleRecord) => void;
   onDownloadInvoice: (record: SaleRecord) => void;
   onCancelSale: (record: SaleRecord) => void;
+  onDeleteSale: (record: SaleRecord) => void;
 }) {
   return (
     <>
@@ -103,6 +105,7 @@ export function SalesView({
         onDownloadQuote={onDownloadQuote}
         onDownloadInvoice={onDownloadInvoice}
         onCancelSale={onCancelSale}
+        onDeleteSale={onDeleteSale}
       />
     </>
   );

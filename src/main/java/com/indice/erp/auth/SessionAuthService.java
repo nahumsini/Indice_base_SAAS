@@ -179,6 +179,7 @@ public class SessionAuthService {
                 JOIN companies c ON c.id = uc.company_id
                 WHERE uc.user_id = ?
                   AND LOWER(TRIM(c.name)) = ?
+                  AND c.platform_status = 'ACTIVE'
                   AND LOWER(COALESCE(uc.status, 'active')) IN ('active', 'activo')
                 ORDER BY CASE LOWER(COALESCE(uc.role, 'user'))
                     WHEN 'root' THEN 1
@@ -531,6 +532,7 @@ public class SessionAuthService {
                   ON wp.company_id = uc.company_id
                  AND wp.user_company_id = uc.id
                 WHERE uc.user_id = ?
+                  AND c.platform_status = 'ACTIVE'
                   AND LOWER(COALESCE(uc.status, 'active')) IN ('active', 'activo')
                 ORDER BY CASE LOWER(COALESCE(uc.role, 'user'))
                     WHEN 'root' THEN 1

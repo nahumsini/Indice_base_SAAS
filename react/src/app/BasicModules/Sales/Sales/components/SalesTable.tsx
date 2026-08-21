@@ -50,6 +50,7 @@ export function SalesTable({
   onDownloadQuote,
   onDownloadInvoice,
   onCancelSale,
+  onDeleteSale,
 }: {
   records: SaleRecord[];
   visibleColumns: SalesColumnId[];
@@ -67,6 +68,7 @@ export function SalesTable({
   onDownloadQuote: (record: SaleRecord) => void;
   onDownloadInvoice: (record: SaleRecord) => void;
   onCancelSale: (record: SaleRecord) => void;
+  onDeleteSale: (record: SaleRecord) => void;
 }) {
   const [sortState, setSortState] = useState<SalesSortState>(null);
   const { columnWidths, resizeColumn } = usePersistentColumnWidths({
@@ -251,6 +253,7 @@ export function SalesTable({
                   onDownloadQuote={onDownloadQuote}
                   onDownloadInvoice={onDownloadInvoice}
                   onCancelSale={onCancelSale}
+                  onDeleteSale={onDeleteSale}
                 />
               ))}
             </TableBody>

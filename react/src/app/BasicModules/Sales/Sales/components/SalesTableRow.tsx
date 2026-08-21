@@ -8,6 +8,7 @@ import {
   MoreHorizontal,
   PackageCheck,
   Send,
+  Trash2,
   WalletCards,
   XCircle,
 } from 'lucide-react';
@@ -139,6 +140,7 @@ export function SalesTableRow({
   onSendToCredit,
   onOpenReceivables,
   onCancelSale,
+  onDeleteSale,
 }: {
   record: SaleRecord;
   selected: boolean;
@@ -158,6 +160,7 @@ export function SalesTableRow({
   onSendToCredit: (record: SaleRecord) => void;
   onOpenReceivables: (record: SaleRecord) => void;
   onCancelSale: (record: SaleRecord) => void;
+  onDeleteSale: (record: SaleRecord) => void;
 }) {
   const isVisible = (column: SalesColumnId) => visibleColumns.includes(column);
   const isCancelled = record.commercialStatus === 'cancelled';
@@ -286,6 +289,7 @@ export function SalesTableRow({
                 <DropdownMenuItem disabled={isCancelled} onSelect={() => onSendToCredit(record)}><CreditCard className="mr-2 h-4 w-4" />{t.table.actions.sendToCredit}</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem disabled={isCancelled} className="text-red-700 focus:text-red-700 dark:text-red-300" onSelect={() => onCancelSale(record)}><XCircle className="mr-2 h-4 w-4" />{isCancelled ? t.table.actions.cancelled : t.table.actions.cancelSale}</DropdownMenuItem>
+                <DropdownMenuItem className="text-red-700 focus:text-red-700 dark:text-red-300" onSelect={() => onDeleteSale(record)}><Trash2 className="mr-2 h-4 w-4" />{t.table.actions.deleteSale}</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </IndiceTableActionGroup>

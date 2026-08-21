@@ -43,6 +43,7 @@ import {
   ShieldCheck,
   Sparkles,
   TicketCheck,
+  Trash2,
   Users,
   X,
 } from "lucide-react";
@@ -304,6 +305,9 @@ export default function PlatformAdminPage() {
     useState("");
   const [trialExtension, setTrialExtension] =
     useState<PlatformCompanySummary | null>(null);
+  const [companyDeletion, setCompanyDeletion] = useState<PlatformCompanySummary | null>(null);
+  const [companyDeletionName, setCompanyDeletionName] = useState("");
+  const [companyDeletionReason, setCompanyDeletionReason] = useState("");
   const [trialExtensionError, setTrialExtensionError] = useState("");
   const [courtesyAccessOpen, setCourtesyAccessOpen] = useState(false);
   const [revocation, setRevocation] = useState<Revocation>(null);
@@ -506,6 +510,29 @@ export default function PlatformAdminPage() {
     const overviewData = await platformAdminApi.getOverview();
     setOverview(overviewData);
     if (selected) setSelected(await platformAdminApi.getCompany(selected.id));
+  };
+
+  const confirmCompanyDeletion = async () => {
+    if (!companyDeletion) return;
+    setSaving(true);
+    setError("");
+    try {
+      await platformAdminApi.deleteCompanyAccount(companyDeletion.id, companyDeletionName, companyDeletionReason);
+      setOverview(await platformAdminApi.getOverview());
+      setAccountFeedback({
+        type: "success",
+        message: english
+          ? `${companyDeletion.name} was marked as deleted. Its history was preserved.`
+          : `${companyDeletion.name} quedó como Eliminado. Su historial fue conservado.`,
+      });
+      setCompanyDeletion(null);
+      setCompanyDeletionName("");
+      setCompanyDeletionReason("");
+    } catch (deletionError) {
+      setError(deletionError instanceof Error ? deletionError.message : "No se pudo eliminar la cuenta.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const createCompanyAccount = async (
@@ -1012,6 +1039,11 @@ export default function PlatformAdminPage() {
                   setTrialExtensionError("");
                   setTrialExtension(company);
                 }}
+                onDelete={(company) => {
+                  setCompanyDeletionName("");
+                  setCompanyDeletionReason("");
+                  setCompanyDeletion(company);
+                }}
               />
             ) : null}
             {activeTab === "billing" ? (
@@ -1213,6 +1245,31 @@ export default function PlatformAdminPage() {
           onConfirm={() => void confirmModuleAvailability()}
         />
       ) : null}
+      {companyDeletion ? (
+        <IndiceConfirmationDialog
+          busy={saving}
+          confirmDisabled={companyDeletionName !== companyDeletion.name || companyDeletionReason.trim().length < 5}
+          confirmLabel={saving ? (english ? "Deleting..." : "Eliminando...") : (english ? "Mark as deleted" : "Marcar como eliminado")}
+          description={english
+            ? "This is a soft deletion. The account and its history remain stored, but access is blocked. Active Stripe subscriptions must be cancelled first."
+            : "Esta es una baja lógica. La cuenta y su historial permanecen guardados, pero se bloquea el acceso. Primero deben cancelarse las suscripciones activas de Stripe."}
+          destructive
+          icon={<Trash2 className="h-5 w-5" />}
+          itemName={companyDeletion.name}
+          onCancel={() => setCompanyDeletion(null)}
+          onConfirm={() => void confirmCompanyDeletion()}
+          open
+          title={english ? "Delete account" : "Eliminar cuenta"}
+          tone="blue"
+        >
+          <Field label={english ? "Deletion reason" : "Motivo de eliminación"}>
+            <textarea autoFocus minLength={5} value={companyDeletionReason} onChange={(event) => setCompanyDeletionReason(event.target.value)} className={`${controlClass} min-h-24 resize-y py-2`} />
+          </Field>
+          <Field label={english ? `Type “${companyDeletion.name}” to confirm` : `Escribe “${companyDeletion.name}” para confirmar`}>
+            <input value={companyDeletionName} onChange={(event) => setCompanyDeletionName(event.target.value)} className={controlClass} autoComplete="off" />
+          </Field>
+        </IndiceConfirmationDialog>
+      ) : null}
     </main>
   );
 }
@@ -1248,6 +1305,7 @@ function CustomersTab({
   onEditType,
   onAssignDistributor,
   onExtendTrial,
+  onDelete,
 }: {
   english: boolean;
   totals: PlatformOverview["totals"] | undefined;
@@ -1279,6 +1337,7 @@ function CustomersTab({
   onEditType: (company: PlatformCompanySummary) => void;
   onAssignDistributor: (company: PlatformCompanySummary) => void;
   onExtendTrial: (company: PlatformCompanySummary) => void;
+  onDelete: (company: PlatformCompanySummary) => void;
 }) {
   const pages = Math.max(1, Math.ceil(companies.length / pageSize));
   const copy = getCustomerTableCopy(english);
@@ -1424,6 +1483,7 @@ function CustomersTab({
               value: "inactive",
               label: english ? "Inactive" : "Inactiva",
             },
+            { value: "deleted", label: english ? "Deleted" : "Eliminado" },
           ]}
         />
       </IndiceFilterBar>
@@ -1483,6 +1543,8 @@ function CustomersTab({
         onEditType={onEditType}
         onAssignDistributor={onAssignDistributor}
         onExtendTrial={onExtendTrial}
+        canDelete={canEditTypes}
+        onDelete={onDelete}
       />
       <CustomerColumnsModal
         copy={copy}

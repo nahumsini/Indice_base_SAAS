@@ -163,6 +163,7 @@ export function useSalesRecords(
     postSaleCases,
     addSaleRecord,
     updateSaleRecord: updateSharedSaleRecord,
+    deleteSaleRecord: deleteSharedSaleRecord,
   } = useSalesCrm();
   const [filters, setFilters] = useState<SalesFiltersState>(initialFilters);
   const [visibleColumns, setVisibleColumns] = useState<SalesColumnId[]>(defaultVisibleSalesColumns);
@@ -295,6 +296,8 @@ export function useSalesRecords(
     updateSharedSaleRecord(saleId, patch);
   };
 
+  const deleteSaleRecord = (saleId: string) => deleteSharedSaleRecord(saleId);
+
   return {
     records,
     filteredRecords,
@@ -311,6 +314,7 @@ export function useSalesRecords(
     postSaleStatuses,
     createSaleRecord,
     updateSaleRecord,
+    deleteSaleRecord,
     creationWarning,
     clearCreationWarning: () => setCreationWarning(null),
   };

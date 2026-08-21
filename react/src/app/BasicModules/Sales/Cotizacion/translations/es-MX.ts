@@ -466,6 +466,14 @@ export const esMX: QuotesTranslations = {
     view: 'Ver cotización',
     edit: 'Editar cotización',
     files: 'Administrar archivos',
+    delete: 'Eliminar cotización',
+  },
+  deleteDialog: {
+    title: '¿Eliminar cotización?',
+    description: (quoteNumber: string) => `Se eliminará ${quoteNumber} de Cotizaciones y del pipeline de su oportunidad. La oportunidad permanecerá. La acción se bloqueará si la cotización ya se usa en una venta, contrato o postventa.`,
+    confirm: 'Eliminar cotización',
+    deleting: 'Eliminando...',
+    error: 'No se pudo eliminar la cotización. Es posible que ya esté vinculada a otro registro comercial.',
   },
   statusLabels: {
     Draft: 'Borrador',

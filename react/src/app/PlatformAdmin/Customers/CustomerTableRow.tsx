@@ -6,6 +6,7 @@ import {
   MoreHorizontal,
   PencilLine,
   Settings2,
+  Trash2,
   Users,
 } from "lucide-react";
 import type { PlatformCompanySummary } from "../../api/platformAdmin";
@@ -47,6 +48,8 @@ export function CustomerTableRow({
   onAssignDistributor,
   canExtendTrials,
   onExtendTrial,
+  canDelete,
+  onDelete,
   onOpenCompany,
   onOpenUsers,
 }: {
@@ -62,11 +65,14 @@ export function CustomerTableRow({
   onAssignDistributor?: (company: PlatformCompanySummary) => void;
   canExtendTrials?: boolean;
   onExtendTrial?: (company: PlatformCompanySummary) => void;
+  canDelete?: boolean;
+  onDelete?: (company: PlatformCompanySummary) => void;
   onOpenCompany: (company: PlatformCompanySummary | number) => void;
   onOpenUsers: (company: PlatformCompanySummary) => void;
 }) {
   const accountType = normalizeAccountType(company.user_type);
   const status = basicCommercialStatus(company);
+  const deleted = status === "deleted";
   const seats =
     (company.included_seats || 0) +
     (company.purchased_extra_seats || 0) +
@@ -214,7 +220,7 @@ export function CustomerTableRow({
   };
 
   return (
-    <TableRow className="group border-slate-200 hover:bg-blue-50/35">
+    <TableRow className={`group border-slate-200 hover:bg-blue-50/35 ${deleted ? "bg-slate-50 opacity-75" : ""}`}>
       {columns.map((columnId) => (
         <TableCell
           key={columnId}
@@ -236,13 +242,13 @@ export function CustomerTableRow({
             onClick={() => onOpenCompany(company)}
             className="border-blue-200 bg-blue-50 text-[#1D4ED8] hover:bg-blue-100"
           />
-          <CustomerActionButton
+          {!deleted ? <CustomerActionButton
             label={copy.manageUsers}
             icon={<Users className="h-4 w-4" />}
             onClick={() => onOpenUsers(company)}
             className="border-emerald-200 bg-emerald-50 text-[#177D66] hover:bg-emerald-100"
-          />
-          {canEditTypes && accountType !== "ROOT" ? (
+          /> : null}
+          {!deleted && canEditTypes && accountType !== "ROOT" ? (
             <CustomerActionButton
               label={copy.editType}
               icon={<PencilLine className="h-4 w-4" />}
@@ -250,7 +256,7 @@ export function CustomerTableRow({
               className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
             />
           ) : null}
-          {canAssignDistributor || canExtendTrial ? (
+          {!deleted && (canAssignDistributor || canExtendTrial || (canDelete && accountType !== "ROOT")) ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -273,6 +279,12 @@ export function CustomerTableRow({
                   <DropdownMenuItem onSelect={() => onExtendTrial?.(company)} className="rounded-lg py-2">
                     <CalendarPlus className="h-4 w-4 text-[#2563EB]" />
                     {copy.extendTrial}
+                  </DropdownMenuItem>
+                ) : null}
+                {canDelete && accountType !== "ROOT" ? (
+                  <DropdownMenuItem onSelect={() => onDelete?.(company)} className="rounded-lg py-2 text-red-700 focus:bg-red-50 focus:text-red-800">
+                    <Trash2 className="h-4 w-4" />
+                    {copy.deleteAccount}
                   </DropdownMenuItem>
                 ) : null}
               </DropdownMenuContent>
@@ -374,6 +386,7 @@ function CommercialStatusBadge({
     trial: [english ? "Trial" : "Prueba", "bg-amber-50 text-amber-700"],
     demo: ["Demo", "bg-blue-50 text-[#2563EB]"],
     inactive: [english ? "Inactive" : "Inactiva", "bg-slate-100 text-slate-600"],
+    deleted: [english ? "Deleted" : "Eliminado", "bg-red-50 text-red-700"],
   }[status];
   return <TableBadge label={presentation[0]} className={presentation[1]} />;
 }

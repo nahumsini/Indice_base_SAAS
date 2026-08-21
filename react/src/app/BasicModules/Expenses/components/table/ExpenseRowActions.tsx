@@ -74,6 +74,11 @@ export function ExpenseRowActions({
           <HandCoins className="h-4 w-4" />
         </ActionButton>
       ) : null}
+      {showMarkPaid ? (
+        <ActionButton label={t.expenses.rowActions.markPaid} onClick={() => onMarkPaid(expenseId)}>
+          <CheckCircle2 className="h-4 w-4" />
+        </ActionButton>
+      ) : null}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button aria-label={t.common.actions} className={tableActionButtonBaseClass} title={t.common.actions} type="button">
@@ -93,12 +98,6 @@ export function ExpenseRowActions({
             <Copy />
             {t.common.duplicate}
           </DropdownMenuItem>
-          {showMarkPaid ? (
-            <DropdownMenuItem onClick={() => onMarkPaid(expenseId)} className="rounded-lg py-2">
-              <CheckCircle2 />
-              {t.expenses.rowActions.markPaid}
-            </DropdownMenuItem>
-          ) : null}
           {showAudit ? (
             <DropdownMenuItem onClick={() => onAudit(expenseId)} className="rounded-lg py-2">
               <ShieldCheck />

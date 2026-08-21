@@ -309,6 +309,8 @@ public class SalesApiController {
             return ResponseEntity.ok(salesService.deleteQuoteItem(user.get().companyId(), quoteId, itemId));
         } catch (NoSuchElementException ex) {
             return notFound(ex);
+        } catch (IllegalArgumentException ex) {
+            return badRequest(ex);
         }
     }
 
@@ -568,6 +570,8 @@ public class SalesApiController {
             return ResponseEntity.ok(Map.of("success", true));
         } catch (NoSuchElementException ex) {
             return notFound(ex);
+        } catch (IllegalArgumentException ex) {
+            return badRequest(ex);
         }
     }
 

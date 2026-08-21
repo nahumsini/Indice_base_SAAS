@@ -352,6 +352,17 @@ test('Cotizaciones concentra la decisión comercial y deja el PDF a un clic', ()
   assert.match(companyIdentitySource, /phone: corporateOffice\?\.telefono/);
 });
 
+test('Cotizaciones elimina de forma confirmada y actualiza el pipeline derivado', () => {
+  const pageSource = readFileSync(resolve(salesRoot, 'Cotizacion/Cotizacion.tsx'), 'utf8');
+  const contextSource = readFileSync(resolve(salesRoot, 'salesCrmContext.tsx'), 'utf8');
+
+  assert.match(pageSource, /setQuotePendingDeletion\(quote\)/);
+  assert.match(pageSource, /await deleteQuote\(quotePendingDeletion\.id\)/);
+  assert.match(pageSource, /AlertDialogTitle/);
+  assert.match(contextSource, /await salesApi\.delete\('quotes', backendId\)/);
+  assert.match(contextSource, /setQuotes\(\(current\) => current\.filter/);
+});
+
 test('los KPI de Ventas consolidan oportunidades con las mismas cotizaciones ligadas', () => {
   const kpiPageSource = readFileSync(resolve(salesRoot, 'KPIs/KPIs.tsx'), 'utf8');
   const performanceSource = readFileSync(resolve(salesRoot, 'KPIs/components/SalesProspectsPerformanceTable.tsx'), 'utf8');
@@ -428,4 +439,15 @@ test('el detalle de venta usa el modal estándar y conserva el alta como wizard'
   assert.match(detailSource, /t\.modal\.sections\.inventory/);
   assert.match(detailSource, /<CollapsibleDetailSection/);
   assert.match(modalSource, /t\.modal\.previewSaleSummary/);
+});
+
+test('Ventas elimina con confirmación y espera la baja lógica del backend', () => {
+  const pageSource = readFileSync(resolve(salesRoot, 'Sales/Sales.tsx'), 'utf8');
+  const rowSource = readFileSync(resolve(salesRoot, 'Sales/components/SalesTableRow.tsx'), 'utf8');
+  const contextSource = readFileSync(resolve(salesRoot, 'salesCrmContext.tsx'), 'utf8');
+
+  assert.match(rowSource, /t\.table\.actions\.deleteSale/);
+  assert.match(pageSource, /<SaleDeleteDialog/);
+  assert.match(pageSource, /await deleteSaleRecord\(record\.id\)/);
+  assert.match(contextSource, /await salesApi\.delete\('sales', backendId\)/);
 });

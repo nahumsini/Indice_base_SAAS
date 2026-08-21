@@ -358,6 +358,14 @@ export const koCA = {
     view: '견적 보기',
     edit: '견적 수정',
     files: '파일 관리',
+    delete: '견적 삭제',
+  },
+  deleteDialog: {
+    title: '견적을 삭제하시겠습니까?',
+    description: (quoteNumber: string) => `${quoteNumber} 견적과 기회 파이프라인에서 제거됩니다. 기회 자체는 유지됩니다.`,
+    confirm: '견적 삭제',
+    deleting: '삭제 중...',
+    error: '다른 영업 기록에서 사용 중인 견적은 삭제할 수 없습니다.',
   },
   statusLabels: {
     Draft: '초안',

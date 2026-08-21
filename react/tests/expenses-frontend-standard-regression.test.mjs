@@ -68,3 +68,20 @@ test('Expenses conserva el shell financiero y el Kiosk Engine compartido', () =>
   assert.match(kioskSource, /<KioskIdentityGate/);
   assert.match(managerSource, /<KioskModalFrame/);
 });
+
+test('Expenses elimina gastos numéricos por su API aunque el metadato histórico diga budget', () => {
+  const expensesSource = readFileSync(resolve(expensesRoot, 'Expenses/Expenses.tsx'), 'utf8');
+
+  assert.match(expensesSource, /if \(expense\.id\.startsWith\('budget-line-'\)\)/);
+  assert.match(expensesSource, /await expensesService\.deleteExpense\(id\)/);
+});
+
+test('Saldo permite ordenar ascendente y descendente por el saldo calculado', () => {
+  const tableSource = readFileSync(resolve(expensesRoot, 'Expenses/components/ExpenseTable.tsx'), 'utf8');
+  const configSource = readFileSync(resolve(expensesRoot, 'constants/expenseTableConfig.ts'), 'utf8');
+
+  assert.match(configSource, /key: 'balance', label: 'Saldo', sortable: 'balance'/);
+  assert.match(tableSource, /sortField === 'balance'/);
+  assert.match(tableSource, /getExpenseBalance\(left\)/);
+  assert.match(tableSource, /getExpenseBalance\(right\)/);
+});

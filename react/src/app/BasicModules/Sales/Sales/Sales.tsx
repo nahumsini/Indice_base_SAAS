@@ -56,6 +56,26 @@ function SaleCancelDialog({
   );
 }
 
+function SaleDeleteDialog({ record, t, onCancel, onConfirm }: {
+  record: SaleRecord | null;
+  t: ReturnType<typeof useSalesTranslations>;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <ConfirmDeleteDialog
+      isVisible={Boolean(record)}
+      title={t.table.actions.deleteSale}
+      description={t.table.actions.deleteConfirmation}
+      itemName={record ? `${record.saleNumber} · ${record.customerName}` : undefined}
+      cancelLabel={t.common.cancel}
+      confirmLabel={t.table.actions.deleteSale}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+    />
+  );
+}
+
 interface SalesProps {
   learningModeActive?: boolean;
 }
@@ -88,6 +108,7 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
     customers,
     createSaleRecord,
     updateSaleRecord,
+    deleteSaleRecord,
     creationWarning,
     clearCreationWarning,
   } = useSalesRecords(preferredCurrency);
@@ -101,6 +122,8 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
   const [summaryPreviewRecord, setSummaryPreviewRecord] = useState<SaleRecord | null>(null);
   const [commissionRecord, setCommissionRecord] = useState<SaleRecord | null>(null);
   const [pendingCancelRecord, setPendingCancelRecord] = useState<SaleRecord | null>(null);
+  const [pendingDeleteRecord, setPendingDeleteRecord] = useState<SaleRecord | null>(null);
+  const [deleteError, setDeleteError] = useState('');
   const [warehouses, setWarehouses] = useState<InventoryWarehouse[]>([]);
   const [currentSeller, setCurrentSeller] = useState<SalesCurrentSeller>();
   const [receivableAccounts, setReceivableAccounts] = useState<ReceivableAccount[]>([]);
@@ -290,6 +313,18 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
     setPendingCancelRecord(null);
   };
 
+  const handleConfirmDeleteSale = async () => {
+    if (!pendingDeleteRecord) return;
+    const record = pendingDeleteRecord;
+    setDeleteError('');
+    try {
+      await deleteSaleRecord(record.id);
+      setPendingDeleteRecord(null);
+    } catch (error) {
+      setDeleteError(error instanceof Error && error.message ? error.message : t.table.actions.deleteError);
+    }
+  };
+
   return (
     <section className="space-y-5">
       <SalesHeader
@@ -325,6 +360,7 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
           onDownloadQuote={handleDownloadQuote}
           onDownloadInvoice={handleDownloadInvoice}
           onCancelSale={handleCancelSale}
+          onDeleteSale={setPendingDeleteRecord}
       />
 
       <SalesColumnsModal
@@ -400,6 +436,13 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
         onConfirm={handleConfirmCancelSale}
       />
 
+      <SaleDeleteDialog
+        record={pendingDeleteRecord}
+        t={t}
+        onCancel={() => setPendingDeleteRecord(null)}
+        onConfirm={() => void handleConfirmDeleteSale()}
+      />
+
       <FailureToast
         isVisible={creationWarning === 'paymentEvidenceUploadFailed'}
         message={t.modal.wizard.paymentEvidenceUploadWarning}
@@ -409,6 +452,11 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
         isVisible={Boolean(commissionRulesError)}
         message={commissionRulesError}
         onClose={() => setCommissionRulesError('')}
+      />
+      <FailureToast
+        isVisible={Boolean(deleteError)}
+        message={deleteError}
+        onClose={() => setDeleteError('')}
       />
     </section>
   );

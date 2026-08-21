@@ -358,6 +358,14 @@ export const ptBR = {
     view: 'Ver cotacao',
     edit: 'Editar cotacao',
     files: 'Gerenciar arquivos',
+    delete: 'Excluir cotacao',
+  },
+  deleteDialog: {
+    title: 'Excluir cotacao?',
+    description: (quoteNumber: string) => `${quoteNumber} sera removida das cotacoes e do pipeline da oportunidade. A oportunidade permanecera.`,
+    confirm: 'Excluir cotacao',
+    deleting: 'Excluindo...',
+    error: 'Nao foi possivel excluir a cotacao porque ela pode estar em uso por outro registro comercial.',
   },
   statusLabels: {
     Draft: 'Rascunho',

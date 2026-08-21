@@ -464,6 +464,14 @@ export const enCA = {
     view: 'View quote',
     edit: 'Edit quote',
     files: 'Manage files',
+    delete: 'Delete quote',
+  },
+  deleteDialog: {
+    title: 'Delete quote?',
+    description: (quoteNumber: string) => `This will remove ${quoteNumber} from quotes and from its opportunity pipeline. The opportunity itself will remain. This action is blocked when the quote is already used by a sale, contract, or post-sale record.`,
+    confirm: 'Delete quote',
+    deleting: 'Deleting...',
+    error: 'The quote could not be deleted. It may already be used by another commercial record.',
   },
   statusLabels: {
     Draft: 'Draft',

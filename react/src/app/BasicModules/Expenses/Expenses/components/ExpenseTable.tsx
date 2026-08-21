@@ -114,8 +114,16 @@ export function ExpenseTable({
   const sortedExpenses = useMemo(() => {
     if (!sortField || !sortDirection) return expenses;
     return [...expenses].sort((left, right) => compareSortValues(
-      sortField === 'status' ? getEffectiveExpenseStatus(left) : left[sortField],
-      sortField === 'status' ? getEffectiveExpenseStatus(right) : right[sortField],
+      sortField === 'status'
+        ? getEffectiveExpenseStatus(left)
+        : sortField === 'balance'
+          ? getExpenseBalance(left)
+          : left[sortField],
+      sortField === 'status'
+        ? getEffectiveExpenseStatus(right)
+        : sortField === 'balance'
+          ? getExpenseBalance(right)
+          : right[sortField],
       sortDirection,
     ));
   }, [expenses, sortDirection, sortField]);

@@ -358,6 +358,14 @@ export const zhCA = {
     view: '查看报价',
     edit: '编辑报价',
     files: '管理文件',
+    delete: '删除报价',
+  },
+  deleteDialog: {
+    title: '删除报价？',
+    description: (quoteNumber: string) => `${quoteNumber} 将从报价和相关商机管道中移除，但商机本身会保留。`,
+    confirm: '删除报价',
+    deleting: '正在删除...',
+    error: '无法删除报价；其他销售记录可能正在使用该报价。',
   },
   statusLabels: {
     Draft: '草稿',

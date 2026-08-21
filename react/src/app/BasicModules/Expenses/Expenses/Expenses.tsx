@@ -611,7 +611,10 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
       return;
     }
 
-    if (expense.type === 'budget') {
+    // Budget-line rows are synthetic and always carry this prefixed id. Some
+    // historical expense records also carry entryType="budget", but their
+    // numeric id must still be deleted through the expenses API.
+    if (expense.id.startsWith('budget-line-')) {
       setExpenseDeleting(id, true);
       try {
         await budgetLinesService.deleteBudgetLine(id);

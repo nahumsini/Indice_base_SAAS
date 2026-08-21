@@ -240,6 +240,20 @@ public class SalesService {
 
     @Transactional
     public void delete(long companyId, String collection, long id) {
+        if ("quotes".equals(collection)) {
+            salesRepository.lockQuoteForDeletion(companyId, id);
+            if (salesRepository.countActiveQuoteDependents(companyId, id) > 0) {
+                throw new IllegalArgumentException(
+                        "Quote cannot be deleted because it is already used by a sale, contract, or post-sale record.");
+            }
+        }
+        if ("sales".equals(collection)) {
+            salesRepository.lockSaleForDeletion(companyId, id);
+            if (salesRepository.countActiveSaleDependents(companyId, id) > 0) {
+                throw new IllegalArgumentException(
+                        "Sale cannot be deleted because it has a credit account, POS ticket, or closed commission cut.");
+            }
+        }
         salesRepository.softDelete(companyId, definition(collection), id);
     }
 

@@ -13,6 +13,7 @@ import {
   PencilLine,
   Plus,
   Printer,
+  Trash2,
 } from 'lucide-react';
 import { authApi } from '../../../api/auth';
 import { humanResourcesApi } from '../../../api/humanResources';
@@ -28,6 +29,16 @@ import {
   type IndiceTableColumnDefinition,
 } from '../../../components/table/IndiceTableEngine';
 import { Input } from '../../../components/ui/input';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../../../components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -161,7 +172,7 @@ const quoteTableColumnIds = Object.keys(quoteColumnWidths) as QuoteOperationalCo
 const quoteSortableColumnIds: QuoteOperationalColumnId[] = quoteTableColumnIds.filter(
   (columnId) => columnId !== 'readiness',
 );
-const quoteActionsColumnWidth = 116;
+const quoteActionsColumnWidth = 164;
 
 export default function Cotizacion({ learningModeActive = false }: CotizacionProps) {
   const navigate = useNavigate();
@@ -176,6 +187,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
     salesRecords,
     addQuote,
     updateQuote,
+    deleteQuote,
     addOpportunity,
     updateOpportunity,
     updateQuoteStatus,
@@ -190,6 +202,9 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
   const [editingQuote, setEditingQuote] = useState<SalesQuote | null>(null);
   const [previewQuote, setPreviewQuote] = useState<SalesQuote | null>(null);
   const [selectedFilesQuote, setSelectedFilesQuote] = useState<SalesQuote | null>(null);
+  const [quotePendingDeletion, setQuotePendingDeletion] = useState<SalesQuote | null>(null);
+  const [isDeletingQuote, setIsDeletingQuote] = useState(false);
+  const [quoteDeletionError, setQuoteDeletionError] = useState('');
   const [pendingAssignmentQuote, setPendingAssignmentQuote] = useState<SalesQuote | null>(null);
   const [selectedOpportunityId, setSelectedOpportunityId] = useState('none');
   const [newOpportunityName, setNewOpportunityName] = useState('');
@@ -820,6 +835,23 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
     }
   };
 
+  const confirmQuoteDeletion = async () => {
+    if (!quotePendingDeletion || isDeletingQuote) {
+      return;
+    }
+
+    setIsDeletingQuote(true);
+    setQuoteDeletionError('');
+    try {
+      await deleteQuote(quotePendingDeletion.id);
+      setQuotePendingDeletion(null);
+    } catch {
+      setQuoteDeletionError(t.deleteDialog.error);
+    } finally {
+      setIsDeletingQuote(false);
+    }
+  };
+
   const closeAssignmentModal = () => {
     setPendingAssignmentQuote(null);
     setSelectedOpportunityId('none');
@@ -1089,6 +1121,10 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
                       <IndiceTableActionGroup>
                         <QuoteAction label={t.actions.view} icon={<Eye className="h-4 w-4" />} className="border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32] hover:bg-[#FF6B5E]/15 dark:text-[#FFB0AA] dark:hover:bg-[#FF6B5E]/20" onClick={() => setPreviewQuote(quote)} />
                         <QuoteAction label={t.actions.edit} icon={<PencilLine className="h-4 w-4" />} className="border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800" onClick={() => openEditQuoteBuilder(quote)} />
+                        <QuoteAction label={t.actions.delete} icon={<Trash2 className="h-4 w-4" />} className="border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/70" onClick={() => {
+                          setQuoteDeletionError('');
+                          setQuotePendingDeletion(quote);
+                        }} />
                       </IndiceTableActionGroup>
                     </TableCell>
                   </TableRow>
@@ -1097,6 +1133,43 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
             </TableBody>
           </IndiceOperationalTable>
       </IndiceTableShell>
+
+      <AlertDialog
+        open={Boolean(quotePendingDeletion)}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingQuote) {
+            setQuotePendingDeletion(null);
+            setQuoteDeletionError('');
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.deleteDialog.title}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t.deleteDialog.description(quotePendingDeletion?.quoteNumber ?? '')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {quoteDeletionError ? (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+              {quoteDeletionError}
+            </p>
+          ) : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingQuote}>{t.common.cancel}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeletingQuote}
+              className="bg-red-600 text-white hover:bg-red-700"
+              onClick={(event) => {
+                event.preventDefault();
+                void confirmQuoteDeletion();
+              }}
+            >
+              {isDeletingQuote ? t.deleteDialog.deleting : t.deleteDialog.confirm}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <QuoteBuilderModal
         open={isBuilderOpen}

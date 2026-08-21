@@ -195,6 +195,69 @@ class SalesRepository {
                 id);
     }
 
+    void lockQuoteForDeletion(long companyId, long quoteId) {
+        var ids = jdbcTemplate.query(
+                """
+                        SELECT id
+                        FROM sales_quotes
+                        WHERE company_id = ?
+                          AND id = ?
+                          AND deleted_at IS NULL
+                        FOR UPDATE
+                        """,
+                (rs, rowNum) -> rs.getLong("id"),
+                companyId,
+                quoteId);
+        if (ids.isEmpty()) {
+            throw new NoSuchElementException("Quote not found.");
+        }
+    }
+
+    void lockSaleForDeletion(long companyId, long saleId) {
+        var ids = jdbcTemplate.query(
+                "SELECT id FROM sales_records WHERE company_id = ? AND id = ? AND deleted_at IS NULL FOR UPDATE",
+                (rs, rowNum) -> rs.getLong("id"), companyId, saleId);
+        if (ids.isEmpty()) throw new NoSuchElementException("Sale not found.");
+    }
+
+    int countActiveSaleDependents(long companyId, long saleId) {
+        return jdbcTemplate.queryForObject(
+                """
+                SELECT
+                  (SELECT COUNT(*) FROM finance_credit_sales credit
+                   WHERE credit.company_id = ? AND credit.sales_record_id = ? AND credit.deleted_at IS NULL)
+                  +
+                  (SELECT COUNT(*) FROM pos_tickets ticket
+                   WHERE ticket.company_id = ? AND ticket.sales_record_id = ? AND ticket.deleted_at IS NULL)
+                  +
+                  (SELECT COUNT(*) FROM sales_commission_cut_items cut_item
+                   WHERE cut_item.company_id = ? AND cut_item.sale_id = ?)
+                """,
+                Integer.class,
+                companyId, saleId, companyId, saleId, companyId, saleId);
+    }
+
+    int countActiveQuoteDependents(long companyId, long quoteId) {
+        var count = jdbcTemplate.queryForObject(
+                """
+                        SELECT
+                            (SELECT COUNT(*) FROM sales_records
+                             WHERE company_id = ? AND quote_id = ? AND deleted_at IS NULL)
+                          + (SELECT COUNT(*) FROM sales_contracts
+                             WHERE company_id = ? AND quote_id = ? AND deleted_at IS NULL)
+                          + (SELECT COUNT(*) FROM sales_post_sale_cases
+                             WHERE company_id = ? AND quote_id = ? AND deleted_at IS NULL)
+                        """,
+                Integer.class,
+                companyId,
+                quoteId,
+                companyId,
+                quoteId,
+                companyId,
+                quoteId);
+        return count == null ? 0 : count;
+    }
+
     List<Map<String, Object>> listQuoteItems(long companyId, long quoteId) {
         return jdbcTemplate.query(
                 """

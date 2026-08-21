@@ -523,6 +523,29 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
         handleSyncFailure('update quote', new Error('Missing backend identifier.'));
       }
     },
+    deleteQuote: async (quoteId) => {
+      const currentQuote = quotes.find((quote) => quote.id === quoteId);
+      if (!currentQuote) {
+        return;
+      }
+
+      const backendId = backendIdFrom(currentQuote);
+      if (backendId === undefined) {
+        const error = new Error('Missing backend identifier.');
+        handleSyncFailure('delete quote', error);
+        throw error;
+      }
+
+      try {
+        await salesApi.delete('quotes', backendId);
+        setQuotes((current) => current.filter((quote) => (
+          quote.id !== quoteId && quote.backendId !== backendId
+        )));
+      } catch (error) {
+        handleSyncFailure('delete quote', error);
+        throw error;
+      }
+    },
     addSaleRecord: async (saleRecord) => {
       setSalesRecords((current) => [saleRecord, ...current]);
       try {
@@ -554,6 +577,25 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
           .catch((error) => handleSyncFailure('update sale', error));
       } else if (currentSale) {
         handleSyncFailure('update sale', new Error('Missing backend identifier.'));
+      }
+    },
+    deleteSaleRecord: async (saleId) => {
+      const currentSale = salesRecords.find((saleRecord) => saleRecord.id === saleId);
+      if (!currentSale) return;
+      const backendId = backendIdFrom(currentSale);
+      if (backendId === undefined) {
+        const error = new Error('Missing backend identifier.');
+        handleSyncFailure('delete sale', error);
+        throw error;
+      }
+      try {
+        await salesApi.delete('sales', backendId);
+        setSalesRecords((current) => current.filter((saleRecord) => (
+          saleRecord.id !== saleId && saleRecord.backendId !== backendId
+        )));
+      } catch (error) {
+        handleSyncFailure('delete sale', error);
+        throw error;
       }
     },
     addPostSaleCase: (postSaleCase) => {

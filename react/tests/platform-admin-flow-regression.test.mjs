@@ -340,6 +340,16 @@ test("el estado comercial distingue activo prueba demo e inactivo", () => {
   assert.match(customerRow, /basicCommercialStatus\(company\)/);
 });
 
+test("eliminar cuenta conserva el registro como Eliminado y exige confirmación segura", () => {
+  assert.match(customerRow, /copy\.deleteAccount/);
+  assert.match(customerRow, /status === "deleted"/);
+  assert.match(customerTableUtils, /platform_status === "DELETED"/);
+  assert.match(page, /companyDeletionName !== companyDeletion\.name/);
+  assert.match(page, /platformAdminApi\.deleteCompanyAccount/);
+  assert.match(page, /baja lógica/);
+  assert.match(platformApi, /method: 'DELETE'/);
+});
+
 test("Root habilita demos públicas por empresa sin modificar el login normal", () => {
   assert.match(platformApi, /public_demo_enabled\?: boolean/);
   assert.match(platformApi, /updatePublicDemoAccess/);

@@ -78,7 +78,7 @@ public class PlatformAdminService {
         var pattern = "%" + query + "%";
         var companies = jdbcTemplate.query(
             """
-                SELECT company.id, company.name, company.public_demo_enabled,
+                SELECT company.id, company.name, company.public_demo_enabled, company.platform_status,
                        CASE
                            WHEN EXISTS (
                                SELECT 1
@@ -324,6 +324,7 @@ public class PlatformAdminService {
                 row.put("id", rs.getLong("id"));
                 row.put("name", rs.getString("name"));
                 row.put("public_demo_enabled", rs.getBoolean("public_demo_enabled"));
+                row.put("platform_status", rs.getString("platform_status"));
                 row.put("user_type", rs.getString("user_type"));
                 row.put("distributor_company_id", rs.getObject("distributor_company_id"));
                 row.put("distributor_company_name", nullable(rs.getString("distributor_company_name")));
@@ -431,6 +432,10 @@ public class PlatformAdminService {
     private void addBillingProjection(List<? extends Map<String, Object>> companies) {
         var quoteCache = new LinkedHashMap<String, CommercialOfferSelection>();
         for (var company : companies) {
+            if ("deleted".equals(lower(company.get("platform_status")))) {
+                unavailableBillingProjection(company);
+                continue;
+            }
             var billingStatus = lower(company.get("billing_status"));
             var stripeManaged = Boolean.TRUE.equals(company.get("billing_managed_by_stripe"));
             var activeStripeContract = stripeManaged
@@ -508,6 +513,9 @@ public class PlatformAdminService {
     }
 
     private static boolean isOperationalCustomerAccount(Map<String, Object> company) {
+        if ("deleted".equals(lower(company.get("platform_status")))) {
+            return false;
+        }
         if (!"SUPER_ADMIN".equalsIgnoreCase(String.valueOf(company.get("user_type")))) {
             return false;
         }
@@ -749,6 +757,103 @@ public class PlatformAdminService {
             "user_type", accountType,
             "changed", changed
         );
+    }
+
+    @Transactional
+    public Map<String, Object> deleteCompanyAccount(
+        long actorUserId,
+        long companyId,
+        CompanyDeletionRequest request
+    ) {
+        accessService.require(actorUserId, "PLATFORM_ACCOUNTS_WRITE");
+        var confirmation = request == null || request.confirmation_name() == null
+            ? "" : request.confirmation_name().trim();
+        var reason = request == null || request.reason() == null ? "" : request.reason().trim();
+        if (reason.length() < 5) {
+            throw new IllegalArgumentException("A deletion reason of at least 5 characters is required.");
+        }
+
+        var rows = jdbcTemplate.query(
+            """
+                SELECT company.name, company.platform_status,
+                       EXISTS (
+                           SELECT 1
+                           FROM user_companies membership
+                           JOIN platform_administrators administrator
+                             ON administrator.user_id = membership.user_id
+                            AND administrator.status = 'ACTIVE'
+                            AND administrator.platform_role = 'PLATFORM_ROOT'
+                           WHERE membership.company_id = company.id
+                             AND LOWER(COALESCE(membership.status, 'active')) = 'active'
+                       ) AS platform_root,
+                       EXISTS (
+                           SELECT 1 FROM company_billing_subscriptions subscription
+                           WHERE subscription.company_id = company.id
+                             AND subscription.stripe_subscription_id IS NOT NULL
+                             AND LOWER(subscription.status) IN ('trialing', 'active', 'past_due', 'unpaid')
+                       ) AS active_stripe_subscription,
+                       EXISTS (
+                           SELECT 1 FROM companies customer
+                           WHERE customer.distributor_company_id = company.id
+                             AND customer.platform_status = 'ACTIVE'
+                       ) AS active_distributor_customers
+                FROM companies company
+                WHERE company.id = ?
+                FOR UPDATE
+                """,
+            (rs, rowNum) -> Map.<String, Object>of(
+                "name", rs.getString("name"),
+                "status", rs.getString("platform_status"),
+                "platform_root", rs.getBoolean("platform_root"),
+                "active_stripe_subscription", rs.getBoolean("active_stripe_subscription"),
+                "active_distributor_customers", rs.getBoolean("active_distributor_customers")
+            ),
+            companyId
+        );
+        if (rows.isEmpty()) throw new NoSuchElementException("Company not found.");
+        var company = rows.getFirst();
+        var companyName = String.valueOf(company.get("name"));
+        if (!companyName.equals(confirmation)) {
+            throw new IllegalArgumentException("The confirmation name must exactly match the company name.");
+        }
+        if (Boolean.TRUE.equals(company.get("platform_root"))) {
+            throw new IllegalStateException("The platform Root company cannot be deleted.");
+        }
+        if (Boolean.TRUE.equals(company.get("active_stripe_subscription"))) {
+            throw new IllegalStateException("Cancel the active Stripe subscription before deleting this account.");
+        }
+        if (Boolean.TRUE.equals(company.get("active_distributor_customers"))) {
+            throw new IllegalStateException("Reassign the distributor's active customer accounts before deleting it.");
+        }
+        if ("DELETED".equals(company.get("status"))) {
+            return Map.of("company_id", companyId, "platform_status", "DELETED", "changed", false);
+        }
+
+        jdbcTemplate.update(
+            """
+                UPDATE companies
+                SET platform_status = 'DELETED', deleted_at = CURRENT_TIMESTAMP(6),
+                    deleted_by_user_id = ?, deletion_reason = ?, public_demo_enabled = FALSE
+                WHERE id = ? AND platform_status = 'ACTIVE'
+                """,
+            actorUserId, reason, companyId
+        );
+        jdbcTemplate.update(
+            "UPDATE user_invitations SET status = 'cancelled' WHERE company_id = ? AND LOWER(COALESCE(status, 'pending')) = 'pending'",
+            companyId
+        );
+        jdbcTemplate.update(
+            """
+                INSERT INTO company_commercial_states (company_id, state, access_mode, reason_code, suspended_at)
+                VALUES (?, 'SUSPENDED', 'NONE', 'PLATFORM_ACCOUNT_DELETED', CURRENT_TIMESTAMP(6))
+                ON DUPLICATE KEY UPDATE state = 'SUSPENDED', access_mode = 'NONE',
+                    reason_code = 'PLATFORM_ACCOUNT_DELETED', suspended_at = CURRENT_TIMESTAMP(6), version = version + 1
+                """,
+            companyId
+        );
+        audit.record(actorUserId, "COMPANY_ACCOUNT_DELETED", "COMPANY", String.valueOf(companyId), companyId,
+            "SUCCESS", Map.of("company_name", companyName, "reason", reason, "deletion_mode", "SOFT_DELETE"));
+        return Map.of("company_id", companyId, "platform_status", "DELETED", "changed", true);
     }
 
     @Transactional
@@ -1951,6 +2056,9 @@ public class PlatformAdminService {
     }
 
     public record AccountTypeUpdateRequest(String account_type) {
+    }
+
+    public record CompanyDeletionRequest(String confirmation_name, String reason) {
     }
 
     public record PublicDemoUpdateRequest(Boolean enabled) {

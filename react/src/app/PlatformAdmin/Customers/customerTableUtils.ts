@@ -16,11 +16,13 @@ export type CustomerCommercialStatus =
   | "active"
   | "trial"
   | "demo"
-  | "inactive";
+  | "inactive"
+  | "deleted";
 
 export function basicCommercialStatus(
   company: PlatformCompanySummary,
 ): CustomerCommercialStatus {
+  if (company.platform_status === "DELETED") return "deleted";
   const billingStatus = (company.billing_status || "").toLowerCase();
   const lifecycleState = (company.lifecycle_state || "").toLowerCase();
   const accessMode = (company.access_mode || "").toLowerCase();

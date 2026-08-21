@@ -128,6 +128,7 @@ export interface PlatformCompanySummary {
   id: number;
   name: string;
   public_demo_enabled?: boolean;
+  platform_status?: 'ACTIVE' | 'DELETED';
   user_type: PlatformAccountType;
   distributor_company_id?: number | null;
   distributor_company_name?: string | null;
@@ -580,6 +581,14 @@ export const platformAdminApi = {
     `${companyPath(companyId)}/account-type`,
     { method: 'PATCH', body: JSON.stringify({ account_type: accountType }) },
   ),
+  deleteCompanyAccount: (companyId: number, confirmationName: string, reason: string) => apiClient<{
+    company_id: number;
+    platform_status: 'DELETED';
+    changed: boolean;
+  }>(companyPath(companyId), {
+    method: 'DELETE',
+    body: JSON.stringify({ confirmation_name: confirmationName, reason }),
+  }),
   updatePublicDemoAccess: (companyId: number, enabled: boolean) => apiClient<PlatformPublicDemoUpdateResult>(
     `${companyPath(companyId)}/public-demo`,
     { method: 'PATCH', body: JSON.stringify({ enabled }) },

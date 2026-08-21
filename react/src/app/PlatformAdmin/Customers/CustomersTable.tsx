@@ -38,6 +38,8 @@ export function CustomersTable({
   onAssignDistributor,
   canExtendTrials,
   onExtendTrial,
+  canDelete,
+  onDelete,
   compact = false,
 }: {
   english: boolean;
@@ -54,6 +56,8 @@ export function CustomersTable({
   onAssignDistributor?: (company: PlatformCompanySummary) => void;
   canExtendTrials?: boolean;
   onExtendTrial?: (company: PlatformCompanySummary) => void;
+  canDelete?: boolean;
+  onDelete?: (company: PlatformCompanySummary) => void;
   compact?: boolean;
 }) {
   const copy = getCustomerTableCopy(english);
@@ -111,6 +115,8 @@ export function CustomersTable({
               onAssignDistributor={onAssignDistributor}
               canExtendTrials={canExtendTrials}
               onExtendTrial={onExtendTrial}
+              canDelete={canDelete}
+              onDelete={onDelete}
               onOpenCompany={onOpenCompany}
               onOpenUsers={onOpenUsers}
             />

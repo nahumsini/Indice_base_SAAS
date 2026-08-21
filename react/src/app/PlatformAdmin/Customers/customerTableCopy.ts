@@ -42,6 +42,7 @@ export type CustomerTableCopy = {
   assignedDistributor: string;
   assignDistributor: string;
   changeDistributor: string;
+  deleteAccount: string;
   createdByDistributor: string;
   createdByIndice: string;
   webRegistration: string;
@@ -97,6 +98,7 @@ const copies: Record<"en-CA" | "es-MX", CustomerTableCopy> = {
     assignedDistributor: "Assigned distributor",
     assignDistributor: "Assign distributor",
     changeDistributor: "Change distributor",
+    deleteAccount: "Delete account",
     createdByDistributor: "Created by distributor",
     createdByIndice: "Created by Indice",
     webRegistration: "Web self-registration",
@@ -150,6 +152,7 @@ const copies: Record<"en-CA" | "es-MX", CustomerTableCopy> = {
     assignedDistributor: "Distribuidor asignado",
     assignDistributor: "Asignar distribuidor",
     changeDistributor: "Cambiar distribuidor",
+    deleteAccount: "Eliminar cuenta",
     createdByDistributor: "Creado por distribuidor",
     createdByIndice: "Creado por Índice",
     webRegistration: "Registro directo en web",

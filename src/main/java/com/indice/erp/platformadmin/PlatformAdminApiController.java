@@ -502,6 +502,23 @@ public class PlatformAdminApiController {
         }
     }
 
+    @DeleteMapping("/companies/{companyId}")
+    public ResponseEntity<?> deleteCompanyAccount(
+        HttpSession session,
+        @PathVariable long companyId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody PlatformAdminService.CompanyDeletionRequest request
+    ) {
+        try {
+            var current = auth.currentUser(session).orElse(null);
+            if (current == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            csrf.requireCsrf(session, csrfToken);
+            return ResponseEntity.ok(service.deleteCompanyAccount(current.userId(), companyId, request));
+        } catch (RuntimeException exception) {
+            return error(exception);
+        }
+    }
+
     @PatchMapping("/companies/{companyId}/public-demo")
     public ResponseEntity<?> updatePublicDemoAccess(
         HttpSession session,

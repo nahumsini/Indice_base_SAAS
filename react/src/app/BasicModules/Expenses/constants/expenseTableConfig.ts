@@ -44,7 +44,7 @@ export const EXPENSE_USER_OPTIONS = [
   'Office Manager',
 ];
 
-export type ExpenseSortField = keyof Expense;
+export type ExpenseSortField = keyof Expense | 'balance';
 
 export type ExpenseHeaderConfig = {
   key: string;
@@ -69,7 +69,7 @@ export const EXPENSE_TABLE_HEADERS: ExpenseHeaderConfig[] = [
     sortable: 'amountPaid',
     visibleWhen: 'amountPaid',
   },
-  { key: 'balance', label: 'Saldo', visibleWhen: 'balance' },
+  { key: 'balance', label: 'Saldo', sortable: 'balance', visibleWhen: 'balance' },
   { key: 'dueDate', label: 'F. Vencimiento', sortable: 'dueDate' },
   { key: 'paymentDate', label: 'F. Pago', sortable: 'paymentDate' },
   { key: 'paymentMethod', label: 'Método de Pago', sortable: 'paymentMethod' },

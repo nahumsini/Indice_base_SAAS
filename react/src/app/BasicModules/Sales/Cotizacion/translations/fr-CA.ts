@@ -358,6 +358,14 @@ export const frCA = {
     view: 'Voir le devis',
     edit: 'Modifier le devis',
     files: 'Gérer les fichiers',
+    delete: 'Supprimer le devis',
+  },
+  deleteDialog: {
+    title: 'Supprimer le devis?',
+    description: (quoteNumber: string) => `${quoteNumber} sera retiré des devis et du pipeline de son occasion. L occasion restera disponible.`,
+    confirm: 'Supprimer le devis',
+    deleting: 'Suppression...',
+    error: 'Le devis ne peut pas être supprimé, car il peut être utilisé par un autre dossier commercial.',
   },
   statusLabels: {
     Draft: 'Brouillon',
