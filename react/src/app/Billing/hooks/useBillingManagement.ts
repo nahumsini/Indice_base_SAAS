@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { billingApi, type BillingSelectionPayload } from '../../api/billing';
+import { managedCompanyApi } from '../../api/managedCompanies';
 import type { BillingCopy } from '../translations';
 import type { BillingDraft, BillingManagementState } from '../types';
 
@@ -23,6 +24,7 @@ export function useBillingManagement(copy: BillingCopy) {
     selection: null,
     preview: null,
     invoices: [],
+    managedContext: null,
     draft: emptyDraft,
     loading: true,
     action: '',
@@ -33,10 +35,11 @@ export function useBillingManagement(copy: BillingCopy) {
   const load = useCallback(async () => {
     setState((current) => ({ ...current, loading: true, error: '', success: '' }));
     try {
-      const [subscription, selection, invoiceHistory] = await Promise.all([
+      const [subscription, selection, invoiceHistory, managedContext] = await Promise.all([
         billingApi.subscriptionOptional(),
         billingApi.selection(),
         billingApi.invoices(),
+        managedCompanyApi.context(),
       ]);
       const draft = toDraft(selection);
       setState((current) => ({
@@ -45,6 +48,7 @@ export function useBillingManagement(copy: BillingCopy) {
         selection,
         preview: selection,
         invoices: invoiceHistory.invoices,
+        managedContext,
         draft,
         loading: false,
       }));
@@ -66,9 +70,13 @@ export function useBillingManagement(copy: BillingCopy) {
     extra_seats: state.draft.extraSeats,
     billing_interval: state.draft.billingInterval,
   }), [state.draft]);
+  const readOnly = Boolean(state.managedContext?.active && state.managedContext.read_only);
+  const readOnlyMessage = state.managedContext?.active_company
+    ? `Delegated billing access for ${state.managedContext.active_company.name} is read-only.`
+    : '';
 
   useEffect(() => {
-    if (state.loading || !state.selection || !payload.product_codes.length) return;
+    if (state.loading || readOnly || !state.selection || !payload.product_codes.length) return;
     const timeout = window.setTimeout(async () => {
       try {
         const preview = await billingApi.previewSelection(payload);
@@ -82,9 +90,10 @@ export function useBillingManagement(copy: BillingCopy) {
       }
     }, 250);
     return () => window.clearTimeout(timeout);
-  }, [copy.emptySelection, payload, state.loading, state.selection]);
+  }, [copy.emptySelection, payload, readOnly, state.loading, state.selection]);
 
   const updateDraft = (patch: Partial<BillingDraft>) => {
+    if (readOnly) return;
     setState((current) => ({
       ...current,
       draft: { ...current.draft, ...patch },
@@ -94,6 +103,7 @@ export function useBillingManagement(copy: BillingCopy) {
   };
 
   const toggleProduct = (code: string) => {
+    if (readOnly) return;
     updateDraft({
       productCodes: state.draft.productCodes.includes(code)
         ? state.draft.productCodes.filter((item) => item !== code)
@@ -102,6 +112,7 @@ export function useBillingManagement(copy: BillingCopy) {
   };
 
   const reset = () => {
+    if (readOnly) return;
     if (!state.selection) return;
     setState((current) => ({
       ...current,
@@ -113,6 +124,10 @@ export function useBillingManagement(copy: BillingCopy) {
   };
 
   const save = async () => {
+    if (readOnly) {
+      setState((current) => ({ ...current, error: readOnlyMessage }));
+      return;
+    }
     if (!payload.product_codes.length) {
       setState((current) => ({ ...current, error: copy.emptySelection }));
       return;
@@ -140,6 +155,10 @@ export function useBillingManagement(copy: BillingCopy) {
   };
 
   const subscriptionAction = async (name: 'portal' | 'cancel' | 'resume') => {
+    if (readOnly) {
+      setState((current) => ({ ...current, error: readOnlyMessage }));
+      return;
+    }
     setState((current) => ({ ...current, action: name, error: '', success: '' }));
     try {
       if (name === 'portal') {
@@ -161,6 +180,10 @@ export function useBillingManagement(copy: BillingCopy) {
   };
 
   const activate = async () => {
+    if (readOnly) {
+      setState((current) => ({ ...current, error: readOnlyMessage }));
+      return;
+    }
     if (!payload.product_codes.length) {
       setState((current) => ({ ...current, error: copy.emptySelection }));
       return;
@@ -192,6 +215,7 @@ export function useBillingManagement(copy: BillingCopy) {
 
   return {
     ...state,
+    readOnly,
     hasChanges,
     load,
     goBack,

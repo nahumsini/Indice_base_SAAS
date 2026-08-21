@@ -10,6 +10,7 @@ type Props = {
   languageCode: string;
   action: string;
   hasChanges: boolean;
+  readOnly: boolean;
   onOpenPortal: () => void;
 };
 
@@ -36,7 +37,7 @@ export function BillingInvoiceHistory(props: Props) {
             <p className="mt-0.5 text-xs leading-5 text-slate-500 dark:text-slate-400">{props.copy.invoiceHistoryDescription}</p>
           </div>
         </div>
-        {canOpenPortal ? (
+        {canOpenPortal && !props.readOnly ? (
           <Button
             type="button"
             variant="outline"

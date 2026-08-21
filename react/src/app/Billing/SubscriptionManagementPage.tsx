@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { useLanguage } from '../shared/context';
 import { BillingConfigurationPanel } from './components/BillingConfigurationPanel';
@@ -26,6 +26,27 @@ export default function SubscriptionManagementPage() {
           onRefresh={() => void billing.load()}
         />
 
+        {billing.managedContext?.active_company ? (
+          <section className="mt-4 flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-blue-950 dark:border-blue-800/70 dark:bg-blue-950/40 dark:text-blue-100">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-blue-700 shadow-sm dark:bg-blue-900/60 dark:text-blue-200">
+              <ShieldCheck className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">
+                {billing.managedContext.authority_mode === 'PLATFORM_ROOT'
+                  ? (currentLanguage.code.startsWith('es') ? 'Consulta Root' : 'Root review')
+                  : (currentLanguage.code.startsWith('es') ? 'Cliente de tu cartera' : 'Portfolio client')}
+                {' · '}{billing.managedContext.active_company.name}
+              </p>
+              <p className="mt-0.5 text-xs leading-5 text-blue-800 dark:text-blue-200">
+                {currentLanguage.code.startsWith('es')
+                  ? 'Estás viendo su plan, capacidad, módulos e historial en modo de solo lectura. Los cobros y cambios contractuales permanecen protegidos.'
+                  : 'You are viewing this client’s plan, capacity, modules, and history in read-only mode. Charges and contract changes remain protected.'}
+              </p>
+            </div>
+          </section>
+        ) : null}
+
         {billing.error ? (
           <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
             <span className="flex items-center gap-2"><AlertCircle className="h-4 w-4 shrink-0" /> {billing.error}</span>
@@ -52,7 +73,7 @@ export default function SubscriptionManagementPage() {
                 copy={copy}
                 products={(billing.preview ?? billing.selection).available_products}
                 selectedCodes={billing.draft.productCodes}
-                disabled={Boolean(billing.action)}
+                disabled={Boolean(billing.action) || billing.readOnly}
                 onToggle={billing.toggleProduct}
               />
               <BillingConfigurationPanel
@@ -63,6 +84,7 @@ export default function SubscriptionManagementPage() {
                 draft={billing.draft}
                 action={billing.action}
                 hasChanges={billing.hasChanges}
+                readOnly={billing.readOnly}
                 onChange={billing.updateDraft}
                 onReset={billing.reset}
                 onSave={() => void billing.save()}
@@ -77,6 +99,7 @@ export default function SubscriptionManagementPage() {
               languageCode={currentLanguage.code}
               action={billing.action}
               hasChanges={billing.hasChanges}
+              readOnly={billing.readOnly}
               onOpenPortal={() => void billing.subscriptionAction('portal')}
             />
           </>

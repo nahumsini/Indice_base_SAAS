@@ -426,6 +426,7 @@ public class SessionAuthService {
         session.setAttribute(SESSION_USER_COMPANY_ID, membership.get().userCompanyId());
         var role = normalizeRole(membership.get().role());
         session.setAttribute(SESSION_ROLE, role);
+        ManagedCompanyContextService.clearAttributes(session);
         applySessionIdleTimeout(session, role);
         return true;
     }

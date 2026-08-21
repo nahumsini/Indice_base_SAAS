@@ -3,6 +3,7 @@ import type {
   BillingSubscriptionResponse,
   BillingInvoiceRecord,
 } from '../api/billing';
+import type { ManagedCompanyContext } from '../api/managedCompanies';
 
 export type BillingDraft = {
   productCodes: string[];
@@ -15,6 +16,7 @@ export type BillingManagementState = {
   selection: BillingSelectionResponse | null;
   preview: BillingSelectionResponse | null;
   invoices: BillingInvoiceRecord[];
+  managedContext: ManagedCompanyContext | null;
   draft: BillingDraft;
   loading: boolean;
   action: string;

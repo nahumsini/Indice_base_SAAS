@@ -12,11 +12,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.indice.erp.auth.AuthSessionUser;
+import com.indice.erp.auth.ManagedCompanyContextService;
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.auth.SessionCsrfService;
 import java.util.List;
 import java.util.Optional;
 import java.time.Instant;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -46,6 +48,15 @@ class BillingSubscriptionApiControllerTest {
 
     @MockBean
     private BillingInvoiceHistoryService invoiceHistoryService;
+
+    @MockBean
+    private ManagedCompanyContextService managedCompanyContextService;
+
+    @BeforeEach
+    void directBillingContext() {
+        given(managedCompanyContextService.resolveBillingContext(any(), any()))
+            .willReturn(new ManagedCompanyContextService.BillingContext(7L, "Owner company", "DIRECT", false, false));
+    }
 
     @Test
     void cancelRejectsMissingCsrfToken() throws Exception {
@@ -189,6 +200,39 @@ class BillingSubscriptionApiControllerTest {
 
         verify(csrfService).requireCsrf(any(), eq("csrf-token"));
         verify(activationService).createCheckout(eq(7L), eq(1L), eq("activation-123"), any());
+    }
+
+    @Test
+    void delegatedSelectionReadsTheAuthorizedClientCompany() throws Exception {
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(owner()));
+        given(managedCompanyContextService.resolveBillingContext(any(), any()))
+            .willReturn(new ManagedCompanyContextService.BillingContext(
+                44L, "Portfolio client", "DISTRIBUTOR_PORTFOLIO", true, true
+            ));
+        given(selectionService.current(44L)).willReturn(selection());
+
+        mockMvc.perform(get("/api/v1/billing/subscription/selection"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.selected_product_codes[0]").value("basic_hr"));
+
+        verify(selectionService).current(44L);
+    }
+
+    @Test
+    void delegatedBillingCannotMutateTheClientSubscription() throws Exception {
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(owner()));
+        given(managedCompanyContextService.resolveBillingContext(any(), any()))
+            .willReturn(new ManagedCompanyContextService.BillingContext(
+                44L, "Portfolio client", "PLATFORM_ROOT", true, true
+            ));
+
+        mockMvc.perform(post("/api/v1/billing/subscription/cancel")
+                .header("X-CSRF-Token", "csrf-token"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Delegated billing access is read-only."));
+
+        verifyNoInteractions(subscriptionService);
+        verifyNoInteractions(csrfService);
     }
 
     private AuthSessionUser owner() {

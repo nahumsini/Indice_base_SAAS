@@ -1,5 +1,5 @@
-import { BriefcaseBusiness, Building2, Check, CreditCard, Globe, GraduationCap, LoaderCircle, User, Sun, Moon, Sunrise, Settings, ShieldCheck, MonitorSmartphone } from 'lucide-react';
-import { useNavigate } from 'react-router';
+import { BriefcaseBusiness, Building2, Check, CreditCard, Globe, GraduationCap, LoaderCircle, User, Sun, Moon, Sunrise, Settings, ShieldCheck, MonitorSmartphone, Search } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router';
 import { Button } from './ui/button';
 import {
   DropdownMenu,
@@ -21,6 +21,7 @@ import { useNotifications } from './notifications/useNotifications';
 import { PreferredCurrencyControl } from '../BasicModules/shared/PreferredCurrencyControl';
 import { useHeaderTranslations } from './header/hooks/useHeaderTranslations';
 import { isAdminAccessRole, normalizeAccessRole } from '../access/accessRules';
+import { managedCompanyApi, type ManagedCompanyContext } from '../api/managedCompanies';
 
 interface HeaderProps {
   learningModeActive: boolean;
@@ -44,6 +45,7 @@ const getProfileDisplayName = (user: ConfigCenterCurrentUser) => {
 
 export function Header({ learningModeActive, onToggleLearningMode, darkMode, onToggleDarkMode }: HeaderProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentLanguage, setCurrentLanguage } = useLanguage();
   const { copy } = useHeaderTranslations();
   const currentHour = new Date().getHours();
@@ -57,6 +59,8 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
   const [platformAdminRole, setPlatformAdminRole] = useState('');
   const [switchingCompanyId, setSwitchingCompanyId] = useState<number | null>(null);
   const [companySwitchError, setCompanySwitchError] = useState('');
+  const [managedContext, setManagedContext] = useState<ManagedCompanyContext | null>(null);
+  const [managedSearch, setManagedSearch] = useState('');
   const notifications = useNotifications();
 
   useEffect(() => {
@@ -84,6 +88,13 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
         if (!session) {
           return;
         }
+        managedCompanyApi.context()
+          .then((context) => {
+            if (active) setManagedContext(context);
+          })
+          .catch(() => {
+            if (active) setManagedContext(null);
+          });
         platformAdminApi.getContext()
           .then((context) => {
             if (active) {
@@ -173,6 +184,15 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
     || normalizeAccessRole(authSession?.user.role) === 'root');
   const isDistributorAccount = !isPublicDemoSession
     && authSession?.company.commercial_account_type === 'DISTRIBUTOR';
+  const directCompanyIds = new Set((authSession?.companies ?? []).map((company) => company.id));
+  const managedCompanies = (managedContext?.companies ?? [])
+    .filter((company) => !directCompanyIds.has(company.id))
+    .filter((company) => company.name.toLocaleLowerCase().includes(managedSearch.trim().toLocaleLowerCase()));
+  const isBillingPage = location.pathname === '/billing' || location.pathname.startsWith('/billing/');
+  const visibleManagedCompany = isBillingPage ? managedContext?.active_company : null;
+  const visibleCompanyName = visibleManagedCompany?.name ?? authSession?.company.name ?? '';
+  const canSelectCompany = (authSession?.companies?.length ?? 0) > 1
+    || (managedContext?.companies?.length ?? 0) > 0;
 
   const handleLogout = async () => {
     if (isLoggingOut) {
@@ -190,17 +210,41 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
   };
 
   const handleCompanySwitch = async (companyId: number) => {
-    if (switchingCompanyId || companyId === authSession?.company.id) {
+    if (switchingCompanyId) {
       return;
     }
     setSwitchingCompanyId(companyId);
     setCompanySwitchError('');
     try {
+      if (managedContext?.active) {
+        const context = await managedCompanyApi.clear();
+        setManagedContext(context);
+      }
+      if (companyId === authSession?.company.id) {
+        window.location.reload();
+        return;
+      }
       const nextSession = await authApi.switchCompany(companyId);
       setAuthSession(nextSession);
       window.location.reload();
     } catch {
       setCompanySwitchError(copy.actions.companySwitchError);
+      setSwitchingCompanyId(null);
+    }
+  };
+
+  const handleManagedCompanySelect = async (companyId: number) => {
+    if (switchingCompanyId) return;
+    setSwitchingCompanyId(companyId);
+    setCompanySwitchError('');
+    try {
+      const context = await managedCompanyApi.activate(companyId);
+      setManagedContext(context);
+      window.location.assign('/billing');
+    } catch {
+      setCompanySwitchError(currentLanguage.code.startsWith('es')
+        ? 'No fue posible abrir la cuenta cliente.'
+        : 'The client account could not be opened.');
       setSwitchingCompanyId(null);
     }
   };
@@ -271,13 +315,13 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                 {currentLanguage.code.startsWith('es') ? 'Modo demo' : 'Demo mode'}
               </div>
             ) : null}
-            {(authSession?.companies?.length ?? 0) > 1 ? (
+            {canSelectCompany ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     className="h-10 max-w-48 gap-2 rounded-full border border-[#59C3A5]/30 bg-white/65 px-3 text-[#334155] hover:bg-white dark:bg-white/10 dark:text-gray-100"
-                    aria-label={`${copy.actions.company}: ${authSession?.company.name ?? ''}`}
+                    aria-label={`${copy.actions.company}: ${visibleCompanyName}`}
                     title={copy.actions.switchCompany}
                     disabled={switchingCompanyId !== null}
                   >
@@ -287,13 +331,13 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                       <Building2 className="h-4 w-4 shrink-0 text-[#3AAE90]" />
                     )}
                     <span className="hidden max-w-32 truncate text-sm font-medium xl:inline">
-                      {switchingCompanyId !== null ? copy.actions.switchingCompany : authSession?.company.name}
+                      {switchingCompanyId !== null ? copy.actions.switchingCompany : visibleCompanyName}
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-72 rounded-2xl p-2">
+                <DropdownMenuContent align="end" className="max-h-[min(36rem,80vh)] w-80 overflow-y-auto rounded-2xl p-2">
                   <div className="px-2 pb-2 pt-1 text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">
-                    {copy.actions.switchCompany}
+                    {currentLanguage.code.startsWith('es') ? 'Tus empresas' : 'Your companies'}
                   </div>
                   {authSession?.companies?.map((company) => (
                     <DropdownMenuItem
@@ -310,6 +354,57 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                       {company.active ? <Check className="h-4 w-4 shrink-0 text-[#3AAE90]" /> : null}
                     </DropdownMenuItem>
                   ))}
+                  {(managedContext?.companies?.length ?? 0) > 0 ? (
+                    <>
+                      <DropdownMenuSeparator />
+                      <div className="px-2 pb-2 pt-1">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">
+                          {managedContext?.authority_mode === 'PLATFORM_ROOT'
+                            ? (currentLanguage.code.startsWith('es') ? 'Clientes del sistema' : 'System clients')
+                            : (currentLanguage.code.startsWith('es') ? 'Cartera de clientes' : 'Client portfolio')}
+                        </p>
+                        <p className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                          {currentLanguage.code.startsWith('es') ? 'Consulta de facturación · Solo lectura' : 'Billing review · Read only'}
+                        </p>
+                      </div>
+                      <div className="relative mb-2 px-1">
+                        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <input
+                          value={managedSearch}
+                          onChange={(event) => setManagedSearch(event.target.value)}
+                          onKeyDown={(event) => event.stopPropagation()}
+                          placeholder={currentLanguage.code.startsWith('es') ? 'Buscar cliente' : 'Search client'}
+                          aria-label={currentLanguage.code.startsWith('es') ? 'Buscar cliente' : 'Search client'}
+                          className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-900"
+                        />
+                      </div>
+                      {managedCompanies.map((company) => (
+                        <DropdownMenuItem
+                          key={`managed-${company.id}`}
+                          className="cursor-pointer gap-3 rounded-xl px-3 py-3"
+                          disabled={switchingCompanyId !== null}
+                          onClick={() => void handleManagedCompanySelect(company.id)}
+                        >
+                          <BriefcaseBusiness className="h-4 w-4 shrink-0 text-blue-600" />
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm font-semibold">{company.name}</div>
+                            <div className="truncate text-xs text-gray-500">
+                              {managedContext?.authority_mode === 'PLATFORM_ROOT'
+                                ? 'Root'
+                                : (currentLanguage.code.startsWith('es') ? 'Cartera' : 'Portfolio')}
+                            </div>
+                          </div>
+                          {company.active ? <Check className="h-4 w-4 shrink-0 text-blue-600" /> : null}
+                        </DropdownMenuItem>
+                      ))}
+                      {!managedCompanies.length ? (
+                        <p className="px-3 py-3 text-xs text-slate-500">
+                          {currentLanguage.code.startsWith('es') ? 'No hay clientes que coincidan.' : 'No matching clients.'}
+                        </p>
+                      ) : null}
+                    </>
+                  ) : null}
                   {companySwitchError ? (
                     <p className="px-3 py-2 text-xs font-medium text-red-600">{companySwitchError}</p>
                   ) : null}

@@ -9,6 +9,7 @@ type Props = {
   subscription: BillingSubscriptionResponse | null;
   action: string;
   hasChanges: boolean;
+  readOnly: boolean;
   onActivate: () => void;
   onSubscriptionAction: (name: 'portal' | 'cancel' | 'resume') => void;
 };
@@ -41,7 +42,13 @@ export function BillingPaymentSection(props: Props) {
         {props.copy.stripeSecurity}
       </div>
 
-      {paymentRequired ? (
+      {props.readOnly ? (
+        <p className="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs leading-5 text-blue-800 dark:border-blue-800/60 dark:bg-blue-950/40 dark:text-blue-200">
+          {props.copy.paymentMethod} · {props.selection.currency} · {paymentRequired ? props.copy.paymentMissing : props.copy.paymentReady}. {props.copy.stripeSecurity}
+        </p>
+      ) : null}
+
+      {props.readOnly ? null : paymentRequired ? (
         <Button type="button" onClick={props.onActivate} disabled={busy} className="mt-3 h-11 w-full rounded-xl bg-[#177D66] font-medium hover:bg-[#126653]">
           {props.action === 'activate' ? props.copy.activating : props.copy.activateStripe}<ExternalLink className="ml-2 h-4 w-4" />
         </Button>

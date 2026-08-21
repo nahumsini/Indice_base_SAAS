@@ -11,6 +11,8 @@ export const endpoints = {
     logout: '/api/v1/auth/logout',
     me: '/api/v1/auth/me',
     company: '/api/v1/auth/company',
+    managedCompanies: '/api/v1/auth/managed-companies',
+    managedCompany: '/api/v1/auth/managed-company',
     passwordReset: '/api/v1/auth/password-reset',
   },
   billingSignup: {

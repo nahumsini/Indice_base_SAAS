@@ -15,6 +15,7 @@ type Props = {
   draft: BillingDraft;
   action: string;
   hasChanges: boolean;
+  readOnly: boolean;
   onChange: (patch: Partial<BillingDraft>) => void;
   onReset: () => void;
   onSave: () => void;
@@ -67,7 +68,7 @@ export function BillingConfigurationPanel(props: Props) {
             <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{props.copy.billingCycle}</span>
             <select
               value={props.draft.billingInterval}
-              disabled={Boolean(props.action) || billingCycleLocked}
+              disabled={Boolean(props.action) || billingCycleLocked || props.readOnly}
               onChange={(event) => props.onChange({ billingInterval: event.target.value as BillingDraft['billingInterval'] })}
               className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/15 disabled:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:disabled:bg-slate-800"
             >
@@ -83,7 +84,7 @@ export function BillingConfigurationPanel(props: Props) {
           visible={visible}
           subscription={props.subscription}
           extraSeats={props.draft.extraSeats}
-          disabled={Boolean(props.action)}
+          disabled={Boolean(props.action) || props.readOnly}
           paymentRequired={paymentRequired}
           onChange={(extraSeats) => props.onChange({ extraSeats })}
         />
@@ -94,18 +95,19 @@ export function BillingConfigurationPanel(props: Props) {
           subscription={props.subscription}
           action={props.action}
           hasChanges={props.hasChanges}
+          readOnly={props.readOnly}
           onActivate={props.onActivate}
           onSubscriptionAction={props.onSubscriptionAction}
         />
 
-        <footer className="grid grid-cols-2 gap-2 border-t border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+        {props.readOnly ? null : <footer className="grid grid-cols-2 gap-2 border-t border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
           <Button type="button" variant="outline" onClick={props.onReset} disabled={!props.hasChanges || Boolean(props.action)} className="h-10 rounded-xl bg-white dark:bg-slate-900">
             {props.copy.reset}
           </Button>
           <Button type="button" onClick={props.onSave} disabled={!props.hasChanges || !props.draft.productCodes.length || paymentCommercialChanges || Boolean(props.action)} className="h-10 rounded-xl bg-[#177D66] hover:bg-[#126653]">
             {props.action === 'save' ? props.copy.saving : props.copy.save}
           </Button>
-        </footer>
+        </footer>}
       </section>
     </aside>
   );

@@ -2,6 +2,7 @@ package com.indice.erp.auth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
@@ -194,6 +195,11 @@ class SessionAuthServiceTest {
         session.setAttribute(SessionAuthService.SESSION_USER_ID, 5L);
         session.setAttribute(SessionAuthService.SESSION_COMPANY_ID, 7L);
         session.setAttribute(SessionAuthService.SESSION_ROLE, "root");
+        session.setAttribute(ManagedCompanyContextService.SESSION_MANAGED_COMPANY_ID, 44L);
+        session.setAttribute(
+            ManagedCompanyContextService.SESSION_MANAGED_MODE,
+            ManagedCompanyContextService.PLATFORM_ROOT
+        );
         session.setMaxInactiveInterval(1_800);
         stubCompanyMemberships(5L, List.of(
             new MembershipRow(11L, 7L, "Empresa Uno", "admin", null, null),
@@ -204,6 +210,8 @@ class SessionAuthServiceTest {
         assertEquals(9L, session.getAttribute(SessionAuthService.SESSION_COMPANY_ID));
         assertEquals(12L, session.getAttribute(SessionAuthService.SESSION_USER_COMPANY_ID));
         assertEquals("user", session.getAttribute(SessionAuthService.SESSION_ROLE));
+        assertNull(session.getAttribute(ManagedCompanyContextService.SESSION_MANAGED_COMPANY_ID));
+        assertNull(session.getAttribute(ManagedCompanyContextService.SESSION_MANAGED_MODE));
         assertEquals(7_200, session.getMaxInactiveInterval());
     }
 
