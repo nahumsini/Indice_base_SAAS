@@ -147,6 +147,45 @@ export const zhCA: ProjectsTranslations = {
     },
     description:
       '项目用于组织真实任务，并保留负责人、日期、单位和业务，以计算运营进度。',
+    wizard: {
+      eyebrow: '项目设置',
+      stepOf: (current: number, total: number) => `第 ${current} 步，共 ${total} 步`,
+      untitled: '未命名项目',
+      steps: {
+        identity: {
+          label: '项目',
+          title: '定义项目',
+          description: '提供清晰的名称，并说明希望实现的运营结果。',
+        },
+        planning: {
+          label: '计划',
+          title: '规划执行',
+          description: '设置状态、优先级和日期，让团队了解紧迫程度。',
+        },
+        assignment: {
+          label: '分配',
+          title: '分配并检查',
+          description: '选择组织范围和负责人，然后在保存前确认项目。',
+        },
+      },
+      actions: {
+        previous: '返回',
+        continue: '继续',
+      },
+      hints: {
+        name: '使用具体结果，例如：“启用多伦多配送中心”。',
+        dates: '超过截止日期且仍有待处理任务的项目将显示为有风险。',
+        assignment: '单位和业务决定哪些协作者可以被选为负责人。',
+        invalidDateRange: '截止日期不能早于开始日期。',
+      },
+      summary: {
+        title: '项目摘要',
+        description: '保存前检查主要设置。你可以返回之前的步骤进行修改。',
+        dates: '计划日期',
+        scope: '单位 / 业务',
+        noScope: '无组织范围',
+      },
+    },
     labels: {
       name: '项目名称 *',
       description: '描述',

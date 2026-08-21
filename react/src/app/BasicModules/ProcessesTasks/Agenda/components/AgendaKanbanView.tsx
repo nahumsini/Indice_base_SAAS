@@ -1,4 +1,5 @@
-import { CheckCircle2, ClipboardCheck, FolderOpen, Pencil } from 'lucide-react';
+import { useState, type DragEvent } from 'react';
+import { CheckCircle2, ClipboardCheck, FolderOpen, MessageSquareText, Pencil } from 'lucide-react';
 import { Badge } from '../../../../components/ui/badge';
 import { cn } from '../../../../components/ui/utils';
 import type { AgendaTaskItem } from '../agendaApi';
@@ -22,9 +23,10 @@ type AgendaKanbanViewProps = {
   kanbanTasksByColumn: Map<AgendaKanbanColumnId, AgendaTaskItem[]>;
   onAuditTask: (task: AgendaTaskItem) => void;
   onCloseTask: (task: AgendaTaskItem) => void;
-  onDrop: (columnId: AgendaKanbanColumnId) => void;
+  onDrop: (columnId: AgendaKanbanColumnId, taskId: number | null) => void;
   onEditTask: (task: AgendaTaskItem) => void;
   onOpenAttachments: (task: AgendaTaskItem) => void;
+  onOpenFollowUps: (task: AgendaTaskItem) => void;
   onSetDraggingTaskId: (taskId: number | null) => void;
   sortedTaskCount: number;
   statusReferenceDate: string;
@@ -44,11 +46,19 @@ export function AgendaKanbanView({
   onDrop,
   onEditTask,
   onOpenAttachments,
+  onOpenFollowUps,
   onSetDraggingTaskId,
   sortedTaskCount,
   statusReferenceDate,
   statusReferenceRange,
 }: AgendaKanbanViewProps) {
+  const [dragOverColumnId, setDragOverColumnId] = useState<AgendaKanbanColumnId | null>(null);
+
+  const readDraggedTaskId = (event: DragEvent<HTMLElement>) => {
+    const taskId = Number(event.dataTransfer.getData('text/plain'));
+    return Number.isInteger(taskId) && taskId > 0 ? taskId : null;
+  };
+
   return (
     <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-700">
@@ -82,6 +92,8 @@ export function AgendaKanbanView({
             {columns.map((column) => {
               const columnTasks = kanbanTasksByColumn.get(column.id) ?? [];
               const draggedTaskIsActive = draggingTaskId != null && column.acceptsDrop;
+              const draggedTaskIsBlocked = draggingTaskId != null && !column.acceptsDrop;
+              const isDragTarget = dragOverColumnId === column.id;
 
               return (
                 <section
@@ -89,17 +101,25 @@ export function AgendaKanbanView({
                   className={cn(
                     'flex min-h-[460px] flex-col rounded-2xl border p-3 transition-colors lg:min-h-[520px]',
                     column.accentClassName,
-                    draggedTaskIsActive && 'ring-2 ring-[#F4C84A]/25',
+                    draggedTaskIsActive && 'ring-2 ring-[#F4C84A]/20',
+                    isDragTarget && column.acceptsDrop && 'ring-2 ring-[#F4C84A] shadow-lg shadow-[#F4C84A]/10',
+                    isDragTarget && draggedTaskIsBlocked && 'ring-2 ring-rose-400',
                   )}
                   onDragOver={(event) => {
-                    if (column.acceptsDrop) {
-                      event.preventDefault();
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = column.acceptsDrop ? 'move' : 'none';
+                    setDragOverColumnId(column.id);
+                  }}
+                  onDragLeave={(event) => {
+                    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                      setDragOverColumnId(null);
                     }
                   }}
-                  onDrop={() => {
-                    if (column.acceptsDrop) {
-                      onDrop(column.id);
-                    }
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    const taskId = readDraggedTaskId(event);
+                    setDragOverColumnId(null);
+                    onDrop(column.id, taskId);
                   }}
                 >
                   <div className="mb-3 flex items-start justify-between gap-3">
@@ -135,8 +155,15 @@ export function AgendaKanbanView({
                         <article
                           key={task.taskId}
                           draggable={!pending}
-                          onDragStart={() => onSetDraggingTaskId(task.taskId)}
-                          onDragEnd={() => onSetDraggingTaskId(null)}
+                          onDragStart={(event) => {
+                            event.dataTransfer.effectAllowed = 'move';
+                            event.dataTransfer.setData('text/plain', String(task.taskId));
+                            onSetDraggingTaskId(task.taskId);
+                          }}
+                          onDragEnd={() => {
+                            setDragOverColumnId(null);
+                            onSetDraggingTaskId(null);
+                          }}
                           className={cn(
                             'rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition dark:border-slate-700 dark:bg-slate-800',
                             !pending && 'cursor-grab active:cursor-grabbing',
@@ -206,9 +233,15 @@ export function AgendaKanbanView({
                             >
                               {formatWeightingScore(task.weighting, copy.table.noWeighting)}
                             </Badge>
+                            <Badge
+                              variant="outline"
+                              className="rounded-full border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/50 dark:text-amber-300"
+                            >
+                              {task.followUpCount} seguimientos
+                            </Badge>
                           </div>
 
-                          <div className="mt-4 grid grid-cols-4 gap-2">
+                          <div className="mt-4 grid grid-cols-5 gap-2">
                             <TableActionButton
                               label={copy.actions.editTask}
                               onClick={() => onEditTask(task)}
@@ -222,6 +255,13 @@ export function AgendaKanbanView({
                               disabled={pending}
                               className="border-[#F4C84A]/30 bg-[#F4C84A]/10 text-[#9A6B05] hover:bg-[#F4C84A] hover:text-slate-950"
                               icon={<FolderOpen className="h-4 w-4" />}
+                            />
+                            <TableActionButton
+                              label="Seguimiento"
+                              onClick={() => onOpenFollowUps(task)}
+                              disabled={pending}
+                              className="border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60"
+                              icon={<MessageSquareText className="h-4 w-4" />}
                             />
                             <TableActionButton
                               label={copy.actions.closeTask}

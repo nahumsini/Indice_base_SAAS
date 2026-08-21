@@ -220,7 +220,7 @@ public class ProcessTaskKpisService {
         var filter = taskFilter(scope, "pt");
         var statusExpression = agendaStatusExpression(scope, "pt");
         var sql = """
-                SELECT pt.assigned_user_company_id AS collaborator_id,
+                SELECT task_assignment.user_company_id AS collaborator_id,
                        COALESCE(
                            MAX(NULLIF(TRIM(hr_user.full_name), '')),
                            MAX(NULLIF(TRIM(user_record.full_name), '')),
@@ -256,10 +256,13 @@ public class ProcessTaskKpisService {
                            END), 1) AS average_weighting,
                        SUM(CASE WHEN COALESCE(attachment_summary.attachments, 0) > 0 THEN 1 ELSE 0 END) AS evidence_task_count
                 FROM process_tasks pt
-                LEFT JOIN user_companies assigned_user_company ON assigned_user_company.id = pt.assigned_user_company_id
+                JOIN process_task_assignees task_assignment ON task_assignment.company_id = pt.company_id
+                    AND task_assignment.task_id = pt.id
+                    AND task_assignment.removed_at IS NULL
+                LEFT JOIN user_companies assigned_user_company ON assigned_user_company.id = task_assignment.user_company_id
                     AND assigned_user_company.company_id = pt.company_id
                 LEFT JOIN users user_record ON user_record.id = assigned_user_company.user_id
-                LEFT JOIN hr_users hr_user ON hr_user.id = pt.assigned_user_company_id
+                LEFT JOIN hr_users hr_user ON hr_user.user_company_id = task_assignment.user_company_id
                     AND hr_user.company_id = pt.company_id
                 LEFT JOIN units task_unit ON task_unit.id = pt.unit_id
                 LEFT JOIN units hr_unit ON hr_unit.id = hr_user.unit_id
@@ -276,7 +279,7 @@ public class ProcessTaskKpisService {
                     AND attachment_summary.task_id = pt.id
                 WHERE
                 """.formatted(statusExpression) + filter.sql() + """
-                GROUP BY pt.assigned_user_company_id
+                GROUP BY task_assignment.user_company_id
                 """;
 
         var rows = jdbcTemplate.query(sql, this::mapCollaboratorRow, filter.params().toArray());
@@ -861,7 +864,9 @@ public class ProcessTaskKpisService {
         }
         if (scope.collaboratorId() != null) {
             sql.append(" AND (")
-                    .append(alias).append(".assigned_user_company_id = ?")
+                    .append("EXISTS (SELECT 1 FROM process_task_assignees collaborator_assignment WHERE collaborator_assignment.company_id = ")
+                    .append(alias).append(".company_id AND collaborator_assignment.task_id = ").append(alias)
+                    .append(".id AND collaborator_assignment.user_company_id = ? AND collaborator_assignment.removed_at IS NULL)")
                     .append(" OR ").append(alias).append(".created_by = (")
                     .append("SELECT uc.user_id FROM user_companies uc WHERE uc.company_id = ")
                     .append(alias).append(".company_id AND uc.id = ? LIMIT 1)")
@@ -885,9 +890,9 @@ public class ProcessTaskKpisService {
                     .append(" OR EXISTS (SELECT 1 FROM projects search_project WHERE search_project.id = ")
                     .append(alias).append(".project_id AND search_project.company_id = ").append(alias)
                     .append(".company_id AND LOWER(CONCAT_WS(' ', COALESCE(search_project.folio, ''), COALESCE(search_project.name, ''))) LIKE ?)")
-                    .append(" OR EXISTS (SELECT 1 FROM user_companies search_uc INNER JOIN users search_user ON search_user.id = search_uc.user_id WHERE search_uc.id = ")
-                    .append(alias).append(".assigned_user_company_id AND search_uc.company_id = ").append(alias)
-                    .append(".company_id AND LOWER(CONCAT_WS(' ', COALESCE(search_user.full_name, ''), COALESCE(search_user.email, ''))) LIKE ?))");
+                    .append(" OR EXISTS (SELECT 1 FROM process_task_assignees search_assignment INNER JOIN user_companies search_uc ON search_uc.id = search_assignment.user_company_id INNER JOIN users search_user ON search_user.id = search_uc.user_id WHERE search_assignment.task_id = ")
+                    .append(alias).append(".id AND search_assignment.company_id = ").append(alias)
+                    .append(".company_id AND search_assignment.removed_at IS NULL AND LOWER(CONCAT_WS(' ', COALESCE(search_user.full_name, ''), COALESCE(search_user.email, ''))) LIKE ?))");
             params.add(searchPattern);
             params.add(searchPattern);
             params.add(searchPattern);
@@ -957,29 +962,32 @@ public class ProcessTaskKpisService {
         if ("delegated".equals(scope.focus())) {
             sql.append(" AND ")
                     .append(alias).append(".created_by = ?")
-                    .append(" AND ").append(alias).append(".assigned_user_company_id IS NOT NULL")
+                    .append(" AND EXISTS (SELECT 1 FROM process_task_assignees delegated_assignment WHERE delegated_assignment.company_id = ")
+                    .append(alias).append(".company_id AND delegated_assignment.task_id = ").append(alias)
+                    .append(".id AND delegated_assignment.removed_at IS NULL)")
                     .append(" AND NOT EXISTS (")
-                    .append("SELECT 1 FROM user_companies focus_uc ")
-                    .append("WHERE focus_uc.company_id = ").append(alias).append(".company_id ")
-                    .append("AND focus_uc.id = ").append(alias).append(".assigned_user_company_id ")
-                    .append("AND focus_uc.user_id = ?)");
+                    .append("SELECT 1 FROM process_task_assignees focus_assignment ")
+                    .append("JOIN user_companies focus_uc ON focus_uc.id = focus_assignment.user_company_id ")
+                    .append("AND focus_uc.company_id = focus_assignment.company_id ")
+                    .append("WHERE focus_assignment.company_id = ").append(alias).append(".company_id ")
+                    .append("AND focus_assignment.task_id = ").append(alias).append(".id ")
+                    .append("AND focus_assignment.removed_at IS NULL AND focus_uc.user_id = ?)");
             params.add(scope.userId());
             params.add(scope.userId());
             return;
         }
 
         sql.append(" AND (")
-                .append("EXISTS (SELECT 1 FROM user_companies focus_assigned_uc ")
-                .append("WHERE focus_assigned_uc.company_id = ").append(alias).append(".company_id ")
-                .append("AND focus_assigned_uc.id = ").append(alias).append(".assigned_user_company_id ")
-                .append("AND focus_assigned_uc.user_id = ?)")
-                .append(" OR (").append(alias).append(".created_by = ? AND (")
-                .append(alias).append(".assigned_user_company_id IS NULL")
-                .append(" OR EXISTS (SELECT 1 FROM user_companies focus_created_uc ")
-                .append("WHERE focus_created_uc.company_id = ").append(alias).append(".company_id ")
-                .append("AND focus_created_uc.id = ").append(alias).append(".assigned_user_company_id ")
-                .append("AND focus_created_uc.user_id = ?))))");
-        params.add(scope.userId());
+                .append("EXISTS (SELECT 1 FROM process_task_assignees focus_assignment ")
+                .append("JOIN user_companies focus_assigned_uc ON focus_assigned_uc.id = focus_assignment.user_company_id ")
+                .append("AND focus_assigned_uc.company_id = focus_assignment.company_id ")
+                .append("WHERE focus_assignment.company_id = ").append(alias).append(".company_id ")
+                .append("AND focus_assignment.task_id = ").append(alias).append(".id ")
+                .append("AND focus_assignment.removed_at IS NULL AND focus_assigned_uc.user_id = ?)")
+                .append(" OR (").append(alias).append(".created_by = ? AND NOT EXISTS (")
+                .append("SELECT 1 FROM process_task_assignees focus_any_assignment WHERE focus_any_assignment.company_id = ")
+                .append(alias).append(".company_id AND focus_any_assignment.task_id = ").append(alias)
+                .append(".id AND focus_any_assignment.removed_at IS NULL)))");
         params.add(scope.userId());
         params.add(scope.userId());
     }

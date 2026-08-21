@@ -147,6 +147,45 @@ export const koCA: ProjectsTranslations = {
     },
     description:
       '프로젝트는 실제 작업을 묶고 담당자, 날짜, 유닛, 비즈니스를 유지하여 운영 진행률을 계산합니다.',
+    wizard: {
+      eyebrow: '프로젝트 설정',
+      stepOf: (current: number, total: number) => `${total}단계 중 ${current}단계`,
+      untitled: '이름 없는 프로젝트',
+      steps: {
+        identity: {
+          label: '프로젝트',
+          title: '프로젝트 정의',
+          description: '명확한 이름을 지정하고 달성하려는 운영 결과를 설명하세요.',
+        },
+        planning: {
+          label: '계획',
+          title: '실행 계획',
+          description: '팀이 긴급도를 이해할 수 있도록 상태, 우선순위, 일정을 정하세요.',
+        },
+        assignment: {
+          label: '배정',
+          title: '배정 및 검토',
+          description: '조직 범위와 담당자를 선택한 다음 저장 전에 프로젝트를 확인하세요.',
+        },
+      },
+      actions: {
+        previous: '뒤로',
+        continue: '계속',
+      },
+      hints: {
+        name: '구체적인 결과를 사용하세요. 예: “토론토 물류 센터 개설”.',
+        dates: '마감일을 넘기고 미완료 작업이 있는 프로젝트는 위험으로 표시됩니다.',
+        assignment: '유닛과 비즈니스에 따라 담당자로 선택할 수 있는 협업자가 결정됩니다.',
+        invalidDateRange: '마감일은 시작일보다 빠를 수 없습니다.',
+      },
+      summary: {
+        title: '프로젝트 요약',
+        description: '저장하기 전에 주요 결정을 확인하세요. 이전 단계로 돌아가 수정할 수 있습니다.',
+        dates: '계획 일정',
+        scope: '유닛 / 비즈니스',
+        noScope: '조직 범위 없음',
+      },
+    },
     labels: {
       name: '프로젝트 이름 *',
       description: '설명',

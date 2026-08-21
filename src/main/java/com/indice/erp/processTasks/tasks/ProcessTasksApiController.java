@@ -123,6 +123,80 @@ public class ProcessTasksApiController {
         }
     }
 
+    @GetMapping("/{taskId}/events")
+    public ResponseEntity<?> listCollaborationEvents(HttpSession session, @PathVariable long taskId) {
+        var access = guard.requireRead(session);
+        if (access.denied()) {
+            return access.error();
+        }
+        try {
+            return ResponseEntity.ok(processTasksService.listCollaborationEvents(
+                    access.user().companyId(), access.user().userId(), taskId));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/{taskId}/follow-ups")
+    public ResponseEntity<?> listFollowUps(HttpSession session, @PathVariable long taskId) {
+        var access = guard.requireRead(session);
+        if (access.denied()) {
+            return access.error();
+        }
+        try {
+            return ResponseEntity.ok(processTasksService.listTaskFollowUps(
+                    access.user().companyId(), access.user().userId(), taskId));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/{taskId}/follow-ups")
+    public ResponseEntity<?> createFollowUp(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long taskId,
+            @RequestBody(required = false) Map<String, Object> payload) {
+        var access = guard.requireWrite(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
+        }
+        try {
+            return ResponseEntity.status(HttpStatus.CREATED).body(processTasksService.createTaskFollowUp(
+                    access.user().companyId(),
+                    access.user().userId(),
+                    taskId,
+                    payload == null ? Map.of() : payload));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PatchMapping("/{taskId}/contribution")
+    public ResponseEntity<?> updateContribution(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long taskId,
+            @RequestBody(required = false) Map<String, Object> payload) {
+        var access = guard.requireWrite(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
+        }
+        try {
+            return ResponseEntity.ok(processTasksService.updateCurrentUserContribution(
+                    access.user().companyId(),
+                    access.user().userId(),
+                    taskId,
+                    payload == null ? Map.of() : payload));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
     @GetMapping("/{taskId}/dependencies")
     public ResponseEntity<?> listDependencies(HttpSession session, @PathVariable long taskId) {
         var access = guard.requireRead(session);

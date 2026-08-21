@@ -153,19 +153,19 @@ function coerceRecurrenceConfig(recurrence: unknown): ProcessRecurrenceConfig {
 
 export const defaultColumns: ProcessColumnConfig[] = [
   { id: 'folio', label: 'Folio', visible: true, locked: true, description: 'Identificador operativo del proceso.' },
-  { id: 'unit', label: 'Unidad', visible: true, description: 'Unidad relacionada con el proceso.' },
-  { id: 'business', label: 'Negocio', visible: true, description: 'Negocio relacionado con el proceso.' },
   { id: 'title', label: 'Proceso', visible: true, description: 'Nombre editable del proceso recurrente.' },
-  { id: 'description', label: 'Descripcion', visible: true, description: 'Detalle operativo y alcance del proceso.' },
-  { id: 'template', label: 'Plantilla', visible: true, description: 'Datos que se copian a cada tarea generada.' },
-  { id: 'createdAt', label: 'Fecha de creacion', visible: true, description: 'Fecha en que se registro el proceso.' },
-  { id: 'frequency', label: 'Frecuencia', visible: true, description: 'Periodicidad de generacion de tareas.' },
-  { id: 'nextOccurrence', label: 'Proxima generacion', visible: true, description: 'Siguiente ocurrencia programada por el motor.' },
-  { id: 'generatedUntil', label: 'Generado hasta', visible: false, description: 'Limite futuro materializado por el motor.' },
-  { id: 'tasks', label: 'Tareas', visible: true, description: 'Tareas generadas, abiertas, cerradas y vencidas.' },
-  { id: 'creator', label: 'Creador', visible: true, description: 'Usuario que creo el proceso.' },
   { id: 'responsible', label: 'Responsable', visible: true, description: 'Usuario responsable de ejecutar el proceso.' },
-  { id: 'priority', label: 'Prioridad', visible: true, description: 'Nivel de prioridad asignado.' },
+  { id: 'nextOccurrence', label: 'Proxima generacion', visible: true, description: 'Siguiente ocurrencia programada por el motor.' },
+  { id: 'tasks', label: 'Tareas', visible: true, description: 'Tareas generadas, abiertas, cerradas y vencidas.' },
+  { id: 'frequency', label: 'Frecuencia', visible: true, description: 'Periodicidad de generacion de tareas.' },
+  { id: 'priority', label: 'Prioridad', visible: false, description: 'Nivel de prioridad asignado.' },
+  { id: 'unit', label: 'Unidad', visible: false, description: 'Unidad relacionada con el proceso.' },
+  { id: 'business', label: 'Negocio', visible: false, description: 'Negocio relacionado con el proceso.' },
+  { id: 'description', label: 'Descripcion', visible: false, description: 'Detalle operativo y alcance del proceso.' },
+  { id: 'template', label: 'Plantilla', visible: false, description: 'Datos que se copian a cada tarea generada.' },
+  { id: 'createdAt', label: 'Fecha de creacion', visible: false, description: 'Fecha en que se registro el proceso.' },
+  { id: 'generatedUntil', label: 'Generado hasta', visible: false, description: 'Limite futuro materializado por el motor.' },
+  { id: 'creator', label: 'Creador', visible: false, description: 'Usuario que creo el proceso.' },
 ];
 
 export const processRecordsSeed: ProcessRecord[] = [

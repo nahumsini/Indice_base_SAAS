@@ -62,6 +62,7 @@ export function useAgendaTaskFormDialog({
     return {
       ...defaultForm,
       assignedUserCompanyId: currentUserCollaborator.userCompanyId.toString(),
+      assigneeUserCompanyIds: [currentUserCollaborator.userCompanyId.toString()],
       assignedName: currentUserCollaborator.name,
       unitId: defaultScope.unitId?.toString() ?? '',
       businessId: defaultScope.businessId?.toString() ?? '',
@@ -131,7 +132,9 @@ export function useAgendaTaskFormDialog({
             : taskForm;
         const payload = buildTaskPayload(normalizedTaskForm, agendaCopy);
 
-        if (taskDialogMode === 'edit' && editingTaskId != null) {
+        const isEditing = taskDialogMode === 'edit' && editingTaskId != null;
+
+        if (isEditing) {
           await updateProcessTask(editingTaskId, payload);
         } else {
           const createdTask = await createProcessTask(payload);
@@ -140,7 +143,9 @@ export function useAgendaTaskFormDialog({
 
         setIsTaskDialogOpen(false);
         resetTaskForm();
-        await loadAgenda();
+        if (isEditing) {
+          await loadAgenda();
+        }
       } catch (error) {
         if (import.meta.env.DEV) {
           console.warn('Agenda task modal save failed.', { error, taskId: editingTaskId });
@@ -214,7 +219,6 @@ export function useAgendaTaskFormDialog({
 
         setQuickTaskTitle('');
         setIsQuickTaskDialogOpen(false);
-        await loadAgenda();
       } catch (error) {
         setAgendaError(getErrorMessage(error, agendaCopy.messages.saveTask));
       } finally {
@@ -224,7 +228,6 @@ export function useAgendaTaskFormDialog({
     [
       agendaCopy,
       createDefaultTaskFormForCurrentUser,
-      loadAgenda,
       onTaskCreated,
       quickTaskContext,
       quickTaskDate,
@@ -248,6 +251,7 @@ export function useAgendaTaskFormDialog({
       return {
         ...currentForm,
         assignedUserCompanyId: currentUserCollaborator.userCompanyId.toString(),
+        assigneeUserCompanyIds: [currentUserCollaborator.userCompanyId.toString()],
         assignedName: currentUserCollaborator.name,
         unitId: currentForm.unitId || defaultTaskScopeForActor(currentUserCollaborator).unitId?.toString() || '',
         businessId:

@@ -6,6 +6,51 @@ export type TaskPriority = 'low' | 'medium' | 'high';
 export type TaskType = 'task' | 'project-task' | 'process';
 export type TaskAuditStatus = 'not_ready' | 'pending' | 'audited';
 export type TaskDependencyType = 'finish_to_start';
+export type TaskAssignmentRole = 'lead' | 'collaborator';
+export type TaskContributionStatus = 'pending' | 'working' | 'ready';
+export type TaskFollowUpType = 'update' | 'decision' | 'blocker' | 'reminder';
+
+export interface TaskAssignee {
+  userCompanyId: number;
+  userId: number | null;
+  name: string | null;
+  email: string | null;
+  role: TaskAssignmentRole;
+  contributionStatus: TaskContributionStatus;
+  requiredForCompletion: boolean;
+  assignedAt: string | null;
+  readyAt: string | null;
+  isCurrentUser: boolean;
+}
+
+export interface TaskEvent {
+  id: number;
+  eventType: string;
+  actorUserCompanyId: number | null;
+  actorName: string | null;
+  subjectUserCompanyId: number | null;
+  subjectName: string | null;
+  detail: string | null;
+  createdAt: string | null;
+}
+
+export interface TaskFollowUp {
+  id: number;
+  taskId: number;
+  authorUserCompanyId: number | null;
+  authorName: string | null;
+  followUpDate: string;
+  entryType: TaskFollowUpType;
+  comment: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface TaskFollowUpPayload {
+  followUpDate: string;
+  entryType: TaskFollowUpType;
+  comment: string;
+}
 
 export interface TaskRecord {
   id: number;
@@ -26,6 +71,15 @@ export interface TaskRecord {
   assignedUserId: number | null;
   assignedName: string | null;
   responsible: string | null;
+  assignees: TaskAssignee[];
+  assigneeUserCompanyIds: number[];
+  assignmentMode: 'individual' | 'team';
+  completionPolicy: 'all_assignees' | 'lead';
+  teamSize: number;
+  teamReadyCount: number;
+  teamAllReady: boolean;
+  currentUserContributionStatus: TaskContributionStatus | null;
+  isAssignedToCurrentUser: boolean;
   status: TaskStatus;
   priority: TaskPriority;
   startDate: string | null;
@@ -71,6 +125,9 @@ export interface TaskRecord {
   dependencyType: TaskDependencyType | null;
   dependencyLagDays: number;
   attachments: number;
+  followUpCount: number;
+  lastFollowUpAt: string | null;
+  nextFollowUpDate: string | null;
 }
 
 export interface TaskPayload {
@@ -79,6 +136,7 @@ export interface TaskPayload {
   processId: number | null;
   projectId: number | null;
   assignedUserCompanyId: number | null;
+  assigneeUserCompanyIds: number[];
   assignedName: string | null;
   status: TaskStatus;
   priority: TaskPriority;
@@ -169,9 +227,57 @@ function deriveAuditStatus(record: Partial<TaskRecord>): TaskAuditStatus {
   return 'not_ready';
 }
 
+function normalizeTaskAssignee(record: Partial<TaskAssignee>): TaskAssignee {
+  return {
+    userCompanyId: Number(record.userCompanyId ?? 0),
+    userId: record.userId ?? null,
+    name: record.name ?? null,
+    email: record.email ?? null,
+    role: record.role === 'lead' ? 'lead' : 'collaborator',
+    contributionStatus: (record.contributionStatus as TaskContributionStatus | undefined) ?? 'pending',
+    requiredForCompletion: record.requiredForCompletion !== false,
+    assignedAt: record.assignedAt ?? null,
+    readyAt: record.readyAt ?? null,
+    isCurrentUser: Boolean(record.isCurrentUser),
+  };
+}
+
+function normalizeTaskEvent(record: Partial<TaskEvent>): TaskEvent {
+  return {
+    id: Number(record.id ?? 0),
+    eventType: record.eventType ?? '',
+    actorUserCompanyId: record.actorUserCompanyId ?? null,
+    actorName: record.actorName ?? null,
+    subjectUserCompanyId: record.subjectUserCompanyId ?? null,
+    subjectName: record.subjectName ?? null,
+    detail: record.detail ?? null,
+    createdAt: record.createdAt ?? null,
+  };
+}
+
+function normalizeTaskFollowUp(record: Partial<TaskFollowUp>): TaskFollowUp {
+  return {
+    id: Number(record.id ?? 0),
+    taskId: Number(record.taskId ?? 0),
+    authorUserCompanyId: record.authorUserCompanyId ?? null,
+    authorName: record.authorName ?? null,
+    followUpDate: record.followUpDate ?? '',
+    entryType: (record.entryType as TaskFollowUpType | undefined) ?? 'update',
+    comment: record.comment ?? '',
+    createdAt: record.createdAt ?? null,
+    updatedAt: record.updatedAt ?? null,
+  };
+}
+
 export function normalizeTaskRecord(record: Partial<TaskRecord>): TaskRecord {
   const taskType = (record.taskType ?? record.type ?? 'task') as TaskType;
   const completionPercent = Number(record.completionPercent ?? record.completion ?? 0);
+  const assignees = Array.isArray(record.assignees)
+    ? record.assignees.map(normalizeTaskAssignee).filter((assignee) => assignee.userCompanyId > 0)
+    : [];
+  const assigneeUserCompanyIds = Array.isArray(record.assigneeUserCompanyIds)
+    ? record.assigneeUserCompanyIds.map(Number).filter((id) => Number.isInteger(id) && id > 0)
+    : assignees.map((assignee) => assignee.userCompanyId);
 
   return {
     id: Number(record.id ?? 0),
@@ -192,6 +298,17 @@ export function normalizeTaskRecord(record: Partial<TaskRecord>): TaskRecord {
     assignedUserId: record.assignedUserId ?? null,
     assignedName: record.assignedName ?? null,
     responsible: record.responsible ?? record.assignedName ?? null,
+    assignees,
+    assigneeUserCompanyIds,
+    assignmentMode: record.assignmentMode === 'team' || assignees.length > 1 ? 'team' : 'individual',
+    completionPolicy: record.completionPolicy === 'all_assignees' ? 'all_assignees' : 'lead',
+    teamSize: Number(record.teamSize ?? assignees.length),
+    teamReadyCount: Number(
+      record.teamReadyCount ?? assignees.filter((assignee) => assignee.contributionStatus === 'ready').length,
+    ),
+    teamAllReady: Boolean(record.teamAllReady ?? (assignees.length > 0 && assignees.every((assignee) => assignee.contributionStatus === 'ready'))),
+    currentUserContributionStatus: record.currentUserContributionStatus ?? null,
+    isAssignedToCurrentUser: Boolean(record.isAssignedToCurrentUser),
     status: (record.status as TaskStatus | undefined) ?? 'pending',
     priority: (record.priority as TaskPriority | undefined) ?? 'medium',
     startDate: record.startDate ?? null,
@@ -237,6 +354,9 @@ export function normalizeTaskRecord(record: Partial<TaskRecord>): TaskRecord {
     dependencyType: (record.dependencyType as TaskDependencyType | null | undefined) ?? null,
     dependencyLagDays: Number(record.dependencyLagDays ?? 0),
     attachments: Number(record.attachments ?? 0),
+    followUpCount: Number(record.followUpCount ?? 0),
+    lastFollowUpAt: record.lastFollowUpAt ?? null,
+    nextFollowUpDate: record.nextFollowUpDate ?? null,
   };
 }
 
@@ -353,6 +473,44 @@ export async function cancelProcessTask(taskId: number) {
   });
 
   return normalizeTaskRecord(response);
+}
+
+export async function updateProcessTaskContribution(
+  taskId: number,
+  contributionStatus: TaskContributionStatus,
+  note?: string | null,
+) {
+  const response = await apiClient<Partial<TaskRecord>>(`/api/v1/process-tasks/${taskId}/contribution`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      status: contributionStatus,
+      note: note?.trim() || null,
+    }),
+  });
+
+  return normalizeTaskRecord(response);
+}
+
+export async function listProcessTaskEvents(taskId: number) {
+  const response = await apiClient<{ items: Partial<TaskEvent>[]; count: number }>(
+    `/api/v1/process-tasks/${taskId}/events`,
+  );
+  return response.items.map(normalizeTaskEvent);
+}
+
+export async function listProcessTaskFollowUps(taskId: number) {
+  const response = await apiClient<{ items: Partial<TaskFollowUp>[]; count: number }>(
+    `/api/v1/process-tasks/${taskId}/follow-ups`,
+  );
+  return response.items.map(normalizeTaskFollowUp);
+}
+
+export async function createProcessTaskFollowUp(taskId: number, payload: TaskFollowUpPayload) {
+  const response = await apiClient<Partial<TaskFollowUp>>(`/api/v1/process-tasks/${taskId}/follow-ups`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  return normalizeTaskFollowUp(response);
 }
 
 export async function deleteProcessTask(taskId: number) {

@@ -1,6 +1,7 @@
 package com.indice.erp.processTasks.agenda;
 
 import com.indice.erp.processTasks.tasks.ProcessTaskAssignmentScopeService;
+import com.indice.erp.processTasks.tasks.ProcessTaskCollaborationService;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -18,10 +19,15 @@ public class AgendaService {
 
     private final JdbcTemplate jdbcTemplate;
     private final ProcessTaskAssignmentScopeService assignmentScopeService;
+    private final ProcessTaskCollaborationService collaborationService;
 
-    public AgendaService(JdbcTemplate jdbcTemplate, ProcessTaskAssignmentScopeService assignmentScopeService) {
+    public AgendaService(
+            JdbcTemplate jdbcTemplate,
+            ProcessTaskAssignmentScopeService assignmentScopeService,
+            ProcessTaskCollaborationService collaborationService) {
         this.jdbcTemplate = jdbcTemplate;
         this.assignmentScopeService = assignmentScopeService;
+        this.collaborationService = collaborationService;
     }
 
     public Map<String, Object> listAgendaTasks(long companyId, long userId, String fromValue, String toValue) {
@@ -117,7 +123,10 @@ public class AgendaService {
                                    WHERE attachment.company_id = task.company_id
                                      AND attachment.task_id = task.id
                                      AND attachment.deleted_at IS NULL
-                               ) AS attachments
+                               ) AS attachments,
+                               COALESCE(task_follow_up_summary.follow_up_count, 0) AS follow_up_count,
+                               task_follow_up_summary.last_follow_up_at,
+                               task_follow_up_summary.next_follow_up_date
                         FROM process_tasks task
                         LEFT JOIN processes process ON process.id = task.process_id
                             AND process.company_id = task.company_id
@@ -137,6 +146,16 @@ public class AgendaService {
                             AND (business.company_id = task.company_id OR business.company_id IS NULL)
                         LEFT JOIN units unit ON unit.id = task.unit_id
                             AND (unit.company_id = task.company_id OR unit.company_id IS NULL)
+                        LEFT JOIN (
+                            SELECT company_id,
+                                   task_id,
+                                   COUNT(*) AS follow_up_count,
+                                   MAX(created_at) AS last_follow_up_at,
+                                   MIN(CASE WHEN follow_up_date >= CURRENT_DATE THEN follow_up_date END) AS next_follow_up_date
+                            FROM process_task_follow_ups
+                            GROUP BY company_id, task_id
+                        ) task_follow_up_summary ON task_follow_up_summary.company_id = task.company_id
+                            AND task_follow_up_summary.task_id = task.id
                         WHERE task.company_id = ?
                           AND task.deleted_at IS NULL
                           AND (
@@ -161,6 +180,7 @@ public class AgendaService {
                         """.formatted(visibility.condition()),
                 (rs, rowNum) -> mapAgendaRow(rs),
                 params.toArray());
+        collaborationService.enrichTasks(companyId, userId, rows);
 
         var body = new LinkedHashMap<String, Object>();
         body.put("items", rows);
@@ -260,6 +280,9 @@ public class AgendaService {
         row.put("createdAt", toDateTimeString(rs.getTimestamp("created_at")));
         row.put("updatedAt", toDateTimeString(rs.getTimestamp("updated_at")));
         row.put("attachments", rs.getInt("attachments"));
+        row.put("followUpCount", rs.getInt("follow_up_count"));
+        row.put("lastFollowUpAt", toDateTimeString(rs.getTimestamp("last_follow_up_at")));
+        row.put("nextFollowUpDate", toDateString(rs.getDate("next_follow_up_date")));
         row.put("isOverdue", dueDate != null
                 && dueDate.isBefore(LocalDate.now())
                 && !"completed".equals(status)

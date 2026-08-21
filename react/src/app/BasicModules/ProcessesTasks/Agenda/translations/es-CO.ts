@@ -37,6 +37,8 @@ export const esCO: AgendaTranslations = {
   },
   filters: {
     clear: 'Limpiar filtros',
+    more: 'Más filtros',
+    hideMore: 'Ocultar filtros',
     title: 'Filtros',
     search: 'Buscar tarea',
     searchPlaceholder: 'Folio, titulo, descripcion o responsable',
@@ -208,6 +210,7 @@ export const esCO: AgendaTranslations = {
   messages: {
     loadTasks: 'No se pudieron cargar las tareas de agenda.',
     saveTask: 'No se pudo guardar la tarea.',
+    taskCreated: (folio: string) => `La tarea ${folio} se creó y ya está visible.`,
     updateTask: 'No se pudo actualizar la tarea.',
     duplicateTask: 'No se pudo duplicar la tarea.',
     deleteTask: 'No se pudo eliminar la tarea.',
@@ -217,7 +220,7 @@ export const esCO: AgendaTranslations = {
     invalidCompletion: 'El avance debe estar entre 0 y 100.',
     numberRange: (label: string, min: number, max: number) => `${label} debe estar entre ${min} y ${max}.`,
     weightingRange: (max: number) => `La ponderacion debe estar entre 0 y ${max}.`,
-    overdueDragBlocked: 'Las tareas vencidas se calculan por fecha de vencimiento; no se mueven manualmente.',
+    overdueDragBlocked: 'Vencidas depende de la fecha: cambia el vencimiento antes de mover una tarea hacia Vencidas o de Vencidas a Pendientes.',
     closeBeforeAudit: 'Primero cierra la tarea para poder auditarla.',
   },
   kpiStrip: {
@@ -311,9 +314,30 @@ export const esCO: AgendaTranslations = {
       create: 'Crea una tarea operativa y asignala a un usuario de RH sin forzar una relacion con proceso.',
       edit: 'Actualiza la tarea, su asignacion y el estado de ejecucion sin salir del modulo.',
     },
+    quickCreate: {
+      eyebrow: 'Nueva tarea · Agenda',
+      description: 'Define el trabajo, el responsable y la fecha de entrega. Aparecerá en la Agenda en cuanto la crees.',
+      sections: {
+        work: 'Qué se debe hacer',
+        planning: 'Planeación',
+        assignment: 'Asignación',
+      },
+      hints: {
+        title: 'Usa una acción concreta, por ejemplo: “Revisar facturas de agosto”.',
+        dates: 'Si no se completa a tiempo, aparecerá como vencida.',
+        assignment: 'Mostramos los colaboradores disponibles según la unidad y el negocio seleccionados.',
+        titleRequired: 'Agrega un título para habilitar Crear tarea.',
+        invalidDateRange: 'La fecha de vencimiento no puede ser anterior a la fecha de inicio.',
+      },
+      summary: {
+        unassigned: 'Sin responsable',
+        noDueDate: 'Sin vencimiento',
+        due: (date: string) => `Vence ${date}`,
+      },
+    },
     labels: {
-      title: 'Titulo *',
-      description: 'Descripcion',
+      title: 'Título *',
+      description: 'Descripción',
       status: 'Estado',
       priority: 'Prioridad',
       startDate: 'Fecha de inicio',
@@ -327,7 +351,7 @@ export const esCO: AgendaTranslations = {
       notes: 'Notas',
     },
     placeholders: {
-      title: 'Titulo de la tarea',
+      title: 'Título de la tarea',
       description: 'Describe la tarea operativa',
       completion: '0-100',
       process: 'Opcional',

@@ -37,6 +37,8 @@ export const koCA: AgendaTranslations = {
   },
   filters: {
     clear: '필터 초기화',
+    more: '필터 더보기',
+    hideMore: '필터 숨기기',
     title: '필터',
     search: '작업 검색',
     searchPlaceholder: '문서 번호, 제목, 설명 또는 담당자',
@@ -208,6 +210,7 @@ export const koCA: AgendaTranslations = {
   messages: {
     loadTasks: '일정 작업을 불러올 수 없습니다.',
     saveTask: '작업을 저장할 수 없습니다.',
+    taskCreated: (folio: string) => `${folio} 작업이 생성되어 현재 표시됩니다.`,
     updateTask: '작업을 업데이트할 수 없습니다.',
     duplicateTask: '작업을 복제할 수 없습니다.',
     deleteTask: '작업을 삭제할 수 없습니다.',
@@ -217,7 +220,7 @@ export const koCA: AgendaTranslations = {
     invalidCompletion: '진행률은 0에서 100 사이여야 합니다.',
     numberRange: (label: string, min: number, max: number) => `${label} 값은 ${min}에서 ${max} 사이여야 합니다.`,
     weightingRange: (max: number) => `가중치는 0에서 ${max} 사이여야 합니다.`,
-    overdueDragBlocked: '기한 초과 작업은 마감일로 계산되므로 수동으로 이동할 수 없습니다.',
+    overdueDragBlocked: '기한 초과는 마감일에 따라 결정됩니다. 기한 초과로 이동하거나 기한 초과에서 대기로 이동하기 전에 마감일을 변경하세요.',
     closeBeforeAudit: '감사하기 전에 작업을 먼저 마감하세요.',
   },
   kpiStrip: {
@@ -310,6 +313,27 @@ export const koCA: AgendaTranslations = {
     descriptions: {
       create: '프로세스 연결을 강제하지 않고 운영 작업을 만들고 HR 사용자에게 배정합니다.',
       edit: '모듈을 벗어나지 않고 작업, 배정, 실행 상태를 업데이트합니다.',
+    },
+    quickCreate: {
+      eyebrow: '새 작업 · 일정',
+      description: '할 일, 담당자, 마감일을 정하세요. 생성 즉시 일정에 표시됩니다.',
+      sections: {
+        work: '해야 할 일',
+        planning: '계획',
+        assignment: '담당자 배정',
+      },
+      hints: {
+        title: '구체적인 행동으로 작성하세요. 예: “8월 청구서 검토”.',
+        dates: '기한 내 완료되지 않으면 기한 초과로 표시됩니다.',
+        assignment: '선택한 유닛과 비즈니스에 따라 가능한 담당자를 표시합니다.',
+        titleRequired: '작업 만들기를 활성화하려면 제목을 입력하세요.',
+        invalidDateRange: '마감일은 시작일보다 빠를 수 없습니다.',
+      },
+      summary: {
+        unassigned: '담당자 없음',
+        noDueDate: '마감일 없음',
+        due: (date: string) => `마감 ${date}`,
+      },
     },
     labels: {
       title: '제목 *',

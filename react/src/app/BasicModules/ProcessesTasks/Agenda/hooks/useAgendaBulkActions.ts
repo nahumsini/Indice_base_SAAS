@@ -171,6 +171,7 @@ export function useAgendaBulkActions({
                 task.taskId,
                 buildAgendaTaskPayload(task, {
                   assignedUserCompanyId: collaborator?.userCompanyId ?? null,
+                  assigneeUserCompanyIds: collaborator ? [collaborator.userCompanyId] : [],
                   assignedName: collaborator?.name ?? null,
                   unitId: task.unitId ?? collaborator?.unitId ?? null,
                   businessId: task.businessId ?? collaborator?.businessId ?? null,

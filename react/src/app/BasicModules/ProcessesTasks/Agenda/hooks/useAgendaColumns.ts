@@ -59,28 +59,61 @@ const minimumAgendaColumnWidths: Record<AgendaTableColumnId, number> = {
 
 function createDefaultAgendaColumns(copy: AgendaTranslations): ColumnConfig[] {
   return [
-    { id: 'folio', label: copy.columns.folio.label, visible: true, description: copy.columns.folio.description },
-    { id: 'type', label: copy.columns.type.label, visible: true, description: copy.columns.type.description },
+    { id: 'title', label: copy.columns.title.label, visible: true, description: copy.columns.title.description },
+    { id: 'dueDate', label: copy.columns.dueDate.label, visible: true, description: copy.columns.dueDate.description },
+    { id: 'status', label: copy.columns.status.label, visible: true, description: copy.columns.status.description },
+    { id: 'responsible', label: copy.columns.responsible.label, visible: true, description: copy.columns.responsible.description },
+    { id: 'priority', label: copy.columns.priority.label, visible: true, description: copy.columns.priority.description },
+    { id: 'completion', label: copy.columns.completion.label, visible: true, description: copy.columns.completion.description },
+    { id: 'attachments', label: copy.columns.attachments.label, visible: true, description: copy.columns.attachments.description },
+    { id: 'folio', label: copy.columns.folio.label, visible: false, description: copy.columns.folio.description },
+    { id: 'type', label: copy.columns.type.label, visible: false, description: copy.columns.type.description },
     { id: 'unit', label: copy.columns.unit.label, visible: false, description: copy.columns.unit.description },
     { id: 'business', label: copy.columns.business.label, visible: false, description: copy.columns.business.description },
-    { id: 'title', label: copy.columns.title.label, visible: true, description: copy.columns.title.description },
     { id: 'description', label: copy.columns.description.label, visible: false, description: copy.columns.description.description },
     { id: 'createdAt', label: copy.columns.createdAt.label, visible: false, description: copy.columns.createdAt.description },
     { id: 'startDate', label: copy.columns.startDate.label, visible: false, description: copy.columns.startDate.description },
-    { id: 'dueDate', label: copy.columns.dueDate.label, visible: true, description: copy.columns.dueDate.description },
     { id: 'predecessor', label: copy.columns.predecessor.label, visible: false, description: copy.columns.predecessor.description },
-    { id: 'agendaTime', label: copy.columns.agendaTime.label, visible: true, description: copy.columns.agendaTime.description },
-    { id: 'status', label: copy.columns.status.label, visible: true, description: copy.columns.status.description },
+    { id: 'agendaTime', label: copy.columns.agendaTime.label, visible: false, description: copy.columns.agendaTime.description },
     { id: 'creator', label: copy.columns.creator.label, visible: false, description: copy.columns.creator.description },
-    { id: 'responsible', label: copy.columns.responsible.label, visible: true, description: copy.columns.responsible.description },
-    { id: 'priority', label: copy.columns.priority.label, visible: true, description: copy.columns.priority.description },
-    { id: 'attachments', label: copy.columns.attachments.label, visible: true, description: copy.columns.attachments.description },
-    { id: 'project', label: copy.columns.project.label, visible: true, description: copy.columns.project.description },
-    { id: 'completion', label: copy.columns.completion.label, visible: true, description: copy.columns.completion.description },
+    { id: 'project', label: copy.columns.project.label, visible: false, description: copy.columns.project.description },
     { id: 'notes', label: copy.columns.notes.label, visible: false, description: copy.columns.notes.description },
-    { id: 'weighting', label: copy.columns.weighting.label, visible: true, description: copy.columns.weighting.description },
+    { id: 'weighting', label: copy.columns.weighting.label, visible: false, description: copy.columns.weighting.description },
     { id: 'auditNotes', label: copy.columns.auditNotes.label, visible: false, description: copy.columns.auditNotes.description },
   ];
+}
+
+const legacyWideAgendaColumnsPreset: Array<{ id: AgendaColumnId; visible: boolean }> = [
+  { id: 'folio', visible: true },
+  { id: 'type', visible: true },
+  { id: 'unit', visible: false },
+  { id: 'business', visible: false },
+  { id: 'title', visible: true },
+  { id: 'description', visible: false },
+  { id: 'createdAt', visible: false },
+  { id: 'startDate', visible: false },
+  { id: 'dueDate', visible: true },
+  { id: 'predecessor', visible: false },
+  { id: 'agendaTime', visible: true },
+  { id: 'status', visible: true },
+  { id: 'creator', visible: false },
+  { id: 'responsible', visible: true },
+  { id: 'priority', visible: true },
+  { id: 'attachments', visible: true },
+  { id: 'project', visible: true },
+  { id: 'completion', visible: true },
+  { id: 'notes', visible: false },
+  { id: 'weighting', visible: true },
+  { id: 'auditNotes', visible: false },
+];
+
+function matchesStoredAgendaColumnPreset(
+  columns: Array<Partial<ColumnConfig>>,
+  preset: Array<{ id: AgendaColumnId; visible: boolean }>,
+) {
+  return columns.length === preset.length && columns.every((column, index) => (
+    column.id === preset[index].id && column.visible === preset[index].visible
+  ));
 }
 
 function getInitialAgendaColumns(defaultColumns: ColumnConfig[]) {
@@ -95,6 +128,10 @@ function getInitialAgendaColumns(defaultColumns: ColumnConfig[]) {
     }
 
     const parsedColumns = JSON.parse(rawColumns) as Array<Partial<ColumnConfig>>;
+    if (matchesStoredAgendaColumnPreset(parsedColumns, legacyWideAgendaColumnsPreset)) {
+      return defaultColumns;
+    }
+
     const defaultColumnMap = new Map(defaultColumns.map((column) => [column.id, column]));
     const restoredColumns = parsedColumns
       .map((column) => {

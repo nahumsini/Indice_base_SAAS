@@ -37,6 +37,8 @@ export const zhCA: AgendaTranslations = {
   },
   filters: {
     clear: '清除筛选条件',
+    more: '更多筛选条件',
+    hideMore: '隐藏筛选条件',
     title: '筛选',
     search: '搜索任务',
     searchPlaceholder: '编号、标题、描述或负责人',
@@ -208,6 +210,7 @@ export const zhCA: AgendaTranslations = {
   messages: {
     loadTasks: '无法加载日程任务。',
     saveTask: '无法保存任务。',
+    taskCreated: (folio: string) => `任务 ${folio} 已创建并显示。`,
     updateTask: '无法更新任务。',
     duplicateTask: '无法复制任务。',
     deleteTask: '无法删除任务。',
@@ -217,7 +220,7 @@ export const zhCA: AgendaTranslations = {
     invalidCompletion: '进度必须在 0 到 100 之间。',
     numberRange: (label: string, min: number, max: number) => `${label} 必须在 ${min} 到 ${max} 之间。`,
     weightingRange: (max: number) => `权重必须在 0 到 ${max} 之间。`,
-    overdueDragBlocked: '逾期任务根据到期日期计算，不能手动移动。',
+    overdueDragBlocked: '逾期状态由到期日期决定。移入逾期或从逾期移到待处理前，请先更改到期日期。',
     closeBeforeAudit: '请先关闭任务再进行审核。',
   },
   kpiStrip: {
@@ -310,6 +313,27 @@ export const zhCA: AgendaTranslations = {
     descriptions: {
       create: '创建运营任务并分配给 HR 用户，无需强制关联流程。',
       edit: '在不离开模块的情况下更新任务、分配和执行状态。',
+    },
+    quickCreate: {
+      eyebrow: '新任务 · 日程',
+      description: '定义工作内容、负责人和截止日期。创建后会立即显示在日程中。',
+      sections: {
+        work: '需要完成的工作',
+        planning: '计划',
+        assignment: '分配',
+      },
+      hints: {
+        title: '使用具体行动，例如：“审核八月发票”。',
+        dates: '如果未按时完成，将显示为已逾期。',
+        assignment: '根据所选单位和业务显示可用协作者。',
+        titleRequired: '添加标题以启用创建任务。',
+        invalidDateRange: '截止日期不能早于开始日期。',
+      },
+      summary: {
+        unassigned: '未分配负责人',
+        noDueDate: '无截止日期',
+        due: (date: string) => `截止 ${date}`,
+      },
     },
     labels: {
       title: '标题 *',

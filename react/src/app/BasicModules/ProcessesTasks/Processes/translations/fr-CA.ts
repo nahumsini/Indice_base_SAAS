@@ -225,8 +225,8 @@ export const frCA: ProcessesTranslations = {
       taskTemplateDescription: 'Ces valeurs sont copiees dans chaque tache generee par le moteur.',
       evidenceRequired: 'Preuve requise',
       evidenceDescription: 'Marquez ce processus si ses taches doivent etre fermees avec fichiers ou photos de preuve.',
-      engineControl: 'Controle du moteur',
-      engineDescription: 'Definissez quand la generation commence, jusqu ou elle s applique et combien de jours d avance elle materialise.',
+      engineControl: 'Validité du processus',
+      engineDescription: "Définissez le début de la génération et la durée d'application du processus récurrent.",
       schedule: 'Programmation du processus',
       scheduleDescription: (frequency: string) =>
         `Configurez la generation du processus recurrent lorsque la frequence selectionnee est ${frequency}.`,

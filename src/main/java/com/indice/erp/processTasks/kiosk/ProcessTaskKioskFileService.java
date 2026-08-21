@@ -60,7 +60,10 @@ class ProcessTaskKioskFileService {
     private void lockTaskAndRequireEvidenceCapacity(long companyId, long employeeId, long taskId) {
         var task = jdbcTemplate.queryForList(
             "SELECT id FROM process_tasks WHERE company_id = ? AND id = ?"
-                + " AND assigned_user_company_id = ?"
+                + " AND EXISTS (SELECT 1 FROM process_task_assignees assignment"
+                + " WHERE assignment.company_id = process_tasks.company_id"
+                + " AND assignment.task_id = process_tasks.id"
+                + " AND assignment.user_company_id = ? AND assignment.removed_at IS NULL)"
                 + " AND status IN ('pending', 'in_progress', 'paused') FOR UPDATE",
             Long.class, companyId, taskId, employeeId);
         if (task.isEmpty()) {

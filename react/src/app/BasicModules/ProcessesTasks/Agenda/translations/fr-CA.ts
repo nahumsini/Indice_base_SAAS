@@ -37,6 +37,8 @@ export const frCA: AgendaTranslations = {
   },
   filters: {
     clear: 'Effacer les filtres',
+    more: 'Plus de filtres',
+    hideMore: 'Masquer les filtres',
     title: "Filtres",
     search: "Rechercher une tache",
     searchPlaceholder: "Folio, titre, description ou responsable",
@@ -208,6 +210,7 @@ export const frCA: AgendaTranslations = {
   messages: {
     loadTasks: "Impossible de charger les taches de l agenda.",
     saveTask: "Impossible d enregistrer la tache.",
+    taskCreated: (folio: string) => `La tache ${folio} a ete creee et est maintenant visible.`,
     updateTask: "Impossible de mettre a jour la tache.",
     duplicateTask: "Impossible de dupliquer la tache.",
     deleteTask: "Impossible de supprimer la tache.",
@@ -217,7 +220,7 @@ export const frCA: AgendaTranslations = {
     invalidCompletion: "L avancement doit etre entre 0 et 100.",
     numberRange: (label: string, min: number, max: number) => `${label} doit etre entre ${min} et ${max}.`,
     weightingRange: (max: number) => `La ponderation doit etre entre 0 et ${max}.`,
-    overdueDragBlocked: "Les taches en retard sont calculees par date d echeance; elles ne se deplacent pas manuellement.",
+    overdueDragBlocked: "Le retard depend de l echeance. Modifiez la date avant de deplacer une tache vers Retard ou de Retard vers En attente.",
     closeBeforeAudit: "Cloturez la tache avant de l auditer.",
   },
   kpiStrip: {
@@ -310,6 +313,27 @@ export const frCA: AgendaTranslations = {
     descriptions: {
       create: "Cree une tache operationnelle et l assigne a un utilisateur RH sans forcer une relation avec un processus.",
       edit: "Met a jour la tache, son assignation et son etat d execution sans quitter le module.",
+    },
+    quickCreate: {
+      eyebrow: "Nouvelle tâche · Agenda",
+      description: "Définissez le travail, la personne responsable et la date d'échéance. La tâche apparaîtra dans l'Agenda dès sa création.",
+      sections: {
+        work: "Travail à effectuer",
+        planning: "Planification",
+        assignment: "Assignation",
+      },
+      hints: {
+        title: "Utilisez une action concrète, par exemple : « Vérifier les factures d'août ».",
+        dates: "Si elle n'est pas terminée à temps, elle apparaîtra comme échue.",
+        assignment: "Les collaborateurs disponibles sont affichés selon l'unité et le secteur sélectionnés.",
+        titleRequired: "Ajoutez un titre pour activer Créer la tâche.",
+        invalidDateRange: "La date d'échéance ne peut pas être antérieure à la date de début.",
+      },
+      summary: {
+        unassigned: "Sans responsable",
+        noDueDate: "Sans échéance",
+        due: (date: string) => `Échéance ${date}`,
+      },
     },
     labels: {
       title: "Titre *",

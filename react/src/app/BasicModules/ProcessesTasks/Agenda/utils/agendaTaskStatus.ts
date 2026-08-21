@@ -90,30 +90,33 @@ export function getTaskAgendaStatus(
     return null;
   }
 
+  const openStatus = currentOpenStatus(task);
+
+  if (openStatus) {
+    return openStatus;
+  }
+
   const auditedDate = dateKeyFromDateTime(task.auditedAt);
   const completedDate = dateKeyFromDateTime(task.completedAt);
   const cancelledDate = dateKeyFromDateTime(task.cancelledAt);
 
-  if (auditedDate === referenceDate) {
+  if (task.status === 'completed' && auditedDate === referenceDate) {
     return 'audited';
   }
 
-  if (completedDate === referenceDate) {
+  if (task.status === 'completed' && completedDate === referenceDate) {
     return task.audited && auditedDate && auditedDate <= referenceDate ? 'audited' : 'completed';
   }
 
-  if ((completedDate && completedDate < referenceDate) || (cancelledDate && cancelledDate <= referenceDate)) {
+  if (
+    (task.status === 'completed' && completedDate && completedDate < referenceDate)
+    || (task.status === 'cancelled' && cancelledDate && cancelledDate <= referenceDate)
+  ) {
     return null;
   }
 
   if (task.status === 'completed' && !completedDate) {
     return task.audited ? 'audited' : 'completed';
-  }
-
-  const openStatus = currentOpenStatus(task);
-
-  if (openStatus) {
-    return openStatus;
   }
 
   const agendaDate = taskDueDateValue(task);
@@ -145,34 +148,34 @@ export function getTaskAgendaStatusInRange(
     return null;
   }
 
+  const openStatus = currentOpenStatus(task);
+
+  if (openStatus) {
+    return openStatus;
+  }
+
   const auditedDate = dateKeyFromDateTime(task.auditedAt);
   const completedDate = dateKeyFromDateTime(task.completedAt);
   const cancelledDate = dateKeyFromDateTime(task.cancelledAt);
 
-  if (isDateInRange(auditedDate, range)) {
+  if (task.status === 'completed' && isDateInRange(auditedDate, range)) {
     return 'audited';
   }
 
-  if (isDateInRange(completedDate, range)) {
+  if (task.status === 'completed' && isDateInRange(completedDate, range)) {
     return task.audited && auditedDate && auditedDate <= range.to ? 'audited' : 'completed';
   }
 
-  if (completedDate && completedDate < range.from) {
+  if (task.status === 'completed' && completedDate && completedDate < range.from) {
     return null;
   }
 
-  if (cancelledDate && cancelledDate <= range.to) {
+  if (task.status === 'cancelled' && cancelledDate && cancelledDate <= range.to) {
     return null;
   }
 
   if (task.status === 'completed' && !completedDate) {
     return task.audited ? 'audited' : 'completed';
-  }
-
-  const openStatus = currentOpenStatus(task);
-
-  if (openStatus && !taskClosedBeforeDate(task, range.from)) {
-    return openStatus;
   }
 
   const agendaDate = taskDueDateValue(task);
@@ -261,9 +264,10 @@ function isTaskInMyAgenda(task: AgendaTaskItem, currentUserId: number | null) {
     return false;
   }
 
-  const assignedToCurrentUser = task.assignedUserId === currentUserId;
+  const assignedToCurrentUser =
+    task.assignedUserId === currentUserId || task.assignees.some((assignee) => assignee.userId === currentUserId);
   const createdByCurrentUser = task.createdBy === currentUserId;
-  const delegatedToAnotherUser = task.assignedUserCompanyId != null && task.assignedUserId !== currentUserId;
+  const delegatedToAnotherUser = task.assigneeUserCompanyIds.length > 0 && !assignedToCurrentUser;
 
   return assignedToCurrentUser || (createdByCurrentUser && !delegatedToAnotherUser);
 }
@@ -273,7 +277,10 @@ function isTaskDelegatedByCurrentUser(task: AgendaTaskItem, currentUserId: numbe
     return false;
   }
 
-  return task.createdBy === currentUserId && task.assignedUserCompanyId != null && task.assignedUserId !== currentUserId;
+  const assignedToCurrentUser =
+    task.assignedUserId === currentUserId || task.assignees.some((assignee) => assignee.userId === currentUserId);
+
+  return task.createdBy === currentUserId && task.assigneeUserCompanyIds.length > 0 && !assignedToCurrentUser;
 }
 
 export function matchesAgendaPeriod(

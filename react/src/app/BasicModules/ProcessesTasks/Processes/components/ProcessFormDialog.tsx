@@ -399,12 +399,6 @@ export function ProcessFormDialog({
   const hasValidDateRange = !form.startDate || !form.endDate || form.startDate <= form.endDate;
   const isScheduleValid =
     hasValidDateRange &&
-    Number.isInteger(Number(form.graceDays)) &&
-    Number(form.graceDays) >= 0 &&
-    Number(form.graceDays) <= 365 &&
-    Number.isInteger(Number(form.generationWindowDays)) &&
-    Number(form.generationWindowDays) >= 1 &&
-    Number(form.generationWindowDays) <= 365 &&
     isRecurrenceConfigValid(form.frequency, form.recurrence);
   const isFormValid =
     Boolean(form.title.trim()) &&
@@ -892,7 +886,7 @@ export function ProcessFormDialog({
                     {copy.form.sections.engineDescription}
                   </p>
                 </div>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <label htmlFor="process-start" className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.form.labels.start}</label>
                     <Input
@@ -924,44 +918,6 @@ export function ProcessFormDialog({
                         setForm((currentForm) => ({
                           ...currentForm,
                           endDate: event.target.value,
-                        }))
-                      }
-                      className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="process-grace-days" className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                      {copy.form.labels.graceDays}
-                    </label>
-                    <Input
-                      id="process-grace-days"
-                      type="number"
-                      min="0"
-                      max="365"
-                      value={form.graceDays}
-                      onChange={(event) =>
-                        setForm((currentForm) => ({
-                          ...currentForm,
-                          graceDays: event.target.value,
-                        }))
-                      }
-                      className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="process-window" className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                      {copy.form.labels.window}
-                    </label>
-                    <Input
-                      id="process-window"
-                      type="number"
-                      min="1"
-                      max="365"
-                      value={form.generationWindowDays}
-                      onChange={(event) =>
-                        setForm((currentForm) => ({
-                          ...currentForm,
-                          generationWindowDays: event.target.value,
                         }))
                       }
                       className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"

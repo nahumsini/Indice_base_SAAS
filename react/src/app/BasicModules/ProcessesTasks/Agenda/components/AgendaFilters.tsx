@@ -1,4 +1,6 @@
-import { CalendarRange, Columns3, ListChecks } from 'lucide-react';
+import { ChevronDown, ChevronUp, RotateCcw, SlidersHorizontal } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';
 import {
   Select,
@@ -7,14 +9,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../../../components/ui/select';
-import { cn } from '../../../../components/ui/utils';
 import { agendaFocusFilterValues, agendaStatusFilterValues } from '../hooks/useAgendaFilters';
 import type { AgendaTranslations } from '../translations';
 import type {
   AgendaParticipantFilterOption,
   AgendaProjectFilterOption,
   AgendaFocusFilter,
-  AgendaViewMode,
   PeriodFilter,
   StatusFilter,
 } from '../types';
@@ -29,8 +29,8 @@ type AgendaFiltersProps = {
   customDateTo: string;
   focusFilter: AgendaFocusFilter;
   focusLabels: Record<AgendaFocusFilter, string>;
-  onViewModeChange: (value: AgendaViewMode) => void;
   onBusinessFilterChange: (value: string) => void;
+  onClearFilters: () => void;
   onCollaboratorFilterChange: (value: string) => void;
   onCustomDateFromChange: (value: string) => void;
   onCustomDateToChange: (value: string) => void;
@@ -48,7 +48,6 @@ type AgendaFiltersProps = {
   statusFilter: StatusFilter;
   unitFilter: string;
   unitOptions: string[];
-  viewMode: AgendaViewMode;
 };
 
 export function AgendaFilters({
@@ -61,8 +60,8 @@ export function AgendaFilters({
   customDateTo,
   focusFilter,
   focusLabels,
-  onViewModeChange,
   onBusinessFilterChange,
+  onClearFilters,
   onCollaboratorFilterChange,
   onCustomDateFromChange,
   onCustomDateToChange,
@@ -80,59 +79,69 @@ export function AgendaFilters({
   statusFilter,
   unitFilter,
   unitOptions,
-  viewMode,
 }: AgendaFiltersProps) {
+  const advancedFilterCount = [
+    unitFilter !== 'all',
+    businessFilter !== 'all',
+    collaboratorFilter !== 'all',
+    projectFilter !== 'all',
+  ].filter(Boolean).length;
+  const hasActiveFilters = Boolean(
+    searchQuery
+    || focusFilter !== 'team'
+    || periodFilter !== 'all'
+    || statusFilter !== 'all'
+    || advancedFilterCount > 0,
+  );
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(advancedFilterCount > 0);
+
+  useEffect(() => {
+    if (advancedFilterCount > 0) {
+      setShowAdvancedFilters(true);
+    }
+  }, [advancedFilterCount]);
+
+  const handleClearFilters = () => {
+    onClearFilters();
+    setShowAdvancedFilters(false);
+  };
+
   return (
     <section className="mb-6 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
         <h3 className="text-base font-medium text-slate-800 dark:text-white">{copy.filters.title}</h3>
-        <div className="inline-flex h-10 max-w-full overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900">
-          <button
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button
             type="button"
-            aria-pressed={viewMode === 'table'}
-            className={cn(
-              'inline-flex h-8 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
-              viewMode === 'table'
-                ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
-                : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800',
-            )}
-            onClick={() => onViewModeChange('table')}
+            variant="outline"
+            className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-3 text-slate-700 shadow-none hover:border-[#F4C84A]/60 hover:bg-[#F4C84A]/10 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+            aria-expanded={showAdvancedFilters}
+            onClick={() => setShowAdvancedFilters((visible) => !visible)}
           >
-            <ListChecks className="h-4 w-4" />
-            {copy.header.actions.table}
-          </button>
-          <button
-            type="button"
-            aria-pressed={viewMode === 'kanban'}
-            className={cn(
-              'inline-flex h-8 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
-              viewMode === 'kanban'
-                ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
-                : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800',
-            )}
-            onClick={() => onViewModeChange('kanban')}
-          >
-            <Columns3 className="h-4 w-4" />
-            {copy.header.actions.kanban}
-          </button>
-          <button
-            type="button"
-            aria-pressed={viewMode === 'diagram'}
-            className={cn(
-              'inline-flex h-8 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
-              viewMode === 'diagram'
-                ? 'bg-[#F4C84A] text-slate-950 shadow-sm'
-                : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800',
-            )}
-            onClick={() => onViewModeChange('diagram')}
-          >
-            <CalendarRange className="h-4 w-4" />
-            {copy.header.actions.diagram}
-          </button>
+            <SlidersHorizontal className="h-4 w-4" />
+            {showAdvancedFilters ? copy.filters.hideMore : copy.filters.more}
+            {advancedFilterCount > 0 ? (
+              <span className="rounded-full bg-[#C38A00] px-1.5 py-0.5 text-xs leading-none text-white">
+                {advancedFilterCount}
+              </span>
+            ) : null}
+            {showAdvancedFilters ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
+          {hasActiveFilters ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-3 text-slate-700 shadow-none hover:border-[#F4C84A]/60 hover:bg-[#F4C84A]/10 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+              onClick={handleClearFilters}
+            >
+              <RotateCcw className="h-4 w-4" />
+              {copy.filters.clear}
+            </Button>
+          ) : null}
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6 lg:gap-4 xl:grid-cols-12">
-        <div className="space-y-2 sm:col-span-2 lg:col-span-3 xl:col-span-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[minmax(20rem,2fr)_minmax(18rem,1.25fr)_repeat(2,minmax(0,1fr))]">
+        <div className="space-y-2 md:col-span-2 xl:col-span-1">
           <label htmlFor="agenda-search" className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.search}</label>
           <Input
             id="agenda-search"
@@ -143,39 +152,25 @@ export function AgendaFilters({
             onChange={(event) => onSearchQueryChange(event.target.value)}
           />
         </div>
-        <div className="space-y-2 lg:col-span-2 xl:col-span-2">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.unit}</label>
-          <Select value={unitFilter} onValueChange={onUnitFilterChange}>
-            <SelectTrigger aria-label={copy.filters.unit} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm font-medium text-[#8A6200] dark:text-[#FDE68A]">
+            <span className="h-2 w-2 rounded-full bg-[#F4C84A]" aria-hidden="true" />
+            {copy.filters.focus}
+          </label>
+          <Select value={focusFilter} onValueChange={(value) => onFocusFilterChange(value as AgendaFocusFilter)}>
+            <SelectTrigger aria-label={copy.filters.focus} className="h-11 rounded-xl border-[#E2B931] bg-[#FFF9E5] text-slate-950 shadow-none ring-1 ring-[#F4C84A]/20 dark:border-[#C38A00] dark:bg-[#F4C84A]/10 dark:text-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{copy.common.all}</SelectItem>
-              {unitOptions.map((unit) => (
-                <SelectItem key={unit} value={unit}>
-                  {unit}
+              {agendaFocusFilterValues.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {focusLabels[value]}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-2 lg:col-span-2 xl:col-span-2">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.business}</label>
-          <Select value={businessFilter} onValueChange={onBusinessFilterChange}>
-            <SelectTrigger aria-label={copy.filters.business} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{copy.common.all}</SelectItem>
-              {businessOptions.map((business) => (
-                <SelectItem key={business} value={business}>
-                  {business}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2 lg:col-span-2 xl:col-span-2">
+        <div className="space-y-2">
           <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.period}</label>
           <Select value={periodFilter} onValueChange={(value) => onPeriodFilterChange(value as PeriodFilter)}>
             <SelectTrigger aria-label={copy.filters.period} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
@@ -188,7 +183,7 @@ export function AgendaFilters({
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-2 lg:col-span-2 xl:col-span-2">
+        <div className="space-y-2">
           <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.status}</label>
           <Select value={statusFilter} onValueChange={(value) => onStatusFilterChange(value as StatusFilter)}>
             <SelectTrigger aria-label={copy.filters.status} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
@@ -203,8 +198,8 @@ export function AgendaFilters({
           </Select>
         </div>
         {periodFilter === 'custom' ? (
-          <>
-            <div className="space-y-2 lg:col-span-2 xl:col-span-2">
+          <div className="grid grid-cols-1 gap-4 border-t border-slate-200 pt-4 md:col-span-2 md:grid-cols-2 dark:border-slate-700 xl:col-span-4">
+            <div className="space-y-2">
               <label htmlFor="agenda-date-from" className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.from}</label>
               <Input
                 id="agenda-date-from"
@@ -215,7 +210,7 @@ export function AgendaFilters({
                 onChange={(event) => onCustomDateFromChange(event.target.value)}
               />
             </div>
-            <div className="space-y-2 lg:col-span-2 xl:col-span-2">
+            <div className="space-y-2">
               <label htmlFor="agenda-date-to" className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.to}</label>
               <Input
                 id="agenda-date-to"
@@ -226,55 +221,68 @@ export function AgendaFilters({
                 onChange={(event) => onCustomDateToChange(event.target.value)}
               />
             </div>
-          </>
+          </div>
         ) : null}
-        <div className="space-y-2 lg:col-span-2 xl:col-span-2">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.collaborator}</label>
-          <Select value={collaboratorFilter} onValueChange={onCollaboratorFilterChange}>
-            <SelectTrigger aria-label={copy.filters.collaborator} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{copy.common.all}</SelectItem>
-              {collaboratorOptions.map((collaborator) => (
-                <SelectItem key={collaborator.value} value={collaborator.value}>
-                  {collaborator.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2 lg:col-span-2 xl:col-span-2">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.form.labels.project}</label>
-          <Select value={projectFilter} onValueChange={onProjectFilterChange}>
-            <SelectTrigger aria-label={copy.form.labels.project} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{copy.common.all}</SelectItem>
-              {projectOptions.map((project) => (
-                <SelectItem key={project.value} value={project.value}>
-                  {project.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2 lg:col-span-2 xl:col-span-2">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.focus}</label>
-          <Select value={focusFilter} onValueChange={(value) => onFocusFilterChange(value as AgendaFocusFilter)}>
-            <SelectTrigger aria-label={copy.filters.focus} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {agendaFocusFilterValues.map((value) => (
-                <SelectItem key={value} value={value}>
-                  {focusLabels[value]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {showAdvancedFilters ? (
+          <div className="grid grid-cols-1 gap-4 border-t border-slate-200 pt-4 md:col-span-2 md:grid-cols-2 dark:border-slate-700 xl:col-span-4 xl:grid-cols-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.unit}</label>
+              <Select value={unitFilter} onValueChange={onUnitFilterChange}>
+                <SelectTrigger aria-label={copy.filters.unit} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{copy.common.all}</SelectItem>
+                  {unitOptions.map((unit) => (
+                    <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.business}</label>
+              <Select value={businessFilter} onValueChange={onBusinessFilterChange}>
+                <SelectTrigger aria-label={copy.filters.business} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{copy.common.all}</SelectItem>
+                  {businessOptions.map((business) => (
+                    <SelectItem key={business} value={business}>{business}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.collaborator}</label>
+              <Select value={collaboratorFilter} onValueChange={onCollaboratorFilterChange}>
+                <SelectTrigger aria-label={copy.filters.collaborator} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{copy.common.all}</SelectItem>
+                  {collaboratorOptions.map((collaborator) => (
+                    <SelectItem key={collaborator.value} value={collaborator.value}>{collaborator.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.form.labels.project}</label>
+              <Select value={projectFilter} onValueChange={onProjectFilterChange}>
+                <SelectTrigger aria-label={copy.form.labels.project} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{copy.common.all}</SelectItem>
+                  {projectOptions.map((project) => (
+                    <SelectItem key={project.value} value={project.value}>{project.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        ) : null}
       </div>
     </section>
   );

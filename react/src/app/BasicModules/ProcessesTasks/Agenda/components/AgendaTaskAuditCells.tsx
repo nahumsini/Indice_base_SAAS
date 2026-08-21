@@ -1,4 +1,4 @@
-import { ClipboardCheck, Pencil } from 'lucide-react';
+import { CalendarDays, ClipboardCheck, MessageSquareText } from 'lucide-react';
 import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
 import { cn } from '../../../../components/ui/utils';
@@ -7,10 +7,10 @@ import { formatWeightingScore } from '../utils/agendaTaskStatus';
 
 type TaskAuditCellProps = Pick<
   AgendaTaskCellProps,
-  'auditStatusClasses' | 'copy' | 'isPending' | 'onAuditTask' | 'onEditTask' | 'task'
+  'auditStatusClasses' | 'copy' | 'isPending' | 'onAuditTask' | 'onEditTask' | 'onOpenFollowUps' | 'task'
 >;
 
-export function NotesCell({ copy, isPending, onEditTask, task }: TaskAuditCellProps) {
+export function NotesCell({ copy, isPending, onOpenFollowUps, task }: TaskAuditCellProps) {
   return (
     <div className="w-full space-y-2">
       <p
@@ -21,15 +21,27 @@ export function NotesCell({ copy, isPending, onEditTask, task }: TaskAuditCellPr
       >
         {task.notes || copy.common.noNotes}
       </p>
+      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 dark:bg-slate-800">
+          <MessageSquareText className="h-3.5 w-3.5" />
+          {task.followUpCount} entrada{task.followUpCount === 1 ? '' : 's'}
+        </span>
+        {task.nextFollowUpDate ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+            <CalendarDays className="h-3.5 w-3.5" />
+            {task.nextFollowUpDate}
+          </span>
+        ) : null}
+      </div>
       <Button
         type="button"
         variant="outline"
         disabled={isPending}
         className="h-8 rounded-xl border-amber-200 bg-amber-50 px-3 text-xs font-medium text-amber-700 shadow-none hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60"
-        onClick={() => onEditTask(task)}
+        onClick={() => onOpenFollowUps(task)}
       >
-        <Pencil className="h-3.5 w-3.5" />
-        {copy.actions.editTask}
+        <MessageSquareText className="h-3.5 w-3.5" />
+        Abrir bitácora
       </Button>
     </div>
   );

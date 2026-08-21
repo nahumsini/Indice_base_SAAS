@@ -248,4 +248,98 @@ class ProcessTasksApiControllerTest {
             .andExpect(jsonPath("$.id").value(91))
             .andExpect(jsonPath("$.status").value("in_progress"));
     }
+
+    @Test
+    void taskContributionReturnsTeamProgressWhenMemberMarksReady() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "user");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(processTasksService.updateCurrentUserContribution(eq(7L), eq(1L), eq(91L), any())).willReturn(Map.of(
+            "id", 91,
+            "currentUserContributionStatus", "ready",
+            "teamReadyCount", 2,
+            "teamSize", 3
+        ));
+
+        mockMvc.perform(
+            patch("/api/v1/process-tasks/91/contribution")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "status": "ready"
+                    }
+                    """)
+        )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.currentUserContributionStatus").value("ready"))
+            .andExpect(jsonPath("$.teamReadyCount").value(2))
+            .andExpect(jsonPath("$.teamSize").value(3));
+    }
+
+    @Test
+    void taskEventsReturnsCollaborationTraceWhenModuleIsAllowed() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "user");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(processTasksService.listCollaborationEvents(7L, 1L, 91L)).willReturn(Map.of(
+            "items", java.util.List.of(Map.of(
+                "id", 501,
+                "eventType", "contribution_ready",
+                "actorName", "Usuario Demo"
+            )),
+            "count", 1
+        ));
+
+        mockMvc.perform(get("/api/v1/process-tasks/91/events"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.count").value(1))
+            .andExpect(jsonPath("$.items[0].eventType").value("contribution_ready"))
+            .andExpect(jsonPath("$.items[0].actorName").value("Usuario Demo"));
+    }
+
+    @Test
+    void taskFollowUpsReturnsInternalTimelineWhenModuleIsAllowed() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "user");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(processTasksService.listTaskFollowUps(7L, 1L, 91L)).willReturn(Map.of(
+            "items", java.util.List.of(Map.of(
+                "id", 801,
+                "entryType", "decision",
+                "followUpDate", "2026-08-22",
+                "comment", "El equipo aprobó el siguiente paso."
+            )),
+            "count", 1
+        ));
+
+        mockMvc.perform(get("/api/v1/process-tasks/91/follow-ups"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.count").value(1))
+            .andExpect(jsonPath("$.items[0].entryType").value("decision"))
+            .andExpect(jsonPath("$.items[0].followUpDate").value("2026-08-22"));
+    }
+
+    @Test
+    void taskFollowUpCreatesDatedInternalCommentWhenModuleIsAllowed() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "user");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(processTasksService.createTaskFollowUp(eq(7L), eq(1L), eq(91L), any())).willReturn(Map.of(
+            "id", 802,
+            "entryType", "blocker",
+            "followUpDate", "2026-08-23",
+            "comment", "Esperamos confirmación del proveedor."
+        ));
+
+        mockMvc.perform(
+            post("/api/v1/process-tasks/91/follow-ups")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "entryType": "blocker",
+                      "followUpDate": "2026-08-23",
+                      "comment": "Esperamos confirmación del proveedor."
+                    }
+                    """)
+        )
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.entryType").value("blocker"))
+            .andExpect(jsonPath("$.comment").value("Esperamos confirmación del proveedor."));
+    }
 }

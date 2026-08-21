@@ -142,6 +142,45 @@ export const enCA = {
     },
     description:
       'The project groups real tasks and keeps responsible user, dates, unit, and business to calculate operational progress.',
+    wizard: {
+      eyebrow: 'Project setup',
+      stepOf: (current: number, total: number) => `Step ${current} of ${total}`,
+      untitled: 'Untitled project',
+      steps: {
+        identity: {
+          label: 'Project',
+          title: 'Define the project',
+          description: 'Give it a clear name and explain the operational result you want to achieve.',
+        },
+        planning: {
+          label: 'Planning',
+          title: 'Plan its execution',
+          description: 'Set its status, priority, and working dates so the team understands the urgency.',
+        },
+        assignment: {
+          label: 'Assignment',
+          title: 'Assign and review',
+          description: 'Choose its organizational scope and responsible person, then confirm the project before saving.',
+        },
+      },
+      actions: {
+        previous: 'Back',
+        continue: 'Continue',
+      },
+      hints: {
+        name: 'Use a concrete outcome, for example: “Open the Toronto distribution center”.',
+        dates: 'Projects that pass their due date with pending tasks will be shown as at risk.',
+        assignment: 'The unit and business determine which collaborators can be selected as responsible.',
+        invalidDateRange: 'The due date cannot be earlier than the start date.',
+      },
+      summary: {
+        title: 'Project summary',
+        description: 'Review the main decisions before saving. You can return to any previous step to make changes.',
+        dates: 'Planned dates',
+        scope: 'Unit / business',
+        noScope: 'No organizational scope',
+      },
+    },
     labels: {
       name: 'Project name *',
       description: 'Description',

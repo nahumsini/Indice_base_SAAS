@@ -17,7 +17,9 @@ export type AgendaTaskActionsProps = {
   onCopyTask: (task: AgendaTaskItem) => void | Promise<void>;
   onDeleteTask: (task: AgendaTaskItem) => void;
   onEditTask: (task: AgendaTaskItem) => void;
+  onOpenFollowUps: (task: AgendaTaskItem) => void;
   onOpenReport: (task: AgendaTaskItem) => void;
+  onOpenTeam: (task: AgendaTaskItem) => void;
   task: AgendaTaskItem;
 };
 
@@ -37,6 +39,8 @@ export type AgendaTaskCellProps = {
   onBusinessChange: (task: AgendaTaskItem, value: string) => void;
   onEditTask: (task: AgendaTaskItem) => void;
   onOpenAttachments: (task: AgendaTaskItem) => void;
+  onOpenFollowUps: (task: AgendaTaskItem) => void;
+  onOpenTeam: (task: AgendaTaskItem) => void;
   onPersistTaskChange: (task: AgendaTaskItem, patch: Partial<TaskPayload>) => void | Promise<void>;
   onRequestCancel: (task: AgendaTaskItem) => void;
   onRequestComplete: (task: AgendaTaskItem) => void;

@@ -225,8 +225,8 @@ export const koCA: ProcessesTranslations = {
       taskTemplateDescription: '이 값은 엔진이 생성하는 각 작업에 복사됩니다.',
       evidenceRequired: '증빙 필요',
       evidenceDescription: '작업을 파일 또는 사진 증빙으로 닫아야 하는 경우 표시하세요.',
-      engineControl: '엔진 제어',
-      engineDescription: '언제 생성이 시작되고, 언제까지 적용되며, 며칠 앞까지 생성할지 정의합니다.',
+      engineControl: '프로세스 유효 기간',
+      engineDescription: '반복 프로세스의 생성 시작일과 적용 종료일을 정의합니다.',
       schedule: '프로세스 일정',
       scheduleDescription: (frequency: string) =>
         `선택한 빈도가 ${frequency}일 때 반복 프로세스가 생성되는 방식을 설정하세요.`,

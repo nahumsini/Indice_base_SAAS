@@ -1,4 +1,4 @@
-import { CheckCircle2, ClipboardCheck, Copy, FileText, Pencil, Trash2 } from 'lucide-react';
+import { CheckCircle2, ClipboardCheck, Copy, FileText, MessageSquareText, Pencil, Trash2, UsersRound } from 'lucide-react';
 import { TableActionButton } from './AgendaTablePrimitives';
 import type { AgendaTaskActionsProps } from './AgendaTaskCellTypes';
 
@@ -10,17 +10,38 @@ export function AgendaTaskActions({
   onCopyTask,
   onDeleteTask,
   onEditTask,
+  onOpenFollowUps,
   onOpenReport,
+  onOpenTeam,
   task,
 }: AgendaTaskActionsProps) {
+  const currentMember = task.assignees.find((member) => member.isCurrentUser) ?? null;
+  const closesOwnContribution = task.teamSize > 1 && currentMember?.role !== 'lead';
+
   return (
     <div className="flex w-full min-w-0 flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/70 md:min-w-[310px] md:flex-nowrap">
+      {task.teamSize > 1 ? (
+        <TableActionButton
+          label="Equipo"
+          onClick={() => onOpenTeam(task)}
+          disabled={isPending}
+          className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-300 dark:hover:bg-blue-900/60"
+          icon={<UsersRound className="h-4 w-4" />}
+        />
+      ) : null}
       <TableActionButton
-        label={copy.actions.closeTask}
+        label={closesOwnContribution ? 'Mi parte lista' : copy.actions.closeTask}
         onClick={() => onCloseTask(task)}
         disabled={isPending || task.status === 'completed' || task.status === 'cancelled'}
         className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60"
         icon={<CheckCircle2 className="h-4 w-4" />}
+      />
+      <TableActionButton
+        label="Seguimiento"
+        onClick={() => onOpenFollowUps(task)}
+        disabled={isPending}
+        className="border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60"
+        icon={<MessageSquareText className="h-4 w-4" />}
       />
       <TableActionButton
         label={copy.actions.taskReport}

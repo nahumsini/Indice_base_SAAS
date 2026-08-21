@@ -225,8 +225,8 @@ export const zhCA: ProcessesTranslations = {
       taskTemplateDescription: '这些值会复制到引擎生成的每个任务中。',
       evidenceRequired: '需要证据',
       evidenceDescription: '如果该流程的任务必须通过文件或照片证据关闭，请启用此项。',
-      engineControl: '引擎控制',
-      engineDescription: '定义从何时开始生成、适用到何时，以及提前生成多少天。',
+      engineControl: '流程有效期',
+      engineDescription: '定义重复流程从何时开始生成以及持续有效到何时。',
       schedule: '流程计划',
       scheduleDescription: (frequency: string) =>
         `当选择的频率为 ${frequency} 时，配置周期性流程的生成方式。`,

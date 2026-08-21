@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import {
   AlertTriangle,
   ArrowDown,
@@ -120,20 +120,46 @@ const prioritySelectClasses: Record<ProcessPriority, string> = {
 function createProcessColumns(copy: ProcessesTranslations['columns']): ProcessColumnConfig[] {
   return [
     { id: 'folio', label: copy.folio.label, visible: true, locked: true, description: copy.folio.description },
-    { id: 'unit', label: copy.unit.label, visible: true, description: copy.unit.description },
-    { id: 'business', label: copy.business.label, visible: true, description: copy.business.description },
     { id: 'title', label: copy.title.label, visible: true, description: copy.title.description },
+    { id: 'responsible', label: copy.responsible.label, visible: true, description: copy.responsible.description },
+    { id: 'nextOccurrence', label: copy.nextOccurrence.label, visible: true, description: copy.nextOccurrence.description },
+    { id: 'tasks', label: copy.tasks.label, visible: true, description: copy.tasks.description },
+    { id: 'frequency', label: copy.frequency.label, visible: true, description: copy.frequency.description },
+    { id: 'priority', label: copy.priority.label, visible: false, description: copy.priority.description },
+    { id: 'unit', label: copy.unit.label, visible: false, description: copy.unit.description },
+    { id: 'business', label: copy.business.label, visible: false, description: copy.business.description },
     { id: 'description', label: copy.description.label, visible: false, description: copy.description.description },
     { id: 'template', label: copy.template.label, visible: false, description: copy.template.description },
     { id: 'createdAt', label: copy.createdAt.label, visible: false, description: copy.createdAt.description },
-    { id: 'frequency', label: copy.frequency.label, visible: true, description: copy.frequency.description },
-    { id: 'nextOccurrence', label: copy.nextOccurrence.label, visible: true, description: copy.nextOccurrence.description },
     { id: 'generatedUntil', label: copy.generatedUntil.label, visible: false, description: copy.generatedUntil.description },
-    { id: 'tasks', label: copy.tasks.label, visible: true, description: copy.tasks.description },
     { id: 'creator', label: copy.creator.label, visible: false, description: copy.creator.description },
-    { id: 'responsible', label: copy.responsible.label, visible: true, description: copy.responsible.description },
-    { id: 'priority', label: copy.priority.label, visible: true, description: copy.priority.description },
   ];
+}
+
+const legacyWideProcessColumnsPreset: Array<{ id: ProcessColumnId; visible: boolean }> = [
+  { id: 'folio', visible: true },
+  { id: 'unit', visible: true },
+  { id: 'business', visible: true },
+  { id: 'title', visible: true },
+  { id: 'description', visible: false },
+  { id: 'template', visible: false },
+  { id: 'createdAt', visible: false },
+  { id: 'frequency', visible: true },
+  { id: 'nextOccurrence', visible: true },
+  { id: 'generatedUntil', visible: false },
+  { id: 'tasks', visible: true },
+  { id: 'creator', visible: false },
+  { id: 'responsible', visible: true },
+  { id: 'priority', visible: true },
+];
+
+function matchesStoredProcessColumnPreset(
+  columns: Array<Partial<ProcessColumnConfig>>,
+  preset: Array<{ id: ProcessColumnId; visible: boolean }>,
+) {
+  return columns.length === preset.length && columns.every((column, index) => (
+    column.id === preset[index].id && column.visible === preset[index].visible
+  ));
 }
 
 function clampPercent(value: number) {
@@ -558,6 +584,10 @@ function getInitialProcessColumns(defaultProcessColumns: ProcessColumnConfig[]) 
     }
 
     const parsedColumns = JSON.parse(rawColumns) as Array<Partial<ProcessColumnConfig>>;
+    if (matchesStoredProcessColumnPreset(parsedColumns, legacyWideProcessColumnsPreset)) {
+      return defaultProcessColumns;
+    }
+
     const defaultColumnMap = new Map(defaultProcessColumns.map((column) => [column.id, column]));
     const restoredColumns = parsedColumns
       .map((column) => {
@@ -660,6 +690,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
   const [isBulkAssignOpen, setIsBulkAssignOpen] = useState(false);
   const [bulkResponsibleValue, setBulkResponsibleValue] = useState(UNASSIGNED_RESPONSIBLE_VALUE);
   const [processesNotice, setProcessesNotice] = useState<string | null>(null);
+  const hasLoadedProcessesRef = useRef(false);
 
   const unitOptions = useMemo(
     () =>
@@ -694,17 +725,25 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
     ),
   );
   const loadProcesses = async () => {
-    setIsLoadingProcesses(true);
-    setProcessesError(null);
+    const showInitialLoading = !hasLoadedProcessesRef.current;
+    if (showInitialLoading) {
+      setIsLoadingProcesses(true);
+    }
 
     try {
       const items = await listProcesses();
       setRecords(items);
+      setProcessesError(null);
+      hasLoadedProcessesRef.current = true;
     } catch (error) {
       setProcessesError(getErrorMessage(error, processCopy.messages.loadProcesses));
-      setRecords([]);
+      if (!hasLoadedProcessesRef.current) {
+        setRecords([]);
+      }
     } finally {
-      setIsLoadingProcesses(false);
+      if (showInitialLoading) {
+        setIsLoadingProcesses(false);
+      }
     }
   };
 

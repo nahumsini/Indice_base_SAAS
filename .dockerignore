@@ -5,6 +5,9 @@
 .vscode
 .mvn/wrapper/maven-wrapper.jar
 target
+!target/
+target/*
+!target/*.jar
 build
 handoff
 docs
@@ -15,4 +18,3 @@ react/figmaDoc
 deployment/env/.env
 deployment/env/*.local
 deployment/env/*.secret
-

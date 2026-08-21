@@ -1,5 +1,5 @@
-import type { Dispatch, FormEvent, SetStateAction } from 'react';
-import { Pencil, Plus, Save } from 'lucide-react';
+import type { Dispatch, FormEvent, ReactNode, SetStateAction } from 'react';
+import { CalendarDays, Check, ClipboardList, Pencil, Plus, Save, UserRound, UsersRound } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
 import { Input } from '../../../../components/ui/input';
@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from '../../../../components/ui/select';
 import { Textarea } from '../../../../components/ui/textarea';
+import { useLanguage } from '../../../../shared/context';
 import { defaultAgendaTranslations, type AgendaTranslations } from '../../Agenda/translations';
 import { ProgressSlider } from '../../shared/ProgressSlider';
 import {
@@ -34,6 +35,7 @@ export interface TaskFormValues {
   processId: string;
   projectId: string;
   assignedUserCompanyId: string;
+  assigneeUserCompanyIds: string[];
   assignedName: string;
   status: TaskStatus;
   priority: TaskPriority;
@@ -89,19 +91,57 @@ function normalizeText(value?: string | null) {
   return value?.trim().toLowerCase() ?? '';
 }
 
+function formatFormDate(value: string, locale: string) {
+  const [year, month, day] = value.split('-').map(Number);
+  if (!year || !month || !day) return value;
+
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+  }).format(new Date(year, month - 1, day));
+}
+
+function QuickCreateSectionHeader({
+  icon,
+  separated = false,
+  title,
+}: {
+  icon: ReactNode;
+  separated?: boolean;
+  title: string;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-3 md:col-span-6 ${
+        separated ? 'mt-1 border-t border-slate-200 pt-5 dark:border-slate-700' : ''
+      }`}
+    >
+      <span
+        aria-hidden="true"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#F8C842]/20 text-[#8A6200] dark:bg-[#F8C842]/15 dark:text-[#F8C842]"
+      >
+        {icon}
+      </span>
+      <h3 className="text-base font-medium text-slate-900 dark:text-slate-100">{title}</h3>
+    </div>
+  );
+}
+
 function SelectField<T extends string>({
+  className,
   label,
   onChange,
   options,
   value,
 }: {
+  className?: string;
   label: string;
   onChange: (value: T) => void;
   options: Array<{ label: string; value: T }>;
   value: T;
 }) {
   return (
-    <div className="space-y-2">
+    <div className={`space-y-2 ${className ?? ''}`}>
       <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</label>
       <Select value={value} onValueChange={(nextValue) => onChange(nextValue as T)}>
         <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
@@ -137,9 +177,11 @@ export function TaskFormDialog({
   error = null,
   processes,
 }: TaskFormDialogProps) {
+  const { currentLanguage } = useLanguage();
   const formCopy = copy.form;
+  const isQuickCreate = layout === 'quickCreate' && mode === 'create';
   const title = formCopy.titles[mode];
-  const description = formCopy.descriptions[mode];
+  const description = isQuickCreate ? formCopy.quickCreate.description : formCopy.descriptions[mode];
   const submitLabel = formCopy.submit[mode];
   const statusOptions = statusOptionValues
     .filter((value) => !['completed', 'cancelled'].includes(value) || value === form.status)
@@ -147,7 +189,6 @@ export function TaskFormDialog({
   const priorityOptions = priorityOptionValues.map((value) => ({ value, label: copy.priorities[value] }));
   const hasValidDateRange = !form.startDate || !form.dueDate || form.startDate <= form.dueDate;
   const isFormValid = Boolean(form.title.trim()) && hasValidDateRange;
-  const isQuickCreate = layout === 'quickCreate' && mode === 'create';
   const selectedUnitId = numericFormValue(form.unitId);
   const selectedBusinessId = numericFormValue(form.businessId);
   const selectedAssignedUserCompanyId = numericFormValue(form.assignedUserCompanyId);
@@ -214,6 +255,25 @@ export function TaskFormDialog({
   const scopedCollaboratorOptions = collaboratorOptions.filter((option) =>
     collaboratorCanReceiveAssignment(option, selectedUnitId, selectedBusinessId, businessOptions),
   );
+  const selectedTeamIds = new Set(form.assigneeUserCompanyIds.map(Number).filter((value) => value > 0));
+  const isSpanish = currentLanguage.code.startsWith('es');
+  const teamCopy = isSpanish
+    ? {
+        coordinator: 'Coordinador de la tarea',
+        coordinatorHint: 'Coordina el trabajo y cierra la tarea cuando el equipo esté listo.',
+        team: 'Equipo responsable',
+        teamHint: 'Selecciona a quienes deben verla en su Agenda y entregar su parte.',
+        selected: (count: number) => `${count} ${count === 1 ? 'persona asignada' : 'personas asignadas'}`,
+        lead: 'Coordina',
+      }
+    : {
+        coordinator: 'Task coordinator',
+        coordinatorHint: 'Coordinates the work and closes the task when the team is ready.',
+        team: 'Responsible team',
+        teamHint: 'Select everyone who should see it in their Agenda and deliver their part.',
+        selected: (count: number) => `${count} ${count === 1 ? 'person assigned' : 'people assigned'}`,
+        lead: 'Lead',
+      };
   const collaboratorSelectOptions = [
     { value: NONE_VALUE, label: formCopy.empty.responsible },
     ...scopedCollaboratorOptions.map((option) => ({
@@ -269,6 +329,12 @@ export function TaskFormDialog({
       const assignedBelongsToScope =
         !currentAssignedUser ||
         collaboratorCanReceiveAssignment(currentAssignedUser, selectedUnit.id, nextBusinessId, businessOptions);
+      const scopedAssigneeIds = currentForm.assigneeUserCompanyIds.filter((candidateId) => {
+        const candidate = collaboratorOptions.find((option) => option.userCompanyId === Number(candidateId));
+        return Boolean(
+          candidate && collaboratorCanReceiveAssignment(candidate, selectedUnit.id, nextBusinessId, businessOptions),
+        );
+      });
 
       return {
         ...currentForm,
@@ -276,6 +342,9 @@ export function TaskFormDialog({
         businessId: businessBelongsToUnit ? currentForm.businessId : '',
         assignedUserCompanyId: assignedBelongsToScope ? currentForm.assignedUserCompanyId : '',
         assignedName: assignedBelongsToScope ? currentForm.assignedName : '',
+        assigneeUserCompanyIds: assignedBelongsToScope
+          ? Array.from(new Set([currentForm.assignedUserCompanyId, ...scopedAssigneeIds].filter(Boolean)))
+          : scopedAssigneeIds,
       };
     });
   };
@@ -291,12 +360,19 @@ export function TaskFormDialog({
         const assignedBelongsToScope =
           !currentAssignedUser ||
           collaboratorCanReceiveAssignment(currentAssignedUser, currentUnitId, null, businessOptions);
+        const scopedAssigneeIds = currentForm.assigneeUserCompanyIds.filter((candidateId) => {
+          const candidate = collaboratorOptions.find((option) => option.userCompanyId === Number(candidateId));
+          return Boolean(candidate && collaboratorCanReceiveAssignment(candidate, currentUnitId, null, businessOptions));
+        });
 
         return {
           ...currentForm,
           businessId: '',
           assignedUserCompanyId: assignedBelongsToScope ? currentForm.assignedUserCompanyId : '',
           assignedName: assignedBelongsToScope ? currentForm.assignedName : '',
+          assigneeUserCompanyIds: assignedBelongsToScope
+            ? Array.from(new Set([currentForm.assignedUserCompanyId, ...scopedAssigneeIds].filter(Boolean)))
+            : scopedAssigneeIds,
         };
       }
 
@@ -317,6 +393,12 @@ export function TaskFormDialog({
       const assignedBelongsToScope =
         !currentAssignedUser ||
         collaboratorCanReceiveAssignment(currentAssignedUser, nextUnitId, selectedBusiness.id, businessOptions);
+      const scopedAssigneeIds = currentForm.assigneeUserCompanyIds.filter((candidateId) => {
+        const candidate = collaboratorOptions.find((option) => option.userCompanyId === Number(candidateId));
+        return Boolean(
+          candidate && collaboratorCanReceiveAssignment(candidate, nextUnitId, selectedBusiness.id, businessOptions),
+        );
+      });
 
       return {
         ...currentForm,
@@ -324,6 +406,9 @@ export function TaskFormDialog({
         unitId: nextUnitId != null ? nextUnitId.toString() : currentForm.unitId,
         assignedUserCompanyId: assignedBelongsToScope ? currentForm.assignedUserCompanyId : '',
         assignedName: assignedBelongsToScope ? currentForm.assignedName : '',
+        assigneeUserCompanyIds: assignedBelongsToScope
+          ? Array.from(new Set([currentForm.assignedUserCompanyId, ...scopedAssigneeIds].filter(Boolean)))
+          : scopedAssigneeIds,
       };
     });
   };
@@ -335,6 +420,7 @@ export function TaskFormDialog({
           ...currentForm,
           assignedUserCompanyId: '',
           assignedName: '',
+          assigneeUserCompanyIds: [],
         };
       }
 
@@ -350,9 +436,46 @@ export function TaskFormDialog({
         ...currentForm,
         assignedUserCompanyId: selectedCollaborator.userCompanyId.toString(),
         assignedName: selectedCollaborator.name,
+        assigneeUserCompanyIds: Array.from(
+          new Set([selectedCollaborator.userCompanyId.toString(), ...currentForm.assigneeUserCompanyIds]),
+        ),
       };
     });
   };
+
+  const toggleTeamMember = (userCompanyId: number) => {
+    setForm((currentForm) => {
+      const value = userCompanyId.toString();
+      const coordinatorId = numericFormValue(currentForm.assignedUserCompanyId);
+      if (coordinatorId === userCompanyId) {
+        return currentForm;
+      }
+
+      const isSelected = currentForm.assigneeUserCompanyIds.includes(value);
+      return {
+        ...currentForm,
+        assigneeUserCompanyIds: isSelected
+          ? currentForm.assigneeUserCompanyIds.filter((candidateId) => candidateId !== value)
+          : [...currentForm.assigneeUserCompanyIds, value],
+      };
+    });
+  };
+
+  const quickCreateSummary = !form.title.trim()
+    ? formCopy.quickCreate.hints.titleRequired
+    : !hasValidDateRange
+      ? formCopy.quickCreate.hints.invalidDateRange
+      : [
+          form.assigneeUserCompanyIds.length > 1
+            ? `${form.assignedName} + ${form.assigneeUserCompanyIds.length - 1}`
+            : form.assignedName || formCopy.quickCreate.summary.unassigned,
+          form.dueDate
+            ? formCopy.quickCreate.summary.due(
+                formatFormDate(form.dueDate, currentLanguage.code),
+              )
+            : formCopy.quickCreate.summary.noDueDate,
+          copy.priorities[form.priority],
+        ].join(' · ');
 
   return (
     <IndiceModalFrame
@@ -365,7 +488,10 @@ export function TaskFormDialog({
       icon={mode === 'create' ? <Plus className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
       title={title}
       description={description}
-      contentClassName={isQuickCreate ? 'h-[min(82vh,720px)]' : 'h-[min(88vh,820px)]'}
+      eyebrow={isQuickCreate ? formCopy.quickCreate.eyebrow : undefined}
+      contentClassName={isQuickCreate ? 'h-[min(88vh,800px)]' : 'h-[min(88vh,820px)]'}
+      bodyClassName={isQuickCreate ? 'py-4' : undefined}
+      footerSummary={isQuickCreate ? quickCreateSummary : undefined}
       footer={(
         <>
           <Button
@@ -389,19 +515,30 @@ export function TaskFormDialog({
         </>
       )}
     >
-        <form id="process-task-form" onSubmit={onSubmit} className="space-y-6">
+        <form id="process-task-form" onSubmit={onSubmit} className={isQuickCreate ? 'space-y-4' : 'space-y-6'}>
           <IndiceModalValidation
             messages={[
               ...(error ? [error] : []),
               ...(!hasValidDateRange
-                ? [`${formCopy.labels.dueDate}: ${formCopy.labels.startDate}`]
+                ? [formCopy.quickCreate.hints.invalidDateRange]
                 : []),
             ]}
           />
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.title}</label>
+            <div className={`grid grid-cols-1 gap-4 ${isQuickCreate ? 'md:grid-cols-6' : 'md:grid-cols-2'}`}>
+              {isQuickCreate ? (
+                <QuickCreateSectionHeader
+                  icon={<ClipboardList className="h-4 w-4" />}
+                  title={formCopy.quickCreate.sections.work}
+                />
+              ) : null}
+
+              <div className={`space-y-2 ${isQuickCreate ? 'md:col-span-6' : 'md:col-span-2'}`}>
+                <label htmlFor="task-form-title" className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.title}</label>
                 <Input
+                  id="task-form-title"
+                  autoFocus={isQuickCreate}
+                  required
+                  aria-describedby={isQuickCreate ? 'task-form-title-hint' : undefined}
                   value={form.title}
                   onChange={(event) =>
                     setForm((currentForm) => ({
@@ -412,11 +549,17 @@ export function TaskFormDialog({
                   placeholder={formCopy.placeholders.title}
                   className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                 />
+                {isQuickCreate ? (
+                  <p id="task-form-title-hint" className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+                    {formCopy.quickCreate.hints.title}
+                  </p>
+                ) : null}
               </div>
 
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.description}</label>
+              <div className={`space-y-2 ${isQuickCreate ? 'md:col-span-6' : 'md:col-span-2'}`}>
+                <label htmlFor="task-form-description" className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.description}</label>
                 <Textarea
+                  id="task-form-description"
                   value={form.description}
                   onChange={(event) =>
                     setForm((currentForm) => ({
@@ -425,9 +568,17 @@ export function TaskFormDialog({
                     }))
                   }
                   placeholder={formCopy.placeholders.description}
-                  className={`${isQuickCreate ? 'min-h-[96px]' : 'min-h-[120px]'} rounded-2xl border-slate-200 bg-white px-4 py-3 text-base leading-6 text-slate-700 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100`}
+                  className={`${isQuickCreate ? 'min-h-[84px]' : 'min-h-[120px]'} rounded-2xl border-slate-200 bg-white px-4 py-3 text-base leading-6 text-slate-700 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100`}
                 />
               </div>
+
+              {isQuickCreate ? (
+                <QuickCreateSectionHeader
+                  separated
+                  icon={<CalendarDays className="h-4 w-4" />}
+                  title={formCopy.quickCreate.sections.planning}
+                />
+              ) : null}
 
               {!isQuickCreate ? (
                 <SelectField
@@ -438,15 +589,17 @@ export function TaskFormDialog({
                 />
               ) : null}
               <SelectField
+                className={isQuickCreate ? 'md:col-span-2' : undefined}
                 label={formCopy.labels.priority}
                 value={form.priority}
                 onChange={(value) => setForm((currentForm) => ({ ...currentForm, priority: value }))}
                 options={priorityOptions}
               />
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.startDate}</label>
+              <div className={isQuickCreate ? 'space-y-2 md:col-span-2' : 'space-y-2'}>
+                <label htmlFor="task-form-start-date" className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.startDate}</label>
                 <Input
+                  id="task-form-start-date"
                   type="date"
                   value={form.startDate}
                   max={form.dueDate || undefined}
@@ -457,9 +610,10 @@ export function TaskFormDialog({
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.dueDate}</label>
+              <div className={isQuickCreate ? 'space-y-2 md:col-span-2' : 'space-y-2'}>
+                <label htmlFor="task-form-due-date" className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.dueDate}</label>
                 <Input
+                  id="task-form-due-date"
                   type="date"
                   value={form.dueDate}
                   min={form.startDate || undefined}
@@ -469,6 +623,12 @@ export function TaskFormDialog({
                   className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                 />
               </div>
+
+              {isQuickCreate ? (
+                <p className="-mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400 md:col-span-6">
+                  {formCopy.quickCreate.hints.dates}
+                </p>
+              ) : null}
 
               {!isQuickCreate ? (
                 <div className="space-y-2">
@@ -535,7 +695,15 @@ export function TaskFormDialog({
                 </>
               ) : null}
 
-              <div className="space-y-2">
+              {isQuickCreate ? (
+                <QuickCreateSectionHeader
+                  separated
+                  icon={<UserRound className="h-4 w-4" />}
+                  title={formCopy.quickCreate.sections.assignment}
+                />
+              ) : null}
+
+              <div className={isQuickCreate ? 'space-y-2 md:col-span-3' : 'space-y-2'}>
                 <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.unit}</label>
                 <Select value={selectedUnitValue} onValueChange={updateUnit}>
                   <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
@@ -550,7 +718,7 @@ export function TaskFormDialog({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
+              <div className={isQuickCreate ? 'space-y-2 md:col-span-3' : 'space-y-2'}>
                 <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.business}</label>
                 <Select value={selectedBusinessValue} onValueChange={updateBusiness}>
                   <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
@@ -565,8 +733,8 @@ export function TaskFormDialog({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.responsible}</label>
+              <div className={`space-y-2 ${isQuickCreate ? 'md:col-span-6' : 'md:col-span-2'}`}>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{teamCopy.coordinator}</label>
                 <Select value={selectedAssignedValue} onValueChange={updateAssignedUser}>
                   <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
                     <SelectValue placeholder={formCopy.placeholders.responsible} />
@@ -579,6 +747,52 @@ export function TaskFormDialog({
                     ))}
                   </SelectContent>
                 </Select>
+                {isQuickCreate ? (
+                  <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+                    {teamCopy.coordinatorHint}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className={`space-y-3 ${isQuickCreate ? 'md:col-span-6' : 'md:col-span-2'}`}>
+                <div className="flex flex-wrap items-end justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{teamCopy.team}</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{teamCopy.teamHint}</p>
+                  </div>
+                  <span className="rounded-full bg-[#F8C842]/15 px-3 py-1 text-xs font-medium text-[#8A6200] dark:text-[#F8C842]">
+                    {teamCopy.selected(selectedTeamIds.size)}
+                  </span>
+                </div>
+                <div className="grid max-h-44 grid-cols-1 gap-2 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-900/60 sm:grid-cols-2">
+                  {scopedCollaboratorOptions.map((collaborator) => {
+                    const selected = selectedTeamIds.has(collaborator.userCompanyId);
+                    const isLead = selectedAssignedUserCompanyId === collaborator.userCompanyId;
+                    return (
+                      <button
+                        key={collaborator.userCompanyId}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => toggleTeamMember(collaborator.userCompanyId)}
+                        className={`flex min-w-0 items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors ${
+                          selected
+                            ? 'border-[#F8C842] bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-white'
+                            : 'border-transparent bg-white/70 text-slate-600 hover:border-slate-300 dark:bg-slate-800/50 dark:text-slate-300'
+                        }`}
+                      >
+                        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${selected ? 'bg-[#F8C842] text-slate-950' : 'bg-slate-200 text-slate-500 dark:bg-slate-700'}`}>
+                          {selected ? <Check className="h-4 w-4" /> : <UsersRound className="h-4 w-4" />}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium">{collaborator.name}</span>
+                          <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
+                            {isLead ? teamCopy.lead : collaborator.email || collaborator.unitName || ''}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {!isQuickCreate ? (

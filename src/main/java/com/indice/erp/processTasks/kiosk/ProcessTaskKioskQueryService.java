@@ -38,7 +38,7 @@ class ProcessTaskKioskQueryService {
         appendScopeParams(params, kiosk);
         return jdbcTemplate.query(
             taskSql(
-                "(task.assigned_user_company_id = ? OR task.created_by = ? OR task.completed_by_user_company_id = ?)",
+                "(EXISTS (SELECT 1 FROM process_task_assignees visible_assignment WHERE visible_assignment.company_id = task.company_id AND visible_assignment.task_id = task.id AND visible_assignment.user_company_id = ? AND visible_assignment.removed_at IS NULL) OR task.created_by = ? OR task.completed_by_user_company_id = ?)",
                 "AND task.status IN ('pending', 'in_progress', 'paused', 'completed')",
                 scopeSql(kiosk)
             ) + " ORDER BY CASE WHEN task.status = 'completed' THEN 1 ELSE 0 END,"
@@ -61,7 +61,7 @@ class ProcessTaskKioskQueryService {
         appendScopeParams(params, kiosk);
         var rows = jdbcTemplate.query(
             taskSql(
-                "(task.assigned_user_company_id = ? OR task.created_by = ? OR task.completed_by_user_company_id = ?)",
+                "(EXISTS (SELECT 1 FROM process_task_assignees visible_assignment WHERE visible_assignment.company_id = task.company_id AND visible_assignment.task_id = task.id AND visible_assignment.user_company_id = ? AND visible_assignment.removed_at IS NULL) OR task.created_by = ? OR task.completed_by_user_company_id = ?)",
                 "AND task.status IN ('pending', 'in_progress', 'paused', 'completed')",
                 "AND task.id = ?\n" + scopeSql(kiosk)
             ),
@@ -85,7 +85,7 @@ class ProcessTaskKioskQueryService {
         appendScopeParams(params, kiosk);
         var rows = jdbcTemplate.query(
             taskSql(
-                "task.assigned_user_company_id = ?",
+                "EXISTS (SELECT 1 FROM process_task_assignees visible_assignment WHERE visible_assignment.company_id = task.company_id AND visible_assignment.task_id = task.id AND visible_assignment.user_company_id = ? AND visible_assignment.removed_at IS NULL)",
                 "AND task.status IN ('pending', 'in_progress', 'paused')",
                 "AND task.id = ?\n" + scopeSql(kiosk)
             ) + " FOR UPDATE",
@@ -188,7 +188,7 @@ class ProcessTaskKioskQueryService {
         var assignedId = rs.getObject("assigned_user_company_id", Long.class);
         var createdBy = rs.getObject("created_by", Long.class);
         var completedBy = rs.getObject("completed_by_user_company_id", Long.class);
-        var assignedToCurrent = Objects.equals(assignedId, employee.userCompanyId());
+        var assignedToCurrent = isActiveAssignee(rs.getLong("id"), employee.userCompanyId());
         var row = new LinkedHashMap<String, Object>();
         row.put("id", rs.getLong("id"));
         row.put("task_id", rs.getLong("id"));
@@ -224,6 +224,19 @@ class ProcessTaskKioskQueryService {
         row.put("is_created_by_current_user", Objects.equals(createdBy, employee.userId()));
         row.put("is_completed_by_current_user", Objects.equals(completedBy, employee.userCompanyId()));
         return row;
+    }
+
+    private boolean isActiveAssignee(long taskId, long userCompanyId) {
+        var count = jdbcTemplate.queryForObject(
+                """
+                    SELECT COUNT(*)
+                    FROM process_task_assignees
+                    WHERE task_id = ? AND user_company_id = ? AND removed_at IS NULL
+                    """,
+                Integer.class,
+                taskId,
+                userCompanyId);
+        return count != null && count > 0;
     }
 
     private List<Map<String, Object>> loadUnits(

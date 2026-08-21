@@ -1,5 +1,5 @@
 import { type DragEvent as ReactDragEvent } from 'react';
-import { CheckCircle2, FolderOpen, GripVertical, Pencil, Trash2 } from 'lucide-react';
+import { CheckCircle2, FolderOpen, GripVertical, MessageSquareText, Pencil, Trash2 } from 'lucide-react';
 import { Badge } from '../../../../components/ui/badge';
 import { Input } from '../../../../components/ui/input';
 import {
@@ -34,6 +34,7 @@ type AgendaScheduleTaskCardProps = {
   onDeleteTask: (task: AgendaTaskItem) => void;
   onEditTask: (task: AgendaTaskItem) => void;
   onOpenAttachments: (task: AgendaTaskItem) => void;
+  onOpenFollowUps: (task: AgendaTaskItem) => void;
   onPersistTaskChange: (task: AgendaTaskItem, patch: Partial<TaskPayload>) => void | Promise<void>;
   onScheduleDragEnd: () => void;
   onScheduleTaskDragStart: (event: ReactDragEvent<HTMLElement>, taskId: number) => void;
@@ -54,6 +55,7 @@ export function AgendaScheduleTaskCard({
   onDeleteTask,
   onEditTask,
   onOpenAttachments,
+  onOpenFollowUps,
   onPersistTaskChange,
   onScheduleDragEnd,
   onScheduleTaskDragStart,
@@ -229,6 +231,13 @@ export function AgendaScheduleTaskCard({
           disabled={isPending}
           className="border-[#F4C84A]/30 bg-[#F4C84A]/10 text-[#9A6B05] hover:bg-[#F4C84A] hover:text-slate-950 dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15 dark:text-[#FEF3C7] dark:hover:bg-[#F4C84A] dark:hover:text-slate-950"
           icon={<FolderOpen className="h-4 w-4" />}
+        />
+        <TableActionButton
+          label="Seguimiento"
+          onClick={() => onOpenFollowUps(task)}
+          disabled={isPending}
+          className="border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60"
+          icon={<MessageSquareText className="h-4 w-4" />}
         />
         <TableActionButton
           label={copy.actions.editTask}

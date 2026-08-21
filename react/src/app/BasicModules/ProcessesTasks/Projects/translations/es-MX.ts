@@ -144,9 +144,48 @@ export const esMX: ProjectsTranslations = {
     },
     description:
       'El proyecto agrupa tareas reales, mantiene responsable, fechas, unidad y negocio para calcular avance operativo.',
+    wizard: {
+      eyebrow: 'Configuración del proyecto',
+      stepOf: (current: number, total: number) => `Paso ${current} de ${total}`,
+      untitled: 'Proyecto sin nombre',
+      steps: {
+        identity: {
+          label: 'Proyecto',
+          title: 'Define el proyecto',
+          description: 'Dale un nombre claro y explica el resultado operativo que quieres alcanzar.',
+        },
+        planning: {
+          label: 'Planeación',
+          title: 'Planea su ejecución',
+          description: 'Define estado, prioridad y fechas para que el equipo comprenda la urgencia.',
+        },
+        assignment: {
+          label: 'Asignación',
+          title: 'Asigna y revisa',
+          description: 'Elige el alcance organizacional y el responsable; después confirma el proyecto antes de guardarlo.',
+        },
+      },
+      actions: {
+        previous: 'Atrás',
+        continue: 'Continuar',
+      },
+      hints: {
+        name: 'Usa un resultado concreto, por ejemplo: “Abrir el centro de distribución de Toronto”.',
+        dates: 'Los proyectos que superen su vencimiento con tareas pendientes aparecerán en riesgo.',
+        assignment: 'La unidad y el negocio determinan qué colaboradores pueden elegirse como responsables.',
+        invalidDateRange: 'La fecha de vencimiento no puede ser anterior a la fecha de inicio.',
+      },
+      summary: {
+        title: 'Resumen del proyecto',
+        description: 'Revisa las decisiones principales antes de guardar. Puedes regresar a cualquier paso anterior para corregirlas.',
+        dates: 'Fechas planeadas',
+        scope: 'Unidad / negocio',
+        noScope: 'Sin alcance organizacional',
+      },
+    },
     labels: {
       name: 'Nombre del proyecto *',
-      description: 'Descripcion',
+      description: 'Descripción',
       status: 'Estado',
       priority: 'Prioridad',
       startDate: 'Fecha de inicio',

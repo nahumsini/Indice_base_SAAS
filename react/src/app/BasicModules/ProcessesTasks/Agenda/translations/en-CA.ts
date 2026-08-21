@@ -35,6 +35,8 @@ export const enCA = {
   },
   filters: {
     clear: 'Clear filters',
+    more: 'More filters',
+    hideMore: 'Hide filters',
     title: 'Filters',
     search: 'Search task',
     searchPlaceholder: 'Folio, title, description, or responsible',
@@ -206,6 +208,7 @@ export const enCA = {
   messages: {
     loadTasks: 'Unable to load agenda tasks.',
     saveTask: 'Unable to save task.',
+    taskCreated: (folio: string) => `Task ${folio} was created and is now visible.`,
     updateTask: 'Unable to update task.',
     duplicateTask: 'Unable to duplicate task.',
     deleteTask: 'Unable to delete task.',
@@ -215,7 +218,7 @@ export const enCA = {
     invalidCompletion: 'Progress must be between 0 and 100.',
     numberRange: (label: string, min: number, max: number) => `${label} must be between ${min} and ${max}.`,
     weightingRange: (max: number) => `Weighting must be between 0 and ${max}.`,
-    overdueDragBlocked: 'Overdue tasks are calculated by due date; they cannot be moved manually.',
+    overdueDragBlocked: 'Overdue depends on the due date. Change the date before moving a task into Overdue or from Overdue to Pending.',
     closeBeforeAudit: 'Close the task before auditing it.',
   },
   kpiStrip: {
@@ -308,6 +311,27 @@ export const enCA = {
     descriptions: {
       create: 'Create an operational task and assign it to an HR user without forcing a process relationship.',
       edit: 'Update the task, its assignment, and execution status without leaving the module.',
+    },
+    quickCreate: {
+      eyebrow: 'New task · Agenda',
+      description: 'Define the work, the responsible person, and the due date. It will appear in Agenda as soon as you create it.',
+      sections: {
+        work: 'What needs to be done',
+        planning: 'Planning',
+        assignment: 'Assignment',
+      },
+      hints: {
+        title: 'Use a concrete action, for example: “Review August invoices”.',
+        dates: 'If it is not completed on time, it will appear as overdue.',
+        assignment: 'Available collaborators are shown based on the selected unit and business.',
+        titleRequired: 'Add a title to enable Create task.',
+        invalidDateRange: 'The due date cannot be earlier than the start date.',
+      },
+      summary: {
+        unassigned: 'Unassigned',
+        noDueDate: 'No due date',
+        due: (date: string) => `Due ${date}`,
+      },
     },
     labels: {
       title: 'Title *',

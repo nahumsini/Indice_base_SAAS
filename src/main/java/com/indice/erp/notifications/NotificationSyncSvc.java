@@ -58,18 +58,22 @@ class NotificationSyncSvc {
                 (company_id, recipient_user_company_id, source_module, source_type, source_id,
                  event_type, event_key, title, description, action_url)
                 SELECT task.company_id,
-                       task.assigned_user_company_id,
+                       assignment.user_company_id,
                        'processes_tasks',
                        'task',
                        task.id,
                        'task_due_today',
-                       CONCAT('process-task:', task.id, ':due:', DATE_FORMAT(task.due_date, '%Y-%m-%d')),
+                       CONCAT('process-task:', task.id, ':due:', DATE_FORMAT(task.due_date, '%Y-%m-%d'), ':', assignment.user_company_id),
                        CONCAT('Task due today: ', task.folio),
                        task.title,
                        '/processes-tasks'
                 FROM process_tasks task
+                JOIN process_task_assignees assignment
+                  ON assignment.company_id = task.company_id
+                 AND assignment.task_id = task.id
+                 AND assignment.removed_at IS NULL
                 WHERE task.company_id = ?
-                  AND task.assigned_user_company_id = ?
+                  AND assignment.user_company_id = ?
                   AND task.deleted_at IS NULL
                   AND task.due_date = ?
                   AND LOWER(COALESCE(task.status, 'pending')) IN ('pending', 'in_progress', 'paused')
@@ -89,18 +93,22 @@ class NotificationSyncSvc {
                 (company_id, recipient_user_company_id, source_module, source_type, source_id,
                  event_type, event_key, title, description, action_url)
                 SELECT task.company_id,
-                       task.assigned_user_company_id,
+                       assignment.user_company_id,
                        'processes_tasks',
                        'task',
                        task.id,
                        'task_overdue',
-                       CONCAT('process-task:', task.id, ':overdue'),
+                       CONCAT('process-task:', task.id, ':overdue:', assignment.user_company_id),
                        CONCAT('Overdue task: ', task.folio),
                        task.title,
                        '/processes-tasks'
                 FROM process_tasks task
+                JOIN process_task_assignees assignment
+                  ON assignment.company_id = task.company_id
+                 AND assignment.task_id = task.id
+                 AND assignment.removed_at IS NULL
                 WHERE task.company_id = ?
-                  AND task.assigned_user_company_id = ?
+                  AND assignment.user_company_id = ?
                   AND task.deleted_at IS NULL
                   AND task.due_date < ?
                   AND LOWER(COALESCE(task.status, 'pending')) IN ('pending', 'in_progress', 'paused')

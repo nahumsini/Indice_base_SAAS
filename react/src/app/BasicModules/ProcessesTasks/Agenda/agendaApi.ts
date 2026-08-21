@@ -1,5 +1,13 @@
 import { apiClient } from '../../../lib/apiClient';
-import type { TaskAuditStatus, TaskDependencyType, TaskPriority, TaskStatus, TaskType } from '../Tasks/tasksApi';
+import type {
+  TaskAssignee,
+  TaskAuditStatus,
+  TaskContributionStatus,
+  TaskDependencyType,
+  TaskPriority,
+  TaskStatus,
+  TaskType,
+} from '../Tasks/tasksApi';
 
 export interface AgendaTaskItem {
   id: number;
@@ -29,6 +37,15 @@ export interface AgendaTaskItem {
   assignedUserId: number | null;
   assignedName: string | null;
   responsible: string | null;
+  assignees: TaskAssignee[];
+  assigneeUserCompanyIds: number[];
+  assignmentMode: 'individual' | 'team';
+  completionPolicy: 'all_assignees' | 'lead';
+  teamSize: number;
+  teamReadyCount: number;
+  teamAllReady: boolean;
+  currentUserContributionStatus: TaskContributionStatus | null;
+  isAssignedToCurrentUser: boolean;
   processId: number | null;
   processFolio: string | null;
   processTitle: string | null;
@@ -65,6 +82,9 @@ export interface AgendaTaskItem {
   dependencyType: TaskDependencyType | null;
   dependencyLagDays: number;
   attachments: number;
+  followUpCount: number;
+  lastFollowUpAt: string | null;
+  nextFollowUpDate: string | null;
   isOverdue: boolean;
 }
 
@@ -81,6 +101,10 @@ export function normalizeAgendaTask(record: Partial<AgendaTaskItem>): AgendaTask
   const auditStatus =
     record.auditStatus ??
     (record.audited ? 'audited' : record.status === 'completed' ? 'pending' : 'not_ready');
+  const assignees = Array.isArray(record.assignees) ? record.assignees : [];
+  const assigneeUserCompanyIds = Array.isArray(record.assigneeUserCompanyIds)
+    ? record.assigneeUserCompanyIds.map(Number).filter((id) => Number.isInteger(id) && id > 0)
+    : assignees.map((assignee) => assignee.userCompanyId);
 
   return {
     id: Number(record.id ?? 0),
@@ -110,6 +134,17 @@ export function normalizeAgendaTask(record: Partial<AgendaTaskItem>): AgendaTask
     assignedUserId: record.assignedUserId ?? null,
     assignedName: record.assignedName ?? null,
     responsible: record.responsible ?? record.assignedName ?? null,
+    assignees,
+    assigneeUserCompanyIds,
+    assignmentMode: record.assignmentMode === 'team' || assignees.length > 1 ? 'team' : 'individual',
+    completionPolicy: record.completionPolicy === 'all_assignees' ? 'all_assignees' : 'lead',
+    teamSize: Number(record.teamSize ?? assignees.length),
+    teamReadyCount: Number(
+      record.teamReadyCount ?? assignees.filter((assignee) => assignee.contributionStatus === 'ready').length,
+    ),
+    teamAllReady: Boolean(record.teamAllReady ?? (assignees.length > 0 && assignees.every((assignee) => assignee.contributionStatus === 'ready'))),
+    currentUserContributionStatus: record.currentUserContributionStatus ?? null,
+    isAssignedToCurrentUser: Boolean(record.isAssignedToCurrentUser),
     processId: record.processId ?? null,
     processFolio: record.processFolio ?? null,
     processTitle: record.processTitle ?? null,
@@ -146,6 +181,9 @@ export function normalizeAgendaTask(record: Partial<AgendaTaskItem>): AgendaTask
     dependencyType: record.dependencyType ?? null,
     dependencyLagDays: Number(record.dependencyLagDays ?? 0),
     attachments: Number(record.attachments ?? 0),
+    followUpCount: Number(record.followUpCount ?? 0),
+    lastFollowUpAt: record.lastFollowUpAt ?? null,
+    nextFollowUpDate: record.nextFollowUpDate ?? null,
     isOverdue: Boolean(record.isOverdue),
   };
 }

@@ -1,7 +1,13 @@
-import type { Dispatch, FormEvent, SetStateAction } from 'react';
-import { Pencil, Plus, Save } from 'lucide-react';
+import { useEffect, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from 'react';
+import { CalendarDays, ChevronLeft, ChevronRight, FolderKanban, Pencil, Plus, Save, UserRound } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
-import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
+import {
+  IndiceModalFrame,
+  IndiceModalSummary,
+  IndiceModalValidation,
+  IndiceModalWizardStepper,
+  type IndiceModalWizardStep,
+} from '../../../../components/indice-modal';
 import { Input } from '../../../../components/ui/input';
 import {
   Select,
@@ -11,6 +17,7 @@ import {
   SelectValue,
 } from '../../../../components/ui/select';
 import { Textarea } from '../../../../components/ui/textarea';
+import { useLanguage } from '../../../../shared/context';
 import type {
   ProcessBusinessOption,
   ProcessCollaboratorOption,
@@ -52,6 +59,7 @@ const statusOptionValues: ProjectStatus[] = ['active', 'paused', 'completed', 'c
 const priorityOptionValues: Array<ProjectPriority | 'none'> = ['none', 'low', 'medium', 'high'];
 
 const NONE_VALUE = '__none__';
+type ProjectWizardStep = 'identity' | 'planning' | 'assignment';
 
 function entityValue(prefix: string, id: number) {
   return `${prefix}:${id}`;
@@ -73,6 +81,34 @@ function normalizeText(value?: string | null) {
 function isHeadquarterUnitName(name?: string | null) {
   const normalized = normalizeText(name).replace(/\s+/g, ' ');
   return normalized === 'headquarter' || normalized === 'headquarters' || normalized === 'headquater';
+}
+
+function formatProjectDate(value: string, locale: string, fallback: string) {
+  const [year, month, day] = value.split('-').map(Number);
+  if (!year || !month || !day) return fallback;
+
+  return new Intl.DateTimeFormat(locale, {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(year, month - 1, day));
+}
+
+function WizardStepIntro({ description, icon, title }: { description: string; icon: ReactNode; title: string }) {
+  return (
+    <div className="flex items-start gap-3 rounded-2xl border border-[#F8C842]/35 bg-[#F8C842]/10 px-4 py-3 dark:border-[#F8C842]/30 dark:bg-[#F8C842]/10">
+      <span
+        aria-hidden="true"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F8C842] text-[#222831] shadow-sm"
+      >
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <h3 className="text-base font-medium text-slate-950 dark:text-white">{title}</h3>
+        <p className="mt-0.5 text-sm leading-5 text-slate-600 dark:text-slate-300">{description}</p>
+      </div>
+    </div>
+  );
 }
 
 function SelectField<T extends string>({
@@ -119,6 +155,8 @@ export function ProjectFormDialog({
   setForm,
   unitOptions,
 }: ProjectFormDialogProps) {
+  const { currentLanguage } = useLanguage();
+  const [activeStep, setActiveStep] = useState<ProjectWizardStep>('identity');
   const formCopy = copy.form;
   const title = formCopy.titles[mode];
   const submitLabel = formCopy.submit[mode];
@@ -129,12 +167,29 @@ export function ProjectFormDialog({
   }));
   const hasValidDateRange = !form.startDate || !form.dueDate || form.startDate <= form.dueDate;
   const isFormValid = Boolean(form.name.trim()) && hasValidDateRange;
+  const isIdentityValid = Boolean(form.name.trim());
+  const wizardSteps: readonly IndiceModalWizardStep<ProjectWizardStep>[] = [
+    { id: 'identity', label: formCopy.wizard.steps.identity.label },
+    { id: 'planning', label: formCopy.wizard.steps.planning.label },
+    { id: 'assignment', label: formCopy.wizard.steps.assignment.label },
+  ];
+  const activeStepIndex = Math.max(0, wizardSteps.findIndex((step) => step.id === activeStep));
+  const currentStepCopy = formCopy.wizard.steps[activeStep];
+  const canContinue = activeStep === 'identity' ? isIdentityValid : activeStep === 'planning' ? hasValidDateRange : isFormValid;
+  const maxUnlockedStepIndex = !isIdentityValid ? 0 : !hasValidDateRange ? 1 : 2;
+  const isLastStep = activeStep === 'assignment';
   const selectedUnitId = numericFormValue(form.unitId);
   const selectedBusinessId = numericFormValue(form.businessId);
   const selectedOwnerUserCompanyId = numericFormValue(form.ownerUserCompanyId);
   const headquarterUnitIds = new Set(
     unitOptions.filter((option) => isHeadquarterUnitName(option.name)).map((option) => option.id),
   );
+
+  useEffect(() => {
+    if (open) {
+      setActiveStep('identity');
+    }
+  }, [mode, open]);
 
   const selectedUnitValue = selectedUnitId != null ? entityValue('unit', selectedUnitId) : NONE_VALUE;
   const unitSelectOptions = [
@@ -326,94 +381,180 @@ export function ProjectFormDialog({
     });
   };
 
+  const selectedUnitName = selectedUnitId != null
+    ? unitSelectOptions.find((option) => option.value === selectedUnitValue)?.label ?? `${formCopy.labels.unit} #${selectedUnitId}`
+    : '';
+  const selectedBusinessName = selectedBusinessId != null
+    ? businessSelectOptions.find((option) => option.value === selectedBusinessValue)?.label ?? `${formCopy.labels.business} #${selectedBusinessId}`
+    : '';
+  const scopeSummary = [selectedUnitName, selectedBusinessName].filter(Boolean).join(' · ') || formCopy.wizard.summary.noScope;
+  const dateSummary = form.startDate || form.dueDate
+    ? `${formatProjectDate(form.startDate, currentLanguage.code, copy.common.noDate)} → ${formatProjectDate(form.dueDate, currentLanguage.code, copy.common.noDate)}`
+    : copy.common.noDate;
+  const footerSummary = `${formCopy.wizard.stepOf(activeStepIndex + 1, wizardSteps.length)} · ${form.name.trim() || formCopy.wizard.untitled}`;
+
+  const handleWizardSubmit = (event: FormEvent<HTMLFormElement>) => {
+    if (!isLastStep) {
+      event.preventDefault();
+      if (canContinue) {
+        setActiveStep(wizardSteps[activeStepIndex + 1].id);
+      }
+      return;
+    }
+
+    onSubmit(event);
+  };
+
   return (
     <IndiceModalFrame
       busy={isSubmitting}
       closeLabel={copy.common.close}
       description={formCopy.description}
+      eyebrow={formCopy.wizard.eyebrow}
       footer={(
         <>
           <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => onOpenChange(false)}>
             {copy.common.cancel}
           </Button>
-          <Button
-            type="submit"
-            form="process-project-form"
-            disabled={!isFormValid || isSubmitting}
-          >
-            {mode === 'create' ? <Plus className="h-4 w-4" /> : <Save className="h-4 w-4" />}
-            {isSubmitting ? copy.common.saving : submitLabel}
-          </Button>
+          {activeStepIndex > 0 ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSubmitting}
+              onClick={() => setActiveStep(wizardSteps[activeStepIndex - 1].id)}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              {formCopy.wizard.actions.previous}
+            </Button>
+          ) : null}
+          {!isLastStep ? (
+            <Button type="submit" form="process-project-form" disabled={!canContinue || isSubmitting}>
+              {formCopy.wizard.actions.continue}
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button type="submit" form="process-project-form" disabled={!isFormValid || isSubmitting}>
+              {mode === 'create' ? <Plus className="h-4 w-4" /> : <Save className="h-4 w-4" />}
+              {isSubmitting ? copy.common.saving : submitLabel}
+            </Button>
+          )}
         </>
       )}
-      footerSummary={form.name.trim() || title}
+      footerSummary={footerSummary}
       icon={mode === 'create' ? <Plus className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
-      modalType="standard-form"
+      modalType="wizard"
       onOpenChange={onOpenChange}
       open={open}
       title={title}
       tone="yellow"
+      contentClassName="h-[min(88vh,800px)]"
     >
-      <form id="process-project-form" onSubmit={onSubmit} className="space-y-6">
-            <IndiceModalValidation messages={error ? [error] : []} />
-            {!hasValidDateRange ? (
-              <IndiceModalValidation messages={[`${formCopy.labels.dueDate}: ${formCopy.labels.startDate}`]} />
-            ) : null}
+      <form id="process-project-form" onSubmit={handleWizardSubmit} className="space-y-4">
+        <IndiceModalWizardStepper
+          accent="yellow"
+          activeStepId={activeStep}
+          onStepSelect={(nextStep) => {
+            const nextStepIndex = wizardSteps.findIndex((step) => step.id === nextStep);
+            if (nextStepIndex <= maxUnlockedStepIndex && !isSubmitting) {
+              setActiveStep(nextStep);
+            }
+          }}
+          progressLabel={formCopy.wizard.stepOf(activeStepIndex + 1, wizardSteps.length)}
+          steps={wizardSteps}
+        />
+        <IndiceModalValidation messages={error ? [error] : []} />
+        {activeStep === 'planning' && !hasValidDateRange ? (
+          <IndiceModalValidation messages={[formCopy.wizard.hints.invalidDateRange]} />
+        ) : null}
+
+        <WizardStepIntro
+          description={currentStepCopy.description}
+          icon={activeStep === 'identity'
+            ? <FolderKanban className="h-5 w-5" />
+            : activeStep === 'planning'
+              ? <CalendarDays className="h-5 w-5" />
+              : <UserRound className="h-5 w-5" />}
+          title={currentStepCopy.title}
+        />
+
+        {activeStep === 'identity' ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-2 md:col-span-2">
+              <label htmlFor="project-form-name" className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.name}</label>
+              <Input
+                id="project-form-name"
+                autoFocus
+                required
+                aria-describedby="project-form-name-hint"
+                value={form.name}
+                onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+                placeholder={formCopy.placeholders.name}
+                className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+              />
+              <p id="project-form-name-hint" className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+                {formCopy.wizard.hints.name}
+              </p>
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <label htmlFor="project-form-description" className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.description}</label>
+              <Textarea
+                id="project-form-description"
+                value={form.description}
+                onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+                placeholder={formCopy.placeholders.description}
+                className="min-h-[130px] rounded-2xl border-slate-200 bg-white px-4 py-3 text-base leading-6 text-slate-700 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+              />
+            </div>
+          </div>
+        ) : null}
+
+        {activeStep === 'planning' ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <SelectField
+              label={formCopy.labels.status}
+              value={form.status}
+              onChange={(value) => setForm((current) => ({ ...current, status: value }))}
+              options={statusOptions}
+            />
+            <SelectField
+              label={formCopy.labels.priority}
+              value={form.priority}
+              onChange={(value) => setForm((current) => ({ ...current, priority: value }))}
+              options={priorityOptions}
+            />
+
+            <div className="space-y-2">
+              <label htmlFor="project-form-start-date" className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.startDate}</label>
+              <Input
+                id="project-form-start-date"
+                type="date"
+                max={form.dueDate || undefined}
+                value={form.startDate}
+                onChange={(event) => setForm((current) => ({ ...current, startDate: event.target.value }))}
+                className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="project-form-due-date" className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.dueDate}</label>
+              <Input
+                id="project-form-due-date"
+                type="date"
+                min={form.startDate || undefined}
+                value={form.dueDate}
+                onChange={(event) => setForm((current) => ({ ...current, dueDate: event.target.value }))}
+                className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+              />
+            </div>
+            <p className="text-xs leading-5 text-slate-500 dark:text-slate-400 md:col-span-2">
+              {formCopy.wizard.hints.dates}
+            </p>
+          </div>
+        ) : null}
+
+        {activeStep === 'assignment' ? (
+          <div className="space-y-4">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.name}</label>
-                <Input
-                  value={form.name}
-                  onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-                  placeholder={formCopy.placeholders.name}
-                  className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                />
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.description}</label>
-                <Textarea
-                  value={form.description}
-                  onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
-                  placeholder={formCopy.placeholders.description}
-                  className="min-h-[110px] rounded-2xl border-slate-200 bg-white px-4 py-3 text-base leading-6 text-slate-700 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                />
-              </div>
-
-              <SelectField
-                label={formCopy.labels.status}
-                value={form.status}
-                onChange={(value) => setForm((current) => ({ ...current, status: value }))}
-                options={statusOptions}
-              />
-              <SelectField
-                label={formCopy.labels.priority}
-                value={form.priority}
-                onChange={(value) => setForm((current) => ({ ...current, priority: value }))}
-                options={priorityOptions}
-              />
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.startDate}</label>
-                <Input
-                  type="date"
-                  max={form.dueDate || undefined}
-                  value={form.startDate}
-                  onChange={(event) => setForm((current) => ({ ...current, startDate: event.target.value }))}
-                  className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.dueDate}</label>
-                <Input
-                  type="date"
-                  min={form.startDate || undefined}
-                  value={form.dueDate}
-                  onChange={(event) => setForm((current) => ({ ...current, dueDate: event.target.value }))}
-                  className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                />
-              </div>
-
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{formCopy.labels.unit}</label>
                 <Select value={selectedUnitValue} onValueChange={updateUnit}>
@@ -422,9 +563,7 @@ export function ProjectFormDialog({
                   </SelectTrigger>
                   <SelectContent>
                     {unitSelectOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
+                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -437,9 +576,7 @@ export function ProjectFormDialog({
                   </SelectTrigger>
                   <SelectContent>
                     {businessSelectOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
+                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -453,14 +590,32 @@ export function ProjectFormDialog({
                   </SelectTrigger>
                   <SelectContent>
                     {ownerSelectOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
+                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+                  {formCopy.wizard.hints.assignment}
+                </p>
               </div>
             </div>
+
+            <IndiceModalSummary
+              columns={3}
+              description={formCopy.wizard.summary.description}
+              items={[
+                { emphasized: true, label: formCopy.labels.name, value: form.name.trim() || formCopy.wizard.untitled },
+                { label: formCopy.labels.status, value: copy.statuses[form.status] },
+                { label: formCopy.labels.priority, value: form.priority === 'none' ? copy.priorities.none : copy.priorities[form.priority] },
+                { label: formCopy.wizard.summary.dates, value: dateSummary },
+                { label: formCopy.wizard.summary.scope, value: scopeSummary },
+                { label: formCopy.labels.owner, value: form.ownerName || formCopy.empty.owner },
+              ]}
+              title={formCopy.wizard.summary.title}
+              variant="success"
+            />
+          </div>
+        ) : null}
       </form>
     </IndiceModalFrame>
   );

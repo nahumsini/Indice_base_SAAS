@@ -37,6 +37,8 @@ export const ptBR: AgendaTranslations = {
   },
   filters: {
     clear: 'Limpar filtros',
+    more: 'Mais filtros',
+    hideMore: 'Ocultar filtros',
     title: 'Filtros',
     search: 'Buscar tarefa',
     searchPlaceholder: 'Folio, titulo, descricao ou responsavel',
@@ -208,6 +210,7 @@ export const ptBR: AgendaTranslations = {
   messages: {
     loadTasks: 'Não foi possível carregar as tarefas da agenda.',
     saveTask: 'Não foi possível salvar a tarefa.',
+    taskCreated: (folio: string) => `A tarefa ${folio} foi criada e agora está visível.`,
     updateTask: 'Não foi possível atualizar a tarefa.',
     duplicateTask: 'Não foi possível duplicar a tarefa.',
     deleteTask: 'Não foi possível excluir a tarefa.',
@@ -217,7 +220,7 @@ export const ptBR: AgendaTranslations = {
     invalidCompletion: 'O progresso deve estar entre 0 e 100.',
     numberRange: (label: string, min: number, max: number) => `${label} deve estar entre ${min} e ${max}.`,
     weightingRange: (max: number) => `A ponderação deve estar entre 0 e ${max}.`,
-    overdueDragBlocked: 'Tarefas vencidas são calculadas pela data de vencimento; elas não podem ser movidas manualmente.',
+    overdueDragBlocked: 'Vencidas depende da data. Altere o vencimento antes de mover uma tarefa para Vencidas ou de Vencidas para Pendentes.',
     closeBeforeAudit: 'Feche a tarefa antes de auditá-la.',
   },
   kpiStrip: {
@@ -310,6 +313,27 @@ export const ptBR: AgendaTranslations = {
     descriptions: {
       create: 'Crie uma tarefa operacional e atribua a um usuário de RH sem forçar uma relação com processo.',
       edit: 'Atualize a tarefa, sua atribuição e o status de execução sem sair do módulo.',
+    },
+    quickCreate: {
+      eyebrow: 'Nova tarefa · Agenda',
+      description: 'Defina o trabalho, o responsável e a data de entrega. A tarefa aparecerá na Agenda assim que for criada.',
+      sections: {
+        work: 'O que deve ser feito',
+        planning: 'Planejamento',
+        assignment: 'Atribuição',
+      },
+      hints: {
+        title: 'Use uma ação concreta, por exemplo: “Revisar faturas de agosto”.',
+        dates: 'Se não for concluída a tempo, aparecerá como vencida.',
+        assignment: 'Mostramos os colaboradores disponíveis conforme a unidade e o negócio selecionados.',
+        titleRequired: 'Adicione um título para habilitar Criar tarefa.',
+        invalidDateRange: 'A data de vencimento não pode ser anterior à data de início.',
+      },
+      summary: {
+        unassigned: 'Sem responsável',
+        noDueDate: 'Sem vencimento',
+        due: (date: string) => `Vence em ${date}`,
+      },
     },
     labels: {
       title: 'Título *',

@@ -40,6 +40,7 @@ type AgendaScheduleViewProps = {
   onDeleteTask: (task: AgendaTaskItem) => void;
   onEditTask: (task: AgendaTaskItem) => void;
   onOpenAttachments: (task: AgendaTaskItem) => void;
+  onOpenFollowUps: (task: AgendaTaskItem) => void;
   onPersistTaskChange: (task: AgendaTaskItem, patch: Partial<TaskPayload>) => void | Promise<void>;
   onScheduleDateDrop: (event: ReactDragEvent<HTMLElement>, dateKey: string) => void;
   onScheduleDragEnd: () => void;
@@ -67,6 +68,7 @@ export function AgendaScheduleView({
   onDeleteTask,
   onEditTask,
   onOpenAttachments,
+  onOpenFollowUps,
   onPersistTaskChange,
   onScheduleDateDrop,
   onScheduleDragEnd,
@@ -170,6 +172,7 @@ export function AgendaScheduleView({
         onDeleteTask={onDeleteTask}
         onEditTask={onEditTask}
         onOpenAttachments={onOpenAttachments}
+        onOpenFollowUps={onOpenFollowUps}
         onPersistTaskChange={onPersistTaskChange}
         onScheduleDragEnd={onScheduleDragEnd}
         onScheduleTaskDragStart={onScheduleTaskDragStart}

@@ -70,8 +70,15 @@ export function agendaParticipantOptions(tasks: AgendaTaskItem[], unassignedLabe
       userId: task.assignedUserId,
       userCompanyId: task.assignedUserCompanyId,
     });
+    task.assignees.forEach((assignee) => {
+      addParticipantFilterOption(optionMap, {
+        name: assignee.name,
+        userId: assignee.userId,
+        userCompanyId: assignee.userCompanyId,
+      });
+    });
 
-    if (task.assignedUserCompanyId == null) {
+    if (task.assigneeUserCompanyIds.length === 0 && task.assignedUserCompanyId == null) {
       hasUnassignedResponsible = true;
     }
   });
@@ -91,22 +98,35 @@ export function agendaParticipantOptions(tasks: AgendaTaskItem[], unassignedLabe
 
 export function taskMatchesParticipantFilter(task: AgendaTaskItem, option: AgendaParticipantFilterOption) {
   if (option.value === UNASSIGNED_RESPONSIBLE_VALUE) {
-    return task.assignedUserCompanyId == null;
+    return task.assigneeUserCompanyIds.length === 0 && task.assignedUserCompanyId == null;
   }
 
   if (option.userId != null) {
-    return task.createdBy === option.userId || task.assignedUserId === option.userId;
+    return (
+      task.createdBy === option.userId ||
+      task.assignedUserId === option.userId ||
+      task.assignees.some((assignee) => assignee.userId === option.userId)
+    );
   }
 
-  if (option.userCompanyId != null && task.assignedUserCompanyId === option.userCompanyId) {
+  if (
+    option.userCompanyId != null &&
+    (task.assignedUserCompanyId === option.userCompanyId ||
+      task.assignees.some((assignee) => assignee.userCompanyId === option.userCompanyId))
+  ) {
     return true;
   }
 
   if (option.normalizedName) {
     const creatorName = compactText(task.createdByName ?? task.creator).toLowerCase();
     const assignedName = compactText(task.assignedName ?? task.responsible).toLowerCase();
+    const assigneeNames = task.assignees.map((assignee) => compactText(assignee.name).toLowerCase());
 
-    return creatorName === option.normalizedName || assignedName === option.normalizedName;
+    return (
+      creatorName === option.normalizedName ||
+      assignedName === option.normalizedName ||
+      assigneeNames.includes(option.normalizedName)
+    );
   }
 
   return false;

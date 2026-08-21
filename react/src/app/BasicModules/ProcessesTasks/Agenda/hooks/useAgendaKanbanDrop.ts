@@ -31,8 +31,9 @@ export function useAgendaKanbanDrop({
   sortedTasks,
 }: UseAgendaKanbanDropOptions) {
   return useCallback(
-    (columnId: AgendaKanbanColumnId) => {
-      const draggedTask = sortedTasks.find((task) => task.taskId === draggingTaskId);
+    (columnId: AgendaKanbanColumnId, droppedTaskId: number | null = null) => {
+      const resolvedTaskId = droppedTaskId ?? draggingTaskId;
+      const draggedTask = sortedTasks.find((task) => task.taskId === resolvedTaskId);
 
       setDraggingTaskId(null);
 
@@ -40,11 +41,13 @@ export function useAgendaKanbanDrop({
         return;
       }
 
-      if (columnId === getTaskKanbanColumnId(draggedTask, agendaStatusDate, activeRange)) {
+      const currentColumnId = getTaskKanbanColumnId(draggedTask, agendaStatusDate, activeRange);
+
+      if (columnId === currentColumnId) {
         return;
       }
 
-      if (columnId === 'overdue') {
+      if (columnId === 'overdue' || (currentColumnId === 'overdue' && columnId === 'pending')) {
         setAgendaError(agendaCopy.messages.overdueDragBlocked);
         return;
       }

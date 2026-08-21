@@ -146,6 +146,45 @@ export const ptBR: ProjectsTranslations = {
     },
     description:
       'O projeto agrupa tarefas reais e mantém responsável, datas, unidade e negócio para calcular progresso operacional.',
+    wizard: {
+      eyebrow: 'Configuração do projeto',
+      stepOf: (current: number, total: number) => `Etapa ${current} de ${total}`,
+      untitled: 'Projeto sem nome',
+      steps: {
+        identity: {
+          label: 'Projeto',
+          title: 'Defina o projeto',
+          description: 'Dê um nome claro e explique o resultado operacional que deseja alcançar.',
+        },
+        planning: {
+          label: 'Planejamento',
+          title: 'Planeje a execução',
+          description: 'Defina status, prioridade e datas para que a equipe compreenda a urgência.',
+        },
+        assignment: {
+          label: 'Atribuição',
+          title: 'Atribua e revise',
+          description: 'Escolha o escopo organizacional e o responsável; depois confirme o projeto antes de salvar.',
+        },
+      },
+      actions: {
+        previous: 'Voltar',
+        continue: 'Continuar',
+      },
+      hints: {
+        name: 'Use um resultado concreto, por exemplo: “Abrir o centro de distribuição de Toronto”.',
+        dates: 'Projetos que ultrapassarem o vencimento com tarefas pendentes aparecerão em risco.',
+        assignment: 'A unidade e o negócio determinam quais colaboradores podem ser escolhidos como responsáveis.',
+        invalidDateRange: 'A data de vencimento não pode ser anterior à data de início.',
+      },
+      summary: {
+        title: 'Resumo do projeto',
+        description: 'Revise as principais decisões antes de salvar. Você pode voltar a qualquer etapa anterior para fazer alterações.',
+        dates: 'Datas planejadas',
+        scope: 'Unidade / negócio',
+        noScope: 'Sem escopo organizacional',
+      },
+    },
     labels: {
       name: 'Nome do projeto *',
       description: 'Descrição',

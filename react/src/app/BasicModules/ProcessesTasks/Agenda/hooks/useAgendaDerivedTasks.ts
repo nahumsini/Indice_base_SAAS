@@ -144,6 +144,7 @@ function taskMatchesSearch(task: AgendaTaskItem, normalizedQuery: string) {
     task.status,
     task.priority,
     task.taskType,
+    ...task.assignees.flatMap((assignee) => [assignee.name, assignee.email]),
   ]
     .filter((value): value is string => typeof value === 'string' && value.length > 0)
     .some((value) => normalizeAgendaSearch(value).includes(normalizedQuery));

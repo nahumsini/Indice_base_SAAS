@@ -6,9 +6,7 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Objects;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 class ProcessTaskKioskCommandService {
 
-    private final JdbcTemplate jdbcTemplate;
     private final ProcessTasksService processTasksService;
     private final ProcessTaskAssignmentScopeService assignmentScopeService;
     private final ProcessTaskKioskIdentityService identities;
@@ -24,13 +21,11 @@ class ProcessTaskKioskCommandService {
     private final ProcessTaskKioskModuleAuditService audit;
 
     ProcessTaskKioskCommandService(
-            JdbcTemplate jdbcTemplate,
             ProcessTasksService processTasksService,
             ProcessTaskAssignmentScopeService assignmentScopeService,
             ProcessTaskKioskIdentityService identities,
             ProcessTaskKioskQueryService queries,
             ProcessTaskKioskModuleAuditService audit) {
-        this.jdbcTemplate = jdbcTemplate;
         this.processTasksService = processTasksService;
         this.assignmentScopeService = assignmentScopeService;
         this.identities = identities;
@@ -74,21 +69,16 @@ class ProcessTaskKioskCommandService {
             number(task.get("unit_id")), number(task.get("business_id")), assignedId);
         var assigned = identities.loadEmployee(context.kiosk().companyId(), assignedId);
         var assignedName = fallback(assigned.fullName(), "User " + assigned.userCompanyId());
-        var updatedRows = jdbcTemplate.update(
-            """
-                UPDATE process_tasks
-                SET assigned_user_id = ?, assigned_user_company_id = ?, assigned_name = ?
-                WHERE company_id = ? AND id = ? AND deleted_at IS NULL
-                  AND status IN ('pending', 'in_progress', 'paused')
-                  AND (assigned_user_company_id = ? OR created_by = ?)
-                """,
-            assigned.userId(), assigned.userCompanyId(), assignedName,
-            context.kiosk().companyId(), taskId,
-            context.employee().userCompanyId(), context.employee().userId()
+        processTasksService.patchTask(
+            context.kiosk().companyId(),
+            context.employee().userId(),
+            taskId,
+            Map.of(
+                "assignedUserCompanyId", assigned.userCompanyId(),
+                "assigneeUserCompanyIds", List.of(assigned.userCompanyId()),
+                "assignedName", assignedName
+            )
         );
-        if (updatedRows != 1) {
-            throw new NoSuchElementException("Task not found for this kiosk.");
-        }
         audit.record(context, taskId, "TASK_RESPONSIBLE_ASSIGNED", Map.of(
             "assigned_user_company_id", assigned.userCompanyId()
         ));
@@ -118,24 +108,32 @@ class ProcessTaskKioskCommandService {
         var notes = text(normalized, "completion_notes", "completionNotes", "notes");
         var percent = integer(normalized, "completion_percent", "completionPercent", "completion");
         percent = percent == null ? 100 : Math.max(0, Math.min(100, percent));
-        var updatedRows = jdbcTemplate.update(
-            """
-                UPDATE process_tasks
-                SET status = 'completed', started_at = COALESCE(started_at, CURRENT_TIMESTAMP),
-                    completed_at = CURRENT_TIMESTAMP, cancelled_at = NULL,
-                    completed_by_user_id = ?, completed_by_user_company_id = ?,
-                    completion_notes = ?, completion_percent = ?
-                WHERE company_id = ? AND id = ? AND deleted_at IS NULL
-                  AND assigned_user_company_id = ?
-                  AND status IN ('pending', 'in_progress', 'paused')
-                """,
-            context.employee().userId(), context.employee().userCompanyId(),
-            notes.isBlank() ? null : notes, percent, context.kiosk().companyId(), taskId,
-            context.employee().userCompanyId()
-        );
-        if (updatedRows != 1) {
-            throw new NoSuchElementException("Task not found for this kiosk.");
+        var sharedTask = processTasksService.getTask(context.kiosk().companyId(), taskId);
+        if ("team".equals(sharedTask.get("assignmentMode"))
+                && !"lead".equals(currentAssignmentRole(sharedTask, context.employee().userCompanyId()))) {
+            processTasksService.updateCurrentUserContribution(
+                context.kiosk().companyId(),
+                context.employee().userId(),
+                taskId,
+                Map.of("status", "ready", "note", notes)
+            );
+            audit.record(context, taskId, "TASK_CONTRIBUTION_READY", Map.of(
+                "has_completion_notes", !notes.isBlank()
+            ));
+            return Map.of(
+                "task", queries.visibleTask(context.kiosk(), context.employee(), taskId),
+                "items", queries.listTasks(context.kiosk(), context.employee())
+            );
         }
+        processTasksService.completeTask(
+            context.kiosk().companyId(),
+            context.employee().userId(),
+            taskId,
+            Map.of(
+                "completionNotes", notes,
+                "completionPercent", percent
+            )
+        );
         audit.record(context, taskId, "TASK_COMPLETED", Map.of(
             "completion_percent", percent,
             "has_completion_notes", !notes.isBlank()
@@ -145,6 +143,22 @@ class ProcessTaskKioskCommandService {
         completed.put("completion_percent", percent);
         completed.put("completion_notes", notes.isBlank() ? null : notes);
         return Map.of("task", completed, "items", queries.listTasks(context.kiosk(), context.employee()));
+    }
+
+    private String currentAssignmentRole(Map<String, Object> task, long userCompanyId) {
+        var assignees = task.get("assignees");
+        if (!(assignees instanceof Iterable<?> values)) {
+            return null;
+        }
+        for (var value : values) {
+            if (!(value instanceof Map<?, ?> member)) {
+                continue;
+            }
+            if (Objects.equals(number(member.get("userCompanyId")), userCompanyId)) {
+                return String.valueOf(member.get("role"));
+            }
+        }
+        return null;
     }
 
     private Map<String, Object> createPayload(

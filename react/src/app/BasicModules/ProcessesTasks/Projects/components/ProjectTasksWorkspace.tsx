@@ -635,6 +635,7 @@ function createDefaultTaskForm(project: ProjectRecord) {
     processId: '',
     projectId: project.id.toString(),
     assignedUserCompanyId: project.ownerUserCompanyId?.toString() ?? '',
+    assigneeUserCompanyIds: project.ownerUserCompanyId != null ? [project.ownerUserCompanyId.toString()] : [],
     assignedName: project.ownerName ?? '',
     status: 'pending',
     priority: project.priority ?? 'medium',
@@ -657,6 +658,12 @@ function toTaskFormValues(task: AgendaTaskItem): TaskFormValues {
     processId: task.processId?.toString() ?? '',
     projectId: task.projectId?.toString() ?? '',
     assignedUserCompanyId: task.assignedUserCompanyId?.toString() ?? '',
+    assigneeUserCompanyIds:
+      task.assigneeUserCompanyIds.length > 0
+        ? task.assigneeUserCompanyIds.map(String)
+        : task.assignedUserCompanyId != null
+          ? [String(task.assignedUserCompanyId)]
+          : [],
     assignedName: task.assignedName ?? '',
     status: task.status,
     priority: task.priority,
@@ -673,12 +680,26 @@ function toTaskFormValues(task: AgendaTaskItem): TaskFormValues {
 }
 
 function buildTaskPayload(form: TaskFormValues, copy: AgendaTranslations): TaskPayload {
+  const assignedUserCompanyId = parseOptionalNumber(
+    form.assignedUserCompanyId,
+    copy.report.fields.responsible,
+    copy.messages.numberRange,
+  );
+  const assigneeUserCompanyIds = Array.from(
+    new Set(
+      [assignedUserCompanyId, ...form.assigneeUserCompanyIds.map(Number)].filter(
+        (value): value is number => Number.isInteger(value) && Number(value) > 0,
+      ),
+    ),
+  );
+
   return {
     title: form.title.trim(),
     description: form.description.trim() ? form.description.trim() : null,
     processId: parseOptionalNumber(form.processId, copy.report.fields.process, copy.messages.numberRange),
     projectId: parseOptionalNumber(form.projectId, copy.report.fields.project, copy.messages.numberRange),
-    assignedUserCompanyId: parseOptionalNumber(form.assignedUserCompanyId, copy.report.fields.responsible, copy.messages.numberRange),
+    assignedUserCompanyId,
+    assigneeUserCompanyIds,
     assignedName: form.assignedName.trim() ? form.assignedName.trim() : null,
     status: form.status,
     priority: form.priority,
@@ -707,6 +728,12 @@ function buildTaskPayloadFromRecord(task: AgendaTaskItem, patch: Partial<TaskPay
     processId: task.processId,
     projectId: task.projectId,
     assignedUserCompanyId: task.assignedUserCompanyId,
+    assigneeUserCompanyIds:
+      task.assigneeUserCompanyIds.length > 0
+        ? task.assigneeUserCompanyIds
+        : task.assignedUserCompanyId != null
+          ? [task.assignedUserCompanyId]
+          : [],
     assignedName: task.assignedName?.trim() ? task.assignedName.trim() : null,
     status: task.status,
     priority: task.priority,
@@ -758,6 +785,15 @@ function normalizeProjectTask(task: TaskRecord, project: ProjectRecord): AgendaT
     assignedUserId: task.assignedUserId,
     assignedName: task.assignedName,
     responsible: task.responsible,
+    assignees: task.assignees,
+    assigneeUserCompanyIds: task.assigneeUserCompanyIds,
+    assignmentMode: task.assignmentMode,
+    completionPolicy: task.completionPolicy,
+    teamSize: task.teamSize,
+    teamReadyCount: task.teamReadyCount,
+    teamAllReady: task.teamAllReady,
+    currentUserContributionStatus: task.currentUserContributionStatus,
+    isAssignedToCurrentUser: task.isAssignedToCurrentUser,
     processId: task.processId,
     processFolio: null,
     processTitle: null,
@@ -794,6 +830,9 @@ function normalizeProjectTask(task: TaskRecord, project: ProjectRecord): AgendaT
     dependencyType: task.dependencyType,
     dependencyLagDays: task.dependencyLagDays,
     attachments: task.attachments,
+    followUpCount: task.followUpCount,
+    lastFollowUpAt: task.lastFollowUpAt,
+    nextFollowUpDate: task.nextFollowUpDate,
     isOverdue: isPastDate(task.dueDate) && task.status !== 'completed' && task.status !== 'cancelled',
   };
 }
@@ -1032,6 +1071,7 @@ export function ProjectTasksWorkspace({
     const defaultForm = {
       ...createDefaultTaskForm(project),
       assignedUserCompanyId: '',
+      assigneeUserCompanyIds: [],
       assignedName: '',
       unitId: defaultScope.unitId?.toString() ?? project.unitId?.toString() ?? '',
       businessId: defaultScope.businessId?.toString() ?? project.businessId?.toString() ?? '',
@@ -1044,6 +1084,7 @@ export function ProjectTasksWorkspace({
     return {
       ...defaultForm,
       assignedUserCompanyId: currentUserCollaborator.userCompanyId.toString(),
+      assigneeUserCompanyIds: [currentUserCollaborator.userCompanyId.toString()],
       assignedName: currentUserCollaborator.name,
     };
   };
@@ -1067,6 +1108,7 @@ export function ProjectTasksWorkspace({
       return {
         ...currentForm,
         assignedUserCompanyId: currentUserCollaborator.userCompanyId.toString(),
+        assigneeUserCompanyIds: [currentUserCollaborator.userCompanyId.toString()],
         assignedName: currentUserCollaborator.name,
         unitId: currentForm.unitId || defaultTaskScopeForActor(currentUserCollaborator).unitId?.toString() || '',
         businessId:
@@ -1592,6 +1634,7 @@ export function ProjectTasksWorkspace({
     return {
       assignedUserCompanyId: null,
       assignedName: null,
+      assigneeUserCompanyIds: [],
     };
   };
 
@@ -1629,6 +1672,7 @@ export function ProjectTasksWorkspace({
       void persistTaskChange(task, {
         assignedUserCompanyId: null,
         assignedName: null,
+        assigneeUserCompanyIds: [],
       });
       return;
     }
@@ -1643,6 +1687,9 @@ export function ProjectTasksWorkspace({
 
     void persistTaskChange(task, {
       assignedUserCompanyId: selectedCollaborator.userCompanyId,
+      assigneeUserCompanyIds: Array.from(
+        new Set([selectedCollaborator.userCompanyId, ...task.assigneeUserCompanyIds]),
+      ),
       assignedName: selectedCollaborator.name,
       unitId: task.unitId ?? selectedCollaborator.unitId ?? null,
       businessId: task.businessId ?? selectedCollaborator.businessId ?? null,

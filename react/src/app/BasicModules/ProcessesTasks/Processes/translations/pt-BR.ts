@@ -270,8 +270,8 @@ export const ptBR: ProcessesTranslations = {
       taskTemplateDescription: 'Estes valores sao copiados para cada tarefa gerada pelo motor.',
       evidenceRequired: 'Evidencia obrigatoria',
       evidenceDescription: 'Marque este processo se suas tarefas devem ser fechadas com arquivos ou fotos de evidencia.',
-      engineControl: 'Controle do motor',
-      engineDescription: 'Defina quando a geracao inicia, ate quando se aplica e quantos dias adiante materializa.',
+      engineControl: 'Vigência do processo',
+      engineDescription: 'Defina quando a geração começa e até quando o processo recorrente permanece vigente.',
       schedule: 'Programacao do processo',
       scheduleDescription: (frequency: string) =>
         `Configure como o processo recorrente sera gerado quando a frequencia selecionada for ${frequency}.`,

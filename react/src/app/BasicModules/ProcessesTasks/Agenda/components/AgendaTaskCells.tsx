@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { FolderOpen } from 'lucide-react';
+import { CheckCircle2, FolderOpen, UsersRound } from 'lucide-react';
 import { Badge } from '../../../../components/ui/badge';
 import {
   Select,
@@ -36,6 +36,8 @@ export function AgendaTaskCell({
   onBusinessChange,
   onEditTask,
   onOpenAttachments,
+  onOpenFollowUps,
+  onOpenTeam,
   onPersistTaskChange,
   onRequestCancel,
   onRequestComplete,
@@ -72,6 +74,7 @@ export function AgendaTaskCell({
     isPending,
     onAuditTask,
     onEditTask,
+    onOpenFollowUps,
     task,
   };
 
@@ -100,8 +103,22 @@ export function AgendaTaskCell({
       );
     case 'startDate':
       return <ReadonlyValue muted={!task.startDate}>{task.startDate ? formatDate(task.startDate) : copy.common.noDate}</ReadonlyValue>;
-    case 'dueDate':
-      return <ReadonlyValue muted={!task.dueDate}>{task.dueDate ? formatDate(task.dueDate) : copy.common.noDate}</ReadonlyValue>;
+    case 'dueDate': {
+      const scheduleHour = getTaskScheduleHour(task, todayAgendaValue);
+
+      return (
+        <ReadonlyValue muted={!task.dueDate && !scheduleHour}>
+          <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>{task.dueDate ? formatDate(task.dueDate) : copy.common.noDate}</span>
+            {scheduleHour ? (
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                {scheduleHour}
+              </span>
+            ) : null}
+          </span>
+        </ReadonlyValue>
+      );
+    }
     case 'predecessor':
       return (
         <ReadonlyValue muted={!task.predecessorTaskFolio && !task.predecessorTaskTitle}>
@@ -173,7 +190,23 @@ export function AgendaTaskCell({
         </div>
       );
     case 'responsible':
-      return <ResponsibleCell {...scopeCellProps} />;
+      return task.teamSize > 1 ? (
+        <button
+          type="button"
+          disabled={isPending}
+          onClick={() => onOpenTeam(task)}
+          className="flex w-full min-w-0 items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-left text-blue-900 transition-colors hover:bg-blue-100 disabled:opacity-60 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-100"
+        >
+          <UsersRound className="h-4 w-4 shrink-0" />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-medium">{task.assignedName || `${task.teamSize} personas`}</span>
+            <span className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-300">
+              {task.teamAllReady ? <CheckCircle2 className="h-3 w-3" /> : null}
+              {task.teamReadyCount}/{task.teamSize} partes listas
+            </span>
+          </span>
+        </button>
+      ) : <ResponsibleCell {...scopeCellProps} />;
     case 'priority':
       return (
         <PriorityCell

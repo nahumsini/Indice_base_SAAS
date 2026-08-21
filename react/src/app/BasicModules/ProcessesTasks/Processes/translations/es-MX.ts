@@ -223,8 +223,8 @@ export const esMX: ProcessesTranslations = {
       taskTemplateDescription: 'Estos datos se copiaran a cada tarea que el motor genere en Agenda.',
       evidenceRequired: 'Evidencia requerida',
       evidenceDescription: 'Marca el proceso si sus tareas deben cerrarse con archivos o fotos de evidencia.',
-      engineControl: 'Control del motor',
-      engineDescription: 'Define desde cuando se genera, hasta cuando aplica y cuantos dias hacia adelante materializa.',
+      engineControl: 'Vigencia del proceso',
+      engineDescription: 'Define desde cuándo se genera y hasta cuándo permanece vigente el proceso recurrente.',
       schedule: 'Programacion del proceso',
       scheduleDescription: (frequency: string) =>
         `Configura como se generara el proceso recurrente cuando la frecuencia seleccionada sea ${frequency}.`,

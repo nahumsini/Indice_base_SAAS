@@ -42,6 +42,7 @@ import { AgendaKpiStrip } from './components/AgendaKpiStrip';
 import { AgendaBulkActionsBar } from './components/AgendaBulkActionsBar';
 import { AgendaBulkDialogs } from './components/AgendaBulkDialogs';
 import { AgendaFilters } from './components/AgendaFilters';
+import { AgendaViewTabs } from './components/AgendaViewTabs';
 import { AgendaKanbanView } from './components/AgendaKanbanView';
 import { AgendaQuickTaskDialog } from './components/AgendaQuickTaskDialog';
 import { AgendaReportDialog } from './components/AgendaReportDialog';
@@ -62,6 +63,8 @@ import { useAgendaTaskKiosks } from './hooks/useAgendaTaskKiosks';
 import { useAgendaTaskMutations } from './hooks/useAgendaTaskMutations';
 import { useAgendaTaskState } from './hooks/useAgendaTaskState';
 import { TaskAttachmentsDialog } from './components/TaskAttachmentsDialog';
+import { TaskFollowUpDialog } from './components/TaskFollowUpDialog';
+import { TaskTeamDialog } from './components/TaskTeamDialog';
 import { useAgendaTranslations, type AgendaTranslations } from './translations';
 import { TaskKioskManagementModal } from '../Kiosk/TaskKioskManagementModal';
 import { TaskKioskConfirmationDialog } from '../Kiosk/components/TaskKioskConfirmationDialog';
@@ -82,6 +85,8 @@ import {
 import {
   getErrorMessage,
   isTaskInDailyAgenda,
+  matchesAgendaFocus,
+  matchesAgendaPeriod,
 } from './utils/agendaTaskStatus';
 import { getTaskScheduleDateKey } from './utils/agendaScheduleUtils';
 import {
@@ -120,6 +125,10 @@ const agendaDisplayStatusClasses: Record<DisplayTaskStatus, string> = {
 
 const NO_UNIT_VALUE = '__no_unit__';
 const NO_BUSINESS_VALUE = '__no_business__';
+
+interface AgendaLoadOptions {
+  background?: boolean;
+}
 
 function combineAgendaRanges(baseRange: AgendaLoadRange, rangeOverride?: AgendaLoadRange): AgendaLoadRange {
   if (!rangeOverride) {
@@ -332,6 +341,8 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
     tasks,
   } = useAgendaTaskState();
   const pendingCreatedTasksRef = useRef(new Map<number, AgendaTaskItem>());
+  const hasLoadedAgendaRef = useRef(false);
+  const backgroundRefreshPromiseRef = useRef<Promise<void> | null>(null);
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [isLoadingCurrentUser, setIsLoadingCurrentUser] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
@@ -349,6 +360,8 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
   } = useAgendaCatalogs();
   const [attachmentsTask, setAttachmentsTask] = useState<AgendaTaskItem | null>(null);
   const [reportTask, setReportTask] = useState<AgendaTaskItem | null>(null);
+  const [followUpTask, setFollowUpTask] = useState<AgendaTaskItem | null>(null);
+  const [teamTask, setTeamTask] = useState<AgendaTaskItem | null>(null);
   const rowSelection = useRowSelection<number>();
 
   useEffect(() => {
@@ -380,9 +393,11 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
     };
   }, []);
 
-  const loadAgenda = useCallback(async (rangeOverride?: AgendaLoadRange) => {
-    setIsLoadingTasks(true);
-    setAgendaError(null);
+  const loadAgenda = useCallback(async (rangeOverride?: AgendaLoadRange, options: AgendaLoadOptions = {}) => {
+    const showInitialLoading = !options.background && !hasLoadedAgendaRef.current;
+    if (showInitialLoading) {
+      setIsLoadingTasks(true);
+    }
 
     try {
       const requestedRange = combineAgendaRanges(
@@ -402,21 +417,60 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
       });
 
       setTasks([...pendingTasks, ...response.items]);
+      setAgendaError(null);
+      hasLoadedAgendaRef.current = true;
     } catch (error) {
-      setTasks([]);
+      if (!hasLoadedAgendaRef.current) {
+        setTasks([]);
+      }
       setAgendaError(getErrorMessage(error, agendaCopy.messages.loadTasks));
     } finally {
-      setIsLoadingTasks(false);
+      if (showInitialLoading) {
+        setIsLoadingTasks(false);
+      }
     }
   }, [activeRange.from, activeRange.to, agendaCopy.messages.loadTasks]);
 
-  const rememberCreatedTask = useCallback((task: AgendaTaskItem) => {
+  const revealCreatedTask = useCallback((task: AgendaTaskItem) => {
     pendingCreatedTasksRef.current.set(task.taskId, task);
     setTasks((currentTasks) => [
       task,
       ...currentTasks.filter((currentTask) => currentTask.taskId !== task.taskId),
     ]);
-  }, [setTasks]);
+
+    setSearchQuery('');
+    setStatusFilter('all');
+    setUnitFilter('all');
+    setBusinessFilter('all');
+    setProjectFilter('all');
+    setCollaboratorFilter('all');
+
+    if (!matchesAgendaPeriod(task, periodFilter, todayAgendaValue, agendaEvaluationRange, agendaStatusDate)) {
+      setPeriodFilter('all');
+    }
+    if (!matchesAgendaFocus(task, focusFilter, currentUserId)) {
+      setFocusFilter('team');
+    }
+
+    setAgendaNotice(agendaCopy.messages.taskCreated(task.folio));
+  }, [
+    agendaCopy.messages,
+    agendaEvaluationRange,
+    agendaStatusDate,
+    currentUserId,
+    focusFilter,
+    periodFilter,
+    setBusinessFilter,
+    setCollaboratorFilter,
+    setFocusFilter,
+    setPeriodFilter,
+    setProjectFilter,
+    setSearchQuery,
+    setStatusFilter,
+    setTasks,
+    setUnitFilter,
+    todayAgendaValue,
+  ]);
 
   const {
     agendaSchedulePlacements,
@@ -464,7 +518,7 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
   );
 
   const loadVisibleAgenda = useCallback(
-    () => loadAgenda(scheduleLoadRange ?? undefined),
+    (options?: AgendaLoadOptions) => loadAgenda(scheduleLoadRange ?? undefined, options),
     [loadAgenda, scheduleLoadRange],
   );
 
@@ -523,11 +577,17 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
     }
 
     const refreshAgenda = () => {
-      if (document.visibilityState === 'hidden') {
+      if (document.visibilityState === 'hidden' || backgroundRefreshPromiseRef.current) {
         return;
       }
 
-      void loadVisibleAgenda();
+      const refreshPromise = loadVisibleAgenda({ background: true });
+      backgroundRefreshPromiseRef.current = refreshPromise;
+      void refreshPromise.finally(() => {
+        if (backgroundRefreshPromiseRef.current === refreshPromise) {
+          backgroundRefreshPromiseRef.current = null;
+        }
+      });
     };
 
     const handleVisibilityChange = () => {
@@ -712,7 +772,7 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
     currentUserCollaborator,
     isProjectsCatalogReady,
     loadAgenda: loadVisibleAgenda,
-    onTaskCreated: rememberCreatedTask,
+    onTaskCreated: revealCreatedTask,
     projects,
     quickTaskContext,
     quickTaskDate,
@@ -798,13 +858,25 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
     [agendaCopy],
   );
 
+  const handleRequestTaskCompletion = useCallback(
+    (task: AgendaTaskItem) => {
+      const currentMember = task.assignees.find((member) => member.isCurrentUser) ?? null;
+      if (task.teamSize > 1 && currentMember?.role !== 'lead') {
+        setTeamTask(task);
+        return;
+      }
+      handleCloseTask(task);
+    },
+    [handleCloseTask],
+  );
+
   const handleKanbanDrop = useAgendaKanbanDrop({
     activeRange: agendaEvaluationRange,
     agendaStatusDate,
     agendaCopy,
     draggingTaskId,
     handleAuditTask,
-    handleCloseTask,
+    handleCloseTask: handleRequestTaskCompletion,
     persistTaskChange,
     setAgendaError,
     setDraggingTaskId,
@@ -817,11 +889,13 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
       copy={agendaCopy}
       isPending={isTaskPending(task.taskId)}
       onAuditTask={handleAuditTask}
-      onCloseTask={handleCloseTask}
+      onCloseTask={handleRequestTaskCompletion}
       onCopyTask={handleDuplicateTask}
       onDeleteTask={setDeleteTask}
       onEditTask={handleEditTask}
+      onOpenFollowUps={setFollowUpTask}
       onOpenReport={setReportTask}
+      onOpenTeam={setTeamTask}
       task={task}
     />
   );
@@ -843,9 +917,11 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
       onBusinessChange={handleBusinessCellChange}
       onEditTask={handleEditTask}
       onOpenAttachments={setAttachmentsTask}
+      onOpenFollowUps={setFollowUpTask}
+      onOpenTeam={setTeamTask}
       onPersistTaskChange={persistTaskChange}
       onRequestCancel={setCancelTask}
-      onRequestComplete={handleCloseTask}
+      onRequestComplete={handleRequestTaskCompletion}
       onPriorityChange={handlePriorityCellChange}
       onProjectChange={handleProjectCellChange}
       onResponsibleChange={handleResponsibleCellChange}
@@ -870,10 +946,11 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
       isTaskPending={isTaskPending}
       kanbanTasksByColumn={kanbanTasksByColumn}
       onAuditTask={handleAuditTask}
-      onCloseTask={handleCloseTask}
+      onCloseTask={handleRequestTaskCompletion}
       onDrop={handleKanbanDrop}
       onEditTask={handleEditTask}
       onOpenAttachments={setAttachmentsTask}
+      onOpenFollowUps={setFollowUpTask}
       onSetDraggingTaskId={setDraggingTaskId}
       sortedTaskCount={sortedTasks.length}
       statusReferenceDate={agendaStatusDate}
@@ -889,10 +966,11 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
       isLoading={isAgendaViewLoading}
       isTaskPending={isTaskPending}
       onCancelTask={setCancelTask}
-      onCloseTask={handleCloseTask}
+      onCloseTask={handleRequestTaskCompletion}
       onDeleteTask={setDeleteTask}
       onEditTask={handleEditTask}
       onOpenAttachments={setAttachmentsTask}
+      onOpenFollowUps={setFollowUpTask}
       onPersistTaskChange={persistTaskChange}
       onScheduleDateDrop={handleScheduleDateDrop}
       onScheduleDragEnd={handleScheduleDragEnd}
@@ -979,6 +1057,8 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
         </section>
       ) : null}
 
+      <AgendaViewTabs activeView={viewMode} labels={headerCopy.actions} onViewChange={setViewMode} />
+
       <AgendaFilters
         businessFilter={businessFilter}
         businessOptions={businessOptions}
@@ -990,6 +1070,7 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
         focusFilter={focusFilter}
         focusLabels={agendaCopy.focus}
         onBusinessFilterChange={setBusinessFilter}
+        onClearFilters={clearFilters}
         onCollaboratorFilterChange={setCollaboratorFilter}
         onCustomDateFromChange={handleCustomDateFromChange}
         onCustomDateToChange={handleCustomDateToChange}
@@ -999,7 +1080,6 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
         onSearchQueryChange={setSearchQuery}
         onStatusFilterChange={setStatusFilter}
         onUnitFilterChange={setUnitFilter}
-        onViewModeChange={setViewMode}
         periodFilter={periodFilter}
         periodLabels={periodLabels}
         projectFilter={projectFilter}
@@ -1008,7 +1088,6 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
         statusFilter={statusFilter}
         unitFilter={unitFilter}
         unitOptions={unitOptions}
-        viewMode={viewMode}
       />
 
       {!learningModeActive ? (
@@ -1209,6 +1288,24 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
           if (!open) {
             setAttachmentsTask(null);
           }
+        }}
+        onChanged={loadVisibleAgenda}
+      />
+
+      <TaskTeamDialog
+        open={Boolean(teamTask)}
+        task={teamTask}
+        onOpenChange={(open) => {
+          if (!open) setTeamTask(null);
+        }}
+        onChanged={loadVisibleAgenda}
+      />
+
+      <TaskFollowUpDialog
+        open={Boolean(followUpTask)}
+        task={followUpTask}
+        onOpenChange={(open) => {
+          if (!open) setFollowUpTask(null);
         }}
         onChanged={loadVisibleAgenda}
       />

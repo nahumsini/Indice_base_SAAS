@@ -22,6 +22,7 @@ export function createDefaultTaskForm() {
     processId: '',
     projectId: '',
     assignedUserCompanyId: '',
+    assigneeUserCompanyIds: [],
     assignedName: '',
     status: 'pending',
     priority: 'medium',
@@ -46,6 +47,12 @@ export function toTaskFormValues(task: AgendaTaskItem): TaskFormValues {
     processId: task.processId?.toString() ?? '',
     projectId: task.projectId?.toString() ?? '',
     assignedUserCompanyId: task.assignedUserCompanyId?.toString() ?? '',
+    assigneeUserCompanyIds:
+      task.assigneeUserCompanyIds.length > 0
+        ? task.assigneeUserCompanyIds.map(String)
+        : task.assignedUserCompanyId != null
+          ? [String(task.assignedUserCompanyId)]
+          : [],
     assignedName: task.assignedName ?? '',
     status: task.status,
     priority: task.priority,
@@ -129,12 +136,22 @@ export function normalizeCollaboratorOption(user: BackendHrUser): ProcessCollabo
 }
 
 export function buildTaskPayload(form: TaskFormValues, copy: AgendaTranslations): TaskPayload {
+  const assignedUserCompanyId = parseOptionalNumber(form.assignedUserCompanyId, 'Assigned HR user ID');
+  const assigneeUserCompanyIds = Array.from(
+    new Set(
+      [assignedUserCompanyId, ...form.assigneeUserCompanyIds.map((value) => Number(value))].filter(
+        (value): value is number => Number.isInteger(value) && Number(value) > 0,
+      ),
+    ),
+  );
+
   return {
     title: form.title.trim(),
     description: form.description.trim() ? form.description.trim() : null,
     processId: parseOptionalNumber(form.processId, 'Process'),
     projectId: parseOptionalNumber(form.projectId, 'Project'),
-    assignedUserCompanyId: parseOptionalNumber(form.assignedUserCompanyId, 'Assigned HR user ID'),
+    assignedUserCompanyId,
+    assigneeUserCompanyIds,
     assignedName: form.assignedName.trim() ? form.assignedName.trim() : null,
     status: form.status,
     priority: form.priority,
@@ -157,6 +174,12 @@ export function buildAgendaTaskPayload(task: AgendaTaskItem, patch: Partial<Task
     processId: task.processId,
     projectId: task.projectId,
     assignedUserCompanyId: task.assignedUserCompanyId,
+    assigneeUserCompanyIds:
+      task.assigneeUserCompanyIds.length > 0
+        ? task.assigneeUserCompanyIds
+        : task.assignedUserCompanyId != null
+          ? [task.assignedUserCompanyId]
+          : [],
     assignedName: task.assignedName?.trim() ? task.assignedName.trim() : null,
     status: task.status,
     priority: task.priority,
@@ -188,6 +211,7 @@ export function buildAgendaOptimisticPatch(
   return {
     assignedName: payload.assignedName,
     assignedUserCompanyId: payload.assignedUserCompanyId,
+    assigneeUserCompanyIds: payload.assigneeUserCompanyIds,
     auditNotes: payload.auditNotes,
     audited: payload.audited,
     business: selectedBusiness?.name ?? null,

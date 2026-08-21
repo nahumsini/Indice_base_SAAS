@@ -146,6 +146,45 @@ export const frCA: ProjectsTranslations = {
     },
     description:
       'Le projet regroupe des taches reelles et conserve responsable, dates, unite et secteur pour calculer l avancement operationnel.',
+    wizard: {
+      eyebrow: 'Configuration du projet',
+      stepOf: (current: number, total: number) => `Étape ${current} sur ${total}`,
+      untitled: 'Projet sans nom',
+      steps: {
+        identity: {
+          label: 'Projet',
+          title: 'Définir le projet',
+          description: 'Donnez-lui un nom clair et expliquez le résultat opérationnel à atteindre.',
+        },
+        planning: {
+          label: 'Planification',
+          title: 'Planifier son exécution',
+          description: "Définissez l'état, la priorité et les dates afin que l'équipe comprenne l'urgence.",
+        },
+        assignment: {
+          label: 'Assignation',
+          title: 'Assigner et vérifier',
+          description: "Choisissez la portée organisationnelle et la personne responsable, puis confirmez le projet avant de l'enregistrer.",
+        },
+      },
+      actions: {
+        previous: 'Retour',
+        continue: 'Continuer',
+      },
+      hints: {
+        name: "Utilisez un résultat concret, par exemple : « Ouvrir le centre de distribution de Toronto ».",
+        dates: "Les projets qui dépassent leur échéance avec des tâches en attente seront signalés à risque.",
+        assignment: "L'unité et le secteur déterminent les collaborateurs pouvant être choisis comme responsables.",
+        invalidDateRange: "La date d'échéance ne peut pas être antérieure à la date de début.",
+      },
+      summary: {
+        title: 'Résumé du projet',
+        description: "Vérifiez les décisions principales avant d'enregistrer. Vous pouvez revenir à une étape précédente pour les modifier.",
+        dates: 'Dates planifiées',
+        scope: 'Unité / secteur',
+        noScope: 'Sans portée organisationnelle',
+      },
+    },
     labels: {
       name: 'Nom du projet *',
       description: 'Description',

@@ -40,6 +40,7 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -62,12 +63,14 @@ public class ProcessTasksService {
             "paused");
     private static final Set<String> ALLOWED_PRIORITIES = Set.of("low", "medium", "high");
     private static final Set<String> ALLOWED_DEPENDENCY_TYPES = Set.of("finish_to_start");
+    private static final Set<String> ALLOWED_FOLLOW_UP_TYPES = Set.of("update", "decision", "blocker", "reminder");
     private static final Set<String> PATCHABLE_TASK_FIELDS = Set.of(
             "title",
             "description",
             "processId",
             "projectId",
             "assignedUserCompanyId",
+            "assigneeUserCompanyIds",
             "assignedName",
             "status",
             "priority",
@@ -84,6 +87,7 @@ public class ProcessTasksService {
 
     private final JdbcTemplate jdbcTemplate;
     private final ProcessTaskAssignmentScopeService assignmentScopeService;
+    private final ProcessTaskCollaborationService collaborationService;
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties objectStorageProperties;
     private final AppNotificationService appNotificationService;
@@ -164,7 +168,10 @@ public class ProcessTasksService {
                        WHERE attachment.company_id = pt.company_id
                          AND attachment.task_id = pt.id
                          AND attachment.deleted_at IS NULL
-                   ) AS attachments
+                   ) AS attachments,
+                   COALESCE(task_follow_up_summary.follow_up_count, 0) AS follow_up_count,
+                   task_follow_up_summary.last_follow_up_at,
+                   task_follow_up_summary.next_follow_up_date
             FROM process_tasks pt
             LEFT JOIN user_companies assigned_user_company ON assigned_user_company.id = pt.assigned_user_company_id
                 AND assigned_user_company.company_id = pt.company_id
@@ -195,11 +202,22 @@ public class ProcessTasksService {
             LEFT JOIN process_tasks predecessor_task ON predecessor_task.id = task_dependency.predecessor_task_id
                 AND predecessor_task.company_id = pt.company_id
                 AND predecessor_task.deleted_at IS NULL
+            LEFT JOIN (
+                SELECT company_id,
+                       task_id,
+                       COUNT(*) AS follow_up_count,
+                       MAX(created_at) AS last_follow_up_at,
+                       MIN(CASE WHEN follow_up_date >= CURRENT_DATE THEN follow_up_date END) AS next_follow_up_date
+                FROM process_task_follow_ups
+                GROUP BY company_id, task_id
+            ) task_follow_up_summary ON task_follow_up_summary.company_id = pt.company_id
+                AND task_follow_up_summary.task_id = pt.id
             """;
 
     public ProcessTasksService(
         JdbcTemplate jdbcTemplate,
         ProcessTaskAssignmentScopeService assignmentScopeService,
+        ProcessTaskCollaborationService collaborationService,
         ObjectStorageService objectStorageService,
         ObjectStorageProperties objectStorageProperties,
         AppNotificationService appNotificationService,
@@ -207,6 +225,7 @@ public class ProcessTasksService {
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.assignmentScopeService = assignmentScopeService;
+        this.collaborationService = collaborationService;
         this.objectStorageService = objectStorageService;
         this.objectStorageProperties = objectStorageProperties;
         this.appNotificationService = appNotificationService;
@@ -229,6 +248,7 @@ public class ProcessTasksService {
                                 """.formatted(visibility.condition()),
                 (rs, rowNum) -> mapTaskRow(rs),
                 params.toArray());
+        collaborationService.enrichTasks(companyId, userId, rows);
 
         var body = new LinkedHashMap<String, Object>();
         body.put("items", rows);
@@ -254,6 +274,7 @@ public class ProcessTasksService {
                                 """.formatted(visibility.condition()),
                 (rs, rowNum) -> mapTaskRow(rs),
                 params.toArray());
+        collaborationService.enrichTasks(companyId, userId, rows);
 
         var body = new LinkedHashMap<String, Object>();
         body.put("items", rows);
@@ -269,6 +290,7 @@ public class ProcessTasksService {
         var assignedUserCompanyId = command.assignedUserCompanyId() != null
                 ? command.assignedUserCompanyId()
                 : currentUserCompanyId;
+        var assigneeUserCompanyIds = collaborationService.assigneeIds(payload, assignedUserCompanyId);
         var assignedUserCompany = requireActiveUserCompany(
                 companyId,
                 assignedUserCompanyId,
@@ -334,6 +356,21 @@ public class ProcessTasksService {
         }, keyHolder);
 
         var taskId = keyHolder.getKey() != null ? keyHolder.getKey().longValue() : 0L;
+        collaborationService.syncAssignments(
+                companyId,
+                userId,
+                taskId,
+                assignedUserCompanyId,
+                assigneeUserCompanyIds,
+                command.unitId(),
+                command.businessId());
+        collaborationService.recordEvent(
+                companyId,
+                taskId,
+                "task_created",
+                currentUserCompanyId,
+                assignedUserCompanyId,
+                command.title());
         var task = getTask(companyId, taskId);
         publishTaskAssigned(companyId, userId, task, "task_assigned", "assigned");
         if ("completed".equals(command.status()) && !audited) {
@@ -345,11 +382,17 @@ public class ProcessTasksService {
     @Transactional
     public Map<String, Object> updateTask(long companyId, long userId, long taskId, Map<String, Object> payload) {
         var existingTask = requireTaskForMutation(companyId, taskId);
+        var existingAssigneeUserCompanyIds = collaborationService.activeAssigneeIds(companyId, taskId);
         var command = parseTaskCommand(payload, ALLOWED_STATUSES, ALLOWED_PRIORITIES);
         validateReferences(companyId, command);
+        var assignedUserCompanyId = command.assignedUserCompanyId();
+        var assigneeUserCompanyIds = collaborationService.assigneeIds(payload, assignedUserCompanyId);
+        if (assignedUserCompanyId == null && !assigneeUserCompanyIds.isEmpty()) {
+            assignedUserCompanyId = assigneeUserCompanyIds.getFirst();
+        }
         var assignedUserCompany = requireActiveUserCompany(
                 companyId,
-                command.assignedUserCompanyId(),
+                assignedUserCompanyId,
                 "Assigned user not found.");
         var currentUserCompanyId = currentUserCompanyId(companyId, userId);
         assignmentScopeService.requireCanAssign(
@@ -357,7 +400,7 @@ public class ProcessTasksService {
                 userId,
                 command.unitId(),
                 command.businessId(),
-                command.assignedUserCompanyId());
+                assignedUserCompanyId);
         var lifecycle = lifecycleForStatus(existingTask, command.status(), userId, currentUserCompanyId);
         var startDate = payload.containsKey("startDate") ? command.startDate() : existingTask.startDate();
         var notes = payload.containsKey("notes") ? command.notes() : existingTask.notes();
@@ -438,10 +481,47 @@ public class ProcessTasksService {
             return statement;
         });
 
+        collaborationService.syncAssignments(
+                companyId,
+                userId,
+                taskId,
+                assignedUserCompanyId,
+                assigneeUserCompanyIds,
+                command.unitId(),
+                command.businessId());
+        if (!"completed".equals(existingTask.status()) && "completed".equals(command.status())) {
+            collaborationService.requireTeamReadyForCompletion(companyId, userId, taskId);
+        }
+        if ("completed".equals(existingTask.status()) && !"completed".equals(command.status())) {
+            collaborationService.resetContributions(companyId, taskId, currentUserCompanyId);
+        }
+        collaborationService.recordEvent(
+                companyId,
+                taskId,
+                "task_updated",
+                currentUserCompanyId,
+                null,
+                command.title());
+
         var task = getTask(companyId, taskId);
         var nextAssignedUserCompanyId = numberValue(task.get("assignedUserCompanyId"));
-        if (nextAssignedUserCompanyId != null && !nextAssignedUserCompanyId.equals(existingTask.assignedUserCompanyId())) {
-            publishTaskAssigned(companyId, userId, task, "task_reassigned", "reassigned");
+        var notificationRecipients = new ArrayList<Long>();
+        taskAssigneeUserCompanyIds(task).stream()
+                .filter(assigneeId -> !existingAssigneeUserCompanyIds.contains(assigneeId))
+                .forEach(notificationRecipients::add);
+        if (nextAssignedUserCompanyId != null
+                && !nextAssignedUserCompanyId.equals(existingTask.assignedUserCompanyId())
+                && !notificationRecipients.contains(nextAssignedUserCompanyId)) {
+            notificationRecipients.add(nextAssignedUserCompanyId);
+        }
+        if (!notificationRecipients.isEmpty()) {
+            publishTaskAssigned(
+                    companyId,
+                    userId,
+                    task,
+                    "task_reassigned",
+                    "assigned to your team",
+                    notificationRecipients);
         }
         if (!"completed".equals(existingTask.status()) && "completed".equals(command.status()) && !audited) {
             publishTaskPendingAudit(companyId, userId, task);
@@ -645,6 +725,7 @@ public class ProcessTasksService {
         var completionNotes = optionalString(payload, "completionNotes");
         var completionPercent = optionalInteger(payload, "completionPercent", "completion");
         var userCompanyId = currentUserCompanyId(companyId, userId);
+        collaborationService.requireTeamReadyForCompletion(companyId, userId, taskId);
 
         jdbcTemplate.update(connection -> {
             PreparedStatement statement = connection.prepareStatement(
@@ -672,7 +753,16 @@ public class ProcessTasksService {
             return statement;
         });
 
-        return getTask(companyId, taskId);
+        collaborationService.recordEvent(
+                companyId,
+                taskId,
+                "task_completed",
+                userCompanyId,
+                null,
+                completionNotes);
+        var task = getTask(companyId, taskId);
+        publishTaskPendingAudit(companyId, userId, task);
+        return task;
     }
 
     @Transactional
@@ -716,7 +806,16 @@ public class ProcessTasksService {
             return statement;
         });
 
-        return getTask(companyId, taskId);
+        collaborationService.recordEvent(
+                companyId,
+                taskId,
+                "task_audited",
+                userCompanyId,
+                null,
+                auditNotes);
+        var task = getTask(companyId, taskId);
+        publishTaskAudited(companyId, userId, task);
+        return task;
     }
 
     @Transactional
@@ -739,6 +838,13 @@ public class ProcessTasksService {
                 companyId,
                 taskId);
 
+        collaborationService.recordEvent(
+                companyId,
+                taskId,
+                "task_cancelled",
+                currentUserCompanyId(companyId, userId),
+                null,
+                null);
         return getTask(companyId, taskId);
     }
 
@@ -908,7 +1014,173 @@ public class ProcessTasksService {
             throw new NoSuchElementException("Task not found.");
         }
 
+        collaborationService.enrichTasks(companyId, null, rows);
         return rows.getFirst();
+    }
+
+    public Map<String, Object> listCollaborationEvents(long companyId, long userId, long taskId) {
+        return collaborationService.listEvents(companyId, userId, taskId);
+    }
+
+    public Map<String, Object> listTaskFollowUps(long companyId, long userId, long taskId) {
+        requireTaskAccess(companyId, userId, taskId);
+        var rows = jdbcTemplate.query(
+                """
+                        SELECT follow_up.id,
+                               follow_up.task_id,
+                               follow_up.author_user_company_id,
+                               COALESCE(
+                                   NULLIF(TRIM(author.full_name), ''),
+                                   NULLIF(TRIM(author.email), ''),
+                                   'Sistema'
+                               ) AS author_name,
+                               follow_up.follow_up_date,
+                               follow_up.entry_type,
+                               follow_up.comment,
+                               follow_up.created_at,
+                               follow_up.updated_at
+                        FROM process_task_follow_ups follow_up
+                        LEFT JOIN user_companies author_company
+                          ON author_company.id = follow_up.author_user_company_id
+                         AND author_company.company_id = follow_up.company_id
+                        LEFT JOIN users author ON author.id = author_company.user_id
+                        WHERE follow_up.company_id = ?
+                          AND follow_up.task_id = ?
+                        ORDER BY follow_up.created_at DESC, follow_up.id DESC
+                        LIMIT 300
+                        """,
+                (rs, rowNum) -> mapTaskFollowUpRow(rs),
+                companyId,
+                taskId);
+
+        var body = new LinkedHashMap<String, Object>();
+        body.put("items", rows);
+        body.put("count", rows.size());
+        return body;
+    }
+
+    @Transactional
+    public Map<String, Object> createTaskFollowUp(
+            long companyId,
+            long userId,
+            long taskId,
+            Map<String, Object> payload) {
+        requireTaskAccess(companyId, userId, taskId);
+
+        var comment = optionalString(payload, "comment");
+        if (comment == null) {
+            throw new IllegalArgumentException("comment is required.");
+        }
+        if (comment.length() > 2000) {
+            throw new IllegalArgumentException("comment must not exceed 2000 characters.");
+        }
+
+        var followUpDate = nullableDate(payload, "followUpDate");
+        if (followUpDate == null) {
+            throw new IllegalArgumentException("followUpDate is required.");
+        }
+
+        var entryType = optionalString(payload, "entryType");
+        entryType = entryType == null
+                ? "update"
+                : entryType.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+        if (!ALLOWED_FOLLOW_UP_TYPES.contains(entryType)) {
+            throw new IllegalArgumentException(
+                    "entryType must be one of: " + String.join(", ", ALLOWED_FOLLOW_UP_TYPES) + ".");
+        }
+
+        var authorUserCompanyId = currentUserCompanyId(companyId, userId);
+        if (authorUserCompanyId == null) {
+            throw new IllegalArgumentException("Current user does not belong to this company.");
+        }
+
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        var savedEntryType = entryType;
+        jdbcTemplate.update(connection -> {
+            PreparedStatement statement = connection.prepareStatement(
+                    """
+                            INSERT INTO process_task_follow_ups
+                                (company_id, task_id, author_user_company_id, follow_up_date, entry_type, comment)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                            """,
+                    new String[] { "id" });
+            statement.setLong(1, companyId);
+            statement.setLong(2, taskId);
+            statement.setLong(3, authorUserCompanyId);
+            statement.setDate(4, java.sql.Date.valueOf(followUpDate));
+            statement.setString(5, savedEntryType);
+            statement.setString(6, comment);
+            return statement;
+        }, keyHolder);
+
+        jdbcTemplate.update(
+                """
+                        UPDATE process_tasks
+                        SET notes = ?, updated_at = CURRENT_TIMESTAMP
+                        WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+                        """,
+                comment,
+                companyId,
+                taskId);
+        collaborationService.recordEvent(
+                companyId,
+                taskId,
+                "follow_up_added",
+                authorUserCompanyId,
+                null,
+                savedEntryType + " · " + followUpDate);
+
+        var followUpId = keyHolder.getKey() != null ? keyHolder.getKey().longValue() : 0L;
+        var rows = jdbcTemplate.query(
+                """
+                        SELECT follow_up.id,
+                               follow_up.task_id,
+                               follow_up.author_user_company_id,
+                               COALESCE(
+                                   NULLIF(TRIM(author.full_name), ''),
+                                   NULLIF(TRIM(author.email), ''),
+                                   'Sistema'
+                               ) AS author_name,
+                               follow_up.follow_up_date,
+                               follow_up.entry_type,
+                               follow_up.comment,
+                               follow_up.created_at,
+                               follow_up.updated_at
+                        FROM process_task_follow_ups follow_up
+                        LEFT JOIN user_companies author_company
+                          ON author_company.id = follow_up.author_user_company_id
+                         AND author_company.company_id = follow_up.company_id
+                        LEFT JOIN users author ON author.id = author_company.user_id
+                        WHERE follow_up.company_id = ?
+                          AND follow_up.task_id = ?
+                          AND follow_up.id = ?
+                        """,
+                (rs, rowNum) -> mapTaskFollowUpRow(rs),
+                companyId,
+                taskId,
+                followUpId);
+
+        if (rows.isEmpty()) {
+            throw new IllegalStateException("Follow-up was created but could not be loaded.");
+        }
+        return rows.getFirst();
+    }
+
+    @Transactional
+    public Map<String, Object> updateCurrentUserContribution(
+            long companyId,
+            long userId,
+            long taskId,
+            Map<String, Object> payload) {
+        var status = optionalString(payload, "status");
+        var note = optionalString(payload, "note");
+        collaborationService.updateCurrentUserContribution(companyId, userId, taskId, status, note);
+        var task = getTask(companyId, taskId);
+        collaborationService.enrichTasks(companyId, userId, new ArrayList<>(List.of(task)));
+        if ("ready".equalsIgnoreCase(status)) {
+            publishContributionReady(companyId, userId, task);
+        }
+        return task;
     }
 
     private LocalDate nullableDate(Map<String, Object> payload, String key, String... aliases) {
@@ -1687,23 +1959,30 @@ public class ProcessTasksService {
             Map<String, Object> task,
             String eventType,
             String label) {
-        var recipientUserCompanyId = numberValue(task.get("assignedUserCompanyId"));
-        var actorUserCompanyId = appNotificationService.userCompanyIdForUser(companyId, actorUserId);
-        if (recipientUserCompanyId == null || recipientUserCompanyId.equals(actorUserCompanyId)) {
-            return;
-        }
+        publishTaskAssigned(companyId, actorUserId, task, eventType, label, taskAssigneeUserCompanyIds(task));
+    }
 
-        appNotificationService.publish(new AppNotificationEvent(
-                companyId,
-                recipientUserCompanyId,
-                "processes_tasks",
-                "task",
-                numberValue(task.get("id")),
-                eventType,
-                "process-task:" + task.get("id") + ":" + eventType,
-                "Task " + label + ": " + safeTaskFolio(task),
-                safeTaskTitle(task),
-                "/processes-tasks"));
+    private void publishTaskAssigned(
+            long companyId,
+            long actorUserId,
+            Map<String, Object> task,
+            String eventType,
+            String label,
+            List<Long> recipients) {
+        var actorUserCompanyId = appNotificationService.userCompanyIdForUser(companyId, actorUserId);
+        recipients.stream()
+                .filter(recipientUserCompanyId -> !recipientUserCompanyId.equals(actorUserCompanyId))
+                .forEach(recipientUserCompanyId -> appNotificationService.publish(new AppNotificationEvent(
+                        companyId,
+                        recipientUserCompanyId,
+                        "processes_tasks",
+                        "task",
+                        numberValue(task.get("id")),
+                        eventType,
+                        "process-task:" + task.get("id") + ":" + eventType + ":" + recipientUserCompanyId,
+                        "Task " + label + ": " + safeTaskFolio(task),
+                        safeTaskTitle(task),
+                        "/processes-tasks")));
     }
 
     private void publishTaskPendingAudit(long companyId, long actorUserId, Map<String, Object> task) {
@@ -1727,11 +2006,8 @@ public class ProcessTasksService {
                 "/processes-tasks"));
     }
 
-    private void publishTaskAudited(long companyId, long actorUserId, Map<String, Object> task) {
-        var recipientUserCompanyId = numberValue(task.get("completedByUserCompanyId"));
-        if (recipientUserCompanyId == null) {
-            recipientUserCompanyId = numberValue(task.get("assignedUserCompanyId"));
-        }
+    private void publishContributionReady(long companyId, long actorUserId, Map<String, Object> task) {
+        var recipientUserCompanyId = taskLeadUserCompanyId(task);
         var actorUserCompanyId = appNotificationService.userCompanyIdForUser(companyId, actorUserId);
         if (recipientUserCompanyId == null || recipientUserCompanyId.equals(actorUserCompanyId)) {
             return;
@@ -1743,11 +2019,58 @@ public class ProcessTasksService {
                 "processes_tasks",
                 "task",
                 numberValue(task.get("id")),
-                "task_audited",
-                "process-task:" + task.get("id") + ":audited",
-                "Task reviewed: " + safeTaskFolio(task),
+                "task_contribution_ready",
+                "process-task:" + task.get("id") + ":contribution-ready:" + actorUserCompanyId,
+                "Team contribution ready: " + safeTaskFolio(task),
                 safeTaskTitle(task),
                 "/processes-tasks"));
+    }
+
+    private void publishTaskAudited(long companyId, long actorUserId, Map<String, Object> task) {
+        var actorUserCompanyId = appNotificationService.userCompanyIdForUser(companyId, actorUserId);
+        taskAssigneeUserCompanyIds(task).stream()
+                .filter(recipientUserCompanyId -> !recipientUserCompanyId.equals(actorUserCompanyId))
+                .forEach(recipientUserCompanyId -> appNotificationService.publish(new AppNotificationEvent(
+                        companyId,
+                        recipientUserCompanyId,
+                        "processes_tasks",
+                        "task",
+                        numberValue(task.get("id")),
+                        "task_audited",
+                        "process-task:" + task.get("id") + ":audited:" + recipientUserCompanyId,
+                        "Task reviewed: " + safeTaskFolio(task),
+                        safeTaskTitle(task),
+                        "/processes-tasks")));
+    }
+
+    private List<Long> taskAssigneeUserCompanyIds(Map<String, Object> task) {
+        var ids = new ArrayList<Long>();
+        var rawIds = task.get("assigneeUserCompanyIds");
+        if (rawIds instanceof Iterable<?> values) {
+            values.forEach(value -> {
+                var id = numberValue(value);
+                if (id != null && !ids.contains(id)) {
+                    ids.add(id);
+                }
+            });
+        }
+        var legacyAssigneeId = numberValue(task.get("assignedUserCompanyId"));
+        if (ids.isEmpty() && legacyAssigneeId != null) {
+            ids.add(legacyAssigneeId);
+        }
+        return ids;
+    }
+
+    private Long taskLeadUserCompanyId(Map<String, Object> task) {
+        var rawAssignees = task.get("assignees");
+        if (rawAssignees instanceof Iterable<?> values) {
+            for (var value : values) {
+                if (value instanceof Map<?, ?> member && "lead".equals(member.get("role"))) {
+                    return numberValue(member.get("userCompanyId"));
+                }
+            }
+        }
+        return numberValue(task.get("assignedUserCompanyId"));
     }
 
     private String safeTaskFolio(Map<String, Object> task) {
@@ -1779,6 +2102,20 @@ public class ProcessTasksService {
         row.put("successorTaskFolio", rs.getString("successor_task_folio"));
         row.put("successorTaskTitle", rs.getString("successor_task_title"));
         row.put("createdBy", rs.getObject("created_by", Long.class));
+        row.put("createdAt", toDateTimeString(rs.getTimestamp("created_at")));
+        row.put("updatedAt", toDateTimeString(rs.getTimestamp("updated_at")));
+        return row;
+    }
+
+    private Map<String, Object> mapTaskFollowUpRow(ResultSet rs) throws SQLException {
+        var row = new LinkedHashMap<String, Object>();
+        row.put("id", rs.getLong("id"));
+        row.put("taskId", rs.getLong("task_id"));
+        row.put("authorUserCompanyId", rs.getObject("author_user_company_id", Long.class));
+        row.put("authorName", rs.getString("author_name"));
+        row.put("followUpDate", toDateString(rs.getDate("follow_up_date")));
+        row.put("entryType", rs.getString("entry_type"));
+        row.put("comment", rs.getString("comment"));
         row.put("createdAt", toDateTimeString(rs.getTimestamp("created_at")));
         row.put("updatedAt", toDateTimeString(rs.getTimestamp("updated_at")));
         return row;
@@ -1852,6 +2189,9 @@ public class ProcessTasksService {
         row.put("dependencyType", rs.getString("dependency_type"));
         row.put("dependencyLagDays", rs.getObject("dependency_lag_days", Integer.class));
         row.put("attachments", rs.getInt("attachments"));
+        row.put("followUpCount", rs.getInt("follow_up_count"));
+        row.put("lastFollowUpAt", toDateTimeString(rs.getTimestamp("last_follow_up_at")));
+        row.put("nextFollowUpDate", toDateString(rs.getDate("next_follow_up_date")));
         return row;
     }
 

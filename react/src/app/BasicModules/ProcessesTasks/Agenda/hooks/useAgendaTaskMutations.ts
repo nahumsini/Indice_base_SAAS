@@ -71,24 +71,33 @@ export function useAgendaTaskMutations({
 
   const scopeResponsiblePatch = useCallback(
     (task: AgendaTaskItem, unitId: number | null, businessId: number | null): Partial<TaskPayload> => {
-      if (task.assignedUserCompanyId == null) {
+      const currentIds = task.assigneeUserCompanyIds.length > 0
+        ? task.assigneeUserCompanyIds
+        : task.assignedUserCompanyId != null
+          ? [task.assignedUserCompanyId]
+          : [];
+      if (currentIds.length === 0) {
         return {};
       }
 
-      const currentCollaborator = catalogCollaborators.find(
+      const validCollaborators = catalogCollaborators.filter(
+        (collaborator) =>
+          currentIds.includes(collaborator.userCompanyId) &&
+          collaboratorCanReceiveAssignment(collaborator, unitId, businessId, catalogBusinesses),
+      );
+      if (validCollaborators.length === currentIds.length) {
+        return {};
+      }
+
+      const currentLead = validCollaborators.find(
         (collaborator) => collaborator.userCompanyId === task.assignedUserCompanyId,
       );
-
-      if (
-        !currentCollaborator ||
-        collaboratorCanReceiveAssignment(currentCollaborator, unitId, businessId, catalogBusinesses)
-      ) {
-        return {};
-      }
+      const nextLead = currentLead ?? validCollaborators[0] ?? null;
 
       return {
-        assignedName: null,
-        assignedUserCompanyId: null,
+        assignedName: nextLead?.name ?? null,
+        assignedUserCompanyId: nextLead?.userCompanyId ?? null,
+        assigneeUserCompanyIds: validCollaborators.map((collaborator) => collaborator.userCompanyId),
       };
     },
     [catalogBusinesses, catalogCollaborators],
@@ -196,6 +205,7 @@ export function useAgendaTaskMutations({
         void persistTaskChange(task, {
           assignedName: null,
           assignedUserCompanyId: null,
+          assigneeUserCompanyIds: [],
         });
         return;
       }
@@ -211,6 +221,9 @@ export function useAgendaTaskMutations({
       void persistTaskChange(task, {
         assignedName: selectedCollaborator.name,
         assignedUserCompanyId: selectedCollaborator.userCompanyId,
+        assigneeUserCompanyIds: Array.from(
+          new Set([selectedCollaborator.userCompanyId, ...task.assigneeUserCompanyIds]),
+        ),
         businessId: task.businessId ?? selectedCollaborator.businessId ?? null,
         unitId: task.unitId ?? selectedCollaborator.unitId ?? null,
       });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { CheckCircle2, CircleSlash, ClipboardCheck, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
@@ -54,6 +54,10 @@ import {
 type StatusFilter = 'all' | TaskStatus;
 type ConfirmationState = { type: 'cancel' | 'delete'; task: TaskRecord } | null;
 
+interface TaskLoadOptions {
+  background?: boolean;
+}
+
 const statusClasses: Record<TaskStatus, string> = {
   pending:
     'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-200',
@@ -77,6 +81,7 @@ function createDefaultTaskForm(): TaskFormValues {
     processId: '',
     projectId: '',
     assignedUserCompanyId: '',
+    assigneeUserCompanyIds: [],
     assignedName: '',
     status: 'pending',
     priority: 'medium',
@@ -99,6 +104,12 @@ function toTaskFormValues(task: TaskRecord): TaskFormValues {
     processId: task.processId?.toString() ?? '',
     projectId: task.projectId?.toString() ?? '',
     assignedUserCompanyId: task.assignedUserCompanyId?.toString() ?? '',
+    assigneeUserCompanyIds:
+      task.assigneeUserCompanyIds.length > 0
+        ? task.assigneeUserCompanyIds.map(String)
+        : task.assignedUserCompanyId != null
+          ? [String(task.assignedUserCompanyId)]
+          : [],
     assignedName: task.assignedName ?? '',
     status: task.status,
     priority: task.priority,
@@ -191,6 +202,13 @@ function buildTaskPayload(form: TaskFormValues, agendaCopy: AgendaTranslations, 
     form.assignedUserCompanyId,
     positiveIntegerMessage(agendaCopy.form.labels.responsible),
   );
+  const assigneeUserCompanyIds = Array.from(
+    new Set(
+      [assignedUserCompanyId, ...form.assigneeUserCompanyIds.map(Number)].filter(
+        (value): value is number => Number.isInteger(value) && Number(value) > 0,
+      ),
+    ),
+  );
 
   return {
     title: form.title.trim(),
@@ -198,6 +216,7 @@ function buildTaskPayload(form: TaskFormValues, agendaCopy: AgendaTranslations, 
     processId: parseOptionalNumber(form.processId, positiveIntegerMessage(agendaCopy.form.labels.process)),
     projectId: parseOptionalNumber(form.projectId, positiveIntegerMessage(agendaCopy.form.labels.project)),
     assignedUserCompanyId,
+    assigneeUserCompanyIds,
     assignedName: form.assignedName.trim() ? form.assignedName.trim() : null,
     status: form.status,
     priority: form.priority,
@@ -309,19 +328,30 @@ export default function Tasks() {
   const [completionNotes, setCompletionNotes] = useState('');
   const [completionPercent, setCompletionPercent] = useState('100');
   const [confirmation, setConfirmation] = useState<ConfirmationState>(null);
+  const [paginationResetRevision, setPaginationResetRevision] = useState(0);
+  const hasLoadedTasksRef = useRef(false);
+  const backgroundRefreshPromiseRef = useRef<Promise<void> | null>(null);
 
-  const loadTasks = useCallback(async () => {
-    setIsLoadingTasks(true);
-    setTasksError(null);
+  const loadTasks = useCallback(async ({ background = false }: TaskLoadOptions = {}) => {
+    const showInitialLoading = !background && !hasLoadedTasksRef.current;
+    if (showInitialLoading) {
+      setIsLoadingTasks(true);
+    }
 
     try {
       const items = await listProcessTasks();
       setTasks(items);
+      setTasksError(null);
+      hasLoadedTasksRef.current = true;
     } catch (error) {
-      setTasks([]);
+      if (!hasLoadedTasksRef.current) {
+        setTasks([]);
+      }
       setTasksError(getErrorMessage(error, pageCopy.messages.load));
     } finally {
-      setIsLoadingTasks(false);
+      if (showInitialLoading) {
+        setIsLoadingTasks(false);
+      }
     }
   }, [pageCopy.messages.load]);
 
@@ -331,7 +361,17 @@ export default function Tasks() {
 
   useEffect(() => {
     const refreshTasks = () => {
-      if (document.visibilityState !== 'hidden') void loadTasks();
+      if (document.visibilityState === 'hidden' || backgroundRefreshPromiseRef.current) {
+        return;
+      }
+
+      const refreshPromise = loadTasks({ background: true });
+      backgroundRefreshPromiseRef.current = refreshPromise;
+      void refreshPromise.finally(() => {
+        if (backgroundRefreshPromiseRef.current === refreshPromise) {
+          backgroundRefreshPromiseRef.current = null;
+        }
+      });
     };
     const intervalId = window.setInterval(refreshTasks, 30_000);
     window.addEventListener('focus', refreshTasks);
@@ -425,6 +465,7 @@ export default function Tasks() {
     return {
       ...defaultForm,
       assignedUserCompanyId: currentUserCollaborator.userCompanyId.toString(),
+      assigneeUserCompanyIds: [currentUserCollaborator.userCompanyId.toString()],
       assignedName: currentUserCollaborator.name,
       unitId: defaultTaskScopeForActor(currentUserCollaborator).unitId?.toString() ?? '',
       businessId: defaultTaskScopeForActor(currentUserCollaborator).businessId?.toString() ?? '',
@@ -444,6 +485,7 @@ export default function Tasks() {
       return {
         ...currentForm,
         assignedUserCompanyId: currentUserCollaborator.userCompanyId.toString(),
+        assigneeUserCompanyIds: [currentUserCollaborator.userCompanyId.toString()],
         assignedName: currentUserCollaborator.name,
         unitId: currentForm.unitId || defaultTaskScopeForActor(currentUserCollaborator).unitId?.toString() || '',
         businessId:
@@ -488,7 +530,7 @@ export default function Tasks() {
     totalCount: filteredTaskCount,
     totalPages,
   } = useTablePagination({
-    resetKey: `${searchQuery}:${statusFilter}`,
+    resetKey: `${searchQuery}:${statusFilter}:${paginationResetRevision}`,
     rows: filteredTasks,
   });
 
@@ -560,6 +602,9 @@ export default function Tasks() {
       } else {
         const createdTask = await createProcessTask(payload);
         setTasks((currentTasks) => [createdTask, ...currentTasks]);
+        setSearchQuery('');
+        setStatusFilter('all');
+        setPaginationResetRevision((currentRevision) => currentRevision + 1);
       }
 
       setIsDialogOpen(false);
