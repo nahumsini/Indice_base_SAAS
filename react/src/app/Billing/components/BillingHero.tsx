@@ -9,11 +9,12 @@ type Props = {
   selection: BillingSelectionResponse | null;
   subscription: BillingSubscriptionResponse | null;
   loading: boolean;
+  leaving: boolean;
   onBack: () => void;
   onRefresh: () => void;
 };
 
-export function BillingHero({ copy, selection, subscription, loading, onBack, onRefresh }: Props) {
+export function BillingHero({ copy, selection, subscription, loading, leaving, onBack, onRefresh }: Props) {
   const accessActive = subscription?.access_allowed ?? selection?.status !== 'SUSPENDED';
   return (
     <IndiceTitleBar
@@ -33,8 +34,8 @@ export function BillingHero({ copy, selection, subscription, loading, onBack, on
       )}
       actions={(
         <>
-          <Button type="button" variant="outline" onClick={onBack} className="h-10 rounded-xl bg-white dark:bg-slate-900">
-            <ArrowLeft className="h-4 w-4" /> {copy.back}
+          <Button type="button" variant="outline" onClick={onBack} disabled={loading || leaving} className="h-10 rounded-xl bg-white dark:bg-slate-900">
+            <ArrowLeft className={`h-4 w-4 ${leaving ? 'animate-pulse' : ''}`} /> {copy.back}
           </Button>
           <Button type="button" variant="outline" onClick={onRefresh} disabled={loading} className="h-10 rounded-xl bg-white dark:bg-slate-900">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> {copy.refresh}

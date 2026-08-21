@@ -76,15 +76,39 @@ WHERE NOT EXISTS (
     AND company_id = @local_demo_company_id
 );
 
+INSERT INTO platform_administrators (
+  user_id,
+  platform_role,
+  status,
+  mfa_required,
+  created_by_user_id
+)
+VALUES (
+  @local_demo_user_id,
+  'PLATFORM_ROOT',
+  'ACTIVE',
+  0,
+  @local_demo_user_id
+)
+ON DUPLICATE KEY UPDATE
+  platform_role = VALUES(platform_role),
+  status = VALUES(status),
+  mfa_required = VALUES(mfa_required),
+  revoked_by_user_id = NULL,
+  revoked_at = NULL;
+
 COMMIT;
 
 SELECT
   u.email,
   c.name AS company_name,
   uc.role,
-  uc.status
+  uc.status,
+  pa.platform_role,
+  pa.status AS platform_status
 FROM users u
 JOIN user_companies uc ON uc.user_id = u.id
 JOIN companies c ON c.id = uc.company_id
+LEFT JOIN platform_administrators pa ON pa.user_id = u.id
 WHERE u.id = @local_demo_user_id
   AND c.id = @local_demo_company_id;

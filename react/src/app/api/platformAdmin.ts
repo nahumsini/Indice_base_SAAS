@@ -643,10 +643,16 @@ export const platformAdminApi = {
   }>(`${endpoints.platformAdmin.catalog}/drafts/${versionId}/publish`, { method: 'POST' }),
   updateCatalogProduct: (
     productId: number,
-    payload: { display_name: string; sort_order: number; active: boolean },
+    payload: { display_name: string; sort_order: number; active: boolean; capabilities: string[] },
   ) => apiClient<Partial<PlatformCatalogProduct>>(
     `${endpoints.platformAdmin.catalog}/products/${productId}`,
     { method: 'PATCH', body: JSON.stringify(payload) },
+  ),
+  createCatalogProduct: (
+    payload: { display_name: string; sort_order: number; active: boolean; capabilities: string[] },
+  ) => apiClient<Partial<PlatformCatalogProduct>>(
+    `${endpoints.platformAdmin.catalog}/products`,
+    { method: 'POST', body: JSON.stringify(payload) },
   ),
   updateCatalogPrice: (
     priceId: number,

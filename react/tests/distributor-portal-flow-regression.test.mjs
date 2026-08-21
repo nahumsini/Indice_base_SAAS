@@ -14,6 +14,7 @@ const consultingShared = read('src/app/PlatformAdmin/ConsultingAdminTab.tsx');
 const sessionModal = read('src/app/PlatformAdmin/ConsultingSessions/SessionCreateModal.tsx');
 const routes = read('src/app/routes.tsx');
 const header = read('src/app/components/Header.tsx');
+const publicDemoPage = read('src/app/Auth/PublicDemoPage.tsx');
 const systemTickets = read('src/app/SystemTickets/SystemTicketsWorkspace.tsx');
 const systemTicketsApi = read('src/app/SystemTickets/systemTicketsApi.ts');
 
@@ -88,4 +89,16 @@ test('el distribuidor que registra una sesion queda asignado automaticamente', (
   assert.match(sessionModal, /Se asigna automáticamente al distribuidor que la registra/);
   assert.match(sessionModal, /attendingConsultant \|\| value\.consultantEmail/);
   assert.match(sessionModal, /attendingConsultant \? \(/);
+});
+
+test('el distribuidor puede abrir demos publicas sin ampliar el acceso a su cartera', () => {
+  assert.match(header, /authApi\.getPublicDemos\(\)/);
+  assert.match(header, /Demos para presentaciones/);
+  assert.match(header, /handlePublicDemoSelect/);
+  assert.match(header, /\/demo\?companyId=/);
+  assert.match(routes, /allowPublicDemoOrDistributorSession/);
+  assert.match(routes, /commercial_account_type === 'DISTRIBUTOR'/);
+  assert.match(publicDemoPage, /searchParams\.get\('companyId'\)/);
+  assert.match(publicDemoPage, /Acceso desde la cuenta distribuidora/);
+  assert.match(publicDemoPage, /authApi\.demoLogin/);
 });

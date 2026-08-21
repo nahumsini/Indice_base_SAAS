@@ -136,6 +136,52 @@ class PlatformCatalogManagementServiceIntegrationTest {
             );
     }
 
+    @Test
+    void productCapabilitiesCanBeManagedFromTheCatalogDraft() {
+        service.updateProduct(
+            actorUserId,
+            productId,
+            new PlatformCatalogManagementService.ProductUpdateRequest(
+                "Catalog management add-on",
+                9999,
+                false,
+                List.of("human_resources", "inventory")
+            )
+        );
+
+        assertThat(jdbc.queryForList(
+            "SELECT capability_code FROM billing_product_capabilities WHERE product_id = ? ORDER BY capability_code",
+            String.class,
+            productId
+        )).containsExactly("human_resources", "inventory");
+    }
+
+    @Test
+    void creatingAPackagePreparesBothRecurringPricesInTheDraft() {
+        var created = service.createProduct(
+            actorUserId,
+            new PlatformCatalogManagementService.ProductCreateRequest(
+                "Paquete operativo",
+                500,
+                false,
+                List.of("human_resources", "inventory")
+            )
+        );
+
+        var createdProductId = ((Number) created.get("id")).longValue();
+        assertThat(created).containsEntry("product_type", "ADDON");
+        assertThat(jdbc.queryForObject(
+            "SELECT COUNT(*) FROM billing_catalog_prices WHERE catalog_product_id = ? AND billing_interval IN ('MONTH', 'YEAR')",
+            Integer.class,
+            createdProductId
+        )).isEqualTo(2);
+        assertThat(jdbc.queryForList(
+            "SELECT capability_code FROM billing_product_capabilities WHERE product_id = ? ORDER BY capability_code",
+            String.class,
+            createdProductId
+        )).containsExactly("human_resources", "inventory");
+    }
+
     private void cleanTestState() {
         jdbc.update(
             "DELETE FROM platform_audit_events WHERE actor_user_id IN (SELECT id FROM users WHERE email LIKE ?)",

@@ -24,6 +24,14 @@ test("billing es una pantalla real del ERP y no una ruta paralela", () => {
   assert.match(page, /BillingHero/);
 });
 
+test("la consulta delegada limpia el contexto y vuelve al portal de origen", () => {
+  assert.match(hook, /await managedCompanyApi\.clear\(\)/);
+  assert.match(hook, /authority_mode === ['"]PLATFORM_ROOT['"][\s\S]*['"]\/platform-admin['"]/);
+  assert.match(hook, /authority_mode === ['"]DISTRIBUTOR_PORTFOLIO['"][\s\S]*['"]\/distributor-portal['"]/);
+  assert.match(hook, /navigate\(destination, \{ replace: true \}\)/);
+  assert.match(page, /leaving=\{billing\.action === ['"]back['"]\}/);
+});
+
 test("la selección siempre viene del catálogo comercial del backend", () => {
   assert.match(hook, /billingApi\.selection/);
   assert.match(modules, /groups\.map/);

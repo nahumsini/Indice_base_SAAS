@@ -22,7 +22,8 @@ export default function SubscriptionManagementPage() {
           selection={billing.selection}
           subscription={billing.subscription}
           loading={billing.loading}
-          onBack={billing.goBack}
+          leaving={billing.action === 'back'}
+          onBack={() => void billing.goBack()}
           onRefresh={() => void billing.load()}
         />
 

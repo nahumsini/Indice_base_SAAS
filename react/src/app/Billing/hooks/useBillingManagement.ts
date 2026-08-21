@@ -208,9 +208,30 @@ export function useBillingManagement(copy: BillingCopy) {
       !== [...(state.selection?.selected_product_codes ?? [])].sort().join('|')
   );
 
-  const goBack = () => {
-    if (window.history.length > 1) navigate(-1);
-    else navigate('/dashboard');
+  const goBack = async () => {
+    if (!state.managedContext?.active) {
+      if (window.history.length > 1) navigate(-1);
+      else navigate('/dashboard');
+      return;
+    }
+
+    const destination = state.managedContext.authority_mode === 'PLATFORM_ROOT'
+      ? '/platform-admin'
+      : state.managedContext.authority_mode === 'DISTRIBUTOR_PORTFOLIO'
+        ? '/distributor-portal'
+        : '/dashboard';
+
+    setState((current) => ({ ...current, action: 'back', error: '', success: '' }));
+    try {
+      await managedCompanyApi.clear();
+      navigate(destination, { replace: true });
+    } catch (error) {
+      setState((current) => ({
+        ...current,
+        action: '',
+        error: error instanceof Error ? error.message : copy.loading,
+      }));
+    }
   };
 
   return {

@@ -42,6 +42,7 @@ export const endpoints = {
     modules: '/api/v1/platform-admin/modules',
     audit: '/api/v1/platform-admin/audit',
     systemTickets: '/api/v1/platform-admin/system-tickets',
+    training: '/api/v1/platform-admin/training',
   },
   distributorPortal: {
     context: '/api/v1/distributor-portal/context',
@@ -50,6 +51,7 @@ export const endpoints = {
     companies: '/api/v1/distributor-portal/companies',
     consulting: '/api/v1/distributor-portal/consulting',
     systemTickets: '/api/v1/distributor-portal/system-tickets',
+    training: '/api/v1/distributor-portal/training',
   },
   notifications: {
     list: '/api/v1/notifications',

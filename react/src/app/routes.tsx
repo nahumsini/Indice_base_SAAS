@@ -429,6 +429,13 @@ const requireDistributorPortalSession = async () => {
 
 const getRouteSessionOrNull = () => authApi.getSessionOrNull().catch(() => null);
 
+const allowPublicDemoOrDistributorSession = async () => {
+  const session = await getRouteSessionOrNull();
+  if (!session) return null;
+  if (!session.demoMode && session.company.commercial_account_type === 'DISTRIBUTOR') return null;
+  return redirect('/dashboard');
+};
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -442,7 +449,7 @@ export const router = createBrowserRouter([
   {
     path: '/demo',
     element: <PublicDemoPage />,
-    loader: redirectIfAuthenticated,
+    loader: allowPublicDemoOrDistributorSession,
   },
   {
     path: '/signup',

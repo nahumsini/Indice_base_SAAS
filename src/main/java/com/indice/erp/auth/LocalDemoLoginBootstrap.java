@@ -142,6 +142,22 @@ public class LocalDemoLoginBootstrap {
 
         jdbcTemplate.update(
             """
+                INSERT INTO platform_administrators
+                    (user_id, platform_role, status, mfa_required, created_by_user_id)
+                VALUES (?, 'PLATFORM_ROOT', 'ACTIVE', 0, ?)
+                ON DUPLICATE KEY UPDATE
+                    platform_role = VALUES(platform_role),
+                    status = VALUES(status),
+                    mfa_required = VALUES(mfa_required),
+                    revoked_by_user_id = NULL,
+                    revoked_at = NULL
+                """,
+            userId,
+            userId
+        );
+
+        jdbcTemplate.update(
+            """
                 INSERT INTO company_module_entitlements
                     (company_id, module_slug, status, source)
                 SELECT ?, module_row.slug, 'active', 'local_demo_bootstrap'

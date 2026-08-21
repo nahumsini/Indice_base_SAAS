@@ -120,6 +120,21 @@ const moduleWorkOrders = read(
 );
 const systemTickets = read("src/app/SystemTickets/SystemTicketsWorkspace.tsx");
 const systemTicketsApi = read("src/app/SystemTickets/systemTicketsApi.ts");
+const moduleAvailabilityWorkspace = read(
+  "src/app/PlatformAdmin/CatalogWorkspace/ModuleAvailabilityWorkspace.tsx",
+);
+const moduleAvailabilityModel = read(
+  "src/app/PlatformAdmin/CatalogWorkspace/moduleAvailabilityModel.ts",
+);
+const moduleColumnsModal = read(
+  "src/app/PlatformAdmin/CatalogWorkspace/ModuleColumnsModal.tsx",
+);
+const workspaceNavigation = read(
+  "src/app/components/frontend-os/IndiceWorkspaceNavigation.tsx",
+);
+const frontendOperatingSystem = read(
+  "../docs/indice-frontend-operating-system-v2.md",
+);
 
 test("el encabezado reconoce Root desde la autoridad real de plataforma", () => {
   assert.match(header, /platformAdminApi\.getContext\(\)/);
@@ -150,7 +165,7 @@ test("clientes concentra el acceso promocional sin recuperar la pestaña elimina
   assert.match(page, /IndiceModalValidation/);
 });
 
-test("catálogo y módulos guía un flujo operativo de disponibilidad producto y cobro", () => {
+test("catálogo y módulos guía un flujo operativo de disponibilidad producto y publicación", () => {
   assert.match(page, /es: "Catálogo y módulos"/);
   assert.match(page, /en: "Catalog & modules"/);
   assert.doesNotMatch(page, /id: "modules", es: "Módulos"/);
@@ -158,13 +173,52 @@ test("catálogo y módulos guía un flujo operativo de disponibilidad producto y
   assert.match(page, /Catálogo y módulos/);
   assert.match(page, /Disponibilidad/);
   assert.match(page, /Productos y paquetes/);
-  assert.match(page, /Precios y cobro/);
-  assert.match(page, /Actualizar catálogo comercial/);
-  assert.match(page, /Qué haces aquí/);
-  assert.match(page, /Afecta a/);
-  assert.match(page, /Siguiente paso/);
-  assert.match(page, /<ModulesTab[\s\S]*embedded/);
+  assert.match(page, /Precios y publicación/);
+  assert.match(page, /Sincronizar complementos/);
+  assert.match(page, /<ModuleAvailabilityWorkspace/);
+  assert.match(page, /Valida la oferta antes de publicarla/);
+  assert.match(page, /Validar oferta/);
+  assert.match(page, /Publicar oferta/);
+  assert.doesNotMatch(page, /Qué haces aquí|Afecta a|Siguiente paso/);
   assert.match(page, /<CatalogTab[\s\S]*view=\{view\}/);
+  assert.match(page, /<IndiceWorkspaceNavigation/);
+  assert.match(page, /variant="workflow"/);
+  assert.match(page, /catalog-step/);
+});
+
+test("la navegación interna comparte motor accesible y memoria de contexto", () => {
+  assert.match(page, /variant="sections"/);
+  assert.match(page, /primary-navigation/);
+  assert.match(page, /useWorkspaceNavigationMemory/);
+  assert.match(workspaceNavigation, /variant\?: 'sections' \| 'workflow'/);
+  assert.match(workspaceNavigation, /role="tablist"/);
+  assert.match(workspaceNavigation, /role="tab"/);
+  assert.match(workspaceNavigation, /aria-selected/);
+  assert.match(workspaceNavigation, /tabs\[nextIndex\]\?\.click\(\)/);
+  assert.match(workspaceNavigation, /ArrowLeft/);
+  assert.match(workspaceNavigation, /ArrowRight/);
+  assert.match(workspaceNavigation, /Home/);
+  assert.match(workspaceNavigation, /End/);
+  assert.match(frontendOperatingSystem, /Internal Workspace Navigation Engine/);
+  assert.match(frontendOperatingSystem, /IndiceWorkspaceNavigation/);
+});
+
+test("disponibilidad usa filtros facetas y la tabla operativa estándar", () => {
+  assert.match(moduleAvailabilityWorkspace, /IndiceFilterBar/);
+  assert.match(moduleAvailabilityWorkspace, /IndiceFilterSearch/);
+  assert.match(moduleAvailabilityWorkspace, /IndiceFilterSelect/);
+  assert.match(moduleAvailabilityWorkspace, /type ViewMode = "table" \| "cards"/);
+  assert.match(moduleAvailabilityWorkspace, /IndiceTableShell/);
+  assert.match(moduleAvailabilityWorkspace, /IndiceOperationalTable/);
+  assert.match(moduleAvailabilityWorkspace, /IndiceTableHeaderRow/);
+  assert.match(moduleAvailabilityWorkspace, /IndiceTableColGroup/);
+  assert.match(moduleAvailabilityWorkspace, /usePersistentColumnWidths/);
+  assert.match(moduleAvailabilityWorkspace, /ModuleColumnsModal/);
+  assert.match(moduleAvailabilityWorkspace, /DataTablePagination/);
+  assert.match(moduleAvailabilityModel, /repairMojibake/);
+  assert.match(moduleAvailabilityModel, /productIncludesModule/);
+  assert.match(moduleAvailabilityModel, /moduleAvailabilityMinimumWidths/);
+  assert.match(moduleColumnsModal, /ColumnasConfigModal/);
 });
 
 test("alta de cuenta avanza por empresa propietario y acceso", () => {
@@ -436,11 +490,36 @@ test("la cuenta se administra en un workspace compacto con pestañas directas", 
 
 test("catálogo presenta módulos y monedas controladas en lenguaje operativo", () => {
   assert.match(page, /Módulos incluidos/);
-  assert.match(page, /product\.capabilities\.map\(\(capability\)/);
+  assert.match(page, /product\.capabilities\.includes\(module\.slug\)/);
+  assert.match(page, /type="checkbox"/);
   assert.match(page, /Importe.*price\.currency/);
   assert.match(page, /Referencia de cobro de Stripe/);
   assert.doesNotMatch(page, /Capacidades \(separadas por coma\)/);
   assert.doesNotMatch(page, /Código facturable/);
+});
+
+test("precios del catálogo agrupa variantes técnicas por producto comercial", () => {
+  assert.match(page, /buildCatalogPriceGroups/);
+  assert.match(page, /Productos con precio/);
+  assert.match(page, /Requieren atención/);
+  assert.match(page, /Listos para vender/);
+  assert.match(page, /Precios comerciales/);
+  assert.match(page, /Mensual/);
+  assert.match(page, /Anual/);
+  assert.match(page, /catalogPriceTypeLabel/);
+  assert.match(page, /IndiceTableActionGroup/);
+  assert.doesNotMatch(page, /priceIntervalFilter/);
+});
+
+test("Root crea paquetes y administra sus módulos incluidos desde la interfaz", () => {
+  assert.match(page, /Nuevo paquete/);
+  assert.match(page, /createCatalogProduct/);
+  assert.match(page, /capabilities: target\.value\.capabilities/);
+  assert.match(page, /modules\.filter\(\(module\) => module\.assignment_enabled\)/);
+  assert.match(page, /product\.capabilities\.includes\(module\.slug\)/);
+  assert.match(page, /Módulos incluidos/);
+  assert.match(platformApi, /createCatalogProduct/);
+  assert.match(platformApi, /capabilities: string\[\]/);
 });
 
 test("el catálogo se prepara valida y publica como versión antes de cambiar la oferta activa", () => {

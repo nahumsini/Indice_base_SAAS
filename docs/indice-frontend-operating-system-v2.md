@@ -733,6 +733,39 @@ Inactive tab:
 
 Do not create underlined tabs, boxed tabs, or unrelated tab systems unless the approved reference already uses them.
 
+### 10.1 Internal Workspace Navigation Engine
+
+All new internal navigation must use `IndiceWorkspaceNavigation`. Do not build
+local `tablist` markup for each page.
+
+The engine has two approved variants:
+
+- `sections`: compact pills for sibling views inside the same workspace. It is
+  the default for module and administration sections.
+- `workflow`: numbered steps with icon, label and short description when the
+  order teaches a real operating sequence. Completed steps show their progress,
+  while available steps remain directly accessible.
+
+Shared behavior:
+
+- the active item uses the owning module tone;
+- inactive items use the same neutral surface and module-color hover;
+- labels, icon sizing, radius, spacing and focus treatment are identical across
+  modules;
+- `ArrowLeft`, `ArrowRight`, `ArrowUp`, `ArrowDown`, `Home` and `End` move focus
+  and activate the destination among available tabs;
+- navigation exposes `tablist`, `tab` and `aria-selected` semantics;
+- unavailable items must be disabled, not silently interactive;
+- mobile layouts wrap safely instead of clipping labels;
+- the owning view keeps the active state in the URL and durable workspace
+  memory through `useWorkspaceNavigationMemory` when the tab represents a
+  shareable or recoverable work context.
+
+Use `workflow` only for a sequence with a clear dependency or learning value.
+If the views are peers, use `sections`. A workflow navigator is not a modal
+wizard and must not introduce Next/Back requirements unless the business flow
+itself requires validation before advancing.
+
 ---
 
 ## 11. Emoji And Icon Identity Standard
@@ -997,6 +1030,30 @@ The table engine owns presentation and interaction only. The module remains owne
 - filters
 - row actions and their consequences
 - API and backend error handling
+
+### 15.1.1 Business entity before transport records
+
+An operational table must represent the entity the business user recognizes, not the
+row shape returned by an integration or billing provider.
+
+Rules:
+
+- group technical variants of the same entity into one business row when they belong to
+  the same decision; for example, show one product with `Monthly` and `Annual` columns
+  instead of two records with repeated internal codes
+- use the commercial name as the primary identity; internal codes, provider IDs and
+  synchronization references belong in detail or edit views
+- translate integration states into a short business state such as `Ready to sell`,
+  `Requires attention`, or `Inactive`
+- filters and result counters operate on the same grouped business entity shown in the
+  table, never on hidden transport rows
+- KPI counts use that same entity unit; one product with monthly and annual prices counts
+  as one product, not as two configured price records
+- preserve native variants and provider references in the underlying model so editing,
+  audit, synchronization and troubleshooting remain precise
+
+Do not expose technical identifiers merely because they are available in the API. Show
+them only when they are required to complete an authorized technical action.
 
 ### 15.2 Required composition
 

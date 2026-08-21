@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
   ArrowRight,
   Building2,
@@ -11,7 +11,7 @@ import {
   ShieldCheck,
   Sparkles,
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { authApi, type PublicDemoCompany } from '../api/auth';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -20,6 +20,11 @@ import { IndiceBrandLogo } from './components/IndiceBrandLogo';
 
 export default function PublicDemoPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedCompanyId = useMemo(() => {
+    const value = Number(searchParams.get('companyId'));
+    return Number.isInteger(value) && value > 0 ? value : null;
+  }, [searchParams]);
   const [companies, setCompanies] = useState<PublicDemoCompany[]>([]);
   const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
@@ -28,23 +33,48 @@ export default function PublicDemoPage() {
   const [loadingCompanies, setLoadingCompanies] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [isDistributorHandoff, setIsDistributorHandoff] = useState(false);
 
-  const loadCompanies = async () => {
+  const loadCompanies = useCallback(async () => {
     setLoadingCompanies(true);
     setError('');
     try {
       const response = await authApi.getPublicDemos();
       setCompanies(response.companies);
-      setCompanyName((current) => current || response.companies[0]?.name || '');
+      setCompanyName((current) => {
+        if (response.companies.some((company) => company.name === current)) return current;
+        return response.companies.find((company) => company.id === requestedCompanyId)?.name
+          || response.companies[0]?.name
+          || '';
+      });
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'No pudimos cargar las demostraciones disponibles.');
     } finally {
       setLoadingCompanies(false);
     }
-  };
+  }, [requestedCompanyId]);
 
   useEffect(() => {
     void loadCompanies();
+  }, [loadCompanies]);
+
+  useEffect(() => {
+    let active = true;
+    authApi.getSessionOrNull()
+      .then((session) => {
+        if (!active) return;
+        setIsDistributorHandoff(Boolean(
+          session
+          && !session.demoMode
+          && session.company.commercial_account_type === 'DISTRIBUTOR',
+        ));
+      })
+      .catch(() => {
+        if (active) setIsDistributorHandoff(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const normalizedEmail = normalizeEmail(email);
@@ -82,11 +112,11 @@ export default function PublicDemoPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
           <IndiceBrandLogo alt="Índice" className="h-11 w-40" imageClassName="w-[185px]" />
           <Link
-            to="/login"
+            to={isDistributorHandoff ? '/dashboard' : '/login'}
             className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-300 hover:text-blue-700"
           >
             <LockKeyhole className="h-4 w-4" />
-            Acceso de clientes
+            {isDistributorHandoff ? 'Volver al ERP' : 'Acceso de clientes'}
           </Link>
         </div>
       </header>
@@ -134,6 +164,12 @@ export default function PublicDemoPage() {
           </div>
 
           <form onSubmit={submit} className="space-y-6 p-6 sm:p-8">
+            {isDistributorHandoff ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+                <strong className="block font-semibold">Acceso desde la cuenta distribuidora</strong>
+                Al entrar, la sesión actual será reemplazada temporalmente por la demostración seleccionada. Para volver a tu cartera deberás iniciar sesión nuevamente.
+              </div>
+            ) : null}
             <fieldset>
               <div className="flex items-center justify-between gap-3">
                 <legend className="text-sm font-semibold text-slate-800">Empresa demostrativa</legend>

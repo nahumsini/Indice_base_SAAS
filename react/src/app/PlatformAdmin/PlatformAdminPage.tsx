@@ -13,11 +13,9 @@ import {
   ArrowUp,
   ArrowUpDown,
   BadgeCheck,
-  BookOpenCheck,
   Boxes,
   Building2,
   ChevronLeft,
-  ChevronRight,
   CircleAlert,
   CircleDollarSign,
   ClipboardList,
@@ -28,6 +26,7 @@ import {
   ExternalLink,
   FileClock,
   Gift,
+  GraduationCap,
   HardDrive,
   Handshake,
   KeyRound,
@@ -59,8 +58,11 @@ import {
   IndiceFilterSearch,
   IndiceFilterSelect,
   IndiceTitleBar,
+  IndiceWorkspaceNavigation,
 } from "../components/frontend-os";
+import { useWorkspaceNavigationMemory } from "../hooks/useWorkspaceNavigationMemory";
 import { DataTablePagination } from "../components/table/DataTablePagination";
+import { IndiceTableActionGroup } from "../components/table/IndiceTableEngine";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,6 +71,7 @@ import {
 } from "../components/ui/dropdown-menu";
 import { useLanguage } from "../shared/context";
 import { SystemTicketsWorkspace } from "../SystemTickets";
+import { TrainingWorkspace } from "../Training";
 import AccountCreationModal from "./AccountCreationModal";
 import AccountTypeEditModal from "./AccountTypeEditModal";
 import DistributorAssignmentModal from "./DistributorAssignmentModal";
@@ -77,6 +80,7 @@ import CompanyAccountDrawer, { type CompanyAccountTab } from "./CompanyAccountDr
 import { CustomerUsersModal } from "./Customers/CustomerUsersModal";
 import ConsultingAdminTab from "./ConsultingAdminTab";
 import { CatalogProductCard } from "./Catalog";
+import { ModuleAvailabilityWorkspace } from "./CatalogWorkspace";
 import {
   CustomersTable,
   CustomerColumnsModal,
@@ -130,11 +134,11 @@ import {
 } from "../api/platformAdmin";
 
 type AdminTab =
-  "customers" | "billing" | "catalog" | "consulting" | "systemTickets" | "audit";
+  "customers" | "billing" | "catalog" | "consulting" | "training" | "systemTickets" | "audit";
 type BillingSortKey =
   "customer" | "invoice" | "status" | "amount" | "paid" | "period";
 type CatalogPriceSortKey =
-  "concept" | "type" | "interval" | "amount" | "stripe" | "status";
+  "concept" | "type" | "monthly" | "yearly" | "status";
 type Revocation = {
   kind: "benefit" | "courtesy";
   reference: string;
@@ -188,6 +192,7 @@ const tabDefinitions: {
     icon: Boxes,
   },
   { id: "consulting", es: "Consultorías", en: "Consulting", icon: Handshake },
+  { id: "training", es: "Capacitación y contenido", en: "Training & content", icon: GraduationCap },
   {
     id: "systemTickets",
     es: "Tickets de sistema",
@@ -196,6 +201,10 @@ const tabDefinitions: {
   },
   { id: "audit", es: "Auditoría", en: "Audit", icon: ClipboardList },
 ];
+
+const isAdminTab = (value: unknown): value is AdminTab =>
+  typeof value === "string" &&
+  tabDefinitions.some((tab) => tab.id === value);
 
 const offerLabels: Record<string, string> = {
   basic_1: "Un módulo",
@@ -219,11 +228,38 @@ export default function PlatformAdminPage() {
     [english],
   );
   const [activeTab, setActiveTab] = useState<AdminTab>("customers");
+  const adminNavigationState = useMemo(
+    () => ({ section: activeTab }),
+    [activeTab],
+  );
+  const restoreAdminNavigation = useCallback(
+    (restored: { section: AdminTab }) => {
+      if (isAdminTab(restored.section)) setActiveTab(restored.section);
+    },
+    [],
+  );
+  useWorkspaceNavigationMemory({
+    moduleKey: "platform-admin",
+    tabKey: "primary-navigation",
+    state: adminNavigationState,
+    defaults: { section: "customers" as AdminTab },
+    urlFields: { section: "section" },
+    onRestore: restoreAdminNavigation,
+    rememberScroll: false,
+  });
   const [context, setContext] = useState<PlatformAdminContext | null>(null);
   const visibleTabs = useMemo(
     () => tabs.filter((tab) => tab.id !== "systemTickets" || Boolean(context?.can_manage_system_tickets)),
     [context?.can_manage_system_tickets, tabs],
   );
+  useEffect(() => {
+    if (
+      context &&
+      !visibleTabs.some((tab) => tab.id === activeTab)
+    ) {
+      setActiveTab("customers");
+    }
+  }, [activeTab, context, visibleTabs]);
   const [overview, setOverview] = useState<PlatformOverview | null>(null);
   const [billing, setBilling] = useState<PlatformBilling | null>(null);
   const [catalog, setCatalog] = useState<PlatformCatalog | null>(null);
@@ -874,29 +910,25 @@ export default function PlatformAdminPage() {
             </button>
           </div>
         </div>
-        <nav
-          className="mx-auto flex max-w-[1600px] gap-1.5 overflow-x-auto px-4 py-2 lg:px-6"
-          aria-label={
-            english ? "Administration sections" : "Secciones de administración"
-          }
-        >
-          {visibleTabs.map((tab) => {
-            const Icon = tab.icon;
-            const active = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                aria-current={active ? "page" : undefined}
-                onClick={() => setActiveTab(tab.id)}
-                className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-full border px-3 text-sm font-medium transition ${active ? "border-transparent bg-[#2563EB] text-white shadow-md" : "border-transparent bg-slate-100 text-slate-600 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-300"}`}
-              >
-                <Icon className="h-4 w-4" />
-                {tab.label}
-              </button>
-            );
-          })}
-        </nav>
+        <div className="mx-auto max-w-[1600px] px-4 py-2 lg:px-6">
+          <IndiceWorkspaceNavigation<AdminTab>
+            ariaLabel={
+              english ? "Administration sections" : "Secciones de administración"
+            }
+            items={visibleTabs.map((tab) => {
+              const Icon = tab.icon;
+              return {
+                id: tab.id,
+                label: tab.label,
+                icon: <Icon />,
+              };
+            })}
+            onValueChange={setActiveTab}
+            tone="blue"
+            value={activeTab}
+            variant="sections"
+          />
+        </div>
         <div className="grid h-1 grid-cols-4" aria-hidden="true">
           <span className="bg-[#59C3A5]" />
           <span className="bg-[#F7C845]" />
@@ -1005,6 +1037,9 @@ export default function PlatformAdminPage() {
                 canManage={Boolean(context?.can_manage_consulting)}
                 companies={companies}
               />
+            ) : null}
+            {activeTab === "training" ? (
+              <TrainingWorkspace portal="root" locale={currentLanguage.code} />
             ) : null}
             {activeTab === "systemTickets" && context?.can_manage_system_tickets ? (
               <SystemTicketsWorkspace portal="root" locale={currentLanguage.code} />
@@ -1764,6 +1799,8 @@ function compareInvoiceValues(
 
 type CatalogView = "products" | "prices";
 type CatalogWorkspaceView = "modules" | "products" | "prices";
+const isCatalogWorkspaceView = (value: unknown): value is CatalogWorkspaceView =>
+  value === "modules" || value === "products" || value === "prices";
 const operationalLocaleLabels: Record<string, string> = {
   "en-CA": "English (Canada)",
   "en-US": "English (United States)",
@@ -1777,6 +1814,96 @@ const operationalLocaleLabels: Record<string, string> = {
 type CatalogEditTarget =
   | { kind: "product"; value: PlatformCatalogProduct }
   | { kind: "price"; value: PlatformCatalogPrice };
+type CatalogPriceGroupStatus = "ready" | "review" | "inactive";
+type CatalogPriceGroup = {
+  key: string;
+  name: string;
+  priceType: string;
+  currency: string;
+  monthly?: PlatformCatalogPrice;
+  yearly?: PlatformCatalogPrice;
+  status: CatalogPriceGroupStatus;
+};
+
+const isInactiveCatalogPrice = (price: PlatformCatalogPrice) =>
+  ["ARCHIVED", "INACTIVE"].includes(price.status);
+
+const isReadyCatalogPrice = (price?: PlatformCatalogPrice) =>
+  Boolean(
+    price &&
+      !isInactiveCatalogPrice(price) &&
+      price.unit_amount_cents != null &&
+      price.unit_amount_cents >= 0 &&
+      price.external_price_id,
+  );
+
+const humanizeCatalogCode = (value: string) => {
+  const normalized = value
+    .replace(/^(addon|base|plan|price)_/i, "")
+    .replace(/[_-]+/g, " ")
+    .trim();
+  return normalized
+    ? normalized.replace(/\b\p{L}/gu, (letter) => letter.toUpperCase())
+    : "Producto";
+};
+
+const catalogPriceTypeLabel = (value: string, english: boolean) => {
+  if (value === "ADDON") return english ? "Add-on" : "Complemento";
+  if (["BASE", "PACKAGE", "PLAN"].includes(value)) {
+    return english ? "Package" : "Paquete";
+  }
+  return humanizeCatalogCode(value);
+};
+
+function catalogPriceBusinessName(
+  price: PlatformCatalogPrice,
+  products: PlatformCatalogProduct[],
+) {
+  const product = products.find(
+    (candidate) =>
+      candidate.id === price.catalog_product_id ||
+      candidate.product_code === price.billable_code,
+  );
+  return (
+    product?.display_name ||
+    offerLabels[price.billable_code] ||
+    humanizeCatalogCode(price.billable_code)
+  );
+}
+
+function buildCatalogPriceGroups(
+  prices: PlatformCatalogPrice[],
+  products: PlatformCatalogProduct[],
+) {
+  const grouped = new Map<string, CatalogPriceGroup>();
+  prices.forEach((price) => {
+    const key = `${price.billable_code}:${price.price_type}:${price.currency}`;
+    const current = grouped.get(key) || {
+      key,
+      name: catalogPriceBusinessName(price, products),
+      priceType: price.price_type,
+      currency: price.currency,
+      status: "review" as CatalogPriceGroupStatus,
+    };
+    if (price.billing_interval === "YEAR") current.yearly = price;
+    else current.monthly = price;
+    grouped.set(key, current);
+  });
+
+  return Array.from(grouped.values()).map((group) => {
+    const variants = [group.monthly, group.yearly].filter(
+      (price): price is PlatformCatalogPrice => Boolean(price),
+    );
+    const status: CatalogPriceGroupStatus = variants.every(
+      isInactiveCatalogPrice,
+    )
+      ? "inactive"
+      : isReadyCatalogPrice(group.monthly) && isReadyCatalogPrice(group.yearly)
+        ? "ready"
+        : "review";
+    return { ...group, status };
+  });
+}
 
 function CatalogAndModulesTab({
   english,
@@ -1796,6 +1923,22 @@ function CatalogAndModulesTab({
   onModuleChange: (change: ModuleAvailabilityChange) => void;
 }) {
   const [view, setView] = useState<CatalogWorkspaceView>("modules");
+  const catalogNavigationState = useMemo(() => ({ step: view }), [view]);
+  const restoreCatalogNavigation = useCallback(
+    (restored: { step: CatalogWorkspaceView }) => {
+      if (isCatalogWorkspaceView(restored.step)) setView(restored.step);
+    },
+    [],
+  );
+  useWorkspaceNavigationMemory({
+    moduleKey: "platform-admin",
+    tabKey: "catalog-navigation",
+    state: catalogNavigationState,
+    defaults: { step: "modules" as CatalogWorkspaceView },
+    urlFields: { step: "catalog-step" },
+    onRestore: restoreCatalogNavigation,
+    rememberScroll: false,
+  });
   const [syncing, setSyncing] = useState(false);
   const [catalogWorkflowBusy, setCatalogWorkflowBusy] = useState(false);
   const [catalogValidation, setCatalogValidation] =
@@ -1820,9 +1963,25 @@ function CatalogAndModulesTab({
   const versionPrices = (catalog?.prices ?? []).filter(
     (price) => !workingVersion || price.catalog_version_id === workingVersion.id,
   );
-  const activeModules = (modules?.modules ?? []).filter((module) => module.is_active).length;
-  const configuredPrices = versionPrices.filter(
-    (price) => price.unit_amount_cents != null && price.unit_amount_cents >= 0,
+  const activeProducts = versionProducts.filter((product) => product.active).length;
+  const linkedCapabilities = versionProducts.reduce(
+    (total, product) => total + product.capabilities.length,
+    0,
+  );
+  const commercialPriceGroups = buildCatalogPriceGroups(
+    versionPrices,
+    versionProducts,
+  );
+  const productsWithPrice = commercialPriceGroups.filter((group) =>
+    [group.monthly, group.yearly].some(
+      (price) => price?.unit_amount_cents != null,
+    ),
+  ).length;
+  const productsReadyForSale = commercialPriceGroups.filter(
+    (group) => group.status === "ready",
+  ).length;
+  const productsNeedingAttention = commercialPriceGroups.filter(
+    (group) => group.status === "review",
   ).length;
   const productsWithoutRates = versionProducts.filter(
     (product) =>
@@ -1833,12 +1992,6 @@ function CatalogAndModulesTab({
           price.billable_code === product.product_code ||
           product.capabilities.includes(price.billable_code),
       ),
-  ).length;
-  const pricesPendingStripe = versionPrices.filter(
-    (price) =>
-      price.unit_amount_cents != null &&
-      price.unit_amount_cents >= 0 &&
-      !price.external_price_id,
   ).length;
 
   const synchronizeComplementaries = async () => {
@@ -1978,8 +2131,8 @@ function CatalogAndModulesTab({
     },
     {
       id: "prices" as const,
-      label: english ? "Prices and billing" : "Precios y cobro",
-      description: english ? "What will be charged" : "Lo que se va a cobrar",
+      label: english ? "Prices and publication" : "Precios y publicación",
+      description: english ? "Review and publish" : "Revisa y publica",
       icon: CircleDollarSign,
     },
   ];
@@ -1989,7 +2142,6 @@ function CatalogAndModulesTab({
       <IndiceTitleBar
         tone="blue"
         icon={<Boxes className="h-5 w-5" />}
-        eyebrow={english ? "Commercial setup" : "Configuración comercial"}
         title={english ? "Catalog and modules" : "Catálogo y módulos"}
         subtitle={
           english
@@ -2004,7 +2156,7 @@ function CatalogAndModulesTab({
             className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-white px-3 text-xs font-semibold text-[#143675] shadow-sm hover:bg-blue-50 disabled:opacity-60"
           >
             <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-            {english ? "Update commercial catalog" : "Actualizar catálogo comercial"}
+            {english ? "Sync add-ons" : "Sincronizar complementos"}
           </button>
         }
       />
@@ -2015,35 +2167,22 @@ function CatalogAndModulesTab({
         </div>
       ) : null}
 
-      <nav
-        role="tablist"
-        aria-label={english ? "Catalog workflow" : "Flujo de catálogo"}
-        className="grid gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm md:grid-cols-3"
-      >
-        {workspaceTabs.map((item, index) => {
+      <IndiceWorkspaceNavigation<CatalogWorkspaceView>
+        ariaLabel={english ? "Catalog workflow" : "Flujo de catálogo"}
+        items={workspaceTabs.map((item) => {
           const Icon = item.icon;
-          const active = view === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setView(item.id)}
-              className={`flex min-h-16 items-center gap-3 rounded-xl px-4 text-left transition ${active ? "bg-[#2563EB] text-white shadow-sm" : "bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-blue-800"}`}
-            >
-              <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-semibold ${active ? "bg-white/15 text-white" : "bg-white text-blue-600 shadow-sm"}`}>
-                {index + 1}
-              </span>
-              <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold">{item.label}</span>
-                <span className={`block truncate text-xs ${active ? "text-blue-100" : "text-slate-500"}`}>{item.description}</span>
-              </span>
-            </button>
-          );
+          return {
+            id: item.id,
+            label: item.label,
+            description: item.description,
+            icon: <Icon />,
+          };
         })}
-      </nav>
+        onValueChange={setView}
+        tone="blue"
+        value={view}
+        variant="workflow"
+      />
 
       <section className="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
         <div className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
@@ -2085,8 +2224,8 @@ function CatalogAndModulesTab({
               </p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {!draftVersion ? (
+          {!draftVersion ? (
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 disabled={!canManage || catalogWorkflowBusy}
@@ -2096,29 +2235,8 @@ function CatalogAndModulesTab({
                 <Plus className="h-4 w-4" />
                 {english ? "Prepare changes" : "Preparar cambios"}
               </button>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  disabled={!canManage || catalogWorkflowBusy}
-                  onClick={() => void validateCatalogDraft()}
-                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-xs font-semibold text-[#143675] hover:bg-blue-50 disabled:opacity-50"
-                >
-                  <ShieldCheck className="h-4 w-4" />
-                  {english ? "Validate offer" : "Validar oferta"}
-                </button>
-                <button
-                  type="button"
-                  disabled={!canManage || catalogWorkflowBusy || !catalogValidation?.ready}
-                  onClick={() => void publishCatalogDraft()}
-                  className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#177D66] px-4 text-xs font-semibold text-white hover:bg-[#126653] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
-                >
-                  <BadgeCheck className="h-4 w-4" />
-                  {english ? "Publish offer" : "Publicar oferta"}
-                </button>
-              </>
-            )}
-          </div>
+            </div>
+          ) : null}
         </div>
         {catalogValidation && !catalogValidation.ready ? (
           <div className="border-t border-amber-100 bg-amber-50 px-4 py-3">
@@ -2137,182 +2255,124 @@ function CatalogAndModulesTab({
         ) : null}
       </section>
 
-      <CatalogOperationalGuide english={english} view={view} />
-
-      <section className="grid gap-3 md:grid-cols-3">
-        <Metric
-          icon={Activity}
-          label={english ? "Available modules" : "Módulos disponibles"}
-          value={String(activeModules)}
-          accent="blue"
-        />
-        <Metric
-          icon={PackageCheck}
-          label={english ? "Products missing prices" : "Productos sin precio"}
-          value={String(productsWithoutRates)}
-          accent="mint"
-        />
-        <Metric
-          icon={CircleDollarSign}
-          label={english ? "Prices pending Stripe" : "Precios pendientes de Stripe"}
-          value={String(pricesPendingStripe)}
-          accent="gold"
-        />
-      </section>
-
       {view === "modules" ? (
-        <ModulesTab
-          english={english}
-          data={modules}
+        <ModuleAvailabilityWorkspace
           canManage={canManage}
+          data={modules}
+          english={english}
+          products={versionProducts}
           saving={saving}
           onChange={onModuleChange}
-          embedded
         />
       ) : (
-        <CatalogTab
-          english={english}
-          data={catalog}
-          onChange={(nextCatalog) => {
-            setCatalogValidation(null);
-            onCatalogChange(nextCatalog);
-          }}
-          view={view}
-        />
+        <div className="space-y-4">
+          <section className="grid gap-3 md:grid-cols-3">
+            {view === "products" ? (
+              <>
+                <Metric
+                  icon={PackageCheck}
+                  label={english ? "Active products" : "Productos activos"}
+                  value={String(activeProducts)}
+                  accent="blue"
+                />
+                <Metric
+                  icon={CircleAlert}
+                  label={english ? "Products missing prices" : "Productos sin precio"}
+                  value={String(productsWithoutRates)}
+                  accent="gold"
+                />
+                <Metric
+                  icon={Boxes}
+                  label={english ? "Linked capabilities" : "Capacidades vinculadas"}
+                  value={String(linkedCapabilities)}
+                  accent="mint"
+                />
+              </>
+            ) : (
+              <>
+                <Metric
+                  icon={CircleDollarSign}
+                  label={english ? "Products with a price" : "Productos con precio"}
+                  value={String(productsWithPrice)}
+                  accent="blue"
+                />
+                <Metric
+                  icon={CircleAlert}
+                  label={english ? "Require attention" : "Requieren atención"}
+                  value={String(productsNeedingAttention)}
+                  accent="gold"
+                />
+                <Metric
+                  icon={BadgeCheck}
+                  label={english ? "Ready to sell" : "Listos para vender"}
+                  value={String(productsReadyForSale)}
+                  accent="mint"
+                />
+              </>
+            )}
+          </section>
+          <CatalogTab
+            canManage={canManage}
+            english={english}
+            data={catalog}
+            modules={modules?.modules ?? []}
+            onChange={(nextCatalog) => {
+              setCatalogValidation(null);
+              onCatalogChange(nextCatalog);
+            }}
+            view={view}
+          />
+        </div>
       )}
 
-      <div className="flex flex-col gap-3 rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">
-            {english ? "Next step" : "Siguiente paso"}
-          </p>
-          <p className="mt-1 text-sm text-[#143675]">
-            {view === "modules"
-              ? english
-                ? "Build the products customers will be able to select."
-                : "Arma los productos que podrán seleccionar los clientes."
-              : view === "products"
-                ? english
-                  ? "Set monthly and annual prices before offering them."
-                  : "Define precios mensuales y anuales antes de ofrecerlos."
-                : english
-                  ? `${configuredPrices} prices have an amount; review pending Stripe links before selling.`
-                  : `${configuredPrices} precios tienen importe; revisa los enlaces pendientes con Stripe antes de vender.`}
-          </p>
+      {draftVersion ? (
+        <div className="sticky bottom-4 z-20 flex flex-col gap-3 rounded-2xl border border-blue-200 bg-white/95 p-4 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.5)] backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-slate-950">
+              {english ? "Unpublished changes" : "Cambios sin publicar"}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              {draftVersion.version_code} · {english ? "Validate the offer before publishing it." : "Valida la oferta antes de publicarla."}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={!canManage || catalogWorkflowBusy}
+              onClick={() => void validateCatalogDraft()}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-medium text-[#143675] hover:bg-blue-50 disabled:opacity-50"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              {english ? "Validate offer" : "Validar oferta"}
+            </button>
+            <button
+              type="button"
+              disabled={!canManage || catalogWorkflowBusy || !catalogValidation?.ready}
+              onClick={() => void publishCatalogDraft()}
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white hover:bg-[#126653] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+            >
+              <BadgeCheck className="h-4 w-4" />
+              {english ? "Publish offer" : "Publicar oferta"}
+            </button>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={() =>
-            setView(
-              view === "modules"
-                ? "products"
-                : view === "products"
-                  ? "prices"
-                  : "modules",
-            )
-          }
-          className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#1D4ED8]"
-        >
-          {view === "modules"
-            ? english
-              ? "Continue to products"
-              : "Continuar a productos"
-            : view === "products"
-              ? english
-                ? "Continue to prices"
-                : "Continuar a precios"
-              : english
-                ? "Review availability"
-                : "Revisar disponibilidad"}
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
+      ) : null}
     </div>
   );
 }
 
-function CatalogOperationalGuide({
-  english,
-  view,
-}: {
-  english: boolean;
-  view: CatalogWorkspaceView;
-}) {
-  const content = {
-    modules: {
-      action: english
-        ? "Choose which Indice functions are available to sell or test."
-        : "Elige qué funciones de Índice están disponibles para vender o probar.",
-      impact: english
-        ? "Products, trials and new customer accounts."
-        : "Productos, pruebas y nuevas cuentas de clientes.",
-      next: english
-        ? "Add each available module to a product or package."
-        : "Incorpora cada módulo disponible a un producto o paquete.",
-    },
-    products: {
-      action: english
-        ? "Create the packages and add-ons customers can choose."
-        : "Crea los paquetes y complementos que puede elegir el cliente.",
-      impact: english
-        ? "Account setup, billing and the customer billing screen."
-        : "Alta de cuentas, facturación y pantalla de pagos del cliente.",
-      next: english
-        ? "Assign a monthly and annual price to every active product."
-        : "Asigna un precio mensual y anual a cada producto activo.",
-    },
-    prices: {
-      action: english
-        ? "Define amounts and confirm that Stripe is ready to collect them."
-        : "Define importes y confirma que Stripe esté listo para cobrarlos.",
-      impact: english
-        ? "Charges after trials and changes made from Billing."
-        : "Cobros al terminar las pruebas y cambios realizados desde Facturación.",
-      next: english
-        ? "Resolve every pending Stripe link before offering the product."
-        : "Resuelve cada enlace pendiente con Stripe antes de ofrecer el producto.",
-    },
-  }[view];
-
-  return (
-    <section className="grid overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:grid-cols-3">
-      {[
-        [english ? "What you do here" : "Qué haces aquí", content.action, BookOpenCheck],
-        [english ? "This affects" : "Afecta a", content.impact, Users],
-        [english ? "Next step" : "Siguiente paso", content.next, ChevronRight],
-      ].map(([label, description, Icon], index) => {
-        const GuideIcon = Icon as typeof BookOpenCheck;
-        return (
-          <div
-            key={String(label)}
-            className={`flex gap-3 p-4 ${index ? "border-t border-slate-100 md:border-l md:border-t-0" : ""}`}
-          >
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600">
-              <GuideIcon className="h-4 w-4" />
-            </span>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
-                {String(label)}
-              </p>
-              <p className="mt-1 text-sm leading-5 text-slate-700">
-                {String(description)}
-              </p>
-            </div>
-          </div>
-        );
-      })}
-    </section>
-  );
-}
-
 function CatalogTab({
+  canManage,
   english,
   data,
+  modules,
   onChange,
   view,
 }: {
+  canManage: boolean;
   english: boolean;
   data: PlatformCatalog | null;
+  modules: PlatformModule[];
   onChange: (data: PlatformCatalog) => void;
   view: CatalogView;
 }) {
@@ -2323,7 +2383,6 @@ function CatalogTab({
   }>({ key: "concept", direction: "asc" });
   const [priceQuery, setPriceQuery] = useState("");
   const [priceTypeFilter, setPriceTypeFilter] = useState("all");
-  const [priceIntervalFilter, setPriceIntervalFilter] = useState("all");
   const [priceStatusFilter, setPriceStatusFilter] = useState("all");
   const [catalogSaving, setCatalogSaving] = useState(false);
   const [catalogFeedback, setCatalogFeedback] = useState<{
@@ -2342,48 +2401,46 @@ function CatalogTab({
       ),
     [workingVersion, data?.prices],
   );
-  const filteredPrices = useMemo(() => {
+  const products = useMemo(
+    () =>
+      (data?.products ?? []).filter(
+        (product) =>
+          !workingVersion || product.catalog_version_id === workingVersion.id,
+      ),
+    [data?.products, workingVersion],
+  );
+  const priceGroups = useMemo(
+    () => buildCatalogPriceGroups(versionPrices, products),
+    [products, versionPrices],
+  );
+  const filteredPriceGroups = useMemo(() => {
     const query = priceQuery.trim().toLowerCase();
-    return versionPrices.filter((price) => {
+    return priceGroups.filter((group) => {
       const matchesQuery =
         !query ||
-        [
-          offerLabels[price.billable_code],
-          price.billable_code,
-          price.external_price_id,
-        ].some((value) => value?.toLowerCase().includes(query));
+        [group.name, group.priceType, group.currency].some((value) =>
+          value.toLowerCase().includes(query),
+        );
       return (
         matchesQuery &&
-        (priceTypeFilter === "all" || price.price_type === priceTypeFilter) &&
-        (priceIntervalFilter === "all" ||
-          price.billing_interval === priceIntervalFilter) &&
-        (priceStatusFilter === "all" ||
-          (priceStatusFilter === "ready" &&
-            price.unit_amount_cents != null &&
-            Boolean(price.external_price_id) &&
-            !["ARCHIVED", "INACTIVE"].includes(price.status)) ||
-          (priceStatusFilter === "pending" &&
-            price.unit_amount_cents != null &&
-            !price.external_price_id) ||
-          (priceStatusFilter === "inactive" &&
-            ["ARCHIVED", "INACTIVE"].includes(price.status)))
+        (priceTypeFilter === "all" || group.priceType === priceTypeFilter) &&
+        (priceStatusFilter === "all" || group.status === priceStatusFilter)
       );
     });
   }, [
-    priceIntervalFilter,
+    priceGroups,
     priceQuery,
     priceStatusFilter,
     priceTypeFilter,
-    versionPrices,
   ]);
   const prices = useMemo(() => {
-    if (!priceSort.direction) return filteredPrices;
+    if (!priceSort.direction) return filteredPriceGroups;
     const direction = priceSort.direction === "asc" ? 1 : -1;
-    return [...filteredPrices].sort(
+    return [...filteredPriceGroups].sort(
       (left, right) =>
-        compareCatalogPriceValues(left, right, priceSort.key) * direction,
+        compareCatalogPriceGroupValues(left, right, priceSort.key) * direction,
     );
-  }, [filteredPrices, priceSort]);
+  }, [filteredPriceGroups, priceSort]);
   const changePriceSort = (key: CatalogPriceSortKey) =>
     setPriceSort((current) =>
       current.key !== key
@@ -2398,10 +2455,6 @@ function CatalogTab({
                   : null,
           },
     );
-  const products = (data?.products ?? []).filter(
-    (product) =>
-      !workingVersion || product.catalog_version_id === workingVersion.id,
-  );
   const refreshCatalog = async () => {
     const nextCatalog = await platformAdminApi.getCatalog();
     onChange(nextCatalog);
@@ -2412,11 +2465,14 @@ function CatalogTab({
     setCatalogFeedback(null);
     try {
       if (target.kind === "product") {
-        await platformAdminApi.updateCatalogProduct(target.value.id, {
+        const payload = {
           display_name: target.value.display_name,
           sort_order: target.value.sort_order,
           active: target.value.active,
-        });
+          capabilities: target.value.capabilities,
+        };
+        if (target.value.id > 0) await platformAdminApi.updateCatalogProduct(target.value.id, payload);
+        else await platformAdminApi.createCatalogProduct(payload);
       } else {
         await platformAdminApi.updateCatalogPrice(target.value.id, {
           unit_amount_cents: target.value.unit_amount_cents ?? null,
@@ -2455,15 +2511,36 @@ function CatalogTab({
       ) : null}
       {view === "products" ? (
         <section>
-          <div className="mb-4">
-            <h2 className="text-xl font-semibold text-slate-950 dark:text-white">
-              {english ? "Products customers can select" : "Productos que puede elegir el cliente"}
-            </h2>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              {english
-                ? "Review packages and add-ons, and complete any product still missing a price."
-                : "Revisa paquetes y complementos, y completa los productos que aún no tienen precio."}
-            </p>
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-950 dark:text-white">
+                {english ? "Products customers can select" : "Productos que puede elegir el cliente"}
+              </h2>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                {english
+                  ? "Review packages and add-ons, and complete any product still missing a price."
+                  : "Revisa paquetes y complementos, y completa los productos que aún no tienen precio."}
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={!canManage || !workingVersion}
+              onClick={() => workingVersion && setEditing({ kind: "product", value: {
+                id: 0,
+                catalog_version_id: workingVersion.id,
+                version_code: workingVersion.version_code,
+                product_code: "",
+                display_name: "",
+                product_type: "ADDON",
+                sort_order: 500,
+                active: false,
+                capabilities: [],
+              } })}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              <Plus className="h-4 w-4" />
+              {english ? "New package" : "Nuevo paquete"}
+            </button>
           </div>
           {products.length ? (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -2519,26 +2596,26 @@ function CatalogTab({
         <div className="space-y-4">
           <IndiceFilterBar
             title={
-              english ? "Filter current rates" : "Filtrar tarifas vigentes"
+              english ? "Filters" : "Filtros"
             }
             subtitle={
               english
-                ? "Find the amount you need to review or connect to Stripe."
-                : "Encuentra el importe que necesitas revisar o conectar con Stripe."
+                ? "Find a product and focus on what is ready to sell."
+                : "Encuentra un producto y enfócate en lo que está listo para vender."
             }
             summary={
               english
-                ? `${prices.length} matching rates`
-                : `${prices.length} tarifas coinciden`
+                ? `${prices.length} matching products`
+                : `${prices.length} productos coinciden`
             }
-            gridClassName="md:grid-cols-2 xl:grid-cols-4"
+            gridClassName="md:grid-cols-3"
           >
             <IndiceFilterSearch
               label={english ? "Search" : "Buscar"}
               placeholder={
                 english
-                  ? "Product or Stripe reference"
-                  : "Producto o referencia de Stripe"
+                  ? "Product or offer"
+                  : "Producto u oferta"
               }
               tone="blue"
               value={priceQuery}
@@ -2557,27 +2634,14 @@ function CatalogTab({
                 },
                 ...Array.from(
                   new Set(versionPrices.map((price) => price.price_type)),
-                ).map((value) => ({ value, label: value })),
+                ).map((value) => ({
+                  value,
+                  label: catalogPriceTypeLabel(value, english),
+                })),
               ]}
             />
             <IndiceFilterSelect
-              label={english ? "Frequency" : "Periodicidad"}
-              tone="blue"
-              value={priceIntervalFilter}
-              onValueChange={setPriceIntervalFilter}
-              options={[
-                {
-                  value: "all",
-                  label: english
-                    ? "All frequencies"
-                    : "Todas las periodicidades",
-                },
-                { value: "MONTH", label: english ? "Monthly" : "Mensual" },
-                { value: "YEAR", label: english ? "Annual" : "Anual" },
-              ]}
-            />
-            <IndiceFilterSelect
-              label={english ? "Billing readiness" : "Preparación para cobro"}
+              label={english ? "Sales status" : "Estado de venta"}
               tone="blue"
               value={priceStatusFilter}
               onValueChange={setPriceStatusFilter}
@@ -2588,11 +2652,11 @@ function CatalogTab({
                 },
                 {
                   value: "ready",
-                  label: english ? "Ready to bill" : "Listos para cobrar",
+                  label: english ? "Ready to sell" : "Listos para vender",
                 },
                 {
-                  value: "pending",
-                  label: english ? "Pending Stripe" : "Pendientes de Stripe",
+                  value: "review",
+                  label: english ? "Require attention" : "Requieren atención",
                 },
                 {
                   value: "inactive",
@@ -2602,25 +2666,24 @@ function CatalogTab({
             />
           </IndiceFilterBar>
           <Panel
-            title={english ? "Prices ready for billing" : "Precios para cobro"}
+            title={english ? "Commercial prices" : "Precios comerciales"}
             description={
               english
-                ? "Amounts before tax. A price is ready to sell only when it is connected to Stripe."
-                : "Importes antes de impuestos. Un precio está listo para vender sólo cuando está conectado con Stripe."
+                ? "Review monthly and annual prices together. Technical billing data remains inside the edit view."
+                : "Revisa juntos los precios mensual y anual. Los datos técnicos de cobro permanecen dentro de la edición."
             }
           >
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[820px]">
+              <table className="w-full min-w-[920px]">
                 <thead className="bg-slate-50 dark:bg-slate-900">
                   <tr>
                     {(
                       [
                         ["concept", english ? "Item" : "Concepto"],
                         ["type", english ? "Type" : "Tipo"],
-                        ["interval", english ? "Frequency" : "Periodicidad"],
-                        ["amount", english ? "Amount" : "Importe"],
-                        ["stripe", english ? "Billing connection" : "Conexión de cobro"],
-                        ["status", english ? "Readiness" : "Preparación"],
+                        ["monthly", english ? "Monthly" : "Mensual"],
+                        ["yearly", english ? "Annual" : "Anual"],
+                        ["status", english ? "Sales status" : "Estado de venta"],
                       ] as const
                     ).map(([key, label]) => (
                       <SortableCatalogPriceHeader
@@ -2632,28 +2695,30 @@ function CatalogTab({
                       />
                     ))}
                     <th className={`${tableHeadClass} text-right`}>
-                      {english ? "Action" : "Acción"}
+                      {english ? "Actions" : "Acciones"}
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {prices.map((price) => (
-                    <PriceRow
-                      key={price.id}
-                      price={price}
+                  {prices.map((group) => (
+                    <CatalogPriceGroupRow
+                      key={group.key}
+                      group={group}
                       english={english}
-                      onEdit={() => setEditing({ kind: "price", value: price })}
+                      onEdit={(price) =>
+                        setEditing({ kind: "price", value: price })
+                      }
                     />
                   ))}
                   {!prices.length ? (
                     <tr>
-                      <td colSpan={7}>
+                      <td colSpan={6}>
                         <EmptyRow
                           icon={CircleDollarSign}
                           text={
                             english
-                              ? "No rates match the selected filters."
-                              : "No hay tarifas que coincidan con los filtros."
+                              ? "No products match the selected filters."
+                              : "No hay productos que coincidan con los filtros."
                           }
                         />
                       </td>
@@ -2673,6 +2738,7 @@ function CatalogTab({
       {editing ? (
         <CatalogEditModal
           english={english}
+          modules={modules}
           target={editing}
           onCancel={() => setEditing(null)}
           onSave={saveEdit}
@@ -2688,89 +2754,120 @@ function CatalogTab({
   );
 }
 
-function PriceRow({
-  price,
+function CatalogPriceGroupRow({
+  group,
   english,
   onEdit,
 }: {
-  price: PlatformCatalogPrice;
+  group: CatalogPriceGroup;
   english: boolean;
-  onEdit: () => void;
+  onEdit: (price: PlatformCatalogPrice) => void;
 }) {
   return (
     <tr className="hover:bg-slate-50/80 dark:hover:bg-slate-800/60">
       <td className={tableCellClass}>
         <p className="font-medium text-slate-900 dark:text-white">
-          {offerLabels[price.billable_code] || price.billable_code}
+          {group.name}
         </p>
+        <p className="mt-0.5 text-xs text-slate-500">{group.currency}</p>
       </td>
       <td className={tableCellClass}>
-        {price.price_type === "ADDON"
-          ? english
-            ? "Add-on"
-            : "Complemento"
-          : english
-            ? "Package"
-            : "Paquete"}
+        {catalogPriceTypeLabel(group.priceType, english)}
       </td>
-      <td className={tableCellClass}>
-        {price.billing_interval === "YEAR"
-          ? english
-            ? "Annual"
-            : "Anual"
-          : english
-            ? "Monthly"
-            : "Mensual"}
-      </td>
-      <td
-        className={`${tableCellClass} font-medium text-slate-900 dark:text-white`}
-      >
-        {formatMoney(price.unit_amount_cents, price.currency, english)}
-      </td>
-      <td className={tableCellClass}>
-        {price.external_price_id ? (
-          <div>
-            <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-              {english ? "Connected" : "Conectado"}
-            </span>
-            <p className="mt-1 font-mono text-[10px] text-slate-400" title={price.external_price_id}>
-              {shortId(price.external_price_id)}
-            </p>
-          </div>
-        ) : (
-          <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
-            {english ? "Pending connection" : "Conexión pendiente"}
-          </span>
-        )}
-      </td>
+      <CatalogPriceVariantCell price={group.monthly} english={english} />
+      <CatalogPriceVariantCell price={group.yearly} english={english} />
       <td className={tableCellClass}>
         <span
-          className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${["ARCHIVED", "INACTIVE"].includes(price.status) ? "bg-slate-200 text-slate-600" : price.unit_amount_cents != null && price.external_price_id ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800"}`}
+          className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${group.status === "inactive" ? "bg-slate-200 text-slate-600" : group.status === "ready" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800"}`}
         >
-          {["ARCHIVED", "INACTIVE"].includes(price.status)
+          {group.status === "inactive"
             ? english
               ? "Inactive"
               : "Inactivo"
-            : price.unit_amount_cents != null && price.external_price_id
+            : group.status === "ready"
               ? english
-                ? "Ready to bill"
-                : "Listo para cobrar"
+                ? "Ready to sell"
+                : "Listo para vender"
               : english
                 ? "Needs review"
                 : "Requiere revisión"}
         </span>
       </td>
       <td className={`${tableCellClass} text-right`}>
-        <button
-          type="button"
-          onClick={onEdit}
-          className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-        >
-          <PencilLine className="h-3.5 w-3.5" />
-          {english ? "Edit" : "Editar"}
-        </button>
+        <IndiceTableActionGroup>
+          {group.monthly ? (
+            <button
+              type="button"
+              onClick={() => onEdit(group.monthly!)}
+              aria-label={english ? "Edit monthly price" : "Editar precio mensual"}
+              title={english ? "Edit monthly price" : "Editar precio mensual"}
+              className="inline-flex h-9 min-w-9 items-center justify-center gap-1 rounded-lg border border-blue-200 bg-white px-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-50"
+            >
+              <PencilLine className="h-3.5 w-3.5" />
+              M
+            </button>
+          ) : null}
+          {group.yearly ? (
+            <button
+              type="button"
+              onClick={() => onEdit(group.yearly!)}
+              aria-label={english ? "Edit annual price" : "Editar precio anual"}
+              title={english ? "Edit annual price" : "Editar precio anual"}
+              className="inline-flex h-9 min-w-9 items-center justify-center gap-1 rounded-lg border border-blue-200 bg-white px-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-50"
+            >
+              <PencilLine className="h-3.5 w-3.5" />
+              A
+            </button>
+          ) : null}
+        </IndiceTableActionGroup>
       </td>
     </tr>
+  );
+}
+
+function CatalogPriceVariantCell({
+  price,
+  english,
+}: {
+  price?: PlatformCatalogPrice;
+  english: boolean;
+}) {
+  if (!price) {
+    return (
+      <td className={tableCellClass}>
+        <span className="text-sm text-slate-400">
+          {english ? "Not configured" : "No configurado"}
+        </span>
+      </td>
+    );
+  }
+  const inactive = isInactiveCatalogPrice(price);
+  const ready = isReadyCatalogPrice(price);
+  return (
+    <td className={tableCellClass}>
+      <p className="font-medium text-slate-900 dark:text-white">
+        {formatMoney(price.unit_amount_cents, price.currency, english)}
+      </p>
+      <p
+        className={`mt-0.5 text-[11px] font-medium ${inactive ? "text-slate-400" : ready ? "text-emerald-700" : "text-amber-700"}`}
+      >
+        {inactive
+          ? english
+            ? "Inactive"
+            : "Inactivo"
+          : ready
+            ? english
+              ? "Ready"
+              : "Listo"
+            : price.unit_amount_cents == null
+              ? english
+                ? "Missing amount"
+                : "Falta importe"
+              : english
+                ? "Billing connection pending"
+                : "Falta conexión de cobro"}
+      </p>
+    </td>
   );
 }
 
@@ -2819,9 +2916,9 @@ function SortableCatalogPriceHeader({
   );
 }
 
-function compareCatalogPriceValues(
-  left: PlatformCatalogPrice,
-  right: PlatformCatalogPrice,
+function compareCatalogPriceGroupValues(
+  left: CatalogPriceGroup,
+  right: CatalogPriceGroup,
   key: CatalogPriceSortKey,
 ) {
   const text = (a: string | null | undefined, b: string | null | undefined) =>
@@ -2831,20 +2928,19 @@ function compareCatalogPriceValues(
     });
   switch (key) {
     case "concept":
-      return (
-        text(
-          offerLabels[left.billable_code] || left.billable_code,
-          offerLabels[right.billable_code] || right.billable_code,
-        ) || text(left.billing_interval, right.billing_interval)
-      );
+      return text(left.name, right.name) || text(left.currency, right.currency);
     case "type":
-      return text(left.price_type, right.price_type);
-    case "interval":
-      return text(left.billing_interval, right.billing_interval);
-    case "amount":
-      return (left.unit_amount_cents ?? 0) - (right.unit_amount_cents ?? 0);
-    case "stripe":
-      return text(left.external_price_id, right.external_price_id);
+      return text(left.priceType, right.priceType);
+    case "monthly":
+      return (
+        (left.monthly?.unit_amount_cents ?? -1) -
+        (right.monthly?.unit_amount_cents ?? -1)
+      );
+    case "yearly":
+      return (
+        (left.yearly?.unit_amount_cents ?? -1) -
+        (right.yearly?.unit_amount_cents ?? -1)
+      );
     case "status":
       return text(left.status, right.status);
   }
@@ -2852,6 +2948,7 @@ function compareCatalogPriceValues(
 
 function CatalogEditModal({
   english,
+  modules,
   target,
   saving,
   error,
@@ -2859,6 +2956,7 @@ function CatalogEditModal({
   onSave,
 }: {
   english: boolean;
+  modules: PlatformModule[];
   target: CatalogEditTarget;
   saving: boolean;
   error?: string | null;
@@ -2884,9 +2982,9 @@ function CatalogEditModal({
       eyebrow={english ? "Commercial catalog" : "Catálogo comercial"}
       title={
         product
-          ? english
-            ? "Configure product"
-            : "Configurar producto"
+          ? product.id <= 0
+            ? english ? "Create package" : "Crear paquete"
+            : english ? "Configure product" : "Configurar producto"
           : english
             ? "Configure price"
             : "Configurar precio"
@@ -2979,14 +3077,31 @@ function CatalogEditModal({
                   : "Son los módulos que recibe el cliente cuando selecciona este producto."}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
-                {product.capabilities.map((capability) => (
-                  <span
-                    key={capability}
-                    className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700"
-                  >
-                    {humanize(capability)}
-                  </span>
-                ))}
+                {modules.filter((module) => module.assignment_enabled).map((module) => {
+                  const selected = product.capabilities.includes(module.slug);
+                  return (
+                    <label key={module.id} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium ${selected ? "border-blue-300 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-700"}`}>
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        disabled={!module.is_active && !selected}
+                        onChange={(event) => setDraft({
+                          kind: "product",
+                          value: {
+                            ...product,
+                            capabilities: event.target.checked
+                              ? [...product.capabilities, module.slug]
+                              : product.capabilities.filter((capability) => capability !== module.slug),
+                          },
+                        })}
+                      />
+                      {module.name}
+                    </label>
+                  );
+                })}
+                {!modules.some((module) => module.assignment_enabled) ? (
+                  <span className="text-xs text-slate-500">{english ? "No assignable modules available." : "No hay módulos asignables disponibles."}</span>
+                ) : null}
               </div>
             </div>
             <label className="sm:col-span-2 flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-700">

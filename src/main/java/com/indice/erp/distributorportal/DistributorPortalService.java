@@ -40,7 +40,7 @@ public class DistributorPortalService {
             actor.userName(),
             "DISTRIBUTOR",
             normalize(actor.role()),
-            List.of("CONTRACTS_ACCESS", "CONSULTING", "SYSTEM_TICKETS")
+            List.of("CONTRACTS_ACCESS", "CONSULTING", "TRAINING", "SYSTEM_TICKETS")
         );
     }
 

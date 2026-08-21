@@ -170,6 +170,22 @@ public class PlatformAdminApiController {
         }
     }
 
+    @PostMapping("/catalog/products")
+    public ResponseEntity<?> createCatalogProduct(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody PlatformCatalogManagementService.ProductCreateRequest request
+    ) {
+        try {
+            var current = auth.currentUser(session).orElse(null);
+            if (current == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            csrf.requireCsrf(session, csrfToken);
+            return ResponseEntity.ok(catalogManagement.createProduct(current.userId(), request));
+        } catch (RuntimeException exception) {
+            return error(exception);
+        }
+    }
+
     @PatchMapping("/catalog/prices/{priceId}")
     public ResponseEntity<?> updateCatalogPrice(
         HttpSession session,

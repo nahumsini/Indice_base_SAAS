@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -126,8 +127,52 @@ public class PlatformCatalogManagementService {
             "UPDATE billing_catalog_products SET display_name = ?, sort_order = ?, active = ? WHERE id = ?",
             displayName, sortOrder, active, productId
         );
+        if (request != null && request.capabilities() != null) {
+            replaceCapabilities(productId, request.capabilities());
+        }
         audit.record(actorUserId, "CATALOG_PRODUCT_UPDATED", "BILLING_PRODUCT", Long.toString(productId), null, "SUCCESS", Map.of(
             "product_code", current.productCode(), "active", active, "display_name", displayName
+        ));
+        return productMap(product(productId));
+    }
+
+    @Transactional
+    public Map<String, Object> createProduct(long actorUserId, ProductCreateRequest request) {
+        accessService.require(actorUserId, "PLATFORM_MODULES_WRITE");
+        if (request == null || request.display_name() == null) {
+            throw new IllegalArgumentException("El nombre comercial es obligatorio.");
+        }
+        var displayName = request.display_name().trim();
+        if (displayName.length() < 2 || displayName.length() > 160) {
+            throw new IllegalArgumentException("El nombre comercial debe tener entre 2 y 160 caracteres.");
+        }
+        var draft = ensureDraft(actorUserId);
+        var draftId = ((Number) draft.get("id")).longValue();
+        var productCode = uniqueProductCode(draftId, displayName);
+        var sortOrder = request.sort_order() == null ? 500 : request.sort_order();
+        jdbcTemplate.update(
+            "INSERT INTO billing_catalog_products (catalog_version_id, product_code, display_name, product_type, sort_order, active) VALUES (?, ?, ?, 'ADDON', ?, ?)",
+            draftId, productCode, displayName, sortOrder, request.active() == null || request.active()
+        );
+        var productId = jdbcTemplate.queryForObject(
+            "SELECT id FROM billing_catalog_products WHERE catalog_version_id = ? AND BINARY product_code = BINARY ?",
+            Long.class, draftId, productCode
+        );
+        if (productId == null) throw new IllegalStateException("No se pudo crear el paquete.");
+        replaceCapabilities(productId, request.capabilities() == null ? List.of() : request.capabilities());
+        jdbcTemplate.update(
+            """
+                INSERT INTO billing_catalog_prices (
+                    catalog_version_id, catalog_product_id, billable_code, price_type,
+                    billing_interval, currency, unit_amount_cents, included_quantity,
+                    external_price_id, status
+                ) VALUES (?, ?, ?, 'ADDON', 'MONTH', 'USD', NULL, 1, NULL, 'DRAFT'),
+                         (?, ?, ?, 'ADDON', 'YEAR', 'USD', NULL, 1, NULL, 'DRAFT')
+                """,
+            draftId, productId, productCode, draftId, productId, productCode
+        );
+        audit.record(actorUserId, "CATALOG_PRODUCT_CREATED", "BILLING_PRODUCT", Long.toString(productId), null, "SUCCESS", Map.of(
+            "product_code", productCode, "display_name", displayName
         ));
         return productMap(product(productId));
     }
@@ -386,7 +431,7 @@ public class PlatformCatalogManagementService {
             }
         }
         var products = jdbcTemplate.query(
-            "SELECT id, product_code, display_name FROM billing_catalog_products WHERE catalog_version_id = ? AND active = 1 AND product_type = 'ADDON'",
+            "SELECT id, product_code, display_name FROM billing_catalog_products WHERE catalog_version_id = ? AND active = 1 AND product_type IN ('ADDON', 'PACKAGE')",
             (rs, rowNum) -> Map.<String, Object>of("id", rs.getLong(1), "code", rs.getString(2), "name", rs.getString(3)),
             versionId
         );
@@ -490,6 +535,38 @@ public class PlatformCatalogManagementService {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
+    private void replaceCapabilities(long productId, List<String> rawCapabilities) {
+        var capabilities = new LinkedHashSet<String>();
+        for (var rawCapability : rawCapabilities) {
+            var capability = rawCapability == null ? "" : rawCapability.trim();
+            if (!capability.matches("[A-Za-z0-9_.-]{1,80}")) {
+                throw new IllegalArgumentException("Uno de los módulos incluidos no es válido.");
+            }
+            capabilities.add(capability);
+        }
+        jdbcTemplate.update("DELETE FROM billing_product_capabilities WHERE product_id = ?", productId);
+        capabilities.forEach(capability -> jdbcTemplate.update(
+            "INSERT INTO billing_product_capabilities (product_id, capability_code) VALUES (?, ?)",
+            productId, capability
+        ));
+    }
+
+    private String uniqueProductCode(long versionId, String displayName) {
+        var base = displayName.toLowerCase(Locale.ROOT)
+            .replaceAll("[^a-z0-9]+", "_")
+            .replaceAll("^_+|_+$", "");
+        if (base.isBlank()) base = "paquete";
+        if (base.length() > 68) base = base.substring(0, 68);
+        base = "package_" + base;
+        var candidate = base;
+        var suffix = 2;
+        while (Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+            "SELECT EXISTS(SELECT 1 FROM billing_catalog_products WHERE catalog_version_id = ? AND BINARY product_code = BINARY ?)",
+            Boolean.class, versionId, candidate
+        ))) candidate = base + "_" + suffix++;
+        return candidate;
+    }
+
     private VersionRow version(long versionId) {
         return jdbcTemplate.query(
             "SELECT id, version_code, status FROM billing_catalog_versions WHERE id = ?",
@@ -502,7 +579,13 @@ public class PlatformCatalogManagementService {
         return Map.of("id", id, "version_code", code, "status", status, "stripe_mode", "TEST");
     }
 
-    public record ProductUpdateRequest(String display_name, Integer sort_order, Boolean active) {
+    public record ProductUpdateRequest(String display_name, Integer sort_order, Boolean active, List<String> capabilities) {
+        public ProductUpdateRequest(String display_name, Integer sort_order, Boolean active) {
+            this(display_name, sort_order, active, null);
+        }
+    }
+
+    public record ProductCreateRequest(String display_name, Integer sort_order, Boolean active, List<String> capabilities) {
     }
 
     public record PriceUpdateRequest(Long unit_amount_cents, String external_price_id, String status) {

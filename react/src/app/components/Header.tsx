@@ -11,7 +11,7 @@ import {
 import { useLanguage, languages } from '../shared/context';
 import { NotificationCenter } from './NotificationCenter';
 import { useEffect, useState } from 'react';
-import { authApi } from '../api/auth';
+import { authApi, type PublicDemoCompany } from '../api/auth';
 import type { AuthSessionResponse } from '../api/auth.types';
 import { platformAdminApi } from '../api/platformAdmin';
 import { configCenterApi, type ConfigCenterCurrentUser } from '../api/configCenter';
@@ -61,6 +61,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
   const [companySwitchError, setCompanySwitchError] = useState('');
   const [managedContext, setManagedContext] = useState<ManagedCompanyContext | null>(null);
   const [managedSearch, setManagedSearch] = useState('');
+  const [publicDemoCompanies, setPublicDemoCompanies] = useState<PublicDemoCompany[]>([]);
   const notifications = useNotifications();
 
   useEffect(() => {
@@ -87,6 +88,15 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
         }
         if (!session) {
           return;
+        }
+        if (!session.demoMode && session.company.commercial_account_type === 'DISTRIBUTOR') {
+          authApi.getPublicDemos()
+            .then((response) => {
+              if (active) setPublicDemoCompanies(response.companies);
+            })
+            .catch(() => {
+              if (active) setPublicDemoCompanies([]);
+            });
         }
         managedCompanyApi.context()
           .then((context) => {
@@ -188,11 +198,14 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
   const managedCompanies = (managedContext?.companies ?? [])
     .filter((company) => !directCompanyIds.has(company.id))
     .filter((company) => company.name.toLocaleLowerCase().includes(managedSearch.trim().toLocaleLowerCase()));
+  const matchingPublicDemoCompanies = publicDemoCompanies
+    .filter((company) => company.name.toLocaleLowerCase().includes(managedSearch.trim().toLocaleLowerCase()));
   const isBillingPage = location.pathname === '/billing' || location.pathname.startsWith('/billing/');
   const visibleManagedCompany = isBillingPage ? managedContext?.active_company : null;
   const visibleCompanyName = visibleManagedCompany?.name ?? authSession?.company.name ?? '';
   const canSelectCompany = (authSession?.companies?.length ?? 0) > 1
-    || (managedContext?.companies?.length ?? 0) > 0;
+    || (managedContext?.companies?.length ?? 0) > 0
+    || (isDistributorAccount && publicDemoCompanies.length > 0);
 
   const handleLogout = async () => {
     if (isLoggingOut) {
@@ -247,6 +260,13 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
         : 'The client account could not be opened.');
       setSwitchingCompanyId(null);
     }
+  };
+
+  const handlePublicDemoSelect = (companyId: number) => {
+    if (switchingCompanyId) return;
+    setSwitchingCompanyId(companyId);
+    setCompanySwitchError('');
+    window.location.assign(`/demo?companyId=${encodeURIComponent(companyId)}`);
   };
 
   const openNotificationCenter = () => {
@@ -401,6 +421,54 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                       {!managedCompanies.length ? (
                         <p className="px-3 py-3 text-xs text-slate-500">
                           {currentLanguage.code.startsWith('es') ? 'No hay clientes que coincidan.' : 'No matching clients.'}
+                        </p>
+                      ) : null}
+                    </>
+                  ) : null}
+                  {isDistributorAccount && publicDemoCompanies.length > 0 ? (
+                    <>
+                      <DropdownMenuSeparator />
+                      <div className="px-2 pb-2 pt-1">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">
+                          {currentLanguage.code.startsWith('es') ? 'Demos para presentaciones' : 'Presentation demos'}
+                        </p>
+                        <p className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+                          <MonitorSmartphone className="h-3.5 w-3.5" />
+                          {currentLanguage.code.startsWith('es') ? 'Escenarios públicos · Datos ficticios' : 'Public scenarios · Fictitious data'}
+                        </p>
+                      </div>
+                      {(managedContext?.companies?.length ?? 0) === 0 ? (
+                        <div className="relative mb-2 px-1">
+                          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                          <input
+                            value={managedSearch}
+                            onChange={(event) => setManagedSearch(event.target.value)}
+                            onKeyDown={(event) => event.stopPropagation()}
+                            placeholder={currentLanguage.code.startsWith('es') ? 'Buscar demostración' : 'Search demo'}
+                            aria-label={currentLanguage.code.startsWith('es') ? 'Buscar demostración' : 'Search demo'}
+                            className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-900"
+                          />
+                        </div>
+                      ) : null}
+                      {matchingPublicDemoCompanies.map((company) => (
+                        <DropdownMenuItem
+                          key={`public-demo-${company.id}`}
+                          className="cursor-pointer gap-3 rounded-xl px-3 py-3"
+                          disabled={switchingCompanyId !== null}
+                          onClick={() => handlePublicDemoSelect(company.id)}
+                        >
+                          <MonitorSmartphone className="h-4 w-4 shrink-0 text-emerald-600" />
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm font-semibold">{company.name}</div>
+                            <div className="truncate text-xs text-gray-500">
+                              {currentLanguage.code.startsWith('es') ? 'Abrir acceso demo' : 'Open demo access'}
+                            </div>
+                          </div>
+                        </DropdownMenuItem>
+                      ))}
+                      {!matchingPublicDemoCompanies.length ? (
+                        <p className="px-3 py-3 text-xs text-slate-500">
+                          {currentLanguage.code.startsWith('es') ? 'No hay demostraciones que coincidan.' : 'No matching demos.'}
                         </p>
                       ) : null}
                     </>
