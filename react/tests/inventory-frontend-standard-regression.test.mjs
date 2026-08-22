@@ -200,3 +200,17 @@ test('El shell de Inventarios mantiene navegacion, idioma y modo aprendiz cohere
   assert.match(createPurchaseOrderSource, /bulkInput\.split/);
   assert.match(createPurchaseOrderSource, /onUpdate\?\.\(line\.id, 'quantity'/);
 });
+
+test('La entrada de inventario carga productos por categoría y cantidad antes de afectar existencias', () => {
+  const addInventorySource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Inventory/components/movements/AddInventoryModal.tsx'), 'utf8');
+  const productLinesSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Inventory/components/movements/MovementProductLines.tsx'), 'utf8');
+
+  assert.match(addInventorySource, /items: initialProductId \? \[createMovementProductLine\(initialProductId\)\] : \[\]/);
+  assert.match(productLinesSource, /categoryFilter/);
+  assert.match(productLinesSource, /Todas las categorías/);
+  assert.match(productLinesSource, /stagedQuantities/);
+  assert.match(productLinesSource, /Cargar seleccionados al modal/);
+  assert.match(productLinesSource, /Esta acción sólo los carga al borrador del modal/);
+  assert.match(productLinesSource, /Number\.isInteger\(quantity\) && quantity > 0/);
+  assert.match(productLinesSource, /onItemsChange\(normalizedItems\)/);
+});

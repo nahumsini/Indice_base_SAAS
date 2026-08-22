@@ -122,7 +122,13 @@ export function SalesDataStateBoundary({ children }: { children: ReactNode }) {
   }
 
   const notice = syncIssue
-    ? { title: copy.syncErrorTitle, description: copy.syncErrorDescription, tone: 'error' as const }
+    ? {
+      title: copy.syncErrorTitle,
+      description: syncIssue.message
+        ? `${copy.syncErrorDescription} ${syncIssue.message}`
+        : copy.syncErrorDescription,
+      tone: 'error' as const,
+    }
     : hasPartialData
       ? { title: copy.partialTitle, description: copy.partialDescription, tone: 'warning' as const }
       : null;

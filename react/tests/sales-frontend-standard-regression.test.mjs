@@ -237,6 +237,43 @@ test('Productos conserva POS listo al recargar y el ticket muestra la unidad con
   assert.doesNotMatch(ticketSource, />uds<\/span>/);
 });
 
+test('Productos permite integración masiva pegando filas desde Excel sin duplicar reintentos', () => {
+  const pageSource = readFileSync(resolve(salesRoot, 'Productos/Productos.tsx'), 'utf8');
+  const headerSource = readFileSync(resolve(salesRoot, 'Productos/components/ProductsHeader.tsx'), 'utf8');
+  const modalSource = readFileSync(resolve(salesRoot, 'Productos/components/ProductBulkIntegrationModal.tsx'), 'utf8');
+  const catalogHookSource = readFileSync(resolve(salesRoot, 'Productos/hooks/useProductsCatalog.ts'), 'utf8');
+  const contextSource = readFileSync(resolve(salesRoot, 'salesCrmContext.tsx'), 'utf8');
+
+  assert.match(headerSource, /Integración masiva de productos/);
+  assert.match(pageSource, /<ProductBulkIntegrationModal/);
+  assert.match(modalSource, /event\.clipboardData\.getData\('text'\)/);
+  assert.match(modalSource, /row\.split\('\\t'\)/);
+  assert.match(modalSource, /Nombre del producto/);
+  assert.match(modalSource, /Precio final de venta/);
+  assert.match(modalSource, /Costo/);
+  assert.match(modalSource, /SKU/);
+  assert.match(modalSource, /Categoría/);
+  assert.match(modalSource, /Tipo/);
+  assert.match(modalSource, /Estado/);
+  assert.match(modalSource, /skuDuplicate/);
+  assert.match(modalSource, /Editar productos existentes/);
+  assert.match(modalSource, /No se guardará nada mientras exista una celda con errores/);
+  assert.match(modalSource, /invalidRows\.length > 0/);
+  assert.match(modalSource, /parseMoney/);
+  assert.match(modalSource, /divisa preferida actual/);
+  assert.match(modalSource, /preferredCurrency/);
+  assert.match(modalSource, /result\.failedRows\.map/);
+  assert.match(catalogHookSource, /await createProductRecord\(buildProductInput/);
+  assert.match(catalogHookSource, /handleBulkUpdateProducts/);
+  assert.match(catalogHookSource, /await updateProductRecord\(draft\.id/);
+  assert.match(catalogHookSource, /El servidor no confirmó el identificador del producto creado/);
+  assert.match(catalogHookSource, /currentProduct\?\.backendId/);
+  assert.match(contextSource, /current\.filter\(\(item\) => item\.id !== createdProduct\.id\)/);
+  assert.match(contextSource, /product\.id === productId \? currentProduct : product/);
+  assert.match(catalogHookSource, /currency: preferredCurrency\.trim\(\)\.toUpperCase\(\)/);
+  assert.match(contextSource, /-TMP-\$\{Date\.now\(\)\}/);
+});
+
 test('Modo aprendiz cubre todas las pestañas visibles de Ventas y Comisiones usa la barra compartida', () => {
   const salesModuleSource = readFileSync(resolve(salesRoot, 'Ventas.tsx'), 'utf8');
   const guidanceTypeSource = readFileSync(resolve(salesRoot, 'operationalGuidance/types.ts'), 'utf8');

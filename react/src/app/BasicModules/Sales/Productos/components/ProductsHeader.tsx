@@ -2,6 +2,7 @@ import {
   Columns3,
   FolderCog,
   Globe2,
+  Sheet,
   Plus,
 } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
@@ -15,6 +16,7 @@ import type { ProductsTranslations } from '../translations';
 type ProductsHeaderProps = {
   t: ProductsTranslations;
   onCreateProduct: () => void;
+  onOpenBulkIntegration: () => void;
   onOpenCategoryManager: () => void;
   onOpenColumns: () => void;
   onOpenPublicCatalog: () => void;
@@ -23,6 +25,7 @@ type ProductsHeaderProps = {
 export function ProductsHeader({
   t,
   onCreateProduct,
+  onOpenBulkIntegration,
   onOpenCategoryManager,
   onOpenColumns,
   onOpenPublicCatalog,
@@ -35,6 +38,14 @@ export function ProductsHeader({
       subtitle={t.header.subtitle}
       actions={(
         <>
+          <Button
+            variant="outline"
+            className={salesTitleBarSecondaryActionClassName}
+            onClick={onOpenBulkIntegration}
+          >
+            <Sheet className="h-4 w-4" />
+            Integración masiva de productos
+          </Button>
           <Button
             variant="outline"
             className={salesTitleBarSecondaryActionClassName}
