@@ -10,6 +10,7 @@ export interface CatalogProduct {
   name: string;
   description: string;
   saleType: 'unit' | 'bulk' | 'package';
+  unitLabel?: string;
   costPrice: number;
   profitMargin: number;
   salePrice: number;

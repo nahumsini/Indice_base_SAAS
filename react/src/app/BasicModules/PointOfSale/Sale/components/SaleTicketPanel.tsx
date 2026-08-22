@@ -149,7 +149,7 @@ export function SaleTicketPanel({
                     <div data-pos-ticket-item-summary className="flex min-w-0 flex-1 items-center gap-2.5">
                       <div data-pos-ticket-quantity className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-lg bg-[#F4C84A]/25 text-[#222831] dark:bg-[#F4C84A]/15 dark:text-[#F4C84A]">
                         <span className="text-lg font-medium leading-none">{item.quantity}</span>
-                        <span className="text-[10px] font-medium leading-none">uds</span>
+                        <span className="text-[10px] font-medium leading-none">{product?.unitLabel ?? 'uds'}</span>
                       </div>
 
                       <div

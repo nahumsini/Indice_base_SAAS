@@ -31,6 +31,8 @@ public abstract class ConfigCenterProfileUseCases extends ConfigCenterSupport {
                 SELECT u.id,
                        u.email,
                        COALESCE(NULLIF(p.full_name, ''), COALESCE(u.full_name, '')) AS full_name,
+                       COALESCE(p.given_names, '') AS given_names,
+                       COALESCE(p.family_names, '') AS family_names,
                        COALESCE(p.phone, '') AS phone,
                        COALESCE(p.country, '') AS country,
                        COALESCE(p.preferred_language, 'es-419') AS preferred_language,
@@ -44,7 +46,11 @@ public abstract class ConfigCenterProfileUseCases extends ConfigCenterSupport {
                 """,
             (rs, rowNum) -> {
                 var fullName = safe(rs.getString("full_name"));
-                var parsed = splitFullName(fullName);
+                var storedGivenNames = safe(rs.getString("given_names")).trim();
+                var storedFamilyNames = safe(rs.getString("family_names")).trim();
+                var parsed = storedGivenNames.isBlank() && storedFamilyNames.isBlank()
+                    ? splitFullName(fullName)
+                    : new com.indice.erp.configcenter.support.NameParts(storedGivenNames, storedFamilyNames);
                 var avatarObjectKey = safe(rs.getString("avatar_object_key"));
                 var avatarUrl = firstNonBlank(
                     safe(signedProfileAvatarUrl(avatarObjectKey)),
@@ -147,6 +153,8 @@ public abstract class ConfigCenterProfileUseCases extends ConfigCenterSupport {
         var hasPasswordChange = !newPassword.isBlank() || !confirmNewPassword.isBlank();
 
         var fullName = joinParts(firstName, secondName, lastName, maternalLastName);
+        var givenNames = joinParts(firstName, secondName);
+        var familyNames = joinParts(lastName, maternalLastName);
         if (fullName.isBlank()) {
             throw new IllegalArgumentException("At least one name field is required.");
         }
@@ -175,10 +183,12 @@ public abstract class ConfigCenterProfileUseCases extends ConfigCenterSupport {
             jdbcTemplate.update(
                 """
                     INSERT INTO user_profiles
-                    (user_id, full_name, phone, country, preferred_language, avatar_url, avatar_object_key, avatar_content_type, avatar_updated_at)
-                    VALUES (?, ?, ?, ?, ?, NULL, ?, ?, CURRENT_TIMESTAMP)
+                    (user_id, full_name, given_names, family_names, phone, country, preferred_language, avatar_url, avatar_object_key, avatar_content_type, avatar_updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, CURRENT_TIMESTAMP)
                     ON DUPLICATE KEY UPDATE
                         full_name = VALUES(full_name),
+                        given_names = VALUES(given_names),
+                        family_names = VALUES(family_names),
                         phone = VALUES(phone),
                         country = VALUES(country),
                         preferred_language = VALUES(preferred_language),
@@ -189,6 +199,8 @@ public abstract class ConfigCenterProfileUseCases extends ConfigCenterSupport {
                     """,
                 userId,
                 fullName,
+                nullable(givenNames),
+                nullable(familyNames),
                 nullable(phone),
                 nullable(country),
                 preferredLanguage,
@@ -203,16 +215,20 @@ public abstract class ConfigCenterProfileUseCases extends ConfigCenterSupport {
         } else {
             jdbcTemplate.update(
                 """
-                    INSERT INTO user_profiles (user_id, full_name, phone, country, preferred_language)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO user_profiles (user_id, full_name, given_names, family_names, phone, country, preferred_language)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE
                         full_name = VALUES(full_name),
+                        given_names = VALUES(given_names),
+                        family_names = VALUES(family_names),
                         phone = VALUES(phone),
                         country = VALUES(country),
                         preferred_language = VALUES(preferred_language)
                     """,
                 userId,
                 fullName,
+                nullable(givenNames),
+                nullable(familyNames),
                 nullable(phone),
                 nullable(country),
                 preferredLanguage

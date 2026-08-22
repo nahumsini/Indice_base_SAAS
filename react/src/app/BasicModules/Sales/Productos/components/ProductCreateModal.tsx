@@ -54,7 +54,7 @@ export function ProductCreateModal({
   const [stepError, setStepError] = useState('');
   const previewProduct = useMemo(() => buildPreviewProduct(form), [form]);
   const isEditMode = mode === 'edit';
-  const stepOrder: ProductModalWizardStepId[] = ['basics', 'commercial', 'review'];
+  const stepOrder: ProductModalWizardStepId[] = ['basics', 'commercial', 'availability', 'review'];
   const activeStepIndex = stepOrder.indexOf(activeStep);
 
   const typeOptions = productTypes.map((type) => ({ value: type, label: t.typeLabels[type] }));
@@ -94,6 +94,11 @@ export function ProductCreateModal({
       if (!form.sku.trim()) {
         onFormChange((current) => ({ ...current, sku: createAutomaticSku(current) }));
       }
+    }
+
+    if (activeStep === 'commercial' && form.visibility !== 'Internal' && Number(form.price) <= 0) {
+      setStepError(t.form.validationMissingRequired(t.priceBuilder.finalSalePrice));
+      return;
     }
 
     setStepError('');

@@ -1,14 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
-import { ChevronDown, SlidersHorizontal } from 'lucide-react';
-import {
-  IndiceModalWizardStepper,
-  type IndiceModalWizardStep,
-} from '../../../../../components/indice-modal';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '../../../../../components/ui/collapsible';
+import { AlertTriangle } from 'lucide-react';
+import { IndiceModalWizardStepper, type IndiceModalWizardStep } from '../../../../../components/indice-modal';
 import type { ProductsTranslations } from '../../translations';
 import type { SalesCatalogItem } from '../../../types';
 import type { ProductCategoryConfig } from '../../types/productCategoryTypes';
@@ -70,7 +62,7 @@ export function ProductModalTabs({
 }) {
   const steps: IndiceModalWizardStep<ProductModalWizardStepId>[] = productModalWizardStepIds.map((stepId) => ({
     id: stepId,
-    label: t.productWizard.steps[stepId],
+    label: stepId === 'availability' ? t.usage.title : t.productWizard.steps[stepId],
   }));
 
   return (
@@ -126,6 +118,30 @@ export function ProductModalTabs({
         </div>
       ) : null}
 
+      {activeStep === 'availability' ? (
+        <div className="space-y-4">
+          <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <StepHeading
+              title={t.usage.title}
+              description={t.usage.description}
+            />
+            <ProductUsageReadinessSection form={form} t={t} onFormChange={onFormChange} />
+          </section>
+
+          {form.usesInventory && !form.visibility.includes('POS') ? (
+            <div className="flex gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+              <div>
+                <p className="font-medium">{t.usage.labels.inventory}: {t.usage.ready}</p>
+                <p className="mt-1 text-sm leading-6">
+                  {t.usage.labels.pos}: {t.usage.notReady}. {t.usage.toggles.readyForPOS.description}
+                </p>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       {activeStep === 'review' ? (
         <div className="space-y-4">
           <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
@@ -135,26 +151,6 @@ export function ProductModalTabs({
             />
             <ProductMediaSection form={form} t={t} onFormChange={onFormChange} />
           </section>
-
-          <Collapsible>
-            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-              <CollapsibleTrigger className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left sm:px-5 [&[data-state=open]>svg]:rotate-180">
-                <span className="flex min-w-0 items-start gap-3">
-                  <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#FF6B5E]/10 text-[#B63B32]">
-                    <SlidersHorizontal className="h-4 w-4" />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium text-slate-950">{t.productWizard.usageOptions}</span>
-                    <span className="mt-0.5 block text-xs leading-5 text-slate-500">{t.productWizard.usageOptionsDescription}</span>
-                  </span>
-                </span>
-                <ChevronDown className="h-5 w-5 shrink-0 text-slate-400 transition-transform" />
-              </CollapsibleTrigger>
-              <CollapsibleContent className="border-t border-slate-100 p-4 sm:p-5">
-                <ProductUsageReadinessSection form={form} t={t} onFormChange={onFormChange} />
-              </CollapsibleContent>
-            </section>
-          </Collapsible>
 
           <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <StepHeading

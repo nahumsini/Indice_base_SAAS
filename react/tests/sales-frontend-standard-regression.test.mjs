@@ -213,6 +213,30 @@ test('Productos expone el control de inventario desde el primer paso y lo reflej
   assert.match(catalogHookSource, /t\.inventoryTracking\.filterSuffix/);
 });
 
+test('el wizard de Productos hace visible la publicación en POS y advierte inventario no publicado', () => {
+  const modalSource = readFileSync(resolve(salesRoot, 'Productos/components/ProductCreateModal.tsx'), 'utf8');
+  const tabsSource = readFileSync(resolve(salesRoot, 'Productos/components/product-modal/ProductModalTabs.tsx'), 'utf8');
+  const constantsSource = readFileSync(resolve(salesRoot, 'Productos/components/product-modal/productModalConstants.ts'), 'utf8');
+
+  assert.match(constantsSource, /'basics',[\s\S]*'commercial',[\s\S]*'availability',[\s\S]*'review'/);
+  assert.match(modalSource, /activeStep === 'commercial'.*form\.visibility !== 'Internal'.*Number\(form\.price\) <= 0/);
+  assert.match(tabsSource, /activeStep === 'availability'/);
+  assert.match(tabsSource, /form\.usesInventory && !form\.visibility\.includes\('POS'\)/);
+  assert.doesNotMatch(tabsSource, /<Collapsible>/);
+});
+
+test('Productos conserva POS listo al recargar y el ticket muestra la unidad configurada', () => {
+  const adaptersSource = readFileSync(resolve(salesRoot, 'adapters/salesApiAdapters.ts'), 'utf8');
+  const posCatalogSource = readFileSync(resolve(root, 'src/app/BasicModules/CommerceCore/posCatalog.ts'), 'utf8');
+  const ticketSource = readFileSync(resolve(root, 'src/app/BasicModules/PointOfSale/Sale/components/SaleTicketPanel.tsx'), 'utf8');
+
+  assert.match(adaptersSource, /pos_ready: 'POS ready'/);
+  assert.match(posCatalogSource, /Kilogram: 'kg'/);
+  assert.match(posCatalogSource, /packaging\.saleUnit === 'Unit' \? packaging\.baseUnit : packaging\.saleUnit/);
+  assert.match(ticketSource, /product\?\.unitLabel \?\? 'uds'/);
+  assert.doesNotMatch(ticketSource, />uds<\/span>/);
+});
+
 test('Modo aprendiz cubre todas las pestañas visibles de Ventas y Comisiones usa la barra compartida', () => {
   const salesModuleSource = readFileSync(resolve(salesRoot, 'Ventas.tsx'), 'utf8');
   const guidanceTypeSource = readFileSync(resolve(salesRoot, 'operationalGuidance/types.ts'), 'utf8');

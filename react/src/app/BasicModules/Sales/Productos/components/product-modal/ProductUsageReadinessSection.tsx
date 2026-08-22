@@ -54,11 +54,6 @@ export function ProductUsageReadinessSection({
 
   return (
     <section className="space-y-4">
-      <div className="rounded-lg border border-[#FF6B5E]/15 bg-[#FF6B5E]/5 p-4">
-        <h3 className="text-base font-medium text-slate-950">{t.usage.title}</h3>
-        <p className="mt-1 text-sm font-medium leading-6 text-slate-500">{t.usage.description}</p>
-      </div>
-
       <div className="grid gap-3 md:grid-cols-3">
         <ToggleRow
           label={t.usage.toggles.activeItem.label}
