@@ -33,18 +33,6 @@ export function ExpensesFilters({ businessOptions, businessUnitOptions, filtered
     >
         <SearchFilter filters={filters} placeholder={t.expenses.searchPlaceholder} searchLabel={t.common.search} onFiltersChange={onFiltersChange} />
         <SelectFilter
-          label={t.filters.unit}
-          value={filters.businessUnitFilter}
-          onChange={(value) => onFiltersChange(updateFilter(filters, 'businessUnitFilter', value))}
-          options={businessUnitOptions.map(option => [option.value, option.label])}
-        />
-        <SelectFilter
-          label={t.filters.business}
-          value={filters.businessFilter}
-          onChange={(value) => onFiltersChange(updateFilter(filters, 'businessFilter', value))}
-          options={businessOptions.map(option => [option.value, option.label])}
-        />
-        <SelectFilter
           label={t.filters.period}
           value={filters.periodFilter}
           onChange={(value) => onFiltersChange(updateFilter(filters, 'periodFilter', value as PeriodFilter))}
@@ -76,6 +64,18 @@ export function ExpensesFilters({ businessOptions, businessUnitOptions, filtered
           value={filters.providerFilter}
           onChange={(value) => onFiltersChange(updateFilter(filters, 'providerFilter', value))}
           options={providers.map(provider => [provider.id, provider.name])}
+        />
+        <SelectFilter
+          label={t.filters.unit}
+          value={filters.businessUnitFilter}
+          onChange={(value) => onFiltersChange(updateFilter(filters, 'businessUnitFilter', value))}
+          options={businessUnitOptions.map(option => [option.value, option.label])}
+        />
+        <SelectFilter
+          label={t.filters.business}
+          value={filters.businessFilter}
+          onChange={(value) => onFiltersChange(updateFilter(filters, 'businessFilter', value))}
+          options={businessOptions.map(option => [option.value, option.label])}
         />
     </IndiceFilterBar>
   );

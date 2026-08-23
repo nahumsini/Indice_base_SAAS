@@ -6,6 +6,7 @@ export const enCA = {
   title: 'Employees',
   subtitle: 'Employee records, assignments, schedules, and payroll context',
   addEmployee: 'Add employee',
+  bulkIntegration: 'Bulk integration',
   configureColumns: 'Columns',
   preferredCurrency: 'Preferred currency',
   exchangeRates: {

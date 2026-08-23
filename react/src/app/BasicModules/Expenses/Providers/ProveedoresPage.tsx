@@ -21,6 +21,7 @@ import { ProvidersFilterBar } from './components/ProvidersFilterBar';
 import { ProvidersHeaderBanner, type ProvidersHeaderVariant } from './components/ProvidersHeaderBanner';
 import { ProvidersTable } from './components/ProvidersTable';
 import { ProviderKioskAccessModal } from './components/ProviderKioskAccessModal';
+import { PayablesKioskManagementModal } from '../components/modals/PayablesKioskManagementModal';
 import {
   type ProviderRecord,
   type ProviderFormValues,
@@ -102,6 +103,7 @@ export default function ProveedoresPage({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isQuickCreateModalOpen, setIsQuickCreateModalOpen] = useState(false);
   const [isSupplierPortalOpen, setIsSupplierPortalOpen] = useState(false);
+  const [isPayablesKioskManagementOpen, setIsPayablesKioskManagementOpen] = useState(false);
   const [supplierPortalSaving, setSupplierPortalSaving] = useState(false);
   const [supplierPortalAccess, setSupplierPortalAccess] = useState<SupplierPortalAccess[]>([]);
   const [supplierPortalProviders, setSupplierPortalProviders] = useState<ProviderOption[]>([]);
@@ -252,6 +254,7 @@ export default function ProveedoresPage({
         icon={headerIcon}
         onAddProvider={() => setIsCreateModalOpen(true)}
         onConfigureColumns={() => setIsColumnsModalOpen(true)}
+        onManagePayablesKiosks={() => setIsPayablesKioskManagementOpen(true)}
         onManageSupplierPortal={() => void openSupplierPortal()}
         subtitle={headerSubtitle}
         title={headerTitle}
@@ -307,6 +310,14 @@ export default function ProveedoresPage({
         onClose={() => setAccessProvider(null)}
         onError={setFailureToastMessage}
         onSuccess={setSuccessToastMessage}
+      />
+      <PayablesKioskManagementModal
+        businessOptions={businessOptions}
+        isOpen={isPayablesKioskManagementOpen}
+        onClose={() => setIsPayablesKioskManagementOpen(false)}
+        onError={setFailureToastMessage}
+        onSuccess={setSuccessToastMessage}
+        unitOptions={unitOptions}
       />
       {isSupplierPortalOpen ? (
         <SupplierPortalAccessModal

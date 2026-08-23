@@ -8,6 +8,7 @@ import { EmployeesFeedbackLayer } from './components/EmployeesFeedbackLayer';
 import { EmployeesHeaderActions } from './components/EmployeesHeaderActions';
 import { EmployeesTableSection } from './components/EmployeesTableSection';
 import type { EmployeeDocumentType } from './components/CreateEmployeeModal';
+import type { BulkEmployeePayload } from './components/EmployeeBulkIntegrationModal';
 import { OperationalBulkActionsBar, useRowSelection } from '../../shared/operational';
 import { EmployeeAccessActions } from '../Control/components/EmployeeAccessActions';
 import { useLanguage } from '../../../shared/context';
@@ -91,6 +92,7 @@ export default function Employees({ learningModeActive = false }: EmployeesProps
     visibleColumns,
   } = useEmployeesColumns(copy);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
+  const [isBulkIntegrationModalOpen, setIsBulkIntegrationModalOpen] = useState(false);
   const [loadingOverlayTitle, setLoadingOverlayTitle] = useState<string>(copy.loadingTitle);
   const [loadingOverlayDescription, setLoadingOverlayDescription] = useState<string>(copy.loadingDescription);
   const [successToastMessage, setSuccessToastMessage] = useState('');
@@ -278,6 +280,18 @@ export default function Employees({ learningModeActive = false }: EmployeesProps
       employees: selectedEmployees,
     });
   }, [copy, selectedEmployees]);
+  const handleBulkIntegration = useCallback(async (items: BulkEmployeePayload[]) => {
+    setFailureToastMessage('');
+    try {
+      const result = await humanResourcesApi.createHrUsersBulk(items);
+      await refreshEmployees();
+      setSuccessToastMessage(`${result.count} colaboradores creados correctamente.`);
+    } catch (error) {
+      const message = normalizeErrorMessage(error, 'No se pudo completar la integración masiva.');
+      setFailureToastMessage(message);
+      throw new Error(message);
+    }
+  }, [refreshEmployees]);
   const loadEmployeeAccessProfiles = useCallback(async () => {
     try {
       const response = await humanResourcesApi.listAttendanceAccessProfiles();
@@ -370,9 +384,11 @@ export default function Employees({ learningModeActive = false }: EmployeesProps
       <div ref={employeesContentRef} className="scroll-mt-24">
       <EmployeesHeaderActions
         addEmployeeLabel={copy.addEmployee}
+        bulkIntegrationLabel={copy.bulkIntegration}
         configureColumnsLabel={copy.configureColumns}
         headingIcon={<span className="text-2xl">👥</span>}
         onConfigureColumns={() => setIsColumnsModalOpen(true)}
+        onOpenBulkIntegration={() => setIsBulkIntegrationModalOpen(true)}
         onCreateEmployee={openCreateEmployeeModal}
         subtitle={copy.subtitle}
         title={copy.title}
@@ -532,14 +548,17 @@ export default function Employees({ learningModeActive = false }: EmployeesProps
         deleteTitle={copy.table.deleteHrUserLabel}
         employeeInitialData={modalInitialData}
         employeeModalMode={editingEmployee ? 'edit' : 'create'}
+        existingEmployeeEmails={employees.map((employee) => employee.email)}
         fixedColumns={fixedColumns}
         isColumnsModalOpen={isColumnsModalOpen}
+        isBulkIntegrationModalOpen={isBulkIntegrationModalOpen}
         isDeleteDialogOpen={pendingDeleteEmployee !== null}
         isEmployeeModalOpen={isModalOpen}
         isSubmitting={isSubmitting}
         isTerminationModalOpen={terminatingEmployee !== null}
         onCancelDelete={() => setPendingDeleteEmployee(null)}
         onCloseColumns={() => setIsColumnsModalOpen(false)}
+        onCloseBulkIntegration={() => setIsBulkIntegrationModalOpen(false)}
         onCloseEmployeeModal={closeEmployeeModal}
         onCloseTermination={() => setTerminatingEmployee(null)}
         onConfirmDelete={() => {
@@ -550,6 +569,7 @@ export default function Employees({ learningModeActive = false }: EmployeesProps
         }}
         onSaveColumns={setColumns}
         onSaveEmployee={handleSaveEmployee}
+        onSubmitBulkIntegration={handleBulkIntegration}
         pendingDeleteEmployeeName={pendingDeleteEmployee?.fullName ?? ''}
         terminatingEmployeeName={terminatingEmployee?.fullName ?? ''}
         unitOptions={unitOptions}

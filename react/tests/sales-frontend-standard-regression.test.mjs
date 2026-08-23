@@ -244,7 +244,7 @@ test('Productos permite integración masiva pegando filas desde Excel sin duplic
   const catalogHookSource = readFileSync(resolve(salesRoot, 'Productos/hooks/useProductsCatalog.ts'), 'utf8');
   const contextSource = readFileSync(resolve(salesRoot, 'salesCrmContext.tsx'), 'utf8');
 
-  assert.match(headerSource, /Integración masiva de productos/);
+  assert.match(headerSource, /Integración masiva/);
   assert.match(pageSource, /<ProductBulkIntegrationModal/);
   assert.match(modalSource, /event\.clipboardData\.getData\('text'\)/);
   assert.match(modalSource, /row\.split\('\\t'\)/);

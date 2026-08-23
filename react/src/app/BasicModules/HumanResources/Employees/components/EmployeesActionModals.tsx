@@ -5,6 +5,7 @@ import type { ContractTerminationFormData } from '../../../../components/Termina
 import type { ColumnConfig } from '../../../../components/rh/ColumnasConfigModal';
 import type { AttendanceControlLocation } from '../../../../api/humanResources';
 import type { EmployeeBusinessOption, EmployeeUnitOption } from '../types/employees.types';
+import type { BulkEmployeePayload } from './EmployeeBulkIntegrationModal';
 
 const LazyEmployeeModal = lazy(() => import('./CreateEmployeeModal').then((module) => ({
   default: module.EmployeeModal,
@@ -14,6 +15,9 @@ const LazyColumnasConfigModal = lazy(() => import('../../../../components/rh/Col
 })));
 const LazyTerminarContratoModal = lazy(() => import('../../../../components/TerminarContratoModal').then((module) => ({
   default: module.TerminarContratoModal,
+})));
+const LazyEmployeeBulkIntegrationModal = lazy(() => import('./EmployeeBulkIntegrationModal').then((module) => ({
+  default: module.EmployeeBulkIntegrationModal,
 })));
 
 interface EmployeesActionModalsProps {
@@ -26,20 +30,24 @@ interface EmployeesActionModalsProps {
   deleteTitle: string;
   employeeInitialData?: EmployeeFormData | null;
   employeeModalMode: 'create' | 'edit';
+  existingEmployeeEmails: string[];
   fixedColumns: ColumnConfig[];
   isColumnsModalOpen: boolean;
+  isBulkIntegrationModalOpen: boolean;
   isDeleteDialogOpen: boolean;
   isEmployeeModalOpen: boolean;
   isSubmitting: boolean;
   isTerminationModalOpen: boolean;
   onCancelDelete: () => void;
   onCloseColumns: () => void;
+  onCloseBulkIntegration: () => void;
   onCloseEmployeeModal: () => void;
   onCloseTermination: () => void;
   onConfirmDelete: () => void;
   onConfirmTermination: (data: ContractTerminationFormData) => void;
   onSaveColumns: (columns: ColumnConfig[]) => void;
   onSaveEmployee: (data: EmployeeFormData) => void | Promise<void>;
+  onSubmitBulkIntegration: (items: BulkEmployeePayload[]) => Promise<void>;
   pendingDeleteEmployeeName: string;
   terminatingEmployeeName: string;
   unitOptions: EmployeeUnitOption[];
@@ -55,20 +63,24 @@ export function EmployeesActionModals({
   deleteTitle,
   employeeInitialData,
   employeeModalMode,
+  existingEmployeeEmails,
   fixedColumns,
   isColumnsModalOpen,
+  isBulkIntegrationModalOpen,
   isDeleteDialogOpen,
   isEmployeeModalOpen,
   isSubmitting,
   isTerminationModalOpen,
   onCancelDelete,
   onCloseColumns,
+  onCloseBulkIntegration,
   onCloseEmployeeModal,
   onCloseTermination,
   onConfirmDelete,
   onConfirmTermination,
   onSaveColumns,
   onSaveEmployee,
+  onSubmitBulkIntegration,
   pendingDeleteEmployeeName,
   terminatingEmployeeName,
   unitOptions,
@@ -97,6 +109,19 @@ export function EmployeesActionModals({
             unitOptions={unitOptions}
             businessOptions={businessOptions}
             attendanceLocations={attendanceLocations}
+          />
+        ) : null}
+
+        {isBulkIntegrationModalOpen ? (
+          <LazyEmployeeBulkIntegrationModal
+            businessOptions={businessOptions}
+            existingEmails={existingEmployeeEmails}
+            open={isBulkIntegrationModalOpen}
+            unitOptions={unitOptions}
+            onOpenChange={(nextOpen) => {
+              if (!nextOpen) onCloseBulkIntegration();
+            }}
+            onSubmit={onSubmitBulkIntegration}
           />
         ) : null}
 

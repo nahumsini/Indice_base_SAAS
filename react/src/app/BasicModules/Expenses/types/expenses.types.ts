@@ -16,6 +16,8 @@ export interface Expense {
   category: ExpenseCategory;
   providerId?: string;
   providerName?: string;
+  reference?: string;
+  purchaseOrderId?: string;
   budgetId?: string;
   budgetLineId?: string;
   committedAmount?: number;

@@ -9,7 +9,7 @@ import type {
 import type { EmployeesTranslations } from '../translations';
 import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../../hooks/useTablePagination';
 
-export const columnsStorageKey = 'rh-colaboradores-columns-v6';
+export const columnsStorageKey = 'rh-colaboradores-columns-v7';
 export const columnWidthsStorageKey = 'rh-colaboradores-column-widths-v3';
 export const allFilterValue = 'all';
 export const inlineUnassignedValue = '__unassigned__';
@@ -132,7 +132,7 @@ export const createDefaultColumns = (copy: EmployeesTranslations): ColumnConfig[
   },
   { id: 'firstName', label: copy.columns.firstName, visible: false, description: copy.columnDescriptions.firstName },
   { id: 'lastName', label: copy.columns.lastName, visible: false, description: copy.columnDescriptions.lastName },
-  { id: 'email', label: copy.columns.email, visible: true, description: copy.columnDescriptions.email },
+  { id: 'email', label: copy.columns.email, visible: false, description: copy.columnDescriptions.email },
   { id: 'phone', label: copy.columns.phone, visible: false, description: copy.columnDescriptions.phone },
   { id: 'dateOfBirth', label: copy.columns.dateOfBirth, visible: false, description: copy.columnDescriptions.dateOfBirth },
   { id: 'address', label: copy.columns.address, visible: false, description: copy.columnDescriptions.address },
@@ -180,9 +180,9 @@ export const createDefaultColumns = (copy: EmployeesTranslations): ColumnConfig[
   { id: 'salaryType', label: copy.columns.salaryType, visible: false, description: copy.columnDescriptions.salaryType },
   { id: 'workdayHours', label: copy.columns.workdayHours, visible: false, description: copy.columnDescriptions.workdayHours },
   { id: 'workdaysPerWeek', label: copy.columns.workdaysPerWeek, visible: false, description: copy.columnDescriptions.workdaysPerWeek },
-  { id: 'salary', label: copy.columns.salary, visible: true, description: copy.columnDescriptions.salary },
+  { id: 'salary', label: copy.columns.salary, visible: false, description: copy.columnDescriptions.salary },
   { id: 'hourlyRate', label: copy.columns.hourlyRate, visible: false, description: copy.columnDescriptions.hourlyRate },
-  { id: 'payPeriod', label: copy.columns.payPeriod, visible: true, description: copy.columnDescriptions.payPeriod },
+  { id: 'payPeriod', label: copy.columns.payPeriod, visible: false, description: copy.columnDescriptions.payPeriod },
   { id: 'contractType', label: copy.columns.contractType, visible: false, description: copy.columnDescriptions.contractType },
   {
     id: 'contractStartDate',

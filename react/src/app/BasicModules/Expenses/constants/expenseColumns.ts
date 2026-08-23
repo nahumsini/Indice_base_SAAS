@@ -2,6 +2,7 @@ import type { ColumnConfig } from '../types/expenseView.types';
 
 export const DEFAULT_EXPENSE_COLUMNS: ColumnConfig[] = [
   { key: 'folio', label: 'Folio', visible: true },
+  { key: 'date', label: 'Expense date', visible: true },
   { key: 'businessUnit', label: 'Unit', visible: false },
   { key: 'business', label: 'Business', visible: false },
   { key: 'providerName', label: 'Provider', visible: true },

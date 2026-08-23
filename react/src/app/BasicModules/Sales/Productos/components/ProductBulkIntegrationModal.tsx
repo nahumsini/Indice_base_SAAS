@@ -40,6 +40,18 @@ type EditableRow = {
 
 const actionClassNames = getSalesModalActionClassNames('coral');
 const initialRowCount = 18;
+const supermarketProductExamples = [
+  'Leche entera 1 L',
+  'Arroz blanco 1 kg',
+  'Aceite vegetal 900 ml',
+  'Huevos blancos 12 piezas',
+  'Pan de caja integral',
+  'Atún en agua 140 g',
+  'Café soluble 200 g',
+  'Azúcar estándar 1 kg',
+  'Papel higiénico 4 rollos',
+  'Detergente líquido 1 L',
+];
 
 function emptyRow(index: number): EditableRow {
   return {
@@ -345,7 +357,7 @@ export function ProductBulkIntegrationModal({
                 return (
                   <tr key={row.id} className={invalid ? 'bg-red-50' : changed ? 'bg-amber-50' : 'bg-blue-50/35'}>
                     <td className="border-b border-r border-slate-200 px-2 py-2 text-center text-xs text-slate-400">{index + 1}</td>
-                    <td className="border-b border-r border-slate-200 p-0"><input aria-invalid={Boolean(nameError)} title={nameError} value={row.name} onPaste={(event) => handlePaste(event, index, 0)} onChange={(event) => updateCell(index, 'name', event.target.value)} placeholder="Ej. Chatarra de fierro" className="h-11 w-full bg-transparent px-3 outline-none focus:bg-white focus:ring-2 focus:ring-inset focus:ring-blue-500 aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-inset aria-[invalid=true]:ring-red-500" /></td>
+                    <td className="border-b border-r border-slate-200 p-0"><input aria-invalid={Boolean(nameError)} title={nameError} value={row.name} onPaste={(event) => handlePaste(event, index, 0)} onChange={(event) => updateCell(index, 'name', event.target.value)} placeholder={`Ej. ${supermarketProductExamples[index % supermarketProductExamples.length]}`} className="h-11 w-full bg-transparent px-3 outline-none focus:bg-white focus:ring-2 focus:ring-inset focus:ring-blue-500 aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-inset aria-[invalid=true]:ring-red-500" /></td>
                     {(['price', 'cost'] as const).map((field, columnIndex) => {
                       const error = field === 'price' ? priceError : costError;
                       return (

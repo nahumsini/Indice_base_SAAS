@@ -2,6 +2,7 @@ import type { Expense } from '../types/expenses.types';
 
 export const DEFAULT_EXPENSE_COLUMN_WIDTHS: Record<string, number> = {
   folio: 110,
+  date: 130,
   businessUnit: 120,
   business: 120,
   providerName: 180,
@@ -21,7 +22,7 @@ export const DEFAULT_EXPENSE_COLUMN_WIDTHS: Record<string, number> = {
   authorizer: 180,
   performer: 180,
   audit: 180,
-  actions: 150,
+  actions: 390,
 };
 
 export const EXPENSE_USER_OPTIONS = [
@@ -55,6 +56,7 @@ export type ExpenseHeaderConfig = {
 
 export const EXPENSE_TABLE_HEADERS: ExpenseHeaderConfig[] = [
   { key: 'folio', label: 'Folio', sortable: 'folio' },
+  { key: 'date', label: 'Fecha del gasto', sortable: 'date' },
   { key: 'businessUnit', label: 'Unidad', sortable: 'businessUnit' },
   { key: 'business', label: 'Negocio', sortable: 'business' },
   { key: 'providerName', label: 'Proveedor', sortable: 'providerName' },

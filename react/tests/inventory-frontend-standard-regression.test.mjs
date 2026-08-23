@@ -209,7 +209,7 @@ test('La entrada de inventario carga productos por categoría y cantidad antes d
   assert.match(productLinesSource, /categoryFilter/);
   assert.match(productLinesSource, /Todas las categorías/);
   assert.match(productLinesSource, /stagedQuantities/);
-  assert.match(productLinesSource, /Cargar seleccionados al modal/);
+  assert.match(productLinesSource, />Seleccionar<\/Button>/);
   assert.match(productLinesSource, /Esta acción sólo los carga al borrador del modal/);
   assert.match(productLinesSource, /Number\.isInteger\(quantity\) && quantity > 0/);
   assert.match(productLinesSource, /onItemsChange\(normalizedItems\)/);

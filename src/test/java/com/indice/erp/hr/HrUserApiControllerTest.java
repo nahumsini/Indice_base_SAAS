@@ -173,6 +173,31 @@ class HrUserApiControllerTest {
     }
 
     @Test
+    void createBulkWithValidCsrfDelegatesAtomicImport() throws Exception {
+        var currentUser = currentUser();
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(hrUserService.createUsersBulk(any(AuthSessionUser.class), any(Map.class)))
+            .willReturn(Map.of("items", java.util.List.of(Map.of("id", 21L)), "count", 1));
+
+        mockMvc.perform(post("/api/v1/hr/users/bulk")
+                .header("X-CSRF-Token", "csrf-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "items": [{
+                        "first_name": "Ada",
+                        "last_name": "Owner",
+                        "email": "ada@example.com"
+                      }]
+                    }
+                    """))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.count").value(1));
+
+        verify(hrUserService).createUsersBulk(eq(currentUser), any(Map.class));
+    }
+
+    @Test
     void createReturnsConflictWhenSeatsAreFull() throws Exception {
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser()));
         given(hrUserService.createUser(any(AuthSessionUser.class), any(Map.class)))

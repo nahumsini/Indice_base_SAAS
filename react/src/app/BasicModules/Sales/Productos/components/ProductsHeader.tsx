@@ -44,7 +44,7 @@ export function ProductsHeader({
             onClick={onOpenBulkIntegration}
           >
             <Sheet className="h-4 w-4" />
-            Integración masiva de productos
+            Integración masiva
           </Button>
           <Button
             variant="outline"

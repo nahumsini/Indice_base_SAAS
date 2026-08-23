@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Building2, Columns3, KeyRound, Plus } from 'lucide-react';
+import { Building2, Columns3, KeyRound, Plus, Store } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { IndiceTitleBar } from '../../../../components/frontend-os';
 import { useProvidersTranslations } from '../hooks/useProvidersTranslations';
@@ -24,6 +24,7 @@ export function ProvidersHeaderBanner({
   icon,
   onAddProvider,
   onConfigureColumns,
+  onManagePayablesKiosks,
   onManageSupplierPortal,
   subtitle,
   title,
@@ -32,6 +33,7 @@ export function ProvidersHeaderBanner({
   icon?: ReactNode;
   onAddProvider: () => void;
   onConfigureColumns: () => void;
+  onManagePayablesKiosks?: () => void;
   onManageSupplierPortal?: () => void;
   subtitle?: string;
   title?: string;
@@ -42,6 +44,12 @@ export function ProvidersHeaderBanner({
   const headerIcon = icon ?? <Building2 className="h-5 w-5" />;
   const actionLayout = (
     <>
+      {onManagePayablesKiosks ? (
+        <Button variant="outline" className={`h-11 w-full justify-center gap-2 rounded-lg border-slate-200 bg-white px-4 text-sm font-medium shadow-none dark:border-slate-700 dark:bg-slate-800 sm:w-auto ${styles.columnsButton}`} onClick={onManagePayablesKiosks}>
+          <Store className="h-4 w-4" />
+          Kioscos CxP
+        </Button>
+      ) : null}
       {onManageSupplierPortal ? (
         <Button variant="outline" className={`h-11 w-full justify-center gap-2 rounded-lg border-slate-200 bg-white px-4 text-sm font-medium shadow-none dark:border-slate-700 dark:bg-slate-800 sm:w-auto ${styles.columnsButton}`} onClick={onManageSupplierPortal}>
           <KeyRound className="h-4 w-4" />

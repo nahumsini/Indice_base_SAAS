@@ -1561,6 +1561,16 @@ export const humanResourcesApi = {
     });
   },
 
+  createHrUsersBulk(items: Array<Record<string, unknown>>) {
+    return apiClient<{ items: BackendHrUser[]; count: number }>(
+      `${endpoints.humanResources.hrUserCreate}/bulk`,
+      {
+        method: "POST",
+        body: JSON.stringify({ items }),
+      },
+    );
+  },
+
   updateHrUser(id: string | number, payload: Record<string, unknown>) {
     return apiClient<BackendHrUser>(
       `${endpoints.humanResources.hrUserUpdate}/${id}`,

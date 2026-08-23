@@ -171,6 +171,7 @@ export interface ExpenseApiRequest {
   unitId?: number | null;
   businessId?: number | null;
   providerId?: number | null;
+  purchaseOrderId?: number | null;
   budgetLineId?: number | null;
   accountingAccountId?: number | null;
   paymentAccountId?: number | null;

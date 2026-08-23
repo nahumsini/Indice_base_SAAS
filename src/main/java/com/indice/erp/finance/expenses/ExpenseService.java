@@ -108,7 +108,7 @@ public class ExpenseService {
                 BigDecimal.ZERO,
                 ExpenseStatus.PAID,
                 PaymentStatus.PAID,
-                LocalDate.now(),
+                request.expenseDate(),
                 null,
                 null)) {
             throw FinanceApiException.conflict("Expense could not be marked as paid.");

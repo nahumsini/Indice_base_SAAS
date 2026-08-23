@@ -155,23 +155,25 @@ function ExpenseMobileCard({
           <Eye className="h-4 w-4" />
           {copy.title}
         </button>
-        <ExpenseRowActions
-          expenseId={expense.id}
-          onAudit={onAudit}
-          onDelete={onDelete}
-          onDuplicate={onDuplicate}
-          onMarkPaid={onMarkPaid}
-          onPrint={() => printExpenseVoucher({ expense, locale, t })}
-          onRecordPayment={onRecordPayment}
-          onStartEdit={onEdit}
-          onView={onView}
-          isDeletePending={isDeletePending}
-          showAudit={actionVisibility?.showAudit}
-          showDelete={canDeleteExpense(expense)}
-          showMarkPaid={expense.type !== 'budget' && balance > 0 && (actionVisibility?.showMarkPaid ?? true)}
-          showRecordPayment={balance > 0 && (actionVisibility?.showRecordPayment ?? true)}
-          showView={false}
-        />
+        <div className="min-w-0 flex-1 overflow-x-auto">
+          <ExpenseRowActions
+            expenseId={expense.id}
+            onAudit={onAudit}
+            onDelete={onDelete}
+            onDuplicate={onDuplicate}
+            onMarkPaid={onMarkPaid}
+            onPrint={() => printExpenseVoucher({ expense, locale, t })}
+            onRecordPayment={onRecordPayment}
+            onStartEdit={onEdit}
+            onView={onView}
+            isDeletePending={isDeletePending}
+            showAudit={actionVisibility?.showAudit}
+            showDelete={canDeleteExpense(expense)}
+            showMarkPaid={expense.type !== 'budget' && balance > 0 && (actionVisibility?.showMarkPaid ?? true)}
+            showRecordPayment={balance > 0 && (actionVisibility?.showRecordPayment ?? true)}
+            showView={false}
+          />
+        </div>
       </div>
     </article>
   );

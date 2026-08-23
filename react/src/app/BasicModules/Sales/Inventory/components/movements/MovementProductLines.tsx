@@ -180,7 +180,7 @@ export function MovementProductLines({
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-800/60">
               <span className="text-xs text-slate-500">{stagedEntries.length} productos seleccionados</span>
-              <Button type="button" disabled={!stagedSelectionIsValid} className="h-10 gap-2 rounded-lg bg-[#FF6B5E] px-4 text-white hover:bg-[#E9574F]" onClick={loadStagedProducts}><Check className="h-4 w-4" />Cargar seleccionados al modal</Button>
+              <Button type="button" disabled={!stagedSelectionIsValid} className="h-10 gap-2 rounded-lg bg-[#FF6B5E] px-4 text-white hover:bg-[#E9574F]" onClick={loadStagedProducts}><Check className="h-4 w-4" />Seleccionar</Button>
             </div>
           </div>
 

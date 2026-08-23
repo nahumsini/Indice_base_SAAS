@@ -299,6 +299,7 @@ export interface EmployeesTranslations {
   title: string;
   subtitle: string;
   addEmployee: string;
+  bulkIntegration: string;
   configureColumns: string;
   preferredCurrency: string;
   exchangeRates: {

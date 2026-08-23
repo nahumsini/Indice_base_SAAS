@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react';
 import { Loader2, Store } from 'lucide-react';
+import { IndiceModalValidation } from '../../../../components/indice-modal';
 import { KioskModalFrame } from '../../../../components/kiosk-engine/KioskModalFrame';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import type { PayableKiosk } from '../../services';
@@ -13,6 +14,7 @@ type PayablesKioskAccessFormModalProps = {
   form: PayableKioskFormState;
   isOpen: boolean;
   isSaving: boolean;
+  nameError?: string;
   onClose: () => void;
   onFormChange: (form: PayableKioskFormState) => void;
   onSave: () => void;
@@ -26,6 +28,7 @@ export function PayablesKioskAccessFormModal({
   form,
   isOpen,
   isSaving,
+  nameError,
   onClose,
   onFormChange,
   onSave,
@@ -61,8 +64,11 @@ export function PayablesKioskAccessFormModal({
       title={editing ? copy.editTitle : copy.createTitle}
       tone="green"
     >
-          <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">
-            <div className="grid gap-4">
+          <div className="space-y-4">
+            {nameError ? <IndiceModalValidation tone="error" title="Revisa el nombre del kiosco" messages={[nameError]} /> : null}
+            <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">
+              <h3 className="text-sm font-medium text-slate-900 dark:text-white">Identidad del kiosco</h3>
+              <p className="mb-4 mt-1 text-xs leading-5 text-slate-500">Usa un nombre único y descriptivo para reconocerlo al administrar ligas y proveedores.</p>
               <Field label={copy.name} required>
                 <input
                   className={inputClass}
@@ -71,7 +77,10 @@ export function PayablesKioskAccessFormModal({
                   placeholder={copy.namePlaceholder}
                 />
               </Field>
-
+            </section>
+            <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">
+              <h3 className="text-sm font-medium text-slate-900 dark:text-white">Alcance y operación</h3>
+              <p className="mb-4 mt-1 text-xs leading-5 text-slate-500">Limita dónde se registran las cuentas y define la moneda utilizada por este portal.</p>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label={t.filters.unit}>
                   <select className={inputClass} value={form.unitId} onChange={event => update({ unitId: event.target.value, businessId: '' })}>
@@ -92,7 +101,7 @@ export function PayablesKioskAccessFormModal({
                   {financeCurrencySelectOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
               </Field>
-            </div>
+            </section>
           </div>
     </KioskModalFrame>
   );
