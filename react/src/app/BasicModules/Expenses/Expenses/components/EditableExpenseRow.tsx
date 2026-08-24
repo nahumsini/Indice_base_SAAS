@@ -168,6 +168,20 @@ export function EditableExpenseRow({
         </td>
       )}
 
+      {isColumnVisible('date') && (
+        <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.date, minWidth: columnWidths.date }}>
+          {isEditing ? (
+            <EditableDatePicker
+              ariaLabel={`${t.expenses.columns.date.label} ${expense.folio}`}
+              value={formatDateInputValue(expense.date)}
+              onChange={(value) => onUpdateExpense(expense.id, { date: toDateValue(value) ?? expense.date })}
+            />
+          ) : (
+            <ReadonlyPill onClick={startEditing}>{formatDate(expense.date)}</ReadonlyPill>
+          )}
+        </td>
+      )}
+
       {isColumnVisible('businessUnit') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.businessUnit, minWidth: columnWidths.businessUnit }}>
           {isEditing ? (

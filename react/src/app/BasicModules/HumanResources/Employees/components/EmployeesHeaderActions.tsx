@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Columns3, Plus } from 'lucide-react';
+import { Columns3, Plus, TableProperties } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { cn } from '../../../../components/ui/utils';
 import { hrAccentButtonClass } from '../constants/employees.constants';
@@ -8,8 +8,10 @@ import { HrTitleBar, hrTitleBarSecondaryActionClass } from '../../shared/HrTitle
 interface EmployeesHeaderActionsProps {
   addEmployeeLabel: string;
   configureColumnsLabel: string;
+  bulkIntegrationLabel: string;
   headingIcon: ReactNode;
   onConfigureColumns: () => void;
+  onOpenBulkIntegration: () => void;
   onCreateEmployee: () => void;
   subtitle: string;
   title: string;
@@ -17,9 +19,11 @@ interface EmployeesHeaderActionsProps {
 
 export function EmployeesHeaderActions({
   addEmployeeLabel,
+  bulkIntegrationLabel,
   configureColumnsLabel,
   headingIcon,
   onConfigureColumns,
+  onOpenBulkIntegration,
   onCreateEmployee,
   subtitle,
   title,
@@ -33,6 +37,14 @@ export function EmployeesHeaderActions({
           >
             <Columns3 className="h-4 w-4" />
             {configureColumnsLabel}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={onOpenBulkIntegration}
+            className={hrTitleBarSecondaryActionClass}
+          >
+            <TableProperties className="h-4 w-4" />
+            {bulkIntegrationLabel}
           </Button>
           <Button
             onClick={onCreateEmployee}

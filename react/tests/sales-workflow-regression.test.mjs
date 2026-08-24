@@ -106,6 +106,18 @@ test('evidencia de pago se carga como archivo y no se marca subida antes de pers
   assert.match(records, /cannot create\s+\/\/ a duplicate sale|duplicate sale/);
 });
 
+test('el folio de una venta nueva lo genera el backend y un rechazo revierte la fila temporal', () => {
+  const records = read('src/app/BasicModules/Sales/Sales/hooks/useSalesRecords.ts');
+  const context = read('src/app/BasicModules/Sales/salesCrmContext.tsx');
+  const boundary = read('src/app/BasicModules/Sales/components/SalesDataStateBoundary.tsx');
+
+  assert.match(records, /saleNumber: draft\.saleNumber\?\.trim\(\) \|\| ''/);
+  assert.doesNotMatch(records, /SALE-2026-\$\{String\(nextIndex\)/);
+  assert.match(context, /!Number\.isSafeInteger\(persistedSale\.backendId\)/);
+  assert.match(context, /current\.filter\(\(item\) => item\.id !== saleRecord\.id\)/);
+  assert.match(boundary, /\$\{copy\.syncErrorDescription\} \$\{syncIssue\.message\}/);
+});
+
 test('ventas reutiliza las cuentas de pago de Expenses con permiso compartido', () => {
   const field = read('src/app/BasicModules/Sales/Sales/components/SalesPaymentAccountField.tsx');
   const module = read('src/app/BasicModules/Sales/Ventas.tsx');

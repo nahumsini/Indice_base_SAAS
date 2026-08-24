@@ -6,6 +6,7 @@ export const esMX = {
   title: 'Colaboradores',
   subtitle: 'Expedientes, asignaciones, horarios y contexto de nómina',
   addEmployee: 'Agregar colaborador',
+  bulkIntegration: 'Integración masiva',
   configureColumns: 'Columnas',
   preferredCurrency: 'Divisa preferida',
   exchangeRates: {

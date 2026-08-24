@@ -109,7 +109,7 @@ export function IndiceWorkspaceNavigation<TabId extends string>({
             >
               <span
                 aria-hidden="true"
-                className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-semibold shadow-sm ${
+                className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-medium shadow-sm ${
                   active
                     ? 'bg-white/20'
                     : complete
@@ -125,7 +125,7 @@ export function IndiceWorkspaceNavigation<TabId extends string>({
                 </span>
               ) : null}
               <span className="min-w-0">
-                <span className="block text-sm font-semibold">{item.label}</span>
+                <span className="block text-sm font-medium">{item.label}</span>
                 {item.description ? (
                   <span className={`block truncate text-xs ${active ? 'opacity-80' : 'text-slate-500 dark:text-slate-400'}`}>
                     {item.description}

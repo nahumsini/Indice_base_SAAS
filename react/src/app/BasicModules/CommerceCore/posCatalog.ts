@@ -35,6 +35,31 @@ function saleTypeFromProduct(product: SalesCatalogItem): PointOfSaleProduct['sal
   return product.packaging?.pricingMode === 'Per base unit' ? 'bulk' : 'unit';
 }
 
+const compactUnitLabels: Record<string, string> = {
+  Box: 'caja',
+  Centimeter: 'cm',
+  Dozen: 'doc',
+  Gram: 'g',
+  Kilogram: 'kg',
+  Liter: 'L',
+  Meter: 'm',
+  Milliliter: 'ml',
+  Pack: 'paq',
+  Pallet: 'tarima',
+  Piece: 'pza',
+  Unit: 'uds',
+};
+
+function unitLabelFromProduct(product: SalesCatalogItem) {
+  const packaging = product.packaging;
+  if (!packaging) return 'uds';
+
+  // "Unit" is only a generic sale container. For weighed/measured products,
+  // the base unit is the meaningful quantity shown to the cashier.
+  const unit = packaging.saleUnit === 'Unit' ? packaging.baseUnit : packaging.saleUnit;
+  return compactUnitLabels[unit] ?? unit;
+}
+
 function shouldExposeInPointOfSale(product: SalesCatalogItem) {
   return product.status === 'Active' && (product.posPrepared || product.visibility === 'POS ready');
 }
@@ -93,6 +118,7 @@ export function toPointOfSaleProduct(
     name: product.name,
     description: product.description,
     saleType: saleTypeFromProduct(product),
+    unitLabel: unitLabelFromProduct(product),
     costPrice,
     profitMargin: salePrice > 0 ? Math.max(((salePrice - costPrice) / salePrice) * 100, 0) : 0,
     salePrice,

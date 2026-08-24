@@ -204,8 +204,8 @@ export function useSalesRecords(
     if (!validation.valid) return null;
 
     const { paymentEvidenceFiles = [], ...persistableDraft } = draft;
-    const nextIndex = records.length + 1;
-    const id = `SAL-${String(nextIndex).padStart(3, '0')}`;
+    const temporaryReference = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const id = `SAL-TMP-${temporaryReference}`;
     const totalAmount = Number(draft.totalAmount) || 0;
     const commissionRate = Number(draft.commissionRate) || 0;
     const saleLines = draft.saleLines.map((line, index) => ({
@@ -218,8 +218,11 @@ export function useSalesRecords(
     const createdRecord: SaleRecord = {
       ...persistableDraft,
       id,
-      saleNumber: draft.saleNumber || `SALE-2026-${String(nextIndex).padStart(3, '0')}`,
-      saleDocumentReference: draft.saleDocumentReference || `SALE-SUM-2026-${String(nextIndex).padStart(3, '0')}`,
+      // An empty sale number delegates folio generation to the backend. Building
+      // it from the number of visible rows reused folios after soft deletion or
+      // partial loads and caused otherwise valid sales to be rejected.
+      saleNumber: draft.saleNumber?.trim() || '',
+      saleDocumentReference: draft.saleDocumentReference || `SALE-SUM-${temporaryReference}`,
       totalAmount,
       subtotal: Number(draft.subtotal) || saleLines.reduce((sum, line) => sum + line.subtotal, 0),
       discountTotal: Number(draft.discountTotal) || 0,

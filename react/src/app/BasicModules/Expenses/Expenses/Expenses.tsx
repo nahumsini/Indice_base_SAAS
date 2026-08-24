@@ -36,8 +36,12 @@ import { ColumnConfigurationModal } from '../components/table/ColumnConfiguratio
 import { ExpenseFormModal } from '../components/modals/ExpenseFormModal';
 import type { ExpenseFormValues } from '../components/modals/ExpenseFormModal';
 import { ExpensePaymentModal } from '../components/modals/ExpensePaymentModal';
+import {
+  ExpenseBulkIntegrationModal,
+  type ExpenseBulkDraft,
+  type ExpenseBulkEditDraft,
+} from '../components/modals/ExpenseBulkIntegrationModal';
 import { PayableAccountDialog, type PayableAccountValues } from '../components/modals/PayableAccountDialog';
-import { PayablesKioskManagementModal } from '../components/modals/PayablesKioskManagementModal';
 import { QuickExpenseDialog, type QuickExpenseValues } from '../components/modals/QuickExpenseDialog';
 import type { FinanceReferenceOption } from '../types/finance-reference.types';
 import { AttachmentsModal } from './components/AttachmentsModal';
@@ -96,9 +100,10 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
   const [accountingAccountOptions, setAccountingAccountOptions] = useState<FinanceReferenceOption[]>([]);
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>([]);
   const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
+  const [isBulkIntegrationOpen, setIsBulkIntegrationOpen] = useState(false);
+  const [isBulkIntegrationSaving, setIsBulkIntegrationSaving] = useState(false);
   const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
   const [isPayableAccountModalOpen, setIsPayableAccountModalOpen] = useState(false);
-  const [isPayablesKioskModalOpen, setIsPayablesKioskModalOpen] = useState(false);
   const [isPayableAccountSubmitting, setIsPayableAccountSubmitting] = useState(false);
   const [isQuickExpenseModalOpen, setIsQuickExpenseModalOpen] = useState(false);
   const [isQuickExpenseSubmitting, setIsQuickExpenseSubmitting] = useState(false);
@@ -151,6 +156,13 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
   const createExpenseDisabled = isLoadingReferenceData;
   const createExpenseDisabledReason = t.expenses.createDisabledReason;
   const filteredExpenses = useMemo(() => filterExpenses(expenses, filters), [expenses, filters]);
+  const bulkEditableExpenses = useMemo(() => expenses.filter(expense => (
+    isBackendId(expense.id)
+    && !expense.purchaseOrderId
+    && !expense.budgetLineId
+    && expense.type !== 'budget'
+    && (expense.status === 'pending' || expense.status === 'overdue')
+  )), [expenses]);
   const totals = useMemo(() => ({
     total: 0,
     paid: 0,
@@ -158,6 +170,90 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     overdue: 0,
     overdueCount: filteredExpenses.filter((expense) => isExpenseEffectivelyOverdue(expense)).length,
   }), [filteredExpenses]);
+
+  const handleBulkExpenseCreate = async (drafts: ExpenseBulkDraft[]) => {
+    setIsBulkIntegrationSaving(true);
+    try {
+      const now = new Date();
+      const defaultUnit = filters.businessUnitFilter !== 'all' ? filters.businessUnitFilter : unitOptions[0]?.value ?? '';
+      const scopedBusinesses = defaultUnit
+        ? businessOptions.filter(option => !option.unitId || option.unitId === defaultUnit)
+        : businessOptions;
+      const defaultBusiness = filters.businessFilter !== 'all' ? filters.businessFilter : scopedBusinesses[0]?.value ?? '';
+      const results = await Promise.allSettled(drafts.map((draft, index) => {
+        const expenseDate = new Date(`${draft.date}T00:00:00`);
+        return expensesService.createExpense({
+        id: `bulk-expense-${Date.now()}-${index}`,
+        folio: AUTO_EXPENSE_FOLIO,
+        businessUnit: defaultUnit,
+        business: defaultBusiness,
+        concept: draft.concept,
+        description: draft.concept,
+        category: mockExpenses[0].category,
+        providerId: draft.providerId,
+        providerName: providers.find(provider => provider.id === draft.providerId)?.name,
+        total: draft.total,
+        taxes: 0,
+        amount: draft.total,
+        amountPaid: draft.total,
+        currency: preferredCurrency,
+        dueDate: expenseDate,
+        paymentDate: expenseDate,
+        date: expenseDate,
+        paymentMethod: 'transfer',
+        status: 'paid',
+        type: 'real',
+        requestedByUserId: currentUser?.id,
+        createdAt: now,
+        updatedAt: now,
+        }, providers);
+      }));
+      const saved = results.flatMap(result => result.status === 'fulfilled' ? [result.value] : []);
+      const failed = results.length - saved.length;
+      if (!saved.length) throw new Error('No se pudo guardar ningún gasto. Revisa las referencias e inténtalo de nuevo.');
+      setExpenses(current => [...saved, ...current]);
+      onFinanceDataChanged?.();
+      setSuccessToastMessage(`${saved.length} gasto${saved.length === 1 ? '' : 's'} creado${saved.length === 1 ? '' : 's'} correctamente.`);
+      if (failed) setFailureToastMessage(`${failed} fila${failed === 1 ? '' : 's'} no se pudieron guardar y requieren revisión.`);
+    } finally {
+      setIsBulkIntegrationSaving(false);
+    }
+  };
+
+  const handleBulkExpenseUpdate = async (drafts: ExpenseBulkEditDraft[]) => {
+    setIsBulkIntegrationSaving(true);
+    try {
+      const results = await Promise.allSettled(drafts.map(async draft => {
+        const source = expenses.find(expense => expense.id === draft.id);
+        if (!source || source.purchaseOrderId || source.budgetLineId || source.type === 'budget' || !isBackendId(source.id)) {
+          throw new Error('El gasto está protegido y no se puede editar de forma masiva.');
+        }
+        const saved = await expensesService.updateExpense({
+          ...source,
+          providerId: draft.providerId,
+          providerName: providers.find(provider => provider.id === draft.providerId)?.name,
+          concept: draft.concept,
+          description: source.description || draft.concept,
+          total: draft.total,
+          amount: draft.total,
+          taxes: 0,
+          date: new Date(`${draft.date}T00:00:00`),
+          updatedAt: new Date(),
+        }, providers);
+        return saved;
+      }));
+      const saved = results.flatMap(result => result.status === 'fulfilled' ? [result.value] : []);
+      const failed = results.length - saved.length;
+      if (!saved.length) throw new Error('No se pudo actualizar ningún gasto. Revisa los registros e inténtalo de nuevo.');
+      const savedById = new Map(saved.map(expense => [expense.id, expense]));
+      setExpenses(current => current.map(expense => savedById.get(expense.id) ?? expense));
+      onFinanceDataChanged?.();
+      setSuccessToastMessage(`${saved.length} gasto${saved.length === 1 ? '' : 's'} actualizado${saved.length === 1 ? '' : 's'} correctamente.`);
+      if (failed) setFailureToastMessage(`${failed} cambio${failed === 1 ? '' : 's'} no se pudieron guardar y requieren revisión.`);
+    } finally {
+      setIsBulkIntegrationSaving(false);
+    }
+  };
 
   useEffect(() => () => {
     Object.values(saveTimeoutsRef.current).forEach(timeoutId => window.clearTimeout(timeoutId));
@@ -241,10 +337,6 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     setEditingExpense(null);
     setInitialExpense(null);
     setIsPayableAccountModalOpen(true);
-  };
-
-  const openPayablesKiosk = () => {
-    setIsPayablesKioskModalOpen(true);
   };
 
   const handleQuickExpenseSubmit = async ({ amount, attachmentFiles, business, businessUnit, concept, currency, description, taxes, taxCountry, taxIncluded, taxMode, taxName, taxProfileId, taxRate, taxRegion, total }: QuickExpenseValues) => {
@@ -365,7 +457,8 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     const sourceExpense = editingExpense ?? initialExpense;
     const effectiveStatus = editingExpense ? values.status : 'paid';
     const paymentDate = inputPaymentDate ?? sourceExpense?.paymentDate;
-    const recordDate = sourceExpense?.date ?? inputPaymentDate ?? now;
+    const inputExpenseDate = values.expenseDate ? new Date(`${values.expenseDate}T00:00:00`) : undefined;
+    const recordDate = inputExpenseDate ?? sourceExpense?.date ?? inputPaymentDate ?? now;
     const dueDate = inputDueDate ?? sourceExpense?.dueDate ?? now;
     const previousAmountPaid = sourceExpense?.amountPaid ?? 0;
     const amountPaid = effectiveStatus === 'paid' || effectiveStatus === 'audited'
@@ -498,17 +591,19 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
   const handlePayableAccountSubmit = async (values: PayableAccountValues) => {
     const provider = providers.find(item => item.id === values.providerId);
     const now = new Date();
-    const dueDate = values.dueDate ? new Date(`${values.dueDate}T00:00:00`) : now;
+    const expenseDate = new Date(`${values.expenseDate}T00:00:00`);
+    const dueDate = new Date(`${values.dueDate}T00:00:00`);
     const payableExpense: Expense = {
       id: `payable-${Date.now()}`,
       folio: AUTO_PAYABLE_FOLIO,
-      businessUnit: '',
-      business: '',
+      businessUnit: values.businessUnit,
+      business: values.business,
       concept: values.concept,
       description: values.notes,
       category: mockExpenses[0].category,
       providerId: values.providerId,
       providerName: provider?.name,
+      reference: values.reference,
       requestedByUserId: currentUser?.id,
       total: values.total,
       taxes: values.taxes,
@@ -519,9 +614,9 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
       amountPaid: 0,
       currency: values.currency,
       dueDate,
-      date: now,
+      date: expenseDate,
       paymentMethod: 'transfer',
-      accountingAccount: '',
+      accountingAccount: values.accountingAccount,
       status: 'pending',
       attachments: [],
       notes: values.notes,
@@ -812,10 +907,10 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
       <ExpensesHeader
         createExpenseDisabled={createExpenseDisabled}
         createExpenseDisabledReason={createExpenseDisabledReason}
+        onBulkIntegration={() => setIsBulkIntegrationOpen(true)}
         onConfigureColumns={() => setIsColumnModalOpen(true)}
         onCreatePayableAccount={openPayableAccountModal}
         onCreateExpense={openCreateExpenseModal}
-        onOpenPayablesKiosk={openPayablesKiosk}
       />
 
       <ExpensesFilters
@@ -872,6 +967,18 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
           }}
         />
       )}
+
+      <ExpenseBulkIntegrationModal
+        editableExpenses={bulkEditableExpenses}
+        isSaving={isBulkIntegrationSaving}
+        lockedExpenseCount={expenses.length - bulkEditableExpenses.length}
+        onCreate={handleBulkExpenseCreate}
+        onOpenChange={setIsBulkIntegrationOpen}
+        onUpdate={handleBulkExpenseUpdate}
+        open={isBulkIntegrationOpen}
+        preferredCurrency={preferredCurrency}
+        providers={providers}
+      />
 
       {detailExpense && (
         <ExpenseDetailModal
@@ -939,21 +1046,14 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
       )}
 
       <PayableAccountDialog
+        accountingAccountOptions={accountingAccountOptions}
+        businessOptions={businessOptions}
         currency={preferredCurrency}
         isSubmitting={isPayableAccountSubmitting}
         onOpenChange={setIsPayableAccountModalOpen}
         onCreateProvider={onProvidersChange ? handleQuickProviderCreate : undefined}
         onSubmit={handlePayableAccountSubmit}
         open={isPayableAccountModalOpen}
-        providers={providers}
-      />
-
-      <PayablesKioskManagementModal
-        businessOptions={businessOptions}
-        isOpen={isPayablesKioskModalOpen}
-        onClose={() => setIsPayablesKioskModalOpen(false)}
-        onError={setFailureToastMessage}
-        onSuccess={setSuccessToastMessage}
         providers={providers}
         unitOptions={unitOptions}
       />

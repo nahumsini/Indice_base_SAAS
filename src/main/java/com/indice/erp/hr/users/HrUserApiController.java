@@ -116,6 +116,37 @@ public class HrUserApiController {
         }
     }
 
+    @PostMapping("/bulk")
+    public ResponseEntity<?> createBulk(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody Map<String, Object> payload
+    ) {
+        var user = sessionAuthService.currentUser(session);
+        if (user.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        if (!canAccessCollaborators(user.get())) {
+            return forbidden();
+        }
+        var csrfFailure = requireCsrf(session, csrfToken);
+        if (csrfFailure != null) {
+            return csrfFailure;
+        }
+
+        try {
+            return ResponseEntity.status(HttpStatus.CREATED).body(hrUserService.createUsersBulk(user.get(), payload));
+        } catch (HrAccessDeniedException ex) {
+            return forbidden();
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (SeatCapacityExceededException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(seatCapacityBody(ex));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
     @PutMapping("/{userCompanyId}")
     public ResponseEntity<?> update(
         HttpSession session,

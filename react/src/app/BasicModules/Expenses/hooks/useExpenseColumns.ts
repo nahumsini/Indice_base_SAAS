@@ -6,7 +6,7 @@ export const expenseColumnsStorageKey = 'indice.expenses.expenses.columns.v1';
 
 const defaultExpenseColumns = () => DEFAULT_EXPENSE_COLUMNS.map(column => ({ ...column }));
 
-const reconcileExpenseColumns = (storedColumns: unknown): ColumnConfig[] => {
+const reconcileExpenseColumns = (storedColumns: unknown, hideNewOptionalColumns = false): ColumnConfig[] => {
   if (!Array.isArray(storedColumns)) return defaultExpenseColumns();
 
   const defaultsByKey = new Map(DEFAULT_EXPENSE_COLUMNS.map(column => [column.key, column]));
@@ -35,7 +35,10 @@ const reconcileExpenseColumns = (storedColumns: unknown): ColumnConfig[] => {
 
   const newColumns = DEFAULT_EXPENSE_COLUMNS
     .filter(column => !restoredKeys.has(column.key))
-    .map(column => ({ ...column }));
+    .map(column => ({
+      ...column,
+      visible: hideNewOptionalColumns && !column.fixed ? false : column.visible,
+    }));
 
   return restoredColumns.length > 0
     ? [...restoredColumns, ...newColumns]
@@ -48,7 +51,7 @@ const getInitialExpenseColumns = (): ColumnConfig[] => {
   try {
     const storedColumns = window.localStorage.getItem(expenseColumnsStorageKey);
     return storedColumns
-      ? reconcileExpenseColumns(JSON.parse(storedColumns))
+      ? reconcileExpenseColumns(JSON.parse(storedColumns), true)
       : defaultExpenseColumns();
   } catch {
     return defaultExpenseColumns();

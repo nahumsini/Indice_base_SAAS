@@ -113,7 +113,7 @@ class ExpenseServiceTest {
             eq(BigDecimal.ZERO),
             eq(ExpenseStatus.PAID),
             eq(PaymentStatus.PAID),
-            any(LocalDate.class),
+            eq(LocalDate.of(2026, 6, 8)),
             eq(null),
             eq(null)
         )).thenReturn(true);

@@ -629,6 +629,8 @@ class ConfigCenterServiceTest {
                 SELECT u.id,
                        u.email,
                        COALESCE(NULLIF(p.full_name, ''), COALESCE(u.full_name, '')) AS full_name,
+                       COALESCE(p.given_names, '') AS given_names,
+                       COALESCE(p.family_names, '') AS family_names,
                        COALESCE(p.phone, '') AS phone,
                        COALESCE(p.country, '') AS country,
                        COALESCE(p.preferred_language, 'es-419') AS preferred_language,
@@ -649,6 +651,8 @@ class ConfigCenterServiceTest {
             when(rs.getLong("id")).thenReturn(1L);
             when(rs.getString("email")).thenReturn("ada@example.com");
             when(rs.getString("full_name")).thenReturn("Ada Demo");
+            when(rs.getString("given_names")).thenReturn("Ada");
+            when(rs.getString("family_names")).thenReturn("Demo");
             when(rs.getString("phone")).thenReturn(null);
             when(rs.getString("country")).thenReturn("CA");
             when(rs.getString("preferred_language")).thenReturn("en-US");
@@ -671,6 +675,49 @@ class ConfigCenterServiceTest {
         verify(jdbcTemplate).update("UPDATE users SET password_hash = ? WHERE id = ?", "encoded-password", 1L);
         assertEquals("ada@example.com", saved.get("email"));
         assertEquals("CA", saved.get("country"));
+    }
+
+    @Test
+    void saveCurrentUserPreservesMultipleGivenNamesAndFamilyNames() {
+        var service = newService();
+
+        when(jdbcTemplate.update("UPDATE users SET full_name = ? WHERE id = ?", "Nahum Abraham Peña Perez", 1L)).thenReturn(1);
+        when(jdbcTemplate.query(
+            contains("COALESCE(p.given_names, '') AS given_names"),
+            org.mockito.ArgumentMatchers.<RowMapper<Map<String, Object>>>any(),
+            eq(1L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Map<String, Object>>) invocation.getArgument(1);
+            ResultSet rs = mock(ResultSet.class);
+            when(rs.getLong("id")).thenReturn(1L);
+            when(rs.getString("email")).thenReturn("nahum@example.com");
+            when(rs.getString("full_name")).thenReturn("Nahum Abraham Peña Perez");
+            when(rs.getString("given_names")).thenReturn("Nahum Abraham");
+            when(rs.getString("family_names")).thenReturn("Peña Perez");
+            when(rs.getString("phone")).thenReturn(null);
+            when(rs.getString("country")).thenReturn("CA");
+            when(rs.getString("preferred_language")).thenReturn("es-MX");
+            when(rs.getString("avatar_url")).thenReturn(null);
+            when(rs.getString("avatar_object_key")).thenReturn(null);
+            when(rs.getString("avatar_content_type")).thenReturn(null);
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+
+        var saved = service.saveCurrentUser(1L, 1L, "admin", Map.of(
+            "primer_nombre", "Nahum Abraham",
+            "apellido_paterno", "Peña Perez",
+            "country", "CA",
+            "preferred_language", "es-MX"
+        ));
+
+        assertEquals("Nahum Abraham", saved.get("nombres"));
+        assertEquals("Peña Perez", saved.get("apellidos"));
+        verify(jdbcTemplate).update(
+            contains("INSERT INTO user_profiles (user_id, full_name, given_names, family_names"),
+            eq(1L), eq("Nahum Abraham Peña Perez"), eq("Nahum Abraham"), eq("Peña Perez"),
+            org.mockito.ArgumentMatchers.isNull(), eq("CA"), eq("es-MX")
+        );
     }
 
     private ConfigCenterService newService() {

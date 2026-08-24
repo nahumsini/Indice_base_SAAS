@@ -1,6 +1,7 @@
 import { ProductCardsView } from './cards/ProductCardsView';
 import { ProductCategoryManagerModal } from './components/ProductCategoryManagerModal';
 import { ProductCreateModal } from './components/ProductCreateModal';
+import { ProductBulkIntegrationModal } from './components/ProductBulkIntegrationModal';
 import { ProductImageCarouselModal } from './components/ProductImageCarouselModal';
 import { ProductsFilters } from './components/ProductsFilters';
 import { ProductsHeader } from './components/ProductsHeader';
@@ -19,8 +20,8 @@ import { formatBusinessCurrencyAmount } from '../../shared/businessCurrency';
 
 export default function Productos() {
   const t = useProductsTranslations();
-  const catalog = useProductsCatalog(t);
   const { preferredCurrency } = usePreferredBusinessCurrency();
+  const catalog = useProductsCatalog(t);
   const productIds = useMemo(() => catalog.filteredProducts
     .map((product) => product.backendId)
     .filter((id): id is number => Boolean(id)), [catalog.filteredProducts]);
@@ -36,6 +37,7 @@ export default function Productos() {
       <ProductsHeader
         t={t}
         onCreateProduct={catalog.handleOpenCreateProduct}
+        onOpenBulkIntegration={() => catalog.setIsBulkIntegrationOpen(true)}
         onOpenCategoryManager={() => catalog.setIsCategoryManagerOpen(true)}
         onOpenColumns={() => catalog.setIsColumnsOpen(true)}
         onOpenPublicCatalog={() => catalog.setIsPublicCatalogOpen(true)}
@@ -126,6 +128,17 @@ export default function Productos() {
         onFormChange={catalog.setForm}
         onSubmit={catalog.handleSaveProduct}
         onQuickCreateCategory={catalog.handleQuickCreateCategory}
+      />
+
+      <ProductBulkIntegrationModal
+        open={catalog.isBulkIntegrationOpen}
+        isSaving={catalog.isSavingBulkProducts}
+        preferredCurrency={preferredCurrency}
+        products={catalog.availableProducts}
+        categories={catalog.catalogCategories}
+        onOpenChange={catalog.setIsBulkIntegrationOpen}
+        onCreate={(rows) => catalog.handleBulkCreateProducts(rows, preferredCurrency)}
+        onUpdate={(rows) => catalog.handleBulkUpdateProducts(rows, preferredCurrency)}
       />
 
       <ProductCategoryManagerModal

@@ -1,4 +1,4 @@
-import { Camera, Check, File, Pencil, Plus, Trash2, Upload } from 'lucide-react';
+import { Camera, Check, ChevronDown, File, Pencil, Plus, SlidersHorizontal, Trash2, Upload } from 'lucide-react';
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { IndiceModalFrame, IndiceModalSummary, IndiceModalValidation } from '../../../../components/indice-modal';
 import {
@@ -38,6 +38,7 @@ export type ExpenseFormValues = {
   currency: string;
   description: string;
   dueDate: string;
+  expenseDate: string;
   paymentDate: string;
   paymentMethod: PaymentMethod;
   providerId: string;
@@ -74,6 +75,7 @@ type ExpenseDraftState = TaxControlDraft & {
   concept: string;
   description: string;
   dueDate: string;
+  expenseDate: string;
   paymentDate: string;
   paymentMethod: PaymentMethod;
   providerId: string;
@@ -97,6 +99,7 @@ export function ExpenseFormModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [attachmentError, setAttachmentError] = useState('');
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(Boolean(editingExpense));
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [draft, setDraft] = useState<ExpenseDraftState>(() => createExpenseDraftState(editingExpense ?? initialExpense, preferredCurrency));
@@ -112,6 +115,7 @@ export function ExpenseFormModal({
   const canAttachMoreFiles = existingAttachmentCount + attachmentFiles.length < MAX_EXPENSE_ATTACHMENTS;
   const canSubmit = draft.concept.trim().length > 0
     && amount > 0
+    && draft.expenseDate.trim().length > 0
     && draft.budgetCurrencyCode.trim().length > 0
     && !attachmentError
     && !isSaving;
@@ -198,8 +202,9 @@ export function ExpenseFormModal({
         concept: draft.concept.trim(),
         currency: draft.budgetCurrencyCode,
         description: draft.description.trim(),
-        dueDate: draft.dueDate,
-        paymentDate: draft.paymentDate,
+        dueDate: isEditMode ? draft.dueDate : draft.expenseDate,
+        expenseDate: draft.expenseDate,
+        paymentDate: isEditMode ? draft.paymentDate : draft.expenseDate,
         paymentMethod: draft.paymentMethod,
         providerId: draft.providerId,
         status: isEditMode ? draft.status : 'paid',
@@ -226,17 +231,17 @@ export function ExpenseFormModal({
     <IndiceModalFrame
       busy={isSaving}
       closeLabel={t.columnModal.close}
-      description={t.expenses.modal.subtitle}
+      description={isEditMode ? t.expenses.modal.editSubtitle : t.expenses.modal.subtitle}
       footer={(
         <>
           <button type="button" className={financeModalSecondaryButtonClass} disabled={isSaving} onClick={onClose}>{t.common.cancel}</button>
           <button type="submit" form={formId} disabled={!canSubmit} className={financeModalPrimaryButtonClass}>
             <Check className="h-4 w-4" />
-            {isSaving ? 'Guardando…' : isEditMode ? t.common.saveChanges : t.expenses.modal.create}
+            {isSaving ? 'Guardando…' : isEditMode ? t.common.saveChanges : t.expenses.modal.register}
           </button>
         </>
       )}
-      footerSummary={`${draft.concept.trim() || 'Gasto sin concepto'} · ${formatCurrency(total, draft.budgetCurrencyCode)}`}
+      footerSummary={`${draft.concept.trim() || t.expenses.modal.emptyConcept} · ${formatCurrency(total, draft.budgetCurrencyCode)}${isEditMode ? '' : ` · ${t.expenses.modal.paidOn} ${formatDateSummary(draft.expenseDate)}`}`}
       icon={isEditMode ? <Pencil className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
       onOpenChange={(open) => !open && onClose()}
       open
@@ -246,25 +251,10 @@ export function ExpenseFormModal({
       <form id={formId} className="space-y-4" onSubmit={handleSubmit}>
         <IndiceModalValidation messages={errorMessage ? [errorMessage] : []} title="No se pudo guardar" />
         <FinanceModalSection title={t.expenses.modal.mainTitle} description={t.expenses.modal.description}>
+          <DateInput label={t.expenses.modal.date} required value={draft.expenseDate} onChange={(expenseDate) => updateDraft({ expenseDate })} />
           <TextInput label={t.expenses.modal.concept} required value={draft.concept} onChange={(concept) => updateDraft({ concept })} placeholder={t.expenses.modal.placeholderConcept} />
-          {isEditMode ? (
-            <SelectInput label={t.expenses.columns.status?.label ?? t.filters.status} value={draft.status} onChange={(status) => updateDraft({ status: status as ExpenseStatus })} options={createStatusOptions(t.expenses.table.statuses)} />
-          ) : (
-            <ReadOnlyInput
-              label={t.expenses.columns.status?.label ?? t.filters.status}
-              value={t.expenses.table.statuses.paid}
-            />
-          )}
-          <DateInput label={t.expenses.columns.dueDate?.label ?? 'Fecha de vencimiento'} value={draft.dueDate} onChange={(dueDate) => updateDraft({ dueDate })} />
-          <SelectInput label={t.expenses.columns.paymentMethod?.label ?? 'Método de pago'} value={draft.paymentMethod} onChange={(paymentMethod) => updateDraft({ paymentMethod: paymentMethod as PaymentMethod })} options={createPaymentMethodOptions(t.expenses.table.paymentMethods)} />
-          <div className="md:col-span-2">
-            <TextareaInput label={t.expenses.columns.description?.label ?? 'Descripción'} value={draft.description} onChange={(description) => updateDraft({ description })} placeholder={t.expenses.modal.placeholderConcept} />
-          </div>
-        </FinanceModalSection>
-
-        <FinanceModalSection title="Contexto del gasto" description="Asigna dónde se registra y quién provee el producto o servicio.">
-          <SelectInput label={t.filters.unit} value={draft.businessUnit} onChange={updateBusinessUnit} options={[{ value: '', label: t.common.unassigned }, ...unitOptions]} />
-          <SelectInput label={t.filters.business} value={draft.business} onChange={(business) => updateDraft({ business })} options={[{ value: '', label: t.common.unassigned }, ...scopedBusinessOptions]} />
+          <MoneyInput label={t.expenses.modal.amount} required value={draft.amount} onChange={(nextAmount) => updateDraft({ amount: nextAmount })} placeholder="0.00" />
+          <SelectInput label={t.expenses.modal.currency} required value={draft.budgetCurrencyCode} onChange={updateCurrency} options={financeCurrencySelectOptions} />
           <QuickProviderField
             emptyLabel={t.common.unassigned}
             label={t.filters.provider}
@@ -273,29 +263,54 @@ export function ExpenseFormModal({
             providers={providers}
             value={draft.providerId}
           />
-          <SelectInput label={t.expenses.columns.accountingAccount?.label ?? 'Cuenta contable'} value={draft.accountingAccount} onChange={(accountingAccount) => updateDraft({ accountingAccount })} options={[{ value: '', label: t.common.unassigned }, ...accountingOptions]} />
+          <SelectInput label={t.expenses.columns.paymentMethod?.label ?? 'Método de pago'} value={draft.paymentMethod} onChange={(paymentMethod) => updateDraft({ paymentMethod: paymentMethod as PaymentMethod })} options={createPaymentMethodOptions(t.expenses.table.paymentMethods)} />
+          <div className="md:col-span-2">
+            <TextareaInput label={t.expenses.columns.description?.label ?? 'Descripción'} value={draft.description} onChange={(description) => updateDraft({ description })} placeholder={t.expenses.modal.descriptionPlaceholder} />
+          </div>
         </FinanceModalSection>
 
-        <FinanceModalSection title={t.expenses.modal.summaryTotal} description={t.expenses.modal.description}>
-          <MoneyInput label={t.expenses.modal.amount} required value={draft.amount} onChange={(nextAmount) => updateDraft({ amount: nextAmount })} placeholder="0.00" />
-          <SelectInput label={t.expenses.modal.currency} required value={draft.budgetCurrencyCode} onChange={updateCurrency} options={financeCurrencySelectOptions} />
-          <BudgetTaxControls draft={draft} onDraftChange={updateDraft} />
-          <IndiceModalSummary
-            className="md:col-span-2"
-            columns={3}
-            items={[
-              { label: t.expenses.modal.summarySubtotal, value: formatCurrency(subtotal, draft.budgetCurrencyCode) },
-              { label: t.expenses.modal.summaryTaxes, value: formatCurrency(taxes, draft.budgetCurrencyCode) },
-              { emphasized: true, label: t.expenses.modal.summaryTotal, value: formatCurrency(total, draft.budgetCurrencyCode) },
-            ]}
-            variant="success"
-          />
-        </FinanceModalSection>
-
-        <FinanceModalSection
-          title="Evidencia"
-          description={`Toma una foto o adjunta archivos de soporte. Máximo ${MAX_EXPENSE_ATTACHMENTS} archivos de 10 MB.`}
+        <details
+          className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900"
+          open={isAdvancedOpen}
+          onToggle={(event) => setIsAdvancedOpen(event.currentTarget.open)}
         >
+          <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-4 text-left [&::-webkit-details-marker]:hidden">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-[#147514] dark:bg-emerald-950/40"><SlidersHorizontal className="h-4 w-4" /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium text-slate-950 dark:text-white">{t.expenses.modal.advancedTitle}</span>
+              <span className="mt-0.5 block text-xs leading-5 text-slate-500 dark:text-slate-400">{t.expenses.modal.advancedDescription}</span>
+            </span>
+            <ChevronDown className="h-5 w-5 text-slate-500 transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="space-y-4 border-t border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-950/30">
+            {isEditMode ? (
+              <FinanceModalSection title={t.expenses.modal.controlTitle} description={t.expenses.modal.controlDescription}>
+                <SelectInput label={t.expenses.columns.status?.label ?? t.filters.status} value={draft.status} onChange={(status) => updateDraft({ status: status as ExpenseStatus })} options={createStatusOptions(t.expenses.table.statuses)} />
+                <DateInput label={t.expenses.columns.dueDate?.label ?? 'Fecha de vencimiento'} value={draft.dueDate} onChange={(dueDate) => updateDraft({ dueDate })} />
+              </FinanceModalSection>
+            ) : null}
+            <FinanceModalSection title={t.expenses.modal.contextTitle} description={t.expenses.modal.contextDescription}>
+              <SelectInput label={t.filters.unit} value={draft.businessUnit} onChange={updateBusinessUnit} options={[{ value: '', label: t.common.unassigned }, ...unitOptions]} />
+              <SelectInput label={t.filters.business} value={draft.business} onChange={(business) => updateDraft({ business })} options={[{ value: '', label: t.common.unassigned }, ...scopedBusinessOptions]} />
+              <SelectInput label={t.expenses.columns.accountingAccount?.label ?? 'Cuenta contable'} value={draft.accountingAccount} onChange={(accountingAccount) => updateDraft({ accountingAccount })} options={[{ value: '', label: t.common.unassigned }, ...accountingOptions]} />
+            </FinanceModalSection>
+            <FinanceModalSection title={t.expenses.modal.taxTitle} description={t.expenses.modal.taxDescription}>
+              <BudgetTaxControls draft={draft} onDraftChange={updateDraft} />
+              <IndiceModalSummary
+                className="md:col-span-2"
+                columns={3}
+                items={[
+                  { label: t.expenses.modal.summarySubtotal, value: formatCurrency(subtotal, draft.budgetCurrencyCode) },
+                  { label: t.expenses.modal.summaryTaxes, value: formatCurrency(taxes, draft.budgetCurrencyCode) },
+                  { emphasized: true, label: t.expenses.modal.summaryTotal, value: formatCurrency(total, draft.budgetCurrencyCode) },
+                ]}
+                variant="success"
+              />
+            </FinanceModalSection>
+            <FinanceModalSection
+              title={t.expenses.modal.evidenceTitle}
+              description={t.expenses.modal.evidenceDescription(MAX_EXPENSE_ATTACHMENTS)}
+            >
           <div className="md:col-span-2">
             <input
               ref={cameraInputRef}
@@ -376,7 +391,9 @@ export function ExpenseFormModal({
             ) : null}
             {attachmentError ? <p className="mt-3 text-sm font-medium text-red-600">{attachmentError}</p> : null}
           </div>
-        </FinanceModalSection>
+            </FinanceModalSection>
+          </div>
+        </details>
       </form>
     </IndiceModalFrame>
   );
@@ -404,23 +421,12 @@ function MoneyInput({ label, onChange, placeholder, required, value }: { label: 
   );
 }
 
-function DateInput({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) {
+function DateInput({ label, onChange, required, value }: { label: string; onChange: (value: string) => void; required?: boolean; value: string }) {
   return (
     <label>
-      <FieldLabel label={label} />
-      <input type="date" value={value} onChange={(event) => onChange(event.target.value)} className={financeModalInputClass} />
+      <FieldLabel label={label} required={required} />
+      <input required={required} type="date" value={value} onChange={(event) => onChange(event.target.value)} className={financeModalInputClass} />
     </label>
-  );
-}
-
-function ReadOnlyInput({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <FieldLabel label={label} />
-      <div className={`${financeModalInputClass} flex items-center bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200`}>
-        {value}
-      </div>
-    </div>
   );
 }
 
@@ -472,6 +478,7 @@ function createExpenseDraftState(expense: Expense | null, preferredCurrency: str
     concept: expense?.concept ?? '',
     description: expense?.description ?? '',
     dueDate: formatDateInputValue(expense?.dueDate),
+    expenseDate: formatDateInputValue(expense?.date ?? new Date()),
     paymentDate: formatDateInputValue(expense?.paymentDate),
     paymentMethod: expense?.paymentMethod ?? 'transfer',
     providerId: expense?.providerId ?? '',
@@ -525,6 +532,12 @@ function formatDateInputValue(value?: Date) {
   const month = String(value.getMonth() + 1).padStart(2, '0');
   const day = String(value.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function formatDateSummary(value: string) {
+  if (!value) return '—';
+  const [year, month, day] = value.split('-');
+  return year && month && day ? `${day}/${month}/${year}` : value;
 }
 
 const MAX_EXPENSE_ATTACHMENTS = 5;

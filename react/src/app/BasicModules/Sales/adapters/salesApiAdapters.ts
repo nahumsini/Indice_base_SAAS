@@ -55,6 +55,7 @@ const valueMap: Record<string, string> = {
   pending_follow_up: 'Pending follow-up',
   pending_signature: 'Pending signature',
   product: 'Product',
+  pos_ready: 'POS ready',
   proposal: 'Proposal',
   post_sale_opportunity: 'Post Sale Opportunity',
   qualified: 'Qualified',

@@ -3,6 +3,7 @@ export const productFieldClassName = 'border-slate-200 bg-white shadow-none focu
 export const productModalWizardStepIds = [
   'basics',
   'commercial',
+  'availability',
   'review',
 ] as const;
 

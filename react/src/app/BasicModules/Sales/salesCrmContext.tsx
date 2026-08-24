@@ -382,7 +382,7 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
       const productInput = stripProductIdentityForCreate(product);
       const createdProduct = {
         ...productInput,
-        id: createSequentialId('PRD', products.length + 1),
+        id: `${createSequentialId('PRD', products.length + 1)}-TMP-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         lastUpdated: productInput.lastUpdated ?? getTodayIsoDate(),
       };
 
@@ -427,7 +427,7 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
       const productInput = stripProductIdentityForCreate(product);
       const createdProduct = {
         ...productInput,
-        id: createSequentialId('PRD', products.length + 1),
+        id: `${createSequentialId('PRD', products.length + 1)}-TMP-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         lastUpdated: productInput.lastUpdated ?? getTodayIsoDate(),
       };
 
@@ -440,6 +440,7 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
         )));
         return persistedProduct;
       } catch (error) {
+        setProducts((current) => current.filter((item) => item.id !== createdProduct.id));
         handleSyncFailure('create product', error);
         throw error;
       }
@@ -457,7 +458,12 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
 
       const backendId = backendIdFrom(currentProduct);
       if (backendId === undefined) {
-        return optimisticProduct;
+        setProducts((current) => current.map((product) => (
+          product.id === productId ? currentProduct : product
+        )));
+        const error = new Error('Missing backend identifier.');
+        handleSyncFailure('update product', error);
+        throw error;
       }
       const hasSharedBackendId = products.some((product) => product.id !== productId && product.backendId === backendId);
 
@@ -478,6 +484,9 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
         )));
         return persistedProduct;
       } catch (error) {
+        setProducts((current) => current.map((product) => (
+          product.id === productId ? currentProduct : product
+        )));
         handleSyncFailure('update product', error);
         throw error;
       }
@@ -551,11 +560,15 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
       try {
         const savedSale = await salesApi.create('sales', toBackendSaleRecord(saleRecord, contacts, opportunities, quotes));
         const persistedSale = toFrontendSaleRecord(savedSale as Record<string, unknown>);
+        if (!Number.isSafeInteger(persistedSale.backendId) || !persistedSale.saleNumber.trim()) {
+          throw new Error('El servidor no confirmó el folio de la venta.');
+        }
         setSalesRecords((current) => current.map((item) => (
           item.id === saleRecord.id ? persistedSale : item
         )));
         return persistedSale;
       } catch (error) {
+        setSalesRecords((current) => current.filter((item) => item.id !== saleRecord.id));
         handleSyncFailure('create sale', error);
         throw error;
       }

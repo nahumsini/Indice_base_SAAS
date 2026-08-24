@@ -18,6 +18,7 @@ import java.sql.Types;
 import java.text.Normalizer;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -198,6 +199,88 @@ public class HrUserService {
             payload,
             hrOperationalScopeService.resolve(currentUser)
         );
+    }
+
+    @Transactional
+    public Map<String, Object> createUsersBulk(AuthSessionUser currentUser, Map<String, Object> payload) {
+        var rawItems = payload.get("items");
+        if (!(rawItems instanceof List<?> items) || items.isEmpty()) {
+            throw new IllegalArgumentException("items must contain at least one collaborator.");
+        }
+        if (items.size() > 500) {
+            throw new IllegalArgumentException("A maximum of 500 collaborators can be created at once.");
+        }
+
+        var scope = hrOperationalScopeService.resolve(currentUser);
+        var normalizedItems = new ArrayList<Map<String, Object>>();
+        var emails = new HashSet<String>();
+
+        for (var index = 0; index < items.size(); index++) {
+            if (!(items.get(index) instanceof Map<?, ?> rawItem)) {
+                throw new IllegalArgumentException("Row " + (index + 1) + " is invalid.");
+            }
+
+            var item = new LinkedHashMap<String, Object>();
+            rawItem.forEach((key, value) -> item.put(String.valueOf(key), value));
+            if (stringValue(item, "position", "job_title", "puesto").isBlank()) {
+                item.put("position", "Sin asignar");
+            }
+            if (stringValue(item, "department", "departamento").isBlank()) {
+                item.put("department", "Sin asignar");
+            }
+            var userPayload = mergedSectionPayload(item, "user");
+            var draft = buildHrUserDraft(currentUser.companyId(), userPayload);
+            hrOperationalScopeService.requireAssignmentInScope(
+                currentUser.companyId(),
+                scope,
+                draft.unitId(),
+                draft.businessId()
+            );
+
+            var email = normalizeEmail(draft.email());
+            if (!emails.add(email)) {
+                throw new IllegalArgumentException("Row " + (index + 1) + " repeats email " + email + ".");
+            }
+            if (companyAlreadyHasUserEmail(currentUser.companyId(), email)) {
+                throw new IllegalArgumentException("Row " + (index + 1) + " already exists as a collaborator: " + email + ".");
+            }
+            normalizedItems.add(item);
+        }
+
+        var seatSnapshot = seatService.snapshot(currentUser.companyId());
+        if (seatSnapshot.enforced() && seatSnapshot.usedAndReserved() + normalizedItems.size() > seatSnapshot.limit()) {
+            throw new SeatCapacityExceededException(
+                "The company does not have enough available seats for this bulk import.",
+                seatSnapshot
+            );
+        }
+
+        var created = new ArrayList<Object>();
+        for (var item : normalizedItems) {
+            created.add(createUser(
+                currentUser.companyId(),
+                currentUser.userId(),
+                item,
+                scope
+            ).get("user"));
+        }
+
+        return Map.of("items", created, "count", created.size());
+    }
+
+    private boolean companyAlreadyHasUserEmail(long companyId, String email) {
+        var count = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM users u
+                INNER JOIN user_companies uc ON uc.user_id = u.id
+                WHERE uc.company_id = ? AND LOWER(u.email) = LOWER(?)
+                """,
+            Integer.class,
+            companyId,
+            email
+        );
+        return count != null && count > 0;
     }
 
     private Map<String, Object> createUser(

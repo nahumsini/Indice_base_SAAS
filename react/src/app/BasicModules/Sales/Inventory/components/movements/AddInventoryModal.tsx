@@ -59,7 +59,7 @@ export function AddInventoryModal({ open, rows, warehouses, suppliers, t, initia
     const warehouse = activeWarehouses.find((item) => item.id === initialWarehouseId) ?? activeWarehouses[0];
     const nextDraft: AddInventoryDraft = {
       ...newDraft(t.operational.movementTypes.supplierReceipt),
-      items: [createMovementProductLine(initialProductId ?? rows[0]?.productId ?? '')],
+      items: initialProductId ? [createMovementProductLine(initialProductId)] : [],
       supplierName: supplierOptions[0]?.name ?? '',
       destinationWarehouseId: warehouse?.id ?? '',
       businessUnitId: warehouse?.businessUnitId ?? '',

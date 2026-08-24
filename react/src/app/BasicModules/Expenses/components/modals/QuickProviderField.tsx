@@ -11,12 +11,13 @@ type QuickProviderFieldProps = {
   onChange: (providerId: string) => void;
   onCreateProvider?: (name: string) => Promise<Provider>;
   providers: Provider[];
+  required?: boolean;
   value: string;
 };
 
 const inputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-none placeholder:text-slate-400 transition-colors focus:border-[#147514] focus:outline-none focus:ring-2 focus:ring-[#147514]/15 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100';
 
-export function QuickProviderField({ emptyLabel, label, onChange, onCreateProvider, providers, value }: QuickProviderFieldProps) {
+export function QuickProviderField({ emptyLabel, label, onChange, onCreateProvider, providers, required, value }: QuickProviderFieldProps) {
   const t = useExpensesTranslations();
   const copy = t.expenses.payableAccount;
   const [errorMessage, setErrorMessage] = useState('');
@@ -48,8 +49,8 @@ export function QuickProviderField({ emptyLabel, label, onChange, onCreateProvid
 
   return (
     <div>
-      <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className={inputClass}>
+      <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">{label}{required ? ' *' : ''}</span>
+      <select required={required} value={value} onChange={(event) => onChange(event.target.value)} className={inputClass}>
         <option value="">{emptyLabel}</option>
         {providers.filter(provider => provider.status !== 'inactive').map(provider => (
           <option key={provider.id} value={provider.id}>{provider.name}</option>

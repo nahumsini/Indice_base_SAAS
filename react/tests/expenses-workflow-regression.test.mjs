@@ -10,7 +10,8 @@ test('the full expense form fixes new operational expenses as paid', async () =>
 
   assert.match(source, /status:\s*expense\?\.status\s*\?\?\s*'paid'/);
   assert.match(source, /status:\s*isEditMode\s*\?\s*draft\.status\s*:\s*'paid'/);
-  assert.match(source, /<ReadOnlyInput[\s\S]*statuses\.paid/);
+  assert.match(source, /footerSummary=\{`\$\{draft\.concept[\s\S]*t\.expenses\.modal\.paidOn/);
+  assert.match(source, /\{isEditMode \? \([\s\S]*<SelectInput label=\{t\.expenses\.columns\.status/);
 });
 
 test('creating an operational expense forces paid while edits preserve the selected status', async () => {

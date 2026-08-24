@@ -17,6 +17,8 @@ import {
 } from '../utils/productCategories';
 import { getProductGalleryImages, persistProductImageDrafts, registerPersistedProductImages } from '../utils/productImages';
 import { buildProductForm, buildProductInput, initialProductForm } from '../utils/productForm';
+import { createAutomaticSku } from '../components/product-modal/productModalUtils';
+import type { ProductBulkDraft, ProductBulkEditDraft } from '../components/ProductBulkIntegrationModal';
 import { sortProducts } from '../utils/productFormatters';
 import { getProductAvailability } from '../utils/productOperationalStatus';
 
@@ -64,6 +66,7 @@ export function useProductsCatalog(t: ProductsTranslations) {
   const [isPublicCatalogOpen, setIsPublicCatalogOpen] = useState(false);
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   const [isColumnsOpen, setIsColumnsOpen] = useState(false);
+  const [isBulkIntegrationOpen, setIsBulkIntegrationOpen] = useState(false);
   const [managedCategories, setManagedCategoriesState] = useState<ProductCategoryConfig[]>(readStoredProductCategories);
   const [deletedProductIds, setDeletedProductIds] = useState<string[]>([]);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
@@ -77,6 +80,7 @@ export function useProductsCatalog(t: ProductsTranslations) {
   const [visibleColumns, setVisibleColumns] = useState<ProductTableColumnId[]>(defaultProductTableVisibleColumns);
   const [form, setForm] = useState<ProductFormState>(initialProductForm);
   const [isSavingProduct, setIsSavingProduct] = useState(false);
+  const [isSavingBulkProducts, setIsSavingBulkProducts] = useState(false);
   const [productSaveError, setProductSaveError] = useState<string | null>(null);
 
   const availableProducts = useMemo(
@@ -329,6 +333,79 @@ export function useProductsCatalog(t: ProductsTranslations) {
     }
   };
 
+  const handleBulkCreateProducts = async (drafts: ProductBulkDraft[], preferredCurrency: string) => {
+    setIsSavingBulkProducts(true);
+    let created = 0;
+    const failedRows: ProductBulkDraft[] = [];
+    const errors: string[] = [];
+
+    for (const [draftIndex, draft] of drafts.entries()) {
+      const draftForm: ProductFormState = {
+        ...initialProductForm,
+        name: draft.name,
+        price: String(draft.price),
+        cost: String(draft.cost),
+        currency: preferredCurrency.trim().toUpperCase(),
+        category: draft.category || defaultCategoryValue,
+        type: draft.type,
+        status: draft.status,
+        visibility: 'Commercial',
+      };
+      draftForm.sku = draft.sku || `${createAutomaticSku(draftForm)}-${String(draftIndex + 1).padStart(3, '0')}`;
+      try {
+        const savedProduct = await createProductRecord(buildProductInput(draftForm, 'coral'));
+        if (!savedProduct.backendId || !Number.isSafeInteger(savedProduct.backendId)) {
+          throw new Error('El servidor no confirmó el identificador del producto creado.');
+        }
+        created += 1;
+      } catch (error) {
+        failedRows.push(draft);
+        errors.push(error instanceof Error && error.message.trim() ? error.message : 'No fue posible guardar el producto.');
+      }
+    }
+
+    await reloadProducts().catch(() => undefined);
+    setIsSavingBulkProducts(false);
+    return { created, failedRows, errors };
+  };
+
+  const handleBulkUpdateProducts = async (drafts: ProductBulkEditDraft[], preferredCurrency: string) => {
+    setIsSavingBulkProducts(true);
+    let updated = 0;
+    const failedRows: ProductBulkEditDraft[] = [];
+    const errors: string[] = [];
+
+    for (const draft of drafts) {
+      try {
+        const currentProduct = availableProducts.find((product) => product.id === draft.id);
+        if (!currentProduct?.backendId || !Number.isSafeInteger(currentProduct.backendId)) {
+          throw new Error('El producto no tiene un identificador persistido y no puede editarse todavía.');
+        }
+        const savedProduct = await updateProductRecord(draft.id, {
+          name: draft.name,
+          sku: draft.sku,
+          category: draft.category as SalesCatalogItem['category'],
+          type: draft.type,
+          status: draft.status,
+          price: draft.price,
+          cost: draft.cost,
+          currency: preferredCurrency.trim().toUpperCase(),
+        });
+        if (!savedProduct.backendId || savedProduct.backendId !== currentProduct.backendId) {
+          throw new Error('El servidor no confirmó la actualización del producto.');
+        }
+        updated += 1;
+      } catch (error) {
+        failedRows.push(draft);
+        errors.push(error instanceof Error && error.message.trim() ? error.message : 'No fue posible actualizar el producto.');
+      }
+    }
+
+    await reloadProducts().catch(() => undefined);
+    setIsSavingBulkProducts(false);
+    return { updated, failedRows, errors };
+  };
+
   const handleProductFormChange = (nextValue: SetStateAction<ProductFormState>) => {
     if (productSaveError) {
       setProductSaveError(null);
@@ -349,9 +426,11 @@ export function useProductsCatalog(t: ProductsTranslations) {
     filteredProducts,
     form,
     isCategoryManagerOpen,
+    isBulkIntegrationOpen,
     isColumnsOpen,
     isCreateOpen,
     isSavingProduct,
+    isSavingBulkProducts,
     isPublicCatalogOpen,
     managedCategories,
     posReadyCount,
@@ -382,10 +461,13 @@ export function useProductsCatalog(t: ProductsTranslations) {
     handleBulkSetProductStatus,
     handleBulkMarkAvailableForSales,
     handleBulkRemoveFromPublicCatalog,
+    handleBulkCreateProducts,
+    handleBulkUpdateProducts,
     setActiveView,
     setCarouselProduct,
     setCategoryFilter,
     setIsCategoryManagerOpen,
+    setIsBulkIntegrationOpen,
     setIsColumnsOpen,
     setIsPublicCatalogOpen,
     setManagedCategories: updateManagedCategories,

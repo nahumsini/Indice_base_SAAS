@@ -39,6 +39,36 @@ test('Recursos Humanos conserva el shell, el title bar y el Kiosk Engine de asis
   assert.match(identitySource, /<KioskIdentityGate/);
 });
 
+test('Colaboradores inicia con una vista operativa compacta y personalizable', () => {
+  const constantsSource = readFileSync(resolve(moduleRoot, 'Employees/constants/employees.constants.ts'), 'utf8');
+
+  assert.match(constantsSource, /columnsStorageKey = 'rh-colaboradores-columns-v7'/);
+  assert.match(constantsSource, /id: 'employee',[\s\S]*?visible: true,[\s\S]*?locked: true/);
+  assert.match(constantsSource, /id: 'employeeNumber',[\s\S]*?visible: false/);
+
+  ['position', 'department', 'unit', 'status'].forEach((columnId) => {
+    assert.match(constantsSource, new RegExp(`id: '${columnId}', label: [^\\n]+ visible: true`));
+  });
+
+  ['firstName', 'lastName', 'email', 'phone', 'business', 'salary', 'payPeriod'].forEach((columnId) => {
+    assert.match(constantsSource, new RegExp(`id: '${columnId}', label: [^\\n]+ visible: false`));
+  });
+});
+
+test('Colaboradores ofrece integración masiva validada y atómica', () => {
+  const employeesSource = readFileSync(resolve(moduleRoot, 'Employees/Employees.tsx'), 'utf8');
+  const headerSource = readFileSync(resolve(moduleRoot, 'Employees/components/EmployeesHeaderActions.tsx'), 'utf8');
+  const modalSource = readFileSync(resolve(moduleRoot, 'Employees/components/EmployeeBulkIntegrationModal.tsx'), 'utf8');
+  const apiSource = readFileSync(resolve(root, 'src/app/api/humanResources.ts'), 'utf8');
+
+  assert.match(headerSource, /bulkIntegrationLabel/);
+  assert.match(employeesSource, /createHrUsersBulk/);
+  assert.match(modalSource, /Pega desde Excel/);
+  assert.match(modalSource, /Ninguna fila se guardará si existe un error/);
+  assert.match(modalSource, /remaining_seats/);
+  assert.match(apiSource, /hrUserCreate}\/bulk/);
+});
+
 test('Recursos Humanos usa apiClient con CSRF para APIs protegidas no nomina', () => {
   const apiClientSource = readFileSync(resolve(root, 'src/app/lib/apiClient.ts'), 'utf8');
   const apiSources = {
