@@ -63,7 +63,7 @@ export function SaleTicketPanel({
           <div className="min-w-0">
             <h2 className="text-xl font-medium text-white">Ticket actual</h2>
             <p className="text-sm text-gray-300">
-              {itemCount} {itemCount === 1 ? 'articulo' : 'articulos'} en caja
+              {`${itemCount} ${itemCount === 1 ? 'articulo' : 'articulos'} en caja`}
             </p>
           </div>
         </div>

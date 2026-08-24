@@ -93,8 +93,8 @@ export function ReturnModal({ isOpen, onClose, onConfirm, workspaceMode = false 
             <section>
               <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de devolución</p>
               <div className="grid grid-cols-2 gap-2">
-                <ReturnTypeButton active={returnType === 'full'} title="Total" description="Todos los productos" onClick={() => setReturnType('full')} />
-                <ReturnTypeButton active={returnType === 'partial'} title="Parcial" description="Algunos productos" onClick={() => setReturnType('partial')} />
+                <ReturnTypeButton active={returnType === 'full'} title="Devolución total" description="Todos los productos" onClick={() => setReturnType('full')} />
+                <ReturnTypeButton active={returnType === 'partial'} title="Devolución parcial" description="Algunos productos" onClick={() => setReturnType('partial')} />
               </div>
             </section>
 
@@ -186,13 +186,13 @@ export function ReturnModal({ isOpen, onClose, onConfirm, workspaceMode = false 
           <div className="grid grid-cols-2 gap-2">
             <ReturnTypeButton
               active={returnType === 'full'}
-              title="Total"
+              title="Devolucion total"
               description="Todos los productos"
               onClick={() => setReturnType('full')}
             />
             <ReturnTypeButton
               active={returnType === 'partial'}
-              title="Parcial"
+              title="Devolucion parcial"
               description="Algunos productos"
               onClick={() => setReturnType('partial')}
             />
@@ -229,7 +229,7 @@ function ReturnTypeButton({
           : 'border-gray-300 bg-gray-50 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400'
       }`}
     >
-      <p className="text-sm font-medium">Devolucion {title}</p>
+      <p className="text-sm font-medium">{title}</p>
       <p className="mt-1 text-xs font-medium">{description}</p>
     </button>
   );

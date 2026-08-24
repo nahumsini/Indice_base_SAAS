@@ -68,7 +68,7 @@ export function ShiftBar({
           title={`${shift.businessUnitName} · ${shift.businessName} · ${warehouseName} · ${shift.cashierName}`}
         >
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-sm font-medium">Caja {shift.cashRegisterCode}</span>
+            <span className="text-sm font-medium">{`Caja ${shift.cashRegisterCode}`}</span>
             <span className="rounded-full bg-[#F4C84A]/20 px-2 py-0.5 text-xs font-medium text-[#F4C84A]">{shift.cashRegisterName}</span>
             <span className="text-xs font-normal text-gray-300">{shift.businessUnitName}</span>
             <span className="text-gray-500">·</span>
@@ -80,7 +80,7 @@ export function ShiftBar({
             <span>{shift.cashierName}</span>
             <span>·</span>
             <span className="inline-flex items-center gap-1">
-              <Clock3 className="h-3.5 w-3.5" /> Inicio {shiftStartedAt} · {elapsed}
+              <Clock3 className="h-3.5 w-3.5" />{` Inicio ${shiftStartedAt} · ${elapsed}`}
             </span>
             <span>·</span>
             <span>

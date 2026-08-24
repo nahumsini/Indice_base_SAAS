@@ -11,6 +11,7 @@ import {
   formatBusinessCurrencyAmount,
   normalizeBusinessCurrencyCode,
 } from '../../../shared/businessCurrency';
+import { usePointOfSaleTranslations } from '../../hooks/usePointOfSaleTranslations';
 import type { CashRegisterContext } from '../../shared/cashClosing.types';
 import type { PosCashRegisterResponse, PosWarehouseSummary } from '../services/posBackendApi';
 
@@ -47,6 +48,7 @@ export function OpenShiftModal({
   onConfirm,
   onSelectCashRegister,
 }: OpenShiftModalProps) {
+  const copy = usePointOfSaleTranslations().sale.openShift;
   const [selectedCurrencyCode, setSelectedCurrencyCode] = useState(() => normalizeBusinessCurrencyCode(preferredCurrencyCode));
   const [initialCash, setInitialCash] = useState('0.00');
   const [openingNote, setOpeningNote] = useState('');
@@ -110,16 +112,16 @@ export function OpenShiftModal({
       selectedCurrencyCode,
       registerContext.responsibleUserName,
     ].filter(Boolean).join(' · ')
-    : 'Selecciona una caja POS disponible';
+    : copy.contextFallback;
 
   const handleConfirm = () => {
     if (isSubmitting) return;
     if (!selectedRegister || !selectedWarehouse || !registerContext || !registerContextMatchesSelection) {
-      setError('Selecciona una caja POS activa y disponible.');
+      setError(copy.selectRegisterError);
       return;
     }
     if (Number.isNaN(amount) || amount < 0) {
-      setError('El fondo inicial no puede ser negativo.');
+      setError(copy.negativeOpeningFundError);
       return;
     }
     void onConfirm(amount, openingNote.trim() || undefined, selectedCurrencyCode);
@@ -128,18 +130,18 @@ export function OpenShiftModal({
   return (
     <PosModalFrame
       modalType="standard-form"
-      closeLabel="Cerrar apertura de turno"
-      eyebrow="Inicio de turno"
+      closeLabel={copy.closeLabel}
+      eyebrow={copy.eyebrow}
       icon={<LogIn className="h-6 w-6" />}
       isCloseDisabled={isSubmitting}
       onClose={onClose}
       size="md"
-      subtitle="Selecciona una caja POS y registra el fondo inicial."
-      title="Abrir turno"
+      subtitle={copy.subtitle}
+      title={copy.title}
       tone="coral"
       footerClassName={posModalModuleFooterClassName}
-      footerLeading={<button type="button" onClick={onClose} disabled={isSubmitting} className={posModalSecondaryActionClassName}>Cancelar</button>}
-      footerSummary={contextReady ? `${selectedRegister.code} · ${selectedCurrencyCode} · Fondo ${formatCurrency(amount || 0, selectedCurrencyCode)}` : 'Contexto pendiente'}
+      footerLeading={<button type="button" onClick={onClose} disabled={isSubmitting} className={posModalSecondaryActionClassName}>{copy.cancel}</button>}
+      footerSummary={contextReady ? `${selectedRegister.code} · ${selectedCurrencyCode} · ${copy.footerFund} ${formatCurrency(amount || 0, selectedCurrencyCode)}` : copy.pendingContext}
       footer={(
         <button
           type="button"
@@ -147,26 +149,26 @@ export function OpenShiftModal({
           disabled={isSubmitting || !contextReady || Number.isNaN(amount) || amount < 0}
           className={posModalPrimaryActionClassName}
         >
-          {isSubmitting ? 'Abriendo...' : 'Abrir turno'}
+          {isSubmitting ? copy.opening : copy.confirm}
         </button>
       )}
     >
       {(error || hasRegisterBlocker) ? (
         <div className="mb-4 flex gap-2 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-normal text-orange-800 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{error || 'No hay cajas POS activas disponibles. Crea una en Cajas y turnos.'}</span>
+          <span>{error || copy.noRegisters}</span>
         </div>
       ) : null}
 
       <section className="space-y-5 rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div>
-          <h3 className="text-lg font-medium text-gray-950 dark:text-white">Caja de operación</h3>
-          <p className="mt-1 text-sm font-normal text-gray-600 dark:text-gray-300">Cada caja conserva su almacén, unidad y negocio. Si un almacén tiene varias cajas, aparecen por separado.</p>
+          <h3 className="text-lg font-medium text-gray-950 dark:text-white">{copy.registerSectionTitle}</h3>
+          <p className="mt-1 text-sm font-normal text-gray-600 dark:text-gray-300">{copy.registerSectionDescription}</p>
         </div>
 
         <SelectField
           icon={Monitor}
-          label="Caja POS"
+          label={copy.registerLabel}
           value={selectedCashRegisterId}
           disabled={isSubmitting || hasRegisterBlocker}
           options={eligibleRegisters.map((register) => {
@@ -176,7 +178,7 @@ export function OpenShiftModal({
               name: `${register.code} · ${register.name}${warehouse ? ` · ${warehouse.name}` : ''}`,
             };
           })}
-          placeholder="Selecciona una caja POS"
+          placeholder={copy.registerPlaceholder}
           onChange={(cashRegisterId) => {
             onSelectCashRegister?.(cashRegisterId);
             setError('');
@@ -184,14 +186,14 @@ export function OpenShiftModal({
         />
 
         <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-950/50">
-          <p className="text-xs font-normal text-gray-500 dark:text-gray-400">Contexto precargado</p>
+          <p className="text-xs font-normal text-gray-500 dark:text-gray-400">{copy.contextLabel}</p>
           <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">{contextSummary}</p>
         </div>
       </section>
 
       <section className="mt-4 space-y-4 rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div>
-          <label htmlFor="opening-cash" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Fondo inicial</label>
+          <label htmlFor="opening-cash" className="block text-sm font-medium text-gray-700 dark:text-gray-300">{copy.openingFundLabel}</label>
           <div className="relative mt-2">
             <Coins className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
             <input
@@ -223,10 +225,10 @@ export function OpenShiftModal({
         </div>
 
         <details className="group rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-950/50">
-          <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200">Opciones de apertura</summary>
+          <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200">{copy.openingOptions}</summary>
           <div className="space-y-4 border-t border-gray-200 p-4 dark:border-gray-700">
             <label className="block">
-              <span className="mb-2 block text-sm font-normal text-gray-600 dark:text-gray-300">Divisa del turno</span>
+              <span className="mb-2 block text-sm font-normal text-gray-600 dark:text-gray-300">{copy.shiftCurrency}</span>
               <select
                 value={selectedCurrencyCode}
                 onChange={(event) => setSelectedCurrencyCode(normalizeBusinessCurrencyCode(event.target.value))}
@@ -237,12 +239,12 @@ export function OpenShiftModal({
               </select>
             </label>
             <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-sm font-normal text-gray-600 dark:text-gray-300"><StickyNote className="h-4 w-4" /> Nota de apertura</span>
+              <span className="mb-2 flex items-center gap-2 text-sm font-normal text-gray-600 dark:text-gray-300"><StickyNote className="h-4 w-4" /> {copy.openingNote}</span>
               <textarea
                 value={openingNote}
                 onChange={(event) => setOpeningNote(event.target.value)}
                 disabled={isSubmitting}
-                placeholder="Opcional"
+                placeholder={copy.optionalPlaceholder}
                 rows={2}
                 className="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-normal text-gray-900 focus:ring-2 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
               />

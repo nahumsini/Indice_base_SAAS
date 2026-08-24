@@ -830,7 +830,7 @@ export default function Sale() {
             <div className="min-w-0">
               <p className="text-[11px] text-gray-400">Ticket actual</p>
               <p className="truncate text-sm text-white">
-                {cart.reduce((sum, item) => sum + item.quantity, 0)} artículos · Caja {currentShift.cashRegisterCode}
+                {`${cart.reduce((sum, item) => sum + item.quantity, 0)} artículos · Caja ${currentShift.cashRegisterCode}`}
               </p>
             </div>
             <div className="flex items-center gap-2">

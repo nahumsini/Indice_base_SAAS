@@ -10,6 +10,8 @@ import {
   DialogTitle,
 } from '../../../../components/ui/dialog';
 import { cn } from '../../../../components/ui/utils';
+import { PointOfSaleLegacyLocalizer } from '../../PointOfSaleLegacyLocalizer';
+import { usePointOfSaleResolvedLocale } from '../../hooks/usePointOfSaleTranslations';
 
 export type PosModalType = 'confirmation' | 'standard-form' | 'wizard' | 'operational-workspace';
 type PosModalSize = 'sm' | 'md' | 'lg' | 'xl';
@@ -114,6 +116,7 @@ export function PosModalFrame({
   title,
   zIndexClassName = 'z-50',
 }: PosModalFrameProps) {
+  const locale = usePointOfSaleResolvedLocale();
   const toneClasses = toneClassNames[tone];
   const widthClassName = modalType && modalType !== 'standard-form'
     ? typeClassNames[modalType]
@@ -188,35 +191,37 @@ export function PosModalFrame({
         closeButtonLabel={closeLabel}
         overlayClassName={cn('bg-[#111827]/70 backdrop-blur-sm', zIndexClassName)}
       >
-        <DialogHeader className={cn('shrink-0 px-5 py-4 text-left sm:px-6', toneClasses.header)}>
-          <div className="flex min-w-0 items-start gap-3 pr-14">
-            <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border shadow-sm', toneClasses.icon)} aria-hidden="true">
-              {icon}
-            </span>
-            <div className="min-w-0 flex-1">
-              {eyebrow ? <p className={cn('mb-1 text-xs font-medium leading-5 tracking-normal', toneClasses.eyebrow)}>{eyebrow}</p> : null}
-              <DialogTitle className={cn('text-xl font-medium leading-tight sm:text-2xl', toneClasses.title)}>{title}</DialogTitle>
-              {subtitle ? <DialogDescription className={cn('mt-1 text-sm font-normal leading-5', toneClasses.subtitle)}>{subtitle}</DialogDescription> : null}
+        <PointOfSaleLegacyLocalizer locale={locale}>
+          <DialogHeader className={cn('shrink-0 px-5 py-4 text-left sm:px-6', toneClasses.header)}>
+            <div className="flex min-w-0 items-start gap-3 pr-14">
+              <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border shadow-sm', toneClasses.icon)} aria-hidden="true">
+                {icon}
+              </span>
+              <div className="min-w-0 flex-1">
+                {eyebrow ? <p className={cn('mb-1 text-xs font-medium leading-5 tracking-normal', toneClasses.eyebrow)}>{eyebrow}</p> : null}
+                <DialogTitle className={cn('text-xl font-medium leading-tight sm:text-2xl', toneClasses.title)}>{title}</DialogTitle>
+                {subtitle ? <DialogDescription className={cn('mt-1 text-sm font-normal leading-5', toneClasses.subtitle)}>{subtitle}</DialogDescription> : null}
+              </div>
+              {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
             </div>
-            {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
-          </div>
-        </DialogHeader>
+          </DialogHeader>
 
-        <div className={cn(
-          'min-h-0 flex-1 overflow-y-auto bg-[#F7F8FA] p-4 dark:bg-[#111827] sm:p-5',
-          bodyClassName,
-        )}>
-          {children}
-        </div>
-
-        {footer || footerLeading || footerSummary ? (
-          <DialogFooter className={cn(
-            'shrink-0 border-t border-[#FF6B5E] bg-[#FF6B5E] px-6 py-4 text-[#222831] dark:border-[#b63b32] dark:bg-[#b63b32] dark:text-white',
-            footerClassName,
+          <div className={cn(
+            'min-h-0 flex-1 overflow-y-auto bg-[#F7F8FA] p-4 dark:bg-[#111827] sm:p-5',
+            bodyClassName,
           )}>
-            <IndiceModalFooter actions={footer} leading={footerLeading} summary={footerSummary} tone="coral" />
-          </DialogFooter>
-        ) : null}
+            {children}
+          </div>
+
+          {footer || footerLeading || footerSummary ? (
+            <DialogFooter className={cn(
+              'shrink-0 border-t border-[#FF6B5E] bg-[#FF6B5E] px-6 py-4 text-[#222831] dark:border-[#b63b32] dark:bg-[#b63b32] dark:text-white',
+              footerClassName,
+            )}>
+              <IndiceModalFooter actions={footer} leading={footerLeading} summary={footerSummary} tone="coral" />
+            </DialogFooter>
+          ) : null}
+        </PointOfSaleLegacyLocalizer>
       </DialogContent>
     </Dialog>
   );

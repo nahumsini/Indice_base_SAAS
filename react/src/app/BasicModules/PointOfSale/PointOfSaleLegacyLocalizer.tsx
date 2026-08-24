@@ -34,8 +34,13 @@ const exactAliases: Record<string, string> = {
   'Aplicacion directa': 'Direct application',
   'Aplicar descuento': 'Apply discount',
   'Aplica descuentos manuales o reglas disponibles para la línea.': 'Apply manual discounts or available rules to the line.',
+  'Abre el modal touch para elegir método de pago.': 'Open the touch modal to choose a payment method.',
   'Autorización o referencia': 'Authorization or reference',
   'BAJO': 'LOW',
+  'Billete': 'Bill',
+  'billete': 'Bill',
+  'Botones grandes para operacion en pantalla tactil.': 'Large buttons for touch-screen operation.',
+  'Botones grandes para operación en pantalla táctil.': 'Large buttons for touch-screen operation.',
   'Buscar por nombre o codigo...': 'Search by name or code...',
   'Buscar por nombre, SKU o código': 'Search by name, SKU, or code',
   'Buscar productos': 'Search products',
@@ -48,9 +53,12 @@ const exactAliases: Record<string, string> = {
   'Cambio a devolver MXN': 'Change due MXN',
   'Cambio a entregar': 'Change to return',
   'Cambio de billetes': 'Bill exchange',
+  'Cambio': 'Change',
   'Cambio pendiente': 'Pending change',
+  'Cambio pendiente de entregar': 'Change still to return',
   'Captura efectivo recibido y cambio antes de confirmar.': 'Enter cash received and change before confirming.',
   'Captura USD, valida el tipo de cambio y calcula el cambio en MXN.': 'Enter USD, validate the exchange rate, and calculate change in MXN.',
+  'Capturar pago': 'Capture payment',
   'Catálogo POS': 'POS catalog',
   'Catálogo de venta': 'Sales catalog',
   'Cerrar apertura de caja': 'Close register opening',
@@ -70,7 +78,9 @@ const exactAliases: Record<string, string> = {
   'Cerrar resumen del corte': 'Close closing summary',
   'Cerrar ticket': 'Close ticket',
   'Cobrar': 'Charge',
+  'Cobrar exacto': 'Charge exact',
   'Cobro': 'Payment',
+  'Cobro exacto': 'Exact checkout',
   'Cobro POS': 'POS checkout',
   'Cobro dividido': 'Split payment',
   'Cobro en curso': 'Payment in progress',
@@ -91,18 +101,25 @@ const exactAliases: Record<string, string> = {
   'Corte POS': 'POS closing',
   'Corte y cierre de caja': 'Register count and closing',
   'Crear caja': 'Create register',
+  'Cliente de crédito': 'Credit customer',
+  'Crédito': 'Credit',
   'Cargando punto de venta': 'Loading point of sale',
+  'Completo': 'Complete',
   'Descartar ticket pausado': 'Discard suspended ticket',
+  'Decisión': 'Decision',
+  'Decision': 'Decision',
   'Describe el motivo': 'Describe the reason',
   'Descuento a toda la venta': 'Discount entire sale',
   'Devolucion procesada': 'Return processed',
   'Devolución procesada': 'Return processed',
   'Distribuye el total entre efectivo, dólares, tarjeta y transferencia.': 'Split the total across cash, dollars, card, and transfer.',
+  'Disponible': 'Available',
   'Divisa de venta': 'Sales currency',
   'Divisa del turno': 'Shift currency',
   'Divisa e impuestos': 'Currency and taxes',
   'El cajero está preparando tu forma de pago': 'The cashier is preparing your payment method',
   'El cajero está registrando tu pago en efectivo': 'The cashier is registering your cash payment',
+  'El cobro se habilitará cuando el ticket tenga artículos.': 'Checkout is enabled when the ticket has items.',
   'El efectivo contado no puede ser negativo.': 'Counted cash cannot be negative.',
   'El efectivo recibido debe cubrir el monto del pago.': 'Cash received must cover the payment amount.',
   'El efectivo recibido debe ser mayor o igual al monto del pago.': 'Cash received must be greater than or equal to the payment amount.',
@@ -116,8 +133,10 @@ const exactAliases: Record<string, string> = {
   'Elige un método, agrega pagos y finaliza la venta.': 'Choose a method, add payments, and complete the sale.',
   'Empieza escaneando o tocando un producto.': 'Start by scanning or tapping a product.',
   'Enter para agregar': 'Enter to add',
+  'Entregar:': 'Return:',
   'Entrada de efectivo': 'Cash in',
   'Entrégalo únicamente después de finalizar la venta.': 'Hand it over only after completing the sale.',
+  'Efectivo recibido': 'Cash received',
   'Escanea código de barras...': 'Scan barcode...',
   'Escanea o toca un producto': 'Scan or tap a product',
   'Escanea un producto o recupera un ticket pausado para mantener la caja activa.': 'Scan a product or resume a suspended ticket to keep the register active.',
@@ -126,6 +145,7 @@ const exactAliases: Record<string, string> = {
   'Esperando pago': 'Waiting for payment',
   'Estamos leyendo cajas y turnos activos desde POS.': 'Reading registers and active shifts from POS.',
   'Esta regla requiere autorizacion de supervisor antes de cobrar.': 'This rule requires supervisor authorization before charging.',
+  'Falta': 'Still due',
   'Falta cubrir el total': 'Remaining total not covered',
   'Falta recibir': 'Still due',
   'Finaliza antes de entregar el cambio': 'Complete before returning change',
@@ -155,6 +175,12 @@ const exactAliases: Record<string, string> = {
   'Listo': 'Ready',
   'Listo para cobrar': 'Ready to charge',
   'Listo para completar venta': 'Ready to complete sale',
+  'Método de pago': 'Payment method',
+  'Métodos de pago': 'Payment methods',
+  'Metodos de pago': 'Payment methods',
+  'Moneda': 'Coin',
+  'moneda': 'Coin',
+  'Monto del pago': 'Payment amount',
   'Monto de descuento por unidad': 'Discount amount per unit',
   'Monto fijo': 'Fixed amount',
   'Monto insuficiente': 'Insufficient amount',
@@ -178,12 +204,14 @@ const exactAliases: Record<string, string> = {
   'No se pudo registrar el movimiento.': 'The movement could not be recorded.',
   'No se pudo registrar el movimiento de efectivo.': 'The cash movement could not be recorded.',
   'No se pudieron cargar los movimientos de efectivo.': 'Cash movements could not be loaded.',
+  'No se pudo finalizar': 'Could not complete checkout',
   'Nombre, SKU o código de barras': 'Name, SKU, or barcode',
   'Nota credito': 'Credit note',
   'Número de referencia': 'Reference number',
   'Ocultar catálogo': 'Hide catalog',
   'Operación sensible': 'Sensitive operation',
   'Pago completo': 'Payment complete',
+  'Pago completado': 'Payment completed',
   'Pago exacto': 'Exact payment',
   'Pago exacto agregado. Finaliza la venta para cerrar el cobro.': 'Exact payment added. Complete the sale to close payment.',
   'Pago listo': 'Payment ready',
@@ -191,10 +219,12 @@ const exactAliases: Record<string, string> = {
   'Pago mixto': 'Split payment',
   'Pago por transferencia': 'Transfer payment',
   'Pagado': 'Paid',
+  'Pagos agregados': 'Added payments',
   'Pagos registrados': 'Registered payments',
   'Pantalla': 'Display',
   'Pausar': 'Suspend',
   'Pendiente': 'Pending',
+  'Plazo': 'Term',
   'Permite ajustar tasa para este ticket.': 'Allows rate adjustment for this ticket.',
   'Por cobrar': 'To collect',
   'Porcentaje de descuento': 'Discount percentage',
@@ -224,11 +254,17 @@ const exactAliases: Record<string, string> = {
   'Salida de efectivo': 'Cash out',
   'Selecciona el almacén desde donde se descontará el inventario.': 'Select the warehouse that inventory will be deducted from.',
   'Selecciona el cliente que recibira la venta a credito.': 'Select the customer that will receive the credit sale.',
+  'Selecciona cómo recibes el pago.': 'Select how you receive the payment.',
+  'Selecciona un cliente con una política de crédito disponible.': 'Select a customer with an available credit policy.',
+  'Selecciona un metodo para capturar el primer pago.': 'Select a method to capture the first payment.',
+  'Selecciona un método para capturar el primer pago.': 'Select a method to capture the first payment.',
+  'Seleccionar cliente': 'Select customer',
   'Selecciona un almacén': 'Select a warehouse',
   'Selecciona un almacén para preparar su caja': 'Select a warehouse to prepare its register',
   'Selecciona una caja': 'Select a register',
   'Selecciona una divisa valida para abrir caja.': 'Select a valid currency to open the register.',
   'Sin cajero activo': 'No active cashier',
+  'Sin pagos': 'No payments',
   'Sin referencia': 'No reference',
   'Sin tickets en espera': 'No suspended tickets',
   'SIN STOCK': 'OUT OF STOCK',
@@ -244,11 +280,15 @@ const exactAliases: Record<string, string> = {
   'Ticket limpio': 'Ticket cleared',
   'Tickets pausados': 'Suspended tickets',
   'Todavia no hay pagos capturados.': 'No payments captured yet.',
+  'Todavía no hay pagos capturados.': 'No payments captured yet.',
   'Todos los productos': 'All products',
+  'Toca cada pieza recibida.': 'Tap each piece received.',
+  'Total': 'Total',
   'Total a cobrar': 'Total due',
   'Transferencia': 'Transfer',
   'Turno abierto': 'Shift open',
   'Ultimos 4 digitos / Autorizacion': 'Last 4 digits / Authorization',
+  'Uso proyectado': 'Projected use',
   'Venta': 'Sale',
   'Venta POS': 'POS sale',
   'Venta cancelada': 'Sale cancelled',
@@ -256,10 +296,165 @@ const exactAliases: Record<string, string> = {
   'Venta guardada': 'Sale saved',
   'Venta pausada': 'Sale suspended',
   'Venta pausada reanudada': 'Suspended sale resumed',
+  'Cantidad rápida': 'Quick quantity',
   'Verifica el cambio antes de cerrar la venta.': 'Verify change before closing the sale.',
   'Verifica el ticket original antes de restaurar el inventario o generar una nota.': 'Verify the original receipt before restoring inventory or issuing a note.',
   'Vista informativa · No cierra ni modifica el turno': 'Informational view · Does not close or modify the shift',
   'Volver a métodos de pago': 'Back to payment methods',
+  'Volver': 'Back',
+  'Articulos': 'Items',
+  'Artículos': 'Items',
+  'Abrir': 'Open',
+  'Actualizando el corte actual...': 'Updating the current closing...',
+  'Aun no hay cobros registrados.': 'No payments recorded yet.',
+  'Aún no hay cobros registrados.': 'No payments recorded yet.',
+  'Cancelar': 'Cancel',
+  'Cerrar': 'Close',
+  'Cerrar turno': 'Close shift',
+  'Cliente del ticket': 'Ticket customer',
+  'Cobros por método': 'Payments by method',
+  'Correcciones': 'Corrections',
+  'Credito': 'Credit',
+  'Devolución': 'Return',
+  'Devoluciones': 'Returns',
+  'Duración': 'Duration',
+  'Efectivo': 'Cash',
+  'Efectivo esperado en caja': 'Expected cash in register',
+  'El ticket se arma aqui con cantidades, descuentos y stock visible.': 'The ticket is built here with quantities, discounts, and visible stock.',
+  'Empresa': 'Business',
+  'Entradas': 'Cash in',
+  'Importes confirmados durante el turno.': 'Amounts confirmed during the shift.',
+  'IVA': 'VAT',
+  'Movimientos': 'Movements',
+  'Ocultar pretickets': 'Hide pretickets',
+  'Persona': 'Person',
+  'Preticket bloqueado para cobro': 'Preticket locked for checkout',
+  'Pretickets': 'Pretickets',
+  'Público general': 'General public',
+  'Resumen': 'Summary',
+  'Resumen y cobro del punto de venta': 'Point-of-sale summary and checkout',
+  'Salidas': 'Cash out',
+  'subtotal': 'Subtotal',
+  'Tarjeta': 'Card',
+  'Tickets': 'Tickets',
+  'Vendido': 'Sold',
+  'Ventas en efectivo': 'Cash sales',
+  'c/u': 'each',
+  'días': 'days',
+  'uds': 'units',
+  'Más': 'More',
+  'Mas': 'More',
+  'Caja': 'Register',
+  'Inicio': 'Start',
+  'Devolucion Total': 'Full return',
+  'Devolucion Parcial': 'Partial return',
+  'Número de venta': 'Sale number',
+  'Numero de venta': 'Sale number',
+  'Tipo de devolución': 'Return type',
+  'Tipo de devolucion': 'Return type',
+  'Puede restaurar inventario y generar una nota de crédito.': 'May restore inventory and create a credit note.',
+  'Puede restaurar inventario y generar una nota de credito.': 'May restore inventory and create a credit note.',
+  'Verifica el ticket antes de restaurar inventario.': 'Verify the ticket before restoring inventory.',
+  'Selecciona la venta que deseas devolver': 'Select the sale you want to return',
+  'Reembolso': 'Refund',
+  'Se restaurará': 'Will be restored',
+  'Se restaurara': 'Will be restored',
+  'Nota de crédito': 'Credit note',
+  'Nota de credito': 'Credit note',
+  'Inventario': 'Inventory',
+  'Algunos productos': 'Some products',
+  'Procesar': 'Process',
+  'Importante': 'Important',
+  'Devolución total': 'Full return',
+  'Devolución parcial': 'Partial return',
+  'Devolucion total': 'Full return',
+  'Devolucion parcial': 'Partial return',
+  'Cerrar cierre de caja': 'Close register closing',
+  'Calculando el resumen del turno': 'Calculating the shift summary',
+  'Cerrando...': 'Closing...',
+  'Cerrar turno y generar corte': 'Close shift and generate closing',
+  'Cargando resumen real del turno...': 'Loading real shift summary...',
+  'Duracion': 'Duration',
+  'Ventas efectivo': 'Cash sales',
+  'Retiros caja fuerte': 'Safe drops',
+  'Pagos capturados por metodo': 'Captured payments by method',
+  'Sin pagos capturados en este turno.': 'No payments captured in this shift.',
+  'Efectivo contado': 'Counted cash',
+  'Cuadre balanceado': 'Balanced count',
+  'Sobrante detectado': 'Overage detected',
+  'Faltante detectado': 'Shortage detected',
+  'Esperado': 'Expected',
+  'Contado': 'Counted',
+  'Diferencia': 'Difference',
+  'Nota de cierre': 'Closing note',
+  'Opcional': 'Optional',
+  'Experiencia': 'Experience',
+  'Información': 'Information',
+  'Asignación': 'Assignment',
+  'Catálogo': 'Catalog',
+  'Acceso': 'Access',
+  'No fue posible cargar las cajas.': 'The registers could not be loaded.',
+  'No fue posible crear el kiosco.': 'The kiosk could not be created.',
+  'No fue posible cargar la configuración.': 'The configuration could not be loaded.',
+  'No fue posible guardar los cambios.': 'The changes could not be saved.',
+  'El nombre debe tener al menos 3 caracteres.': 'The name must have at least 3 characters.',
+  'Crear pantalla de cliente': 'Create customer display',
+  'Crear autoservicio y pre-ticket': 'Create self-service and pre-ticket',
+  'Pantalla de cliente': 'Customer display',
+  'Autoservicio y pre-ticket': 'Self-service and pre-ticket',
+  'Autocobro': 'Self-checkout',
+  'Cerrar asistente': 'Close wizard',
+  'Completa los datos indispensables; los ajustes posteriores se administran desde la tabla.': 'Complete the required details; later settings are managed from the table.',
+  'Atrás': 'Back',
+  'Continuar': 'Continue',
+  'Creando…': 'Creating...',
+  'Crear kiosco': 'Create kiosk',
+  'Guardar cambios': 'Save changes',
+  'Guardando…': 'Saving...',
+  'Pasos de creación': 'Creation steps',
+  'Tipo de experiencia': 'Experience type',
+  'Confirma qué pantalla estás creando.': 'Confirm which screen you are creating.',
+  'Este tipo queda fijo. Para crear otro, cierra el asistente y selecciónalo desde “Crear kiosco”.': 'This type is fixed. To create another one, close the wizard and select it from "Create kiosk".',
+  'Información general': 'General information',
+  'Usa un nombre que permita reconocer la pantalla en la tabla.': 'Use a name that makes the screen easy to recognize in the table.',
+  'Nombre del kiosco': 'Kiosk name',
+  'Ej. Pantalla cliente - Caja 01': 'Example: Customer display - Register 01',
+  'Ej. Autoservicio entrada norte': 'Example: North entrance self-service',
+  'Mínimo 3 caracteres. Después podrás cambiarlo desde Editar.': 'Minimum 3 characters. You can change it later from Edit.',
+  'Asignación operativa': 'Operational assignment',
+  'La caja determina el almacén, la unidad y el negocio del kiosco.': 'The register determines the kiosk warehouse, unit, and business.',
+  'Cargando cajas disponibles…': 'Loading available registers...',
+  'No hay cajas activas con almacén, unidad y negocio completos.': 'There are no active registers with complete warehouse, unit, and business data.',
+  'Catálogo y reglas': 'Catalog and rules',
+  'La pantalla refleja productos, descuentos y totales de la venta en curso.': 'The screen reflects products, discounts, and totals from the active sale.',
+  'Define las reglas iniciales del catálogo público.': 'Define the initial public catalog rules.',
+  'No requiere selección de productos: hereda en tiempo real la venta de la caja asignada.': 'No product selection is required: it inherits the assigned register sale in real time.',
+  'Mostrar existencias': 'Show stock',
+  'Solicitar nombre del cliente': 'Require customer name',
+  'Máximo de artículos': 'Maximum items',
+  'Acceso, vigencia y seguridad': 'Access, validity, and security',
+  'El enlace protegido se genera al crear y se administra después desde la tabla.': 'The protected link is generated on creation and managed later from the table.',
+  'Se generará un acceso protegido vinculado a la caja. La pantalla solo estará disponible cuando la caja origen tenga un turno abierto.': 'A protected access link tied to the register will be generated. The screen will only be available when the source register has an open shift.',
+  'Vencimiento del acceso (opcional)': 'Access expiration (optional)',
+  'Resumen y creación': 'Review and create',
+  'Confirma la configuración inicial. Después regresarás a la tabla.': 'Confirm the initial configuration. Then you will return to the table.',
+  'Nombre': 'Name',
+  'Caja y almacén': 'Register and warehouse',
+  'Sin asignar': 'Not assigned',
+  'Sin vencimiento': 'No expiration',
+  'Crear no abre un menú adicional. El nuevo kiosco aparecerá en la tabla para acceder, copiar enlace, activar o editar.': 'Creating does not open an additional menu. The new kiosk will appear in the table so it can be accessed, copied, activated, or edited.',
+  'Cerrar edición': 'Close edit',
+  'Editar kiosco': 'Edit kiosk',
+  'Actualiza su configuración. El acceso y el estado operativo se administran desde la tabla.': 'Update its configuration. Access and operating status are managed from the table.',
+  'La asignación se fija al crear para proteger el origen del inventario y del turno. Si debe cambiar, crea un kiosco nuevo.': 'The assignment is fixed at creation to protect the inventory and shift source. If it must change, create a new kiosk.',
+  'Cargando configuración…': 'Loading configuration...',
+  'La configuración heredada no está disponible. Puedes actualizar el nombre; las demás reglas conservarán su valor actual.': 'The inherited configuration is not available. You can update the name; the other rules will keep their current value.',
+  'Vigencia del pre-ticket': 'Pre-ticket validity',
+  'Cantidad de vigencia': 'Validity amount',
+  'Unidad de vigencia': 'Validity unit',
+  'Horas': 'Hours',
+  'Días': 'Days',
+  'El pre-ticket vencerá automáticamente después de este tiempo.': 'The pre-ticket will expire automatically after this time.',
 };
 
 const translations: Record<string, LocalizedText> = {
@@ -281,8 +476,11 @@ const translations: Record<string, LocalizedText> = {
   'Direct application': { es: 'Aplicación directa', fr: 'Application directe', pt: 'Aplicação direta', ko: '직접 적용', zh: '直接应用' },
   'Apply discount': { es: 'Aplicar descuento', fr: 'Appliquer une remise', pt: 'Aplicar desconto', ko: '할인 적용', zh: '应用折扣' },
   'Apply manual discounts or available rules to the line.': { es: 'Aplica descuentos manuales o reglas disponibles para la línea.', fr: 'Appliquez des remises manuelles ou des règles disponibles à la ligne.', pt: 'Aplique descontos manuais ou regras disponíveis à linha.', ko: '라인에 수동 할인 또는 사용 가능한 규칙을 적용하세요.', zh: '为该行应用手动折扣或可用规则。' },
+  'Open the touch modal to choose a payment method.': { es: 'Abre el modal touch para elegir método de pago.', fr: 'Ouvrez le modal tactile pour choisir un mode de paiement.', pt: 'Abra o modal touch para escolher o método de pagamento.', ko: '결제 방법을 선택하려면 터치 모달을 여세요.', zh: '打开触控弹窗选择付款方式。' },
   'Authorization or reference': { es: 'Autorización o referencia', fr: 'Autorisation ou référence', pt: 'Autorização ou referência', ko: '승인 또는 참조', zh: '授权或参考' },
   LOW: { es: 'BAJO', fr: 'BAS', pt: 'BAIXO', ko: '낮음', zh: '偏低' },
+  Bill: { es: 'Billete', fr: 'Billet', pt: 'Cédula', ko: '지폐', zh: '纸币' },
+  'Large buttons for touch-screen operation.': { es: 'Botones grandes para operación en pantalla táctil.', fr: 'Gros boutons pour une utilisation tactile.', pt: 'Botões grandes para operação em tela touch.', ko: '터치 화면 운영을 위한 큰 버튼입니다.', zh: '适合触摸屏操作的大按钮。' },
   'Search by name or code...': { es: 'Buscar por nombre o código...', fr: 'Rechercher par nom ou code...', pt: 'Buscar por nome ou código...', ko: '이름 또는 코드로 검색...', zh: '按名称或代码搜索...' },
   'Search by name, SKU, or code': { es: 'Buscar por nombre, SKU o código', fr: 'Rechercher par nom, SKU ou code', pt: 'Buscar por nome, SKU ou código', ko: '이름, SKU 또는 코드로 검색', zh: '按名称、SKU 或代码搜索' },
   'Search products': { es: 'Buscar productos', fr: 'Rechercher des produits', pt: 'Buscar produtos', ko: '상품 검색', zh: '搜索产品' },
@@ -295,9 +493,12 @@ const translations: Record<string, LocalizedText> = {
   'Change due MXN': { es: 'Cambio a devolver MXN', fr: 'Monnaie à rendre MXN', pt: 'Troco a devolver MXN', ko: '거스름돈 MXN', zh: '应找零 MXN' },
   'Change to return': { es: 'Cambio a entregar', fr: 'Monnaie à remettre', pt: 'Troco a entregar', ko: '반환할 거스름돈', zh: '需交付找零' },
   'Bill exchange': { es: 'Cambio de billetes', fr: 'Change de billets', pt: 'Troca de cédulas', ko: '지폐 교환', zh: '纸币兑换' },
+  Change: { es: 'Cambio', fr: 'Monnaie', pt: 'Troco', ko: '거스름돈', zh: '找零' },
   'Pending change': { es: 'Cambio pendiente', fr: 'Monnaie en attente', pt: 'Troco pendente', ko: '대기 중인 거스름돈', zh: '待找零' },
+  'Change still to return': { es: 'Cambio pendiente de entregar', fr: 'Monnaie encore à remettre', pt: 'Troco ainda a entregar', ko: '아직 전달할 거스름돈', zh: '仍需交付找零' },
   'Enter cash received and change before confirming.': { es: 'Captura efectivo recibido y cambio antes de confirmar.', fr: 'Saisissez l’argent reçu et la monnaie avant de confirmer.', pt: 'Informe o dinheiro recebido e o troco antes de confirmar.', ko: '확인 전에 받은 현금과 거스름돈을 입력하세요.', zh: '确认前请输入收到的现金和找零。' },
   'Enter USD, validate the exchange rate, and calculate change in MXN.': { es: 'Captura USD, valida el tipo de cambio y calcula el cambio en MXN.', fr: 'Saisissez les USD, validez le taux et calculez la monnaie en MXN.', pt: 'Informe USD, valide a taxa de câmbio e calcule o troco em MXN.', ko: 'USD를 입력하고 환율을 확인한 뒤 MXN 거스름돈을 계산하세요.', zh: '输入 USD，验证汇率并计算 MXN 找零。' },
+  'Capture payment': { es: 'Capturar pago', fr: 'Saisir le paiement', pt: 'Capturar pagamento', ko: '결제 입력', zh: '录入付款' },
   'POS catalog': { es: 'Catálogo POS', fr: 'Catalogue PDV', pt: 'Catálogo POS', ko: 'POS 카탈로그', zh: 'POS 目录' },
   'Sales catalog': { es: 'Catálogo de venta', fr: 'Catalogue de vente', pt: 'Catálogo de venda', ko: '판매 카탈로그', zh: '销售目录' },
   'Close register opening': { es: 'Cerrar apertura de caja', fr: 'Fermer l’ouverture de caisse', pt: 'Fechar abertura da caixa', ko: '계산대 열기 닫기', zh: '关闭开台' },
@@ -317,7 +518,9 @@ const translations: Record<string, LocalizedText> = {
   'Close closing summary': { es: 'Cerrar resumen del corte', fr: 'Fermer le résumé de fermeture', pt: 'Fechar resumo do fechamento', ko: '마감 요약 닫기', zh: '关闭结算摘要' },
   'Close ticket': { es: 'Cerrar ticket', fr: 'Fermer le ticket', pt: 'Fechar ticket', ko: '티켓 닫기', zh: '关闭小票' },
   Charge: { es: 'Cobrar', fr: 'Encaisser', pt: 'Cobrar', ko: '결제', zh: '收款' },
+  'Charge exact': { es: 'Cobrar exacto', fr: 'Encaisser le montant exact', pt: 'Cobrar exato', ko: '정확한 금액 결제', zh: '精确收款' },
   Payment: { es: 'Cobro', fr: 'Encaissement', pt: 'Cobrança', ko: '결제', zh: '收款' },
+  'Exact checkout': { es: 'Cobro exacto', fr: 'Encaissement exact', pt: 'Cobrança exata', ko: '정확한 결제', zh: '精确收款' },
   'POS checkout': { es: 'Cobro POS', fr: 'Encaissement PDV', pt: 'Cobrança POS', ko: 'POS 결제', zh: 'POS 收款' },
   'Split payment': { es: 'Cobro dividido', fr: 'Paiement fractionné', pt: 'Pagamento dividido', ko: '분할 결제', zh: '拆分付款' },
   'Payment in progress': { es: 'Cobro en curso', fr: 'Encaissement en cours', pt: 'Cobrança em andamento', ko: '결제 진행 중', zh: '收款进行中' },
@@ -338,17 +541,22 @@ const translations: Record<string, LocalizedText> = {
   'POS closing': { es: 'Corte POS', fr: 'Fermeture PDV', pt: 'Fechamento POS', ko: 'POS 마감', zh: 'POS 结算' },
   'Register count and closing': { es: 'Corte y cierre de caja', fr: 'Comptage et fermeture de caisse', pt: 'Contagem e fechamento de caixa', ko: '계산대 정산 및 마감', zh: '收银台盘点与结算' },
   'Create register': { es: 'Crear caja', fr: 'Créer une caisse', pt: 'Criar caixa', ko: '계산대 생성', zh: '创建收银台' },
+  'Credit customer': { es: 'Cliente de crédito', fr: 'Client à crédit', pt: 'Cliente de crédito', ko: '외상 고객', zh: '赊账客户' },
   'Loading point of sale': { es: 'Cargando punto de venta', fr: 'Chargement du point de vente', pt: 'Carregando ponto de venda', ko: 'POS 로딩 중', zh: '正在加载销售点' },
+  Complete: { es: 'Completo', fr: 'Complet', pt: 'Completo', ko: '완료', zh: '完成' },
   'Discard suspended ticket': { es: 'Descartar ticket pausado', fr: 'Supprimer le ticket suspendu', pt: 'Descartar ticket pausado', ko: '보류 티켓 삭제', zh: '丢弃暂停小票' },
+  Decision: { es: 'Decisión', fr: 'Décision', pt: 'Decisão', ko: '결정', zh: '决策' },
   'Describe the reason': { es: 'Describe el motivo', fr: 'Décrivez le motif', pt: 'Descreva o motivo', ko: '사유 설명', zh: '描述原因' },
   'Discount entire sale': { es: 'Descuento a toda la venta', fr: 'Remise sur toute la vente', pt: 'Desconto em toda a venda', ko: '전체 판매 할인', zh: '整单折扣' },
   'Return processed': { es: 'Devolución procesada', fr: 'Retour traité', pt: 'Devolução processada', ko: '반품 처리됨', zh: '退货已处理' },
   'Split the total across cash, dollars, card, and transfer.': { es: 'Distribuye el total entre efectivo, dólares, tarjeta y transferencia.', fr: 'Répartissez le total entre comptant, dollars, carte et virement.', pt: 'Distribua o total entre dinheiro, dólares, cartão e transferência.', ko: '총액을 현금, 달러, 카드 및 이체로 나누세요.', zh: '将总额分配到现金、美元、银行卡和转账。' },
+  Available: { es: 'Disponible', fr: 'Disponible', pt: 'Disponível', ko: '사용 가능', zh: '可用' },
   'Sales currency': { es: 'Divisa de venta', fr: 'Devise de vente', pt: 'Moeda de venda', ko: '판매 통화', zh: '销售币种' },
   'Shift currency': { es: 'Divisa del turno', fr: 'Devise du quart', pt: 'Moeda do turno', ko: '교대 통화', zh: '班次币种' },
   'Currency and taxes': { es: 'Divisa e impuestos', fr: 'Devise et taxes', pt: 'Moeda e impostos', ko: '통화 및 세금', zh: '币种和税费' },
   'The cashier is preparing your payment method': { es: 'El cajero está preparando tu forma de pago', fr: 'Le caissier prépare votre mode de paiement', pt: 'O caixa está preparando sua forma de pagamento', ko: '계산원이 결제 방법을 준비하고 있습니다', zh: '收银员正在准备您的付款方式' },
   'The cashier is registering your cash payment': { es: 'El cajero está registrando tu pago en efectivo', fr: 'Le caissier enregistre votre paiement comptant', pt: 'O caixa está registrando seu pagamento em dinheiro', ko: '계산원이 현금 결제를 등록하고 있습니다', zh: '收银员正在登记您的现金付款' },
+  'Checkout is enabled when the ticket has items.': { es: 'El cobro se habilitará cuando el ticket tenga artículos.', fr: 'L’encaissement s’active quand le ticket contient des articles.', pt: 'A cobrança é habilitada quando o ticket tem itens.', ko: '티켓에 품목이 있으면 결제가 활성화됩니다.', zh: '小票有商品后即可收款。' },
   'Counted cash cannot be negative.': { es: 'El efectivo contado no puede ser negativo.', fr: 'Le comptant compté ne peut pas être négatif.', pt: 'O dinheiro contado não pode ser negativo.', ko: '집계한 현금은 음수일 수 없습니다.', zh: '清点现金不能为负数。' },
   'Cash received must cover the payment amount.': { es: 'El efectivo recibido debe cubrir el monto del pago.', fr: 'Le comptant reçu doit couvrir le montant du paiement.', pt: 'O dinheiro recebido deve cobrir o valor do pagamento.', ko: '받은 현금은 결제 금액 이상이어야 합니다.', zh: '收到的现金必须覆盖付款金额。' },
   'Cash received must be greater than or equal to the payment amount.': { es: 'El efectivo recibido debe ser mayor o igual al monto del pago.', fr: 'Le comptant reçu doit être supérieur ou égal au paiement.', pt: 'O dinheiro recebido deve ser maior ou igual ao valor do pagamento.', ko: '받은 현금은 결제 금액 이상이어야 합니다.', zh: '收到的现金必须大于或等于付款金额。' },
@@ -362,8 +570,10 @@ const translations: Record<string, LocalizedText> = {
   'Choose a method, add payments, and complete the sale.': { es: 'Elige un método, agrega pagos y finaliza la venta.', fr: 'Choisissez un mode, ajoutez les paiements et terminez la vente.', pt: 'Escolha um método, adicione pagamentos e conclua a venda.', ko: '방법을 선택하고 결제를 추가한 뒤 판매를 완료하세요.', zh: '选择方式，添加付款并完成销售。' },
   'Start by scanning or tapping a product.': { es: 'Empieza escaneando o tocando un producto.', fr: 'Commencez par balayer ou toucher un produit.', pt: 'Comece escaneando ou tocando um produto.', ko: '상품을 스캔하거나 탭하여 시작하세요.', zh: '先扫描或点击一个产品。' },
   'Enter to add': { es: 'Enter para agregar', fr: 'Entrée pour ajouter', pt: 'Enter para adicionar', ko: 'Enter로 추가', zh: '按 Enter 添加' },
+  'Return:': { es: 'Entregar:', fr: 'Rendre :', pt: 'Entregar:', ko: '반환:', zh: '交付：' },
   'Cash in': { es: 'Entrada de efectivo', fr: 'Entrée de caisse', pt: 'Entrada de dinheiro', ko: '현금 입금', zh: '现金收入' },
   'Hand it over only after completing the sale.': { es: 'Entrégalo únicamente después de finalizar la venta.', fr: 'Remettez-le seulement après avoir terminé la vente.', pt: 'Entregue somente depois de concluir a venda.', ko: '판매 완료 후에만 전달하세요.', zh: '仅在完成销售后交付。' },
+  'Cash received': { es: 'Efectivo recibido', fr: 'Comptant reçu', pt: 'Dinheiro recebido', ko: '받은 현금', zh: '收到现金' },
   'Scan barcode...': { es: 'Escanea código de barras...', fr: 'Balayez le code-barres...', pt: 'Escaneie o código de barras...', ko: '바코드 스캔...', zh: '扫描条形码...' },
   'Scan or tap a product': { es: 'Escanea o toca un producto', fr: 'Balayez ou touchez un produit', pt: 'Escaneie ou toque em um produto', ko: '상품을 스캔하거나 탭하세요', zh: '扫描或点击产品' },
   'Scanner active for continuous selling': { es: 'Escáner activo para venta continua', fr: 'Lecteur actif pour vente continue', pt: 'Scanner ativo para venda contínua', ko: '연속 판매 스캐너 활성', zh: '连续销售扫描器已启用' },
@@ -398,6 +608,10 @@ const translations: Record<string, LocalizedText> = {
   Ready: { es: 'Listo', fr: 'Prêt', pt: 'Pronto', ko: '준비됨', zh: '就绪' },
   'Ready to charge': { es: 'Listo para cobrar', fr: 'Prêt à encaisser', pt: 'Pronto para cobrar', ko: '결제 준비됨', zh: '准备收款' },
   'Ready to complete sale': { es: 'Listo para completar venta', fr: 'Prêt à terminer la vente', pt: 'Pronto para concluir a venda', ko: '판매 완료 준비됨', zh: '准备完成销售' },
+  'Payment method': { es: 'Método de pago', fr: 'Mode de paiement', pt: 'Método de pagamento', ko: '결제 방법', zh: '付款方式' },
+  'Payment methods': { es: 'Métodos de pago', fr: 'Modes de paiement', pt: 'Métodos de pagamento', ko: '결제 방법', zh: '付款方式' },
+  Coin: { es: 'Moneda', fr: 'Pièce', pt: 'Moeda', ko: '동전', zh: '硬币' },
+  'Payment amount': { es: 'Monto del pago', fr: 'Montant du paiement', pt: 'Valor do pagamento', ko: '결제 금액', zh: '付款金额' },
   'Discount amount per unit': { es: 'Monto de descuento por unidad', fr: 'Montant de remise par unité', pt: 'Valor do desconto por unidade', ko: '단위당 할인 금액', zh: '每单位折扣金额' },
   'Fixed amount': { es: 'Monto fijo', fr: 'Montant fixe', pt: 'Valor fixo', ko: '고정 금액', zh: '固定金额' },
   'Insufficient amount': { es: 'Monto insuficiente', fr: 'Montant insuffisant', pt: 'Valor insuficiente', ko: '금액 부족', zh: '金额不足' },
@@ -421,22 +635,26 @@ const translations: Record<string, LocalizedText> = {
   'The movement could not be recorded.': { es: 'No se pudo registrar el movimiento.', fr: 'Impossible d’enregistrer le mouvement.', pt: 'Não foi possível registrar a movimentação.', ko: '이동을 기록할 수 없습니다.', zh: '无法记录变动。' },
   'The cash movement could not be recorded.': { es: 'No se pudo registrar el movimiento de efectivo.', fr: 'Impossible d’enregistrer le mouvement de caisse.', pt: 'Não foi possível registrar a movimentação de dinheiro.', ko: '현금 이동을 기록할 수 없습니다.', zh: '无法记录现金变动。' },
   'Cash movements could not be loaded.': { es: 'No se pudieron cargar los movimientos de efectivo.', fr: 'Impossible de charger les mouvements de caisse.', pt: 'Não foi possível carregar as movimentações de dinheiro.', ko: '현금 이동을 로드할 수 없습니다.', zh: '无法加载现金变动。' },
+  'Could not complete checkout': { es: 'No se pudo finalizar', fr: 'Impossible de finaliser l’encaissement', pt: 'Não foi possível finalizar a cobrança', ko: '결제를 완료할 수 없습니다', zh: '无法完成收款' },
   'Name, SKU, or barcode': { es: 'Nombre, SKU o código de barras', fr: 'Nom, SKU ou code-barres', pt: 'Nome, SKU ou código de barras', ko: '이름, SKU 또는 바코드', zh: '名称、SKU 或条形码' },
   'Credit note': { es: 'Nota crédito', fr: 'Note de crédit', pt: 'Nota de crédito', ko: '대변 메모', zh: '贷项通知' },
   'Reference number': { es: 'Número de referencia', fr: 'Numéro de référence', pt: 'Número de referência', ko: '참조 번호', zh: '参考编号' },
   'Hide catalog': { es: 'Ocultar catálogo', fr: 'Masquer le catalogue', pt: 'Ocultar catálogo', ko: '카탈로그 숨기기', zh: '隐藏目录' },
   'Sensitive operation': { es: 'Operación sensible', fr: 'Opération sensible', pt: 'Operação sensível', ko: '민감한 작업', zh: '敏感操作' },
   'Payment complete': { es: 'Pago completo', fr: 'Paiement complet', pt: 'Pagamento completo', ko: '결제 완료', zh: '付款完成' },
+  'Payment completed': { es: 'Pago completado', fr: 'Paiement terminé', pt: 'Pagamento concluído', ko: '결제 완료됨', zh: '付款已完成' },
   'Exact payment': { es: 'Pago exacto', fr: 'Paiement exact', pt: 'Pagamento exato', ko: '정확한 결제', zh: '精确付款' },
   'Exact payment added. Complete the sale to close payment.': { es: 'Pago exacto agregado. Finaliza la venta para cerrar el cobro.', fr: 'Paiement exact ajouté. Terminez la vente pour fermer l’encaissement.', pt: 'Pagamento exato adicionado. Finalize a venda para fechar a cobrança.', ko: '정확한 결제가 추가되었습니다. 결제를 닫으려면 판매를 완료하세요.', zh: '已添加精确付款。完成销售以关闭收款。' },
   'Payment ready': { es: 'Pago listo', fr: 'Paiement prêt', pt: 'Pagamento pronto', ko: '결제 준비됨', zh: '付款就绪' },
   'Payment ready to complete': { es: 'Pago listo para finalizar', fr: 'Paiement prêt à finaliser', pt: 'Pagamento pronto para finalizar', ko: '완료할 결제 준비됨', zh: '付款准备完成' },
   'Transfer payment': { es: 'Pago por transferencia', fr: 'Paiement par virement', pt: 'Pagamento por transferência', ko: '이체 결제', zh: '转账付款' },
   Paid: { es: 'Pagado', fr: 'Payé', pt: 'Pago', ko: '결제됨', zh: '已付' },
+  'Added payments': { es: 'Pagos agregados', fr: 'Paiements ajoutés', pt: 'Pagamentos adicionados', ko: '추가된 결제', zh: '已添加付款' },
   'Registered payments': { es: 'Pagos registrados', fr: 'Paiements enregistrés', pt: 'Pagamentos registrados', ko: '등록된 결제', zh: '已登记付款' },
   Display: { es: 'Pantalla', fr: 'Écran', pt: 'Tela', ko: '화면', zh: '显示屏' },
   Suspend: { es: 'Pausar', fr: 'Suspendre', pt: 'Pausar', ko: '보류', zh: '暂停' },
   Pending: { es: 'Pendiente', fr: 'En attente', pt: 'Pendente', ko: '대기 중', zh: '待处理' },
+  Term: { es: 'Plazo', fr: 'Délai', pt: 'Prazo', ko: '기한', zh: '期限' },
   'Allows rate adjustment for this ticket.': { es: 'Permite ajustar tasa para este ticket.', fr: 'Permet d’ajuster le taux pour ce ticket.', pt: 'Permite ajustar a taxa para este ticket.', ko: '이 티켓의 세율을 조정할 수 있습니다.', zh: '允许为此小票调整税率。' },
   'To collect': { es: 'Por cobrar', fr: 'À encaisser', pt: 'A cobrar', ko: '수금 예정', zh: '待收款' },
   'Discount percentage': { es: 'Porcentaje de descuento', fr: 'Pourcentage de remise', pt: 'Percentual de desconto', ko: '할인율', zh: '折扣百分比' },
@@ -465,11 +683,16 @@ const translations: Record<string, LocalizedText> = {
   'Cash out': { es: 'Salida de efectivo', fr: 'Sortie de caisse', pt: 'Saída de dinheiro', ko: '현금 출금', zh: '现金支出' },
   'Select the warehouse that inventory will be deducted from.': { es: 'Selecciona el almacén desde donde se descontará el inventario.', fr: 'Sélectionnez l’entrepôt duquel le stock sera déduit.', pt: 'Selecione o armazém de onde o estoque será baixado.', ko: '재고가 차감될 창고를 선택하세요.', zh: '选择库存扣减的仓库。' },
   'Select the customer that will receive the credit sale.': { es: 'Selecciona el cliente que recibirá la venta a crédito.', fr: 'Sélectionnez le client qui recevra la vente à crédit.', pt: 'Selecione o cliente que receberá a venda a crédito.', ko: '외상 판매를 받을 고객을 선택하세요.', zh: '选择接收赊销的客户。' },
+  'Select how you receive the payment.': { es: 'Selecciona cómo recibes el pago.', fr: 'Sélectionnez comment vous recevez le paiement.', pt: 'Selecione como você recebe o pagamento.', ko: '결제 수령 방식을 선택하세요.', zh: '选择收款方式。' },
+  'Select a customer with an available credit policy.': { es: 'Selecciona un cliente con una política de crédito disponible.', fr: 'Sélectionnez un client avec une politique de crédit disponible.', pt: 'Selecione um cliente com uma política de crédito disponível.', ko: '사용 가능한 신용 정책이 있는 고객을 선택하세요.', zh: '请选择具有可用信用政策的客户。' },
+  'Select a method to capture the first payment.': { es: 'Selecciona un método para capturar el primer pago.', fr: 'Sélectionnez un mode pour saisir le premier paiement.', pt: 'Selecione um método para capturar o primeiro pagamento.', ko: '첫 결제를 입력할 방법을 선택하세요.', zh: '选择一种方式录入第一笔付款。' },
+  'Select customer': { es: 'Seleccionar cliente', fr: 'Sélectionner le client', pt: 'Selecionar cliente', ko: '고객 선택', zh: '选择客户' },
   'Select a warehouse': { es: 'Selecciona un almacén', fr: 'Sélectionnez un entrepôt', pt: 'Selecione um armazém', ko: '창고 선택', zh: '选择仓库' },
   'Select a warehouse to prepare its register': { es: 'Selecciona un almacén para preparar su caja', fr: 'Sélectionnez un entrepôt pour préparer sa caisse', pt: 'Selecione um armazém para preparar sua caixa', ko: '계산대를 준비할 창고를 선택하세요', zh: '选择仓库以准备其收银台' },
   'Select a register': { es: 'Selecciona una caja', fr: 'Sélectionnez une caisse', pt: 'Selecione uma caixa', ko: '계산대 선택', zh: '选择收银台' },
   'Select a valid currency to open the register.': { es: 'Selecciona una divisa válida para abrir caja.', fr: 'Sélectionnez une devise valide pour ouvrir la caisse.', pt: 'Selecione uma moeda válida para abrir a caixa.', ko: '계산대를 열 유효한 통화를 선택하세요.', zh: '选择有效币种以打开收银台。' },
   'No active cashier': { es: 'Sin cajero activo', fr: 'Aucun caissier actif', pt: 'Sem caixa ativo', ko: '활성 계산원 없음', zh: '无活动收银员' },
+  'No payments': { es: 'Sin pagos', fr: 'Aucun paiement', pt: 'Sem pagamentos', ko: '결제 없음', zh: '无付款' },
   'No reference': { es: 'Sin referencia', fr: 'Aucune référence', pt: 'Sem referência', ko: '참조 없음', zh: '无参考' },
   'No suspended tickets': { es: 'Sin tickets en espera', fr: 'Aucun ticket suspendu', pt: 'Sem tickets em espera', ko: '보류 티켓 없음', zh: '无暂停小票' },
   'OUT OF STOCK': { es: 'SIN STOCK', fr: 'RUPTURE', pt: 'SEM ESTOQUE', ko: '재고 없음', zh: '缺货' },
@@ -486,6 +709,8 @@ const translations: Record<string, LocalizedText> = {
   'Suspended tickets': { es: 'Tickets pausados', fr: 'Tickets suspendus', pt: 'Tickets pausados', ko: '보류 티켓', zh: '暂停小票' },
   'No payments captured yet.': { es: 'Todavía no hay pagos capturados.', fr: 'Aucun paiement n’a encore été saisi.', pt: 'Ainda não há pagamentos capturados.', ko: '아직 캡처된 결제가 없습니다.', zh: '尚未录入付款。' },
   'All products': { es: 'Todos los productos', fr: 'Tous les produits', pt: 'Todos os produtos', ko: '모든 상품', zh: '所有产品' },
+  'Tap each piece received.': { es: 'Toca cada pieza recibida.', fr: 'Touchez chaque pièce reçue.', pt: 'Toque cada peça recebida.', ko: '받은 각 지폐나 동전을 탭하세요.', zh: '点击每张/枚收到的钱。' },
+  Total: { es: 'Total', fr: 'Total', pt: 'Total', ko: '합계', zh: '总计' },
   'Total due': { es: 'Total a cobrar', fr: 'Total à encaisser', pt: 'Total a cobrar', ko: '결제 총액', zh: '应收总额' },
   Transfer: { es: 'Transferencia', fr: 'Virement', pt: 'Transferência', ko: '이체', zh: '转账' },
   'Shift open': { es: 'Turno abierto', fr: 'Quart ouvert', pt: 'Turno aberto', ko: '교대 열림', zh: '班次已打开' },
@@ -497,10 +722,147 @@ const translations: Record<string, LocalizedText> = {
   'Sale saved': { es: 'Venta guardada', fr: 'Vente enregistrée', pt: 'Venda salva', ko: '판매 저장됨', zh: '销售已保存' },
   'Sale suspended': { es: 'Venta pausada', fr: 'Vente suspendue', pt: 'Venda pausada', ko: '판매 보류됨', zh: '销售已暂停' },
   'Suspended sale resumed': { es: 'Venta pausada reanudada', fr: 'Vente suspendue reprise', pt: 'Venda pausada retomada', ko: '보류 판매 재개됨', zh: '暂停销售已恢复' },
+  'Quick quantity': { es: 'Cantidad rápida', fr: 'Quantité rapide', pt: 'Quantidade rápida', ko: '빠른 수량', zh: '快速数量' },
   'Verify change before closing the sale.': { es: 'Verifica el cambio antes de cerrar la venta.', fr: 'Vérifiez la monnaie avant de fermer la vente.', pt: 'Verifique o troco antes de fechar a venda.', ko: '판매를 닫기 전에 거스름돈을 확인하세요.', zh: '关闭销售前请核对找零。' },
   'Verify the original receipt before restoring inventory or issuing a note.': { es: 'Verifica el ticket original antes de restaurar el inventario o generar una nota.', fr: 'Vérifiez le reçu original avant de restaurer le stock ou d’émettre une note.', pt: 'Verifique o recibo original antes de restaurar estoque ou gerar uma nota.', ko: '재고 복원 또는 메모 발행 전 원본 영수증을 확인하세요.', zh: '恢复库存或生成单据前请核对原小票。' },
   'Informational view · Does not close or modify the shift': { es: 'Vista informativa · No cierra ni modifica el turno', fr: 'Vue informative · Ne ferme ni ne modifie le quart', pt: 'Vista informativa · Não fecha nem modifica o turno', ko: '정보 보기 · 교대를 닫거나 수정하지 않음', zh: '信息视图 · 不关闭或修改班次' },
   'Back to payment methods': { es: 'Volver a métodos de pago', fr: 'Retour aux modes de paiement', pt: 'Voltar aos métodos de pagamento', ko: '결제 방법으로 돌아가기', zh: '返回付款方式' },
+  Items: { es: 'Artículos', fr: 'Articles', pt: 'Itens', ko: '품목', zh: '商品' },
+  'Projected use': { es: 'Uso proyectado', fr: 'Utilisation projetée', pt: 'Uso projetado', ko: '예상 사용량', zh: '预计使用' },
+  Open: { es: 'Abrir', fr: 'Ouvrir', pt: 'Abrir', ko: '열기', zh: '打开' },
+  'Updating the current closing...': { es: 'Actualizando el corte actual...', fr: 'Actualisation de la fermeture actuelle...', pt: 'Atualizando o fechamento atual...', ko: '현재 마감을 업데이트 중...', zh: '正在更新当前结算...' },
+  'No payments recorded yet.': { es: 'Aún no hay cobros registrados.', fr: 'Aucun encaissement enregistré pour le moment.', pt: 'Ainda não há cobranças registradas.', ko: '아직 기록된 결제가 없습니다.', zh: '尚无收款记录。' },
+  Cancel: { es: 'Cancelar', fr: 'Annuler', pt: 'Cancelar', ko: '취소', zh: '取消' },
+  Close: { es: 'Cerrar', fr: 'Fermer', pt: 'Fechar', ko: '닫기', zh: '关闭' },
+  'Close shift': { es: 'Cerrar turno', fr: 'Fermer le quart', pt: 'Fechar turno', ko: '교대 닫기', zh: '关闭班次' },
+  'Ticket customer': { es: 'Cliente del ticket', fr: 'Client du ticket', pt: 'Cliente do ticket', ko: '티켓 고객', zh: '小票客户' },
+  'Payments by method': { es: 'Cobros por método', fr: 'Encaissements par mode', pt: 'Cobranças por método', ko: '방법별 결제', zh: '按方式收款' },
+  Corrections: { es: 'Correcciones', fr: 'Corrections', pt: 'Correções', ko: '수정', zh: '更正' },
+  Credit: { es: 'Crédito', fr: 'Crédit', pt: 'Crédito', ko: '신용', zh: '赊账' },
+  Return: { es: 'Devolución', fr: 'Retour', pt: 'Devolução', ko: '반품', zh: '退货' },
+  Returns: { es: 'Devoluciones', fr: 'Retours', pt: 'Devoluções', ko: '반품', zh: '退货' },
+  Duration: { es: 'Duración', fr: 'Durée', pt: 'Duração', ko: '기간', zh: '时长' },
+  Cash: { es: 'Efectivo', fr: 'Comptant', pt: 'Dinheiro', ko: '현금', zh: '现金' },
+  'Expected cash in register': { es: 'Efectivo esperado en caja', fr: 'Comptant attendu en caisse', pt: 'Dinheiro esperado na caixa', ko: '예상 계산대 현금', zh: '收银台预计现金' },
+  'The ticket is built here with quantities, discounts, and visible stock.': { es: 'El ticket se arma aquí con cantidades, descuentos y stock visible.', fr: 'Le ticket se construit ici avec quantités, remises et stock visible.', pt: 'O ticket é montado aqui com quantidades, descontos e estoque visível.', ko: '수량, 할인 및 보이는 재고로 여기에서 티켓이 구성됩니다.', zh: '小票会在这里按数量、折扣和可见库存生成。' },
+  Business: { es: 'Empresa', fr: 'Entreprise', pt: 'Empresa', ko: '사업체', zh: '企业' },
+  'Amounts confirmed during the shift.': { es: 'Importes confirmados durante el turno.', fr: 'Montants confirmés pendant le quart.', pt: 'Valores confirmados durante o turno.', ko: '교대 중 확인된 금액입니다.', zh: '班次期间确认的金额。' },
+  VAT: { es: 'IVA', fr: 'TVA', pt: 'IVA', ko: '부가세', zh: '增值税' },
+  Movements: { es: 'Movimientos', fr: 'Mouvements', pt: 'Movimentos', ko: '이동', zh: '变动' },
+  'Hide pretickets': { es: 'Ocultar pretickets', fr: 'Masquer les pré-tickets', pt: 'Ocultar pré-tickets', ko: '사전 티켓 숨기기', zh: '隐藏预票' },
+  Person: { es: 'Persona', fr: 'Personne', pt: 'Pessoa', ko: '개인', zh: '个人' },
+  'Preticket locked for checkout': { es: 'Preticket bloqueado para cobro', fr: 'Pré-ticket verrouillé pour encaissement', pt: 'Pré-ticket bloqueado para cobrança', ko: '결제용 사전 티켓 잠김', zh: '预票已锁定待收款' },
+  Pretickets: { es: 'Pretickets', fr: 'Pré-tickets', pt: 'Pré-tickets', ko: '사전 티켓', zh: '预票' },
+  'General public': { es: 'Público general', fr: 'Grand public', pt: 'Público geral', ko: '일반 고객', zh: '普通客户' },
+  Summary: { es: 'Resumen', fr: 'Résumé', pt: 'Resumo', ko: '요약', zh: '摘要' },
+  'Point-of-sale summary and checkout': { es: 'Resumen y cobro del punto de venta', fr: 'Résumé et encaissement du point de vente', pt: 'Resumo e cobrança do ponto de venda', ko: 'POS 요약 및 결제', zh: '销售点摘要与收款' },
+  Card: { es: 'Tarjeta', fr: 'Carte', pt: 'Cartão', ko: '카드', zh: '银行卡' },
+  Tickets: { es: 'Tickets', fr: 'Tickets', pt: 'Tickets', ko: '티켓', zh: '小票' },
+  Sold: { es: 'Vendido', fr: 'Vendu', pt: 'Vendido', ko: '판매됨', zh: '已售' },
+  'Cash sales': { es: 'Ventas en efectivo', fr: 'Ventes comptant', pt: 'Vendas em dinheiro', ko: '현금 판매', zh: '现金销售' },
+  each: { es: 'c/u', fr: 'chacun', pt: 'cada', ko: '개당', zh: '每件' },
+  days: { es: 'días', fr: 'jours', pt: 'dias', ko: '일', zh: '天' },
+  units: { es: 'uds', fr: 'unités', pt: 'unid.', ko: '개', zh: '件' },
+  More: { es: 'Más', fr: 'Plus', pt: 'Mais', ko: '더보기', zh: '更多' },
+  Register: { es: 'Caja', fr: 'Caisse', pt: 'Caixa', ko: '계산대', zh: '收银台' },
+  Start: { es: 'Inicio', fr: 'Début', pt: 'Início', ko: '시작', zh: '开始' },
+  'Full return': { es: 'Devolución total', fr: 'Retour total', pt: 'Devolução total', ko: '전체 반품', zh: '全额退货' },
+  'Partial return': { es: 'Devolución parcial', fr: 'Retour partiel', pt: 'Devolução parcial', ko: '부분 반품', zh: '部分退货' },
+  'Sale number': { es: 'Número de venta', fr: 'Numéro de vente', pt: 'Número da venda', ko: '판매 번호', zh: '销售编号' },
+  'Return type': { es: 'Tipo de devolución', fr: 'Type de retour', pt: 'Tipo de devolução', ko: '반품 유형', zh: '退货类型' },
+  'May restore inventory and create a credit note.': { es: 'Puede restaurar inventario y generar una nota de crédito.', fr: 'Peut restaurer le stock et créer une note de crédit.', pt: 'Pode restaurar o estoque e gerar uma nota de crédito.', ko: '재고를 복원하고 대변 메모를 생성할 수 있습니다.', zh: '可能恢复库存并生成贷项通知。' },
+  'Verify the ticket before restoring inventory.': { es: 'Verifica el ticket antes de restaurar inventario.', fr: 'Vérifiez le ticket avant de restaurer le stock.', pt: 'Verifique o ticket antes de restaurar o estoque.', ko: '재고 복원 전에 티켓을 확인하세요.', zh: '恢复库存前请核对小票。' },
+  'Select the sale you want to return': { es: 'Selecciona la venta que deseas devolver', fr: 'Sélectionnez la vente à retourner', pt: 'Selecione a venda que deseja devolver', ko: '반품할 판매를 선택하세요', zh: '选择要退货的销售' },
+  Refund: { es: 'Reembolso', fr: 'Remboursement', pt: 'Reembolso', ko: '환불', zh: '退款' },
+  'Will be restored': { es: 'Se restaurará', fr: 'Sera restauré', pt: 'Será restaurado', ko: '복원됩니다', zh: '将恢复' },
+  Inventory: { es: 'Inventario', fr: 'Stock', pt: 'Inventário', ko: '재고', zh: '库存' },
+  'Some products': { es: 'Algunos productos', fr: 'Certains produits', pt: 'Alguns produtos', ko: '일부 상품', zh: '部分产品' },
+  Process: { es: 'Procesar', fr: 'Traiter', pt: 'Processar', ko: '처리', zh: '处理' },
+  Important: { es: 'Importante', fr: 'Important', pt: 'Importante', ko: '중요', zh: '重要' },
+  'Close register closing': { es: 'Cerrar cierre de caja', fr: 'Fermer la fermeture de caisse', pt: 'Fechar fechamento de caixa', ko: '계산대 마감 닫기', zh: '关闭收银结算' },
+  'Calculating the shift summary': { es: 'Calculando el resumen del turno', fr: 'Calcul du résumé du quart', pt: 'Calculando o resumo do turno', ko: '교대 요약 계산 중', zh: '正在计算班次摘要' },
+  'Closing...': { es: 'Cerrando...', fr: 'Fermeture...', pt: 'Fechando...', ko: '닫는 중...', zh: '正在关闭...' },
+  'Close shift and generate closing': { es: 'Cerrar turno y generar corte', fr: 'Fermer le quart et générer la fermeture', pt: 'Fechar turno e gerar fechamento', ko: '교대를 닫고 마감 생성', zh: '关闭班次并生成结算' },
+  'Loading real shift summary...': { es: 'Cargando resumen real del turno...', fr: 'Chargement du résumé réel du quart...', pt: 'Carregando resumo real do turno...', ko: '실제 교대 요약 로딩 중...', zh: '正在加载实际班次摘要...' },
+  'Safe drops': { es: 'Retiros caja fuerte', fr: 'Dépôts au coffre', pt: 'Retiradas para cofre', ko: '금고 입금', zh: '存入保险箱' },
+  'Captured payments by method': { es: 'Pagos capturados por método', fr: 'Paiements saisis par mode', pt: 'Pagamentos capturados por método', ko: '방법별 캡처된 결제', zh: '按方式记录的付款' },
+  'No payments captured in this shift.': { es: 'Sin pagos capturados en este turno.', fr: 'Aucun paiement saisi pendant ce quart.', pt: 'Sem pagamentos capturados neste turno.', ko: '이 교대에 캡처된 결제가 없습니다.', zh: '此班次没有记录付款。' },
+  'Counted cash': { es: 'Efectivo contado', fr: 'Comptant compté', pt: 'Dinheiro contado', ko: '계수한 현금', zh: '已清点现金' },
+  'Balanced count': { es: 'Cuadre balanceado', fr: 'Comptage équilibré', pt: 'Conferência balanceada', ko: '정산 일치', zh: '盘点已平衡' },
+  'Overage detected': { es: 'Sobrante detectado', fr: 'Excédent détecté', pt: 'Sobra detectada', ko: '초과 감지', zh: '检测到长款' },
+  'Shortage detected': { es: 'Faltante detectado', fr: 'Manquant détecté', pt: 'Falta detectada', ko: '부족 감지', zh: '检测到短款' },
+  Expected: { es: 'Esperado', fr: 'Attendu', pt: 'Esperado', ko: '예상', zh: '预计' },
+  Counted: { es: 'Contado', fr: 'Compté', pt: 'Contado', ko: '계수됨', zh: '已清点' },
+  Difference: { es: 'Diferencia', fr: 'Différence', pt: 'Diferença', ko: '차이', zh: '差额' },
+  'Closing note': { es: 'Nota de cierre', fr: 'Note de fermeture', pt: 'Nota de fechamento', ko: '마감 메모', zh: '结算备注' },
+  Optional: { es: 'Opcional', fr: 'Facultatif', pt: 'Opcional', ko: '선택 사항', zh: '可选' },
+  Experience: { es: 'Experiencia', fr: 'Expérience', pt: 'Experiência', ko: '경험', zh: '体验' },
+  Information: { es: 'Información', fr: 'Information', pt: 'Informação', ko: '정보', zh: '信息' },
+  Assignment: { es: 'Asignación', fr: 'Affectation', pt: 'Atribuição', ko: '배정', zh: '分配' },
+  Catalog: { es: 'Catálogo', fr: 'Catalogue', pt: 'Catálogo', ko: '카탈로그', zh: '目录' },
+  Access: { es: 'Acceso', fr: 'Accès', pt: 'Acesso', ko: '접근', zh: '访问' },
+  'The registers could not be loaded.': { es: 'No fue posible cargar las cajas.', fr: 'Impossible de charger les caisses.', pt: 'Não foi possível carregar as caixas.', ko: '계산대를 불러올 수 없습니다.', zh: '无法加载收银台。' },
+  'The kiosk could not be created.': { es: 'No fue posible crear el kiosco.', fr: 'Impossible de créer la borne.', pt: 'Não foi possível criar o quiosque.', ko: '키오스크를 생성할 수 없습니다.', zh: '无法创建自助终端。' },
+  'The configuration could not be loaded.': { es: 'No fue posible cargar la configuración.', fr: 'Impossible de charger la configuration.', pt: 'Não foi possível carregar a configuração.', ko: '설정을 불러올 수 없습니다.', zh: '无法加载配置。' },
+  'The changes could not be saved.': { es: 'No fue posible guardar los cambios.', fr: 'Impossible d’enregistrer les changements.', pt: 'Não foi possível salvar as alterações.', ko: '변경 사항을 저장할 수 없습니다.', zh: '无法保存更改。' },
+  'The name must have at least 3 characters.': { es: 'El nombre debe tener al menos 3 caracteres.', fr: 'Le nom doit comporter au moins 3 caractères.', pt: 'O nome deve ter pelo menos 3 caracteres.', ko: '이름은 최소 3자 이상이어야 합니다.', zh: '名称必须至少包含 3 个字符。' },
+  'Create customer display': { es: 'Crear pantalla de cliente', fr: 'Créer un affichage client', pt: 'Criar tela do cliente', ko: '고객 화면 만들기', zh: '创建客户显示屏' },
+  'Create self-service and pre-ticket': { es: 'Crear autoservicio y pre-ticket', fr: 'Créer libre-service et pré-ticket', pt: 'Criar autoatendimento e pré-ticket', ko: '셀프서비스 및 사전 티켓 만들기', zh: '创建自助服务和预票' },
+  'Customer display': { es: 'Pantalla de cliente', fr: 'Affichage client', pt: 'Tela do cliente', ko: '고객 화면', zh: '客户显示屏' },
+  'Self-service and pre-ticket': { es: 'Autoservicio y pre-ticket', fr: 'Libre-service et pré-ticket', pt: 'Autoatendimento e pré-ticket', ko: '셀프서비스 및 사전 티켓', zh: '自助服务和预票' },
+  'Self-checkout': { es: 'Autocobro', fr: 'Caisse libre-service', pt: 'Autoatendimento de pagamento', ko: '셀프 계산대', zh: '自助结账' },
+  'Close wizard': { es: 'Cerrar asistente', fr: 'Fermer l’assistant', pt: 'Fechar assistente', ko: '마법사 닫기', zh: '关闭向导' },
+  'Complete the required details; later settings are managed from the table.': { es: 'Completa los datos indispensables; los ajustes posteriores se administran desde la tabla.', fr: 'Complétez les détails requis; les réglages ultérieurs se gèrent depuis le tableau.', pt: 'Preencha os dados obrigatórios; os ajustes posteriores são gerenciados pela tabela.', ko: '필수 정보를 입력하세요. 이후 설정은 표에서 관리됩니다.', zh: '填写必需信息；后续设置将在表格中管理。' },
+  Back: { es: 'Atrás', fr: 'Retour', pt: 'Voltar', ko: '뒤로', zh: '返回' },
+  Continue: { es: 'Continuar', fr: 'Continuer', pt: 'Continuar', ko: '계속', zh: '继续' },
+  'Creating...': { es: 'Creando…', fr: 'Création...', pt: 'Criando...', ko: '생성 중...', zh: '正在创建...' },
+  'Create kiosk': { es: 'Crear kiosco', fr: 'Créer une borne', pt: 'Criar quiosque', ko: '키오스크 만들기', zh: '创建自助终端' },
+  'Save changes': { es: 'Guardar cambios', fr: 'Enregistrer les changements', pt: 'Salvar alterações', ko: '변경 사항 저장', zh: '保存更改' },
+  'Saving...': { es: 'Guardando…', fr: 'Enregistrement...', pt: 'Salvando...', ko: '저장 중...', zh: '正在保存...' },
+  'Creation steps': { es: 'Pasos de creación', fr: 'Étapes de création', pt: 'Etapas de criação', ko: '생성 단계', zh: '创建步骤' },
+  'Experience type': { es: 'Tipo de experiencia', fr: 'Type d’expérience', pt: 'Tipo de experiência', ko: '경험 유형', zh: '体验类型' },
+  'Confirm which screen you are creating.': { es: 'Confirma qué pantalla estás creando.', fr: 'Confirmez l’écran que vous créez.', pt: 'Confirme qual tela você está criando.', ko: '생성할 화면을 확인하세요.', zh: '确认要创建的屏幕。' },
+  'This type is fixed. To create another one, close the wizard and select it from "Create kiosk".': { es: 'Este tipo queda fijo. Para crear otro, cierra el asistente y selecciónalo desde “Crear kiosco”.', fr: 'Ce type est fixe. Pour en créer un autre, fermez l’assistant et sélectionnez-le depuis « Créer une borne ».', pt: 'Esse tipo fica fixo. Para criar outro, feche o assistente e selecione em "Criar quiosque".', ko: '이 유형은 고정됩니다. 다른 유형을 만들려면 마법사를 닫고 "키오스크 만들기"에서 선택하세요.', zh: '该类型创建后固定。要创建其他类型，请关闭向导并从“创建自助终端”选择。' },
+  'General information': { es: 'Información general', fr: 'Information générale', pt: 'Informações gerais', ko: '기본 정보', zh: '基本信息' },
+  'Use a name that makes the screen easy to recognize in the table.': { es: 'Usa un nombre que permita reconocer la pantalla en la tabla.', fr: 'Utilisez un nom permettant de reconnaître facilement l’écran dans le tableau.', pt: 'Use um nome que facilite reconhecer a tela na tabela.', ko: '표에서 화면을 쉽게 식별할 수 있는 이름을 사용하세요.', zh: '使用便于在表格中识别该屏幕的名称。' },
+  'Kiosk name': { es: 'Nombre del kiosco', fr: 'Nom de la borne', pt: 'Nome do quiosque', ko: '키오스크 이름', zh: '自助终端名称' },
+  'Example: Customer display - Register 01': { es: 'Ej. Pantalla cliente - Caja 01', fr: 'Ex. Affichage client - Caisse 01', pt: 'Ex. Tela do cliente - Caixa 01', ko: '예: 고객 화면 - 계산대 01', zh: '示例：客户显示屏 - 收银台 01' },
+  'Example: North entrance self-service': { es: 'Ej. Autoservicio entrada norte', fr: 'Ex. Libre-service entrée nord', pt: 'Ex. Autoatendimento entrada norte', ko: '예: 북쪽 입구 셀프서비스', zh: '示例：北入口自助服务' },
+  'Minimum 3 characters. You can change it later from Edit.': { es: 'Mínimo 3 caracteres. Después podrás cambiarlo desde Editar.', fr: 'Minimum 3 caractères. Vous pourrez le modifier plus tard depuis Modifier.', pt: 'Mínimo de 3 caracteres. Depois você poderá alterar em Editar.', ko: '최소 3자입니다. 나중에 편집에서 변경할 수 있습니다.', zh: '至少 3 个字符。之后可从编辑中更改。' },
+  'Operational assignment': { es: 'Asignación operativa', fr: 'Affectation opérationnelle', pt: 'Atribuição operacional', ko: '운영 배정', zh: '运营分配' },
+  'The register determines the kiosk warehouse, unit, and business.': { es: 'La caja determina el almacén, la unidad y el negocio del kiosco.', fr: 'La caisse détermine l’entrepôt, l’unité et l’entreprise de la borne.', pt: 'A caixa determina o estoque, a unidade e o negócio do quiosque.', ko: '계산대가 키오스크의 창고, 단위 및 비즈니스를 결정합니다.', zh: '收银台决定该自助终端的仓库、单位和业务。' },
+  'Loading available registers...': { es: 'Cargando cajas disponibles…', fr: 'Chargement des caisses disponibles...', pt: 'Carregando caixas disponíveis...', ko: '사용 가능한 계산대 로딩 중...', zh: '正在加载可用收银台...' },
+  'There are no active registers with complete warehouse, unit, and business data.': { es: 'No hay cajas activas con almacén, unidad y negocio completos.', fr: 'Aucune caisse active ne contient les données complètes d’entrepôt, d’unité et d’entreprise.', pt: 'Não há caixas ativas com estoque, unidade e negócio completos.', ko: '완전한 창고, 단위 및 비즈니스 데이터가 있는 활성 계산대가 없습니다.', zh: '没有包含完整仓库、单位和业务数据的活动收银台。' },
+  'Catalog and rules': { es: 'Catálogo y reglas', fr: 'Catalogue et règles', pt: 'Catálogo e regras', ko: '카탈로그 및 규칙', zh: '目录和规则' },
+  'The screen reflects products, discounts, and totals from the active sale.': { es: 'La pantalla refleja productos, descuentos y totales de la venta en curso.', fr: 'L’écran reflète les produits, remises et totaux de la vente en cours.', pt: 'A tela reflete produtos, descontos e totais da venda em andamento.', ko: '화면은 진행 중인 판매의 상품, 할인 및 합계를 반영합니다.', zh: '屏幕显示当前销售的商品、折扣和总额。' },
+  'Define the initial public catalog rules.': { es: 'Define las reglas iniciales del catálogo público.', fr: 'Définissez les règles initiales du catalogue public.', pt: 'Defina as regras iniciais do catálogo público.', ko: '초기 공개 카탈로그 규칙을 정의하세요.', zh: '定义初始公共目录规则。' },
+  'No product selection is required: it inherits the assigned register sale in real time.': { es: 'No requiere selección de productos: hereda en tiempo real la venta de la caja asignada.', fr: 'Aucune sélection de produits requise : il hérite en temps réel de la vente de la caisse affectée.', pt: 'Não requer seleção de produtos: herda em tempo real a venda da caixa atribuída.', ko: '상품 선택이 필요 없습니다. 배정된 계산대 판매를 실시간으로 이어받습니다.', zh: '无需选择商品：它会实时继承分配收银台的销售。' },
+  'Show stock': { es: 'Mostrar existencias', fr: 'Afficher le stock', pt: 'Mostrar estoque', ko: '재고 표시', zh: '显示库存' },
+  'Require customer name': { es: 'Solicitar nombre del cliente', fr: 'Exiger le nom du client', pt: 'Solicitar nome do cliente', ko: '고객 이름 필수', zh: '要求客户姓名' },
+  'Maximum items': { es: 'Máximo de artículos', fr: 'Maximum d’articles', pt: 'Máximo de itens', ko: '최대 품목 수', zh: '最大商品数' },
+  'Access, validity, and security': { es: 'Acceso, vigencia y seguridad', fr: 'Accès, validité et sécurité', pt: 'Acesso, validade e segurança', ko: '접근, 유효 기간 및 보안', zh: '访问、有效期和安全' },
+  'The protected link is generated on creation and managed later from the table.': { es: 'El enlace protegido se genera al crear y se administra después desde la tabla.', fr: 'Le lien protégé est généré à la création et géré ensuite depuis le tableau.', pt: 'O link protegido é gerado na criação e gerenciado depois pela tabela.', ko: '보호 링크는 생성 시 발급되며 이후 표에서 관리됩니다.', zh: '受保护链接会在创建时生成，之后可在表格中管理。' },
+  'A protected access link tied to the register will be generated. The screen will only be available when the source register has an open shift.': { es: 'Se generará un acceso protegido vinculado a la caja. La pantalla solo estará disponible cuando la caja origen tenga un turno abierto.', fr: 'Un accès protégé lié à la caisse sera généré. L’écran ne sera disponible que lorsque la caisse source aura un quart ouvert.', pt: 'Será gerado um acesso protegido vinculado à caixa. A tela só ficará disponível quando a caixa de origem tiver um turno aberto.', ko: '계산대에 연결된 보호 접근 링크가 생성됩니다. 원본 계산대에 열린 교대가 있을 때만 화면을 사용할 수 있습니다.', zh: '将生成绑定到收银台的受保护访问链接。只有来源收银台有开启班次时，该屏幕才可用。' },
+  'Access expiration (optional)': { es: 'Vencimiento del acceso (opcional)', fr: 'Expiration de l’accès (facultatif)', pt: 'Vencimento do acesso (opcional)', ko: '접근 만료(선택 사항)', zh: '访问过期时间（可选）' },
+  'Review and create': { es: 'Resumen y creación', fr: 'Réviser et créer', pt: 'Revisar e criar', ko: '검토 및 생성', zh: '审核并创建' },
+  'Confirm the initial configuration. Then you will return to the table.': { es: 'Confirma la configuración inicial. Después regresarás a la tabla.', fr: 'Confirmez la configuration initiale. Vous retournerez ensuite au tableau.', pt: 'Confirme a configuração inicial. Depois você voltará para a tabela.', ko: '초기 구성을 확인하세요. 그런 다음 표로 돌아갑니다.', zh: '确认初始配置。然后将返回表格。' },
+  Name: { es: 'Nombre', fr: 'Nom', pt: 'Nome', ko: '이름', zh: '名称' },
+  'Register and warehouse': { es: 'Caja y almacén', fr: 'Caisse et entrepôt', pt: 'Caixa e estoque', ko: '계산대 및 창고', zh: '收银台和仓库' },
+  'Not assigned': { es: 'Sin asignar', fr: 'Non affecté', pt: 'Não atribuído', ko: '미배정', zh: '未分配' },
+  'No expiration': { es: 'Sin vencimiento', fr: 'Aucune expiration', pt: 'Sem vencimento', ko: '만료 없음', zh: '无过期时间' },
+  'Creating does not open an additional menu. The new kiosk will appear in the table so it can be accessed, copied, activated, or edited.': { es: 'Crear no abre un menú adicional. El nuevo kiosco aparecerá en la tabla para acceder, copiar enlace, activar o editar.', fr: 'La création n’ouvre pas de menu supplémentaire. La nouvelle borne apparaîtra dans le tableau pour y accéder, copier le lien, l’activer ou la modifier.', pt: 'Criar não abre um menu adicional. O novo quiosque aparecerá na tabela para acessar, copiar link, ativar ou editar.', ko: '생성해도 추가 메뉴가 열리지 않습니다. 새 키오스크는 접근, 링크 복사, 활성화 또는 편집을 위해 표에 표시됩니다.', zh: '创建不会打开额外菜单。新的自助终端会显示在表格中，可访问、复制链接、启用或编辑。' },
+  'Close edit': { es: 'Cerrar edición', fr: 'Fermer la modification', pt: 'Fechar edição', ko: '편집 닫기', zh: '关闭编辑' },
+  'Edit kiosk': { es: 'Editar kiosco', fr: 'Modifier la borne', pt: 'Editar quiosque', ko: '키오스크 편집', zh: '编辑自助终端' },
+  'Update its configuration. Access and operating status are managed from the table.': { es: 'Actualiza su configuración. El acceso y el estado operativo se administran desde la tabla.', fr: 'Mettez à jour sa configuration. L’accès et l’état opérationnel sont gérés depuis le tableau.', pt: 'Atualize sua configuração. O acesso e o status operacional são gerenciados pela tabela.', ko: '구성을 업데이트하세요. 접근 및 운영 상태는 표에서 관리됩니다.', zh: '更新其配置。访问和运行状态在表格中管理。' },
+  'The assignment is fixed at creation to protect the inventory and shift source. If it must change, create a new kiosk.': { es: 'La asignación se fija al crear para proteger el origen del inventario y del turno. Si debe cambiar, crea un kiosco nuevo.', fr: 'L’affectation est fixée à la création pour protéger la source du stock et du quart. Si elle doit changer, créez une nouvelle borne.', pt: 'A atribuição é fixada na criação para proteger a origem do estoque e do turno. Se precisar mudar, crie um novo quiosque.', ko: '배정은 재고와 교대 출처를 보호하기 위해 생성 시 고정됩니다. 변경이 필요하면 새 키오스크를 만드세요.', zh: '分配在创建时固定，以保护库存和班次来源。如需更改，请创建新的自助终端。' },
+  'Loading configuration...': { es: 'Cargando configuración…', fr: 'Chargement de la configuration...', pt: 'Carregando configuração...', ko: '구성 로딩 중...', zh: '正在加载配置...' },
+  'The inherited configuration is not available. You can update the name; the other rules will keep their current value.': { es: 'La configuración heredada no está disponible. Puedes actualizar el nombre; las demás reglas conservarán su valor actual.', fr: 'La configuration héritée n’est pas disponible. Vous pouvez mettre à jour le nom; les autres règles conserveront leur valeur actuelle.', pt: 'A configuração herdada não está disponível. Você pode atualizar o nome; as demais regras manterão o valor atual.', ko: '상속된 구성을 사용할 수 없습니다. 이름은 업데이트할 수 있으며 다른 규칙은 현재 값을 유지합니다.', zh: '继承配置不可用。你可以更新名称；其他规则将保留当前值。' },
+  'Pre-ticket validity': { es: 'Vigencia del pre-ticket', fr: 'Validité du pré-ticket', pt: 'Validade do pré-ticket', ko: '사전 티켓 유효 기간', zh: '预票有效期' },
+  'Validity amount': { es: 'Cantidad de vigencia', fr: 'Durée de validité', pt: 'Quantidade de validade', ko: '유효 기간 수량', zh: '有效期数量' },
+  'Validity unit': { es: 'Unidad de vigencia', fr: 'Unité de validité', pt: 'Unidade de validade', ko: '유효 기간 단위', zh: '有效期单位' },
+  Hours: { es: 'Horas', fr: 'Heures', pt: 'Horas', ko: '시간', zh: '小时' },
+  Days: { es: 'Días', fr: 'Jours', pt: 'Dias', ko: '일', zh: '天' },
+  'The pre-ticket will expire automatically after this time.': { es: 'El pre-ticket vencerá automáticamente después de este tiempo.', fr: 'Le pré-ticket expirera automatiquement après cette durée.', pt: 'O pré-ticket vencerá automaticamente após esse tempo.', ko: '이 시간이 지나면 사전 티켓이 자동으로 만료됩니다.', zh: '预票将在此时间后自动过期。' },
 };
 
 function translateCanonical(canonical: string, language: LegacyLanguage) {
@@ -524,6 +886,82 @@ function translateLegacyText(sourceText: string, locale: PointOfSaleLocale) {
 }
 
 function translateDynamic(text: string, language: LegacyLanguage) {
+  const shiftOpenFund = text.match(/^(?:Turno abierto\. Fondo inicial|Shift open\. Opening fund): (.+)\.$/i);
+  if (shiftOpenFund) return select(language, {
+    en: `Shift open. Opening fund: ${shiftOpenFund[1]}.`,
+    es: `Turno abierto. Fondo inicial: ${shiftOpenFund[1]}.`,
+    fr: `Quart ouvert. Fonds initial : ${shiftOpenFund[1]}.`,
+    pt: `Turno aberto. Fundo inicial: ${shiftOpenFund[1]}.`,
+    ko: `교대 열림. 시재금: ${shiftOpenFund[1]}.`,
+    zh: `班次已打开。开台备用金：${shiftOpenFund[1]}。`,
+  });
+
+  const registerPrefix = text.match(/^(?:Caja|Register) (.+)$/i);
+  if (registerPrefix) return select(language, {
+    en: `Register ${registerPrefix[1]}`,
+    es: `Caja ${registerPrefix[1]}`,
+    fr: `Caisse ${registerPrefix[1]}`,
+    pt: `Caixa ${registerPrefix[1]}`,
+    ko: `${registerPrefix[1]} 계산대`,
+    zh: `收银台 ${registerPrefix[1]}`,
+  });
+
+  const shiftStart = text.match(/^(?:Inicio|Start|Début|Início|시작|开始) (.+)$/i);
+  if (shiftStart) return select(language, {
+    en: `Start ${shiftStart[1]}`,
+    es: `Inicio ${shiftStart[1]}`,
+    fr: `Début ${shiftStart[1]}`,
+    pt: `Início ${shiftStart[1]}`,
+    ko: `시작 ${shiftStart[1]}`,
+    zh: `开始 ${shiftStart[1]}`,
+  });
+
+  const closingFooterSummary = text.match(/^(?:Esperado|Expected|Attendu|예상|预计) (.+) · (?:Contado|Counted|Compté|계수됨|已清点) (.+) · (?:Diferencia|Difference|Différence|Diferença|차이|差额) (.+)$/i);
+  if (closingFooterSummary) return select(language, {
+    en: `Expected ${closingFooterSummary[1]} · Counted ${closingFooterSummary[2]} · Difference ${closingFooterSummary[3]}`,
+    es: `Esperado ${closingFooterSummary[1]} · Contado ${closingFooterSummary[2]} · Diferencia ${closingFooterSummary[3]}`,
+    fr: `Attendu ${closingFooterSummary[1]} · Compté ${closingFooterSummary[2]} · Différence ${closingFooterSummary[3]}`,
+    pt: `Esperado ${closingFooterSummary[1]} · Contado ${closingFooterSummary[2]} · Diferença ${closingFooterSummary[3]}`,
+    ko: `예상 ${closingFooterSummary[1]} · 계수됨 ${closingFooterSummary[2]} · 차이 ${closingFooterSummary[3]}`,
+    zh: `预计 ${closingFooterSummary[1]} · 已清点 ${closingFooterSummary[2]} · 差额 ${closingFooterSummary[3]}`,
+  });
+
+  const wizardStep = text.match(/^(?:Paso|Step) (\d+) (?:de|of) (\d+)$/i);
+  if (wizardStep) return select(language, {
+    en: `Step ${wizardStep[1]} of ${wizardStep[2]}`,
+    es: `Paso ${wizardStep[1]} de ${wizardStep[2]}`,
+    fr: `Étape ${wizardStep[1]} sur ${wizardStep[2]}`,
+    pt: `Etapa ${wizardStep[1]} de ${wizardStep[2]}`,
+    ko: `${wizardStep[2]}단계 중 ${wizardStep[1]}단계`,
+    zh: `第 ${wizardStep[1]} 步，共 ${wizardStep[2]} 步`,
+  });
+
+  const kioskTypeWithCode = text.match(/^(Pantalla de cliente|Autoservicio y pre-ticket|Autocobro|Customer display|Self-service and pre-ticket|Self-checkout) · (.+)$/i);
+  if (kioskTypeWithCode) {
+    const type = translateLegacyText(kioskTypeWithCode[1], language === 'es' ? 'es-MX' : language === 'fr' ? 'fr-CA' : language === 'pt' ? 'pt-BR' : language === 'ko' ? 'ko-CA' : language === 'zh' ? 'zh-CA' : 'en-CA');
+    return `${type} · ${kioskTypeWithCode[2]}`;
+  }
+
+  const unitBusiness = text.match(/^Unidad #(.+) · Negocio #(.+)$/i);
+  if (unitBusiness) return select(language, {
+    en: `Unit #${unitBusiness[1]} · Business #${unitBusiness[2]}`,
+    es: `Unidad #${unitBusiness[1]} · Negocio #${unitBusiness[2]}`,
+    fr: `Unité #${unitBusiness[1]} · Entreprise #${unitBusiness[2]}`,
+    pt: `Unidade #${unitBusiness[1]} · Negócio #${unitBusiness[2]}`,
+    ko: `단위 #${unitBusiness[1]} · 비즈니스 #${unitBusiness[2]}`,
+    zh: `单位 #${unitBusiness[1]} · 业务 #${unitBusiness[2]}`,
+  });
+
+  const expiresAt = text.match(/^(?:Vence|Expires) (.+)$/i);
+  if (expiresAt) return select(language, {
+    en: `Expires ${expiresAt[1]}`,
+    es: `Vence ${expiresAt[1]}`,
+    fr: `Expire le ${expiresAt[1]}`,
+    pt: `Vence em ${expiresAt[1]}`,
+    ko: `만료 ${expiresAt[1]}`,
+    zh: `过期 ${expiresAt[1]}`,
+  });
+
   const countInRegister = text.match(/^(\d+) (?:articulo|artículo|articulos|artículos) en caja$/i);
   if (countInRegister) return plural(language, Number(countInRegister[1]), {
     en: ['item in register', 'items in register'],
@@ -532,6 +970,190 @@ function translateDynamic(text: string, language: LegacyLanguage) {
     pt: ['item na caixa', 'itens na caixa'],
     ko: ['개 품목 계산대에 있음', '개 품목 계산대에 있음'],
     zh: ['件商品在收银台', '件商品在收银台'],
+  });
+
+  const currentTicketRegister = text.match(/^(\d+) (?:articulo|artículo|articulos|artículos|item|items) · (?:Caja|Register) (.+)$/i);
+  if (currentTicketRegister) {
+    const count = Number(currentTicketRegister[1]);
+    const register = currentTicketRegister[2];
+    return select(language, {
+      en: `${count} ${count === 1 ? 'item' : 'items'} · Register ${register}`,
+      es: `${count} ${count === 1 ? 'artículo' : 'artículos'} · Caja ${register}`,
+      fr: `${count} ${count === 1 ? 'article' : 'articles'} · Caisse ${register}`,
+      pt: `${count} ${count === 1 ? 'item' : 'itens'} · Caixa ${register}`,
+      ko: `${count}개 품목 · ${register} 계산대`,
+      zh: `${count} 件商品 · 收银台 ${register}`,
+    });
+  }
+
+  const currentTicketRegisterPrefix = text.match(/^(\d+) (?:articulo|artículo|articulos|artículos|item|items) · (?:Caja|Register)$/i);
+  if (currentTicketRegisterPrefix) {
+    const count = Number(currentTicketRegisterPrefix[1]);
+    return select(language, {
+      en: `${count} ${count === 1 ? 'item' : 'items'} · Register`,
+      es: `${count} ${count === 1 ? 'artículo' : 'artículos'} · Caja`,
+      fr: `${count} ${count === 1 ? 'article' : 'articles'} · Caisse`,
+      pt: `${count} ${count === 1 ? 'item' : 'itens'} · Caixa`,
+      ko: `${count}개 품목 · 계산대`,
+      zh: `${count} 件商品 · 收银台`,
+    });
+  }
+
+  const subtotalLine = text.match(/^Subtotal:?\s+(.+)$/i);
+  if (subtotalLine) return select(language, {
+    en: `Subtotal ${subtotalLine[1]}`,
+    es: `Subtotal ${subtotalLine[1]}`,
+    fr: `Sous-total ${subtotalLine[1]}`,
+    pt: `Subtotal ${subtotalLine[1]}`,
+    ko: `소계 ${subtotalLine[1]}`,
+    zh: `小计 ${subtotalLine[1]}`,
+  });
+
+  const taxLine = text.match(/^(?:IVA|VAT):?\s+(.+)$/i);
+  if (taxLine) return select(language, {
+    en: `VAT ${taxLine[1]}`,
+    es: `IVA ${taxLine[1]}`,
+    fr: `TVA ${taxLine[1]}`,
+    pt: `IVA ${taxLine[1]}`,
+    ko: `부가세 ${taxLine[1]}`,
+    zh: `增值税 ${taxLine[1]}`,
+  });
+
+  const denominationsTitle = text.match(/^(?:Denominaciones|Denominations) ([A-Z]{3})$/i);
+  if (denominationsTitle) return select(language, {
+    en: `Denominations ${denominationsTitle[1]}`,
+    es: `Denominaciones ${denominationsTitle[1]}`,
+    fr: `Coupures ${denominationsTitle[1]}`,
+    pt: `Denominações ${denominationsTitle[1]}`,
+    ko: `${denominationsTitle[1]} 권종`,
+    zh: `${denominationsTitle[1]} 面额`,
+  });
+
+  const receivedSaleSummary = text.match(/^(?:Recibido|Received) (.+\d.*) · (?:Venta|Sale) (.+\d.*)$/i);
+  if (receivedSaleSummary) return select(language, {
+    en: `Received ${receivedSaleSummary[1]} · Sale ${receivedSaleSummary[2]}`,
+    es: `Recibido ${receivedSaleSummary[1]} · Venta ${receivedSaleSummary[2]}`,
+    fr: `Reçu ${receivedSaleSummary[1]} · Vente ${receivedSaleSummary[2]}`,
+    pt: `Recebido ${receivedSaleSummary[1]} · Venda ${receivedSaleSummary[2]}`,
+    ko: `수령 ${receivedSaleSummary[1]} · 판매 ${receivedSaleSummary[2]}`,
+    zh: `已收 ${receivedSaleSummary[1]} · 销售 ${receivedSaleSummary[2]}`,
+  });
+
+  const amountRange = text.match(/^(?:Ingresa un monto entre|Enter an amount between) 0\.01 (?:y|and) (.+)\.$/i);
+  if (amountRange) return select(language, {
+    en: `Enter an amount between 0.01 and ${amountRange[1]}.`,
+    es: `Ingresa un monto entre 0.01 y ${amountRange[1]}.`,
+    fr: `Saisissez un montant entre 0,01 et ${amountRange[1]}.`,
+    pt: `Informe um valor entre 0,01 e ${amountRange[1]}.`,
+    ko: `0.01에서 ${amountRange[1]} 사이의 금액을 입력하세요.`,
+    zh: `请输入 0.01 到 ${amountRange[1]} 之间的金额。`,
+  });
+
+  const amountLabel = text.match(/^(Recibido|Received|Falta|Still due|Cambio|Change|Pagado|Paid) (.+\d.*)$/i);
+  if (amountLabel) {
+    const label = amountLabel[1].toLowerCase();
+    const amount = amountLabel[2];
+    if (label === 'recibido' || label === 'received') {
+      return select(language, {
+        en: `Received ${amount}`,
+        es: `Recibido ${amount}`,
+        fr: `Reçu ${amount}`,
+        pt: `Recebido ${amount}`,
+        ko: `수령 ${amount}`,
+        zh: `已收 ${amount}`,
+      });
+    }
+    if (label === 'falta' || label === 'still due') {
+      return select(language, {
+        en: `Still due ${amount}`,
+        es: `Falta ${amount}`,
+        fr: `Reste ${amount}`,
+        pt: `Falta ${amount}`,
+        ko: `부족 ${amount}`,
+        zh: `仍需 ${amount}`,
+      });
+    }
+    if (label === 'cambio' || label === 'change') {
+      return select(language, {
+        en: `Change ${amount}`,
+        es: `Cambio ${amount}`,
+        fr: `Monnaie ${amount}`,
+        pt: `Troco ${amount}`,
+        ko: `거스름돈 ${amount}`,
+        zh: `找零 ${amount}`,
+      });
+    }
+    return select(language, {
+      en: `Paid ${amount}`,
+      es: `Pagado ${amount}`,
+      fr: `Payé ${amount}`,
+      pt: `Pago ${amount}`,
+      ko: `결제됨 ${amount}`,
+      zh: `已付 ${amount}`,
+    });
+  }
+
+  const touchCheckoutCount = text.match(/^(\d+) (?:articulo|artículo|articulos|artículos|item|items) · (?:Cobro touch|Touch checkout)$/i);
+  if (touchCheckoutCount) return withCount(language, Number(touchCheckoutCount[1]), {
+    en: (count) => `${count} ${count === 1 ? 'item' : 'items'} · Touch checkout`,
+    es: (count) => `${count} ${count === 1 ? 'artículo' : 'artículos'} · Cobro touch`,
+    fr: (count) => `${count} ${count === 1 ? 'article' : 'articles'} · Encaissement tactile`,
+    pt: (count) => `${count} ${count === 1 ? 'item' : 'itens'} · Cobrança touch`,
+    ko: (count) => `${count}개 품목 · 터치 결제`,
+    zh: (count) => `${count} 件商品 · 触控收款`,
+  });
+
+  const addDenomination = text.match(/^(?:Agregar|Add) (billete|moneda|bill|coin) (?:de|of) (.+)$/i);
+  if (addDenomination) {
+    const isBill = ['billete', 'bill'].includes(addDenomination[1].toLowerCase());
+    return select(language, {
+      en: `Add ${isBill ? 'bill' : 'coin'} of ${addDenomination[2]}`,
+      es: `Agregar ${isBill ? 'billete' : 'moneda'} de ${addDenomination[2]}`,
+      fr: `Ajouter ${isBill ? 'un billet' : 'une pièce'} de ${addDenomination[2]}`,
+      pt: `Adicionar ${isBill ? 'cédula' : 'moeda'} de ${addDenomination[2]}`,
+      ko: `${addDenomination[2]} ${isBill ? '지폐' : '동전'} 추가`,
+      zh: `添加 ${addDenomination[2]} ${isBill ? '纸币' : '硬币'}`,
+    });
+  }
+
+  const removePiece = text.match(/^(?:Quitar una pieza de|Remove one piece of) (.+)$/i);
+  if (removePiece) return select(language, {
+    en: `Remove one piece of ${removePiece[1]}`,
+    es: `Quitar una pieza de ${removePiece[1]}`,
+    fr: `Retirer une pièce de ${removePiece[1]}`,
+    pt: `Remover uma peça de ${removePiece[1]}`,
+    ko: `${removePiece[1]} 1개 제거`,
+    zh: `移除一张/枚 ${removePiece[1]}`,
+  });
+
+  const billAlt = text.match(/^(?:Billete ilustrativo de|Illustrative bill for) (.+)$/i);
+  if (billAlt) return select(language, {
+    en: `Illustrative bill for ${billAlt[1]}`,
+    es: `Billete ilustrativo de ${billAlt[1]}`,
+    fr: `Billet illustratif de ${billAlt[1]}`,
+    pt: `Cédula ilustrativa de ${billAlt[1]}`,
+    ko: `${billAlt[1]} 지폐 예시`,
+    zh: `${billAlt[1]} 纸币示意图`,
+  });
+
+  const adjustment = text.match(/^(?:Ajuste|Adjustment) (.+)$/i);
+  if (adjustment) return select(language, {
+    en: `Adjustment ${adjustment[1]}`,
+    es: `Ajuste ${adjustment[1]}`,
+    fr: `Ajustement ${adjustment[1]}`,
+    pt: `Ajuste ${adjustment[1]}`,
+    ko: `조정 ${adjustment[1]}`,
+    zh: `调整 ${adjustment[1]}`,
+  });
+
+  const creditReference = text.match(/^(?:Crédito|Credit) (.+)$/i);
+  if (creditReference) return select(language, {
+    en: `Credit ${creditReference[1]}`,
+    es: `Crédito ${creditReference[1]}`,
+    fr: `Crédit ${creditReference[1]}`,
+    pt: `Crédito ${creditReference[1]}`,
+    ko: `신용 ${creditReference[1]}`,
+    zh: `信用 ${creditReference[1]}`,
   });
 
   const productsAvailable = text.match(/^(\d+) productos disponibles · se agregan directamente al ticket$/i);
@@ -552,6 +1174,16 @@ function translateDynamic(text: string, language: LegacyLanguage) {
     pt: ['pagamento adicionado', 'pagamentos adicionados'],
     ko: ['건 결제 추가됨', '건 결제 추가됨'],
     zh: ['笔付款已添加', '笔付款已添加'],
+  });
+
+  const movementCount = text.match(/^(\d+) movimiento(?:s)?$/i);
+  if (movementCount) return plural(language, Number(movementCount[1]), {
+    en: ['movement', 'movements'],
+    es: ['movimiento', 'movimientos'],
+    fr: ['mouvement', 'mouvements'],
+    pt: ['movimento', 'movimentos'],
+    ko: ['건 이동', '건 이동'],
+    zh: ['笔变动', '笔变动'],
   });
 
   const ticketsWaiting = text.match(/^(\+?)(\d+) ticket(?:s)? en espera$/i);
@@ -577,6 +1209,63 @@ function translateDynamic(text: string, language: LegacyLanguage) {
     pt: `Estoque insuficiente para ${stock[1]}. Disponível: ${stock[2]}.`,
     ko: `${stock[1]} 재고가 부족합니다. 사용 가능: ${stock[2]}.`,
     zh: `${stock[1]} 库存不足。可用：${stock[2]}。`,
+  });
+
+  const stockLabel = text.match(/^Stock (.+)$/i);
+  if (stockLabel) return select(language, {
+    en: `Stock ${stockLabel[1]}`,
+    es: `Stock ${stockLabel[1]}`,
+    fr: `Stock ${stockLabel[1]}`,
+    pt: `Estoque ${stockLabel[1]}`,
+    ko: `재고 ${stockLabel[1]}`,
+    zh: `库存 ${stockLabel[1]}`,
+  });
+
+  const discountLabel = text.match(/^Descuento: (.+)$/i);
+  if (discountLabel) return select(language, {
+    en: `Discount: ${discountLabel[1]}`,
+    es: `Descuento: ${discountLabel[1]}`,
+    fr: `Remise : ${discountLabel[1]}`,
+    pt: `Desconto: ${discountLabel[1]}`,
+    ko: `할인: ${discountLabel[1]}`,
+    zh: `折扣：${discountLabel[1]}`,
+  });
+
+  const itemAction = text.match(/^(Restar|Sumar|Quitar|Aplicar descuento a) (.+)$/i);
+  if (itemAction) {
+    const action = itemAction[1].toLowerCase();
+    const itemName = itemAction[2];
+    return select(language, {
+      en: `${action.includes('restar') ? 'Subtract' : action.includes('sumar') ? 'Add' : action.includes('quitar') ? 'Remove' : 'Apply discount to'} ${itemName}`,
+      es: `${itemAction[1]} ${itemName}`,
+      fr: `${action.includes('restar') ? 'Retirer' : action.includes('sumar') ? 'Ajouter' : action.includes('quitar') ? 'Supprimer' : 'Appliquer une remise à'} ${itemName}`,
+      pt: `${action.includes('restar') ? 'Subtrair' : action.includes('sumar') ? 'Adicionar' : action.includes('quitar') ? 'Remover' : 'Aplicar desconto a'} ${itemName}`,
+      ko: `${itemName} ${action.includes('restar') ? '빼기' : action.includes('sumar') ? '추가' : action.includes('quitar') ? '제거' : '할인 적용'}`,
+      zh: `${action.includes('restar') ? '减少' : action.includes('sumar') ? '增加' : action.includes('quitar') ? '移除' : '应用折扣到'} ${itemName}`,
+    });
+  }
+
+  const kioskOrder = text.match(/^Pedido de kiosco(?: · ([^:]+))?: productos, cantidades, precios y descuentos quedan protegidos hasta cobrar o cancelar\.$/i);
+  if (kioskOrder) {
+    const code = kioskOrder[1] ? ` · ${kioskOrder[1]}` : '';
+    return select(language, {
+      en: `Kiosk order${code}: products, quantities, prices, and discounts stay protected until checkout or cancellation.`,
+      es: `Pedido de kiosco${code}: productos, cantidades, precios y descuentos quedan protegidos hasta cobrar o cancelar.`,
+      fr: `Commande kiosque${code} : les produits, quantités, prix et remises restent protégés jusqu'à l'encaissement ou l'annulation.`,
+      pt: `Pedido do quiosque${code}: produtos, quantidades, preços e descontos ficam protegidos até cobrar ou cancelar.`,
+      ko: `키오스크 주문${code}: 결제 또는 취소 전까지 상품, 수량, 가격 및 할인이 보호됩니다.`,
+      zh: `自助机订单${code}：商品、数量、价格和折扣在收款或取消前保持锁定。`,
+    });
+  }
+
+  const currencyMismatch = text.match(/^El turno actual esta abierto en (.+), pero la configuracion fiscal usa (.+)\. Para finalizar con esa divisa, cierra este turno y abre caja en (.+)\.$/i);
+  if (currencyMismatch) return select(language, {
+    en: `The current shift is open in ${currencyMismatch[1]}, but fiscal settings use ${currencyMismatch[2]}. To complete with that currency, close this shift and open the register in ${currencyMismatch[3]}.`,
+    es: `El turno actual está abierto en ${currencyMismatch[1]}, pero la configuración fiscal usa ${currencyMismatch[2]}. Para finalizar con esa divisa, cierra este turno y abre caja en ${currencyMismatch[3]}.`,
+    fr: `Le quart actuel est ouvert en ${currencyMismatch[1]}, mais la configuration fiscale utilise ${currencyMismatch[2]}. Pour terminer avec cette devise, fermez ce quart et ouvrez la caisse en ${currencyMismatch[3]}.`,
+    pt: `O turno atual está aberto em ${currencyMismatch[1]}, mas a configuração fiscal usa ${currencyMismatch[2]}. Para finalizar com essa moeda, feche este turno e abra a caixa em ${currencyMismatch[3]}.`,
+    ko: `현재 교대는 ${currencyMismatch[1]}로 열려 있지만 세무 설정은 ${currencyMismatch[2]}를 사용합니다. 해당 통화로 완료하려면 이 교대를 닫고 ${currencyMismatch[3]}로 계산대를 여세요.`,
+    zh: `当前班次以 ${currencyMismatch[1]} 打开，但税务设置使用 ${currencyMismatch[2]}。若要用该币种完成，请关闭此班次并以 ${currencyMismatch[3]} 打开收银台。`,
   });
 
   const outOfStock = text.match(/^(.+) esta agotado\. Agrega inventario antes de venderlo en POS\.$/i);

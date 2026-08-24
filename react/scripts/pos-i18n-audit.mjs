@@ -447,6 +447,8 @@ function auditSaleLegacyLocalizer() {
   const moduleSource = source(moduleFile);
   const localizerFile = join(posRoot, 'PointOfSaleLegacyLocalizer.tsx');
   const localizerSource = source(localizerFile);
+  const modalFrameFile = join(posRoot, 'Sale/components/PosModalFrame.tsx');
+  const modalFrameSource = source(modalFrameFile);
 
   expectIncludes(
     moduleFile,
@@ -465,6 +467,24 @@ function auditSaleLegacyLocalizer() {
     moduleSource,
     '<PointOfSaleLegacyLocalizer locale={locale}>',
     'legacy localizer wrapping routed POS content',
+  );
+  expectIncludes(
+    modalFrameFile,
+    modalFrameSource,
+    `import { PointOfSaleLegacyLocalizer } from '../../PointOfSaleLegacyLocalizer';`,
+    'POS modal legacy localizer import',
+  );
+  expectIncludes(
+    modalFrameFile,
+    modalFrameSource,
+    'const locale = usePointOfSaleResolvedLocale();',
+    'resolved POS locale for portaled modal localizer',
+  );
+  expectIncludes(
+    modalFrameFile,
+    modalFrameSource,
+    '<PointOfSaleLegacyLocalizer locale={locale}>',
+    'legacy localizer wrapping portaled POS modal content',
   );
 
   const expectedLocaleLanguages = {
@@ -487,7 +507,43 @@ function auditSaleLegacyLocalizer() {
     [`'Abrir caja': 'Open register'`, `fr: 'Ouvrir la caisse'`, `pt: 'Abrir caixa'`, `ko: '계산대 열기'`, `zh: '打开收银台'`],
     [`'Cobro POS': 'POS checkout'`, `fr: 'Encaissement PDV'`, `pt: 'Cobrança POS'`, `ko: 'POS 결제'`, `zh: 'POS 收款'`],
     [`'Pago completo': 'Payment complete'`, `fr: 'Paiement complet'`, `pt: 'Pagamento completo'`, `ko: '결제 완료'`, `zh: '付款完成'`],
+    [`'Cerrar turno': 'Close shift'`, `fr: 'Fermer le quart'`, `pt: 'Fechar turno'`, `ko: '교대 닫기'`, `zh: '关闭班次'`],
+    [`'Devolución': 'Return'`, `fr: 'Retour'`, `pt: 'Devolução'`, `ko: '반품'`, `zh: '退货'`],
+    [`'Movimientos': 'Movements'`, `fr: 'Mouvements'`, `pt: 'Movimentos'`, `ko: '이동'`, `zh: '变动'`],
+    [`'Público general': 'General public'`, `fr: 'Grand public'`, `pt: 'Público geral'`, `ko: '일반 고객'`, `zh: '普通客户'`],
+    [`'IVA': 'VAT'`, `fr: 'TVA'`, `pt: 'IVA'`, `ko: '부가세'`, `zh: '增值税'`],
+    [`'Procesar devolución': 'Process return'`, `fr: 'Traiter le retour'`, `pt: 'Processar devolução'`, `ko: '반품 처리'`, `zh: '处理退货'`],
+    [`'Número de venta': 'Sale number'`, `fr: 'Numéro de vente'`, `pt: 'Número da venda'`, `ko: '판매 번호'`, `zh: '销售编号'`],
+    [`'Tipo de devolución': 'Return type'`, `fr: 'Type de retour'`, `pt: 'Tipo de devolução'`, `ko: '반품 유형'`, `zh: '退货类型'`],
+    [`'Devolución total': 'Full return'`, `fr: 'Retour total'`, `pt: 'Devolução total'`, `ko: '전체 반품'`, `zh: '全额退货'`],
+    [`'Algunos productos': 'Some products'`, `fr: 'Certains produits'`, `pt: 'Alguns produtos'`, `ko: '일부 상품'`, `zh: '部分产品'`],
     [`'No hay una caja configurada. Crea una caja desde la configuración POS antes de abrir turno.': 'No register is configured. Create a register from POS settings before opening a shift.'`, `fr: 'Aucune caisse n’est configurée. Créez une caisse depuis la configuration PDV avant d’ouvrir un quart.'`, `pt: 'Nenhuma caixa está configurada. Crie uma caixa na configuração POS antes de abrir o turno.'`, `ko: '설정된 계산대가 없습니다. 교대를 열기 전에 POS 설정에서 계산대를 생성하세요.'`, `zh: '尚未配置收银台。开班前请在 POS 设置中创建收银台。'`],
+    [`'Corte y cierre de caja': 'Register count and closing'`, `fr: 'Comptage et fermeture de caisse'`, `pt: 'Contagem e fechamento de caixa'`, `ko: '계산대 정산 및 마감'`, `zh: '收银台盘点与结算'`],
+    [`'Cerrar turno y generar corte': 'Close shift and generate closing'`, `fr: 'Fermer le quart et générer la fermeture'`, `pt: 'Fechar turno e gerar fechamento'`, `ko: '교대를 닫고 마감 생성'`, `zh: '关闭班次并生成结算'`],
+    [`'Efectivo contado': 'Counted cash'`, `fr: 'Comptant compté'`, `pt: 'Dinheiro contado'`, `ko: '계수한 현금'`, `zh: '已清点现金'`],
+    [`'Cuadre balanceado': 'Balanced count'`, `fr: 'Comptage équilibré'`, `pt: 'Conferência balanceada'`, `ko: '정산 일치'`, `zh: '盘点已平衡'`],
+    [`'Pagos capturados por metodo': 'Captured payments by method'`, `fr: 'Paiements saisis par mode'`, `pt: 'Pagamentos capturados por método'`, `ko: '방법별 캡처된 결제'`, `zh: '按方式记录的付款'`],
+    [`'Nota de cierre': 'Closing note'`, `fr: 'Note de fermeture'`, `pt: 'Nota de fechamento'`, `ko: '마감 메모'`, `zh: '结算备注'`],
+    [`'Opcional': 'Optional'`, `fr: 'Facultatif'`, `pt: 'Opcional'`, `ko: '선택 사항'`, `zh: '可选'`],
+    [`'Crear autoservicio y pre-ticket': 'Create self-service and pre-ticket'`, `fr: 'Créer libre-service et pré-ticket'`, `pt: 'Criar autoatendimento e pré-ticket'`, `ko: '셀프서비스 및 사전 티켓 만들기'`, `zh: '创建自助服务和预票'`],
+    [`'Crear pantalla de cliente': 'Create customer display'`, `fr: 'Créer un affichage client'`, `pt: 'Criar tela do cliente'`, `ko: '고객 화면 만들기'`, `zh: '创建客户显示屏'`],
+    [`'Tipo de experiencia': 'Experience type'`, `fr: 'Type d’expérience'`, `pt: 'Tipo de experiência'`, `ko: '경험 유형'`, `zh: '体验类型'`],
+    [`'Información general': 'General information'`, `fr: 'Information générale'`, `pt: 'Informações gerais'`, `ko: '기본 정보'`, `zh: '基本信息'`],
+    [`'Asignación operativa': 'Operational assignment'`, `fr: 'Affectation opérationnelle'`, `pt: 'Atribuição operacional'`, `ko: '운영 배정'`, `zh: '运营分配'`],
+    [`'Catálogo y reglas': 'Catalog and rules'`, `fr: 'Catalogue et règles'`, `pt: 'Catálogo e regras'`, `ko: '카탈로그 및 규칙'`, `zh: '目录和规则'`],
+    [`'Acceso, vigencia y seguridad': 'Access, validity, and security'`, `fr: 'Accès, validité et sécurité'`, `pt: 'Acesso, validade e segurança'`, `ko: '접근, 유효 기간 및 보안'`, `zh: '访问、有效期和安全'`],
+    [`'Resumen y creación': 'Review and create'`, `fr: 'Réviser et créer'`, `pt: 'Revisar e criar'`, `ko: '검토 및 생성'`, `zh: '审核并创建'`],
+    [`'Editar kiosco': 'Edit kiosk'`, `fr: 'Modifier la borne'`, `pt: 'Editar quiosque'`, `ko: '키오스크 편집'`, `zh: '编辑自助终端'`],
+    [`'Vigencia del pre-ticket': 'Pre-ticket validity'`, `fr: 'Validité du pré-ticket'`, `pt: 'Validade do pré-ticket'`, `ko: '사전 티켓 유효 기간'`, `zh: '预票有效期'`],
+    [`'Capturar pago': 'Capture payment'`, `fr: 'Saisir le paiement'`, `pt: 'Capturar pagamento'`, `ko: '결제 입력'`, `zh: '录入付款'`],
+    [`'Monto del pago': 'Payment amount'`, `fr: 'Montant du paiement'`, `pt: 'Valor do pagamento'`, `ko: '결제 금액'`, `zh: '付款金额'`],
+    [`'Efectivo recibido': 'Cash received'`, `fr: 'Comptant reçu'`, `pt: 'Dinheiro recebido'`, `ko: '받은 현금'`, `zh: '收到现金'`],
+    [`'Toca cada pieza recibida.': 'Tap each piece received.'`, `fr: 'Touchez chaque pièce reçue.'`, `pt: 'Toque cada peça recebida.'`, `ko: '받은 각 지폐나 동전을 탭하세요.'`, `zh: '点击每张/枚收到的钱。'`],
+    [`'Métodos de pago': 'Payment methods'`, `fr: 'Modes de paiement'`, `pt: 'Métodos de pagamento'`, `ko: '결제 방법'`, `zh: '付款方式'`],
+    [`'Botones grandes para operación en pantalla táctil.': 'Large buttons for touch-screen operation.'`, `fr: 'Gros boutons pour une utilisation tactile.'`, `pt: 'Botões grandes para operação em tela touch.'`, `ko: '터치 화면 운영을 위한 큰 버튼입니다.'`, `zh: '适合触摸屏操作的大按钮。'`],
+    [`'Cliente de crédito': 'Credit customer'`, `fr: 'Client à crédit'`, `pt: 'Cliente de crédito'`, `ko: '외상 고객'`, `zh: '赊账客户'`],
+    [`'Cantidad rápida': 'Quick quantity'`, `fr: 'Quantité rapide'`, `pt: 'Quantidade rápida'`, `ko: '빠른 수량'`, `zh: '快速数量'`],
+    [`'Selecciona un cliente con una política de crédito disponible.': 'Select a customer with an available credit policy.'`, `fr: 'Sélectionnez un client avec une politique de crédit disponible.'`, `pt: 'Selecione um cliente com uma política de crédito disponível.'`, `ko: '사용 가능한 신용 정책이 있는 고객을 선택하세요.'`, `zh: '请选择具有可用信用政策的客户。'`],
   ];
 
   for (const phraseGroup of expectedSalePhrases) {
@@ -499,8 +555,30 @@ function auditSaleLegacyLocalizer() {
   const expectedDynamicRules = [
     'articulo|artículo|articulos|artículos',
     'productos disponibles · se agregan directamente al ticket',
+    'Turno abierto\\. Fondo inicial',
+    '(?:Caja|Register)',
+    '(?:Inicio|Start|Début|Início|시작|开始)',
+    'closingFooterSummary',
+    'Expected ${closingFooterSummary[1]} · Counted ${closingFooterSummary[2]} · Difference ${closingFooterSummary[3]}',
+    'wizardStep',
+    'kioskTypeWithCode',
+    'Unidad #(.+) · Negocio #(.+)',
+    '(?:Vence|Expires) (.+)',
+    'Subtotal:?\\s+',
+    '(?:IVA|VAT):?\\s+',
+    'denominationsTitle',
+    'receivedSaleSummary',
+    'amountLabel',
+    'amountRange',
+    'touchCheckoutCount',
+    'addDenomination',
+    'removePiece',
+    'billAlt',
+    'adjustment',
+    'creditReference',
     'Stock insuficiente para',
     'Devolución total|Devolución parcial',
+    'Pedido de kiosco',
   ];
   for (const expectedRule of expectedDynamicRules) {
     expectIncludes(localizerFile, localizerSource, expectedRule, `Sale dynamic localizer rule ${expectedRule}`);
