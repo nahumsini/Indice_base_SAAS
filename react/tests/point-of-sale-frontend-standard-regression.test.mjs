@@ -429,13 +429,16 @@ test('Venta mantiene caja, turno, catálogo e inventario dentro del mismo almac�
   const cart = readFileSync(resolve(pointOfSaleRoot, 'Sale/hooks/useSaleCart.ts'), 'utf8');
   const audits = readFileSync(resolve(pointOfSaleRoot, 'Arqueos/hooks/useCashAudits.ts'), 'utf8');
   const moduleSource = readFileSync(resolve(pointOfSaleRoot, 'PuntoDeVenta.tsx'), 'utf8');
+  const esMxTranslations = readFileSync(resolve(pointOfSaleRoot, 'translations/es-MX.ts'), 'utf8');
 
   assert.match(sale, /usePointOfSaleCatalogProducts\(\s*registerContext\?\.warehouseId/);
   assert.match(registerContext, /warehouse\.status\?\.toLocaleLowerCase\(\) === 'active'/);
   assert.match(registerContext, /warehouse\.unitId === register\.unitId[\s\S]*warehouse\.businessId === register\.businessId/);
   assert.match(openShiftModal, /const eligibleRegisters = useMemo/);
-  assert.match(openShiftModal, /label="Caja POS"/);
-  assert.match(openShiftModal, /Si un almacén tiene varias cajas, aparecen por separado/);
+  assert.match(openShiftModal, /label=\{copy\.registerLabel\}/);
+  assert.match(openShiftModal, /\{copy\.registerSectionDescription\}/);
+  assert.match(esMxTranslations, /registerLabel: 'Caja POS'/);
+  assert.match(esMxTranslations, /Si un almacén tiene varias cajas, aparecen por separado/);
   assert.match(openShiftModal, /registerContextMatchesSelection/);
   assert.doesNotMatch(openShiftModal, /label="Almacén"|onEnsureWarehouseRegister|handleWarehouseChange|isProvisioningRegister/);
   assert.doesNotMatch(noShiftState, /onEnsureWarehouseRegister|handleEnsureWarehouseRegister/);
