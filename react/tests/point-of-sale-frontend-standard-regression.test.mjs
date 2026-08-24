@@ -424,6 +424,7 @@ test('Venta mantiene caja, turno, catálogo e inventario dentro del mismo almac�
   const sale = readFileSync(resolve(pointOfSaleRoot, 'Sale/Sale.tsx'), 'utf8');
   const registerContext = readFileSync(resolve(pointOfSaleRoot, 'Sale/hooks/useSaleRegisterContext.ts'), 'utf8');
   const openShiftModal = readFileSync(resolve(pointOfSaleRoot, 'Sale/components/OpenShiftModal.tsx'), 'utf8');
+  const mexicanSpanishTranslations = readFileSync(resolve(pointOfSaleRoot, 'translations/es-MX.ts'), 'utf8');
   const noShiftState = readFileSync(resolve(pointOfSaleRoot, 'Sale/components/SaleNoShiftState.tsx'), 'utf8');
   const catalog = readFileSync(resolve(root, 'src/app/BasicModules/CommerceCore/posCatalog.ts'), 'utf8');
   const cart = readFileSync(resolve(pointOfSaleRoot, 'Sale/hooks/useSaleCart.ts'), 'utf8');
@@ -434,8 +435,10 @@ test('Venta mantiene caja, turno, catálogo e inventario dentro del mismo almac�
   assert.match(registerContext, /warehouse\.status\?\.toLocaleLowerCase\(\) === 'active'/);
   assert.match(registerContext, /warehouse\.unitId === register\.unitId[\s\S]*warehouse\.businessId === register\.businessId/);
   assert.match(openShiftModal, /const eligibleRegisters = useMemo/);
-  assert.match(openShiftModal, /label="Caja POS"/);
-  assert.match(openShiftModal, /Si un almacén tiene varias cajas, aparecen por separado/);
+  assert.match(openShiftModal, /label=\{copy\.registerLabel\}/);
+  assert.match(openShiftModal, /\{copy\.registerSectionDescription\}/);
+  assert.match(mexicanSpanishTranslations, /registerLabel: 'Caja POS'/);
+  assert.match(mexicanSpanishTranslations, /Si un almacén tiene varias cajas, aparecen por separado/);
   assert.match(openShiftModal, /registerContextMatchesSelection/);
   assert.doesNotMatch(openShiftModal, /label="Almacén"|onEnsureWarehouseRegister|handleWarehouseChange|isProvisioningRegister/);
   assert.doesNotMatch(noShiftState, /onEnsureWarehouseRegister|handleEnsureWarehouseRegister/);

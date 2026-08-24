@@ -11,7 +11,7 @@ export interface AuthSessionResponse {
     id: number;
     name: string;
     commercial_account_type: 'SUPER_ADMIN' | 'DISTRIBUTOR';
-    user_company_id: number;
+    user_company_id: number | null;
     role: string;
     scope: {
       type: 'corporate_office' | 'unit_headquarters' | 'business_office';

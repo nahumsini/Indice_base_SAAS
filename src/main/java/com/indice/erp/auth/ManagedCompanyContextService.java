@@ -7,6 +7,7 @@ import com.indice.erp.platformadmin.PlatformAuditService;
 import jakarta.servlet.http.HttpSession;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -94,9 +95,26 @@ public class ManagedCompanyContextService {
     }
 
     public BillingContext resolveBillingContext(AuthSessionUser actor, HttpSession session) {
+        var workspace = resolveWorkspaceContext(actor, session);
+        if (workspace.isEmpty()) {
+            return new BillingContext(actor.companyId(), "", "DIRECT", false, false);
+        }
+        var selected = workspace.get();
+        return new BillingContext(selected.companyId(), selected.companyName(), selected.accessMode(), true, true);
+    }
+
+    /**
+     * Resolves the effective tenant for a protected consultation request.
+     *
+     * <p>The authenticated actor is deliberately kept separate from the target
+     * company. Authorization is revalidated on every resolution so a revoked
+     * platform or distributor relationship cannot leave a stale client tenant
+     * active in the session.</p>
+     */
+    public Optional<WorkspaceContext> resolveWorkspaceContext(AuthSessionUser actor, HttpSession session) {
         var selectedId = selectedCompanyId(session);
         if (selectedId == null) {
-            return new BillingContext(actor.companyId(), "", "DIRECT", false, false);
+            return Optional.empty();
         }
         var authority = authority(actor, session);
         if (NONE.equals(authority.mode())) {
@@ -104,7 +122,17 @@ public class ManagedCompanyContextService {
             throw new ManagedCompanyContextForbiddenException("The delegated client context is no longer authorized.");
         }
         var company = requireCompany(authority, actor, selectedId);
-        return new BillingContext(company.id(), company.name(), authority.mode(), true, true);
+        return Optional.of(new WorkspaceContext(company.id(), company.name(), authority.mode(), true));
+    }
+
+    public static Long effectiveCompanyId(HttpSession session) {
+        if (session == null) return null;
+        var managedCompanyId = session.getAttribute(SESSION_MANAGED_COMPANY_ID);
+        if (managedCompanyId instanceof Number number) {
+            return number.longValue();
+        }
+        var authenticatedCompanyId = session.getAttribute(SessionAuthService.SESSION_COMPANY_ID);
+        return authenticatedCompanyId instanceof Number number ? number.longValue() : null;
     }
 
     public static void clearAttributes(HttpSession session) {
@@ -253,6 +281,14 @@ public class ManagedCompanyContextService {
         String companyName,
         String accessMode,
         boolean delegated,
+        boolean readOnly
+    ) {
+    }
+
+    public record WorkspaceContext(
+        long companyId,
+        String companyName,
+        String accessMode,
         boolean readOnly
     ) {
     }

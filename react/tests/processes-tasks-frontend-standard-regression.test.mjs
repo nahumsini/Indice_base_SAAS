@@ -152,6 +152,24 @@ test('la creación rápida de tareas explica el flujo y resume la decisión ante
   assert.match(translationSource, /La fecha de vencimiento no puede ser anterior a la fecha de inicio/);
 });
 
+test('los diálogos de eliminación explican el resultado sin términos técnicos internos', () => {
+  const agendaTranslationsRoot = resolve(moduleRoot, 'Agenda/translations');
+  const userCopySources = [
+    ...collectFiles(agendaTranslationsRoot),
+    resolve(moduleRoot, 'Tasks/taskQueueTranslations.ts'),
+  ];
+  const technicalTerms = /soft delete|backend|eliminaci[oó]n lógica|suppression logique|exclusão lógica|소프트|백엔드|逻辑删除|后端/iu;
+  const violations = userCopySources.flatMap((file) => {
+    const source = readFileSync(file, 'utf8');
+    return technicalTerms.test(source) ? [relative(root, file).replaceAll('\\', '/')] : [];
+  });
+  const spanishAgendaCopy = readFileSync(resolve(agendaTranslationsRoot, 'es-MX.ts'), 'utf8');
+
+  assert.deepEqual(violations, [], `Texto técnico visible para clientes:\n${violations.join('\n')}`);
+  assert.match(spanishAgendaCopy, /La tarea dejará de aparecer en la agenda activa/);
+  assert.match(spanishAgendaCopy, /permanecerá disponible en el historial/);
+});
+
 test('proyectos usa un wizard real de tres pasos con revisión antes de guardar', () => {
   const dialogSource = readFileSync(resolve(moduleRoot, 'Projects/components/ProjectFormDialog.tsx'), 'utf8');
   const translationSource = readFileSync(resolve(moduleRoot, 'Projects/translations/es-MX.ts'), 'utf8');

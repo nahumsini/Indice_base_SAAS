@@ -11,6 +11,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.indice.erp.billing.subscription.CompanySubscriptionStatus;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.sql.ResultSet;
@@ -26,6 +27,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
@@ -307,6 +309,83 @@ class SessionAuthServiceTest {
 
         assertTrue(service.currentUser(session).isEmpty());
         assertTrue(session.isInvalid());
+    }
+
+    @Test
+    void managedConsultationUsesTheClientTenantWithoutReplacingTheActorSession() throws Exception {
+        @SuppressWarnings("unchecked")
+        var managedProvider = (ObjectProvider<ManagedCompanyContextService>) mock(ObjectProvider.class);
+        var managedCompanies = mock(ManagedCompanyContextService.class);
+        when(managedProvider.getIfAvailable()).thenReturn(managedCompanies);
+        var service = new SessionAuthService(
+            jdbcTemplate,
+            passwordEncoder,
+            LoginAuditService.noop(),
+            companyId -> CompanySubscriptionStatus.activeLegacy(),
+            new AuthSecurityProperties(),
+            Clock.systemUTC(),
+            managedProvider
+        );
+        var session = new MockHttpSession();
+        session.setAttribute(SessionAuthService.SESSION_USER_ID, 5L);
+        session.setAttribute(SessionAuthService.SESSION_COMPANY_ID, 7L);
+        session.setAttribute(SessionAuthService.SESSION_USER_NAME, "Root Operator");
+        session.setAttribute(SessionAuthService.SESSION_ROLE, "root");
+        session.setAttribute(ManagedCompanyContextService.SESSION_MANAGED_COMPANY_ID, 44L);
+
+        when(jdbcTemplate.query(
+            contains("SELECT id, COALESCE(role"),
+            ArgumentMatchers.any(RowMapper.class),
+            eq(5L),
+            eq(7L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            ResultSet rs = mock(ResultSet.class);
+            when(rs.getLong("id")).thenReturn(11L);
+            when(rs.getString("role")).thenReturn("root");
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+        when(managedCompanies.resolveWorkspaceContext(ArgumentMatchers.any(), eq(session)))
+            .thenReturn(java.util.Optional.of(new ManagedCompanyContextService.WorkspaceContext(
+                44L,
+                "Cliente Norte",
+                ManagedCompanyContextService.PLATFORM_ROOT,
+                true
+            )));
+        when(jdbcTemplate.query(
+            contains("FROM company_module_entitlements"),
+            ArgumentMatchers.<RowMapper<String>>any(),
+            eq(44L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<String>) invocation.getArgument(1);
+            return List.of(
+                mapStringRow(rowMapper, "home-panel"),
+                mapStringRow(rowMapper, "human-resources")
+            );
+        });
+        stubCompanyMemberships(5L, List.of(new MembershipRow(
+            11L,
+            7L,
+            "Índice Operaciones",
+            "root",
+            null,
+            null
+        )));
+
+        var current = service.currentSession(session).orElseThrow();
+        var effectiveUser = service.currentUser(session).orElseThrow();
+
+        assertEquals(44L, current.company().id());
+        assertEquals("Cliente Norte", current.company().name());
+        assertEquals("superadmin", current.user().role());
+        assertNull(current.company().user_company_id());
+        assertEquals(List.of("config_center", "human_resources"), current.user().module_slugs());
+        assertEquals(7L, session.getAttribute(SessionAuthService.SESSION_COMPANY_ID));
+        assertEquals(5L, effectiveUser.userId());
+        assertEquals(44L, effectiveUser.companyId());
+        assertNull(effectiveUser.userCompanyId());
     }
 
     @ParameterizedTest

@@ -39,7 +39,12 @@ import { downloadEmployeesCsv } from './utils/employees.export';
 import { useKpiMonetaryAggregate } from '../../shared/kpiMonetaryApi';
 import { formatBusinessCurrencyAmount } from '../../shared/businessCurrency';
 import { normalizeErrorMessage } from './utils/employees.utils';
-import type { EmployeeViewModel } from './types/employees.types';
+import type {
+  EmployeeColumnId,
+  EmployeeSortDirection,
+  EmployeeViewModel,
+} from './types/employees.types';
+import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 import {
   OperationalModuleGuide,
   useHumanResourcesGuidanceTranslations,
@@ -52,6 +57,40 @@ const toNullableNumber = (value: string) => {
 
   const parsedValue = Number(value);
   return Number.isFinite(parsedValue) ? parsedValue : null;
+};
+
+type EmployeesWorkspaceState = {
+  searchQuery: string;
+  unitFilter: string;
+  businessFilter: string;
+  departmentFilter: string;
+  statusFilter: string;
+  sortColumn: EmployeeColumnId;
+  sortDirection: EmployeeSortDirection;
+  currentPage: number;
+  pageSize: number;
+};
+
+const employeesWorkspaceDefaults: EmployeesWorkspaceState = {
+  searchQuery: '',
+  unitFilter: allFilterValue,
+  businessFilter: allFilterValue,
+  departmentFilter: allFilterValue,
+  statusFilter: 'active',
+  sortColumn: 'employee',
+  sortDirection: 'asc',
+  currentPage: 1,
+  pageSize: 10,
+};
+
+const employeesWorkspaceUrlFields: Partial<Record<keyof EmployeesWorkspaceState, string>> = {
+  searchQuery: 'q',
+  unitFilter: 'unit',
+  businessFilter: 'business',
+  departmentFilter: 'department',
+  statusFilter: 'status',
+  currentPage: 'page',
+  pageSize: 'pageSize',
 };
 
 interface EmployeesProps {
@@ -84,9 +123,10 @@ export default function Employees({ learningModeActive = false }: EmployeesProps
     getColumnWidth,
     handleResizeStart,
     columns,
+    defaultColumns,
     fixedColumns,
     resizingColumn,
-    setColumns,
+    saveColumns,
     selectionColumnWidth,
     tableMinWidth,
     visibleColumns,
@@ -177,6 +217,7 @@ export default function Employees({ learningModeActive = false }: EmployeesProps
   });
   const {
     handleSort,
+    setSortState,
     sortedEmployees,
     sortState,
   } = useEmployeesSorting(filteredEmployees);
@@ -188,11 +229,56 @@ export default function Employees({ learningModeActive = false }: EmployeesProps
     pageSize,
     pageStart: paginationStart,
     paginatedEmployees,
+    restorePagination,
     totalPages,
   } = useEmployeesPagination({
     resetKey: filtersKey,
     rows: sortedEmployees,
     totalCount: filteredEmployees.length,
+  });
+  const workspaceState = useMemo<EmployeesWorkspaceState>(() => ({
+    searchQuery,
+    unitFilter,
+    businessFilter,
+    departmentFilter,
+    statusFilter,
+    sortColumn: sortState.columnId,
+    sortDirection: sortState.direction,
+    currentPage: paginationCurrentPage,
+    pageSize,
+  }), [
+    businessFilter,
+    departmentFilter,
+    pageSize,
+    paginationCurrentPage,
+    searchQuery,
+    sortState.columnId,
+    sortState.direction,
+    statusFilter,
+    unitFilter,
+  ]);
+
+  useWorkspaceNavigationMemory({
+    moduleKey: 'human-resources',
+    tabKey: 'collaborators',
+    state: workspaceState,
+    defaults: employeesWorkspaceDefaults,
+    urlFields: employeesWorkspaceUrlFields,
+    onRestore: (restoredState) => {
+      setSearchQuery(restoredState.searchQuery);
+      setUnitFilter(restoredState.unitFilter);
+      setBusinessFilter(restoredState.businessFilter);
+      setDepartmentFilter(restoredState.departmentFilter);
+      setStatusFilter(restoredState.statusFilter);
+      setSortState({
+        columnId: restoredState.sortColumn,
+        direction: restoredState.sortDirection,
+      });
+      restorePagination({
+        currentPage: restoredState.currentPage,
+        pageSize: restoredState.pageSize,
+      });
+    },
   });
   const {
     employeePositionOptions,
@@ -542,6 +628,7 @@ export default function Employees({ learningModeActive = false }: EmployeesProps
         attendanceLocations={attendanceLocations}
         businessOptions={businessOptions}
         columns={columns}
+        defaultColumns={defaultColumns}
         deleteCancelLabel={copy.modal.buttons.cancel}
         deleteConfirmLabel={copy.table.deleteHrUserLabel}
         deleteDescription={copy.table.deleteConfirm}
@@ -567,7 +654,7 @@ export default function Employees({ learningModeActive = false }: EmployeesProps
         onConfirmTermination={(data) => {
           void handleConfirmTermination(data);
         }}
-        onSaveColumns={setColumns}
+        onSaveColumns={saveColumns}
         onSaveEmployee={handleSaveEmployee}
         onSubmitBulkIntegration={handleBulkIntegration}
         pendingDeleteEmployeeName={pendingDeleteEmployee?.fullName ?? ''}

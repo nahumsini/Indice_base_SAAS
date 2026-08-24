@@ -4,6 +4,7 @@ import com.indice.erp.access.tab.TabPermissionInterceptor;
 import com.indice.erp.access.module.ModuleAccessInterceptor;
 import com.indice.erp.auth.AuthSecurityProperties;
 import com.indice.erp.auth.AuthSessionTimeoutInterceptor;
+import com.indice.erp.auth.ManagedCompanyReadOnlyInterceptor;
 import com.indice.erp.auth.PublicDemoSessionInterceptor;
 import com.indice.erp.billing.lifecycle.CommercialLifecycleInterceptor;
 import com.indice.erp.billing.subscription.ModuleEntitlementInterceptor;
@@ -26,6 +27,7 @@ public class WebConfig implements WebMvcConfigurer {
     private final AppWebProperties appWebProperties;
     private final ObjectProvider<AuthSessionTimeoutInterceptor> authSessionTimeoutInterceptor;
     private final ObjectProvider<PublicDemoSessionInterceptor> publicDemoSessionInterceptor;
+    private final ObjectProvider<ManagedCompanyReadOnlyInterceptor> managedCompanyReadOnlyInterceptor;
     private final ObjectProvider<EntitlementShadowInterceptor> entitlementShadowInterceptor;
     private final ObjectProvider<CommercialLifecycleInterceptor> commercialLifecycleInterceptor;
     private final ObjectProvider<SubscriptionAccessInterceptor> subscriptionAccessInterceptor;
@@ -37,6 +39,7 @@ public class WebConfig implements WebMvcConfigurer {
         AppWebProperties appWebProperties,
         ObjectProvider<AuthSessionTimeoutInterceptor> authSessionTimeoutInterceptor,
         ObjectProvider<PublicDemoSessionInterceptor> publicDemoSessionInterceptor,
+        ObjectProvider<ManagedCompanyReadOnlyInterceptor> managedCompanyReadOnlyInterceptor,
         ObjectProvider<EntitlementShadowInterceptor> entitlementShadowInterceptor,
         ObjectProvider<CommercialLifecycleInterceptor> commercialLifecycleInterceptor,
         ObjectProvider<SubscriptionAccessInterceptor> subscriptionAccessInterceptor,
@@ -47,6 +50,7 @@ public class WebConfig implements WebMvcConfigurer {
         this.appWebProperties = appWebProperties;
         this.authSessionTimeoutInterceptor = authSessionTimeoutInterceptor;
         this.publicDemoSessionInterceptor = publicDemoSessionInterceptor;
+        this.managedCompanyReadOnlyInterceptor = managedCompanyReadOnlyInterceptor;
         this.entitlementShadowInterceptor = entitlementShadowInterceptor;
         this.commercialLifecycleInterceptor = commercialLifecycleInterceptor;
         this.subscriptionAccessInterceptor = subscriptionAccessInterceptor;
@@ -71,6 +75,9 @@ public class WebConfig implements WebMvcConfigurer {
         );
         publicDemoSessionInterceptor.ifAvailable((interceptor) ->
             registry.addInterceptor(interceptor).addPathPatterns("/api/**").order(-150)
+        );
+        managedCompanyReadOnlyInterceptor.ifAvailable((interceptor) ->
+            registry.addInterceptor(interceptor).addPathPatterns("/api/**").order(-140)
         );
         commercialLifecycleInterceptor.ifAvailable((interceptor) ->
             registry.addInterceptor(interceptor).addPathPatterns("/api/**").order(-100)

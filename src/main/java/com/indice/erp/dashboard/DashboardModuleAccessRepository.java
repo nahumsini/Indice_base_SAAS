@@ -39,6 +39,9 @@ class DashboardModuleAccessRepository {
         );
 
         if (accessRows.isEmpty()) {
+            if (FULL_ACCESS_ROLES.contains(normalizeRole(sessionRole))) {
+                return DashboardModuleAccess.only(listCompanyEntitlements(companyId));
+            }
             return DashboardModuleAccess.none();
         }
 

@@ -1,5 +1,11 @@
 # Indice ERP → SaaS Multi-Tenant — Plan Arquitectónico
 
+> **Propuesta histórica sustituida.** Este directorio no describe el producto ni el código actual.
+> La arquitectura aprobada está en
+> [`../../docs/INDICE_PREMIUM_MULTITENANT_BILLING_ARCHITECTURE.md`](../../docs/INDICE_PREMIUM_MULTITENANT_BILLING_ARCHITECTURE.md).
+> No implementar desde aquí el modelo `accounts` sobre `companies` ni reutilizar sus hallazgos de
+> auditoría como estado presente sin volver a comprobar el código y las pruebas.
+
 Este directorio documenta cómo convertir Indice ERP (Spring Boot + React + MySQL/Docker) en un
 **SaaS multi-tenant tipo ERP**, donde un mismo dueño ("Account") puede administrar **varias
 empresas o unidades de negocio distintas desde un solo login**, pagar una **membresía por Stripe**

@@ -24,6 +24,7 @@ interface EmployeesActionModalsProps {
   attendanceLocations: AttendanceControlLocation[];
   businessOptions: EmployeeBusinessOption[];
   columns: ColumnConfig[];
+  defaultColumns: ColumnConfig[];
   deleteCancelLabel: string;
   deleteConfirmLabel: string;
   deleteDescription: string;
@@ -57,6 +58,7 @@ export function EmployeesActionModals({
   attendanceLocations,
   businessOptions,
   columns,
+  defaultColumns,
   deleteCancelLabel,
   deleteConfirmLabel,
   deleteDescription,
@@ -93,6 +95,7 @@ export function EmployeesActionModals({
             isOpen={isColumnsModalOpen}
             onClose={onCloseColumns}
             columns={columns}
+            defaultColumns={defaultColumns}
             fixedColumns={fixedColumns}
             onSave={onSaveColumns}
             theme="humanResources"

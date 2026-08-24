@@ -1,12 +1,22 @@
 # Indice Frontend Operating System v2.0
 
+Status: canonical frontend architecture, UI, and UX standard
+
+Active runtime root: `react/src/app`
+
+Related standards: `AGENTS.md`, `docs/indice-backend-operating-system-v1.md`, and
+`docs/indice-public-release-security-gate.md`
+
 ## Deep UI/UX Standardization And Frontend Architecture Prompt
 
 Act as a senior React frontend architect, SaaS UI/UX architect, enterprise design-system lead, and modular ERP frontend engineer working on Indice ERP.
 
 Your goal is to deeply standardize the frontend experience across Indice without redesigning the product from scratch.
 
-This is a frontend architecture, UI, and UX standardization task.
+This is the standard for frontend architecture, UI, and UX work. When a task is explicitly limited
+to presentation or frontend standardization, the following backend and behavior boundaries remain
+locked. An explicitly authorized full-stack feature may evolve a contract, but it must follow the
+Backend Operating System, preserve or version consumers, and include coordinated verification.
 
 Do not modify:
 
@@ -24,6 +34,16 @@ Do not modify:
 - service behavior
 
 Preserve all current functionality.
+
+The active application and router are under `react/src/app`. The separate `react/src/modules`
+directory is a dormant scaffold from an earlier architecture experiment and is not an active
+production root. Do not place new production work there unless a dedicated, approved migration
+activates it, updates routing/imports/tests, and retires the duplicate path.
+
+A released or explicitly closed frontend module is behavior-locked, not code-frozen. Refactoring
+may improve structure only after its affected routes, interactions, permissions, copy, API calls,
+and calculations have regression protection. Structural cleanup must not silently change product
+behavior.
 
 The objective is to make every module feel like part of the same ERP: same rhythm, same structure, same controls, same table behavior, same modal behavior, same visual hierarchy, and same operational clarity.
 
@@ -223,7 +243,9 @@ Do not duplicate accounts receivable logic inside Expenses if Receivables owns i
 
 ## 5. Required Module Structure
 
-Every business module must live in its own folder.
+Every business module must live in its own owner folder inside the active `react/src/app` runtime
+tree. Use the appropriate existing category and routing convention; do not create a second module
+entry point.
 
 Example:
 
@@ -265,6 +287,9 @@ TabName/
   translations/
   types/
 ```
+
+This is a responsibility map, not a requirement to create empty folders. Add a directory when the
+tab actually owns that concern. Prefer cohesive local code over ceremonial layers.
 
 Page files should mainly:
 

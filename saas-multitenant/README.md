@@ -1,5 +1,12 @@
 # Indice ERP → SaaS Multi-Tenant
 
+> **Historical proposal — superseded.** This folder does not describe the current product or code.
+> The approved tenant and billing model is
+> [`../docs/INDICE_PREMIUM_MULTITENANT_BILLING_ARCHITECTURE.md`](../docs/INDICE_PREMIUM_MULTITENANT_BILLING_ARCHITECTURE.md),
+> and current engineering rules live in [`../AGENTS.md`](../AGENTS.md). Keep these files only as
+> design history; do not implement their `accounts`-above-`companies` model or repeat their old code
+> audit findings without a new audit.
+
 Architecture plan for turning Indice ERP into a multi-tenant SaaS ERP (Stripe billing, one owner
 with multiple companies/business units, per-plan seat limits, paid add-on modules).
 

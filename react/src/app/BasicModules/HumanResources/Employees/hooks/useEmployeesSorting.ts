@@ -43,6 +43,7 @@ export function useEmployeesSorting(employees: EmployeeViewModel[]) {
 
   return {
     handleSort,
+    setSortState,
     sortedEmployees,
     sortState,
   };

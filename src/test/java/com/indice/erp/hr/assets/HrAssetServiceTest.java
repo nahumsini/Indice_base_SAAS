@@ -137,6 +137,40 @@ class HrAssetServiceTest {
     }
 
     @Test
+    void changeStatusIsIdempotentWhenAssetIsAlreadyInactive() throws Exception {
+        var service = createService();
+        ResultSet resultSet = mock(ResultSet.class);
+        when(resultSet.getLong("id")).thenReturn(9L);
+        when(resultSet.getLong("company_id")).thenReturn(1L);
+        when(resultSet.getString(anyString())).thenAnswer(invocation -> switch ((String) invocation.getArgument(0)) {
+            case "asset_code" -> "ASSET-0009";
+            case "asset_type" -> "other";
+            case "name" -> "Demo asset";
+            case "status" -> "inactive";
+            case "value_currency" -> "USD";
+            default -> null;
+        });
+
+        when(jdbcTemplate.query(
+            anyString(),
+            org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+            eq(1L),
+            eq(9L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            RowMapper<Object> rowMapper = invocation.getArgument(1);
+            return List.of(rowMapper.mapRow(resultSet, 0));
+        });
+
+        var result = service.changeStatus(1L, 3L, 9L, Map.of("status", "inactive"));
+
+        @SuppressWarnings("unchecked")
+        var asset = (Map<String, Object>) result.get("asset");
+        assertEquals("inactive", asset.get("status"));
+        assertEquals(9L, asset.get("id"));
+    }
+
+    @Test
     void listAssetsRejectsInvalidPageSize() {
         var service = createService();
         var filters = new HashMap<String, Object>();

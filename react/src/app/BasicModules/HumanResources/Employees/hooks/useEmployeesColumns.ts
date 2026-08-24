@@ -2,14 +2,13 @@ import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMous
 import type { ColumnConfig } from '../../../../components/rh/ColumnasConfigModal';
 import {
   columnWidthsStorageKey,
-  columnsStorageKey,
   createDefaultColumns,
   employeeSelectionColumnWidth,
   getDefaultEmployeeColumnWidth,
   getMinimumEmployeeColumnWidth,
 } from '../constants/employees.constants';
 import type { EmployeesTranslations } from '../translations';
-import { getInitialColumns } from '../utils/employees.utils';
+import { getInitialColumns, saveEmployeesColumns } from '../utils/employees.utils';
 
 function getInitialColumnWidths() {
   if (typeof window === 'undefined') {
@@ -86,10 +85,6 @@ export function useEmployeesColumns(copy: EmployeesTranslations) {
   }, [defaultColumns]);
 
   useEffect(() => {
-    window.localStorage.setItem(columnsStorageKey, JSON.stringify(columns));
-  }, [columns]);
-
-  useEffect(() => {
     window.localStorage.setItem(columnWidthsStorageKey, JSON.stringify(columnWidths));
   }, [columnWidths]);
 
@@ -131,14 +126,20 @@ export function useEmployeesColumns(copy: EmployeesTranslations) {
     setResizeStartWidth(getColumnWidth(columnId));
   }, [getColumnWidth]);
 
+  const saveColumns = useCallback((nextColumns: ColumnConfig[]) => {
+    setColumns(nextColumns);
+    saveEmployeesColumns(nextColumns);
+  }, []);
+
   return {
     columnWidths,
     columns,
+    defaultColumns,
     fixedColumns,
     getColumnWidth,
     handleResizeStart,
     resizingColumn,
-    setColumns,
+    saveColumns,
     selectionColumnWidth: employeeSelectionColumnWidth,
     tableMinWidth,
     visibleColumns,

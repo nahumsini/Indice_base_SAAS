@@ -565,7 +565,7 @@ public class HrAssetService {
         }
 
         if (current.status().equals(targetStatus)) {
-            throw new IllegalArgumentException("Asset is already in " + targetStatus + " status.");
+            return assetDetails(companyId, assetId);
         }
 
         var effectiveUnitId = hasAnyKey(payload, "unit_id", "unitId", "unit")

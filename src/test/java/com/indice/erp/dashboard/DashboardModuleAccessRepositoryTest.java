@@ -78,6 +78,23 @@ class DashboardModuleAccessRepositoryTest {
     }
 
     @Test
+    void delegatedSuperadminGetsClientEntitlementsWithoutCreatingAMembership() {
+        var repository = new DashboardModuleAccessRepository(jdbcTemplate);
+        when(jdbcTemplate.query(
+            argThat((String sql) -> containsSql(sql, "FROM user_companies")),
+            org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+            eq(9L),
+            eq(44L)
+        )).thenReturn(List.of());
+        mockCompanyEntitlements(44L, "expenses", "human_resources");
+
+        var access = repository.loadAccess(9L, 44L, "superadmin");
+
+        assertFalse(access.allModules());
+        assertEquals(Set.of("expenses", "human_resources"), access.moduleSlugs());
+    }
+
+    @Test
     void publicDemoGetsOperationalModulesWithoutCompanyEntitlements() {
         var repository = new DashboardModuleAccessRepository(jdbcTemplate);
         when(jdbcTemplate.query(

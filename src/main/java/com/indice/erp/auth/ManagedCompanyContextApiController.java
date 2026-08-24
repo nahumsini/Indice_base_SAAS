@@ -32,7 +32,7 @@ public class ManagedCompanyContextApiController {
 
     @GetMapping("/managed-companies")
     public ResponseEntity<?> current(HttpSession session) {
-        var actor = auth.currentUser(session);
+        var actor = auth.currentActor(session);
         if (actor.isEmpty()) return unauthorized();
         return ResponseEntity.ok(managedCompanies.current(actor.get(), session));
     }
@@ -43,7 +43,7 @@ public class ManagedCompanyContextApiController {
         @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
         @RequestBody(required = false) ManagedCompanyRequest request
     ) {
-        var actor = auth.currentUser(session);
+        var actor = auth.currentActor(session);
         if (actor.isEmpty()) return unauthorized();
         try {
             csrf.requireCsrf(session, csrfToken);
@@ -63,7 +63,7 @@ public class ManagedCompanyContextApiController {
         HttpSession session,
         @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
     ) {
-        var actor = auth.currentUser(session);
+        var actor = auth.currentActor(session);
         if (actor.isEmpty()) return unauthorized();
         try {
             csrf.requireCsrf(session, csrfToken);

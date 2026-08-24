@@ -35,7 +35,7 @@ class ManagedCompanyContextApiControllerTest {
 
     @Test
     void contextRequiresAnAuthenticatedSession() throws Exception {
-        given(auth.currentUser(any())).willReturn(Optional.empty());
+        given(auth.currentActor(any())).willReturn(Optional.empty());
 
         mockMvc.perform(get("/api/v1/auth/managed-companies"))
             .andExpect(status().isUnauthorized())
@@ -57,7 +57,7 @@ class ManagedCompanyContextApiControllerTest {
             false,
             List.of(client)
         );
-        given(auth.currentUser(any())).willReturn(Optional.of(actor));
+        given(auth.currentActor(any())).willReturn(Optional.of(actor));
         given(managedCompanies.current(any(), any())).willReturn(response);
 
         mockMvc.perform(get("/api/v1/auth/managed-companies"))
@@ -82,7 +82,7 @@ class ManagedCompanyContextApiControllerTest {
             true,
             List.of(client)
         );
-        given(auth.currentUser(any())).willReturn(Optional.of(actor));
+        given(auth.currentActor(any())).willReturn(Optional.of(actor));
         given(managedCompanies.activate(any(), any(Long.class), any())).willReturn(response);
 
         mockMvc.perform(post("/api/v1/auth/managed-company")
@@ -109,7 +109,7 @@ class ManagedCompanyContextApiControllerTest {
             false,
             List.of()
         );
-        given(auth.currentUser(any())).willReturn(Optional.of(actor));
+        given(auth.currentActor(any())).willReturn(Optional.of(actor));
         given(managedCompanies.clear(any(), any())).willReturn(response);
 
         mockMvc.perform(delete("/api/v1/auth/managed-company")

@@ -5,6 +5,7 @@ import {
   employeeColumnDocumentTypeMap,
   employeePayPeriodOrder,
   employeeStatusOrder,
+  legacyColumnsStorageKeys,
 } from '../constants/employees.constants';
 import type {
   EmployeeColumnId,
@@ -28,41 +29,101 @@ export {
   payloadFromAttendanceTemplate,
 } from './employees.schedule';
 
+function restoreStoredColumns(rawColumns: string | null, defaultColumns: ColumnConfig[]) {
+  if (!rawColumns) {
+    return null;
+  }
+
+  const parsedColumns = JSON.parse(rawColumns) as unknown;
+  if (!Array.isArray(parsedColumns)) {
+    return null;
+  }
+
+  const defaultColumnMap = new Map(defaultColumns.map((column) => [column.id, column]));
+  const restoredColumns: ColumnConfig[] = [];
+  const restoredColumnIds = new Set<string>();
+
+  parsedColumns.forEach((storedColumn: unknown) => {
+    if (!storedColumn || typeof storedColumn !== 'object') {
+      return;
+    }
+
+    const column = storedColumn as Partial<ColumnConfig>;
+    if (typeof column.id !== 'string' || restoredColumnIds.has(column.id)) {
+      return;
+    }
+
+    const baseColumn = defaultColumnMap.get(column.id);
+    if (!baseColumn) {
+      return;
+    }
+
+    restoredColumnIds.add(column.id);
+    restoredColumns.push({
+      ...baseColumn,
+      visible: baseColumn.locked
+        ? true
+        : typeof column.visible === 'boolean'
+          ? column.visible
+          : baseColumn.visible,
+    });
+  });
+
+  if (restoredColumns.length === 0) {
+    return null;
+  }
+
+  const allStoredColumnsVisible = restoredColumns.every((column) => column.visible);
+  const missingColumns = defaultColumns.filter((column) => !restoredColumnIds.has(column.id));
+  return {
+    allStoredColumnsVisible,
+    columns: [...restoredColumns, ...missingColumns],
+  };
+}
+
 export const getInitialColumns = (defaultColumns: ColumnConfig[]) => {
   if (typeof window === 'undefined') {
     return defaultColumns;
   }
 
   try {
-    const rawColumns = window.localStorage.getItem(columnsStorageKey);
-    if (!rawColumns) {
-      return defaultColumns;
+    const savedColumns = restoreStoredColumns(
+      window.localStorage.getItem(columnsStorageKey),
+      defaultColumns,
+    );
+    if (savedColumns) {
+      return savedColumns.columns;
     }
 
-    const parsedColumns = JSON.parse(rawColumns) as Array<Partial<ColumnConfig>>;
-    const defaultColumnMap = new Map(defaultColumns.map((column) => [column.id, column]));
+    for (const legacyStorageKey of legacyColumnsStorageKeys) {
+      const legacyColumns = restoreStoredColumns(
+        window.localStorage.getItem(legacyStorageKey),
+        defaultColumns,
+      );
+      if (legacyColumns && !legacyColumns.allStoredColumnsVisible) {
+        return legacyColumns.columns;
+      }
+    }
 
-    const restoredColumns = parsedColumns
-      .map((column) => {
-        if (!column?.id || !defaultColumnMap.has(column.id)) {
-          return null;
-        }
-
-        const baseColumn = defaultColumnMap.get(column.id)!;
-        return {
-          ...baseColumn,
-          visible: typeof column.visible === 'boolean' ? column.visible : baseColumn.visible,
-        };
-      })
-      .filter((column): column is ColumnConfig => column !== null);
-
-    const missingColumns = defaultColumns.filter(
-      (column) => !restoredColumns.some((restored) => restored.id === column.id),
-    );
-
-    return restoredColumns.length > 0 ? [...restoredColumns, ...missingColumns] : defaultColumns;
+    return defaultColumns;
   } catch {
     return defaultColumns;
+  }
+};
+
+export const saveEmployeesColumns = (columns: ColumnConfig[]) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(
+      columnsStorageKey,
+      JSON.stringify(columns.map(({ id, visible }) => ({ id, visible }))),
+    );
+    legacyColumnsStorageKeys.forEach((storageKey) => window.localStorage.removeItem(storageKey));
+  } catch {
+    // The current view remains usable when browser storage is unavailable.
   }
 };
 
