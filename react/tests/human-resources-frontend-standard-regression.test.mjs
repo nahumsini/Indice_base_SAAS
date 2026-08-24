@@ -39,10 +39,30 @@ test('Recursos Humanos conserva el shell, el title bar y el Kiosk Engine de asis
   assert.match(identitySource, /<KioskIdentityGate/);
 });
 
+test('Recursos Humanos conserva la navegación y el estado operativo entre pestañas', () => {
+  const moduleSource = readFileSync(resolve(moduleRoot, 'HumanResources.tsx'), 'utf8');
+  const employeesSource = readFileSync(resolve(moduleRoot, 'Employees/Employees.tsx'), 'utf8');
+
+  assert.match(moduleSource, /import \{ Activity,/);
+  assert.match(moduleSource, /visitedTabIds/);
+  assert.match(moduleSource, /mode=\{tab\.id === activeTab \? 'visible' : 'hidden'\}/);
+  assert.match(moduleSource, /tabScrollPositionsRef/);
+  assert.match(employeesSource, /useWorkspaceNavigationMemory\(\{/);
+  assert.match(employeesSource, /moduleKey: 'human-resources'/);
+  assert.match(employeesSource, /tabKey: 'collaborators'/);
+  ['searchQuery', 'unitFilter', 'businessFilter', 'departmentFilter', 'statusFilter', 'sortColumn', 'currentPage', 'pageSize'].forEach((field) => {
+    assert.match(employeesSource, new RegExp(`${field}:`));
+  });
+});
+
 test('Colaboradores inicia con una vista operativa compacta y personalizable', () => {
   const constantsSource = readFileSync(resolve(moduleRoot, 'Employees/constants/employees.constants.ts'), 'utf8');
+  const columnsHookSource = readFileSync(resolve(moduleRoot, 'Employees/hooks/useEmployeesColumns.ts'), 'utf8');
+  const columnsUtilsSource = readFileSync(resolve(moduleRoot, 'Employees/utils/employees.utils.ts'), 'utf8');
+  const actionModalsSource = readFileSync(resolve(moduleRoot, 'Employees/components/EmployeesActionModals.tsx'), 'utf8');
 
-  assert.match(constantsSource, /columnsStorageKey = 'rh-colaboradores-columns-v7'/);
+  assert.match(constantsSource, /columnsStorageKey = 'rh-colaboradores-columns-v8'/);
+  assert.match(constantsSource, /legacyColumnsStorageKeys = \['rh-colaboradores-columns-v7'\]/);
   assert.match(constantsSource, /id: 'employee',[\s\S]*?visible: true,[\s\S]*?locked: true/);
   assert.match(constantsSource, /id: 'employeeNumber',[\s\S]*?visible: false/);
 
@@ -53,6 +73,12 @@ test('Colaboradores inicia con una vista operativa compacta y personalizable', (
   ['firstName', 'lastName', 'email', 'phone', 'business', 'salary', 'payPeriod'].forEach((columnId) => {
     assert.match(constantsSource, new RegExp(`id: '${columnId}', label: [^\\n]+ visible: false`));
   });
+
+  assert.match(columnsUtilsSource, /allStoredColumnsVisible/);
+  assert.match(columnsUtilsSource, /saveEmployeesColumns/);
+  assert.doesNotMatch(columnsHookSource, /setItem\(columnsStorageKey/);
+  assert.match(columnsHookSource, /saveEmployeesColumns\(nextColumns\)/);
+  assert.match(actionModalsSource, /defaultColumns=\{defaultColumns\}/);
 });
 
 test('Colaboradores ofrece integración masiva validada y atómica', () => {
@@ -89,6 +115,18 @@ test('Recursos Humanos usa apiClient con CSRF para APIs protegidas no nomina', (
   assert.match(apiSources.assets, /createAsset[\s\S]*apiClient[\s\S]*method: 'POST'/);
   assert.match(apiSources.permissions, /approvePermission[\s\S]*apiClient[\s\S]*method: 'POST'/);
   assert.match(apiSources.incentives, /create\(payload[\s\S]*apiClient[\s\S]*method: 'POST'/);
+});
+
+test('Activos procesa la baja una sola vez y no la ofrece para registros inactivos', () => {
+  const assetsSource = readFileSync(resolve(moduleRoot, 'Assets/Assets.tsx'), 'utf8');
+
+  assert.match(assetsSource, /deactivationInFlightRef\.current/);
+  assert.match(assetsSource, /confirmDisabled=\{isSubmitting\}/);
+  assert.equal(
+    [...assetsSource.matchAll(/asset\.status !== 'inactive'/g)].length,
+    2,
+    'La acción de baja debe ocultarse en las vistas móvil y de escritorio para activos inactivos',
+  );
 });
 
 test('Detalle de corrida usa el workspace operativo para revisar varios colaboradores', () => {

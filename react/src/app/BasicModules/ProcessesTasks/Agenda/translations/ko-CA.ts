@@ -419,7 +419,7 @@ export const koCA: AgendaTranslations = {
   },
   deleteDialog: {
     title: '작업 삭제',
-    description: '활성 일정에서 작업을 소프트 삭제하고 백엔드 데이터 백업은 유지합니다.',
+    description: '작업은 활성 일정에서 사라지지만 해당 정보는 기록에 계속 보관됩니다.',
     confirm: '작업 삭제',
   },
 };

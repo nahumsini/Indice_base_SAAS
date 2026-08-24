@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Eye, Images, Pencil, Trash2 } from 'lucide-react';
 import { isHrManagementRole } from '../../../access/accessRules';
 import { authApi } from '../../../api/auth';
@@ -89,6 +89,7 @@ export default function Assets() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const deactivationInFlightRef = useRef(false);
   const [loadingTitle, setLoadingTitle] = useState('');
   const [assetPendingDeactivate, setAssetPendingDeactivate] = useState<AssetRow | null>(null);
   const [selectedAssetDetails, setSelectedAssetDetails] = useState<HrAsset | null>(null);
@@ -354,7 +355,7 @@ export default function Assets() {
   };
 
   const handleConfirmDeactivate = async () => {
-    if (!assetPendingDeactivate) {
+    if (!assetPendingDeactivate || deactivationInFlightRef.current) {
       return;
     }
     if (!canManageAssets) {
@@ -362,6 +363,7 @@ export default function Assets() {
       return;
     }
 
+    deactivationInFlightRef.current = true;
     try {
       await runAssetOperation(t.confirmDeactivate.confirm, () =>
         hrAssetsApi.changeAssetStatus(assetPendingDeactivate.backendId, {
@@ -374,6 +376,8 @@ export default function Assets() {
       setAssetPendingDeactivate(null);
     } catch (error) {
       setErrorToastMessage(normalizeAssetErrorMessage(error, t.errors.status));
+    } finally {
+      deactivationInFlightRef.current = false;
     }
   };
 
@@ -591,7 +595,7 @@ export default function Assets() {
                   <StandardActionButton onClick={() => void handleViewDetails(asset)} label={t.actionsMenu.viewDetails}><Eye className="h-4 w-4" /></StandardActionButton>
                   <StandardActionButton onClick={() => void handleViewPhotos(asset)} label={t.actionsMenu.viewPhotos}><Images className="h-4 w-4" /></StandardActionButton>
                   {canManageAssets ? <StandardActionButton onClick={() => handleEditAsset(asset)} label={t.actionsMenu.edit}><Pencil className="h-4 w-4" /></StandardActionButton> : null}
-                  {canManageAssets ? <StandardActionButton onClick={() => setAssetPendingDeactivate(asset)} label={t.actionsMenu.delete} tone="danger"><Trash2 className="h-4 w-4" /></StandardActionButton> : null}
+                  {canManageAssets && asset.status !== 'inactive' ? <StandardActionButton onClick={() => setAssetPendingDeactivate(asset)} label={t.actionsMenu.delete} tone="danger"><Trash2 className="h-4 w-4" /></StandardActionButton> : null}
                 </>
               )}
             />
@@ -748,13 +752,15 @@ export default function Assets() {
                               >
                                 <Pencil className="h-4 w-4" />
                               </StandardActionButton>
-                              <StandardActionButton
-                                onClick={() => setAssetPendingDeactivate(asset)}
-                                label={t.actionsMenu.delete}
-                                tone="danger"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </StandardActionButton>
+                              {asset.status !== 'inactive' ? (
+                                <StandardActionButton
+                                  onClick={() => setAssetPendingDeactivate(asset)}
+                                  label={t.actionsMenu.delete}
+                                  tone="danger"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </StandardActionButton>
+                              ) : null}
                             </>
                           ) : null}
                         </div>
@@ -789,6 +795,7 @@ export default function Assets() {
         description={t.confirmDeactivate.description}
         confirmLabel={t.confirmDeactivate.confirm}
         cancelLabel={t.confirmDeactivate.cancel}
+        confirmDisabled={isSubmitting}
         onConfirm={() => void handleConfirmDeactivate()}
         onCancel={() => setAssetPendingDeactivate(null)}
       />

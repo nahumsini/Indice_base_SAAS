@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { employeesPerPage } from '../constants/employees.constants';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { employeePageSizeOptions, employeesPerPage } from '../constants/employees.constants';
 import type { EmployeeViewModel } from '../types/employees.types';
 
 interface EmployeesPaginationParams {
@@ -15,6 +15,7 @@ export function useEmployeesPagination({
 }: EmployeesPaginationParams) {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(employeesPerPage);
+  const skipNextFilterResetRef = useRef(false);
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const pageStartIndex = (safeCurrentPage - 1) * pageSize;
@@ -28,6 +29,10 @@ export function useEmployeesPagination({
   const paginationEnd = totalCount === 0 ? 0 : Math.min(pageEndIndex, totalCount);
 
   useEffect(() => {
+    if (skipNextFilterResetRef.current) {
+      skipNextFilterResetRef.current = false;
+      return;
+    }
     setCurrentPage(1);
   }, [resetKey]);
 
@@ -36,6 +41,19 @@ export function useEmployeesPagination({
       setCurrentPage(totalPages);
     }
   }, [currentPage, totalPages]);
+
+  const restorePagination = useCallback((nextState: { currentPage: number; pageSize: number }) => {
+    const restoredPageSize = employeePageSizeOptions.some((option) => option === nextState.pageSize)
+      ? nextState.pageSize
+      : employeesPerPage;
+    const restoredPage = Number.isFinite(nextState.currentPage)
+      ? Math.max(1, Math.trunc(nextState.currentPage))
+      : 1;
+
+    skipNextFilterResetRef.current = true;
+    setPageSize(restoredPageSize);
+    setCurrentPage(restoredPage);
+  }, []);
 
   return {
     currentPage: safeCurrentPage,
@@ -48,6 +66,7 @@ export function useEmployeesPagination({
     pageSize,
     pageStart: paginationStart,
     paginatedEmployees,
+    restorePagination,
     totalPages,
   };
 }

@@ -60,7 +60,7 @@ class BillingSubscriptionApiControllerTest {
 
     @Test
     void cancelRejectsMissingCsrfToken() throws Exception {
-        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(owner()));
+        given(sessionAuthService.currentActor(any())).willReturn(Optional.of(owner()));
         willThrow(new IllegalArgumentException("Invalid CSRF token."))
             .given(csrfService).requireCsrf(any(), eq(null));
 
@@ -73,7 +73,7 @@ class BillingSubscriptionApiControllerTest {
 
     @Test
     void resumeRejectsMissingCsrfToken() throws Exception {
-        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(owner()));
+        given(sessionAuthService.currentActor(any())).willReturn(Optional.of(owner()));
         willThrow(new IllegalArgumentException("Invalid CSRF token."))
             .given(csrfService).requireCsrf(any(), eq(null));
 
@@ -86,7 +86,7 @@ class BillingSubscriptionApiControllerTest {
 
     @Test
     void portalRejectsMissingCsrfToken() throws Exception {
-        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(owner()));
+        given(sessionAuthService.currentActor(any())).willReturn(Optional.of(owner()));
         willThrow(new IllegalArgumentException("Invalid CSRF token."))
             .given(csrfService).requireCsrf(any(), eq(null));
 
@@ -99,7 +99,7 @@ class BillingSubscriptionApiControllerTest {
 
     @Test
     void cancelWithValidCsrfRunsBillingAction() throws Exception {
-        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(owner()));
+        given(sessionAuthService.currentActor(any())).willReturn(Optional.of(owner()));
         given(subscriptionService.cancel(7L)).willReturn(response());
 
         mockMvc.perform(post("/api/v1/billing/subscription/cancel")
@@ -113,7 +113,7 @@ class BillingSubscriptionApiControllerTest {
 
     @Test
     void resumeWithValidCsrfRunsBillingAction() throws Exception {
-        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(owner()));
+        given(sessionAuthService.currentActor(any())).willReturn(Optional.of(owner()));
         given(subscriptionService.resume(7L)).willReturn(response());
 
         mockMvc.perform(post("/api/v1/billing/subscription/resume")
@@ -127,7 +127,7 @@ class BillingSubscriptionApiControllerTest {
 
     @Test
     void portalWithValidCsrfRunsBillingAction() throws Exception {
-        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(owner()));
+        given(sessionAuthService.currentActor(any())).willReturn(Optional.of(owner()));
         given(subscriptionService.portal(7L)).willReturn(new BillingPortalResponse("https://billing.stripe.com/session"));
 
         mockMvc.perform(post("/api/v1/billing/subscription/portal")
@@ -141,7 +141,7 @@ class BillingSubscriptionApiControllerTest {
 
     @Test
     void selectionReturnsCommercialCatalogForCurrentCompany() throws Exception {
-        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(owner()));
+        given(sessionAuthService.currentActor(any())).willReturn(Optional.of(owner()));
         given(selectionService.current(7L)).willReturn(selection());
 
         mockMvc.perform(get("/api/v1/billing/subscription/selection"))
@@ -154,7 +154,7 @@ class BillingSubscriptionApiControllerTest {
 
     @Test
     void invoicesReturnStripeDocumentsForCurrentCompany() throws Exception {
-        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(owner()));
+        given(sessionAuthService.currentActor(any())).willReturn(Optional.of(owner()));
         given(invoiceHistoryService.current(7L)).willReturn(new BillingInvoiceHistoryResponse(List.of(
             new BillingInvoiceResponse(
                 "in_123", "paid", "usd", 19_900L, 19_900L,
@@ -177,7 +177,7 @@ class BillingSubscriptionApiControllerTest {
 
     @Test
     void activationWithValidCsrfCreatesExistingCompanyCheckout() throws Exception {
-        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(owner()));
+        given(sessionAuthService.currentActor(any())).willReturn(Optional.of(owner()));
         given(activationService.createCheckout(eq(7L), eq(1L), eq("activation-123"), any()))
             .willReturn(new BillingActivationResponse(
                 "CHECKOUT_CREATED",
@@ -204,7 +204,7 @@ class BillingSubscriptionApiControllerTest {
 
     @Test
     void delegatedSelectionReadsTheAuthorizedClientCompany() throws Exception {
-        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(owner()));
+        given(sessionAuthService.currentActor(any())).willReturn(Optional.of(owner()));
         given(managedCompanyContextService.resolveBillingContext(any(), any()))
             .willReturn(new ManagedCompanyContextService.BillingContext(
                 44L, "Portfolio client", "DISTRIBUTOR_PORTFOLIO", true, true
@@ -220,7 +220,7 @@ class BillingSubscriptionApiControllerTest {
 
     @Test
     void delegatedBillingCannotMutateTheClientSubscription() throws Exception {
-        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(owner()));
+        given(sessionAuthService.currentActor(any())).willReturn(Optional.of(owner()));
         given(managedCompanyContextService.resolveBillingContext(any(), any()))
             .willReturn(new ManagedCompanyContextService.BillingContext(
                 44L, "Portfolio client", "PLATFORM_ROOT", true, true

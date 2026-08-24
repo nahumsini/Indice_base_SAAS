@@ -419,7 +419,7 @@ export const enUS: AgendaTranslations = {
   },
   deleteDialog: {
     title: 'Delete task',
-    description: 'This deletes the task from the active agenda with soft delete and keeps the data backup in backend.',
+    description: 'The task will no longer appear in the active agenda, but its information will remain available in the history.',
     confirm: 'Delete task',
   },
 };

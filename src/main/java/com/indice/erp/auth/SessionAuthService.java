@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,7 @@ public class SessionAuthService {
     private final CompanySubscriptionStatusProvider subscriptionStatusProvider;
     private final AuthSecurityProperties securityProperties;
     private final Clock clock;
+    private final ObjectProvider<ManagedCompanyContextService> managedCompanyContextProvider;
 
     @Autowired
     public SessionAuthService(
@@ -47,7 +49,8 @@ public class SessionAuthService {
         LoginAuditService loginAuditService,
         CompanySubscriptionStatusProvider subscriptionStatusProvider,
         AuthSecurityProperties securityProperties,
-        Clock clock
+        Clock clock,
+        ObjectProvider<ManagedCompanyContextService> managedCompanyContextProvider
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.passwordEncoder = passwordEncoder;
@@ -55,6 +58,26 @@ public class SessionAuthService {
         this.subscriptionStatusProvider = subscriptionStatusProvider;
         this.securityProperties = securityProperties;
         this.clock = clock;
+        this.managedCompanyContextProvider = managedCompanyContextProvider;
+    }
+
+    SessionAuthService(
+        JdbcTemplate jdbcTemplate,
+        BCryptPasswordEncoder passwordEncoder,
+        LoginAuditService loginAuditService,
+        CompanySubscriptionStatusProvider subscriptionStatusProvider,
+        AuthSecurityProperties securityProperties,
+        Clock clock
+    ) {
+        this(
+            jdbcTemplate,
+            passwordEncoder,
+            loginAuditService,
+            subscriptionStatusProvider,
+            securityProperties,
+            clock,
+            null
+        );
     }
 
     SessionAuthService(JdbcTemplate jdbcTemplate, BCryptPasswordEncoder passwordEncoder) {
@@ -344,7 +367,8 @@ public class SessionAuthService {
         return new LoginAttemptResult(true, "");
     }
 
-    public Optional<AuthSessionUser> currentUser(HttpSession session) {
+    /** Returns the real authenticated actor without applying a delegated tenant. */
+    public Optional<AuthSessionUser> currentActor(HttpSession session) {
         if (!enforceSessionTimeout(session, LoginAuditContext.empty())) {
             return Optional.empty();
         }
@@ -376,8 +400,30 @@ public class SessionAuthService {
         ));
     }
 
+    /**
+     * Returns the effective request identity. During a protected consultation
+     * the user id remains the actor's, while the tenant becomes the selected
+     * client and the synthetic membership is intentionally null.
+     */
+    public Optional<AuthSessionUser> currentUser(HttpSession session) {
+        return currentActor(session).map(actor -> resolveWorkspaceContext(actor, session)
+            .map(workspace -> new AuthSessionUser(
+                actor.userId(),
+                workspace.companyId(),
+                null,
+                actor.userName(),
+                "superadmin"
+            ))
+            .orElse(actor));
+    }
+
     public Optional<AuthSessionResponse> currentSession(HttpSession session) {
-        return currentUser(session).map(user -> {
+        return currentActor(session).map(actor -> {
+            var workspace = resolveWorkspaceContext(actor, session);
+            if (workspace.isPresent()) {
+                return managedSession(actor, workspace.get());
+            }
+            var user = actor;
             var publicDemoSession = isPublicDemoSession(session);
             var access = loadSessionAccess(user.userId(), user.companyId());
             var memberships = loadActiveCompanyMemberships(user.userId()).stream()
@@ -405,6 +451,62 @@ public class SessionAuthService {
                 memberships
             );
         });
+    }
+
+    private Optional<ManagedCompanyContextService.WorkspaceContext> resolveWorkspaceContext(
+        AuthSessionUser actor,
+        HttpSession session
+    ) {
+        if (managedCompanyContextProvider == null) {
+            return Optional.empty();
+        }
+        var managedCompanies = managedCompanyContextProvider.getIfAvailable();
+        if (managedCompanies == null) {
+            return Optional.empty();
+        }
+        try {
+            return managedCompanies.resolveWorkspaceContext(actor, session);
+        } catch (ManagedCompanyContextForbiddenException exception) {
+            ManagedCompanyContextService.clearAttributes(session);
+            return Optional.empty();
+        }
+    }
+
+    private AuthSessionResponse managedSession(
+        AuthSessionUser actor,
+        ManagedCompanyContextService.WorkspaceContext workspace
+    ) {
+        var access = loadManagedSessionAccess(workspace.companyId());
+        var memberships = loadActiveCompanyMemberships(actor.userId()).stream()
+            .map(membership -> toCompanyInfo(
+                membership,
+                membership.companyId() == actor.companyId(),
+                false
+            ))
+            .toList();
+        var scope = TenantScope.from(null, null);
+        var activeCompany = new AuthSessionResponse.CompanyInfo(
+            workspace.companyId(),
+            workspace.companyName(),
+            "SUPER_ADMIN",
+            null,
+            "superadmin",
+            new AuthSessionResponse.ScopeInfo(scope.type(), scope.unit_id(), scope.business_id()),
+            true,
+            subscriptionInfo(subscriptionStatusProvider.currentStatus(workspace.companyId()))
+        );
+        return new AuthSessionResponse(
+            new AuthSessionResponse.UserInfo(
+                actor.userId(),
+                actor.userName(),
+                "superadmin",
+                access.moduleSlugs(),
+                List.of(),
+                false
+            ),
+            activeCompany,
+            memberships
+        );
     }
 
     public boolean switchActiveCompany(HttpSession session, long companyId) {
@@ -659,6 +761,21 @@ public class SessionAuthService {
             tabPermissionKeys,
             tabPermissionRowCount != null && tabPermissionRowCount > 0
         );
+    }
+
+    private SessionAccess loadManagedSessionAccess(long companyId) {
+        var moduleSlugs = new ArrayList<>(new LinkedHashSet<>(jdbcTemplate.query(
+            """
+                SELECT DISTINCT module_slug
+                FROM company_module_entitlements
+                WHERE company_id = ?
+                  AND LOWER(COALESCE(status, 'active')) = 'active'
+                ORDER BY module_slug ASC
+                """,
+            (rs, rowNum) -> ModuleSlugNormalizer.normalize(rs.getString("module_slug")),
+            companyId
+        )));
+        return new SessionAccess(moduleSlugs, List.of(), false);
     }
 
     private String loadCompanyName(long companyId) {

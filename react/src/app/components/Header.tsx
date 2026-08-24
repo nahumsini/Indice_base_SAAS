@@ -1,5 +1,5 @@
 import { BriefcaseBusiness, Building2, Check, CreditCard, Globe, GraduationCap, LoaderCircle, User, Sun, Moon, Sunrise, Settings, ShieldCheck, MonitorSmartphone, Search } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
 import {
   DropdownMenu,
@@ -45,7 +45,6 @@ const getProfileDisplayName = (user: ConfigCenterCurrentUser) => {
 
 export function Header({ learningModeActive, onToggleLearningMode, darkMode, onToggleDarkMode }: HeaderProps) {
   const navigate = useNavigate();
-  const location = useLocation();
   const { currentLanguage, setCurrentLanguage } = useLanguage();
   const { copy } = useHeaderTranslations();
   const currentHour = new Date().getHours();
@@ -200,8 +199,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
     .filter((company) => company.name.toLocaleLowerCase().includes(managedSearch.trim().toLocaleLowerCase()));
   const matchingPublicDemoCompanies = publicDemoCompanies
     .filter((company) => company.name.toLocaleLowerCase().includes(managedSearch.trim().toLocaleLowerCase()));
-  const isBillingPage = location.pathname === '/billing' || location.pathname.startsWith('/billing/');
-  const visibleManagedCompany = isBillingPage ? managedContext?.active_company : null;
+  const visibleManagedCompany = managedContext?.active_company;
   const visibleCompanyName = visibleManagedCompany?.name ?? authSession?.company.name ?? '';
   const canSelectCompany = (authSession?.companies?.length ?? 0) > 1
     || (managedContext?.companies?.length ?? 0) > 0
@@ -253,11 +251,27 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
     try {
       const context = await managedCompanyApi.activate(companyId);
       setManagedContext(context);
-      window.location.assign('/billing');
+      window.location.assign('/dashboard');
     } catch {
       setCompanySwitchError(currentLanguage.code.startsWith('es')
         ? 'No fue posible abrir la cuenta cliente.'
         : 'The client account could not be opened.');
+      setSwitchingCompanyId(null);
+    }
+  };
+
+  const handleManagedCompanyClear = async () => {
+    if (switchingCompanyId) return;
+    setSwitchingCompanyId(-1);
+    setCompanySwitchError('');
+    try {
+      const context = await managedCompanyApi.clear();
+      setManagedContext(context);
+      window.location.assign('/dashboard');
+    } catch {
+      setCompanySwitchError(currentLanguage.code.startsWith('es')
+        ? 'No fue posible salir de la consulta.'
+        : 'The client consultation could not be closed.');
       setSwitchingCompanyId(null);
     }
   };
@@ -385,7 +399,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                         </p>
                         <p className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-amber-700 dark:text-amber-300">
                           <ShieldCheck className="h-3.5 w-3.5" />
-                          {currentLanguage.code.startsWith('es') ? 'Consulta de facturación · Solo lectura' : 'Billing review · Read only'}
+                          {currentLanguage.code.startsWith('es') ? 'Consulta operativa · Solo lectura' : 'Operational review · Read only'}
                         </p>
                       </div>
                       <div className="relative mb-2 px-1">
@@ -688,6 +702,40 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
             </DropdownMenu>
           </div>
         </div>
+
+        {managedContext?.active && managedContext.active_company ? (
+          <div className="mt-3 flex flex-col gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-blue-950 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-blue-400/30 dark:bg-blue-500/10 dark:text-blue-100">
+            <div className="flex min-w-0 items-start gap-3 sm:items-center">
+              <div className="rounded-full bg-blue-100 p-2 text-blue-700 dark:bg-blue-400/15 dark:text-blue-200">
+                <ShieldCheck className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">
+                  {currentLanguage.code.startsWith('es')
+                    ? `Consultando ${managedContext.active_company.name}`
+                    : `Consulting ${managedContext.active_company.name}`}
+                </p>
+                <p className="mt-0.5 text-xs text-blue-700 dark:text-blue-200/80">
+                  {currentLanguage.code.startsWith('es')
+                    ? 'Ves su interfaz y sus datos como superadministrador. Los cambios están bloqueados.'
+                    : 'You can see its interface and data as a super administrator. Changes are blocked.'}
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 shrink-0 rounded-full border-blue-300 bg-white px-4 text-xs font-semibold text-blue-800 hover:bg-blue-100 dark:border-blue-400/40 dark:bg-transparent dark:text-blue-100 dark:hover:bg-blue-400/10"
+              onClick={() => void handleManagedCompanyClear()}
+              disabled={switchingCompanyId !== null}
+            >
+              {switchingCompanyId === -1 ? (
+                <LoaderCircle className="mr-2 h-3.5 w-3.5 animate-spin" />
+              ) : null}
+              {currentLanguage.code.startsWith('es') ? 'Salir de la consulta' : 'Exit consultation'}
+            </Button>
+          </div>
+        ) : null}
 
       </div>
 

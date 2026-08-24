@@ -1,6 +1,7 @@
 package com.indice.erp.billing.subscription;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.auth.ManagedCompanyContextService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -36,13 +37,11 @@ public class SubscriptionAccessInterceptor implements HandlerInterceptor {
         if (session != null && Boolean.TRUE.equals(session.getAttribute(SessionAuthService.SESSION_PUBLIC_DEMO))) {
             return true;
         }
-        var companyId = session == null
-            ? null
-            : session.getAttribute(SessionAuthService.SESSION_COMPANY_ID);
-        if (!(companyId instanceof Number companyIdNumber)) {
+        var companyId = ManagedCompanyContextService.effectiveCompanyId(session);
+        if (companyId == null) {
             return true;
         }
-        var status = subscriptionStatusProvider.currentStatus(companyIdNumber.longValue());
+        var status = subscriptionStatusProvider.currentStatus(companyId);
         if (status.accessAllowed()) {
             return true;
         }

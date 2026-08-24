@@ -177,9 +177,12 @@ Flyway is now enabled in transitional baseline mode for the existing shared sche
 See:
 
 - [`docs/README.md`](docs/README.md)
-- [`docs/setup.md`](docs/setup.md)
-- [`docs/flyway.md`](docs/flyway.md)
-- [`docs/api-guide.md`](docs/api-guide.md)
-- [`docs/api-reference.md`](docs/api-reference.md)
-- [`docs/frontend-integration.md`](docs/frontend-integration.md)
-- [`docs/postman.md`](docs/postman.md)
+- [`AGENTS.md`](AGENTS.md) — repository working rules and authority hierarchy
+- [`docs/indice-frontend-operating-system-v2.md`](docs/indice-frontend-operating-system-v2.md)
+- [`docs/indice-backend-operating-system-v1.md`](docs/indice-backend-operating-system-v1.md)
+- [`docs/indice-public-release-security-gate.md`](docs/indice-public-release-security-gate.md)
+- [`deployment/README.md`](deployment/README.md)
+
+The March 30 setup/API guides remain historical integration references under
+[`docs/March/30th/`](docs/March/30th/). Verify their route and implementation claims against the
+current code before using them.

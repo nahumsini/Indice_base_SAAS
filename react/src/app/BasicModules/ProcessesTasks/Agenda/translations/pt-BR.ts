@@ -419,7 +419,7 @@ export const ptBR: AgendaTranslations = {
   },
   deleteDialog: {
     title: 'Excluir tarefa',
-    description: 'Isto remove a tarefa da agenda ativa com soft delete e mantém o backup dos dados no backend.',
+    description: 'A tarefa deixará de aparecer na agenda ativa, mas suas informações continuarão disponíveis no histórico.',
     confirm: 'Excluir tarefa',
   },
 };

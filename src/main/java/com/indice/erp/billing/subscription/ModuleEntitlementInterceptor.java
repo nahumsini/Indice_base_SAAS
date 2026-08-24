@@ -2,6 +2,7 @@ package com.indice.erp.billing.subscription;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.auth.BasicModuleCatalog;
+import com.indice.erp.auth.ManagedCompanyContextService;
 import com.indice.erp.auth.SessionAuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -36,11 +37,11 @@ public class ModuleEntitlementInterceptor implements HandlerInterceptor {
         if (session != null && Boolean.TRUE.equals(session.getAttribute(SessionAuthService.SESSION_PUBLIC_DEMO))) {
             return true;
         }
-        var companyId = session == null ? null : session.getAttribute(SessionAuthService.SESSION_COMPANY_ID);
-        if (!(companyId instanceof Number companyIdNumber)) {
+        var companyId = ManagedCompanyContextService.effectiveCompanyId(session);
+        if (companyId == null) {
             return true;
         }
-        if (entitlementService.hasActiveEntitlement(companyIdNumber.longValue(), requiredModule.get())) {
+        if (entitlementService.hasActiveEntitlement(companyId, requiredModule.get())) {
             return true;
         }
         response.setStatus(HttpStatus.FORBIDDEN.value());

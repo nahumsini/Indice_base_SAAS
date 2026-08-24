@@ -419,7 +419,7 @@ export const zhCA: AgendaTranslations = {
   },
   deleteDialog: {
     title: '删除任务',
-    description: '这会从活动日程中软删除任务，并在后端保留数据备份。',
+    description: '该任务将不再显示在活动日程中，但其信息仍会保留在历史记录中。',
     confirm: '删除任务',
   },
 };

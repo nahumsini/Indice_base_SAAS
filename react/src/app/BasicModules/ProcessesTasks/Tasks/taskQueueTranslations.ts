@@ -42,7 +42,7 @@ const en: TaskQueueCopy = {
   actions: { edit: 'Edit task', complete: 'Complete task', cancel: 'Cancel task', delete: 'Delete task' },
   confirmation: {
     cancelDescription: 'This moves the task to cancelled and keeps it available in the audit history.',
-    deleteDescription: 'This performs a soft delete and removes the task from the active queue.',
+    deleteDescription: 'The task will no longer appear in the active queue, but its information will remain available in the history.',
   },
   messages: { load: 'Unable to load tasks.', save: 'Unable to save task.', complete: 'Unable to complete task.', cancel: 'Unable to cancel task.', delete: 'Unable to delete task.', invalidCompletion: 'Completion must be between 0 and 100.', positiveInteger: (label) => `${label} must be a positive integer.` },
 };
@@ -56,7 +56,7 @@ const es: TaskQueueCopy = {
   actions: { edit: 'Editar tarea', complete: 'Completar tarea', cancel: 'Cancelar tarea', delete: 'Eliminar tarea' },
   confirmation: {
     cancelDescription: 'La tarea pasará a cancelada y permanecerá disponible en el historial de auditoría.',
-    deleteDescription: 'Se aplicará una eliminación lógica y la tarea saldrá de la cola activa.',
+    deleteDescription: 'La tarea dejará de aparecer en la cola activa, pero su información permanecerá disponible en el historial.',
   },
   messages: { load: 'No fue posible cargar las tareas.', save: 'No fue posible guardar la tarea.', complete: 'No fue posible completar la tarea.', cancel: 'No fue posible cancelar la tarea.', delete: 'No fue posible eliminar la tarea.', invalidCompletion: 'El avance debe estar entre 0 y 100.', positiveInteger: (label) => `${label} debe ser un número entero positivo.` },
 };
@@ -70,7 +70,7 @@ const fr: TaskQueueCopy = {
   actions: { edit: 'Modifier la tâche', complete: 'Terminer la tâche', cancel: 'Annuler la tâche', delete: 'Supprimer la tâche' },
   confirmation: {
     cancelDescription: "La tâche passera à l'état annulé et restera disponible dans l'historique d'audit.",
-    deleteDescription: "Une suppression logique retirera la tâche de la file active.",
+    deleteDescription: "La tâche ne figurera plus dans la file active, mais ses informations resteront disponibles dans l’historique.",
   },
   messages: { load: 'Impossible de charger les tâches.', save: "Impossible d'enregistrer la tâche.", complete: 'Impossible de terminer la tâche.', cancel: "Impossible d'annuler la tâche.", delete: 'Impossible de supprimer la tâche.', invalidCompletion: "L'avancement doit être compris entre 0 et 100.", positiveInteger: (label) => `${label} doit être un entier positif.` },
 };
@@ -84,7 +84,7 @@ const pt: TaskQueueCopy = {
   actions: { edit: 'Editar tarefa', complete: 'Concluir tarefa', cancel: 'Cancelar tarefa', delete: 'Excluir tarefa' },
   confirmation: {
     cancelDescription: 'A tarefa será cancelada e continuará disponível no histórico de auditoria.',
-    deleteDescription: 'Uma exclusão lógica removerá a tarefa da fila ativa.',
+    deleteDescription: 'A tarefa deixará de aparecer na fila ativa, mas suas informações continuarão disponíveis no histórico.',
   },
   messages: { load: 'Não foi possível carregar as tarefas.', save: 'Não foi possível salvar a tarefa.', complete: 'Não foi possível concluir a tarefa.', cancel: 'Não foi possível cancelar a tarefa.', delete: 'Não foi possível excluir a tarefa.', invalidCompletion: 'O progresso deve estar entre 0 e 100.', positiveInteger: (label) => `${label} deve ser um número inteiro positivo.` },
 };
@@ -98,7 +98,7 @@ const ko: TaskQueueCopy = {
   actions: { edit: '작업 편집', complete: '작업 완료', cancel: '작업 취소', delete: '작업 삭제' },
   confirmation: {
     cancelDescription: '작업이 취소 상태로 전환되며 감사 기록에는 계속 표시됩니다.',
-    deleteDescription: '논리 삭제를 적용하여 활성 대기열에서 작업을 제거합니다.',
+    deleteDescription: '작업은 활성 대기열에서 사라지지만 해당 정보는 기록에 계속 보관됩니다.',
   },
   messages: { load: '작업을 불러올 수 없습니다.', save: '작업을 저장할 수 없습니다.', complete: '작업을 완료할 수 없습니다.', cancel: '작업을 취소할 수 없습니다.', delete: '작업을 삭제할 수 없습니다.', invalidCompletion: '진행률은 0에서 100 사이여야 합니다.', positiveInteger: (label) => `${label} 값은 양의 정수여야 합니다.` },
 };
@@ -112,7 +112,7 @@ const zh: TaskQueueCopy = {
   actions: { edit: '编辑任务', complete: '完成任务', cancel: '取消任务', delete: '删除任务' },
   confirmation: {
     cancelDescription: '任务将变为已取消，并继续保留在审计历史中。',
-    deleteDescription: '系统将执行逻辑删除，并从活动队列中移除该任务。',
+    deleteDescription: '该任务将不再显示在活动队列中，但其信息仍会保留在历史记录中。',
   },
   messages: { load: '无法加载任务。', save: '无法保存任务。', complete: '无法完成任务。', cancel: '无法取消任务。', delete: '无法删除任务。', invalidCompletion: '进度必须介于 0 和 100 之间。', positiveInteger: (label) => `${label}必须是正整数。` },
 };

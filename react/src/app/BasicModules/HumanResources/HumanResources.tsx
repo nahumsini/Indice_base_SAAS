@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef } from 'react';
+import { Activity, lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { IndiceModuleShell } from '../../components/frontend-os';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
@@ -56,6 +56,10 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
   const t = useHumanResourcesTranslations();
   const guidanceCopy = useHumanResourcesGuidanceTranslations();
   const mainContentRef = useRef<HTMLDivElement | null>(null);
+  const tabScrollPositionsRef = useRef(new Map<HumanResourcesTabId, number>());
+  const [visitedTabIds, setVisitedTabIds] = useState<Set<HumanResourcesTabId>>(
+    () => new Set(['collaborators']),
+  );
   const { canAccessTab, isAccessLoaded } = useHumanResourcesAccess();
   const { activeTab, setActiveTab } = useRoutedModuleTab<HumanResourcesTabId>(
     'collaborators',
@@ -85,9 +89,6 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
     ? allTabs.filter((tab) => canAccessTab(tab.id))
     : [];
 
-  // Get the active component
-  const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component ?? null;
-
   useEffect(() => {
     if (!isAccessLoaded || canAccessTab(activeTab)) {
       return;
@@ -98,6 +99,32 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
     }
   }, [activeTab, canAccessTab, isAccessLoaded, setActiveTab, tabs]);
 
+  useEffect(() => {
+    if (!isAccessLoaded || !canAccessTab(activeTab)) {
+      return;
+    }
+
+    setVisitedTabIds((currentTabIds) => {
+      if (currentTabIds.has(activeTab)) {
+        return currentTabIds;
+      }
+
+      const nextTabIds = new Set(currentTabIds);
+      nextTabIds.add(activeTab);
+      return nextTabIds;
+    });
+
+    const savedScrollPosition = tabScrollPositionsRef.current.get(activeTab);
+    if (savedScrollPosition === undefined) {
+      return;
+    }
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: savedScrollPosition, behavior: 'auto' });
+    });
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [activeTab, canAccessTab, isAccessLoaded]);
+
   const handleTabClick = (tabId: HumanResourcesTabId) => {
     if (tabId === activeTab) {
       return;
@@ -106,6 +133,8 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
       return;
     }
 
+    tabScrollPositionsRef.current.set(activeTab, window.scrollY);
+    setVisitedTabIds((currentTabIds) => new Set(currentTabIds).add(tabId));
     setActiveTab(tabId);
   };
 
@@ -137,35 +166,48 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
         title={t.title}
         tone="aqua"
       >
-        <HumanResourcesTabErrorBoundary key={activeTab} copy={t.tabError}>
-          <Suspense
-            fallback={(
-              <LoadingBarOverlay
-                isVisible
-                title={t.loading.title}
-                description={t.loading.description}
-              />
-            )}
-          >
-            {isAccessLoaded && ActiveComponent ? (
-              activeTab === 'collaborators' ? (
-                <Employees learningModeActive={learningModeActive} />
-              ) : (
-                <ActiveComponent />
-              )
-            ) : isAccessLoaded ? (
-              <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-                {t.access.empty}
-              </div>
-            ) : (
-              <LoadingBarOverlay
-                isVisible
-                title={t.access.loadingTitle}
-                description={t.access.loadingDescription}
-              />
-            )}
-          </Suspense>
-        </HumanResourcesTabErrorBoundary>
+        {isAccessLoaded && tabs.some((tab) => tab.id === activeTab) ? (
+          tabs
+            .filter((tab) => tab.id === activeTab || visitedTabIds.has(tab.id))
+            .map((tab) => {
+              const TabComponent = tab.component;
+              return (
+                <Activity
+                  key={tab.id}
+                  mode={tab.id === activeTab ? 'visible' : 'hidden'}
+                  name={`human-resources-${tab.id}`}
+                >
+                  <HumanResourcesTabErrorBoundary copy={t.tabError}>
+                    <Suspense
+                      fallback={(
+                        <LoadingBarOverlay
+                          isVisible
+                          title={t.loading.title}
+                          description={t.loading.description}
+                        />
+                      )}
+                    >
+                      {tab.id === 'collaborators' ? (
+                        <Employees learningModeActive={learningModeActive} />
+                      ) : (
+                        <TabComponent />
+                      )}
+                    </Suspense>
+                  </HumanResourcesTabErrorBoundary>
+                </Activity>
+              );
+            })
+        ) : isAccessLoaded ? (
+          <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+            {t.access.empty}
+          </div>
+        ) : (
+          <LoadingBarOverlay
+            isVisible
+            title={t.access.loadingTitle}
+            description={t.access.loadingDescription}
+          />
+        )}
       </IndiceModuleShell>
     </LearningModeHeaderActionsProvider>
   );

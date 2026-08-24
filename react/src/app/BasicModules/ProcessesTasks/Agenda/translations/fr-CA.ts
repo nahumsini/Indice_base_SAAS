@@ -419,7 +419,7 @@ export const frCA: AgendaTranslations = {
   },
   deleteDialog: {
     title: "Supprimer la tache",
-    description: "Cela supprime la tache de l agenda actif avec suppression logique et conserve la sauvegarde des donnees dans le backend.",
+    description: "La tâche ne figurera plus dans l’agenda actif, mais ses informations resteront disponibles dans l’historique.",
     confirm: "Supprimer la tache",
   },
 };

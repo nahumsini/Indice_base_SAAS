@@ -424,12 +424,12 @@ test('Venta mantiene caja, turno, catálogo e inventario dentro del mismo almac�
   const sale = readFileSync(resolve(pointOfSaleRoot, 'Sale/Sale.tsx'), 'utf8');
   const registerContext = readFileSync(resolve(pointOfSaleRoot, 'Sale/hooks/useSaleRegisterContext.ts'), 'utf8');
   const openShiftModal = readFileSync(resolve(pointOfSaleRoot, 'Sale/components/OpenShiftModal.tsx'), 'utf8');
+  const mexicanSpanishTranslations = readFileSync(resolve(pointOfSaleRoot, 'translations/es-MX.ts'), 'utf8');
   const noShiftState = readFileSync(resolve(pointOfSaleRoot, 'Sale/components/SaleNoShiftState.tsx'), 'utf8');
   const catalog = readFileSync(resolve(root, 'src/app/BasicModules/CommerceCore/posCatalog.ts'), 'utf8');
   const cart = readFileSync(resolve(pointOfSaleRoot, 'Sale/hooks/useSaleCart.ts'), 'utf8');
   const audits = readFileSync(resolve(pointOfSaleRoot, 'Arqueos/hooks/useCashAudits.ts'), 'utf8');
   const moduleSource = readFileSync(resolve(pointOfSaleRoot, 'PuntoDeVenta.tsx'), 'utf8');
-  const esMxTranslations = readFileSync(resolve(pointOfSaleRoot, 'translations/es-MX.ts'), 'utf8');
 
   assert.match(sale, /usePointOfSaleCatalogProducts\(\s*registerContext\?\.warehouseId/);
   assert.match(registerContext, /warehouse\.status\?\.toLocaleLowerCase\(\) === 'active'/);
@@ -437,8 +437,8 @@ test('Venta mantiene caja, turno, catálogo e inventario dentro del mismo almac�
   assert.match(openShiftModal, /const eligibleRegisters = useMemo/);
   assert.match(openShiftModal, /label=\{copy\.registerLabel\}/);
   assert.match(openShiftModal, /\{copy\.registerSectionDescription\}/);
-  assert.match(esMxTranslations, /registerLabel: 'Caja POS'/);
-  assert.match(esMxTranslations, /Si un almacén tiene varias cajas, aparecen por separado/);
+  assert.match(mexicanSpanishTranslations, /registerLabel: 'Caja POS'/);
+  assert.match(mexicanSpanishTranslations, /Si un almacén tiene varias cajas, aparecen por separado/);
   assert.match(openShiftModal, /registerContextMatchesSelection/);
   assert.doesNotMatch(openShiftModal, /label="Almacén"|onEnsureWarehouseRegister|handleWarehouseChange|isProvisioningRegister/);
   assert.doesNotMatch(noShiftState, /onEnsureWarehouseRegister|handleEnsureWarehouseRegister/);

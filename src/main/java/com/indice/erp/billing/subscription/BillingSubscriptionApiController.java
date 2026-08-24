@@ -49,7 +49,7 @@ public class BillingSubscriptionApiController {
 
     @GetMapping("/selection")
     public ResponseEntity<?> selection(HttpSession session) {
-        var user = sessionAuthService.currentUser(session);
+        var user = sessionAuthService.currentActor(session);
         if (user.isEmpty()) return unauthorized();
         try {
             var context = managedCompanies.resolveBillingContext(user.get(), session);
@@ -101,7 +101,7 @@ public class BillingSubscriptionApiController {
 
     @GetMapping
     public ResponseEntity<?> current(HttpSession session) {
-        var user = sessionAuthService.currentUser(session);
+        var user = sessionAuthService.currentActor(session);
         if (user.isEmpty()) {
             return unauthorized();
         }
@@ -117,7 +117,7 @@ public class BillingSubscriptionApiController {
 
     @GetMapping("/invoices")
     public ResponseEntity<?> invoices(HttpSession session) {
-        var user = sessionAuthService.currentUser(session);
+        var user = sessionAuthService.currentActor(session);
         if (user.isEmpty()) {
             return unauthorized();
         }
@@ -157,7 +157,7 @@ public class BillingSubscriptionApiController {
     }
 
     private ResponseEntity<?> manage(HttpSession session, String csrfToken, Action action) {
-        var user = sessionAuthService.currentUser(session);
+        var user = sessionAuthService.currentActor(session);
         if (user.isEmpty()) {
             return unauthorized();
         }
@@ -188,7 +188,7 @@ public class BillingSubscriptionApiController {
     }
 
     private ResponseEntity<?> readWithCsrf(HttpSession session, String csrfToken, ReadAction action) {
-        var user = sessionAuthService.currentUser(session);
+        var user = sessionAuthService.currentActor(session);
         if (user.isEmpty()) return unauthorized();
         try {
             csrfService.requireCsrf(session, csrfToken);

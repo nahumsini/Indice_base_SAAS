@@ -1,8 +1,15 @@
-# Frontend Module Architecture
+# Dormant Frontend Module Scaffold
 
-This directory is the canonical frontend architecture for new ERP modules.
+Status: historical scaffold, not connected to the active production router.
 
-## Principles
+The canonical frontend standard is `docs/indice-frontend-operating-system-v2.md`. Production modules
+currently live under `react/src/app`; new features and refactors must remain with their active owner
+there unless a dedicated migration explicitly activates this tree.
+
+This directory is retained as an architecture experiment. Do not create duplicate production
+modules here and do not treat the files below as evidence that Human Resources has been migrated.
+
+## Original Prototype Principles
 
 - Every module lives in its own folder.
 - Every internal tab or section lives in its own folder.
@@ -56,19 +63,22 @@ src/modules/
 - Config files: `module.config.ts` and `routes.tsx`.
 - Entry points: `index.ts`.
 
-## Migration Policy
+## Current Policy
 
-- Existing legacy modules under `src/app` can continue to run while we migrate.
-- New module work should start in `src/modules/<module-id>`.
-- Legacy modules should be wrapped or adapted into this structure incrementally instead of refactored all at once.
+- Active modules under `src/app` remain the production source of truth.
+- No migration into `src/modules` is currently approved.
+- An approved future migration must define routing, shared-component ownership, translations,
+  permissions, API compatibility, regression coverage, and removal of the duplicate entry point.
+- Until then, do not add production work or run the prototype scaffold generator.
 
-## Scaffold Command
+## Prototype Scaffold Command
 
-Run this from the `react/` directory:
+The repository contains `react/scripts/scaffold-module.mjs`, but it is not registered as an active
+production workflow. The historical command below is documentation only:
 
 ```bash
 npm run scaffold:module -- --module hr --name "Human Resources" --route human-resources --tabs employees attendance payroll performance
 ```
 
-The generator creates a fully structured module with isolated tabs, shared exports, and route helpers.
-Use `--category complementary` or `--category ai` when the module does not belong to the basic ERP suite.
+Do not use this command for production work until an approved migration reactivates and verifies the
+architecture.

@@ -9,7 +9,8 @@ import type {
 import type { EmployeesTranslations } from '../translations';
 import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../../hooks/useTablePagination';
 
-export const columnsStorageKey = 'rh-colaboradores-columns-v7';
+export const columnsStorageKey = 'rh-colaboradores-columns-v8';
+export const legacyColumnsStorageKeys = ['rh-colaboradores-columns-v7'] as const;
 export const columnWidthsStorageKey = 'rh-colaboradores-column-widths-v3';
 export const allFilterValue = 'all';
 export const inlineUnassignedValue = '__unassigned__';

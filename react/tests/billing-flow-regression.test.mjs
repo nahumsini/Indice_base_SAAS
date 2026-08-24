@@ -32,6 +32,14 @@ test("la consulta delegada limpia el contexto y vuelve al portal de origen", () 
   assert.match(page, /leaving=\{billing\.action === ['"]back['"]\}/);
 });
 
+test("el selector de clientes abre el ERP del cliente en modo consultoría", () => {
+  assert.match(header, /managedCompanyApi\.activate\(companyId\)[\s\S]*window\.location\.assign\(['"]\/dashboard['"]\)/);
+  assert.match(header, /Consulta operativa · Solo lectura/);
+  assert.match(header, /Consultando \$\{managedContext\.active_company\.name\}/);
+  assert.match(header, /Ves su interfaz y sus datos como superadministrador\. Los cambios están bloqueados\./);
+  assert.match(header, /handleManagedCompanyClear/);
+});
+
 test("la selección siempre viene del catálogo comercial del backend", () => {
   assert.match(hook, /billingApi\.selection/);
   assert.match(modules, /groups\.map/);

@@ -419,7 +419,7 @@ export const esMX: AgendaTranslations = {
   },
   deleteDialog: {
     title: 'Eliminar tarea',
-    description: 'Esto elimina la tarea de la agenda activa con soft delete y conserva el respaldo de datos en backend.',
+    description: 'La tarea dejará de aparecer en la agenda activa, pero su información permanecerá disponible en el historial.',
     confirm: 'Eliminar tarea',
   },
 };

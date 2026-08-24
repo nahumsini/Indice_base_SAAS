@@ -79,10 +79,13 @@ public class OrganizationService {
 
     public List<UnitSummary> listUnits(AuthSessionUser currentUser) {
         var scope = organizationScopeAccess.resolve(currentUser);
+        var units = isDelegatedSuperadmin(currentUser)
+            ? listUnitsReadOnly(currentUser.companyId())
+            : listUnits(currentUser.companyId());
         return organizationScopeAccess.filterUnits(
             currentUser.companyId(),
             scope,
-            listUnits(currentUser.companyId())
+            units
         );
     }
 
@@ -111,7 +114,56 @@ public class OrganizationService {
 
     public List<BusinessSummary> listBusinesses(AuthSessionUser currentUser) {
         var scope = organizationScopeAccess.resolve(currentUser);
-        return organizationScopeAccess.filterBusinesses(scope, listBusinesses(currentUser.companyId()));
+        var businesses = isDelegatedSuperadmin(currentUser)
+            ? listBusinessesReadOnly(currentUser.companyId())
+            : listBusinesses(currentUser.companyId());
+        return organizationScopeAccess.filterBusinesses(scope, businesses);
+    }
+
+    private List<UnitSummary> listUnitsReadOnly(long companyId) {
+        return jdbcTemplate.query(
+            """
+                SELECT id, name, description, status
+                FROM units
+                WHERE (company_id = ? OR company_id IS NULL)
+                  AND (status = 'active' OR status IS NULL OR status = '')
+                ORDER BY name ASC
+                """,
+            (rs, rowNum) -> new UnitSummary(
+                rs.getLong("id"),
+                rs.getString("name"),
+                rs.getString("description"),
+                rs.getString("status")
+            ),
+            companyId
+        );
+    }
+
+    private List<BusinessSummary> listBusinessesReadOnly(long companyId) {
+        return jdbcTemplate.query(
+            """
+                SELECT id, unit_id, name, address, description, status
+                FROM businesses
+                WHERE (company_id = ? OR company_id IS NULL)
+                  AND (status = 'active' OR status IS NULL OR status = '')
+                ORDER BY name ASC
+                """,
+            (rs, rowNum) -> new BusinessSummary(
+                rs.getLong("id"),
+                getNullableLong(rs, "unit_id"),
+                rs.getString("name"),
+                rs.getString("address"),
+                rs.getString("description"),
+                rs.getString("status")
+            ),
+            companyId
+        );
+    }
+
+    private boolean isDelegatedSuperadmin(AuthSessionUser currentUser) {
+        if (currentUser.userCompanyId() != null) return false;
+        var role = currentUser.role() == null ? "" : currentUser.role().trim().toLowerCase(Locale.ROOT);
+        return "root".equals(role) || "superadmin".equals(role) || "super admin".equals(role);
     }
 
     private UnitRef ensureHeadquartersBusinesses(long companyId) {
