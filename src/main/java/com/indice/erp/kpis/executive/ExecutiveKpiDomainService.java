@@ -459,7 +459,8 @@ public class ExecutiveKpiDomainService {
         if (!rateDateValid) {
             issues.add("La referencia cambiaria no contiene una fecha de corte válida.");
         }
-        if (ChronoUnit.DAYS.between(rateDate, LocalDate.now(BUSINESS_ZONE)) > 7) {
+        var snapshotDate = scope.snapshotDate() == null ? LocalDate.now(BUSINESS_ZONE) : scope.snapshotDate();
+        if (ChronoUnit.DAYS.between(rateDate, snapshotDate) > 7) {
             issues.add("La referencia cambiaria tiene más de siete días de antigüedad.");
         }
         return issues;

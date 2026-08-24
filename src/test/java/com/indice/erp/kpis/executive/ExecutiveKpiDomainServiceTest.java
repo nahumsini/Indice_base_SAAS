@@ -200,6 +200,26 @@ class ExecutiveKpiDomainServiceTest {
         assertThat(result.dataQuality().issues()).anyMatch(issue -> issue.contains("Tasas no oficiales"));
     }
 
+    @Test
+    void rejectsRatesOlderThanSevenDaysFromTheSnapshotDate() {
+        var metadata = new BusinessExchangeRateMetadataResponse(
+                "daily", "official", "2026-08-08", "2026-08-08T12:00:00Z",
+                "official-test", "", "", "stale test rates");
+        when(exchangeRateService.loadDailyRates()).thenReturn(new BusinessExchangeRatesResponse(
+                "USD", Map.of("USD", BigDecimal.ONE, "MXN", new BigDecimal("17.00")), metadata,
+                List.of(new BusinessExchangeRateSourceResponse(
+                        "MXN", new BigDecimal("17.00"), "2026-08-08", "official-test",
+                        "test", "", "", "official", "")), List.of()));
+        when(repository.loadSalesValue(scope)).thenReturn(List.of(
+                new KpiMoneyAmount(new BigDecimal("100.00"), "USD")));
+        when(repository.loadSalesValue(previous)).thenReturn(List.of());
+
+        var result = service.build(scope);
+
+        assertThat(result.dataQuality().decisionReady()).isFalse();
+        assertThat(result.dataQuality().issues()).anyMatch(issue -> issue.contains("más de siete días"));
+    }
+
     private ExecutiveKpiDomainContracts.Metric metric(
             ExecutiveKpiDomainContracts.Dashboard dashboard,
             String domainId,
