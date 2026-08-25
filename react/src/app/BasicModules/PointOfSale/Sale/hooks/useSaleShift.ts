@@ -10,10 +10,12 @@ import {
 } from '../services/posBackendApi';
 import type { CashMovement, Shift } from '../types/shift.types';
 import { buildShiftFromBackend, getPosRequestErrorMessage, toBackendId, toShiftId } from '../utils/posShiftMappers';
+import type { PointOfSaleTranslations } from '../../translations';
 
 interface UseSaleShiftOptions {
   pushActivity: (activity: Omit<OperationalActivity, 'id' | 'timestamp'>) => void;
   formatCurrency: (amount: number) => string;
+  copy: PointOfSaleTranslations['sale']['shift'];
   registerContext: CashRegisterContext | null;
   backendCurrentShift: PosShiftResponse | null;
   isRegisterContextLoading: boolean;
@@ -25,13 +27,6 @@ interface UseSaleShiftOptions {
 const toNumber = (value: number | string | null | undefined) => {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : 0;
-};
-
-const movementLabels: Record<PosCashMovementType, string> = {
-  CASH_IN: 'Entrada de efectivo',
-  CASH_OUT: 'Salida de efectivo',
-  SAFE_DROP: 'Retiro a caja fuerte',
-  CORRECTION: 'Correccion de efectivo',
 };
 
 const movementTone: Record<PosCashMovementType, OperationalActivity['tone']> = {
@@ -56,6 +51,7 @@ const mapCashMovement = (movement: PosCashMovementResponse, cashierName: string)
 export function useSaleShift({
   pushActivity,
   formatCurrency,
+  copy,
   registerContext,
   backendCurrentShift,
   isRegisterContextLoading,
@@ -120,9 +116,9 @@ export function useSaleShift({
     }
 
     void loadCashMovements(shiftId, currentShift.cashierName).catch((error) => {
-      setShiftError(getPosRequestErrorMessage(error, 'No se pudieron cargar los movimientos de efectivo.'));
+      setShiftError(getPosRequestErrorMessage(error, copy.cashMovementLoadError));
     });
-  }, [currentShift?.cashierName, currentShift?.id, loadCashMovements]);
+  }, [copy.cashMovementLoadError, currentShift?.cashierName, currentShift?.id, loadCashMovements]);
 
   useEffect(() => {
     if (!isRegisterContextLoading && !backendShiftId && !currentShift && canOpenShift && !autoOpenShiftSuppressed) {
@@ -132,13 +128,13 @@ export function useSaleShift({
 
   const handleOpenShift = async (initialCash: number, openingNote?: string, selectedCurrencyCode?: string) => {
     if (!registerContext) {
-      setShiftError('No hay una caja configurada. Crea una caja desde la configuración POS antes de abrir turno.');
+      setShiftError(copy.noRegisterConfigured);
       return;
     }
 
     const cashRegisterId = toBackendId(registerContext.cashRegisterId);
     if (!cashRegisterId) {
-      setShiftError('La caja seleccionada no tiene un identificador valido.');
+      setShiftError(copy.invalidRegisterId);
       return;
     }
 
@@ -146,7 +142,7 @@ export function useSaleShift({
       .trim()
       .toUpperCase();
     if (!/^[A-Z]{3}$/.test(openingCurrency)) {
-      setShiftError('Selecciona una divisa valida para abrir caja.');
+      setShiftError(copy.invalidOpeningCurrency);
       return;
     }
 
@@ -165,18 +161,18 @@ export function useSaleShift({
       setCurrentShift(newShift);
       setShowOpenShiftModal(false);
       setAutoOpenShiftSuppressed(false);
-      setShiftNotice(`Turno abierto. Fondo inicial: ${formatCurrency(initialCash)}.`);
+      setShiftNotice(copy.openedNotice(formatCurrency(initialCash)));
       pushActivity({
         type: 'shift',
-        title: 'Turno abierto',
-        description: `${newShift.cashRegisterCode} · Fondo inicial ${formatCurrency(initialCash)}`,
+        title: copy.openedActivityTitle,
+        description: copy.openedActivityDescription(newShift.cashRegisterCode, formatCurrency(initialCash)),
         actor: newShift.cashierName,
-        badge: 'Turno abierto',
+        badge: copy.openedActivityTitle,
         tone: 'info',
       });
       void refreshRegisterContext();
     } catch (error) {
-      setShiftError(getPosRequestErrorMessage(error, 'No se pudo abrir la caja.'));
+      setShiftError(getPosRequestErrorMessage(error, copy.openError));
     } finally {
       setIsOpeningShift(false);
     }
@@ -189,7 +185,7 @@ export function useSaleShift({
 
     const shiftId = toBackendId(currentShift.id);
     if (!shiftId) {
-      setShiftError('El turno actual no tiene un identificador valido para cierre.');
+      setShiftError(copy.missingClosingShiftId);
       return;
     }
 
@@ -201,11 +197,11 @@ export function useSaleShift({
       const summary = await posBackendApi.getShiftClosingSummary(shiftId);
       setClosingSummary(summary);
     } catch (error) {
-      setClosingSummaryError(getPosRequestErrorMessage(error, 'No se pudo cargar el resumen real de cierre.'));
+      setClosingSummaryError(getPosRequestErrorMessage(error, copy.closingSummaryLoadError));
     } finally {
       setIsLoadingClosingSummary(false);
     }
-  }, [currentShift]);
+  }, [copy.closingSummaryLoadError, copy.missingClosingShiftId, currentShift]);
 
   const openCloseShiftModal = async () => {
     if (!currentShift) {
@@ -233,17 +229,17 @@ export function useSaleShift({
 
     const shiftId = toBackendId(currentShift.id);
     if (!shiftId) {
-      setShiftError('El turno actual no tiene un identificador valido para cierre.');
+      setShiftError(copy.missingClosingShiftId);
       return;
     }
 
     if (!closingSummary) {
-      setClosingSummaryError('Carga el resumen real de cierre antes de cerrar el turno.');
+      setClosingSummaryError(copy.closingSummaryRequired);
       return;
     }
 
     if (closing.countedCash < 0) {
-      setClosingSummaryError('El efectivo contado no puede ser negativo.');
+      setClosingSummaryError(copy.negativeCountedCash);
       return;
     }
 
@@ -258,7 +254,11 @@ export function useSaleShift({
       });
       const difference = toNumber(closedBackendShift.overShortAmount) || closing.countedCash - toNumber(closingSummary.expectedCashAmount);
       setShiftNotice(
-        `Turno cerrado y corte generado. Tickets: ${closingSummary.ticketsCount} · Total: ${formatCurrency(toNumber(closingSummary.totalSalesAmount))} · Diferencia: ${formatCurrency(difference)}.`,
+        copy.closedNotice(
+          closingSummary.ticketsCount,
+          formatCurrency(toNumber(closingSummary.totalSalesAmount)),
+          formatCurrency(difference),
+        ),
       );
 
       setCurrentShift(null);
@@ -268,7 +268,7 @@ export function useSaleShift({
       setAutoOpenShiftSuppressed(true);
       await refreshRegisterContext();
     } catch (error) {
-      const message = getPosRequestErrorMessage(error, 'No se pudo cerrar el turno.');
+      const message = getPosRequestErrorMessage(error, copy.closeError);
       setClosingSummaryError(message);
       setShiftError(message);
     } finally {
@@ -286,22 +286,22 @@ export function useSaleShift({
     const currencyCode = currentShift.currencyCode || currency;
 
     if (!shiftId || !cashRegisterId) {
-      setShiftError('El turno actual no tiene caja valida para registrar movimientos.');
+      setShiftError(copy.invalidMovementRegister);
       return;
     }
 
     if (!amount || amount <= 0) {
-      setShiftError('El movimiento requiere un monto mayor a cero.');
+      setShiftError(copy.invalidMovementAmount);
       return;
     }
 
     if (!reason.trim()) {
-      setShiftError('El movimiento requiere un motivo.');
+      setShiftError(copy.missingMovementReason);
       return;
     }
 
     if (currencyCode !== currentShift.currencyCode) {
-      setShiftError('La moneda del movimiento debe coincidir con la moneda del turno.');
+      setShiftError(copy.movementCurrencyMismatch);
       return;
     }
 
@@ -319,6 +319,7 @@ export function useSaleShift({
         reference: reference?.trim() || null,
       });
       const nextMovements = await loadCashMovements(shiftId, currentShift.cashierName);
+      const movementLabel = copy.movementLabels[type];
 
       const backendShift = await posBackendApi.getShift(shiftId);
       if (registerContext) {
@@ -338,10 +339,10 @@ export function useSaleShift({
       }
 
       setShowCashMovementModal(false);
-      setShiftNotice(`${movementLabels[type]} registrada: ${formatCurrency(amount)}.`);
+      setShiftNotice(copy.movementRegistered(movementLabel, formatCurrency(amount)));
       pushActivity({
         type: 'cash',
-        title: `${movementLabels[type]} registrada`,
+        title: copy.movementActivityTitle(movementLabel),
         description: reason,
         actor: currentShift.cashierName,
         badge: formatCurrency(amount),
@@ -349,7 +350,7 @@ export function useSaleShift({
       });
       await refreshRegisterContext();
     } catch (error) {
-      const message = getPosRequestErrorMessage(error, 'No se pudo registrar el movimiento de efectivo.');
+      const message = getPosRequestErrorMessage(error, copy.movementCreateError);
       setShiftError(message);
       throw new Error(message);
     } finally {

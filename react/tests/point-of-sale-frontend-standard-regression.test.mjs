@@ -71,6 +71,66 @@ test('Punto de Venta ejecuta la auditoria i18n de tabs y catalogos soportados', 
   );
 });
 
+test('Venta traduce el estado sin turno y el aviso de cierre en todos los idiomas POS', () => {
+  const noShiftState = readFileSync(resolve(pointOfSaleRoot, 'Sale/components/SaleNoShiftState.tsx'), 'utf8');
+  const sale = readFileSync(resolve(pointOfSaleRoot, 'Sale/Sale.tsx'), 'utf8');
+  const shiftHook = readFileSync(resolve(pointOfSaleRoot, 'Sale/hooks/useSaleShift.ts'), 'utf8');
+  const localeFiles = [
+    ['en-CA.ts', 'Shift closed', 'View closing'],
+    ['en-US.ts', 'Shift closed', 'View closing'],
+    ['es-CO.ts', 'Turno cerrado', 'Ver cierre'],
+    ['es-MX.ts', 'Turno cerrado', 'Ver corte'],
+    ['fr-CA.ts', 'Quart fermé', 'Voir la fermeture'],
+    ['ko-CA.ts', '근무조 종료됨', '마감 보기'],
+    ['pt-BR.ts', 'Turno fechado', 'Ver fechamento'],
+    ['zh-CA.ts', '班次已关闭', '查看结算'],
+  ];
+  const leakedSpanish = [
+    'Cargando punto de venta',
+    'Turno cerrado',
+    'El corte quedó guardado',
+    'Abre un turno',
+    'Configura POS para operar',
+    'Paso 1: crea',
+    'Paso 2: crea',
+    'Se necesita una caja activa',
+    'Ver corte',
+    'Abrir otro turno',
+    'No se pudo cerrar el turno',
+    'Diferencia:',
+  ];
+
+  assert.match(noShiftState, /moduleCopy\.sale\.noShiftState/);
+  assert.match(noShiftState, /copy\.closedTitle/);
+  assert.match(noShiftState, /copy\.viewClosing/);
+  assert.match(noShiftState, /copy\.openAnotherShift/);
+  assert.match(sale, /copy: pointOfSaleCopy\.sale\.shift/);
+  assert.match(sale, /pointOfSaleCopy\.sale\.shift\.currencyMismatchNotice/);
+  assert.match(shiftHook, /copy\.closedNotice/);
+  assert.match(shiftHook, /copy\.closeError/);
+
+  for (const phrase of leakedSpanish) {
+    assert.ok(
+      !noShiftState.includes(phrase),
+      `SaleNoShiftState must not hardcode Spanish phrase: ${phrase}`,
+    );
+    assert.ok(
+      !shiftHook.includes(phrase),
+      `useSaleShift must not hardcode Spanish phrase: ${phrase}`,
+    );
+  }
+
+  for (const [fileName, closedTitle, viewClosing] of localeFiles) {
+    const source = readFileSync(resolve(pointOfSaleRoot, 'translations', fileName), 'utf8');
+    assert.match(source, /noShiftState: \{/);
+    assert.match(source, /shift: \{/);
+    assert.ok(source.includes(`closedTitle: '${closedTitle}'`), `${fileName} must translate the closed shift title`);
+    assert.ok(source.includes(`viewClosing: '${viewClosing}'`), `${fileName} must translate the view closing action`);
+    assert.match(source, /closedNotice: \(tickets: number, total: string, difference: string\) =>/);
+    assert.match(source, /currencyMismatchNotice: \(shiftCurrency: string, transactionCurrency: string\) =>/);
+  }
+});
+
 test('Punto de Venta respeta la escala tipográfica del Frontend Engine V2', () => {
   const violations = collectFiles(pointOfSaleRoot).flatMap((file) => {
     const source = readFileSync(file, 'utf8');

@@ -35,6 +35,7 @@ import { useSaleShift } from './hooks/useSaleShift';
 import { useSaleSmartAlerts } from './hooks/useSaleSmartAlerts';
 import { usePendingPreTickets } from './hooks/usePendingPreTickets';
 import { useSuspendedSales } from './hooks/useSuspendedSales';
+import { usePointOfSaleTranslations } from '../hooks/usePointOfSaleTranslations';
 import type { PaymentMethod, PaymentPreview, SaleItem } from './types/sale.types';
 import { useLearningModeHeaderActions } from '../../../learningMode';
 import { formatPosDisplayCurrency } from './utils/posCurrencyDisplay';
@@ -48,6 +49,7 @@ import {
 export default function Sale() {
   const learningModeActive = useLearningModeHeaderActions()?.active ?? false;
   const navigate = useNavigate();
+  const pointOfSaleCopy = usePointOfSaleTranslations();
   const [customerDisplayPaymentPreview, setCustomerDisplayPaymentPreview] = useState<PaymentPreview | null>(null);
   const { reloadSalesRecords } = useSalesCrm();
   const creditCustomers = usePointOfSaleCustomers();
@@ -106,8 +108,8 @@ export default function Sale() {
       return '';
     }
 
-    return `El turno actual esta abierto en ${shiftCurrency}, pero la configuracion fiscal usa ${transactionCurrency}. Para finalizar con esa divisa, cierra este turno y abre caja en ${transactionCurrency}.`;
-  }, [currentOpenShift?.currencyCode, transactionCurrency]);
+    return pointOfSaleCopy.sale.shift.currencyMismatchNotice(shiftCurrency, transactionCurrency);
+  }, [currentOpenShift?.currencyCode, pointOfSaleCopy.sale.shift, transactionCurrency]);
   const {
     cart,
     setCart,
@@ -179,6 +181,7 @@ export default function Sale() {
   } = useSaleShift({
     pushActivity,
     formatCurrency: formatSaleCurrency,
+    copy: pointOfSaleCopy.sale.shift,
     registerContext,
     backendCurrentShift: currentOpenShift,
     isRegisterContextLoading,

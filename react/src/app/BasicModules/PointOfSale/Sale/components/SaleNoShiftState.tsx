@@ -63,6 +63,7 @@ export function SaleNoShiftState({
 }: SaleNoShiftStateProps) {
   const navigate = useNavigate();
   const moduleCopy = usePointOfSaleTranslations();
+  const copy = moduleCopy.sale.noShiftState;
   const [isCreateRegisterModalOpen, setIsCreateRegisterModalOpen] = useState(false);
   const [isCreatingRegister, setIsCreatingRegister] = useState(false);
   const [setupError, setSetupError] = useState('');
@@ -70,19 +71,19 @@ export function SaleNoShiftState({
   const hasWarehouses = warehouses.length > 0;
   const hasCashRegisters = activeCashRegisters.length > 0;
   const title = isLoading
-    ? 'Cargando punto de venta'
+    ? copy.loadingTitle
     : notice && hasCashRegisters
-      ? 'Turno cerrado'
+      ? copy.closedTitle
       : hasCashRegisters
-        ? 'Abre un turno'
-      : 'Configura POS para operar';
+        ? copy.openTitle
+      : copy.setupTitle;
   const description = isLoading
-    ? 'Estamos leyendo cajas y turnos activos desde POS.'
+    ? copy.loadingDescription
     : notice && hasCashRegisters
-      ? 'El corte quedó guardado. Puedes consultarlo o iniciar el siguiente turno.'
+      ? copy.closedDescription
       : hasCashRegisters
-        ? 'Selecciona una caja y confirma el fondo inicial para habilitar la terminal.'
-      : 'POS necesita un almacén y una caja vinculada antes de abrir turno.';
+        ? copy.openDescription
+      : copy.setupDescription;
 
   const goToWarehouses = () => {
     navigate('/inventory/warehouses');
@@ -98,9 +99,9 @@ export function SaleNoShiftState({
       setIsCreateRegisterModalOpen(false);
       await onRetry();
       onSelectCashRegister(String(createdRegister.id));
-      setSetupNotice(`${createdRegister.code} · ${createdRegister.name} quedó lista para abrir turno.`);
+      setSetupNotice(copy.registerReadyNotice(createdRegister.code, createdRegister.name));
     } catch (requestError) {
-      setSetupError(requestError instanceof Error ? requestError.message : 'No fue posible crear la caja POS.');
+      setSetupError(requestError instanceof Error ? requestError.message : copy.createRegisterError);
     } finally {
       setIsCreatingRegister(false);
     }
@@ -149,10 +150,10 @@ export function SaleNoShiftState({
               {!hasWarehouses ? (
                 <FirstUseAction
                   icon={Warehouse}
-                  title="Paso 1: crea un almacén"
-                  description="POS requiere un almacén antes de crear una caja. Las cajas operan desde almacenes y esa relación alimenta inventario, cortes y reportes."
-                  primaryLabel="Ir a almacenes"
-                  secondaryLabel="Reintentar"
+                  title={copy.missingWarehouse.title}
+                  description={copy.missingWarehouse.description}
+                  primaryLabel={copy.missingWarehouse.primaryLabel}
+                  secondaryLabel={copy.missingWarehouse.secondaryLabel}
                   onPrimary={goToWarehouses}
                   onSecondary={onRetry}
                 />
@@ -160,10 +161,10 @@ export function SaleNoShiftState({
                 canManageCashRegisters ? (
                   <FirstUseAction
                     icon={Monitor}
-                    title="Paso 2: crea una caja vinculada"
-                    description="Ya hay almacenes disponibles. Crea una caja POS ligera para seleccionar almacén, código y nombre; después podrás abrir turno."
-                    primaryLabel="Crear caja"
-                    secondaryLabel="Ir a almacenes"
+                    title={copy.createRegister.title}
+                    description={copy.createRegister.description}
+                    primaryLabel={copy.createRegister.primaryLabel}
+                    secondaryLabel={copy.createRegister.secondaryLabel}
                     onPrimary={() => setIsCreateRegisterModalOpen(true)}
                     onSecondary={goToWarehouses}
                   />
@@ -171,8 +172,8 @@ export function SaleNoShiftState({
                   <div className="flex gap-3">
                     <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
                     <div>
-                      <h3 className="font-medium text-gray-950 dark:text-white">Se necesita una caja activa</h3>
-                      <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Solicita a un administrador que cree una caja vinculada a este almacén. Los cajeros pueden abrir turnos, pero no cambiar la estructura operativa.</p>
+                      <h3 className="font-medium text-gray-950 dark:text-white">{copy.activeRegisterRequired.title}</h3>
+                      <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{copy.activeRegisterRequired.description}</p>
                     </div>
                   </div>
                 )
@@ -190,7 +191,7 @@ export function SaleNoShiftState({
                 }}
                 className="rounded-lg border border-gray-300 bg-white px-5 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
               >
-                Ver corte
+                {copy.viewClosing}
               </button>
             ) : null}
             {error && (
@@ -199,7 +200,7 @@ export function SaleNoShiftState({
                 onClick={onClearError}
                 className="rounded-lg px-5 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
               >
-                Limpiar
+                {copy.clearError}
               </button>
             )}
             {hasCashRegisters && (
@@ -208,7 +209,7 @@ export function SaleNoShiftState({
                 disabled={isLoading || isOpeningShift}
                 className="rounded-lg bg-orange-600 px-6 py-3 font-medium text-white shadow-md transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isOpeningShift ? 'Abriendo...' : notice ? 'Abrir otro turno' : 'Abrir turno'}
+                {isOpeningShift ? moduleCopy.sale.openShift.opening : notice ? copy.openAnotherShift : moduleCopy.sale.openShift.confirm}
               </button>
             )}
             </div>

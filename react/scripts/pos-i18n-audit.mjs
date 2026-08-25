@@ -592,17 +592,33 @@ function auditKnownSpanishRuntimeMessages() {
   expectIncludes(
     shiftHookFile,
     shiftHookSource,
-    'No hay una caja configurada. Crea una caja desde la configuración POS antes de abrir turno.',
-    'Spanish missing-register runtime message',
+    'copy.noRegisterConfigured',
+    'localized missing-register runtime message',
+  );
+  expectIncludes(
+    shiftHookFile,
+    shiftHookSource,
+    'copy.closedNotice(',
+    'localized closed-shift runtime notice',
   );
 
   for (const forbiddenText of [
+    'No hay una caja configurada. Crea una caja desde la configuración POS antes de abrir turno.',
     'No cash register configured.',
     'Create a cash register from POS setup before opening a shift.',
+    'Turno cerrado y corte generado.',
   ]) {
     if (shiftHookSource.includes(forbiddenText)) {
-      fail(`${repoPath(shiftHookFile)} still contains English runtime text: ${forbiddenText}`);
+      fail(`${repoPath(shiftHookFile)} still contains hardcoded runtime text: ${forbiddenText}`);
     }
+  }
+
+  for (const locale of supportedLocales) {
+    const localeFile = join(posRoot, 'translations', localeFiles[locale]);
+    const localeSource = source(localeFile);
+    expectIncludes(localeFile, localeSource, 'noRegisterConfigured:', `${locale} missing-register runtime copy`);
+    expectIncludes(localeFile, localeSource, 'closedNotice:', `${locale} closed-shift runtime copy`);
+    expectIncludes(localeFile, localeSource, 'closeError:', `${locale} close-shift error copy`);
   }
 }
 
