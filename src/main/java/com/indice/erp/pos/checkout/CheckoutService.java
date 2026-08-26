@@ -18,6 +18,8 @@ import com.indice.erp.pos.shift.ShiftRecord;
 import com.indice.erp.pos.shift.ShiftRepository;
 import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.PreticketResponse;
 import com.indice.erp.pos.selfservice.SelfServiceKioskRepository;
+import com.indice.erp.pos.restaurant.RestaurantOrderDtos.RestaurantCheckoutOrder;
+import com.indice.erp.pos.restaurant.RestaurantOrderService;
 import com.indice.erp.pos.status.PaymentStatus;
 import com.indice.erp.pos.status.TicketStatus;
 import com.indice.erp.pos.ticket.TicketInsertCommand;
@@ -55,6 +57,7 @@ public class CheckoutService {
     private final CheckoutValidator validator;
     private final DiscountRuleService discountRuleService;
     private final SelfServiceKioskRepository selfServiceKioskRepository;
+    private final RestaurantOrderService restaurantOrders;
 
     @Autowired
     public CheckoutService(
@@ -70,7 +73,8 @@ public class CheckoutService {
             CheckoutCalculator calculator,
             CheckoutValidator validator,
             DiscountRuleService discountRuleService,
-            SelfServiceKioskRepository selfServiceKioskRepository) {
+            SelfServiceKioskRepository selfServiceKioskRepository,
+            RestaurantOrderService restaurantOrders) {
         this.cashRegisterService = cashRegisterService;
         this.shiftRepository = shiftRepository;
         this.lookupRepository = lookupRepository;
@@ -84,6 +88,26 @@ public class CheckoutService {
         this.validator = validator;
         this.discountRuleService = discountRuleService;
         this.selfServiceKioskRepository = selfServiceKioskRepository;
+        this.restaurantOrders = restaurantOrders;
+    }
+
+    CheckoutService(
+            CashRegisterService cashRegisterService,
+            ShiftRepository shiftRepository,
+            CheckoutLookupRepository lookupRepository,
+            SalesRecordSummaryRepository salesRecordSummaryRepository,
+            TicketRepository ticketRepository,
+            PaymentRepository paymentRepository,
+            InventoryDeductionService inventoryDeductionService,
+            TicketMapper ticketMapper,
+            PaymentMapper paymentMapper,
+            CheckoutCalculator calculator,
+            CheckoutValidator validator,
+            DiscountRuleService discountRuleService,
+            SelfServiceKioskRepository selfServiceKioskRepository) {
+        this(cashRegisterService, shiftRepository, lookupRepository, salesRecordSummaryRepository, ticketRepository,
+            paymentRepository, inventoryDeductionService, ticketMapper, paymentMapper, calculator, validator,
+            discountRuleService, selfServiceKioskRepository, null);
     }
 
     CheckoutService(
@@ -99,7 +123,7 @@ public class CheckoutService {
             CheckoutCalculator calculator,
             CheckoutValidator validator) {
         this(cashRegisterService, shiftRepository, lookupRepository, salesRecordSummaryRepository, ticketRepository,
-            paymentRepository, inventoryDeductionService, ticketMapper, paymentMapper, calculator, validator, null, null);
+            paymentRepository, inventoryDeductionService, ticketMapper, paymentMapper, calculator, validator, null, null, null);
     }
 
     @Transactional
@@ -113,10 +137,16 @@ public class CheckoutService {
         requireShiftCurrency(shift, currency);
         var customer = customer(context, request.customerId());
         var lines = calculator.lines(request.items(), currency, productResolver(context));
+        if (request.preticketId() != null && request.restaurantOrderId() != null) {
+            throw PosApiException.badRequest("Checkout accepts either preticketId or restaurantOrderId, not both.");
+        }
         var preticket = claimedPreticket(context, request.preticketId(), register);
         validatePreticketLines(request, preticket);
+        var restaurantOrder = claimedRestaurantOrder(context, request.restaurantOrderId(), register);
+        validateRestaurantLines(request, restaurantOrder);
         var appliedDiscountRules = validateDiscountRules(
-            context, request, lines, customer, preticket == null ? "POS" : "KIOSK", currency,
+            context, request, lines, customer,
+            restaurantOrder != null ? "RESTAURANT" : preticket == null ? "POS" : "KIOSK", currency,
             register.warehouseId(), register.unitId(), register.businessId());
         var payments = calculator.payments(request.payments(), currency);
         var totals = calculator.totals(lines, payments);
@@ -144,6 +174,7 @@ public class CheckoutService {
         var paymentRecords = paymentRepository.insertAll(context, ticket.id(), paymentCommands(context, shift, payments));
         increaseShiftExpectedCash(context, shift, totals.cashPaidAmount());
         completePreticket(context, request.preticketId(), register, ticket.id());
+        completeRestaurantOrder(context, request.restaurantOrderId(), register, ticket.id());
 
         return new PosCheckoutResponse(
             ticketMapper.toResponse(ticket),
@@ -282,6 +313,38 @@ public class CheckoutService {
         }
     }
 
+    private RestaurantCheckoutOrder claimedRestaurantOrder(
+            PosContext context, Long restaurantOrderId, CashRegisterRecord register) {
+        if (restaurantOrderId == null) return null;
+        if (restaurantOrders == null) throw PosApiException.conflict("Restaurant checkout is unavailable.");
+        return restaurantOrders.requireClaimedForCheckout(context, restaurantOrderId, register.id());
+    }
+
+    private void validateRestaurantLines(PosCheckoutRequest request, RestaurantCheckoutOrder order) {
+        if (order == null) return;
+        if (!CheckoutCalculator.normalizeCurrency(order.currencyCode())
+                .equals(CheckoutCalculator.normalizeCurrency(request.currencyCode()))) {
+            throw PosApiException.badRequest("Restaurant order currency does not match checkout currency.");
+        }
+        if (request.items().size() != order.items().size()) {
+            throw PosApiException.badRequest("Restaurant order items cannot be added or removed before checkout.");
+        }
+        var matched = new boolean[request.items().size()];
+        for (var source : order.items()) {
+            var match = java.util.stream.IntStream.range(0, request.items().size())
+                .filter(index -> !matched[index])
+                .filter(index -> Objects.equals(request.items().get(index).productId(), source.productId()))
+                .filter(index -> sameMoney(request.items().get(index).quantity(), source.quantity()))
+                .filter(index -> sameMoney(request.items().get(index).unitPrice(), source.unitPrice()))
+                .findFirst();
+            if (match.isEmpty()) {
+                throw PosApiException.badRequest(
+                    "Restaurant order quantities and prices cannot be changed before checkout.");
+            }
+            matched[match.getAsInt()] = true;
+        }
+    }
+
     private boolean sameMoney(BigDecimal first, BigDecimal second) {
         return (first == null ? BigDecimal.ZERO : first).setScale(2, RoundingMode.HALF_UP)
             .compareTo((second == null ? BigDecimal.ZERO : second).setScale(2, RoundingMode.HALF_UP)) == 0;
@@ -296,6 +359,14 @@ public class CheckoutService {
                 && (selfServiceKioskRepository == null
                     || !selfServiceKioskRepository.completeClaim(context, preticketId, register, ticketId))) {
             throw PosApiException.conflict("Preticket could not be completed with this sale.");
+        }
+    }
+
+    private void completeRestaurantOrder(
+            PosContext context, Long restaurantOrderId, CashRegisterRecord register, long ticketId) {
+        if (restaurantOrderId != null) {
+            if (restaurantOrders == null) throw PosApiException.conflict("Restaurant checkout is unavailable.");
+            restaurantOrders.completeCheckout(context, restaurantOrderId, register.id(), ticketId);
         }
     }
 

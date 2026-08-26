@@ -27,9 +27,11 @@ public class PointOfSaleKioskAdapter implements KioskModuleAdapter {
         var byCapability = new LinkedHashMap<String, PointOfSaleKioskExperience>();
         var allCapabilities = new LinkedHashSet<KioskCapabilityDescriptor>();
         for (var experience : experiences) {
-            var previousType = byType.putIfAbsent(experience.kioskType(), experience);
-            if (previousType != null) {
-                throw new IllegalStateException("Duplicate POS kiosk experience: " + experience.kioskType());
+            for (var kioskType : experience.kioskTypes()) {
+                var previousType = byType.putIfAbsent(kioskType, experience);
+                if (previousType != null) {
+                    throw new IllegalStateException("Duplicate POS kiosk experience: " + kioskType);
+                }
             }
             for (var capability : experience.capabilities()) {
                 if (!PointOfSaleKioskCapabilities.OWNER_MODULE.equals(capability.ownerModule())) {

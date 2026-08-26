@@ -53,6 +53,11 @@ class PasswordResetEmailServiceTest {
             .andExpect(jsonPath("$.content[0].type").value("text/plain"))
             .andExpect(jsonPath("$.content[0].value", containsString("Hi Ada Owner,")))
             .andExpect(jsonPath("$.content[0].value", containsString("https://app.indice.test/reset-password/token")))
+            .andExpect(jsonPath("$.content[1].type").value("text/html"))
+            .andExpect(jsonPath("$.content[1].value", containsString("Reset your password")))
+            .andExpect(jsonPath("$.content[1].value", containsString(">Reset password</a>")))
+            .andExpect(jsonPath("$.content[1].value", containsString("Link expires")))
+            .andExpect(jsonPath("$.content[1].value", containsString("10 minutes")))
             .andRespond(withAccepted());
 
         var result = service.sendPasswordReset(

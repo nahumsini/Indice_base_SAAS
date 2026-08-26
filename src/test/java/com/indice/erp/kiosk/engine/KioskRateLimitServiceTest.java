@@ -6,11 +6,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -116,6 +119,21 @@ class KioskRateLimitServiceTest {
             .isEqualTo(service.stableNetworkScopeHash(KioskRateLimitType.MUTATION, second));
         assertThat(service.stableNetworkScopeHash(KioskRateLimitType.FILE, second))
             .isNotEqualTo(service.stableNetworkScopeHash(KioskRateLimitType.MUTATION, first));
+    }
+
+    @Test
+    void successfulPinResetsTheKioskNetworkAndBrowserAttemptBuckets() {
+        var jdbc = mock(org.springframework.jdbc.core.JdbcTemplate.class);
+        var service = new KioskRateLimitService(jdbc);
+        var context = context(17L, 7L);
+
+        service.resetSuccessfulPinVerification(context, Map.of("pin", "12345"), "KIOSK");
+
+        var hash = ArgumentCaptor.forClass(String.class);
+        verify(jdbc, times(3)).update(
+            org.mockito.ArgumentMatchers.contains("DELETE FROM kiosk_engine_rate_limit_buckets"),
+            eq("PIN_VERIFICATION"), hash.capture());
+        assertThat(hash.getAllValues()).doesNotHaveDuplicates().hasSize(3);
     }
 
     private KioskExecutionContext context(long definitionId, long companyId) {

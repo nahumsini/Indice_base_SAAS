@@ -17,8 +17,9 @@ type Props = {
 };
 
 export function KioskEditModal({ kiosk, onClose, onSaved }: Props) {
+  const restaurant = kiosk.kioskType === 'waiter_station' || kiosk.kioskType === 'table_order_center' || kiosk.kioskType === 'kitchen_display';
   const [detail, setDetail] = useState<SelfServiceKioskAdmin | null>(null);
-  const [loading, setLoading] = useState(kiosk.kioskType !== 'customer_display');
+  const [loading, setLoading] = useState(kiosk.kioskType !== 'customer_display' && !restaurant);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [name, setName] = useState(kiosk.name);
@@ -29,7 +30,7 @@ export function KioskEditModal({ kiosk, onClose, onSaved }: Props) {
   const [expiresAt, setExpiresAt] = useState(toLocalDateTime(kiosk.expiresAt));
 
   useEffect(() => {
-    if (kiosk.kioskType === 'customer_display') return;
+    if (kiosk.kioskType === 'customer_display' || restaurant) return;
     let active = true;
     void selfServiceKioskApi.listAdmin()
       .then((items) => {
@@ -48,7 +49,7 @@ export function KioskEditModal({ kiosk, onClose, onSaved }: Props) {
       .catch((requestError) => active && setError(requestError instanceof Error ? requestError.message : 'No fue posible cargar la configuración.'))
       .finally(() => active && setLoading(false));
     return () => { active = false; };
-  }, [kiosk]);
+  }, [kiosk, restaurant]);
 
   const save = async () => {
     if (name.trim().length < 3) {
@@ -58,8 +59,11 @@ export function KioskEditModal({ kiosk, onClose, onSaved }: Props) {
     setSaving(true);
     setError('');
     try {
-      if (kiosk.kioskType === 'customer_display' || !detail) {
-        await posKioskAdminApi.update(kiosk.id, { name: name.trim() });
+      if (kiosk.kioskType === 'customer_display' || restaurant || !detail) {
+        await posKioskAdminApi.update(kiosk.id, {
+          name: name.trim(),
+          ...(restaurant ? { expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null, version: kiosk.version } : {}),
+        });
       } else {
         await selfServiceKioskApi.updateAdmin(detail, {
           name: name.trim(),
@@ -82,6 +86,12 @@ export function KioskEditModal({ kiosk, onClose, onSaved }: Props) {
     ? 'Pantalla de cliente'
     : kiosk.kioskType === 'self_checkout'
       ? 'Autocobro'
+      : kiosk.kioskType === 'waiter_station'
+        ? 'Estación de mesero'
+        : kiosk.kioskType === 'table_order_center'
+          ? 'Mesas y centro de órdenes'
+          : kiosk.kioskType === 'kitchen_display'
+            ? 'Pantalla de cocina'
       : 'Autoservicio y pre-ticket';
 
   return (
@@ -112,9 +122,11 @@ export function KioskEditModal({ kiosk, onClose, onSaved }: Props) {
 
         <label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">Nombre del kiosco</span><input value={name} onChange={(event) => setName(event.target.value)} maxLength={120} className={inputClassName} /></label>
 
+        {restaurant ? <label className="block"><span className="mb-2 block text-sm font-medium text-slate-700">Vencimiento del acceso (opcional)</span><input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} className={inputClassName} /></label> : null}
+
         {loading ? <p className="text-sm text-slate-500">Cargando configuración…</p> : null}
 
-        {!loading && kiosk.kioskType !== 'customer_display' && detail ? (
+        {!loading && !restaurant && kiosk.kioskType !== 'customer_display' && detail ? (
           <section className="grid gap-4 sm:grid-cols-2">
             <Toggle label="Mostrar existencias" checked={showStock} onChange={setShowStock} />
             <Toggle label="Solicitar nombre del cliente" checked={customerNameRequired} onChange={setCustomerNameRequired} />
@@ -124,7 +136,7 @@ export function KioskEditModal({ kiosk, onClose, onSaved }: Props) {
           </section>
         ) : null}
 
-        {!loading && kiosk.kioskType !== 'customer_display' && !detail ? <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">La configuración heredada no está disponible. Puedes actualizar el nombre; las demás reglas conservarán su valor actual.</p> : null}
+        {!loading && !restaurant && kiosk.kioskType !== 'customer_display' && !detail ? <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">La configuración heredada no está disponible. Puedes actualizar el nombre; las demás reglas conservarán su valor actual.</p> : null}
         {error ? <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">{error}</p> : null}
       </div>
     </PosModalFrame>

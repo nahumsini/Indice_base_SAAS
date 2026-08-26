@@ -85,6 +85,16 @@ public class ShiftRepository {
         return count != null && count > 0;
     }
 
+    public Optional<Long> findOperationalShiftId(long companyId, long registerId) {
+        return jdbcTemplate.query("""
+            SELECT id FROM pos_shifts
+            WHERE company_id = ? AND cash_register_id = ? AND deleted_at IS NULL
+              AND status IN ('OPEN', 'CLOSING')
+            ORDER BY opened_at DESC, id DESC
+            LIMIT 1
+            """, (rs, rowNum) -> rs.getLong("id"), companyId, registerId).stream().findFirst();
+    }
+
     public boolean hasBlockingShiftForUser(PosContext context, long userId) {
         var count = jdbcTemplate.queryForObject("""
             SELECT COUNT(*) FROM pos_shifts

@@ -13,6 +13,10 @@ public interface PointOfSaleKioskExperience {
 
     String kioskType();
 
+    default Set<String> kioskTypes() {
+        return Set.of(kioskType());
+    }
+
     Set<KioskCapabilityDescriptor> capabilities();
 
     Map<String, Object> bootstrap(KioskExecutionContext context);
