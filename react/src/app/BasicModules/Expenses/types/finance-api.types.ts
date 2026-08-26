@@ -167,6 +167,28 @@ export interface ExpenseListApiResponse {
   count: number;
 }
 
+export type ExpensePaymentSource = 'RECORDED' | 'SETTLED_ON_CREATE' | 'LEGACY_AGGREGATE';
+
+export interface ExpensePaymentApiDto {
+  id: number;
+  expenseId: number;
+  paymentAccountId?: number | null;
+  paymentAccountName?: string | null;
+  paymentAccountType?: BackendPaymentAccountType | null;
+  amount: number | string;
+  currencyCode: string;
+  paymentDate: string;
+  source: ExpensePaymentSource;
+  registeredByUserId?: number | null;
+  registeredByName?: string | null;
+  createdAt: string;
+}
+
+export interface ExpensePaymentListApiResponse {
+  payments: ExpensePaymentApiDto[];
+  count: number;
+}
+
 export interface ExpenseApiRequest {
   unitId?: number | null;
   businessId?: number | null;

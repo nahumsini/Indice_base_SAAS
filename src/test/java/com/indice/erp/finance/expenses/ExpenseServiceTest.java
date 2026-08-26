@@ -5,6 +5,7 @@ import com.indice.erp.finance.FinanceApiException;
 import com.indice.erp.finance.budgetlines.BudgetLineRollupService;
 import com.indice.erp.finance.expenses.dto.CreateExpenseRequest;
 import com.indice.erp.finance.expenses.dto.RecordExpensePaymentRequest;
+import com.indice.erp.finance.expenses.dto.ExpensePaymentResponse;
 import com.indice.erp.finance.expenses.dto.UpdateExpenseRequest;
 import com.indice.erp.finance.expenses.dto.UpdateExpenseStatusRequest;
 import com.indice.erp.finance.shared.FinanceContext;
@@ -42,6 +43,9 @@ class ExpenseServiceTest {
 
     @Mock
     private ExpenseWorkflowRepository workflowRepository;
+
+    @Mock
+    private ExpensePaymentRepository paymentRepository;
 
     @Mock
     private BudgetLineRollupService budgetLineRollupService;
@@ -117,6 +121,15 @@ class ExpenseServiceTest {
             eq(null),
             eq(null)
         )).thenReturn(true);
+        when(paymentRepository.insert(
+            context,
+            10L,
+            null,
+            new BigDecimal("116.00"),
+            "MXN",
+            LocalDate.of(2026, 6, 8),
+            ExpensePaymentRepository.SOURCE_SETTLED_ON_CREATE
+        )).thenReturn(true);
         when(repository.findById(context, 10L)).thenReturn(Optional.of(paid));
 
         var response = service.createDraft(context, request);
@@ -125,6 +138,15 @@ class ExpenseServiceTest {
         assertEquals(PaymentStatus.PAID, response.paymentStatus());
         assertEquals(new BigDecimal("116.00"), response.paidAmount());
         assertEquals(BigDecimal.ZERO, response.balanceAmount());
+        verify(paymentRepository).insert(
+            context,
+            10L,
+            null,
+            new BigDecimal("116.00"),
+            "MXN",
+            LocalDate.of(2026, 6, 8),
+            ExpensePaymentRepository.SOURCE_SETTLED_ON_CREATE
+        );
     }
 
     @Test
@@ -360,6 +382,15 @@ class ExpenseServiceTest {
             LocalDate.of(2026, 6, 15)
         )).thenReturn(true);
         when(workflowRepository.adjustPaymentAccountBalance(context, 81L, new BigDecimal("-50.00"))).thenReturn(true);
+        when(paymentRepository.insert(
+            context,
+            21L,
+            81L,
+            new BigDecimal("50.00"),
+            "MXN",
+            LocalDate.of(2026, 6, 15),
+            ExpensePaymentRepository.SOURCE_RECORDED
+        )).thenReturn(true);
 
         var response = service.recordPayment(context, 21L,
             new RecordExpensePaymentRequest(new BigDecimal("50.00"), 81L, LocalDate.of(2026, 6, 15)));
@@ -369,6 +400,15 @@ class ExpenseServiceTest {
         assertEquals(new BigDecimal("66.00"), response.balanceAmount());
         verify(referenceValidator).validatePaymentAccountForPayment(context, 81L, "MXN");
         verify(workflowRepository).adjustPaymentAccountBalance(context, 81L, new BigDecimal("-50.00"));
+        verify(paymentRepository).insert(
+            context,
+            21L,
+            81L,
+            new BigDecimal("50.00"),
+            "MXN",
+            LocalDate.of(2026, 6, 15),
+            ExpensePaymentRepository.SOURCE_RECORDED
+        );
         verify(budgetLineRollupService).refreshExpenseImpact(context, 44L);
     }
 
@@ -391,6 +431,15 @@ class ExpenseServiceTest {
             LocalDate.of(2026, 6, 16)
         )).thenReturn(true);
         when(workflowRepository.adjustPaymentAccountBalance(context, 81L, new BigDecimal("-116.00"))).thenReturn(true);
+        when(paymentRepository.insert(
+            context,
+            22L,
+            81L,
+            new BigDecimal("116.00"),
+            "MXN",
+            LocalDate.of(2026, 6, 16),
+            ExpensePaymentRepository.SOURCE_RECORDED
+        )).thenReturn(true);
 
         var response = service.recordPayment(context, 22L,
             new RecordExpensePaymentRequest(new BigDecimal("116.00"), 81L, LocalDate.of(2026, 6, 16)));
@@ -400,6 +449,15 @@ class ExpenseServiceTest {
         assertEquals(new BigDecimal("116.00"), response.paidAmount());
         assertEquals(new BigDecimal("0.00"), response.balanceAmount());
         verify(workflowRepository).adjustPaymentAccountBalance(context, 81L, new BigDecimal("-116.00"));
+        verify(paymentRepository).insert(
+            context,
+            22L,
+            81L,
+            new BigDecimal("116.00"),
+            "MXN",
+            LocalDate.of(2026, 6, 16),
+            ExpensePaymentRepository.SOURCE_RECORDED
+        );
     }
 
     @Test
@@ -462,10 +520,40 @@ class ExpenseServiceTest {
         verify(repository).findAll(context);
     }
 
+    @Test
+    void listPaymentsRequiresScopedExpenseAndReturnsIndividualMovements() {
+        var service = service();
+        var context = context();
+        var payment = new ExpensePaymentResponse(
+            501L,
+            25L,
+            81L,
+            "Main account",
+            "BANK",
+            new BigDecimal("30.00"),
+            "MXN",
+            LocalDate.of(2026, 6, 18),
+            ExpensePaymentRepository.SOURCE_RECORDED,
+            1L,
+            "Finance User",
+            Instant.parse("2026-06-18T14:00:00Z")
+        );
+        when(repository.findById(context, 25L)).thenReturn(Optional.of(record(25L, ExpenseStatus.PARTIALLY_PAID, "Paid expense")));
+        when(paymentRepository.findAll(context, 25L)).thenReturn(java.util.List.of(payment));
+
+        var response = service.listPayments(context, 25L);
+
+        assertEquals(1, response.count());
+        assertEquals(payment, response.payments().get(0));
+        verify(repository).findById(context, 25L);
+        verify(paymentRepository).findAll(context, 25L);
+    }
+
     private ExpenseService service() {
         return new ExpenseService(
             repository,
             workflowRepository,
+            paymentRepository,
             budgetLineRollupService,
             new ExpenseMapper(),
             new ExpenseValidator(accessService),

@@ -5,6 +5,7 @@ import com.indice.erp.finance.budgetlines.BudgetLineRollupService;
 import com.indice.erp.finance.expenses.dto.CreateExpenseRequest;
 import com.indice.erp.finance.expenses.dto.DeleteExpenseResponse;
 import com.indice.erp.finance.expenses.dto.ExpenseListResponse;
+import com.indice.erp.finance.expenses.dto.ExpensePaymentListResponse;
 import com.indice.erp.finance.expenses.dto.ExpenseResponse;
 import com.indice.erp.finance.expenses.dto.RecordExpensePaymentRequest;
 import com.indice.erp.finance.expenses.dto.RejectExpenseRequest;
@@ -32,6 +33,7 @@ public class ExpenseService {
 
     private final ExpenseRepository repository;
     private final ExpenseWorkflowRepository workflowRepository;
+    private final ExpensePaymentRepository paymentRepository;
     private final BudgetLineRollupService budgetLineRollupService;
     private final ExpenseMapper mapper;
     private final ExpenseValidator validator;
@@ -40,12 +42,14 @@ public class ExpenseService {
     public ExpenseService(
             ExpenseRepository repository,
             ExpenseWorkflowRepository workflowRepository,
+            ExpensePaymentRepository paymentRepository,
             BudgetLineRollupService budgetLineRollupService,
             ExpenseMapper mapper,
             ExpenseValidator validator,
             ExpenseReferenceValidator referenceValidator) {
         this.repository = repository;
         this.workflowRepository = workflowRepository;
+        this.paymentRepository = paymentRepository;
         this.budgetLineRollupService = budgetLineRollupService;
         this.mapper = mapper;
         this.validator = validator;
@@ -112,6 +116,16 @@ public class ExpenseService {
                 null,
                 null)) {
             throw FinanceApiException.conflict("Expense could not be marked as paid.");
+        }
+        if (!paymentRepository.insert(
+                context,
+                created.id(),
+                created.paymentAccountId(),
+                created.totalAmount(),
+                created.currencyCode(),
+                request.expenseDate(),
+                ExpensePaymentRepository.SOURCE_SETTLED_ON_CREATE)) {
+            throw FinanceApiException.conflict("Initial expense payment history could not be recorded.");
         }
         refreshBudgetLine(context, created.budgetLineId());
         return get(context, created.id());
@@ -225,8 +239,25 @@ public class ExpenseService {
         if (!workflowRepository.adjustPaymentAccountBalance(context, request.paymentAccountId(), request.amount().negate())) {
             throw FinanceApiException.conflict("Payment account balance could not be updated.");
         }
+        if (!paymentRepository.insert(
+                context,
+                expenseId,
+                request.paymentAccountId(),
+                request.amount(),
+                existing.currencyCode(),
+                request.paymentDate(),
+                ExpensePaymentRepository.SOURCE_RECORDED)) {
+            throw FinanceApiException.conflict("Expense payment history could not be recorded.");
+        }
         refreshBudgetLine(context, existing.budgetLineId());
         return get(context, expenseId);
+    }
+
+    @Transactional(readOnly = true)
+    public ExpensePaymentListResponse listPayments(FinanceContext context, long expenseId) {
+        requireExpense(context, expenseId);
+        var payments = paymentRepository.findAll(context, expenseId);
+        return new ExpensePaymentListResponse(payments, payments.size());
     }
 
     @Transactional

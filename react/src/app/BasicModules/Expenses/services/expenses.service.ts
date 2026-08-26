@@ -6,11 +6,11 @@ import {
 } from '../adapters/expense.adapter';
 import { EXPENSE_COLUMN_CONTRACT } from '../types/expense-column-contract.types';
 import { createEmptyFinancialOverview } from '../types/financial-overview.types';
-import type { Expense, ExpenseStatus } from '../types/expenses.types';
+import type { Expense, ExpensePayment, ExpenseStatus } from '../types/expenses.types';
 import type { ExpenseColumnContract } from '../types/expense-column-contract.types';
 import type { FinancialOverview } from '../types/financial-overview.types';
 import type { FinanceExpense, FinancePurchaseOrder } from '../types/finance-domain.types';
-import type { ExpenseApiDto, ExpenseListApiResponse } from '../types/finance-api.types';
+import type { ExpenseApiDto, ExpenseListApiResponse, ExpensePaymentListApiResponse } from '../types/finance-api.types';
 
 const expensesPath = '/api/v1/finance/expenses';
 
@@ -33,6 +33,24 @@ export const expensesService = {
   async getExpenseById(expenseId: string, providers: Array<{ id: string; name: string }> = []): Promise<Expense | null> {
     const response = await apiClient<ExpenseApiDto>(`${expensesPath}/${expenseId}`);
     return toExpense(response, providers);
+  },
+
+  async getExpensePayments(expenseId: string): Promise<ExpensePayment[]> {
+    const response = await apiClient<ExpensePaymentListApiResponse>(`${expensesPath}/${expenseId}/payments`);
+    return response.payments.map(payment => ({
+      id: String(payment.id),
+      expenseId: String(payment.expenseId),
+      paymentAccountId: payment.paymentAccountId == null ? undefined : String(payment.paymentAccountId),
+      paymentAccountName: payment.paymentAccountName ?? undefined,
+      paymentAccountType: payment.paymentAccountType ?? undefined,
+      amount: Number(payment.amount),
+      currency: payment.currencyCode,
+      paymentDate: payment.paymentDate,
+      source: payment.source,
+      registeredByUserId: payment.registeredByUserId == null ? undefined : String(payment.registeredByUserId),
+      registeredByName: payment.registeredByName ?? undefined,
+      createdAt: new Date(payment.createdAt),
+    }));
   },
 
   async createExpense(expense: Expense, providers: Array<{ id: string; name: string }> = []): Promise<Expense> {

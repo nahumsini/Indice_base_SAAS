@@ -59,14 +59,16 @@ test('the full expense form supports quick providers and persisted evidence', as
   assert.match(pageSource, /onCreateProvider=\{onProvidersChange \? handleQuickProviderCreate : undefined\}/);
 });
 
-test('payment evidence keeps its context and the expense dossier is the mobile detail surface', async () => {
-  const [paymentModal, pageSource, attachmentService, attachmentModal, mobileCards, detailModal, filters] = await Promise.all([
+test('payment evidence keeps its context and the expense dossier reads the auditable payment ledger', async () => {
+  const [paymentModal, pageSource, attachmentService, expensesService, attachmentModal, mobileCards, detailModal, paymentHistory, filters] = await Promise.all([
     readFile(new URL('../src/app/BasicModules/Expenses/components/modals/ExpensePaymentModal.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/BasicModules/Expenses/Expenses/Expenses.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/BasicModules/Expenses/services/expense-attachments.service.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/Expenses/services/expenses.service.ts', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/BasicModules/Expenses/Expenses/components/AttachmentsModal.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/BasicModules/Expenses/Expenses/components/ExpenseMobileCards.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/BasicModules/Expenses/Expenses/components/ExpenseDetailModal.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/Expenses/Expenses/components/ExpensePaymentHistory.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/BasicModules/Expenses/utils/expenseFilters.ts', import.meta.url), 'utf8'),
   ]);
 
@@ -79,7 +81,12 @@ test('payment evidence keeps its context and the expense dossier is the mobile d
   assert.match(mobileCards, /copy\.title/);
   assert.doesNotMatch(mobileCards, /isExpanded/);
   assert.match(detailModal, /copy\.paymentHistory/);
-  assert.match(detailModal, /payment\.files\.map/);
+  assert.match(detailModal, /expensesService\.getExpensePayments\(expense\.id\)/);
+  assert.match(expensesService, /\/payments/);
+  assert.match(paymentHistory, /payment\.registeredByName/);
+  assert.match(paymentHistory, /payment\.paymentAccountName/);
+  assert.match(paymentHistory, /payment\.files\.map/);
+  assert.match(paymentHistory, /LEGACY_AGGREGATE/);
   assert.match(pageSource, /<ExpenseDetailModal/);
   assert.match(filters, /expense\.type === 'real'/);
 });

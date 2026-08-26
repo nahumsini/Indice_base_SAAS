@@ -5,6 +5,22 @@ export type PaymentMethod = 'cash' | 'credit_card' | 'debit_card' | 'transfer' |
 export type ExpenseEntryType = 'real' | 'budget' | 'payable';
 export type ExpenseFrequency = 'once' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'bimonthly' | 'quarterly' | 'semiannual' | 'annual';
 export type ExpenseTaxMode = 'none' | 'auto' | 'manual';
+export type ExpensePaymentSource = 'RECORDED' | 'SETTLED_ON_CREATE' | 'LEGACY_AGGREGATE';
+
+export interface ExpensePayment {
+  id: string;
+  expenseId: string;
+  paymentAccountId?: string;
+  paymentAccountName?: string;
+  paymentAccountType?: string;
+  amount: number;
+  currency: string;
+  paymentDate: string;
+  source: ExpensePaymentSource;
+  registeredByUserId?: string;
+  registeredByName?: string;
+  createdAt: Date;
+}
 
 export interface Expense {
   id: string;

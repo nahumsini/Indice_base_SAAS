@@ -52,6 +52,15 @@ public class FinanceExpensesController {
         return ResponseEntity.ok(expenseService.get(access.context(), expenseId));
     }
 
+    @GetMapping("/{expenseId}/payments")
+    public ResponseEntity<?> listPayments(HttpSession session, @PathVariable long expenseId) {
+        var access = guard.requireReadAccess(session);
+        if (access.denied()) {
+            return access.error();
+        }
+        return ResponseEntity.ok(expenseService.listPayments(access.context(), expenseId));
+    }
+
     @PostMapping
     public ResponseEntity<?> create(
             HttpSession session,

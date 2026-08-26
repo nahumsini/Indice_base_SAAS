@@ -4,6 +4,8 @@ import com.indice.erp.finance.FinanceRequestGuard;
 import com.indice.erp.finance.expenses.dto.CreateExpenseRequest;
 import com.indice.erp.finance.expenses.dto.DeleteExpenseResponse;
 import com.indice.erp.finance.expenses.dto.ExpenseListResponse;
+import com.indice.erp.finance.expenses.dto.ExpensePaymentListResponse;
+import com.indice.erp.finance.expenses.dto.ExpensePaymentResponse;
 import com.indice.erp.finance.expenses.dto.ExpenseResponse;
 import com.indice.erp.finance.expenses.dto.UpdateExpenseRequest;
 import com.indice.erp.finance.shared.FinanceContext;
@@ -64,6 +66,35 @@ class FinanceExpensesControllerTest {
         when(expenseService.get(context, 55L)).thenReturn(body);
 
         var response = controller.get(session, 55L);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(body, response.getBody());
+        verify(guard).requireReadAccess(session);
+    }
+
+    @Test
+    void listPaymentsUsesReadGuardAndReturnsAuditableHistory() {
+        var controller = controller();
+        var context = context();
+        var payment = new ExpensePaymentResponse(
+            12L,
+            55L,
+            81L,
+            "Main account",
+            "BANK",
+            new BigDecimal("50.00"),
+            "MXN",
+            LocalDate.of(2026, 6, 15),
+            "RECORDED",
+            1L,
+            "Finance User",
+            Instant.parse("2026-06-15T12:00:00Z")
+        );
+        var body = new ExpensePaymentListResponse(List.of(payment), 1);
+        when(guard.requireReadAccess(session)).thenReturn(allowed(context));
+        when(expenseService.listPayments(context, 55L)).thenReturn(body);
+
+        var response = controller.listPayments(session, 55L);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(body, response.getBody());

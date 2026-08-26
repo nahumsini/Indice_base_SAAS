@@ -1,14 +1,17 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { CalendarDays, Clock3, Download, FileText, HandCoins, Landmark, Loader2, Pencil, ReceiptText, ShieldCheck } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { CalendarDays, Clock3, FileText, HandCoins, Landmark, Loader2, Pencil, ReceiptText, ShieldCheck } from 'lucide-react';
 import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
-import type { Expense } from '../../types/expenses.types';
+import type { Expense, ExpensePayment } from '../../types/expenses.types';
 import type { PaymentAccount } from '../../PaymentAccounts/types';
 import { expenseAttachmentsService, type ExpenseAttachment } from '../../services/expense-attachments.service';
+import { expensesService } from '../../services/expenses.service';
 import { isBackendId } from '../../adapters/adapter.utils';
 import { formatCurrency } from '../../utils/expenses.utils';
 import { getEffectiveExpenseStatus, getExpenseBalance, getExpensePaidAmount } from '../../utils/expenseFilters';
 import { useExpensesResolvedLocale, useExpensesTranslations } from '../hooks/useExpensesTranslations';
 import { getExpenseDetailCopy } from './expenseDetail.copy';
+import { ExpenseAttachmentLink } from './ExpenseAttachmentLink';
+import { ExpensePaymentHistory } from './ExpensePaymentHistory';
 
 type ExpenseDetailModalProps = {
   expense: Expense;
@@ -24,38 +27,33 @@ export function ExpenseDetailModal({ expense, onClose, onEdit, onOpenAttachments
   const locale = useExpensesResolvedLocale();
   const copy = getExpenseDetailCopy(locale);
   const [attachments, setAttachments] = useState<ExpenseAttachment[]>([]);
+  const [payments, setPayments] = useState<ExpensePayment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const balance = getExpenseBalance(expense);
   const paid = getExpensePaidAmount(expense);
   const status = getEffectiveExpenseStatus(expense);
+  const paidPercentage = expense.total > 0 ? Math.min(100, Math.max(0, Math.round((paid / expense.total) * 100))) : 0;
 
   useEffect(() => {
     if (!isBackendId(expense.id)) return;
     let mounted = true;
     setIsLoading(true);
     setLoadError('');
-    expenseAttachmentsService.list(expense.id)
-      .then(files => mounted && setAttachments(files))
-      .catch(() => mounted && setLoadError(copy.loadFailed))
-      .finally(() => mounted && setIsLoading(false));
+    setAttachments([]);
+    setPayments([]);
+    Promise.allSettled([
+      expenseAttachmentsService.list(expense.id),
+      expensesService.getExpensePayments(expense.id),
+    ]).then(([filesResult, paymentsResult]) => {
+      if (!mounted) return;
+      if (filesResult.status === 'fulfilled') setAttachments(filesResult.value);
+      if (paymentsResult.status === 'fulfilled') setPayments(paymentsResult.value);
+      if (filesResult.status === 'rejected' || paymentsResult.status === 'rejected') setLoadError(copy.loadFailed);
+    }).finally(() => mounted && setIsLoading(false));
     return () => { mounted = false; };
   }, [copy.loadFailed, expense.id]);
 
-  const paymentGroups = useMemo(() => {
-    const grouped = new Map<string, { amount: number; date?: string; accountId?: string; files: ExpenseAttachment[] }>();
-    attachments.filter(file => file.paymentAmount && file.paymentDate).forEach(file => {
-      const key = `${file.paymentDate}:${file.paymentAmount}:${file.paymentAccountId ?? ''}`;
-      const current = grouped.get(key) ?? { amount: file.paymentAmount ?? 0, date: file.paymentDate, accountId: file.paymentAccountId, files: [] };
-      current.files.push(file);
-      grouped.set(key, current);
-    });
-    const groups = Array.from(grouped.values()).sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
-    if (paid > 0 && groups.length === 0) {
-      groups.push({ amount: paid, date: expense.paymentDate?.toISOString().slice(0, 10), accountId: expense.paymentAccountId, files: [] });
-    }
-    return groups;
-  }, [attachments, expense.paymentAccountId, expense.paymentDate, paid]);
   const generalFiles = attachments.filter(file => !file.paymentAmount || !file.paymentDate);
   const statusLabel = t.expenses.table.statuses[status] ?? status;
 
@@ -69,7 +67,7 @@ export function ExpenseDetailModal({ expense, onClose, onEdit, onOpenAttachments
           {balance > 0 && expense.type !== 'budget' ? <button type="button" onClick={onRecordPayment} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-medium text-[#147514]"><HandCoins className="h-4 w-4" />{copy.recordPayment}</button> : null}
         </div>
       )}
-      footerSummary={formatCurrency(balance, expense.currency)}
+      footerSummary={`${copy.balance}: ${formatCurrency(balance, expense.currency)}`}
       icon={<ReceiptText className="h-5 w-5" />}
       modalType="operational-workspace"
       onOpenChange={(open) => !open && onClose()}
@@ -90,11 +88,17 @@ export function ExpenseDetailModal({ expense, onClose, onEdit, onOpenAttachments
               <Metric label={copy.paid} value={formatCurrency(paid, expense.currency)} />
               <Metric label={copy.balance} value={formatCurrency(balance, expense.currency)} accent={balance > 0} />
             </div>
+            <div className="border-t border-slate-100 px-5 py-3 dark:border-slate-700">
+              <div className="mb-2 flex items-center justify-between gap-3 text-xs text-slate-500"><span>{paidPercentage}% {copy.paidProgress}</span><span>{formatCurrency(paid, expense.currency)} / {formatCurrency(expense.total, expense.currency)}</span></div>
+              <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700"><div className="h-full rounded-full bg-[#147514] transition-[width]" style={{ width: `${paidPercentage}%` }} /></div>
+            </div>
           </section>
 
           <DetailSection icon={<Landmark className="h-4 w-4" />} title={copy.overview}>
             <DetailRow label={copy.provider} value={expense.providerName || t.common.unassigned} />
             <DetailRow label={t.expenses.columns.accountingAccount?.label ?? copy.classification} value={expense.accountingAccount || t.common.unassigned} />
+            <DetailRow label={copy.subtotal} value={formatCurrency(expense.amount, expense.currency)} />
+            <DetailRow label={copy.taxes} value={formatCurrency(expense.taxes, expense.currency)} />
             <DetailRow label={t.expenses.modal.currency} value={expense.currency} />
             <DetailRow label={t.expenses.columns.description?.label ?? copy.overview} value={expense.description || '—'} multiline />
           </DetailSection>
@@ -109,17 +113,30 @@ export function ExpenseDetailModal({ expense, onClose, onEdit, onOpenAttachments
         </div>
 
         <div className="space-y-5">
-          <DetailSection icon={<Clock3 className="h-4 w-4" />} title={copy.paymentHistory}>
-            {isLoading ? <Loading label={copy.loading} /> : paymentGroups.length ? paymentGroups.map((payment, index) => (
-              <div key={`${payment.date}-${payment.amount}-${index}`} className="border-b border-slate-100 py-3 last:border-0 dark:border-slate-700">
-                <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-medium text-slate-900 dark:text-white">{copy.accumulatedPayment}</p><p className="mt-1 text-xs text-slate-500">{payment.date ? formatDisplayDate(new Date(`${payment.date}T00:00:00`), locale) : '—'} · {paymentAccountName(payment.accountId, paymentAccounts)}</p></div><p className="text-sm font-medium text-[#147514]">{formatCurrency(payment.amount, expense.currency)}</p></div>
-                {payment.files.length ? <div className="mt-3 space-y-2">{payment.files.map(file => <FileLink key={file.id} file={file} label={copy.paymentEvidence} />)}</div> : null}
-              </div>
-            )) : <Empty label={copy.noPayments} />}
+          <DetailSection
+            icon={<Clock3 className="h-4 w-4" />}
+            title={copy.paymentHistory}
+            action={payments.length ? <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-[#147514] dark:bg-emerald-900/20">{payments.length}</span> : undefined}
+          >
+            <ExpensePaymentHistory
+              attachments={attachments}
+              copy={copy}
+              currency={expense.currency}
+              fallback={{
+                accountId: expense.paymentAccountId,
+                amount: paid,
+                createdAt: expense.updatedAt,
+                paymentDate: expense.paymentDate?.toISOString().slice(0, 10),
+              }}
+              isLoading={isLoading}
+              locale={locale}
+              paymentAccounts={paymentAccounts}
+              payments={payments}
+            />
           </DetailSection>
 
           <DetailSection icon={<FileText className="h-4 w-4" />} title={copy.files} action={<button type="button" onClick={onOpenAttachments} className="text-xs font-medium text-[#147514]">{t.expenses.attachments.open}</button>}>
-            {isLoading ? <Loading label={copy.loading} /> : generalFiles.length ? <div className="space-y-2">{generalFiles.map(file => <FileLink key={file.id} file={file} label={copy.supportingFile} />)}</div> : <Empty label={copy.noFiles} />}
+            {isLoading ? <Loading label={copy.loading} /> : generalFiles.length ? <div className="space-y-2">{generalFiles.map(file => <ExpenseAttachmentLink key={file.id} file={file} label={copy.supportingFile} />)}</div> : <Empty label={copy.noFiles} />}
           </DetailSection>
 
           <DetailSection icon={<ShieldCheck className="h-4 w-4" />} title={copy.audit}>
@@ -138,16 +155,5 @@ function DetailRow({ label, multiline = false, value }: { label: string; multili
 function Metric({ accent = false, label, value }: { accent?: boolean; label: string; value: string }) { return <div className="min-w-0 px-3 py-4 text-center"><p className="text-xs text-slate-500">{label}</p><p className={`mt-1 truncate text-sm font-medium ${accent ? 'text-amber-700 dark:text-amber-300' : 'text-slate-900 dark:text-white'}`}>{value}</p></div>; }
 function Empty({ label }: { label: string }) { return <p className="rounded-lg bg-slate-50 px-3 py-4 text-sm text-slate-500 dark:bg-slate-900/60">{label}</p>; }
 function Loading({ label }: { label: string }) { return <p className="flex items-center gap-2 py-3 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />{label}</p>; }
-function FileLink({ file, label }: { file: ExpenseAttachment; label: string }) {
-  const isImage = file.mimeType.startsWith('image/') && Boolean(file.downloadUrl);
-  return (
-    <a href={file.downloadUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm hover:border-[#147514]/30 dark:border-slate-700 dark:bg-slate-900/60">
-      {isImage ? <img alt="" src={file.downloadUrl} className="h-10 w-10 shrink-0 rounded-lg object-cover" /> : <FileText className="h-4 w-4 shrink-0 text-[#147514]" />}
-      <span className="min-w-0 flex-1"><span className="block truncate font-medium text-slate-800 dark:text-slate-100">{file.originalFilename}</span><span className="text-xs text-slate-500">{label}</span></span>
-      <Download className="h-4 w-4 text-slate-400" />
-    </a>
-  );
-}
-function paymentAccountName(id: string | undefined, accounts: PaymentAccount[]) { return accounts.find(account => account.id === id)?.name ?? '—'; }
 function formatDisplayDate(value: Date, locale: string) { return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(value); }
 function formatAuditDate(value: Date | undefined, locale: string) { return value ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(value) : '—'; }
