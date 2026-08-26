@@ -60,6 +60,12 @@ class SignupWelcomeEmailServiceTest {
             .andExpect(jsonPath("$.content[0].value", containsString("Sign in here:\nhttps://app.indice.test/login")))
             .andExpect(jsonPath("$.content[0].value", containsString("Your account includes a 30-day trial.")))
             .andExpect(jsonPath("$.content[0].value", containsString("contact us at support@indice.test")))
+            .andExpect(jsonPath("$.content[1].type").value("text/html"))
+            .andExpect(jsonPath("$.content[1].value", containsString("Welcome to Indice")))
+            .andExpect(jsonPath("$.content[1].value", containsString("Open your workspace")))
+            .andExpect(jsonPath("$.content[1].value", containsString("Workspace ready")))
+            .andExpect(jsonPath("$.content[1].value", containsString("The password created during signup")))
+            .andExpect(jsonPath("$.content[1].value", containsString("30-day trial active")))
             .andRespond(withAccepted());
 
         service.sendWelcome(profile(), billing());
