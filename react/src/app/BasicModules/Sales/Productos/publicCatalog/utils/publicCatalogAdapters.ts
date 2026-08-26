@@ -53,6 +53,7 @@ export function adaptProductToPublicCatalogItem(product: SalesCatalogItem): Publ
     usesInventory: product.stockPrepared || product.warehousePrepared,
     publicInventoryStatus: getPublicInventoryStatus(product),
     readyForSales: isProductReadyForPublicCatalog(product),
+    reservable: Boolean(product.reservable),
   };
 }
 
@@ -91,6 +92,7 @@ export function createDefaultPublicCatalogConfig(products: SalesCatalogItem[], c
     showCategories: true,
     allowCart: true,
     allowPurchaseRequest: true,
+    allowImageDownloads: false,
     showOnlinePaymentComingSoon: true,
     selectedCategoryIds: categories,
     selectedProductIds: readyProducts.map((product) => product.id),

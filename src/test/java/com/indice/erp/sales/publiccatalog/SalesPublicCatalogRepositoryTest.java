@@ -42,6 +42,6 @@ class SalesPublicCatalogRepositoryTest {
             17L, 7L, "Empresa", 11L, "Unidad", 12L, "Negocio", "CATALOGO-2026",
             "Catálogo 2026", "Catálogo público", null, null, "Contactar", "email",
             "ventas@example.com", "ACTIVE", null, "tokenhint", null, true, false, true,
-            true, true, true, true, 1L, now, now);
+            true, true, true, true, false, 1L, now, now);
     }
 }

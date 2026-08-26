@@ -32,6 +32,7 @@ export type PublicCatalogConfig = {
   showCategories: boolean;
   allowCart: boolean;
   allowPurchaseRequest: boolean;
+  allowImageDownloads: boolean;
   showOnlinePaymentComingSoon: boolean;
   selectedCategoryIds: string[];
   selectedProductIds: string[];
@@ -61,6 +62,20 @@ export type PublicCatalogItem = {
   usesInventory?: boolean;
   publicInventoryStatus: PublicInventoryStatus;
   readyForSales?: boolean;
+  reservable?: boolean;
+};
+
+export type PublicCatalogAvailabilityDay = {
+  date: string;
+  status: 'available' | 'occupied';
+};
+
+export type PublicCatalogAvailability = {
+  productId: number;
+  month: string;
+  sourceStatus: 'ready' | 'temporarilyUnavailable';
+  stale: boolean;
+  days: PublicCatalogAvailabilityDay[];
 };
 
 export type PublicCatalogCartItem = {

@@ -11,6 +11,7 @@ import { getModulePrimaryForeground, MODULE_COLORS, type IndiceModuleTone } from
 import { getCachedAuthSession } from '../../api/authSessionStore';
 import { canAccessModuleTab } from '../../access/tabScopeCatalog';
 import { resolvePageId, type PageId } from '../../config/navigation';
+import { useAuthorizationRevision } from '../../hooks/useAuthorizationRevision';
 
 const MODULE_EMOJI_BY_ROUTE: Record<string, string> = {
   'human-resources': '👥',
@@ -75,6 +76,7 @@ export function IndiceModuleShell<TabId extends string>({
   title,
   tone,
 }: IndiceModuleShellProps<TabId>) {
+  useAuthorizationRevision();
   const theme = MODULE_COLORS[tone];
   const activeTextColor = getModulePrimaryForeground(tone);
   const resolvedPage = resolvePageId(currentModule);

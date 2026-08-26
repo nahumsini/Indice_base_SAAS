@@ -232,7 +232,10 @@ public class LocalDemoLoginBootstrap {
                          JSON_OBJECT('barcode', ?, 'brand', ?, 'presentation', ?, 'unit', 'PZA'),
                          JSON_OBJECT('seed', 'local-demo-pos-kiosk-v1',
                                      'initialStock', ?, 'minimumStock', ?,
-                                     'illustrativePrices', TRUE),
+                                     'illustrativePrices', TRUE,
+                                     'imageUrl', ?,
+                                     'imageAlt', ?,
+                                     'gallery', JSON_EXTRACT(?, '$')),
                          ?, ?, NULL)
                     ON DUPLICATE KEY UPDATE
                         sku = VALUES(sku),
@@ -266,6 +269,9 @@ public class LocalDemoLoginBootstrap {
                 product.presentation(),
                 product.initialStock(),
                 product.minimumStock(),
+                product.imageUrl(),
+                product.imageAlt(),
+                product.imageGalleryJson(),
                 userId,
                 userId
             );
@@ -416,6 +422,51 @@ public class LocalDemoLoginBootstrap {
                 new BigDecimal(initialStock),
                 new BigDecimal(minimumStock)
             );
+        }
+
+        private String imageUrl() {
+            return switch (sku) {
+                case "KSK-AGUA-600" -> "/demo-products/water-600ml.jpg";
+                case "KSK-GRANOLA-035" -> "/demo-products/granola-35g.jpg";
+                default -> null;
+            };
+        }
+
+        private String imageAlt() {
+            return switch (sku) {
+                case "KSK-AGUA-600" -> "Botella de agua natural de 600 ml";
+                case "KSK-GRANOLA-035" -> "Barra de granola de 35 g";
+                default -> null;
+            };
+        }
+
+        private String imageGalleryJson() {
+            return switch (sku) {
+                case "KSK-AGUA-600" -> """
+                    [
+                      {
+                        "id": "local-demo-water-primary",
+                        "url": "/demo-products/water-600ml.jpg",
+                        "alt": "Botella de agua natural de 600 ml"
+                      },
+                      {
+                        "id": "local-demo-water-alternate",
+                        "url": "/demo-products/water-600ml-alt.jpg",
+                        "alt": "Vista alterna de botella de agua natural de 600 ml"
+                      }
+                    ]
+                    """;
+                case "KSK-GRANOLA-035" -> """
+                    [
+                      {
+                        "id": "local-demo-granola-primary",
+                        "url": "/demo-products/granola-35g.jpg",
+                        "alt": "Barra de granola de 35 g"
+                      }
+                    ]
+                    """;
+                default -> "[]";
+            };
         }
     }
 

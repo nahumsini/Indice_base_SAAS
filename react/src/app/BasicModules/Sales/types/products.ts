@@ -94,6 +94,8 @@ export type SalesCatalogItem = {
   warehousePrepared: boolean;
   posPrepared: boolean;
   variantsPrepared: boolean;
+  reservable?: boolean;
+  availabilityIcalUrl?: string;
   lastUpdated: string;
   filesCount?: number;
 };

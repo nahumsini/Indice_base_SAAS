@@ -50,6 +50,19 @@ class DashboardModuleAccessRepositoryTest {
     }
 
     @Test
+    void databaseDemotionOverridesAStaleSuperAdminSessionRole() {
+        var repository = new DashboardModuleAccessRepository(jdbcTemplate);
+        mockUserCompanyAccess(9L, 1L, 20L, "user");
+        mockCompanyEntitlements(1L, "crm", "human_resources");
+        mockModuleSlugs(20L, "crm");
+
+        var access = repository.loadAccess(9L, 1L, "superadmin");
+
+        assertFalse(access.allModules());
+        assertEquals(Set.of("crm"), access.moduleSlugs());
+    }
+
+    @Test
     void rootGetsCompanyEntitledModules() {
         var repository = new DashboardModuleAccessRepository(jdbcTemplate);
         mockUserCompanyAccess(9L, 1L, 20L, "root");

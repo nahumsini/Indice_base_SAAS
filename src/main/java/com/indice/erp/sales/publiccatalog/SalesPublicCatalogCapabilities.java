@@ -10,6 +10,7 @@ import java.util.Set;
 public final class SalesPublicCatalogCapabilities {
 
     public static final String CATALOG_READ = "sales.catalog.read";
+    public static final String AVAILABILITY_READ = "sales.catalog.availability.read";
     public static final String REQUEST_CREATE = "sales.catalog.request.create";
 
     private static final Set<KioskCapabilityDescriptor> DESCRIPTORS = Set.of(
@@ -19,6 +20,20 @@ public final class SalesPublicCatalogCapabilities {
             false, false,
             Map.of("type", "object"),
             Map.of("type", "object", "description", "Configured public sales catalog"),
+            Map.of()),
+        new KioskCapabilityDescriptor(
+            AVAILABILITY_READ, 1, SalesPublicCatalogService.OWNER_MODULE,
+            KioskOperationPolicy.INFORMATION_ONLY, KioskAccessLevel.PUBLIC,
+            false, false,
+            Map.of(
+                "type", "object",
+                "required", List.of("productId", "month"),
+                "properties", Map.of(
+                    "productId", Map.of("type", "integer", "minimum", 1),
+                    "month", Map.of("type", "string", "pattern", "^\\d{4}-(0[1-9]|1[0-2])$"))),
+            Map.of(
+                "type", "object",
+                "description", "Public per-day product availability without private source details"),
             Map.of()),
         new KioskCapabilityDescriptor(
             REQUEST_CREATE, 1, SalesPublicCatalogService.OWNER_MODULE,

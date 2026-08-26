@@ -1,27 +1,44 @@
-import { ArrowRight, ShoppingCart } from 'lucide-react';
+import { ArrowRight, CalendarDays, Download, Loader2, MessageCircle, ShoppingCart } from 'lucide-react';
 import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
 import type { ProductsTranslations } from '../translations';
 import { formatProductCurrency } from '../utils/productFormatters';
 import type { PublicCatalogConfig, PublicCatalogItem } from './types/publicCatalogTypes';
 import { PublicCatalogExpandableDescription } from './PublicCatalogExpandableDescription';
-import { PublicCatalogImageCarousel } from './PublicCatalogImageCarousel';
+import { PublicCatalogImageCover } from './PublicCatalogImageCover';
+import { publicCatalogImages } from './utils/publicCatalogPresentation';
+import { publicCatalogProductAnchorId } from './utils/publicCatalogSharing';
 
 export function PublicCatalogCard({
   item,
   config,
   t,
   onAddToCart,
+  onCheckAvailability,
+  onOpenGallery,
+  onDownloadImages,
+  onShareWhatsApp,
+  downloadingImages,
 }: {
   item: PublicCatalogItem;
   config: PublicCatalogConfig;
   t: ProductsTranslations;
   onAddToCart: (item: PublicCatalogItem) => void;
+  onCheckAvailability: (item: PublicCatalogItem) => void;
+  onOpenGallery: (item: PublicCatalogItem) => void;
+  onDownloadImages: (item: PublicCatalogItem) => void;
+  onShareWhatsApp: (item: PublicCatalogItem) => void;
+  downloadingImages: boolean;
 }) {
+  const hasImages = publicCatalogImages(item).length > 0;
+
   return (
-    <article className="group flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-[#FF6B5E]/35 hover:shadow-lg hover:shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:hover:shadow-none">
+    <article
+      id={publicCatalogProductAnchorId(item.id)}
+      className="group flex h-full min-w-0 scroll-mt-6 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-[#FF6B5E]/35 hover:shadow-lg hover:shadow-slate-200/60 target:border-[#FF6B5E] target:ring-2 target:ring-[#FF6B5E]/30 dark:border-slate-800 dark:bg-slate-900 dark:hover:shadow-none"
+    >
       <div className="relative aspect-[16/10] overflow-hidden bg-slate-100 dark:bg-slate-950">
-        <PublicCatalogImageCarousel item={item} t={t} />
+        <PublicCatalogImageCover item={item} t={t} onOpenGallery={onOpenGallery} />
         <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
           {config.showStockStatus ? (
             <Badge className="rounded-full border border-white/70 bg-white/90 text-[10px] font-medium text-slate-700 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-950/90 dark:text-slate-200">
@@ -55,17 +72,56 @@ export function PublicCatalogCard({
               </p>
             ) : null}
           </div>
-          {config.allowCart || config.allowPurchaseRequest ? (
-            <Button
-              type="button"
-              size="icon"
-              className="h-11 w-11 shrink-0 rounded-xl bg-[#FF6B5E] text-[#222831] shadow-sm hover:bg-[#E85C50]"
-              aria-label={config.allowCart ? t.publicCatalog.addToCart : t.publicCatalog.requestQuote}
-              onClick={() => onAddToCart(item)}
-            >
-              {config.allowCart ? <ShoppingCart className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
-            </Button>
-          ) : null}
+          <div className="flex shrink-0 flex-col items-end gap-2">
+            {item.reservable ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 rounded-xl px-3 text-xs font-medium text-[#9f332b] hover:bg-[#FF6B5E]/10"
+                onClick={() => onCheckAvailability(item)}
+              >
+                <CalendarDays className="h-4 w-4" /> {t.publicCatalog.availability.check}
+              </Button>
+            ) : null}
+            <div className="flex items-center gap-2">
+              {config.allowImageDownloads && hasImages ? (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  className="h-11 w-11 shrink-0 rounded-xl text-slate-600 hover:border-[#FF6B5E]/50 hover:bg-[#FF6B5E]/10 hover:text-[#9f332b]"
+                  aria-label={downloadingImages ? t.publicCatalog.imageDownloads.downloading : t.publicCatalog.imageDownloads.action}
+                  title={t.publicCatalog.imageDownloads.action}
+                  disabled={downloadingImages}
+                  onClick={() => onDownloadImages(item)}
+                >
+                  {downloadingImages ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className="h-11 w-11 shrink-0 rounded-xl border-[#25D366]/40 text-[#168c46] hover:border-[#25D366] hover:bg-[#25D366]/10 hover:text-[#126f39]"
+                aria-label={t.publicCatalog.sharing.whatsapp}
+                title={t.publicCatalog.sharing.whatsapp}
+                onClick={() => onShareWhatsApp(item)}
+              >
+                <MessageCircle className="h-4 w-4" />
+              </Button>
+              {config.allowCart || config.allowPurchaseRequest ? (
+                <Button
+                  type="button"
+                  size="icon"
+                  className="h-11 w-11 shrink-0 rounded-xl bg-[#FF6B5E] text-[#222831] shadow-sm hover:bg-[#E85C50]"
+                  aria-label={config.allowCart ? t.publicCatalog.addToCart : t.publicCatalog.requestQuote}
+                  onClick={() => onAddToCart(item)}
+                >
+                  {config.allowCart ? <ShoppingCart className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
+                </Button>
+              ) : null}
+            </div>
+          </div>
         </div>
       </div>
     </article>

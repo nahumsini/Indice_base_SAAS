@@ -10,6 +10,8 @@ import com.indice.erp.pos.discount.DiscountDtos.EvaluationRequest;
 import com.indice.erp.pos.discount.DiscountRuleService;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogAdminAccess.AdminContext;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.AdminResponse;
+import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.AvailabilityRequest;
+import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.AvailabilityResponse;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.BootstrapResponse;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.LinkResponse;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.PublicImage;
@@ -59,6 +61,7 @@ public class SalesPublicCatalogService {
     private final ObjectStorageService objectStorageService;
     private final ObjectStorageProperties storageProperties;
     private final Clock clock;
+    private final SalesPublicCatalogAvailabilityService availabilityService;
     @Autowired
     private DiscountRuleService discountRules;
 
@@ -69,9 +72,10 @@ public class SalesPublicCatalogService {
             ObjectMapper objectMapper,
             SalesPublicCatalogLinkCodec linkCodec,
             ObjectStorageService objectStorageService,
-            ObjectStorageProperties storageProperties) {
+            ObjectStorageProperties storageProperties,
+            SalesPublicCatalogAvailabilityService availabilityService) {
         this(repository, registry, objectMapper, linkCodec, objectStorageService, storageProperties,
-            Clock.systemUTC());
+            Clock.systemUTC(), availabilityService);
     }
 
     SalesPublicCatalogService(
@@ -80,7 +84,7 @@ public class SalesPublicCatalogService {
             ObjectMapper objectMapper,
             SalesPublicCatalogLinkCodec linkCodec,
             Clock clock) {
-        this(repository, registry, objectMapper, linkCodec, null, null, clock);
+        this(repository, registry, objectMapper, linkCodec, null, null, clock, null);
     }
 
     SalesPublicCatalogService(
@@ -91,6 +95,19 @@ public class SalesPublicCatalogService {
             ObjectStorageService objectStorageService,
             ObjectStorageProperties storageProperties,
             Clock clock) {
+        this(repository, registry, objectMapper, linkCodec, objectStorageService, storageProperties,
+            clock, null);
+    }
+
+    SalesPublicCatalogService(
+            SalesPublicCatalogRepository repository,
+            KioskRegistryService registry,
+            ObjectMapper objectMapper,
+            SalesPublicCatalogLinkCodec linkCodec,
+            ObjectStorageService objectStorageService,
+            ObjectStorageProperties storageProperties,
+            Clock clock,
+            SalesPublicCatalogAvailabilityService availabilityService) {
         this.repository = repository;
         this.registry = registry;
         this.objectMapper = objectMapper;
@@ -98,6 +115,7 @@ public class SalesPublicCatalogService {
         this.objectStorageService = objectStorageService;
         this.storageProperties = storageProperties;
         this.clock = clock;
+        this.availabilityService = availabilityService;
     }
 
     @Transactional(readOnly = true)
@@ -253,6 +271,14 @@ public class SalesPublicCatalogService {
         return bootstrap(requirePublic(definition));
     }
 
+    public AvailabilityResponse availability(
+            KioskResolvedDefinition definition, AvailabilityRequest request) {
+        if (availabilityService == null) {
+            throw new IllegalStateException("Public catalog availability is not configured.");
+        }
+        return availabilityService.availability(requirePublic(definition), request);
+    }
+
     private BootstrapResponse bootstrap(SalesPublicCatalogRepository.CatalogRecord catalog) {
         var sourceItems = repository.publicItems(catalog);
         var imagesByProduct = repository.publicImages(
@@ -267,7 +293,7 @@ public class SalesPublicCatalogService {
             catalog.contactCtaLabel(), catalog.contactMethod(), catalog.contactValue(),
             catalog.showPrices(), catalog.showWholesalePrices(), catalog.showStockStatus(),
             catalog.showItemTypeBadges(), catalog.showCategories(), catalog.allowCart(),
-            catalog.allowPurchaseRequest(), "REVIEW_REQUIRED", items,
+            catalog.allowPurchaseRequest(), catalog.allowImageDownloads(), "REVIEW_REQUIRED", items,
             discountRules == null ? List.of() : discountRules.publishedRules(
                 catalog.companyId(), catalog.unitId(), catalog.businessId(), null,
                 "PUBLIC_CATALOG", items.stream().map(PublicItem::currency).findFirst().orElse("MXN")));
@@ -480,7 +506,8 @@ public class SalesPublicCatalogService {
             token == null ? null : "/public-catalog/" + token,
             row.showPrices(), row.showWholesalePrices(), row.showStockStatus(),
             row.showItemTypeBadges(), row.showCategories(), row.allowCart(),
-            row.allowPurchaseRequest(), repository.productIds(row.companyId(), row.id()),
+            row.allowPurchaseRequest(), row.allowImageDownloads(),
+            repository.productIds(row.companyId(), row.id()),
             row.version(), row.createdAt(), row.updatedAt());
     }
 
@@ -491,7 +518,7 @@ public class SalesPublicCatalogService {
         var wholesaleVisible = catalog.showPrices() && catalog.showWholesalePrices()
             && validWholesale(item);
         var stockVisible = catalog.showStockStatus();
-        var images = publicImages(item, imageSources);
+        var images = publicImages(catalog.companyId(), item, imageSources);
         var primaryImage = images.isEmpty() ? null : images.get(0);
         return new PublicItem(
             item.id(), item.name(), item.sku(),
@@ -504,17 +531,18 @@ public class SalesPublicCatalogService {
             wholesaleVisible ? item.wholesalePrice() : null,
             wholesaleVisible ? item.wholesaleMinQuantity() : null,
             item.currency(), stockVisible && item.usesInventory(),
-            stockVisible ? item.publicInventoryStatus() : null, item.readyForSales());
+            stockVisible ? item.publicInventoryStatus() : null, item.readyForSales(), item.reservable());
     }
 
     private List<PublicImage> publicImages(
+            long companyId,
             PublicItem item,
             List<SalesPublicCatalogRepository.PublicImageSource> imageSources) {
         var images = new ArrayList<PublicImage>();
         var seen = new java.util.LinkedHashSet<String>();
         if (imageSources != null) {
             for (var source : imageSources) {
-                var url = publicImageUrl(source);
+                var url = publicImageUrl(companyId, source);
                 if (url == null || !seen.add(url)) continue;
                 images.add(new PublicImage(url,
                     firstNonBlank(source.alt(), item.thumbnailAlt(), item.name())));
@@ -528,10 +556,13 @@ public class SalesPublicCatalogService {
         return List.copyOf(images);
     }
 
-    private String publicImageUrl(SalesPublicCatalogRepository.PublicImageSource source) {
+    private String publicImageUrl(long companyId, SalesPublicCatalogRepository.PublicImageSource source) {
         if (source == null) return null;
         if (source.objectKey() != null && objectStorageService != null && storageProperties != null
                 && objectStorageService.isEnabled()) {
+            if (!source.objectKey().startsWith("sales/products/" + companyId + "/images/")) {
+                return null;
+            }
             try {
                 return safePublicUrl(objectStorageService.presignDownload(
                     storageProperties.getMinio().getBucketSalesDocuments(),

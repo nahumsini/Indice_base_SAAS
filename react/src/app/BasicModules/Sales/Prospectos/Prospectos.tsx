@@ -827,6 +827,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         currentSeller={currentSeller}
         contacts={contacts}
         opportunities={opportunities}
+        locale={currentLanguage.code}
         t={salesCopy}
         onOpenChange={(open) => {
           setIsSaleModalOpen(open);

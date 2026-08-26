@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import {
   AlertTriangle,
   BadgeDollarSign,
@@ -47,6 +47,7 @@ import { LearningModeTitleBarBridge } from '../../../learningMode';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import { useKpiMonetaryAggregate, useKpiMonetaryAggregates, type KpiMonetaryBatchQuery } from '../../shared/kpiMonetaryApi';
 import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
+import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 
 interface GastosKPIPageProps {
   expenses: Expense[];
@@ -56,6 +57,48 @@ interface GastosKPIPageProps {
 
 type Tone = 'critical' | 'healthy' | 'review';
 type RankingRole = 'approved' | 'performed' | 'requested';
+
+type KpiWorkspaceState = {
+  accountingAccountId: string;
+  businessId: string;
+  customEndDate: string;
+  customStartDate: string;
+  paymentStatus: string;
+  periodFilter: PeriodFilter;
+  providerId: string;
+  rankingCurrentPage: number;
+  rankingPageSize: number;
+  rankingRole: RankingRole;
+  unitId: string;
+};
+
+const kpiWorkspaceDefaults: KpiWorkspaceState = {
+  accountingAccountId: 'all',
+  businessId: 'all',
+  customEndDate: '',
+  customStartDate: '',
+  paymentStatus: 'all',
+  periodFilter: 'this_month',
+  providerId: 'all',
+  rankingCurrentPage: 1,
+  rankingPageSize: 10,
+  rankingRole: 'requested',
+  unitId: 'all',
+};
+
+const kpiWorkspaceUrlFields: Partial<Record<keyof KpiWorkspaceState, string>> = {
+  accountingAccountId: 'kpi_account',
+  businessId: 'kpi_business',
+  customEndDate: 'kpi_end',
+  customStartDate: 'kpi_start',
+  paymentStatus: 'kpi_status',
+  periodFilter: 'kpi_period',
+  providerId: 'kpi_provider',
+  rankingCurrentPage: 'kpi_page',
+  rankingPageSize: 'kpi_rows',
+  rankingRole: 'kpi_rank',
+  unitId: 'kpi_unit',
+};
 
 const toneStyles: Record<Tone, { badge: string; bar: string; label: string }> = {
   critical: {
@@ -176,6 +219,59 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
   const [accountingAccountId, setAccountingAccountId] = useState('all');
   const [paymentStatus, setPaymentStatus] = useState('all');
   const [rankingRole, setRankingRole] = useState<RankingRole>('requested');
+  const [rankingCurrentPage, setRankingCurrentPage] = useState(1);
+  const [rankingPageSize, setRankingPageSize] = useState(10);
+  const workspaceState = useMemo<KpiWorkspaceState>(() => ({
+    accountingAccountId,
+    businessId,
+    customEndDate,
+    customStartDate,
+    paymentStatus,
+    periodFilter,
+    providerId,
+    rankingCurrentPage,
+    rankingPageSize,
+    rankingRole,
+    unitId,
+  }), [
+    accountingAccountId,
+    businessId,
+    customEndDate,
+    customStartDate,
+    paymentStatus,
+    periodFilter,
+    providerId,
+    rankingCurrentPage,
+    rankingPageSize,
+    rankingRole,
+    unitId,
+  ]);
+  const restoreWorkspaceState = useCallback((restoredState: KpiWorkspaceState) => {
+    setAccountingAccountId(restoredState.accountingAccountId);
+    setBusinessId(restoredState.businessId);
+    setCustomEndDate(restoredState.customEndDate);
+    setCustomStartDate(restoredState.customStartDate);
+    setPaymentStatus(restoredState.paymentStatus);
+    setPeriodFilter(restoredState.periodFilter);
+    setProviderId(restoredState.providerId);
+    setRankingCurrentPage(restoredState.rankingCurrentPage);
+    setRankingPageSize(restoredState.rankingPageSize);
+    setRankingRole(restoredState.rankingRole);
+    setUnitId(restoredState.unitId);
+  }, []);
+  const handleRankingPaginationChange = useCallback((nextState: { currentPage: number; pageSize: number }) => {
+    setRankingCurrentPage(nextState.currentPage);
+    setRankingPageSize(nextState.pageSize);
+  }, []);
+
+  useWorkspaceNavigationMemory({
+    moduleKey: 'expenses',
+    tabKey: 'kpis',
+    state: workspaceState,
+    defaults: kpiWorkspaceDefaults,
+    urlFields: kpiWorkspaceUrlFields,
+    onRestore: restoreWorkspaceState,
+  });
 
   const overview = useFinancialOverview({
     accountingAccountId,
@@ -239,7 +335,6 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
   ];
   const allOption = { label: 'Todos', value: 'all' };
   const activeBusinesses = unitId === 'all' ? sources.referenceData.businesses : sources.referenceData.businesses.filter(item => item.unitId === unitId);
-  const filtersKey = [periodFilter, customStartDate, customEndDate, unitId, businessId, providerId, accountingAccountId, paymentStatus].join('|');
   const monetaryGroups = useMemo(() => {
     const byStatus = new Map<string, FinanceExpense[]>();
     const byDate = new Map<string, FinanceExpense[]>();
@@ -414,7 +509,12 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
     }).sort((left, right) => right.score - left.score).map((row, index) => ({ ...row, position: index + 1 }));
   }, [groupAggregates.data, monetaryGroups.topUsers, overview.filteredExpenses, rankingRole, sources.referenceData.users]);
 
-  const pagination = useTablePagination({ rows: rankingRows, initialPageSize: 10, resetKey: filtersKey });
+  const pagination = useTablePagination({
+    controlledCurrentPage: rankingCurrentPage,
+    controlledPageSize: rankingPageSize,
+    onPaginationChange: handleRankingPaginationChange,
+    rows: rankingRows,
+  });
   const resetFilters = () => {
     setPeriodFilter('this_month');
     setCustomStartDate('');
@@ -424,6 +524,7 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
     setProviderId('all');
     setAccountingAccountId('all');
     setPaymentStatus('all');
+    setRankingCurrentPage(1);
   };
   const periodLabel = periodFilter === 'custom'
     ? `${customStartDate || '...'} - ${customEndDate || '...'}`

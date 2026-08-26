@@ -32,11 +32,12 @@ type ProductThumbnailProps = {
     & Partial<Pick<SalesCatalogItem, 'id' | 'gallery'>>;
   size?: keyof typeof sizeClasses;
   className?: string;
+  includeTransientImages?: boolean;
 };
 
-export function ProductThumbnail({ product, size = 'md', className }: ProductThumbnailProps) {
+export function ProductThumbnail({ product, size = 'md', className, includeTransientImages = false }: ProductThumbnailProps) {
   const [hasImageError, setHasImageError] = useState(false);
-  const primaryImage = getProductGalleryImages(product)[0];
+  const primaryImage = getProductGalleryImages(product, { includeTransient: includeTransientImages })[0];
   const imageUrl = primaryImage?.url;
   const canRenderImage = Boolean(imageUrl && !hasImageError);
   const dimensions = sizeClasses[size];

@@ -6,15 +6,18 @@ import {
   mergeDashboardModules,
   type DashboardModuleCard,
 } from '../config/moduleCatalog';
+import { useAuthorizationRevision } from './useAuthorizationRevision';
 
 type Translator = Record<string, any>;
 
 export function useAccessibleModuleCatalog(t: Translator) {
   const [availableModules, setAvailableModules] = useState<DashboardModuleCard[]>([]);
+  const authorizationRevision = useAuthorizationRevision();
 
   useEffect(() => {
     let active = true;
     const defaultModules = buildDefaultModuleCatalog(t);
+    setAvailableModules([]);
 
     const loadModules = async () => {
       try {
@@ -33,15 +36,7 @@ export function useAccessibleModuleCatalog(t: Translator) {
           includeMissingFallbacks: false,
         });
 
-        // Keep the in-progress Material Warehouse visible in the local React
-        // launcher without weakening production entitlement enforcement.
-        const localDevelopmentModules = import.meta.env.DEV
-          ? defaultModules.filter((module) => module.route === 'material-warehouse' || module.route === 'production')
-          : [];
-
-        setAvailableModules(
-          [...resolvedModules, ...localDevelopmentModules.filter((candidate) => !resolvedModules.some((module) => module.route === candidate.route))],
-        );
+        setAvailableModules(resolvedModules);
       } catch {
         if (active) {
           // Fail closed: a stale local catalog must never resurrect a module
@@ -56,7 +51,7 @@ export function useAccessibleModuleCatalog(t: Translator) {
     return () => {
       active = false;
     };
-  }, [t]);
+  }, [authorizationRevision, t]);
 
   return availableModules;
 }

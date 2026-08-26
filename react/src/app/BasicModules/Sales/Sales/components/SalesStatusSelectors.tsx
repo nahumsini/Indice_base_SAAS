@@ -25,7 +25,7 @@ export function SalesStatusSelectors({
   onChange: (patch: Partial<SaleRecord>) => void;
 }) {
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <FormField label={t.modal.fields.commercialStatus}>
         <Select value={record.commercialStatus} onValueChange={(value) => onChange({ commercialStatus: value as SaleRecord['commercialStatus'] })}>
           <SelectTrigger className={salesFieldClassName}><SelectValue /></SelectTrigger>

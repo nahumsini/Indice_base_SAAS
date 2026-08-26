@@ -152,6 +152,35 @@ test('la creación rápida de tareas explica el flujo y resume la decisión ante
   assert.match(translationSource, /La fecha de vencimiento no puede ser anterior a la fecha de inicio/);
 });
 
+test('delegar separa al creador de la ejecución y permite volver a incluirlo de forma explícita', () => {
+  const dialogSource = readFileSync(resolve(moduleRoot, 'Tasks/components/TaskFormDialog.tsx'), 'utf8');
+  const agendaSource = readFileSync(resolve(moduleRoot, 'Agenda/Agenda.tsx'), 'utf8');
+  const selectorSource = readFileSync(resolve(moduleRoot, 'shared/TaskAssigneeSelector.tsx'), 'utf8');
+  const teamDialogSource = readFileSync(resolve(moduleRoot, 'Agenda/components/TaskTeamDialog.tsx'), 'utf8');
+  const cellsSource = readFileSync(resolve(moduleRoot, 'Agenda/components/AgendaTaskCells.tsx'), 'utf8');
+  const projectWorkspaceSource = readFileSync(resolve(moduleRoot, 'Projects/components/ProjectTasksWorkspace.tsx'), 'utf8');
+  const statusSource = readFileSync(resolve(moduleRoot, 'Agenda/utils/agendaTaskStatus.ts'), 'utf8');
+
+  assert.match(dialogSource, /<TaskAssigneeSelector/);
+  assert.match(dialogSource, /maxSelections=\{2\}/);
+  assert.match(dialogSource, /También puedes seleccionarte a ti/);
+  assert.match(selectorSource, /currentUserCompanyId/);
+  assert.match(selectorSource, /leadUserCompanyId/);
+  assert.match(selectorSource, /selectionAtLimit/);
+  assert.match(teamDialogSource, /<TaskAssigneeSelector/);
+  assert.match(teamDialogSource, /Guardar responsables/);
+  assert.match(teamDialogSource, /patchProcessTask\(task\.taskId/);
+  assert.match(cellsSource, /onClick=\{\(\) => onOpenTeam\(task\)\}/);
+  assert.doesNotMatch(cellsSource, /<ResponsibleCell/);
+  assert.match(projectWorkspaceSource, /onClick=\{\(\) => setTeamTask\(task\)\}/);
+  assert.match(projectWorkspaceSource, /<TaskTeamDialog/);
+  assert.doesNotMatch(projectWorkspaceSource, /handleResponsibleCellChange/);
+  assert.match(statusSource, /const assignedToAnotherUser/);
+  assert.match(statusSource, /task\.createdBy === currentUserId && assignedToAnotherUser/);
+  assert.match(agendaSource, /matchesAgendaFocus\(task, 'delegated', currentUserId\)/);
+  assert.match(agendaSource, /setFocusFilter\('delegated'\)/);
+});
+
 test('los diálogos de eliminación explican el resultado sin términos técnicos internos', () => {
   const agendaTranslationsRoot = resolve(moduleRoot, 'Agenda/translations');
   const userCopySources = [

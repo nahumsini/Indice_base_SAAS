@@ -62,9 +62,9 @@ public class SalesPublicCatalogRepository {
                     company_id, unit_id, business_id, code, name, title, description, cover_image_url,
                     contact_cta_label, contact_method, contact_value, status, expires_at,
                     public_token_hint, protected_public_token, show_prices, show_wholesale_prices, show_stock_status,
-                    show_item_type_badges, show_categories, allow_cart, allow_purchase_request,
+                    show_item_type_badges, show_categories, allow_cart, allow_purchase_request, allow_image_downloads,
                     created_by_user_id, updated_by_user_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, Statement.RETURN_GENERATED_KEYS);
             var index = 1;
             statement.setLong(index++, companyId);
@@ -88,6 +88,7 @@ public class SalesPublicCatalogRepository {
             statement.setBoolean(index++, defaultTrue(request.showCategories()));
             statement.setBoolean(index++, defaultTrue(request.allowCart()));
             statement.setBoolean(index++, defaultTrue(request.allowPurchaseRequest()));
+            statement.setBoolean(index++, Boolean.TRUE.equals(request.allowImageDownloads()));
             statement.setLong(index++, userId);
             statement.setLong(index, userId);
             return statement;
@@ -107,7 +108,8 @@ public class SalesPublicCatalogRepository {
                 contact_cta_label = ?, contact_method = ?, contact_value = ?, expires_at = ?,
                 show_prices = ?, show_wholesale_prices = ?, show_stock_status = ?,
                 show_item_type_badges = ?, show_categories = ?, allow_cart = ?,
-                allow_purchase_request = ?, updated_by_user_id = ?, version = version + 1
+                allow_purchase_request = ?, allow_image_downloads = ?,
+                updated_by_user_id = ?, version = version + 1
             WHERE company_id = ? AND id = ? AND version = ? AND deleted_at IS NULL
               AND status <> 'REVOKED'
             """,
@@ -117,7 +119,8 @@ public class SalesPublicCatalogRepository {
             timestamp(request.expiresAt()), defaultTrue(request.showPrices()),
             Boolean.TRUE.equals(request.showWholesalePrices()), defaultTrue(request.showStockStatus()),
             defaultTrue(request.showItemTypeBadges()), defaultTrue(request.showCategories()),
-            defaultTrue(request.allowCart()), defaultTrue(request.allowPurchaseRequest()), userId,
+            defaultTrue(request.allowCart()), defaultTrue(request.allowPurchaseRequest()),
+            Boolean.TRUE.equals(request.allowImageDownloads()), userId,
             companyId, catalogId, version) > 0;
     }
 
@@ -229,7 +232,7 @@ public class SalesPublicCatalogRepository {
                    product.price,
                    CAST(JSON_UNQUOTE(JSON_EXTRACT(product.metadata_json, '$.packaging.wholesalePrice')) AS DECIMAL(15,4)) AS wholesale_price,
                    CAST(JSON_UNQUOTE(JSON_EXTRACT(product.metadata_json, '$.packaging.wholesaleMinimumQuantity')) AS DECIMAL(15,4)) AS wholesale_min_quantity,
-                   product.currency, product.inventory_ready,
+                   product.currency, product.inventory_ready, product.reservable,
                    COALESCE((SELECT SUM(balance.available_quantity)
                       FROM sales_inventory_balances balance
                       JOIN sales_inventory_warehouses warehouse
@@ -253,6 +256,27 @@ public class SalesPublicCatalogRepository {
             ORDER BY selected.sort_order, product.name
             """, this::mapPublicItem, catalog.unitId(), catalog.businessId(),
             catalog.companyId(), catalog.id(), catalog.companyId());
+    }
+
+    public Optional<ReservableProductSource> reservableProductSource(
+            CatalogRecord catalog, long productId) {
+        return jdbcTemplate.query("""
+            SELECT product.id, product.availability_ical_url_protected
+            FROM sales_public_catalog_products selected
+            JOIN sales_products product
+              ON product.id = selected.product_id
+             AND product.company_id = selected.company_id
+            WHERE selected.company_id = ? AND selected.catalog_id = ?
+              AND selected.product_id = ? AND product.company_id = ?
+              AND product.deleted_at IS NULL AND LOWER(product.status) = 'active'
+              AND LOWER(COALESCE(product.visibility, 'public')) <> 'internal'
+              AND product.reservable = 1
+              AND product.availability_ical_url_protected IS NOT NULL
+            LIMIT 1
+            """, (rs, rowNum) -> new ReservableProductSource(
+                rs.getLong("id"), rs.getString("availability_ical_url_protected")),
+            catalog.companyId(), catalog.id(), productId, catalog.companyId())
+            .stream().findFirst();
     }
 
     public Map<Long, List<PublicImageSource>> publicImages(long companyId, List<Long> productIds) {
@@ -309,8 +333,6 @@ public class SalesPublicCatalogRepository {
         if (images == null || metadataJson == null || metadataJson.isBlank()) return;
         try {
             var metadata = IMAGE_METADATA_MAPPER.readTree(metadataJson);
-            appendImage(images, seen, text(metadata, "imageUrl"),
-                firstNonBlank(text(metadata, "imageAlt"), productName), null);
             var gallery = metadata.path("gallery");
             if (gallery.isArray()) {
                 for (var image : gallery) {
@@ -320,6 +342,8 @@ public class SalesPublicCatalogRepository {
                         firstNonBlank(text(image, "objectKey"), text(image, "object_key")));
                 }
             }
+            appendImage(images, seen, text(metadata, "imageUrl"),
+                firstNonBlank(text(metadata, "imageAlt"), productName), null);
         } catch (Exception ignored) {
             // Invalid legacy metadata must not make a public catalog unavailable.
         }
@@ -579,6 +603,7 @@ public class SalesPublicCatalogRepository {
             rs.getBoolean("show_wholesale_prices"), rs.getBoolean("show_stock_status"),
             rs.getBoolean("show_item_type_badges"), rs.getBoolean("show_categories"),
             rs.getBoolean("allow_cart"), rs.getBoolean("allow_purchase_request"),
+            rs.getBoolean("allow_image_downloads"),
             rs.getLong("version"), instant(rs, "created_at"), instant(rs, "updated_at"));
     }
 
@@ -595,7 +620,7 @@ public class SalesPublicCatalogRepository {
             label(rs.getString("category")), rs.getString("description"), rs.getString("image_url"),
             rs.getString("image_alt"), List.of(), rs.getBigDecimal("price"), rs.getBigDecimal("wholesale_price"),
             rs.getBigDecimal("wholesale_min_quantity"), rs.getString("currency"), inventory,
-            status, true);
+            status, true, rs.getBoolean("reservable"));
     }
 
     private RequestResponse mapRequest(ResultSet rs, int rowNum) throws SQLException {
@@ -662,6 +687,7 @@ public class SalesPublicCatalogRepository {
         boolean showCategories,
         boolean allowCart,
         boolean allowPurchaseRequest,
+        boolean allowImageDownloads,
         long version,
         Instant createdAt,
         Instant updatedAt
@@ -675,5 +701,8 @@ public class SalesPublicCatalogRepository {
     }
 
     public record PublicImageSource(String url, String alt, String objectKey) {
+    }
+
+    public record ReservableProductSource(long productId, String protectedUrl) {
     }
 }

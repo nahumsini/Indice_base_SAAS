@@ -187,6 +187,10 @@ export async function apiClient<T = unknown>(
     expireCachedAuthSession();
   }
 
+  if (response.status === 403 && !isInvalidCsrfError(response.status, payload)) {
+    await refreshAuthSession();
+  }
+
   if (!response.ok) {
     const message = messageFromPayload(payload) || response.statusText;
     const code = codeFromPayload(payload);
@@ -217,6 +221,8 @@ export async function requestText(path: string, init: ApiClientRequestInit = {})
   if (!response.ok) {
     if (response.status === 401) {
       expireCachedAuthSession();
+    } else if (response.status === 403) {
+      await refreshAuthSession();
     }
     throw new ApiClientError(response.statusText || 'Request failed', response.status, undefined, text);
   }

@@ -101,6 +101,19 @@ export function ProductCreateModal({
       return;
     }
 
+    if (activeStep === 'availability' && form.reservable) {
+      let validAvailabilityUrl = false;
+      try {
+        validAvailabilityUrl = new URL(form.availabilityIcalUrl.trim()).protocol === 'https:';
+      } catch {
+        validAvailabilityUrl = false;
+      }
+      if (!validAvailabilityUrl) {
+        setStepError(t.usage.reservable.validation);
+        return;
+      }
+    }
+
     setStepError('');
     setActiveStep(stepOrder[Math.min(activeStepIndex + 1, stepOrder.length - 1)]);
   };

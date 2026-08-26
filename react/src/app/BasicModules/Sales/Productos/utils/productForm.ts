@@ -37,6 +37,8 @@ export const initialProductForm: ProductFormState = {
   packagingNotes: '',
   bundleItems: [],
   usesInventory: false,
+  reservable: false,
+  availabilityIcalUrl: '',
   serviceUnit: 'Project',
   serviceEstimatedDuration: '',
   serviceScopeNotes: '',
@@ -101,6 +103,8 @@ export function buildProductForm(product: SalesCatalogItem): ProductFormState {
       notes: item.notes ?? '',
     })),
     usesInventory: Boolean(product.stockPrepared || product.warehousePrepared),
+    reservable: Boolean(product.reservable),
+    availabilityIcalUrl: product.availabilityIcalUrl ?? '',
     serviceUnit: 'Project',
     serviceEstimatedDuration: '',
     serviceScopeNotes: '',
@@ -173,5 +177,7 @@ export function buildProductInput(
     warehousePrepared: form.usesInventory,
     posPrepared: form.visibility === 'POS ready',
     variantsPrepared: form.type === 'Subscription' || form.type === 'Package',
+    reservable: form.reservable,
+    availabilityIcalUrl: form.reservable ? form.availabilityIcalUrl.trim() : undefined,
   };
 }

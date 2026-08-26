@@ -46,7 +46,7 @@ import {
   type ConfigCenterUser,
 } from '../../../api/configCenter';
 import { ApiClientError } from '../../../lib/apiClient';
-import { isTabScopeAssignableToRole } from '../../../access/tabScopeCatalog';
+import { canAccessModuleTab, isTabScopeAssignableToRole } from '../../../access/tabScopeCatalog';
 import {
   backendSlugForRoute,
   mapBackendModuleToCard,
@@ -986,7 +986,14 @@ export default function Users() {
           businessId: selectedScopeTypeDraft === 'business_office' ? selectedBusinessDraft : null,
         }),
       );
-      await refreshUsers();
+      if (selectedUser.backendId === currentUserId) {
+        const nextSession = await authApi.me();
+        if (canAccessModuleTab('home-panel', 'users', nextSession)) {
+          await refreshUsers();
+        }
+      } else {
+        await refreshUsers();
+      }
       setSelectedUserForModules(null);
     } catch (error) {
       setLoadError(formatApiError(error, usersCopy.errors.moduleAccess));

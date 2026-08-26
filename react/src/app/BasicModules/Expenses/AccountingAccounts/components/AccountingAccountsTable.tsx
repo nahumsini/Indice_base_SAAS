@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ChevronDown, ChevronUp, Edit2, Power, PowerOff, Search, Trash2 } from 'lucide-react';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import { useAccountingAccountsTranslations } from '../hooks/useAccountingAccountsTranslations';
@@ -12,6 +12,7 @@ import {
 } from '../accountingAccountsTableConfig';
 import { DataTablePagination } from '../../../../components/table/DataTablePagination';
 import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../../hooks/useTablePagination';
+import { useWorkspaceNavigationMemory } from '../../../../hooks/useWorkspaceNavigationMemory';
 
 type AccountingAccountsTableProps = {
   accounts: AccountingAccount[];
@@ -24,6 +25,21 @@ type AccountingAccountsTableProps = {
   onEdit: (account: AccountingAccount) => void;
   onSort: (field: AccountingSortField) => void;
   onToggleActive: (account: AccountingAccount) => void;
+};
+
+type AccountingAccountsTableWorkspaceState = {
+  currentPage: number;
+  pageSize: number;
+};
+
+const accountingAccountsTableWorkspaceDefaults: AccountingAccountsTableWorkspaceState = {
+  currentPage: 1,
+  pageSize: 10,
+};
+
+const accountingAccountsTableWorkspaceUrlFields: Partial<Record<keyof AccountingAccountsTableWorkspaceState, string>> = {
+  currentPage: 'ac_page',
+  pageSize: 'ac_rows',
 };
 
 export function AccountingAccountsTable({
@@ -41,6 +57,24 @@ export function AccountingAccountsTable({
   const t = useAccountingAccountsTranslations();
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const workspaceState = useMemo<AccountingAccountsTableWorkspaceState>(() => ({
+    currentPage,
+    pageSize,
+  }), [currentPage, pageSize]);
+  const restoreWorkspaceState = useCallback((restoredState: AccountingAccountsTableWorkspaceState) => {
+    setCurrentPage(restoredState.currentPage);
+    setPageSize(restoredState.pageSize);
+  }, []);
+
+  useWorkspaceNavigationMemory({
+    moduleKey: 'expenses',
+    tabKey: 'accounting-table',
+    state: workspaceState,
+    defaults: accountingAccountsTableWorkspaceDefaults,
+    urlFields: accountingAccountsTableWorkspaceUrlFields,
+    onRestore: restoreWorkspaceState,
+    rememberScroll: false,
+  });
   const tableColumns = useMemo(() => columns.filter(column => column.visible), [columns]);
   const visibleColumnKeys = useMemo(() => tableColumns.map(column => column.key), [tableColumns]);
   const totalPages = Math.max(1, Math.ceil(accounts.length / pageSize));
@@ -52,8 +86,9 @@ export function AccountingAccountsTable({
   const paginationEnd = accounts.length === 0 ? 0 : Math.min(pageEndIndex, accounts.length);
 
   useEffect(() => {
-    setCurrentPage(1);
-  }, [accounts, pageSize, tableColumns]);
+    if (accounts.length === 0) return;
+    setCurrentPage(current => Math.min(Math.max(current, 1), totalPages));
+  }, [accounts.length, totalPages]);
 
   const getSortIcon = (field: AccountingSortField) => (
     <AccountingSortIcon active={sortField === field} direction={sortField === field ? sortDirection : null} />

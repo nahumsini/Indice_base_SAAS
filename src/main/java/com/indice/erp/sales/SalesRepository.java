@@ -399,6 +399,18 @@ class SalesRepository {
         ).stream().findFirst().orElse(null);
     }
 
+    Map<String, Object> findFileByObjectKey(long companyId, String objectKey) {
+        return jdbcTemplate.query(
+            """
+                SELECT * FROM sales_files
+                WHERE company_id = ? AND object_key = ? AND deleted_at IS NULL
+                ORDER BY id
+                LIMIT 1
+                """,
+            (rs, rowNum) -> fileRow(rs), companyId, objectKey
+        ).stream().findFirst().orElse(null);
+    }
+
     long createFile(long companyId, long userId, Map<String, Object> payload) {
         var entityType = requiredString(payload, "entityType");
         var entityId = SalesPayloadSupport.longValue(payload, "entityId");

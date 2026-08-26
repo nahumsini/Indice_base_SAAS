@@ -66,6 +66,7 @@ import type { AgendaTaskItem } from '../../Agenda/agendaApi';
 import { useAgendaTranslations, type AgendaTranslations } from '../../Agenda/translations';
 import { TaskAttachmentsDialog } from '../../Agenda/components/TaskAttachmentsDialog';
 import { AgendaReportDialog } from '../../Agenda/components/AgendaReportDialog';
+import { TaskTeamDialog } from '../../Agenda/components/TaskTeamDialog';
 import { TaskAuditDialog } from '../../Tasks/components/TaskAuditDialog';
 import { TaskCompletionDialog } from '../../Tasks/components/TaskCompletionDialog';
 import { TaskFormDialog, type TaskFormValues } from '../../Tasks/components/TaskFormDialog';
@@ -926,6 +927,7 @@ export function ProjectTasksWorkspace({
   const [auditWeighting, setAuditWeighting] = useState('5');
   const [auditNotes, setAuditNotes] = useState('');
   const [attachmentsTask, setAttachmentsTask] = useState<AgendaTaskItem | null>(null);
+  const [teamTask, setTeamTask] = useState<AgendaTaskItem | null>(null);
   const [reportTask, setReportTask] = useState<AgendaTaskItem | null>(null);
   const [cancelTask, setCancelTask] = useState<AgendaTaskItem | null>(null);
   const [deleteTask, setDeleteTask] = useState<AgendaTaskItem | null>(null);
@@ -980,6 +982,7 @@ export function ProjectTasksWorkspace({
     setEditingTaskId(null);
     setReportTask(null);
     setAttachmentsTask(null);
+    setTeamTask(null);
     setDeleteTask(null);
     rowSelection.clearSelection();
     void loadTasks();
@@ -1667,35 +1670,6 @@ export function ProjectTasksWorkspace({
     });
   };
 
-  const handleResponsibleCellChange = (task: AgendaTaskItem, value: string) => {
-    if (value === UNASSIGNED_RESPONSIBLE_VALUE) {
-      void persistTaskChange(task, {
-        assignedUserCompanyId: null,
-        assignedName: null,
-        assigneeUserCompanyIds: [],
-      });
-      return;
-    }
-
-    const selectedCollaborator = collaboratorOptions.find(
-      (collaborator) => collaborator.userCompanyId === Number(value),
-    );
-
-    if (!selectedCollaborator) {
-      return;
-    }
-
-    void persistTaskChange(task, {
-      assignedUserCompanyId: selectedCollaborator.userCompanyId,
-      assigneeUserCompanyIds: Array.from(
-        new Set([selectedCollaborator.userCompanyId, ...task.assigneeUserCompanyIds]),
-      ),
-      assignedName: selectedCollaborator.name,
-      unitId: task.unitId ?? selectedCollaborator.unitId ?? null,
-      businessId: task.businessId ?? selectedCollaborator.businessId ?? null,
-    });
-  };
-
   const handleDuplicateTask = async (task: AgendaTaskItem) => {
     setTaskPendingState(task.taskId, true);
     setTasksError(null);
@@ -2218,39 +2192,29 @@ export function ProjectTasksWorkspace({
             {task.createdBy ? <p className="text-xs text-slate-500 dark:text-slate-400">{taskCopy.report.fields.creator} #{task.createdBy}</p> : null}
           </div>
         );
-      case 'responsible': {
-        const responsibleSelectValue =
-          task.assignedUserCompanyId != null ? String(task.assignedUserCompanyId) : UNASSIGNED_RESPONSIBLE_VALUE;
-        const rowCollaboratorOptions = collaboratorOptionsForScope(task.unitId, task.businessId);
-        const currentCollaboratorMissing =
-          task.assignedUserCompanyId != null &&
-          !rowCollaboratorOptions.some((collaborator) => collaborator.userCompanyId === task.assignedUserCompanyId);
-
+      case 'responsible':
         return (
-          <Select
-            value={responsibleSelectValue}
+          <button
+            type="button"
             disabled={pending}
-            onValueChange={(value) => handleResponsibleCellChange(task, value)}
+            onClick={() => setTeamTask(task)}
+            className="flex min-w-[220px] items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-left text-blue-900 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-100"
           >
-            <SelectTrigger className={cn(tableSelectTriggerClass, 'w-full min-w-[220px]')}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={UNASSIGNED_RESPONSIBLE_VALUE}>{taskCopy.common.unassigned}</SelectItem>
-              {currentCollaboratorMissing ? (
-                <SelectItem value={String(task.assignedUserCompanyId)}>
-                  {task.assignedName ?? `${taskCopy.form.labels.responsible} #${task.assignedUserCompanyId}`}
-                </SelectItem>
-              ) : null}
-              {rowCollaboratorOptions.map((collaborator) => (
-                <SelectItem key={collaborator.userCompanyId} value={String(collaborator.userCompanyId)}>
-                  {collaborator.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <UserRound className="h-4 w-4 shrink-0" />
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-medium">
+                {task.assignedName || taskCopy.common.unassigned}
+              </span>
+              <span className="block truncate text-xs text-blue-600 dark:text-blue-300">
+                {task.teamSize > 1
+                  ? `${task.teamSize} personas · Editar asignación`
+                  : task.teamSize === 1
+                    ? '1 persona · Editar asignación'
+                    : 'Sin personas · Editar asignación'}
+              </span>
+            </span>
+          </button>
         );
-      }
       case 'priority':
         return (
           <Select value={task.priority} disabled={pending} onValueChange={(value) => void persistTaskChange(task, { priority: value as TaskPriority })}>
@@ -3156,6 +3120,21 @@ export function ProjectTasksWorkspace({
           if (!open) {
             setAttachmentsTask(null);
           }
+        }}
+        onChanged={reloadEverything}
+      />
+
+      <TaskTeamDialog
+        collaboratorOptions={
+          teamTask
+            ? collaboratorOptionsForScope(teamTask.unitId, teamTask.businessId)
+            : collaboratorOptions
+        }
+        currentUserCompanyId={currentUserCollaborator?.userCompanyId ?? null}
+        open={Boolean(teamTask)}
+        task={teamTask}
+        onOpenChange={(open) => {
+          if (!open) setTeamTask(null);
         }}
         onChanged={reloadEverything}
       />

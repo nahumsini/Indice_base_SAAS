@@ -15,9 +15,13 @@ import { runTaskCompletionWithBestEffortEvidence } from '../src/app/BasicModules
 import { cartLinesFromPreticket, resolvePreticketProductRequests } from '../src/app/BasicModules/PointOfSale/Sale/utils/preticketQueuePolicy.ts';
 import { applyPublicCatalogPriceVisibility } from '../src/app/BasicModules/Sales/Productos/publicCatalog/utils/publicCatalogVisibility.ts';
 import {
+  publicCatalogCoverImage,
   publicCatalogDescriptionCanExpand,
   publicCatalogImages,
 } from '../src/app/BasicModules/Sales/Productos/publicCatalog/utils/publicCatalogPresentation.ts';
+import {
+  getProductImageTargetDimensions,
+} from '../src/app/BasicModules/Sales/Productos/utils/productImageOptimization.ts';
 
 function memorySessionStorage() {
   const values = new Map();
@@ -157,6 +161,21 @@ test('public catalog removes every forbidden price field before rendering', () =
   assert.equal(retailOnly.wholesaleMinQuantity, undefined);
 });
 
+test('reservable public catalog items keep purchase actions and expose a private-source-safe calendar', async () => {
+  const root = new URL('../src/app/BasicModules/Sales/Productos/publicCatalog/', import.meta.url);
+  const card = await readFile(new URL('PublicCatalogCard.tsx', root), 'utf8');
+  const workspace = await readFile(new URL('PublicCatalogWorkspace.tsx', root), 'utf8');
+  const modal = await readFile(new URL('PublicCatalogAvailabilityModal.tsx', root), 'utf8');
+  const api = await readFile(new URL('publicCatalogApi.ts', root), 'utf8');
+
+  assert.match(card, /item\.reservable/);
+  assert.match(card, /onCheckAvailability/);
+  assert.match(card, /onAddToCart/);
+  assert.match(workspace, /PublicCatalogAvailabilityModal/);
+  assert.match(api, /sales\.catalog\.availability\.read@1/);
+  assert.doesNotMatch(modal, /iCal|\.ics|availabilityIcalUrl/);
+});
+
 test('public catalog presents a deduplicated image gallery with a thumbnail fallback', () => {
   const item = {
     id: 'product-1',
@@ -178,6 +197,67 @@ test('public catalog presents a deduplicated image gallery with a thumbnail fall
     ...item,
     images: [],
   }), [{ url: 'https://cdn.example.test/legacy.jpg', alt: 'Habitación Bellamar' }]);
+  assert.deepEqual(publicCatalogCoverImage(item), {
+    url: 'https://cdn.example.test/legacy.jpg',
+    alt: 'Habitación Bellamar',
+  });
+});
+
+test('product image preparation preserves small media and caps oversized dimensions', () => {
+  assert.deepEqual(getProductImageTargetDimensions(1200, 800), { width: 1200, height: 800 });
+  assert.deepEqual(getProductImageTargetDimensions(4000, 3000), { width: 1920, height: 1440 });
+  assert.deepEqual(getProductImageTargetDimensions(3000, 4000), { width: 1440, height: 1920 });
+});
+
+test('public catalog opens a lazy, resilient cover in an accessible large gallery', async () => {
+  const [workspace, cover, gallery, media, optimization] = await Promise.all([
+    readFile(new URL('../src/app/BasicModules/Sales/Productos/publicCatalog/PublicCatalogWorkspace.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/Sales/Productos/publicCatalog/PublicCatalogImageCover.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/Sales/Productos/publicCatalog/PublicCatalogGalleryModal.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/Sales/Productos/components/product-modal/ProductMediaSection.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/Sales/Productos/utils/productImageOptimization.ts', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(workspace, /<PublicCatalogGalleryModal/);
+  assert.match(workspace, /onOpenGallery=\{setGalleryItem\}/);
+  assert.match(cover, /loading="lazy"/);
+  assert.match(cover, /decoding="async"/);
+  assert.match(cover, /onError=\{\(\) => setLoadState\('error'\)\}/);
+  assert.match(gallery, /modalType="large-workspace"/);
+  assert.match(gallery, /event\.key === 'ArrowLeft'/);
+  assert.match(gallery, /onTouchEnd/);
+  assert.match(gallery, /object-contain/);
+  assert.match(media, /isPreparingImages/);
+  assert.match(media, /accept=\{productImageFileAccept\}/);
+  assert.match(optimization, /canvas\.toBlob\(resolve, 'image\/webp'/);
+  assert.match(optimization, /productImageMaximumEdge = 1920/);
+});
+
+test('public catalog prepares reference images only on demand and shares a direct WhatsApp product link', async () => {
+  const [workspace, card, mobileCard, downloads, sharing, api, visibility] = await Promise.all([
+    readFile(new URL('../src/app/BasicModules/Sales/Productos/publicCatalog/PublicCatalogWorkspace.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/Sales/Productos/publicCatalog/PublicCatalogCard.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/Sales/Productos/publicCatalog/PublicCatalogMobileCard.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/Sales/Productos/publicCatalog/utils/publicCatalogImageDownloads.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/Sales/Productos/publicCatalog/utils/publicCatalogSharing.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/Sales/Productos/publicCatalog/publicCatalogApi.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/Sales/Productos/publicCatalog/PublicCatalogVisibilitySettings.tsx', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(workspace, /downloadReferenceProductImages\(item\)/);
+  assert.match(workspace, /config\.showPrices[\s\S]*formatProductCurrency/);
+  assert.match(workspace, /window\.open\(shareUrl, '_blank'\)/);
+  assert.match(card, /config\.allowImageDownloads && hasImages/);
+  assert.match(card, /MessageCircle/);
+  assert.match(mobileCard, /config\.allowImageDownloads && hasImages/);
+  assert.match(mobileCard, /MessageCircle/);
+  assert.match(downloads, /referenceImageMaximumEdge = 1200/);
+  assert.match(downloads, /referenceImageWebpQuality = 0\.65/);
+  assert.match(downloads, /await import\('fflate'\)/);
+  assert.match(sharing, /https:\/\/wa\.me\/\?text=/);
+  assert.match(sharing, /searchParams\.set\('product', itemId\)/);
+  assert.match(api, /allowImageDownloads: config\.allowImageDownloads/);
+  assert.match(visibility, /'allowImageDownloads'/);
 });
 
 test('public catalog only offers read more for descriptions that exceed the card limit', () => {

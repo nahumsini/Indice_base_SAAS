@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { canAccessHumanResourcesTab, type HumanResourcesTabId } from '../../../access/accessRules';
 import { authApi } from '../../../api/auth';
+import { useAuthorizationRevision } from '../../../hooks/useAuthorizationRevision';
 
 interface HumanResourcesSessionAccess {
   role: string | null;
@@ -17,9 +18,11 @@ const deniedSessionAccess: HumanResourcesSessionAccess = {
 export function useHumanResourcesAccess() {
   const [sessionAccess, setSessionAccess] = useState<HumanResourcesSessionAccess>(deniedSessionAccess);
   const [isAccessLoaded, setIsAccessLoaded] = useState(false);
+  const authorizationRevision = useAuthorizationRevision();
 
   useEffect(() => {
     let active = true;
+    setIsAccessLoaded(false);
 
     authApi.getSessionOrNull()
       .then(session => {
@@ -38,7 +41,7 @@ export function useHumanResourcesAccess() {
       });
 
     return () => { active = false; };
-  }, []);
+  }, [authorizationRevision]);
 
   const canAccessTab = useCallback((tabId: HumanResourcesTabId) => canAccessHumanResourcesTab(
     sessionAccess.role,

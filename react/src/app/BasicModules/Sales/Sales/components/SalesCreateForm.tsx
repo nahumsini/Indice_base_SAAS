@@ -423,8 +423,8 @@ function ReviewStep({
           className="mt-4"
           columns={4}
           items={[
-            { id: 'subtotal', label: t.invoice.subtotal, value: formatSalesCurrency(form.subtotal, form.currency) },
-            { id: 'discount', label: t.invoice.discount, value: formatSalesCurrency(form.discountTotal, form.currency) },
+            { id: 'subtotal', label: t.saleNote.subtotal, value: formatSalesCurrency(form.subtotal, form.currency) },
+            { id: 'discount', label: t.saleNote.discount, value: formatSalesCurrency(form.discountTotal, form.currency) },
             { id: 'tax', label: t.modal.fields.taxTotal, value: formatSalesCurrency(form.taxTotal, form.currency) },
             { id: 'total', label: t.modal.fields.totalAmount, value: formatSalesCurrency(form.totalAmount, form.currency), emphasized: true },
           ]}

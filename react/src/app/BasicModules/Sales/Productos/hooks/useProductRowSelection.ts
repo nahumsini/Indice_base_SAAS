@@ -11,6 +11,10 @@ export function useProductRowSelection() {
     setSelectedIds(new Set<ProductSelectionId>());
   }, []);
 
+  const replaceSelection = useCallback((ids: readonly ProductSelectionId[]) => {
+    setSelectedIds(new Set(ids));
+  }, []);
+
   const isSelected = useCallback((id: ProductSelectionId) => selectedIds.has(id), [selectedIds]);
 
   const toggleSelection = useCallback((id: ProductSelectionId, checked?: boolean) => {
@@ -72,6 +76,7 @@ export function useProductRowSelection() {
     clearSelection,
     isSelected,
     pruneSelection,
+    replaceSelection,
     selectedCount: selectedIds.size,
     selectedIdList,
     selectedIds,

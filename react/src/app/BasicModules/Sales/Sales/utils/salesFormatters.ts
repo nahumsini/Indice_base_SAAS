@@ -4,10 +4,10 @@ export function formatSalesCurrency(value: number, currency = defaultSalesCurren
   return formatSalesCurrencyAmount(value, currency);
 }
 
-export function formatSalesDate(value: string) {
+export function formatSalesDate(value: string, locale = 'es-MX') {
   if (!value) return '';
 
-  return new Intl.DateTimeFormat('es-MX', {
+  return new Intl.DateTimeFormat(locale, {
     year: 'numeric',
     month: 'short',
     day: '2-digit',

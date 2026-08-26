@@ -78,9 +78,27 @@ test('alta rápida de cliente persiste antes de ligarse a la venta', () => {
 test('miniatura usa la galería persistida y reinicia errores al cambiar la URL', () => {
   const source = read('src/app/BasicModules/Sales/Productos/components/ProductThumbnail.tsx');
 
-  assert.match(source, /getProductGalleryImages\(product\)\[0\]/);
+  assert.match(source, /getProductGalleryImages\(product, \{ includeTransient: includeTransientImages \}\)\[0\]/);
   assert.match(source, /setHasImageError\(false\)/);
   assert.match(source, /\[imageUrl\]/);
+});
+
+test('Productos conserva la imagen temporal en la revisión y enruta almacenamiento firmado por el origen activo', () => {
+  const productImages = read('src/app/BasicModules/Sales/Productos/utils/productImages.ts');
+  const preview = read('src/app/BasicModules/Sales/Productos/components/product-modal/ProductPreviewPanel.tsx');
+  const storageUrls = read('src/app/BasicModules/Sales/utils/salesStorageUrls.ts');
+  const salesApi = read('src/app/BasicModules/Sales/salesApi.ts');
+  const publicCatalog = read('src/app/BasicModules/Sales/Productos/publicCatalog/PublicCatalogPage.tsx');
+  const viteConfig = read('vite.config.ts');
+
+  assert.match(productImages, /includeTransientUploads && isTransientProductImageUrl/);
+  assert.match(preview, /includeTransientImages/);
+  assert.doesNotMatch(preview, /Math\.max\(getProductGalleryImages/);
+  assert.match(storageUrls, /parsedUrl\.pathname\.startsWith\('\/storage\/'\)/);
+  assert.match(salesApi, /fetch\(resolveSalesStorageUrl\(uploadUrl\)/);
+  assert.match(publicCatalog, /resolveSalesStorageUrl\(item\.thumbnailUrl\)/);
+  assert.match(viteConfig, /'\/storage': \{/);
+  assert.match(viteConfig, /Host: storageSignedHost/);
 });
 
 test('nueva venta permite partidas editables antes de confirmar', () => {

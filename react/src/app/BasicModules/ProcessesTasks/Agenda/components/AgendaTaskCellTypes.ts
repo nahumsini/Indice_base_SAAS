@@ -1,6 +1,5 @@
 import type {
   ProcessBusinessOption,
-  ProcessCollaboratorOption,
   ProcessUnitOption,
 } from '../../Processes/types';
 import type { ProjectRecord } from '../../Projects/projectsApi';
@@ -28,7 +27,6 @@ export type AgendaTaskCellProps = {
   agendaStatusDate: string;
   agendaStatusRange: AgendaLoadRange;
   businessOptionsForUnit: (unitId: number | null) => ProcessBusinessOption[];
-  collaboratorOptionsForScope: (unitId: number | null, businessId: number | null) => ProcessCollaboratorOption[];
   columnId: AgendaColumnId;
   copy: AgendaTranslations;
   isPending: boolean;
@@ -46,7 +44,6 @@ export type AgendaTaskCellProps = {
   onRequestComplete: (task: AgendaTaskItem) => void;
   onPriorityChange: (task: AgendaTaskItem, value: string) => void;
   onProjectChange: (task: AgendaTaskItem, value: string) => void;
-  onResponsibleChange: (task: AgendaTaskItem, value: string) => void;
   onUnitChange: (task: AgendaTaskItem, value: string) => void;
   onUpdateSchedulePlacement: (taskId: number, dateKey: string, hour: string | null) => void;
   projects: ProjectRecord[];
@@ -54,5 +51,4 @@ export type AgendaTaskCellProps = {
   selectedScheduleDate: string;
   task: AgendaTaskItem;
   todayAgendaValue: string;
-  unassignedResponsibleValue: string;
 };

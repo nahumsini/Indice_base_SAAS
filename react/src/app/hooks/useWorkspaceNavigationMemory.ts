@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { authApi } from '../api/auth';
 import { workspaceStateApi } from '../api/workspaceState';
+import { useAuthorizationRevision } from './useAuthorizationRevision';
 
 type WorkspaceState = Record<string, unknown>;
 
@@ -46,6 +47,7 @@ export function useWorkspaceNavigationMemory<TState extends WorkspaceState>({
   onRestore,
   rememberScroll = true,
 }: WorkspaceNavigationMemoryOptions<TState>) {
+  const authorizationRevision = useAuthorizationRevision();
   const readyRef = useRef(false);
   const storageKeyRef = useRef('');
   const scrollKeyRef = useRef('');
@@ -112,7 +114,7 @@ export function useWorkspaceNavigationMemory<TState extends WorkspaceState>({
 
     void restore();
     return () => { cancelled = true; };
-  }, [moduleKey, rememberScroll, tabKey]);
+  }, [authorizationRevision, moduleKey, rememberScroll, tabKey]);
 
   useEffect(() => {
     if (!readyRef.current || !storageKeyRef.current) return;

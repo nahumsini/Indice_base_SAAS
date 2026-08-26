@@ -24,6 +24,7 @@ import { getProductAvailability } from '../utils/productOperationalStatus';
 
 type FilterValue = 'all' | string;
 const productCategoriesStorageKey = 'indice.sales.products.categoryDirectory';
+const uncategorizedCategoryFilter = '__uncategorized__';
 
 function readStoredProductCategories(): ProductCategoryConfig[] {
   if (typeof window === 'undefined') {
@@ -99,7 +100,10 @@ export function useProductsCatalog(t: ProductsTranslations) {
       product.imageAlt ?? '',
       ...(product.gallery ?? []).map((image) => image.alt ?? ''),
     ].some((value) => value.toLowerCase().includes(normalizedSearch));
-    const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
+    const matchesCategory = categoryFilter === 'all'
+      || (categoryFilter === uncategorizedCategoryFilter
+        ? !product.category.trim()
+        : product.category === categoryFilter);
     const matchesType = typeFilter === 'all' || product.type === typeFilter;
     const matchesStatus = statusFilter === 'all' || product.status === statusFilter;
 
@@ -144,6 +148,7 @@ export function useProductsCatalog(t: ProductsTranslations) {
 
   const categoryOptions = [
     { value: 'all', label: t.filters.allCategories },
+    { value: uncategorizedCategoryFilter, label: t.filters.uncategorized },
     ...buildProductCategoryOptions(catalogCategories, t),
   ];
   const defaultCategoryValue = useMemo(
@@ -261,6 +266,38 @@ export function useProductsCatalog(t: ProductsTranslations) {
     productIds.forEach((productId) => updateProduct(productId, { visibility: 'Internal' }));
   };
 
+  const handleBulkSetProductCategory = async (productIds: string[], category: string) => {
+    const normalizedCategory = category.trim();
+    const uniqueProductIds = Array.from(new Set(productIds));
+
+    if (!normalizedCategory || uniqueProductIds.length === 0) {
+      return { updated: 0, failedIds: uniqueProductIds };
+    }
+
+    const results = await Promise.allSettled(uniqueProductIds.map(async (productId) => {
+      const product = availableProducts.find((item) => item.id === productId);
+
+      if (!product) {
+        throw new Error('Product not found.');
+      }
+
+      if (product.category === normalizedCategory) {
+        return product;
+      }
+
+      return updateProductRecord(productId, {
+        category: normalizedCategory as SalesCatalogItem['category'],
+      });
+    }));
+
+    await reloadProducts().catch(() => undefined);
+
+    return {
+      updated: results.filter((result) => result.status === 'fulfilled').length,
+      failedIds: uniqueProductIds.filter((_, index) => results[index]?.status === 'rejected'),
+    };
+  };
+
   const handleQuickCreateCategory = (name: string) => {
     const normalizedName = name.trim();
 
@@ -307,6 +344,7 @@ export function useProductsCatalog(t: ProductsTranslations) {
 
     try {
       const uploadedImages = await persistProductImageDrafts(form.uploadedImages);
+      setForm((current) => ({ ...current, uploadedImages }));
       const productInput = buildProductInput(
         { ...form, uploadedImages },
         editingProduct?.thumbnailTone ?? 'coral',
@@ -461,6 +499,7 @@ export function useProductsCatalog(t: ProductsTranslations) {
     handleBulkSetProductStatus,
     handleBulkMarkAvailableForSales,
     handleBulkRemoveFromPublicCatalog,
+    handleBulkSetProductCategory,
     handleBulkCreateProducts,
     handleBulkUpdateProducts,
     setActiveView,

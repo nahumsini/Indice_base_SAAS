@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type 
 import { isBackendId } from '../adapters/adapter.utils';
 import { mockProviderRecords } from '../data/providerRecords.mock';
 import { providersService, toFinanceApiErrorMessage } from '../services';
+import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 
 export type ProviderType =
   | 'Arrendamiento'
@@ -171,6 +172,30 @@ interface UseProveedoresLogicParams {
   providers?: ProviderRecord[];
 }
 
+type ProvidersWorkspaceState = {
+  businessFilter: string;
+  businessUnitFilter: string;
+  searchTerm: string;
+  statusFilter: ProviderStatus | 'all';
+  typeFilter: ProviderType | 'all';
+};
+
+const providersWorkspaceDefaults: ProvidersWorkspaceState = {
+  businessFilter: 'all',
+  businessUnitFilter: 'all',
+  searchTerm: '',
+  statusFilter: 'all',
+  typeFilter: 'all',
+};
+
+const providersWorkspaceUrlFields: Partial<Record<keyof ProvidersWorkspaceState, string>> = {
+  businessFilter: 'pr_business',
+  businessUnitFilter: 'pr_unit',
+  searchTerm: 'pr_q',
+  statusFilter: 'pr_status',
+  typeFilter: 'pr_type',
+};
+
 export function useProveedoresLogic({
   onError,
   onProvidersChange,
@@ -186,6 +211,29 @@ export function useProveedoresLogic({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ProviderStatus | 'all'>('all');
   const [typeFilter, setTypeFilter] = useState<ProviderType | 'all'>('all');
+  const workspaceState = useMemo<ProvidersWorkspaceState>(() => ({
+    businessFilter,
+    businessUnitFilter,
+    searchTerm,
+    statusFilter,
+    typeFilter,
+  }), [businessFilter, businessUnitFilter, searchTerm, statusFilter, typeFilter]);
+  const restoreWorkspaceState = useCallback((restoredState: ProvidersWorkspaceState) => {
+    setBusinessFilter(restoredState.businessFilter);
+    setBusinessUnitFilter(restoredState.businessUnitFilter);
+    setSearchTerm(restoredState.searchTerm);
+    setStatusFilter(restoredState.statusFilter);
+    setTypeFilter(restoredState.typeFilter);
+  }, []);
+
+  useWorkspaceNavigationMemory({
+    moduleKey: 'expenses',
+    tabKey: 'providers',
+    state: workspaceState,
+    defaults: providersWorkspaceDefaults,
+    urlFields: providersWorkspaceUrlFields,
+    onRestore: restoreWorkspaceState,
+  });
 
   const filteredProviders = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();

@@ -1,5 +1,6 @@
 import { endpoints } from '../../api/endpoints';
 import { apiClient } from '../../lib/apiClient';
+import { resolveSalesStorageUrl } from './utils/salesStorageUrls';
 
 export type SalesContextUser = {
   userCompanyId: number;
@@ -152,7 +153,7 @@ export const salesApi = {
       headers.set('Content-Type', file.type);
     }
 
-    const response = await fetch(uploadUrl, {
+    const response = await fetch(resolveSalesStorageUrl(uploadUrl), {
       method: 'PUT',
       body: file,
       headers,

@@ -26,10 +26,11 @@ type PdfDocumentWithTable = jsPDF & {
   };
 };
 
-type InvoiceLine = {
+type SaleNoteLine = {
   id: string;
   productName: string;
   sku: string;
+  categoryName: string;
   quantity: number;
   unitPrice: number;
   discountPercent: number;
@@ -37,7 +38,7 @@ type InvoiceLine = {
   subtotal: number;
 };
 
-export type SaleInvoicePdfContext = {
+export type SaleNotePdfContext = {
   sale: SaleRecord | SaleRecordDraft;
   quote?: SalesQuote | null;
   operationalContext: SalesOperationalContext;
@@ -98,44 +99,44 @@ function formatCurrency(value: number, currency?: string | null) {
   return formatSalesCurrencyAmount(value, currency);
 }
 
-function getCommercialSummaryCopy(locale: string) {
+function getSaleNoteCopy(locale: string) {
   const language = locale.toLowerCase().split('-')[0];
   const labels = {
     en: {
-      title: 'Commercial sale summary',
+      title: 'Sales note',
       noteTitle: 'Document classification',
-      noteBody: 'Commercial summary only. This document is not a fiscal invoice or proof of payment.',
+      noteBody: 'Sales note only. This document is not a fiscal invoice or proof of payment.',
     },
     es: {
-      title: 'Resumen comercial de venta',
+      title: 'Nota de venta',
       noteTitle: 'Clasificación del documento',
-      noteBody: 'Resumen comercial únicamente. Este documento no es una factura fiscal ni un comprobante de pago.',
+      noteBody: 'Nota de venta únicamente. Este documento no es una factura fiscal ni un comprobante de pago.',
     },
     fr: {
-      title: 'Sommaire commercial de la vente',
+      title: 'Note de vente',
       noteTitle: 'Classification du document',
-      noteBody: 'Sommaire commercial seulement. Ce document n’est ni une facture fiscale ni une preuve de paiement.',
+      noteBody: 'Note de vente uniquement. Ce document n’est ni une facture fiscale ni une preuve de paiement.',
     },
     ko: {
-      title: '판매 상업 요약',
+      title: '판매 내역서',
       noteTitle: '문서 분류',
-      noteBody: '상업용 요약 문서입니다. 세금계산서 또는 결제 증빙이 아닙니다.',
+      noteBody: '판매 내역서이며 세금계산서 또는 결제 증빙이 아닙니다.',
     },
     pt: {
-      title: 'Resumo comercial da venda',
+      title: 'Nota de venda',
       noteTitle: 'Classificação do documento',
-      noteBody: 'Resumo comercial apenas. Este documento não é uma nota fiscal nem um comprovante de pagamento.',
+      noteBody: 'Nota de venda apenas. Este documento não é uma nota fiscal nem um comprovante de pagamento.',
     },
     zh: {
-      title: '销售商业摘要',
+      title: '销售单',
       noteTitle: '文件分类',
-      noteBody: '仅供商业摘要使用。本文件不是税务发票或付款凭证。',
+      noteBody: '此文件仅为销售单，不是税务发票或付款凭证。',
     },
   } as const;
   return labels[language as keyof typeof labels] ?? labels.en;
 }
 
-function getLineTotal(line: InvoiceLine) {
+function getLineTotal(line: SaleNoteLine) {
   return line.subtotal + (line.subtotal * (line.taxPercent / 100));
 }
 
@@ -155,12 +156,13 @@ function getTaxIdentifierLabel(context: SalesOperationalContext, copy: SalesReco
   return countryLabels[String(context.country ?? '').toUpperCase()] ?? copy.modal.operationalContext.taxIdentifier;
 }
 
-function getInvoiceLines(sale: SaleRecord | SaleRecordDraft, quote?: SalesQuote | null): InvoiceLine[] {
+function getSaleNoteLines(sale: SaleRecord | SaleRecordDraft, quote?: SalesQuote | null): SaleNoteLine[] {
   if (sale.saleLines.length > 0) {
     return sale.saleLines.map((line: SaleLine) => ({
       id: line.id,
       productName: line.productName,
       sku: line.sku,
+      categoryName: line.categoryName || '',
       quantity: line.quantity,
       unitPrice: line.unitPrice,
       discountPercent: line.discountPercent,
@@ -177,6 +179,7 @@ function getInvoiceLines(sale: SaleRecord | SaleRecordDraft, quote?: SalesQuote 
       id: line.id,
       productName: line.productName,
       sku: line.sku,
+      categoryName: line.section || '',
       quantity: line.quantity,
       unitPrice: line.unitPrice,
       discountPercent: line.discountPercent,
@@ -189,18 +192,18 @@ function getInvoiceLines(sale: SaleRecord | SaleRecordDraft, quote?: SalesQuote 
 function getTaxJurisdictionNote(context: SalesOperationalContext, copy: SalesRecordsTranslations) {
   const jurisdiction = context.jurisdictionName || context.country || copy.common.notAvailable;
   const taxLabel = getTaxIdentifierLabel(context, copy);
-  const registryLabel = context.companyRegistryNumber ? ` · ${copy.invoice.registry}: ${context.companyRegistryNumber}` : '';
+  const registryLabel = context.companyRegistryNumber ? ` · ${copy.saleNote.registry}: ${context.companyRegistryNumber}` : '';
 
   return `${jurisdiction} · ${taxLabel}${registryLabel}`;
 }
 
-function buildLegacySaleInvoicePdf({
+function buildLegacySaleNotePdf({
   sale,
   quote,
   operationalContext,
   copy,
   locale = 'es-MX',
-}: SaleInvoicePdfContext) {
+}: SaleNotePdfContext) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -208,11 +211,11 @@ function buildLegacySaleInvoicePdf({
   const right = pageWidth - 18;
   const contentWidth = right - left;
   const currency = sale.currency || operationalContext.currency || 'MXN';
-  const invoiceNumber = sale.saleNumber || sale.saleDocumentReference || quote?.quoteNumber || copy.common.notAvailable;
+  const salesNoteNumber = sale.saleNumber || sale.saleDocumentReference || quote?.quoteNumber || copy.common.notAvailable;
   const generatedAt = new Date();
-  const documentCopy = getCommercialSummaryCopy(locale);
+  const documentCopy = getSaleNoteCopy(locale);
   const generatedDate = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(generatedAt);
-  const lines = getInvoiceLines(sale, quote);
+  const lines = getSaleNoteLines(sale, quote);
   const itemCount = lines.reduce((total, item) => total + item.quantity, 0);
   const taxSummary = lines
     .map((item) => `${item.taxPercent}%`)
@@ -246,7 +249,7 @@ function buildLegacySaleInvoicePdf({
   };
 
   applyStandardPdfMetadata(doc, {
-    title: `${documentCopy.title} ${invoiceNumber}`,
+    title: `${documentCopy.title} ${salesNoteNumber}`,
     subject: documentCopy.title,
   });
 
@@ -254,14 +257,14 @@ function buildLegacySaleInvoicePdf({
   setText(doc, brand.graphite);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
-  doc.text(`${copy.invoice.number}: ${invoiceNumber}`, left, y + 2);
+  doc.text(`${copy.saleNote.number}: ${salesNoteNumber}`, left, y + 2);
   doc.setFontSize(16);
   doc.text(documentCopy.title, pageWidth / 2, y + 2, { align: 'center' });
 
   setText(doc, brand.slate);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
-  doc.text(`${copy.invoice.generated}: ${generatedDate}`, right, y + 2, { align: 'right' });
+  doc.text(`${copy.saleNote.generated}: ${generatedDate}`, right, y + 2, { align: 'right' });
   drawBrandBar(left, y + 13, contentWidth);
 
   y += 28;
@@ -273,7 +276,7 @@ function buildLegacySaleInvoicePdf({
   setText(doc, brand.slate);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.text(copy.invoice.subtitle, left, y + 8, { maxWidth: contentWidth * 0.66 });
+  doc.text(copy.saleNote.subtitle, left, y + 8, { maxWidth: contentWidth * 0.66 });
 
   setText(doc, brand.coral);
   doc.setFont('helvetica', 'bold');
@@ -319,8 +322,8 @@ function buildLegacySaleInvoicePdf({
   setText(doc, brand.slate);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
-  doc.text(copy.invoice.billTo.toUpperCase(), left + 5, y + 7);
-  doc.text(copy.invoice.issuedBy.toUpperCase(), left + columnWidth + 13, y + 7);
+  doc.text(copy.saleNote.customer.toUpperCase(), left + 5, y + 7);
+  doc.text(copy.saleNote.issuedBy.toUpperCase(), left + columnWidth + 13, y + 7);
 
   setText(doc, brand.graphite);
   doc.setFontSize(11);
@@ -342,7 +345,7 @@ function buildLegacySaleInvoicePdf({
   setText(doc, brand.graphite);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
-  doc.text(copy.invoice.itemsTitle, left, y);
+  doc.text(copy.saleNote.itemsTitle, left, y);
   setDraw(doc, brand.border);
   doc.line(left, y + 3, right, y + 3);
 
@@ -402,10 +405,10 @@ function buildLegacySaleInvoicePdf({
   doc.roundedRect(totalsX, y, 76, 40, 3, 3, 'FD');
   const totalRows = [
     [copy.modal.fields.currency, currency],
-    [copy.invoice.subtotal, formatCurrency(sale.subtotal, currency)],
-    [copy.invoice.discount, formatCurrency(sale.discountTotal, currency)],
+    [copy.saleNote.subtotal, formatCurrency(sale.subtotal, currency)],
+    [copy.saleNote.discount, formatCurrency(sale.discountTotal, currency)],
     [copy.modal.fields.taxTotal, formatCurrency(sale.taxTotal, currency)],
-    [copy.invoice.total, formatCurrency(sale.totalAmount, currency)],
+    [copy.saleNote.total, formatCurrency(sale.totalAmount, currency)],
   ] as const;
 
   totalRows.forEach(([label, value], index) => {
@@ -426,8 +429,8 @@ function buildLegacySaleInvoicePdf({
   setText(doc, brand.slate);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  doc.text(sale.notes || copy.invoice.defaultNotes, left, y + 12, { maxWidth: notesWidth });
-  doc.text(`${copy.invoice.taxSummary}: ${taxSummary}`, left, y + 28, { maxWidth: notesWidth });
+  doc.text(sale.notes || copy.saleNote.defaultNotes, left, y + 12, { maxWidth: notesWidth });
+  doc.text(`${copy.saleNote.taxSummary}: ${taxSummary}`, left, y + 28, { maxWidth: notesWidth });
 
   y += 50;
   y = ensureSpace(y, 26);
@@ -444,7 +447,7 @@ function buildLegacySaleInvoicePdf({
   doc.text(documentCopy.noteBody, left + 5, y + 16, { maxWidth: contentWidth - 10 });
 
   addStandardPdfFooters(doc, {
-    folio: invoiceNumber,
+    folio: salesNoteNumber,
     locale,
     updatedAt: generatedAt,
     version: '1.0',
@@ -452,14 +455,14 @@ function buildLegacySaleInvoicePdf({
   return doc;
 }
 
-export async function buildSaleInvoicePdf({
+export async function buildSaleNotePdf({
   sale,
   quote,
   operationalContext,
   company,
   copy,
   locale = 'es-MX',
-}: SaleInvoicePdfContext) {
+}: SaleNotePdfContext) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -471,8 +474,8 @@ export async function buildSaleInvoicePdf({
   const generatedAt = new Date();
   const generatedDate = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(generatedAt);
   const generatedTime = new Intl.DateTimeFormat(locale, { timeStyle: 'short' }).format(generatedAt);
-  const documentCopy = getCommercialSummaryCopy(locale);
-  const lines = getInvoiceLines(sale, quote);
+  const documentCopy = getSaleNoteCopy(locale);
+  const lines = getSaleNoteLines(sale, quote);
   const logoDataUrl = await loadLogoDataUrl(company?.logoUrl || '');
   const language = locale.toLowerCase().split('-')[0];
   const labels = ({
@@ -530,7 +533,7 @@ export async function buildSaleInvoicePdf({
   setText(doc, brand.slate);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
-  doc.text(`${copy.invoice.generated}: ${generatedDate}`, right, y - 2, { align: 'right' });
+  doc.text(`${copy.saleNote.generated}: ${generatedDate}`, right, y - 2, { align: 'right' });
   doc.text(`${generatedTime} · ${saleNumber}`, right, y + 4, { align: 'right' });
 
   y += 14;
@@ -546,9 +549,9 @@ export async function buildSaleInvoicePdf({
   setText(doc, brand.slate);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
-  doc.text(copy.invoice.billTo.toUpperCase(), columns[0], y + 7);
+  doc.text(copy.saleNote.customer.toUpperCase(), columns[0], y + 7);
   doc.text(labels.saleData.toUpperCase(), columns[1], y + 7);
-  doc.text(copy.invoice.issuedBy.toUpperCase(), columns[2], y + 7);
+  doc.text(copy.saleNote.issuedBy.toUpperCase(), columns[2], y + 7);
   setText(doc, brand.graphite);
   doc.setFontSize(11);
   doc.text(fitSingleLine(doc, sale.customerName || copy.common.notAvailable, textWidth), columns[0], y + 15);
@@ -582,11 +585,19 @@ export async function buildSaleInvoicePdf({
 
   y += 54;
   y = ensureSpace(y, 70);
-  drawSectionTitle(copy.invoice.itemsTitle, y);
+  drawSectionTitle(copy.saleNote.itemsTitle, y);
   autoTable(doc, {
     startY: y + 9,
-    head: [[copy.modal.summaryColumns.item, copy.modal.summaryColumns.sku, labels.quantity, copy.modal.summaryColumns.unitPrice, labels.discount, labels.tax, copy.modal.summaryColumns.total]],
-    body: lines.map((item) => [item.productName, item.sku, String(item.quantity), formatCurrency(item.unitPrice, currency), `${item.discountPercent}%`, `${item.taxPercent}%`, formatCurrency(getLineTotal(item), currency)]),
+    head: [[copy.modal.summaryColumns.item, copy.modal.summaryColumns.category, labels.quantity, copy.modal.summaryColumns.unitPrice, labels.discount, labels.tax, copy.modal.summaryColumns.total]],
+    body: lines.map((item) => [
+      [item.productName, item.sku].filter(Boolean).join('\n'),
+      item.categoryName || copy.common.notAvailable,
+      String(item.quantity),
+      formatCurrency(item.unitPrice, currency),
+      `${item.discountPercent}%`,
+      `${item.taxPercent}%`,
+      formatCurrency(getLineTotal(item), currency),
+    ]),
     theme: 'grid',
     margin: { left, right: pageWidth - right },
     styles: { font: 'helvetica', fontSize: 8, cellPadding: 2.6, textColor: rgb(brand.graphite), lineColor: rgb(brand.border), lineWidth: 0.1, overflow: 'linebreak' },
@@ -605,7 +616,7 @@ export async function buildSaleInvoicePdf({
   setFill(doc, brand.coralLight);
   setDraw(doc, [255, 199, 193]);
   doc.roundedRect(totalsX, y, 70, 30, 3, 3, 'FD');
-  const totalRows = [[copy.invoice.subtotal, sale.subtotal], [copy.invoice.discount, sale.discountTotal], [copy.modal.fields.taxTotal, sale.taxTotal], [copy.invoice.total, sale.totalAmount]] as const;
+  const totalRows = [[copy.saleNote.subtotal, sale.subtotal], [copy.saleNote.discount, sale.discountTotal], [copy.modal.fields.taxTotal, sale.taxTotal], [copy.saleNote.total, sale.totalAmount]] as const;
   totalRows.forEach(([label, value], index) => {
     const rowY = y + 6 + index * 6.2;
     const isTotal = index === totalRows.length - 1;
@@ -644,25 +655,25 @@ export async function buildSaleInvoicePdf({
   return doc;
 }
 
-export function getSaleInvoicePdfFileName(sale: SaleRecord | SaleRecordDraft) {
+export function getSaleNotePdfFileName(sale: SaleRecord | SaleRecordDraft) {
   const reference = sale.saleNumber || sale.saleDocumentReference || sale.quoteReference || 'sale';
-  return buildDocumentFileName({ documentType: 'sale-summary', identifier: reference });
+  return buildDocumentFileName({ documentType: 'sale-note', identifier: reference });
 }
 
-export async function getSaleInvoicePdfBlob(context: SaleInvoicePdfContext) {
-  return (await buildSaleInvoicePdf(context)).output('blob');
+export async function getSaleNotePdfBlob(context: SaleNotePdfContext) {
+  return (await buildSaleNotePdf(context)).output('blob');
 }
 
-export async function downloadSaleInvoicePdf(context: SaleInvoicePdfContext) {
-  const blob = await getSaleInvoicePdfBlob(context);
+export async function downloadSaleNotePdf(context: SaleNotePdfContext) {
+  const blob = await getSaleNotePdfBlob(context);
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = getSaleInvoicePdfFileName(context.sale);
+  link.download = getSaleNotePdfFileName(context.sale);
   link.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export async function printSaleInvoicePdf(context: SaleInvoicePdfContext) {
-  return openStandardPdfForPrint(await buildSaleInvoicePdf(context), { locale: context.locale });
+export async function printSaleNotePdf(context: SaleNotePdfContext) {
+  return openStandardPdfForPrint(await buildSaleNotePdf(context), { locale: context.locale });
 }

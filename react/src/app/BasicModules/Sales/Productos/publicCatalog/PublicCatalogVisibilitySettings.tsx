@@ -10,6 +10,7 @@ type VisibilityKey =
   | 'showCategories'
   | 'allowCart'
   | 'allowPurchaseRequest'
+  | 'allowImageDownloads'
   | 'showOnlinePaymentComingSoon';
 
 const visibilityKeys: VisibilityKey[] = [
@@ -20,6 +21,7 @@ const visibilityKeys: VisibilityKey[] = [
   'showCategories',
   'allowCart',
   'allowPurchaseRequest',
+  'allowImageDownloads',
   'showOnlinePaymentComingSoon',
 ];
 
@@ -32,6 +34,7 @@ function visibilityLabel(t: ProductsTranslations, key: VisibilityKey) {
     showCategories: t.publicCatalog.showCategories,
     allowCart: t.publicCatalog.allowCart,
     allowPurchaseRequest: t.publicCatalog.allowPurchaseRequest,
+    allowImageDownloads: t.publicCatalog.allowImageDownloads,
     showOnlinePaymentComingSoon: t.publicCatalog.showOnlinePaymentComingSoon,
   }[key];
 }

@@ -9,6 +9,7 @@ import type {
 } from '../types';
 import type { SaleRecord } from '../Sales/types/salesTypes';
 import { defaultSalesCurrency, normalizeSalesCurrencyCode } from '../utils/salesCurrency';
+import { resolveSalesStorageUrl } from '../utils/salesStorageUrls';
 
 type ApiRow = Record<string, unknown>;
 type EntityWithBackendId = { id: string; backendId?: number };
@@ -324,6 +325,13 @@ export function toBackendOpportunity(opportunity: Partial<SalesOpportunity>, con
 export function toFrontendProduct(row: ApiRow): SalesCatalogItem {
   const customFields = toObject(row.customFields);
   const metadata = toObject(row.metadata);
+  const gallery = Array.isArray(metadata.gallery)
+    ? metadata.gallery.flatMap((rawImage) => {
+        const image = toObject(rawImage);
+        const url = resolveSalesStorageUrl(toStringValue(image.url));
+        return url ? [{ ...image, url } as NonNullable<SalesCatalogItem['gallery']>[number]] : [];
+      })
+    : [];
   return {
     id: toStringValue(row.id),
     backendId: toOptionalNumber(row.id),
@@ -341,21 +349,33 @@ export function toFrontendProduct(row: ApiRow): SalesCatalogItem {
     visibility: apiLabel(row.visibility, 'Commercial') as SalesCatalogItem['visibility'],
     barcode: toStringValue(customFields.barcode),
     generatedLabels: toStringArray(customFields.generatedLabels),
-    imageUrl: toStringValue(metadata.imageUrl),
+    imageUrl: resolveSalesStorageUrl(toStringValue(metadata.imageUrl)),
     imageAlt: toStringValue(metadata.imageAlt),
-    gallery: Array.isArray(metadata.gallery) ? metadata.gallery as SalesCatalogItem['gallery'] : [],
+    gallery,
     packaging: toObject(metadata.packaging) as SalesCatalogItem['packaging'],
     thumbnailTone: (toStringValue(customFields.thumbnailTone, 'blue') as SalesCatalogItem['thumbnailTone']),
     stockPrepared: Boolean(row.inventoryReady ?? customFields.stockPrepared),
     warehousePrepared: Boolean(customFields.warehousePrepared),
     posPrepared: Boolean(row.posReady),
     variantsPrepared: Boolean(customFields.variantsPrepared),
+    reservable: Boolean(row.reservable),
+    availabilityIcalUrl: toStringValue(row.availabilityIcalUrl) || undefined,
     lastUpdated: dateOnly(row.updatedAt) || new Date().toISOString().slice(0, 10),
     filesCount: toNumber(row.filesCount),
   };
 }
 
 export function toBackendProduct(product: Partial<SalesCatalogItem>) {
+  const gallery = product.gallery?.map((image) => {
+    if (!image.objectKey) {
+      return image;
+    }
+
+    const { url: _signedUrl, ...storedImage } = image;
+    return storedImage;
+  });
+  const primaryImageUsesObjectStorage = Boolean(product.gallery?.[0]?.objectKey);
+
   return stripUndefined({
     productCode: product.productCode,
     sku: product.sku,
@@ -371,6 +391,8 @@ export function toBackendProduct(product: Partial<SalesCatalogItem>) {
     visibility: toApiToken(product.visibility),
     inventoryReady: product.stockPrepared,
     posReady: product.posPrepared,
+    reservable: product.reservable,
+    availabilityIcalUrl: product.reservable ? product.availabilityIcalUrl : null,
     customFields: {
       barcode: product.barcode,
       generatedLabels: product.generatedLabels,
@@ -380,9 +402,9 @@ export function toBackendProduct(product: Partial<SalesCatalogItem>) {
       variantsPrepared: product.variantsPrepared,
     },
     metadata: {
-      imageUrl: product.imageUrl,
+      imageUrl: primaryImageUsesObjectStorage ? undefined : product.imageUrl,
       imageAlt: product.imageAlt,
-      gallery: product.gallery,
+      gallery,
       packaging: product.packaging,
     },
   });

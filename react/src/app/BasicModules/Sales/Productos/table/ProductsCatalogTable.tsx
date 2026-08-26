@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Table,
   TableBody,
@@ -33,6 +33,7 @@ export function ProductsCatalogTable({
   onUpdateProductCategory,
   onUpdateProductStatus,
   onBulkSetProductStatus,
+  onBulkSetProductCategory,
   onBulkMarkAvailableForSales,
   onBulkRemoveFromPublicCatalog,
   visibleColumns = [],
@@ -50,11 +51,18 @@ export function ProductsCatalogTable({
   onUpdateProductCategory: (product: SalesCatalogItem, category: string) => void;
   onUpdateProductStatus: (product: SalesCatalogItem, status: SalesCatalogItem['status']) => void;
   onBulkSetProductStatus: (productIds: string[], status: 'Active' | 'Inactive') => void;
+  onBulkSetProductCategory: (productIds: string[], category: string) => Promise<{
+    updated: number;
+    failedIds: string[];
+  }>;
   onBulkMarkAvailableForSales: (productIds: string[]) => void;
   onBulkRemoveFromPublicCatalog: (productIds: string[]) => void;
   visibleColumns?: ProductTableColumnId[];
 }) {
   const rowSelection = useProductRowSelection();
+  const [selectedBulkCategory, setSelectedBulkCategory] = useState('');
+  const [isApplyingBulkCategory, setIsApplyingBulkCategory] = useState(false);
+  const [bulkCategoryError, setBulkCategoryError] = useState<string | null>(null);
   const allProductIds = useMemo(() => products.map((product) => product.id), [products]);
   const {
     currentPage,
@@ -103,6 +111,13 @@ export function ProductsCatalogTable({
     rowSelection.pruneSelection(allProductIds);
   }, [allProductIds, rowSelection]);
 
+  useEffect(() => {
+    if (rowSelection.selectedCount === 0) {
+      setSelectedBulkCategory('');
+      setBulkCategoryError(null);
+    }
+  }, [rowSelection.selectedCount]);
+
   const runBulkAction = (action: (ids: string[]) => void) => {
     if (selectedProductIds.length === 0) {
       return;
@@ -112,11 +127,46 @@ export function ProductsCatalogTable({
     rowSelection.clearSelection();
   };
 
+  const handleApplyBulkCategory = async () => {
+    if (!selectedBulkCategory || selectedProductIds.length === 0 || isApplyingBulkCategory) {
+      return;
+    }
+
+    setIsApplyingBulkCategory(true);
+    setBulkCategoryError(null);
+
+    try {
+      const result = await onBulkSetProductCategory(selectedProductIds, selectedBulkCategory);
+
+      if (result.failedIds.length > 0) {
+        rowSelection.replaceSelection(result.failedIds);
+        setBulkCategoryError(t.form.saveFailed);
+      } else {
+        rowSelection.clearSelection();
+      }
+    } catch {
+      setBulkCategoryError(t.form.saveFailed);
+    } finally {
+      setIsApplyingBulkCategory(false);
+    }
+  };
+
   return (
     <div className="space-y-3">
       <ProductBulkActionsBar
         selectedCount={rowSelection.selectedCount}
+        categoryOptions={categoryOptions}
+        selectedCategory={selectedBulkCategory}
+        isApplyingCategory={isApplyingBulkCategory}
+        categoryError={bulkCategoryError}
         t={t}
+        onCategoryChange={(category) => {
+          setSelectedBulkCategory(category);
+          setBulkCategoryError(null);
+        }}
+        onApplyCategory={() => {
+          void handleApplyBulkCategory();
+        }}
         onSetActive={() => runBulkAction((ids) => onBulkSetProductStatus(ids, 'Active'))}
         onSetInactive={() => runBulkAction((ids) => onBulkSetProductStatus(ids, 'Inactive'))}
         onMarkAvailableForSales={() => runBulkAction(onBulkMarkAvailableForSales)}

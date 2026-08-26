@@ -1,5 +1,5 @@
 import { apiClient } from '../../../../lib/apiClient';
-import type { PublicCatalogConfig, PublicCatalogItem, PublicCatalogContactMethod } from './types/publicCatalogTypes';
+import type { PublicCatalogAvailability, PublicCatalogConfig, PublicCatalogItem, PublicCatalogContactMethod } from './types/publicCatalogTypes';
 import type { DiscountRuleWire } from '../../../PointOfSale/shared/commercial/discounts/services/discountRulesApi';
 
 type AdminCatalog = {
@@ -28,6 +28,7 @@ type AdminCatalog = {
   showCategories: boolean;
   allowCart: boolean;
   allowPurchaseRequest: boolean;
+  allowImageDownloads: boolean;
   productIds: number[];
   version: number;
   updatedAt: string;
@@ -51,6 +52,7 @@ export type PublicCatalogBootstrap = {
   showCategories: boolean;
   allowCart: boolean;
   allowPurchaseRequest: boolean;
+  allowImageDownloads: boolean;
   submissionPolicy: 'REVIEW_REQUIRED';
   items: Array<{
     id: number;
@@ -72,6 +74,7 @@ export type PublicCatalogBootstrap = {
     usesInventory: boolean;
     publicInventoryStatus?: PublicCatalogItem['publicInventoryStatus'] | null;
     readyForSales: boolean;
+    reservable: boolean;
   }>;
   discountRules: DiscountRuleWire[];
   csrfToken: string;
@@ -156,6 +159,7 @@ export const toPublicCatalogConfig = (catalog: AdminCatalog): PublicCatalogConfi
   showCategories: catalog.showCategories,
   allowCart: catalog.allowCart,
   allowPurchaseRequest: catalog.allowPurchaseRequest,
+  allowImageDownloads: Boolean(catalog.allowImageDownloads),
   showOnlinePaymentComingSoon: false,
   selectedCategoryIds: [],
   selectedProductIds: catalog.productIds.map(String),
@@ -193,6 +197,7 @@ const payload = (config: PublicCatalogConfig, products: Array<{ id: string; back
   showCategories: config.showCategories,
   allowCart: config.allowCart,
   allowPurchaseRequest: config.allowPurchaseRequest,
+  allowImageDownloads: config.allowImageDownloads,
   productIds: config.selectedProductIds.map((id) => {
     const product = products.find((candidate) => candidate.id === id);
     return product?.backendId ?? Number(id);
@@ -277,6 +282,18 @@ export const publicCatalogApi = {
         method: 'POST',
         headers: { 'X-CSRF-Token': csrfToken, 'Idempotency-Key': idempotencyKey },
         body: JSON.stringify(request),
+      },
+    );
+    return response.data;
+  },
+
+  async availability(token: string, csrfToken: string, productId: number, month: string) {
+    const response = await apiClient<EngineEnvelope<PublicCatalogAvailability>>(
+      `/api/v2/kiosks/public/${encodeURIComponent(token)}/actions/sales.catalog.availability.read@1`,
+      {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': csrfToken },
+        body: JSON.stringify({ productId, month }),
       },
     );
     return response.data;

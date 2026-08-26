@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useIsMobile } from '../../../../components/ui/use-mobile';
 import { productTypes } from '../../types';
 import { useProductsTranslations } from '../translations';
+import { formatProductCurrency } from '../utils/productFormatters';
 import type { PublicCatalogCartItem, PublicCatalogConfig, PublicCatalogItem } from './types/publicCatalogTypes';
 import { filterPublicCatalogItems } from './utils/publicCatalogFilters';
 import { calculatePublicCatalogCartTotal, getPublicCatalogUnitPrice } from './utils/publicCatalogPricing';
@@ -10,6 +11,8 @@ import { publicCatalogApi } from './publicCatalogApi';
 import { PublicCatalogCart } from './PublicCatalogCart';
 import { PublicCatalogFilters } from './PublicCatalogFilters';
 import { PublicCatalogGrid } from './PublicCatalogGrid';
+import { PublicCatalogGalleryModal } from './PublicCatalogGalleryModal';
+import { PublicCatalogAvailabilityModal } from './PublicCatalogAvailabilityModal';
 import { PublicCatalogHeader } from './PublicCatalogHeader';
 import { PublicCatalogMobileCard } from './PublicCatalogMobileCard';
 import { PublicCatalogMobileCart } from './PublicCatalogMobileCart';
@@ -17,6 +20,8 @@ import { PublicCatalogMobileFilters } from './PublicCatalogMobileFilters';
 import { PublicCatalogRequestModal } from './PublicCatalogRequestModal';
 import { calculateAutomaticDiscounts } from '../../../PointOfSale/shared/commercial/discounts';
 import { mapDiscountRule, type DiscountRuleWire } from '../../../PointOfSale/shared/commercial/discounts/services/discountRulesApi';
+import { downloadReferenceProductImages } from './utils/publicCatalogImageDownloads';
+import { buildPublicCatalogProductUrl, buildWhatsAppShareUrl, publicCatalogProductAnchorId } from './utils/publicCatalogSharing';
 
 type PublicCatalogWorkspaceProps = {
   config: PublicCatalogConfig;
@@ -26,6 +31,11 @@ type PublicCatalogWorkspaceProps = {
   token?: string;
   csrfToken?: string;
   discountRules?: DiscountRuleWire[];
+};
+
+type CatalogActionFeedback = {
+  kind: 'success' | 'warning' | 'error';
+  message: string;
 };
 
 export function PublicCatalogWorkspace({
@@ -45,6 +55,10 @@ export function PublicCatalogWorkspace({
   const [cartItems, setCartItems] = useState<PublicCatalogCartItem[]>([]);
   const [requestOpen, setRequestOpen] = useState(false);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
+  const [galleryItem, setGalleryItem] = useState<PublicCatalogItem | null>(null);
+  const [availabilityItem, setAvailabilityItem] = useState<PublicCatalogItem | null>(null);
+  const [downloadingItemIds, setDownloadingItemIds] = useState<Set<string>>(() => new Set());
+  const [actionFeedback, setActionFeedback] = useState<CatalogActionFeedback | null>(null);
   const experienceItems = useMemo(() => applyPublicCatalogPriceVisibility(items, config), [config, items]);
   const filteredItems = useMemo(() => filterPublicCatalogItems({
     items: experienceItems,
@@ -77,6 +91,25 @@ export function PublicCatalogWorkspace({
     'publicCatalog',
   );
   const estimatedTotal = automaticDiscount.total;
+
+  useEffect(() => {
+    if (!actionFeedback) return undefined;
+    const timeoutId = window.setTimeout(() => setActionFeedback(null), 5_000);
+    return () => window.clearTimeout(timeoutId);
+  }, [actionFeedback]);
+
+  useEffect(() => {
+    if (embedded) return undefined;
+    const itemId = new URLSearchParams(window.location.search).get('product');
+    if (!itemId || !experienceItems.some((item) => item.id === itemId)) return undefined;
+    const animationFrame = window.requestAnimationFrame(() => {
+      document.getElementById(publicCatalogProductAnchorId(itemId))?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    });
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [embedded, experienceItems]);
 
   const handleAddToCart = (item: PublicCatalogItem) => {
     if (!config.allowCart && !config.allowPurchaseRequest) return;
@@ -114,6 +147,56 @@ export function PublicCatalogWorkspace({
     setCartItems((current) => current.filter((item) => item.itemId !== itemId));
   };
 
+  const handleDownloadImages = async (item: PublicCatalogItem) => {
+    if (downloadingItemIds.has(item.id)) return;
+    setDownloadingItemIds((current) => new Set(current).add(item.id));
+    setActionFeedback(null);
+
+    try {
+      const result = await downloadReferenceProductImages(item);
+      setActionFeedback({
+        kind: result.skipped > 0 ? 'warning' : 'success',
+        message: result.skipped > 0
+          ? t.publicCatalog.imageDownloads.partial(result.downloaded, result.skipped)
+          : t.publicCatalog.imageDownloads.success(result.downloaded),
+      });
+    } catch {
+      setActionFeedback({ kind: 'error', message: t.publicCatalog.imageDownloads.unavailable });
+    } finally {
+      setDownloadingItemIds((current) => {
+        const next = new Set(current);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  };
+
+  const handleShareWhatsApp = (item: PublicCatalogItem) => {
+    const baseUrl = embedded ? config.publicUrl : window.location.href;
+    if (!baseUrl) {
+      setActionFeedback({ kind: 'error', message: t.publicCatalog.sharing.unavailable });
+      return;
+    }
+
+    try {
+      const productUrl = buildPublicCatalogProductUrl(baseUrl, item.id);
+      const visiblePrice = config.showPrices
+        ? formatProductCurrency(item.publicPrice ?? 0, item.currency)
+        : '';
+      const shareUrl = buildWhatsAppShareUrl(
+        t.publicCatalog.sharing.message(item.name, visiblePrice, productUrl),
+      );
+      const popup = window.open(shareUrl, '_blank');
+      if (popup) {
+        popup.opener = null;
+      } else {
+        setActionFeedback({ kind: 'error', message: t.publicCatalog.sharing.unavailable });
+      }
+    } catch {
+      setActionFeedback({ kind: 'error', message: t.publicCatalog.sharing.unavailable });
+    }
+  };
+
   const workspace = isMobile ? (
     <div className={`min-h-full w-full min-w-0 overflow-x-hidden bg-slate-50 dark:bg-slate-950 ${cartItems.length > 0 ? 'pb-28' : 'pb-5'}`}>
       <PublicCatalogMobileFilters
@@ -134,7 +217,18 @@ export function PublicCatalogWorkspace({
             {t.publicCatalog.emptyCatalog}
           </div>
         ) : filteredItems.map((item) => (
-          <PublicCatalogMobileCard key={item.id} item={item} config={config} t={t} onAddToCart={handleAddToCart} />
+          <PublicCatalogMobileCard
+            key={item.id}
+            item={item}
+            config={config}
+            t={t}
+            onAddToCart={handleAddToCart}
+            onCheckAvailability={setAvailabilityItem}
+            onOpenGallery={setGalleryItem}
+            onDownloadImages={handleDownloadImages}
+            onShareWhatsApp={handleShareWhatsApp}
+            downloadingImages={downloadingItemIds.has(item.id)}
+          />
         ))}
       </div>
       {config.allowCart ? (
@@ -168,7 +262,17 @@ export function PublicCatalogWorkspace({
         onTypeChange={setType}
       />
       <div className={`mx-auto mt-5 grid max-w-7xl gap-5 px-4 sm:px-6 lg:px-8 ${config.allowCart ? 'lg:grid-cols-[minmax(0,1fr)_22rem]' : ''}`}>
-        <PublicCatalogGrid items={filteredItems} config={config} t={t} onAddToCart={handleAddToCart} />
+        <PublicCatalogGrid
+          items={filteredItems}
+          config={config}
+          t={t}
+          onAddToCart={handleAddToCart}
+          onCheckAvailability={setAvailabilityItem}
+          onOpenGallery={setGalleryItem}
+          onDownloadImages={handleDownloadImages}
+          onShareWhatsApp={handleShareWhatsApp}
+          downloadingItemIds={downloadingItemIds}
+        />
         {config.allowCart ? (
           <PublicCatalogCart
             items={experienceItems}
@@ -211,6 +315,40 @@ export function PublicCatalogWorkspace({
           return { requestNumber: result.requestNumber };
         } : undefined}
       />
+      <PublicCatalogGalleryModal
+        item={galleryItem}
+        open={Boolean(galleryItem)}
+        t={t}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setGalleryItem(null);
+        }}
+      />
+      <PublicCatalogAvailabilityModal
+        item={availabilityItem}
+        open={Boolean(availabilityItem)}
+        embedded={embedded}
+        online={online}
+        token={token}
+        csrfToken={csrfToken}
+        t={t}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setAvailabilityItem(null);
+        }}
+      />
+      {actionFeedback ? (
+        <div
+          role={actionFeedback.kind === 'error' ? 'alert' : 'status'}
+          className={`fixed bottom-24 left-1/2 z-[90] max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-xl border px-4 py-3 text-center text-sm font-medium shadow-xl md:bottom-6 ${
+            actionFeedback.kind === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+              : actionFeedback.kind === 'warning'
+                ? 'border-amber-200 bg-amber-50 text-amber-800'
+                : 'border-red-200 bg-red-50 text-red-800'
+          }`}
+        >
+          {actionFeedback.message}
+        </div>
+      ) : null}
     </>
   );
 }

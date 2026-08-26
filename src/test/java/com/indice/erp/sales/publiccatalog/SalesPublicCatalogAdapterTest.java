@@ -21,9 +21,14 @@ class SalesPublicCatalogAdapterTest {
     void declaresAnonymousReadAndReviewableRequestCapabilities() {
         var descriptors = SalesPublicCatalogCapabilities.descriptors();
 
-        assertThat(descriptors).hasSize(2);
+        assertThat(descriptors).hasSize(3);
         assertThat(descriptors).allSatisfy(descriptor ->
             assertThat(descriptor.accessLevel()).isEqualTo(KioskAccessLevel.PUBLIC));
+        assertThat(descriptors).anySatisfy(descriptor -> {
+            assertThat(descriptor.key()).isEqualTo(SalesPublicCatalogCapabilities.AVAILABILITY_READ);
+            assertThat(descriptor.operationPolicy()).isEqualTo(KioskOperationPolicy.INFORMATION_ONLY);
+            assertThat(descriptor.mutation()).isFalse();
+        });
         assertThat(descriptors).anySatisfy(descriptor -> {
             assertThat(descriptor.key()).isEqualTo(SalesPublicCatalogCapabilities.CATALOG_READ);
             assertThat(descriptor.operationPolicy()).isEqualTo(KioskOperationPolicy.INFORMATION_ONLY);

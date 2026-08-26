@@ -1,10 +1,10 @@
-import type { Dispatch, SetStateAction } from 'react';
-import { ArrowDown, ArrowUp, ImagePlus, Trash2 } from 'lucide-react';
+import { useState, type Dispatch, type SetStateAction } from 'react';
+import { ArrowDown, ArrowUp, ImagePlus, Loader2, Trash2 } from 'lucide-react';
 import { Button } from '../../../../../components/ui/button';
 import { Input } from '../../../../../components/ui/input';
 import type { ProductsTranslations } from '../../translations';
 import type { ProductFormState, ProductMediaDraft } from '../../types/productosTypes';
-import { readProductImageFiles } from '../../utils/productImages';
+import { productImageFileAccept, readProductImageFiles } from '../../utils/productImages';
 import { productFieldClassName } from './productModalConstants';
 import { moveArrayItem } from './productModalUtils';
 
@@ -17,6 +17,7 @@ export function ProductMediaSection({
   t: ProductsTranslations;
   onFormChange: Dispatch<SetStateAction<ProductFormState>>;
 }) {
+  const [isPreparingImages, setIsPreparingImages] = useState(false);
   const updateUploadedImages = (updater: (images: ProductMediaDraft[]) => ProductMediaDraft[]) => {
     onFormChange((current) => ({
       ...current,
@@ -25,12 +26,17 @@ export function ProductMediaSection({
   };
 
   const handleFilesChange = async (files: FileList | null) => {
-    if (!files) {
+    if (!files || files.length === 0 || isPreparingImages) {
       return;
     }
 
-    const images = await readProductImageFiles(files);
-    updateUploadedImages((current) => [...current, ...images]);
+    setIsPreparingImages(true);
+    try {
+      const images = await readProductImageFiles(files);
+      updateUploadedImages((current) => [...current, ...images]);
+    } finally {
+      setIsPreparingImages(false);
+    }
   };
 
   return (
@@ -40,10 +46,25 @@ export function ProductMediaSection({
           <h3 className="text-base font-medium text-slate-950">{t.media.title}</h3>
           <p className="mt-1 text-sm font-medium text-slate-500">{t.media.description}</p>
         </div>
-        <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[#FF6B5E]/25 bg-white px-4 text-sm font-medium text-[#B63B32] transition hover:bg-[#FF6B5E]/10">
-          <ImagePlus className="h-4 w-4" />
+        <label
+          className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#FF6B5E]/25 bg-white px-4 text-sm font-medium text-[#B63B32] transition hover:bg-[#FF6B5E]/10 ${isPreparingImages ? 'pointer-events-none cursor-wait opacity-70' : 'cursor-pointer'}`}
+          aria-disabled={isPreparingImages}
+        >
+          {isPreparingImages ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
           {t.media.upload}
-          <input type="file" accept="image/*" multiple className="hidden" onChange={(event) => void handleFilesChange(event.target.files)} />
+          <input
+            type="file"
+            accept={productImageFileAccept}
+            multiple
+            disabled={isPreparingImages}
+            className="hidden"
+            onChange={(event) => {
+              const input = event.currentTarget;
+              void handleFilesChange(input.files).finally(() => {
+                input.value = '';
+              });
+            }}
+          />
         </label>
       </div>
 

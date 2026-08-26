@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Edit2, ExternalLink, Power, PowerOff, Search, Trash2 } from 'lucide-react';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import { usePaymentAccountsResolvedLocale, usePaymentAccountsTranslations } from '../hooks/usePaymentAccountsTranslations';
@@ -17,6 +17,7 @@ import {
 } from '../../../../components/table/IndiceTableEngine';
 import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../../hooks/useTablePagination';
 import { usePersistentColumnWidths } from '../../../../hooks/usePersistentColumnWidths';
+import { useWorkspaceNavigationMemory } from '../../../../hooks/useWorkspaceNavigationMemory';
 
 const minimumPaymentColumnWidths: Record<PaymentColumnKey, number> = {
   name: 190,
@@ -61,6 +62,21 @@ type PaymentAccountsTableProps = {
   onToggleActive: (account: PaymentAccount) => void;
 };
 
+type PaymentAccountsTableWorkspaceState = {
+  currentPage: number;
+  pageSize: number;
+};
+
+const paymentAccountsTableWorkspaceDefaults: PaymentAccountsTableWorkspaceState = {
+  currentPage: 1,
+  pageSize: 10,
+};
+
+const paymentAccountsTableWorkspaceUrlFields: Partial<Record<keyof PaymentAccountsTableWorkspaceState, string>> = {
+  currentPage: 'pa_page',
+  pageSize: 'pa_rows',
+};
+
 export function PaymentAccountsTable({
   accounts,
   businessOptions,
@@ -79,6 +95,24 @@ export function PaymentAccountsTable({
   const locale = usePaymentAccountsResolvedLocale();
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const workspaceState = useMemo<PaymentAccountsTableWorkspaceState>(() => ({
+    currentPage,
+    pageSize,
+  }), [currentPage, pageSize]);
+  const restoreWorkspaceState = useCallback((restoredState: PaymentAccountsTableWorkspaceState) => {
+    setCurrentPage(restoredState.currentPage);
+    setPageSize(restoredState.pageSize);
+  }, []);
+
+  useWorkspaceNavigationMemory({
+    moduleKey: 'expenses',
+    tabKey: 'payment_accounts_table',
+    state: workspaceState,
+    defaults: paymentAccountsTableWorkspaceDefaults,
+    urlFields: paymentAccountsTableWorkspaceUrlFields,
+    onRestore: restoreWorkspaceState,
+    rememberScroll: false,
+  });
   const tableColumns = useMemo(() => columns.filter(column => column.visible), [columns]);
   const paymentHeaderLabels = useMemo<Partial<Record<PaymentColumnKey, string>>>(() => (
     Object.fromEntries(columns.map((column) => [column.key, column.label]))
@@ -100,8 +134,9 @@ export function PaymentAccountsTable({
   const paginationEnd = accounts.length === 0 ? 0 : Math.min(pageEndIndex, accounts.length);
 
   useEffect(() => {
-    setCurrentPage(1);
-  }, [accounts, pageSize, tableColumns]);
+    if (accounts.length === 0) return;
+    setCurrentPage(current => Math.min(Math.max(current, 1), totalPages));
+  }, [accounts.length, totalPages]);
 
   const tableMinimumWidth = tableColumns.reduce(
     (total, column) => total + columnWidths[column.key],

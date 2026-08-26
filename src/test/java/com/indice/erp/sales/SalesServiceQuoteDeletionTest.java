@@ -26,6 +26,7 @@ class SalesServiceQuoteDeletionTest {
     @Mock CompanyStorageMeter storageMeter;
     @Mock BusinessExchangeRateService businessExchangeRateService;
     @Mock KpiCurrencyAggregationService kpiCurrencyAggregationService;
+    @Mock SalesProductAvailabilityLinkCodec availabilityLinkCodec;
 
     private SalesService service;
 
@@ -38,7 +39,8 @@ class SalesServiceQuoteDeletionTest {
                 storageProperties,
                 storageMeter,
                 businessExchangeRateService,
-                kpiCurrencyAggregationService);
+                kpiCurrencyAggregationService,
+                availabilityLinkCodec);
     }
 
     @Test

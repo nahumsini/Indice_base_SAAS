@@ -141,6 +141,8 @@ final class SalesDefinitions {
                         f("visibility", "visibility", SalesFieldType.STRING),
                         f("inventoryReady", "inventory_ready", SalesFieldType.BOOLEAN),
                         f("posReady", "pos_ready", SalesFieldType.BOOLEAN),
+                        f("reservable", "reservable", SalesFieldType.BOOLEAN),
+                        f("availabilityIcalUrl", "availability_ical_url_protected", SalesFieldType.STRING),
                         f("customFields", "custom_fields_json", SalesFieldType.JSON),
                         f("metadata", "metadata_json", SalesFieldType.JSON)),
                 List.of("name"),

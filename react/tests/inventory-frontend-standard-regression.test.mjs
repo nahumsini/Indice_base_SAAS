@@ -214,3 +214,35 @@ test('La entrada de inventario carga productos por categoría y cantidad antes d
   assert.match(productLinesSource, /Number\.isInteger\(quantity\) && quantity > 0/);
   assert.match(productLinesSource, /onItemsChange\(normalizedItems\)/);
 });
+
+test('Productos permite cambiar la categoria de una seleccion masiva con persistencia y reintento parcial', () => {
+  const productsSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Productos/Productos.tsx'), 'utf8');
+  const catalogSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Productos/hooks/useProductsCatalog.ts'), 'utf8');
+  const selectionSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Productos/hooks/useProductRowSelection.ts'), 'utf8');
+  const tableSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Productos/table/ProductsCatalogTable.tsx'), 'utf8');
+  const bulkActionsSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Productos/table/ProductBulkActionsBar.tsx'), 'utf8');
+
+  assert.match(productsSource, /onBulkSetProductCategory=\{catalog\.handleBulkSetProductCategory\}/);
+  assert.match(catalogSource, /const handleBulkSetProductCategory = async/);
+  assert.match(catalogSource, /Promise\.allSettled/);
+  assert.match(catalogSource, /updateProductRecord\(productId, \{/);
+  assert.match(catalogSource, /category: normalizedCategory as SalesCatalogItem\['category'\]/);
+  assert.match(catalogSource, /await reloadProducts\(\)\.catch/);
+  assert.match(selectionSource, /const replaceSelection = useCallback/);
+  assert.match(tableSource, /const handleApplyBulkCategory = async/);
+  assert.match(tableSource, /rowSelection\.replaceSelection\(result\.failedIds\)/);
+  assert.match(bulkActionsSource, /categoryOptions\.map/);
+  assert.match(bulkActionsSource, /onClick=\{onApplyCategory\}/);
+  assert.match(bulkActionsSource, /disabled=\{!selectedCategory \|\| isApplyingCategory/);
+});
+
+test('El filtro de categorias de Productos permite consultar items sin categoria', () => {
+  const catalogSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Productos/hooks/useProductsCatalog.ts'), 'utf8');
+  const spanishTranslationsSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Productos/translations/es-MX.ts'), 'utf8');
+
+  assert.match(catalogSource, /const uncategorizedCategoryFilter = '__uncategorized__'/);
+  assert.match(catalogSource, /categoryFilter === uncategorizedCategoryFilter/);
+  assert.match(catalogSource, /!product\.category\.trim\(\)/);
+  assert.match(catalogSource, /label: t\.filters\.uncategorized/);
+  assert.match(spanishTranslationsSource, /uncategorized: 'Sin categoría'/);
+});
