@@ -34,6 +34,7 @@ import { useSaleRegisterContext } from './hooks/useSaleRegisterContext';
 import { useSaleShift } from './hooks/useSaleShift';
 import { useSaleSmartAlerts } from './hooks/useSaleSmartAlerts';
 import { usePendingPreTickets } from './hooks/usePendingPreTickets';
+import { usePendingRestaurantOrders } from './hooks/usePendingRestaurantOrders';
 import { useSuspendedSales } from './hooks/useSuspendedSales';
 import { usePointOfSaleTranslations } from '../hooks/usePointOfSaleTranslations';
 import type { PaymentMethod, PaymentPreview, SaleItem } from './types/sale.types';
@@ -155,6 +156,32 @@ export default function Sale() {
     formatCurrency: formatSaleCurrency,
   });
   const {
+    orders: restaurantOrders,
+    pull: pullRestaurantOrder,
+    reload: reloadRestaurantOrders,
+    error: restaurantOrdersError,
+    claimingIds: claimingRestaurantOrderIds,
+    activeRestaurantOrderId,
+    activeRestaurantOrderCode,
+    release: releaseActiveRestaurantOrder,
+    complete: completeActiveRestaurantOrder,
+  } = usePendingRestaurantOrders({
+    cashRegisterId: Number(registerContext?.cashRegisterId) || undefined,
+    products: saleProducts,
+    cartHasItems: cart.length > 0,
+    replaceCart: replaceCartWithPreticket,
+    pushActivity,
+  });
+  const pendingOrders = [...preTickets, ...restaurantOrders];
+  const activePendingOrder = Boolean(activePreticketId || activeRestaurantOrderId);
+  const activePendingOrderCode = activePreticketCode || activeRestaurantOrderCode;
+  const pullPendingOrder = (id: string) => id.startsWith('restaurant:')
+    ? pullRestaurantOrder(id)
+    : pullPreTicket(id);
+  const reloadPendingOrders = async () => {
+    await Promise.all([reloadPreTickets(), reloadRestaurantOrders()]);
+  };
+  const {
     currentShift,
     setCurrentShift,
     showOpenShiftModal,
@@ -255,7 +282,7 @@ export default function Sale() {
     };
   }, [currentShift]);
 
-  const { categories, filteredQuickProducts, stockSignals } = useSaleCatalog(saleProducts, selectedCategory);
+  const { availableProducts, categories, filteredQuickProducts, stockSignals } = useSaleCatalog(saleProducts, selectedCategory);
   const {
     payments,
     setPayments,
@@ -293,9 +320,11 @@ export default function Sale() {
     inventoryBalancesError: balanceLoadError,
     customerId: selectedCustomerId,
     preticketId: activePreticketId,
+    restaurantOrderId: activeRestaurantOrderId,
     onCheckoutCompleted: () => {
       setSelectedCustomerId('');
       completeActivePreticket();
+      completeActiveRestaurantOrder();
     },
   });
 
@@ -390,13 +419,12 @@ export default function Sale() {
   ]);
 
   const clearCart = async () => {
-    if (cart.length === 0 && payments.length === 0 && !activePreticketId) {
+    if (cart.length === 0 && payments.length === 0 && !activePendingOrder) {
       return;
     }
 
-    if (activePreticketId && !(await releaseActivePreticket())) {
-      return;
-    }
+    if (activePreticketId && !(await releaseActivePreticket())) return;
+    if (activeRestaurantOrderId && !(await releaseActiveRestaurantOrder())) return;
     resetCart();
     setPayments([]);
     setCashReceived(0);
@@ -501,7 +529,7 @@ export default function Sale() {
   });
 
   const openItemDiscountModal = async (item: SaleItem) => {
-    if (activePreticketId) {
+    if (activePendingOrder) {
       setDiscountRulesError('El descuento del preticket ya fue calculado en kiosco. Cancela el pedido para iniciar un ticket editable.');
       return;
     }
@@ -574,7 +602,7 @@ export default function Sale() {
   };
 
   const openGlobalDiscountModal = async () => {
-    if (activePreticketId) {
+    if (activePendingOrder) {
       setDiscountRulesError('El descuento del preticket ya fue calculado en kiosco. Cancela el pedido para iniciar un ticket editable.');
       return;
     }
@@ -724,14 +752,14 @@ export default function Sale() {
                   <>
                     <div data-pos-pre-tickets data-workspace-active={isPreticketWorkspaceOpen ? 'true' : undefined}>
                       <PendingPreTicketsPanel
-                        preTickets={preTickets}
-                        onPullPreTicket={pullPreTicket}
-                        onRetry={() => void reloadPreTickets()}
+                        preTickets={pendingOrders}
+                        onPullPreTicket={(id) => void pullPendingOrder(id)}
+                        onRetry={() => void reloadPendingOrders()}
                         formatCurrency={formatSaleCurrency}
-                        queueError={preTicketQueueError}
+                        queueError={preTicketQueueError || restaurantOrdersError}
                         isRefreshing={isRefreshingPreTickets}
                         lastUpdatedAt={preTicketsLastUpdatedAt}
-                        claimingPreTicketIds={claimingPreTicketIds}
+                        claimingPreTicketIds={[...claimingPreTicketIds, ...claimingRestaurantOrderIds]}
                         workspaceMode={isPreticketWorkspaceOpen}
                       />
                     </div>
@@ -739,13 +767,14 @@ export default function Sale() {
                     <div data-pos-quick-products className="min-h-0 flex-1">
                       <QuickProductsPanel
                         categories={categories}
+                        catalogProducts={availableProducts}
                         filteredQuickProducts={filteredQuickProducts}
                         selectedCategory={selectedCategory}
                         selectedQuickQuantity={selectedQuickQuantity}
                         blockSalesWithoutStock={blockSalesWithoutStock}
                         onSelectCategory={setSelectedCategory}
                         onAddToCart={(product, quantity) => {
-                          if (!activePreticketId) addToCart(product, quantity);
+                          if (!activePendingOrder) addToCart(product, quantity);
                         }}
                         searchRequestId={productSearchRequestId}
                         workspaceMode={isProductWorkspaceOpen}
@@ -766,8 +795,8 @@ export default function Sale() {
                   products={saleProducts}
                   customers={creditCustomers}
                   selectedCustomerId={selectedCustomerId}
-                  preticketLocked={Boolean(activePreticketId)}
-                  preticketCode={activePreticketCode}
+                  preticketLocked={activePendingOrder}
+                  preticketCode={activePendingOrderCode}
                   onBarcodeInputChange={setBarcodeInput}
                   onBarcodeSubmit={handleBarcodeSubmit}
                   onClearCart={clearCart}
@@ -796,7 +825,7 @@ export default function Sale() {
                   recentActivities={recentActivities}
                   onRemovePayment={removePayment}
                   onSuspendSale={() => {
-                    if (activePreticketId) {
+                    if (activePendingOrder) {
                       setDiscountRulesError('Los pretickets reclamados no se pueden suspender; cóbralos o cancélalos para liberarlos.');
                       return;
                     }
@@ -852,7 +881,7 @@ export default function Sale() {
               >
                 <ReceiptText className="h-5 w-5" />
                 {isPreticketWorkspaceOpen ? 'Ocultar pretickets' : 'Pretickets'}
-                <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-[#222831] px-1.5 py-0.5 text-xs text-white">{preTickets.length}</span>
+                <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-[#222831] px-1.5 py-0.5 text-xs text-white">{pendingOrders.length}</span>
               </button>
               <button
                 type="button"

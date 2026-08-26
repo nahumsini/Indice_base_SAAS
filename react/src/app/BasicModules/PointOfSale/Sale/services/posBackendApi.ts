@@ -184,6 +184,7 @@ export type PosCheckoutPayload = {
   cashRegisterId: number;
   customerId?: number | null;
   preticketId?: number | null;
+  restaurantOrderId?: number | null;
   currencyCode: string;
   items: PosCheckoutItemPayload[];
   payments: PosCheckoutPaymentPayload[];

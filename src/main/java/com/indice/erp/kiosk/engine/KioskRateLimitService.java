@@ -6,6 +6,7 @@ import java.security.NoSuchAlgorithmException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.HexFormat;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -29,13 +30,47 @@ public class KioskRateLimitService {
         if (context.session() == null && requiresStableNetworkBucket(type)) {
             consume(type, stableNetworkScopeHash(type, context), type.maximumRequests());
         }
+        consume(type, requestScopeHash(type, context, payload), type.maximumRequests());
+    }
+
+    /** A valid PIN starts a fresh attempt budget for this kiosk and browser boundary. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void resetSuccessfulPinVerification(
+            KioskExecutionContext context,
+            Map<String, Object> payload,
+            String stablePinScope) {
+        var scopeHashes = new LinkedHashSet<String>();
+        if (context.session() == null) {
+            scopeHashes.add(stableNetworkScopeHash(KioskRateLimitType.PIN_VERIFICATION, context));
+        }
+        scopeHashes.add(requestScopeHash(KioskRateLimitType.PIN_VERIFICATION, context, payload));
+        switch (stablePinScope == null ? "" : stablePinScope.trim().toUpperCase()) {
+            case "KIOSK" -> scopeHashes.add(stablePinScopeHash(context));
+            case "PERSON" -> scopeHashes.add(stablePersonalPinScopeHash(context));
+            default -> { }
+        }
+        for (var scopeHash : scopeHashes) {
+            jdbcTemplate.update(
+                "DELETE FROM kiosk_engine_rate_limit_buckets WHERE limit_type = ? AND scope_hash = ?",
+                KioskRateLimitType.PIN_VERIFICATION.name(), scopeHash);
+        }
+    }
+
+    private boolean requiresStableNetworkBucket(KioskRateLimitType type) {
+        return type != KioskRateLimitType.BOOTSTRAP && type != KioskRateLimitType.QUERY;
+    }
+
+    String requestScopeHash(
+            KioskRateLimitType type,
+            KioskExecutionContext context,
+            Map<String, Object> payload) {
         var identitySignal = context.session() == null
             ? unauthenticatedSignal(type, payload)
             : sha256(context.session().companyId() + ":" + context.session().identityType()
                 + ":" + context.session().identityId());
         var companySignal = context.definition() == null
             ? "unresolved" : String.valueOf(context.definition().companyId());
-        var scopeHash = sha256(String.join("\n",
+        return sha256(String.join("\n",
             context.ownerModule(),
             companySignal,
             context.accessReference(),
@@ -43,11 +78,6 @@ public class KioskRateLimitService {
             context.browserSessionReference(),
             identitySignal
         ));
-        consume(type, scopeHash, type.maximumRequests());
-    }
-
-    private boolean requiresStableNetworkBucket(KioskRateLimitType type) {
-        return type != KioskRateLimitType.BOOTSTRAP && type != KioskRateLimitType.QUERY;
     }
 
     String stableNetworkScopeHash(KioskRateLimitType type, KioskExecutionContext context) {

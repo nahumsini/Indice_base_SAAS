@@ -5,18 +5,28 @@ import {
   getProductCategories,
   getQuickProducts,
   getStockSignals,
+  isProductAvailableForSale,
 } from '../utils/saleCatalog';
 
 export function useSaleCatalog(products: Product[], selectedCategory: string) {
-  const quickProducts = useMemo(() => getQuickProducts(products), [products]);
-  const categories = useMemo(() => getProductCategories(products), [products]);
+  const availableProducts = useMemo(
+    () => products.filter(isProductAvailableForSale),
+    [products],
+  );
+  const quickProducts = useMemo(() => getQuickProducts(availableProducts), [availableProducts]);
+  const categories = useMemo(() => getProductCategories(availableProducts), [availableProducts]);
+  const categoryProducts = useMemo(
+    () => filterQuickProducts(availableProducts, selectedCategory),
+    [availableProducts, selectedCategory],
+  );
   const filteredQuickProducts = useMemo(
-    () => filterQuickProducts(quickProducts, selectedCategory),
-    [quickProducts, selectedCategory],
+    () => getQuickProducts(categoryProducts),
+    [categoryProducts],
   );
   const stockSignals = useMemo(() => getStockSignals(products), [products]);
 
   return {
+    availableProducts,
     quickProducts,
     categories,
     filteredQuickProducts,

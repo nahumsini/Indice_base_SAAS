@@ -460,6 +460,120 @@ test('every public POS kiosk blocks its experience when the source register is c
   assert.match(translations, /La caja origen está cerrada\./);
 });
 
+test('restaurant kiosks share one traced order from waiter to kitchen and POS checkout', async () => {
+  const [routes, creation, workspace, waiterWorkspace, productModal, adminApi, sale, restaurantQueue] = await Promise.all([
+    readFile(new URL('../src/app/routes.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/Kiosks/RestaurantKioskCreationFlow.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/RestaurantKiosk/RestaurantKioskPage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/RestaurantKiosk/WaiterStationWorkspace.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/RestaurantKiosk/RestaurantProductModal.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/Kiosks/posKioskAdminApi.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/Sale/Sale.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/BasicModules/PointOfSale/Sale/hooks/usePendingRestaurantOrders.ts', import.meta.url), 'utf8'),
+  ]);
+  const restaurantWorkspace = `${workspace}\n${waiterWorkspace}\n${productModal}`;
+
+  assert.match(creation, /<KioskModalFrame/);
+  assert.ok(creation.includes('waiter_station'));
+  assert.ok(creation.includes('table_order_center'));
+  assert.ok(creation.includes('kitchen_display'));
+  assert.match(creation, /Promise\.allSettled/);
+  assert.match(creation, /ecosystemsResult\.status === 'fulfilled'/);
+  assert.match(creation, /registersResult\.status === 'fulfilled'/);
+  assert.match(creation, /setCashRegisterId\(current =>/);
+  assert.match(creation, /Kiosco → empleado → mesa → cocina → ticket/);
+  assert.match(creation, /Crear estación móvil de mesero/);
+  assert.match(creation, /Teléfono o terminal táctil/);
+  assert.match(adminApi, /restaurantTrace/);
+  assert.ok(routes.includes("/pos-restaurant/waiter/:publicAccessToken"));
+  assert.ok(routes.includes("/pos-restaurant/orders/:publicAccessToken"));
+  assert.ok(routes.includes("/pos-restaurant/kitchen/:publicAccessToken"));
+  assert.match(restaurantWorkspace, /pos.restaurant.order.open/);
+  assert.match(restaurantWorkspace, /pos.restaurant.round.send/);
+  assert.match(restaurantWorkspace, /pos.restaurant.item.status/);
+  assert.match(restaurantWorkspace, /pos.restaurant.check.request/);
+  assert.match(workspace, /!workspace.sourceRegisterOpen/);
+  assert.match(workspace, /La operación del turno anterior quedó archivada/);
+  assert.match(workspace, /requestFullscreen/);
+  assert.match(workspace, /Pantalla completa/);
+  assert.match(workspace, /data-order-center-workspace/);
+  assert.match(workspace, /<RestaurantFloorPlanPanel/);
+  assert.match(workspace, /data-captain-monitor/);
+  assert.match(workspace, /data-captain-kpis/);
+  assert.match(workspace, /Monitor del capitán/);
+  assert.match(workspace, /data-hostess-assignment/);
+  assert.match(workspace, /Asignar mesa e iniciar servicio/);
+  assert.match(workspace, /data-service-timeline/);
+  assert.match(workspace, /Tomar orden/);
+  assert.match(workspace, /Enviar a cocina/);
+  assert.match(workspace, /Inicio en cocina/);
+  assert.match(workspace, /Preparación/);
+  assert.match(workspace, /Servir/);
+  assert.match(workspace, /Solicitar cuenta/);
+  assert.match(workspace, /order\.firstItemAt/);
+  assert.match(workspace, /order\.checkRequestedAt/);
+  assert.match(workspace, /activeItems\.every\(item => item\.status === 'SERVED'\)/);
+  assert.match(workspace, /En vivo · 5 s/);
+  assert.match(workspace, /setInterval\(\(\) => setNow\(Date\.now\(\)\), 1_000\)/);
+  assert.match(workspace, /buildCaptainMonitor/);
+  assert.match(workspace, /captainElapsed/);
+  assert.match(workspace, /elapsedSeconds >= 15 \* 60/);
+  assert.match(workspace, /elapsedSeconds >= 8 \* 60/);
+  assert.match(workspace, /Ordenado por mesa seleccionada, atención y antigüedad/);
+  assert.match(workspace, /captainPriority\(right, now\) - captainPriority\(left, now\)/);
+  assert.match(workspace, /data-kitchen-workspace/);
+  assert.match(workspace, /data-kitchen-ticket/);
+  assert.match(workspace, /groupKitchenTickets/);
+  assert.match(workspace, /itemIds: ticket\.items\.map/);
+  assert.match(workspace, /Iniciar preparación/);
+  assert.match(workspace, /Marcar como lista/);
+  assert.match(workspace, /status === 'ACKNOWLEDGED'[\s\S]*return 'PREPARING'/);
+  assert.doesNotMatch(workspace, /label: 'Confirmados'/);
+  assert.doesNotMatch(workspace, /actionLabel: 'Confirmar comanda'/);
+  assert.match(workspace, /elapsedKitchenTime/);
+  assert.doesNotMatch(workspace, /function KitchenCard\(/);
+  assert.match(waiterWorkspace, /export function RestaurantFloorPlanPanel/);
+  assert.match(waiterWorkspace, /canEditFloorPlan=\{workspace\.canEditFloorPlan\}/);
+  assert.match(workspace, /useKioskSessionBoundary/);
+  assert.match(workspace, /isTerminalStationSessionFailure/);
+  assert.match(workspace, /setSession\(null\)[\s\S]*setWorkspace\(null\)/);
+  assert.match(workspace, /sessionExpiredMessage=/);
+  assert.match(workspace, /Ingresa tu PIN nuevamente/);
+  assert.match(waiterWorkspace, /data-waiter-workspace/);
+  assert.match(waiterWorkspace, /data-mobile-waiter-navigation/);
+  assert.match(waiterWorkspace, /lg:grid-cols-2/);
+  assert.match(waiterWorkspace, /mobilePane/);
+  assert.match(waiterWorkspace, /responsibleWaiterName/);
+  assert.match(waiterWorkspace, /pos\.restaurant\.floor-plan\.update/);
+  assert.match(waiterWorkspace, /Editar salón/);
+  assert.match(waiterWorkspace, /Acomodar automáticamente/);
+  assert.match(waiterWorkspace, /Guardar acomodo/);
+  assert.match(waiterWorkspace, /layoutShape === 'ROUND'/);
+  assert.match(waiterWorkspace, /layoutShape === 'SQUARE'/);
+  assert.match(waiterWorkspace, /layoutShape === 'RECTANGLE'/);
+  assert.match(waiterWorkspace, /setPointerCapture/);
+  assert.match(waiterWorkspace, /canPlaceTable/);
+  assert.match(waiterWorkspace, /Código estable:/);
+  assert.match(waiterWorkspace, /Orden del salón/);
+  assert.doesNotMatch(waiterWorkspace, /role="tablist"/);
+  assert.match(waiterWorkspace, /Comanda por comensal/);
+  assert.match(waiterWorkspace, /item\.guestNumber \|\| 1/);
+  assert.match(waiterWorkspace, /RestaurantProductModal/);
+  assert.match(waiterWorkspace, /Agregar productos/);
+  assert.match(productModal, /modalType="operational-workspace"/);
+  assert.match(productModal, /guestNumber,/);
+  assert.match(productModal, /Comensal \{guest\}/);
+  assert.match(productModal, /min-h-14/);
+  assert.match(productModal, /Cantidad por toque/);
+  assert.match(productModal, /const sellableProducts = useMemo/);
+  assert.match(productModal, /!product\.stockTracked \|\| Number\(product\.availableQuantity \|\| 0\) > 0/);
+  assert.match(productModal, /return sellableProducts\.filter\(product =>/);
+  assert.match(sale, /usePendingRestaurantOrders/);
+  assert.match(sale, /restaurantOrderId: activeRestaurantOrderId/);
+  assert.ok(restaurantQueue.includes('/api/v1/pos/restaurant/orders/${orderId}/claim'));
+  assert.match(restaurantQueue, /replaceCart\(lines\)/);
+});
+
 test('customer display mirrors cash received and change while the cashier captures payment', async () => {
   const [display, publisher, paymentPanel, api, translations] = await Promise.all([
     readFile(new URL('../src/app/BasicModules/PointOfSale/CustomerDisplay/CustomerDisplay.tsx', import.meta.url), 'utf8'),

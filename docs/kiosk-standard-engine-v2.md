@@ -66,6 +66,9 @@ Conocer el enlace de un kiosko nunca concede por sí solo acceso a información 
 | Pantalla de Cliente POS | `/pos-display/pair` y `/pos-display/:deviceToken` | `/api/v1/pos/customer-displays/public/*` + `/api/v2/kiosks/public/{token}` | Vinculación de dispositivo y ticket seguro en tiempo real |
 | Catálogo Público de Ventas | `/public-catalog/:publicAccessToken` | `/api/v2/kiosks/public/{token}` | Consulta anónima y solicitud comercial revisable |
 | Autoservicio POS | `/pos-self-service/:publicAccessToken` | `/api/v2/kiosks/public/{token}` | Catálogo por caja y pre-ticket sin cobro ni reserva |
+| Estación de mesero POS | `/pos-restaurant/waiter/:publicAccessToken` | `/api/v2/kiosks/public/{token}` | Captura móvil o en terminal táctil de mesas, comandas y rondas; PIN personal atribuye al mesero y el plano persistido es editable por supervisión autorizada |
+| Centro de órdenes POS | `/pos-restaurant/orders/:publicAccessToken` | `/api/v2/kiosks/public/{token}` | Coordinación del piso sobre la comanda POS compartida |
+| Pantalla de cocina POS | `/pos-restaurant/kitchen/:publicAccessToken` | `/api/v2/kiosks/public/{token}` | Preparación y estados de partidas de la comanda compartida |
 
 También existen conceptos o superficies de kiosko en POS, Afiliados, Formularios, Vehículos y futuros flujos de proveedores, citas, visitantes, mantenimiento e inventario.
 

@@ -6,6 +6,7 @@ import { PosModalFrame, posModalSecondaryActionClassName } from './PosModalFrame
 
 interface QuickProductsPanelProps {
   categories: string[];
+  catalogProducts: Product[];
   filteredQuickProducts: Product[];
   selectedCategory: string;
   selectedQuickQuantity: number;
@@ -19,6 +20,7 @@ interface QuickProductsPanelProps {
 
 export function QuickProductsPanel({
   categories,
+  catalogProducts,
   filteredQuickProducts,
   selectedCategory,
   selectedQuickQuantity,
@@ -32,12 +34,16 @@ export function QuickProductsPanel({
   const [quickSearch, setQuickSearch] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const normalizedQuickSearch = quickSearch.trim().toLowerCase();
-  const visibleQuickProducts = useMemo(() => {
-    if (!normalizedQuickSearch) {
-      return filteredQuickProducts;
-    }
+  const categoryCatalogProducts = useMemo(
+    () => selectedCategory === 'all'
+      ? catalogProducts
+      : catalogProducts.filter((product) => product.department === selectedCategory),
+    [catalogProducts, selectedCategory],
+  );
+  const matchingCatalogProducts = useMemo(() => {
+    if (!normalizedQuickSearch) return categoryCatalogProducts;
 
-    return filteredQuickProducts.filter((product) => {
+    return categoryCatalogProducts.filter((product) => {
       const searchableValue = [
         product.name,
         product.sku,
@@ -50,7 +56,10 @@ export function QuickProductsPanel({
 
       return searchableValue.includes(normalizedQuickSearch);
     });
-  }, [filteredQuickProducts, normalizedQuickSearch]);
+  }, [categoryCatalogProducts, normalizedQuickSearch]);
+  const visibleQuickProducts = normalizedQuickSearch
+    ? matchingCatalogProducts
+    : filteredQuickProducts;
 
   useEffect(() => {
     if (searchRequestId > 0) {
@@ -125,7 +134,7 @@ export function QuickProductsPanel({
         <div className="grid gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]">
           {visibleQuickProducts.map((product, index) => {
             const { hasLowStock, isOutOfStock } = getProductStockState(product);
-            const statusLabel = isOutOfStock ? 'Agotado' : hasLowStock ? 'Stock bajo' : 'Disponible';
+            const statusLabel = !product.useInventory ? 'Disponible' : isOutOfStock ? 'Agotado' : hasLowStock ? 'Stock bajo' : 'Disponible';
 
             return (
               <button
@@ -170,9 +179,11 @@ export function QuickProductsPanel({
                       />
                     )}
                     <div className="absolute right-2 top-2 z-20 flex flex-col items-end gap-1">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#222831] text-xs font-medium text-white dark:bg-white dark:text-gray-900">
-                        {index + 1}
-                      </span>
+                      {!normalizedQuickSearch && index < 9 ? (
+                        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#222831] text-xs font-medium text-white dark:bg-white dark:text-gray-900">
+                          {index + 1}
+                        </span>
+                      ) : null}
                       {selectedQuickQuantity > 1 && (
                         <span className="rounded-full bg-[#FF6B5E] px-2 py-0.5 text-xs font-medium text-[#222831]">
                           x{selectedQuickQuantity}
@@ -203,7 +214,7 @@ export function QuickProductsPanel({
                         'bg-[#59C3A5]/15 text-[#14745F] dark:bg-[#59C3A5]/15 dark:text-[#9DE7D3]'
                       }`}>
                         <Boxes className="h-3.5 w-3.5" />
-                        Stock {product.currentStock}
+                        {product.useInventory ? `Stock ${product.currentStock}` : 'Venta libre'}
                       </span>
                       <span className="text-[11px] font-medium text-gray-400 dark:text-gray-500">
                         {statusLabel}
@@ -236,7 +247,7 @@ export function QuickProductsPanel({
           onClose={() => { setIsSearchOpen(false); setQuickSearch(''); }}
           subtitle="Busca por nombre, SKU o código y agrega el producto al ticket."
           title="Buscar producto"
-          footerSummary={`${visibleQuickProducts.length} productos disponibles · se agregan directamente al ticket`}
+          footerSummary={`${matchingCatalogProducts.length} productos disponibles · se agregan directamente al ticket`}
           footer={(
             <button type="button" onClick={() => { setIsSearchOpen(false); setQuickSearch(''); }} className={posModalSecondaryActionClassName}>
               Cerrar
@@ -276,7 +287,7 @@ export function QuickProductsPanel({
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {visibleQuickProducts.map((product) => {
+            {matchingCatalogProducts.map((product) => {
               const { isOutOfStock } = getProductStockState(product);
               return (
                 <button
@@ -293,14 +304,16 @@ export function QuickProductsPanel({
                   <p className="mt-1 text-xs text-gray-500">{product.sku || product.barcode}</p>
                   <div className="mt-3 flex items-center justify-between gap-2">
                     <span className="font-medium">{formatCurrency(product.salePrice)}</span>
-                    <span className="text-xs text-[#14745F]">Stock {product.currentStock}</span>
+                    <span className="text-xs text-[#14745F]">
+                      {product.useInventory ? `Stock ${product.currentStock}` : 'Disponible'}
+                    </span>
                   </div>
                 </button>
               );
             })}
           </div>
 
-          {visibleQuickProducts.length === 0 ? (
+          {matchingCatalogProducts.length === 0 ? (
             <div className="mt-4 rounded-lg border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900">
               No encontramos productos con esa búsqueda.
             </div>

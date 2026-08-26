@@ -15,6 +15,7 @@ import {
   LayoutGrid,
   LockKeyhole,
   Monitor,
+  Network,
   Pencil,
   Plus,
   RefreshCw,
@@ -53,9 +54,10 @@ import {
 } from './posKioskAdminApi';
 import { KioskEditModal } from './KioskEditModal';
 import { downloadKioskQrPosterPdf } from './kioskQrPosterPdf';
+import { KioskModalFrame } from '../../../components/kiosk-engine/KioskModalFrame';
 
 type KioskExperience = 'customer-display' | 'self-service' | 'self-checkout' | 'advisor-queue' | 'restaurant-waiter' | 'restaurant-tables' | 'restaurant-kitchen';
-export type CreatableKioskExperience = Extract<KioskExperience, 'customer-display' | 'self-service' | 'self-checkout'>;
+export type CreatableKioskExperience = Extract<KioskExperience, 'customer-display' | 'self-service' | 'self-checkout' | 'restaurant-waiter' | 'restaurant-tables' | 'restaurant-kitchen'>;
 type ConnectionFilter = 'all' | PosKioskConnectionStatus;
 type ColumnId = 'type' | 'scope' | 'shift' | 'connection' | 'activity' | 'expiration' | 'link';
 type KioskSortKey = 'name' | ColumnId;
@@ -74,7 +76,7 @@ const KIOSK_DEFAULT_COLUMN_WIDTHS: KioskColumnWidths = {
   activity: 190,
   expiration: 160,
   link: 200,
-  actions: 326,
+  actions: 374,
 };
 const KIOSK_CONTENT_MINIMUM_WIDTHS: KioskColumnWidths = {
   name: 220,
@@ -85,7 +87,7 @@ const KIOSK_CONTENT_MINIMUM_WIDTHS: KioskColumnWidths = {
   activity: 160,
   expiration: 130,
   link: 160,
-  actions: 326,
+  actions: 374,
 };
 
 const defaultColumns: Array<{ id: ColumnId; visible: boolean }> = [
@@ -185,6 +187,7 @@ export function KioskCenterWorkspace({ onCreateView, refreshKey = 0, createdKios
   const [showCreate, setShowCreate] = useState(false);
   const [selectedCreateType, setSelectedCreateType] = useState<KioskExperience>('self-checkout');
   const [editingKiosk, setEditingKiosk] = useState<PosKioskAdminItem | null>(null);
+  const [traceKiosk, setTraceKiosk] = useState<PosKioskAdminItem | null>(null);
   const [pendingAction, setPendingAction] = useState<{ row: PosKioskAdminItem; action: 'rotate' | 'delete' } | null>(null);
   const [busyAction, setBusyAction] = useState('');
   const [notice, setNotice] = useState('');
@@ -549,6 +552,7 @@ export function KioskCenterWorkspace({ onCreateView, refreshKey = 0, createdKios
                 locale={locale}
                 busyAction={busyAction}
                 onEdit={() => setEditingKiosk(row)}
+                onTrace={() => setTraceKiosk(row)}
                 onAccess={() => void runAction(row, 'access')}
                 onCopy={() => void runAction(row, 'copy')}
                 onDownloadQrPdf={() => void runAction(row, 'pdf')}
@@ -565,6 +569,7 @@ export function KioskCenterWorkspace({ onCreateView, refreshKey = 0, createdKios
       {showCreate ? <CreateKioskModal selected={selectedCreateType} onSelected={setSelectedCreateType} onClose={() => setShowCreate(false)} onContinue={continueCreate} /> : null}
       {showColumns ? <KioskColumnsModal columns={columns} onClose={() => setShowColumns(false)} onApply={setColumns} /> : null}
       {editingKiosk ? <KioskEditModal kiosk={editingKiosk} onClose={() => setEditingKiosk(null)} onSaved={(name) => { setEditingKiosk(null); setNotice(`${name} se actualizó correctamente.`); void reload(); }} /> : null}
+      {traceKiosk?.assignment.ecosystemId ? <RestaurantTraceModal kiosk={traceKiosk} onClose={() => setTraceKiosk(null)} /> : null}
       {pendingAction ? <KioskSensitiveActionModal pending={pendingAction} busy={Boolean(busyAction)} onClose={() => setPendingAction(null)} onConfirm={() => void confirmSensitiveAction()} /> : null}
     </div>
   );
@@ -650,12 +655,13 @@ function KioskColumnResizeHandle({ currentWidth, label, minimumWidth, onPointerD
   );
 }
 
-function KioskRow({ row, columns, locale, busyAction, onEdit, onAccess, onCopy, onDownloadQrPdf, onRotate, onToggle, onDelete }: {
+function KioskRow({ row, columns, locale, busyAction, onEdit, onTrace, onAccess, onCopy, onDownloadQrPdf, onRotate, onToggle, onDelete }: {
   row: PosKioskAdminItem;
   columns: ColumnId[];
   locale: string;
   busyAction: string;
   onEdit: () => void;
+  onTrace: () => void;
   onAccess: () => void;
   onCopy: () => void;
   onDownloadQrPdf: () => void;
@@ -667,10 +673,11 @@ function KioskRow({ row, columns, locale, busyAction, onEdit, onAccess, onCopy, 
   const busy = busyAction.endsWith(`-${row.id}`);
   const shiftState = resolveKioskShiftState(row);
   return <tr className="h-16 align-middle transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-900/60">
-    <td className="overflow-hidden px-4 py-3"><div className="flex min-w-0 items-center gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#FF6B5E]/10 text-[#B63B32]">{row.kioskType === 'customer_display' ? <Monitor className="h-5 w-5" /> : row.kioskType === 'self_checkout' ? <CreditCard className="h-5 w-5" /> : <ShoppingBasket className="h-5 w-5" />}</span><div className="min-w-0"><div className="flex min-w-0 items-center gap-2"><p className="truncate text-sm font-medium text-slate-950 dark:text-white" title={row.name}>{row.name}</p><KioskStatusBadge status={row.status} configurationStatus={row.configurationStatus} /></div><p className="truncate text-xs font-normal text-slate-500" title={row.code}>{row.code}</p></div></div></td>
+    <td className="overflow-hidden px-4 py-3"><div className="flex min-w-0 items-center gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#FF6B5E]/10 text-[#B63B32]">{row.kioskType === 'customer_display' ? <Monitor className="h-5 w-5" /> : row.kioskType === 'self_checkout' ? <CreditCard className="h-5 w-5" /> : row.kioskType === 'waiter_station' ? <UtensilsCrossed className="h-5 w-5" /> : row.kioskType === 'table_order_center' ? <LayoutGrid className="h-5 w-5" /> : row.kioskType === 'kitchen_display' ? <ChefHat className="h-5 w-5" /> : <ShoppingBasket className="h-5 w-5" />}</span><div className="min-w-0"><div className="flex min-w-0 items-center gap-2"><p className="truncate text-sm font-medium text-slate-950 dark:text-white" title={row.name}>{row.name}</p><KioskStatusBadge status={row.status} configurationStatus={row.configurationStatus} /></div><p className="truncate text-xs font-normal text-slate-500" title={row.code}>{row.code}</p></div></div></td>
     {columns.map((column) => <td key={column} className="overflow-hidden px-4 py-3 text-sm font-normal text-slate-700 dark:text-slate-200">{renderColumn(column, row, locale, copy)}</td>)}
     <td className="px-3 py-3 text-right"><div className="inline-flex items-center justify-end gap-1.5 rounded-xl border border-slate-200 bg-slate-50/80 p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-800/70">
       <RowAction icon={<Pencil className="h-4 w-4" />} label={copy.center.edit} disabled={!row.actions.edit || busy} onClick={onEdit} tone="module" />
+      {row.assignment.ecosystemId ? <RowAction icon={<Network className="h-4 w-4" />} label="Ver ecosistema" disabled={busy} onClick={onTrace} tone="green" /> : null}
       <RowAction icon={<ExternalLink className="h-4 w-4" />} label={shiftState === 'open' ? copy.center.access : shiftState === 'unknown' ? copy.center.accessCheckingRegister : copy.center.accessWithClosedRegister} disabled={!row.actions.access || busy} onClick={onAccess} tone={shiftState === 'closed' || shiftState === 'unassigned' ? 'amber' : 'module'} />
       <RowAction icon={<Copy className="h-4 w-4" />} label={copy.center.copyLink} disabled={!row.actions.copy || busy} onClick={onCopy} tone="blue" />
       {row.kioskType === 'self_service' || row.kioskType === 'self_checkout' ? <RowAction icon={<FileDown className="h-4 w-4" />} label={copy.center.downloadQrPdf} disabled={!row.actions.access || busy} onClick={onDownloadQrPdf} /> : null}
@@ -707,6 +714,12 @@ function renderColumn(column: ColumnId, row: PosKioskAdminItem, locale: string, 
     ? copy.center.customerDisplay
     : row.kioskType === 'self_checkout'
       ? copy.workspace.selfCheckoutTab
+      : row.kioskType === 'waiter_station'
+        ? copy.center.waiter
+        : row.kioskType === 'table_order_center'
+          ? copy.center.tables
+          : row.kioskType === 'kitchen_display'
+            ? copy.center.kitchen
       : copy.center.selfService;
   if (column === 'scope') return <div><p className="font-medium text-slate-800 dark:text-white">{row.assignment.primaryLabel || copy.center.unassigned}</p><p className="text-xs text-slate-500">{row.assignment.secondaryLabel}</p></div>;
   if (column === 'shift') {
@@ -762,6 +775,47 @@ function columnLabel(column: ColumnId, center: ReturnType<typeof usePointOfSaleK
   return { type: center.type, scope: center.scope, shift: center.shiftStatus, connection: center.connection, activity: center.lastActivity, expiration: center.expires, link: center.link }[column];
 }
 
+function RestaurantTraceModal({ kiosk, onClose }: { kiosk: PosKioskAdminItem; onClose: () => void }) {
+  const ecosystemId = kiosk.assignment.ecosystemId as number;
+  const [data, setData] = useState<Awaited<ReturnType<typeof posKioskAdminApi.restaurantTrace>> | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let active = true;
+    void posKioskAdminApi.restaurantTrace(ecosystemId)
+      .then(value => { if (active) setData(value); })
+      .catch(requestError => active && setError(requestError instanceof Error ? requestError.message : 'No fue posible cargar la trazabilidad.'));
+    return () => { active = false; };
+  }, [ecosystemId]);
+  return (
+    <KioskModalFrame
+      open
+      onOpenChange={open => { if (!open) onClose(); }}
+      surface="administration"
+      size="workspace"
+      tone="coral"
+      eyebrow="Ecosistema de restaurante"
+      icon={<Network className="h-5 w-5" />}
+      title={kiosk.assignment.ecosystemName || kiosk.name}
+      description="Conexiones, comandas y recorrido auditado hasta la caja y el ticket."
+      footer={<button type="button" onClick={onClose} className={posModalPrimaryActionClassName}>Cerrar</button>}
+    >
+      {error ? <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p> : !data ? <p className="py-16 text-center text-sm text-slate-500">Cargando ecosistema…</p> : (
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)]">
+          <section className="space-y-3"><h3 className="text-base font-medium">Conexiones</h3>{data.kiosks.map(item => <article key={item.id} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"><div className="flex items-center justify-between gap-3"><div><p className="font-medium">{item.name}</p><p className="mt-1 text-xs text-slate-500">{restaurantKioskTypeLabel(item.kioskType)} · {item.assignment.secondaryLabel}</p></div><span className={`rounded-full px-2 py-1 text-[10px] font-medium ${item.connectionStatus === 'ONLINE' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{item.connectionStatus === 'ONLINE' ? 'En línea' : item.connectionStatus === 'OFFLINE' ? 'Fuera de línea' : 'Sin conexión'}</span></div></article>)}</section>
+          <section className="space-y-3"><div className="flex items-center justify-between"><h3 className="text-base font-medium">Trazabilidad reciente</h3><span className="text-xs text-slate-500">{data.orders.length} comandas · {data.events.length} eventos</span></div><div className="max-h-[480px] space-y-2 overflow-y-auto">{data.events.length === 0 ? <p className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">Todavía no hay actividad operativa.</p> : data.events.map((event, index) => <article key={String(event.id ?? index)} className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-medium">{String(event.eventType ?? 'Evento')}</p><p className="mt-1 text-xs text-slate-500">{[event.tableName, event.orderNumber, event.ticketNumber].filter(Boolean).join(' · ') || 'Ecosistema'}</p></div><time className="shrink-0 text-[10px] text-slate-400">{event.createdAt ? new Date(String(event.createdAt)).toLocaleString() : ''}</time></div>{event.toStatus ? <p className="mt-2 text-xs text-[#B63B32]">{String(event.fromStatus ?? '—')} → {String(event.toStatus)}</p> : null}</article>)}</div></section>
+        </div>
+      )}
+    </KioskModalFrame>
+  );
+}
+
+function restaurantKioskTypeLabel(type: PosKioskAdminItem['kioskType']) {
+  if (type === 'waiter_station') return 'Estación de mesero';
+  if (type === 'table_order_center') return 'Centro de órdenes';
+  if (type === 'kitchen_display') return 'Pantalla de cocina';
+  return type;
+}
+
 function CreateKioskModal({ selected, onSelected, onClose, onContinue }: { selected: KioskExperience; onSelected: (value: KioskExperience) => void; onClose: () => void; onContinue: () => void }) {
   const { copy } = usePointOfSaleKioskTranslations();
   const options = [
@@ -769,9 +823,9 @@ function CreateKioskModal({ selected, onSelected, onClose, onContinue }: { selec
     { id: 'self-service' as const, audience: 'customer' as const, icon: ShoppingBasket, title: copy.workspace.selfServiceTab, description: copy.center.serviceDescription, maturity: 'operational' as const },
     { id: 'customer-display' as const, audience: 'customer' as const, icon: Monitor, title: copy.center.customerDisplay, description: copy.center.displayDescription, maturity: 'operational' as const },
     { id: 'advisor-queue' as const, audience: 'customer' as const, icon: UsersRound, title: copy.center.advisorQueue, description: copy.center.advisorQueueDescription, maturity: 'planned' as const },
-    { id: 'restaurant-waiter' as const, audience: 'operation' as const, icon: UtensilsCrossed, title: copy.center.waiter, description: copy.center.waiterDescription, maturity: 'planned' as const },
-    { id: 'restaurant-tables' as const, audience: 'operation' as const, icon: LayoutGrid, title: copy.center.tables, description: copy.center.tablesDescription, maturity: 'planned' as const },
-    { id: 'restaurant-kitchen' as const, audience: 'operation' as const, icon: ChefHat, title: copy.center.kitchen, description: copy.center.kitchenDescription, maturity: 'planned' as const },
+    { id: 'restaurant-waiter' as const, audience: 'operation' as const, icon: UtensilsCrossed, title: copy.center.waiter, description: copy.center.waiterDescription, maturity: 'operational' as const },
+    { id: 'restaurant-tables' as const, audience: 'operation' as const, icon: LayoutGrid, title: copy.center.tables, description: copy.center.tablesDescription, maturity: 'operational' as const },
+    { id: 'restaurant-kitchen' as const, audience: 'operation' as const, icon: ChefHat, title: copy.center.kitchen, description: copy.center.kitchenDescription, maturity: 'operational' as const },
   ];
   const actionLabel = copy.center.continue;
   const renderGroup = (audience: 'customer' | 'operation', label: string) => <section><p className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-300">{label}</p><div className="grid gap-3 md:grid-cols-2">{options.filter((option) => option.audience === audience).map(({ id, icon: Icon, title, description, maturity }) => {
@@ -786,7 +840,8 @@ function CreateKioskModal({ selected, onSelected, onClose, onContinue }: { selec
 }
 
 function isCreatableKioskExperience(view: KioskExperience): view is CreatableKioskExperience {
-  return view === 'customer-display' || view === 'self-service' || view === 'self-checkout';
+  return view === 'customer-display' || view === 'self-service' || view === 'self-checkout'
+    || view === 'restaurant-waiter' || view === 'restaurant-tables' || view === 'restaurant-kitchen';
 }
 
 function KioskSensitiveActionModal({ pending, busy, onClose, onConfirm }: { pending: { row: PosKioskAdminItem; action: 'rotate' | 'delete' }; busy: boolean; onClose: () => void; onConfirm: () => void }) {

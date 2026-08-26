@@ -10,6 +10,7 @@ public record PosCheckoutRequest(
         @NotNull Long cashRegisterId,
         Long customerId,
         Long preticketId,
+        Long restaurantOrderId,
         @NotBlank String currencyCode,
         @NotEmpty List<@Valid PosCheckoutItemRequest> items,
         @NotEmpty List<@Valid PosCheckoutPaymentRequest> payments,
@@ -18,10 +19,21 @@ public record PosCheckoutRequest(
     public PosCheckoutRequest(
             Long cashRegisterId,
             Long customerId,
+            Long preticketId,
             String currencyCode,
             List<PosCheckoutItemRequest> items,
             List<PosCheckoutPaymentRequest> payments,
             String notes) {
-        this(cashRegisterId, customerId, null, currencyCode, items, payments, notes);
+        this(cashRegisterId, customerId, preticketId, null, currencyCode, items, payments, notes);
+    }
+
+    public PosCheckoutRequest(
+            Long cashRegisterId,
+            Long customerId,
+            String currencyCode,
+            List<PosCheckoutItemRequest> items,
+            List<PosCheckoutPaymentRequest> payments,
+            String notes) {
+        this(cashRegisterId, customerId, null, null, currencyCode, items, payments, notes);
     }
 }

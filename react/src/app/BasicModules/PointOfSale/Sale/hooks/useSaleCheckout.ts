@@ -31,6 +31,7 @@ interface UseSaleCheckoutOptions {
   inventoryBalancesError?: string | null;
   customerId?: string;
   preticketId?: number;
+  restaurantOrderId?: number;
   onCheckoutCompleted?: () => void;
 }
 
@@ -80,6 +81,7 @@ export function useSaleCheckout({
   inventoryBalancesError,
   customerId,
   preticketId,
+  restaurantOrderId,
   onCheckoutCompleted,
 }: UseSaleCheckoutOptions) {
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -279,6 +281,7 @@ export function useSaleCheckout({
         cashRegisterId,
         customerId: toBackendId(creditPayment?.creditDetails?.customerId ?? customerId),
         preticketId: preticketId ?? null,
+        restaurantOrderId: restaurantOrderId ?? null,
         currencyCode: checkoutCurrency,
         items: toPosCheckoutItems(completedItems, products),
         payments: toPosCheckoutPayments(completedPayments),

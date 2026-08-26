@@ -114,8 +114,9 @@ public class KioskActionDispatcher {
             executionContext = context.resolved(definition, null);
             var moduleManagedPinThrottle = isIdentityEstablishment(request)
                 && Boolean.TRUE.equals(capability.inputContract().get("moduleManagedPinThrottle"));
+            var stablePinScope = "";
             if (isIdentityEstablishment(request) && !moduleManagedPinThrottle) {
-                var stablePinScope = String.valueOf(
+                stablePinScope = String.valueOf(
                     capability.inputContract().getOrDefault("stablePinScope", ""))
                     .trim().toUpperCase(java.util.Locale.ROOT);
                 switch (stablePinScope) {
@@ -174,6 +175,10 @@ public class KioskActionDispatcher {
             fileIntentService.captureOutcome(executionContext, request, capability, response);
             if (isIdentityEstablishment(request)) {
                 response = establishControlledSession(executionContext, definitionCapabilities, response);
+                if (!moduleManagedPinThrottle) {
+                    rateLimitService.resetSuccessfulPinVerification(
+                        executionContext, request.payload(), stablePinScope);
+                }
                 executionContext = executionContext.resolved(
                     definition, (KioskSessionPrincipal) response.get("engine_session"));
                 response = publicSessionResponse(response);
