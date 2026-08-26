@@ -100,6 +100,7 @@ export default function Productos() {
           onUpdateProductCategory={catalog.handleUpdateProductCategory}
           onUpdateProductStatus={catalog.handleUpdateProductStatus}
           onBulkSetProductStatus={catalog.handleBulkSetProductStatus}
+          onBulkSetProductCategory={catalog.handleBulkSetProductCategory}
           onBulkMarkAvailableForSales={catalog.handleBulkMarkAvailableForSales}
           onBulkRemoveFromPublicCatalog={catalog.handleBulkRemoveFromPublicCatalog}
           visibleColumns={catalog.visibleColumns}

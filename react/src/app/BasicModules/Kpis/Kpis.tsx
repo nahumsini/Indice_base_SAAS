@@ -6,6 +6,7 @@ import { useKpisTranslations } from '../../hooks/useKpisTranslations';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { getCachedAuthSession } from '../../api/authSessionStore';
 import { canAccessModuleTab } from '../../access/tabScopeCatalog';
+import { useAuthorizationRevision } from '../../hooks/useAuthorizationRevision';
 import {
   LearningModeHeaderActionsProvider,
   learningModeGuideThemes,
@@ -47,6 +48,7 @@ const legacyKpiTabAliases: Partial<Record<string, KpiTabId>> = {
 };
 
 export default function Kpis({ learningModeActive = false, onNavigate }: KpisProps) {
+  useAuthorizationRevision();
   const t = useKpisTranslations();
   const mainContentRef = useRef<HTMLDivElement>(null);
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<KpiTabId>(

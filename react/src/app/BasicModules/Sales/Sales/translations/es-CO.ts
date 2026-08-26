@@ -70,8 +70,8 @@ export const esCO = {
   },
   summaryPreview: {
     ...esMX.summaryPreview,
-    description: 'Vista previa del resumen operativo antes de ejecutar inventario, finanzas y posventa.',
-    footerNote: 'Esta es una vista operativa para ejecución interna, no un documento fiscal DIAN.',
+    description: 'Revisa la nota de venta antes de imprimirla o compartirla con el cliente.',
+    footerNote: 'La nota de venta es un documento comercial y no sustituye una factura fiscal DIAN.',
   },
   guidance: {
     ...esMX.guidance,

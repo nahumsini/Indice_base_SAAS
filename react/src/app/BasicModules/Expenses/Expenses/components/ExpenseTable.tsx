@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type Dispatch, type MouseEvent as ReactMouseEvent, type SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo, useState, type Dispatch, type MouseEvent as ReactMouseEvent, type SetStateAction } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown, Search } from 'lucide-react';
 import { mockProviders } from '../../data/expenses.mock';
 import type { Expense, ExpenseStatus, Provider } from '../../types/expenses.types';
@@ -24,6 +24,7 @@ import { formatBusinessCurrencyBreakdown } from '../../../shared/businessCurrenc
 import { canDeleteExpense, getEffectiveExpenseStatus, getExpenseBalance, getExpensePaidAmount } from '../../utils/expenseFilters';
 import { DataTablePagination } from '../../../../components/table/DataTablePagination';
 import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../../hooks/useTablePagination';
+import { useWorkspaceNavigationMemory } from '../../../../hooks/useWorkspaceNavigationMemory';
 import {
   EditableExpenseRow,
   type EditableExpenseRowOptions,
@@ -36,6 +37,27 @@ type MoneySummary = {
   key: string;
   label: string;
   value: string;
+};
+
+type ExpenseTableWorkspaceState = {
+  currentPage: number;
+  pageSize: number;
+  sortDirection: SortDirection;
+  sortField: ExpenseSortField | null;
+};
+
+const expenseTableWorkspaceDefaults: ExpenseTableWorkspaceState = {
+  currentPage: 1,
+  pageSize: 10,
+  sortDirection: null,
+  sortField: null,
+};
+
+const expenseTableWorkspaceUrlFields: Partial<Record<keyof ExpenseTableWorkspaceState, string>> = {
+  currentPage: 'ex_page',
+  pageSize: 'ex_rows',
+  sortDirection: 'ex_dir',
+  sortField: 'ex_sort',
 };
 
 type ExpenseTableProps = {
@@ -107,6 +129,28 @@ export function ExpenseTable({
   const [pageSize, setPageSize] = useState(10);
   const [workflowByExpenseId, setWorkflowByExpenseId] = useState<Record<string, ExpenseWorkflowState>>({});
   const rowSelection = useExpenseRowSelection<string>();
+  const workspaceState = useMemo<ExpenseTableWorkspaceState>(() => ({
+    currentPage,
+    pageSize,
+    sortDirection,
+    sortField,
+  }), [currentPage, pageSize, sortDirection, sortField]);
+  const restoreWorkspaceState = useCallback((restoredState: ExpenseTableWorkspaceState) => {
+    setCurrentPage(restoredState.currentPage);
+    setPageSize(restoredState.pageSize);
+    setSortDirection(restoredState.sortDirection);
+    setSortField(restoredState.sortField);
+  }, []);
+
+  useWorkspaceNavigationMemory({
+    moduleKey: 'expenses',
+    tabKey: 'expenses-table',
+    state: workspaceState,
+    defaults: expenseTableWorkspaceDefaults,
+    urlFields: expenseTableWorkspaceUrlFields,
+    onRestore: restoreWorkspaceState,
+    rememberScroll: false,
+  });
 
   const effectiveEmptyMessage = emptyMessage ?? t.expenses.emptyMessage;
   const effectiveEmptyTitle = emptyTitle ?? t.expenses.emptyTitle;

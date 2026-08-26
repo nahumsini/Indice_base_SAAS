@@ -40,8 +40,19 @@ const moduleRegistryMigrationSource = readFileSync(
   'utf8',
 );
 const appSource = readFileSync(resolve(root, 'src/app/App.tsx'), 'utf8');
+const headerSource = readFileSync(resolve(root, 'src/app/components/Header.tsx'), 'utf8');
+const kpisSource = readFileSync(resolve(root, 'src/app/BasicModules/Kpis/Kpis.tsx'), 'utf8');
 const moduleShellSource = readFileSync(
   resolve(root, 'src/app/components/frontend-os/IndiceModuleShell.tsx'),
+  'utf8',
+);
+const accessibleCatalogSource = readFileSync(
+  resolve(root, 'src/app/hooks/useAccessibleModuleCatalog.ts'),
+  'utf8',
+);
+const authSessionStoreSource = readFileSync(resolve(root, 'src/app/api/authSessionStore.ts'), 'utf8');
+const authorizationRevisionHookSource = readFileSync(
+  resolve(root, 'src/app/hooks/useAuthorizationRevision.ts'),
   'utf8',
 );
 
@@ -180,4 +191,28 @@ test('selector de kioscos respeta modulo y alcance organizacional', () => {
   assert.match(kioskPermissionPickerSource, /moduleAllowed/);
   assert.match(kioskPermissionPickerSource, /scopeAllows/);
   assert.doesNotMatch(kioskPermissionPickerSource, /return businessId == null \|\| kiosk\.business_id == null/);
+});
+
+test('revocar rol o permisos refresca sesion catalogo rutas pestanas y cabecera', () => {
+  assert.match(authSessionStoreSource, /authorizationFingerprint/);
+  assert.match(authSessionStoreSource, /subscribeToAuthorizationChanged/);
+  assert.match(authorizationRevisionHookSource, /useSyncExternalStore/);
+  assert.match(appSource, /AUTHORIZATION_REVALIDATION_MS/);
+  assert.match(appSource, /authApi\.me\(\)/);
+  assert.match(appSource, /window\.addEventListener\('focus'/);
+  assert.match(appSource, /document\.addEventListener\('visibilitychange'/);
+  assert.match(appSource, /\}, \[pathname\]\);/);
+  assert.match(appSource, /\[authorizationRevision, t\]/);
+  assert.match(moduleShellSource, /useAuthorizationRevision\(\)/);
+  assert.match(usersSource, /selectedUser\.backendId === currentUserId/);
+  assert.match(usersSource, /canAccessModuleTab\('home-panel', 'users', nextSession\)/);
+  assert.match(apiClientSource, /response\.status === 403[\s\S]*refreshAuthSession\(\)/);
+  assert.doesNotMatch(accessibleCatalogSource, /localDevelopmentModules|import\.meta\.env\.DEV/);
+  assert.doesNotMatch(appSource, /routes\.add\('material-warehouse'\)|routes\.add\('production'\)/);
+  assert.match(tabScopeCatalogSource, /canAccessKioskCenter/);
+  assert.match(tabScopeCatalogSource, /KIOSK_CENTER_PERMISSION_KEYS/);
+  assert.match(appSource, /canAccessKioskCenter\(session\)/);
+  assert.match(headerSource, /canAccessKioskCenter\(effectiveAuthSession\)/);
+  assert.match(headerSource, /effectiveAuthSession/);
+  assert.match(kpisSource, /useAuthorizationRevision\(\)/);
 });

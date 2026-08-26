@@ -1,100 +1,29 @@
-import { Download, FileText, Printer } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { AlertCircle, Download, FileText, LoaderCircle, Printer, RefreshCw } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { cn } from '../../../../components/ui/utils';
 import { SalesModalFrame } from '../../components/SalesModalFrame';
 import { getSalesModalActionClassNames } from '../../salesModalStyles';
 import type { SalesQuote } from '../../types';
-import { defaultSalesCurrency, formatSalesCurrencyAmount } from '../../utils/salesCurrency';
 import { getSalesOperationalContext } from '../data/salesOperationalContext';
 import type { SalesRecordsTranslations } from '../translations';
 import type { SaleRecord, SaleRecordDraft } from '../types/salesTypes';
 import type { CompanyPrintIdentity } from '../../../shared/print/useCompanyPrintIdentity';
 import {
-  downloadSaleInvoicePdf,
-  printSaleInvoicePdf,
-  type SaleInvoicePdfContext,
+  downloadSaleNotePdf,
+  getSaleNotePdfBlob,
+  printSaleNotePdf,
+  type SaleNotePdfContext,
 } from '../utils/saleInvoicePdf';
 
 const actionClassNames = getSalesModalActionClassNames('coral');
-
-function formatCurrency(value: number, currency?: string | null) {
-  return formatSalesCurrencyAmount(value, currency);
-}
-
-function getLineTotal({
-  quantity,
-  unitPrice,
-  discountPercent,
-  taxPercent,
-  subtotal,
-}: {
-  quantity: number;
-  unitPrice: number;
-  discountPercent: number;
-  taxPercent: number;
-  subtotal?: number;
-}) {
-  const grossSubtotal = quantity * unitPrice;
-  const discount = grossSubtotal * (discountPercent / 100);
-  const taxable = subtotal ?? Math.max(grossSubtotal - discount, 0);
-
-  return taxable + (taxable * (taxPercent / 100));
-}
-
-function getTaxIdentifierLabel(country?: string, fallback?: string, defaultLabel = 'Tax ID') {
-  if (fallback) {
-    return fallback;
-  }
-
-  const countryLabels: Record<string, string> = {
-    BR: 'CNPJ / CPF',
-    CA: 'BN / GST-HST',
-    CO: 'NIT',
-    MX: 'RFC',
-    US: 'EIN / Sales Tax ID',
-  };
-
-  return countryLabels[String(country ?? '').toUpperCase()] ?? defaultLabel;
-}
-
-function PreviewBrandBar() {
-  return (
-    <div className="flex h-2 overflow-hidden rounded-full" aria-hidden="true">
-      <span className="w-[34%] bg-[#FF6B5E]" />
-      <span className="w-[22%] bg-[#F4C84A]" />
-      <span className="w-[22%] bg-[#59C3A5]" />
-      <span className="w-[22%] bg-[#2563EB]" />
-    </div>
-  );
-}
-
-function PreviewMetricCard({
-  accentClassName,
-  label,
-  value,
-}: {
-  accentClassName: string;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-      <div className="flex min-h-[88px]">
-        <span className={cn('w-2 shrink-0', accentClassName)} aria-hidden="true" />
-        <div className="flex min-w-0 flex-1 flex-col justify-between p-4">
-          <p className="text-xs font-medium text-slate-500">{label}</p>
-          <p className="truncate text-xl font-medium text-slate-950">{value}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export function SaleSummaryPreviewModal({
   open,
   sale,
   quote,
   company,
+  locale = typeof navigator === 'undefined' ? 'en-CA' : navigator.language || 'en-CA',
   t,
   onOpenChange,
 }: {
@@ -102,37 +31,88 @@ export function SaleSummaryPreviewModal({
   sale: SaleRecord | SaleRecordDraft | null;
   quote?: SalesQuote | null;
   company?: CompanyPrintIdentity | null;
+  locale?: string;
   t: SalesRecordsTranslations;
   onOpenChange: (open: boolean) => void;
 }) {
-  if (!sale) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState(false);
+  const [isPreparingPreview, setIsPreparingPreview] = useState(false);
+  const [previewRevision, setPreviewRevision] = useState(0);
+  const pdfContext = useMemo<SaleNotePdfContext | null>(() => {
+    if (!sale) {
+      return null;
+    }
+
+    return {
+      sale,
+      quote,
+      operationalContext: getSalesOperationalContext(sale.businessId),
+      company,
+      copy: t,
+      locale,
+    };
+  }, [company, locale, quote, sale, t]);
+
+  useEffect(() => {
+    if (!open || !pdfContext) {
+      setPreviewUrl(null);
+      setPreviewError(false);
+      setIsPreparingPreview(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    let objectUrl: string | null = null;
+
+    setPreviewUrl(null);
+    setPreviewError(false);
+    setIsPreparingPreview(true);
+
+    void getSaleNotePdfBlob(pdfContext)
+      .then((blob) => {
+        if (cancelled) {
+          return;
+        }
+
+        objectUrl = URL.createObjectURL(blob);
+        setPreviewUrl(objectUrl);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPreviewError(true);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsPreparingPreview(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [open, pdfContext, previewRevision]);
+
+  if (!sale || !pdfContext) {
     return null;
   }
 
-  const currency = sale.currency || defaultSalesCurrency;
-  const operationalContext = getSalesOperationalContext(sale.businessId);
-  const saleLines = sale.saleLines ?? [];
-  const quoteLines = quote?.items ?? [];
-  const itemCount = saleLines.length
-    ? saleLines.reduce((total, item) => total + item.quantity, 0)
-    : quoteLines.reduce((total, item) => total + item.quantity, 0);
-  const locale = typeof navigator === 'undefined' ? 'es-MX' : navigator.language || 'es-MX';
-  const pdfContext: SaleInvoicePdfContext = {
-    sale,
-    quote,
-    operationalContext,
-    company,
-    copy: t,
-    locale,
-  };
-  const invoiceNumber = sale.saleNumber || sale.saleDocumentReference || quote?.quoteNumber || t.common.notAvailable;
+  const salesNoteNumber = sale.saleNumber
+    || sale.saleDocumentReference
+    || quote?.quoteNumber
+    || t.common.notAvailable;
+  const showPreparingPreview = isPreparingPreview || (!previewUrl && !previewError);
 
   const handleDownload = () => {
-    void downloadSaleInvoicePdf(pdfContext);
+    void downloadSaleNotePdf(pdfContext);
   };
 
   const handlePrint = () => {
-    void printSaleInvoicePdf(pdfContext);
+    void printSaleNotePdf(pdfContext);
   };
 
   return (
@@ -145,195 +125,74 @@ export function SaleSummaryPreviewModal({
       closeLabel={t.common.close}
       modalType="large-workspace"
       contentClassName="h-[92dvh] max-h-[920px]"
-      bodyClassName="!max-h-none min-h-0 flex-1 overflow-auto bg-slate-100 px-4 py-5 dark:bg-slate-950"
+      bodyClassName="!max-h-none min-h-0 flex-1 overflow-hidden bg-slate-200 p-2 dark:bg-slate-950 sm:p-4"
       footerClassName="flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
       footerSummary={t.summaryPreview.footerNote}
       footer={(
-        <>
+        <div className="flex flex-wrap justify-end gap-2">
           <Button
+            type="button"
+            variant="outline"
+            className={cn('h-10 px-4 text-sm font-medium', actionClassNames.secondary)}
+            onClick={() => onOpenChange(false)}
+          >
+            {t.common.close}
+          </Button>
+          <Button
+            type="button"
             variant="outline"
             className={cn('h-10 gap-2 px-4 text-sm font-medium', actionClassNames.secondary)}
             onClick={handleDownload}
           >
             <Download className="h-4 w-4" />
-            {t.invoice.download}
+            {t.saleNote.download}
           </Button>
           <Button
+            type="button"
             variant="outline"
             className={cn('h-10 gap-2 px-4 text-sm font-medium', actionClassNames.secondary)}
             onClick={handlePrint}
           >
             <Printer className="h-4 w-4" />
-            {t.invoice.print}
+            {t.saleNote.print}
           </Button>
-          <Button type="button" className={cn('h-10 px-4 text-sm font-medium', actionClassNames.primary)} onClick={() => onOpenChange(false)}>
-            {t.common.close}
-          </Button>
-        </>
+        </div>
       )}
     >
-      <article className="mx-auto min-h-[900px] w-full max-w-[880px] bg-white px-10 py-9 shadow-xl ring-1 ring-slate-200 sm:px-12">
-        <header className="border-b border-slate-200 pb-7">
-          <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr] md:items-start">
-            <div>
-              <p className="text-xs font-medium text-slate-500">{t.invoice.number}</p>
-              <p className="mt-1 text-lg font-medium text-slate-950">{invoiceNumber}</p>
-            </div>
-            <div className="text-left md:text-center">
-              <p className="text-2xl font-medium text-slate-950">{t.invoice.documentTitle}</p>
-              <p className="mt-1 text-xs font-medium text-slate-500">
-                {t.invoice.documentLabel}
-              </p>
-            </div>
-            <div className="text-left text-sm font-normal text-slate-500 md:text-right">
-              <p>{t.modal.fields.saleDate}: {sale.saleDate || t.common.notAvailable}</p>
-              <p className="mt-1">{t.modal.fields.quoteReference}: {sale.quoteReference || quote?.quoteNumber || t.common.notAvailable}</p>
-            </div>
+      {showPreparingPreview ? (
+        <div className="flex h-full min-h-[520px] items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-600 shadow-inner">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <LoaderCircle className="h-8 w-8 animate-spin text-[#B63B32]" aria-hidden="true" />
+            <p className="text-sm font-medium">{t.summaryPreview.preparing}</p>
           </div>
+        </div>
+      ) : null}
 
-          <div className="mt-5">
-            <PreviewBrandBar />
+      {!showPreparingPreview && previewError ? (
+        <div className="flex h-full min-h-[520px] items-center justify-center rounded-xl border border-red-200 bg-white px-6 text-slate-700 shadow-inner">
+          <div className="flex max-w-md flex-col items-center gap-4 text-center">
+            <AlertCircle className="h-9 w-9 text-red-500" aria-hidden="true" />
+            <p className="text-sm font-medium">{t.summaryPreview.previewError}</p>
+            <Button
+              type="button"
+              variant="outline"
+              className={cn('h-10 gap-2 px-4 text-sm font-medium', actionClassNames.secondary)}
+              onClick={() => setPreviewRevision((revision) => revision + 1)}
+            >
+              <RefreshCw className="h-4 w-4" />
+              {t.summaryPreview.retry}
+            </Button>
           </div>
+        </div>
+      ) : null}
 
-          <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-end">
-            <div>
-              <p className="text-xs font-medium text-[#B63B32]">
-                {t.invoice.documentLabel}
-              </p>
-              <h1 className="mt-3 text-5xl font-medium leading-[0.95] text-slate-950">
-                {t.invoice.documentTitle}
-              </h1>
-              <p className="mt-4 max-w-xl text-base leading-7 text-slate-600">
-                {t.invoice.subtitle}
-              </p>
-            </div>
-            <div className="rounded-lg border border-[#FF6B5E]/25 bg-[#FFF3F1] p-5 text-right">
-              <p className="text-xs font-medium text-[#B63B32]">
-                {t.modal.fields.totalAmount} · {currency}
-              </p>
-              <p className="mt-2 text-3xl font-medium text-slate-950">{formatCurrency(sale.totalAmount, currency)}</p>
-            </div>
-          </div>
-        </header>
-
-        <section className="grid gap-4 border-b border-slate-200 py-7 sm:grid-cols-2 lg:grid-cols-4">
-          <PreviewMetricCard accentClassName="bg-[#FF6B5E]" label={t.modal.fields.totalAmount} value={formatCurrency(sale.totalAmount, currency)} />
-          <PreviewMetricCard accentClassName="bg-[#2563EB]" label={t.modal.fields.currency} value={currency} />
-          <PreviewMetricCard accentClassName="bg-[#59C3A5]" label={t.modal.workspace.itemsLabel} value={String(itemCount)} />
-          <PreviewMetricCard accentClassName="bg-[#F4C84A]" label={t.modal.fields.taxTotal} value={formatCurrency(sale.taxTotal, currency)} />
-        </section>
-
-        <section className="grid gap-4 border-b border-slate-200 py-7 md:grid-cols-2">
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
-            <p className="text-xs font-medium text-slate-500">{t.invoice.billTo}</p>
-            <h2 className="mt-3 text-xl font-medium text-slate-950">{sale.customerName || t.common.notAvailable}</h2>
-            <div className="mt-4 space-y-1 text-sm font-medium text-slate-500">
-              <p>{t.modal.fields.sellerName}: {sale.sellerName || t.common.notAvailable}</p>
-              <p>{t.modal.fields.paymentMethod}: {sale.paymentMethod || t.common.notAvailable}</p>
-              <p>{t.modal.fields.paymentReference}: {sale.paymentReference || t.common.notAvailable}</p>
-            </div>
-          </div>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
-            <p className="text-xs font-medium text-slate-500">{t.invoice.issuedBy}</p>
-            <h2 className="mt-3 text-xl font-medium text-slate-950">{operationalContext.legalName || t.common.notAvailable}</h2>
-            <div className="mt-4 grid gap-2 text-sm font-medium text-slate-500">
-              <p>{operationalContext.fiscalAddress || ''}</p>
-              <p>{getTaxIdentifierLabel(operationalContext.country, operationalContext.taxIdentifierLabel, t.modal.operationalContext.taxIdentifier)}: {operationalContext.taxIdentifier || ''}</p>
-              <p>{t.modal.fields.businessUnit}: {sale.businessUnitName || t.common.notAvailable}</p>
-              <p>{t.modal.fields.business}: {sale.businessName || t.common.notAvailable}</p>
-            </div>
-          </div>
-        </section>
-
-        <section className="py-7">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-            <h2 className="text-xl font-medium text-slate-950">{t.invoice.itemsTitle}</h2>
-            <span className="rounded-full border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 px-3 py-1 text-xs font-medium text-[#B63B32]">
-              {t.invoice.documentLabel}
-            </span>
-          </div>
-
-          <div className="overflow-x-auto rounded-lg border border-slate-200">
-            <table className="w-full min-w-[760px] border-collapse text-left text-xs">
-              <thead className="bg-slate-50 text-slate-700">
-                <tr>
-                  <th className="px-3 py-3 font-medium">{t.modal.summaryColumns.item}</th>
-                  <th className="px-3 py-3 font-medium">{t.modal.summaryColumns.sku}</th>
-                  <th className="px-3 py-3 text-center font-medium">{t.modal.summaryColumns.quantity}</th>
-                  <th className="px-3 py-3 text-right font-medium">{t.modal.summaryColumns.unitPrice}</th>
-                  <th className="px-3 py-3 text-center font-medium">{t.modal.summaryColumns.tax}</th>
-                  <th className="px-3 py-3 text-right font-medium">{t.modal.summaryColumns.total}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {saleLines.length === 0 && quoteLines.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-sm font-medium text-slate-500">
-                      {t.summaryPreview.noProducts}
-                    </td>
-                  </tr>
-                ) : null}
-                {saleLines.map((item) => (
-                  <tr key={item.id} className="border-t border-slate-200 odd:bg-white even:bg-slate-50">
-                    <td className="max-w-[240px] px-3 py-4">
-                      <p className="font-medium text-slate-950">{item.productName}</p>
-                    </td>
-                    <td className="px-3 py-4 font-normal text-slate-600">{item.sku}</td>
-                    <td className="px-3 py-4 text-center font-medium text-slate-700">{item.quantity}</td>
-                    <td className="px-3 py-4 text-right font-medium text-slate-700">{formatCurrency(item.unitPrice, currency)}</td>
-                    <td className="px-3 py-4 text-center font-medium text-slate-700">{item.taxPercent}%</td>
-                    <td className="px-3 py-4 text-right font-medium text-slate-950">{formatCurrency(getLineTotal(item), currency)}</td>
-                  </tr>
-                ))}
-                {!saleLines.length ? quoteLines.map((item) => (
-                  <tr key={item.id} className="border-t border-slate-200 odd:bg-white even:bg-slate-50">
-                    <td className="max-w-[240px] px-3 py-4">
-                      <p className="font-medium text-slate-950">{item.productName}</p>
-                    </td>
-                    <td className="px-3 py-4 font-normal text-slate-600">{item.sku}</td>
-                    <td className="px-3 py-4 text-center font-medium text-slate-700">{item.quantity}</td>
-                    <td className="px-3 py-4 text-right font-medium text-slate-700">{formatCurrency(item.unitPrice, currency)}</td>
-                    <td className="px-3 py-4 text-center font-medium text-slate-700">{item.taxLabel ? `${item.taxLabel} ${item.taxPercent}%` : `${item.taxPercent}%`}</td>
-                    <td className="px-3 py-4 text-right font-medium text-slate-950">{formatCurrency(getLineTotal(item), currency)}</td>
-                  </tr>
-                )) : null}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mt-6 grid gap-4 md:grid-cols-[1fr_300px]">
-            <div className="rounded-lg border border-slate-200 bg-white p-5">
-              <h3 className="text-sm font-medium text-slate-500">{t.modal.fields.notes}</h3>
-              <p className="mt-3 text-sm leading-6 text-slate-600">{sale.notes || t.invoice.defaultNotes}</p>
-            </div>
-            <div className="rounded-lg border border-[#FF6B5E]/25 bg-[#FFF3F1] p-5">
-              <p className="mb-2 text-xs font-medium text-[#B63B32]">{t.modal.fields.currency}: {currency}</p>
-              {[
-                [t.invoice.subtotal, sale.subtotal],
-                [t.invoice.discount, sale.discountTotal],
-                [t.modal.fields.taxTotal, sale.taxTotal],
-                [t.invoice.total, sale.totalAmount],
-              ].map(([label, value], index, rows) => (
-                <div
-                  key={label}
-                  className={cn(
-                    'flex items-center justify-between py-2 text-sm',
-                    index === rows.length - 1 && 'mt-2 border-t border-[#FF6B5E]/25 pt-4 text-lg font-medium text-slate-950',
-                  )}
-                >
-                  <span className="font-medium text-slate-600">{label}</span>
-                  <span className={index === rows.length - 1 ? 'font-medium text-slate-950' : 'font-medium text-slate-950'}>{formatCurrency(Number(value), currency)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-5">
-            <h3 className="text-sm font-medium text-slate-700">{t.invoice.disclaimerTitle}</h3>
-            <p className="mt-3 text-sm font-normal leading-6 text-slate-600">{t.invoice.disclaimerBody}</p>
-          </div>
-        </section>
-      </article>
+      {!showPreparingPreview && !previewError && previewUrl ? (
+        <iframe
+          className="h-full min-h-[520px] w-full rounded-xl border border-slate-300 bg-white shadow-inner"
+          src={previewUrl}
+          title={`${t.summaryPreview.title}: ${salesNoteNumber}`}
+        />
+      ) : null}
     </SalesModalFrame>
   );
 }

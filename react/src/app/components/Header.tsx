@@ -22,6 +22,9 @@ import { PreferredCurrencyControl } from '../BasicModules/shared/PreferredCurren
 import { useHeaderTranslations } from './header/hooks/useHeaderTranslations';
 import { isAdminAccessRole, normalizeAccessRole } from '../access/accessRules';
 import { managedCompanyApi, type ManagedCompanyContext } from '../api/managedCompanies';
+import { getCachedAuthSession } from '../api/authSessionStore';
+import { useAuthorizationRevision } from '../hooks/useAuthorizationRevision';
+import { canAccessKioskCenter } from '../access/tabScopeCatalog';
 
 interface HeaderProps {
   learningModeActive: boolean;
@@ -62,6 +65,11 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
   const [managedSearch, setManagedSearch] = useState('');
   const [publicDemoCompanies, setPublicDemoCompanies] = useState<PublicDemoCompany[]>([]);
   const notifications = useNotifications();
+  useAuthorizationRevision();
+  const cachedAuthorizationSession = getCachedAuthSession();
+  const effectiveAuthSession = cachedAuthorizationSession === undefined
+    ? authSession
+    : cachedAuthorizationSession;
 
   useEffect(() => {
     let active = true;
@@ -188,20 +196,20 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
     .join('')
     .toUpperCase() || 'U';
   const currentUserPrimaryName = currentUserName.trim().split(/\s+/)[0] || 'User';
-  const isPublicDemoSession = authSession?.demoMode === true;
+  const isPublicDemoSession = effectiveAuthSession?.demoMode === true;
   const isRootAccount = !isPublicDemoSession && (platformAdminRole === 'PLATFORM_ROOT'
-    || normalizeAccessRole(authSession?.user.role) === 'root');
+    || normalizeAccessRole(effectiveAuthSession?.user.role) === 'root');
   const isDistributorAccount = !isPublicDemoSession
-    && authSession?.company.commercial_account_type === 'DISTRIBUTOR';
-  const directCompanyIds = new Set((authSession?.companies ?? []).map((company) => company.id));
+    && effectiveAuthSession?.company.commercial_account_type === 'DISTRIBUTOR';
+  const directCompanyIds = new Set((effectiveAuthSession?.companies ?? []).map((company) => company.id));
   const managedCompanies = (managedContext?.companies ?? [])
     .filter((company) => !directCompanyIds.has(company.id))
     .filter((company) => company.name.toLocaleLowerCase().includes(managedSearch.trim().toLocaleLowerCase()));
   const matchingPublicDemoCompanies = publicDemoCompanies
     .filter((company) => company.name.toLocaleLowerCase().includes(managedSearch.trim().toLocaleLowerCase()));
   const visibleManagedCompany = managedContext?.active_company;
-  const visibleCompanyName = visibleManagedCompany?.name ?? authSession?.company.name ?? '';
-  const canSelectCompany = (authSession?.companies?.length ?? 0) > 1
+  const visibleCompanyName = visibleManagedCompany?.name ?? effectiveAuthSession?.company.name ?? '';
+  const canSelectCompany = (effectiveAuthSession?.companies?.length ?? 0) > 1
     || (managedContext?.companies?.length ?? 0) > 0
     || (isDistributorAccount && publicDemoCompanies.length > 0);
 
@@ -231,7 +239,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
         const context = await managedCompanyApi.clear();
         setManagedContext(context);
       }
-      if (companyId === authSession?.company.id) {
+      if (companyId === effectiveAuthSession?.company.id) {
         window.location.reload();
         return;
       }
@@ -373,7 +381,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                   <div className="px-2 pb-2 pt-1 text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">
                     {currentLanguage.code.startsWith('es') ? 'Tus empresas' : 'Your companies'}
                   </div>
-                  {authSession?.companies?.map((company) => (
+                  {effectiveAuthSession?.companies?.map((company) => (
                     <DropdownMenuItem
                       key={company.user_company_id}
                       className="cursor-pointer gap-3 rounded-xl px-3 py-3"
@@ -639,14 +647,16 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                       <DropdownMenuSeparator className="my-0 bg-[#59C3A5]/15 dark:bg-[#59C3A5]/20" />
                     </>
                   )}
-                  {isAdminAccessRole(authSession?.user.role) && !isPublicDemoSession ? (
+                  {isAdminAccessRole(effectiveAuthSession?.user.role) && !isPublicDemoSession ? (
                     <>
-                      <DropdownMenuItem onClick={() => navigate('/kiosk-center')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
-                        <MonitorSmartphone className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">
-                          {currentLanguage.code.startsWith('es') ? 'Centro de kioscos' : 'Kiosk Center'}
-                        </span>
-                      </DropdownMenuItem>
+                      {canAccessKioskCenter(effectiveAuthSession) ? (
+                        <DropdownMenuItem onClick={() => navigate('/kiosk-center')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
+                          <MonitorSmartphone className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">
+                            {currentLanguage.code.startsWith('es') ? 'Centro de kioscos' : 'Kiosk Center'}
+                          </span>
+                        </DropdownMenuItem>
+                      ) : null}
                       <DropdownMenuItem onClick={() => navigate('/billing')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
                         <CreditCard className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />
                         <span className="text-sm font-medium text-gray-900 dark:text-white">

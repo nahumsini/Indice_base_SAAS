@@ -16,6 +16,19 @@ export function publicCatalogImages(item: PublicCatalogItem): PublicCatalogImage
   });
 }
 
+export function publicCatalogCoverImage(item: PublicCatalogItem): PublicCatalogImage | null {
+  const thumbnailUrl = item.thumbnailUrl?.trim();
+
+  if (thumbnailUrl) {
+    return {
+      url: thumbnailUrl,
+      alt: item.thumbnailAlt?.trim() || item.name,
+    };
+  }
+
+  return publicCatalogImages(item)[0] ?? null;
+}
+
 export function publicCatalogDescriptionCanExpand(description: string, compact = false): boolean {
   return description.trim().length > (compact ? 85 : 110);
 }

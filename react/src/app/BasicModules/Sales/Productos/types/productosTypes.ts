@@ -89,6 +89,8 @@ export type ProductFormState = {
   packagingNotes: string;
   bundleItems: ProductBundleDraft[];
   usesInventory: boolean;
+  reservable: boolean;
+  availabilityIcalUrl: string;
   serviceUnit: string;
   serviceEstimatedDuration: string;
   serviceScopeNotes: string;

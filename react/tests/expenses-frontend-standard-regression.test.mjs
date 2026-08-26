@@ -82,6 +82,20 @@ test('Expenses conserva el shell financiero y el Kiosk Engine compartido', () =>
   assert.match(managerSource, /<KioskModalFrame/);
 });
 
+test('Expenses recupera la primera carga cuando la sesion acaba de iniciar', () => {
+  const moduleSource = readFileSync(resolve(expensesRoot, 'ExpensesModule.tsx'), 'utf8');
+  const navigationMemorySource = readFileSync(resolve(root, 'src/app/hooks/useWorkspaceNavigationMemory.ts'), 'utf8');
+
+  assert.match(moduleSource, /useAuthorizationRevision\(\)/);
+  assert.match(moduleSource, /await authApi\.getSessionOrNull\(\)/);
+  assert.match(moduleSource, /requestWithSessionRecovery/);
+  assert.match(moduleSource, /error\.status === 401 \|\| error\.status === 403/);
+  assert.match(moduleSource, /await recoverSession\(\)/);
+  assert.match(moduleSource, /\[authorizationRevision, financeRefreshKey\]/);
+  assert.match(navigationMemorySource, /const authorizationRevision = useAuthorizationRevision\(\)/);
+  assert.match(navigationMemorySource, /\[authorizationRevision, moduleKey, rememberScroll, tabKey\]/);
+});
+
 test('El administrador de kioscos mantiene una vista compacta, filtrable y protegida', () => {
   const managerSource = readFileSync(resolve(expensesRoot, 'components/modals/PayablesKioskManagementModal.tsx'), 'utf8');
   const formSource = readFileSync(resolve(expensesRoot, 'components/modals/PayablesKioskAccessFormModal.tsx'), 'utf8');
@@ -114,6 +128,18 @@ test('Saldo permite ordenar ascendente y descendente por el saldo calculado', ()
   assert.match(tableSource, /sortField === 'balance'/);
   assert.match(tableSource, /getExpenseBalance\(left\)/);
   assert.match(tableSource, /getExpenseBalance\(right\)/);
+});
+
+test('Gastos vencidos conserva Pagar y no mezcla lineas presupuestales', () => {
+  const pageSource = readFileSync(resolve(expensesRoot, 'Expenses/Expenses.tsx'), 'utf8');
+  const rowSource = readFileSync(resolve(expensesRoot, 'Expenses/components/EditableExpenseRow.tsx'), 'utf8');
+  const tableSource = readFileSync(resolve(expensesRoot, 'Expenses/components/ExpenseTable.tsx'), 'utf8');
+
+  assert.match(pageSource, /expenses\.filter\(expense => expense\.type !== 'budget'\)/);
+  assert.match(pageSource, /filterExpenses\(operationalExpenses, filters\)/);
+  assert.match(rowSource, /const canMarkPaid = expense\.type !== 'budget' && getExpenseBalance\(expense\) > 0/);
+  assert.match(rowSource, /showMarkPaid=\{canMarkPaid/);
+  assert.match(tableSource, /const savedExpense = await onMarkExpensePaid\(expense\)/);
 });
 
 test('La vista predeterminada de Gastos prioriza operación y vencimiento', () => {
@@ -213,4 +239,74 @@ test('Cuenta por pagar exige la obligación principal y reserva clasificación e
   assert.match(pageSource, /date: expenseDate/);
   assert.match(pageSource, /reference: values\.reference/);
   assert.match(adapterSource, /reference: expense\.reference/);
+});
+
+test('Expenses recuerda la pestana y el contexto operativo por usuario y empresa', () => {
+  const moduleSource = readFileSync(resolve(expensesRoot, 'ExpensesModule.tsx'), 'utf8');
+  const navigationMemorySource = readFileSync(resolve(root, 'src/app/hooks/useWorkspaceNavigationMemory.ts'), 'utf8');
+  const workspaceSources = [
+    ['Expenses/Expenses.tsx', 'expenses'],
+    ['Expenses/components/ExpenseTable.tsx', 'expenses-table'],
+    ['Budgets/useBudgetLogic.ts', 'budgets'],
+    ['Budgets/components/BudgetLinesTable.tsx', 'budgets-table'],
+    ['Providers/useProveedoresLogic.ts', 'providers'],
+    ['Providers/components/ProvidersTable.tsx', 'providers-table'],
+    ['AccountingAccounts/AccountingAccounts.tsx', 'accounting'],
+    ['AccountingAccounts/components/AccountingAccountsTable.tsx', 'accounting-table'],
+    ['PaymentAccounts/PaymentAccounts.tsx', 'payment_accounts'],
+    ['PaymentAccounts/components/PaymentAccountsTable.tsx', 'payment_accounts_table'],
+    ['KPIs/GastosKPIPage.tsx', 'kpis'],
+  ].map(([path, tabKey]) => ({
+    path,
+    source: readFileSync(resolve(expensesRoot, path), 'utf8'),
+    tabKey,
+  }));
+
+  assert.match(moduleSource, /useRoutedModuleTab<TabId>\(\s*'expenses'/);
+  assert.match(navigationMemorySource, /session\.company\.id/);
+  assert.match(navigationMemorySource, /session\.user\.id/);
+  assert.match(navigationMemorySource, /workspaceStateApi\.save/);
+
+  for (const { path, source, tabKey } of workspaceSources) {
+    assert.match(source, /useWorkspaceNavigationMemory/,
+      `${path} debe usar la memoria compartida de navegacion`);
+    assert.match(source, new RegExp(`moduleKey:\\s*'expenses'[\\s\\S]*tabKey:\\s*'${tabKey}'`),
+      `${path} debe guardar su estado en un ambito independiente`);
+  }
+});
+
+test('La memoria de Expenses conserva filtros, orden y pagina sin reabrir operaciones incompletas', () => {
+  const tablePaths = [
+    'Expenses/components/ExpenseTable.tsx',
+    'Budgets/components/BudgetLinesTable.tsx',
+    'Providers/components/ProvidersTable.tsx',
+    'AccountingAccounts/components/AccountingAccountsTable.tsx',
+    'PaymentAccounts/components/PaymentAccountsTable.tsx',
+  ];
+  const tableSources = tablePaths.map(path => ({
+    path,
+    source: readFileSync(resolve(expensesRoot, path), 'utf8'),
+  }));
+  const allWorkspaceSources = collectFiles(expensesRoot)
+    .map(file => readFileSync(file, 'utf8'))
+    .filter(source => source.includes('WorkspaceState'))
+    .join('\n');
+
+  for (const { path, source } of tableSources) {
+    assert.match(source, /currentPage/,
+      `${path} debe recordar la pagina`);
+    assert.match(source, /pageSize/,
+      `${path} debe recordar el tamano de pagina`);
+    assert.doesNotMatch(source, /useEffect\(\(\) => \{\s*setCurrentPage\(1\)/,
+      `${path} no debe perder la pagina al recargar filas`);
+  }
+
+  assert.match(allWorkspaceSources, /searchTerm/);
+  assert.match(allWorkspaceSources, /sortDirection/);
+  assert.match(allWorkspaceSources, /periodFilter/);
+  assert.doesNotMatch(
+    allWorkspaceSources,
+    /type \w+WorkspaceState = \{[^}]*(?:draft|editing|Modal|pendingDelete)/s,
+    'La memoria de navegacion no debe persistir borradores, modales ni eliminaciones pendientes',
+  );
 });

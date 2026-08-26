@@ -1,5 +1,5 @@
 import type { Dispatch, FormEvent, ReactNode, SetStateAction } from 'react';
-import { CalendarDays, Check, ClipboardList, Pencil, Plus, Save, UserRound, UsersRound } from 'lucide-react';
+import { CalendarDays, ClipboardList, Pencil, Plus, Save, UserRound } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
 import { Input } from '../../../../components/ui/input';
@@ -14,6 +14,11 @@ import { Textarea } from '../../../../components/ui/textarea';
 import { useLanguage } from '../../../../shared/context';
 import { defaultAgendaTranslations, type AgendaTranslations } from '../../Agenda/translations';
 import { ProgressSlider } from '../../shared/ProgressSlider';
+import {
+  TaskAssigneeSelector,
+  type TaskAssigneeSelection,
+  type TaskAssigneeSelectorOption,
+} from '../../shared/TaskAssigneeSelector';
 import {
   collaboratorCanReceiveAssignment,
   filterBusinessesForActor,
@@ -78,17 +83,9 @@ function entityValue(prefix: string, id: number) {
   return `${prefix}:${id}`;
 }
 
-function legacyValue(prefix: string, label: string) {
-  return `${prefix}:legacy:${label}`;
-}
-
 function numericFormValue(value: string) {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
-}
-
-function normalizeText(value?: string | null) {
-  return value?.trim().toLowerCase() ?? '';
 }
 
 function formatFormDate(value: string, locale: string) {
@@ -188,10 +185,11 @@ export function TaskFormDialog({
     .map((value) => ({ value, label: copy.statuses[value] }));
   const priorityOptions = priorityOptionValues.map((value) => ({ value, label: copy.priorities[value] }));
   const hasValidDateRange = !form.startDate || !form.dueDate || form.startDate <= form.dueDate;
-  const isFormValid = Boolean(form.title.trim()) && hasValidDateRange;
   const selectedUnitId = numericFormValue(form.unitId);
   const selectedBusinessId = numericFormValue(form.businessId);
   const selectedAssignedUserCompanyId = numericFormValue(form.assignedUserCompanyId);
+  const hasResponsible = selectedAssignedUserCompanyId != null;
+  const isFormValid = Boolean(form.title.trim()) && hasValidDateRange && hasResponsible;
   const selectedProjectId = numericFormValue(form.projectId);
   const selectedProcessId = numericFormValue(form.processId);
   const selectedProjectValue =
@@ -246,60 +244,57 @@ export function TaskFormDialog({
     });
   }
 
-  const selectedAssignedValue =
-    selectedAssignedUserCompanyId != null
-      ? entityValue('user-company', selectedAssignedUserCompanyId)
-      : form.assignedName
-        ? legacyValue('assigned', form.assignedName)
-        : NONE_VALUE;
   const scopedCollaboratorOptions = collaboratorOptions.filter((option) =>
     collaboratorCanReceiveAssignment(option, selectedUnitId, selectedBusinessId, businessOptions),
   );
-  const selectedTeamIds = new Set(form.assigneeUserCompanyIds.map(Number).filter((value) => value > 0));
+  const currentUserCompanyId = currentUserCollaborator?.userCompanyId ?? null;
+  const selectedAssigneeIds = Array.from(new Set([
+    ...(selectedAssignedUserCompanyId != null ? [selectedAssignedUserCompanyId] : []),
+    ...form.assigneeUserCompanyIds.map(Number).filter((value) => Number.isInteger(value) && value > 0),
+  ]));
   const isSpanish = currentLanguage.code.startsWith('es');
   const teamCopy = isSpanish
     ? {
-        coordinator: 'Coordinador de la tarea',
-        coordinatorHint: 'Coordina el trabajo y cierra la tarea cuando el equipo esté listo.',
-        team: 'Equipo responsable',
-        teamHint: 'Selecciona a quienes deben verla en su Agenda y entregar su parte.',
-        selected: (count: number) => `${count} ${count === 1 ? 'persona asignada' : 'personas asignadas'}`,
-        lead: 'Coordina',
+        title: '¿Quién realizará la tarea?',
+        hint: 'Elige una o dos personas. También puedes seleccionarte a ti; si no lo haces, la tarea quedará solo en Delegadas por mí.',
+        selected: (count: number, max: number) => `${count} de ${max} seleccionados`,
+        lead: 'Responsable principal',
+        makeLead: 'Hacer responsable principal',
+        limit: (max: number) => `Máximo ${max} personas`,
+        you: 'Tú',
+        responsibleRequired: 'Selecciona a la persona responsable principal para continuar.',
       }
     : {
-        coordinator: 'Task coordinator',
-        coordinatorHint: 'Coordinates the work and closes the task when the team is ready.',
-        team: 'Responsible team',
-        teamHint: 'Select everyone who should see it in their Agenda and deliver their part.',
-        selected: (count: number) => `${count} ${count === 1 ? 'person assigned' : 'people assigned'}`,
-        lead: 'Lead',
+        title: 'Who will perform the task?',
+        hint: 'Choose one or two people. You can also select yourself; otherwise the task remains only under Delegated by me.',
+        selected: (count: number, max: number) => `${count} of ${max} selected`,
+        lead: 'Primary responsible person',
+        makeLead: 'Make primary responsible',
+        limit: (max: number) => `Maximum ${max} people`,
+        you: 'You',
+        responsibleRequired: 'Select the primary responsible person to continue.',
       };
-  const collaboratorSelectOptions = [
-    { value: NONE_VALUE, label: formCopy.empty.responsible },
-    ...scopedCollaboratorOptions.map((option) => ({
-      value: entityValue('user-company', option.userCompanyId),
-      label: option.email ? `${option.name} · ${option.email}` : option.name,
-    })),
-  ];
-  if (
-    selectedAssignedUserCompanyId != null &&
-    !scopedCollaboratorOptions.some((option) => option.userCompanyId === selectedAssignedUserCompanyId)
-  ) {
-    collaboratorSelectOptions.push({
-      value: entityValue('user-company', selectedAssignedUserCompanyId),
-      label: `${form.assignedName || `User #${selectedAssignedUserCompanyId}`} (${copy.common.legacy})`,
+  const assigneeSelectorOptions: TaskAssigneeSelectorOption[] = scopedCollaboratorOptions.map((option) => ({
+    email: option.email,
+    name: option.name,
+    userCompanyId: option.userCompanyId,
+  }));
+  selectedAssigneeIds.forEach((userCompanyId) => {
+    if (assigneeSelectorOptions.some((option) => option.userCompanyId === userCompanyId)) return;
+    const collaborator = collaboratorOptions.find((option) => option.userCompanyId === userCompanyId);
+    assigneeSelectorOptions.push({
+      email: collaborator?.email ?? null,
+      name: collaborator?.name ?? (userCompanyId === selectedAssignedUserCompanyId && form.assignedName
+        ? form.assignedName
+        : `User #${userCompanyId}`),
+      userCompanyId,
     });
-  }
-  if (
-    form.assignedName &&
-    selectedAssignedUserCompanyId == null &&
-    !scopedCollaboratorOptions.some((option) => normalizeText(option.name) === normalizeText(form.assignedName))
-  ) {
-    collaboratorSelectOptions.push({
-      value: legacyValue('assigned', form.assignedName),
-      label: `${form.assignedName} (${copy.common.legacy})`,
-    });
-  }
+  });
+  assigneeSelectorOptions.sort((left, right) => {
+    if (left.userCompanyId === currentUserCompanyId) return -1;
+    if (right.userCompanyId === currentUserCompanyId) return 1;
+    return left.name.localeCompare(right.name, currentLanguage.code);
+  });
 
   const updateUnit = (value: string) => {
     setForm((currentForm) => {
@@ -413,52 +408,20 @@ export function TaskFormDialog({
     });
   };
 
-  const updateAssignedUser = (value: string) => {
-    setForm((currentForm) => {
-      if (value === NONE_VALUE) {
-        return {
-          ...currentForm,
-          assignedUserCompanyId: '',
-          assignedName: '',
-          assigneeUserCompanyIds: [],
-        };
-      }
+  const updateAssigneeSelection = ({
+    leadUserCompanyId,
+    userCompanyIds,
+  }: TaskAssigneeSelection) => {
+    const lead = leadUserCompanyId == null
+      ? null
+      : assigneeSelectorOptions.find((option) => option.userCompanyId === leadUserCompanyId) ?? null;
 
-      const userCompanyId = Number(value.replace('user-company:', ''));
-      const selectedCollaborator = collaboratorOptions.find(
-        (option) => option.userCompanyId === userCompanyId,
-      );
-      if (!selectedCollaborator) {
-        return currentForm;
-      }
-
-      return {
-        ...currentForm,
-        assignedUserCompanyId: selectedCollaborator.userCompanyId.toString(),
-        assignedName: selectedCollaborator.name,
-        assigneeUserCompanyIds: Array.from(
-          new Set([selectedCollaborator.userCompanyId.toString(), ...currentForm.assigneeUserCompanyIds]),
-        ),
-      };
-    });
-  };
-
-  const toggleTeamMember = (userCompanyId: number) => {
-    setForm((currentForm) => {
-      const value = userCompanyId.toString();
-      const coordinatorId = numericFormValue(currentForm.assignedUserCompanyId);
-      if (coordinatorId === userCompanyId) {
-        return currentForm;
-      }
-
-      const isSelected = currentForm.assigneeUserCompanyIds.includes(value);
-      return {
-        ...currentForm,
-        assigneeUserCompanyIds: isSelected
-          ? currentForm.assigneeUserCompanyIds.filter((candidateId) => candidateId !== value)
-          : [...currentForm.assigneeUserCompanyIds, value],
-      };
-    });
+    setForm((currentForm) => ({
+      ...currentForm,
+      assignedUserCompanyId: leadUserCompanyId?.toString() ?? '',
+      assignedName: lead?.name ?? '',
+      assigneeUserCompanyIds: userCompanyIds.map(String),
+    }));
   };
 
   const quickCreateSummary = !form.title.trim()
@@ -522,6 +485,7 @@ export function TaskFormDialog({
               ...(!hasValidDateRange
                 ? [formCopy.quickCreate.hints.invalidDateRange]
                 : []),
+              ...(!hasResponsible ? [teamCopy.responsibleRequired] : []),
             ]}
           />
             <div className={`grid grid-cols-1 gap-4 ${isQuickCreate ? 'md:grid-cols-6' : 'md:grid-cols-2'}`}>
@@ -733,66 +697,21 @@ export function TaskFormDialog({
                   </SelectContent>
                 </Select>
               </div>
-              <div className={`space-y-2 ${isQuickCreate ? 'md:col-span-6' : 'md:col-span-2'}`}>
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{teamCopy.coordinator}</label>
-                <Select value={selectedAssignedValue} onValueChange={updateAssignedUser}>
-                  <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
-                    <SelectValue placeholder={formCopy.placeholders.responsible} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {collaboratorSelectOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {isQuickCreate ? (
-                  <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-                    {teamCopy.coordinatorHint}
-                  </p>
-                ) : null}
-              </div>
-
               <div className={`space-y-3 ${isQuickCreate ? 'md:col-span-6' : 'md:col-span-2'}`}>
-                <div className="flex flex-wrap items-end justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{teamCopy.team}</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{teamCopy.teamHint}</p>
-                  </div>
-                  <span className="rounded-full bg-[#F8C842]/15 px-3 py-1 text-xs font-medium text-[#8A6200] dark:text-[#F8C842]">
-                    {teamCopy.selected(selectedTeamIds.size)}
-                  </span>
+                <div>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{teamCopy.title}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{teamCopy.hint}</p>
                 </div>
-                <div className="grid max-h-44 grid-cols-1 gap-2 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-900/60 sm:grid-cols-2">
-                  {scopedCollaboratorOptions.map((collaborator) => {
-                    const selected = selectedTeamIds.has(collaborator.userCompanyId);
-                    const isLead = selectedAssignedUserCompanyId === collaborator.userCompanyId;
-                    return (
-                      <button
-                        key={collaborator.userCompanyId}
-                        type="button"
-                        aria-pressed={selected}
-                        onClick={() => toggleTeamMember(collaborator.userCompanyId)}
-                        className={`flex min-w-0 items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors ${
-                          selected
-                            ? 'border-[#F8C842] bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-white'
-                            : 'border-transparent bg-white/70 text-slate-600 hover:border-slate-300 dark:bg-slate-800/50 dark:text-slate-300'
-                        }`}
-                      >
-                        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${selected ? 'bg-[#F8C842] text-slate-950' : 'bg-slate-200 text-slate-500 dark:bg-slate-700'}`}>
-                          {selected ? <Check className="h-4 w-4" /> : <UsersRound className="h-4 w-4" />}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium">{collaborator.name}</span>
-                          <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
-                            {isLead ? teamCopy.lead : collaborator.email || collaborator.unitName || ''}
-                          </span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+                <TaskAssigneeSelector
+                  copy={teamCopy}
+                  currentUserCompanyId={currentUserCompanyId}
+                  disabled={isSubmitting}
+                  leadUserCompanyId={selectedAssignedUserCompanyId}
+                  maxSelections={2}
+                  onChange={updateAssigneeSelection}
+                  options={assigneeSelectorOptions}
+                  selectedUserCompanyIds={selectedAssigneeIds}
+                />
               </div>
 
               {!isQuickCreate ? (

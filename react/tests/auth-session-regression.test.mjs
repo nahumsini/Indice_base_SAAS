@@ -4,12 +4,37 @@ import test from 'node:test';
 
 import {
   expireCachedAuthSession,
+  getAuthorizationRevision,
   getCachedAuthSession,
   getCachedCsrfToken,
   setCachedAuthSession,
   setCachedCsrfToken,
+  subscribeToAuthorizationChanged,
   subscribeToAuthenticationExpired,
 } from '../src/app/api/authSessionStore.ts';
+import { canAccessKioskCenter } from '../src/app/access/tabScopeCatalog.ts';
+
+const sessionWithAccess = ({ role, modules, tabs }) => ({
+  user: {
+    id: 7,
+    name: 'Access User',
+    role,
+    module_slugs: modules,
+    tab_permission_keys: tabs,
+    tab_permissions_configured: true,
+  },
+  company: {
+    id: 3,
+    name: 'Indice Test',
+    commercial_account_type: 'SUPER_ADMIN',
+    user_company_id: 11,
+    role,
+    scope: { type: 'corporate_office', unit_id: null, business_id: null },
+    active: true,
+  },
+  companies: [],
+  csrfToken: 'csrf-token',
+});
 
 test('an expired authenticated session clears all cached credentials and notifies once', () => {
   let expirationNotifications = 0;
@@ -26,6 +51,60 @@ test('an expired authenticated session clears all cached credentials and notifie
   assert.equal(getCachedCsrfToken(), null);
   assert.equal(expirationNotifications, 1);
   unsubscribe();
+});
+
+test('a role or grant revocation publishes one authorization revision without reacting to reordered grants', () => {
+  setCachedAuthSession(sessionWithAccess({
+    role: 'superadmin',
+    modules: ['crm', 'human_resources'],
+    tabs: ['crm.sales', 'human_resources.payroll'],
+  }));
+  const baselineRevision = getAuthorizationRevision();
+  let changeNotifications = 0;
+  const unsubscribe = subscribeToAuthorizationChanged(() => {
+    changeNotifications += 1;
+  });
+
+  setCachedAuthSession(sessionWithAccess({
+    role: 'superadmin',
+    modules: ['human_resources', 'crm'],
+    tabs: ['human_resources.payroll', 'crm.sales'],
+  }));
+  assert.equal(changeNotifications, 0);
+
+  setCachedAuthSession(sessionWithAccess({
+    role: 'user',
+    modules: ['crm'],
+    tabs: ['crm.sales'],
+  }));
+
+  assert.equal(changeNotifications, 1);
+  assert.equal(getAuthorizationRevision(), baselineRevision + 1);
+  assert.equal(getCachedAuthSession()?.user.role, 'user');
+  unsubscribe();
+});
+
+test('kiosk center requires a current admin role plus a matching assigned module and tab grant', () => {
+  assert.equal(canAccessKioskCenter(sessionWithAccess({
+    role: 'admin',
+    modules: ['pos'],
+    tabs: ['pos.kiosks'],
+  })), true);
+  assert.equal(canAccessKioskCenter(sessionWithAccess({
+    role: 'user',
+    modules: ['pos'],
+    tabs: ['pos.kiosks'],
+  })), false);
+  assert.equal(canAccessKioskCenter(sessionWithAccess({
+    role: 'admin',
+    modules: [],
+    tabs: ['pos.kiosks'],
+  })), false);
+  assert.equal(canAccessKioskCenter(sessionWithAccess({
+    role: 'admin',
+    modules: ['pos'],
+    tabs: [],
+  })), false);
 });
 
 test('payable creation never inserts a local phantom record after a failed request', async () => {

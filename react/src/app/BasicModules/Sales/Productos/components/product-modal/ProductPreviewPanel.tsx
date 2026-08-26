@@ -28,7 +28,7 @@ export function ProductPreviewPanel({
   form: ProductFormState;
   t: ProductsTranslations;
 }) {
-  const galleryCount = Math.max(getProductGalleryImages(product).length, 1);
+  const galleryCount = getProductGalleryImages(product, { includeTransient: true }).length;
   const usage = getUsageReadiness(form);
   const { presentationPrice } = getPackagingSnapshot(form);
   const pricing = getPriceBuilderSnapshot(form);
@@ -53,6 +53,7 @@ export function ProductPreviewPanel({
             <ProductThumbnail
               product={product}
               size="hero"
+              includeTransientImages
               className={cn('aspect-[4/3] min-h-[230px]', embedded && 'h-full min-h-[236px] md:aspect-auto')}
             />
             <div className="absolute left-5 top-5 flex max-w-[calc(100%-2.5rem)] flex-wrap gap-2">

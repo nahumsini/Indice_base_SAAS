@@ -85,6 +85,7 @@ export function buildPreviewProduct(form: ProductFormState): SalesCatalogItem {
     galleryUrls: form.galleryUrls,
     uploadedImages: form.uploadedImages,
     productName: form.name.trim() || 'Catalog item',
+    includeTransientUploads: true,
   });
 
   return {
@@ -111,6 +112,8 @@ export function buildPreviewProduct(form: ProductFormState): SalesCatalogItem {
     warehousePrepared: form.usesInventory,
     posPrepared: form.visibility === 'POS ready',
     variantsPrepared: form.type === 'Subscription' || form.type === 'Package',
+    reservable: form.reservable,
+    availabilityIcalUrl: form.reservable ? form.availabilityIcalUrl.trim() : undefined,
     lastUpdated: new Date().toISOString().slice(0, 10),
   };
 }

@@ -449,7 +449,13 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
       setPeriodFilter('all');
     }
     if (!matchesAgendaFocus(task, focusFilter, currentUserId)) {
-      setFocusFilter('team');
+      if (matchesAgendaFocus(task, 'delegated', currentUserId)) {
+        setFocusFilter('delegated');
+      } else if (matchesAgendaFocus(task, 'mine', currentUserId)) {
+        setFocusFilter('mine');
+      } else {
+        setFocusFilter('team');
+      }
     }
 
     setAgendaNotice(agendaCopy.messages.taskCreated(task.folio));
@@ -790,7 +796,6 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
     handleDuplicateTask,
     handleProjectCellChange,
     handlePriorityCellChange,
-    handleResponsibleCellChange,
     handleUnitCellChange,
     persistTaskChange,
     scopeResponsiblePatch,
@@ -815,7 +820,6 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
     setReportTask,
     setTaskPendingState,
     tasks,
-    unassignedResponsibleValue: UNASSIGNED_RESPONSIBLE_VALUE,
   });
 
   const {
@@ -906,7 +910,6 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
       agendaStatusDate={agendaStatusDate}
       agendaStatusRange={agendaEvaluationRange}
       businessOptionsForUnit={businessOptionsForUnit}
-      collaboratorOptionsForScope={collaboratorOptionsForScope}
       columnId={columnId}
       copy={agendaCopy}
       isPending={isTaskPending(task.taskId)}
@@ -924,7 +927,6 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
       onRequestComplete={handleRequestTaskCompletion}
       onPriorityChange={handlePriorityCellChange}
       onProjectChange={handleProjectCellChange}
-      onResponsibleChange={handleResponsibleCellChange}
       onUnitChange={handleUnitCellChange}
       onUpdateSchedulePlacement={updateTaskSchedulePlacement}
       projects={projects}
@@ -932,7 +934,6 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
       selectedScheduleDate={selectedScheduleDate}
       task={task}
       todayAgendaValue={todayAgendaValue}
-      unassignedResponsibleValue={UNASSIGNED_RESPONSIBLE_VALUE}
     />
   );
 
@@ -1293,6 +1294,12 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
       />
 
       <TaskTeamDialog
+        collaboratorOptions={
+          teamTask
+            ? collaboratorOptionsForScope(teamTask.unitId, teamTask.businessId)
+            : catalogCollaborators
+        }
+        currentUserCompanyId={currentUserCollaborator?.userCompanyId ?? null}
         open={Boolean(teamTask)}
         task={teamTask}
         onOpenChange={(open) => {

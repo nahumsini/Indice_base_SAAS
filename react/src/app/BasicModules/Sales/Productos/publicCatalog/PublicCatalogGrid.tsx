@@ -7,11 +7,21 @@ export function PublicCatalogGrid({
   config,
   t,
   onAddToCart,
+  onCheckAvailability,
+  onOpenGallery,
+  onDownloadImages,
+  onShareWhatsApp,
+  downloadingItemIds,
 }: {
   items: PublicCatalogItem[];
   config: PublicCatalogConfig;
   t: ProductsTranslations;
   onAddToCart: (item: PublicCatalogItem) => void;
+  onCheckAvailability: (item: PublicCatalogItem) => void;
+  onOpenGallery: (item: PublicCatalogItem) => void;
+  onDownloadImages: (item: PublicCatalogItem) => void;
+  onShareWhatsApp: (item: PublicCatalogItem) => void;
+  downloadingItemIds: ReadonlySet<string>;
 }) {
   if (items.length === 0) {
     return (
@@ -33,6 +43,11 @@ export function PublicCatalogGrid({
             config={config}
             t={t}
             onAddToCart={onAddToCart}
+            onCheckAvailability={onCheckAvailability}
+            onOpenGallery={onOpenGallery}
+            onDownloadImages={onDownloadImages}
+            onShareWhatsApp={onShareWhatsApp}
+            downloadingImages={downloadingItemIds.has(item.id)}
           />
         ))}
       </div>

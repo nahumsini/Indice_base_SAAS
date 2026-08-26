@@ -48,6 +48,7 @@ import { AttachmentsModal } from './components/AttachmentsModal';
 import { ExpenseDetailModal } from './components/ExpenseDetailModal';
 import { getExpenseDetailCopy } from './components/expenseDetail.copy';
 import { ExpenseTable } from './components/ExpenseTable';
+import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 
 interface ExpensesProps {
   expenses?: Expense[];
@@ -64,6 +65,15 @@ const defaultFilters: ExpenseListFilters = {
   businessFilter: 'all',
   providerFilter: 'all',
   statusFilter: 'all',
+};
+
+const expenseWorkspaceUrlFields: Partial<Record<keyof ExpenseListFilters, string>> = {
+  searchTerm: 'ex_q',
+  periodFilter: 'ex_period',
+  businessUnitFilter: 'ex_unit',
+  businessFilter: 'ex_business',
+  providerFilter: 'ex_provider',
+  statusFilter: 'ex_status',
 };
 
 const toFallbackOptions = (values: string[]): FinanceReferenceOption[] =>
@@ -122,6 +132,15 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
   const { businessOptions: referenceBusinessOptions, currentUser, isLoadingReferenceData, unitOptions: referenceUnitOptions, userOptions } =
     useFinanceReferenceData(setFailureToastMessage);
 
+  useWorkspaceNavigationMemory<ExpenseListFilters>({
+    moduleKey: 'expenses',
+    tabKey: 'expenses',
+    state: filters,
+    defaults: defaultFilters,
+    urlFields: expenseWorkspaceUrlFields,
+    onRestore: setFilters,
+  });
+
   const { attachmentsExpense, closeAttachmentsModal, getExpenseAttachments, openAttachmentsModal } =
     useExpenseAttachments();
   const { applyColumns, columns } = useExpenseColumns();
@@ -155,7 +174,14 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
   const providerOptions = useMemo(() => [{ id: 'all', name: t.common.all }, ...providers], [providers, t.common.all]);
   const createExpenseDisabled = isLoadingReferenceData;
   const createExpenseDisabledReason = t.expenses.createDisabledReason;
-  const filteredExpenses = useMemo(() => filterExpenses(expenses, filters), [expenses, filters]);
+  const operationalExpenses = useMemo(
+    () => expenses.filter(expense => expense.type !== 'budget'),
+    [expenses],
+  );
+  const filteredExpenses = useMemo(
+    () => filterExpenses(operationalExpenses, filters),
+    [filters, operationalExpenses],
+  );
   const bulkEditableExpenses = useMemo(() => expenses.filter(expense => (
     isBackendId(expense.id)
     && !expense.purchaseOrderId

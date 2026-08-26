@@ -1,5 +1,6 @@
-import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import type { Expense } from '../types/expenses.types';
+import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 import {
   type BudgetDraft,
   generateProjectedBudgetEntries,
@@ -15,6 +16,39 @@ interface UseBudgetLogicParams {
   onExpensesChange: Dispatch<SetStateAction<Expense[]>>;
 }
 
+type BudgetsWorkspaceState = {
+  accountingAccountFilter: string;
+  businessFilter: string;
+  businessUnitFilter: string;
+  customEndDate: string;
+  customStartDate: string;
+  futureFilter: BudgetFutureFilter;
+  providerFilter: string;
+  searchTerm: string;
+};
+
+const budgetsWorkspaceDefaults: BudgetsWorkspaceState = {
+  accountingAccountFilter: 'all',
+  businessFilter: 'all',
+  businessUnitFilter: 'all',
+  customEndDate: '',
+  customStartDate: '',
+  futureFilter: 'next_month',
+  providerFilter: 'all',
+  searchTerm: '',
+};
+
+const budgetsWorkspaceUrlFields: Partial<Record<keyof BudgetsWorkspaceState, string>> = {
+  accountingAccountFilter: 'bu_account',
+  businessFilter: 'bu_business',
+  businessUnitFilter: 'bu_unit',
+  customEndDate: 'bu_end',
+  customStartDate: 'bu_start',
+  futureFilter: 'bu_period',
+  providerFilter: 'bu_provider',
+  searchTerm: 'bu_q',
+};
+
 const isWithinRange = (date: Date, start: Date, end: Date) => {
   const time = date.getTime();
   return time >= start.getTime() && time <= end.getTime();
@@ -29,6 +63,44 @@ export function useBudgetLogic({ expenses, onExpensesChange }: UseBudgetLogicPar
   const [accountingAccountFilter, setAccountingAccountFilter] = useState('all');
   const [providerFilter, setProviderFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const workspaceState = useMemo<BudgetsWorkspaceState>(() => ({
+    accountingAccountFilter,
+    businessFilter,
+    businessUnitFilter,
+    customEndDate,
+    customStartDate,
+    futureFilter,
+    providerFilter,
+    searchTerm,
+  }), [
+    accountingAccountFilter,
+    businessFilter,
+    businessUnitFilter,
+    customEndDate,
+    customStartDate,
+    futureFilter,
+    providerFilter,
+    searchTerm,
+  ]);
+  const restoreWorkspaceState = useCallback((restoredState: BudgetsWorkspaceState) => {
+    setAccountingAccountFilter(restoredState.accountingAccountFilter);
+    setBusinessFilter(restoredState.businessFilter);
+    setBusinessUnitFilter(restoredState.businessUnitFilter);
+    setCustomEndDate(restoredState.customEndDate);
+    setCustomStartDate(restoredState.customStartDate);
+    setFutureFilter(restoredState.futureFilter);
+    setProviderFilter(restoredState.providerFilter);
+    setSearchTerm(restoredState.searchTerm);
+  }, []);
+
+  useWorkspaceNavigationMemory({
+    moduleKey: 'expenses',
+    tabKey: 'budgets',
+    state: workspaceState,
+    defaults: budgetsWorkspaceDefaults,
+    urlFields: budgetsWorkspaceUrlFields,
+    onRestore: restoreWorkspaceState,
+  });
 
   const budgetExpenses = useMemo(() => {
     return expenses.filter(expense => expense.type === 'budget');

@@ -41,7 +41,6 @@ type UseAgendaTaskMutationsOptions = {
   setReportTask: (task: AgendaTaskItem | null) => void;
   setTaskPendingState: (taskId: number, isPending: boolean) => void;
   tasks: AgendaTaskItem[];
-  unassignedResponsibleValue: string;
 };
 
 export function useAgendaTaskMutations({
@@ -63,7 +62,6 @@ export function useAgendaTaskMutations({
   setReportTask,
   setTaskPendingState,
   tasks,
-  unassignedResponsibleValue,
 }: UseAgendaTaskMutationsOptions) {
   const [cancelTask, setCancelTask] = useState<AgendaTaskItem | null>(null);
   const [deleteTask, setDeleteTask] = useState<AgendaTaskItem | null>(null);
@@ -199,38 +197,6 @@ export function useAgendaTaskMutations({
     [noBusinessValue, persistTaskChange, scopedCatalogBusinesses, scopeResponsiblePatch],
   );
 
-  const handleResponsibleCellChange = useCallback(
-    (task: AgendaTaskItem, value: string) => {
-      if (value === unassignedResponsibleValue) {
-        void persistTaskChange(task, {
-          assignedName: null,
-          assignedUserCompanyId: null,
-          assigneeUserCompanyIds: [],
-        });
-        return;
-      }
-
-      const selectedCollaborator = catalogCollaborators.find(
-        (collaborator) => collaborator.userCompanyId === Number(value),
-      );
-
-      if (!selectedCollaborator) {
-        return;
-      }
-
-      void persistTaskChange(task, {
-        assignedName: selectedCollaborator.name,
-        assignedUserCompanyId: selectedCollaborator.userCompanyId,
-        assigneeUserCompanyIds: Array.from(
-          new Set([selectedCollaborator.userCompanyId, ...task.assigneeUserCompanyIds]),
-        ),
-        businessId: task.businessId ?? selectedCollaborator.businessId ?? null,
-        unitId: task.unitId ?? selectedCollaborator.unitId ?? null,
-      });
-    },
-    [catalogCollaborators, persistTaskChange, unassignedResponsibleValue],
-  );
-
   const handleProjectCellChange = useCallback(
     (task: AgendaTaskItem, value: string) => {
       if (value === noProjectValue) {
@@ -364,7 +330,6 @@ export function useAgendaTaskMutations({
     handleDuplicateTask,
     handleProjectCellChange,
     handlePriorityCellChange,
-    handleResponsibleCellChange,
     handleUnitCellChange,
     persistTaskChange,
     scopeResponsiblePatch,

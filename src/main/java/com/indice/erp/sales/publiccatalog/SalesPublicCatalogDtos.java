@@ -5,6 +5,7 @@ import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -34,6 +35,7 @@ public final class SalesPublicCatalogDtos {
         Boolean showCategories,
         Boolean allowCart,
         Boolean allowPurchaseRequest,
+        Boolean allowImageDownloads,
         @NotNull @Size(max = 500) List<@NotNull Long> productIds,
         Long version
     ) {
@@ -70,6 +72,7 @@ public final class SalesPublicCatalogDtos {
         boolean showCategories,
         boolean allowCart,
         boolean allowPurchaseRequest,
+        boolean allowImageDownloads,
         List<Long> productIds,
         long version,
         Instant createdAt,
@@ -99,7 +102,26 @@ public final class SalesPublicCatalogDtos {
         String currency,
         boolean usesInventory,
         String publicInventoryStatus,
-        boolean readyForSales
+        boolean readyForSales,
+        boolean reservable
+    ) {
+    }
+
+    public record AvailabilityRequest(
+        @NotNull Long productId,
+        @NotBlank @Pattern(regexp = "\\d{4}-(0[1-9]|1[0-2])") String month
+    ) {
+    }
+
+    public record AvailabilityDay(String date, String status) {
+    }
+
+    public record AvailabilityResponse(
+        Long productId,
+        String month,
+        String sourceStatus,
+        boolean stale,
+        List<AvailabilityDay> days
     ) {
     }
 
@@ -121,6 +143,7 @@ public final class SalesPublicCatalogDtos {
         boolean showCategories,
         boolean allowCart,
         boolean allowPurchaseRequest,
+        boolean allowImageDownloads,
         String submissionPolicy,
         List<PublicItem> items,
         List<RuleResponse> discountRules
@@ -130,12 +153,13 @@ public final class SalesPublicCatalogDtos {
                 String description, String coverImageUrl, String contactCtaLabel, String contactMethod,
                 String contactValue, boolean showPrices, boolean showWholesalePrices,
                 boolean showStockStatus, boolean showItemTypeBadges, boolean showCategories,
-                boolean allowCart, boolean allowPurchaseRequest, String submissionPolicy,
+                boolean allowCart, boolean allowPurchaseRequest, boolean allowImageDownloads,
+                String submissionPolicy,
                 List<PublicItem> items) {
             this(code, companyName, unitName, businessName, title, description, coverImageUrl,
                 contactCtaLabel, contactMethod, contactValue, showPrices, showWholesalePrices,
                 showStockStatus, showItemTypeBadges, showCategories, allowCart,
-                allowPurchaseRequest, submissionPolicy, items, List.of());
+                allowPurchaseRequest, allowImageDownloads, submissionPolicy, items, List.of());
         }
     }
 

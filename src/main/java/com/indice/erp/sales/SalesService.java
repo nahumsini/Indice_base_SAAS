@@ -46,6 +46,7 @@ public class SalesService {
     private final CompanyStorageMeter storageMeter;
     private final BusinessExchangeRateService businessExchangeRateService;
     private final KpiCurrencyAggregationService kpiCurrencyAggregationService;
+    private final SalesProductAvailabilityLinkCodec availabilityLinkCodec;
     private final Map<String, SalesEntityDefinition> definitions = SalesDefinitions.definitions();
 
     public SalesService(
@@ -55,7 +56,8 @@ public class SalesService {
             ObjectStorageProperties storageProperties,
             CompanyStorageMeter storageMeter,
             BusinessExchangeRateService businessExchangeRateService,
-            KpiCurrencyAggregationService kpiCurrencyAggregationService) {
+            KpiCurrencyAggregationService kpiCurrencyAggregationService,
+            SalesProductAvailabilityLinkCodec availabilityLinkCodec) {
         this.salesRepository = salesRepository;
         this.referenceService = referenceService;
         this.objectStorageService = objectStorageService;
@@ -63,6 +65,7 @@ public class SalesService {
         this.storageMeter = storageMeter;
         this.businessExchangeRateService = businessExchangeRateService;
         this.kpiCurrencyAggregationService = kpiCurrencyAggregationService;
+        this.availabilityLinkCodec = availabilityLinkCodec;
     }
 
     public Map<String, Object> context(long companyId, long userId) {
@@ -80,7 +83,10 @@ public class SalesService {
         var definition = definition(collection);
         var items = salesRepository.list(companyId, definition, filters);
         if ("products".equals(collection)) {
-            items.forEach(item -> enrichProductImages(companyId, item));
+            items.forEach(item -> {
+                revealProductAvailability(item);
+                enrichProductImages(companyId, item);
+            });
         }
         if ("quotes".equals(collection)) {
             items.forEach(item -> item.put("items", salesRepository.listQuoteItems(companyId, longId(item))));
@@ -96,6 +102,7 @@ public class SalesService {
         var definition = definition(collection);
         var item = salesRepository.get(companyId, definition, id);
         if ("products".equals(collection)) {
+            revealProductAvailability(item);
             enrichProductImages(companyId, item);
         }
         if ("quotes".equals(collection)) {
@@ -136,7 +143,8 @@ public class SalesService {
     public Map<String, Object> update(long companyId, long userId, String collection, long id, Map<String, Object> payload) {
         var definition = definition(collection);
         var updatePayload = payload;
-        if ("inventory-warehouses".equals(collection) || "inventory-balances".equals(collection)) {
+        if ("inventory-warehouses".equals(collection) || "inventory-balances".equals(collection)
+                || "products".equals(collection)) {
             updatePayload = new LinkedHashMap<>(get(companyId, collection, id));
             if (payload != null) {
                 updatePayload.putAll(payload);
@@ -444,6 +452,19 @@ public class SalesService {
             throw new IllegalArgumentException("Uploaded product image was not found in storage.");
         }
 
+        var existingFile = salesRepository.findFileByObjectKey(companyId, objectKey);
+        if (existingFile != null) {
+            var existingEntityId = SalesPayloadSupport.longValue(existingFile, "entityId");
+            if (!"product".equals(SalesPayloadSupport.stringValue(existingFile, "entityType"))
+                    || !"product_image".equals(SalesPayloadSupport.stringValue(existingFile, "fileKind"))
+                    || existingEntityId == null
+                    || existingEntityId != productId) {
+                throw new IllegalArgumentException("The uploaded product image is already assigned to another record.");
+            }
+            enrichFileUrl(existingFile);
+            return existingFile;
+        }
+
         var fileName = firstNonBlank(
                 SalesPayloadSupport.stringValue(payload, "fileName"),
                 SalesPayloadSupport.stringValue(payload, "file_name"),
@@ -581,12 +602,38 @@ public class SalesService {
             hydratePostSaleFromRelations(companyId, normalized);
         }
         if ("products".equals(collection)) {
-            removeEmbeddedProductImages(normalized);
+            removeEmbeddedProductImages(companyId, normalized);
+            normalizeProductAvailability(normalized);
         }
         if ("inventory-balances".equals(collection)) {
             inheritInventoryBalanceWarehouseScope(companyId, normalized);
         }
         return normalized;
+    }
+
+    private void normalizeProductAvailability(Map<String, Object> payload) {
+        var reservable = booleanValue(SalesPayloadSupport.value(payload, "reservable"));
+        payload.put("reservable", reservable);
+        if (!reservable) {
+            payload.put("availabilityIcalUrl", null);
+            return;
+        }
+        var rawUrl = SalesPayloadSupport.stringValue(payload, "availabilityIcalUrl");
+        var uri = SalesAvailabilityUrlPolicy.requireSafeConfiguredUrl(rawUrl);
+        payload.put("availabilityIcalUrl", availabilityLinkCodec.protect(uri.toString()));
+    }
+
+    private void revealProductAvailability(Map<String, Object> item) {
+        var protectedUrl = SalesPayloadSupport.stringValue(item, "availabilityIcalUrl");
+        if (protectedUrl == null || protectedUrl.isBlank()) return;
+        item.put("availabilityIcalUrl", availabilityLinkCodec.reveal(protectedUrl));
+    }
+
+    private boolean booleanValue(Object value) {
+        if (value instanceof Boolean bool) return bool;
+        if (value instanceof Number number) return number.intValue() != 0;
+        return value != null && List.of("true", "1", "yes", "on")
+            .contains(String.valueOf(value).trim().toLowerCase(Locale.ROOT));
     }
 
     private void inheritInventoryBalanceWarehouseScope(long companyId, Map<String, Object> payload) {
@@ -602,14 +649,14 @@ public class SalesService {
         payload.put("businessName", warehouse.get("businessName"));
     }
 
-    private void removeEmbeddedProductImages(Map<String, Object> payload) {
-        removeEmbeddedImageFields(payload);
+    private void removeEmbeddedProductImages(long companyId, Map<String, Object> payload) {
+        removeEmbeddedImageFields(companyId, payload);
 
         var customFieldsValue = SalesPayloadSupport.value(payload, "customFields");
         if (customFieldsValue instanceof Map<?, ?> customFieldsMap) {
             var customFields = new LinkedHashMap<String, Object>();
             customFieldsMap.forEach((key, value) -> customFields.put(String.valueOf(key), value));
-            removeEmbeddedImageFields(customFields);
+            removeEmbeddedImageFields(companyId, customFields);
             payload.put("customFields", customFields);
         }
 
@@ -620,11 +667,11 @@ public class SalesService {
 
         var metadata = new LinkedHashMap<String, Object>();
         metadataMap.forEach((key, value) -> metadata.put(String.valueOf(key), value));
-        removeEmbeddedImageFields(metadata);
+        removeEmbeddedImageFields(companyId, metadata);
         payload.put("metadata", metadata);
     }
 
-    private void removeEmbeddedImageFields(Map<String, Object> fields) {
+    private void removeEmbeddedImageFields(long companyId, Map<String, Object> fields) {
         if (isEmbeddedImageUrl(fields.get("imageUrl"))) {
             fields.remove("imageUrl");
         }
@@ -632,16 +679,27 @@ public class SalesService {
         var galleryValue = fields.get("gallery");
         if (galleryValue instanceof List<?> gallery) {
             var safeGallery = new ArrayList<Object>();
+            var primaryImageUsesObjectStorage = false;
             for (var item : gallery) {
                 if (item instanceof Map<?, ?> imageMap) {
                     var safeImage = new LinkedHashMap<String, Object>();
                     imageMap.forEach((key, value) -> safeImage.put(String.valueOf(key), value));
-                    if (isEmbeddedImageUrl(safeImage.get("url"))) {
+                    var objectKey = imageObjectKey(safeImage);
+                    if (objectKey != null && !objectKey.startsWith(productImagePrefix(companyId))) {
+                        if (safeGallery.isEmpty()) {
+                            fields.remove("imageUrl");
+                        }
+                        continue;
+                    }
+                    if (objectKey != null) {
+                        safeImage.remove("url");
+                    } else if (isEmbeddedImageUrl(safeImage.get("url"))) {
                         safeImage.remove("url");
                     }
-                    if (safeImage.containsKey("objectKey")
-                            || safeImage.containsKey("object_key")
-                            || isPersistableImageUrl(safeImage.get("url"))) {
+                    if (objectKey != null || isPersistableImageUrl(safeImage.get("url"))) {
+                        if (safeGallery.isEmpty() && objectKey != null) {
+                            primaryImageUsesObjectStorage = true;
+                        }
                         safeGallery.add(safeImage);
                     }
                     continue;
@@ -654,6 +712,9 @@ public class SalesService {
                 fields.remove("gallery");
             } else {
                 fields.put("gallery", safeGallery);
+            }
+            if (primaryImageUsesObjectStorage) {
+                fields.remove("imageUrl");
             }
         }
     }
@@ -693,6 +754,9 @@ public class SalesService {
                 var image = new LinkedHashMap<String, Object>();
                 imageMap.forEach((key, value) -> image.put(String.valueOf(key), value));
                 var objectKey = imageObjectKey(image);
+                if (objectKey != null && !objectKey.startsWith(productImagePrefix(companyId))) {
+                    continue;
+                }
                 if (objectKey != null) {
                     seenObjectKeys.add(objectKey);
                     var signedUrl = safeSignedProductImageUrl(objectKey);
@@ -716,7 +780,7 @@ public class SalesService {
         } else {
             metadata.put("gallery", enrichedGallery);
         }
-        if (!metadata.containsKey("imageUrl")) {
+        if (!enrichedGallery.isEmpty()) {
             for (var imageValue : enrichedGallery) {
                 if (imageValue instanceof Map<?, ?> image && isPersistableImageUrl(image.get("url"))) {
                     metadata.put("imageUrl", image.get("url"));

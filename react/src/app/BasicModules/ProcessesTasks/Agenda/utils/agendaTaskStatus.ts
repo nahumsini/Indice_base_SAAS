@@ -277,10 +277,11 @@ function isTaskDelegatedByCurrentUser(task: AgendaTaskItem, currentUserId: numbe
     return false;
   }
 
-  const assignedToCurrentUser =
-    task.assignedUserId === currentUserId || task.assignees.some((assignee) => assignee.userId === currentUserId);
+  const assignedToAnotherUser = task.assignees.length > 0
+    ? task.assignees.some((assignee) => assignee.userId != null && assignee.userId !== currentUserId)
+    : task.assignedUserId != null && task.assignedUserId !== currentUserId;
 
-  return task.createdBy === currentUserId && task.assigneeUserCompanyIds.length > 0 && !assignedToCurrentUser;
+  return task.createdBy === currentUserId && assignedToAnotherUser;
 }
 
 export function matchesAgendaPeriod(

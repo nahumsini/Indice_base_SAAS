@@ -14,6 +14,7 @@ import { PanelInicialErrorBoundary } from './components/PanelInicialErrorBoundar
 import { PanelInicialHeader } from './components/PanelInicialHeader';
 import { PanelInicialState } from './components/PanelInicialState';
 import { usePanelInicialTranslations } from './hooks/usePanelInicialTranslations';
+import { useAuthorizationRevision } from '../../hooks/useAuthorizationRevision';
 
 const Profile = lazy(() => import('./Profile'));
 const BusinessStructure = lazy(() => import('./BusinessStructure'));
@@ -50,6 +51,7 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
   const shellCopy = usePanelInicialTranslations();
   const guidanceCopy = usePanelInicialGuidanceTranslations();
   const mainContentRef = useRef<HTMLDivElement | null>(null);
+  const authorizationRevision = useAuthorizationRevision();
   const [sessionAccess, setSessionAccess] = useState<{
     role: string | null;
     tabPermissionKeys: string[];
@@ -120,7 +122,7 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
     return () => {
       active = false;
     };
-  }, []);
+  }, [authorizationRevision]);
 
   useEffect(() => {
     return loadSessionAccess();

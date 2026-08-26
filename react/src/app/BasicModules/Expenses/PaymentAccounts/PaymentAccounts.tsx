@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay } from '../../../components/LoadingBarOverlay';
@@ -19,6 +19,7 @@ import { PaymentAccountsFilters } from './components/PaymentAccountsFilters';
 import { PaymentAccountsHeaderBanner } from './components/PaymentAccountsHeaderBanner';
 import { PaymentAccountsSummary } from './components/PaymentAccountsSummary';
 import { PaymentAccountsTable } from './components/PaymentAccountsTable';
+import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 
 interface PaymentAccountsProps {
   headerSubtitle?: string;
@@ -27,6 +28,30 @@ interface PaymentAccountsProps {
   onNavigate?: (page?: string) => void;
   refreshKey?: number;
 }
+
+type PaymentAccountsWorkspaceState = {
+  searchTerm: string;
+  sortDirection: SortDirection;
+  sortField: PaymentSortField | null;
+  statusFilter: string;
+  typeFilter: string;
+};
+
+const paymentAccountsWorkspaceDefaults: PaymentAccountsWorkspaceState = {
+  searchTerm: '',
+  sortDirection: null,
+  sortField: null,
+  statusFilter: 'all',
+  typeFilter: 'all',
+};
+
+const paymentAccountsWorkspaceUrlFields: Partial<Record<keyof PaymentAccountsWorkspaceState, string>> = {
+  searchTerm: 'pa_q',
+  sortDirection: 'pa_dir',
+  sortField: 'pa_sort',
+  statusFilter: 'pa_status',
+  typeFilter: 'pa_type',
+};
 
 export default function PaymentAccounts({ headerSubtitle, headerTitle, headerTone = 'green', onNavigate, refreshKey = 0 }: PaymentAccountsProps = {}) {
   const t = usePaymentAccountsTranslations();
@@ -45,6 +70,29 @@ export default function PaymentAccounts({ headerSubtitle, headerTitle, headerTon
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [accountPendingDelete, setAccountPendingDelete] = useState<PaymentAccount | null>(null);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const workspaceState = useMemo<PaymentAccountsWorkspaceState>(() => ({
+    searchTerm,
+    sortDirection,
+    sortField,
+    statusFilter,
+    typeFilter,
+  }), [searchTerm, sortDirection, sortField, statusFilter, typeFilter]);
+  const restoreWorkspaceState = useCallback((restoredState: PaymentAccountsWorkspaceState) => {
+    setSearchTerm(restoredState.searchTerm);
+    setSortDirection(restoredState.sortDirection);
+    setSortField(restoredState.sortField);
+    setStatusFilter(restoredState.statusFilter);
+    setTypeFilter(restoredState.typeFilter);
+  }, []);
+
+  useWorkspaceNavigationMemory({
+    moduleKey: 'expenses',
+    tabKey: 'payment_accounts',
+    state: workspaceState,
+    defaults: paymentAccountsWorkspaceDefaults,
+    urlFields: paymentAccountsWorkspaceUrlFields,
+    onRestore: restoreWorkspaceState,
+  });
   const {
     businessOptions,
     unitOptions,

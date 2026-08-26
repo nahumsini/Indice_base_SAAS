@@ -2,7 +2,10 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { FailureToast } from '../../components/FailureToast';
 import { IndiceModuleShell } from '../../components/frontend-os';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
+import { authApi } from '../../api/auth';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
+import { useAuthorizationRevision } from '../../hooks/useAuthorizationRevision';
+import { ApiClientError } from '../../lib/apiClient';
 import { mockExpenses } from './data/expenses.mock';
 import { mockProviderRecords } from './data/providerRecords.mock';
 import { budgetLinesService, expensesService, providersService, toFinanceApiErrorMessage } from './services';
@@ -53,6 +56,10 @@ const legacyExpenseTabAliases: Partial<Record<string, TabId>> = {
   cuentas_pago: 'payment_accounts',
 };
 
+const isSessionBootstrapError = (error: unknown) => (
+  error instanceof ApiClientError && (error.status === 401 || error.status === 403)
+);
+
 const createInitialExpenseState = () => [
   ...mockExpenses.map(expense => ({
     ...expense,
@@ -91,6 +98,7 @@ const createInitialExpenseState = () => [
 
 export default function ExpensesModule({ learningModeActive = false, onNavigate }: ExpensesModuleProps) {
   const t = useExpensesModuleTranslations();
+  const authorizationRevision = useAuthorizationRevision();
   const mainContentRef = useRef<HTMLDivElement>(null);
   const { activeTab, isTabLoading, setActiveTab } = useRoutedModuleTab<TabId>(
     'expenses',
@@ -114,22 +122,47 @@ export default function ExpensesModule({ learningModeActive = false, onNavigate 
 
   useEffect(() => {
     let isMounted = true;
+    let sessionRecovery: Promise<void> | null = null;
     const fallbackExpenses = createInitialExpenseState();
+
+    const recoverSession = () => {
+      sessionRecovery ??= authApi.me().then(() => undefined);
+      return sessionRecovery;
+    };
+
+    const requestWithSessionRecovery = async <T,>(request: () => Promise<T>) => {
+      try {
+        return await request();
+      } catch (error) {
+        if (!isSessionBootstrapError(error)) {
+          throw error;
+        }
+
+        await recoverSession();
+        return request();
+      }
+    };
 
     const loadFinanceData = async () => {
       setIsFinanceDataLoading(true);
+      const session = await authApi.getSessionOrNull();
+      if (!session || !isMounted) {
+        if (isMounted) setIsFinanceDataLoading(false);
+        return;
+      }
+
       let nextProviders = mockProviderRecords;
       let nextFailureMessage = '';
 
       try {
-        nextProviders = await providersService.getProviderRecords();
+        nextProviders = await requestWithSessionRecovery(() => providersService.getProviderRecords());
       } catch (error) {
         nextFailureMessage = toFinanceApiErrorMessage(error);
       }
 
       const [expenseResult, budgetResult] = await Promise.allSettled([
-        expensesService.getExpenses(nextProviders),
-        budgetLinesService.getBudgetExpenses(),
+        requestWithSessionRecovery(() => expensesService.getExpenses(nextProviders)),
+        requestWithSessionRecovery(() => budgetLinesService.getBudgetExpenses()),
       ]);
 
       if (!isMounted) return;
@@ -168,7 +201,7 @@ export default function ExpensesModule({ learningModeActive = false, onNavigate 
     return () => {
       isMounted = false;
     };
-  }, [financeRefreshKey]);
+  }, [authorizationRevision, financeRefreshKey]);
 
   const requestFinanceDataRefresh = useCallback(() => {
     setFinanceRefreshKey(currentKey => currentKey + 1);

@@ -466,7 +466,7 @@ test('Ventas resume cobro, cumplimiento y siguiente acción con datos reales de 
 
   assert.match(pageSource, /receivablesApi\.workspace\(\)/);
   assert.match(pageSource, /buildSaleReceivableSummary\(record, receivableAccounts\)/);
-  assert.match(pageSource, /downloadSaleInvoicePdf\(\{/);
+  assert.match(pageSource, /downloadSaleNotePdf\(\{/);
   assert.match(pageSource, /downloadQuotePdf\(\{/);
   assert.match(filtersSource, /label=\{t\.filters\.period\}[\s\S]*label=\{t\.filters\.focus\}[\s\S]*label=\{t\.filters\.customer\}[\s\S]*label=\{t\.filters\.seller\}/);
   assert.doesNotMatch(filtersSource, /label=\{t\.filters\.businessUnit\}|label=\{t\.filters\.business\}/);
@@ -492,14 +492,59 @@ test('Ventas resume cobro, cumplimiento y siguiente acción con datos reales de 
 test('el detalle de venta usa el modal estándar y conserva el alta como wizard', () => {
   const modalSource = readFileSync(resolve(salesRoot, 'Sales/components/SalesDetailModal.tsx'), 'utf8');
   const detailSource = readFileSync(resolve(salesRoot, 'Sales/components/SalesRecordDetailView.tsx'), 'utf8');
+  const statusSelectorsSource = readFileSync(resolve(salesRoot, 'Sales/components/SalesStatusSelectors.tsx'), 'utf8');
+  const previewSource = readFileSync(resolve(salesRoot, 'Sales/components/SaleSummaryPreviewModal.tsx'), 'utf8');
+  const notePdfSource = readFileSync(resolve(salesRoot, 'Sales/utils/saleInvoicePdf.ts'), 'utf8');
+  const formatterSource = readFileSync(resolve(salesRoot, 'Sales/utils/salesFormatters.ts'), 'utf8');
+  const salesPageSource = readFileSync(resolve(salesRoot, 'Sales/Sales.tsx'), 'utf8');
+  const quotePdfSource = readFileSync(resolve(salesRoot, 'Cotizacion/quotePdf.ts'), 'utf8');
+  const spanishCopySource = readFileSync(resolve(salesRoot, 'Sales/translations/es-MX.ts'), 'utf8');
 
   assert.match(modalSource, /modalType=\{isCreateMode \? 'wizard' : 'standard-form'\}/);
   assert.doesNotMatch(modalSource, /large-workspace/);
+  assert.match(modalSource, /contentClassName=\{isCreateMode \? 'max-h-\[min\(92dvh,820px\)\]' : undefined\}/);
+  assert.match(modalSource, /overscroll-contain[\s\S]*\[scrollbar-gutter:stable\]/);
   assert.match(modalSource, /<SalesRecordDetailView/);
   assert.match(detailSource, /t\.modal\.sections\.payment/);
   assert.match(detailSource, /t\.modal\.sections\.inventory/);
+  assert.match(detailSource, /t\.modal\.sections\.operationalProgress/);
+  assert.match(detailSource, /title=\{t\.modal\.sections\.statusManagement\}[\s\S]*<SalesStatusSelectors/);
   assert.match(detailSource, /<CollapsibleDetailSection/);
-  assert.match(modalSource, /t\.modal\.previewSaleSummary/);
+  assert.doesNotMatch(detailSource, /shadow-sm/);
+  assert.match(statusSelectorsSource, /sm:grid-cols-2 lg:grid-cols-4/);
+  assert.match(detailSource, /onPreviewSalesNote[\s\S]*t\.modal\.previewSaleSummary/);
+  assert.doesNotMatch(modalSource, /FileSearch/);
+  assert.match(detailSource, /const documentReference = form\.saleNumber \|\| record\.saleNumber \|\| form\.saleDocumentReference/);
+  assert.doesNotMatch(detailSource, /form\.saleDocumentReference \|\| form\.saleNumber/);
+  assert.match(detailSource, /DRAFT\(\$\|\[-_\]\)/);
+  assert.match(detailSource, /t\.modal\.detail\.movementNotGenerated/);
+  assert.match(detailSource, /formatSalesDate\(form\.saleDate, locale\)/);
+  assert.match(formatterSource, /formatSalesDate\(value: string, locale = 'es-MX'\)/);
+  assert.match(salesPageSource, /locale=\{currentLanguage\.code\}/);
+  assert.match(spanishCopySource, /previewSaleSummary: 'Vista previa de nota de venta'/);
+  assert.match(spanishCopySource, /operationalProgress: 'Seguimiento operativo'/);
+  assert.match(spanishCopySource, /statusManagement: 'Gestionar estados'/);
+  assert.match(spanishCopySource, /documentTitle: 'Nota de venta'/);
+  assert.doesNotMatch(spanishCopySource, /Vista previa de (?:invoice|factura)|Folio de (?:invoice|factura)|documentTitle: '(?:Invoice|Factura)'/);
+
+  assert.match(previewSource, /getSaleNotePdfBlob/);
+  assert.match(previewSource, /URL\.createObjectURL/);
+  assert.match(previewSource, /URL\.revokeObjectURL/);
+  assert.match(previewSource, /<iframe/);
+  assert.match(previewSource, /src=\{previewUrl\}/);
+  assert.match(previewSource, /summaryPreview\.preparing/);
+  assert.match(previewSource, /summaryPreview\.previewError/);
+  assert.match(previewSource, /summaryPreview\.retry/);
+  assert.doesNotMatch(previewSource, /<article|PreviewMetricCard|PreviewBrandBar/);
+  assert.match(notePdfSource, /export async function buildSaleNotePdf/);
+  assert.match(notePdfSource, /documentType: 'sale-note'/);
+  for (const source of [notePdfSource, quotePdfSource]) {
+    assert.match(source, /const left = 18/);
+    assert.match(source, /autoTable\(doc/);
+    assert.match(source, /0: \{ cellWidth: 44 \}/);
+    assert.match(source, /6: \{ halign: 'right', cellWidth: 26 \}/);
+    assert.match(source, /addStandardPdfFooters\(doc/);
+  }
 });
 
 test('Ventas elimina con confirmación y espera la baja lógica del backend', () => {

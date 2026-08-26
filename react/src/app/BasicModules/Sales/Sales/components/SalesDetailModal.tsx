@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, ClipboardCheck, FileSearch } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ClipboardCheck } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { IndiceModalValidation } from '../../../../components/indice-modal';
 import { SalesModalFrame } from '../../components/SalesModalFrame';
@@ -20,6 +20,7 @@ import { getSalesWarehouseScope, isSalesWarehouseReady, warehouseMatchesSaleScop
 import { formatSalesCurrency } from '../utils/salesFormatters';
 import { getSalesPaymentMethodForStorage, isSalesCreditPaymentMethod, normalizeSalesPaymentMethod } from '../utils/salesPaymentMethods';
 import { getForecastQuotesForOpportunity, isOpportunityForecastQuote } from '../../Prospectos/utils/prospectosQuoteSignals';
+import type { CompanyPrintIdentity } from '../../../shared/print/useCompanyPrintIdentity';
 import {
   SalesCreateForm,
   salesCreateStepIds,
@@ -116,6 +117,8 @@ export function SalesDetailModal({
   opportunities,
   lifecycle,
   commissionRecords = [],
+  company,
+  locale,
   t,
   onOpenChange,
   onCreateCustomer,
@@ -135,6 +138,8 @@ export function SalesDetailModal({
   opportunities: SalesOpportunity[];
   lifecycle?: SaleLifecycleSignals;
   commissionRecords?: CommissionRecord[];
+  company?: CompanyPrintIdentity | null;
+  locale: string;
   t: SalesRecordsTranslations;
   onOpenChange: (open: boolean) => void;
   onCreateCustomer: (contact: CreateContactInput) => Promise<SalesContact>;
@@ -552,8 +557,10 @@ export function SalesDetailModal({
         busy={isSaving}
         closeLabel={isCreateMode ? t.common.cancel : t.common.close}
         modalType={isCreateMode ? 'wizard' : 'standard-form'}
-        contentClassName={isCreateMode ? 'max-h-[min(92dvh,820px)]' : 'max-h-[min(90dvh,880px)]'}
-        bodyClassName={isCreateMode ? 'min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5' : 'min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5'}
+        contentClassName={isCreateMode ? 'max-h-[min(92dvh,820px)]' : undefined}
+        bodyClassName={isCreateMode
+          ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 [scrollbar-gutter:stable] sm:px-6 sm:py-5'
+          : 'min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 [scrollbar-gutter:stable] sm:px-6'}
         footerClassName="shrink-0"
         footerSummary={isCreateMode ? createFooterSummary : undefined}
         footerLeading={isCreateMode ? (
@@ -581,18 +588,7 @@ export function SalesDetailModal({
             )}
           </>
         ) : (
-          <>
-            <Button
-              variant="outline"
-              className={actionClassNames.secondary}
-              onClick={() => setIsSummaryPreviewOpen(true)}
-              disabled={isSaving || !form.customerName.trim()}
-            >
-              <FileSearch className="h-4 w-4" />
-              {t.modal.previewSaleSummary}
-            </Button>
-            <Button variant="outline" className={actionClassNames.secondary} onClick={() => onOpenChange(false)} disabled={isSaving}>{t.common.close}</Button>
-          </>
+          <Button variant="outline" className={actionClassNames.secondary} onClick={() => onOpenChange(false)} disabled={isSaving}>{t.common.close}</Button>
         )}
       >
           <IndiceModalValidation
@@ -634,9 +630,11 @@ export function SalesDetailModal({
                 commissionRecords={commissionRecords}
                 form={form}
                 lifecycle={lifecycle}
+                locale={locale}
                 operationalContext={operationalContext}
                 record={record}
                 t={t}
+                onPreviewSalesNote={() => setIsSummaryPreviewOpen(true)}
                 onStatusChange={handleStatusChange}
               />
             ) : null
@@ -647,6 +645,8 @@ export function SalesDetailModal({
         open={open && isSummaryPreviewOpen}
         sale={form}
         quote={selectedQuote}
+        company={company}
+        locale={locale}
         t={t}
         onOpenChange={setIsSummaryPreviewOpen}
       />

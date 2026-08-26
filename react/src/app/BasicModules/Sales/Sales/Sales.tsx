@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { FailureToast } from '../../../components/FailureToast';
+import { useLanguage } from '../../../shared/context';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import { CommissionManagementModal } from './components/CommissionManagementModal';
 import { SaleSummaryPreviewModal } from './components/SaleSummaryPreviewModal';
@@ -27,7 +28,7 @@ import { downloadQuotePdf } from '../Cotizacion/quotePdf';
 import { useQuotesTranslations } from '../Cotizacion/translations';
 import { buildSaleReceivableSummary } from './utils/salesOperationalSignals';
 import type { SaleReceivableSummary, SaleSourceSummary } from './types/salesTypes';
-import { downloadSaleInvoicePdf } from './utils/saleInvoicePdf';
+import { downloadSaleNotePdf } from './utils/saleInvoicePdf';
 import { getSalesOperationalContext } from './data/salesOperationalContext';
 import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
 
@@ -82,6 +83,7 @@ interface SalesProps {
 
 export default function Sales({ learningModeActive = false }: SalesProps) {
   const t = useSalesTranslations();
+  const { currentLanguage } = useLanguage();
   const quotesCopy = useQuotesTranslations();
   const navigate = useNavigate();
   const { identity: companyPrintIdentity } = useCompanyPrintIdentity();
@@ -250,7 +252,7 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
   };
 
   const handleDownloadInvoice = (record: SaleRecord) => {
-    downloadSaleInvoicePdf({
+    downloadSaleNotePdf({
       sale: record,
       quote: getQuoteForSale(record),
       operationalContext: getSalesOperationalContext(record.businessId),
@@ -382,6 +384,8 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
         opportunities={opportunities}
         lifecycle={selectedRecord ? lifecycleByRecordId[selectedRecord.id] : undefined}
         commissionRecords={selectedRecord ? commissionRecords.filter((commission) => commission.saleId === selectedRecord.id) : []}
+        company={companyPrintIdentity}
+        locale={currentLanguage.code}
         t={t}
         onOpenChange={setIsDetailModalOpen}
         onCreateCustomer={createContactRecord}
@@ -417,6 +421,7 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
         sale={summaryPreviewRecord}
         quote={summaryPreviewRecord ? getQuoteForSale(summaryPreviewRecord) : null}
         company={companyPrintIdentity}
+        locale={currentLanguage.code}
         t={t}
         onOpenChange={setIsSummaryPreviewOpen}
       />

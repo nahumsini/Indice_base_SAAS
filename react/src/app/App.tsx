@@ -27,9 +27,10 @@ import { authApi } from './api/auth';
 import type { AuthSessionResponse } from './api/auth.types';
 import { routeForBackendSlug } from './config/moduleCatalog';
 import { useAccessibleModuleCatalog } from './hooks/useAccessibleModuleCatalog';
-import { canAccessModulePage, isAdminAccessRole } from './access/accessRules';
-import { allowedModuleTabIds, MODULE_TAB_SCOPE_CATALOG } from './access/tabScopeCatalog';
+import { canAccessModulePage } from './access/accessRules';
+import { allowedModuleTabIds, canAccessKioskCenter, MODULE_TAB_SCOPE_CATALOG } from './access/tabScopeCatalog';
 import { BusinessCurrencyProvider } from './BasicModules/shared/BusinessCurrencyContext';
+import { useAuthorizationRevision } from './hooks/useAuthorizationRevision';
 
 const getNavigationSuccessToast = (state: unknown) => {
   if (!state || typeof state !== 'object' || !('successToast' in state)) {
@@ -41,6 +42,7 @@ const getNavigationSuccessToast = (state: unknown) => {
 };
 
 const MODULE_NAVIGATION_LOADING_MS = 700;
+const AUTHORIZATION_REVALIDATION_MS = 15_000;
 
 const HumanResources = lazy(() => import('./BasicModules/HumanResources'));
 const ProcessesTasks = lazy(() => import('./BasicModules/ProcessesTasks'));
@@ -419,6 +421,7 @@ export default function App() {
   const { pathname, state } = location;
   const { pageId, '*': wildcardPath } = useParams();
   const [sessionTabAccess, setSessionTabAccess] = useState<AuthSessionResponse | null>();
+  const authorizationRevision = useAuthorizationRevision();
   const {
     learningModeActive,
     learningModeVisible,
@@ -543,7 +546,46 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    let revalidationInFlight = false;
+
+    const revalidateAuthorization = async () => {
+      if (revalidationInFlight || document.visibilityState === 'hidden') {
+        return;
+      }
+      revalidationInFlight = true;
+      try {
+        await authApi.me();
+      } catch {
+        // apiClient owns 401 expiration. Transient failures keep the next
+        // focus, visibility, navigation, or interval revalidation available.
+      } finally {
+        revalidationInFlight = false;
+      }
+    };
+    const revalidateWhenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void revalidateAuthorization();
+      }
+    };
+
+    void revalidateAuthorization();
+    const intervalId = window.setInterval(
+      () => void revalidateAuthorization(),
+      AUTHORIZATION_REVALIDATION_MS,
+    );
+    window.addEventListener('focus', revalidateWhenVisible);
+    document.addEventListener('visibilitychange', revalidateWhenVisible);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', revalidateWhenVisible);
+      document.removeEventListener('visibilitychange', revalidateWhenVisible);
+    };
+  }, [pathname]);
+
+  useEffect(() => {
     let active = true;
+    setIsModuleAccessLoaded(false);
 
     const loadAllowedModuleRoutes = async () => {
       const session = await authApi.getSessionOrNull().catch(() => null);
@@ -565,13 +607,9 @@ export default function App() {
             routes.add(route);
           }
         }
-        if (isAdminAccessRole(session?.user.role)) {
+        if (canAccessKioskCenter(session)) {
           routes.add('kiosk-center');
           routes.add('kiosk-management');
-        }
-        if (import.meta.env.DEV) {
-          routes.add('material-warehouse');
-          routes.add('production');
         }
         setAllowedModuleRoutes(routes);
       } catch {
@@ -592,7 +630,7 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [t]);
+  }, [authorizationRevision, t]);
 
   useEffect(() => {
     if (!isModuleNavigationLoading || moduleNavigationTargetPathRef.current !== pathname) {

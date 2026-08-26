@@ -1,20 +1,35 @@
 import type { SalesCatalogItem, SalesProductImage } from '../../types';
 import { salesApi } from '../../salesApi';
 import type { ProductMediaDraft } from '../types/productosTypes';
+import {
+  isSupportedProductImageType,
+  optimizeProductImageFile,
+} from './productImageOptimization';
+
+export { productImageFileAccept } from './productImageOptimization';
 
 export function isPersistableProductImageUrl(value?: string | null): boolean {
   const normalized = (value ?? '').trim().toLowerCase();
   return Boolean(normalized) && !normalized.startsWith('data:') && !normalized.startsWith('blob:');
 }
 
+export function isTransientProductImageUrl(value?: string | null): boolean {
+  const normalized = (value ?? '').trim().toLowerCase();
+  return normalized.startsWith('blob:') || normalized.startsWith('data:');
+}
+
 export function getProductGalleryImages(
   product: Pick<SalesCatalogItem, 'name' | 'imageUrl' | 'imageAlt'>
     & Partial<Pick<SalesCatalogItem, 'id' | 'gallery'>>,
+  options: { includeTransient?: boolean } = {},
 ): SalesProductImage[] {
   const images: SalesProductImage[] = [];
   const productId = product.id ?? 'product';
 
-  if (isPersistableProductImageUrl(product.imageUrl)) {
+  const isUsableUrl = (value?: string | null) => isPersistableProductImageUrl(value)
+    || (Boolean(options.includeTransient) && isTransientProductImageUrl(value));
+
+  if (isUsableUrl(product.imageUrl)) {
     images.push({
       id: `${productId}-primary`,
       url: product.imageUrl,
@@ -23,7 +38,7 @@ export function getProductGalleryImages(
   }
 
   product.gallery?.forEach((image, index) => {
-    if (!isPersistableProductImageUrl(image.url) || images.some((item) => item.url === image.url)) {
+    if (!isUsableUrl(image.url) || images.some((item) => item.url === image.url)) {
       return;
     }
 
@@ -62,6 +77,7 @@ export function createProductImageGallery({
   galleryUrls,
   uploadedImages,
   productName,
+  includeTransientUploads = false,
 }: {
   productId: string;
   primaryImageUrl?: string;
@@ -69,10 +85,13 @@ export function createProductImageGallery({
   galleryUrls?: string;
   uploadedImages: ProductMediaDraft[];
   productName: string;
+  includeTransientUploads?: boolean;
 }): { imageUrl?: string; imageAlt?: string; gallery?: SalesProductImage[] } {
   const urlImages = parseProductGalleryUrls(galleryUrls ?? '', productName) ?? [];
   const uploadedGallery = uploadedImages
-    .filter((image) => image.objectKey || isPersistableProductImageUrl(image.url))
+    .filter((image) => image.objectKey
+      || isPersistableProductImageUrl(image.url)
+      || (includeTransientUploads && isTransientProductImageUrl(image.url)))
     .map((image, index) => ({
       id: image.id || `${productId}-upload-${index + 1}`,
       url: image.url,
@@ -108,19 +127,25 @@ export function createProductImageGallery({
   };
 }
 
-export function readProductImageFiles(files: FileList | File[]): Promise<ProductMediaDraft[]> {
-  const fileArray = Array.from(files).filter((file) => file.type.startsWith('image/'));
+export async function readProductImageFiles(files: FileList | File[]): Promise<ProductMediaDraft[]> {
+  const fileArray = Array.from(files).filter((file) => isSupportedProductImageType(file.type));
+  const drafts: ProductMediaDraft[] = [];
 
-  return Promise.resolve(fileArray.map((file, index) => ({
-    id: `upload-${Date.now()}-${index}`,
-    url: URL.createObjectURL(file),
-    alt: file.name.replace(/\.[^/.]+$/, ''),
-    source: 'upload' as const,
-    file,
-    fileName: file.name,
-    contentType: file.type,
-    sizeBytes: file.size,
-  })));
+  for (const [index, originalFile] of fileArray.entries()) {
+    const file = await optimizeProductImageFile(originalFile);
+    drafts.push({
+      id: `upload-${Date.now()}-${index}`,
+      url: URL.createObjectURL(file),
+      alt: originalFile.name.replace(/\.[^/.]+$/, ''),
+      source: 'upload',
+      file,
+      fileName: file.name,
+      contentType: file.type,
+      sizeBytes: file.size,
+    });
+  }
+
+  return drafts;
 }
 
 export async function persistProductImageDrafts(images: ProductMediaDraft[]): Promise<ProductMediaDraft[]> {

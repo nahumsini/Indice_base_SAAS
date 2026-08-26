@@ -6,6 +6,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, '')
   const backendUrl = (env.VITE_BACKEND_URL || env.VITE_API_BASE_URL || 'http://127.0.0.1:8082').replace(/\/+$/, '')
+  const storageUrl = (env.VITE_STORAGE_URL || 'http://127.0.0.1:9000').replace(/\/+$/, '')
+  const storageSignedHost = env.VITE_STORAGE_SIGNED_HOST || 'minio:9000'
 
   const resolveManualChunk = (id: string) => {
     if (!id.includes('node_modules')) {
@@ -63,6 +65,14 @@ export default defineConfig(({ mode }) => {
           headers: {
             Origin: backendUrl,
           },
+        },
+        '/storage': {
+          target: storageUrl,
+          changeOrigin: false,
+          headers: {
+            Host: storageSignedHost,
+          },
+          rewrite: (requestPath) => requestPath.replace(/^\/storage/, ''),
         },
       },
     },

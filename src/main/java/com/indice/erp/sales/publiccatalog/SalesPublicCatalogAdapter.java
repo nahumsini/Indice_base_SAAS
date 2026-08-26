@@ -10,6 +10,7 @@ import com.indice.erp.kiosk.engine.KioskModuleAdapter;
 import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
 import com.indice.erp.kiosk.engine.KioskValidationResult;
 import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.PurchaseRequest;
+import com.indice.erp.sales.publiccatalog.SalesPublicCatalogDtos.AvailabilityRequest;
 import jakarta.validation.Validator;
 import java.util.Map;
 import java.util.Set;
@@ -72,6 +73,14 @@ public class SalesPublicCatalogAdapter implements KioskModuleAdapter {
                 return KioskValidationResult.invalid(first.getPropertyPath() + " " + first.getMessage());
             }
         }
+        if (SalesPublicCatalogCapabilities.AVAILABILITY_READ.equals(request.capabilityKey())) {
+            var payload = objectMapper.convertValue(request.payload(), AvailabilityRequest.class);
+            var violations = validator.validate(payload);
+            if (!violations.isEmpty()) {
+                var first = violations.iterator().next();
+                return KioskValidationResult.invalid(first.getPropertyPath() + " " + first.getMessage());
+            }
+        }
         return KioskValidationResult.success();
     }
 
@@ -79,6 +88,8 @@ public class SalesPublicCatalogAdapter implements KioskModuleAdapter {
     public Map<String, Object> execute(KioskExecutionContext context, KioskActionRequest request) {
         return switch (request.capabilityKey()) {
             case SalesPublicCatalogCapabilities.CATALOG_READ -> map(service.bootstrap(definition(context)));
+            case SalesPublicCatalogCapabilities.AVAILABILITY_READ -> map(service.availability(
+                definition(context), objectMapper.convertValue(request.payload(), AvailabilityRequest.class)));
             case SalesPublicCatalogCapabilities.REQUEST_CREATE -> {
                 var submitted = service.submitPublic(
                     definition(context), objectMapper.convertValue(request.payload(), PurchaseRequest.class));

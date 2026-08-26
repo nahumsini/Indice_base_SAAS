@@ -36,6 +36,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class SalesPublicCatalogServiceTest {
@@ -72,7 +73,8 @@ class SalesPublicCatalogServiceTest {
             base.contactValue(), base.status(), base.expiresAt(), token.substring(token.length() - 8),
             linkCodec.protect(token), base.showPrices(), base.showWholesalePrices(),
             base.showStockStatus(), base.showItemTypeBadges(), base.showCategories(),
-            base.allowCart(), base.allowPurchaseRequest(), base.version(), base.createdAt(), base.updatedAt());
+            base.allowCart(), base.allowPurchaseRequest(), base.allowImageDownloads(),
+            base.version(), base.createdAt(), base.updatedAt());
         var access = SalesPublicCatalogAdminAccess.AdminContext.corporate(5L, catalog.companyId());
         given(repository.find(catalog.companyId(), catalog.id())).willReturn(Optional.of(catalog));
 
@@ -230,11 +232,12 @@ class SalesPublicCatalogServiceTest {
             "code", "companyName", "unitName", "businessName", "title", "description",
             "coverImageUrl", "contactCtaLabel", "contactMethod", "contactValue", "showPrices",
             "showWholesalePrices", "showStockStatus", "showItemTypeBadges", "showCategories",
-            "allowCart", "allowPurchaseRequest", "submissionPolicy", "items", "discountRules");
+            "allowCart", "allowPurchaseRequest", "allowImageDownloads", "submissionPolicy", "items", "discountRules");
         assertThat(payload).doesNotContainKeys("catalogId", "companyId", "unitId", "businessId");
         assertThat(payload).containsEntry("companyName", catalog.companyName())
             .containsEntry("unitName", catalog.unitName())
-            .containsEntry("businessName", catalog.businessName());
+            .containsEntry("businessName", catalog.businessName())
+            .containsEntry("allowImageDownloads", false);
     }
 
     @Test
@@ -253,10 +256,12 @@ class SalesPublicCatalogServiceTest {
                 new SalesPublicCatalogRepository.PublicImageSource(
                     "https://cdn.example.test/front.jpg", "Fachada", null),
                 new SalesPublicCatalogRepository.PublicImageSource(
-                    null, "Interior", "products/91/interior.jpg"))));
+                    null, "Interior", "sales/products/7/images/interior.jpg"),
+                new SalesPublicCatalogRepository.PublicImageSource(
+                    null, "Ajena", "sales/products/8/images/foreign.jpg"))));
         given(objectStorageService.isEnabled()).willReturn(true);
         given(objectStorageService.presignDownload(
-            "sales-images", "products/91/interior.jpg", 321))
+            "sales-images", "sales/products/7/images/interior.jpg", 321))
             .willReturn("https://storage.example.test/signed-interior.jpg");
 
         var item = storageAwareService.bootstrap(catalog.id()).items().getFirst();
@@ -269,7 +274,9 @@ class SalesPublicCatalogServiceTest {
             new SalesPublicCatalogDtos.PublicImage(
                 "https://storage.example.test/signed-interior.jpg", "Interior"));
         then(objectStorageService).should().presignDownload(
-            "sales-images", "products/91/interior.jpg", 321);
+            "sales-images", "sales/products/7/images/interior.jpg", 321);
+        then(objectStorageService).should(never()).presignDownload(
+            "sales-images", "sales/products/8/images/foreign.jpg", 321);
     }
 
     @Test
@@ -303,7 +310,7 @@ class SalesPublicCatalogServiceTest {
             17L, 7L, "Empresa", 11L, "Unidad", 12L, "Negocio", "CATALOGO-2026", "Catálogo 2026",
             "Catálogo público", "Descripción", null, "Solicitar", "email",
             "ventas@example.com", "ACTIVE", null, "tokenhint", null, true, true, false,
-            false, false, true, true, 1L, NOW.minusSeconds(60), NOW.minusSeconds(60));
+            false, false, true, true, false, 1L, NOW.minusSeconds(60), NOW.minusSeconds(60));
         given(repository.findById(catalog.id())).willReturn(Optional.of(catalog));
         given(repository.publicItems(catalog)).willReturn(List.of(product()));
 
@@ -333,7 +340,7 @@ class SalesPublicCatalogServiceTest {
         var request = new SaveRequest(
             "Catálogo", 99L, 100L, "Catálogo público", null, null, "Contactar", "email",
             "ventas@example.com", null, true, false, true, true, true, true, true,
-            List.of(), null);
+            false, List.of(), null);
 
         assertThatThrownBy(() -> service.create(access, request))
             .isInstanceOf(SecurityException.class);
@@ -377,7 +384,8 @@ class SalesPublicCatalogServiceTest {
         return new SalesPublicCatalogRepository.CatalogRecord(
             17L, 7L, "Empresa", 11L, "Unidad", 12L, "Negocio", "CATALOGO-2026", "Catálogo 2026", "Catálogo público",
             "Descripción", null, "Solicitar", "email", "ventas@example.com", "ACTIVE", null,
-            "tokenhint", null, showPrices, showWholesalePrices, true, true, true, true, true, 1L,
+            "tokenhint", null, showPrices, showWholesalePrices, true, true, true, true, true, false,
+            1L,
             NOW.minusSeconds(60), NOW.minusSeconds(60));
     }
 
@@ -385,7 +393,7 @@ class SalesPublicCatalogServiceTest {
         return new PublicItem(
             91L, "Producto seguro", "SKU-91", "Product", "General", null, null, null,
             List.of(), new BigDecimal("125.00"), new BigDecimal("100.00"), new BigDecimal("2"),
-            "MXN", true, "inStock", true);
+            "MXN", true, "inStock", true, false);
     }
 
     private KioskResolvedDefinition definition(SalesPublicCatalogRepository.CatalogRecord catalog) {

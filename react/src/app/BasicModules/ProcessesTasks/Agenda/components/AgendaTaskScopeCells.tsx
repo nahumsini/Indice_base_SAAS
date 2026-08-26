@@ -13,7 +13,6 @@ import { projectLabel } from '../utils/agendaFilterOptions';
 type TaskCellScopeProps = Pick<
   AgendaTaskCellProps,
   | 'businessOptionsForUnit'
-  | 'collaboratorOptionsForScope'
   | 'copy'
   | 'isPending'
   | 'noBusinessValue'
@@ -21,12 +20,10 @@ type TaskCellScopeProps = Pick<
   | 'noUnitValue'
   | 'onBusinessChange'
   | 'onProjectChange'
-  | 'onResponsibleChange'
   | 'onUnitChange'
   | 'projects'
   | 'scopedCatalogUnits'
   | 'task'
-  | 'unassignedResponsibleValue'
 >;
 
 export function UnitCell({
@@ -90,43 +87,6 @@ export function BusinessCell({
         {rowBusinessOptions.map((business) => (
           <SelectItem key={business.id} value={String(business.id)}>
             {business.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
-export function ResponsibleCell({
-  collaboratorOptionsForScope,
-  copy,
-  isPending,
-  onResponsibleChange,
-  task,
-  unassignedResponsibleValue,
-}: TaskCellScopeProps) {
-  const responsibleSelectValue =
-    task.assignedUserCompanyId != null ? String(task.assignedUserCompanyId) : unassignedResponsibleValue;
-  const rowCollaboratorOptions = collaboratorOptionsForScope(task.unitId, task.businessId);
-  const currentCollaboratorMissing =
-    task.assignedUserCompanyId != null &&
-    !rowCollaboratorOptions.some((collaborator) => collaborator.userCompanyId === task.assignedUserCompanyId);
-
-  return (
-    <Select value={responsibleSelectValue} disabled={isPending} onValueChange={(value) => onResponsibleChange(task, value)}>
-      <SelectTrigger className={cn(tableSelectTriggerClass, 'w-full')}>
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={unassignedResponsibleValue}>{copy.common.unassigned}</SelectItem>
-        {currentCollaboratorMissing ? (
-          <SelectItem value={String(task.assignedUserCompanyId)}>
-            {task.assignedName ?? `User #${task.assignedUserCompanyId}`}
-          </SelectItem>
-        ) : null}
-        {rowCollaboratorOptions.map((collaborator) => (
-          <SelectItem key={collaborator.userCompanyId} value={String(collaborator.userCompanyId)}>
-            {collaborator.name}
           </SelectItem>
         ))}
       </SelectContent>

@@ -75,6 +75,7 @@
     "country-state-city": "^3.2.1",
     "date-fns": "3.6.0",
     "embla-carousel-react": "8.6.0",
+    "fflate": "^0.8.2",
     "input-otp": "1.4.2",
     "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.7",

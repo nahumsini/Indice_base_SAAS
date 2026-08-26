@@ -5,6 +5,7 @@ import { KioskPublicShell } from '../../../../components/kiosk-engine/KioskPubli
 import { Button } from '../../../../components/ui/button';
 import { useIsMobile } from '../../../../components/ui/use-mobile';
 import type { SalesCatalogItem } from '../../types';
+import { resolveSalesStorageUrl } from '../../utils/salesStorageUrls';
 import { useProductsTranslations } from '../translations';
 import { publicCatalogApi, type PublicCatalogBootstrap } from './publicCatalogApi';
 import type { PublicCatalogConfig, PublicCatalogItem } from './types/publicCatalogTypes';
@@ -21,7 +22,7 @@ const configFromBootstrap = (bootstrap: PublicCatalogBootstrap): PublicCatalogCo
   businessName: bootstrap.businessName,
   title: bootstrap.title,
   description: bootstrap.description ?? '',
-  coverImageUrl: bootstrap.coverImageUrl ?? '',
+  coverImageUrl: resolveSalesStorageUrl(bootstrap.coverImageUrl),
   contactCtaLabel: bootstrap.contactCtaLabel,
   contactMethod: bootstrap.contactMethod,
   contactValue: bootstrap.contactValue ?? '',
@@ -32,6 +33,7 @@ const configFromBootstrap = (bootstrap: PublicCatalogBootstrap): PublicCatalogCo
   showCategories: bootstrap.showCategories,
   allowCart: bootstrap.allowCart,
   allowPurchaseRequest: bootstrap.allowPurchaseRequest,
+  allowImageDownloads: Boolean(bootstrap.allowImageDownloads),
   showOnlinePaymentComingSoon: false,
   selectedCategoryIds: [],
   selectedProductIds: bootstrap.items.map((item) => String(item.id)),
@@ -45,11 +47,12 @@ const itemsFromBootstrap = (bootstrap: PublicCatalogBootstrap): PublicCatalogIte
   type: item.type ?? 'Product',
   category: item.category,
   description: item.description ?? undefined,
-  thumbnailUrl: item.thumbnailUrl ?? undefined,
+  thumbnailUrl: resolveSalesStorageUrl(item.thumbnailUrl) || undefined,
   thumbnailAlt: item.thumbnailAlt ?? undefined,
   images: item.images
     ?.filter((image) => Boolean(image.url))
-    .map((image) => ({ url: image.url, alt: image.alt ?? item.name })),
+    .map((image) => ({ url: resolveSalesStorageUrl(image.url), alt: image.alt ?? item.name }))
+    .filter((image) => Boolean(image.url)),
   publicPrice: item.publicPrice == null ? undefined : numberValue(item.publicPrice),
   wholesalePrice: item.wholesalePrice == null ? undefined : numberValue(item.wholesalePrice),
   wholesaleMinQuantity: item.wholesaleMinQuantity == null ? undefined : numberValue(item.wholesaleMinQuantity),
@@ -57,6 +60,7 @@ const itemsFromBootstrap = (bootstrap: PublicCatalogBootstrap): PublicCatalogIte
   usesInventory: item.usesInventory,
   publicInventoryStatus: item.publicInventoryStatus ?? 'askAvailability',
   readyForSales: item.readyForSales,
+  reservable: item.reservable,
 }));
 
 export function PublicCatalogPage({

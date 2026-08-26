@@ -1,17 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Clock3, History, Loader2, UsersRound } from 'lucide-react';
+import { CheckCircle2, Clock3, History, Loader2, Save, UsersRound } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
 import {
   listProcessTaskEvents,
+  patchProcessTask,
   updateProcessTaskContribution,
   type TaskAssignee,
   type TaskContributionStatus,
   type TaskEvent,
 } from '../../Tasks/tasksApi';
+import type { ProcessCollaboratorOption } from '../../Processes/types';
+import {
+  TaskAssigneeSelector,
+  type TaskAssigneeSelection,
+  type TaskAssigneeSelectorOption,
+} from '../../shared/TaskAssigneeSelector';
 import type { AgendaTaskItem } from '../agendaApi';
 
 interface TaskTeamDialogProps {
+  collaboratorOptions: ProcessCollaboratorOption[];
+  currentUserCompanyId?: number | null;
   onChanged: () => void | Promise<void>;
   onOpenChange: (open: boolean) => void;
   open: boolean;
@@ -74,15 +83,39 @@ function eventDate(value: string | null) {
   }).format(parsed);
 }
 
-export function TaskTeamDialog({ onChanged, onOpenChange, open, task }: TaskTeamDialogProps) {
+export function TaskTeamDialog({
+  collaboratorOptions,
+  currentUserCompanyId = null,
+  onChanged,
+  onOpenChange,
+  open,
+  task,
+}: TaskTeamDialogProps) {
   const [members, setMembers] = useState<TaskAssignee[]>([]);
   const [events, setEvents] = useState<TaskEvent[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSavingAssignments, setIsSavingAssignments] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<TaskContributionStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedUserCompanyIds, setSelectedUserCompanyIds] = useState<number[]>([]);
+  const [leadUserCompanyId, setLeadUserCompanyId] = useState<number | null>(null);
+  const [savedUserCompanyIds, setSavedUserCompanyIds] = useState<number[]>([]);
+  const [savedLeadUserCompanyId, setSavedLeadUserCompanyId] = useState<number | null>(null);
 
   useEffect(() => {
-    setMembers(task?.assignees ?? []);
+    const nextMembers = task?.assignees ?? [];
+    const nextIds = task?.assigneeUserCompanyIds.length
+      ? task.assigneeUserCompanyIds
+      : task?.assignedUserCompanyId != null
+        ? [task.assignedUserCompanyId]
+        : [];
+    const nextLeadId = task?.assignedUserCompanyId ?? nextIds[0] ?? null;
+
+    setMembers(nextMembers);
+    setSelectedUserCompanyIds(nextIds);
+    setLeadUserCompanyId(nextLeadId);
+    setSavedUserCompanyIds(nextIds);
+    setSavedLeadUserCompanyId(nextLeadId);
   }, [task]);
 
   useEffect(() => {
@@ -106,8 +139,81 @@ export function TaskTeamDialog({ onChanged, onOpenChange, open, task }: TaskTeam
   }, [open, task]);
 
   const currentMember = useMemo(() => members.find((member) => member.isCurrentUser) ?? null, [members]);
+  const assignmentOptions = useMemo(() => {
+    const options: TaskAssigneeSelectorOption[] = collaboratorOptions.map((collaborator) => ({
+      email: collaborator.email,
+      name: collaborator.name,
+      userCompanyId: collaborator.userCompanyId,
+    }));
+    members.forEach((member) => {
+      if (options.some((option) => option.userCompanyId === member.userCompanyId)) return;
+      options.push({
+        email: member.email,
+        name: member.name || `Usuario #${member.userCompanyId}`,
+        userCompanyId: member.userCompanyId,
+      });
+    });
+    return options.sort((left, right) => {
+      if (left.userCompanyId === currentUserCompanyId) return -1;
+      if (right.userCompanyId === currentUserCompanyId) return 1;
+      return left.name.localeCompare(right.name, 'es-MX');
+    });
+  }, [collaboratorOptions, currentUserCompanyId, members]);
+  const assignmentsChanged = useMemo(() => {
+    const selected = [...selectedUserCompanyIds].sort((left, right) => left - right);
+    const saved = [...savedUserCompanyIds].sort((left, right) => left - right);
+    return leadUserCompanyId !== savedLeadUserCompanyId
+      || selected.length !== saved.length
+      || selected.some((id, index) => id !== saved[index]);
+  }, [leadUserCompanyId, savedLeadUserCompanyId, savedUserCompanyIds, selectedUserCompanyIds]);
   const readyCount = members.filter((member) => member.contributionStatus === 'ready').length;
   const progress = members.length > 0 ? Math.round((readyCount / members.length) * 100) : 0;
+  const assignmentLocked = task?.status === 'completed' || task?.status === 'cancelled';
+  const isBusy = pendingStatus != null || isSavingAssignments;
+
+  const updateAssignmentSelection = ({ leadUserCompanyId: nextLeadId, userCompanyIds }: TaskAssigneeSelection) => {
+    setLeadUserCompanyId(nextLeadId);
+    setSelectedUserCompanyIds(userCompanyIds);
+    setError(null);
+  };
+
+  const saveAssignments = async () => {
+    if (!task || leadUserCompanyId == null || selectedUserCompanyIds.length === 0) {
+      setError('Selecciona al menos una persona responsable.');
+      return;
+    }
+    if (selectedUserCompanyIds.length > 2) {
+      setError('La asignación rápida permite un máximo de dos personas.');
+      return;
+    }
+
+    const lead = assignmentOptions.find((option) => option.userCompanyId === leadUserCompanyId);
+    if (!lead) {
+      setError('No fue posible identificar a la persona responsable principal.');
+      return;
+    }
+
+    setIsSavingAssignments(true);
+    setError(null);
+    try {
+      const updated = await patchProcessTask(task.taskId, {
+        assignedName: lead.name,
+        assignedUserCompanyId: lead.userCompanyId,
+        assigneeUserCompanyIds: selectedUserCompanyIds,
+      });
+      setMembers(updated.assignees);
+      setSelectedUserCompanyIds(updated.assigneeUserCompanyIds);
+      setLeadUserCompanyId(updated.assignedUserCompanyId);
+      setSavedUserCompanyIds(updated.assigneeUserCompanyIds);
+      setSavedLeadUserCompanyId(updated.assignedUserCompanyId);
+      setEvents(await listProcessTaskEvents(task.taskId));
+      await onChanged();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No fue posible guardar a las personas responsables.');
+    } finally {
+      setIsSavingAssignments(false);
+    }
+  };
 
   const markContribution = async (status: TaskContributionStatus) => {
     if (!task) return;
@@ -127,24 +233,59 @@ export function TaskTeamDialog({ onChanged, onOpenChange, open, task }: TaskTeam
 
   return (
     <IndiceModalFrame
-      busy={pendingStatus != null}
+      busy={isBusy}
       closeLabel="Cerrar"
       description={task ? `${task.folio} · Cada integrante entrega su parte; el coordinador realiza el cierre final.` : ''}
       footer={(
-        <Button type="button" variant="outline" disabled={pendingStatus != null} onClick={() => onOpenChange(false)}>
-          Cerrar
-        </Button>
+        <>
+          <Button type="button" variant="outline" disabled={isBusy} onClick={() => onOpenChange(false)}>
+            Cerrar
+          </Button>
+          <Button
+            type="button"
+            disabled={isBusy || assignmentLocked || !assignmentsChanged || leadUserCompanyId == null || selectedUserCompanyIds.length === 0}
+            onClick={() => void saveAssignments()}
+          >
+            {isSavingAssignments ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Guardar responsables
+          </Button>
+        </>
       )}
       footerSummary={task ? `${readyCount}/${members.length} partes listas` : undefined}
       icon={<UsersRound className="h-5 w-5" />}
       modalType="standard-form"
       onOpenChange={onOpenChange}
       open={open}
-      title="Trabajo en equipo"
+      title="Responsables y trabajo en equipo"
       tone="yellow"
     >
       <div className="space-y-5">
         <IndiceModalValidation messages={error ? [error] : []} />
+
+        <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+          <div>
+            <h3 className="text-sm font-medium text-slate-900 dark:text-white">¿Quién realizará la tarea?</h3>
+            <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+              Elige una o dos personas. Selecciona tu nombre si también harás una parte; la primera persona será la responsable principal.
+            </p>
+          </div>
+          <TaskAssigneeSelector
+            copy={{
+              lead: 'Responsable principal',
+              limit: (max) => `Máximo ${max} personas`,
+              makeLead: 'Hacer responsable principal',
+              selected: (count, max) => `${count} de ${max} seleccionados`,
+              you: 'Tú',
+            }}
+            currentUserCompanyId={currentUserCompanyId}
+            disabled={isBusy || assignmentLocked}
+            leadUserCompanyId={leadUserCompanyId}
+            maxSelections={2}
+            onChange={updateAssignmentSelection}
+            options={assignmentOptions}
+            selectedUserCompanyIds={selectedUserCompanyIds}
+          />
+        </section>
 
         <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/60">
           <div className="flex flex-wrap items-start justify-between gap-3">

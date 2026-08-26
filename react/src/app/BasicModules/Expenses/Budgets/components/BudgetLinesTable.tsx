@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, RefreshCw, Trash2, Pencil, X } from 'lucide-react';
 import type { ColumnConfig } from '../../types/expenseView.types';
 import { useBudgetsTranslations } from '../hooks/useBudgetsTranslations';
 import { formatCurrency, formatDate } from '../../utils/expenses.utils';
 import { DataTablePagination } from '../../../../components/table/DataTablePagination';
 import { useTablePagination } from '../../../../hooks/useTablePagination';
+import { useWorkspaceNavigationMemory } from '../../../../hooks/useWorkspaceNavigationMemory';
 import { Checkbox } from '../../../../components/ui/checkbox';
 import { Button } from '../../../../components/ui/button';
 import { useExpenseRowSelection } from '../../hooks/useExpenseRowSelection';
@@ -24,10 +25,59 @@ const columnClass = 'px-5 py-4 text-left align-middle text-xs font-medium text-s
 const cellClass = 'px-6 py-4 align-middle text-sm text-slate-700 dark:text-slate-200';
 type BudgetSortDirection = 'asc' | 'desc';
 
+type BudgetTableWorkspaceState = {
+  currentPage: number;
+  pageSize: number;
+  sortDirection: BudgetSortDirection;
+  sortField: string;
+};
+
+const budgetTableWorkspaceDefaults: BudgetTableWorkspaceState = {
+  currentPage: 1,
+  pageSize: 10,
+  sortDirection: 'asc',
+  sortField: 'dueDate',
+};
+
+const budgetTableWorkspaceUrlFields: Partial<Record<keyof BudgetTableWorkspaceState, string>> = {
+  currentPage: 'bu_page',
+  pageSize: 'bu_rows',
+  sortDirection: 'bu_dir',
+  sortField: 'bu_sort',
+};
+
 export function BudgetLinesTable({ budgetLines, columns, errorMessage, onDeleteBudgetLine, onDeleteBudgetLines, onEditBudgetLine, onRetry }: BudgetLinesTableProps) {
   const t = useBudgetsTranslations();
   const [sortDirection, setSortDirection] = useState<BudgetSortDirection>('asc');
   const [sortField, setSortField] = useState('dueDate');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const workspaceState = useMemo<BudgetTableWorkspaceState>(() => ({
+    currentPage,
+    pageSize,
+    sortDirection,
+    sortField,
+  }), [currentPage, pageSize, sortDirection, sortField]);
+  const restoreWorkspaceState = useCallback((restoredState: BudgetTableWorkspaceState) => {
+    setCurrentPage(restoredState.currentPage);
+    setPageSize(restoredState.pageSize);
+    setSortDirection(restoredState.sortDirection);
+    setSortField(restoredState.sortField);
+  }, []);
+  const handlePaginationChange = useCallback((nextState: { currentPage: number; pageSize: number }) => {
+    setCurrentPage(nextState.currentPage);
+    setPageSize(nextState.pageSize);
+  }, []);
+
+  useWorkspaceNavigationMemory({
+    moduleKey: 'expenses',
+    tabKey: 'budgets-table',
+    state: workspaceState,
+    defaults: budgetTableWorkspaceDefaults,
+    urlFields: budgetTableWorkspaceUrlFields,
+    onRestore: restoreWorkspaceState,
+    rememberScroll: false,
+  });
   const visibleColumns = useMemo(() => {
     const definitions = new Map(budgetTableColumns(t).map(column => [column.key, column]));
     const configuredColumns = columns
@@ -42,12 +92,10 @@ export function BudgetLinesTable({ budgetLines, columns, errorMessage, onDeleteB
     () => sortBudgetLines(budgetLines, sortField, sortDirection),
     [budgetLines, sortDirection, sortField],
   );
-  const paginationResetKey = useMemo(
-    () => `${sortField}:${sortDirection}:${budgetLines.map(budgetLine => budgetLine.id).join('|')}`,
-    [budgetLines, sortDirection, sortField],
-  );
   const pagination = useTablePagination({
-    resetKey: paginationResetKey,
+    controlledCurrentPage: currentPage,
+    controlledPageSize: pageSize,
+    onPaginationChange: handlePaginationChange,
     rows: sortedBudgetLines,
   });
   const rowSelection = useExpenseRowSelection<string>();

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
@@ -24,6 +24,31 @@ import { AccountingAccountsFilters } from './components/AccountingAccountsFilter
 import { AccountingAccountsHeaderBanner } from './components/AccountingAccountsHeaderBanner';
 import { AccountingAccountsSummary } from './components/AccountingAccountsSummary';
 import { AccountingAccountsTable } from './components/AccountingAccountsTable';
+import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
+
+type AccountingAccountsWorkspaceState = {
+  searchTerm: string;
+  sortDirection: SortDirection;
+  sortField: AccountingSortField | null;
+  statusFilter: string;
+  typeFilter: string;
+};
+
+const accountingAccountsWorkspaceDefaults: AccountingAccountsWorkspaceState = {
+  searchTerm: '',
+  sortDirection: null,
+  sortField: null,
+  statusFilter: 'all',
+  typeFilter: 'all',
+};
+
+const accountingAccountsWorkspaceUrlFields: Partial<Record<keyof AccountingAccountsWorkspaceState, string>> = {
+  searchTerm: 'ac_q',
+  sortDirection: 'ac_dir',
+  sortField: 'ac_sort',
+  statusFilter: 'ac_status',
+  typeFilter: 'ac_type',
+};
 
 export default function AccountingAccounts() {
   const t = useAccountingAccountsTranslations();
@@ -43,6 +68,29 @@ export default function AccountingAccounts() {
   const [isImportingCatalog, setIsImportingCatalog] = useState(false);
   const [accountPendingDelete, setAccountPendingDelete] = useState<AccountingAccount | null>(null);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const workspaceState = useMemo<AccountingAccountsWorkspaceState>(() => ({
+    searchTerm,
+    sortDirection,
+    sortField,
+    statusFilter,
+    typeFilter,
+  }), [searchTerm, sortDirection, sortField, statusFilter, typeFilter]);
+  const restoreWorkspaceState = useCallback((restoredState: AccountingAccountsWorkspaceState) => {
+    setSearchTerm(restoredState.searchTerm);
+    setSortDirection(restoredState.sortDirection);
+    setSortField(restoredState.sortField);
+    setStatusFilter(restoredState.statusFilter);
+    setTypeFilter(restoredState.typeFilter);
+  }, []);
+
+  useWorkspaceNavigationMemory({
+    moduleKey: 'expenses',
+    tabKey: 'accounting',
+    state: workspaceState,
+    defaults: accountingAccountsWorkspaceDefaults,
+    urlFields: accountingAccountsWorkspaceUrlFields,
+    onRestore: restoreWorkspaceState,
+  });
   const translatedAccountingColumns = useMemo(() => defaultAccountingColumns.map(column => {
     const copy = t.accountingAccounts.columns[column.key];
     return {

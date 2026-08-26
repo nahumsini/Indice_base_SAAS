@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import { ChevronDown, ChevronUp, Search } from 'lucide-react';
 import type { ProviderRecord } from '../useProveedoresLogic';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import { useProvidersTranslations } from '../hooks/useProvidersTranslations';
 import { DataTablePagination } from '../../../../components/table/DataTablePagination';
 import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../../hooks/useTablePagination';
+import { useWorkspaceNavigationMemory } from '../../../../hooks/useWorkspaceNavigationMemory';
 import {
   defaultProviderColumnWidths,
   type ProviderColumnConfig,
@@ -34,6 +35,27 @@ type ProvidersTableProps = {
   onManageAccess: (provider: ProviderRecord) => void;
 };
 
+type ProvidersTableWorkspaceState = {
+  currentPage: number;
+  pageSize: number;
+  sortDirection: SortDirection;
+  sortField: ProviderSortField | null;
+};
+
+const providersTableWorkspaceDefaults: ProvidersTableWorkspaceState = {
+  currentPage: 1,
+  pageSize: 10,
+  sortDirection: null,
+  sortField: null,
+};
+
+const providersTableWorkspaceUrlFields: Partial<Record<keyof ProvidersTableWorkspaceState, string>> = {
+  currentPage: 'pr_page',
+  pageSize: 'pr_rows',
+  sortDirection: 'pr_dir',
+  sortField: 'pr_sort',
+};
+
 export function ProvidersTable({
   accountingAccountOptions,
   columns,
@@ -60,6 +82,28 @@ export function ProvidersTable({
   const [sortField, setSortField] = useState<ProviderSortField | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const workspaceState = useMemo<ProvidersTableWorkspaceState>(() => ({
+    currentPage,
+    pageSize,
+    sortDirection,
+    sortField,
+  }), [currentPage, pageSize, sortDirection, sortField]);
+  const restoreWorkspaceState = useCallback((restoredState: ProvidersTableWorkspaceState) => {
+    setCurrentPage(restoredState.currentPage);
+    setPageSize(restoredState.pageSize);
+    setSortDirection(restoredState.sortDirection);
+    setSortField(restoredState.sortField);
+  }, []);
+
+  useWorkspaceNavigationMemory({
+    moduleKey: 'expenses',
+    tabKey: 'providers-table',
+    state: workspaceState,
+    defaults: providersTableWorkspaceDefaults,
+    urlFields: providersTableWorkspaceUrlFields,
+    onRestore: restoreWorkspaceState,
+    rememberScroll: false,
+  });
   const selectableUserOptions = useMemo(() => [{ value: '', label: t.common.select }, ...userOptions], [t.common.select, userOptions]);
   const selectableAccountingAccountOptions = useMemo(() => (
     accountingAccountOptions.length > 0 ? accountingAccountOptions : [{ value: '', label: t.common.noOptions }]
@@ -94,8 +138,8 @@ export function ProvidersTable({
   }, [resizeStartWidth, resizeStartX, resizingColumn]);
 
   useEffect(() => {
-    setCurrentPage(1);
-  }, [pageSize, providers, tableColumns]);
+    setCurrentPage(current => Math.min(Math.max(current, 1), totalPages));
+  }, [totalPages]);
 
   const handleResizeStart = (event: ReactMouseEvent, columnKey: string) => {
     event.preventDefault();

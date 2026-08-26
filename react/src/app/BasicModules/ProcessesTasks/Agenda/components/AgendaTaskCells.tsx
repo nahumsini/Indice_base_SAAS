@@ -13,7 +13,7 @@ import type { TaskPriority, TaskStatus } from '../../Tasks/tasksApi';
 import { tableSelectTriggerClass } from './AgendaTablePrimitives';
 import type { AgendaTaskCellProps } from './AgendaTaskCellTypes';
 import { AuditNotesCell, NotesCell, WeightingCell } from './AgendaTaskAuditCells';
-import { BusinessCell, ProjectCell, ResponsibleCell, UnitCell } from './AgendaTaskScopeCells';
+import { BusinessCell, ProjectCell, UnitCell } from './AgendaTaskScopeCells';
 import { getTaskScheduleHour } from '../utils/agendaScheduleUtils';
 import { clampPercent, getTaskDisplayStatus } from '../utils/agendaTaskStatus';
 import { formatDate } from '../utils/agendaReports';
@@ -25,7 +25,6 @@ export function AgendaTaskCell({
   agendaStatusDate,
   agendaStatusRange,
   businessOptionsForUnit,
-  collaboratorOptionsForScope,
   columnId,
   copy,
   isPending,
@@ -43,17 +42,14 @@ export function AgendaTaskCell({
   onRequestComplete,
   onPriorityChange,
   onProjectChange,
-  onResponsibleChange,
   onUnitChange,
   projects,
   scopedCatalogUnits,
   task,
   todayAgendaValue,
-  unassignedResponsibleValue,
 }: AgendaTaskCellProps) {
   const scopeCellProps = {
     businessOptionsForUnit,
-    collaboratorOptionsForScope,
     copy,
     isPending,
     noBusinessValue,
@@ -61,12 +57,10 @@ export function AgendaTaskCell({
     noUnitValue,
     onBusinessChange,
     onProjectChange,
-    onResponsibleChange,
     onUnitChange,
     projects,
     scopedCatalogUnits,
     task,
-    unassignedResponsibleValue,
   };
   const auditCellProps = {
     auditStatusClasses,
@@ -190,7 +184,7 @@ export function AgendaTaskCell({
         </div>
       );
     case 'responsible':
-      return task.teamSize > 1 ? (
+      return (
         <button
           type="button"
           disabled={isPending}
@@ -202,11 +196,15 @@ export function AgendaTaskCell({
             <span className="block truncate text-sm font-medium">{task.assignedName || `${task.teamSize} personas`}</span>
             <span className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-300">
               {task.teamAllReady ? <CheckCircle2 className="h-3 w-3" /> : null}
-              {task.teamReadyCount}/{task.teamSize} partes listas
+              {task.teamSize > 1
+                ? `${task.teamReadyCount}/${task.teamSize} partes listas`
+                : task.teamSize === 1
+                  ? '1 persona · Editar asignación'
+                  : 'Sin personas · Editar asignación'}
             </span>
           </span>
         </button>
-      ) : <ResponsibleCell {...scopeCellProps} />;
+      );
     case 'priority':
       return (
         <PriorityCell

@@ -217,6 +217,36 @@ class SessionAuthServiceTest {
         assertEquals(7_200, session.getMaxInactiveInterval());
     }
 
+    @Test
+    void currentActorReplacesStaleSuperAdminSessionRoleAfterDemotion() throws Exception {
+        var service = new SessionAuthService(jdbcTemplate, passwordEncoder);
+        var session = new MockHttpSession();
+        session.setAttribute(SessionAuthService.SESSION_USER_ID, 5L);
+        session.setAttribute(SessionAuthService.SESSION_COMPANY_ID, 7L);
+        session.setAttribute(SessionAuthService.SESSION_USER_COMPANY_ID, 11L);
+        session.setAttribute(SessionAuthService.SESSION_USER_NAME, "Demoted User");
+        session.setAttribute(SessionAuthService.SESSION_ROLE, "superadmin");
+
+        when(jdbcTemplate.query(
+            contains("SELECT id, COALESCE(role"),
+            ArgumentMatchers.any(RowMapper.class),
+            eq(5L),
+            eq(7L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            ResultSet rs = mock(ResultSet.class);
+            when(rs.getLong("id")).thenReturn(11L);
+            when(rs.getString("role")).thenReturn("user");
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+
+        var current = service.currentActor(session).orElseThrow();
+
+        assertEquals("user", current.role());
+        assertEquals("user", session.getAttribute(SessionAuthService.SESSION_ROLE));
+    }
+
     @ParameterizedTest
     @CsvSource({
         "root,1800",

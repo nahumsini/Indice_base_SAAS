@@ -1,7 +1,8 @@
 import type { Dispatch, SetStateAction } from 'react';
-import { BadgeCheck, CircleDashed } from 'lucide-react';
+import { BadgeCheck, CalendarDays, CircleDashed, Link2 } from 'lucide-react';
 import { Badge } from '../../../../../components/ui/badge';
 import { Switch } from '../../../../../components/ui/switch';
+import { Input } from '../../../../../components/ui/input';
 import { cn } from '../../../../../components/ui/utils';
 import type { SalesProductVisibility } from '../../../salesCrmContext';
 import type { ProductsTranslations } from '../../translations';
@@ -103,6 +104,50 @@ export function ProductUsageReadinessSection({
       <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-4">
         <p className="text-sm font-medium text-slate-950">{t.readiness.title}</p>
         <ProductReadinessBadges form={form} t={t} />
+      </div>
+
+      <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#FF6B5E]/10 text-[#B63B32]">
+              <CalendarDays className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="font-medium text-slate-950">{t.usage.reservable.label}</p>
+              <p className="mt-1 text-sm font-medium leading-5 text-slate-500">{t.usage.reservable.description}</p>
+            </div>
+          </div>
+          <Switch
+            checked={form.reservable}
+            className="mt-1 data-[state=checked]:bg-[#FF6B5E]"
+            onCheckedChange={(checked) => onFormChange((current) => ({
+              ...current,
+              reservable: checked,
+              availabilityIcalUrl: checked ? current.availabilityIcalUrl : '',
+            }))}
+          />
+        </div>
+
+        {form.reservable ? (
+          <div className="space-y-2 border-t border-slate-100 pt-4">
+            <label htmlFor="product-availability-calendar-url" className="flex items-center gap-2 text-sm font-medium text-slate-800">
+              <Link2 className="h-4 w-4 text-[#B63B32]" /> {t.usage.reservable.urlLabel}
+            </label>
+            <Input
+              id="product-availability-calendar-url"
+              type="url"
+              inputMode="url"
+              autoComplete="off"
+              value={form.availabilityIcalUrl}
+              placeholder={t.usage.reservable.urlPlaceholder}
+              onChange={(event) => onFormChange((current) => ({
+                ...current,
+                availabilityIcalUrl: event.target.value,
+              }))}
+            />
+            <p className="text-xs font-medium leading-5 text-slate-500">{t.usage.reservable.urlHelp}</p>
+          </div>
+        ) : null}
       </div>
 
       <Badge className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-500">
