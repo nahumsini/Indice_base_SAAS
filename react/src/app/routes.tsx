@@ -15,6 +15,7 @@ const CustomerDisplay = lazy(() => import('./BasicModules/PointOfSale/CustomerDi
 const SupplierPortal = lazy(() => import('./BasicModules/PointOfSale/SupplierPortal'));
 const SelfServiceKiosk = lazy(() => import('./BasicModules/PointOfSale/SelfServiceKiosk'));
 const SelfCheckoutKiosk = lazy(() => import('./BasicModules/PointOfSale/SelfCheckoutKiosk'));
+const RestaurantKioskPage = lazy(() => import('./BasicModules/PointOfSale/RestaurantKiosk/RestaurantKioskPage'));
 const PlatformAdminPage = lazy(() => import('./PlatformAdmin/PlatformAdminPage'));
 const DistributorPortalPage = lazy(() => import('./DistributorPortal/DistributorPortalPage'));
 const MultiKioskMobilePage = lazy(() => import('./KioskCenter/MultiKioskMobilePage'));
@@ -296,6 +297,14 @@ function SelfCheckoutKioskRoute() {
   );
 }
 
+function RestaurantKioskRoute() {
+  return (
+    <Suspense fallback={<LoadingBarOverlay isVisible title="Cargando operación de restaurante" description="Conectando mesas, comandas, cocina y caja." />}>
+      <RestaurantKioskPage />
+    </Suspense>
+  );
+}
+
 function MultiKioskMobileRoute() {
   return (
     <Suspense fallback={<LoadingBarOverlay isVisible title="Cargando Multikiosco" description="Preparando tus accesos de trabajo." />}>
@@ -520,6 +529,18 @@ export const router = createBrowserRouter([
   {
     path: '/pos-self-checkout/:publicAccessToken',
     element: <SelfCheckoutKioskRoute />,
+  },
+  {
+    path: '/pos-restaurant/waiter/:publicAccessToken',
+    element: <RestaurantKioskRoute />,
+  },
+  {
+    path: '/pos-restaurant/orders/:publicAccessToken',
+    element: <RestaurantKioskRoute />,
+  },
+  {
+    path: '/pos-restaurant/kitchen/:publicAccessToken',
+    element: <RestaurantKioskRoute />,
   },
   {
     path: '/multi-kiosk/:publicAccessToken',

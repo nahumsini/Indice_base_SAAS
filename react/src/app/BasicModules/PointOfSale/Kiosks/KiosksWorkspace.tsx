@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { KioskCenterWorkspace, type CreatableKioskExperience } from './KioskCenterWorkspace';
 import { SelfCheckoutCreationFlow } from './SelfCheckoutCreationFlow';
 import { StandardKioskCreationFlow } from './StandardKioskCreationFlow';
+import { RestaurantKioskCreationFlow } from './RestaurantKioskCreationFlow';
 
 export default function KiosksWorkspace() {
   const [creationType, setCreationType] = useState<CreatableKioskExperience | null>(null);
@@ -34,6 +35,14 @@ export default function KiosksWorkspace() {
           type={creationType}
           onClose={() => setCreationType(null)}
           onCreated={finishCreation}
+        />
+      ) : null}
+
+      {creationType === 'restaurant-waiter' || creationType === 'restaurant-tables' || creationType === 'restaurant-kitchen' ? (
+        <RestaurantKioskCreationFlow
+          type={creationType}
+          onClose={() => setCreationType(null)}
+          onCreated={(kiosk) => finishCreation(kiosk.name)}
         />
       ) : null}
     </>

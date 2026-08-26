@@ -1,6 +1,6 @@
 import { apiClient } from '../../../lib/apiClient';
 
-export type PosKioskType = 'customer_display' | 'self_service' | 'self_checkout';
+export type PosKioskType = 'customer_display' | 'self_service' | 'self_checkout' | 'waiter_station' | 'table_order_center' | 'kitchen_display';
 export type PosKioskStatus = 'ACTIVE' | 'DISABLED' | 'REVOKED' | 'EXPIRED';
 export type PosKioskConnectionStatus = 'ONLINE' | 'OFFLINE' | 'NEVER_CONNECTED';
 export type PosKioskOperationalStatus = 'READY' | 'SOURCE_REGISTER_CLOSED' | 'SOURCE_REGISTER_UNASSIGNED';
@@ -18,6 +18,8 @@ export type PosKioskAssignment = {
   cashRegisterId?: number;
   cashRegisterCode?: string;
   cashRegisterName?: string;
+  ecosystemId?: number;
+  ecosystemName?: string;
 };
 
 export type PosKioskAdminActions = {
@@ -67,6 +69,34 @@ export type SelfCheckoutCreatePayload = {
   supervisorExitRequired: boolean;
 };
 
+export type RestaurantKioskCreatePayload = {
+  ecosystemId: number | null;
+  cashRegisterId: number | null;
+  name: string;
+  ecosystemName?: string;
+  areaName?: string;
+  tableCount?: number;
+  areaId?: number | null;
+  kitchenStationCode?: string;
+  expiresAt?: string | null;
+};
+
+export type RestaurantEcosystem = {
+  id: number;
+  code: string;
+  name: string;
+  unitId: number;
+  businessId: number;
+  warehouseId: number;
+  warehouseName: string;
+  cashRegisterId: number;
+  cashRegisterName: string;
+  cashRegisterCode: string;
+  currencyCode: string;
+  tableCount: number;
+  kioskCount: number;
+};
+
 type EngineEnvelope<T> = {
   data: T;
   meta?: { requestId?: string };
@@ -91,6 +121,28 @@ export const posKioskAdminApi = {
       { method: 'POST', body: JSON.stringify(payload) },
     );
     return response.data;
+  },
+
+  async createRestaurant(type: Extract<PosKioskType, 'waiter_station' | 'table_order_center' | 'kitchen_display'>, payload: RestaurantKioskCreatePayload) {
+    const response = await apiClient<EngineEnvelope<PosKioskAdminItem>>(
+      `${basePath}?type=${encodeURIComponent(type)}`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    );
+    return response.data;
+  },
+
+  async listRestaurantEcosystems() {
+    const response = await apiClient<{ items: RestaurantEcosystem[] }>('/api/v1/pos/restaurant/ecosystems');
+    return response.items;
+  },
+
+  async restaurantTrace(ecosystemId: number) {
+    return apiClient<{
+      ecosystem: RestaurantEcosystem;
+      kiosks: PosKioskAdminItem[];
+      orders: Array<Record<string, unknown>>;
+      events: Array<Record<string, unknown>>;
+    }>(`/api/v1/pos/restaurant/ecosystems/${ecosystemId}/trace`);
   },
 
   async access(kioskId: number) {

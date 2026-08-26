@@ -7,14 +7,29 @@ export interface StockSignals {
   topProduct?: Product;
 }
 
+/**
+ * A POS catalog item is sellable when it is active and either does not track
+ * inventory (for example, a service) or has available stock in the selected
+ * warehouse. Keep this policy before the quick-product limit so zero-stock
+ * rows cannot hide later sellable products.
+ */
+export function isProductAvailableForSale(product: Product) {
+  return product.status === 'active'
+    && (!product.useInventory || product.currentStock > 0);
+}
+
 export function getQuickProducts(products: Product[]) {
   return products
-    .filter((product) => product.status === 'active')
+    .filter(isProductAvailableForSale)
     .slice(0, QUICK_PRODUCTS_LIMIT);
 }
 
 export function getProductCategories(products: Product[]) {
-  const categories = new Set(products.map((product) => product.department));
+  const categories = new Set(
+    products
+      .filter(isProductAvailableForSale)
+      .map((product) => product.department),
+  );
 
   return ['all', ...Array.from(categories)];
 }

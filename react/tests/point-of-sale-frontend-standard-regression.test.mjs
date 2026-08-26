@@ -176,6 +176,25 @@ test('Venta conserva la geometria coral y los controles tactiles del workspace P
   assert.doesNotMatch(payment, /hover:shadow-lg|hover:-translate-y/);
 });
 
+test('Venta muestra solamente productos disponibles en la caja seleccionada', () => {
+  const catalog = readFileSync(resolve(pointOfSaleRoot, 'Sale/utils/saleCatalog.ts'), 'utf8');
+  const catalogHook = readFileSync(resolve(pointOfSaleRoot, 'Sale/hooks/useSaleCatalog.ts'), 'utf8');
+  const sale = readFileSync(resolve(pointOfSaleRoot, 'Sale/Sale.tsx'), 'utf8');
+  const products = readFileSync(resolve(pointOfSaleRoot, 'Sale/components/QuickProductsPanel.tsx'), 'utf8');
+
+  assert.match(catalog, /isProductAvailableForSale/);
+  assert.match(catalog, /!product\.useInventory \|\| product\.currentStock > 0/);
+  assert.match(catalog, /\.filter\(isProductAvailableForSale\)[\s\S]*\.slice\(0, QUICK_PRODUCTS_LIMIT\)/);
+  assert.match(catalog, /getProductCategories[\s\S]*\.filter\(isProductAvailableForSale\)/);
+  assert.match(catalogHook, /availableProducts[\s\S]*products\.filter\(isProductAvailableForSale\)/);
+  assert.match(catalogHook, /filterQuickProducts\(availableProducts, selectedCategory\)[\s\S]*getQuickProducts\(categoryProducts\)/);
+  assert.match(sale, /catalogProducts=\{availableProducts\}/);
+  assert.match(products, /categoryCatalogProducts[\s\S]*matchingCatalogProducts/);
+  assert.match(products, /matchingCatalogProducts\.map/);
+  assert.match(products, /product\.useInventory \? `Stock \$\{product\.currentStock\}` : 'Venta libre'/);
+  assert.match(products, /product\.useInventory \? `Stock \$\{product\.currentStock\}` : 'Disponible'/);
+});
+
 test('Cobro en efectivo conserva recibido, cambio y una jerarquia clara para caja', () => {
   const sale = readFileSync(resolve(pointOfSaleRoot, 'Sale/Sale.tsx'), 'utf8');
   const payment = readFileSync(resolve(pointOfSaleRoot, 'Sale/components/SalePaymentPanel.tsx'), 'utf8');

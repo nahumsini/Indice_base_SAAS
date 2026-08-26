@@ -52,6 +52,21 @@ class PointOfSaleKioskAdapterTest {
     }
 
     @Test
+    void routesAllRestaurantAliasesThroughOneSharedExperience() {
+        var capability = "pos.restaurant.workspace.read";
+        var adapter = new PointOfSaleKioskAdapter(List.of(experience(
+            Set.of("waiter_station", "table_order_center", "kitchen_display"),
+            "waiter_station", capability)));
+
+        assertThat(adapter.capabilities(definition("waiter_station")))
+            .extracting(KioskCapabilityDescriptor::key).containsExactly(capability);
+        assertThat(adapter.capabilities(definition("table_order_center")))
+            .extracting(KioskCapabilityDescriptor::key).containsExactly(capability);
+        assertThat(adapter.capabilities(definition("kitchen_display")))
+            .extracting(KioskCapabilityDescriptor::key).containsExactly(capability);
+    }
+
+    @Test
     void rejectsCapabilityFromAnotherPosExperience() {
         var adapter = new PointOfSaleKioskAdapter(List.of(
             experience("customer_display", "pos.customer-display.state.read"),
@@ -67,11 +82,17 @@ class PointOfSaleKioskAdapterTest {
     }
 
     private PointOfSaleKioskExperience experience(String type, String capabilityKey) {
+        return experience(Set.of(type), type, capabilityKey);
+    }
+
+    private PointOfSaleKioskExperience experience(
+            Set<String> types, String type, String capabilityKey) {
         var descriptor = new KioskCapabilityDescriptor(
             capabilityKey, 1, PointOfSaleKioskCapabilities.OWNER_MODULE,
             KioskOperationPolicy.INFORMATION_ONLY, KioskAccessLevel.PUBLIC, false, false);
         return new PointOfSaleKioskExperience() {
             @Override public String kioskType() { return type; }
+            @Override public Set<String> kioskTypes() { return types; }
             @Override public Set<KioskCapabilityDescriptor> capabilities() { return Set.of(descriptor); }
             @Override public Map<String, Object> bootstrap(KioskExecutionContext context) { return Map.of(); }
             @Override public Map<String, Object> execute(

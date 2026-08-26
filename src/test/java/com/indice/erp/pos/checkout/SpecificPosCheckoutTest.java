@@ -19,6 +19,9 @@ import com.indice.erp.pos.checkout.dto.PosCheckoutPaymentRequest;
 import com.indice.erp.pos.checkout.dto.PosCheckoutRequest;
 import com.indice.erp.pos.payment.PaymentMapper;
 import com.indice.erp.pos.discount.DiscountRuleService;
+import com.indice.erp.pos.restaurant.RestaurantOrderDtos.RestaurantCheckoutLine;
+import com.indice.erp.pos.restaurant.RestaurantOrderDtos.RestaurantCheckoutOrder;
+import com.indice.erp.pos.restaurant.RestaurantOrderService;
 import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.PreticketItemResponse;
 import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.PreticketResponse;
 import com.indice.erp.pos.selfservice.SelfServiceKioskRepository;
@@ -58,6 +61,7 @@ class SpecificPosCheckoutTest {
     @Mock InventoryDeductionService inventoryDeductionService;
     @Mock DiscountRuleService discountRuleService;
     @Mock SelfServiceKioskRepository selfServiceKioskRepository;
+    @Mock RestaurantOrderService restaurantOrderService;
 
     private final TicketMapper ticketMapper = new TicketMapper();
     private final PaymentMapper paymentMapper = new PaymentMapper();
@@ -216,6 +220,44 @@ class SpecificPosCheckoutTest {
             List.of(payment("CARD", "10.0000")), null));
 
         verify(selfServiceKioskRepository).completeClaim(eq(context()), eq(41L), any(CashRegisterRecord.class), eq(100L));
+    }
+
+    @Test
+    void restaurantOrderWithTheSameProductInMultipleRoundsCompletesWithItsTicket() {
+        when(cashRegisterService.requireOperationalRegister(context(), 20L)).thenReturn(register());
+        when(shiftRepository.findOpenByUserAndRegister(context(), 20L)).thenReturn(Optional.of(shift()));
+        when(ticketRepository.existsTicketNumber(eq(context()), any())).thenReturn(false);
+        when(salesRecordSummaryRepository.insert(eq(context()), any())).thenReturn(500L);
+        when(lookupRepository.findProduct(context(), 700L)).thenReturn(Optional.of(stockProduct()));
+        when(restaurantOrderService.requireClaimedForCheckout(context(), 81L, 20L))
+            .thenReturn(new RestaurantCheckoutOrder(
+                81L, 1L, 20L, "ORD-81", "MXN", 10L,
+                List.of(
+                    new RestaurantCheckoutLine(700L, "SKU-700", "Coffee", BigDecimal.ONE,
+                        new BigDecimal("10.0000"), new BigDecimal("10.0000")),
+                    new RestaurantCheckoutLine(700L, "SKU-700", "Coffee", new BigDecimal("2.0000"),
+                        new BigDecimal("10.0000"), new BigDecimal("20.0000")))));
+        when(ticketRepository.insert(eq(context()), any())).thenReturn(ticket());
+        when(ticketRepository.insertItems(eq(context()), eq(100L), any())).thenReturn(List.of(
+            ticketItemWithProduct(),
+            new TicketItemRecord(201L, 1L, 100L, 700L, "SKU-700", "Coffee", "Product",
+                new BigDecimal("2.0000"), new BigDecimal("10.0000"), BigDecimal.ZERO,
+                BigDecimal.ZERO, new BigDecimal("20.0000"), "MXN", null, Instant.now())));
+        when(paymentRepository.insertAll(eq(context()), eq(100L), any()))
+            .thenReturn(List.of(paymentRecord(PaymentMethod.CARD)));
+        var service = new CheckoutService(
+            cashRegisterService, shiftRepository, lookupRepository, salesRecordSummaryRepository,
+            ticketRepository, paymentRepository, inventoryDeductionService, ticketMapper, paymentMapper,
+            calculator, validator, discountRuleService, selfServiceKioskRepository, restaurantOrderService);
+
+        service.checkout(context(), new PosCheckoutRequest(
+            20L, null, null, 81L, "MXN",
+            List.of(
+                itemWithProduct("1", "10", "0", "0"),
+                itemWithProduct("2", "10", "0", "0")),
+            List.of(payment("CARD", "30.0000")), null));
+
+        verify(restaurantOrderService).completeCheckout(context(), 81L, 20L, 100L);
     }
 
     private CheckoutService readyService() {

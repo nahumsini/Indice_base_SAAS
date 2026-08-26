@@ -9,6 +9,9 @@ import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
 import com.indice.erp.pos.PosRequestGuard;
 import com.indice.erp.pos.customerdisplay.CustomerDisplayService;
 import com.indice.erp.pos.kiosk.PointOfSaleKioskCapabilities;
+import com.indice.erp.pos.restaurant.RestaurantOrderDtos.CreateKioskRequest;
+import com.indice.erp.pos.restaurant.RestaurantOrderDtos.UpdateKioskRequest;
+import com.indice.erp.pos.restaurant.RestaurantOrderService;
 import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.CreateRequest;
 import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.SelfCheckoutCreateRequest;
 import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.StatusRequest;
@@ -27,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -50,10 +54,12 @@ public class PointOfSaleKioskAdminV2Controller {
     private final KioskRegistryService registry;
     private final KioskCenterService center;
     private final ShiftRepository shifts;
+    private final RestaurantOrderService restaurant;
     private final KioskV2ResponseFactory responses;
     private final ObjectMapper objectMapper;
     private final Validator validator;
 
+    @Autowired
     public PointOfSaleKioskAdminV2Controller(
             PosRequestGuard guard,
             CustomerDisplayService customerDisplays,
@@ -61,6 +67,7 @@ public class PointOfSaleKioskAdminV2Controller {
             KioskRegistryService registry,
             KioskCenterService center,
             ShiftRepository shifts,
+            RestaurantOrderService restaurant,
             KioskV2ResponseFactory responses,
             ObjectMapper objectMapper,
             Validator validator) {
@@ -70,9 +77,24 @@ public class PointOfSaleKioskAdminV2Controller {
         this.registry = registry;
         this.center = center;
         this.shifts = shifts;
+        this.restaurant = restaurant;
         this.responses = responses;
         this.objectMapper = objectMapper;
         this.validator = validator;
+    }
+
+    PointOfSaleKioskAdminV2Controller(
+            PosRequestGuard guard,
+            CustomerDisplayService customerDisplays,
+            SelfServiceKioskService selfService,
+            KioskRegistryService registry,
+            KioskCenterService center,
+            ShiftRepository shifts,
+            KioskV2ResponseFactory responses,
+            ObjectMapper objectMapper,
+            Validator validator) {
+        this(guard, customerDisplays, selfService, registry, center, shifts, null,
+            responses, objectMapper, validator);
     }
 
     @GetMapping
@@ -103,6 +125,11 @@ public class PointOfSaleKioskAdminV2Controller {
                 }
             }
         }
+        if (restaurant != null && (type == null || type.isBlank() || restaurant.supports(type))) {
+            restaurant.listAdmin(access.context()).stream()
+                .filter(item -> type == null || type.isBlank() || type.equals(item.get("kioskType")))
+                .forEach(items::add);
+        }
         return ResponseEntity.ok(responses.success(Map.of("items", items), null, null));
     }
 
@@ -114,6 +141,11 @@ public class PointOfSaleKioskAdminV2Controller {
             @RequestBody Map<String, Object> payload) {
         var access = guard.requireAdminWriteAccess(session, csrfToken);
         if (access.denied()) return access.error();
+        if (restaurant != null && restaurant.supports(type)) {
+            var created = restaurant.createKiosk(
+                access.context(), type, valid(objectMapper.convertValue(payload, CreateKioskRequest.class)));
+            return ResponseEntity.status(HttpStatus.CREATED).body(responses.success(created, null, null));
+        }
         final com.indice.erp.pos.selfservice.SelfServiceKioskDtos.AdminResponse created;
         if (PointOfSaleKioskCapabilities.SELF_SERVICE_TYPE.equals(type)) {
             created = selfService.create(
@@ -141,6 +173,8 @@ public class PointOfSaleKioskAdminV2Controller {
         } else if (isSelfServiceBacked(definition)) {
             data = selfServiceAdminView(access.context(), requireSelfService(
                 access.context(), definition.legacyReferenceId()));
+        } else if (isRestaurantBacked(definition)) {
+            data = restaurant.detail(access.context(), definition);
         } else {
             throw new java.util.NoSuchElementException("Point of Sale kiosk not found.");
         }
@@ -156,7 +190,7 @@ public class PointOfSaleKioskAdminV2Controller {
             ? customerDisplays.publicAccess(access.context(), kioskId)
             : isSelfServiceBacked(definition)
                 ? selfService.publicAccess(access.context(), definition.legacyReferenceId())
-                : null;
+                : isRestaurantBacked(definition) ? restaurant.access(access.context(), definition) : null;
         if (data == null) {
             throw new UnsupportedOperationException("This POS kiosk type does not expose a link.");
         }
@@ -180,6 +214,10 @@ public class PointOfSaleKioskAdminV2Controller {
             var request = valid(objectMapper.convertValue(payload, UpdateRequest.class));
             data = selfServiceView(access.context().companyId(), selfService.update(
                 access.context(), definition.legacyReferenceId(), request));
+        } else if (isRestaurantBacked(definition)) {
+            data = restaurant.update(
+                access.context(), definition,
+                valid(objectMapper.convertValue(payload, UpdateKioskRequest.class)));
         } else {
             throw new java.util.NoSuchElementException("Point of Sale kiosk not found.");
         }
@@ -204,6 +242,8 @@ public class PointOfSaleKioskAdminV2Controller {
                 "name", rotated.name(),
                 "displayUrl", rotated.publicUrl(),
                 "publicTokenHint", rotated.publicTokenHint());
+        } else if (isRestaurantBacked(definition)) {
+            data = restaurant.rotate(access.context(), definition);
         } else {
             throw new UnsupportedOperationException("This POS kiosk type does not expose link rotation.");
         }
@@ -251,6 +291,8 @@ public class PointOfSaleKioskAdminV2Controller {
         } else if (isSelfServiceBacked(definition)) {
             requireSelfService(access.context(), definition.legacyReferenceId());
             selfService.delete(access.context(), definition.legacyReferenceId(), reason(payload));
+        } else if (isRestaurantBacked(definition)) {
+            throw new UnsupportedOperationException("Restaurant kiosks preserve operational history and cannot be deleted.");
         } else {
             throw new java.util.NoSuchElementException("Point of Sale kiosk not found.");
         }
@@ -267,6 +309,12 @@ public class PointOfSaleKioskAdminV2Controller {
         items.addAll(center.audit(access.context().companyId(), kioskId));
         if (isSelfServiceBacked(definition)) {
             items.addAll(selfService.audit(access.context(), definition.legacyReferenceId()));
+        }
+        if (isRestaurantBacked(definition)) {
+            var item = restaurant.detail(access.context(), definition);
+            var assignment = (Map<?, ?>) item.get("assignment");
+            var ecosystemId = ((Number) assignment.get("ecosystemId")).longValue();
+            items.addAll((List<Map<String, Object>>) restaurant.ecosystemTrace(access.context(), ecosystemId).get("events"));
         }
         items.sort(Comparator.comparing(
             item -> String.valueOf(item.getOrDefault("created_at", "")), Comparator.reverseOrder()));
@@ -292,6 +340,9 @@ public class PointOfSaleKioskAdminV2Controller {
             data = selfServiceView(access.context().companyId(), selfService.transition(
                 access.context(), definition.legacyReferenceId(),
                 new StatusRequest(status.name(), reason(payload))));
+        } else if (isRestaurantBacked(definition)) {
+            data = restaurant.transition(
+                access.context(), definition, status.name(), reason(payload));
         } else {
             throw new java.util.NoSuchElementException("Point of Sale kiosk not found.");
         }
@@ -314,6 +365,8 @@ public class PointOfSaleKioskAdminV2Controller {
             customerDisplays.adminDetail(context, definition.id());
         } else if (isSelfServiceBacked(definition)) {
             requireSelfService(context, definition.legacyReferenceId());
+        } else if (isRestaurantBacked(definition)) {
+            restaurant.detail(context, definition);
         } else {
             throw new java.util.NoSuchElementException("Point of Sale kiosk not found.");
         }
@@ -546,6 +599,10 @@ public class PointOfSaleKioskAdminV2Controller {
     private boolean isSelfServiceBacked(KioskResolvedDefinition definition) {
         return PointOfSaleKioskCapabilities.SELF_SERVICE_TYPE.equals(definition.kioskType())
             || PointOfSaleKioskCapabilities.SELF_CHECKOUT_TYPE.equals(definition.kioskType());
+    }
+
+    private boolean isRestaurantBacked(KioskResolvedDefinition definition) {
+        return restaurant != null && restaurant.supports(definition.kioskType());
     }
 
     private KioskResolvedDefinition selfServiceDefinition(long companyId, long legacyReferenceId) {
