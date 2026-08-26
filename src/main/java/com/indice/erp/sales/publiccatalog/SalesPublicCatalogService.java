@@ -288,7 +288,8 @@ public class SalesPublicCatalogService {
                 imagesByProduct == null ? List.of() : imagesByProduct.getOrDefault(item.id(), List.of())))
             .toList();
         return new BootstrapResponse(
-            catalog.code(), catalog.companyName(), catalog.unitName(), catalog.businessName(),
+            catalog.code(), catalog.companyName(), catalog.companyLogoUrl(),
+            catalog.unitName(), catalog.businessName(),
             catalog.title(), catalog.description(), catalog.coverImageUrl(),
             catalog.contactCtaLabel(), catalog.contactMethod(), catalog.contactValue(),
             catalog.showPrices(), catalog.showWholesalePrices(), catalog.showStockStatus(),
@@ -498,7 +499,8 @@ public class SalesPublicCatalogService {
 
     private AdminResponse admin(SalesPublicCatalogRepository.CatalogRecord row, String token) {
         return new AdminResponse(
-            row.id(), row.companyId(), row.companyName(), row.unitId(), row.unitName(),
+            row.id(), row.companyId(), row.companyName(), row.companyLogoUrl(),
+            row.unitId(), row.unitName(),
             row.businessId(), row.businessName(),
             row.code(), row.name(), row.title(), row.description(),
             row.coverImageUrl(), row.contactCtaLabel(), row.contactMethod(), row.contactValue(),

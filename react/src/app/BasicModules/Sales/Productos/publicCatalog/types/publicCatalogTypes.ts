@@ -15,6 +15,7 @@ export type PublicCatalogConfig = {
   backendId?: number;
   version?: number;
   companyName?: string;
+  companyLogoUrl?: string;
   unitId?: number;
   businessId?: number;
   unitName?: string;

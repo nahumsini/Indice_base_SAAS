@@ -17,6 +17,24 @@ class SalesPublicCatalogRepositoryTest {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Test
+    void resolvesTheCurrentCompanyLogoBeforeTheLegacyCompanyColumn() {
+        var jdbcTemplate = mock(JdbcTemplate.class);
+        var repository = new SalesPublicCatalogRepository(jdbcTemplate);
+        when(jdbcTemplate.query(any(String.class), any(RowMapper.class), any(Object[].class)))
+            .thenReturn(List.of());
+
+        repository.list(7L);
+
+        var sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).query(sql.capture(), any(RowMapper.class), any(Object[].class));
+        assertThat(sql.getValue())
+            .contains("$.config_center.empresa_template.logo")
+            .contains("company.logo_url")
+            .contains("LEFT JOIN company_settings ON company_settings.company_id = catalog.company_id");
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
     void resolvesInventoryOnlyFromActiveWarehousesInTheCatalogScope() {
         var jdbcTemplate = mock(JdbcTemplate.class);
         var repository = new SalesPublicCatalogRepository(jdbcTemplate);
@@ -39,7 +57,7 @@ class SalesPublicCatalogRepositoryTest {
     private SalesPublicCatalogRepository.CatalogRecord catalog() {
         var now = Instant.parse("2026-07-18T12:00:00Z");
         return new SalesPublicCatalogRepository.CatalogRecord(
-            17L, 7L, "Empresa", 11L, "Unidad", 12L, "Negocio", "CATALOGO-2026",
+            17L, 7L, "Empresa", null, 11L, "Unidad", 12L, "Negocio", "CATALOGO-2026",
             "Catálogo 2026", "Catálogo público", null, null, "Contactar", "email",
             "ventas@example.com", "ACTIVE", null, "tokenhint", null, true, false, true,
             true, true, true, true, false, 1L, now, now);

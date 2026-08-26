@@ -18,6 +18,7 @@ const numberValue = (value: number | string | null | undefined) => Number(value 
 const configFromBootstrap = (bootstrap: PublicCatalogBootstrap): PublicCatalogConfig => ({
   id: bootstrap.code,
   companyName: bootstrap.companyName,
+  companyLogoUrl: resolveSalesStorageUrl(bootstrap.companyLogoUrl),
   unitName: bootstrap.unitName,
   businessName: bootstrap.businessName,
   title: bootstrap.title,

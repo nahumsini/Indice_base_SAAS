@@ -1,11 +1,13 @@
 import { apiClient } from '../../../../lib/apiClient';
 import type { PublicCatalogAvailability, PublicCatalogConfig, PublicCatalogItem, PublicCatalogContactMethod } from './types/publicCatalogTypes';
 import type { DiscountRuleWire } from '../../../PointOfSale/shared/commercial/discounts/services/discountRulesApi';
+import { resolveSalesStorageUrl } from '../../utils/salesStorageUrls';
 
 type AdminCatalog = {
   id: number;
   companyId: number;
   companyName: string;
+  companyLogoUrl?: string | null;
   unitId: number;
   businessId: number;
   code: string;
@@ -37,6 +39,7 @@ type AdminCatalog = {
 export type PublicCatalogBootstrap = {
   code: string;
   companyName: string;
+  companyLogoUrl?: string | null;
   unitName: string;
   businessName: string;
   title: string;
@@ -144,6 +147,7 @@ export const toPublicCatalogConfig = (catalog: AdminCatalog): PublicCatalogConfi
   backendId: catalog.id,
   version: catalog.version,
   companyName: catalog.companyName,
+  companyLogoUrl: resolveSalesStorageUrl(catalog.companyLogoUrl),
   unitId: catalog.unitId,
   businessId: catalog.businessId,
   title: catalog.title,

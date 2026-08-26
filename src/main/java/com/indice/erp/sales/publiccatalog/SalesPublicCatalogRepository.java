@@ -574,9 +574,17 @@ public class SalesPublicCatalogRepository {
     private String catalogSelect() {
         return """
             SELECT catalog.*, company.name AS company_name,
+                   COALESCE(
+                       NULLIF(JSON_UNQUOTE(JSON_EXTRACT(
+                           company_settings.settings_json,
+                           '$.config_center.empresa_template.logo'
+                       )), ''),
+                       company.logo_url
+                   ) AS company_logo_url,
                    unit.name AS unit_name, business.name AS business_name
             FROM sales_public_catalogs catalog
             JOIN companies company ON company.id = catalog.company_id
+            LEFT JOIN company_settings ON company_settings.company_id = catalog.company_id
             LEFT JOIN units unit ON unit.id = catalog.unit_id
               AND (unit.company_id = catalog.company_id OR unit.company_id IS NULL)
             LEFT JOIN businesses business ON business.id = catalog.business_id
@@ -592,6 +600,7 @@ public class SalesPublicCatalogRepository {
     private CatalogRecord mapCatalog(ResultSet rs, int rowNum) throws SQLException {
         return new CatalogRecord(
             rs.getLong("id"), rs.getLong("company_id"), rs.getString("company_name"),
+            rs.getString("company_logo_url"),
             rs.getObject("unit_id", Long.class),
             rs.getString("unit_name"), rs.getObject("business_id", Long.class),
             rs.getString("business_name"), rs.getString("code"), rs.getString("name"),
@@ -664,6 +673,7 @@ public class SalesPublicCatalogRepository {
         long id,
         long companyId,
         String companyName,
+        String companyLogoUrl,
         Long unitId,
         String unitName,
         Long businessId,

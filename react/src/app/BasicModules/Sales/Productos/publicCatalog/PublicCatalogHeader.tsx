@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ArrowUpRight, Globe2, Mail, MessageCircle, Phone, Store } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import type { ProductsTranslations } from '../translations';
@@ -19,6 +20,37 @@ const contactHref = (config: PublicCatalogConfig) => {
   return /^https?:\/\//i.test(value) ? value : `https://${value}`;
 };
 
+function PublicCatalogCompanyMark({
+  config,
+  compact,
+}: {
+  config: PublicCatalogConfig;
+  compact: boolean;
+}) {
+  const logoUrl = config.companyLogoUrl?.trim() ?? '';
+  const [failedLogoUrl, setFailedLogoUrl] = useState<string | null>(null);
+  const showLogo = Boolean(logoUrl) && failedLogoUrl !== logoUrl;
+
+  return (
+    <div
+      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[#FF6B5E]/25 bg-white/80 text-[#B63B32] shadow-sm dark:bg-slate-950/70 dark:text-[#FF9B91] ${compact ? 'h-11 w-11' : 'h-14 w-14'}`}
+    >
+      {showLogo ? (
+        <img
+          src={logoUrl}
+          alt=""
+          className="h-full w-full object-contain p-2"
+          loading="eager"
+          decoding="async"
+          onError={() => setFailedLogoUrl(logoUrl)}
+        />
+      ) : (
+        <Store aria-hidden="true" className={compact ? 'h-5 w-5' : 'h-6 w-6'} />
+      )}
+    </div>
+  );
+}
+
 export function PublicCatalogHeader({
   config,
   itemCount,
@@ -38,10 +70,8 @@ export function PublicCatalogHeader({
     return (
       <header className="w-full min-w-0 overflow-hidden border-b border-[#FF6B5E]/20 bg-[linear-gradient(145deg,rgba(255,107,94,.12),rgba(255,255,255,1)_52%)] dark:bg-[linear-gradient(145deg,rgba(255,107,94,.15),rgba(2,6,23,1)_55%)]">
         <div className="min-w-0 px-4 py-4">
-          <div className="flex items-start gap-3">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-[#FF6B5E]/25 bg-white/80 text-[#B63B32] shadow-sm dark:bg-slate-950/70 dark:text-[#FF9B91]">
-              <Store className="h-5 w-5" />
-            </div>
+          <div className="flex items-center gap-3">
+            <PublicCatalogCompanyMark config={config} compact />
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-mediumr text-[#B63B32] dark:text-[#FF9B91]">{t.publicCatalog.moduleEyebrow}</p>
               <h1 className="mt-1 line-clamp-2 text-2xl font-medium leading-7 text-slate-950 dark:text-white">{config.title}</h1>
@@ -80,10 +110,8 @@ export function PublicCatalogHeader({
   return (
     <header className="overflow-hidden border-b border-[#FF6B5E]/20 bg-[linear-gradient(120deg,rgba(255,107,94,.13),rgba(255,255,255,1)_48%)] dark:bg-[linear-gradient(120deg,rgba(255,107,94,.15),rgba(2,6,23,1)_52%)]">
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-7 md:px-8 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 gap-4 lg:max-w-[72%]">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#FF6B5E]/25 bg-white/80 text-[#B63B32] shadow-sm dark:bg-slate-950/70 dark:text-[#FF9B91]">
-            <Store className="h-6 w-6" />
-          </div>
+        <div className="flex min-w-0 items-center gap-4 lg:max-w-[72%]">
+          <PublicCatalogCompanyMark config={config} compact={false} />
           <div className="min-w-0">
             <p className="text-xs font-medium text-[#B63B32] dark:text-[#FF9B91]">{t.publicCatalog.moduleEyebrow}</p>
             <h1 className="mt-1 text-3xl font-medium leading-tight text-slate-950 md:text-[2.35rem] dark:text-white">{config.title}</h1>

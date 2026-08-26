@@ -176,6 +176,23 @@ test('reservable public catalog items keep purchase actions and expose a private
   assert.doesNotMatch(modal, /iCal|\.ics|availabilityIcalUrl/);
 });
 
+test('public catalog centers the company logo and keeps the store mark as a resilient fallback', async () => {
+  const root = new URL('../src/app/BasicModules/Sales/Productos/publicCatalog/', import.meta.url);
+  const [header, page, api] = await Promise.all([
+    readFile(new URL('PublicCatalogHeader.tsx', root), 'utf8'),
+    readFile(new URL('PublicCatalogPage.tsx', root), 'utf8'),
+    readFile(new URL('publicCatalogApi.ts', root), 'utf8'),
+  ]);
+
+  assert.match(header, /config\.companyLogoUrl/);
+  assert.match(header, /items-center justify-center overflow-hidden/);
+  assert.match(header, /object-contain p-2/);
+  assert.match(header, /onError=\{\(\) => setFailedLogoUrl\(logoUrl\)\}/);
+  assert.match(header, /<Store aria-hidden="true"/);
+  assert.match(page, /companyLogoUrl: resolveSalesStorageUrl\(bootstrap\.companyLogoUrl\)/);
+  assert.match(api, /companyLogoUrl: resolveSalesStorageUrl\(catalog\.companyLogoUrl\)/);
+});
+
 test('public catalog presents a deduplicated image gallery with a thumbnail fallback', () => {
   const item = {
     id: 'product-1',

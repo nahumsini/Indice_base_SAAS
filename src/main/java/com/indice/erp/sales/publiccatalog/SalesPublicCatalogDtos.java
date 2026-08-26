@@ -48,6 +48,7 @@ public final class SalesPublicCatalogDtos {
         Long id,
         Long companyId,
         String companyName,
+        String companyLogoUrl,
         Long unitId,
         String unitName,
         Long businessId,
@@ -128,6 +129,7 @@ public final class SalesPublicCatalogDtos {
     public record BootstrapResponse(
         String code,
         String companyName,
+        String companyLogoUrl,
         String unitName,
         String businessName,
         String title,
@@ -149,14 +151,15 @@ public final class SalesPublicCatalogDtos {
         List<RuleResponse> discountRules
     ) {
         public BootstrapResponse(
-                String code, String companyName, String unitName, String businessName, String title,
+                String code, String companyName, String companyLogoUrl, String unitName,
+                String businessName, String title,
                 String description, String coverImageUrl, String contactCtaLabel, String contactMethod,
                 String contactValue, boolean showPrices, boolean showWholesalePrices,
                 boolean showStockStatus, boolean showItemTypeBadges, boolean showCategories,
                 boolean allowCart, boolean allowPurchaseRequest, boolean allowImageDownloads,
                 String submissionPolicy,
                 List<PublicItem> items) {
-            this(code, companyName, unitName, businessName, title, description, coverImageUrl,
+            this(code, companyName, companyLogoUrl, unitName, businessName, title, description, coverImageUrl,
                 contactCtaLabel, contactMethod, contactValue, showPrices, showWholesalePrices,
                 showStockStatus, showItemTypeBadges, showCategories, allowCart,
                 allowPurchaseRequest, allowImageDownloads, submissionPolicy, items, List.of());

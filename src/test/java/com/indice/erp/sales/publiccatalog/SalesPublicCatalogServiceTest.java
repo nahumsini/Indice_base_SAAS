@@ -67,7 +67,8 @@ class SalesPublicCatalogServiceTest {
         var token = "spc_1234567890abcdefghijklmnopqrstuvwxyz";
         var base = catalog(true);
         var catalog = new SalesPublicCatalogRepository.CatalogRecord(
-            base.id(), base.companyId(), base.companyName(), base.unitId(), base.unitName(),
+            base.id(), base.companyId(), base.companyName(), base.companyLogoUrl(),
+            base.unitId(), base.unitName(),
             base.businessId(), base.businessName(), base.code(), base.name(), base.title(),
             base.description(), base.coverImageUrl(), base.contactCtaLabel(), base.contactMethod(),
             base.contactValue(), base.status(), base.expiresAt(), token.substring(token.length() - 8),
@@ -229,12 +230,13 @@ class SalesPublicCatalogServiceTest {
         @SuppressWarnings("unchecked")
         var payload = (Map<String, Object>) new ObjectMapper().convertValue(bootstrap, Map.class);
         assertThat(payload).containsOnlyKeys(
-            "code", "companyName", "unitName", "businessName", "title", "description",
+            "code", "companyName", "companyLogoUrl", "unitName", "businessName", "title", "description",
             "coverImageUrl", "contactCtaLabel", "contactMethod", "contactValue", "showPrices",
             "showWholesalePrices", "showStockStatus", "showItemTypeBadges", "showCategories",
             "allowCart", "allowPurchaseRequest", "allowImageDownloads", "submissionPolicy", "items", "discountRules");
         assertThat(payload).doesNotContainKeys("catalogId", "companyId", "unitId", "businessId");
         assertThat(payload).containsEntry("companyName", catalog.companyName())
+            .containsEntry("companyLogoUrl", catalog.companyLogoUrl())
             .containsEntry("unitName", catalog.unitName())
             .containsEntry("businessName", catalog.businessName())
             .containsEntry("allowImageDownloads", false);
@@ -307,7 +309,8 @@ class SalesPublicCatalogServiceTest {
     @Test
     void hidesStockTypeAndCategoryFieldsAtTheBackendBoundary() {
         var catalog = new SalesPublicCatalogRepository.CatalogRecord(
-            17L, 7L, "Empresa", 11L, "Unidad", 12L, "Negocio", "CATALOGO-2026", "Catálogo 2026",
+            17L, 7L, "Empresa", "https://cdn.example.test/logo.png",
+            11L, "Unidad", 12L, "Negocio", "CATALOGO-2026", "Catálogo 2026",
             "Catálogo público", "Descripción", null, "Solicitar", "email",
             "ventas@example.com", "ACTIVE", null, "tokenhint", null, true, true, false,
             false, false, true, true, false, 1L, NOW.minusSeconds(60), NOW.minusSeconds(60));
@@ -382,7 +385,8 @@ class SalesPublicCatalogServiceTest {
             boolean showPrices,
             boolean showWholesalePrices) {
         return new SalesPublicCatalogRepository.CatalogRecord(
-            17L, 7L, "Empresa", 11L, "Unidad", 12L, "Negocio", "CATALOGO-2026", "Catálogo 2026", "Catálogo público",
+            17L, 7L, "Empresa", "https://cdn.example.test/logo.png",
+            11L, "Unidad", 12L, "Negocio", "CATALOGO-2026", "Catálogo 2026", "Catálogo público",
             "Descripción", null, "Solicitar", "email", "ventas@example.com", "ACTIVE", null,
             "tokenhint", null, showPrices, showWholesalePrices, true, true, true, true, true, false,
             1L,

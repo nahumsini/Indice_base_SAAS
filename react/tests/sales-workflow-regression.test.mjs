@@ -97,6 +97,7 @@ test('Productos conserva la imagen temporal en la revisión y enruta almacenamie
   assert.match(storageUrls, /parsedUrl\.pathname\.startsWith\('\/storage\/'\)/);
   assert.match(salesApi, /fetch\(resolveSalesStorageUrl\(uploadUrl\)/);
   assert.match(publicCatalog, /resolveSalesStorageUrl\(item\.thumbnailUrl\)/);
+  assert.match(publicCatalog, /resolveSalesStorageUrl\(bootstrap\.companyLogoUrl\)/);
   assert.match(viteConfig, /'\/storage': \{/);
   assert.match(viteConfig, /Host: storageSignedHost/);
 });
