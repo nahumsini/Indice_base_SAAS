@@ -172,6 +172,11 @@ export interface PlatformCompanySummary {
   entitlement_mode?: string | null;
   billing_status?: string | null;
   billing_managed_by_stripe?: boolean;
+  catalog_version_id?: number | null;
+  catalog_version?: string | null;
+  active_catalog_version_id?: number | null;
+  active_catalog_version?: string | null;
+  catalog_version_historical?: boolean;
   billing_amount_cents?: number | null;
   billing_amount_kind?:
     | 'CURRENT'
@@ -187,6 +192,8 @@ export interface PlatformCompanySummary {
   offer_code?: string | null;
   billing_interval?: 'MONTH' | 'YEAR' | string | null;
   currency?: string | null;
+  subtotal_amount_cents?: number | null;
+  discount_amount_cents?: number;
   cancel_at_period_end?: boolean;
   trial_ends_at?: string | null;
   trial_source?: 'STRIPE' | 'LOCAL_DEMO' | null;
@@ -212,11 +219,30 @@ export interface PlatformCompanySummary {
 }
 
 export interface PlatformCompanyProduct {
+  catalog_product_id: number;
+  catalog_version_id: number;
+  catalog_version: string;
   code: string;
   name: string;
   type: string;
+  commercial_kind?: 'CORE' | 'MODULE' | 'PACKAGE' | 'SEAT' | string;
   source: string;
   sort_order: number;
+  monthly_price_cents?: number | null;
+  annual_price_cents?: number | null;
+  capabilities?: string[];
+}
+
+export interface PlatformCompanyProductPreview {
+  source: string;
+  status: string;
+  catalog_version: string;
+  offer_code: string;
+  billing_interval: string;
+  currency: string;
+  estimated_amount_cents?: number | null;
+  change_timing: 'TRIAL_END' | 'NEXT_INVOICE' | string;
+  selected_product_codes: string[];
 }
 
 export interface PlatformCompanyMember {
@@ -355,6 +381,11 @@ export interface PlatformCatalogProduct {
   commercial_kind?: 'CORE' | 'MODULE' | 'PACKAGE' | 'SEAT' | string;
   commercial_model?: boolean;
   description?: string | null;
+  external_product_id?: string | null;
+  stripe_mode?: 'TEST' | 'LIVE' | null;
+  stripe_account_id?: string | null;
+  stripe_verified_at?: string | null;
+  stripe_sync_status?: 'PENDING' | 'UNVERIFIED' | 'READY' | 'ERROR';
   monthly_price_cents?: number | null;
   annual_price_cents?: number | null;
   sort_order: number;
@@ -376,6 +407,10 @@ export interface PlatformCatalogPrice {
   unit_amount_cents?: number | null;
   included_quantity: number;
   external_price_id?: string | null;
+  stripe_mode?: 'TEST' | 'LIVE' | null;
+  stripe_account_id?: string | null;
+  stripe_verified_at?: string | null;
+  stripe_sync_status?: 'PENDING' | 'UNVERIFIED' | 'READY' | 'ERROR';
   status: string;
   effective_from: string;
   effective_to?: string | null;
@@ -386,6 +421,11 @@ export interface PlatformCatalog {
   products: PlatformCatalogProduct[];
   prices: PlatformCatalogPrice[];
   promotions?: PlatformCatalogPromotion[];
+  stripe_environment?: {
+    enabled: boolean;
+    mode: 'TEST' | 'LIVE';
+    catalog_live_sync_enabled: boolean;
+  };
 }
 
 export interface PlatformCatalogPromotion {
@@ -404,6 +444,10 @@ export interface PlatformCatalogPromotion {
   starts_at?: string | null;
   ends_at?: string | null;
   external_promotion_code_id?: string | null;
+  stripe_mode?: 'TEST' | 'LIVE' | null;
+  stripe_account_id?: string | null;
+  stripe_verified_at?: string | null;
+  stripe_sync_status?: 'PENDING' | 'UNVERIFIED' | 'READY' | 'ERROR';
   active: boolean;
   sort_order: number;
   product_codes: string[];
@@ -441,13 +485,16 @@ export interface PlatformCatalogValidation {
   version_code: string;
   ready: boolean;
   blockers: Array<{ code: string; product_code: string; message: string }>;
-  stripe_mode: 'TEST';
+  stripe_mode: 'TEST' | 'LIVE';
+  stripe_account_id?: string | null;
 }
 
 export interface PlatformCatalogStripePriceSync {
   catalog_product_id: number;
   stripe_product_id: string;
-  stripe_mode: 'TEST';
+  stripe_mode: 'TEST' | 'LIVE';
+  stripe_account_id: string;
+  operation_id: string;
   currency: 'USD';
   tax_behavior: 'EXCLUSIVE';
   tax_code: string;
@@ -742,19 +789,20 @@ export const platformAdminApi = {
   }>(`${endpoints.platformAdmin.catalog}/complementary-products/synchronize`, {
     method: 'POST',
   }),
-  createCatalogDraft: () => apiClient<{ id: number; version_code: string; status: 'DRAFT'; stripe_mode: 'TEST' }>(
+  createCatalogDraft: () => apiClient<{ id: number; version_code: string; status: 'DRAFT'; stripe_mode: 'TEST' | 'LIVE' }>(
     `${endpoints.platformAdmin.catalog}/drafts`,
     { method: 'POST' },
   ),
   validateCatalogDraft: (versionId: number) => apiClient<PlatformCatalogValidation>(
     `${endpoints.platformAdmin.catalog}/drafts/${versionId}/validation`,
+    { method: 'POST' },
   ),
   publishCatalogDraft: (versionId: number) => apiClient<{
     catalog_version_id: number;
     version_code: string;
     status: 'ACTIVE';
     published: true;
-    stripe_mode: 'TEST';
+    stripe_mode: 'TEST' | 'LIVE';
   }>(`${endpoints.platformAdmin.catalog}/drafts/${versionId}/publish`, { method: 'POST' }),
   updateCatalogProduct: (
     productId: number,
@@ -778,7 +826,12 @@ export const platformAdminApi = {
   ),
   synchronizeCatalogProductPrices: (
     productId: number,
-    payload: { monthly_amount_cents: number; annual_amount_cents: number },
+    payload: {
+      monthly_amount_cents: number;
+      annual_amount_cents: number;
+      target_mode?: 'TEST' | 'LIVE';
+      confirmation?: string;
+    },
   ) => apiClient<PlatformCatalogStripePriceSync>(
     `${endpoints.platformAdmin.catalog}/products/${productId}/stripe-prices/synchronize`,
     { method: 'POST', body: JSON.stringify(payload) },
@@ -853,7 +906,7 @@ export const platformAdminApi = {
     `${companyPath(companyId)}/benefits/${encodeURIComponent(reference)}`,
     { method: 'DELETE', body: JSON.stringify({ reason }) },
   ),
-  updateTrialProducts: (companyId: number, productCodes: string[]) => apiClient<{
+  updateTrialProducts: (companyId: number, productCodes: string[], expectedCatalogVersion: string) => apiClient<{
     company_id: number;
     product_codes: string[];
     offer_code: string;
@@ -864,8 +917,18 @@ export const platformAdminApi = {
   }>(`${companyPath(companyId)}/products`, {
     method: 'PATCH',
     headers: { 'Idempotency-Key': crypto.randomUUID() },
-    body: JSON.stringify({ product_codes: productCodes }),
+    body: JSON.stringify({
+      product_codes: productCodes,
+      expected_catalog_version: expectedCatalogVersion,
+    }),
   }),
+  previewCompanyProducts: (companyId: number, productCodes: string[]) => apiClient<PlatformCompanyProductPreview>(
+    `${companyPath(companyId)}/products/preview`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ product_codes: productCodes }),
+    },
+  ),
   getCourtesyCodes: () => apiClient<CourtesyCodeCatalog>(courtesyCodesPath),
   createCourtesyCode: (payload: CourtesyCodePayload) => apiClient<CourtesyCode>(courtesyCodesPath, {
     method: 'POST',

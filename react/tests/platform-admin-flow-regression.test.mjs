@@ -242,7 +242,9 @@ test("catálogo y módulos guía un flujo operativo de disponibilidad producto y
   assert.match(commercialOfferWorkspace, /modalType="standard-form"/);
   assert.match(commercialOfferWorkspace, /editorSection === "pricing"/);
   assert.match(commercialOfferWorkspace, /editorSection === "availability"/);
+  assert.match(commercialOfferWorkspace, /onClose=\{\(\) => setSelection\(null\)\}/);
   assert.match(commercialOfferDetail, /Módulos incluidos/);
+  assert.match(commercialOfferDetail, /setFeedback\(copy\.saved\);\s*onClose\(\);/);
   assert.match(commercialOfferDetail, /Mensual USD/);
   assert.match(commercialOfferDetail, /Anual USD/);
   assert.match(commercialOfferDetail, /Stripe Promotion ID/);
@@ -252,9 +254,15 @@ test("catálogo y módulos guía un flujo operativo de disponibilidad producto y
   assert.match(commercialOfferDetail, /Guardar disponibilidad/);
   assert.match(commercialOfferDetail, /No sumes el impuesto a estos precios/);
   assert.match(commercialOfferDetail, /Guardar y conectar con Stripe TEST/);
+  assert.match(commercialOfferDetail, /PUBLICAR EN STRIPE LIVE/);
+  assert.match(commercialOfferDetail, /target_mode: stripeMode/);
+  assert.match(commercialOfferDetail, /liveSyncEnabled/);
   assert.match(commercialOfferDetail, /synchronizeCatalogProductPrices/);
   assert.match(commercialOfferDetail, /suscripciones existentes/);
   assert.match(platformApi, /PlatformCatalogStripePriceSync/);
+  assert.match(platformApi, /stripe_sync_status/);
+  assert.match(platformApi, /catalog_live_sync_enabled/);
+  assert.match(platformApi, /drafts\/\$\{versionId\}\/validation`,\s*\{ method: 'POST' \}/);
   assert.match(platformApi, /stripe-prices\/synchronize/);
 });
 
@@ -371,6 +379,23 @@ test("clientes resume facturacion mensual cuentas activas y usuarios reales", ()
   assert.match(page, /customer_active_users/);
   assert.match(page, /Facturaci.n mensual/);
   assert.match(page, /usuarios activos totales/);
+});
+
+test("clientes conserva contratos históricos y confirma el nuevo total antes de modificar Stripe", () => {
+  assert.match(platformApi, /catalog_version_historical\?: boolean/);
+  assert.match(platformApi, /previewCompanyProducts/);
+  assert.match(platformApi, /products\/preview/);
+  assert.match(customerRow, /Contrato histórico/);
+  assert.match(companyModules, /subscriptionProductCodes/);
+  assert.match(companyModules, /Confirma el cambio comercial/);
+  assert.match(companyModules, /estimated_amount_cents/);
+  assert.match(companyModules, /pendingChange\.preview\.catalog_version/);
+  assert.match(platformApi, /expected_catalog_version: expectedCatalogVersion/);
+  assert.match(companyModules, /sin prorrateo ni cobro inmediato/);
+  assert.match(companyModules, /Acceso de cortesía/);
+  assert.doesNotMatch(companyModules, /se factura o acredita el prorrateo/);
+  assert.match(company, /onPreviewProducts/);
+  assert.match(page, /previewCompanyProducts/);
 });
 
 test("las tarjetas de clientes funcionan como filtros operativos", () => {
@@ -554,13 +579,13 @@ test("la entrega de la cuenta permite copiar todos los datos de acceso", () => {
 });
 
 test("la cuenta separa módulos activos de los disponibles para agregar", () => {
-  assert.match(companyModules, /Módulos activos/);
-  assert.match(companyModules, /Disponibles para agregar/);
+  assert.match(companyModules, /Contrato y accesos vigentes/);
+  assert.match(companyModules, /Oferta disponible/);
   assert.match(companyModules, /availableCatalogProducts/);
-  assert.match(companyModules, /Sólo aparecen módulos publicados y listos comercialmente/);
-  assert.match(companyModules, /onUpdateTrialProducts\(\[\.\.\.trialSelection, product\.product_code\]\)/);
-  assert.match(companyModules, /onGrant\(product\.product_code\)/);
-  assert.match(companyModules, /Esta cuenta ya tiene todos los módulos disponibles del catálogo/);
+  assert.match(companyModules, /Productos publicados de la versión activa/);
+  assert.match(companyModules, /requestPreview/);
+  assert.match(companyModules, /onGrant\(product\.code\)/);
+  assert.match(companyModules, /Esta cuenta ya tiene toda la oferta disponible/);
 });
 
 test("usuarios incluidos ocupan y liberan lugares con invitaciones controladas", () => {

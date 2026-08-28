@@ -1,13 +1,16 @@
 package com.indice.erp.platformadmin;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
+import com.indice.erp.billing.catalog.CommercialOfferSelectionService;
 import com.indice.erp.billing.stripe.StripeBillingGateway;
 import com.stripe.model.Price;
 import com.stripe.model.Subscription;
@@ -27,6 +30,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest(properties = {
     "app.billing.stripe.enabled=true",
@@ -50,6 +54,9 @@ class PlatformCompanyModuleServiceIntegrationTest {
 
     @Autowired
     private PlatformCompanyModuleService service;
+
+    @Autowired
+    private CommercialOfferSelectionService offers;
 
     @MockBean
     private StripeBillingGateway stripeGateway;
@@ -203,6 +210,34 @@ class PlatformCompanyModuleServiceIntegrationTest {
     }
 
     @Test
+    void productChangePreviewIsAuthoritativeAndDoesNotMutateStripe() throws Exception {
+        var preview = service.previewProducts(
+            actorUserId,
+            companyId,
+            new PlatformCompanyModuleService.ProductSelectionRequest(selectedProductCodes)
+        );
+
+        assertThat(preview.selected_product_codes()).containsExactlyInAnyOrderElementsOf(selectedProductCodes);
+        assertThat(preview.change_timing()).isEqualTo("TRIAL_END");
+        assertThat(preview.estimated_amount_cents()).isPositive();
+        verify(stripeGateway, never()).updateSubscription(anyString(), anyMap(), anyString());
+    }
+
+    @Test
+    void productChangeRejectsAStaleCatalogPreviewBeforeCallingStripe() throws Exception {
+        assertThatThrownBy(() -> service.updateTrialProducts(
+            actorUserId,
+            companyId,
+            "stale-catalog-" + UUID.randomUUID(),
+            new PlatformCompanyModuleService.ProductSelectionRequest(selectedProductCodes, "stale-version")
+        ))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("catálogo activo cambió");
+
+        verify(stripeGateway, never()).updateSubscription(anyString(), anyMap(), anyString());
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void activeSubscriptionChangesAreAppliedWithoutProrationAndBilledAtRenewal() throws Exception {
         jdbc.update(
@@ -234,6 +269,31 @@ class PlatformCompanyModuleServiceIntegrationTest {
             assertThat(item).containsEntry("id", "si_platform_trial_base");
             assertThat(item).containsEntry("price", "price_basic_2_test");
         });
+    }
+
+    @Test
+    @Transactional
+    void managedCatalogPricesFailClosedUntilTheyAreVerifiedForTheConfiguredStripeMode() {
+        assertThat(offers.activeBasicProducts()).isNotEmpty();
+        jdbc.update(
+            """
+                UPDATE billing_catalog_prices price
+                JOIN billing_catalog_products product ON product.id = price.catalog_product_id
+                SET price.price_type = 'PRODUCT'
+                WHERE product.catalog_version_id = (
+                    SELECT active_version.id
+                    FROM billing_catalog_versions active_version
+                    WHERE active_version.status = 'ACTIVE'
+                    LIMIT 1
+                )
+                  AND product.active = 1
+                  AND product.commercial_kind = 'MODULE'
+                """
+        );
+
+        assertThatThrownBy(() -> offers.activeProducts("MONTH"))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("not verified for the configured Stripe environment");
     }
 
     private void cleanTestState() {

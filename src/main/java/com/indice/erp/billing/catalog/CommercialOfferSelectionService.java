@@ -42,6 +42,11 @@ public class CommercialOfferSelectionService {
                 version.id(), version.code(), requestedProductCodes, interval, extraSeats, promotionCode
             );
         }
+        if (versionedEngine.requiresVerifiedReferences() && versionedEngine.configured(version.id())) {
+            throw new IllegalStateException(
+                "The active commercial catalog is not verified for the configured Stripe environment."
+            );
+        }
         var available = jdbcTemplate.query(
             """
                 SELECT product.id, product.product_code, product.display_name, product.product_type,
@@ -135,6 +140,11 @@ public class CommercialOfferSelectionService {
         var version = activeVersion();
         if (versionedEngine.ready(version.id(), interval)) {
             return versionedEngine.products(version.id(), interval);
+        }
+        if (versionedEngine.requiresVerifiedReferences() && versionedEngine.configured(version.id())) {
+            throw new IllegalStateException(
+                "The active commercial catalog is not verified for the configured Stripe environment."
+            );
         }
         return jdbcTemplate.query(
             """

@@ -1,5 +1,6 @@
 package com.indice.erp.billing.catalog;
 
+import com.indice.erp.billing.stripe.StripePhaseTwoProperties;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -17,9 +18,40 @@ final class VersionedCommercialOfferEngine {
     private static final int INCLUDED_SEATS = 5;
 
     private final JdbcTemplate jdbcTemplate;
+    private final StripePhaseTwoProperties stripeProperties;
 
-    VersionedCommercialOfferEngine(JdbcTemplate jdbcTemplate) {
+    VersionedCommercialOfferEngine(JdbcTemplate jdbcTemplate, StripePhaseTwoProperties stripeProperties) {
         this.jdbcTemplate = jdbcTemplate;
+        this.stripeProperties = stripeProperties;
+    }
+
+    boolean configured(long versionId) {
+        return Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+            """
+                SELECT EXISTS(
+                    SELECT 1
+                    FROM billing_catalog_products product
+                    LEFT JOIN billing_catalog_prices price ON price.catalog_product_id = product.id
+                    WHERE product.catalog_version_id = ? AND product.active = 1
+                      AND (
+                          product.commercial_kind = 'SEAT'
+                          OR (
+                              product.commercial_kind IN ('MODULE', 'PACKAGE')
+                              AND price.price_type IN ('PRODUCT', 'PACKAGE')
+                          )
+                          OR price.external_price_id IS NOT NULL
+                          OR price.stripe_mode IS NOT NULL
+                          OR price.stripe_verified_at IS NOT NULL
+                      )
+                )
+                """,
+            Boolean.class,
+            versionId
+        ));
+    }
+
+    boolean requiresVerifiedReferences() {
+        return stripeProperties.isEnabled();
     }
 
     boolean ready(long versionId, BillingInterval interval) {
@@ -31,6 +63,8 @@ final class VersionedCommercialOfferEngine {
                     WHERE seat.catalog_version_id = ? AND seat.active = 1 AND seat.commercial_kind = 'SEAT'
                       AND price.billing_interval = ? AND price.currency = 'USD'
                       AND price.unit_amount_cents > 0 AND price.status IN ('READY', 'ACTIVE')
+                      AND (? = 0 OR (price.stripe_mode = ? AND price.stripe_verified_at IS NOT NULL
+                           AND price.stripe_sync_status = 'READY' AND price.external_price_id LIKE 'price_%'))
                 )
                 AND EXISTS(
                     SELECT 1 FROM billing_catalog_products offer
@@ -39,9 +73,13 @@ final class VersionedCommercialOfferEngine {
                       AND offer.commercial_kind IN ('MODULE', 'PACKAGE')
                       AND price.billing_interval = ? AND price.currency = 'USD'
                       AND price.unit_amount_cents > 0 AND price.status IN ('READY', 'ACTIVE')
+                      AND (? = 0 OR (price.stripe_mode = ? AND price.stripe_verified_at IS NOT NULL
+                           AND price.stripe_sync_status = 'READY' AND price.external_price_id LIKE 'price_%'))
                 )
                 """,
-            Boolean.class, versionId, interval.name(), versionId, interval.name()
+            Boolean.class,
+            versionId, interval.name(), verificationFlag(), mode(),
+            versionId, interval.name(), verificationFlag(), mode()
         ));
     }
 
@@ -64,6 +102,8 @@ final class VersionedCommercialOfferEngine {
                  AND price.billing_interval = ? AND price.currency = 'USD'
                  AND price.price_type IN ('PRODUCT', 'PACKAGE')
                  AND price.status IN ('READY', 'ACTIVE')
+                 AND (? = 0 OR (price.stripe_mode = ? AND price.stripe_verified_at IS NOT NULL
+                      AND price.stripe_sync_status = 'READY' AND price.external_price_id LIKE 'price_%'))
                  AND (price.effective_from IS NULL OR price.effective_from <= CURRENT_TIMESTAMP)
                  AND (price.effective_to IS NULL OR price.effective_to > CURRENT_TIMESTAMP)
                 WHERE product.catalog_version_id = ? AND product.active = 1
@@ -84,7 +124,7 @@ final class VersionedCommercialOfferEngine {
                 (Long) rs.getObject("unit_amount_cents"), rs.getString("external_price_id"),
                 rs.getString("description"), csv(rs.getString("included_codes")), csv(rs.getString("capabilities"))
             ),
-            interval.name(), versionId
+            interval.name(), verificationFlag(), mode(), versionId
         );
     }
 
@@ -147,10 +187,12 @@ final class VersionedCommercialOfferEngine {
                 WHERE product.catalog_version_id = ? AND product.active = 1 AND product.commercial_kind = 'SEAT'
                   AND price.billing_interval = ? AND price.currency = 'USD'
                   AND price.status IN ('READY', 'ACTIVE')
+                  AND (? = 0 OR (price.stripe_mode = ? AND price.stripe_verified_at IS NOT NULL
+                       AND price.stripe_sync_status = 'READY' AND price.external_price_id LIKE 'price_%'))
                 ORDER BY product.sort_order, product.id LIMIT 1
                 """,
             (rs, rowNum) -> new SeatDefinition(rs.getLong(1), rs.getString(2), (Long) rs.getObject(3), rs.getString(4)),
-            versionId, interval.name()
+            versionId, interval.name(), verificationFlag(), mode()
         ).stream().findFirst().orElseThrow(() -> new IllegalStateException("La tarifa de usuario adicional no está lista."));
     }
 
@@ -168,6 +210,8 @@ final class VersionedCommercialOfferEngine {
                        external_promotion_code_id
                 FROM billing_catalog_promotions
                 WHERE catalog_version_id = ? AND UPPER(promotion_code) = ? AND active = 1
+                  AND (? = 0 OR (stripe_mode = ? AND stripe_verified_at IS NOT NULL
+                       AND stripe_sync_status = 'READY' AND external_promotion_code_id LIKE 'promo_%'))
                   AND (starts_at IS NULL OR starts_at <= CURRENT_TIMESTAMP)
                   AND (ends_at IS NULL OR ends_at > CURRENT_TIMESTAMP)
                 LIMIT 1
@@ -175,7 +219,7 @@ final class VersionedCommercialOfferEngine {
             (rs, rowNum) -> new PromotionDefinition(
                 rs.getLong(1), rs.getString(2), rs.getString(3), (Integer) rs.getObject(4),
                 (Long) rs.getObject(5), rs.getString(6)
-            ), versionId, code
+            ), versionId, code, verificationFlag(), mode()
         );
         if (rows.isEmpty()) throw new IllegalArgumentException("La promoción no existe o ya no está vigente.");
         var promotion = rows.getFirst();
@@ -213,6 +257,14 @@ final class VersionedCommercialOfferEngine {
                 }
             }
         }
+    }
+
+    private int verificationFlag() {
+        return requiresVerifiedReferences() ? 1 : 0;
+    }
+
+    private String mode() {
+        return "live".equalsIgnoreCase(stripeProperties.getMode()) ? "LIVE" : "TEST";
     }
 
     private long total(List<CommercialOfferSelection.LineItem> lines) {

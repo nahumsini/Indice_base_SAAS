@@ -39,11 +39,17 @@ export function CompanyOverviewTab({
         <SummaryDatum label="Tipo de usuario" value={humanize(company.user_type)} hint="Rol propietario de la cuenta" />
         <SummaryDatum label="Trazabilidad" value={origin.value} hint={origin.hint} />
         <SummaryDatum label="Acceso" value={accessLabel} hint={`${activeProductCount} módulo(s) activo(s)`} />
-        <SummaryDatum label="Plan" value={plan} hint={company.stripe_subscription_id ? "Suscripción sincronizada" : "Sin contrato comercial"} />
+        <SummaryDatum
+          label="Plan"
+          value={plan}
+          hint={company.stripe_subscription_id
+            ? `${company.catalog_version_historical ? "Contrato histórico" : "Catálogo vigente"}${company.catalog_version ? ` · ${company.catalog_version}` : ""}`
+            : "Sin contrato comercial"}
+        />
         <SummaryDatum
           label="Tarifa"
           value={formatMoney(company.recurring_amount_cents, company.currency)}
-          hint={company.billing_interval ? humanize(company.billing_interval) : "Sin periodicidad"}
+          hint={company.billing_interval ? `${humanize(company.billing_interval)} · antes de impuestos` : "Sin periodicidad"}
         />
         <SummaryDatum
           label="Usuarios"

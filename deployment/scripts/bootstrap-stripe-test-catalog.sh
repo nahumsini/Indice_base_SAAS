@@ -8,6 +8,15 @@ if [[ "${STRIPE_SECRET_KEY}" != sk_test_* ]]; then
   exit 1
 fi
 
+storage_monthly_cents="${INDICE_STORAGE_BLOCK_MONTHLY_CENTS:-100}"
+storage_annual_cents="${INDICE_STORAGE_BLOCK_ANNUAL_CENTS:-1200}"
+for test_amount in "${storage_monthly_cents}" "${storage_annual_cents}"; do
+  [[ "${test_amount}" =~ ^[1-9][0-9]*$ ]] || {
+    echo "Stripe TEST storage amounts must be positive integer cents." >&2
+    exit 1
+  }
+done
+
 for command in curl jq; do
   command -v "${command}" >/dev/null 2>&1 || {
     echo "${command} is required." >&2
@@ -100,7 +109,7 @@ basic_2_product="$(ensure_product prod_indice_launch_basic_2_v1 "Indice launch p
 basic_3_product="$(ensure_product prod_indice_launch_basic_3_v1 "Indice launch package · 3 core bundles")"
 basic_all_product="$(ensure_product prod_indice_launch_basic_all_v1 "Indice launch package · 4 or more core bundles")"
 extra_seat_product="$(ensure_product prod_indice_extra_seat_v1 "Indice additional employee")"
-storage_product="$(ensure_product prod_indice_storage_gib_v1 "Indice additional storage · 1 GiB")"
+storage_product="$(ensure_product prod_indice_storage_5gib_v1 "Indice additional storage · 5 GiB")"
 consulting_product="$(ensure_product prod_indice_consulting_50m_v1 "Indice consultation · 50 minutes")"
 
 basic_1_month="$(ensure_recurring_price "${basic_1_product}" indice_launch_basic_1_month_v1 6900 month)"
@@ -113,8 +122,8 @@ basic_all_month="$(ensure_recurring_price "${basic_all_product}" indice_launch_b
 basic_all_year="$(ensure_recurring_price "${basic_all_product}" indice_launch_basic_all_year_v1 191040 year)"
 extra_seat_month="$(ensure_recurring_price "${extra_seat_product}" indice_extra_seat_month_v1 1200 month)"
 extra_seat_year="$(ensure_recurring_price "${extra_seat_product}" indice_extra_seat_year_v1 14400 year)"
-storage_month="$(ensure_recurring_price "${storage_product}" indice_storage_gib_month_v1 100 month)"
-storage_year="$(ensure_recurring_price "${storage_product}" indice_storage_gib_year_v1 1200 year)"
+storage_month="$(ensure_recurring_price "${storage_product}" indice_storage_5gib_month_v1 "${storage_monthly_cents}" month)"
+storage_year="$(ensure_recurring_price "${storage_product}" indice_storage_5gib_year_v1 "${storage_annual_cents}" year)"
 consulting_once="$(ensure_one_time_price "${consulting_product}" indice_consulting_50m_once_v1 8900)"
 
 cat <<OUTPUT

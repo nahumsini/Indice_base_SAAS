@@ -10,7 +10,13 @@ import {
 import type { CommercialOfferEditorSection, CommercialOfferSelectionTarget } from "./CommercialOfferWorkspace";
 
 const dollars = (cents?: number | null) => (cents == null ? "" : (cents / 100).toFixed(2));
-const cents = (value: string) => (value.trim() === "" ? null : Math.round(Number(value) * 100));
+const cents = (value: string) => {
+  if (value.trim() === "") return null;
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount >= 0 && amount <= 1_000_000
+    ? Math.round(amount * 100)
+    : null;
+};
 const currency = (value: number, english: boolean) => new Intl.NumberFormat(english ? "en-CA" : "es-MX", {
   style: "currency",
   currency: "USD",
@@ -26,6 +32,9 @@ export function CommercialOfferDetail({
   promotion,
   mode,
   workingVersionId,
+  stripeMode,
+  liveSyncEnabled,
+  onClose,
   onSaved,
   onSelect,
   english,
@@ -38,6 +47,9 @@ export function CommercialOfferDetail({
   promotion: PlatformCatalogPromotion | null;
   mode: CommercialOfferSelectionTarget["type"] | "empty";
   workingVersionId: number | null;
+  stripeMode: "TEST" | "LIVE";
+  liveSyncEnabled: boolean;
+  onClose: () => void;
   onSaved: (catalog: PlatformCatalog) => void;
   onSelect: (target: CommercialOfferSelectionTarget) => void;
   english: boolean;
@@ -66,6 +78,8 @@ export function CommercialOfferDetail({
     priceRequired: "Enter valid monthly and annual prices.", stripeSynced: "Prices connected to Stripe TEST.",
     taxTitle: "Do not add tax to these prices", taxHelp: "Stripe Tax adds GST, HST, PST/QST or VAT at Checkout only when applicable, based on the customer's billing address and the company's active tax registrations.",
     taxExclusive: "Tax exclusive", stripeTest: "Stripe TEST", taxCode: "SaaS · business use", notConnected: "Not connected yet",
+    liveConfirmation: "LIVE confirmation", liveConfirmationHelp: "Type the exact phrase to authorize creation of real Stripe prices.",
+    liveBlocked: "LIVE catalog synchronization is disabled for this deployment.", livePhrase: "PUBLICAR EN STRIPE LIVE",
     replacementHelp: "Changing an amount creates a new Stripe Price. Existing subscriptions keep their previous price.",
   } : {
     nameRequired: "Escribe un nombre comercial.", packageMinimum: "Un paquete debe incluir por lo menos dos módulos.",
@@ -91,6 +105,8 @@ export function CommercialOfferDetail({
     priceRequired: "Ingresa precios mensual y anual válidos.", stripeSynced: "Precios conectados con Stripe TEST.",
     taxTitle: "No sumes el impuesto a estos precios", taxHelp: "Stripe Tax agrega GST, HST, PST/QST o IVA al pagar sólo cuando corresponde, según el domicilio de facturación del cliente y los registros fiscales activos de la empresa.",
     taxExclusive: "Impuesto exclusivo", stripeTest: "Stripe TEST", taxCode: "SaaS · uso empresarial", notConnected: "Aún sin conectar",
+    liveConfirmation: "Confirmación LIVE", liveConfirmationHelp: "Escribe la frase exacta para autorizar la creación de precios reales en Stripe.",
+    liveBlocked: "La sincronización LIVE del catálogo está deshabilitada en este despliegue.", livePhrase: "PUBLICAR EN STRIPE LIVE",
     replacementHelp: "Si cambias un importe se crea un nuevo Price en Stripe. Las suscripciones existentes conservan su precio anterior.",
   };
   const [name, setName] = useState("");
@@ -101,6 +117,7 @@ export function CommercialOfferDetail({
   const [yearly, setYearly] = useState("");
   const [monthlyStripe, setMonthlyStripe] = useState("");
   const [yearlyStripe, setYearlyStripe] = useState("");
+  const [liveConfirmation, setLiveConfirmation] = useState("");
   const [promotionCode, setPromotionCode] = useState("");
   const [discountType, setDiscountType] = useState<"PERCENT" | "FIXED">("PERCENT");
   const [discountValue, setDiscountValue] = useState("");
@@ -195,6 +212,7 @@ export function CommercialOfferDetail({
       if (!saved) throw new Error("No se encontró el producto guardado.");
       onSelect({ type: "product", id: saved.id });
       setFeedback(copy.saved);
+      onClose();
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : copy.saveError);
     } finally {
@@ -209,17 +227,25 @@ export function CommercialOfferDetail({
     if (monthlyAmount == null || annualAmount == null || monthlyAmount <= 0 || annualAmount <= 0) {
       return setFeedback(copy.priceRequired);
     }
+    if (stripeMode === "LIVE" && !liveSyncEnabled) return setFeedback(copy.liveBlocked);
+    if (stripeMode === "LIVE" && liveConfirmation !== copy.livePhrase) {
+      return setFeedback(`${copy.liveConfirmation}: ${copy.livePhrase}`);
+    }
     setSaving(true);
     setFeedback(null);
     try {
       const result = await platformAdminApi.synchronizeCatalogProductPrices(product.id, {
         monthly_amount_cents: monthlyAmount,
         annual_amount_cents: annualAmount,
+        target_mode: stripeMode,
+        ...(stripeMode === "LIVE" ? { confirmation: liveConfirmation } : {}),
       });
       setMonthlyStripe(result.monthly.external_price_id);
       setYearlyStripe(result.annual.external_price_id);
       await refresh();
-      setFeedback(copy.stripeSynced);
+      setFeedback(stripeMode === "LIVE"
+        ? (english ? "Prices verified in Stripe LIVE." : "Precios verificados en Stripe LIVE.")
+        : copy.stripeSynced);
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : copy.saveError);
     } finally {
@@ -262,6 +288,8 @@ export function CommercialOfferDetail({
   const showAvailability = isCreating || focusSection === "availability";
   const Icon = isPromotion ? Gift : isPackage ? PackageCheck : Boxes;
   const feedbackSuccess = feedback === copy.saved || feedback === copy.promotionSaved || feedback === copy.stripeSynced;
+  const stripeModeLabel = `Stripe ${stripeMode}`;
+  const liveSuccess = english ? "Prices verified in Stripe LIVE." : "Precios verificados en Stripe LIVE.";
   const monthlyValue = Math.max(0, Number(monthly) || 0);
   const annualDiscountValue = Math.min(100, Math.max(0, Number(annualDiscount) || 0));
   const regularAnnualValue = monthlyValue * 12;
@@ -276,7 +304,9 @@ export function CommercialOfferDetail({
   const saveLabel = isCreating
     ? copy.createOffer
     : focusSection === "pricing"
-      ? copy.savePricing
+      ? stripeMode === "LIVE"
+        ? (english ? "Verify and connect to Stripe LIVE" : "Verificar y conectar con Stripe LIVE")
+        : copy.savePricing
       : focusSection === "availability"
         ? copy.saveAvailability
         : copy.saveDetails;
@@ -330,11 +360,12 @@ export function CommercialOfferDetail({
                     <h4 className="font-semibold text-slate-950">{copy.taxTitle}</h4>
                     <p className="mt-1 text-sm leading-5 text-slate-600">{copy.taxHelp}</p>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {[copy.stripeTest, copy.taxExclusive, copy.taxCode].map((item) => <span key={item} className="rounded-full border border-[#59C3A5]/35 bg-white px-3 py-1 text-xs font-semibold text-[#177D66]">{item}</span>)}
+                      {[stripeModeLabel, copy.taxExclusive, copy.taxCode].map((item) => <span key={item} className="rounded-full border border-[#59C3A5]/35 bg-white px-3 py-1 text-xs font-semibold text-[#177D66]">{item}</span>)}
                     </div>
                   </div>
                 </div>
               </div>
+              {stripeMode === "LIVE" ? <div className="rounded-2xl border border-rose-300 bg-rose-50 p-4"><label className="text-sm font-semibold text-rose-900">{copy.liveConfirmation}<input value={liveConfirmation} disabled={!editable || !liveSyncEnabled} onChange={(event) => setLiveConfirmation(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-rose-200 bg-white px-3 font-mono" placeholder={copy.livePhrase} /></label><p className="mt-2 text-xs text-rose-700">{liveSyncEnabled ? copy.liveConfirmationHelp : copy.liveBlocked}</p></div> : null}
               <div className="grid gap-4 rounded-2xl bg-slate-50 p-4 sm:grid-cols-2 dark:bg-slate-950/40">
                 {[[copy.monthly, monthly, setMonthly, monthlyStripe], [copy.annual, yearly, setYearly, yearlyStripe]].map(([label, amount, setAmount, stripe]) => (
                   <div key={label as string} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
@@ -363,7 +394,7 @@ export function CommercialOfferDetail({
       ) : null}
 
       <div className="mt-6 flex justify-end border-t border-slate-200 pt-5 dark:border-slate-800"><button type="button" disabled={!editable || saving} onClick={() => void (isPromotion ? savePromotion() : focusSection === "pricing" ? synchronizePrices() : saveProduct())} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-5 py-2 text-center text-sm font-semibold text-white hover:bg-[#126653] disabled:opacity-40">{saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{saveLabel}</button></div>
-      {feedback ? <p role="status" className={`mt-3 rounded-xl px-4 py-3 text-sm ${feedbackSuccess ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-700"}`}>{feedbackSuccess ? <BadgeCheck className="mr-2 inline h-4 w-4" /> : null}{feedback}</p> : null}
+      {feedback ? <p role="status" className={`mt-3 rounded-xl px-4 py-3 text-sm ${feedbackSuccess || feedback === liveSuccess ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-700"}`}>{feedbackSuccess || feedback === liveSuccess ? <BadgeCheck className="mr-2 inline h-4 w-4" /> : null}{feedback}</p> : null}
     </div>
   );
 }

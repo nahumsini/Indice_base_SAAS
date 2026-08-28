@@ -1,7 +1,30 @@
-import { Box, ShieldCheck } from "lucide-react";
-import type { PlatformBenefit, PlatformCatalogProduct, PlatformCompanyDetail } from "../../api/platformAdmin";
+import { Box, LoaderCircle, ShieldCheck } from "lucide-react";
+import { useMemo, useState } from "react";
+import type {
+  PlatformBenefit,
+  PlatformCatalogProduct,
+  PlatformCompanyDetail,
+  PlatformCompanyProductPreview,
+} from "../../api/platformAdmin";
 import { CompactEmptyState, StatusPill, WorkspaceSection } from "./CompanyAccountPrimitives";
-import { displayProductName } from "./companyAccountUtils";
+
+type DisplayProduct = {
+  code: string;
+  name: string;
+  type: string;
+  commercialKind?: string;
+  monthlyPriceCents?: number | null;
+  capabilities: string[];
+  catalogVersion?: string | null;
+  source?: string;
+  currentCatalog: boolean;
+};
+
+type PendingChange = {
+  productCodes: string[];
+  preview: PlatformCompanyProductPreview;
+  description: string;
+};
 
 export function CompanyModulesTab({
   company,
@@ -10,6 +33,7 @@ export function CompanyModulesTab({
   activeProductBenefits,
   saving,
   onGrant,
+  onPreviewProducts,
   onUpdateTrialProducts,
   onRevoke,
 }: {
@@ -19,32 +43,94 @@ export function CompanyModulesTab({
   activeProductBenefits: Map<string, PlatformBenefit[]>;
   saving: boolean;
   onGrant: (productCode: string) => Promise<void>;
-  onUpdateTrialProducts: (productCodes: string[]) => Promise<void>;
+  onPreviewProducts: (productCodes: string[]) => Promise<PlatformCompanyProductPreview>;
+  onUpdateTrialProducts: (productCodes: string[], expectedCatalogVersion: string) => Promise<boolean>;
   onRevoke: (reference: string, label?: string, grantCount?: number) => void;
 }) {
+  const [previewingCode, setPreviewingCode] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState("");
+  const [pendingChange, setPendingChange] = useState<PendingChange | null>(null);
   const stripeTrial = company.billing_status?.toUpperCase() === "TRIALING" && Boolean(company.stripe_subscription_id);
   const stripeManaged = Boolean(company.stripe_subscription_id);
   const versionedOffer = products.some((product) => product.commercial_model);
-  const selectedBasicCount = products.filter(
-    (product) => product.product_type.toUpperCase() === "BASIC" && activeProducts.has(product.product_code),
-  ).length;
-  const activeCatalogProducts = products.filter((product) => activeProducts.has(product.product_code));
-  const availableCatalogProducts = products.filter((product) => !activeProducts.has(product.product_code));
-  const trialSelection = Array.from(activeProducts);
 
-  const renderProduct = (product: PlatformCatalogProduct, active: boolean) => {
-    const benefits = activeProductBenefits.get(product.product_code) || [];
+  const subscriptionProductCodes = useMemo(
+    () => new Set(
+      company.products
+        .filter((product) => product.source.split(",").some((source) => source.trim().startsWith("SUBSCRIPTION_")))
+        .map((product) => product.code),
+    ),
+    [company.products],
+  );
+
+  const contractedProducts = useMemo<DisplayProduct[]>(
+    () => company.products
+      .filter((product) => product.commercial_kind !== "SEAT")
+      .map((product) => ({
+        code: product.code,
+        name: product.name,
+        type: product.type,
+        commercialKind: product.commercial_kind,
+        monthlyPriceCents: product.monthly_price_cents,
+        capabilities: product.capabilities || [],
+        catalogVersion: product.catalog_version,
+        source: product.source,
+        currentCatalog: product.catalog_version_id === company.active_catalog_version_id,
+      })),
+    [company.active_catalog_version_id, company.products],
+  );
+
+  const availableCatalogProducts = useMemo<DisplayProduct[]>(
+    () => products
+      .filter((product) => !activeProducts.has(product.product_code))
+      .map((product) => ({
+        code: product.product_code,
+        name: product.display_name,
+        type: product.product_type,
+        commercialKind: product.commercial_kind,
+        monthlyPriceCents: product.monthly_price_cents,
+        capabilities: product.capabilities,
+        catalogVersion: product.version_code,
+        currentCatalog: true,
+      })),
+    [activeProducts, products],
+  );
+
+  const requestPreview = async (productCodes: string[], description: string, code: string) => {
+    setPreviewError("");
+    setPreviewingCode(code);
+    try {
+      const preview = await onPreviewProducts(productCodes);
+      setPendingChange({ productCodes, preview, description });
+    } catch (error) {
+      setPreviewError(error instanceof Error ? error.message : "No se pudo calcular el nuevo total.");
+    } finally {
+      setPreviewingCode(null);
+    }
+  };
+
+  const applyPendingChange = async () => {
+    if (!pendingChange) return;
+    const applied = await onUpdateTrialProducts(
+      pendingChange.productCodes,
+      pendingChange.preview.catalog_version,
+    );
+    if (applied) setPendingChange(null);
+  };
+
+  const renderProduct = (product: DisplayProduct, active: boolean) => {
+    const benefits = activeProductBenefits.get(product.code) || [];
     const removableBenefit = benefits.find((benefit) => benefit.source_type.toUpperCase() !== "SUBSCRIPTION");
-    const isBasic = product.product_type.toUpperCase() === "BASIC";
-    const canRemoveFromStripe = active && (versionedOffer || !isBasic || selectedBasicCount > 1);
-    const selectedCapabilities = products
-      .filter((candidate) => candidate.product_code !== product.product_code && activeProducts.has(candidate.product_code))
-      .flatMap((candidate) => candidate.capabilities);
-    const overlaps = !active && versionedOffer && product.capabilities.some((capability) => selectedCapabilities.includes(capability));
+    const subscriptionProduct = subscriptionProductCodes.has(product.code);
+    const canRemoveFromStripe = subscriptionProduct && subscriptionProductCodes.size > 1;
+    const busy = saving || previewingCode !== null;
+    const price = product.monthlyPriceCents == null
+      ? null
+      : new Intl.NumberFormat("es-MX", { style: "currency", currency: "USD" }).format(product.monthlyPriceCents / 100);
 
     return (
       <article
-        key={product.product_code}
+        key={`${product.catalogVersion || "catalog"}:${product.code}:${product.source || "available"}`}
         className="flex min-w-0 items-center gap-3 border-t border-slate-100 px-4 py-3 lg:[&:nth-child(odd)]:border-r"
       >
         <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${active ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-600"}`}>
@@ -52,67 +138,74 @@ export function CompanyModulesTab({
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h4 className="truncate text-sm font-medium text-slate-900">{displayProductName(product)}</h4>
-            {active ? (
-              <StatusPill status="active" />
-            ) : (
-              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
-                Disponible
-              </span>
+            <h4 className="truncate text-sm font-medium text-slate-900">{product.name}</h4>
+            {active ? <StatusPill status="active" /> : (
+              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">Disponible</span>
             )}
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">
-              {product.commercial_kind === "PACKAGE" ? "Paquete" : versionedOffer ? "Módulo individual" : isBasic ? "Paquete base" : "Complemento"}
+              {product.commercialKind === "PACKAGE" ? "Paquete" : versionedOffer ? "Módulo individual" : product.type.toUpperCase() === "BASIC" ? "Paquete base" : "Complemento"}
             </span>
+            {active && !product.currentCatalog ? (
+              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">Contrato histórico</span>
+            ) : null}
+            {active && removableBenefit && !subscriptionProduct ? (
+              <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700">Acceso de cortesía</span>
+            ) : null}
           </div>
           <p className="mt-1 truncate text-xs text-slate-500">
-            {product.capabilities?.length ? product.capabilities.join(" · ") : product.product_code}
+            {product.capabilities.length ? product.capabilities.join(" · ") : product.code}
           </p>
-          {versionedOffer && product.monthly_price_cents != null ? (
-            <p className="mt-0.5 text-xs font-semibold text-emerald-700">
-              {new Intl.NumberFormat("es-MX", { style: "currency", currency: "USD" }).format(product.monthly_price_cents / 100)} USD/mes
+          {price ? (
+            <p className="mt-0.5 text-xs font-medium text-emerald-700">
+              {price} USD/mes{product.catalogVersion ? ` · ${product.catalogVersion}` : ""}
             </p>
           ) : null}
         </div>
-        {stripeManaged && active ? (
+        {stripeManaged && subscriptionProduct ? (
           <button
             type="button"
             className="h-9 shrink-0 rounded-lg border border-rose-200 px-3 text-xs font-medium text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={saving || !canRemoveFromStripe}
-            title={canRemoveFromStripe
-              ? (stripeTrial ? "Actualizar el cobro que iniciará al terminar la prueba" : "Actualizar la suscripción con prorrateo")
-              : "El paquete debe conservar al menos un módulo básico"}
-            onClick={() => void onUpdateTrialProducts(trialSelection.filter((code) => code !== product.product_code))}
+            disabled={busy || !canRemoveFromStripe}
+            title={canRemoveFromStripe ? "Revisar el nuevo total antes de quitar" : "La suscripción debe conservar al menos un producto"}
+            onClick={() => void requestPreview(
+              Array.from(subscriptionProductCodes).filter((code) => code !== product.code),
+              `Quitar ${product.name}`,
+              product.code,
+            )}
           >
-            Quitar
-          </button>
-        ) : stripeManaged && !active ? (
-          <button
-            type="button"
-            className="h-9 shrink-0 rounded-lg bg-blue-600 px-3 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={saving || overlaps}
-            title={overlaps ? "Este módulo ya está incluido en otra selección" : "Agregar a la suscripción"}
-            onClick={() => void onUpdateTrialProducts([...trialSelection, product.product_code])}
-          >
-            Agregar
+            {previewingCode === product.code ? <LoaderCircle className="mx-auto h-4 w-4 animate-spin" /> : "Quitar"}
           </button>
         ) : active && removableBenefit ? (
           <button
             type="button"
             className="h-9 shrink-0 rounded-lg border border-rose-200 px-3 text-xs font-medium text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={saving || overlaps}
-            title={overlaps ? "Este módulo ya está incluido en otra selección" : "Agregar acceso"}
-            onClick={() => onRevoke(removableBenefit.reference, displayProductName(product), benefits.length)}
+            disabled={busy}
+            onClick={() => onRevoke(removableBenefit.reference, product.name, benefits.length)}
           >
-            Quitar
+            Quitar acceso
           </button>
-        ) : active ? null : (
+        ) : active ? null : stripeManaged ? (
           <button
             type="button"
             className="h-9 shrink-0 rounded-lg bg-blue-600 px-3 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={saving}
-            onClick={() => void onGrant(product.product_code)}
+            disabled={busy}
+            title="Revisar el nuevo total antes de agregar"
+            onClick={() => void requestPreview(
+              [...subscriptionProductCodes, product.code],
+              `Agregar ${product.name}`,
+              product.code,
+            )}
           >
-            Agregar
+            {previewingCode === product.code ? <LoaderCircle className="mx-auto h-4 w-4 animate-spin" /> : "Agregar"}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="h-9 shrink-0 rounded-lg bg-blue-600 px-3 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={busy}
+            onClick={() => void onGrant(product.code)}
+          >
+            Agregar acceso
           </button>
         )}
       </article>
@@ -122,50 +215,87 @@ export function CompanyModulesTab({
   return (
     <WorkspaceSection
       title="Plan y módulos"
-      description={versionedOffer ? "Configura módulos o paquetes sin duplicar accesos; el precio publicado alimenta la cuenta." : "Configura el paquete base y sus complementos; Stripe aplica el cambio según el estado de la cuenta."}
+      description="Distingue el contrato vigente, los accesos de cortesía y la oferta disponible antes de modificar Stripe."
       icon={Box}
       action={<span className="text-xs font-medium text-slate-500">{activeProducts.size} activos</span>}
     >
-      {products.length ? (
-        <div className="border-b border-slate-100">
-          <div className="flex items-center justify-between bg-slate-50/80 px-4 py-2.5">
-            <h4 className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Módulos activos</h4>
-            <span className="text-xs font-medium text-slate-500">{activeCatalogProducts.length}</span>
-          </div>
-          {activeCatalogProducts.length ? (
-            <div className="grid lg:grid-cols-2">
-              {activeCatalogProducts.map((product) => renderProduct(product, true))}
-            </div>
-          ) : (
-            <CompactEmptyState icon={Box}>La cuenta todavía no tiene módulos activos.</CompactEmptyState>
-          )}
-
-          <div className="flex items-center justify-between border-t border-slate-100 bg-blue-50/50 px-4 py-2.5">
-            <div>
-              <h4 className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-800">Disponibles para agregar</h4>
-              <p className="mt-0.5 text-xs text-blue-700/80">Sólo aparecen módulos publicados y listos comercialmente.</p>
-            </div>
-            <span className="text-xs font-medium text-blue-700">{availableCatalogProducts.length}</span>
-          </div>
-          {availableCatalogProducts.length ? (
-            <div className="grid lg:grid-cols-2">
-              {availableCatalogProducts.map((product) => renderProduct(product, false))}
-            </div>
-          ) : (
-            <CompactEmptyState icon={Box}>Esta cuenta ya tiene todos los módulos disponibles del catálogo.</CompactEmptyState>
-          )}
+      {company.catalog_version_historical ? (
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Esta cuenta conserva el catálogo <span className="font-medium">{company.catalog_version || "histórico"}</span>. Cualquier cambio confirmado migrará toda su selección a <span className="font-medium">{company.active_catalog_version || "la versión activa"}</span> y aplicará el nuevo total en la siguiente renovación.
         </div>
-      ) : (
-        <CompactEmptyState icon={Box}>No hay módulos comerciales publicados.</CompactEmptyState>
-      )}
+      ) : null}
+
+      {previewError ? (
+        <div role="alert" className="border-b border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{previewError}</div>
+      ) : null}
+
+      {pendingChange ? (
+        <div className="border-b border-blue-200 bg-blue-50 px-4 py-4 text-sm text-blue-950">
+          <p className="font-medium">Confirma el cambio comercial</p>
+          <p className="mt-1 text-blue-800">{pendingChange.description}. El acceso cambia al confirmar; Stripe no hará prorrateo ni un cobro inmediato.</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            <div className="rounded-lg bg-white px-3 py-2 ring-1 ring-blue-100">
+              <p className="text-xs text-slate-500">Nueva versión</p>
+              <p className="mt-0.5 font-medium text-slate-900">{pendingChange.preview.catalog_version}</p>
+            </div>
+            <div className="rounded-lg bg-white px-3 py-2 ring-1 ring-blue-100">
+              <p className="text-xs text-slate-500">Nuevo total</p>
+              <p className="mt-0.5 font-medium text-slate-900">
+                {pendingChange.preview.estimated_amount_cents == null
+                  ? "Precio no disponible"
+                  : `${new Intl.NumberFormat("es-MX", { style: "currency", currency: pendingChange.preview.currency || "USD" }).format(pendingChange.preview.estimated_amount_cents / 100)} ${pendingChange.preview.billing_interval === "YEAR" ? "anual" : "mensual"}`}
+              </p>
+            </div>
+            <div className="rounded-lg bg-white px-3 py-2 ring-1 ring-blue-100">
+              <p className="text-xs text-slate-500">Aplicación</p>
+              <p className="mt-0.5 font-medium text-slate-900">{pendingChange.preview.change_timing === "TRIAL_END" ? "Al terminar la prueba" : "Próxima renovación"}</p>
+            </div>
+          </div>
+          <div className="mt-3 flex justify-end gap-2">
+            <button type="button" className="h-9 rounded-lg border border-blue-200 bg-white px-3 font-medium text-blue-800" disabled={saving} onClick={() => setPendingChange(null)}>Cancelar</button>
+            <button type="button" className="h-9 rounded-lg bg-blue-700 px-4 font-medium text-white disabled:opacity-60" disabled={saving || pendingChange.preview.estimated_amount_cents == null} onClick={() => void applyPendingChange()}>
+              {saving ? "Aplicando…" : "Confirmar cambio"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="border-b border-slate-100">
+        <div className="flex items-center justify-between bg-slate-50/80 px-4 py-2.5">
+          <div>
+            <h4 className="text-xs font-medium uppercase tracking-[0.12em] text-slate-600">Contrato y accesos vigentes</h4>
+            <p className="mt-0.5 text-xs text-slate-500">Se muestran con la versión y el precio que realmente originaron el acceso.</p>
+          </div>
+          <span className="text-xs font-medium text-slate-500">{contractedProducts.length}</span>
+        </div>
+        {contractedProducts.length ? (
+          <div className="grid lg:grid-cols-2">{contractedProducts.map((product) => renderProduct(product, true))}</div>
+        ) : (
+          <CompactEmptyState icon={Box}>La cuenta todavía no tiene productos activos.</CompactEmptyState>
+        )}
+
+        <div className="flex items-center justify-between border-t border-slate-100 bg-blue-50/50 px-4 py-2.5">
+          <div>
+            <h4 className="text-xs font-medium uppercase tracking-[0.12em] text-blue-800">Oferta disponible</h4>
+            <p className="mt-0.5 text-xs text-blue-700/80">Productos publicados de la versión activa que aún no forman parte del acceso.</p>
+          </div>
+          <span className="text-xs font-medium text-blue-700">{availableCatalogProducts.length}</span>
+        </div>
+        {availableCatalogProducts.length ? (
+          <div className="grid lg:grid-cols-2">{availableCatalogProducts.map((product) => renderProduct(product, false))}</div>
+        ) : (
+          <CompactEmptyState icon={Box}>Esta cuenta ya tiene toda la oferta disponible.</CompactEmptyState>
+        )}
+      </div>
+
       <div className="flex items-start gap-2 bg-blue-50/70 px-4 py-2.5 text-xs text-blue-900">
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
         <p>
           {stripeTrial
-            ? "Stripe no cobra durante la prueba. Al vencer, cobrará el plan correspondiente a los módulos vigentes y comenzará la renovación automática."
+            ? "Stripe no cobra durante la prueba. Los cambios confirmados definen el total que empezará a cobrarse al vencer."
             : stripeManaged
-              ? "Los cambios se sincronizan con Stripe. En una suscripción activa se factura o acredita el prorrateo; durante la prueba se aplican al cobro futuro."
-              : "Este acceso es demo o cortesía administrativa: puedes editar sus módulos, pero no habrá cargo automático hasta registrar un método de pago en Stripe."}
+              ? "Los cambios se sincronizan con Stripe sin prorrateo ni cobro inmediato; el nuevo total se aplica en la próxima renovación."
+              : "Los accesos administrativos no generan cargos automáticos hasta completar el alta de cobro en Stripe."}
         </p>
       </div>
     </WorkspaceSection>

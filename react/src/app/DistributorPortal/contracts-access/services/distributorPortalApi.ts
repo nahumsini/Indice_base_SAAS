@@ -7,6 +7,7 @@ import type {
   PlatformBenefit,
   PlatformCatalog,
   PlatformCompanyDetail,
+  PlatformCompanyProductPreview,
   PlatformCompanyUserMutationResult,
   PlatformConsultingAppointment,
   PlatformConsultingAppointmentCreate,
@@ -78,7 +79,7 @@ export const distributorPortalApi = {
     `${companyPath(companyId)}/benefits/${encodeURIComponent(reference)}`,
     { method: 'DELETE', body: JSON.stringify({ reason }) },
   ),
-  updateTrialProducts: (companyId: number, productCodes: string[]) => apiClient<{
+  updateTrialProducts: (companyId: number, productCodes: string[], expectedCatalogVersion: string) => apiClient<{
     company_id: number;
     product_codes: string[];
     offer_code: string;
@@ -89,8 +90,15 @@ export const distributorPortalApi = {
   }>(`${companyPath(companyId)}/products`, {
     method: 'PATCH',
     headers: { 'Idempotency-Key': crypto.randomUUID() },
-    body: JSON.stringify({ product_codes: productCodes }),
+    body: JSON.stringify({
+      product_codes: productCodes,
+      expected_catalog_version: expectedCatalogVersion,
+    }),
   }),
+  previewCompanyProducts: (companyId: number, productCodes: string[]) => apiClient<PlatformCompanyProductPreview>(
+    `${companyPath(companyId)}/products/preview`,
+    { method: 'POST', body: JSON.stringify({ product_codes: productCodes }) },
+  ),
   getConsulting: () => apiClient<PlatformConsultingWorkspace>(endpoints.distributorPortal.consulting),
   createConsultingAppointment: (payload: PlatformConsultingAppointmentCreate) =>
     apiClient<PlatformConsultingAppointment>(`${endpoints.distributorPortal.consulting}/appointments`, {

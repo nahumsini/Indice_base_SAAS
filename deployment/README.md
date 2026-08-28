@@ -38,6 +38,9 @@ cp deployment/env/.env.example deployment/env/.env
 - `APP_SESSION_COOKIE_SECURE`
 - `APP_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET`
 - `APP_KIOSK_TOKEN_PROTECTION_SECRET` (obligatoria; distinta de los demás secretos)
+- `APP_BILLING_STORAGE_INCLUDED_BYTES=5368709120` y
+  `APP_BILLING_STORAGE_BLOCK_BYTES=5368709120` para conservar la cuota y el
+  bloque comercial aprobados de 5 GiB
 - tiempos de sesión de kioskos (`APP_*_KIOSK_*_SECONDS`); la plantilla contiene los valores estándar aprobados
 - `MYSQL_*`
 - `MINIO_*`
@@ -103,6 +106,35 @@ debe usarse como autorización para desplegar esos valores en producción.
 El preflight sólo aprueba el código y la configuración. No crea
 `deployment/env/.env`, no genera secretos productivos y no publica imágenes en
 un registry.
+
+### Publicación segura del catálogo en Stripe
+
+En APPTEST, configura Stripe en modo `test`, conserva
+`APP_BILLING_STRIPE_CATALOG_LIVE_SYNC_ENABLED=false` y usa el administrador de
+plataforma para conectar los precios. La acción **Validar oferta** vuelve a
+consultar Stripe y compara cuenta, modo, Product, Price, importe, moneda,
+intervalo, impuestos y promociones. Sólo una validación sin bloqueos habilita
+**Publicar oferta**.
+
+No cambies una base que contiene referencias TEST directamente a LIVE mientras
+existe tráfico. Para preparar producción:
+
+1. Completa la certificación de Stripe TEST y conserva su evidencia.
+2. Ejecuta los gates financieros y `audit-stripe-live-readiness.sh`.
+3. Abre una ventana de mantenimiento sin altas ni cambios de suscripción.
+4. Despliega temporalmente con modo `live` y
+   `APP_BILLING_STRIPE_CATALOG_LIVE_SYNC_ENABLED=true`.
+5. Un administrador `PLATFORM_ROOT` sincroniza cada producto enviando
+   `target_mode=LIVE` y la confirmación exacta `PUBLICAR EN STRIPE LIVE`.
+6. Valida remotamente la oferta, revisa la cuenta mostrada y publícala.
+7. Restaura inmediatamente
+   `APP_BILLING_STRIPE_CATALOG_LIVE_SYNC_ENABLED=false`, recrea el backend y
+   ejecuta el smoke test.
+
+La bandera sólo habilita la escritura controlada del catálogo; no activa
+procesadores, provisioning, lifecycle, entitlement enforcement ni autoriza por
+sí misma cobros públicos. Si cualquier referencia no coincide, conserva la
+versión activa anterior y ejecuta el rollback de aplicación documentado.
 
 Los tiempos estándar enviados al backend son: RH 3 minutos; Expenses 5 minutos
 de inactividad y 8 horas de sesión; Caja Chica 15 minutos y 4 horas; Procesos y

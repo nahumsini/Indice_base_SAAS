@@ -13,7 +13,10 @@ Estado: implementación para `apptest.indiceapp.com`. Producción permanece fuer
 - La primera consultoría de 50 minutos está incluida. Las adicionales cuestan USD 89 y son cargos separados, nunca parte de la mensualidad o del descuento anual.
 - Cada plan incluye 5 empleados. Cada empleado adicional cuesta USD 12 al mes; en anual cuesta USD 144 por año, sin descuento adicional.
 - La facturación anual aplica 20 % de descuento únicamente al paquete base.
-- Se incluyen 5 GiB. Cada bloque adicional representa 1 GiB y cuesta USD 1 al mes o USD 12 al año. La medición y compra de bloques existe, pero la activación automática debe permanecer en observación hasta certificar reconciliación y facturación.
+- Se incluyen 5 GiB y cada bloque adicional representa otros 5 GiB. El precio
+  comercial del bloque sigue pendiente de aprobación; los importes sintéticos
+  usados en Stripe TEST no autorizan una tarifa LIVE. La compra automática debe
+  permanecer apagada hasta certificar reconciliación y facturación.
 - Los precios de lanzamiento son tarifas de lealtad mientras la suscripción permanezca activa.
 
 ## 2. Catálogo de productos elegibles
@@ -111,10 +114,13 @@ en esta sección representan el estado certificado actual de staging.
 El catálogo TEST se crea de forma repetible con:
 
 ```bash
-STRIPE_SECRET_KEY='sk_test_...' ./deployment/scripts/bootstrap-stripe-test-catalog.sh
+STRIPE_SECRET_KEY='sk_test_...' \
+INDICE_STORAGE_BLOCK_MONTHLY_CENTS='<importe-sintético-test>' \
+INDICE_STORAGE_BLOCK_ANNUAL_CENTS='<importe-sintético-test>' \
+./deployment/scripts/bootstrap-stripe-test-catalog.sh
 ```
 
-El resultado contiene sólo Price IDs y puede incorporarse al archivo secreto del VPS. El script rechaza llaves que no sean `sk_test_`.
+El resultado contiene sólo Price IDs y puede incorporarse al archivo secreto del VPS. El script rechaza llaves que no sean `sk_test_`. Sus valores predeterminados de almacenamiento existen únicamente para pruebas y no representan una decisión comercial.
 
 ## 5. Secuencia de activación
 

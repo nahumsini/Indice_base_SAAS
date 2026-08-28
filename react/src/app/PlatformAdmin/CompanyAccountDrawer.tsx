@@ -6,6 +6,7 @@ import type {
   PlatformBenefit,
   PlatformCatalogProduct,
   PlatformCompanyDetail,
+  PlatformCompanyProductPreview,
 } from "../api/platformAdmin";
 import { IndiceWorkspaceNavigation } from "../components/frontend-os";
 import { IndiceModalFrame } from "../components/indice-modal/IndiceModalFrame";
@@ -35,7 +36,8 @@ export interface CompanyAccountDrawerProps {
   onBenefit: (value: BenefitPayload) => void;
   onSubmitBenefit: (event: React.FormEvent) => Promise<void>;
   onGrantProduct: (productCode: string) => Promise<void>;
-  onUpdateTrialProducts: (productCodes: string[]) => Promise<void>;
+  onPreviewProducts: (productCodes: string[]) => Promise<PlatformCompanyProductPreview>;
+  onUpdateTrialProducts: (productCodes: string[], expectedCatalogVersion: string) => Promise<boolean>;
   onRefreshCompany: () => Promise<void>;
   onUpdatePublicDemo?: (enabled: boolean) => Promise<void>;
   onRevokeBenefit: (reference: string, label?: string, grantCount?: number) => void;
@@ -54,6 +56,7 @@ export function CompanyAccountDrawer({
   onBenefit,
   onSubmitBenefit,
   onGrantProduct,
+  onPreviewProducts,
   onUpdateTrialProducts,
   onRefreshCompany,
   onUpdatePublicDemo,
@@ -211,6 +214,7 @@ export function CompanyAccountDrawer({
             activeProductBenefits={activeProductBenefits}
             saving={saving}
             onGrant={onGrantProduct}
+            onPreviewProducts={onPreviewProducts}
             onUpdateTrialProducts={onUpdateTrialProducts}
             onRevoke={onRevokeBenefit}
           />

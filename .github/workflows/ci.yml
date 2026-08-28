@@ -113,6 +113,9 @@ jobs:
           npm run test:sales-ui
           npm run test:sales-workflow
           npm run test:pos-ui
+          npm run test:platform-admin
+          npm run test:billing-flow
+          npm run test:distributor-portal
           npm run test:print
           npm run test:phone-validation
 

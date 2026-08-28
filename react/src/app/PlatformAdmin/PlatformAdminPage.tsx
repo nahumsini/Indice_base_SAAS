@@ -721,26 +721,37 @@ export default function PlatformAdminPage() {
     }
   };
 
-  const updateTrialProducts = async (productCodes: string[]) => {
-    if (!selected || saving) return;
+  const previewCompanyProducts = async (productCodes: string[]) => {
+    if (!selected) throw new Error("Selecciona una cuenta antes de revisar el cambio.");
+    return platformAdminApi.previewCompanyProducts(selected.id, productCodes);
+  };
+
+  const updateTrialProducts = async (productCodes: string[], expectedCatalogVersion: string) => {
+    if (!selected || saving) return false;
     setSaving(true);
     setError("");
     setAccountFeedback(null);
     try {
-      const result = await platformAdminApi.updateTrialProducts(selected.id, productCodes);
+      const result = await platformAdminApi.updateTrialProducts(
+        selected.id,
+        productCodes,
+        expectedCatalogVersion,
+      );
       await refreshOverviewAndCompany();
       setAccountFeedback({
         type: "success",
         message: result.charge_timing === "TRIAL_END"
           ? `La prueba quedó con ${result.product_codes.length} módulo(s). Stripe usará esta selección al terminar la prueba.`
-          : `La suscripción quedó con ${result.product_codes.length} módulo(s). El acceso cambió ahora y Stripe cobrará el nuevo total en la próxima factura.`,
+          : `La suscripción quedó con ${result.product_codes.length} módulo(s). El acceso cambió ahora y Stripe usará el nuevo total en la próxima renovación.`,
       });
+      return true;
     } catch (saveError) {
       const message = saveError instanceof Error
         ? saveError.message
         : "No se pudieron actualizar los módulos de la cuenta.";
       setError(message);
       setAccountFeedback({ type: "error", message });
+      return false;
     } finally {
       setSaving(false);
     }
@@ -1138,6 +1149,7 @@ export default function PlatformAdminPage() {
           onBenefit={setBenefit}
           onSubmitBenefit={submitBenefit}
           onGrantProduct={(productCode) => void grantProductAccess(productCode)}
+          onPreviewProducts={previewCompanyProducts}
           onUpdateTrialProducts={updateTrialProducts}
           onRefreshCompany={refreshOverviewAndCompany}
           onUpdatePublicDemo={updatePublicDemoAccess}
@@ -2149,12 +2161,13 @@ function CatalogAndModulesTab({
       const validation =
         await platformAdminApi.validateCatalogDraft(draftVersion.id);
       setCatalogValidation(validation);
+      onCatalogChange(await platformAdminApi.getCatalog());
       setSyncFeedback({
         type: validation.ready ? "success" : "error",
         message: validation.ready
           ? english
-            ? "The offer is complete and ready to publish in Stripe test mode."
-            : "La oferta está completa y lista para publicarse en modo de prueba de Stripe."
+            ? `The offer is complete and remotely verified in Stripe ${validation.stripe_mode}.`
+            : `La oferta está completa y verificada remotamente en Stripe ${validation.stripe_mode}.`
           : english
             ? `${validation.blockers.length} item(s) must be completed before publishing.`
             : `Falta completar ${validation.blockers.length} pendiente(s) antes de publicar.`,
