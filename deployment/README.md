@@ -247,8 +247,8 @@ APP_DIR=/home/corazon/app.indiceapp.com \
 DEPLOY_ENV_FILE=/home/corazon/apps/indice-erp-docker/current/deployment/env/.env \
 PUBLIC_URL=https://app.indiceapp.com \
 HOST_BACKEND_PORT=8083 \
-WEB_IMAGE="indice-erp-web:${RELEASE_SHA}" \
-BACKEND_IMAGE="indice-erp-backend:${RELEASE_SHA}" \
+DEPLOY_WEB_IMAGE="indice-erp-web:${RELEASE_SHA}" \
+DEPLOY_BACKEND_IMAGE="indice-erp-backend:${RELEASE_SHA}" \
 ./deployment/scripts/up-host-network.sh
 ```
 
@@ -260,8 +260,8 @@ APP_DIR=/home/corazon/apptest.indiceapp.com \
 DEPLOY_ENV_FILE=/home/corazon/apps/indice-erp-docker/apptest/deployment/env/.env \
 PUBLIC_URL=https://apptest.indiceapp.com \
 HOST_BACKEND_PORT=8082 \
-WEB_IMAGE="indice-erp-web:${RELEASE_SHA}" \
-BACKEND_IMAGE="indice-erp-backend:${RELEASE_SHA}" \
+DEPLOY_WEB_IMAGE="indice-erp-web:${RELEASE_SHA}" \
+DEPLOY_BACKEND_IMAGE="indice-erp-backend:${RELEASE_SHA}" \
 ./deployment/scripts/up-host-network.sh
 ```
 
