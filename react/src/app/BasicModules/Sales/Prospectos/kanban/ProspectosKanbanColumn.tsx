@@ -1,9 +1,9 @@
 import type { DragEvent } from 'react';
-import { opportunityStages, type OpportunityStage, type SalesOpportunity } from '../../salesCrmContext';
+import type { OpportunityFlowStage, OpportunityStage, SalesOpportunity } from '../../salesCrmContext';
 import { cn } from '../../../../components/ui/utils';
 import type { ProspectosCopy } from '../translations';
 import { getOpportunityIdFromDragEvent } from '../utils/prospectosFormatters';
-import { stageProgressStyles } from '../utils/prospectosStatus';
+import { getOpportunityStageDotClass, getOpportunityStageLabel } from '../utils/prospectosFlow';
 import { ProspectosKanbanCard } from './ProspectosKanbanCard';
 
 export function ProspectosKanbanColumn({
@@ -17,7 +17,7 @@ export function ProspectosKanbanColumn({
   onStageChange,
 }: {
   copy: ProspectosCopy;
-  stage: OpportunityStage;
+  stage: OpportunityFlowStage;
   opportunities: SalesOpportunity[];
   allOpportunities: SalesOpportunity[];
   onOpenFiles: (opportunity: SalesOpportunity) => void;
@@ -30,11 +30,11 @@ export function ProspectosKanbanColumn({
     const opportunityId = getOpportunityIdFromDragEvent(event);
     const opportunity = allOpportunities.find((item) => item.id === opportunityId);
 
-    if (!opportunity || opportunity.stage === stage) {
+    if (!opportunity || opportunity.stage === stage.key) {
       return;
     }
 
-    onStageChange(opportunity, stage);
+    onStageChange(opportunity, stage.key);
   };
 
   return (
@@ -46,8 +46,10 @@ export function ProspectosKanbanColumn({
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className={cn('h-2.5 w-2.5 rounded-full', stageProgressStyles[stage])} />
-            <h3 className="text-sm font-medium text-slate-950">{copy.options.stages[stage]}</h3>
+            <span className={cn('h-2.5 w-2.5 rounded-full', getOpportunityStageDotClass(stage))} />
+            <h3 className="text-sm font-medium text-slate-950">
+              {getOpportunityStageLabel(stage, copy.options.stages as Record<string, string>)}
+            </h3>
           </div>
           <p className="mt-1 text-xs font-medium text-slate-500">{copy.kanban.dragHint}</p>
         </div>
@@ -70,5 +72,3 @@ export function ProspectosKanbanColumn({
     </div>
   );
 }
-
-export { opportunityStages };

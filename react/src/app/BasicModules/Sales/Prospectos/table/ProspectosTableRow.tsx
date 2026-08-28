@@ -3,9 +3,9 @@ import {
   opportunityNextActions,
   opportunityProbabilities,
   opportunitySources,
-  opportunityStages,
   opportunityStatuses,
   opportunityTemperatures,
+  type OpportunityFlowStage,
   type OpportunityNextAction,
   type OpportunityProbability,
   type OpportunitySource,
@@ -32,13 +32,15 @@ import { OpportunityQuoteSignalBadge } from '../components/OpportunityQuoteSigna
 import type { ProspectosCopy } from '../translations';
 import type { OpportunityColumnId } from '../types/prospectosTypes';
 import { opportunityActionsColumnWidth } from '../utils/prospectosStatus';
+import { getOpportunitySchedule } from '../utils/prospectosFormatters';
 import {
-  getOpportunityStatusForStage,
-  getOpportunitySchedule,
-} from '../utils/prospectosFormatters';
+  getOpportunityStageBadgeClass,
+  getOpportunityStageConfig,
+  getOpportunityStageLabel,
+} from '../utils/prospectosFlow';
 import { getOpportunityNativePipelineTotals } from '../utils/prospectosPipeline';
 import { getLinkedQuotesForOpportunity, getOpportunityQuoteSignal } from '../utils/prospectosQuoteSignals';
-import { stageClasses, statusClasses, temperatureClasses } from '../utils/prospectosStatus';
+import { statusClasses, temperatureClasses } from '../utils/prospectosStatus';
 
 function OpportunityInlineSelect<TValue extends string>({
   value,
@@ -143,12 +145,14 @@ export function ProspectosTableRow({
   copy,
   opportunity,
   quotes,
+  stages,
   visibleColumns,
   columnWidths,
   ownerSelectOptions,
   resolveOpportunityOwnerValue,
   getOwnerPayloadFromValue,
   onUpdateOpportunity,
+  onStageChange,
   onOpenFiles,
   onOpenHistory,
   onEdit,
@@ -159,12 +163,14 @@ export function ProspectosTableRow({
   copy: ProspectosCopy;
   opportunity: SalesOpportunity;
   quotes: SalesQuote[];
+  stages: OpportunityFlowStage[];
   visibleColumns: Array<{ id: string }>;
   columnWidths: Record<OpportunityColumnId, number>;
   ownerSelectOptions: Array<{ value: string; label: string }>;
   resolveOpportunityOwnerValue: (opportunity: SalesOpportunity) => string;
   getOwnerPayloadFromValue: (value: string) => { ownerUserCompanyId: number | null; owner: string };
   onUpdateOpportunity: (opportunityId: string, patch: Partial<Omit<SalesOpportunity, 'id'>>) => void;
+  onStageChange: (opportunity: SalesOpportunity, stage: OpportunityStage) => void;
   onOpenFiles: (opportunity: SalesOpportunity) => void;
   onOpenHistory: (opportunity: SalesOpportunity) => void;
   onEdit: (opportunity: SalesOpportunity) => void;
@@ -176,6 +182,7 @@ export function ProspectosTableRow({
   const quoteSignal = getOpportunityQuoteSignal(opportunity, quotes);
   const pipeline = getOpportunityNativePipelineTotals(opportunity, quotes);
   const commercialFilesCount = opportunity.files.length + quoteSignal.quoteCount;
+  const stageConfig = getOpportunityStageConfig(stages, opportunity.stage);
 
   const renderOpportunityCell = (columnId: OpportunityColumnId) => {
     switch (columnId) {
@@ -220,13 +227,15 @@ export function ProspectosTableRow({
         return (
           <OpportunityInlineSelect<OpportunityStage>
             value={opportunity.stage}
-            options={opportunityStages}
-            getLabel={(stage) => copy.options.stages[stage]}
-            onValueChange={(stage) => onUpdateOpportunity(opportunity.id, {
-              stage,
-              status: getOpportunityStatusForStage(stage, opportunity.status),
-            })}
-            className={stageClasses[opportunity.stage]}
+            options={stages.map((stage) => stage.key)}
+            getLabel={(stageKey) => {
+              const option = getOpportunityStageConfig(stages, stageKey);
+              return option
+                ? getOpportunityStageLabel(option, copy.options.stages as Record<string, string>)
+                : stageKey;
+            }}
+            onValueChange={(stage) => onStageChange(opportunity, stage)}
+            className={getOpportunityStageBadgeClass(stageConfig)}
           />
         );
       case 'temperature':

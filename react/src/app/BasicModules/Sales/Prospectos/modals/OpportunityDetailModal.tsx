@@ -12,10 +12,12 @@ const detailActionClassNames = getSalesModalActionClassNames('coral');
 export function OpportunityDetailModal({
   copy,
   opportunity,
+  stageLabel,
   onClose,
 }: {
   copy: ProspectosCopy['detailModal'];
   opportunity: SalesOpportunity | null;
+  stageLabel?: string;
   onClose: () => void;
 }) {
   return (
@@ -43,7 +45,7 @@ export function OpportunityDetailModal({
           </div>
 
           <div className="space-y-3">
-            {opportunity ? buildOpportunityHistory(opportunity).map((entry) => (
+            {opportunity ? buildOpportunityHistory(opportunity, stageLabel).map((entry) => (
               <div key={entry.id} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-[14px_minmax(0,1fr)_150px] sm:items-start">
                 <span
                   className={cn(

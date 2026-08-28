@@ -14,7 +14,7 @@ import {
   TableRow,
 } from '../../../../components/ui/table';
 import { useTablePagination } from '../../../../hooks/useTablePagination';
-import type { SalesOpportunity, SalesQuote } from '../../salesCrmContext';
+import type { OpportunityFlowStage, OpportunityStage, SalesOpportunity, SalesQuote } from '../../salesCrmContext';
 import type { ProspectosCopy } from '../translations';
 import type { OpportunityColumnId, OpportunitySortState } from '../types/prospectosTypes';
 import {
@@ -37,6 +37,7 @@ export function ProspectosTable({
   copy,
   opportunities,
   quotes,
+  stages,
   visibleColumns,
   columnWidths,
   tableMinWidth,
@@ -46,6 +47,7 @@ export function ProspectosTable({
   getOwnerPayloadFromValue,
   onSort,
   onUpdateOpportunity,
+  onStageChange,
   onOpenFiles,
   onOpenHistory,
   onEdit,
@@ -59,6 +61,7 @@ export function ProspectosTable({
   copy: ProspectosCopy;
   opportunities: SalesOpportunity[];
   quotes: SalesQuote[];
+  stages: OpportunityFlowStage[];
   visibleColumns: ColumnConfig[];
   columnWidths: Record<OpportunityColumnId, number>;
   tableMinWidth: number;
@@ -68,6 +71,7 @@ export function ProspectosTable({
   getOwnerPayloadFromValue: (value: string) => { ownerUserCompanyId: number | null; owner: string };
   onSort: (columnId: OpportunityColumnId) => void;
   onUpdateOpportunity: (opportunityId: string, patch: Partial<Omit<SalesOpportunity, 'id'>>) => void;
+  onStageChange: (opportunity: SalesOpportunity, stage: OpportunityStage) => void;
   onOpenFiles: (opportunity: SalesOpportunity) => void;
   onOpenHistory: (opportunity: SalesOpportunity) => void;
   onEdit: (opportunity: SalesOpportunity) => void;
@@ -142,12 +146,14 @@ export function ProspectosTable({
                 key={opportunity.id}
                 opportunity={opportunity}
                 quotes={quotes}
+                stages={stages}
                 visibleColumns={visibleColumns}
                 columnWidths={columnWidths}
                 ownerSelectOptions={ownerSelectOptions}
                 resolveOpportunityOwnerValue={resolveOpportunityOwnerValue}
                 getOwnerPayloadFromValue={getOwnerPayloadFromValue}
                 onUpdateOpportunity={onUpdateOpportunity}
+                onStageChange={onStageChange}
                 onOpenFiles={onOpenFiles}
                 onOpenHistory={onOpenHistory}
                 onEdit={onEdit}

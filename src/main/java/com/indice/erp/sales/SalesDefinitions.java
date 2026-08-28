@@ -98,6 +98,7 @@ final class SalesDefinitions {
                         f("email", "email", SalesFieldType.STRING),
                         f("source", "source", SalesFieldType.STRING),
                         f("stage", "stage", SalesFieldType.STRING),
+                        f("lifecycleStatus", "lifecycle_status", SalesFieldType.STRING),
                         f("temperature", "temperature", SalesFieldType.STRING),
                         f("status", "status", SalesFieldType.STRING),
                         f("ownerUserCompanyId", "owner_user_company_id", SalesFieldType.LONG),

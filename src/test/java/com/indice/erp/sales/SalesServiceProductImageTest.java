@@ -32,6 +32,7 @@ class SalesServiceProductImageTest {
     @Mock BusinessExchangeRateService exchangeRates;
     @Mock KpiCurrencyAggregationService currencies;
     @Mock SalesProductAvailabilityLinkCodec availabilityLinkCodec;
+    @Mock OpportunityFlowService opportunityFlowService;
 
     private ObjectStorageProperties storageProperties;
     private SalesService service;
@@ -42,7 +43,8 @@ class SalesServiceProductImageTest {
         storageProperties.getMinio().setBucketSalesDocuments("indice-sales-documents");
         storageProperties.getMinio().setPresignExpirySeconds(900);
         service = new SalesService(repository, referenceService, objectStorageService,
-            storageProperties, storageMeter, exchangeRates, currencies, availabilityLinkCodec);
+            storageProperties, storageMeter, exchangeRates, currencies, availabilityLinkCodec,
+            opportunityFlowService);
     }
 
     @Test

@@ -1,5 +1,5 @@
 import type { DragEvent } from 'react';
-import type { SalesOpportunity } from '../../salesCrmContext';
+import type { OpportunityFlowStage, SalesOpportunity } from '../../salesCrmContext';
 import type { ProspectosCopy } from '../translations';
 import type { AgendaViewMode } from '../types/prospectosTypes';
 import {
@@ -13,6 +13,7 @@ import { ProspectosAgendaItem, ProspectosWeeklyAgendaItem } from './ProspectosAg
 
 export function ProspectosAgendaCalendar({
   copy,
+  stages,
   mode,
   selectedDate,
   dayOpportunities,
@@ -28,6 +29,7 @@ export function ProspectosAgendaCalendar({
   onEdit,
 }: {
   copy: ProspectosCopy;
+  stages: OpportunityFlowStage[];
   mode: AgendaViewMode;
   selectedDate: string;
   dayOpportunities: SalesOpportunity[];
@@ -185,6 +187,7 @@ export function ProspectosAgendaCalendar({
                 {dateOpportunities.length > 0 ? dateOpportunities.map((opportunity) => (
                   <ProspectosAgendaItem
                     copy={copy}
+                    stages={stages}
                     key={opportunity.id}
                     opportunity={opportunity}
                     compact
@@ -234,6 +237,7 @@ export function ProspectosAgendaCalendar({
               {hourOpportunities.length > 0 ? hourOpportunities.map((opportunity) => (
                 <ProspectosAgendaItem
                   copy={copy}
+                  stages={stages}
                   key={opportunity.id}
                   opportunity={opportunity}
                   compact
@@ -267,6 +271,7 @@ export function ProspectosAgendaCalendar({
               .map((opportunity) => (
                 <ProspectosAgendaItem
                   copy={copy}
+                  stages={stages}
                   key={opportunity.id}
                   opportunity={opportunity}
                   compact

@@ -3,7 +3,7 @@ import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';
 import { cn } from '../../../../components/ui/utils';
-import type { SalesOpportunity } from '../../salesCrmContext';
+import type { OpportunityFlowStage, SalesOpportunity } from '../../salesCrmContext';
 import type { ProspectosCopy } from '../translations';
 import { useProspectosAgenda } from '../hooks/useProspectosAgenda';
 import type { AgendaViewMode } from '../types/prospectosTypes';
@@ -13,6 +13,7 @@ import { ProspectosAgendaSidebar } from './ProspectosAgendaSidebar';
 export function ProspectosAgenda({
   copy,
   opportunities,
+  stages,
   onOpenFiles,
   onOpenHistory,
   onEdit,
@@ -20,6 +21,7 @@ export function ProspectosAgenda({
 }: {
   copy: ProspectosCopy;
   opportunities: SalesOpportunity[];
+  stages: OpportunityFlowStage[];
   onOpenFiles: (opportunity: SalesOpportunity) => void;
   onOpenHistory: (opportunity: SalesOpportunity) => void;
   onEdit: (opportunity: SalesOpportunity) => void;
@@ -92,6 +94,7 @@ export function ProspectosAgenda({
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
           <ProspectosAgendaCalendar
             copy={copy}
+            stages={stages}
             mode={agenda.agendaViewMode}
             selectedDate={agenda.selectedDate}
             dayOpportunities={agenda.dayOpportunities}
@@ -119,6 +122,7 @@ export function ProspectosAgenda({
       {agenda.agendaViewMode !== 'day' ? (
         <ProspectosAgendaCalendar
           copy={copy}
+          stages={stages}
           mode={agenda.agendaViewMode}
           selectedDate={agenda.selectedDate}
           dayOpportunities={agenda.dayOpportunities}
