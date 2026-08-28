@@ -28,7 +28,8 @@ COPY react ./
 ARG VITE_API_BASE_URL=
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 
-RUN npm run build
+RUN npm run build \
+    && chmod -R a+rX dist
 
 FROM nginxinc/nginx-unprivileged:stable-alpine
 
