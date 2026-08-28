@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../../../shared/context';
 import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../api/dashboard';
-import { humanResourcesApi, type BackendHrUser } from '../../../api/humanResources';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { ColumnasConfigModal, type ColumnConfig } from '../../../components/rh/ColumnasConfigModal';
 import { DataTablePagination } from '../../../components/table/DataTablePagination';
@@ -51,6 +50,7 @@ import type {
   ProcessUnitOption,
 } from '../Processes/types';
 import { collaboratorCanOwnScopedRecord } from '../shared/assignmentScope';
+import { listProcessTaskAssignmentOptions } from '../shared/assignmentCatalogApi';
 import { ProjectFormDialog, type ProjectFormValues } from './components/ProjectFormDialog';
 import { ProjectActionButton, SortableTableHead } from './components/ProjectTablePrimitives';
 import { ProjectTasksWorkspace } from './components/ProjectTasksWorkspace';
@@ -441,26 +441,6 @@ function normalizeBusinessOption(business: BackendBusiness): ProcessBusinessOpti
   };
 }
 
-function normalizeCollaboratorOption(user: BackendHrUser): ProcessCollaboratorOption | null {
-  const userCompanyId = user.user_company_id ?? user.legacy_user_company_id ?? null;
-  const name = compactText(user.full_name) || compactText(`${user.first_name ?? ''} ${user.last_name ?? ''}`);
-
-  if (!userCompanyId || !name || user.status !== 'active') {
-    return null;
-  }
-
-  return {
-    userCompanyId,
-    userId: user.user_id ?? null,
-    name,
-    email: user.email,
-    unitId: user.unit_id ?? null,
-    unitName: compactText(user.unit_name),
-    businessId: user.business_id ?? null,
-    businessName: compactText(user.business_name),
-  };
-}
-
 function isHeadquarterUnitName(name?: string | null) {
   const normalizedName = compactText(name).toLowerCase().replace(/\s+/g, ' ');
   return normalizedName === 'headquarter' || normalizedName === 'headquarters' || normalizedName === 'headquater';
@@ -790,11 +770,11 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
 
   useEffect(() => {
     const loadRelations = async () => {
-      const [processResult, unitResult, businessResult, hrUserResult] = await Promise.allSettled([
+      const [processResult, unitResult, businessResult, assignmentResult] = await Promise.allSettled([
         listProcesses(),
         dashboardApi.listUnits(),
         dashboardApi.listBusinesses(),
-        humanResourcesApi.listHrUsers(),
+        listProcessTaskAssignmentOptions(),
       ]);
 
       setProcesses(processResult.status === 'fulfilled' ? processResult.value : []);
@@ -815,10 +795,8 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
           : [],
       );
       setCatalogCollaborators(
-        hrUserResult.status === 'fulfilled'
-          ? hrUserResult.value.items
-              .map(normalizeCollaboratorOption)
-              .filter((option): option is ProcessCollaboratorOption => option !== null)
+        assignmentResult.status === 'fulfilled'
+          ? assignmentResult.value
               .sort((left, right) => projectSortCollator.compare(left.name, right.name))
           : [],
       );

@@ -49,6 +49,9 @@ class TabPermissionRouteClassifierTest {
     void sharedReadRoutesAcceptTheScopesThatConsumeTheirData() {
         assertAnyOf("GET", "/api/v1/hr/users", "human_resources.collaborators", "human_resources.kpis");
         assertAnyOf("GET", "/api/v1/process-tasks", "processes.calendar", "processes.projects", "processes.processes");
+        assertAnyOf(
+            "GET", "/api/v1/process-tasks/assignment-catalog",
+            "processes.calendar", "processes.projects", "processes.processes", "processes.kpis");
         assertAnyOf("GET", "/api/v1/finance/petty-cash", "petty_cash.cash", "petty_cash.control", "petty_cash.statements", "petty_cash.kpis");
         assertAnyOf("GET", "/api/v1/pos/cash-closings", "pos.cortes", "pos.kpis");
         assertAnyOf("GET", "/api/v1/sales/products", "inventory.products", "inventory.inventory", "inventory.purchase-orders");

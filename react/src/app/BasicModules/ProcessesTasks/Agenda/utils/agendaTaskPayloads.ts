@@ -1,10 +1,8 @@
 import type { BackendBusiness, BackendUnit } from '../../../../api/dashboard';
-import type { BackendHrUser } from '../../../../api/humanResources';
 import type { TaskFormValues } from '../../Tasks/components/TaskFormDialog';
 import type { TaskPayload } from '../../Tasks/tasksApi';
 import type {
   ProcessBusinessOption,
-  ProcessCollaboratorOption,
   ProcessUnitOption,
 } from '../../Processes/types';
 import type { ProjectRecord } from '../../Projects/projectsApi';
@@ -112,26 +110,6 @@ export function normalizeBusinessOption(business: BackendBusiness): ProcessBusin
     id: business.id,
     name: compactText(business.name),
     unitId: business.unitId ?? business.unit_id ?? null,
-  };
-}
-
-export function normalizeCollaboratorOption(user: BackendHrUser): ProcessCollaboratorOption | null {
-  const userCompanyId = user.user_company_id ?? user.legacy_user_company_id ?? null;
-  const name = compactText(user.full_name) || compactText(`${user.first_name ?? ''} ${user.last_name ?? ''}`);
-
-  if (!userCompanyId || !name || user.status !== 'active') {
-    return null;
-  }
-
-  return {
-    userCompanyId,
-    userId: user.user_id ?? null,
-    name,
-    email: user.email,
-    unitId: user.unit_id ?? null,
-    unitName: compactText(user.unit_name),
-    businessId: user.business_id ?? null,
-    businessName: compactText(user.business_name),
   };
 }
 

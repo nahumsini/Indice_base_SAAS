@@ -33,7 +33,6 @@ import {
   YAxis,
 } from 'recharts';
 import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../api/dashboard';
-import { humanResourcesApi, type BackendHrUser } from '../../../api/humanResources';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import {
@@ -57,6 +56,7 @@ import { agendaFocusFilterValues, agendaStatusFilterValues } from '../Agenda/hoo
 import { useAgendaTranslations, type AgendaTranslations } from '../Agenda/translations';
 import type { AgendaFocusFilter, PeriodFilter as AgendaPeriodFilter, StatusFilter } from '../Agenda/types';
 import { listProjects, type ProjectRecord } from '../Projects/projectsApi';
+import { listProcessTaskAssignmentOptions } from '../shared/assignmentCatalogApi';
 
 interface UnitOption {
   id: number;
@@ -217,25 +217,6 @@ function normalizeBusiness(business: BackendBusiness): BusinessOption {
     id: business.id,
     name: compactText(business.name),
     unitId: business.unitId ?? business.unit_id ?? null,
-  };
-}
-
-function normalizeCollaborator(user: BackendHrUser): CollaboratorOption | null {
-  const userCompanyId = user.user_company_id ?? user.legacy_user_company_id ?? null;
-  const name = compactText(user.full_name) || compactText(`${user.first_name ?? ''} ${user.last_name ?? ''}`);
-
-  if (!userCompanyId || !name || user.status !== 'active') {
-    return null;
-  }
-
-  return {
-    userCompanyId,
-    name,
-    email: user.email,
-    unitId: user.unit_id ?? null,
-    unitName: compactText(user.unit_name),
-    businessId: user.business_id ?? null,
-    businessName: compactText(user.business_name),
   };
 }
 
@@ -914,11 +895,11 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
 
     async function loadCatalogs() {
       try {
-        const [unitItems, businessItems, projectItems, hrUsers] = await Promise.all([
+        const [unitItems, businessItems, projectItems, assignmentOptions] = await Promise.all([
           dashboardApi.listUnits(),
           dashboardApi.listBusinesses(),
           listProjects(),
-          humanResourcesApi.listHrUsers(),
+          listProcessTaskAssignmentOptions(),
         ]);
 
         if (!isActive) {
@@ -943,9 +924,7 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
             .sort((left, right) => projectOptionLabel(left).localeCompare(projectOptionLabel(right), copy.locale)),
         );
         setCollaborators(
-          hrUsers.items
-            .map(normalizeCollaborator)
-            .filter((collaborator): collaborator is CollaboratorOption => collaborator != null)
+          assignmentOptions
             .sort((left, right) => left.name.localeCompare(right.name, copy.locale)),
         );
       } catch (catalogError) {
