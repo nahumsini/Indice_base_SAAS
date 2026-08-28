@@ -1,20 +1,29 @@
 package com.indice.erp.platformadmin;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import com.indice.erp.billing.stripe.StripeCatalogGateway;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 @SpringBootTest(properties = {
     "app.entitlements.enforcement-enabled=false",
-    "app.entitlements.projection-enabled=false"
+    "app.entitlements.projection-enabled=false",
+    "app.billing.stripe.enabled=true",
+    "app.billing.stripe.mode=test",
+    "app.billing.stripe.secret-key=sk_test_catalog_sync"
 })
 class PlatformCatalogManagementServiceIntegrationTest {
 
@@ -26,6 +35,15 @@ class PlatformCatalogManagementServiceIntegrationTest {
 
     @Autowired
     private PlatformCatalogManagementService service;
+
+    @Autowired
+    private PlatformCatalogStripeSynchronizationService stripeSynchronizationService;
+
+    @MockBean
+    private StripeCatalogGateway stripeCatalogGateway;
+
+    @Autowired
+    private PlatformAdminService platformAdminService;
 
     private long actorUserId;
     private long versionId;
@@ -78,6 +96,18 @@ class PlatformCatalogManagementServiceIntegrationTest {
             productId
         );
         priceId = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        jdbc.update(
+            """
+                INSERT INTO billing_catalog_prices
+                    (catalog_version_id, catalog_product_id, billable_code, price_type,
+                     billing_interval, currency, unit_amount_cents, included_quantity,
+                     external_price_id, status)
+                VALUES (?, ?, 'addon_catalog_management', 'ADDON', 'YEAR', 'USD', 9000, 1,
+                        'price_catalog_management_annual_test', 'READY')
+                """,
+            versionId,
+            productId
+        );
     }
 
     @AfterEach
@@ -180,6 +210,63 @@ class PlatformCatalogManagementServiceIntegrationTest {
             String.class,
             createdProductId
         )).containsExactly("human_resources", "inventory");
+    }
+
+    @Test
+    void catalogProjectionExposesCommercialKindsAndPricesForClientConfiguration() {
+        var catalog = platformAdminService.catalog(actorUserId);
+        @SuppressWarnings("unchecked")
+        var products = (List<Map<String, Object>>) catalog.get("products");
+
+        var product = products.stream()
+            .filter(candidate -> "addon_catalog_management".equals(candidate.get("product_code")))
+            .findFirst()
+            .orElseThrow();
+        assertThat(product)
+            .containsEntry("commercial_kind", "MODULE")
+            .containsEntry("monthly_price_cents", 900L)
+            .containsKey("commercial_model");
+    }
+
+    @Test
+    void catalogPricesAreCreatedInStripeTestAsTaxExclusiveAndPersisted() {
+        given(stripeCatalogGateway.upsertProduct(any(), anyString()))
+            .willReturn(new StripeCatalogGateway.ProductResult("prod_catalog_test"));
+        given(stripeCatalogGateway.createRecurringPrice(any(), anyString()))
+            .willAnswer(invocation -> {
+                var command = invocation.getArgument(0, StripeCatalogGateway.PriceCommand.class);
+                var suffix = "month".equals(command.interval()) ? "monthly" : "annual";
+                return new StripeCatalogGateway.PriceResult("price_synced_" + suffix, "exclusive");
+            });
+
+        var result = stripeSynchronizationService.synchronize(
+            actorUserId,
+            productId,
+            new PlatformCatalogStripeSynchronizationService.SynchronizeRequest(1_200L, 12_000L)
+        );
+
+        assertThat(result)
+            .containsEntry("stripe_mode", "TEST")
+            .containsEntry("tax_behavior", "EXCLUSIVE")
+            .containsEntry("tax_code", "txcd_10103001")
+            .containsEntry("automatic_tax_enabled", true);
+        assertThat(jdbc.queryForMap(
+            "SELECT external_product_id, stripe_tax_code FROM billing_catalog_products WHERE id = ?",
+            productId
+        )).containsEntry("external_product_id", "prod_catalog_test")
+            .containsEntry("stripe_tax_code", "txcd_10103001");
+        assertThat(jdbc.queryForList(
+            """
+                SELECT billing_interval, unit_amount_cents, external_price_id, stripe_tax_behavior, status
+                FROM billing_catalog_prices WHERE catalog_product_id = ? ORDER BY billing_interval
+                """,
+            productId
+        )).allSatisfy(price -> {
+            assertThat(price).containsEntry("stripe_tax_behavior", "EXCLUSIVE");
+            assertThat(price).containsEntry("status", "READY");
+            assertThat(price.get("external_price_id").toString()).startsWith("price_synced_");
+        });
+        verify(stripeCatalogGateway).upsertProduct(any(), anyString());
     }
 
     private void cleanTestState() {

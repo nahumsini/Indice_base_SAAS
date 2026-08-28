@@ -24,6 +24,7 @@ export function CompanyModulesTab({
 }) {
   const stripeTrial = company.billing_status?.toUpperCase() === "TRIALING" && Boolean(company.stripe_subscription_id);
   const stripeManaged = Boolean(company.stripe_subscription_id);
+  const versionedOffer = products.some((product) => product.commercial_model);
   const selectedBasicCount = products.filter(
     (product) => product.product_type.toUpperCase() === "BASIC" && activeProducts.has(product.product_code),
   ).length;
@@ -35,7 +36,11 @@ export function CompanyModulesTab({
     const benefits = activeProductBenefits.get(product.product_code) || [];
     const removableBenefit = benefits.find((benefit) => benefit.source_type.toUpperCase() !== "SUBSCRIPTION");
     const isBasic = product.product_type.toUpperCase() === "BASIC";
-    const canRemoveFromStripe = active && (!isBasic || selectedBasicCount > 1);
+    const canRemoveFromStripe = active && (versionedOffer || !isBasic || selectedBasicCount > 1);
+    const selectedCapabilities = products
+      .filter((candidate) => candidate.product_code !== product.product_code && activeProducts.has(candidate.product_code))
+      .flatMap((candidate) => candidate.capabilities);
+    const overlaps = !active && versionedOffer && product.capabilities.some((capability) => selectedCapabilities.includes(capability));
 
     return (
       <article
@@ -56,12 +61,17 @@ export function CompanyModulesTab({
               </span>
             )}
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">
-              {isBasic ? "Paquete base" : "Complemento"}
+              {product.commercial_kind === "PACKAGE" ? "Paquete" : versionedOffer ? "Módulo individual" : isBasic ? "Paquete base" : "Complemento"}
             </span>
           </div>
           <p className="mt-1 truncate text-xs text-slate-500">
             {product.capabilities?.length ? product.capabilities.join(" · ") : product.product_code}
           </p>
+          {versionedOffer && product.monthly_price_cents != null ? (
+            <p className="mt-0.5 text-xs font-semibold text-emerald-700">
+              {new Intl.NumberFormat("es-MX", { style: "currency", currency: "USD" }).format(product.monthly_price_cents / 100)} USD/mes
+            </p>
+          ) : null}
         </div>
         {stripeManaged && active ? (
           <button
@@ -79,7 +89,8 @@ export function CompanyModulesTab({
           <button
             type="button"
             className="h-9 shrink-0 rounded-lg bg-blue-600 px-3 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={saving}
+            disabled={saving || overlaps}
+            title={overlaps ? "Este módulo ya está incluido en otra selección" : "Agregar a la suscripción"}
             onClick={() => void onUpdateTrialProducts([...trialSelection, product.product_code])}
           >
             Agregar
@@ -88,7 +99,8 @@ export function CompanyModulesTab({
           <button
             type="button"
             className="h-9 shrink-0 rounded-lg border border-rose-200 px-3 text-xs font-medium text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={saving}
+            disabled={saving || overlaps}
+            title={overlaps ? "Este módulo ya está incluido en otra selección" : "Agregar acceso"}
             onClick={() => onRevoke(removableBenefit.reference, displayProductName(product), benefits.length)}
           >
             Quitar
@@ -110,7 +122,7 @@ export function CompanyModulesTab({
   return (
     <WorkspaceSection
       title="Plan y módulos"
-      description="Configura el paquete base y sus complementos; Stripe aplica el cambio según el estado de la cuenta."
+      description={versionedOffer ? "Configura módulos o paquetes sin duplicar accesos; el precio publicado alimenta la cuenta." : "Configura el paquete base y sus complementos; Stripe aplica el cambio según el estado de la cuenta."}
       icon={Box}
       action={<span className="text-xs font-medium text-slate-500">{activeProducts.size} activos</span>}
     >

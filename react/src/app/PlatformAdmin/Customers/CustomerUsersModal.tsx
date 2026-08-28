@@ -45,8 +45,8 @@ export function CustomerUsersModal({
         </span>
       }
       modalType="operational-workspace"
-      tone="blue"
-      bodyClassName="bg-slate-50/70"
+      tone="aqua"
+      bodyClassName="bg-slate-50/70 dark:bg-slate-950/40"
       contentClassName="sm:w-[min(92vw,1080px)] sm:max-w-[1080px] sm:max-h-[90dvh]"
       footerSummary={`${active} activo(s)${reserved ? ` + ${reserved} reservado(s)` : ""} de ${capacity} lugares`}
       footer={
@@ -55,13 +55,13 @@ export function CustomerUsersModal({
         </button>
       }
     >
-      <div className="mb-4 flex items-center gap-3 rounded-xl border border-blue-100 bg-white px-4 py-3">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-600">
+      <div className="mb-4 flex items-center gap-3 rounded-xl border border-[#59C3A5]/30 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#e8f5f2] text-[#177D66]">
           <UsersRound className="h-4 w-4" />
         </span>
         <div>
-          <p className="text-sm font-medium text-slate-900">Administración de usuarios</p>
-          <p className="text-xs text-slate-500">Invita, reactiva o desactiva personas sin mezclar cambios de módulos o facturación.</p>
+          <p className="text-sm font-medium text-slate-900 dark:text-white">Administración de usuarios</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Invita, reactiva o desactiva personas sin mezclar cambios de módulos o facturación.</p>
         </div>
       </div>
       <CompanyActivityTab

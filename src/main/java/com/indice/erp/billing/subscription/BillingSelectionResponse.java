@@ -61,10 +61,24 @@ public record BillingSelectionResponse(
         String product_code,
         String display_name,
         String product_type,
+        String commercial_kind,
         Long unit_amount_cents,
         boolean stripe_ready,
-        List<String> capabilities
+        List<String> capabilities,
+        List<String> included_product_codes
     ) {
+        public Product(
+            long id,
+            String product_code,
+            String display_name,
+            String product_type,
+            Long unit_amount_cents,
+            boolean stripe_ready,
+            List<String> capabilities
+        ) {
+            this(id, product_code, display_name, product_type, "MODULE", unit_amount_cents, stripe_ready, capabilities, List.of());
+        }
+
         public Product(long id, String product_code, String display_name, List<String> capabilities) {
             this(id, product_code, display_name, "BASIC", null, true, capabilities);
         }

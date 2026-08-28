@@ -7,6 +7,7 @@ import type {
   PlatformCatalogProduct,
   PlatformCompanyDetail,
 } from "../api/platformAdmin";
+import { IndiceWorkspaceNavigation } from "../components/frontend-os";
 import { IndiceModalFrame } from "../components/indice-modal/IndiceModalFrame";
 import { BenefitAdjustmentModal } from "./BenefitAdjustmentModal";
 import { CompanyAccessTab } from "./CompanyAccount/CompanyAccessTab";
@@ -18,10 +19,10 @@ import { initials } from "./CompanyAccount/companyAccountUtils";
 export type CompanyAccountTab = "overview" | "modules" | "activity" | "access";
 
 const accountTabs = [
-  { id: "overview" as const, label: "Cuenta", icon: Building2 },
-  { id: "modules" as const, label: "Módulos", icon: Box },
-  { id: "activity" as const, label: "Usuarios y facturación", icon: Users },
-  { id: "access" as const, label: "Accesos", icon: Gift },
+  { id: "overview" as const, label: "Cuenta", icon: <Building2 className="h-4 w-4" /> },
+  { id: "modules" as const, label: "Módulos", icon: <Box className="h-4 w-4" /> },
+  { id: "activity" as const, label: "Usuarios y facturación", icon: <Users className="h-4 w-4" /> },
+  { id: "access" as const, label: "Accesos", icon: <Gift className="h-4 w-4" /> },
 ];
 
 export interface CompanyAccountDrawerProps {
@@ -93,6 +94,7 @@ export function CompanyAccountDrawer({
     () => catalogProducts.filter(
       (product) => product.active
         && product.commercially_available !== false
+        && product.commercial_kind !== "SEAT"
         && ["BASIC", "ADDON"].includes(product.product_type.toUpperCase()),
     ),
     [catalogProducts],
@@ -158,9 +160,9 @@ export function CompanyAccountDrawer({
         </span>
       }
       modalType="operational-workspace"
-      tone="blue"
-      bodyClassName="bg-slate-50/70 p-0"
-      contentClassName="sm:w-[min(94vw,1280px)] sm:max-w-[1280px] sm:max-h-[90dvh]"
+      tone="aqua"
+      bodyClassName="bg-slate-50/70 p-0 dark:bg-slate-950/40"
+      contentClassName="sm:w-[96vw] sm:max-w-[96rem] sm:max-h-[90dvh]"
       footerSummary={`${activeProducts.size} módulo(s) activo(s) · ${activeUserCount} activo(s)${reservedUserCount ? ` + ${reservedUserCount} reservado(s)` : ""} de ${capacity} lugares`}
       footer={
         <button type="button" className="cursor-pointer" onClick={() => onClose()}>
@@ -169,33 +171,20 @@ export function CompanyAccountDrawer({
       }
     >
       <div ref={contentTopRef} />
-      <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-5">
-        <nav role="tablist" aria-label="Secciones de la cuenta" className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 sm:flex">
-          {accountTabs.map((item) => {
-            const Icon = item.icon;
-            const selected = tab === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                onClick={() => selectTab(item.id)}
-                className={`inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium transition ${
-                  selected ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:bg-white hover:text-slate-900"
-                }`}
-              >
-                <Icon className="h-4 w-4" aria-hidden="true" />
-                {item.label}
-              </button>
-            );
-          })}
-        </nav>
+      <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur dark:border-slate-700 dark:bg-slate-900/95 sm:px-5">
+        <IndiceWorkspaceNavigation<CompanyAccountTab>
+          ariaLabel="Secciones de la cuenta"
+          items={accountTabs}
+          value={tab}
+          onValueChange={selectTab}
+          tone="aqua"
+          variant="sections"
+        />
       </div>
 
       <div className="space-y-4 p-4 sm:p-5">
         {feedback ? (
-          <div className={`rounded-lg border px-4 py-3 text-sm ${feedback.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
+          <div role="status" className={`rounded-lg border px-4 py-3 text-sm ${feedback.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200" : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-200"}`}>
             {feedback.message}
           </div>
         ) : null}

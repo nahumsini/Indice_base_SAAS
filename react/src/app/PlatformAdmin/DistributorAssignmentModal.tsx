@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import {
   Building2,
   Handshake,
@@ -14,7 +14,7 @@ import {
 } from "../components/indice-modal";
 
 const controlClass =
-  "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10";
+  "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white";
 
 export default function DistributorAssignmentModal({
   company,
@@ -40,6 +40,10 @@ export default function DistributorAssignmentModal({
         ? String(distributors[0].id)
         : "direct",
   );
+  const sortedDistributors = useMemo(
+    () => [...distributors].sort((left, right) => left.name.localeCompare(right.name)),
+    [distributors],
+  );
   const selectedId = selection === "direct" ? null : Number(selection);
   const unchanged = selectedId === (company.distributor_company_id ?? null);
 
@@ -55,7 +59,7 @@ export default function DistributorAssignmentModal({
       onOpenChange={(open) => !open && onClose()}
       modalType="standard-form"
       contentClassName="sm:max-w-xl"
-      tone="blue"
+      tone="aqua"
       icon={<Handshake className="h-5 w-5" />}
       eyebrow={english ? "Commercial relationship" : "Relación comercial"}
       title={english ? "Assign distributor" : "Asignar distribuidor"}
@@ -111,14 +115,14 @@ export default function DistributorAssignmentModal({
           ]}
         />
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-800/60">
           <div className="flex items-start gap-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-[#2563EB]">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#e8f5f2] text-[#177D66]">
               <Building2 className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <p className="truncate font-semibold text-slate-900">{company.name}</p>
-              <p className="mt-0.5 truncate text-xs text-slate-500">
+              <p className="truncate font-medium text-slate-900 dark:text-white">{company.name}</p>
+              <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
                 {company.owner_email || `Empresa #${company.id}`}
               </p>
               <p className="mt-2 text-xs font-medium text-slate-500">
@@ -131,7 +135,7 @@ export default function DistributorAssignmentModal({
             </div>
           </div>
 
-          <label className="mt-5 block space-y-1.5 text-sm font-medium text-slate-700">
+          <label className="mt-5 block space-y-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
             <span>{english ? "Commercial origin" : "Origen comercial"}</span>
             <select
               autoFocus
@@ -144,7 +148,7 @@ export default function DistributorAssignmentModal({
                   {english ? "Direct with Indice" : "Directo con Índice"}
                 </option>
               ) : null}
-              {distributors.map((distributor) => (
+              {sortedDistributors.map((distributor) => (
                 <option key={distributor.id} value={distributor.id}>
                   {distributor.name} · ID {distributor.id}
                 </option>
@@ -153,7 +157,7 @@ export default function DistributorAssignmentModal({
           </label>
         </section>
 
-        <p className="flex items-start gap-2 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm leading-6 text-[#143675]">
+        <p className="flex items-start gap-2 rounded-xl border border-[#59C3A5]/30 bg-[#59C3A5]/10 px-4 py-3 text-sm leading-6 text-[#176B5B] dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/10 dark:text-[#8FE0CA]">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
             {english

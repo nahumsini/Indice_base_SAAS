@@ -6,8 +6,11 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -25,6 +28,9 @@ public class ConsultingAdministrationService {
 
     private static final Set<String> STATUSES = Set.of("REQUESTED", "CONFIRMED", "CANCELLED", "COMPLETED", "NO_SHOW");
     private static final Set<String> PAYMENT_STATUSES = Set.of("INCLUDED", "QUOTE_PENDING", "PENDING", "PAID", "WAIVED", "REFUNDED");
+    private static final Set<String> CHARGED_PAYMENT_STATUSES = Set.of("QUOTE_PENDING", "PENDING", "PAID", "REFUNDED");
+    private static final long PAID_CONSULTATION_AMOUNT_CENTS = 7_900L;
+    private static final String CONSULTATION_CURRENCY = "USD";
     private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
     private static final Pattern HTTPS_URL = Pattern.compile("^https://[^\\s]+$", Pattern.CASE_INSENSITIVE);
 
@@ -121,6 +127,83 @@ public class ConsultingAdministrationService {
             distributorCompanyId
         );
         return workspaceResponse(appointments);
+    }
+
+    public Map<String, Object> consultantAvailability(long actorUserId, String consultantEmail) {
+        access.require(actorUserId, "PLATFORM_VIEW");
+        var consultant = requireAvailabilityConsultant(consultantEmail);
+        return consultantAvailabilityAfterAuthorization(consultant);
+    }
+
+    @Transactional
+    public Map<String, Object> updateConsultantAvailability(
+        long actorUserId,
+        AvailabilityUpdateRequest request
+    ) {
+        access.require(actorUserId, "PLATFORM_CONSULTING_WRITE");
+        if (request == null) throw new IllegalArgumentException("Availability details are required.");
+        var consultant = requireAvailabilityConsultant(request.consultantEmail());
+        var timezone = required(request.timezone(), "Timezone", 80);
+        try {
+            ZoneId.of(timezone);
+        } catch (RuntimeException exception) {
+            throw new IllegalArgumentException("Choose a valid timezone.");
+        }
+        if (request.days() == null || request.days().size() != 7) {
+            throw new IllegalArgumentException("Configure all seven days of the week.");
+        }
+
+        var uniqueDays = new HashSet<Integer>();
+        for (var day : request.days()) {
+            if (day == null || day.dayOfWeek() < 1 || day.dayOfWeek() > 7 || !uniqueDays.add(day.dayOfWeek())) {
+                throw new IllegalArgumentException("Each day of the week must be configured once.");
+            }
+            var enabled = Boolean.TRUE.equals(day.enabled());
+            LocalTime start = null;
+            LocalTime end = null;
+            if (enabled) {
+                start = parseAvailabilityTime(day.startTime(), "Start time");
+                end = parseAvailabilityTime(day.endTime(), "End time");
+                if (!start.isBefore(end)) {
+                    throw new IllegalArgumentException("The end time must be later than the start time.");
+                }
+            }
+            jdbcTemplate.update(
+                """
+                    INSERT INTO consulting_consultant_availability
+                    (consultant_email, day_of_week, consultant_name, timezone, enabled,
+                     start_time, end_time, updated_by_user_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE
+                      consultant_name = VALUES(consultant_name),
+                      timezone = VALUES(timezone),
+                      enabled = VALUES(enabled),
+                      start_time = VALUES(start_time),
+                      end_time = VALUES(end_time),
+                      updated_by_user_id = VALUES(updated_by_user_id),
+                      updated_at = CURRENT_TIMESTAMP(6)
+                    """,
+                consultant.email(),
+                day.dayOfWeek(),
+                consultant.name(),
+                timezone,
+                enabled,
+                start == null ? null : java.sql.Time.valueOf(start),
+                end == null ? null : java.sql.Time.valueOf(end),
+                actorUserId
+            );
+        }
+
+        audit.record(
+            actorUserId,
+            "CONSULTING_AVAILABILITY_UPDATED",
+            "CONSULTING_CONSULTANT",
+            consultant.email(),
+            null,
+            "SUCCESS",
+            Map.of("consultant", consultant.name(), "timezone", timezone)
+        );
+        return consultantAvailabilityAfterAuthorization(consultant);
     }
 
     private Map<String, Object> workspaceResponse(List<Map<String, Object>> appointments) {
@@ -296,6 +379,7 @@ public class ConsultingAdministrationService {
         if ("IN_PERSON".equals(mode) && locationCode == null) throw new IllegalArgumentException("Choose an in-person coverage location.");
         var duration = request.durationMinutes() == null ? 60 : request.durationMinutes();
         if (!Set.of(30, 60, 90).contains(duration)) throw new IllegalArgumentException("Choose a valid session duration.");
+        requireAvailableConsultingWindow(consultantEmail, startAt, duration);
 
         var keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -310,7 +394,7 @@ public class ConsultingAdministrationService {
                      consultant_name, consultant_email, consultant_phone, admin_updated_by_user_id, confirmed_at,
                      notification_status)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                            'ADDITIONAL', 'CONFIRMED', 'INCLUDED', 'USD', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP(6), 'PENDING')
+                            'INCLUDED', 'CONFIRMED', 'INCLUDED', 'USD', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP(6), 'PENDING')
                     """,
                 Statement.RETURN_GENERATED_KEYS
             );
@@ -406,7 +490,8 @@ public class ConsultingAdministrationService {
                        appointment.confirmed_start_at, appointment.meeting_url,
                        appointment.consultant_name, appointment.consultant_email,
                        appointment.consultant_phone, appointment.internal_notes,
-                       appointment.payment_status, appointment.amount_cents, appointment.currency
+                       appointment.session_kind, appointment.payment_status,
+                       appointment.amount_cents, appointment.currency
                 FROM consulting_appointments appointment
                 JOIN companies company ON company.id = appointment.company_id
                 WHERE appointment.id = ?
@@ -420,7 +505,7 @@ public class ConsultingAdministrationService {
                 instant(rs.getTimestamp("confirmed_start_at")), rs.getString("meeting_url"),
                 rs.getString("consultant_name"), rs.getString("consultant_email"),
                 rs.getString("consultant_phone"), rs.getString("internal_notes"),
-                rs.getString("payment_status"),
+                rs.getString("session_kind"), rs.getString("payment_status"),
                 rs.getObject("amount_cents") == null ? null : rs.getLong("amount_cents"),
                 rs.getString("currency")
             ),
@@ -442,13 +527,22 @@ public class ConsultingAdministrationService {
             ? normalized(request.paymentStatus(), current.paymentStatus(), 24)
             : current.paymentStatus();
         if (!PAYMENT_STATUSES.contains(paymentStatus)) throw new IllegalArgumentException("Choose a valid payment status.");
-        var amountCents = !canManagePayment || request.amountCents() == null
-            ? current.amountCents()
-            : request.amountCents();
-        if (amountCents != null && amountCents < 0) throw new IllegalArgumentException("Amount cannot be negative.");
-        var currency = canManagePayment
-            ? normalized(request.currency(), current.currency(), 3)
-            : current.currency();
+        var sessionKind = current.sessionKind();
+        var amountCents = current.amountCents();
+        var currency = current.currency() == null ? CONSULTATION_CURRENCY : current.currency();
+        if (canManagePayment) {
+            currency = CONSULTATION_CURRENCY;
+            if ("INCLUDED".equals(paymentStatus)) {
+                sessionKind = "INCLUDED";
+                amountCents = 0L;
+            } else if ("WAIVED".equals(paymentStatus)) {
+                sessionKind = "ADDITIONAL";
+                amountCents = 0L;
+            } else if (CHARGED_PAYMENT_STATUSES.contains(paymentStatus)) {
+                sessionKind = "ADDITIONAL";
+                amountCents = PAID_CONSULTATION_AMOUNT_CENTS;
+            }
+        }
         if (currency.length() != 3) throw new IllegalArgumentException("Currency must use a three-letter code.");
         var cancellationReason = optional(request.cancellationReason(), 500);
 
@@ -469,7 +563,7 @@ public class ConsultingAdministrationService {
         jdbcTemplate.update(
             """
                 UPDATE consulting_appointments
-                SET status = ?, confirmed_start_at = ?, meeting_url = ?, consultant_name = ?,
+                SET status = ?, session_kind = ?, confirmed_start_at = ?, meeting_url = ?, consultant_name = ?,
                     consultant_email = ?, consultant_phone = ?, internal_notes = ?, payment_status = ?,
                     amount_cents = ?, currency = ?, cancellation_reason = ?,
                     confirmed_at = CASE WHEN ? = 'CONFIRMED' THEN COALESCE(confirmed_at, CURRENT_TIMESTAMP(6)) ELSE confirmed_at END,
@@ -477,8 +571,9 @@ public class ConsultingAdministrationService {
                     completed_at = CASE WHEN ? = 'COMPLETED' THEN COALESCE(completed_at, CURRENT_TIMESTAMP(6)) ELSE completed_at END,
                     admin_updated_by_user_id = ?
                 WHERE id = ?
-                """,
+            """,
             status,
+            sessionKind,
             confirmedStart == null ? null : Timestamp.from(confirmedStart),
             meetingUrl,
             consultantName,
@@ -496,22 +591,18 @@ public class ConsultingAdministrationService {
             appointmentId
         );
 
-        var statusChanged = !status.equals(current.status());
-        var timeChanged = !sameInstant(confirmedStart, current.confirmedStartAt());
-        if (statusChanged || timeChanged) {
-            var delivery = emailService.sendStatusUpdate(new ConsultingAppointmentEmailService.StatusEmail(
-                appointmentId,
-                current.companyName(),
-                current.attendeeName(),
-                current.attendeeEmail(),
-                status,
-                confirmedStart == null ? null : confirmedStart.toString(),
-                current.consultationMode(),
-                current.serviceLocationName(),
-                consultantName
-            ));
-            jdbcTemplate.update("UPDATE consulting_appointments SET notification_status = ? WHERE id = ?", delivery.status(), appointmentId);
-        }
+        var delivery = emailService.sendStatusUpdate(new ConsultingAppointmentEmailService.StatusEmail(
+            appointmentId,
+            current.companyName(),
+            current.attendeeName(),
+            current.attendeeEmail(),
+            status,
+            confirmedStart == null ? null : confirmedStart.toString(),
+            current.consultationMode(),
+            current.serviceLocationName(),
+            consultantName
+        ));
+        jdbcTemplate.update("UPDATE consulting_appointments SET notification_status = ? WHERE id = ?", delivery.status(), appointmentId);
 
         var detail = new LinkedHashMap<String, Object>();
         detail.put("previous_status", current.status());
@@ -521,6 +612,10 @@ public class ConsultingAdministrationService {
         detail.put("previous_consultant", current.consultantName() == null ? "" : current.consultantName());
         detail.put("consultant", consultantName == null ? "" : consultantName);
         detail.put("confirmed_start_at", confirmedStart == null ? "" : confirmedStart.toString());
+        detail.put("session_kind", sessionKind);
+        detail.put("payment_status", paymentStatus);
+        detail.put("amount_cents", amountCents == null ? 0L : amountCents);
+        detail.put("currency", currency);
         audit.record(actorUserId, "CONSULTING_APPOINTMENT_UPDATED", "CONSULTING_APPOINTMENT",
             String.valueOf(appointmentId), current.companyId(), "SUCCESS", detail);
         return appointmentAfterAuthorization(appointmentId);
@@ -638,15 +733,54 @@ public class ConsultingAdministrationService {
     }
 
     private List<Map<String, Object>> consultants() {
-        return jdbcTemplate.query(
+        var distributors = jdbcTemplate.query(
+            """
+                SELECT company.id AS company_id, company.name AS company_name,
+                       TRIM(COALESCE(NULLIF(profile.full_name, ''), NULLIF(account.full_name, ''), account.email)) AS full_name,
+                       COALESCE(profile.phone, '') AS phone, LOWER(account.email) AS email,
+                       company.created_at, company.updated_at
+                FROM companies company
+                LEFT JOIN company_ownerships ownership
+                  ON ownership.company_id = company.id AND ownership.status = 'ACTIVE'
+                LEFT JOIN user_companies owner_membership
+                  ON owner_membership.id = ownership.owner_user_company_id
+                 AND LOWER(COALESCE(owner_membership.status, 'active')) = 'active'
+                LEFT JOIN user_companies fallback_membership
+                  ON fallback_membership.id = (
+                      SELECT member.id
+                      FROM user_companies member
+                      WHERE member.company_id = company.id
+                        AND LOWER(COALESCE(member.status, 'active')) = 'active'
+                      ORDER BY FIELD(LOWER(COALESCE(member.role, 'user')),
+                          'root', 'superadmin', 'owner', 'admin', 'manager', 'user'), member.id
+                      LIMIT 1
+                  )
+                JOIN users account
+                  ON account.id = COALESCE(owner_membership.user_id, fallback_membership.user_id)
+                LEFT JOIN user_profiles profile ON profile.user_id = account.id
+                WHERE company.commercial_account_type = 'DISTRIBUTOR'
+                  AND company.platform_status = 'ACTIVE'
+                ORDER BY company.name, company.id
+                """,
+            (rs, rowNum) -> distributorConsultantRow(rs)
+        );
+        var knownEmails = new HashSet<String>();
+        var result = new ArrayList<Map<String, Object>>(distributors);
+        distributors.forEach(row -> knownEmails.add(String.valueOf(row.get("email")).toLowerCase(Locale.ROOT)));
+
+        var corporateConsultants = jdbcTemplate.query(
             """
                 SELECT id, first_name, last_name, phone, email, active, created_at, updated_at
                 FROM consulting_consultants
                 WHERE active = 1
                 ORDER BY last_name, first_name, id
                 """,
-            (rs, rowNum) -> consultantRow(rs)
+            (rs, rowNum) -> corporateConsultantCatalogRow(rs)
         );
+        corporateConsultants.stream()
+            .filter(row -> knownEmails.add(String.valueOf(row.get("email")).toLowerCase(Locale.ROOT)))
+            .forEach(result::add);
+        return result;
     }
 
     private Map<String, Object> consultant(long consultantId) {
@@ -671,6 +805,35 @@ public class ConsultingAdministrationService {
         row.put("active", rs.getBoolean("active"));
         row.put("createdAt", instant(rs.getTimestamp("created_at")));
         row.put("updatedAt", instant(rs.getTimestamp("updated_at")));
+        row.put("sourceType", "CORPORATE");
+        row.put("companyId", null);
+        row.put("companyName", "Equipo Índice");
+        return row;
+    }
+
+    private Map<String, Object> corporateConsultantCatalogRow(java.sql.ResultSet rs) throws java.sql.SQLException {
+        var row = consultantRow(rs);
+        row.put("id", -rs.getLong("id"));
+        return row;
+    }
+
+    private Map<String, Object> distributorConsultantRow(java.sql.ResultSet rs) throws java.sql.SQLException {
+        var fullName = rs.getString("full_name").trim();
+        var separator = fullName.indexOf(' ');
+        var firstName = separator < 0 ? fullName : fullName.substring(0, separator).trim();
+        var lastName = separator < 0 ? "" : fullName.substring(separator + 1).trim();
+        var row = new LinkedHashMap<String, Object>();
+        row.put("id", rs.getLong("company_id"));
+        row.put("firstName", firstName);
+        row.put("lastName", lastName);
+        row.put("phone", rs.getString("phone"));
+        row.put("email", rs.getString("email"));
+        row.put("active", true);
+        row.put("createdAt", instant(rs.getTimestamp("created_at")));
+        row.put("updatedAt", instant(rs.getTimestamp("updated_at")));
+        row.put("sourceType", "DISTRIBUTOR");
+        row.put("companyId", rs.getLong("company_id"));
+        row.put("companyName", rs.getString("company_name"));
         return row;
     }
 
@@ -704,18 +867,157 @@ public class ConsultingAdministrationService {
         return row;
     }
 
+    private ConsultantIdentity requireAvailabilityConsultant(String rawEmail) {
+        var email = required(rawEmail, "Consultant email", 190).toLowerCase(Locale.ROOT);
+        return consultants().stream()
+            .filter(row -> email.equals(String.valueOf(row.get("email")).toLowerCase(Locale.ROOT)))
+            .findFirst()
+            .map(row -> {
+                var firstName = String.valueOf(row.getOrDefault("firstName", "")).trim();
+                var lastName = String.valueOf(row.getOrDefault("lastName", "")).trim();
+                var name = (firstName + " " + lastName).trim();
+                return new ConsultantIdentity(name.isBlank() ? email : name, email);
+            })
+            .orElseThrow(() -> new NoSuchElementException("Consultant not found."));
+    }
+
+    private Map<String, Object> consultantAvailabilityAfterAuthorization(ConsultantIdentity consultant) {
+        var configuredRows = jdbcTemplate.query(
+            """
+                SELECT consultant_name, timezone, day_of_week, enabled, start_time, end_time, updated_at
+                FROM consulting_consultant_availability
+                WHERE consultant_email = ?
+                ORDER BY day_of_week
+                """,
+            (rs, rowNum) -> new AvailabilityRow(
+                rs.getString("consultant_name"),
+                rs.getString("timezone"),
+                rs.getInt("day_of_week"),
+                rs.getBoolean("enabled"),
+                rs.getTime("start_time") == null ? null : rs.getTime("start_time").toLocalTime().toString(),
+                rs.getTime("end_time") == null ? null : rs.getTime("end_time").toLocalTime().toString(),
+                instant(rs.getTimestamp("updated_at"))
+            ),
+            consultant.email()
+        );
+        var configured = !configuredRows.isEmpty();
+        var timezone = configured ? configuredRows.getFirst().timezone() : "America/Mexico_City";
+        var days = new ArrayList<Map<String, Object>>();
+        for (var dayOfWeek = 1; dayOfWeek <= 7; dayOfWeek++) {
+            var requestedDay = dayOfWeek;
+            var configuredDay = configuredRows.stream()
+                .filter(row -> row.dayOfWeek() == requestedDay)
+                .findFirst()
+                .orElse(null);
+            var enabled = configuredDay == null ? dayOfWeek <= 5 : configuredDay.enabled();
+            var day = new LinkedHashMap<String, Object>();
+            day.put("dayOfWeek", dayOfWeek);
+            day.put("enabled", enabled);
+            day.put("startTime", configuredDay == null ? (enabled ? "09:00" : "") : firstNonNull(configuredDay.startTime(), ""));
+            day.put("endTime", configuredDay == null ? (enabled ? "17:00" : "") : firstNonNull(configuredDay.endTime(), ""));
+            days.add(day);
+        }
+        var response = new LinkedHashMap<String, Object>();
+        response.put("consultantEmail", consultant.email());
+        response.put("consultantName", consultant.name());
+        response.put("timezone", timezone);
+        response.put("configured", configured);
+        response.put("updatedAt", configured ? configuredRows.getFirst().updatedAt() : null);
+        response.put("days", days);
+        return response;
+    }
+
+    private LocalTime parseAvailabilityTime(String value, String label) {
+        var normalized = required(value, label, 5);
+        try {
+            return LocalTime.parse(normalized);
+        } catch (DateTimeParseException exception) {
+            throw new IllegalArgumentException(label + " is invalid.");
+        }
+    }
+
+    private void requireAvailableConsultingWindow(
+        String consultantEmail,
+        Instant startAt,
+        int durationMinutes
+    ) {
+        var availabilityTimezones = jdbcTemplate.query(
+            """
+                SELECT timezone
+                FROM consulting_consultant_availability
+                WHERE consultant_email = ?
+                ORDER BY day_of_week
+                LIMIT 1
+                """,
+            (rs, rowNum) -> rs.getString("timezone"),
+            consultantEmail.toLowerCase(Locale.ROOT)
+        );
+        if (availabilityTimezones.isEmpty()) return;
+
+        var availabilityZone = ZoneId.of(availabilityTimezones.getFirst());
+        var localStart = startAt.atZone(availabilityZone).toLocalDateTime();
+        var localEnd = localStart.plusMinutes(durationMinutes);
+        var windows = jdbcTemplate.query(
+            """
+                SELECT enabled, start_time, end_time
+                FROM consulting_consultant_availability
+                WHERE consultant_email = ? AND day_of_week = ?
+                LIMIT 1
+                """,
+            (rs, rowNum) -> new AvailabilityWindow(
+                rs.getBoolean("enabled"),
+                rs.getTime("start_time") == null ? null : rs.getTime("start_time").toLocalTime(),
+                rs.getTime("end_time") == null ? null : rs.getTime("end_time").toLocalTime()
+            ),
+            consultantEmail.toLowerCase(Locale.ROOT),
+            localStart.getDayOfWeek().getValue()
+        );
+        var window = windows.isEmpty() ? null : windows.getFirst();
+        if (
+            window == null
+                || !window.enabled()
+                || window.startTime() == null
+                || window.endTime() == null
+                || localStart.toLocalTime().isBefore(window.startTime())
+                || !localEnd.toLocalDate().equals(localStart.toLocalDate())
+                || localEnd.toLocalTime().isAfter(window.endTime())
+        ) {
+            throw new IllegalStateException(
+                "El distribuidor no está disponible en ese horario. Elige un espacio dentro de su disponibilidad."
+            );
+        }
+
+        var endAt = startAt.plusSeconds(durationMinutes * 60L);
+        var overlaps = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM consulting_appointments
+                WHERE LOWER(consultant_email) = ?
+                  AND status = 'CONFIRMED'
+                  AND COALESCE(confirmed_start_at, preferred_start_at) < ?
+                  AND DATE_ADD(
+                        COALESCE(confirmed_start_at, preferred_start_at),
+                        INTERVAL duration_minutes MINUTE
+                      ) > ?
+                """,
+            Integer.class,
+            consultantEmail.toLowerCase(Locale.ROOT),
+            Timestamp.from(endAt),
+            Timestamp.from(startAt)
+        );
+        if (overlaps != null && overlaps > 0) {
+            throw new IllegalStateException(
+                "El distribuidor ya tiene una consultoría en ese horario. Selecciona otro espacio."
+            );
+        }
+    }
+
     private Instant parseInstant(String value, String label, boolean allowBlank) {
         if (value == null || value.isBlank()) {
             if (allowBlank) return null;
             return null;
         }
         try { return Instant.parse(value); } catch (DateTimeParseException exception) { throw new IllegalArgumentException(label + " is invalid."); }
-    }
-
-    private boolean sameInstant(Instant instant, String current) {
-        if (instant == null && (current == null || current.isBlank())) return true;
-        if (instant == null || current == null || current.isBlank()) return false;
-        return instant.equals(Instant.parse(current));
     }
 
     private String normalized(String value, String fallback, int maxLength) {
@@ -782,6 +1084,7 @@ public class ConsultingAdministrationService {
         String consultantEmail,
         String consultantPhone,
         String internalNotes,
+        String sessionKind,
         String paymentStatus,
         Long amountCents,
         String currency
@@ -789,6 +1092,27 @@ public class ConsultingAdministrationService {
     }
 
     private record ConsultantAssignment(String name, String email, String phone) {
+    }
+
+    private record ConsultantIdentity(String name, String email) {
+    }
+
+    private record AvailabilityRow(
+        String consultantName,
+        String timezone,
+        int dayOfWeek,
+        boolean enabled,
+        String startTime,
+        String endTime,
+        String updatedAt
+    ) {
+    }
+
+    private record AvailabilityWindow(
+        boolean enabled,
+        LocalTime startTime,
+        LocalTime endTime
+    ) {
     }
 
     public record AppointmentUpdateRequest(
@@ -819,6 +1143,21 @@ public class ConsultingAdministrationService {
         String countryCode,
         String timezone,
         String currency
+    ) {
+    }
+
+    public record AvailabilityDayRequest(
+        int dayOfWeek,
+        Boolean enabled,
+        String startTime,
+        String endTime
+    ) {
+    }
+
+    public record AvailabilityUpdateRequest(
+        String consultantEmail,
+        String timezone,
+        List<AvailabilityDayRequest> days
     ) {
     }
 

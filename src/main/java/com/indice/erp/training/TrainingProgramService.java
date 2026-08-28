@@ -17,7 +17,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class TrainingProgramService {
 
     public static final String PROGRAM_CODE = "INDICE_FOUNDATIONS";
-    public static final String PROGRAM_VERSION = "2026.1";
+    public static final String PROGRAM_VERSION = "2026.2";
+    private static final Map<String, String> ASSESSMENT_ANSWERS = Map.of(
+        "assessment.indice", "configure-foundation",
+        "assessment.rh", "configure-people-control",
+        "assessment.procesos", "repeatable-process",
+        "assessment.finanzas", "controlled-fund",
+        "assessment.ventas", "commercial-flow",
+        "assessment.kpis", "validate-and-drill",
+        "assessment.comercial", "diagnose-value"
+    );
     private static final Set<String> ITEM_CODES = Set.of(
         "indice.propuesta", "indice.navegacion", "indice.personalizacion", "indice.dashboard",
         "indice.filtros", "indice.notificaciones", "rh.colaboradores", "rh.agregar", "rh.editar",
@@ -31,7 +40,9 @@ public class TrainingProgramService {
         "estados.decision", "comercial.origen", "comercial.investigar", "comercial.contacto",
         "comercial.mensaje", "consultoria.preparacion", "consultoria.presentacion", "consultoria.escucha",
         "consultoria.dolor", "consultoria.demo", "cierre.alcance", "cierre.temperatura", "cierre.valor",
-        "cierre.acuerdos", "acompanamiento.implementacion", "acompanamiento.adopcion", "acompanamiento.60meses"
+        "cierre.acuerdos", "acompanamiento.implementacion", "acompanamiento.adopcion", "acompanamiento.60meses",
+        "assessment.indice", "assessment.rh", "assessment.procesos", "assessment.finanzas",
+        "assessment.ventas", "assessment.kpis", "assessment.comercial"
     );
 
     private final JdbcTemplate jdbcTemplate;
@@ -73,9 +84,44 @@ public class TrainingProgramService {
         return update(actor.userId(), request, false);
     }
 
+    @Transactional
+    public Map<String, Object> validatePlatformAssessment(long actorUserId, AssessmentRequest request) {
+        platformAccess.require(actorUserId, "PLATFORM_VIEW");
+        return validateAssessment(actorUserId, request, true);
+    }
+
+    @Transactional
+    public Map<String, Object> validateDistributorAssessment(AuthSessionUser actor, AssessmentRequest request) {
+        distributorAccess.requireDistributor(actor);
+        return validateAssessment(actor.userId(), request, false);
+    }
+
     private Map<String, Object> update(long userId, ProgressRequest request, boolean includeSummary) {
         var itemCode = normalizeItemCode(request == null ? null : request.itemCode());
-        if (request != null && request.completed()) {
+        if (itemCode.startsWith("assessment.") && request != null && request.completed()) {
+            throw new IllegalArgumentException("La competencia debe acreditarse mediante su validación obligatoria.");
+        }
+        return setCompletion(userId, itemCode, request != null && request.completed(), includeSummary);
+    }
+
+    private Map<String, Object> validateAssessment(long userId, AssessmentRequest request, boolean includeSummary) {
+        var itemCode = normalizeItemCode(request == null ? null : request.itemCode());
+        var expectedAnswer = ASSESSMENT_ANSWERS.get(itemCode);
+        if (expectedAnswer == null) {
+            throw new IllegalArgumentException("La validación solicitada no existe.");
+        }
+        if (request == null || !request.practiceConfirmed()) {
+            throw new IllegalArgumentException("Debes realizar y confirmar la práctica antes de acreditar la etapa.");
+        }
+        var answerCode = request.answerCode() == null ? "" : request.answerCode().trim().toLowerCase();
+        if (!expectedAnswer.equals(answerCode)) {
+            throw new IllegalArgumentException("La respuesta todavía no demuestra el criterio consultivo esperado. Revisa el caso e inténtalo nuevamente.");
+        }
+        return setCompletion(userId, itemCode, true, includeSummary);
+    }
+
+    private Map<String, Object> setCompletion(long userId, String itemCode, boolean completed, boolean includeSummary) {
+        if (completed) {
             jdbcTemplate.update(
                 """
                     INSERT INTO training_item_progress
@@ -135,4 +181,5 @@ public class TrainingProgramService {
     }
 
     public record ProgressRequest(String itemCode, boolean completed) {}
+    public record AssessmentRequest(String itemCode, String answerCode, boolean practiceConfirmed) {}
 }

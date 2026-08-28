@@ -27,6 +27,9 @@ const customerTableColumns = read(
 const customerTableUtils = read(
   "src/app/PlatformAdmin/Customers/customerTableUtils.ts",
 );
+const customerControlCenter = read(
+  "src/app/PlatformAdmin/Customers/CustomerControlCenter.tsx",
+);
 const account = read("src/app/PlatformAdmin/AccountCreationModal.tsx");
 
 test("la tabla tolera respuestas antiguas sin tipo de cuenta", () => {
@@ -102,7 +105,26 @@ const companyActivity = read(
 );
 const companyAccess = read("src/app/PlatformAdmin/CompanyAccount/CompanyAccessTab.tsx");
 const adjustment = read("src/app/PlatformAdmin/BenefitAdjustmentModal.tsx");
+const customerModalPresentation = [
+  account,
+  accountCompanyStep,
+  accountOwnerStep,
+  accountAccessStep,
+  accountSuccess,
+  quickTestAccount,
+  quickTestDetails,
+  accountTypeEdit,
+  distributorAssignment,
+  trialExtension,
+  adjustment,
+  company,
+  customerUsersModal,
+].join("\n");
 const consulting = read("src/app/PlatformAdmin/ConsultingAdminTab.tsx");
+const consultingCalendar = read("src/app/PlatformAdmin/ConsultingCalendarView.tsx");
+const consultingAvailability = read(
+  "src/app/PlatformAdmin/ConsultingAvailabilityModal.tsx",
+);
 const clientConsulting = read(
   "src/app/BasicModules/Dashboard/Consulting/Consulting.tsx",
 );
@@ -119,6 +141,7 @@ const moduleWorkOrders = read(
   "src/app/PlatformAdmin/ModuleWorkOrders/useModuleWorkOrders.ts",
 );
 const systemTickets = read("src/app/SystemTickets/SystemTicketsWorkspace.tsx");
+const systemTicketDetail = read("src/app/SystemTickets/SystemTicketDetailModal.tsx");
 const systemTicketsApi = read("src/app/SystemTickets/systemTicketsApi.ts");
 const moduleAvailabilityWorkspace = read(
   "src/app/PlatformAdmin/CatalogWorkspace/ModuleAvailabilityWorkspace.tsx",
@@ -129,12 +152,24 @@ const moduleAvailabilityModel = read(
 const moduleColumnsModal = read(
   "src/app/PlatformAdmin/CatalogWorkspace/ModuleColumnsModal.tsx",
 );
+const catalogProductCard = read(
+  "src/app/PlatformAdmin/Catalog/CatalogProductCard.tsx",
+);
+const commercialOfferWorkspace = read(
+  "src/app/PlatformAdmin/CatalogWorkspace/CommercialOfferWorkspace.tsx",
+);
+const commercialOfferDetail = read(
+  "src/app/PlatformAdmin/CatalogWorkspace/CommercialOfferDetail.tsx",
+);
 const workspaceNavigation = read(
   "src/app/components/frontend-os/IndiceWorkspaceNavigation.tsx",
 );
 const frontendOperatingSystem = read(
   "../docs/indice-frontend-operating-system-v2.md",
 );
+const trainingWorkspace = read("src/app/Training/TrainingWorkspace.tsx");
+const trainingExam = read("src/app/Training/TrainingExamPanel.tsx");
+const trainingCertificate = read("src/app/Training/trainingCertificatePdf.ts");
 
 test("el encabezado reconoce Root desde la autoridad real de plataforma", () => {
   assert.match(header, /platformAdminApi\.getContext\(\)/);
@@ -151,7 +186,7 @@ test("Root administra todos los tickets de sistema enviados por distribuidores",
   assert.match(page, /context\?\.can_manage_system_tickets/);
   assert.match(page, /portal="root"/);
   assert.match(systemTickets, /ticket\.distributor_name/);
-  assert.match(systemTickets, /systemTicketsApi\.update/);
+  assert.match(systemTicketDetail, /systemTicketsApi\.update/);
   assert.match(systemTicketsApi, /endpoints\.platformAdmin\.systemTickets/);
   assert.match(systemTickets, /systemTicketsApi\.create\(portal, form\)/);
   assert.match(systemTickets, /setCreateOpen\(true\)/);
@@ -169,21 +204,72 @@ test("catálogo y módulos guía un flujo operativo de disponibilidad producto y
   assert.match(page, /es: "Catálogo y módulos"/);
   assert.match(page, /en: "Catalog & modules"/);
   assert.doesNotMatch(page, /id: "modules", es: "Módulos"/);
-  assert.match(page, /type CatalogWorkspaceView = "modules" \| "products" \| "prices"/);
+  assert.match(page, /type CatalogWorkspaceView = "offer" \| "modules"/);
   assert.match(page, /Catálogo y módulos/);
-  assert.match(page, /Disponibilidad/);
-  assert.match(page, /Productos y paquetes/);
-  assert.match(page, /Precios y publicación/);
+  assert.match(page, /Oferta comercial/);
+  assert.match(page, /Disponibilidad técnica/);
   assert.match(page, /Sincronizar complementos/);
   assert.match(page, /<ModuleAvailabilityWorkspace/);
+  assert.match(page, /<CommercialOfferWorkspace/);
   assert.match(page, /Valida la oferta antes de publicarla/);
   assert.match(page, /Validar oferta/);
   assert.match(page, /Publicar oferta/);
   assert.doesNotMatch(page, /Qué haces aquí|Afecta a|Siguiente paso/);
-  assert.match(page, /<CatalogTab[\s\S]*view=\{view\}/);
   assert.match(page, /<IndiceWorkspaceNavigation/);
-  assert.match(page, /variant="workflow"/);
+  assert.match(page, /variant="sections"/);
+  assert.match(page, /tone="aqua"/);
   assert.match(page, /catalog-step/);
+  assert.match(commercialOfferWorkspace, /Lo que puede comprar el cliente/);
+  assert.match(commercialOfferWorkspace, /<IndiceFilterBar/);
+  assert.match(commercialOfferWorkspace, /<IndiceFilterSearch/);
+  assert.match(commercialOfferWorkspace, /Tipo de producto/);
+  assert.match(commercialOfferWorkspace, /Disponibles para clientes/);
+  assert.match(commercialOfferWorkspace, /No disponibles/);
+  assert.match(commercialOfferWorkspace, /Listos para publicar/);
+  assert.match(commercialOfferWorkspace, /Configuración pendiente/);
+  assert.match(commercialOfferWorkspace, /Stripe pendiente/);
+  assert.match(commercialOfferWorkspace, /Limpiar filtros/);
+  assert.match(commercialOfferWorkspace, /Módulos/);
+  assert.match(commercialOfferWorkspace, /Paquetes/);
+  assert.match(commercialOfferWorkspace, /Usuarios/);
+  assert.match(commercialOfferWorkspace, /Promociones/);
+  assert.match(commercialOfferWorkspace, /<IndiceOperationalTable/);
+  assert.match(commercialOfferWorkspace, /Administrar disponibilidad/);
+  assert.match(commercialOfferWorkspace, /Configurar precios/);
+  assert.match(commercialOfferWorkspace, /Precio mensual/);
+  assert.match(commercialOfferWorkspace, /Precio anual/);
+  assert.match(commercialOfferWorkspace, /<IndiceModalFrame/);
+  assert.match(commercialOfferWorkspace, /modalType="standard-form"/);
+  assert.match(commercialOfferWorkspace, /editorSection === "pricing"/);
+  assert.match(commercialOfferWorkspace, /editorSection === "availability"/);
+  assert.match(commercialOfferDetail, /Módulos incluidos/);
+  assert.match(commercialOfferDetail, /Mensual USD/);
+  assert.match(commercialOfferDetail, /Anual USD/);
+  assert.match(commercialOfferDetail, /Stripe Promotion ID/);
+  assert.match(commercialOfferDetail, /Calculadora de precio anual/);
+  assert.match(commercialOfferDetail, /Aplicar precio anual/);
+  assert.match(commercialOfferDetail, /Simulador de descuento/);
+  assert.match(commercialOfferDetail, /Guardar disponibilidad/);
+  assert.match(commercialOfferDetail, /No sumes el impuesto a estos precios/);
+  assert.match(commercialOfferDetail, /Guardar y conectar con Stripe TEST/);
+  assert.match(commercialOfferDetail, /synchronizeCatalogProductPrices/);
+  assert.match(commercialOfferDetail, /suscripciones existentes/);
+  assert.match(platformApi, /PlatformCatalogStripePriceSync/);
+  assert.match(platformApi, /stripe-prices\/synchronize/);
+});
+
+test("la certificación exige prácticas, examen cronometrado y acreditación por etapa", () => {
+  assert.match(trainingWorkspace, /Estándar de dominio consultivo/);
+  assert.match(trainingWorkspace, /TrainingExamPanel/);
+  assert.match(trainingWorkspace, /Examen final de certificación consultiva/);
+  assert.match(trainingExam, /Evaluación obligatoria de etapa/);
+  assert.match(trainingExam, /Las respuestas se guardan automáticamente/);
+  assert.match(trainingExam, /expires_at/);
+  assert.match(trainingExam, /\/answers/);
+  assert.match(trainingExam, /\/submit/);
+  assert.match(trainingExam, /15 minutos/);
+  assert.match(trainingCertificate, /Folio:/);
+  assert.match(trainingCertificate, /QRCode/);
 });
 
 test("la navegación interna comparte motor accesible y memoria de contexto", () => {
@@ -213,6 +299,13 @@ test("disponibilidad usa filtros facetas y la tabla operativa estándar", () => 
   assert.match(moduleAvailabilityWorkspace, /IndiceTableHeaderRow/);
   assert.match(moduleAvailabilityWorkspace, /IndiceTableColGroup/);
   assert.match(moduleAvailabilityWorkspace, /usePersistentColumnWidths/);
+  assert.match(moduleAvailabilityWorkspace, /const scopeRows = useMemo/);
+  assert.match(moduleAvailabilityWorkspace, /inactive: scopeRows\.filter/);
+  assert.match(moduleAvailabilityWorkspace, /No disponibles/);
+  assert.match(moduleAvailabilityWorkspace, /Limpiar filtros/);
+  assert.match(moduleAvailabilityWorkspace, /if \(selected\) \{\s*setAvailability\("all"\);\s*setCommercialState\("all"\)/);
+  assert.match(moduleAvailabilityWorkspace, /if \(next === "inactive"\) setCommercialState\("all"\)/);
+  assert.match(moduleAvailabilityWorkspace, /if \(next !== "all"\) setAvailability\("active"\)/);
   assert.match(moduleAvailabilityWorkspace, /ModuleColumnsModal/);
   assert.match(moduleAvailabilityWorkspace, /DataTablePagination/);
   assert.match(moduleAvailabilityModel, /repairMojibake/);
@@ -241,9 +334,9 @@ test("alta de cuenta avanza por empresa propietario y acceso", () => {
   assert.match(accountFlow, /knownOwnerEmails\.has/);
   assert.match(accountFlow, /setStep\(errorStep\)/);
   assert.match(accountFlow, /if \(step !== ["']access["']\) \{\s*advance\(\);\s*return;/);
-  assert.match(accountFlow, /const hasBasicProduct = selectableProducts\.some/);
-  assert.match(accountFlow, /product\.product_type\.toUpperCase\(\) === ["']BASIC["']/);
-  assert.match(accountFlow, /if \(!hasBasicProduct\)/);
+  assert.match(accountFlow, /const hasRequiredProduct = selectableProducts\.some/);
+  assert.match(accountFlow, /versionedOffer \|\| product\.product_type\.toUpperCase\(\) === ["']BASIC["']/);
+  assert.match(accountFlow, /if \(!hasRequiredProduct\)/);
   assert.match(accountFlow, /result\.modules_applied === true/);
   assert.match(accountFlow, /confirmedProducts\.has\(code\)/);
   assert.match(accountSuccess, /copy\.success\.loadedModules/);
@@ -278,6 +371,31 @@ test("clientes resume facturacion mensual cuentas activas y usuarios reales", ()
   assert.match(page, /customer_active_users/);
   assert.match(page, /Facturaci.n mensual/);
   assert.match(page, /usuarios activos totales/);
+});
+
+test("las tarjetas de clientes funcionan como filtros operativos", () => {
+  assert.match(page, /matchesCustomerStatusFilter\(company, statusFilter\)/);
+  assert.match(customerTableUtils, /statusFilter === "temporary"/);
+  assert.match(customerTableUtils, /statusFilter === "attention"/);
+  assert.match(customerTableUtils, /statusFilter === "expiring"/);
+  assert.match(customerTableUtils, /statusFilter === "no_offer"/);
+  assert.match(customerTableUtils, /statusFilter === "no_adoption"/);
+  assert.match(customerControlCenter, /aria-pressed=\{active\}/);
+  assert.match(customerControlCenter, /onFilter\(active \? "all" : filter\)/);
+  assert.match(page, /<CustomerControlCenter/);
+  assert.match(page, /onStatus\(statusFilter === "active" \? "all" : "active"\)/);
+  assert.match(page, /onStatus\(statusFilter === "temporary" \? "all" : "temporary"\)/);
+});
+
+test("clientes prioriza riesgos responsables y siguiente accion", () => {
+  assert.match(page, /Centro de control de clientes/);
+  assert.match(customerControlCenter, /Siguientes acciones recomendadas/);
+  assert.match(customerControlCenter, /Responsable/);
+  assert.match(customerControlCenter, /Equipo Índice/);
+  assert.match(customerControlCenter, /Gestionar cobro y confirmar continuidad/);
+  assert.match(customerControlCenter, /onOpenCompany\(company\)/);
+  assert.match(customerTableUtils, /customerPriorityScore/);
+  assert.match(customerTableUtils, /company\.user_type === "SUPER_ADMIN"/);
 });
 
 test("la prueba sólo permite periodos controlados de 7 15 o 30 días", () => {
@@ -365,9 +483,35 @@ test("la tabla de clientes conserva identidad y acciones con el patrón Índice"
   assert.match(customerTable, /IndiceOperationalTable/);
   assert.match(customerTable, /IndiceTableHeaderRow/);
   assert.match(customerTable, /usePersistentColumnWidths/);
-  assert.match(customerTable, /tone="blue"/);
+  assert.match(customerTable, /tone="aqua"/);
   assert.match(customerRow, /IndiceTableActionGroup/);
+  assert.match(customerTableColumns, /customerTableActionsWidth = 158/);
+  assert.match(customerRow, /DropdownMenuItem onSelect=\{\(\) => onEditType\?\.\(company\)\}/);
   assert.match(customerTableCopy, /manage: "Administrar"/);
+});
+
+test("los modales de clientes usan los patrones oficiales sin navegación duplicada", () => {
+  assert.match(account, /modalType="wizard"/);
+  assert.match(accountTypeEdit, /modalType="standard-form"/);
+  assert.match(distributorAssignment, /modalType="standard-form"/);
+  assert.match(trialExtension, /modalType="standard-form"/);
+  assert.match(adjustment, /modalType="standard-form"/);
+  assert.match(company, /modalType="operational-workspace"/);
+  assert.match(customerUsersModal, /modalType="operational-workspace"/);
+  assert.match(company, /IndiceWorkspaceNavigation<CompanyAccountTab>/);
+  assert.doesNotMatch(company, /<nav role="tablist"/);
+  assert.doesNotMatch(customerModalPresentation, /font-(?:bold|semibold)/);
+});
+
+test("clientes conserva una identidad visual verde Índice", () => {
+  assert.match(page, /activeTab === "customers" \? "aqua" : "blue"/);
+  assert.match(page, /<IndiceTitleBar[\s\S]*?tone="aqua"/);
+  assert.match(customerTable, /tone="aqua"/);
+  assert.match(company, /tone="aqua"/);
+  assert.match(account, /tone="aqua"/);
+  assert.match(accountTypeEdit, /tone="aqua"/);
+  assert.match(distributorAssignment, /tone="aqua"/);
+  assert.match(trialExtension, /tone="aqua"/);
 });
 
 test("la tabla separa el creador histórico del distribuidor vigente", () => {
@@ -395,7 +539,7 @@ test("una cuenta cliente asigna cambia o retira su distribuidor por modal", () =
   assert.match(customerTableCopy, /assignDistributor: "Asignar distribuidor"/);
   assert.match(page, /DistributorAssignmentModal/);
   assert.match(page, /updateCompanyDistributor/);
-  assert.match(distributorAssignment, /distributors\.map/);
+  assert.match(distributorAssignment, /sortedDistributors\.map/);
   assert.match(distributorAssignment, /value="direct"/);
   assert.match(distributorAssignment, /Desvincular distribuidor/);
   assert.match(platformApi, /\/distributor/);
@@ -475,15 +619,84 @@ test("la consultoría conserva empresa usuario y preferencia de asignación", ()
   assert.match(consulting, /Puedes reasignar/);
 });
 
+test("consultoría sincroniza distribuidores y distingue al equipo interno", () => {
+  assert.match(consulting, /label: "Distribuidores"/);
+  assert.match(consulting, /Directorio de distribuidores consultores/);
+  assert.match(consulting, /se sincronizan automáticamente/);
+  assert.match(consulting, /consultant\.sourceType === "DISTRIBUTOR"/);
+  assert.match(consulting, /consultant\.companyName/);
+  assert.match(platformApi, /sourceType\?: "DISTRIBUTOR" \| "CORPORATE"/);
+});
+
+test("consultoría muestra agenda mensual con horarios y responsables", () => {
+  assert.match(consulting, /ConsultingCalendarView/);
+  assert.match(consulting, /label: "Calendario"/);
+  assert.match(consultingCalendar, /confirmed_start_at \|\| appointment\.preferred_start_at/);
+  assert.match(consultingCalendar, /alternative_start_at/);
+  assert.match(consultingCalendar, /consultant_name \|\| "Sin consultor asignado"/);
+  assert.match(consultingCalendar, /moveMonth/);
+  assert.match(consultingCalendar, /onOpen\(entry\.appointment\)/);
+});
+
+test("el calendario configura disponibilidad persistente por distribuidor", () => {
+  assert.match(consultingCalendar, /Configurar disponibilidad/);
+  assert.match(consulting, /ConsultingAvailabilityModal/);
+  assert.match(consulting, /operations\.getConsultingAvailability/);
+  assert.match(consulting, /operations\.updateConsultingAvailability/);
+  assert.match(consultingAvailability, /Horario semanal/);
+  assert.match(consultingAvailability, /Guardar disponibilidad/);
+  assert.match(platformApi, /getConsultingAvailability:/);
+  assert.match(platformApi, /updateConsultingAvailability:/);
+  assert.doesNotMatch(consultingAvailability, /localStorage/);
+});
+
+test("agregar sesión bloquea dobles envíos y explica fallas de conexión", () => {
+  assert.match(session, /busy=\{busy\}/);
+  assert.match(session, /Agregando…/);
+  assert.match(session, /submitError/);
+  assert.match(consulting, /No se pudo conectar con Índice/);
+});
+
+test("el expediente de consultoría usa el Modal Wizard Índice", () => {
+  assert.match(consulting, /<IndiceModalFrame/);
+  assert.match(consulting, /modalType="wizard"/);
+  assert.match(consulting, /tone="aqua"/);
+  assert.match(consulting, /<IndiceModalWizardStepper/);
+  assert.match(consulting, /<IndiceModalSummary/);
+  assert.match(consulting, /<IndiceModalValidation/);
+  assert.match(consulting, /form="consulting-appointment-form"/);
+  assert.doesNotMatch(consulting, /aria-label="Administrar consultoría"/);
+});
+
+test("la consultoría aplica los tres tipos y la tarifa fija de USD 79", () => {
+  assert.match(consulting, /Tipo de consultoría/);
+  assert.match(consulting, /<option value="PAID">De pago<\/option>/);
+  assert.match(consulting, /<option value="COURTESY">Cortesía<\/option>/);
+  assert.match(consulting, /Implementación de módulo/);
+  assert.match(consulting, /type === "PAID" \? 7_900 : 0/);
+  assert.match(consulting, /currency: "USD"/);
+  assert.match(consulting, /La tarifa es[\s\S]*USD 79/);
+  assert.doesNotMatch(consulting, />Cotización pendiente<\/option>/);
+  assert.doesNotMatch(consulting, />Pago pendiente<\/option>/);
+  assert.doesNotMatch(consulting, />Reembolsada<\/option>/);
+});
+
+test("guardar y notificar cierra el flujo y mantiene el texto centrado", () => {
+  assert.match(consulting, /await load\(\);[\s\S]*setSelected\(null\);[\s\S]*setEdit\(null\);/);
+  assert.match(consulting, /min-w-\[11rem\][\s\S]*justify-center[\s\S]*text-center/);
+  assert.match(consulting, /<span className="text-center leading-tight">/);
+});
+
 test("la cuenta se administra en un workspace compacto con pestañas directas", () => {
   assert.doesNotMatch(company, /IndiceModalWizardStepper/);
-  assert.match(company, /role="tablist"/);
+  assert.match(company, /IndiceWorkspaceNavigation<CompanyAccountTab>/);
+  assert.doesNotMatch(company, /<nav role="tablist"/);
   assert.match(company, /id:\s*["']overview["']/);
   assert.match(company, /id:\s*["']modules["']/);
   assert.match(company, /id:\s*["']activity["']/);
   assert.match(company, /id:\s*["']access["']/);
   assert.match(company, /modalType="operational-workspace"/);
-  assert.match(company, /tone="blue"/);
+  assert.match(company, /tone="aqua"/);
   assert.match(company, /onOpenChange=\{\(nextOpen\)/);
   assert.match(company, /footerSummary=/);
   assert.match(company, />\s*Cerrar\s*</);
@@ -510,15 +723,27 @@ test("catálogo presenta módulos y monedas controladas en lenguaje operativo", 
 
 test("precios del catálogo agrupa variantes técnicas por producto comercial", () => {
   assert.match(page, /buildCatalogPriceGroups/);
-  assert.match(page, /Productos con precio/);
+  assert.match(page, /Productos comerciales/);
   assert.match(page, /Requieren atención/);
   assert.match(page, /Listos para vender/);
-  assert.match(page, /Precios comerciales/);
   assert.match(page, /Mensual/);
   assert.match(page, /Anual/);
   assert.match(page, /catalogPriceTypeLabel/);
+  assert.match(page, /IndiceTableHeaderRow/);
+  assert.match(page, /IndiceOperationalTable/);
+  assert.match(page, /pageSizeOptions=\{\[10, 25, 50, 100, 200\]\}/);
+  assert.match(page, /CatalogStatusMetric/);
   assert.match(page, /IndiceTableActionGroup/);
   assert.doesNotMatch(page, /priceIntervalFilter/);
+});
+
+test("catálogo adopta la identidad sobria de Índice sin tarjetas decorativas", () => {
+  assert.match(catalogProductCard, /border-\[#59C3A5\]\/40/);
+  assert.match(catalogProductCard, /bg-white/);
+  assert.doesNotMatch(catalogProductCard, /bg-gradient-to-br/);
+  assert.doesNotMatch(catalogProductCard, /uppercase tracking/);
+  assert.match(moduleAvailabilityWorkspace, /tone="aqua"/);
+  assert.match(moduleAvailabilityWorkspace, /\[10, 25, 50, 100, 200\]/);
 });
 
 test("Root crea paquetes y administra sus módulos incluidos desde la interfaz", () => {
@@ -537,10 +762,12 @@ test("el catálogo se prepara valida y publica como versión antes de cambiar la
   assert.match(platformApi, /validateCatalogDraft/);
   assert.match(platformApi, /publishCatalogDraft/);
   assert.match(platformApi, /endpoints\.platformAdmin\.catalog\}\/drafts/);
-  assert.match(page, /Oferta en preparación/);
+  assert.match(page, /Tienes cambios sin publicar/);
   assert.match(page, /Validar oferta/);
   assert.match(page, /Publicar oferta/);
-  assert.match(page, /Stripe test/);
+  assert.match(page, /Modo de prueba/);
+  assert.doesNotMatch(page, /workingVersion\?\.version_code/);
+  assert.doesNotMatch(page, /draftVersion\.version_code} ·/);
   assert.match(page, /catalogValidation\.blockers/);
 });
 

@@ -88,15 +88,18 @@ export interface BillingCatalogProduct {
   product_code: string;
   display_name: string;
   product_type: 'BASIC' | 'ADDON' | string;
+  commercial_kind?: 'MODULE' | 'PACKAGE' | string;
   unit_amount_cents: number | null;
   stripe_ready: boolean;
   capabilities: string[];
+  included_product_codes?: string[];
 }
 
 export interface BillingSelectionPayload {
   product_codes: string[];
   extra_seats: number;
   billing_interval: 'MONTH' | 'YEAR';
+  promotion_code?: string | null;
 }
 
 export interface BillingSelectionResponse {

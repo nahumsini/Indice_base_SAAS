@@ -75,7 +75,8 @@ public class BillingActivationService {
         var selection = offers.select(
             request == null ? null : request.product_codes(),
             request == null ? null : request.billing_interval(),
-            request == null || request.extra_seats() == null ? 0 : request.extra_seats()
+            request == null || request.extra_seats() == null ? 0 : request.extra_seats(),
+            request == null ? null : request.promotion_code()
         );
         var owner = owner(companyId, actorUserId);
         var fingerprint = fingerprint(companyId, selection);
@@ -124,19 +125,10 @@ public class BillingActivationService {
         metadata.put("indice_flow", "existing_company_activation");
 
         var lineItems = new ArrayList<StripeCheckoutGateway.LineItem>();
-        lineItems.add(new StripeCheckoutGateway.LineItem(
-            requirePriceId(selection.baseExternalPriceId(), spec.offerCode(), spec.billingInterval()), 1
-        ));
-        if (spec.extraSeats() > 0) {
-            lineItems.add(new StripeCheckoutGateway.LineItem(
-                requirePriceId(selection.extraSeatExternalPriceId(), "extra_seat", spec.billingInterval()), spec.extraSeats()
-            ));
-        }
-        selection.products().stream()
-            .filter(CommercialOfferSelection.Product::complementary)
-            .forEach(product -> lineItems.add(new StripeCheckoutGateway.LineItem(
-                requirePriceId(product.externalPriceId(), product.code(), spec.billingInterval()), 1
-            )));
+        selection.lineItems().forEach(line -> lineItems.add(new StripeCheckoutGateway.LineItem(
+            requirePriceId(line.externalPriceId(), line.billableCode(), spec.billingInterval()),
+            line.quantity()
+        )));
         var returnUrl = billingReturnUrl();
         var checkout = stripeGateway.createCheckout(
             new StripeCheckoutGateway.CheckoutCommand(
@@ -148,7 +140,8 @@ public class BillingActivationService {
                 remainingTrialDays(companyId),
                 clock.instant().plus(Duration.ofMinutes(31)),
                 List.copyOf(lineItems),
-                Map.copyOf(metadata)
+                Map.copyOf(metadata),
+                selection.externalPromotionCodeId()
             ),
             "indice-activation-checkout-" + intentId
         );
@@ -229,10 +222,11 @@ public class BillingActivationService {
                         public_token_hash, request_idempotency_hash, request_fingerprint, status, intent_kind,
                         catalog_version_id, offer_code, billing_interval, currency,
                         included_seats, requested_extra_seats, estimated_amount_cents,
+                        subtotal_amount_cents, discount_amount_cents, promotion_code,
                         full_name, email_normalized, password_hash, company_name,
                         country_code, phone, company_id, provisioning_status,
                         owner_user_id, owner_user_company_id, provisioned_at
-                    ) VALUES (?, ?, ?, 'PENDING', 'EXISTING_COMPANY_ACTIVATION', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PROVISIONED', ?, ?, CURRENT_TIMESTAMP(6))
+                    ) VALUES (?, ?, ?, 'PENDING', 'EXISTING_COMPANY_ACTIVATION', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PROVISIONED', ?, ?, CURRENT_TIMESTAMP(6))
                     """,
                 Statement.RETURN_GENERATED_KEYS
             );
@@ -247,15 +241,19 @@ public class BillingActivationService {
             statement.setInt(9, selection.extraSeats());
             if (selection.estimatedAmountCents() == null) statement.setNull(10, java.sql.Types.BIGINT);
             else statement.setLong(10, selection.estimatedAmountCents());
-            statement.setString(11, owner.fullName());
-            statement.setString(12, owner.email());
-            statement.setString(13, owner.passwordHash());
-            statement.setString(14, owner.companyName());
-            statement.setString(15, owner.countryCode());
-            statement.setString(16, owner.phone());
-            statement.setLong(17, companyId);
-            statement.setLong(18, owner.userId());
-            statement.setLong(19, owner.membershipId());
+            if (selection.subtotalAmountCents() == null) statement.setNull(11, java.sql.Types.BIGINT);
+            else statement.setLong(11, selection.subtotalAmountCents());
+            statement.setLong(12, selection.discountAmountCents());
+            statement.setString(13, selection.promotionCode());
+            statement.setString(14, owner.fullName());
+            statement.setString(15, owner.email());
+            statement.setString(16, owner.passwordHash());
+            statement.setString(17, owner.companyName());
+            statement.setString(18, owner.countryCode());
+            statement.setString(19, owner.phone());
+            statement.setLong(20, companyId);
+            statement.setLong(21, owner.userId());
+            statement.setLong(22, owner.membershipId());
             return statement;
         }, keys);
         var key = keys.getKey();

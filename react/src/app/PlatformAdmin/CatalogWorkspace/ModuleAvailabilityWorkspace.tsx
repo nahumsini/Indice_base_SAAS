@@ -10,6 +10,7 @@ import {
   Plus,
   Power,
   PowerOff,
+  X,
 } from "lucide-react";
 import type { PlatformCatalogProduct, PlatformModule, PlatformModules } from "../../api/platformAdmin";
 import { IndiceFilterBar, IndiceFilterSearch, IndiceFilterSelect } from "../../components/frontend-os";
@@ -47,6 +48,8 @@ import {
 
 type ModuleAvailabilityChange = { module: PlatformModule; active: boolean } | null;
 type ViewMode = "table" | "cards";
+type AvailabilityFilter = "all" | "active" | "inactive";
+type CommercialStateFilter = "all" | "core" | "ready" | "unassigned";
 
 const localeLabels: Record<string, string> = {
   "en-CA": "English (Canada)",
@@ -64,7 +67,7 @@ function commercialStateCopy(state: ModuleCommercialState, english: boolean) {
     core: english ? "Required" : "Obligatorio",
     ready: english ? "Ready to offer" : "Listo para ofrecer",
     unassigned: english ? "Without product" : "Sin producto",
-    unavailable: english ? "Out of offer" : "Fuera de oferta",
+    unavailable: english ? "Unavailable" : "No disponible",
   };
   return copy[state];
 }
@@ -172,9 +175,9 @@ export function ModuleAvailabilityWorkspace({
 }) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
-  const [availability, setAvailability] = useState("all");
+  const [availability, setAvailability] = useState<AvailabilityFilter>("all");
   const [usage, setUsage] = useState("all");
-  const [commercialState, setCommercialState] = useState("all");
+  const [commercialState, setCommercialState] = useState<CommercialStateFilter>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [columnsOpen, setColumnsOpen] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<ModuleAvailabilityColumnId[]>(loadModuleAvailabilityColumnIds);
@@ -190,24 +193,38 @@ export function ModuleAvailabilityWorkspace({
     [data?.modules, english, products],
   );
 
-  const baseRows = useMemo(() => {
+  const categoryOptions = useMemo(() => {
+    const options = Array.from(
+      new Map(rows.map((row) => [row.module.category, row.categoryLabel])).entries(),
+    )
+      .sort((left, right) => left[1].localeCompare(right[1]))
+      .map(([value, label]) => ({ value, label }));
+    return [
+      { value: "all", label: english ? "All categories" : "Todas las categorías" },
+      ...options,
+    ];
+  }, [english, rows]);
+
+  // Search, category and use define the base scope. Availability and commercial
+  // status are facets over that scope, so their counts remain discoverable.
+  const scopeRows = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase();
     return rows.filter((row) => {
       const matchesSearch = !normalizedSearch || [row.name, row.description, row.module.slug, row.module.route_key, row.configurationLabel]
         .filter(Boolean)
         .some((value) => String(value).toLocaleLowerCase().includes(normalizedSearch));
       const matchesCategory = category === "all" || row.module.category === category;
-      const matchesAvailability = availability === "all" || (availability === "active" ? row.module.is_active : !row.module.is_active);
       const matchesUsage = usage === "all" || (usage === "assignable" ? row.module.assignment_enabled : !row.module.assignment_enabled);
-      return matchesSearch && matchesCategory && matchesAvailability && matchesUsage;
+      return matchesSearch && matchesCategory && matchesUsage;
     });
-  }, [availability, category, rows, search, usage]);
+  }, [category, rows, search, usage]);
 
   const filteredRows = useMemo(
-    () => baseRows
+    () => scopeRows
+      .filter((row) => availability === "all" || (availability === "active" ? row.module.is_active : !row.module.is_active))
       .filter((row) => commercialState === "all" || row.commercialState === commercialState)
       .sort((left, right) => compareRows(left, right, sort.key) * (sort.direction === "asc" ? 1 : -1)),
-    [baseRows, commercialState, sort],
+    [availability, commercialState, scopeRows, sort],
   );
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
   const pageRows = filteredRows.slice((page - 1) * pageSize, page * pageSize);
@@ -237,10 +254,35 @@ export function ModuleAvailabilityWorkspace({
   }));
   const minimumWidth = getIndiceTableMinimumWidth({ columns: tableColumns, actionsWidth: moduleAvailabilityActionsWidth });
   const counts = {
-    active: baseRows.filter((row) => row.module.is_active).length,
-    core: baseRows.filter((row) => row.commercialState === "core").length,
-    unassigned: baseRows.filter((row) => row.commercialState === "unassigned").length,
-    unavailable: baseRows.filter((row) => row.commercialState === "unavailable").length,
+    total: scopeRows.length,
+    active: scopeRows.filter((row) => row.module.is_active).length,
+    inactive: scopeRows.filter((row) => !row.module.is_active).length,
+    core: scopeRows.filter((row) => row.commercialState === "core").length,
+    ready: scopeRows.filter((row) => row.commercialState === "ready").length,
+    unassigned: scopeRows.filter((row) => row.commercialState === "unassigned").length,
+  };
+  const hasActiveFilters = Boolean(
+    search || category !== "all" || availability !== "all" || usage !== "all" || commercialState !== "all",
+  );
+
+  const clearFilters = () => {
+    setSearch("");
+    setCategory("all");
+    setAvailability("all");
+    setUsage("all");
+    setCommercialState("all");
+  };
+
+  const changeAvailability = (value: string) => {
+    const next = value as AvailabilityFilter;
+    setAvailability(next);
+    if (next === "inactive") setCommercialState("all");
+  };
+
+  const changeCommercialState = (value: string) => {
+    const next = value as CommercialStateFilter;
+    setCommercialState(next);
+    if (next !== "all") setAvailability("active");
   };
 
   const handleSort = (key: ModuleAvailabilitySortKey) => {
@@ -267,11 +309,19 @@ export function ModuleAvailabilityWorkspace({
     return <span className="block truncate" title={row.configurationLabel}>{row.configurationLabel}</span>;
   };
 
-  const kpis = [
-    { id: "active", label: english ? "Available modules" : "Módulos disponibles", value: counts.active, icon: Activity, tone: "bg-blue-50 text-blue-700" },
-    { id: "core", label: english ? "Required" : "Obligatorios", value: counts.core, icon: LockKeyhole, tone: "bg-violet-50 text-violet-700" },
-    { id: "unassigned", label: english ? "Without product" : "Sin producto", value: counts.unassigned, icon: Boxes, tone: "bg-amber-50 text-amber-800" },
-    { id: "unavailable", label: english ? "Out of offer" : "Fuera de oferta", value: counts.unavailable, icon: PowerOff, tone: "bg-slate-100 text-slate-600" },
+  const kpis: Array<{
+    id: "active" | "inactive" | "core" | "unassigned";
+    group: "availability" | "commercial";
+    label: string;
+    description: string;
+    value: number;
+    icon: typeof Activity;
+    tone: string;
+  }> = [
+    { id: "active", group: "availability", label: english ? "Available" : "Disponibles", description: english ? "Enabled for use" : "Habilitados para usarse", value: counts.active, icon: Activity, tone: "bg-[#59C3A5]/15 text-[#177D66]" },
+    { id: "inactive", group: "availability", label: english ? "Unavailable" : "No disponibles", description: english ? "Disabled from the offer" : "Desactivados de la oferta", value: counts.inactive, icon: PowerOff, tone: "bg-slate-100 text-slate-600" },
+    { id: "core", group: "commercial", label: english ? "Required" : "Obligatorios", description: english ? "Always enabled" : "Siempre habilitados", value: counts.core, icon: LockKeyhole, tone: "bg-violet-50 text-violet-700" },
+    { id: "unassigned", group: "commercial", label: english ? "Without product" : "Sin producto", description: english ? "Enabled but not linked" : "Activos sin producto vinculado", value: counts.unassigned, icon: Boxes, tone: "bg-amber-50 text-amber-800" },
   ];
 
   return (
@@ -286,42 +336,52 @@ export function ModuleAvailabilityWorkspace({
         title={english ? "Filters" : "Filtros"}
         subtitle={english ? "Find a module and narrow the commercial availability." : "Encuentra un módulo y limita la disponibilidad comercial."}
         gridClassName="lg:grid-cols-6"
+        summary={(
+          <div className="flex items-center gap-3">
+            <span>{filteredRows.length} / {rows.length}</span>
+            {hasActiveFilters ? (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 transition hover:border-[#59C3A5] hover:text-[#177D66] dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300"
+              >
+                <X className="h-3.5 w-3.5" />
+                {english ? "Clear filters" : "Limpiar filtros"}
+              </button>
+            ) : null}
+          </div>
+        )}
       >
         <IndiceFilterSearch
           className="lg:col-span-2"
           label={english ? "Search" : "Buscar"}
           placeholder={english ? "Name, route or description" : "Nombre, ruta o descripción"}
-          tone="blue"
+          tone="aqua"
           value={search}
           onValueChange={setSearch}
           onClear={() => setSearch("")}
         />
         <IndiceFilterSelect
           label={english ? "Category" : "Categoría"}
-          tone="blue"
+          tone="aqua"
           value={category}
           onValueChange={setCategory}
-          options={[
-            { value: "all", label: english ? "All categories" : "Todas las categorías" },
-            { value: "basic", label: english ? "Base" : "Base" },
-            { value: "complementary", label: english ? "Add-ons" : "Complementarios" },
-            { value: "ai", label: english ? "Artificial intelligence" : "Inteligencia artificial" },
-          ]}
+          options={categoryOptions}
         />
         <IndiceFilterSelect
           label={english ? "Availability" : "Disponibilidad"}
-          tone="blue"
+          tone="aqua"
           value={availability}
-          onValueChange={setAvailability}
+          onValueChange={changeAvailability}
           options={[
-            { value: "all", label: english ? "All modules" : "Todos los módulos" },
-            { value: "active", label: english ? "Available" : "Disponibles" },
-            { value: "inactive", label: english ? "Unavailable" : "No disponibles" },
+            { value: "all", label: `${english ? "All modules" : "Todos los módulos"} (${counts.total})` },
+            { value: "active", label: `${english ? "Available" : "Disponibles"} (${counts.active})` },
+            { value: "inactive", label: `${english ? "Unavailable" : "No disponibles"} (${counts.inactive})` },
           ]}
         />
         <IndiceFilterSelect
           label={english ? "Use" : "Uso"}
-          tone="blue"
+          tone="aqua"
           value={usage}
           onValueChange={setUsage}
           options={[
@@ -332,15 +392,14 @@ export function ModuleAvailabilityWorkspace({
         />
         <IndiceFilterSelect
           label={english ? "Commercial status" : "Estado comercial"}
-          tone="blue"
+          tone="aqua"
           value={commercialState}
-          onValueChange={setCommercialState}
+          onValueChange={changeCommercialState}
           options={[
             { value: "all", label: english ? "All statuses" : "Todos los estados" },
-            { value: "core", label: english ? "Required" : "Obligatorio" },
-            { value: "ready", label: english ? "Ready to offer" : "Listo para ofrecer" },
-            { value: "unassigned", label: english ? "Without product" : "Sin producto" },
-            { value: "unavailable", label: english ? "Out of offer" : "Fuera de oferta" },
+            { value: "core", label: `${english ? "Required" : "Obligatorio"} (${counts.core})` },
+            { value: "ready", label: `${english ? "Ready to offer" : "Listo para ofrecer"} (${counts.ready})` },
+            { value: "unassigned", label: `${english ? "Without product" : "Sin producto"} (${counts.unassigned})` },
           ]}
         />
       </IndiceFilterBar>
@@ -348,8 +407,8 @@ export function ModuleAvailabilityWorkspace({
       <section aria-label={english ? "Availability indicators" : "Indicadores de disponibilidad"} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {kpis.map((kpi) => {
           const Icon = kpi.icon;
-          const selected = kpi.id === "active"
-            ? availability === "active" && commercialState === "all"
+          const selected = kpi.group === "availability"
+            ? availability === kpi.id && commercialState === "all"
             : commercialState === kpi.id;
           return (
             <button
@@ -357,47 +416,55 @@ export function ModuleAvailabilityWorkspace({
               type="button"
               aria-pressed={selected}
               onClick={() => {
-                if (kpi.id === "active") {
-                  setAvailability("active");
+                if (selected) {
+                  setAvailability("all");
                   setCommercialState("all");
                   return;
                 }
-                setAvailability("all");
-                setCommercialState(kpi.id);
+                if (kpi.group === "availability") {
+                  setAvailability(kpi.id as AvailabilityFilter);
+                  setCommercialState("all");
+                  return;
+                }
+                setAvailability("active");
+                setCommercialState(kpi.id as CommercialStateFilter);
               }}
-              className={`flex min-h-24 items-center gap-3 rounded-2xl border bg-white p-4 text-left shadow-sm transition hover:border-blue-300 ${selected ? "border-blue-400 ring-2 ring-blue-100" : "border-slate-200"}`}
+              className={`flex min-h-24 items-center gap-3 rounded-2xl border bg-white p-4 text-left shadow-sm transition hover:border-[#59C3A5]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/30 dark:bg-slate-900 ${selected ? "border-[#59C3A5] ring-2 ring-[#59C3A5]/15" : "border-slate-200 dark:border-slate-700"}`}
             >
               <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${kpi.tone}`}><Icon className="h-5 w-5" /></span>
-              <span>
+              <span className="min-w-0">
                 <span className="block text-sm text-slate-500">{kpi.label}</span>
                 <span className="mt-1 block text-2xl font-medium text-slate-950">{kpi.value}</span>
+                <span className="mt-1 block truncate text-xs text-slate-400">{kpi.description}</span>
               </span>
             </button>
           );
         })}
       </section>
 
-      <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-medium text-slate-950">{english ? "Module availability" : "Disponibilidad de módulos"}</h2>
-          <p className="mt-1 text-sm text-slate-500">{filteredRows.length} {english ? "matching modules" : "módulo(s) coinciden"}</p>
+          <p className="mt-1 text-sm text-slate-500">
+            {filteredRows.length} {english ? "of" : "de"} {rows.length} {english ? "modules" : "módulos"}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
-            <button type="button" aria-pressed={viewMode === "table"} onClick={() => setViewMode("table")} className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium ${viewMode === "table" ? "bg-[#2563EB] text-white" : "text-slate-600"}`}>
+            <button type="button" aria-pressed={viewMode === "table"} onClick={() => setViewMode("table")} className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium ${viewMode === "table" ? "bg-[#177D66] text-white" : "text-slate-600 dark:text-slate-300"}`}>
               <List className="h-4 w-4" />{english ? "Table" : "Tabla"}
             </button>
-            <button type="button" aria-pressed={viewMode === "cards"} onClick={() => setViewMode("cards")} className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium ${viewMode === "cards" ? "bg-[#2563EB] text-white" : "text-slate-600"}`}>
+            <button type="button" aria-pressed={viewMode === "cards"} onClick={() => setViewMode("cards")} className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium ${viewMode === "cards" ? "bg-[#177D66] text-white" : "text-slate-600 dark:text-slate-300"}`}>
               <Grid2X2 className="h-4 w-4" />{english ? "Cards" : "Tarjetas"}
             </button>
           </div>
           {viewMode === "table" ? (
-            <button type="button" onClick={() => setColumnsOpen(true)} className="inline-flex h-11 items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-medium text-blue-700 hover:bg-blue-50">
+            <button type="button" onClick={() => setColumnsOpen(true)} className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#59C3A5]/40 bg-white px-4 text-sm font-medium text-[#176B5B] hover:bg-[#59C3A5]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/25 dark:bg-slate-900 dark:text-[#8FE0CA]">
               <Columns3 className="h-4 w-4" />{english ? "Columns" : "Columnas"}
             </button>
           ) : null}
           {canManage ? (
-            <button type="button" onClick={() => setWorkOrderOpen(true)} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#2563EB] px-4 text-sm font-medium text-white hover:bg-[#1D4ED8]">
+            <button type="button" onClick={() => setWorkOrderOpen(true)} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white hover:bg-[#126553] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/30">
               <Plus className="h-4 w-4" />{workOrderCopy.add}
             </button>
           ) : null}
@@ -439,7 +506,7 @@ export function ModuleAvailabilityWorkspace({
               currentPage={page}
               totalPages={totalPages}
               pageSize={pageSize}
-              pageSizeOptions={[10, 25, 50]}
+              pageSizeOptions={[10, 25, 50, 100, 200]}
               totalCount={filteredRows.length}
               pageStart={(page - 1) * pageSize + 1}
               pageEnd={Math.min(page * pageSize, filteredRows.length)}
@@ -461,7 +528,7 @@ export function ModuleAvailabilityWorkspace({
             />
             <TableBody>
               {pageRows.map((row) => (
-                <TableRow key={row.module.id} className="border-slate-100 hover:bg-blue-50/40">
+                <TableRow key={row.module.id} className="border-slate-100 hover:bg-[#59C3A5]/5 dark:border-slate-800 dark:hover:bg-[#59C3A5]/10">
                   {visibleColumns.map((columnId) => (
                     <TableCell key={columnId} className="h-[72px] px-4 py-3 text-[13px] font-normal text-slate-700" style={{ width: columnWidths[columnId], minWidth: columnWidths[columnId], maxWidth: columnWidths[columnId] }}>
                       {renderCell(row, columnId)}
@@ -509,7 +576,7 @@ export function ModuleAvailabilityWorkspace({
           currentPage={page}
           totalPages={totalPages}
           pageSize={pageSize}
-          pageSizeOptions={[10, 25, 50]}
+          pageSizeOptions={[10, 25, 50, 100, 200]}
           totalCount={filteredRows.length}
           pageStart={(page - 1) * pageSize + 1}
           pageEnd={Math.min(page * pageSize, filteredRows.length)}

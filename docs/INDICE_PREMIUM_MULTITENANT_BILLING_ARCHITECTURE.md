@@ -1,8 +1,8 @@
 # Índice Premium Multi-Tenant y Billing
 
-Estado: arquitectura aprobada; Fases 1–7 implementadas detrás de feature flags
+Estado: arquitectura aprobada; catálogo comercial versionado implementado hasta V223
 
-Fecha de corte: 21 de julio de 2026
+Fecha de corte: 27 de agosto de 2026
 
 Base técnica de Fases 1–8: rama `nahum-mac-20-julio-premium-multitenant-billing`
 
@@ -105,7 +105,35 @@ Inventarios y Sales + Inventarios no duplica el entitlement de `inventory` ni el
 Los slugs heredados (`crm`, `cartera`, `accounts_receivable`, entre otros) deben resolverse mediante
 aliases canónicos. No deben convertirse en líneas comerciales duplicadas.
 
-### 3.3 Precios confirmados
+### 3.3 Modelo comercial vigente
+
+La oferta comercial se administra como una versión completa e inmutable una vez publicada:
+
+- Cada módulo operativo vendible es un producto individual con precio mensual y anual propios.
+- Los módulos complementarios se venden individualmente cuando están técnicamente disponibles,
+  comercialmente activos y tienen sus dos precios listos.
+- Un paquete contiene dos o más módulos y tiene un precio explícito propio. El cobro no se calcula
+  sumando automáticamente sus componentes.
+- Un módulo no puede seleccionarse a la vez de forma individual y dentro de un paquete de la misma
+  compra. El backend rechaza la duplicación por capability, aunque el navegador intente enviarla.
+- `extra_user` es un producto por cantidad. La cantidad cobrable es la capacidad contratada que
+  excede los cinco usuarios incluidos.
+- Las promociones pueden ser porcentuales o de importe fijo, aplicar a toda la compra o limitarse a
+  productos concretos, y deben conservar su identificador correspondiente de Stripe.
+- Los precios, paquetes, promociones y productos de una versión publicada no se editan. Cualquier
+  cambio crea y valida un borrador nuevo antes de publicarlo.
+- Las suscripciones existentes conservan su `catalog_version_id`, selección, subtotal, descuento y
+  promoción. Publicar una nueva versión nunca recalcula retroactivamente un contrato histórico.
+
+La Administración de plataforma presenta este modelo en un solo constructor de oferta comercial.
+La disponibilidad técnica de módulos permanece separada porque controla si una función existe y
+puede asignarse; no representa por sí sola autorización para venderla.
+
+### 3.3.1 Tarifario histórico de lanzamiento
+
+El siguiente tarifario corresponde al catálogo legado `2026.07-premium-v1`. Se conserva para los
+clientes contratados con esa versión y como referencia de migración; no limita los precios de las
+versiones nuevas.
 
 | Concepto | Precio mensual antes de impuestos |
 |---|---:|

@@ -94,7 +94,7 @@ class BillingSignupServiceTest {
             "cus_test", "cs_test", null, "https://checkout.stripe.test/cs_test",
             Instant.parse("2026-07-21T12:30:00Z")
         );
-        when(offers.select(any(), anyString(), anyInt())).thenReturn(selection);
+        when(offers.select(any(), anyString(), anyInt(), any())).thenReturn(selection);
         when(emailVerificationService.requireVerified(anyString(), anyString()))
             .thenReturn(new BillingSignupEmailVerificationService.VerifiedEmail(
                 "owner@example.com", "e".repeat(64), Instant.parse("2026-07-21T11:59:00Z")

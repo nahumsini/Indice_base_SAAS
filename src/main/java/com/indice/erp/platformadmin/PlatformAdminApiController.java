@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -40,6 +41,7 @@ public class PlatformAdminApiController {
     private final CourtesyCodeService courtesyCodes;
     private final ConsultingAdministrationService consulting;
     private final PlatformCatalogManagementService catalogManagement;
+    private final PlatformCatalogStripeSynchronizationService catalogStripeSynchronization;
     private final PlatformModuleWorkOrderService moduleWorkOrders;
     private final PlatformCompanyUserService companyUsers;
     private final InvitationEmailService invitationEmailService;
@@ -55,6 +57,7 @@ public class PlatformAdminApiController {
         CourtesyCodeService courtesyCodes,
         ConsultingAdministrationService consulting,
         PlatformCatalogManagementService catalogManagement,
+        PlatformCatalogStripeSynchronizationService catalogStripeSynchronization,
         PlatformModuleWorkOrderService moduleWorkOrders,
         PlatformCompanyUserService companyUsers,
         InvitationEmailService invitationEmailService,
@@ -69,6 +72,7 @@ public class PlatformAdminApiController {
         this.courtesyCodes = courtesyCodes;
         this.consulting = consulting;
         this.catalogManagement = catalogManagement;
+        this.catalogStripeSynchronization = catalogStripeSynchronization;
         this.moduleWorkOrders = moduleWorkOrders;
         this.companyUsers = companyUsers;
         this.invitationEmailService = invitationEmailService;
@@ -203,6 +207,56 @@ public class PlatformAdminApiController {
         }
     }
 
+    @PostMapping("/catalog/products/{productId}/stripe-prices/synchronize")
+    public ResponseEntity<?> synchronizeCatalogProductPrices(
+        HttpSession session,
+        @PathVariable long productId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody PlatformCatalogStripeSynchronizationService.SynchronizeRequest request
+    ) {
+        try {
+            var current = auth.currentUser(session).orElse(null);
+            if (current == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            csrf.requireCsrf(session, csrfToken);
+            return ResponseEntity.ok(catalogStripeSynchronization.synchronize(current.userId(), productId, request));
+        } catch (RuntimeException exception) {
+            return error(exception);
+        }
+    }
+
+    @PostMapping("/catalog/promotions")
+    public ResponseEntity<?> createCatalogPromotion(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody PlatformCatalogManagementService.PromotionRequest request
+    ) {
+        try {
+            var current = auth.currentUser(session).orElse(null);
+            if (current == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            csrf.requireCsrf(session, csrfToken);
+            return ResponseEntity.status(HttpStatus.CREATED).body(catalogManagement.createPromotion(current.userId(), request));
+        } catch (RuntimeException exception) {
+            return error(exception);
+        }
+    }
+
+    @PatchMapping("/catalog/promotions/{promotionId}")
+    public ResponseEntity<?> updateCatalogPromotion(
+        HttpSession session,
+        @PathVariable long promotionId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody PlatformCatalogManagementService.PromotionRequest request
+    ) {
+        try {
+            var current = auth.currentUser(session).orElse(null);
+            if (current == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            csrf.requireCsrf(session, csrfToken);
+            return ResponseEntity.ok(catalogManagement.updatePromotion(current.userId(), promotionId, request));
+        } catch (RuntimeException exception) {
+            return error(exception);
+        }
+    }
+
     @GetMapping("/modules")
     public ResponseEntity<?> modules(HttpSession session) {
         return withUser(session, service::modules);
@@ -304,6 +358,30 @@ public class PlatformAdminApiController {
             if (current == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
             csrf.requireCsrf(session, csrfToken);
             return ResponseEntity.status(HttpStatus.CREATED).body(consulting.createAppointment(current.userId(), request));
+        } catch (RuntimeException exception) {
+            return error(exception);
+        }
+    }
+
+    @GetMapping("/consulting/availability")
+    public ResponseEntity<?> consultingAvailability(
+        HttpSession session,
+        @RequestParam("consultantEmail") String consultantEmail
+    ) {
+        return withUser(session, userId -> consulting.consultantAvailability(userId, consultantEmail));
+    }
+
+    @PutMapping("/consulting/availability")
+    public ResponseEntity<?> updateConsultingAvailability(
+        HttpSession session,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody ConsultingAdministrationService.AvailabilityUpdateRequest request
+    ) {
+        try {
+            var current = auth.currentUser(session).orElse(null);
+            if (current == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            csrf.requireCsrf(session, csrfToken);
+            return ResponseEntity.ok(consulting.updateConsultantAvailability(current.userId(), request));
         } catch (RuntimeException exception) {
             return error(exception);
         }

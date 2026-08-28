@@ -55,6 +55,9 @@ public class StripeJavaCheckoutGateway implements StripeCheckoutGateway {
         params.put("tax_id_collection", Map.of("enabled", command.taxIdCollectionEnabled()));
         params.put("expires_at", command.expiresAt().getEpochSecond());
         params.put("metadata", command.metadata());
+        if (command.promotionCodeId() != null && !command.promotionCodeId().isBlank()) {
+            params.put("discounts", List.of(Map.of("promotion_code", command.promotionCodeId())));
+        }
         var subscriptionData = new LinkedHashMap<String, Object>();
         if (command.trialDays() > 0) {
             subscriptionData.put("trial_period_days", command.trialDays());

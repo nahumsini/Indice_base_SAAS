@@ -53,7 +53,7 @@ class ConsultingAppointmentApiControllerTest {
         given(service.workspace(user)).willReturn(Map.of(
             "duration_minutes", 50,
             "included_session_available", true,
-            "additional_session_amount_cents", 8900,
+            "additional_session_amount_cents", 7900,
             "currency", "USD",
             "join_window_minutes", 15,
             "topics", List.of(Map.of("value", "ONBOARDING", "module", false)),
@@ -71,7 +71,7 @@ class ConsultingAppointmentApiControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.duration_minutes").value(50))
             .andExpect(jsonPath("$.included_session_available").value(true))
-            .andExpect(jsonPath("$.additional_session_amount_cents").value(8900))
+            .andExpect(jsonPath("$.additional_session_amount_cents").value(7900))
             .andExpect(jsonPath("$.join_window_minutes").value(15))
             .andExpect(jsonPath("$.in_person_locations[0].location_code").value("MX-MTY"));
     }

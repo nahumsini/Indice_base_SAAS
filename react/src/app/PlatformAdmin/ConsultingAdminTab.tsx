@@ -3,45 +3,69 @@ import {
   Building2,
   CalendarCheck2,
   CalendarClock,
+  CalendarDays,
   CalendarPlus,
   CheckCircle2,
   CircleAlert,
   Clock3,
   ExternalLink,
+  Handshake,
   LoaderCircle,
   Mail,
   MapPin,
   Monitor,
   Phone,
   RefreshCw,
-  Search,
+  Sparkles,
   UserRound,
   UserPlus,
-  X,
 } from "lucide-react";
 import {
   platformAdminApi,
   type PlatformConsultingAppointment,
   type PlatformConsultingAppointmentCreate,
   type PlatformConsultingAppointmentUpdate,
+  type PlatformConsultingAvailability,
+  type PlatformConsultingAvailabilityUpdate,
   type PlatformConsultingConsultant,
   type PlatformConsultingLocation,
   type PlatformConsultingStatus,
   type PlatformConsultingWorkspace,
 } from "../api/platformAdmin";
-import {
-  ConsultantCreateModal,
-  type Consultant,
-} from "./Consultants";
+import { ConsultantCreateModal } from "./Consultants";
 import { CoverageCreateModal } from "./ConsultingCoverage";
 import {
   SessionCreateModal,
   type ConsultingCompanyOption,
 } from "./ConsultingSessions";
-import { currencyOptions } from "./flowOptions";
+import { ConsultingCalendarView } from "./ConsultingCalendarView";
+import { ConsultingAvailabilityModal } from "./ConsultingAvailabilityModal";
+import {
+  IndiceFilterBar,
+  IndiceFilterSearch,
+  IndiceFilterSelect,
+  IndiceTitleBar,
+  IndiceWorkspaceNavigation,
+} from "../components/frontend-os";
+import {
+  getIndiceTableMinimumWidth,
+  IndiceOperationalTable,
+  IndiceTableColGroup,
+  IndiceTableHeaderRow,
+  IndiceTableShell,
+  type IndiceTableColumnDefinition,
+} from "../components/table/IndiceTableEngine";
+import { TableBody, TableCell, TableRow } from "../components/ui/table";
+import { usePersistentColumnWidths } from "../hooks/usePersistentColumnWidths";
+import {
+  IndiceModalFrame,
+  IndiceModalSummary,
+  IndiceModalValidation,
+  IndiceModalWizardStepper,
+} from "../components/indice-modal";
 
 const controlClass =
-  "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-[#177D66] focus:ring-2 focus:ring-[#177D66]/10 disabled:bg-slate-100 disabled:text-slate-400";
+  "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-[#177D66] focus:ring-2 focus:ring-[#177D66]/10 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:disabled:bg-slate-800 dark:disabled:text-slate-500";
 const statuses: Array<{ value: PlatformConsultingStatus; label: string }> = [
   { value: "REQUESTED", label: "Por confirmar" },
   { value: "CONFIRMED", label: "Confirmada" },
@@ -58,12 +82,60 @@ type EditState = {
   consultantEmail: string;
   consultantPhone: string;
   internalNotes: string;
+  consultationType: ConsultationType;
   paymentStatus: PlatformConsultingAppointment["payment_status"];
   amount: string;
   currency: string;
   cancellationReason: string;
 };
-type ConsultingView = "requests" | "consultants" | "coverage";
+type ConsultationType = "PAID" | "COURTESY" | "MODULE_IMPLEMENTATION";
+type ConsultingView = "requests" | "calendar" | "consultants" | "coverage";
+type AppointmentColumnId =
+  | "company"
+  | "client"
+  | "contact"
+  | "mode"
+  | "schedule"
+  | "status"
+  | "consultant";
+
+const appointmentColumnLabels: Record<AppointmentColumnId, string> = {
+  company: "Folio y empresa",
+  client: "Cliente y objetivo",
+  contact: "Contacto",
+  mode: "Modalidad",
+  schedule: "Horario solicitado",
+  status: "Estado",
+  consultant: "Consultor",
+};
+const appointmentColumnDefaults: Record<AppointmentColumnId, number> = {
+  company: 230,
+  client: 220,
+  contact: 250,
+  mode: 150,
+  schedule: 220,
+  status: 140,
+  consultant: 210,
+};
+const appointmentColumnMinimums: Record<AppointmentColumnId, number> = {
+  company: 190,
+  client: 180,
+  contact: 210,
+  mode: 130,
+  schedule: 190,
+  status: 120,
+  consultant: 180,
+};
+const appointmentColumnMaximums: Record<AppointmentColumnId, number> = {
+  company: 340,
+  client: 340,
+  contact: 380,
+  mode: 240,
+  schedule: 320,
+  status: 220,
+  consultant: 320,
+};
+const appointmentActionsWidth = 132;
 
 export interface ConsultingAdminOperations {
   getConsulting: () => Promise<PlatformConsultingWorkspace>;
@@ -74,6 +146,12 @@ export interface ConsultingAdminOperations {
     appointmentId: number,
     payload: PlatformConsultingAppointmentUpdate,
   ) => Promise<PlatformConsultingAppointment>;
+  getConsultingAvailability?: (
+    consultantEmail: string,
+  ) => Promise<PlatformConsultingAvailability>;
+  updateConsultingAvailability?: (
+    payload: PlatformConsultingAvailabilityUpdate,
+  ) => Promise<PlatformConsultingAvailability>;
   createConsultingConsultant?: (payload: {
     firstName: string;
     lastName: string;
@@ -141,9 +219,9 @@ export default function ConsultingAdminTab({
   };
   const labels: ConsultingAdminHeading = {
     eyebrow: "Operación de consultoría",
-    title: "Solicitudes, consultores y sesiones",
+    title: "Solicitudes, distribuidores y sesiones",
     description:
-      "Coordina horarios con el cliente, asigna consultor y publica la confirmación y el enlace desde un solo lugar.",
+      "Coordina horarios con el cliente, asigna al distribuidor consultor responsable y publica la confirmación desde un solo lugar.",
     ...heading,
   };
   const availableViews: Array<{
@@ -152,8 +230,9 @@ export default function ConsultingAdminTab({
     icon: typeof CalendarClock;
   }> = [
     { id: "requests", label: "Solicitudes", icon: CalendarClock },
+    { id: "calendar", label: "Calendario", icon: CalendarDays },
     ...(permissions.viewConsultants
-      ? [{ id: "consultants" as const, label: "Consultores", icon: UserRound }]
+      ? [{ id: "consultants" as const, label: "Distribuidores", icon: UserRound }]
       : []),
     ...(permissions.viewCoverage
       ? [{ id: "coverage" as const, label: "Cobertura presencial", icon: MapPin }]
@@ -174,8 +253,9 @@ export default function ConsultingAdminTab({
   const [consultantModalOpen, setConsultantModalOpen] = useState(false);
   const [coverageModalOpen, setCoverageModalOpen] = useState(false);
   const [sessionModalOpen, setSessionModalOpen] = useState(false);
+  const [availabilityModalOpen, setAvailabilityModalOpen] = useState(false);
   const [activeView, setActiveView] = useState<ConsultingView>("requests");
-  const consultants: Consultant[] = workspace?.consultants ?? [];
+  const consultants: PlatformConsultingConsultant[] = workspace?.consultants ?? [];
   const allAppointments = workspace?.appointments ?? [];
   const allLocations = workspace?.locations ?? [];
 
@@ -224,12 +304,32 @@ export default function ConsultingAdminTab({
           ["REQUESTED", "PAYMENT_REQUIRED", "CONFIRMED"].includes(
             appointment.status,
           )) ||
+        (statusFilter === "UPCOMING" &&
+          appointment.status === "CONFIRMED" &&
+          new Date(
+            appointment.confirmed_start_at || appointment.preferred_start_at,
+          ) > new Date()) ||
         appointment.status === statusFilter;
       const matchesMode =
         modeFilter === "ALL" || appointment.consultation_mode === modeFilter;
       return matchesQuery && matchesStatus && matchesMode;
     });
   }, [allAppointments, modeFilter, query, statusFilter]);
+  const requestCounts = useMemo(() => {
+    const now = new Date();
+    return {
+      requested: allAppointments.filter((item) => item.status === "REQUESTED")
+        .length,
+      confirmed: allAppointments.filter((item) => item.status === "CONFIRMED")
+        .length,
+      upcoming: allAppointments.filter(
+        (item) =>
+          item.status === "CONFIRMED" &&
+          new Date(item.confirmed_start_at || item.preferred_start_at) > now,
+      ).length,
+      total: allAppointments.length,
+    };
+  }, [allAppointments]);
 
   const openAppointment = (appointment: PlatformConsultingAppointment) => {
     setSelected(appointment);
@@ -250,10 +350,6 @@ export default function ConsultingAdminTab({
     setError("");
     setSuccess("");
     try {
-      const amount =
-        edit.amount.trim() === ""
-          ? null
-          : Math.round(Number(edit.amount) * 100);
       const payload: PlatformConsultingAppointmentUpdate = {
         status: edit.status === "PAYMENT_REQUIRED" ? "REQUESTED" : edit.status,
         confirmedStartAt: edit.confirmedStartAt
@@ -264,9 +360,12 @@ export default function ConsultingAdminTab({
         consultantEmail: edit.consultantEmail.trim(),
         consultantPhone: edit.consultantPhone.trim(),
         internalNotes: edit.internalNotes.trim(),
-        paymentStatus: edit.paymentStatus,
-        amountCents: Number.isFinite(amount) ? amount : null,
-        currency: edit.currency.trim().toUpperCase() || "USD",
+        paymentStatus: paymentStatusForConsultationType(
+          edit.consultationType,
+          edit.paymentStatus,
+        ),
+        amountCents: consultationAmountCents(edit.consultationType),
+        currency: "USD",
         cancellationReason: edit.cancellationReason.trim(),
       };
       const updated = await operations.updateConsultingAppointment(
@@ -289,6 +388,8 @@ export default function ConsultingAdminTab({
         "La solicitud quedó actualizada y el cliente recibirá el aviso correspondiente.",
       );
       await load();
+      setSelected(null);
+      setEdit(null);
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -344,34 +445,32 @@ export default function ConsultingAdminTab({
 
   return (
     <div className="space-y-5">
-      <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-medium text-[#177D66]">
-            {labels.eyebrow}
-          </p>
-          <h2 className="mt-1 text-2xl font-medium tracking-tight text-slate-950">
-            {labels.title}
-          </h2>
-          <p className="mt-1 max-w-3xl text-sm text-slate-500">
-            {labels.description}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+      <IndiceTitleBar
+        tone="aqua"
+        icon={<Handshake className="h-5 w-5" />}
+        title={labels.title}
+        subtitle={labels.description}
+        actions={
+          <div className="flex flex-wrap justify-end gap-2">
           {permissions.manageConsultants && activeView === "consultants" ? (
             <button
               type="button"
               onClick={() => setConsultantModalOpen(true)}
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#2563EB] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#1D4ED8]"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white shadow-sm transition hover:bg-[#126553] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/30"
             >
               <UserPlus className="h-4 w-4" />
-              Agregar consultor
+              Agregar consultor interno
             </button>
           ) : null}
-          {permissions.createSessions && activeView === "requests" ? (
+          {permissions.createSessions &&
+          (activeView === "requests" || activeView === "calendar") ? (
             <button
               type="button"
-              onClick={() => setSessionModalOpen(true)}
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#2563EB] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#1D4ED8]"
+              onClick={() => {
+                setError("");
+                setSessionModalOpen(true);
+              }}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white shadow-sm transition hover:bg-[#126553] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/30"
             >
               <CalendarPlus className="h-4 w-4" />
               Agregar sesión
@@ -381,7 +480,7 @@ export default function ConsultingAdminTab({
             <button
               type="button"
               onClick={() => setCoverageModalOpen(true)}
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#2563EB] px-4 text-sm font-semibold text-white shadow-sm hover:bg-[#1D4ED8]"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white shadow-sm transition hover:bg-[#126553] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/30"
             >
               <MapPin className="h-4 w-4" />
               Agregar cobertura
@@ -390,13 +489,14 @@ export default function ConsultingAdminTab({
           <button
             type="button"
             onClick={() => void load()}
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#59C3A5]/30 bg-white px-4 text-sm font-medium text-[#176B5B] transition hover:bg-[#59C3A5]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/25 dark:bg-slate-900 dark:text-[#8FE0CA]"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             Actualizar
           </button>
         </div>
-      </section>
+        }
+      />
 
       {error ? (
         <div
@@ -417,156 +517,197 @@ export default function ConsultingAdminTab({
         </div>
       ) : null}
 
-      {availableViews.length > 1 ? <div
-        className="inline-flex w-fit items-center rounded-lg border border-slate-200 bg-white p-1 shadow-sm"
-        role="tablist"
-        aria-label="Vistas de consultoría"
-      >
-        {availableViews.map((view) => {
-          const Icon = view.icon;
-          const active = activeView === view.id;
-          return (
-            <button
-              key={view.id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setActiveView(view.id)}
-              className={`inline-flex h-11 items-center gap-2 rounded-lg px-4 text-sm font-medium transition-all ${active ? "bg-[#2563EB] text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}
-            >
-              <Icon className="h-4 w-4" />
-              {view.label}
-            </button>
-          );
-        })}
-      </div> : null}
+      {availableViews.length > 1 ? (
+        <IndiceWorkspaceNavigation<ConsultingView>
+          ariaLabel="Vistas de consultoría"
+          tone="aqua"
+          value={activeView}
+          onValueChange={setActiveView}
+          items={availableViews.map((view) => {
+            const Icon = view.icon;
+            return { ...view, icon: <Icon /> };
+          })}
+        />
+      ) : null}
 
       {activeView === "requests" ? (
         <>
+          <section className="flex items-start gap-3 rounded-2xl border border-[#59C3A5]/30 bg-[#59C3A5]/10 px-4 py-3 text-sm text-[#176B5B] dark:border-[#59C3A5]/30 dark:bg-[#59C3A5]/10 dark:text-[#8FE0CA]">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-[#177D66] shadow-sm dark:bg-slate-900">
+              <Sparkles className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="font-medium text-slate-900 dark:text-white">
+                {requestCounts.requested > 0
+                  ? `${requestCounts.requested} ${requestCounts.requested === 1 ? "solicitud requiere" : "solicitudes requieren"} coordinación.`
+                  : "No hay solicitudes pendientes de confirmación."}
+              </p>
+              <p className="mt-0.5 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                Confirma horario, asigna consultor y deja listo el enlace antes de la sesión.
+              </p>
+            </div>
+          </section>
+
+          <IndiceFilterBar
+            title="Filtros"
+            subtitle="Encuentra una solicitud por cliente y reduce la vista por estado o modalidad."
+            summary={`${filtered.length} de ${allAppointments.length} solicitudes`}
+            gridClassName="lg:grid-cols-[minmax(280px,1fr)_240px_220px]"
+          >
+            <IndiceFilterSearch
+              label="Buscar"
+              value={query}
+              onValueChange={setQuery}
+              onClear={() => setQuery("")}
+              placeholder="Empresa, persona, correo, teléfono o folio"
+              tone="aqua"
+            />
+            <IndiceFilterSelect
+              label="Estado"
+              value={statusFilter}
+              onValueChange={setStatusFilter}
+              tone="aqua"
+              options={[
+                { value: "ACTIVE", label: "Pendientes y próximas" },
+                { value: "UPCOMING", label: "Próximas sesiones" },
+                { value: "ALL", label: "Todos los estados" },
+                ...statuses.map((status) => ({
+                  value: status.value,
+                  label: status.label,
+                })),
+              ]}
+            />
+            <IndiceFilterSelect
+              label="Modalidad"
+              value={modeFilter}
+              onValueChange={setModeFilter}
+              tone="aqua"
+              options={[
+                { value: "ALL", label: "Todas las modalidades" },
+                { value: "VIRTUAL", label: "Virtual" },
+                { value: "IN_PERSON", label: "Presencial" },
+              ]}
+            />
+          </IndiceFilterBar>
+
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Metric
               icon={CalendarClock}
               label="Por confirmar"
-              value={
-                allAppointments.filter((item) => item.status === "REQUESTED")
-                  .length
-              }
+              value={requestCounts.requested}
+              caption="Requieren coordinación"
               tone="amber"
+              active={statusFilter === "REQUESTED"}
+              onClick={() => setStatusFilter("REQUESTED")}
             />
             <Metric
               icon={CalendarCheck2}
               label="Confirmadas"
-              value={
-                allAppointments.filter((item) => item.status === "CONFIRMED")
-                  .length
-              }
+              value={requestCounts.confirmed}
+              caption="Con fecha y consultor"
               tone="blue"
+              active={statusFilter === "CONFIRMED"}
+              onClick={() => setStatusFilter("CONFIRMED")}
             />
             <Metric
               icon={Clock3}
               label="Próximas"
-              value={
-                allAppointments.filter(
-                  (item) =>
-                    item.status === "CONFIRMED" &&
-                    new Date(
-                      item.confirmed_start_at || item.preferred_start_at,
-                    ) > new Date(),
-                ).length
-              }
+              value={requestCounts.upcoming}
+              caption="Sesiones por realizar"
               tone="mint"
+              active={statusFilter === "UPCOMING"}
+              onClick={() => setStatusFilter("UPCOMING")}
             />
             <Metric
               icon={Building2}
               label="Solicitudes totales"
-              value={allAppointments.length}
+              value={requestCounts.total}
+              caption="Historial completo"
               tone="slate"
+              active={statusFilter === "ALL"}
+              onClick={() => setStatusFilter("ALL")}
             />
           </section>
-          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_45px_-38px_rgba(15,23,42,0.55)]">
-            <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-center">
-              <label className="relative min-w-0 flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  className={`${controlClass} pl-10`}
-                  placeholder="Buscar empresa, usuario, correo, teléfono o folio"
-                />
-              </label>
-              <select
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-                className={`${controlClass} lg:w-48`}
-              >
-                <option value="ACTIVE">Pendientes y próximas</option>
-                <option value="ALL">Todos los estados</option>
-                {statuses.map((status) => (
-                  <option key={status.value} value={status.value}>
-                    {status.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={modeFilter}
-                onChange={(event) => setModeFilter(event.target.value)}
-                className={`${controlClass} lg:w-44`}
-              >
-                <option value="ALL">Todas las modalidades</option>
-                <option value="VIRTUAL">Virtual</option>
-                <option value="IN_PERSON">Presencial</option>
-              </select>
-            </div>
-            {loading && !workspace ? (
+          {loading && !workspace ? (
+            <IndiceTableShell>
               <div className="flex min-h-48 items-center justify-center gap-2 text-sm text-slate-500">
                 <LoaderCircle className="h-5 w-5 animate-spin text-[#177D66]" />
                 Cargando solicitudes…
               </div>
-            ) : (
-              <AppointmentsTable
-                appointments={filtered}
-                onOpen={openAppointment}
-              />
-            )}
-          </section>
+            </IndiceTableShell>
+          ) : (
+            <AppointmentsTable
+              appointments={filtered}
+              onOpen={openAppointment}
+            />
+          )}
         </>
+      ) : null}
+
+      {activeView === "calendar" ? (
+        <ConsultingCalendarView
+          appointments={allAppointments}
+          onOpen={openAppointment}
+          onConfigureAvailability={
+            permissions.manageConsultants &&
+            consultants.length > 0 &&
+            operations.getConsultingAvailability &&
+            operations.updateConsultingAvailability
+              ? () => setAvailabilityModalOpen(true)
+              : undefined
+          }
+        />
       ) : null}
 
       {activeView === "consultants" ? (
         consultants.length ? (
-          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 px-5 py-4">
-              <h3 className="font-medium text-slate-900">
-                Directorio de consultores
-              </h3>
-              <p className="mt-1 text-xs text-slate-500">
-                Disponibles para asignar desde la administración de una
-                solicitud.
-              </p>
+          <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            <div className="flex flex-col gap-2 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700">
+              <div>
+                <h3 className="font-medium text-slate-900 dark:text-white">
+                  Directorio de distribuidores consultores
+                </h3>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  Las cuentas activas de distribuidores se sincronizan automáticamente; el equipo interno se agrega por separado.
+                </p>
+              </div>
+              <span className="w-fit rounded-full bg-[#59C3A5]/10 px-3 py-1 text-xs font-medium text-[#176B5B] dark:text-[#8FE0CA]">
+                {consultants.length} {consultants.length === 1 ? "perfil disponible" : "perfiles disponibles"}
+              </span>
             </div>
-            <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {consultants.map((consultant) => (
                 <article
                   key={consultant.id}
-                  className="rounded-2xl border border-blue-100 bg-blue-50/40 p-4"
+                  className="rounded-2xl border border-[#59C3A5]/20 bg-[#59C3A5]/5 p-4 transition hover:-translate-y-0.5 hover:border-[#59C3A5]/50 hover:shadow-sm dark:bg-[#59C3A5]/10"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="grid h-10 w-10 place-items-center rounded-full bg-white text-sm font-semibold text-[#2563EB] shadow-sm">
+                    <span className="grid h-10 w-10 place-items-center rounded-full bg-white text-sm font-medium text-[#177D66] shadow-sm dark:bg-slate-900 dark:text-[#8FE0CA]">
                       {consultant.firstName[0]}
-                      {consultant.lastName[0]}
+                      {consultant.lastName?.[0] ?? ""}
                     </span>
                     <div className="min-w-0">
-                      <p className="truncate font-medium text-slate-900">
+                      <p className="truncate font-medium text-slate-900 dark:text-white">
                         {consultant.firstName} {consultant.lastName}
                       </p>
-                      <p className="truncate text-xs text-slate-500">
-                        {consultant.email}
+                      <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                        {consultant.companyName || "Equipo Índice"}
                       </p>
                     </div>
                   </div>
-                  <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-600">
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-[11px] font-medium text-[#176B5B] shadow-sm dark:bg-slate-900 dark:text-[#8FE0CA]">
+                      <Building2 className="h-3 w-3" />
+                      {consultant.sourceType === "DISTRIBUTOR" ? "Distribuidor" : "Equipo Índice"}
+                    </span>
+                  </div>
+                  <p className="mt-3 flex items-center gap-1.5 truncate text-xs text-slate-600 dark:text-slate-300">
+                    <Mail className="h-3.5 w-3.5 shrink-0" />
+                    {consultant.email}
+                  </p>
+                  <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
                     <Phone className="h-3.5 w-3.5" />
-                    {consultant.phone}
+                    {consultant.phone || "Sin teléfono registrado"}
                   </p>
                 </article>
               ))}
@@ -618,7 +759,7 @@ export default function ConsultingAdminTab({
               await operations.createConsultingConsultant(input);
               setConsultantModalOpen(false);
               await load();
-              setSuccess("El consultor quedó disponible para asignar a las solicitudes.");
+              setSuccess("El consultor interno quedó disponible para asignar a las solicitudes.");
             } catch (createError) {
               setError(createError instanceof Error ? createError.message : "No se pudo guardar el consultor.");
             } finally {
@@ -656,13 +797,34 @@ export default function ConsultingAdminTab({
           }}
         />
       ) : null}
+      {availabilityModalOpen &&
+      operations.getConsultingAvailability &&
+      operations.updateConsultingAvailability ? (
+        <ConsultingAvailabilityModal
+          consultants={consultants}
+          onClose={() => setAvailabilityModalOpen(false)}
+          onLoad={operations.getConsultingAvailability}
+          onSave={operations.updateConsultingAvailability}
+          onSaved={(availability) => {
+            setError("");
+            setSuccess(
+              `La disponibilidad de ${availability.consultantName} quedó actualizada.`,
+            );
+          }}
+        />
+      ) : null}
       {sessionModalOpen ? (
         <SessionCreateModal
           companies={companies}
           consultants={consultants}
           locations={allLocations}
           attendingConsultant={attendingConsultant}
-          onClose={() => setSessionModalOpen(false)}
+          busy={saving}
+          submitError={error}
+          onClose={() => {
+            setSessionModalOpen(false);
+            setError("");
+          }}
           onCreate={async (input) => {
             setSaving(true);
             setError("");
@@ -676,7 +838,12 @@ export default function ConsultingAdminTab({
               await load();
               setSuccess("La sesión quedó registrada, auditada y agregada al calendario.");
             } catch (createError) {
-              setError(createError instanceof Error ? createError.message : "No se pudo guardar la sesión.");
+              setError(
+                consultingOperationError(
+                  createError,
+                  "No se pudo guardar la sesión.",
+                ),
+              );
             } finally {
               setSaving(false);
             }
@@ -694,77 +861,90 @@ function AppointmentsTable({
   appointments: PlatformConsultingAppointment[];
   onOpen: (appointment: PlatformConsultingAppointment) => void;
 }) {
+  const { columnWidths, resizeColumn } =
+    usePersistentColumnWidths<AppointmentColumnId>({
+      defaults: appointmentColumnDefaults,
+      headerLabels: appointmentColumnLabels,
+      maxWidths: appointmentColumnMaximums,
+      minWidths: appointmentColumnMinimums,
+      storageKey: "indice-consulting-appointment-column-widths-v1",
+    });
+  const columns: Array<IndiceTableColumnDefinition<AppointmentColumnId>> = (
+    Object.keys(appointmentColumnLabels) as AppointmentColumnId[]
+  ).map((columnId) => ({
+    id: columnId,
+    label: appointmentColumnLabels[columnId],
+    width: columnWidths[columnId],
+    defaultWidth: appointmentColumnDefaults[columnId],
+    contentMinimumWidth: appointmentColumnMinimums[columnId],
+    maxWidth: appointmentColumnMaximums[columnId],
+    resizeLabel: `Ajustar columna ${appointmentColumnLabels[columnId]}`,
+  }));
+  const minimumWidth = getIndiceTableMinimumWidth({
+    actionsWidth: appointmentActionsWidth,
+    columns,
+  });
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[1180px] border-collapse">
-        <thead className="bg-slate-50">
-          <tr>
-            {[
-              "Folio y empresa",
-              "Cliente",
-              "Contacto",
-              "Modalidad",
-              "Horario preferido",
-              "Estado",
-              "Consultor",
-              "Acción",
-            ].map((label) => (
-              <th
-                key={label}
-                className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-slate-500"
-              >
-                {label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
+    <IndiceTableShell>
+      <IndiceOperationalTable minimumWidth={minimumWidth}>
+        <IndiceTableColGroup
+          columns={columns}
+          actionsWidth={appointmentActionsWidth}
+        />
+        <IndiceTableHeaderRow
+          actions={{ label: "Acción", width: appointmentActionsWidth }}
+          columns={columns}
+          onResize={resizeColumn}
+          tone="blue"
+        />
+        <TableBody>
           {appointments.map((appointment) => (
-            <tr
+            <TableRow
               key={appointment.id}
-              className="transition hover:bg-slate-50/80"
+              className="h-16 border-slate-100 transition hover:bg-[#59C3A5]/5 dark:border-slate-700"
             >
-              <td className="px-4 py-3 text-sm">
-                <p className="font-medium text-slate-900">
+              <TableCell className="px-4 py-3 text-sm">
+                <p className="truncate font-medium text-slate-900 dark:text-white">
                   {appointment.id < 0 ? "Sesión local" : `#${appointment.id}`} ·{" "}
                   {appointment.company_name}
                 </p>
                 {appointment.id < 0 ? (
-                  <span className="mt-1 inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                  <span className="mt-1 inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
                     Borrador local
                   </span>
                 ) : null}
-                <p className="mt-0.5 text-xs text-slate-500">
+                <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
                   Solicitada {formatDateTime(appointment.created_at)}
                 </p>
-              </td>
-              <td className="px-4 py-3 text-sm">
-                <p className="font-medium text-slate-800">
+              </TableCell>
+              <TableCell className="px-4 py-3 text-sm">
+                <p className="truncate font-medium text-slate-800 dark:text-slate-100">
                   {appointment.attendee_name}
                 </p>
-                <p className="mt-0.5 max-w-56 truncate text-xs text-slate-500">
+                <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
                   {topicLabel(appointment.topic)}
                 </p>
-              </td>
-              <td className="px-4 py-3 text-sm">
+              </TableCell>
+              <TableCell className="px-4 py-3 text-sm">
                 <a
                   href={`mailto:${appointment.attendee_email}`}
-                  className="flex items-center gap-1.5 text-xs text-[#143675]"
+                  className="flex min-w-0 items-center gap-1.5 text-xs text-[#143675] hover:underline dark:text-blue-300"
                 >
-                  <Mail className="h-3.5 w-3.5" />
-                  {appointment.attendee_email}
+                  <Mail className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{appointment.attendee_email}</span>
                 </a>
                 {appointment.attendee_phone ? (
                   <a
                     href={`tel:${appointment.attendee_phone}`}
-                    className="mt-1 flex items-center gap-1.5 text-xs text-[#177D66]"
+                    className="mt-1 flex items-center gap-1.5 text-xs text-[#177D66] hover:underline dark:text-[#8FE0CA]"
                   >
                     <Phone className="h-3.5 w-3.5" />
                     {appointment.attendee_phone}
                   </a>
                 ) : null}
-              </td>
-              <td className="px-4 py-3 text-sm">
+              </TableCell>
+              <TableCell className="px-4 py-3 text-sm text-slate-700 dark:text-slate-200">
                 {appointment.consultation_mode === "IN_PERSON" ? (
                   <span className="inline-flex items-center gap-1.5">
                     <MapPin className="h-4 w-4 text-amber-600" />
@@ -777,9 +957,9 @@ function AppointmentsTable({
                     Virtual
                   </span>
                 )}
-              </td>
-              <td className="px-4 py-3 text-sm">
-                <p className="font-medium text-slate-800">
+              </TableCell>
+              <TableCell className="px-4 py-3 text-sm">
+                <p className="truncate font-medium text-slate-800 dark:text-slate-100">
                   {formatDateTime(
                     appointment.preferred_start_at,
                     appointment.timezone,
@@ -792,44 +972,54 @@ function AppointmentsTable({
                       appointment.alternative_start_at,
                       appointment.timezone,
                     )}
-                  </p>
-                ) : null}
-              </td>
-              <td className="px-4 py-3">
+                    </p>
+                  ) : null}
+              </TableCell>
+              <TableCell className="px-4 py-3">
                 <Status status={appointment.status} />
-              </td>
-              <td className="px-4 py-3 text-sm text-slate-600">
-                {appointment.consultant_name || "Sin asignar"}
-                <p className="mt-1 text-[11px] font-normal text-slate-500">
+              </TableCell>
+              <TableCell className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
+                <p className="truncate">
+                  {appointment.consultant_name || "Sin asignar"}
+                </p>
+                <p className="mt-1 truncate text-[11px] font-normal text-slate-500 dark:text-slate-400">
                   Solicitó: {appointment.consultant_preference === "DISTRIBUTOR"
                     ? appointment.requested_distributor_name || "su distribuidor"
                     : "equipo de Índice"}
                 </p>
-              </td>
-              <td className="px-4 py-3">
+              </TableCell>
+              <TableCell className="px-4 py-3 text-right">
                 <button
                   type="button"
                   onClick={() => onOpen(appointment)}
-                  className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-[#143675]"
+                  className="inline-flex h-9 items-center justify-center rounded-xl border border-[#59C3A5]/30 bg-white px-3 text-xs font-medium text-[#176B5B] transition hover:bg-[#59C3A5]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/25 dark:bg-slate-900 dark:text-[#8FE0CA]"
                 >
                   Administrar
                 </button>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
           {appointments.length === 0 ? (
-            <tr>
-              <td
+            <TableRow>
+              <TableCell
                 colSpan={8}
-                className="px-5 py-12 text-center text-sm text-slate-500"
+                className="px-5 py-14 text-center text-sm text-slate-500 dark:text-slate-400"
               >
-                No hay solicitudes que coincidan con los filtros.
-              </td>
-            </tr>
+                <span className="mx-auto mb-3 grid h-11 w-11 place-items-center rounded-xl bg-[#59C3A5]/10 text-[#177D66] dark:text-[#8FE0CA]">
+                  <CalendarClock className="h-5 w-5" />
+                </span>
+                <p className="font-medium text-slate-800 dark:text-slate-100">
+                  No encontramos solicitudes
+                </p>
+                <p className="mt-1 text-xs">
+                  Ajusta los filtros o registra una nueva sesión.
+                </p>
+              </TableCell>
+            </TableRow>
           ) : null}
-        </tbody>
-      </table>
-    </div>
+        </TableBody>
+      </IndiceOperationalTable>
+    </IndiceTableShell>
   );
 }
 
@@ -841,24 +1031,24 @@ function EmptyConsultants({
   onCreate: () => void;
 }) {
   return (
-    <section className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
-      <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-blue-50 text-[#2563EB]">
+    <section className="rounded-[24px] border border-dashed border-[#59C3A5]/50 bg-white px-6 py-12 text-center shadow-sm dark:bg-slate-800">
+      <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[#59C3A5]/10 text-[#177D66] dark:text-[#8FE0CA]">
         <UserRound className="h-6 w-6" />
       </span>
-      <h3 className="mt-4 font-medium text-slate-900">
-        Aún no hay consultores
+      <h3 className="mt-4 font-medium text-slate-900 dark:text-white">
+        Aún no hay distribuidores activos
       </h3>
-      <p className="mt-1 text-sm text-slate-500">
-        Agrega el primer consultor para asignarlo a las solicitudes.
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        Activa una cuenta de distribuidor para sincronizarla aquí, o agrega un consultor del equipo Índice.
       </p>
       {canManage ? (
         <button
           type="button"
           onClick={onCreate}
-          className="mt-5 inline-flex h-10 items-center gap-2 rounded-xl bg-[#2563EB] px-4 text-sm font-semibold text-white"
+          className="mt-5 inline-flex h-11 items-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white transition hover:bg-[#126553]"
         >
           <UserPlus className="h-4 w-4" />
-          Agregar consultor
+          Agregar consultor interno
         </button>
       ) : null}
     </section>
@@ -878,7 +1068,7 @@ function AppointmentDrawer({
 }: {
   appointment: PlatformConsultingAppointment;
   edit: EditState;
-  consultants: Consultant[];
+  consultants: PlatformConsultingConsultant[];
   saving: boolean;
   canManage: boolean;
   canManagePayment: boolean;
@@ -894,159 +1084,196 @@ function AppointmentDrawer({
       edit.confirmedStartAt &&
       edit.consultantName,
     );
-  const steps = ["Solicitud", "Asignación", "Costo y confirmación"];
+  const steps = [
+    { id: "request", label: "Solicitud" },
+    { id: "assignment", label: "Asignación" },
+    { id: "confirmation", label: "Costo y confirmación" },
+  ] as const;
+  const activeStep = steps[step];
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-[2px]"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Administrar consultoría"
-    >
-      <button
-        type="button"
-        aria-label="Cerrar"
-        className="absolute inset-0 cursor-default"
-        onClick={onClose}
-      />
-      <aside className="relative z-10 max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-y-auto rounded-3xl border border-white/70 bg-[#f7f9fc] shadow-[0_28px_90px_-24px_rgba(15,23,42,0.55)]">
-        <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-6 py-5 backdrop-blur">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-medium text-[#177D66]">
-                Solicitud #{appointment.id}
-              </p>
-              <h2 className="mt-1 text-xl font-medium text-slate-950">
-                {appointment.company_name}
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                {appointment.attendee_name} · {topicLabel(appointment.topic)}
-              </p>
-            </div>
+    <IndiceModalFrame
+      open
+      busy={saving}
+      onOpenChange={(open) => !open && onClose()}
+      modalType="wizard"
+      tone="aqua"
+      icon={<CalendarCheck2 className="h-5 w-5" />}
+      eyebrow={`Solicitud #${appointment.id}`}
+      title={appointment.company_name}
+      description={`${appointment.attendee_name} · ${topicLabel(appointment.topic)}`}
+      footerLeading={
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={saving}
+          className="h-11 rounded-xl border border-white/50 bg-transparent px-4 text-sm font-medium text-white transition hover:bg-white/10 disabled:opacity-50"
+        >
+          Cancelar
+        </button>
+      }
+      footerSummary={`Paso ${step + 1} de ${steps.length} · ${activeStep.label}`}
+      footer={
+        <>
+          {step > 0 ? (
             <button
               type="button"
-              onClick={onClose}
-              className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500"
+              onClick={() => setStep((current) => current - 1)}
+              disabled={saving}
             >
-              <X className="h-4 w-4" />
+              Anterior
             </button>
-          </div>
-        </header>
-        <form onSubmit={onSubmit} className="space-y-4 p-6">
-          <nav
-            aria-label="Progreso de administración"
-            className="rounded-2xl border border-slate-200 bg-white p-3"
-          >
-            <ol className="grid grid-cols-3 gap-2">
-              {steps.map((label, index) => (
-                <li key={label}>
-                  <button
-                    type="button"
-                    onClick={() => index <= step && setStep(index)}
-                    className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-medium transition ${index === step ? "bg-[#143675] text-white" : index < step ? "bg-emerald-50 text-emerald-700" : "bg-slate-50 text-slate-400"}`}
-                  >
-                    <span
-                      className={`grid h-6 w-6 shrink-0 place-items-center rounded-full ${index === step ? "bg-white/15" : "bg-white"}`}
-                    >
-                      {index < step ? "✓" : index + 1}
-                    </span>
-                    <span className="hidden sm:inline">{label}</span>
-                  </button>
-                </li>
-              ))}
-            </ol>
-          </nav>
+          ) : null}
+          {step < steps.length - 1 ? (
+            <button
+              type="button"
+              disabled={step === 1 && !assignmentComplete}
+              onClick={() => setStep((current) => current + 1)}
+            >
+              Siguiente
+            </button>
+          ) : (
+            <button
+              type="submit"
+              form="consulting-appointment-form"
+              disabled={!canManage || saving}
+              className="inline-flex min-w-[11rem] items-center justify-center gap-2 whitespace-normal text-center leading-tight"
+            >
+              {saving ? (
+                <LoaderCircle className="h-4 w-4 animate-spin" />
+              ) : (
+                <CalendarCheck2 className="h-4 w-4" />
+              )}
+              <span className="text-center leading-tight">
+                {saving ? "Guardando…" : "Guardar y notificar"}
+              </span>
+            </button>
+          )}
+        </>
+      }
+    >
+      <form
+        id="consulting-appointment-form"
+        onSubmit={onSubmit}
+        className="space-y-5"
+      >
+        <IndiceModalWizardStepper
+          accent="aqua"
+          activeStepId={activeStep.id}
+          progressLabel="Progreso para administrar la consultoría"
+          steps={steps}
+          onStepSelect={(stepId) => {
+            const nextStep = steps.findIndex((item) => item.id === stepId);
+            if (nextStep <= step) setStep(nextStep);
+          }}
+        />
+        <IndiceModalValidation
+          tone="warning"
+          title="Completa la asignación"
+          messages={
+            step === 1 && confirmed && !assignmentComplete
+              ? ["Para confirmar la sesión necesitas definir fecha, hora y consultor."]
+              : []
+          }
+        />
           {step === 0 ? (
             <>
-              <section className="rounded-2xl border border-slate-200 bg-white p-4">
-                <h3 className="font-medium text-slate-900">Contacto rápido</h3>
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+                <h3 className="font-medium text-slate-900 dark:text-white">Contacto rápido</h3>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   <a
                     href={`mailto:${appointment.attendee_email}`}
-                    className="flex items-center gap-2 rounded-xl bg-blue-50 px-3 py-2 text-sm text-[#143675]"
+                    className="flex min-h-11 items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 text-sm text-[#143675] transition hover:border-blue-300 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300"
                   >
-                    <Mail className="h-4 w-4" />
-                    {appointment.attendee_email}
+                    <Mail className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{appointment.attendee_email}</span>
                   </a>
                   <a
                     href={`tel:${appointment.attendee_phone || ""}`}
-                    className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-[#177D66]"
+                    className="flex min-h-11 items-center gap-2 rounded-xl border border-[#59C3A5]/20 bg-[#59C3A5]/10 px-3 text-sm text-[#177D66] transition hover:border-[#59C3A5]/50 dark:text-[#8FE0CA]"
                   >
                     <Phone className="h-4 w-4" />
                     {appointment.attendee_phone || "Sin teléfono"}
                   </a>
                 </div>
                 {appointment.notes ? (
-                  <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-600">
+                  <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                     {appointment.notes}
                   </p>
                 ) : null}
               </section>
-              <section className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                <h3 className="font-medium text-[#143675]">Trazabilidad de la solicitud</h3>
-                <p className="mt-1 text-xs leading-5 text-blue-700">
-                  La preferencia orienta la asignación, pero puede cambiarse por petición del cliente sin perder el origen.
-                </p>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <Info label="Empresa" value={`${appointment.company_name} · ID ${appointment.company_id}`} />
-                  <Info label="Usuario solicitante" value={`${appointment.booked_by_email} · ID ${appointment.booked_by_user_id}`} />
-                  <Info
-                    label="Preferencia del cliente"
-                    value={appointment.consultant_preference === "DISTRIBUTOR"
+              <IndiceModalSummary
+                title="Trazabilidad de la solicitud"
+                description="La preferencia orienta la asignación, pero puede cambiarse por petición del cliente sin perder el origen."
+                variant="muted"
+                columns={2}
+                items={[
+                  { label: "Empresa", value: `${appointment.company_name} · ID ${appointment.company_id}`, emphasized: true },
+                  { label: "Usuario solicitante", value: `${appointment.booked_by_email} · ID ${appointment.booked_by_user_id}` },
+                  {
+                    label: "Preferencia del cliente",
+                    value: appointment.consultant_preference === "DISTRIBUTOR"
                       ? appointment.requested_distributor_name || "Su distribuidor"
-                      : "Otro consultor del equipo de Índice"}
-                  />
-                  <Info
-                    label="Origen"
-                    value={appointment.request_source === "CLIENT_PORTAL"
+                      : "Otro consultor del equipo de Índice",
+                  },
+                  {
+                    label: "Origen",
+                    value: appointment.request_source === "CLIENT_PORTAL"
                       ? "Panel de la empresa cliente"
                       : appointment.request_source === "DISTRIBUTOR_PORTAL"
                         ? "Centro de distribuidores"
-                        : "Administración de plataforma"}
-                  />
-                </div>
-              </section>
-              <section className="rounded-2xl border border-slate-200 bg-white p-4">
-                <h3 className="font-medium text-slate-900">
-                  Horario solicitado
-                </h3>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <Info
-                    label="Preferido"
-                    value={formatDateTime(
-                      appointment.preferred_start_at,
-                      appointment.timezone,
-                    )}
-                  />
-                  <Info
-                    label="Alternativo"
-                    value={formatDateTime(
-                      appointment.alternative_start_at,
-                      appointment.timezone,
-                    )}
-                  />
-                  <Info
-                    label="Modalidad"
-                    value={
-                      appointment.consultation_mode === "IN_PERSON"
-                        ? `Presencial · ${appointment.service_location_name}`
-                        : "Virtual"
-                    }
-                  />
-                  <Info label="Zona horaria" value={appointment.timezone} />
-                </div>
-              </section>
+                        : "Administración de plataforma",
+                  },
+                ]}
+              />
+              <IndiceModalSummary
+                title="Horario solicitado"
+                variant="plain"
+                columns={2}
+                items={[
+                  {
+                    label: "Preferido",
+                    value: formatDateTime(appointment.preferred_start_at, appointment.timezone),
+                    emphasized: true,
+                  },
+                  {
+                    label: "Alternativo",
+                    value: formatDateTime(appointment.alternative_start_at, appointment.timezone),
+                  },
+                  {
+                    label: "Modalidad",
+                    value: appointment.consultation_mode === "IN_PERSON"
+                      ? `Presencial · ${appointment.service_location_name}`
+                      : "Virtual",
+                  },
+                  { label: "Zona horaria", value: appointment.timezone },
+                ]}
+              />
             </>
           ) : null}
           {step === 1 ? (
-            <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
-              <h3 className="font-medium text-slate-900">
+            <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+              <h3 className="font-medium text-slate-900 dark:text-white">
                 Confirmación y asignación
               </h3>
-              <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs leading-5 text-[#143675]">
-                El cliente solicitó {appointment.consultant_preference === "DISTRIBUTOR"
-                  ? appointment.requested_distributor_name || "a su distribuidor"
-                  : "otro consultor del equipo de Índice"}. Puedes reasignar según disponibilidad o por petición del cliente.
-              </div>
+              <IndiceModalSummary
+                title="Preferencia y horario de origen"
+                description="Puedes reasignar según disponibilidad o por petición del cliente sin perder la trazabilidad de la solicitud."
+                variant="muted"
+                columns={2}
+                items={[
+                  {
+                    label: "Preferencia del cliente",
+                    value: appointment.consultant_preference === "DISTRIBUTOR"
+                      ? appointment.requested_distributor_name || "Su distribuidor"
+                      : "Otro consultor del equipo de Índice",
+                    emphasized: true,
+                  },
+                  {
+                    label: "Horario solicitado",
+                    value: formatDateTime(appointment.preferred_start_at, appointment.timezone),
+                  },
+                ]}
+              />
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Estado">
                   <select
@@ -1121,6 +1348,7 @@ function AppointmentDrawer({
                     {consultants.map((consultant) => (
                       <option key={consultant.id} value={consultant.id}>
                         {consultant.firstName} {consultant.lastName}
+                        {consultant.companyName ? ` · ${consultant.companyName}` : ""}
                       </option>
                     ))}
                   </select>
@@ -1154,7 +1382,7 @@ function AppointmentDrawer({
                       placeholder="https://meet..."
                     />
                     {edit.meetingUrl && !isHttpsUrl(edit.meetingUrl) ? (
-                      <p className="mt-1.5 text-xs font-medium text-red-600">
+                      <p className="mt-1.5 text-xs font-medium text-red-600 dark:text-red-400">
                         Usa un enlace que comience con https://
                       </p>
                     ) : null}
@@ -1166,7 +1394,7 @@ function AppointmentDrawer({
                   href={appointment.meeting_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-2 text-sm font-medium text-[#143675]"
+                  className="inline-flex min-h-10 items-center gap-2 rounded-xl px-2 text-sm font-medium text-[#177D66] hover:bg-[#59C3A5]/10 dark:text-[#8FE0CA]"
                 >
                   Probar enlace <ExternalLink className="h-4 w-4" />
                 </a>
@@ -1175,67 +1403,63 @@ function AppointmentDrawer({
           ) : null}
           {step === 2 ? (
             <>
-              <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
-                <h3 className="font-medium text-slate-900">
+              <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+                <h3 className="font-medium text-slate-900 dark:text-white">
                   Costo y seguimiento interno
                 </h3>
                 <div className="grid gap-3 sm:grid-cols-3">
-                  <Field label="Pago">
+                  <Field label="Tipo de consultoría">
                     <select
                       disabled={!canManage || !canManagePayment}
-                      value={edit.paymentStatus}
-                      onChange={(event) =>
+                      value={edit.consultationType}
+                      onChange={(event) => {
+                        const consultationType = event.target
+                          .value as ConsultationType;
                         onEdit({
                           ...edit,
-                          paymentStatus: event.target
-                            .value as EditState["paymentStatus"],
-                        })
-                      }
+                          consultationType,
+                          paymentStatus: paymentStatusForConsultationType(
+                            consultationType,
+                            edit.paymentStatus,
+                          ),
+                          amount: String(
+                            consultationAmountCents(consultationType) / 100,
+                          ),
+                          currency: "USD",
+                        });
+                      }}
                       className={controlClass}
                     >
-                      <option value="INCLUDED">Incluida</option>
-                      <option value="QUOTE_PENDING">
-                        Cotización pendiente
+                      <option value="PAID">De pago</option>
+                      <option value="COURTESY">Cortesía</option>
+                      <option value="MODULE_IMPLEMENTATION">
+                        Implementación de módulo
                       </option>
-                      <option value="PENDING">Pago pendiente</option>
-                      <option value="PAID">Pagada</option>
-                      <option value="WAIVED">Cortesía</option>
-                      <option value="REFUNDED">Reembolsada</option>
                     </select>
                   </Field>
-                  <Field label="Importe">
+                  <Field label="Importe fijo">
                     <input
-                      disabled={!canManage || !canManagePayment}
-                      min="0"
-                      step="0.01"
-                      type="number"
+                      disabled
                       value={edit.amount}
-                      onChange={(event) =>
-                        onEdit({ ...edit, amount: event.target.value })
-                      }
-                      className={controlClass}
-                      placeholder="0.00"
+                      className={`${controlClass} font-semibold tabular-nums`}
+                      aria-label="Importe fijo en dólares"
                     />
                   </Field>
                   <Field label="Moneda">
-                    <select
-                      disabled={!canManage}
-                      value={edit.currency}
-                      onChange={(event) =>
-                        onEdit({
-                          ...edit,
-                          currency: event.target.value.toUpperCase(),
-                        })
-                      }
-                      className={controlClass}
-                    >
-                      {currencyOptions.map((currency) => (
-                        <option key={currency} value={currency}>
-                          {currency}
-                        </option>
-                      ))}
-                    </select>
+                    <input
+                      disabled
+                      value="USD"
+                      className={`${controlClass} font-semibold`}
+                      aria-label="Moneda fija"
+                    />
                   </Field>
+                </div>
+                <div className="flex items-start gap-2 rounded-xl border border-[#59C3A5]/35 bg-[#59C3A5]/10 px-3 py-2.5 text-sm text-[#176A59] dark:text-[#8FE0CA]">
+                  <Sparkles className="mt-0.5 h-4 w-4 shrink-0" />
+                  <p>
+                    Sólo las consultorías de pago generan un cargo. La tarifa es
+                    fija: <strong>USD 79</strong>.
+                  </p>
                 </div>
                 <Field label="Notas internas">
                   <textarea
@@ -1265,73 +1489,34 @@ function AppointmentDrawer({
                   </Field>
                 ) : null}
               </section>
-              <section className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                <h3 className="font-medium text-[#143675]">
-                  Resumen antes de notificar
-                </h3>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <Info
-                    label="Estado"
-                    value={
-                      statuses.find((status) => status.value === edit.status)
-                        ?.label || edit.status
-                    }
-                  />
-                  <Info
-                    label="Consultor"
-                    value={edit.consultantName || "Sin asignar"}
-                  />
-                  <Info
-                    label="Fecha definitiva"
-                    value={
-                      edit.confirmedStartAt
-                        ? formatDateTime(
-                            new Date(edit.confirmedStartAt).toISOString(),
-                          )
-                        : "Sin confirmar"
-                    }
-                  />
-                  <Info label="Pago" value={edit.paymentStatus} />
-                </div>
-              </section>
+              <IndiceModalSummary
+                title="Resumen antes de notificar"
+                description="Revisa la información que se conservará en el expediente de la consultoría."
+                variant="success"
+                columns={2}
+                items={[
+                  {
+                    label: "Estado",
+                    value: statuses.find((status) => status.value === edit.status)?.label || edit.status,
+                    emphasized: true,
+                  },
+                  { label: "Consultor", value: edit.consultantName || "Sin asignar" },
+                  {
+                    label: "Fecha definitiva",
+                    value: edit.confirmedStartAt
+                      ? formatDateTime(new Date(edit.confirmedStartAt).toISOString())
+                      : "Sin confirmar",
+                  },
+                  {
+                    label: "Tipo y costo",
+                    value: `${consultationTypeLabel(edit.consultationType)} · ${formatConsultationCost(edit.consultationType)}`,
+                  },
+                ]}
+              />
             </>
           ) : null}
-          <div className="sticky bottom-0 flex items-center justify-between gap-2 border-t border-slate-200 bg-[#f7f9fc]/95 py-3 backdrop-blur">
-            <button
-              type="button"
-              onClick={() =>
-                step === 0 ? onClose() : setStep((current) => current - 1)
-              }
-              className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700"
-            >
-              {step === 0 ? "Cerrar" : "Anterior"}
-            </button>
-            {step < 2 ? (
-              <button
-                type="button"
-                disabled={step === 1 && !assignmentComplete}
-                onClick={() => setStep((current) => current + 1)}
-                className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#143675] px-5 text-sm font-medium text-white disabled:opacity-50"
-              >
-                Siguiente
-              </button>
-            ) : (
-              <button
-                disabled={!canManage || saving}
-                className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#143675] px-5 text-sm font-medium text-white disabled:opacity-50"
-              >
-                {saving ? (
-                  <LoaderCircle className="h-4 w-4 animate-spin" />
-                ) : (
-                  <CalendarCheck2 className="h-4 w-4" />
-                )}
-                {saving ? "Guardando…" : "Guardar y notificar"}
-              </button>
-            )}
-          </div>
-        </form>
-      </aside>
-    </div>
+      </form>
+    </IndiceModalFrame>
   );
 }
 
@@ -1351,13 +1536,17 @@ function LocationsPanel({
   ) => void;
 }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_45px_-38px_rgba(15,23,42,0.55)]">
-      <div className="border-b border-slate-100 px-5 py-4">
-        <h3 className="font-medium text-slate-900">Cobertura presencial</h3>
-        <p className="mt-1 text-xs text-slate-500">
-          Activa ciudades disponibles y define el costo adicional. Sin importe,
-          la solicitud mostrará “cotización pendiente”.
-        </p>
+    <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <div className="flex flex-col gap-2 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700">
+        <div>
+          <h3 className="font-medium text-slate-900 dark:text-white">Cobertura presencial</h3>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            Activa ciudades y define su costo adicional. Sin importe, la solicitud queda pendiente de cotización.
+          </p>
+        </div>
+        <span className="w-fit rounded-full bg-[#59C3A5]/10 px-3 py-1 text-xs font-medium text-[#176B5B] dark:text-[#8FE0CA]">
+          {locations.filter((location) => location.active).length} activas
+        </span>
       </div>
       <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-4">
         {locations.map((location) => (
@@ -1405,22 +1594,22 @@ function LocationCard({
   );
   return (
     <article
-      className={`rounded-2xl border p-4 ${location.active ? "border-emerald-200 bg-emerald-50/40" : "border-slate-200 bg-slate-50"}`}
+      className={`rounded-2xl border p-4 transition ${location.active ? "border-[#59C3A5]/40 bg-[#59C3A5]/5 dark:bg-[#59C3A5]/10" : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60"}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <p className="font-medium text-slate-900">{location.city_name}</p>
+            <p className="font-medium text-slate-900 dark:text-white">{location.city_name}</p>
             {location.id < 0 ? (
-              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
                 Borrador local
               </span>
             ) : null}
           </div>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
             {location.region_name} · {location.country_name}
           </p>
-          <p className="mt-0.5 text-[11px] text-slate-400">
+          <p className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">
             {location.timezone}
           </p>
         </div>
@@ -1428,12 +1617,12 @@ function LocationCard({
           type="button"
           disabled={!canManage || saving}
           onClick={() => onSave(location, !location.active, fee)}
-          className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${location.active ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}
+          className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${location.active ? "bg-[#59C3A5]/15 text-[#176B5B] dark:text-[#8FE0CA]" : "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300"}`}
         >
           {location.active ? "Disponible" : "Oculta"}
         </button>
       </div>
-      <label className="mt-4 block text-xs font-medium text-slate-600">
+      <label className="mt-4 block text-xs font-medium text-slate-600 dark:text-slate-300">
         Costo adicional ({location.currency})
         <input
           disabled={!canManage}
@@ -1450,7 +1639,7 @@ function LocationCard({
         type="button"
         disabled={!canManage || saving}
         onClick={() => onSave(location, location.active, fee)}
-        className="mt-3 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-[#143675] disabled:opacity-50"
+        className="mt-3 h-10 w-full rounded-xl border border-[#59C3A5]/30 bg-white px-3 text-xs font-medium text-[#176B5B] transition hover:bg-[#59C3A5]/10 disabled:opacity-50 dark:bg-slate-900 dark:text-[#8FE0CA]"
       >
         Guardar tarifa
       </button>
@@ -1462,33 +1651,53 @@ function Metric({
   icon: Icon,
   label,
   value,
+  caption,
   tone,
+  active,
+  onClick,
 }: {
   icon: typeof CalendarClock;
   label: string;
   value: number;
+  caption: string;
   tone: "amber" | "blue" | "mint" | "slate";
+  active: boolean;
+  onClick: () => void;
 }) {
   const styles = {
-    amber: "bg-amber-50 text-amber-700",
-    blue: "bg-blue-50 text-[#143675]",
-    mint: "bg-emerald-50 text-[#177D66]",
-    slate: "bg-slate-100 text-slate-600",
+    amber: "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300",
+    blue: "bg-blue-50 text-[#143675] dark:bg-blue-500/10 dark:text-blue-300",
+    mint: "bg-[#59C3A5]/10 text-[#177D66] dark:text-[#8FE0CA]",
+    slate: "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300",
   };
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-4">
-      <div className="flex items-center gap-3">
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={`group rounded-2xl border bg-white p-4 text-left shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/30 dark:bg-slate-800 ${
+        active
+          ? "border-[#59C3A5] ring-2 ring-[#59C3A5]/15"
+          : "border-slate-200 hover:-translate-y-0.5 hover:border-[#59C3A5]/50 hover:shadow-md dark:border-slate-700"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
         <span
           className={`grid h-10 w-10 place-items-center rounded-xl ${styles[tone]}`}
         >
           <Icon className="h-5 w-5" />
         </span>
-        <div>
-          <p className="text-xs text-slate-500">{label}</p>
-          <p className="mt-0.5 text-xl font-medium text-slate-950">{value}</p>
-        </div>
+        <span className="text-2xl font-medium tracking-tight text-slate-950 dark:text-white">
+          {value}
+        </span>
       </div>
-    </article>
+      <p className="mt-3 text-sm font-medium text-slate-900 dark:text-white">
+        {label}
+      </p>
+      <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+        {caption}
+      </p>
+    </button>
   );
 }
 function Status({ status }: { status: PlatformConsultingStatus }) {
@@ -1517,19 +1726,41 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className="block space-y-1.5 text-sm font-medium text-slate-700">
+    <label className="block space-y-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
       <span>{label}</span>
       {children}
     </label>
   );
 }
-function Info({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl bg-slate-50 p-3">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-1 text-sm font-medium text-slate-800">{value}</p>
-    </div>
-  );
+function consultationTypeFromPaymentStatus(
+  value: EditState["paymentStatus"],
+): ConsultationType {
+  if (value === "WAIVED") return "COURTESY";
+  if (value === "INCLUDED") return "MODULE_IMPLEMENTATION";
+  return "PAID";
+}
+function paymentStatusForConsultationType(
+  type: ConsultationType,
+  current: EditState["paymentStatus"],
+): EditState["paymentStatus"] {
+  if (type === "COURTESY") return "WAIVED";
+  if (type === "MODULE_IMPLEMENTATION") return "INCLUDED";
+  return ["QUOTE_PENDING", "PENDING", "PAID", "REFUNDED"].includes(current)
+    ? current
+    : "PENDING";
+}
+function consultationAmountCents(type: ConsultationType) {
+  return type === "PAID" ? 7_900 : 0;
+}
+function consultationTypeLabel(type: ConsultationType) {
+  return {
+    PAID: "De pago",
+    COURTESY: "Cortesía",
+    MODULE_IMPLEMENTATION: "Implementación de módulo",
+  }[type];
+}
+function formatConsultationCost(type: ConsultationType) {
+  return type === "PAID" ? "USD 79.00" : "USD 0.00";
 }
 function topicLabel(value: string) {
   if (value === "ONBOARDING") return "Implementación inicial de Índice";
@@ -1567,7 +1798,16 @@ function isHttpsUrl(value: string) {
     return false;
   }
 }
+function consultingOperationError(error: unknown, fallback: string) {
+  if (error instanceof TypeError && /fetch/i.test(error.message)) {
+    return "No se pudo conectar con Índice. Verifica que el servidor esté activo y vuelve a intentarlo.";
+  }
+  return error instanceof Error && error.message ? error.message : fallback;
+}
 function toEditState(appointment: PlatformConsultingAppointment): EditState {
+  const consultationType = consultationTypeFromPaymentStatus(
+    appointment.payment_status,
+  );
   return {
     status:
       appointment.status === "PAYMENT_REQUIRED"
@@ -1579,12 +1819,10 @@ function toEditState(appointment: PlatformConsultingAppointment): EditState {
     consultantEmail: appointment.consultant_email || "",
     consultantPhone: appointment.consultant_phone || "",
     internalNotes: appointment.internal_notes || "",
+    consultationType,
     paymentStatus: appointment.payment_status,
-    amount:
-      appointment.amount_cents == null
-        ? ""
-        : String(appointment.amount_cents / 100),
-    currency: appointment.currency || "USD",
+    amount: String(consultationAmountCents(consultationType) / 100),
+    currency: "USD",
     cancellationReason: appointment.cancellation_reason || "",
   };
 }
