@@ -277,4 +277,3 @@ ALTER TABLE company_billing_subscriptions
   ADD COLUMN subtotal_amount_cents BIGINT NULL AFTER extra_seats,
   ADD COLUMN discount_amount_cents BIGINT NOT NULL DEFAULT 0 AFTER subtotal_amount_cents,
   ADD COLUMN promotion_code VARCHAR(80) NULL AFTER discount_amount_cents;
-
