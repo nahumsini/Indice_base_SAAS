@@ -33,7 +33,7 @@ RUN npm run build \
 
 FROM nginxinc/nginx-unprivileged:stable-alpine
 
-COPY deployment/docker/web/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --chmod=0644 deployment/docker/web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /workspace/react/dist /usr/share/nginx/html
 
 EXPOSE 8080
