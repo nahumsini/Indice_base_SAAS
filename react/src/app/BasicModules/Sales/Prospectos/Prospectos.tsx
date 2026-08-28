@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { authApi } from '../../../api/auth';
 import { useLanguage } from '../../../shared/context';
@@ -6,6 +6,10 @@ import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyConte
 import { useKpiMonetaryAggregates } from '../../shared/kpiMonetaryApi';
 import { formatBusinessCurrencyAmount } from '../../shared/businessCurrency';
 import {
+  defaultOpportunityFlowStages,
+  type OpportunityFlow,
+  type OpportunityFlowPosition,
+  type OpportunityFlowStage,
   type OpportunityStage,
   type SalesContact,
   type SalesOpportunity,
@@ -13,6 +17,11 @@ import {
   useSalesCrm,
 } from '../salesCrmContext';
 import { salesApi } from '../salesApi';
+import {
+  toBackendOpportunityStageKey,
+  toFrontendOpportunityFlowStage,
+  toFrontendOpportunityStageKey,
+} from '../adapters/salesApiAdapters';
 import {
   fallbackOwnerValue,
   getOwnerUserCompanyIdFromValue,
@@ -42,6 +51,7 @@ import { CreateOpportunityModal } from './modals/CreateOpportunityModal';
 import { OpportunityDeleteDialog } from './modals/OpportunityDeleteDialog';
 import { OpportunityDetailModal } from './modals/OpportunityDetailModal';
 import { OpportunityFilesModal } from './modals/OpportunityFilesModal';
+import { OpportunityFlowManagerModal } from './modals/OpportunityFlowManagerModal';
 import { ProspectosColumnsModal } from './table/ProspectosColumnsModal';
 import { ProspectosTable } from './table/ProspectosTable';
 import type {
@@ -60,6 +70,10 @@ import {
 } from './utils/prospectosFormatters';
 import { filterOpportunitiesForPeriodView, sortOpportunities } from './utils/prospectosMetrics';
 import { initialOpportunityForm } from './utils/prospectosStatus';
+import {
+  getOpportunityStageConfig,
+  getOpportunityStageLabelByKey,
+} from './utils/prospectosFlow';
 import { useProspectosTranslations } from './hooks/useProspectosTranslations';
 import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 
@@ -111,7 +125,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   const salesCopy = useSalesTranslations();
   const {
     contacts,
-    opportunities,
+    opportunities: storedOpportunities,
     products,
     quotes,
     createContactRecord,
@@ -123,6 +137,14 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   const navigate = useNavigate();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
+  const [isFlowManagerOpen, setIsFlowManagerOpen] = useState(false);
+  const [opportunityFlows, setOpportunityFlows] = useState<OpportunityFlow[]>([]);
+  const [selectedFlowId, setSelectedFlowId] = useState<number | null>(null);
+  const [flowPositions, setFlowPositions] = useState<OpportunityFlowPosition[]>([]);
+  const [flowCanManage, setFlowCanManage] = useState(false);
+  const [flowLoadError, setFlowLoadError] = useState('');
+  const [flowReloadVersion, setFlowReloadVersion] = useState(0);
+  const flowPositionRequestId = useRef(0);
   const [pendingWonTransition, setPendingWonTransition] = useState<{
     opportunity: SalesOpportunity;
     patch: Partial<Omit<SalesOpportunity, 'id'>>;
@@ -259,11 +281,107 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
 
   useEffect(() => {
     let isMounted = true;
+    void salesApi.getOpportunityFlows()
+      .then((response) => {
+        if (!isMounted) return;
+        const flows = response.flows.map((flow): OpportunityFlow => ({
+          ...flow,
+          stages: flow.stages.map((stage) => toFrontendOpportunityFlowStage(stage, flow.factory)),
+        }));
+        setOpportunityFlows(flows);
+        setSelectedFlowId((current) => (
+          current !== null && flows.some((flow) => flow.id === current) ? current : response.defaultFlowId
+        ));
+        setFlowCanManage(response.canManage);
+        setFlowLoadError('');
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setOpportunityFlows([{
+          id: -1,
+          key: 'factory',
+          name: t.flow.factory,
+          factory: true,
+          defaultFlow: true,
+          stages: defaultOpportunityFlowStages,
+        }]);
+        setSelectedFlowId(-1);
+        setFlowCanManage(false);
+        setFlowLoadError(t.flow.loadError);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [flowReloadVersion, isFlowManagerOpen, t.flow.factory, t.flow.loadError]);
+
+  const opportunityBackendSignature = useMemo(
+    () => storedOpportunities.map((opportunity) => opportunity.backendId).filter(Boolean).join(','),
+    [storedOpportunities],
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+    const requestId = flowPositionRequestId.current + 1;
+    flowPositionRequestId.current = requestId;
+    if (selectedFlowId === null || selectedFlowId < 0) {
+      setFlowPositions([]);
+      return () => { isMounted = false; };
+    }
+    void salesApi.getOpportunityFlowPositions(selectedFlowId)
+      .then((response) => {
+        if (!isMounted || flowPositionRequestId.current !== requestId) return;
+        setFlowPositions(response.positions.map((position) => ({
+          ...position,
+          stageKey: toFrontendOpportunityStageKey(position.stageKey),
+        })));
+      })
+      .catch(() => {
+        if (isMounted) setFlowLoadError(t.flow.loadError);
+      });
+    return () => { isMounted = false; };
+  }, [opportunityBackendSignature, selectedFlowId, t.flow.loadError]);
+
+  useEffect(() => {
+    let isMounted = true;
     void inventoryApi.loadWarehouses()
       .then((items) => { if (isMounted) setWarehouses(items); })
       .catch(() => { if (isMounted) setWarehouses([]); });
     return () => { isMounted = false; };
   }, []);
+
+  const selectedFlow = useMemo(
+    () => opportunityFlows.find((flow) => flow.id === selectedFlowId) ?? opportunityFlows[0] ?? null,
+    [opportunityFlows, selectedFlowId],
+  );
+  const flowStages = selectedFlow?.stages ?? defaultOpportunityFlowStages;
+  const opportunities = useMemo(() => {
+    const positionsByOpportunity = new Map(
+      flowPositions.map((position) => [position.opportunityId, position]),
+    );
+    const wonStage = flowStages.find((stage) => stage.type === 'WON');
+    const lostStage = flowStages.find((stage) => stage.type === 'LOST');
+
+    return storedOpportunities.map((opportunity) => {
+      const inferredLifecycle = opportunity.lifecycleStatus
+        ?? (opportunity.stage === 'Won' ? 'WON' : opportunity.stage === 'Lost' ? 'LOST' : 'OPEN');
+      const terminalStage = inferredLifecycle === 'WON' ? wonStage : inferredLifecycle === 'LOST' ? lostStage : null;
+      const position = opportunity.backendId === undefined
+        ? undefined
+        : positionsByOpportunity.get(opportunity.backendId);
+      const stage = terminalStage?.key ?? position?.stageKey ?? opportunity.stage;
+      const stageConfig = flowStages.find((item) => item.key === stage);
+      const probabilityPercent = terminalStage?.defaultProbabilityPercent
+        ?? position?.probabilityPercent
+        ?? Number.parseInt(opportunity.probability.replace('%', ''), 10);
+      return {
+        ...opportunity,
+        flowId: selectedFlow?.id,
+        lifecycleStatus: inferredLifecycle,
+        stage,
+        probability: `${Number.isFinite(probabilityPercent) ? probabilityPercent : stageConfig?.defaultProbabilityPercent ?? 0}%`,
+      };
+    });
+  }, [flowPositions, flowStages, selectedFlow?.id, storedOpportunities]);
 
   const ownerSelectOptions = useMemo(() => {
     return ownerOptions.map((owner) => ({ value: ownerOptionValue(owner), label: owner.name }));
@@ -333,7 +451,20 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   );
 
   const canViewAllVisibleOpportunities = canViewAllOpportunities(currentUserRole);
+  const canManageOpportunityFlow = flowCanManage;
   const shouldScopeOpportunitiesByOwner = currentUserRole !== null && !canViewAllVisibleOpportunities;
+  const opportunityFlowStages = useMemo(() => flowStages.map((stage) => ({
+    ...stage,
+    opportunityCount: opportunities.filter(
+      (opportunity) => opportunity.stage.trim().toLowerCase() === stage.key.trim().toLowerCase(),
+    ).length,
+  })), [flowStages, opportunities]);
+  const opportunityFlowsWithCurrentCounts = useMemo(
+    () => opportunityFlows.map((flow) => (
+      flow.id === selectedFlowId ? { ...flow, stages: opportunityFlowStages } : flow
+    )),
+    [opportunityFlowStages, opportunityFlows, selectedFlowId],
+  );
   const preferredPipelineCurrency = preferredCurrency;
   const {
     createSaleRecord,
@@ -372,8 +503,13 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   );
 
   const tableOpportunities = useMemo(
-    () => sortOpportunities(periodScopedOpportunities, sortState, quotes),
-    [periodScopedOpportunities, quotes, sortState],
+    () => sortOpportunities(
+      periodScopedOpportunities,
+      sortState,
+      quotes,
+      opportunityFlowStages.map((stage) => stage.key),
+    ),
+    [opportunityFlowStages, periodScopedOpportunities, quotes, sortState],
   );
 
   const metrics = useProspectosMetrics(
@@ -381,6 +517,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     quotes,
     preferredPipelineCurrency,
     periodFilter,
+    opportunityFlowStages,
   );
   const opportunityAggregateQueries = useMemo(() => {
     const ids = (items: SalesOpportunity[]) => items
@@ -460,8 +597,10 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
 
   const resetOpportunityForm = () => {
     const defaultOwnerPayload = getOwnerPayloadFromValue(defaultOwnerValue);
+    const initialStage = opportunityFlowStages.find((stage) => stage.type === 'OPEN')?.key ?? initialOpportunityForm.stage;
     setForm({
       ...initialOpportunityForm,
+      stage: initialStage,
       contactId: '',
       ownerValue: defaultOwnerValue,
       owner: defaultOwnerPayload.owner,
@@ -539,7 +678,32 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     patch: Partial<Omit<SalesOpportunity, 'id'>>,
   ) => {
     const opportunity = opportunities.find((item) => item.id === opportunityId);
-    updateOpportunity(opportunityId, opportunity ? withClosureDatePatch(opportunity, patch) : patch);
+    const datedPatch = opportunity ? withClosureDatePatch(opportunity, patch) : patch;
+    const nextStage = datedPatch.stage ?? opportunity?.stage;
+    const stageConfig = nextStage ? getOpportunityStageConfig(opportunityFlowStages, nextStage) : undefined;
+    const nextPatch = {
+      ...datedPatch,
+      ...(selectedFlowId !== null && selectedFlowId > 0 ? { flowId: selectedFlowId } : {}),
+      ...(nextStage ? {
+        stage: nextStage,
+        probability: datedPatch.probability
+          ?? (stageConfig ? `${stageConfig.defaultProbabilityPercent}%` : opportunity?.probability),
+        lifecycleStatus: stageConfig?.type ?? opportunity?.lifecycleStatus,
+      } : {}),
+    };
+    updateOpportunity(opportunityId, nextPatch);
+    if (opportunity?.backendId !== undefined && nextStage && stageConfig) {
+      setFlowPositions((current) => {
+        const nextPosition = {
+          opportunityId: opportunity.backendId as number,
+          stageKey: nextStage,
+          probabilityPercent: stageConfig.defaultProbabilityPercent,
+        };
+        return current.some((position) => position.opportunityId === opportunity.backendId)
+          ? current.map((position) => (position.opportunityId === opportunity.backendId ? nextPosition : position))
+          : [...current, nextPosition];
+      });
+    }
   };
 
   const handleUpdateOpportunity = (
@@ -604,6 +768,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
       phone: contact.phone,
       email: contact.email,
       source: form.source,
+      flowId: selectedFlowId !== null && selectedFlowId > 0 ? selectedFlowId : undefined,
       stage: form.stage,
       temperature: form.temperature,
       ownerUserCompanyId: ownerPayload.ownerUserCompanyId,
@@ -629,7 +794,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   };
 
   const handleScheduleChange = (opportunity: SalesOpportunity, date: string, time: string) => {
-    updateOpportunity(opportunity.id, { nextActionDate: formatOpportunitySchedule(date, time) });
+    commitOpportunityUpdate(opportunity.id, { nextActionDate: formatOpportunitySchedule(date, time) });
   };
 
   const handleDownloadQuote = (opportunity: SalesOpportunity, quote: SalesQuote) => {
@@ -642,10 +807,71 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     });
   };
 
+  const opportunityFlowPayload = (stages: OpportunityFlowStage[]) => stages.map((stage) => ({
+      key: stage.key.startsWith('__draft_') ? undefined : toBackendOpportunityStageKey(stage.key),
+      label: stage.label,
+      colorToken: stage.colorToken,
+      defaultProbabilityPercent: stage.defaultProbabilityPercent,
+    }));
+
+  const toOpportunityFlow = (flow: Awaited<ReturnType<typeof salesApi.createOpportunityFlow>>): OpportunityFlow => ({
+    ...flow,
+    stages: flow.stages.map((stage) => toFrontendOpportunityFlowStage(stage, flow.factory)),
+  });
+
+  const handleCreateOpportunityFlow = async (name: string, stages: OpportunityFlowStage[]) => {
+    const savedFlow = toOpportunityFlow(await salesApi.createOpportunityFlow(name, opportunityFlowPayload(stages)));
+    setOpportunityFlows((current) => [...current, savedFlow]);
+    setFlowLoadError('');
+    return savedFlow;
+  };
+
+  const handleUpdateOpportunityFlow = async (flowId: number, name: string, stages: OpportunityFlowStage[]) => {
+    const savedFlow = toOpportunityFlow(await salesApi.updateOpportunityFlow(
+      flowId,
+      name,
+      opportunityFlowPayload(stages),
+    ));
+    setOpportunityFlows((current) => current.map((flow) => (flow.id === flowId ? savedFlow : flow)));
+    setFlowLoadError('');
+    if (flowId === selectedFlowId && stageFilter !== 'all'
+      && !savedFlow.stages.some((stage) => stage.key === stageFilter)) {
+      setStageFilter('all');
+      resetPage();
+    }
+    return savedFlow;
+  };
+
+  const handleSelectOpportunityFlow = async (flowId: number) => {
+    if (flowId < 0) {
+      setFlowPositions([]);
+      setSelectedFlowId(flowId);
+      return;
+    }
+    const requestId = flowPositionRequestId.current + 1;
+    flowPositionRequestId.current = requestId;
+    try {
+      const response = await salesApi.getOpportunityFlowPositions(flowId);
+      if (flowPositionRequestId.current !== requestId) return;
+      setFlowPositions(response.positions.map((position) => ({
+        ...position,
+        stageKey: toFrontendOpportunityStageKey(position.stageKey),
+      })));
+      setSelectedFlowId(flowId);
+      setStageFilter('all');
+      resetPage();
+      setFlowLoadError('');
+    } catch {
+      if (flowPositionRequestId.current === requestId) setFlowLoadError(t.flow.loadError);
+    }
+  };
+
   const handleKanbanStageChange = (opportunity: SalesOpportunity, stage: OpportunityStage) => {
+    const stageConfig = getOpportunityStageConfig(opportunityFlowStages, stage);
     handleUpdateOpportunity(opportunity.id, {
       stage,
       status: getOpportunityStatusForStage(stage, opportunity.status),
+      probability: stageConfig ? `${stageConfig.defaultProbabilityPercent}%` : opportunity.probability,
     });
   };
 
@@ -662,11 +888,23 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
     <section className="space-y-5">
       <ProspectosHeader
         copy={t.header}
+        flows={opportunityFlows}
+        selectedFlowId={selectedFlowId}
+        activeFlowLabel={t.flow.selectFlow}
+        factoryLabel={t.flow.factory}
+        onSelectFlow={handleSelectOpportunityFlow}
+        onManageFlow={() => setIsFlowManagerOpen(true)}
         onOpenColumns={() => setIsColumnsModalOpen(true)}
         onCreateSale={handleOpenCreateSale}
         onCreateQuote={handleOpenCreateQuote}
         onCreateOpportunity={handleOpenCreateOpportunity}
       />
+
+      {flowLoadError ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {flowLoadError}
+        </div>
+      ) : null}
 
       <ProspectosViewTabs labels={t.views} activeView={activeView} onViewChange={setActiveView} />
 
@@ -679,6 +917,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         ownerFilter={ownerFilter}
         temperatureFilter={temperatureFilter}
         sourceFilter={sourceFilter}
+        stages={opportunityFlowStages}
         showOwnerFilter={canViewAllVisibleOpportunities}
         ownerSelectOptions={ownerFilterSelectOptions}
         onSearchChange={changeFilter(setSearchQuery)}
@@ -711,6 +950,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         convertedPipelineLabel={pipelinePreferredLabel}
         pipelineExchangeRateDate={metrics.pipelineExchangeRateDate}
         stageCounts={metrics.stageCounts}
+        stages={opportunityFlowStages}
         currencyContext={{
           preferredCurrency: preferredPipelineCurrency,
           nativeBreakdown: pipelineNativeBreakdown || pipelinePreferredLabel,
@@ -730,6 +970,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
           copy={t}
           opportunities={tableOpportunities}
           quotes={quotes}
+          stages={opportunityFlowStages}
           visibleColumns={localizedVisibleColumns}
           columnWidths={columnWidths}
           tableMinWidth={tableMinWidth}
@@ -742,6 +983,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
             resetPage();
           }}
           onUpdateOpportunity={handleUpdateOpportunity}
+          onStageChange={handleKanbanStageChange}
           onOpenFiles={setFilesOpportunity}
           onOpenHistory={setHistoryOpportunity}
           onEdit={handleOpenEditOpportunity}
@@ -758,6 +1000,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         <ProspectosKanban
           copy={t}
           opportunities={periodScopedOpportunities}
+          stages={opportunityFlowStages}
           onOpenFiles={setFilesOpportunity}
           onOpenHistory={setHistoryOpportunity}
           onEdit={handleOpenEditOpportunity}
@@ -769,6 +1012,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
         <ProspectosAgenda
           copy={t}
           opportunities={periodScopedOpportunities}
+          stages={opportunityFlowStages}
           onOpenFiles={setFilesOpportunity}
           onOpenHistory={setHistoryOpportunity}
           onEdit={handleOpenEditOpportunity}
@@ -787,7 +1031,29 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
       <OpportunityDetailModal
         copy={t.detailModal}
         opportunity={historyOpportunity}
+        stageLabel={historyOpportunity
+          ? getOpportunityStageLabelByKey(
+              opportunityFlowStages,
+              historyOpportunity.stage,
+              t.options.stages as Record<string, string>,
+            )
+          : undefined}
         onClose={() => setHistoryOpportunity(null)}
+      />
+
+      <OpportunityFlowManagerModal
+        open={isFlowManagerOpen}
+        flows={opportunityFlowsWithCurrentCounts}
+        selectedFlowId={selectedFlowId}
+        canManage={canManageOpportunityFlow}
+        loadError={flowLoadError}
+        copy={t.flow}
+        localizedDefaultLabels={t.options.stages as Record<string, string>}
+        onOpenChange={setIsFlowManagerOpen}
+        onRetry={() => setFlowReloadVersion((current) => current + 1)}
+        onSelectFlow={handleSelectOpportunityFlow}
+        onCreate={handleCreateOpportunityFlow}
+        onUpdate={handleUpdateOpportunityFlow}
       />
 
       <CreateOpportunityModal

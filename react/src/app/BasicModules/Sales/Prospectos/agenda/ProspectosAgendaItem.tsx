@@ -1,15 +1,17 @@
 import { Badge } from '../../../../components/ui/badge';
 import { Input } from '../../../../components/ui/input';
 import { cn } from '../../../../components/ui/utils';
-import type { SalesOpportunity } from '../../salesCrmContext';
+import type { OpportunityFlowStage, SalesOpportunity } from '../../salesCrmContext';
 import { ProspectosQuickActions } from '../components/ProspectosQuickActions';
 import type { ProspectosCopy } from '../translations';
 import { formatCurrencyAmount, parseMoney, setOpportunityDragData } from '../utils/prospectosFormatters';
-import { stageClasses, temperatureClasses } from '../utils/prospectosStatus';
+import { getOpportunityStageBadgeClass, getOpportunityStageConfig, getOpportunityStageLabelByKey } from '../utils/prospectosFlow';
+import { temperatureClasses } from '../utils/prospectosStatus';
 
 export function ProspectosAgendaItem({
   copy,
   opportunity,
+  stages,
   schedule,
   compact = false,
   onDraftChange,
@@ -19,6 +21,7 @@ export function ProspectosAgendaItem({
 }: {
   copy: ProspectosCopy;
   opportunity: SalesOpportunity;
+  stages: OpportunityFlowStage[];
   schedule: { date: string; time: string };
   compact?: boolean;
   onDraftChange: (opportunity: SalesOpportunity, field: 'date' | 'time', value: string) => void;
@@ -40,8 +43,8 @@ export function ProspectosAgendaItem({
             <Badge variant="outline" className={cn('rounded-full px-2.5 py-1 font-medium', temperatureClasses[opportunity.temperature])}>
               {copy.options.temperatures[opportunity.temperature]}
             </Badge>
-            <Badge variant="outline" className={cn('rounded-full px-2.5 py-1 font-medium', stageClasses[opportunity.stage])}>
-              {copy.options.stages[opportunity.stage]}
+            <Badge variant="outline" className={cn('rounded-full px-2.5 py-1 font-medium', getOpportunityStageBadgeClass(getOpportunityStageConfig(stages, opportunity.stage)))}>
+              {getOpportunityStageLabelByKey(stages, opportunity.stage, copy.options.stages as Record<string, string>)}
             </Badge>
           </div>
           <p className="mt-1 text-sm text-slate-600">{opportunity.company} · {opportunity.contactPerson}</p>

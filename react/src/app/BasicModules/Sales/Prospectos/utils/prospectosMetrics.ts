@@ -1,6 +1,7 @@
 import {
   opportunityStages,
   opportunityTemperatures,
+  type OpportunityStage,
   type SalesQuote,
   type SalesOpportunity,
 } from '../../salesCrmContext';
@@ -161,6 +162,7 @@ export function getOpportunitySortValue(
   opportunity: SalesOpportunity,
   columnId: OpportunityColumnId,
   quotes: SalesQuote[] = [],
+  stageOrder: OpportunityStage[] = opportunityStages,
 ): OpportunitySortValue {
   switch (columnId) {
     case 'opportunity':
@@ -174,7 +176,7 @@ export function getOpportunitySortValue(
     case 'source':
       return opportunity.source;
     case 'stage':
-      return opportunityStages.indexOf(opportunity.stage);
+      return stageOrder.indexOf(opportunity.stage);
     case 'temperature':
       return opportunityTemperatures.indexOf(opportunity.temperature);
     case 'owner':
@@ -212,10 +214,11 @@ export function sortOpportunities(
   opportunities: SalesOpportunity[],
   sortState: OpportunitySortState,
   quotes: SalesQuote[] = [],
+  stageOrder: OpportunityStage[] = opportunityStages,
 ) {
   return [...opportunities].sort((left, right) => {
-    const leftValue = getOpportunitySortValue(left, sortState.columnId, quotes);
-    const rightValue = getOpportunitySortValue(right, sortState.columnId, quotes);
+    const leftValue = getOpportunitySortValue(left, sortState.columnId, quotes, stageOrder);
+    const rightValue = getOpportunitySortValue(right, sortState.columnId, quotes, stageOrder);
 
     if (leftValue === null && rightValue === null) {
       return opportunitySortCollator.compare(left.id, right.id);
@@ -236,19 +239,22 @@ export function sortOpportunities(
   });
 }
 
-export function buildOpportunityHistory(opportunity: SalesOpportunity): OpportunityHistoryEntry[] {
+export function buildOpportunityHistory(
+  opportunity: SalesOpportunity,
+  stageLabel = stageLabels[opportunity.stage] ?? opportunity.stage.replace(/_/g, ' '),
+): OpportunityHistoryEntry[] {
   return [
     {
       id: 'created',
       title: 'Oportunidad creada',
-      description: `${opportunity.company} se agregó al pipeline comercial como ${stageLabels[opportunity.stage]}.`,
+      description: `${opportunity.company} se agregó al pipeline comercial como ${stageLabel}.`,
       timestamp: opportunity.lastContact || 'Sin fecha registrada',
       tone: 'blue',
     },
     {
       id: 'stage',
       title: 'Etapa actualizada',
-      description: `La oportunidad está actualmente en etapa ${stageLabels[opportunity.stage]} con temperatura ${opportunity.temperature}.`,
+      description: `La oportunidad está actualmente en etapa ${stageLabel} con temperatura ${opportunity.temperature}.`,
       timestamp: opportunity.lastContact || 'Sin fecha registrada',
       tone: opportunity.stage === 'Lost' ? 'coral' : opportunity.stage === 'Won' ? 'green' : 'yellow',
     },
@@ -283,6 +289,7 @@ export function calculateProspectosMetrics(
   quotes: SalesQuote[] = [],
   preferredCurrency = defaultSalesCurrency,
   periodFilter: OpportunityPeriodFilter = 'all',
+  stageOrder: OpportunityStage[] = opportunityStages,
 ) {
   const periodRange = getOpportunityPeriodRange(periodFilter);
   const periodOpportunities = filterOpportunitiesForPeriodView(opportunities, periodFilter);
@@ -314,7 +321,7 @@ export function calculateProspectosMetrics(
   const weightedProbability = openCount > 0
     ? Math.round(openOpportunities.reduce((total, opportunity) => total + parsePercentage(opportunity.probability), 0) / openCount)
     : 0;
-  const stageCounts = opportunityStages.map((stage) => ({
+  const stageCounts = stageOrder.map((stage) => ({
     stage,
     count: stage === 'Won' || stage === 'Lost'
       ? periodClosedOpportunities.filter((opportunity) => opportunity.stage === stage).length

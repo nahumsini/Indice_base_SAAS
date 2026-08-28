@@ -32,6 +32,7 @@ class TabPermissionRouteClassifierTest {
         assertRequirement("POST", "/api/v1/finance/petty-cash/funds/2/movements", "petty_cash.control");
         assertRequirement("POST", "/api/v1/finance/petty-cash/funds/2/statements/3/close", "petty_cash.statements");
         assertRequirement("POST", "/api/v1/sales/quotes", "crm.quotes");
+        assertRequirement("PUT", "/api/v1/sales/opportunity-flow", "crm.leads");
         assertRequirement("GET", "/api/v1/sales/kpis", "crm.kpis");
         assertRequirement("GET", "/api/v1/pos/discounts", "pos.descuentos");
         assertRequirement("GET", "/api/v1/pos/self-service-kiosks", "pos.kiosks");

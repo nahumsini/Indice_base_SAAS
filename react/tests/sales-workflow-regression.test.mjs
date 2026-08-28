@@ -22,6 +22,36 @@ test('Kanban normaliza todas las etapas operativas entregadas por la API', () =>
   }
 });
 
+test('los flujos de oportunidades son seleccionables y alimentan Kanban y filtros', () => {
+  const page = read('src/app/BasicModules/Sales/Prospectos/Prospectos.tsx');
+  const header = read('src/app/BasicModules/Sales/Prospectos/components/ProspectosHeader.tsx');
+  const filters = read('src/app/BasicModules/Sales/Prospectos/components/ProspectosFilters.tsx');
+  const kanban = read('src/app/BasicModules/Sales/Prospectos/kanban/ProspectosKanban.tsx');
+  const manager = read('src/app/BasicModules/Sales/Prospectos/modals/OpportunityFlowManagerModal.tsx');
+  const stageEditor = read('src/app/BasicModules/Sales/Prospectos/modals/OpportunityFlowStageEditor.tsx');
+
+  assert.match(header, /copy\.manageFlow/);
+  assert.match(header, /SelectTrigger aria-label=\{activeFlowLabel\}/);
+  assert.match(header, /onSelectFlow\(Number\(value\)\)/);
+  assert.match(page, /salesApi\.getOpportunityFlows\(\)/);
+  assert.match(page, /salesApi\.getOpportunityFlowPositions\(selectedFlowId\)/);
+  assert.match(page, /salesApi\.createOpportunityFlow/);
+  assert.match(page, /salesApi\.updateOpportunityFlow/);
+  assert.match(page, /setStageFilter\('all'\)/);
+  assert.match(page, /stages=\{opportunityFlowStages\}/);
+  assert.match(filters, /stages\.map/);
+  assert.match(kanban, /stages\.map/);
+  assert.match(manager, /modalType="operational-workspace"/);
+  assert.match(manager, /view === 'catalog'/);
+  assert.match(manager, /OpportunityFlowListCard/);
+  assert.match(manager, /OpportunityFlowStageEditor/);
+  assert.match(manager, /await onSelectFlow\(saved\.id\)/);
+  assert.match(manager, /flow\.factory/);
+  assert.match(manager, /loadError \? \(/);
+  assert.match(manager, /onClick=\{onRetry\}/);
+  assert.match(stageEditor, /stage\.opportunityCount === 0/);
+});
+
 test('las relaciones vacías del CRM permanecen vacías al volver a guardar', () => {
   const source = read('src/app/BasicModules/Sales/adapters/salesApiAdapters.ts');
 

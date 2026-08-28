@@ -352,6 +352,9 @@ public class TabPermissionRouteClassifier {
         if (path.startsWith("/api/v1/sales/kpis")) {
             return one("crm.kpis");
         }
+        if (path.startsWith("/api/v1/sales/opportunity-flow")) {
+            return one("crm.leads");
+        }
 
         var collection = firstPathSegment(path.substring("/api/v1/sales".length()));
         return switch (collection) {

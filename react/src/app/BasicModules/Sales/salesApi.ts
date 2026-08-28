@@ -40,6 +40,41 @@ export type SalesApiListResponse<TItem = Record<string, unknown>> = {
 
 export type SalesApiKpisResponse = Record<string, unknown>;
 
+export type OpportunityFlowApiStage = {
+  key: string;
+  label: string;
+  type: 'OPEN' | 'WON' | 'LOST';
+  colorToken: 'BLUE' | 'AQUA' | 'GREEN' | 'YELLOW' | 'CORAL' | 'VIOLET' | 'SLATE';
+  defaultProbabilityPercent: number;
+  position: number;
+  required: boolean;
+  opportunityCount: number;
+};
+
+export type OpportunityFlowApiFlow = {
+  id: number;
+  key: string;
+  name: string;
+  factory: boolean;
+  defaultFlow: boolean;
+  stages: OpportunityFlowApiStage[];
+};
+
+export type OpportunityFlowApiCatalogResponse = {
+  flows: OpportunityFlowApiFlow[];
+  defaultFlowId: number;
+  canManage: boolean;
+};
+
+export type OpportunityFlowPositionsApiResponse = {
+  flowId: number;
+  positions: Array<{
+    opportunityId: number;
+    stageKey: string;
+    probabilityPercent: number;
+  }>;
+};
+
 export type SalesProductImageUploadResponse = {
   objectKey?: string;
   object_key?: string;
@@ -77,6 +112,36 @@ export const salesApi = {
   },
   kpis(preferredCurrency?: string) {
     return apiClient<SalesApiKpisResponse>(`${endpoints.sales.kpis}${buildQuery({ preferredCurrency })}`);
+  },
+  getOpportunityFlows() {
+    return apiClient<OpportunityFlowApiCatalogResponse>(`${endpoints.sales.base}/opportunity-flow`);
+  },
+  getOpportunityFlowPositions(flowId: number) {
+    return apiClient<OpportunityFlowPositionsApiResponse>(
+      `${endpoints.sales.base}/opportunity-flow/${flowId}/positions`,
+    );
+  },
+  createOpportunityFlow(name: string, stages: Array<{
+    key?: string;
+    label: string;
+    colorToken: OpportunityFlowApiStage['colorToken'];
+    defaultProbabilityPercent: number;
+  }>) {
+    return apiClient<OpportunityFlowApiFlow>(`${endpoints.sales.base}/opportunity-flow`, {
+      method: 'POST',
+      body: JSON.stringify({ name, stages }),
+    });
+  },
+  updateOpportunityFlow(flowId: number, name: string, stages: Array<{
+    key?: string;
+    label: string;
+    colorToken: OpportunityFlowApiStage['colorToken'];
+    defaultProbabilityPercent: number;
+  }>) {
+    return apiClient<OpportunityFlowApiFlow>(`${endpoints.sales.base}/opportunity-flow/${flowId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name, stages }),
+    });
   },
   list<TItem = Record<string, unknown>>(
     collection: SalesApiCollection,
