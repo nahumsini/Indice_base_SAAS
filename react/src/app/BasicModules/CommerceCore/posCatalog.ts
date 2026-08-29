@@ -72,6 +72,14 @@ function shouldExposeInPurchasing(product: SalesCatalogItem) {
     || product.warehousePrepared;
 }
 
+function productUsesWarehouseStock(product: SalesCatalogItem) {
+  return Boolean(product.stockPrepared || product.warehousePrepared);
+}
+
+function productStockKeys(product: SalesCatalogItem) {
+  return [product.id, product.backendId === undefined ? '' : String(product.backendId)].filter(Boolean);
+}
+
 function buildStockByProductId(balances: CommerceInventoryBalanceSnapshot[]) {
   return balances.reduce<Map<string, StockSnapshot>>((stockByProductId, balance) => {
     const productId = String(balance.productId ?? '');
@@ -95,9 +103,31 @@ function buildStockByProductId(balances: CommerceInventoryBalanceSnapshot[]) {
   }, new Map());
 }
 
+function buildProductKeySet(balances: CommerceInventoryBalanceSnapshot[]) {
+  return balances.reduce<Set<string>>((productIds, balance) => {
+    const productId = String(balance.productId ?? '');
+    if (productId) {
+      productIds.add(productId);
+    }
+    return productIds;
+  }, new Set());
+}
+
 function stockForProduct(product: SalesCatalogItem, stockByProductId: Map<string, StockSnapshot>) {
-  const keys = [product.id, product.backendId === undefined ? '' : String(product.backendId)].filter(Boolean);
-  return keys.reduce<StockSnapshot | undefined>((found, key) => found ?? stockByProductId.get(key), undefined);
+  return productStockKeys(product)
+    .reduce<StockSnapshot | undefined>((found, key) => found ?? stockByProductId.get(key), undefined);
+}
+
+function isProductAssociatedWithWarehouse(
+  product: SalesCatalogItem,
+  selectedWarehouseId: string,
+  warehouseProductIds: Set<string>,
+) {
+  if (!selectedWarehouseId || !productUsesWarehouseStock(product)) {
+    return true;
+  }
+
+  return productStockKeys(product).some((key) => warehouseProductIds.has(key));
 }
 
 export function toPointOfSaleProduct(
@@ -150,9 +180,11 @@ export function buildPointOfSaleCatalogProducts(
     ? balances.filter((balance) => String(balance.warehouseId ?? '') === selectedWarehouseId)
     : balances;
   const stockByProductId = buildStockByProductId(warehouseBalances);
+  const warehouseProductIds = buildProductKeySet(warehouseBalances);
 
   return products
     .filter(shouldExposeInPointOfSale)
+    .filter((product) => isProductAssociatedWithWarehouse(product, selectedWarehouseId, warehouseProductIds))
     .map((product) => toPointOfSaleProduct(product, stockForProduct(product, stockByProductId)));
 }
 
