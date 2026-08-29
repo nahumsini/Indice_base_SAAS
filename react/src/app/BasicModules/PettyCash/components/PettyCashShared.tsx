@@ -1,10 +1,13 @@
 import type { LucideIcon } from 'lucide-react';
-import { ArrowDown, ArrowUp, ArrowUpDown, Columns3, MoreHorizontal, Plus, RefreshCcw } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Columns3, MoreHorizontal, Plus } from 'lucide-react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import type { ColumnConfig } from '../../../components/rh/ColumnasConfigModal';
 import { DataTablePagination } from '../../../components/table/DataTablePagination';
 import {
   getIndiceFilterControlClassName,
+  IndiceFilterAdvancedSection,
   IndiceFilterBar,
+  IndiceFilterDisclosureActions,
   IndiceFilterField,
   IndiceTitleBar,
   IndiceViewState,
@@ -142,48 +145,118 @@ function HeaderActionsLabel() {
 }
 
 export function PettyCashFilterShell({
+  activeAdvancedCount = 0,
+  advancedContent,
   children,
   clearLabel,
+  hasActiveFilters = false,
   onClear,
   resultLabel,
   subtitle,
 }: {
+  activeAdvancedCount?: number;
+  advancedContent?: ReactNode;
   children: ReactNode;
   clearLabel?: string;
+  hasActiveFilters?: boolean;
   onClear?: () => void;
   resultLabel: string;
   subtitle?: string;
 }) {
   const copy = usePettyCashTranslations();
   const resolvedClearLabel = clearLabel ?? copy.common.clear;
-  const summary = (
-    <div className="flex flex-wrap items-center gap-3">
-      <span className="rounded-full border border-[#147514]/15 bg-[#147514]/10 px-3 py-1 text-sm font-medium text-[#147514] dark:border-emerald-900/50 dark:bg-emerald-400/10 dark:text-emerald-300">
-        {resultLabel}
-      </span>
-      {onClear ? (
-        <button
-          type="button"
-          onClick={onClear}
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 transition hover:text-[#147514] dark:text-slate-400 dark:hover:text-emerald-300"
-        >
-          <RefreshCcw className="h-3.5 w-3.5" />
-          {resolvedClearLabel}
-        </button>
-      ) : null}
-    </div>
-  );
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(activeAdvancedCount > 0);
+
+  useEffect(() => {
+    if (activeAdvancedCount > 0) setShowAdvancedFilters(true);
+  }, [activeAdvancedCount]);
+
+  const clearFilters = () => {
+    onClear?.();
+    setShowAdvancedFilters(false);
+  };
 
   return (
     <IndiceFilterBar
-      gridClassName="lg:grid-cols-4"
+      gridClassName="lg:grid-cols-3"
       subtitle={subtitle}
-      summary={summary}
+      summary={(
+        <IndiceFilterDisclosureActions
+          activeAdvancedCount={activeAdvancedCount}
+          advancedLabel={showAdvancedFilters ? copy.common.hideMoreFilters : copy.common.moreFilters}
+          clearLabel={resolvedClearLabel}
+          hasActiveFilters={hasActiveFilters}
+          isAdvancedOpen={showAdvancedFilters}
+          onClear={clearFilters}
+          onToggleAdvanced={() => setShowAdvancedFilters(current => !current)}
+          resultSummary={(
+            <span className="rounded-full border border-[#147514]/15 bg-[#147514]/10 px-3 py-1 text-[#147514] dark:border-emerald-900/50 dark:bg-emerald-400/10 dark:text-emerald-300">
+              {resultLabel}
+            </span>
+          )}
+          showAdvancedToggle={Boolean(advancedContent)}
+          tone="green"
+        />
+      )}
       title={copy.common.filters}
     >
       {children}
+      {advancedContent && showAdvancedFilters ? (
+        <IndiceFilterAdvancedSection className="md:col-span-2 lg:col-span-3" gridClassName="xl:grid-cols-2">
+          {advancedContent}
+        </IndiceFilterAdvancedSection>
+      ) : null}
     </IndiceFilterBar>
   );
+}
+
+export function normalizePettyCashColumns(columns: ColumnConfig[], defaultColumns: ColumnConfig[]) {
+  const currentById = new Map(columns.map(column => [column.id, column]));
+  const defaultsById = new Map(defaultColumns.map(column => [column.id, column]));
+  const normalized = columns
+    .filter(column => defaultsById.has(column.id))
+    .map(column => {
+      const defaultColumn = defaultsById.get(column.id)!;
+      return {
+        ...defaultColumn,
+        visible: defaultColumn.locked ? true : column.visible,
+      };
+    });
+
+  return [
+    ...normalized,
+    ...defaultColumns.filter(column => !currentById.has(column.id)),
+  ];
+}
+
+export function usePettyCashColumns(storageKey: string, defaultColumns: ColumnConfig[]) {
+  const [columns, setColumns] = useState<ColumnConfig[]>(() => {
+    if (typeof window === 'undefined') return defaultColumns;
+    try {
+      const stored = window.localStorage.getItem(storageKey);
+      return stored
+        ? normalizePettyCashColumns(JSON.parse(stored) as ColumnConfig[], defaultColumns)
+        : defaultColumns;
+    } catch {
+      return defaultColumns;
+    }
+  });
+
+  useEffect(() => {
+    setColumns(current => normalizePettyCashColumns(current, defaultColumns));
+  }, [defaultColumns]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(storageKey, JSON.stringify(columns));
+    }
+  }, [columns, storageKey]);
+
+  return {
+    columns,
+    setColumns,
+    visibleColumns: columns.filter(column => column.visible),
+  };
 }
 
 export function PettyCashField({

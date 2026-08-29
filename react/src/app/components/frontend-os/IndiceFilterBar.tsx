@@ -173,13 +173,14 @@ export function IndiceFilterSelect({
   value: string;
 }) {
   const labelId = useId();
+  const validOptions = options.filter(option => option.value.trim().length > 0);
 
   return (
     <div className={cn('min-w-0 space-y-2', className)}>
       <span id={labelId} className="block text-sm font-medium text-slate-700 dark:text-slate-200">
         {label}
       </span>
-      <Select value={value} onValueChange={onValueChange}>
+      <Select value={value || undefined} onValueChange={onValueChange}>
         <SelectTrigger
           aria-labelledby={labelId}
           className={cn(getIndiceFilterControlClassName(tone), 'px-4', triggerClassName)}
@@ -187,7 +188,7 @@ export function IndiceFilterSelect({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {options.map((option) => (
+          {validOptions.map((option) => (
             <SelectItem key={option.value} value={option.value} disabled={option.disabled}>
               {option.label}
             </SelectItem>

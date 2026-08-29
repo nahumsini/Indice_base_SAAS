@@ -52,10 +52,12 @@ import { getPettyCashMethodLabel, PETTY_CASH_METHOD_KEYS } from '../utils/pettyC
 import { usePettyCashTranslations } from '../hooks/usePettyCashTranslations';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import { useKpiMonetaryAggregate } from '../../shared/kpiMonetaryApi';
-import { OperationalKpiArea } from '../../shared/operational';
+import { getOperationalKpiCurrencyCopy, OperationalKpiArea } from '../../shared/operational';
+import { useLanguage } from '../../../shared/context';
 import {
   PettyCashEmptyState,
   PettyCashField,
+  PettyCashFilterShell,
   PettyCashHeaderBanner,
   PettyCashPagination,
   PettyCashSortableHeader,
@@ -380,6 +382,8 @@ export function PettyCashReconciliationWorkspace({
   statements,
 }: PettyCashReconciliationWorkspaceProps) {
   const copy = usePettyCashTranslations();
+  const { currentLanguage } = useLanguage();
+  const currencyCopy = getOperationalKpiCurrencyCopy(currentLanguage.code);
   const { preferredCurrency } = usePreferredBusinessCurrency();
   const [selectedFundId, setSelectedFundId] = useState(initialFundId || funds[0]?.id || '');
   const [selectedStatementId, setSelectedStatementId] = useState('');
@@ -428,6 +432,11 @@ export function PettyCashReconciliationWorkspace({
   const capturedPreferred = capturedAggregate.data?.preferredTotal ?? 0;
   const authorizedPreferred = authorizedAggregate.data?.preferredTotal ?? 0;
   const balancePreferred = selectedFundAggregate.data?.preferredTotal ?? 0;
+  const formatAggregate = (aggregate: typeof capturedAggregate, value: number) => (
+    aggregate.data && !aggregate.loading
+      ? formatPettyCashCurrency(value, preferredCurrency)
+      : '—'
+  );
 
   const filteredLines = useMemo(() => {
     const search = searchTerm.trim().toLowerCase();
@@ -1097,36 +1106,45 @@ export function PettyCashReconciliationWorkspace({
       ) : null}
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800 sm:p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
-          <div>
-            <h3 className="text-base font-medium text-slate-800 dark:text-white">{copy.common.filters}</h3>
-            <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
-              {operationView === 'expenses' ? copy.reconciliation.filters.result(filteredLines.length) : copy.reconciliation.movements.result(filteredIncomeMovements.length)}
-            </p>
-          </div>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-base font-medium text-slate-800 dark:text-white">{copy.common.selectFund}</h3>
           <div className="inline-flex h-10 max-w-full overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900">
             <button type="button" aria-pressed={operationView === 'expenses'} onClick={() => { setOperationView('expenses'); setSearchTerm(''); }} className={`inline-flex h-8 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors ${operationView === 'expenses' ? 'bg-[#147514] text-white shadow-sm' : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800'}`}><ReceiptText className="h-4 w-4" />{copy.reconciliation.views.expenses}</button>
             <button type="button" aria-pressed={operationView === 'income'} onClick={() => { setOperationView('income'); setSearchTerm(''); }} className={`inline-flex h-8 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors ${operationView === 'income' ? 'bg-[#147514] text-white shadow-sm' : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800'}`}><Banknote className="h-4 w-4" />{copy.reconciliation.views.income}</button>
           </div>
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6 lg:gap-4 xl:grid-cols-12">
-          <div className="space-y-2 sm:col-span-2 lg:col-span-3 xl:col-span-3">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{operationView === 'expenses' ? copy.reconciliation.filters.searchReceipt : copy.reconciliation.filters.searchIncome}</label>
-            <div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input type="search" className={`${pettyCashInputClass} pl-9`} onChange={event => setSearchTerm(event.target.value)} placeholder={operationView === 'expenses' ? copy.reconciliation.filters.searchPlaceholder : copy.reconciliation.filters.incomeSearchPlaceholder} value={searchTerm} /></div>
-          </div>
-          <div className="space-y-2 lg:col-span-2 xl:col-span-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
             <PettyCashField label={copy.reconciliation.filters.fund}><select className={pettyCashInputClass} onChange={(event) => handleSelectFund(event.target.value)} value={selectedFundId}>{funds.map(fund => <option key={fund.id} value={fund.id}>{fund.name} · {fund.responsibleName}</option>)}</select></PettyCashField>
           </div>
-          <div className="space-y-2 lg:col-span-2 xl:col-span-2">
+          <div>
             <PettyCashField label={copy.reconciliation.filters.statement}><select className={pettyCashInputClass} onChange={(event) => setSelectedStatementId(event.target.value)} value={selectedStatement?.id ?? ''}>{fundStatements.length > 0 ? fundStatements.map(statement => <option key={statement.id} value={statement.id}>{statement.periodKey} · {statement.folio}</option>) : <option value="">{copy.common.automaticCurrentStatement}</option>}</select></PettyCashField>
           </div>
-          {operationView === 'expenses' ? <>
-            <div className="space-y-2 lg:col-span-2 xl:col-span-2"><PettyCashField label={copy.reconciliation.receipts.columns.provider}><select className={pettyCashInputClass} onChange={event => setProviderFilter(event.target.value)} value={providerFilter}><option value="all">{copy.common.all}</option>{activeProviders.map(provider => <option key={provider.id} value={provider.id}>{provider.name}</option>)}</select></PettyCashField></div>
-            <div className="space-y-2 lg:col-span-2 xl:col-span-2"><PettyCashField label={copy.reconciliation.filters.status}><select className={pettyCashInputClass} onChange={event => setReceiptStatusFilter(event.target.value as PettyCashSettlementLineStatus | 'all')} value={receiptStatusFilter}><option value="all">{copy.common.all}</option>{(['DRAFT', 'RECEIPT_ATTACHED', 'VALIDATED', 'EXPENSE_CREATED', 'REJECTED'] as PettyCashSettlementLineStatus[]).map(value => <option key={value} value={value}>{copy.status.line[value]}</option>)}</select></PettyCashField></div>
-            <div className="space-y-2 lg:col-span-2 xl:col-span-2"><PettyCashField label={copy.reconciliation.filters.evidence}><select className={pettyCashInputClass} onChange={event => setEvidenceFilter(event.target.value as 'all' | 'with' | 'without')} value={evidenceFilter}><option value="all">{copy.common.all}</option><option value="with">{copy.reconciliation.filters.withEvidence}</option><option value="without">{copy.reconciliation.filters.withoutEvidence}</option></select></PettyCashField></div>
-          </> : null}
         </div>
       </section>
+
+      <PettyCashFilterShell
+        activeAdvancedCount={operationView === 'expenses' ? Number(providerFilter !== 'all') + Number(evidenceFilter !== 'all') : 0}
+        advancedContent={operationView === 'expenses' ? (
+          <>
+            <PettyCashField label={copy.reconciliation.receipts.columns.provider}><select className={pettyCashInputClass} onChange={event => setProviderFilter(event.target.value)} value={providerFilter}><option value="all">{copy.common.all}</option>{activeProviders.map(provider => <option key={provider.id} value={provider.id}>{provider.name}</option>)}</select></PettyCashField>
+            <PettyCashField label={copy.reconciliation.filters.evidence}><select className={pettyCashInputClass} onChange={event => setEvidenceFilter(event.target.value as 'all' | 'with' | 'without')} value={evidenceFilter}><option value="all">{copy.common.all}</option><option value="with">{copy.reconciliation.filters.withEvidence}</option><option value="without">{copy.reconciliation.filters.withoutEvidence}</option></select></PettyCashField>
+          </>
+        ) : undefined}
+        hasActiveFilters={Boolean(searchTerm || (operationView === 'expenses' && (providerFilter !== 'all' || receiptStatusFilter !== 'all' || evidenceFilter !== 'all')))}
+        onClear={() => {
+          setSearchTerm('');
+          setProviderFilter('all');
+          setReceiptStatusFilter('all');
+          setEvidenceFilter('all');
+        }}
+        resultLabel={operationView === 'expenses' ? copy.reconciliation.filters.result(filteredLines.length) : copy.reconciliation.movements.result(filteredIncomeMovements.length)}
+      >
+        <PettyCashField label={operationView === 'expenses' ? copy.reconciliation.filters.searchReceipt : copy.reconciliation.filters.searchIncome}>
+          <div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input type="search" className={`${pettyCashInputClass} pl-9`} onChange={event => setSearchTerm(event.target.value)} placeholder={operationView === 'expenses' ? copy.reconciliation.filters.searchPlaceholder : copy.reconciliation.filters.incomeSearchPlaceholder} value={searchTerm} /></div>
+        </PettyCashField>
+        {operationView === 'expenses' ? <PettyCashField label={copy.reconciliation.filters.status}><select className={pettyCashInputClass} onChange={event => setReceiptStatusFilter(event.target.value as PettyCashSettlementLineStatus | 'all')} value={receiptStatusFilter}><option value="all">{copy.common.all}</option>{(['DRAFT', 'RECEIPT_ATTACHED', 'VALIDATED', 'EXPENSE_CREATED', 'REJECTED'] as PettyCashSettlementLineStatus[]).map(value => <option key={value} value={value}>{copy.status.line[value]}</option>)}</select></PettyCashField> : null}
+      </PettyCashFilterShell>
 
       {selectedFund ? <>
         <div className="flex flex-col gap-3 rounded-xl border border-[#147514]/20 bg-[#147514]/5 px-4 py-3 dark:border-emerald-400/20 dark:bg-emerald-400/10 lg:flex-row lg:items-center lg:justify-between">
@@ -1141,11 +1159,24 @@ export function PettyCashReconciliationWorkspace({
           alertChips={[
             { id: 'preferred-currency', icon: <Coins className="h-3.5 w-3.5" />, label: copy.common.preferredCurrency(preferredCurrency), tone: 'info' },
             { id: 'native-balance', icon: <WalletCards className="h-3.5 w-3.5" />, label: copy.common.nativeBreakdown(formatPettyCashCurrency(selectedFund.currentBalanceAmount, selectedFund.currencyCode)), tone: 'neutral' },
+            ...(selectedLines.some(line => line.attachmentCount === 0) ? [{
+              id: 'missing-evidence',
+              icon: <Paperclip className="h-3.5 w-3.5" />,
+              label: `${selectedLines.filter(line => line.attachmentCount === 0).length} ${copy.reconciliation.filters.withoutEvidence}`,
+              tone: 'warning' as const,
+              active: evidenceFilter === 'without',
+              onClick: () => setEvidenceFilter(current => current === 'without' ? 'all' : 'without'),
+            }] : []),
           ]}
           distributionSegments={[
-            { id: 'authorized', label: copy.reconciliation.operation.authorized, count: authorizedPreferred, className: 'bg-[#147514]' },
-            { id: 'pending', label: copy.financial.progress.pending, count: Math.max(0, capturedPreferred - authorizedPreferred), className: 'bg-amber-400' },
-            { id: 'available', label: copy.financial.progress.available, count: Math.max(0, balancePreferred), className: 'bg-sky-400' },
+            ...(['DRAFT', 'RECEIPT_ATTACHED', 'VALIDATED', 'EXPENSE_CREATED', 'REJECTED'] as PettyCashSettlementLineStatus[]).map((lineStatus, index) => ({
+              id: lineStatus,
+              label: copy.status.line[lineStatus],
+              count: selectedLines.filter(line => line.status === lineStatus).length,
+              className: ['bg-amber-400', 'bg-sky-400', 'bg-blue-500', 'bg-[#147514]', 'bg-rose-500'][index],
+              active: receiptStatusFilter === lineStatus,
+              onClick: () => setReceiptStatusFilter(current => current === lineStatus ? 'all' : lineStatus),
+            })),
           ]}
           insight={copy.reconciliation.operation.signal(
             selectedLines.filter(line => line.status !== 'EXPENSE_CREATED' && line.status !== 'REJECTED').length,
@@ -1154,11 +1185,21 @@ export function PettyCashReconciliationWorkspace({
           )}
           insightIcon={<Info className="h-4 w-4" />}
           metrics={[
-            { id: 'deposited', icon: <Banknote className="h-4 w-4" />, label: copy.reconciliation.metrics.deposited, value: formatPettyCashCurrency(depositedPreferred, preferredCurrency), valueClassName: 'text-sky-600' },
-            { id: 'captured', icon: <ReceiptText className="h-4 w-4" />, label: copy.reconciliation.operation.captured, value: formatPettyCashCurrency(capturedPreferred, preferredCurrency), valueClassName: 'text-amber-600' },
-            { id: 'authorized', icon: <CheckCircle2 className="h-4 w-4" />, label: copy.reconciliation.operation.authorized, value: formatPettyCashCurrency(authorizedPreferred, preferredCurrency), valueClassName: 'text-[#147514]' },
-            { id: 'balance', icon: <WalletCards className="h-4 w-4" />, label: copy.reconciliation.operation.currentBalance, value: formatPettyCashCurrency(balancePreferred, preferredCurrency), valueClassName: selectedFund.currentBalanceAmount < 0 ? 'text-rose-600' : 'text-[#147514]' },
+            { id: 'deposited', icon: <Banknote className="h-4 w-4" />, label: copy.reconciliation.metrics.deposited, value: formatAggregate(depositedAggregate, depositedPreferred), valueClassName: 'text-sky-600' },
+            { id: 'captured', icon: <ReceiptText className="h-4 w-4" />, label: copy.reconciliation.operation.captured, value: formatAggregate(capturedAggregate, capturedPreferred), valueClassName: 'text-amber-600' },
+            { id: 'authorized', icon: <CheckCircle2 className="h-4 w-4" />, label: copy.reconciliation.operation.authorized, value: formatAggregate(authorizedAggregate, authorizedPreferred), valueClassName: 'text-[#147514]', active: receiptStatusFilter === 'EXPENSE_CREATED', onClick: () => setReceiptStatusFilter(current => current === 'EXPENSE_CREATED' ? 'all' : 'EXPENSE_CREATED') },
+            { id: 'balance', icon: <WalletCards className="h-4 w-4" />, label: copy.reconciliation.operation.currentBalance, value: formatAggregate(selectedFundAggregate, balancePreferred), valueClassName: selectedFund.currentBalanceAmount < 0 ? 'text-rose-600' : 'text-[#147514]' },
           ]}
+          currencyContext={{
+            preferredCurrency,
+            nativeBreakdown: formatPettyCashCurrency(selectedFund.currentBalanceAmount, selectedFund.currencyCode),
+            rateLabel: selectedFundAggregate.data?.exchangeRate.mode === 'daily' ? currencyCopy.dailyRate : currencyCopy.unavailable,
+            effectiveDate: selectedFundAggregate.data?.exchangeRate.effectiveDate,
+            source: selectedFundAggregate.data?.exchangeRate.source,
+            isPartial: Boolean(selectedFundAggregate.error || selectedFundAggregate.data?.partial),
+            excludedCount: selectedFundAggregate.data?.excludedRecords ?? (selectedFundAggregate.error ? 1 : 0),
+            labels: currencyCopy,
+          }}
         />
 
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">

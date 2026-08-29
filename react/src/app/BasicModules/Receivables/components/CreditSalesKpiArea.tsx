@@ -1,9 +1,7 @@
 import {
   AlertTriangle,
   BadgeDollarSign,
-  CheckCircle2,
   CircleDollarSign,
-  Eye,
   Gauge,
   Timer,
 } from 'lucide-react';
@@ -18,7 +16,7 @@ import {
   formatBusinessCurrencyAmount,
   normalizeBusinessCurrencyCode,
 } from '../../shared/businessCurrency';
-import { useKpiMonetaryAggregate, type KpiMonetaryAggregate } from '../../shared/kpiMonetaryApi';
+import { useKpiMonetaryAggregates, type KpiMonetaryAggregate } from '../../shared/kpiMonetaryApi';
 import type { ReceivablesTranslations } from '../translations';
 import type { CreditSale, CreditSaleStatus } from '../types';
 
@@ -44,34 +42,43 @@ function formatNativeBreakdown(aggregate: KpiMonetaryAggregate | null, fallbackC
 }
 
 export function CreditSalesKpiArea({
+  activeStatus,
   copy,
   creditSales,
+  onStatusChange,
   totalCreditSales,
 }: {
+  activeStatus: string;
   copy: ReceivablesTranslations;
   creditSales: CreditSale[];
+  onStatusChange: (status: string) => void;
   totalCreditSales: number;
 }) {
   const { preferredCurrency } = usePreferredBusinessCurrency();
   const labels = copy.kpiEngine.creditSales;
   const ids = creditSales.map((sale) => sale.id);
-  const receivable = useKpiMonetaryAggregate({ metric: 'CREDIT_SALES_TOTAL_PAYABLE', preferredCurrency, ids });
-  const monthly = useKpiMonetaryAggregate({ metric: 'CREDIT_SALES_MONTHLY_PAYMENT', preferredCurrency, ids });
-  const interest = useKpiMonetaryAggregate({ metric: 'CREDIT_SALES_INTEREST', preferredCurrency, ids });
+  const aggregates = useKpiMonetaryAggregates([
+    { key: 'receivable', metric: 'CREDIT_SALES_TOTAL_PAYABLE', preferredCurrency, ids },
+    { key: 'monthly', metric: 'CREDIT_SALES_MONTHLY_PAYMENT', preferredCurrency, ids },
+    { key: 'interest', metric: 'CREDIT_SALES_INTEREST', preferredCurrency, ids },
+  ]);
+  const receivable = aggregates.data.receivable ?? null;
+  const monthly = aggregates.data.monthly ?? null;
+  const interest = aggregates.data.interest ?? null;
   const activeCount = creditSales.filter((sale) => sale.status === 'active').length;
   const setupCount = creditSales.filter((sale) => setupStatuses.has(sale.status)).length;
   const completedCount = creditSales.filter((sale) => sale.status === 'completed').length;
   const stoppedCount = creditSales.filter((sale) => stoppedStatuses.has(sale.status)).length;
   const currencyCount = new Set(creditSales.map((sale) => normalizeBusinessCurrencyCode(sale.currency, preferredCurrency))).size;
-  const formatAggregate = (aggregate: typeof receivable) => (
-    aggregate.data && !aggregate.loading
-      ? formatBusinessCurrencyAmount(aggregate.data.preferredTotal, preferredCurrency, moneyFormatOptions)
+  const formatAggregate = (aggregate: KpiMonetaryAggregate | null) => (
+    aggregate && !aggregates.loading
+      ? formatBusinessCurrencyAmount(aggregate.preferredTotal, preferredCurrency, moneyFormatOptions)
       : '—'
   );
   const receivableTotalLabel = formatAggregate(receivable);
   const monthlyFlowLabel = formatAggregate(monthly);
   const totalInterestLabel = formatAggregate(interest);
-  const nativeTotalLabel = formatNativeBreakdown(receivable.data, preferredCurrency);
+  const nativeTotalLabel = formatNativeBreakdown(receivable, preferredCurrency);
   const metrics: OperationalKpiMetric[] = [
     {
       id: 'receivableTotal',
@@ -82,18 +89,14 @@ export function CreditSalesKpiArea({
       valueClassName: 'text-[#147514]',
     },
     {
-      id: 'visibleSales',
-      icon: <Eye className="h-4 w-4" />,
-      label: labels.labels.visibleSales,
-      value: formatCount(creditSales.length),
-    },
-    {
       id: 'activeSales',
       icon: <Timer className="h-4 w-4" />,
       iconClassName: 'text-blue-600',
       label: labels.labels.activeSales,
       value: formatCount(activeCount),
       valueClassName: 'text-blue-600',
+      active: activeStatus === 'active',
+      onClick: () => onStatusChange('active'),
     },
     {
       id: 'monthlyFlow',
@@ -120,6 +123,8 @@ export function CreditSalesKpiArea({
       icon: <Timer className="h-3.5 w-3.5" />,
       label: labels.alerts.active(activeCount),
       tone: 'success',
+      active: activeStatus === 'active',
+      onClick: () => onStatusChange('active'),
     });
   }
 
@@ -129,6 +134,8 @@ export function CreditSalesKpiArea({
       icon: <Gauge className="h-3.5 w-3.5" />,
       label: labels.alerts.simulated(setupCount),
       tone: 'warning',
+      active: activeStatus === 'setup',
+      onClick: () => onStatusChange('setup'),
     });
   }
 
@@ -138,6 +145,8 @@ export function CreditSalesKpiArea({
       icon: <AlertTriangle className="h-3.5 w-3.5" />,
       label: labels.alerts.blocked(stoppedCount),
       tone: 'danger',
+      active: activeStatus === 'stopped',
+      onClick: () => onStatusChange('stopped'),
     });
   }
 
@@ -165,24 +174,32 @@ export function CreditSalesKpiArea({
       className: 'bg-[#147514]',
       count: activeCount,
       label: labels.segments.active,
+      active: activeStatus === 'active',
+      onClick: () => onStatusChange('active'),
     },
     {
       id: 'setup',
       className: 'bg-[#F4C84A]',
       count: setupCount,
       label: labels.segments.setup,
+      active: activeStatus === 'setup',
+      onClick: () => onStatusChange('setup'),
     },
     {
       id: 'completed',
       className: 'bg-emerald-500',
       count: completedCount,
       label: labels.segments.completed,
+      active: activeStatus === 'completed',
+      onClick: () => onStatusChange('completed'),
     },
     {
       id: 'stopped',
       className: 'bg-rose-500',
       count: stoppedCount,
       label: labels.segments.stopped,
+      active: activeStatus === 'stopped',
+      onClick: () => onStatusChange('stopped'),
     },
   ];
 
@@ -207,13 +224,13 @@ export function CreditSalesKpiArea({
       currencyContext={{
         preferredCurrency,
         nativeBreakdown: nativeTotalLabel,
-        rateLabel: receivable.data?.exchangeRate.mode === 'daily'
+        rateLabel: receivable?.exchangeRate.mode === 'daily'
           ? copy.kpiEngine.currency.dailyRate
           : copy.kpiEngine.currency.unavailable,
-        effectiveDate: receivable.data?.exchangeRate.effectiveDate,
-        source: receivable.data?.exchangeRate.source,
-        isPartial: Boolean(receivable.error || receivable.data?.partial),
-        excludedCount: receivable.data?.excludedRecords ?? (receivable.error ? creditSales.length : 0),
+        effectiveDate: receivable?.exchangeRate.effectiveDate,
+        source: receivable?.exchangeRate.source,
+        isPartial: Boolean(aggregates.error || receivable?.partial),
+        excludedCount: receivable?.excludedRecords ?? (aggregates.error ? creditSales.length : 0),
         labels: copy.kpiEngine.currency,
       }}
     />

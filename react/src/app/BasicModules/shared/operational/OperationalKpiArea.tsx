@@ -9,7 +9,10 @@ export type OperationalKpiMetric = {
   icon: ReactNode;
   label: string;
   value: string | number;
+  active?: boolean;
+  ariaLabel?: string;
   iconClassName?: string;
+  onClick?: () => void;
   valueClassName?: string;
 };
 
@@ -18,6 +21,9 @@ export type OperationalAlertChip = {
   label: string;
   icon?: ReactNode;
   tone?: OperationalKpiTone;
+  active?: boolean;
+  ariaLabel?: string;
+  onClick?: () => void;
 };
 
 export type OperationalDistributionSegment = {
@@ -25,6 +31,9 @@ export type OperationalDistributionSegment = {
   label: string;
   count: number;
   className: string;
+  active?: boolean;
+  ariaLabel?: string;
+  onClick?: () => void;
 };
 
 export type OperationalKpiCurrencyContext = {
@@ -61,14 +70,17 @@ function getSegmentWidth(count: number, total: number) {
 }
 
 export function OperationalKpiMetricItem({
+  active = false,
+  ariaLabel,
   icon,
   iconClassName = 'text-slate-500 dark:text-slate-300',
   label,
+  onClick,
   value,
   valueClassName = 'text-slate-950 dark:text-white',
 }: OperationalKpiMetric) {
-  return (
-    <div className="flex min-w-fit items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+  const content = (
+    <>
       <span
         className={cn(
           'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700',
@@ -79,21 +91,63 @@ export function OperationalKpiMetricItem({
       </span>
       <span className={cn('font-medium tabular-nums', valueClassName)}>{value}</span>
       <span>{label}</span>
-    </div>
+    </>
   );
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        aria-label={ariaLabel ?? label}
+        aria-pressed={active}
+        onClick={onClick}
+        className={cn(
+          'flex min-w-fit items-center gap-2 rounded-xl px-1 py-0.5 text-left text-sm text-slate-600 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#147514]/40 dark:text-slate-300 dark:hover:bg-slate-800',
+          active && 'bg-emerald-50 ring-1 ring-[#147514]/25 dark:bg-emerald-950/20',
+        )}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return <div className="flex min-w-fit items-center gap-2 px-1 py-0.5 text-sm text-slate-600 dark:text-slate-300">{content}</div>;
 }
 
 export function OperationalAlertChipItem({
+  active = false,
+  ariaLabel,
   icon,
   label,
+  onClick,
   tone = 'warning',
 }: OperationalAlertChip) {
-  return (
-    <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium', alertToneClassNames[tone])}>
+  const content = (
+    <>
       {icon ? <span className="shrink-0">{icon}</span> : null}
       <span>{label}</span>
-    </span>
+    </>
   );
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        aria-label={ariaLabel ?? label}
+        aria-pressed={active}
+        onClick={onClick}
+        className={cn(
+          'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#147514]/40',
+          alertToneClassNames[tone],
+          active && 'ring-2 ring-[#147514]/25',
+        )}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium', alertToneClassNames[tone])}>{content}</span>;
 }
 
 export function OperationalDistributionBar({
@@ -107,7 +161,18 @@ export function OperationalDistributionBar({
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
       <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
         <div className="flex h-full">
-          {segments.map((segment) => (
+          {segments.map((segment) => segment.onClick ? (
+            <button
+              key={segment.id}
+              type="button"
+              aria-label={segment.ariaLabel ?? segment.label}
+              aria-pressed={segment.active}
+              onClick={segment.onClick}
+              className={cn('transition-all duration-300 hover:brightness-90 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white', segment.className)}
+              style={{ width: getSegmentWidth(segment.count, total) }}
+              title={segment.label}
+            />
+          ) : (
             <div
               key={segment.id}
               className={cn('transition-all duration-300', segment.className)}
@@ -118,8 +183,23 @@ export function OperationalDistributionBar({
       </div>
 
       <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-500 dark:text-slate-400">
-        {segments.map((segment) => (
-          <span key={segment.id} className="flex items-center gap-1">
+        {segments.map((segment) => segment.onClick ? (
+          <button
+            key={segment.id}
+            type="button"
+            aria-label={segment.ariaLabel ?? segment.label}
+            aria-pressed={segment.active}
+            onClick={segment.onClick}
+            className={cn(
+              'flex items-center gap-1 rounded-full px-1.5 py-1 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#147514]/40 dark:hover:bg-slate-800',
+              segment.active && 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white',
+            )}
+          >
+            <span className={cn('h-2 w-2 rounded-full', segment.className)} />
+            <span>{segment.label}</span>
+          </button>
+        ) : (
+          <span key={segment.id} className="flex items-center gap-1 px-1.5 py-1">
             <span className={cn('h-2 w-2 rounded-full', segment.className)} />
             <span>{segment.label}</span>
           </span>
@@ -198,7 +278,41 @@ export function OperationalKpiArea({
   );
 }
 
-function OperationalKpiCurrencyStrip({ context }: { context: OperationalKpiCurrencyContext }) {
+export function OperationalStatusNavigator({
+  className,
+  metrics,
+  segments,
+}: {
+  className?: string;
+  metrics: OperationalKpiMetric[];
+  segments: OperationalDistributionSegment[];
+}) {
+  const learningModeActive = useLearningModeHeaderActions()?.active ?? false;
+
+  if (learningModeActive) {
+    return null;
+  }
+
+  return (
+    <section className={cn('rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-800', className)}>
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex gap-x-3 gap-y-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
+          {metrics.map((metric, index) => (
+            <div key={metric.id} className="flex items-center gap-3">
+              {index > 0 ? <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">|</span> : null}
+              <OperationalKpiMetricItem {...metric} />
+            </div>
+          ))}
+        </div>
+        <div className="min-w-[220px] flex-1 xl:max-w-md">
+          <OperationalDistributionBar segments={segments} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function OperationalKpiCurrencyStrip({ context }: { context: OperationalKpiCurrencyContext }) {
   const excludedCount = context.excludedCount ?? 0;
 
   return (

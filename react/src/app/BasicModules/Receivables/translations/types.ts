@@ -41,6 +41,13 @@ export interface ReceivablesTranslations {
     business: string;
     all: string;
     allUnits: string;
+    clear: string;
+    hideMore: string;
+    more: string;
+    method: string;
+    evidence: string;
+    withEvidence: string;
+    withoutEvidence: string;
     periodOptions: Record<PeriodFilter, string>;
   };
   kpiEngine: {
@@ -123,6 +130,7 @@ export interface ReceivablesTranslations {
         totalPaid: string;
         visiblePayments: string;
         withReceipt: string;
+        missingReceipt: string;
         transfer: string;
         cash: string;
         card: string;
@@ -155,6 +163,7 @@ export interface ReceivablesTranslations {
         active: string;
         review: string;
         blocked: string;
+        utilization: string;
       };
       alerts: {
         active: (count: number) => string;

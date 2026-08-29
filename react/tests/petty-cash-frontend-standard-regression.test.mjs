@@ -63,3 +63,32 @@ test('Petty Cash no introduce texto operativo menor a 12 px', () => {
 
   assert.deepEqual(violations, []);
 });
+
+test('Petty Cash usa filtros progresivos y columnas persistentes en sus índices principales', () => {
+  const sharedSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashShared.tsx'), 'utf8');
+  const fundsSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashFundsWorkspace.tsx'), 'utf8');
+  const reconciliationSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashReconciliationWorkspace.tsx'), 'utf8');
+  const statementsSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashStatementsWorkspace.tsx'), 'utf8');
+
+  assert.match(sharedSource, /<IndiceFilterDisclosureActions/);
+  assert.match(sharedSource, /<IndiceFilterAdvancedSection/);
+  assert.match(sharedSource, /usePettyCashColumns/);
+  assert.match(fundsSource, /indice\.pettyCash\.funds\.columns\.v1/);
+  assert.match(fundsSource, /onColumns=\{\(\) => setShowColumnsModal\(true\)\}/);
+  assert.match(statementsSource, /indice\.pettyCash\.statements\.columns\.v1/);
+  assert.match(statementsSource, /<ColumnasConfigModal/);
+  assert.match(reconciliationSource, /<PettyCashFilterShell/);
+  assert.match(reconciliationSource, /advancedContent=/);
+});
+
+test('Petty Cash consolida moneda y evita avances KPI artificiales', () => {
+  const financialSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashFinancialViewWorkspace.tsx'), 'utf8');
+  const statementsSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashStatementsWorkspace.tsx'), 'utf8');
+
+  assert.match(financialSource, /<OperationalKpiCurrencyStrip/);
+  assert.match(financialSource, /const summaryAggregates = useKpiMonetaryAggregates/);
+  assert.doesNotMatch(financialSource, /progress:\s*100/);
+  assert.match(financialSource, /budgetAvailable = Math\.max\(0, summary\.currentBalanceAmount\)/);
+  assert.match(statementsSource, /const aggregates = useKpiMonetaryAggregates/);
+  assert.match(statementsSource, /currencyContext=/);
+});
