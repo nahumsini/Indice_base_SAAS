@@ -124,6 +124,13 @@ La oferta comercial se administra como una versión completa e inmutable una vez
   cambio crea y valida un borrador nuevo antes de publicarlo.
 - Las suscripciones existentes conservan su `catalog_version_id`, selección, subtotal, descuento y
   promoción. Publicar una nueva versión nunca recalcula retroactivamente un contrato histórico.
+- Desplegar frontend, backend, contenedores o configuración operativa no constituye una publicación
+  comercial y no puede modificar precios. Los despliegues conservan las filas existentes; sólo el
+  flujo auditado de borrador, validación y publicación puede cambiar la oferta para nuevas altas.
+- Ninguna migración ordinaria, seed o sincronización de arranque puede actualizar importes,
+  referencias Stripe o estados de versiones ya existentes. Una corrección excepcional de precios
+  requiere una decisión comercial explícita, una migración nueva y evidencia de preservación de los
+  contratos que referencian versiones históricas.
 
 La Administración de plataforma presenta este modelo en un solo constructor de oferta comercial.
 La disponibilidad técnica de módulos permanece separada porque controla si una función existe y

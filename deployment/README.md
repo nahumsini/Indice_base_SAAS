@@ -136,6 +136,56 @@ procesadores, provisioning, lifecycle, entitlement enforcement ni autoriza por
 sí misma cobros públicos. Si cualquier referencia no coincide, conserva la
 versión activa anterior y ejecuta el rollback de aplicación documentado.
 
+### Conservación de precios durante un despliegue
+
+Un despliegue de aplicación no publica, recalcula ni reemplaza precios. Los
+importes vigentes pertenecen a las versiones persistidas en
+`billing_catalog_versions` y `billing_catalog_prices`; cada suscripción conserva
+su `catalog_version_id`. Preparar un cambio desde Administración de plataforma
+copia la oferta activa a un borrador con los mismos importes. El cambio sólo se
+hace público mediante las acciones auditadas de validar y publicar oferta.
+
+Reglas obligatorias para toda liberación:
+
+- No ejecutar SQL manual, seeds, sincronizaciones de Stripe ni acciones del
+  administrador de catálogo como parte de `up`, `preflight`, publicación del
+  frontend o recreación de contenedores.
+- Una migración ordinaria no puede modificar `unit_amount_cents`,
+  `external_price_id`, el estado de un precio ni el estado de una versión ya
+  existente. Una corrección comercial excepcional requiere una decisión
+  explícita, migración nueva, evidencia antes/después y plan de rollback.
+- No editar ni reemplazar migraciones aplicadas. El rollback de la aplicación
+  conserva la base de datos y, por tanto, conserva los precios y contratos.
+- Antes y después del despliegue, guardar y comparar en el registro de la
+  liberación la salida ordenada de estas consultas de solo lectura:
+
+```sql
+SELECT version.version_code,
+       version.status AS version_status,
+       product.product_code,
+       price.price_type,
+       price.billing_interval,
+       price.currency,
+       price.unit_amount_cents,
+       price.status AS price_status
+FROM billing_catalog_versions version
+JOIN billing_catalog_products product
+  ON product.catalog_version_id = version.id
+JOIN billing_catalog_prices price
+  ON price.catalog_version_id = version.id
+ AND price.catalog_product_id = product.id
+WHERE version.status IN ('ACTIVE', 'DRAFT')
+ORDER BY version.id, product.product_code, price.billing_interval, price.id;
+
+SELECT catalog_version_id, COUNT(*) AS subscription_count
+FROM company_billing_subscriptions
+GROUP BY catalog_version_id
+ORDER BY catalog_version_id;
+```
+
+Si la comparación cambia sin que la liberación incluya una publicación
+comercial autorizada, detener el despliegue y conservar la versión anterior.
+
 Los tiempos estándar enviados al backend son: RH 3 minutos; Expenses 5 minutos
 de inactividad y 8 horas de sesión; Caja Chica 15 minutos y 4 horas; Procesos y
 Tareas 30 minutos y 8 horas. Para cambiarlos en un ambiente, modifica únicamente
