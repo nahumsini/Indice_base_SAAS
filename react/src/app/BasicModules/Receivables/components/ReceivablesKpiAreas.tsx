@@ -23,7 +23,7 @@ import {
 } from '../../shared/businessCurrency';
 import { useKpiMonetaryAggregate, useKpiMonetaryAggregates } from '../../shared/kpiMonetaryApi';
 import type { ReceivablesTranslations } from '../translations';
-import type { CreditPolicy, ReceivableInstallment, ReceivablePayment } from '../types';
+import type { CreditPolicy, PaymentMethod, ReceivableInstallment, ReceivablePayment } from '../types';
 import { formatPercent } from '../utils';
 
 const moneyFormatOptions: Intl.NumberFormatOptions = {
@@ -181,10 +181,10 @@ export function PaymentsKpiArea({
   payments,
 }: {
   activeEvidence: 'all' | 'with' | 'without';
-  activeMethod: string;
+  activeMethod: PaymentMethod | 'all' | 'other';
   copy: ReceivablesTranslations;
   onEvidenceChange: (evidence: 'with' | 'without') => void;
-  onMethodChange: (method: string) => void;
+  onMethodChange: (method: PaymentMethod | 'other') => void;
   payments: ReceivablePayment[];
 }) {
   const { preferredCurrency } = usePreferredBusinessCurrency();
