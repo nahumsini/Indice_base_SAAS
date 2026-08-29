@@ -18,6 +18,8 @@ export type PublicPlansCopy = {
   tierTwo: string;
   tierThree: string;
   tierAll: string;
+  directPricingTitle: string;
+  directPricingDescription: string;
   pricesBeforeTaxes: string;
   builderBadge: string;
   builderTitle: string;
@@ -25,6 +27,9 @@ export type PublicPlansCopy = {
   selectAll: string;
   clear: string;
   countsAsOne: string;
+  moduleOffer: string;
+  packageOffer: string;
+  selectionConflict: string;
   billingCycle: string;
   monthly: string;
   annual: string;
@@ -77,10 +82,13 @@ const es: PublicPlansCopy = {
   publishedOffer: 'Oferta publicada por Índice',
   publishedOfferDescription: 'Los importes se leen del catálogo activo. Stripe confirmará impuestos y total antes de cualquier cargo.',
   tierOne: '1 combinación', tierTwo: '2 combinaciones', tierThree: '3 combinaciones', tierAll: '4 o todas',
+  directPricingTitle: 'Cada módulo y paquete conserva su precio publicado',
+  directPricingDescription: 'Tu total es la suma exacta de lo que elijas más las personas adicionales.',
   pricesBeforeTaxes: 'Precios en USD antes de impuestos.', builderBadge: 'Módulos básicos elegibles',
   builderTitle: 'Arma la base de tu operación',
   builderDescription: 'Cada tarjeta cuenta como una combinación, aunque conecte varias funciones.',
-  selectAll: 'Elegir todos', clear: 'Limpiar', countsAsOne: 'Cuenta como 1', billingCycle: 'Periodicidad',
+  selectAll: 'Elegir todos', clear: 'Limpiar', countsAsOne: 'Cuenta como 1', moduleOffer: 'Módulo',
+  packageOffer: 'Paquete', selectionConflict: 'Esta combinación repite funciones. Elige el paquete o los módulos individuales.', billingCycle: 'Periodicidad',
   monthly: 'Mensual', annual: 'Anual', teamTitle: 'Personas que usarán Índice',
   teamDescription: (includedSeats) => `Tu plan incluye ${includedSeats}. Agrega capacidad cuando tu equipo la necesite.`,
   totalPeople: 'Capacidad total', country: 'País de facturación', summaryBadge: 'Tu configuración',
@@ -105,10 +113,13 @@ const en: PublicPlansCopy = {
   publishedOffer: 'Offer published by Indice',
   publishedOfferDescription: 'Amounts come from the active catalog. Stripe confirms taxes and the final total before any charge.',
   tierOne: '1 combination', tierTwo: '2 combinations', tierThree: '3 combinations', tierAll: '4 or all',
+  directPricingTitle: 'Every module and package keeps its published price',
+  directPricingDescription: 'Your total is the exact sum of your selection plus any additional people.',
   pricesBeforeTaxes: 'Prices in USD before taxes.', builderBadge: 'Eligible core modules',
   builderTitle: 'Build the foundation of your operation',
   builderDescription: 'Each card counts as one combination, even when it connects several functions.',
-  selectAll: 'Select all', clear: 'Clear', countsAsOne: 'Counts as 1', billingCycle: 'Billing cycle',
+  selectAll: 'Select all', clear: 'Clear', countsAsOne: 'Counts as 1', moduleOffer: 'Module',
+  packageOffer: 'Package', selectionConflict: 'This selection repeats capabilities. Choose the package or the individual modules.', billingCycle: 'Billing cycle',
   monthly: 'Monthly', annual: 'Annual', teamTitle: 'People who will use Indice',
   teamDescription: (includedSeats) => `Your plan includes ${includedSeats}. Add capacity as your team grows.`,
   totalPeople: 'Total capacity', country: 'Billing country', summaryBadge: 'Your configuration',

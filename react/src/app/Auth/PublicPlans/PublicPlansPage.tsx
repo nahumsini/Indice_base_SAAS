@@ -7,7 +7,12 @@ import { PublicPlansBuilder } from './PublicPlansBuilder';
 import { PublicPlansHeader } from './PublicPlansHeader';
 import { PublicPlansHero } from './PublicPlansHero';
 import { getPublicPlansCopy } from './publicPlansCopy';
-import { calculatePublicPlanPricing } from './publicPlansPricing';
+import {
+  calculatePublicPlanPricing,
+  pricingModeForConfig,
+  selectAllCompatibleProductCodes,
+  toggleCompatibleProductCode,
+} from './publicPlansPricing';
 import { buildPublicPlanSearch, parsePublicPlanSearch } from './publicPlansSelection';
 
 export default function PublicPlansPage() {
@@ -40,8 +45,8 @@ export default function PublicPlansPage() {
     setError('');
     billingSignupApi.config()
       .then((value) => {
-        const basicCodes = value.products.filter((product) => product.productType === 'BASIC').map((product) => product.code);
-        const handoff = parsePublicPlanSearch(location.search, basicCodes, value.launchCountries);
+        const productCodes = value.products.map((product) => product.code);
+        const handoff = parsePublicPlanSearch(location.search, productCodes, value.launchCountries);
         const requestedCountry = new URLSearchParams(location.search).get('country')?.toUpperCase();
         setConfig(value);
         setSelectedCodes(handoff?.selectedProductCodes ?? []);
@@ -57,10 +62,6 @@ export default function PublicPlansPage() {
     loadConfig();
   }, [loadConfig]);
 
-  const basicProducts = useMemo(
-    () => config?.products.filter((product) => product.productType === 'BASIC') ?? [],
-    [config],
-  );
   const pricing = useMemo(
     () => config ? calculatePublicPlanPricing(config, selectedCodes, Math.max(0, totalPeople - config.includedSeats), interval) : null,
     [config, interval, selectedCodes, totalPeople],
@@ -102,7 +103,7 @@ export default function PublicPlansPage() {
       )}
       {!loading && config && (
         <main>
-          <PublicPlansHero config={config} copy={copy} interval={interval} selectedCount={pricing?.selectedBasicCount ?? 0} />
+          <PublicPlansHero config={config} copy={copy} interval={interval} pricing={pricing} />
           <PublicPlansBuilder
             config={config}
             copy={copy}
@@ -110,8 +111,12 @@ export default function PublicPlansPage() {
             interval={interval}
             totalPeople={totalPeople}
             countryCode={countryCode}
-            onToggleProduct={(code) => setSelectedCodes((current) => current.includes(code) ? current.filter((item) => item !== code) : [...current, code])}
-            onSelectAll={() => setSelectedCodes(basicProducts.map((product) => product.code))}
+            onToggleProduct={(code) => setSelectedCodes((current) => toggleCompatibleProductCode(config, current, code))}
+            onSelectAll={() => setSelectedCodes(
+              pricingModeForConfig(config) === 'DIRECT_PRODUCTS'
+                ? selectAllCompatibleProductCodes(config)
+                : config.products.filter((product) => product.productType === 'BASIC').map((product) => product.code),
+            )}
             onClear={() => setSelectedCodes([])}
             onIntervalChange={setInterval}
             onTotalPeopleChange={(value) => setTotalPeople(Math.min(config.includedSeats + 500, Math.max(config.includedSeats, value)))}

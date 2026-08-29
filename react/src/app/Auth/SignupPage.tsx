@@ -37,6 +37,15 @@ import { Input } from '../components/ui/input';
 import { languages, useLanguage } from '../shared/context';
 import { isValidAccountPassword } from '../shared/validation/password';
 import { IndiceBrandLogo } from './components/IndiceBrandLogo';
+import {
+  calculatePublicPlanPricing,
+  pricingModeForConfig,
+  publishedProductAmount,
+  publishedSeatAmount,
+  publishedTierAmount,
+  selectAllCompatibleProductCodes,
+  toggleCompatibleProductCode,
+} from './PublicPlans/publicPlansPricing';
 import { parsePublicPlanSearch } from './PublicPlans/publicPlansSelection';
 
 const SIGNUP_DRAFT_STORAGE_KEY = 'indice.auth.signupDraft.v1';
@@ -1014,8 +1023,6 @@ const signupCopies: Record<string, SignupCopy> = {
   },
 };
 
-type SignupPlanTier = 'basic_1' | 'basic_2' | 'basic_3' | 'basic_all';
-
 type ModulePlanCopy = {
   trialTitle: string;
   trialBody: (includedSeats: number, extraSeatPrice: string) => string;
@@ -1202,32 +1209,6 @@ const moneyOnly = (amountCents: number, copy: SignupCopy) => (
 
 const signupMonthlyPrice = (amountCents: number, copy: SignupCopy) => `${moneyOnly(amountCents, copy)}/mo`;
 
-const signupBaseAmount = (tier: SignupPlanTier) => {
-  if (tier === 'basic_1') return 6900;
-  if (tier === 'basic_2') return 10900;
-  if (tier === 'basic_all') return 19900;
-  return 14900;
-};
-
-const signupEstimatedAmount = (
-  tier: SignupPlanTier,
-  extraSeats: number,
-  interval: 'MONTH' | 'YEAR',
-) => {
-  const packageAmount = signupBaseAmount(tier);
-  const seatAmount = Math.max(0, extraSeats) * 1200;
-  return interval === 'YEAR'
-    ? Math.round(packageAmount * 12 * 0.8) + seatAmount * 12
-    : packageAmount + seatAmount;
-};
-
-const tierForSelection = (selectedCount: number, availableCount: number): SignupPlanTier => {
-  if (availableCount > 0 && selectedCount >= 4 && selectedCount <= availableCount) return 'basic_all';
-  if (selectedCount === 3) return 'basic_3';
-  if (selectedCount === 2) return 'basic_2';
-  return 'basic_1';
-};
-
 const normalizeDraft = (value: unknown): BillingSignupRequest | null => {
   if (!value || typeof value !== 'object') return null;
   const draft = value as Partial<BillingSignupRequest>;
@@ -1394,40 +1375,12 @@ export default function SignupPage() {
   }, [emailVerification.resendAvailableInSeconds]);
 
   const selectedCount = form.selectedProductCodes.length;
-  const basicProducts = config?.products.filter((product) => product.productType === 'BASIC') ?? [];
-  const selectedBasicCount = basicProducts.filter((product) => form.selectedProductCodes.includes(product.code)).length;
-  const selectedComplementaryProducts = config?.products.filter(
-    (product) => product.productType === 'ADDON' && form.selectedProductCodes.includes(product.code),
-  ) ?? [];
-  const offerCode = config && selectedBasicCount >= 4 && selectedBasicCount <= basicProducts.length
-    ? 'basic_all'
-    : `basic_${selectedBasicCount}`;
-  const basePrice = config?.prices.find((price) => (
-    price.billableCode === offerCode
-    && price.priceType === 'BASE'
-    && price.billingInterval === form.billingInterval
-  ));
-  const seatPrice = config?.prices.find((price) => (
-    price.billableCode === 'extra_seat'
-    && price.priceType === 'ADDON'
-    && price.billingInterval === form.billingInterval
-  ));
-  const complementaryPrices = selectedComplementaryProducts.map((product) => config?.prices.find((price) => (
-    price.billableCode === product.code
-    && price.priceType === 'ADDON'
-    && price.billingInterval === form.billingInterval
-  ))?.unitAmountCents ?? null);
-  const complementaryPricesReady = complementaryPrices.every((amount) => amount != null);
-  const complementaryAmount = complementaryPricesReady
-    ? complementaryPrices.reduce((total, amount) => total + (amount ?? 0), 0)
+  const pricing = config
+    ? calculatePublicPlanPricing(config, form.selectedProductCodes, form.extraSeats, form.billingInterval)
     : null;
-  const estimatedAmount = basePrice?.unitAmountCents == null
-    || seatPrice?.unitAmountCents == null
-    || complementaryAmount == null
-    ? null
-    : basePrice.unitAmountCents + complementaryAmount + seatPrice.unitAmountCents * form.extraSeats;
-  const validSelection = selectedBasicCount >= 1
-    && selectedBasicCount <= basicProducts.length;
+  const pricingMode = config ? pricingModeForConfig(config) : 'LEGACY_TIERS';
+  const estimatedAmount = pricing?.estimatedAmountCents ?? null;
+  const validSelection = pricing?.validSelection ?? false;
   const courtesyRequested = form.courtesyCode.trim().length > 0;
   const platformReady = Boolean(
     config?.provisioningEnabled
@@ -1459,9 +1412,7 @@ export default function SignupPage() {
   const knownIndustry = !form.industry
     || industryValues.includes(form.industry as (typeof industryValues)[number]);
   const availableProductCodes = useMemo(() => config?.products.map((product) => product.code) ?? [], [config]);
-  const selectedTier = tierForSelection(selectedBasicCount, basicProducts.length);
   const includedSeats = config?.includedSeats ?? 5;
-  const visibleSignupEstimate = signupEstimatedAmount(selectedTier, form.extraSeats, form.billingInterval);
 
   const update = <K extends keyof BillingSignupRequest>(key: K, value: BillingSignupRequest[K]) => {
     const resetVerification = key === 'email' || key === 'confirmEmail' || key === 'fullName' || key === 'companyName';
@@ -1480,19 +1431,12 @@ export default function SignupPage() {
   };
 
   const toggleProduct = (code: string) => {
-    if (!availableProductCodes.includes(code)) return;
-    const currentSelection = form.selectedProductCodes.filter((productCode) => availableProductCodes.includes(productCode));
-    if (currentSelection.includes(code)) {
-      const product = config?.products.find((item) => item.code === code);
-      if (product?.productType === 'BASIC' && selectedBasicCount === 1) return;
-      update('selectedProductCodes', currentSelection.filter((current) => current !== code));
-      return;
-    }
-    update('selectedProductCodes', [...currentSelection, code]);
+    if (!config || !availableProductCodes.includes(code)) return;
+    update('selectedProductCodes', toggleCompatibleProductCode(config, form.selectedProductCodes, code));
   };
 
-  const selectAllProducts = () => update('selectedProductCodes', availableProductCodes);
-  const clearProducts = () => update('selectedProductCodes', basicProducts.slice(0, 1).map((product) => product.code));
+  const selectAllProducts = () => update('selectedProductCodes', config ? selectAllCompatibleProductCodes(config) : []);
+  const clearProducts = () => update('selectedProductCodes', []);
 
   const startEmailVerification = async () => {
     const response = await billingSignupApi.startEmailVerification({
@@ -1627,18 +1571,15 @@ export default function SignupPage() {
     }
   };
 
-  const configuredMonthlyAmount = (billableCode: string, fallbackAmount: number) => (
-    config?.prices.find((price) => (
-      price.billableCode === billableCode
-      && price.billingInterval === 'MONTH'
-      && price.unitAmountCents != null
-    ))?.unitAmountCents ?? fallbackAmount
-  );
-  const oneModulePriceLabel = signupMonthlyPrice(configuredMonthlyAmount('basic_1', 6900), copy);
-  const twoModulePriceLabel = signupMonthlyPrice(configuredMonthlyAmount('basic_2', 10900), copy);
-  const threeModulePriceLabel = signupMonthlyPrice(configuredMonthlyAmount('basic_3', 14900), copy);
-  const allModulesPriceLabel = signupMonthlyPrice(configuredMonthlyAmount('basic_all', 19900), copy);
-  const extraSeatPriceLabel = signupMonthlyPrice(configuredMonthlyAmount('extra_seat', 1200), copy);
+  const pendingPriceLabel = copy.pendingCompletePrice;
+  const priceLabel = (amount: number | null) => amount == null
+    ? pendingPriceLabel
+    : signupMonthlyPrice(amount, copy);
+  const oneModulePriceLabel = priceLabel(config ? publishedTierAmount(config, 1, 'MONTH') : null);
+  const twoModulePriceLabel = priceLabel(config ? publishedTierAmount(config, 2, 'MONTH') : null);
+  const threeModulePriceLabel = priceLabel(config ? publishedTierAmount(config, 3, 'MONTH') : null);
+  const allModulesPriceLabel = priceLabel(config ? publishedTierAmount(config, 4, 'MONTH') : null);
+  const extraSeatPriceLabel = priceLabel(config ? publishedSeatAmount(config, 'MONTH') : null);
   const pricingGuide = [
     {
       tier: 'basic_1' as const,
@@ -1667,7 +1608,7 @@ export default function SignupPage() {
     experienceCopy.stepConfiguration,
     experienceCopy.stepActivation,
   ];
-  const selectedPrice = selectedCount === 0 ? 0 : (estimatedAmount ?? visibleSignupEstimate);
+  const selectedPrice = selectedCount === 0 ? 0 : (estimatedAmount ?? 0);
   const companyInvalid = accountAttempted && form.companyName.trim().length < 2;
   const ownerInvalid = accountAttempted && form.fullName.trim().length < 2;
   const emailInvalid = accountAttempted && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim());
@@ -1846,24 +1787,35 @@ export default function SignupPage() {
 
                     <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/70">
                       <p className="px-4 pt-3 text-xs font-medium text-slate-500">{experienceCopy.priceGuide}</p>
-                      <div className="mt-2 grid grid-cols-2 sm:grid-cols-4">
-                        {pricingGuide.map((item, index) => {
-                          const active = selectedCount > 0 && selectedTier === item.tier;
-                          const accents = ['#59C3A5', '#F4C84A', '#FF6B5E', '#2563EB'];
-                          return (
-                            <div key={item.tier} className={`relative border-t border-slate-200 px-3 py-3 text-center sm:border-l sm:first:border-l-0 ${active ? 'bg-white shadow-[inset_0_-3px_0_var(--tier-accent)]' : ''}`} style={{ '--tier-accent': accents[index] } as CSSProperties}>
-                              <span className={`block text-xs ${active ? 'font-medium text-slate-800' : 'text-slate-500'}`}>{item.title}</span>
-                              <span className={`mt-1 block text-base ${active ? 'font-semibold text-slate-900' : 'font-medium text-slate-600'}`}>{item.price}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
+                      {pricingMode === 'LEGACY_TIERS' ? (
+                        <div className="mt-2 grid grid-cols-2 sm:grid-cols-4">
+                          {pricingGuide.map((item, index) => {
+                            const active = selectedCount > 0 && pricing?.offerCode === item.tier;
+                            const accents = ['#59C3A5', '#F4C84A', '#FF6B5E', '#2563EB'];
+                            return (
+                              <div key={item.tier} className={`relative border-t border-slate-200 px-3 py-3 text-center sm:border-l sm:first:border-l-0 ${active ? 'bg-white shadow-[inset_0_-3px_0_var(--tier-accent)]' : ''}`} style={{ '--tier-accent': accents[index] } as CSSProperties}>
+                                <span className={`block text-xs ${active ? 'font-medium text-slate-800' : 'text-slate-500'}`}>{item.title}</span>
+                                <span className={`mt-1 block text-base ${active ? 'font-semibold text-slate-900' : 'font-medium text-slate-600'}`}>{item.price}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="mt-2 flex items-center justify-between gap-4 border-t border-slate-200 bg-white px-4 py-4">
+                          <span className="text-sm font-medium text-slate-600">{experienceCopy.selectedProducts(selectedCount)}</span>
+                          <span className="text-lg font-semibold text-slate-900">
+                            {pricing?.baseAmountCents == null ? pendingPriceLabel : currency(pricing.baseAmountCents, form.billingInterval, copy)}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-5 grid gap-3 sm:grid-cols-2">
                       {config?.products.map((product) => {
                         const selected = form.selectedProductCodes.includes(product.code);
                         const visual = productVisual(product.code);
+                        const productAmount = publishedProductAmount(config, product, form.billingInterval);
+                        const showProductAmount = pricingMode === 'DIRECT_PRODUCTS' || product.productType === 'ADDON';
                         return (
                           <button
                             key={product.code}
@@ -1885,23 +1837,19 @@ export default function SignupPage() {
                             </span>
                             <span className="mt-3 text-base font-medium leading-5 text-slate-900">{productLabel(product.code, product.displayName, copy)}</span>
                           <span className="mt-2 text-sm font-medium" style={{ color: visual.accent }}>
-                            {product.productType === 'ADDON'
-                              ? currency(
-                                  config?.prices.find((price) => price.billableCode === product.code
-                                    && price.priceType === 'ADDON'
-                                    && price.billingInterval === form.billingInterval)?.unitAmountCents ?? 0,
-                                  form.billingInterval,
-                                  copy,
-                                )
+                            {showProductAmount
+                              ? productAmount == null
+                                ? pendingPriceLabel
+                                : currency(productAmount, form.billingInterval, copy)
                               : experienceCopy.countsAsOne}
                           </span>
                           </button>
                         );
                       })}
                     </div>
-                    {selectedBasicCount === 0 ? <p className="mt-4 text-sm font-medium text-amber-700">{experienceCopy.chooseAtLeastOne}</p> : null}
+                    {selectedCount === 0 ? <p className="mt-4 text-sm font-medium text-amber-700">{experienceCopy.chooseAtLeastOne}</p> : null}
                     {!validSelection && selectedCount > 0 ? <p className="mt-3 text-sm font-medium text-amber-700">{copy.invalidSelection}</p> : null}
-                    {basePrice?.status === 'PENDING_PRICE' ? <p className="mt-3 text-sm font-semibold text-amber-700">{copy.pendingCompletePrice}</p> : null}
+                    {validSelection && estimatedAmount == null ? <p className="mt-3 text-sm font-semibold text-amber-700">{copy.pendingCompletePrice}</p> : null}
                   </fieldset>
 
                   <label className="block space-y-2 text-sm font-medium text-slate-700">

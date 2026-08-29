@@ -1,7 +1,12 @@
 import { Check, ChevronRight, CreditCard, Minus, Plus, ShieldCheck, Sparkles, Users } from 'lucide-react';
 import type { BillingSignupConfig, BillingSignupProduct } from '../../api/billingSignup';
 import type { PublicPlansCopy } from './publicPlansCopy';
-import { calculatePublicPlanPricing, formatPublicPlanMoney } from './publicPlansPricing';
+import {
+  calculatePublicPlanPricing,
+  formatPublicPlanMoney,
+  pricingModeForConfig,
+  publishedProductAmount,
+} from './publicPlansPricing';
 
 type PublicPlansBuilderProps = {
   config: BillingSignupConfig;
@@ -21,12 +26,13 @@ type PublicPlansBuilderProps = {
 
 const productAccents = ['#59C3A5', '#F4C84A', '#FF6B5E', '#2563EB', '#8B5CF6', '#147514'];
 
-function ProductCard({ product, label, selected, index, countsAsOne, onToggle }: {
+function ProductCard({ product, label, selected, index, detail, kind, onToggle }: {
   product: BillingSignupProduct;
   label: string;
   selected: boolean;
   index: number;
-  countsAsOne: string;
+  detail: string;
+  kind: string;
   onToggle: () => void;
 }) {
   const accent = productAccents[index % productAccents.length];
@@ -46,8 +52,9 @@ function ProductCard({ product, label, selected, index, countsAsOne, onToggle }:
           <Check className="h-4 w-4" />
         </span>
       </span>
-      <span className="mt-6 block text-lg font-extrabold leading-tight text-slate-900">{label}</span>
-      <span className="mt-2 block text-sm font-semibold text-slate-500">{countsAsOne}</span>
+      <span className="mt-6 block text-xs font-black uppercase tracking-[0.14em] text-slate-400">{kind}</span>
+      <span className="mt-2 block text-lg font-extrabold leading-tight text-slate-900">{label}</span>
+      <span className="mt-2 block text-sm font-semibold text-slate-500">{detail}</span>
     </button>
   );
 }
@@ -57,7 +64,10 @@ export function PublicPlansBuilder(props: PublicPlansBuilderProps) {
     config, copy, selectedCodes, interval, totalPeople, countryCode, onToggleProduct,
     onSelectAll, onClear, onIntervalChange, onTotalPeopleChange, onCountryChange, onContinue,
   } = props;
-  const products = config.products.filter((product) => product.productType === 'BASIC');
+  const pricingMode = pricingModeForConfig(config);
+  const products = pricingMode === 'DIRECT_PRODUCTS'
+    ? config.products
+    : config.products.filter((product) => product.productType === 'BASIC');
   const extraSeats = Math.max(0, totalPeople - config.includedSeats);
   const pricing = calculatePublicPlanPricing(config, selectedCodes, extraSeats, interval);
   const canContinue = config.provisioningEnabled
@@ -90,7 +100,10 @@ export function PublicPlansBuilder(props: PublicPlansBuilderProps) {
                 label={copy.productLabels[product.code] ?? product.displayName}
                 selected={selectedCodes.includes(product.code)}
                 index={index}
-                countsAsOne={copy.countsAsOne}
+                detail={pricingMode === 'DIRECT_PRODUCTS'
+                  ? money(publishedProductAmount(config, product, interval))
+                  : copy.countsAsOne}
+                kind={product.commercialKind === 'PACKAGE' ? copy.packageOffer : copy.moduleOffer}
                 onToggle={() => onToggleProduct(product.code)}
               />
             ))}
@@ -139,7 +152,7 @@ export function PublicPlansBuilder(props: PublicPlansBuilderProps) {
           <div className="border-b border-slate-100 p-7">
             <span className="inline-flex rounded-full bg-emerald-50 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-emerald-700">{copy.summaryBadge}</span>
             <h2 className="mt-5 text-3xl font-black tracking-tight text-slate-900">{copy.summaryTitle}</h2>
-            <p className="mt-2 text-sm font-semibold text-slate-500">{copy.selected(pricing.selectedBasicCount)}</p>
+            <p className="mt-2 text-sm font-semibold text-slate-500">{copy.selected(pricing.selectedProductCount)}</p>
           </div>
           <div className="space-y-4 p-7">
             <div className="flex items-center justify-between gap-4 text-sm font-semibold text-slate-600"><span>{copy.basePlan}</span><strong className="text-slate-900">{money(pricing.baseAmountCents)}</strong></div>
@@ -153,7 +166,13 @@ export function PublicPlansBuilder(props: PublicPlansBuilderProps) {
               <p className="mt-4 text-xs font-medium leading-5 text-slate-500">{copy.taxNote}</p>
             </div>
 
-            {!canContinue && <p className="rounded-2xl bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-800">{pricing.validSelection ? copy.notReady : copy.pricePending}</p>}
+            {!canContinue && (
+              <p className="rounded-2xl bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-800">
+                {pricing.overlappingSelection
+                  ? copy.selectionConflict
+                  : pricing.validSelection ? copy.notReady : copy.pricePending}
+              </p>
+            )}
 
             <button
               type="button"

@@ -1,16 +1,20 @@
 import { BadgeCheck } from 'lucide-react';
 import type { BillingSignupConfig } from '../../api/billingSignup';
 import type { PublicPlansCopy } from './publicPlansCopy';
-import { formatPublicPlanMoney, publishedTierAmount } from './publicPlansPricing';
+import {
+  formatPublicPlanMoney,
+  publishedTierAmount,
+  type PublicPlanPricing,
+} from './publicPlansPricing';
 
 type PublicPlansHeroProps = {
   config: BillingSignupConfig;
   copy: PublicPlansCopy;
   interval: 'MONTH' | 'YEAR';
-  selectedCount: number;
+  pricing: PublicPlanPricing | null;
 };
 
-export function PublicPlansHero({ config, copy, interval, selectedCount }: PublicPlansHeroProps) {
+export function PublicPlansHero({ config, copy, interval, pricing }: PublicPlansHeroProps) {
   const tiers = [
     { count: 1, label: copy.tierOne },
     { count: 2, label: copy.tierTwo },
@@ -39,24 +43,41 @@ export function PublicPlansHero({ config, copy, interval, selectedCount }: Publi
           </div>
         </div>
 
-        <div className="mx-auto mt-10 grid max-w-5xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_18px_60px_rgba(15,23,42,0.06)] sm:grid-cols-4">
-          {tiers.map((tier, index) => {
-            const active = selectedCount === tier.count || (tier.count === 4 && selectedCount >= 4);
-            const amount = publishedTierAmount(config, tier.count, interval);
-            return (
-              <div
-                key={tier.count}
-                className={`relative px-5 py-6 ${index > 0 ? 'border-t border-slate-200 sm:border-l sm:border-t-0' : ''} ${active ? 'bg-emerald-50/70' : ''}`}
-              >
-                <span className={`absolute inset-x-0 top-0 h-1 ${['bg-[#59C3A5]', 'bg-[#F4C84A]', 'bg-[#FF6B5E]', 'bg-[#2563EB]'][index]}`} />
-                <p className="text-sm font-semibold text-slate-500">{tier.label}</p>
-                <p className="mt-2 text-2xl font-black tracking-tight text-slate-900">
-                  {formatPublicPlanMoney(amount, config.currency, copy.locale)}
-                </p>
-              </div>
-            );
-          })}
-        </div>
+        {pricing?.pricingMode === 'DIRECT_PRODUCTS' ? (
+          <div className="mx-auto mt-10 grid max-w-5xl overflow-hidden rounded-3xl border border-slate-200 bg-white text-left shadow-[0_18px_60px_rgba(15,23,42,0.06)] sm:grid-cols-[1fr_auto] sm:items-center">
+            <div className="relative px-7 py-7 sm:px-9">
+              <span className="absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,#59C3A5,#F4C84A,#FF6B5E,#2563EB)]" />
+              <p className="text-lg font-black text-slate-900">{copy.directPricingTitle}</p>
+              <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">{copy.directPricingDescription}</p>
+            </div>
+            <div className="border-t border-slate-200 px-7 py-6 text-center sm:border-l sm:border-t-0 sm:px-10">
+              <p className="text-sm font-semibold text-slate-500">{copy.selected(pricing.selectedProductCount)}</p>
+              <p className="mt-2 text-3xl font-black tracking-tight text-slate-900">
+                {formatPublicPlanMoney(pricing.baseAmountCents, config.currency, copy.locale)}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="mx-auto mt-10 grid max-w-5xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_18px_60px_rgba(15,23,42,0.06)] sm:grid-cols-4">
+            {tiers.map((tier, index) => {
+              const selectedCount = pricing?.selectedBasicCount ?? 0;
+              const active = selectedCount === tier.count || (tier.count === 4 && selectedCount >= 4);
+              const amount = publishedTierAmount(config, tier.count, interval);
+              return (
+                <div
+                  key={tier.count}
+                  className={`relative px-5 py-6 ${index > 0 ? 'border-t border-slate-200 sm:border-l sm:border-t-0' : ''} ${active ? 'bg-emerald-50/70' : ''}`}
+                >
+                  <span className={`absolute inset-x-0 top-0 h-1 ${['bg-[#59C3A5]', 'bg-[#F4C84A]', 'bg-[#FF6B5E]', 'bg-[#2563EB]'][index]}`} />
+                  <p className="text-sm font-semibold text-slate-500">{tier.label}</p>
+                  <p className="mt-2 text-2xl font-black tracking-tight text-slate-900">
+                    {formatPublicPlanMoney(amount, config.currency, copy.locale)}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )}
         <p className="mt-5 text-sm font-medium text-slate-500">{copy.pricesBeforeTaxes}</p>
       </div>
     </section>
