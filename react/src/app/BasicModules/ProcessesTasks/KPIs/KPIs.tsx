@@ -14,7 +14,6 @@ import {
   ListChecks,
   Printer,
   RefreshCw,
-  Search,
   Trophy,
   Users,
   UserX,
@@ -35,11 +34,17 @@ import {
 import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../api/dashboard';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
-import {
-  SelectItem,
-} from '../../../components/ui/select';
 import { cn } from '../../../components/ui/utils';
-import { LearningModeTitleBarBridge } from '../../../learningMode';
+import {
+  IndiceFilterAdvancedSection,
+  IndiceFilterBar,
+  IndiceFilterDisclosureActions,
+  IndiceFilterSearch,
+  IndiceFilterSelect,
+  IndiceTitleBar,
+  useIndiceFilterDisclosureCopy,
+} from '../../../components/frontend-os';
+import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
 import {
   listProcessTaskKpis,
@@ -47,7 +52,7 @@ import {
   type ProcessTaskKpiDashboard,
   type ProcessTaskKpiStatus,
 } from './kpisApi';
-import { FilterSelect, KpiSkeleton } from './components/KpiControls';
+import { KpiSkeleton } from './components/KpiControls';
 import { KpiPerformanceWorkspace } from './components/KpiPerformanceWorkspace';
 import { printKpisDashboardPdf } from './kpisPdf';
 import { useKpisTranslations, type KpisTranslations } from './translations';
@@ -80,6 +85,20 @@ interface CollaboratorOption {
 }
 
 const allValue = 'all';
+const kpiPeriodValues: AgendaPeriodFilter[] = ['all', 'today', 'tomorrow', 'yesterday', 'week', 'month', 'custom'];
+
+type ProcessTaskKpiWorkspaceState = {
+  searchQuery: string;
+  period: AgendaPeriodFilter;
+  focusFilter: AgendaFocusFilter;
+  statusFilter: StatusFilter;
+  customFrom: string;
+  customTo: string;
+  unitFilter: string;
+  businessFilter: string;
+  projectFilter: string;
+  collaboratorFilter: string;
+};
 const agendaUnassignedFilterValue = '__unassigned__';
 
 const statusClasses: Record<ProcessTaskKpiStatus, string> = {
@@ -758,6 +777,7 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
   const copy = useKpisTranslations();
   const standardCopy = getProcessTaskStandardUiCopy(copy.locale);
   const agendaCopy = useAgendaTranslations();
+  const disclosureCopy = useIndiceFilterDisclosureCopy();
   const headerCopy = copy.header;
   const periodLabels = agendaCopy.periods;
   const { identity: companyPrintIdentity, isReady: isCompanyPrintIdentityReady } = useCompanyPrintIdentity();
@@ -777,10 +797,87 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
   const [businessFilter, setBusinessFilter] = useState(allValue);
   const [projectFilter, setProjectFilter] = useState(allValue);
   const [collaboratorFilter, setCollaboratorFilter] = useState(allValue);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [catalogsLoaded, setCatalogsLoaded] = useState(false);
   const [units, setUnits] = useState<UnitOption[]>([]);
   const [businesses, setBusinesses] = useState<BusinessOption[]>([]);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [collaborators, setCollaborators] = useState<CollaboratorOption[]>([]);
+
+  const workspaceDefaults = useMemo<ProcessTaskKpiWorkspaceState>(() => {
+    const today = localDateString(new Date());
+    return {
+      searchQuery: '',
+      period: 'today',
+      focusFilter: 'mine',
+      statusFilter: 'all',
+      customFrom: today,
+      customTo: today,
+      unitFilter: allValue,
+      businessFilter: allValue,
+      projectFilter: allValue,
+      collaboratorFilter: allValue,
+    };
+  }, []);
+
+  const workspaceState = useMemo<ProcessTaskKpiWorkspaceState>(() => ({
+    searchQuery,
+    period,
+    focusFilter,
+    statusFilter,
+    customFrom,
+    customTo,
+    unitFilter,
+    businessFilter,
+    projectFilter,
+    collaboratorFilter,
+  }), [
+    businessFilter,
+    collaboratorFilter,
+    customFrom,
+    customTo,
+    focusFilter,
+    period,
+    projectFilter,
+    searchQuery,
+    statusFilter,
+    unitFilter,
+  ]);
+
+  useWorkspaceNavigationMemory({
+    moduleKey: 'processes-tasks',
+    tabKey: 'kpis',
+    state: workspaceState,
+    defaults: workspaceDefaults,
+    urlFields: {
+      searchQuery: 'q',
+      period: 'period',
+      focusFilter: 'focus',
+      statusFilter: 'status',
+      customFrom: 'from',
+      customTo: 'to',
+      unitFilter: 'unit',
+      businessFilter: 'business',
+      projectFilter: 'project',
+      collaboratorFilter: 'collaborator',
+    },
+    onRestore: (restoredState) => {
+      setSearchQuery(typeof restoredState.searchQuery === 'string' ? restoredState.searchQuery : '');
+      setPeriod(kpiPeriodValues.includes(restoredState.period) ? restoredState.period : 'today');
+      setFocusFilter(agendaFocusFilterValues.includes(restoredState.focusFilter) ? restoredState.focusFilter : 'mine');
+      setStatusFilter(
+        restoredState.statusFilter === 'all' || agendaStatusFilterValues.includes(restoredState.statusFilter)
+          ? restoredState.statusFilter
+          : 'all',
+      );
+      setCustomFrom(/^\d{4}-\d{2}-\d{2}$/.test(restoredState.customFrom) ? restoredState.customFrom : workspaceDefaults.customFrom);
+      setCustomTo(/^\d{4}-\d{2}-\d{2}$/.test(restoredState.customTo) ? restoredState.customTo : workspaceDefaults.customTo);
+      setUnitFilter(typeof restoredState.unitFilter === 'string' ? restoredState.unitFilter : allValue);
+      setBusinessFilter(typeof restoredState.businessFilter === 'string' ? restoredState.businessFilter : allValue);
+      setProjectFilter(typeof restoredState.projectFilter === 'string' ? restoredState.projectFilter : allValue);
+      setCollaboratorFilter(typeof restoredState.collaboratorFilter === 'string' ? restoredState.collaboratorFilter : allValue);
+    },
+  });
 
   const selectedUnitId = unitFilter === allValue ? null : Number(unitFilter);
   const selectedBusinessId = businessFilter === allValue ? null : Number(businessFilter);
@@ -894,6 +991,7 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
     let isActive = true;
 
     async function loadCatalogs() {
+      setCatalogsLoaded(false);
       try {
         const [unitItems, businessItems, projectItems, assignmentOptions] = await Promise.all([
           dashboardApi.listUnits(),
@@ -931,6 +1029,10 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
         if (isActive) {
           setError((currentError) => currentError ?? getErrorMessage(catalogError, copy.messages.loadCatalogs));
         }
+      } finally {
+        if (isActive) {
+          setCatalogsLoaded(true);
+        }
       }
     }
 
@@ -940,6 +1042,34 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
       isActive = false;
     };
   }, [copy.locale, copy.messages.loadCatalogs]);
+
+  useEffect(() => {
+    if (!catalogsLoaded || unitFilter === allValue) return;
+    if (!units.some((unit) => String(unit.id) === unitFilter)) {
+      handleUnitChange(allValue);
+    }
+  }, [catalogsLoaded, unitFilter, units]);
+
+  useEffect(() => {
+    if (!catalogsLoaded || businessFilter === allValue) return;
+    if (!scopedBusinesses.some((business) => String(business.id) === businessFilter)) {
+      handleBusinessChange(allValue);
+    }
+  }, [businessFilter, catalogsLoaded, scopedBusinesses]);
+
+  useEffect(() => {
+    if (!catalogsLoaded || projectFilter === allValue) return;
+    if (!scopedProjects.some((project) => String(project.id) === projectFilter)) {
+      setProjectFilter(allValue);
+    }
+  }, [catalogsLoaded, projectFilter, scopedProjects]);
+
+  useEffect(() => {
+    if (!catalogsLoaded || collaboratorFilter === allValue) return;
+    if (!scopedCollaborators.some((collaborator) => String(collaborator.userCompanyId) === collaboratorFilter)) {
+      setCollaboratorFilter(allValue);
+    }
+  }, [catalogsLoaded, collaboratorFilter, scopedCollaborators]);
 
   useEffect(() => {
     let isActive = true;
@@ -1058,7 +1188,24 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
     setCollaboratorFilter(allValue);
     setCustomFrom(localDateString(new Date()));
     setCustomTo(localDateString(new Date()));
+    setShowAdvancedFilters(false);
   };
+
+  const activeAdvancedFilterCount = [unitFilter, businessFilter, projectFilter, collaboratorFilter]
+    .filter((value) => value !== allValue).length;
+  const hasActiveFilters = Boolean(
+    searchQuery.trim()
+      || period !== 'today'
+      || statusFilter !== 'all'
+      || focusFilter !== 'mine'
+      || activeAdvancedFilterCount > 0,
+  );
+
+  useEffect(() => {
+    if (activeAdvancedFilterCount > 0) {
+      setShowAdvancedFilters(true);
+    }
+  }, [activeAdvancedFilterCount]);
 
   const handlePrintPdf = () => {
     if (!dashboard) {
@@ -1111,7 +1258,7 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
         variant="outline"
         disabled={isLoading}
         onClick={() => setRefreshKey((current) => current + 1)}
-        className="h-10 gap-2 rounded-xl border-[#F4C84A]/40 bg-white px-4 text-sm font-medium text-[#9A6B05] shadow-none hover:border-[#F4C84A] hover:bg-[#F4C84A]/15 dark:border-[#F4C84A]/40 dark:bg-slate-800 dark:text-[#FEF3C7]"
+        className="h-11 gap-2 rounded-xl border-[#F4C84A]/40 bg-white px-4 text-sm font-medium text-[#9A6B05] shadow-none hover:border-[#F4C84A] hover:bg-[#F4C84A]/15 dark:border-[#F4C84A]/40 dark:bg-slate-800 dark:text-[#FEF3C7]"
       >
         <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
         {standardCopy.refresh}
@@ -1122,7 +1269,7 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
         disabled={!dashboard || isPrintingPdf || !isCompanyPrintIdentityReady}
         title={copy.pdf.print}
         onClick={handlePrintPdf}
-        className="h-10 gap-2 rounded-xl border-[#F4C84A]/40 bg-white px-4 text-sm font-medium text-[#9A6B05] shadow-none hover:border-[#F4C84A] hover:bg-[#F4C84A] hover:text-slate-950 disabled:opacity-60 dark:border-[#F4C84A]/40 dark:bg-slate-800 dark:text-[#FEF3C7] dark:hover:bg-[#F4C84A] dark:hover:text-slate-950"
+        className="h-11 gap-2 rounded-xl border-[#F4C84A]/40 bg-white px-4 text-sm font-medium text-[#9A6B05] shadow-none hover:border-[#F4C84A] hover:bg-[#F4C84A] hover:text-slate-950 disabled:opacity-60 dark:border-[#F4C84A]/40 dark:bg-slate-800 dark:text-[#FEF3C7] dark:hover:bg-[#F4C84A] dark:hover:text-slate-950"
       >
         <Printer className="h-4 w-4" />
         {copy.pdf.print}
@@ -1132,118 +1279,124 @@ export default function KPIs({ learningModeActive: _learningModeActive = false }
 
   return (
     <>
-      <LearningModeTitleBarBridge actions={headerActions}>
-        <section className="mb-5 rounded-xl border border-[#F4C84A]/30 bg-[#F4C84A]/10 px-5 py-4 dark:border-[#F4C84A]/40 dark:bg-[#F4C84A]/15">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex min-w-0 items-start gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#F4C84A]/35 bg-white/80 text-xl shadow-sm dark:bg-slate-800" aria-hidden="true">
-                {headerCopy.emoji}
-              </span>
-              <div className="min-w-0">
-                <h2 className="text-xl font-medium tracking-tight text-slate-950 dark:text-white sm:text-2xl">{standardCopy.title}</h2>
-                <p className="mt-1 max-w-4xl text-sm font-medium leading-5 text-slate-600 dark:text-slate-300">{standardCopy.subtitle}</p>
-              </div>
+      <IndiceTitleBar
+        actions={headerActions}
+        className="mb-5"
+        icon={headerCopy.emoji}
+        subtitle={standardCopy.subtitle}
+        title={standardCopy.title}
+        tone="yellow"
+      />
+
+      <IndiceFilterBar
+        className="mb-6"
+        gridClassName="lg:grid-cols-4"
+        title={standardCopy.filterTitle}
+        summary={(
+          <IndiceFilterDisclosureActions
+            activeAdvancedCount={activeAdvancedFilterCount}
+            advancedLabel={showAdvancedFilters ? disclosureCopy.hideFilters : disclosureCopy.moreFilters}
+            clearLabel={disclosureCopy.clearFilters}
+            hasActiveFilters={hasActiveFilters}
+            isAdvancedOpen={showAdvancedFilters}
+            onClear={handleClearFilters}
+            onToggleAdvanced={() => setShowAdvancedFilters((current) => !current)}
+            resultSummary={standardCopy.results(dashboard?.summary.totalTasks ?? 0)}
+            tone="yellow"
+          />
+        )}
+      >
+        <IndiceFilterSearch
+          label={standardCopy.search}
+          value={searchQuery}
+          onValueChange={setSearchQuery}
+          onClear={() => setSearchQuery('')}
+          placeholder={standardCopy.searchPlaceholder}
+          tone="yellow"
+        />
+        <IndiceFilterSelect
+          label={agendaCopy.filters.period}
+          value={period}
+          onValueChange={(value) => setPeriod(value as AgendaPeriodFilter)}
+          options={Object.entries(periodLabels).map(([value, label]) => ({ value, label }))}
+          tone="yellow"
+        />
+        <IndiceFilterSelect
+          label={agendaCopy.filters.focus}
+          value={focusFilter}
+          onValueChange={(value) => handleFocusChange(value as AgendaFocusFilter)}
+          options={agendaFocusFilterValues.map((value) => ({ value, label: agendaCopy.focus[value] }))}
+          tone="yellow"
+        />
+        <IndiceFilterSelect
+          label={agendaCopy.filters.status}
+          value={statusFilter}
+          onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+          options={[
+            { value: allValue, label: copy.common.all },
+            ...agendaStatusFilterValues.map((value) => ({ value, label: agendaCopy.statuses[value] })),
+          ]}
+          tone="yellow"
+        />
+
+        {period === 'custom' ? (
+          <>
+            <div className="space-y-2">
+              <label htmlFor="kpis-date-from" className="text-sm font-medium text-slate-700 dark:text-slate-200">{agendaCopy.filters.from}</label>
+              <Input id="kpis-date-from" type="date" value={customFrom} max={customTo} onChange={(event) => setCustomFrom(event.target.value)} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100" />
             </div>
-            {headerActions}
-          </div>
-        </section>
-      </LearningModeTitleBarBridge>
+            <div className="space-y-2">
+              <label htmlFor="kpis-date-to" className="text-sm font-medium text-slate-700 dark:text-slate-200">{agendaCopy.filters.to}</label>
+              <Input id="kpis-date-to" type="date" value={customTo} min={customFrom} onChange={(event) => setCustomTo(event.target.value)} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100" />
+            </div>
+          </>
+        ) : null}
 
-      <section className="mb-6 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
-          <div className="flex items-center gap-2">
-            <Search className="h-4 w-4 text-[#B98508]" />
-            <h3 className="text-base font-medium text-slate-800 dark:text-white">{standardCopy.filterTitle}</h3>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-500 dark:text-slate-400">
-            <span>{standardCopy.results(dashboard?.summary.totalTasks ?? 0)}</span>
-            <button type="button" onClick={handleClearFilters} className="inline-flex items-center gap-1.5 transition hover:text-[#9A6B05] dark:hover:text-[#FEF3C7]">
-              <RefreshCw className="h-3.5 w-3.5" />{standardCopy.clear}
-            </button>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4 xl:grid-cols-4">
-          <label className="flex min-w-0 flex-col gap-2 sm:col-span-2">
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{standardCopy.search}</span>
-            <span className="relative block min-w-0">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder={standardCopy.searchPlaceholder}
-                className="h-11 w-full min-w-0 rounded-xl border-slate-200 bg-white pl-10 text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-              />
-            </span>
-          </label>
-          <FilterSelect id="kpis-unit-filter" label={agendaCopy.filters.unit} value={unitFilter} onChange={handleUnitChange}>
-            <SelectItem value={allValue}>{copy.common.allFemale}</SelectItem>
-            {units.map((unit) => (
-              <SelectItem key={unit.id} value={String(unit.id)}>
-                {unit.name}
-              </SelectItem>
-            ))}
-          </FilterSelect>
-
-          <FilterSelect id="kpis-business-filter" label={agendaCopy.filters.business} value={businessFilter} onChange={handleBusinessChange}>
-            <SelectItem value={allValue}>{copy.common.all}</SelectItem>
-            {scopedBusinesses.map((business) => (
-              <SelectItem key={business.id} value={String(business.id)}>
-                {business.name}
-              </SelectItem>
-            ))}
-          </FilterSelect>
-
-          <FilterSelect id="kpis-period-filter" label={agendaCopy.filters.period} value={period} onChange={(value) => setPeriod(value as AgendaPeriodFilter)}>
-            {Object.entries(periodLabels).map(([value, label]) => (
-              <SelectItem key={value} value={value}>{label}</SelectItem>
-            ))}
-          </FilterSelect>
-
-          <FilterSelect id="kpis-status-filter" label={agendaCopy.filters.status} value={statusFilter} onChange={(value) => setStatusFilter(value as StatusFilter)}>
-            <SelectItem value={allValue}>{copy.common.all}</SelectItem>
-            {agendaStatusFilterValues.map((value) => (
-              <SelectItem key={value} value={value}>{agendaCopy.statuses[value]}</SelectItem>
-            ))}
-          </FilterSelect>
-
-          <FilterSelect id="kpis-focus-filter" label={agendaCopy.filters.focus} value={focusFilter} onChange={(value) => handleFocusChange(value as AgendaFocusFilter)}>
-            {agendaFocusFilterValues.map((value) => (
-              <SelectItem key={value} value={value}>{agendaCopy.focus[value]}</SelectItem>
-            ))}
-          </FilterSelect>
-
-          <FilterSelect id="kpis-project-filter" label={agendaCopy.form.labels.project} value={projectFilter} onChange={setProjectFilter}>
-            <SelectItem value={allValue}>{copy.common.all}</SelectItem>
-            {scopedProjects.map((project) => (
-              <SelectItem key={project.id} value={String(project.id)}>
-                {projectOptionLabel(project)}
-              </SelectItem>
-            ))}
-          </FilterSelect>
-
-          <FilterSelect id="kpis-collaborator-filter" label={agendaCopy.filters.collaborator} value={collaboratorFilter} onChange={setCollaboratorFilter}>
-            <SelectItem value={allValue}>{copy.common.all}</SelectItem>
-            {scopedCollaborators.map((collaborator) => (
-              <SelectItem key={collaborator.userCompanyId} value={String(collaborator.userCompanyId)}>
-                {collaborator.name}
-              </SelectItem>
-            ))}
-          </FilterSelect>
-
-          {period === 'custom' ? (
-            <>
-              <div className="space-y-2">
-                <label htmlFor="kpis-date-from" className="text-sm font-medium text-slate-700 dark:text-slate-200">{agendaCopy.filters.from}</label>
-                <Input id="kpis-date-from" type="date" value={customFrom} max={customTo} onChange={(event) => setCustomFrom(event.target.value)} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100" />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="kpis-date-to" className="text-sm font-medium text-slate-700 dark:text-slate-200">{agendaCopy.filters.to}</label>
-                <Input id="kpis-date-to" type="date" value={customTo} min={customFrom} onChange={(event) => setCustomTo(event.target.value)} className="h-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100" />
-              </div>
-            </>
-          ) : null}
-        </div>
-      </section>
+        {showAdvancedFilters ? (
+          <IndiceFilterAdvancedSection className="md:col-span-2 lg:col-span-4" gridClassName="lg:grid-cols-4">
+            <IndiceFilterSelect
+              label={agendaCopy.filters.unit}
+              value={unitFilter}
+              onValueChange={handleUnitChange}
+              options={[
+                { value: allValue, label: copy.common.allFemale },
+                ...units.map((unit) => ({ value: String(unit.id), label: unit.name })),
+              ]}
+              tone="yellow"
+            />
+            <IndiceFilterSelect
+              label={agendaCopy.filters.business}
+              value={businessFilter}
+              onValueChange={handleBusinessChange}
+              options={[
+                { value: allValue, label: copy.common.all },
+                ...scopedBusinesses.map((business) => ({ value: String(business.id), label: business.name })),
+              ]}
+              tone="yellow"
+            />
+            <IndiceFilterSelect
+              label={agendaCopy.form.labels.project}
+              value={projectFilter}
+              onValueChange={setProjectFilter}
+              options={[
+                { value: allValue, label: copy.common.all },
+                ...scopedProjects.map((project) => ({ value: String(project.id), label: projectOptionLabel(project) })),
+              ]}
+              tone="yellow"
+            />
+            <IndiceFilterSelect
+              label={agendaCopy.filters.collaborator}
+              value={collaboratorFilter}
+              onValueChange={setCollaboratorFilter}
+              options={[
+                { value: allValue, label: copy.common.all },
+                ...scopedCollaborators.map((collaborator) => ({ value: String(collaborator.userCompanyId), label: collaborator.name })),
+              ]}
+              tone="yellow"
+            />
+          </IndiceFilterAdvancedSection>
+        ) : null}
+      </IndiceFilterBar>
 
       {error ? (
         <div className="mb-6 rounded-lg border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">

@@ -18,7 +18,6 @@ import {
   PlayCircle,
   Plus,
   Printer,
-  Search,
   Timer,
   Trash2,
   UserRoundCheck,
@@ -49,8 +48,17 @@ import {
   TableRow,
 } from '../../../components/ui/table';
 import { cn } from '../../../components/ui/utils';
+import {
+  IndiceFilterAdvancedSection,
+  IndiceFilterBar,
+  IndiceFilterDisclosureActions,
+  IndiceFilterSearch,
+  IndiceFilterSelect,
+  IndiceTitleBar,
+  useIndiceFilterDisclosureCopy,
+} from '../../../components/frontend-os';
 import { useTablePagination } from '../../../hooks/useTablePagination';
-import { IndiceTitleBar } from '../../../components/frontend-os';
+import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 import {
   accentButtonClass,
   cloneRecurrenceConfig,
@@ -62,7 +70,6 @@ import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../a
 import { createProcess, deleteProcess, listProcesses, materializeProcess, updateProcess } from './processesApi';
 import { ProcessFormDialog } from './components/ProcessFormDialog';
 import {
-  FilterSelect,
   InlineSelectField,
   InlineTextCell,
   InlineTextareaCell,
@@ -94,19 +101,21 @@ type UnitFilter = 'all' | string;
 type ProcessViewMode = 'table' | 'diagram';
 type ProcessConfirmation = { type: 'delete'; record: ProcessRecord };
 
-interface StoredProcessFilters {
-  business: BusinessFilter;
-  collaborator: CollaboratorFilter;
-  frequency: FrequencyFilter;
-  search: string;
-  unit: UnitFilter;
-}
+type ProcessWorkspaceState = {
+  businessFilter: BusinessFilter;
+  collaboratorFilter: CollaboratorFilter;
+  frequencyFilter: FrequencyFilter;
+  searchQuery: string;
+  unitFilter: UnitFilter;
+  viewMode: ProcessViewMode;
+  sortColumn: ProcessColumnId;
+  sortDirection: ProcessSortState['direction'];
+};
 
 const NO_UNIT_VALUE = '__no_unit__';
 const NO_BUSINESS_VALUE = '__no_business__';
 const UNASSIGNED_RESPONSIBLE_VALUE = '__unassigned__';
 const processColumnsStorageKey = 'processes-tasks-processes-columns-v1';
-const processFiltersStorageKey = 'processes-tasks-processes-filters-v1';
 const processPriorityValues: ProcessPriority[] = ['high', 'medium', 'low'];
 const selectionColumnWidth = 64;
 
@@ -592,36 +601,6 @@ function getInitialProcessColumns(defaultProcessColumns: ProcessColumnConfig[]) 
   }
 }
 
-function getStoredProcessFilters(): StoredProcessFilters | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  try {
-    const rawFilters = window.sessionStorage.getItem(processFiltersStorageKey);
-    if (!rawFilters) {
-      return null;
-    }
-
-    const parsedFilters = JSON.parse(rawFilters) as Partial<StoredProcessFilters>;
-    const frequency =
-      parsedFilters.frequency === 'all' ||
-      frequencyOptions.some((option) => option.value === parsedFilters.frequency)
-        ? (parsedFilters.frequency as FrequencyFilter)
-        : 'all';
-
-    return {
-      business: typeof parsedFilters.business === 'string' ? parsedFilters.business : 'all',
-      collaborator: typeof parsedFilters.collaborator === 'string' ? parsedFilters.collaborator : 'all',
-      frequency,
-      search: typeof parsedFilters.search === 'string' ? parsedFilters.search : '',
-      unit: typeof parsedFilters.unit === 'string' ? parsedFilters.unit : 'all',
-    };
-  } catch {
-    return null;
-  }
-}
-
 interface ProcessesProps {
   learningModeActive?: boolean;
 }
@@ -630,13 +609,13 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
   const { currentLanguage } = useLanguage();
   const locale = currentLanguage.code;
   const processCopy = useProcessesTranslations();
+  const disclosureCopy = useIndiceFilterDisclosureCopy();
   const headerCopy = processCopy.header;
   const processCollator = useMemo(
     () => new Intl.Collator(locale, { numeric: true, sensitivity: 'base' }),
     [locale],
   );
   const localizedColumns = useMemo(() => createProcessColumns(processCopy.columns), [processCopy.columns]);
-  const storedProcessFilters = useMemo(() => getStoredProcessFilters(), []);
   const [records, setRecords] = useState<ProcessRecord[]>([]);
   const [catalogUnits, setCatalogUnits] = useState<ProcessUnitOption[]>([]);
   const [catalogBusinesses, setCatalogBusinesses] = useState<ProcessBusinessOption[]>([]);
@@ -648,13 +627,12 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
   const [columns, setColumns] = useState<ProcessColumnConfig[]>(() => getInitialProcessColumns(localizedColumns));
   const [viewMode, setViewMode] = useState<ProcessViewMode>('table');
   const [processDiagramMonth, setProcessDiagramMonth] = useState(() => startOfProcessMonth(new Date()));
-  const [searchQuery, setSearchQuery] = useState(storedProcessFilters?.search ?? '');
-  const [unitFilter, setUnitFilter] = useState<UnitFilter>(storedProcessFilters?.unit ?? 'all');
-  const [businessFilter, setBusinessFilter] = useState<BusinessFilter>(storedProcessFilters?.business ?? 'all');
-  const [collaboratorFilter, setCollaboratorFilter] = useState<CollaboratorFilter>(
-    storedProcessFilters?.collaborator ?? 'all',
-  );
-  const [frequencyFilter, setFrequencyFilter] = useState<FrequencyFilter>(storedProcessFilters?.frequency ?? 'all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [unitFilter, setUnitFilter] = useState<UnitFilter>('all');
+  const [businessFilter, setBusinessFilter] = useState<BusinessFilter>('all');
+  const [collaboratorFilter, setCollaboratorFilter] = useState<CollaboratorFilter>('all');
+  const [frequencyFilter, setFrequencyFilter] = useState<FrequencyFilter>('all');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [isColumnsDialogOpen, setIsColumnsDialogOpen] = useState(false);
   const [processEditorOpen, setProcessEditorOpen] = useState(false);
   const [editorMode, setEditorMode] = useState<'create' | 'edit'>('create');
@@ -671,6 +649,69 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
   const [bulkResponsibleValue, setBulkResponsibleValue] = useState(UNASSIGNED_RESPONSIBLE_VALUE);
   const [processesNotice, setProcessesNotice] = useState<string | null>(null);
   const hasLoadedProcessesRef = useRef(false);
+  const processWorkspaceDefaults = useMemo<ProcessWorkspaceState>(() => ({
+    businessFilter: 'all',
+    collaboratorFilter: 'all',
+    frequencyFilter: 'all',
+    searchQuery: '',
+    unitFilter: 'all',
+    viewMode: 'table',
+    sortColumn: 'createdAt',
+    sortDirection: 'desc',
+  }), []);
+  const processWorkspaceState = useMemo<ProcessWorkspaceState>(() => ({
+    businessFilter,
+    collaboratorFilter,
+    frequencyFilter,
+    searchQuery,
+    unitFilter,
+    viewMode,
+    sortColumn: sortState.columnId,
+    sortDirection: sortState.direction,
+  }), [
+    businessFilter,
+    collaboratorFilter,
+    frequencyFilter,
+    searchQuery,
+    sortState.columnId,
+    sortState.direction,
+    unitFilter,
+    viewMode,
+  ]);
+
+  useWorkspaceNavigationMemory({
+    moduleKey: 'processes-tasks',
+    tabKey: 'processes',
+    state: processWorkspaceState,
+    defaults: processWorkspaceDefaults,
+    urlFields: {
+      searchQuery: 'q',
+      unitFilter: 'unit',
+      businessFilter: 'business',
+      collaboratorFilter: 'collaborator',
+      frequencyFilter: 'frequency',
+      viewMode: 'view',
+    },
+    onRestore: (restoredState) => {
+      setSearchQuery(typeof restoredState.searchQuery === 'string' ? restoredState.searchQuery : '');
+      setUnitFilter(typeof restoredState.unitFilter === 'string' ? restoredState.unitFilter : 'all');
+      setBusinessFilter(typeof restoredState.businessFilter === 'string' ? restoredState.businessFilter : 'all');
+      setCollaboratorFilter(typeof restoredState.collaboratorFilter === 'string' ? restoredState.collaboratorFilter : 'all');
+      setFrequencyFilter(
+        restoredState.frequencyFilter === 'all'
+        || frequencyOptions.some((option) => option.value === restoredState.frequencyFilter)
+          ? restoredState.frequencyFilter
+          : 'all',
+      );
+      setViewMode(restoredState.viewMode === 'diagram' ? 'diagram' : 'table');
+      setSortState({
+        columnId: localizedColumns.some((column) => column.id === restoredState.sortColumn)
+          ? restoredState.sortColumn
+          : 'createdAt',
+        direction: restoredState.sortDirection === 'asc' ? 'asc' : 'desc',
+      });
+    },
+  });
 
   const unitOptions = useMemo(
     () =>
@@ -770,22 +811,6 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
 
     window.localStorage.setItem(processColumnsStorageKey, JSON.stringify(columns));
   }, [columns]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const nextFilters: StoredProcessFilters = {
-      business: businessFilter,
-      collaborator: collaboratorFilter,
-      frequency: frequencyFilter,
-      search: searchQuery,
-      unit: unitFilter,
-    };
-
-    window.sessionStorage.setItem(processFiltersStorageKey, JSON.stringify(nextFilters));
-  }, [businessFilter, collaboratorFilter, frequencyFilter, searchQuery, unitFilter]);
 
   useEffect(() => {
     const localizedColumnMap = new Map(localizedColumns.map((column) => [column.id, column]));
@@ -1072,6 +1097,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
     setBusinessFilter('all');
     setCollaboratorFilter('all');
     setFrequencyFilter('all');
+    setShowAdvancedFilters(false);
   };
 
   const openEditDialog = (record: ProcessRecord) => {
@@ -1890,6 +1916,17 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
     );
   };
 
+  const activeAdvancedFilterCount = Number(unitFilter !== 'all') + Number(businessFilter !== 'all');
+  const hasActiveFilters = Boolean(
+    searchQuery || collaboratorFilter !== 'all' || frequencyFilter !== 'all' || activeAdvancedFilterCount > 0
+  );
+
+  useEffect(() => {
+    if (activeAdvancedFilterCount > 0) {
+      setShowAdvancedFilters(true);
+    }
+  }, [activeAdvancedFilterCount]);
+
   const headerActions = (
     <div className="grid w-full grid-cols-2 gap-3 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
       <Button
@@ -1952,74 +1989,89 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
         </section>
       ) : null}
 
-      <section className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-base font-medium text-slate-800 dark:text-white">{processCopy.filters.title}</h3>
-          <div className="inline-flex h-10 rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900">
-            <button
-              type="button"
-              aria-pressed={viewMode === 'table'}
-              className={cn('inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors', viewMode === 'table' ? 'bg-[#F4C84A] text-slate-950 shadow-sm' : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800')}
-              onClick={() => setViewMode('table')}
-            >
-              <ListChecks className="h-4 w-4" />
-              {headerCopy.actions.table}
-            </button>
-            <button
-              type="button"
-              aria-pressed={viewMode === 'diagram'}
-              className={cn('inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors', viewMode === 'diagram' ? 'bg-[#F4C84A] text-slate-950 shadow-sm' : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800')}
-              onClick={() => setViewMode('diagram')}
-            >
-              <CalendarRange className="h-4 w-4" />
-              {headerCopy.actions.diagram}
-            </button>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-6 xl:grid-cols-12">
-          <div className="space-y-2 md:col-span-3 xl:col-span-4">
-            <label htmlFor="processes-search" className="text-sm font-medium text-slate-700 dark:text-slate-200">{processCopy.filters.search}</label>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input
-                id="processes-search"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder={processCopy.filters.searchPlaceholder}
-                className="h-10 rounded-xl border-slate-200 bg-white pl-10 text-slate-900 shadow-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
-              />
+      <IndiceFilterBar
+        className="mb-6"
+        gridClassName="md:grid-cols-6 xl:grid-cols-12"
+        summary={(
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="inline-flex h-10 rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900">
+              <button
+                type="button"
+                aria-pressed={viewMode === 'table'}
+                className={cn('inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors', viewMode === 'table' ? 'bg-[#F4C84A] text-slate-950 shadow-sm' : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800')}
+                onClick={() => setViewMode('table')}
+              >
+                <ListChecks className="h-4 w-4" />
+                {headerCopy.actions.table}
+              </button>
+              <button
+                type="button"
+                aria-pressed={viewMode === 'diagram'}
+                className={cn('inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors', viewMode === 'diagram' ? 'bg-[#F4C84A] text-slate-950 shadow-sm' : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-800')}
+                onClick={() => setViewMode('diagram')}
+              >
+                <CalendarRange className="h-4 w-4" />
+                {headerCopy.actions.diagram}
+              </button>
             </div>
+            <IndiceFilterDisclosureActions
+              activeAdvancedCount={activeAdvancedFilterCount}
+              advancedLabel={showAdvancedFilters ? disclosureCopy.hideFilters : disclosureCopy.moreFilters}
+              clearLabel={processCopy.filters.clear}
+              hasActiveFilters={hasActiveFilters}
+              isAdvancedOpen={showAdvancedFilters}
+              onClear={clearFilters}
+              onToggleAdvanced={() => setShowAdvancedFilters((visible) => !visible)}
+              tone="yellow"
+            />
           </div>
-          <FilterSelect
-            className="md:col-span-3 xl:col-span-2"
-            label={processCopy.filters.unit}
-            value={unitFilter}
-            onChange={(value) => setUnitFilter(value)}
-            options={localizedUnitOptions}
-          />
-          <FilterSelect
-            className="md:col-span-3 xl:col-span-2"
-            label={processCopy.filters.business}
-            value={businessFilter}
-            onChange={(value) => setBusinessFilter(value)}
-            options={localizedBusinessOptions}
-          />
-          <FilterSelect
-            className="md:col-span-3 xl:col-span-2"
-            label={processCopy.filters.collaborator}
-            value={collaboratorFilter}
-            onChange={(value) => setCollaboratorFilter(value)}
-            options={localizedCollaboratorOptions}
-          />
-          <FilterSelect
-            className="md:col-span-3 xl:col-span-2"
-            label={processCopy.filters.frequency}
-            value={frequencyFilter}
-            onChange={(value) => setFrequencyFilter(value)}
-            options={localizedFrequencyOptions}
-          />
-        </div>
-      </section>
+        )}
+        title={processCopy.filters.title}
+      >
+        <IndiceFilterSearch
+          className="md:col-span-3 xl:col-span-4"
+          label={processCopy.filters.search}
+          onClear={() => setSearchQuery('')}
+          onValueChange={setSearchQuery}
+          placeholder={processCopy.filters.searchPlaceholder}
+          tone="yellow"
+          value={searchQuery}
+        />
+        <IndiceFilterSelect
+          className="md:col-span-3 xl:col-span-4"
+          label={processCopy.filters.frequency}
+          onValueChange={(value) => setFrequencyFilter(value as FrequencyFilter)}
+          options={localizedFrequencyOptions}
+          tone="yellow"
+          value={frequencyFilter}
+        />
+        <IndiceFilterSelect
+          className="md:col-span-3 xl:col-span-4"
+          label={processCopy.filters.collaborator}
+          onValueChange={setCollaboratorFilter}
+          options={localizedCollaboratorOptions}
+          tone="yellow"
+          value={collaboratorFilter}
+        />
+        {showAdvancedFilters ? (
+          <IndiceFilterAdvancedSection className="md:col-span-6 xl:col-span-12" gridClassName="xl:grid-cols-2">
+            <IndiceFilterSelect
+              label={processCopy.filters.unit}
+              onValueChange={setUnitFilter}
+              options={localizedUnitOptions}
+              tone="yellow"
+              value={unitFilter}
+            />
+            <IndiceFilterSelect
+              label={processCopy.filters.business}
+              onValueChange={setBusinessFilter}
+              options={localizedBusinessOptions}
+              tone="yellow"
+              value={businessFilter}
+            />
+          </IndiceFilterAdvancedSection>
+        ) : null}
+      </IndiceFilterBar>
 
       {!learningModeActive ? (
         <ProcessKpiStrip copy={processCopy.kpis} isLoading={isLoadingProcesses} metrics={processKpiMetrics} />

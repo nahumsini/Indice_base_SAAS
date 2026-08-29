@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
+import { useEffect, useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
 import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
@@ -46,9 +46,10 @@ export default function BudgetTable({ columns, expenses, loadError, onExpensesCh
   const [failureToastMessage, setFailureToastMessage] = useState('');
   const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [pendingDeleteBudgetExpenseIds, setPendingDeleteBudgetExpenseIds] = useState<string[]>([]);
+  const [selectionResetKey, setSelectionResetKey] = useState(0);
   const [successToastMessage, setSuccessToastMessage] = useState('');
-  const saveTimeoutsRef = useRef<Record<string, number>>({});
   const { columns: tableColumns, applyColumns } = useBudgetTableColumns(columns);
   const {
     accountingAccountFilter,
@@ -58,17 +59,22 @@ export default function BudgetTable({ columns, expenses, loadError, onExpensesCh
     customStartDate,
     filteredBudgetExpenses,
     futureFilter,
+    healthFilter,
     providerFilter,
     searchTerm,
+    statusFilter,
+    summaryBudgetExpenses,
     setAccountingAccountFilter,
     setBusinessFilter,
     setBusinessUnitFilter,
     setCustomEndDate,
     setCustomStartDate,
     setFutureFilter,
+    setHealthFilter,
     setProviderFilter,
     setSearchTerm,
-  } = useBudgetLogic({ expenses, onExpensesChange });
+    setStatusFilter,
+  } = useBudgetLogic({ expenses });
   const providers = useMemo(() => (
     providerRecords?.length ? providerRecordsToExpenseProviders(providerRecords) : mockProviders
   ), [providerRecords]);
@@ -80,10 +86,6 @@ export default function BudgetTable({ columns, expenses, loadError, onExpensesCh
     createBudget,
     isLoadingBudgets,
   } = useBudgetMasters(setFailureToastMessage);
-
-  useEffect(() => () => {
-    Object.values(saveTimeoutsRef.current).forEach(timeoutId => window.clearTimeout(timeoutId));
-  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -113,12 +115,12 @@ export default function BudgetTable({ columns, expenses, loadError, onExpensesCh
   const unitOptions = useMemo(() => (
     referenceUnitOptions.length > 0
       ? referenceUnitOptions
-      : Array.from(new Set(expenses.map(expense => expense.businessUnit))).map(value => ({ value, label: value }))
+      : Array.from(new Set(expenses.map(expense => expense.businessUnit.trim()).filter(Boolean))).map(value => ({ value, label: value }))
   ), [expenses, referenceUnitOptions]);
   const businessOptions = useMemo(() => (
     referenceBusinessOptions.length > 0
       ? referenceBusinessOptions
-      : Array.from(new Set(expenses.map(expense => expense.business))).map(value => ({ value, label: value }))
+      : Array.from(new Set(expenses.map(expense => expense.business.trim()).filter(Boolean))).map(value => ({ value, label: value }))
   ), [expenses, referenceBusinessOptions]);
   const businessUnitFilterOptions = useMemo(() => [{ value: 'all', label: t.common.all }, ...unitOptions], [t.common.all, unitOptions]);
   const businessFilterOptions = useMemo(() => [{ value: 'all', label: t.common.all }, ...businessOptions], [businessOptions, t.common.all]);
@@ -162,6 +164,24 @@ export default function BudgetTable({ columns, expenses, loadError, onExpensesCh
       ...(hasMissingAccount ? [{ value: MISSING_ACCOUNTING_ACCOUNT_FILTER, label: t.budgets.columns.accountingAccount.label }] : []),
     ];
   }, [expenses, t.budgets.columns.accountingAccount.label, t.common.all]);
+  const healthOptions = useMemo(() => [
+    { value: 'all', label: t.common.all },
+    ...['ON_TRACK', 'WARNING', 'EXCEEDED'].map(value => ({ value, label: t.budgets.healthLabels[value] ?? value })),
+  ], [t]);
+  const statusOptions = useMemo(() => [
+    { value: 'all', label: t.common.all },
+    ...Array.from(new Set([
+      'DRAFT',
+      'ACTIVE',
+      'CLOSED',
+      'ARCHIVED',
+      ...expenses
+        .filter(expense => expense.type === 'budget')
+        .map(expense => expense.budgetStatus ?? expense.status),
+    ]))
+      .sort()
+      .map(value => ({ value, label: t.budgets.statusLabels[value] ?? value })),
+  ], [expenses, t]);
 
   const openCreateModal = () => {
     setDraft(createInitialBudgetDraftState(preferredCurrency));
@@ -212,6 +232,8 @@ export default function BudgetTable({ columns, expenses, loadError, onExpensesCh
     setBusinessFilter('all');
     setProviderFilter('all');
     setAccountingAccountFilter('all');
+    setHealthFilter('all');
+    setStatusFilter('all');
   };
 
   const openEditBudgetExpense = (expense: Expense) => {
@@ -244,8 +266,8 @@ export default function BudgetTable({ columns, expenses, loadError, onExpensesCh
         .map((result, index) => (result.status === 'rejected' ? localBudgetEntries[index] : null))
         .filter((entry): entry is (typeof localBudgetEntries)[number] => Boolean(entry));
 
-      onExpensesChange(currentExpenses => [...savedEntries, ...failedEntries, ...currentExpenses]);
-      revealCreatedBudgetEntries([...savedEntries, ...failedEntries]);
+      onExpensesChange(currentExpenses => [...savedEntries, ...currentExpenses]);
+      revealCreatedBudgetEntries(savedEntries);
 
       if (failedEntries.length > 0) {
         setFailureToastMessage(t.budgets.messages.partialSaveFailed);
@@ -316,35 +338,6 @@ export default function BudgetTable({ columns, expenses, loadError, onExpensesCh
     }
   };
 
-  const persistBudgetExpense = useCallback((expense: Expense) => {
-    if (!expense.id.startsWith('budget-line-')) return;
-    window.clearTimeout(saveTimeoutsRef.current[expense.id]);
-    saveTimeoutsRef.current[expense.id] = window.setTimeout(() => {
-      budgetLinesService.updateBudgetLineFromExpense(expense)
-        .then(savedExpense => {
-          onExpensesChange(currentExpenses => currentExpenses.map(item => (
-            item.id === expense.id ? savedExpense : item
-          )));
-        })
-        .catch(error => {
-          setFailureToastMessage(toFinanceApiErrorMessage(error, t.budgets.messages.lineSaveFailed));
-        });
-    }, 700);
-  }, [onExpensesChange, t.budgets.messages.lineSaveFailed]);
-
-  const executeDeleteBudgetExpense = (expenseId: string) => {
-    const expense = expenses.find(item => item.id === expenseId);
-    onExpensesChange(currentExpenses => currentExpenses.filter(item => item.id !== expenseId));
-    if (!expense || !expense.id.startsWith('budget-line-')) return;
-
-    budgetLinesService.deleteBudgetLine(expenseId)
-      .then(() => setSuccessToastMessage(t.budgets.messages.deleted))
-      .catch(error => {
-        onExpensesChange(currentExpenses => [expense, ...currentExpenses]);
-        setFailureToastMessage(toFinanceApiErrorMessage(error, t.budgets.messages.deleteFailed));
-      });
-  };
-
   const requestDeleteBudgetExpense = (expenseId: string) => {
     setPendingDeleteBudgetExpenseIds([expenseId]);
   };
@@ -353,10 +346,34 @@ export default function BudgetTable({ columns, expenses, loadError, onExpensesCh
     setPendingDeleteBudgetExpenseIds(expenseIds);
   };
 
-  const confirmDeleteBudgetExpense = () => {
+  const confirmDeleteBudgetExpense = async () => {
     const expenseIds = pendingDeleteBudgetExpenseIds;
+    if (expenseIds.length === 0 || isDeleting) return;
+
+    setIsDeleting(true);
+    const results = await Promise.allSettled(expenseIds.map(async expenseId => {
+      const expense = expenses.find(item => item.id === expenseId);
+      if (expense?.id.startsWith('budget-line-')) {
+        await budgetLinesService.deleteBudgetLine(expenseId);
+      }
+      return expenseId;
+    }));
+    const deletedIds = results
+      .filter((result): result is PromiseFulfilledResult<string> => result.status === 'fulfilled')
+      .map(result => result.value);
+    const firstFailure = results.find((result): result is PromiseRejectedResult => result.status === 'rejected');
+
+    if (deletedIds.length > 0) {
+      const deletedIdSet = new Set(deletedIds);
+      onExpensesChange(currentExpenses => currentExpenses.filter(item => !deletedIdSet.has(item.id)));
+      setSelectionResetKey(current => current + 1);
+      setSuccessToastMessage(t.budgets.messages.deleted);
+    }
+    if (firstFailure) {
+      setFailureToastMessage(toFinanceApiErrorMessage(firstFailure.reason, t.budgets.messages.deleteFailed));
+    }
     setPendingDeleteBudgetExpenseIds([]);
-    expenseIds.forEach(expenseId => executeDeleteBudgetExpense(expenseId));
+    setIsDeleting(false);
   };
 
   const pendingDeleteBudgetExpenses = pendingDeleteBudgetExpenseIds
@@ -378,21 +395,31 @@ export default function BudgetTable({ columns, expenses, loadError, onExpensesCh
         customEndDate={customEndDate}
         customStartDate={customStartDate}
         futureFilter={futureFilter}
+        healthFilter={healthFilter}
+        healthOptions={healthOptions}
         providerFilter={providerFilter}
         providers={providers}
         resultCount={filteredBudgetExpenses.length}
         searchTerm={searchTerm}
+        statusFilter={statusFilter}
+        statusOptions={statusOptions}
         onAccountingAccountChange={setAccountingAccountFilter}
         onBusinessChange={setBusinessFilter}
         onBusinessUnitChange={setBusinessUnitFilter}
         onCustomEndDateChange={setCustomEndDate}
         onCustomStartDateChange={setCustomStartDate}
         onFutureFilterChange={setFutureFilter}
+        onHealthChange={setHealthFilter}
         onProviderChange={setProviderFilter}
         onSearchChange={setSearchTerm}
+        onStatusChange={setStatusFilter}
       />
 
-      <BudgetSummaryBar expenses={filteredBudgetExpenses} />
+      <BudgetSummaryBar
+        expenses={summaryBudgetExpenses}
+        healthFilter={healthFilter}
+        onHealthChange={setHealthFilter}
+      />
 
       {isCreateModalOpen && (
         <BudgetCreateModal
@@ -413,6 +440,7 @@ export default function BudgetTable({ columns, expenses, loadError, onExpensesCh
         budgetLines={budgetTableRows}
         columns={tableColumns}
         errorMessage={loadError}
+        selectionResetKey={selectionResetKey}
         onDeleteBudgetLine={requestDeleteBudgetExpense}
         onDeleteBudgetLines={requestDeleteBudgetExpenses}
         onEditBudgetLine={openEditBudgetLine}
@@ -438,7 +466,8 @@ export default function BudgetTable({ columns, expenses, loadError, onExpensesCh
         itemName={pendingDeleteBudgetExpenseIds.length > 1 ? t.budgets.confirmDelete.bulkItemName(pendingDeleteBudgetExpenseIds.length) : pendingDeleteBudgetExpenses[0]?.folio ?? t.budgets.confirmDelete.itemNameFallback}
         confirmLabel={t.common.delete}
         cancelLabel={t.common.cancel}
-        onConfirm={confirmDeleteBudgetExpense}
+        confirmDisabled={isDeleting}
+        onConfirm={() => void confirmDeleteBudgetExpense()}
         onCancel={() => setPendingDeleteBudgetExpenseIds([])}
       />
 

@@ -17,6 +17,8 @@ import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { StandardPaginationFooter } from '../shared/StandardTableControls';
+import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../hooks/useTablePagination';
+import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 import type { RecordColumn } from './components/RecordColumnsModal';
 import { RecordFilters } from './components/RecordFilters';
 import { RecordHeaderBar } from './components/RecordHeaderBar';
@@ -50,6 +52,19 @@ const defaultFilters: RecordFiltersState = {
   severity: 'all',
   dateFrom: '',
   dateTo: '',
+};
+
+type RecordsWorkspaceState = {
+  search: string;
+  unit: string;
+  business: string;
+  status: RecordFiltersState['status'];
+  type: RecordFiltersState['type'];
+  severity: RecordFiltersState['severity'];
+  dateFrom?: string;
+  dateTo?: string;
+  currentPage: number;
+  pageSize: number;
 };
 
 const formatErrorMessage = (error: unknown, fallbackMessage: string) => {
@@ -193,6 +208,55 @@ export default function Records() {
     title: copy.loading.recordsTitle,
     description: copy.loading.recordsDescription,
   });
+  const workspaceDefaults = useMemo<RecordsWorkspaceState>(() => ({
+    ...defaultFilters,
+    currentPage: 1,
+    pageSize: defaultRecordsPageSize,
+  }), []);
+  const workspaceState = useMemo<RecordsWorkspaceState>(() => ({
+    ...filters,
+    currentPage,
+    pageSize,
+  }), [currentPage, filters, pageSize]);
+
+  useWorkspaceNavigationMemory<RecordsWorkspaceState>({
+    moduleKey: 'human-resources',
+    tabKey: 'records',
+    state: workspaceState,
+    defaults: workspaceDefaults,
+    urlFields: {
+      search: 'q',
+      unit: 'unit',
+      business: 'business',
+      status: 'status',
+      type: 'type',
+      severity: 'severity',
+      dateFrom: 'from',
+      dateTo: 'to',
+      currentPage: 'page',
+      pageSize: 'pageSize',
+    },
+    onRestore: (restoredState) => {
+      setFilters({
+        search: typeof restoredState.search === 'string' ? restoredState.search : '',
+        unit: typeof restoredState.unit === 'string' ? restoredState.unit : 'all',
+        business: typeof restoredState.business === 'string' ? restoredState.business : 'all',
+        status: ['all', 'pending', 'reviewed', 'resolved'].includes(restoredState.status) ? restoredState.status : 'all',
+        type: ['all', 'incident', 'warning', 'recognition', 'observation', 'training'].includes(restoredState.type) ? restoredState.type : 'all',
+        severity: ['all', 'low', 'medium', 'high'].includes(restoredState.severity) ? restoredState.severity : 'all',
+        dateFrom: typeof restoredState.dateFrom === 'string' ? restoredState.dateFrom : '',
+        dateTo: typeof restoredState.dateTo === 'string' ? restoredState.dateTo : '',
+      });
+      setCurrentPage(Number.isInteger(restoredState.currentPage) && restoredState.currentPage > 0 ? restoredState.currentPage : 1);
+      setPageSize(DEFAULT_TABLE_PAGE_SIZE_OPTIONS.includes(restoredState.pageSize as (typeof DEFAULT_TABLE_PAGE_SIZE_OPTIONS)[number]) ? restoredState.pageSize : defaultRecordsPageSize);
+    },
+  });
+
+  const clearRecordFilters = () => {
+    setFilters(defaultFilters);
+    setCurrentPage(1);
+    setPageSize(defaultRecordsPageSize);
+  };
 
   const recordColumns = useMemo<RecordColumn[]>(
     () => {
@@ -641,6 +705,7 @@ export default function Records() {
           <RecordFilters
             copy={copy}
             filters={filters}
+            onClearFilters={clearRecordFilters}
             onFiltersChange={setFilters}
             unitOptions={unitOptions}
             businessOptions={businessOptions}

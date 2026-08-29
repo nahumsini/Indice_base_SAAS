@@ -246,3 +246,28 @@ test('El filtro de categorias de Productos permite consultar items sin categoria
   assert.match(catalogSource, /label: t\.filters\.uncategorized/);
   assert.match(spanishTranslationsSource, /uncategorized: 'Sin categoría'/);
 });
+
+test('Inventarios aplica el overflow de titulo solo cuando existen cuatro o mas acciones elegibles', () => {
+  const productsHeaderSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Productos/components/ProductsHeader.tsx'), 'utf8');
+  const inventoryHeaderSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Inventory/components/InventoryHeader.tsx'), 'utf8');
+  const overflowSource = readFileSync(resolve(root, 'src/app/components/frontend-os/IndiceTitleBarOverflow.tsx'), 'utf8');
+  const frontendOsIndexSource = readFileSync(resolve(root, 'src/app/components/frontend-os/index.ts'), 'utf8');
+
+  assert.match(frontendOsIndexSource, /IndiceTitleBarOverflow/);
+  assert.match(overflowSource, /DropdownMenuTrigger asChild/);
+  assert.match(overflowSource, /DropdownMenuItem/);
+  assert.match(overflowSource, /onSelect=\{item\.onSelect\}/);
+
+  assert.match(productsHeaderSource, /onClick=\{onOpenPublicCatalog\}/);
+  assert.match(productsHeaderSource, /onClick=\{onOpenCategoryManager\}/);
+  assert.match(productsHeaderSource, /onClick=\{onCreateProduct\}/);
+  assert.doesNotMatch(productsHeaderSource, /onClick=\{onOpenColumns\}/);
+  assert.match(productsHeaderSource, /id: 'columns'[\s\S]*onSelect: onOpenColumns/);
+  assert.match(productsHeaderSource, /id: 'bulk-integration'[\s\S]*onSelect: onOpenBulkIntegration/);
+
+  assert.match(inventoryHeaderSource, /const eligibleActionCount = 2/);
+  assert.match(inventoryHeaderSource, /const hasOverflow = eligibleActionCount > 3/);
+  assert.match(inventoryHeaderSource, /showColumnsAction && !hasOverflow/);
+  assert.match(inventoryHeaderSource, /isMovementsView && onInventoryAdjustment/);
+  assert.match(inventoryHeaderSource, /hasOverflow \? \([\s\S]*id: 'columns'[\s\S]*onSelect: onOpenColumns/);
+});

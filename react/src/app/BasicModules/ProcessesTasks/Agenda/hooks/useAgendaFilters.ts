@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useWorkspaceNavigationMemory } from '../../../../hooks/useWorkspaceNavigationMemory';
 import type {
   AgendaFocusFilter,
   OptionFilter,
@@ -28,21 +29,20 @@ export const agendaStatusFilterValues: Exclude<StatusFilter, 'all'>[] = [
 
 const agendaPeriodFilterValues: PeriodFilter[] = ['all', 'today', 'tomorrow', 'yesterday', 'week', 'month', 'custom'];
 export const agendaFocusFilterValues: AgendaFocusFilter[] = ['mine', 'delegated', 'team'];
-const agendaFiltersStorageKey = 'processes-tasks-agenda-filters-v1';
 const agendaTodayLookbackDays = 365;
 const agendaAllRange = { from: '1900-01-01', to: '2999-12-31' };
 
-type StoredAgendaFilters = {
-  search?: string;
-  focus?: AgendaFocusFilter;
-  period?: PeriodFilter;
-  status?: StatusFilter;
-  unit?: OptionFilter;
-  business?: OptionFilter;
-  project?: OptionFilter;
-  collaborator?: OptionFilter;
-  customDateFrom?: string;
-  customDateTo?: string;
+type AgendaWorkspaceState = {
+  searchQuery: string;
+  focusFilter: AgendaFocusFilter;
+  periodFilter: PeriodFilter;
+  statusFilter: StatusFilter;
+  unitFilter: OptionFilter;
+  businessFilter: OptionFilter;
+  projectFilter: OptionFilter;
+  collaboratorFilter: OptionFilter;
+  customDateFrom: string;
+  customDateTo: string;
 };
 
 function isAgendaPeriodFilter(value: string | null | undefined): value is PeriodFilter {
@@ -118,40 +118,6 @@ function agendaDeepLinkFilters(search: string) {
   };
 }
 
-function getStoredAgendaFilters(): StoredAgendaFilters {
-  if (typeof window === 'undefined') {
-    return {};
-  }
-
-  try {
-    const rawFilters = window.sessionStorage.getItem(agendaFiltersStorageKey);
-    if (!rawFilters) {
-      return {};
-    }
-
-    const parsedFilters = JSON.parse(rawFilters) as Partial<Record<keyof StoredAgendaFilters, string>>;
-    const period = parsedFilters.period;
-    const focus = parsedFilters.focus;
-    const status = parsedFilters.status;
-    const legacyFocus = normalizeLegacyFocus(period, focus);
-
-    return {
-      search: parsedFilters.search || undefined,
-      focus: legacyFocus ?? undefined,
-      period: isAgendaPeriodFilter(period) ? period : undefined,
-      status: normalizeLegacyStatus(status) ?? undefined,
-      unit: parsedFilters.unit || undefined,
-      business: parsedFilters.business || undefined,
-      project: parsedFilters.project || undefined,
-      collaborator: parsedFilters.collaborator || undefined,
-      customDateFrom: isDateInputValue(parsedFilters.customDateFrom ?? null) ? parsedFilters.customDateFrom : undefined,
-      customDateTo: isDateInputValue(parsedFilters.customDateTo ?? null) ? parsedFilters.customDateTo : undefined,
-    };
-  } catch {
-    return {};
-  }
-}
-
 function periodRange(period: PeriodFilter, customFrom: string, customTo: string) {
   const today = new Date();
 
@@ -204,37 +170,93 @@ function periodRange(period: PeriodFilter, customFrom: string, customTo: string)
 
 export function useAgendaFilters(search: string) {
   const initialDeepLinkFilters = useMemo(() => agendaDeepLinkFilters(search), []);
-  const storedAgendaFilters = useMemo(() => getStoredAgendaFilters(), []);
+  const initialToday = useMemo(() => toDateInputValue(new Date()), []);
+  const workspaceDefaults = useMemo<AgendaWorkspaceState>(() => ({
+    searchQuery: '',
+    focusFilter: 'mine',
+    periodFilter: 'today',
+    statusFilter: 'all',
+    unitFilter: 'all',
+    businessFilter: 'all',
+    projectFilter: 'all',
+    collaboratorFilter: 'all',
+    customDateFrom: initialToday,
+    customDateTo: initialToday,
+  }), [initialToday]);
   const [searchQuery, setSearchQuery] = useState(
-    () => initialDeepLinkFilters.search ?? storedAgendaFilters.search ?? '',
+    () => initialDeepLinkFilters.search ?? workspaceDefaults.searchQuery,
   );
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>(
-    initialDeepLinkFilters.period ?? storedAgendaFilters.period ?? 'today',
+    initialDeepLinkFilters.period ?? workspaceDefaults.periodFilter,
   );
   const [focusFilter, setFocusFilter] = useState<AgendaFocusFilter>(
-    initialDeepLinkFilters.focus ?? storedAgendaFilters.focus ?? 'mine',
+    initialDeepLinkFilters.focus ?? workspaceDefaults.focusFilter,
   );
   const [customDateFrom, setCustomDateFrom] = useState(
-    () => initialDeepLinkFilters.from ?? storedAgendaFilters.customDateFrom ?? toDateInputValue(new Date()),
+    () => initialDeepLinkFilters.from ?? workspaceDefaults.customDateFrom,
   );
   const [customDateTo, setCustomDateTo] = useState(
-    () => initialDeepLinkFilters.to ?? storedAgendaFilters.customDateTo ?? toDateInputValue(new Date()),
+    () => initialDeepLinkFilters.to ?? workspaceDefaults.customDateTo,
   );
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(
-    initialDeepLinkFilters.status ?? storedAgendaFilters.status ?? 'all',
+    initialDeepLinkFilters.status ?? workspaceDefaults.statusFilter,
   );
   const [unitFilter, setUnitFilter] = useState<OptionFilter>(
-    initialDeepLinkFilters.unit ?? storedAgendaFilters.unit ?? 'all',
+    initialDeepLinkFilters.unit ?? workspaceDefaults.unitFilter,
   );
   const [businessFilter, setBusinessFilter] = useState<OptionFilter>(
-    initialDeepLinkFilters.business ?? storedAgendaFilters.business ?? 'all',
+    initialDeepLinkFilters.business ?? workspaceDefaults.businessFilter,
   );
   const [projectFilter, setProjectFilter] = useState<OptionFilter>(
-    initialDeepLinkFilters.project ?? storedAgendaFilters.project ?? 'all',
+    initialDeepLinkFilters.project ?? workspaceDefaults.projectFilter,
   );
   const [collaboratorFilter, setCollaboratorFilter] = useState<OptionFilter>(
-    initialDeepLinkFilters.collaborator ?? storedAgendaFilters.collaborator ?? 'all',
+    initialDeepLinkFilters.collaborator ?? workspaceDefaults.collaboratorFilter,
   );
+
+  const workspaceState = useMemo<AgendaWorkspaceState>(() => ({
+    searchQuery,
+    focusFilter,
+    periodFilter,
+    statusFilter,
+    unitFilter,
+    businessFilter,
+    projectFilter,
+    collaboratorFilter,
+    customDateFrom,
+    customDateTo,
+  }), [
+    businessFilter,
+    collaboratorFilter,
+    customDateFrom,
+    customDateTo,
+    focusFilter,
+    periodFilter,
+    projectFilter,
+    searchQuery,
+    statusFilter,
+    unitFilter,
+  ]);
+
+  useWorkspaceNavigationMemory({
+    moduleKey: 'processes-tasks',
+    tabKey: 'calendar',
+    state: workspaceState,
+    defaults: workspaceDefaults,
+    onRestore: (restoredState) => {
+      const deepLink = agendaDeepLinkFilters(window.location.search);
+      setSearchQuery(deepLink.search ?? (typeof restoredState.searchQuery === 'string' ? restoredState.searchQuery : ''));
+      setFocusFilter(deepLink.focus ?? (isAgendaFocusFilter(restoredState.focusFilter) ? restoredState.focusFilter : 'mine'));
+      setPeriodFilter(deepLink.period ?? (isAgendaPeriodFilter(restoredState.periodFilter) ? restoredState.periodFilter : 'today'));
+      setStatusFilter(deepLink.status ?? (isAgendaStatusFilter(restoredState.statusFilter) ? restoredState.statusFilter : 'all'));
+      setUnitFilter(deepLink.unit ?? (typeof restoredState.unitFilter === 'string' ? restoredState.unitFilter : 'all'));
+      setBusinessFilter(deepLink.business ?? (typeof restoredState.businessFilter === 'string' ? restoredState.businessFilter : 'all'));
+      setProjectFilter(deepLink.project ?? (typeof restoredState.projectFilter === 'string' ? restoredState.projectFilter : 'all'));
+      setCollaboratorFilter(deepLink.collaborator ?? (typeof restoredState.collaboratorFilter === 'string' ? restoredState.collaboratorFilter : 'all'));
+      setCustomDateFrom(deepLink.from ?? (isDateInputValue(restoredState.customDateFrom) ? restoredState.customDateFrom : initialToday));
+      setCustomDateTo(deepLink.to ?? (isDateInputValue(restoredState.customDateTo) ? restoredState.customDateTo : initialToday));
+    },
+  });
 
   const activeRange = useMemo(
     () => periodRange(periodFilter, customDateFrom, customDateTo),
@@ -276,39 +298,6 @@ export function useAgendaFilters(search: string) {
     }
   }, [search]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    window.sessionStorage.setItem(
-      agendaFiltersStorageKey,
-      JSON.stringify({
-        search: searchQuery,
-        period: periodFilter,
-        focus: focusFilter,
-        status: statusFilter,
-        unit: unitFilter,
-        business: businessFilter,
-        project: projectFilter,
-        collaborator: collaboratorFilter,
-        customDateFrom,
-        customDateTo,
-      } satisfies StoredAgendaFilters),
-    );
-  }, [
-    businessFilter,
-    collaboratorFilter,
-    customDateFrom,
-    customDateTo,
-    focusFilter,
-    periodFilter,
-    projectFilter,
-    searchQuery,
-    statusFilter,
-    unitFilter,
-  ]);
-
   const handleCustomDateFromChange = useCallback(
     (value: string) => {
       if (!value) {
@@ -340,8 +329,8 @@ export function useAgendaFilters(search: string) {
   const clearFilters = useCallback(() => {
     const today = toDateInputValue(new Date());
     setSearchQuery('');
-    setPeriodFilter('all');
-    setFocusFilter('team');
+    setPeriodFilter('today');
+    setFocusFilter('mine');
     setStatusFilter('all');
     setUnitFilter('all');
     setBusinessFilter('all');

@@ -10,7 +10,6 @@ import {
   ListChecks,
   Pencil,
   Plus,
-  Search,
   Timer,
   Trash2,
 } from 'lucide-react';
@@ -39,8 +38,17 @@ import {
   TableRow,
 } from '../../../components/ui/table';
 import { cn } from '../../../components/ui/utils';
+import {
+  IndiceFilterAdvancedSection,
+  IndiceFilterBar,
+  IndiceFilterDisclosureActions,
+  IndiceFilterSearch,
+  IndiceFilterSelect,
+  IndiceTitleBar,
+  useIndiceFilterDisclosureCopy,
+} from '../../../components/frontend-os';
 import { useTablePagination } from '../../../hooks/useTablePagination';
-import { IndiceTitleBar } from '../../../components/frontend-os';
+import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 import { priorityClasses } from '../Processes/processesData';
 import { listProcesses } from '../Processes/processesApi';
 import type {
@@ -92,13 +100,15 @@ interface ProjectSortState {
   direction: ProjectSortDirection;
 }
 
-interface StoredProjectFilters {
-  business: OptionFilter;
-  owner: OptionFilter;
-  search: string;
-  status: StatusFilter;
-  unit: OptionFilter;
-}
+type ProjectWorkspaceState = {
+  businessFilter: OptionFilter;
+  ownerFilter: OptionFilter;
+  searchQuery: string;
+  statusFilter: StatusFilter;
+  unitFilter: OptionFilter;
+  sortColumn: ProjectColumnId;
+  sortDirection: ProjectSortDirection;
+};
 
 const statusClasses: Record<ProjectStatus, string> = {
   active:
@@ -117,7 +127,6 @@ const NO_BUSINESS_VALUE = '__no_business__';
 const UNASSIGNED_OWNER_VALUE = '__unassigned_owner__';
 const NO_PRIORITY_VALUE = '__no_priority__';
 const projectColumnsStorageKey = 'processes-tasks-projects-columns-v1';
-const projectFiltersStorageKey = 'processes-tasks-projects-filters-v1';
 const projectPriorityValues: ProjectPriority[] = ['low', 'medium', 'high'];
 const projectStatusValues: ProjectStatus[] = ['active', 'paused', 'completed', 'cancelled'];
 const projectPrioritySortRank: Record<ProjectPriority, number> = {
@@ -176,37 +185,6 @@ function getInitialProjectColumns(defaultColumns: ColumnConfig[]) {
     return restoredColumns.length > 0 ? [...restoredColumns, ...missingColumns] : defaultColumns;
   } catch {
     return defaultColumns;
-  }
-}
-
-function getStoredProjectFilters(): StoredProjectFilters | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  try {
-    const rawFilters = window.sessionStorage.getItem(projectFiltersStorageKey);
-    if (!rawFilters) {
-      return null;
-    }
-
-    const parsedFilters = JSON.parse(rawFilters) as Partial<StoredProjectFilters>;
-    const status =
-      parsedFilters.status === 'all' ||
-      parsedFilters.status === 'at-risk' ||
-      projectStatusValues.includes(parsedFilters.status as ProjectStatus)
-        ? (parsedFilters.status as StatusFilter)
-        : 'all';
-
-    return {
-      business: typeof parsedFilters.business === 'string' ? parsedFilters.business : 'all',
-      owner: typeof parsedFilters.owner === 'string' ? parsedFilters.owner : 'all',
-      search: typeof parsedFilters.search === 'string' ? parsedFilters.search : '',
-      status,
-      unit: typeof parsedFilters.unit === 'string' ? parsedFilters.unit : 'all',
-    };
-  } catch {
-    return null;
   }
 }
 
@@ -659,6 +637,7 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
   const { currentLanguage } = useLanguage();
   const locale = currentLanguage.code;
   const projectCopy = useProjectsTranslations();
+  const disclosureCopy = useIndiceFilterDisclosureCopy();
   const headerCopy = projectCopy.header;
   const defaultColumns = useMemo(() => createDefaultProjectColumns(projectCopy.columns), [projectCopy.columns]);
   const fixedColumns = useMemo<ColumnConfig[]>(
@@ -673,15 +652,15 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
     ],
     [projectCopy.fixedColumns.actions.description, projectCopy.fixedColumns.actions.label],
   );
-  const storedProjectFilters = useMemo(() => getStoredProjectFilters(), []);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [projectsError, setProjectsError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState(storedProjectFilters?.search ?? '');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>(storedProjectFilters?.status ?? 'all');
-  const [unitFilter, setUnitFilter] = useState<OptionFilter>(storedProjectFilters?.unit ?? 'all');
-  const [businessFilter, setBusinessFilter] = useState<OptionFilter>(storedProjectFilters?.business ?? 'all');
-  const [ownerFilter, setOwnerFilter] = useState<OptionFilter>(storedProjectFilters?.owner ?? 'all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [unitFilter, setUnitFilter] = useState<OptionFilter>('all');
+  const [businessFilter, setBusinessFilter] = useState<OptionFilter>('all');
+  const [ownerFilter, setOwnerFilter] = useState<OptionFilter>('all');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [columns, setColumns] = useState<ColumnConfig[]>(() => getInitialProjectColumns(defaultColumns));
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [sortState, setSortState] = useState<ProjectSortState>({ columnId: 'dueDate', direction: 'asc' });
@@ -701,6 +680,57 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
     () => new Intl.Collator(locale, { numeric: true, sensitivity: 'base' }),
     [locale],
   );
+  const projectWorkspaceDefaults = useMemo<ProjectWorkspaceState>(() => ({
+    businessFilter: 'all',
+    ownerFilter: 'all',
+    searchQuery: '',
+    statusFilter: 'all',
+    unitFilter: 'all',
+    sortColumn: 'dueDate',
+    sortDirection: 'asc',
+  }), []);
+  const projectWorkspaceState = useMemo<ProjectWorkspaceState>(() => ({
+    businessFilter,
+    ownerFilter,
+    searchQuery,
+    statusFilter,
+    unitFilter,
+    sortColumn: sortState.columnId,
+    sortDirection: sortState.direction,
+  }), [businessFilter, ownerFilter, searchQuery, sortState.columnId, sortState.direction, statusFilter, unitFilter]);
+
+  useWorkspaceNavigationMemory({
+    moduleKey: 'processes-tasks',
+    tabKey: 'projects',
+    state: projectWorkspaceState,
+    defaults: projectWorkspaceDefaults,
+    urlFields: {
+      searchQuery: 'q',
+      statusFilter: 'status',
+      unitFilter: 'unit',
+      businessFilter: 'business',
+      ownerFilter: 'owner',
+    },
+    onRestore: (restoredState) => {
+      setSearchQuery(typeof restoredState.searchQuery === 'string' ? restoredState.searchQuery : '');
+      setStatusFilter(
+        restoredState.statusFilter === 'all'
+        || restoredState.statusFilter === 'at-risk'
+        || projectStatusValues.includes(restoredState.statusFilter as ProjectStatus)
+          ? restoredState.statusFilter
+          : 'all',
+      );
+      setUnitFilter(typeof restoredState.unitFilter === 'string' ? restoredState.unitFilter : 'all');
+      setBusinessFilter(typeof restoredState.businessFilter === 'string' ? restoredState.businessFilter : 'all');
+      setOwnerFilter(typeof restoredState.ownerFilter === 'string' ? restoredState.ownerFilter : 'all');
+      setSortState({
+        columnId: defaultColumns.some((column) => column.id === restoredState.sortColumn)
+          ? restoredState.sortColumn
+          : 'dueDate',
+        direction: restoredState.sortDirection === 'desc' ? 'desc' : 'asc',
+      });
+    },
+  });
 
   const loadProjects = useCallback(async () => {
     setIsLoadingProjects(true);
@@ -735,22 +765,6 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
 
     window.localStorage.setItem(projectColumnsStorageKey, JSON.stringify(columns));
   }, [columns]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const nextFilters: StoredProjectFilters = {
-      business: businessFilter,
-      owner: ownerFilter,
-      search: searchQuery,
-      status: statusFilter,
-      unit: unitFilter,
-    };
-
-    window.sessionStorage.setItem(projectFiltersStorageKey, JSON.stringify(nextFilters));
-  }, [businessFilter, ownerFilter, searchQuery, statusFilter, unitFilter]);
 
   useEffect(() => {
     const defaultColumnMap = new Map(defaultColumns.map((column) => [column.id, column]));
@@ -1026,6 +1040,7 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
     setBusinessFilter('all');
     setStatusFilter('all');
     setOwnerFilter('all');
+    setShowAdvancedFilters(false);
   };
 
   const openEditDialog = (project: ProjectRecord) => {
@@ -1524,6 +1539,17 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
     }
   };
 
+  const activeAdvancedFilterCount = Number(unitFilter !== 'all') + Number(businessFilter !== 'all');
+  const hasActiveFilters = Boolean(
+    searchQuery || statusFilter !== 'all' || ownerFilter !== 'all' || activeAdvancedFilterCount > 0
+  );
+
+  useEffect(() => {
+    if (activeAdvancedFilterCount > 0) {
+      setShowAdvancedFilters(true);
+    }
+  }, [activeAdvancedFilterCount]);
+
   const headerActions = (
     <div className="grid w-full grid-cols-2 gap-3 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
       <Button
@@ -1564,89 +1590,71 @@ export default function Projects({ learningModeActive = false }: ProjectsProps) 
         </section>
       ) : null}
 
-      <section className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <h3 className="mb-4 text-base font-medium text-slate-800 dark:text-white">{projectCopy.filters.title}</h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-6 xl:grid-cols-12">
-          <div className="space-y-2 md:col-span-3 xl:col-span-4">
-            <label htmlFor="projects-search" className="text-sm font-medium text-slate-700 dark:text-slate-200">{projectCopy.filters.search}</label>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input
-                id="projects-search"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder={projectCopy.filters.searchPlaceholder}
-                className="h-10 rounded-xl border-slate-200 bg-white pl-10 text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
-              />
-            </div>
-          </div>
-          <div className="space-y-2 md:col-span-3 xl:col-span-2">
-            <label id="projects-unit-label" className="text-sm font-medium text-slate-700 dark:text-slate-200">{projectCopy.filters.unit}</label>
-            <Select value={unitFilter} onValueChange={setUnitFilter}>
-              <SelectTrigger aria-labelledby="projects-unit-label" className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{projectCopy.common.all}</SelectItem>
-                {unitOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2 md:col-span-3 xl:col-span-2">
-            <label id="projects-business-label" className="text-sm font-medium text-slate-700 dark:text-slate-200">{projectCopy.filters.business}</label>
-            <Select value={businessFilter} onValueChange={setBusinessFilter}>
-              <SelectTrigger aria-labelledby="projects-business-label" className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{projectCopy.common.all}</SelectItem>
-                {businessOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2 md:col-span-3 xl:col-span-2">
-            <label id="projects-status-label" className="text-sm font-medium text-slate-700 dark:text-slate-200">{projectCopy.filters.status}</label>
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
-              <SelectTrigger aria-labelledby="projects-status-label" className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{projectCopy.common.all}</SelectItem>
-                {projectStatusValues.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {projectCopy.statuses[value]}
-                  </SelectItem>
-                ))}
-                <SelectItem value="at-risk">{projectCopy.statuses.atRisk}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2 md:col-span-3 xl:col-span-2">
-            <label id="projects-owner-label" className="text-sm font-medium text-slate-700 dark:text-slate-200">{projectCopy.filters.owner}</label>
-            <Select value={ownerFilter} onValueChange={setOwnerFilter}>
-              <SelectTrigger aria-labelledby="projects-owner-label" className="h-10 rounded-xl border-slate-200 bg-white text-slate-900 shadow-none focus:border-[#F4C84A] focus:ring-[#F4C84A]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{projectCopy.common.all}</SelectItem>
-                {ownerOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </section>
+      <IndiceFilterBar
+        className="mb-6"
+        gridClassName="md:grid-cols-6 xl:grid-cols-12"
+        summary={(
+          <IndiceFilterDisclosureActions
+            activeAdvancedCount={activeAdvancedFilterCount}
+            advancedLabel={showAdvancedFilters ? disclosureCopy.hideFilters : disclosureCopy.moreFilters}
+            clearLabel={projectCopy.filters.clear}
+            hasActiveFilters={hasActiveFilters}
+            isAdvancedOpen={showAdvancedFilters}
+            onClear={clearFilters}
+            onToggleAdvanced={() => setShowAdvancedFilters((visible) => !visible)}
+            tone="yellow"
+          />
+        )}
+        title={projectCopy.filters.title}
+      >
+        <IndiceFilterSearch
+          className="md:col-span-3 xl:col-span-4"
+          label={projectCopy.filters.search}
+          onClear={() => setSearchQuery('')}
+          onValueChange={setSearchQuery}
+          placeholder={projectCopy.filters.searchPlaceholder}
+          tone="yellow"
+          value={searchQuery}
+        />
+        <IndiceFilterSelect
+          className="md:col-span-3 xl:col-span-4"
+          label={projectCopy.filters.status}
+          onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+          options={[
+            { value: 'all', label: projectCopy.common.all },
+            ...projectStatusValues.map((value) => ({ value, label: projectCopy.statuses[value] })),
+            { value: 'at-risk', label: projectCopy.statuses.atRisk },
+          ]}
+          tone="yellow"
+          value={statusFilter}
+        />
+        <IndiceFilterSelect
+          className="md:col-span-3 xl:col-span-4"
+          label={projectCopy.filters.owner}
+          onValueChange={setOwnerFilter}
+          options={[{ value: 'all', label: projectCopy.common.all }, ...ownerOptions]}
+          tone="yellow"
+          value={ownerFilter}
+        />
+        {showAdvancedFilters ? (
+          <IndiceFilterAdvancedSection className="md:col-span-6 xl:col-span-12" gridClassName="xl:grid-cols-2">
+            <IndiceFilterSelect
+              label={projectCopy.filters.unit}
+              onValueChange={setUnitFilter}
+              options={[{ value: 'all', label: projectCopy.common.all }, ...unitOptions]}
+              tone="yellow"
+              value={unitFilter}
+            />
+            <IndiceFilterSelect
+              label={projectCopy.filters.business}
+              onValueChange={setBusinessFilter}
+              options={[{ value: 'all', label: projectCopy.common.all }, ...businessOptions]}
+              tone="yellow"
+              value={businessFilter}
+            />
+          </IndiceFilterAdvancedSection>
+        ) : null}
+      </IndiceFilterBar>
 
       {!learningModeActive ? (
         <ProjectKpiStrip copy={projectCopy.kpis} isLoading={isLoadingProjects} metrics={metrics} />

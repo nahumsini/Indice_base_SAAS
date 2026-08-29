@@ -108,6 +108,12 @@ Rules:
 - do not create a marketing hero
 - do not duplicate the global preferred-currency selector
 - do not place chart-specific actions in the title bar
+- apply the action-count and overflow hierarchy from Section 12 of the Frontend Operating System:
+  show one to three eligible actions directly, and only when there are four or more use a fourth
+  `Actions` control for overflow
+- if the analytics view owns a configurable contextual table, keep `Columns` direct while the
+  complete action set has three or fewer actions; whenever overflow exists, place `Columns` inside
+  that menu and do not duplicate it
 
 Example:
 
@@ -156,9 +162,22 @@ Required behavior:
 - reset dependent filters when their parent scope changes
 - Unit filters the available Business options
 - custom periods expose From and To fields
-- filters persist while the user remains in the tab
+- recoverable analytics filters persist across tab navigation and reload according to Section 10.2
+  of the Frontend Operating System; explicitly mapped URL values override remembered values
 - exported data uses the active filters
 - changing a filter resets table pagination to page 1
+
+When the analytics scope has more than four useful filters, apply the progressive-disclosure
+contract from Section 13 of the Frontend Operating System. Keep Search and the two or three
+decision-critical controls visible; place secondary scope controls behind `More filters`, expose
+the active-secondary count, automatically reveal restored active values, and make Clear restore
+the analytics view's documented factory scope. With four or fewer useful controls, keep the normal
+responsive grid and do not add an unnecessary disclosure action.
+
+Analytics memory stores safe scope and presentation choices only. Never persist fetched totals,
+exchange rates, permission results, open dialogs, loading/error state, or a pending export as tab
+memory. Column preferences for the contextual table remain independent from the global filter
+scope and follow Section 17 of the Frontend Operating System.
 
 Visual contract:
 
@@ -922,7 +941,11 @@ A KPI tab is complete only when:
 
 - [ ] It follows the Frontend Operating System.
 - [ ] It has a compact localized title bar.
+- [ ] Its title-bar actions follow the three-direct-actions and fourth-overflow-control rule.
 - [ ] It has one global filter scope.
+- [ ] More than four useful filters use the shared progressive-disclosure pattern.
+- [ ] Its safe filter scope survives tab navigation and reload without crossing user or company scope.
+- [ ] Direct URL fields override remembered filter values.
 - [ ] Search appears first when the analytics view supports record search.
 - [ ] Unit and Business dependency works correctly.
 - [ ] Filter changes update cards, charts, rankings, tables, and exports.

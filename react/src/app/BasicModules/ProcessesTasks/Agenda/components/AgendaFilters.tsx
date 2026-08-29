@@ -1,6 +1,9 @@
-import { ChevronDown, ChevronUp, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Button } from '../../../../components/ui/button';
+import {
+  IndiceFilterAdvancedSection,
+  IndiceFilterBar,
+  IndiceFilterDisclosureActions,
+} from '../../../../components/frontend-os';
 import { Input } from '../../../../components/ui/input';
 import {
   Select,
@@ -88,8 +91,8 @@ export function AgendaFilters({
   ].filter(Boolean).length;
   const hasActiveFilters = Boolean(
     searchQuery
-    || focusFilter !== 'team'
-    || periodFilter !== 'all'
+    || focusFilter !== 'mine'
+    || periodFilter !== 'today'
     || statusFilter !== 'all'
     || advancedFilterCount > 0,
   );
@@ -107,40 +110,23 @@ export function AgendaFilters({
   };
 
   return (
-    <section className="mb-6 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
-        <h3 className="text-base font-medium text-slate-800 dark:text-white">{copy.filters.title}</h3>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-3 text-slate-700 shadow-none hover:border-[#F4C84A]/60 hover:bg-[#F4C84A]/10 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
-            aria-expanded={showAdvancedFilters}
-            onClick={() => setShowAdvancedFilters((visible) => !visible)}
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-            {showAdvancedFilters ? copy.filters.hideMore : copy.filters.more}
-            {advancedFilterCount > 0 ? (
-              <span className="rounded-full bg-[#C38A00] px-1.5 py-0.5 text-xs leading-none text-white">
-                {advancedFilterCount}
-              </span>
-            ) : null}
-            {showAdvancedFilters ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
-          {hasActiveFilters ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="h-10 gap-2 rounded-xl border-slate-200 bg-white px-3 text-slate-700 shadow-none hover:border-[#F4C84A]/60 hover:bg-[#F4C84A]/10 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
-              onClick={handleClearFilters}
-            >
-              <RotateCcw className="h-4 w-4" />
-              {copy.filters.clear}
-            </Button>
-          ) : null}
-        </div>
-      </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[minmax(20rem,2fr)_minmax(18rem,1.25fr)_repeat(2,minmax(0,1fr))]">
+    <IndiceFilterBar
+      className="mb-6"
+      gridClassName="xl:grid-cols-[minmax(20rem,2fr)_minmax(18rem,1.25fr)_repeat(2,minmax(0,1fr))]"
+      summary={(
+        <IndiceFilterDisclosureActions
+          activeAdvancedCount={advancedFilterCount}
+          advancedLabel={showAdvancedFilters ? copy.filters.hideMore : copy.filters.more}
+          clearLabel={copy.filters.clear}
+          hasActiveFilters={hasActiveFilters}
+          isAdvancedOpen={showAdvancedFilters}
+          onClear={handleClearFilters}
+          onToggleAdvanced={() => setShowAdvancedFilters((visible) => !visible)}
+          tone="yellow"
+        />
+      )}
+      title={copy.filters.title}
+    >
         <div className="space-y-2 md:col-span-2 xl:col-span-1">
           <label htmlFor="agenda-search" className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.search}</label>
           <Input
@@ -224,7 +210,7 @@ export function AgendaFilters({
           </div>
         ) : null}
         {showAdvancedFilters ? (
-          <div className="grid grid-cols-1 gap-4 border-t border-slate-200 pt-4 md:col-span-2 md:grid-cols-2 dark:border-slate-700 xl:col-span-4 xl:grid-cols-4">
+          <IndiceFilterAdvancedSection className="md:col-span-2 xl:col-span-4" gridClassName="xl:grid-cols-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.filters.unit}</label>
               <Select value={unitFilter} onValueChange={onUnitFilterChange}>
@@ -281,9 +267,8 @@ export function AgendaFilters({
                 </SelectContent>
               </Select>
             </div>
-          </div>
+          </IndiceFilterAdvancedSection>
         ) : null}
-      </div>
-    </section>
+    </IndiceFilterBar>
   );
 }

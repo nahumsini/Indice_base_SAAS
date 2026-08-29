@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Button } from '../../../components/ui/button';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
+import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 import { humanResourcesApi } from '../../../api/humanResources';
 import {
   buildCreateAnnouncementPayload,
@@ -49,6 +50,20 @@ const LazyCreateAnnouncementModal = lazy(() =>
   import('./components/CreateAnnouncementModal').then((module) => ({ default: module.CreateAnnouncementModal })),
 );
 
+type AnnouncementsWorkspaceState = {
+  searchQuery: string;
+  selectedType: AnnouncementTypeFilter;
+  selectedStatus: AnnouncementStatusFilter;
+  selectedAudience: AnnouncementAudienceFilter;
+};
+
+const announcementWorkspaceDefaults: AnnouncementsWorkspaceState = {
+  searchQuery: '',
+  selectedType: 'all',
+  selectedStatus: 'all',
+  selectedAudience: 'all',
+};
+
 export default function Announcements() {
   const copy = useAnnouncementsTranslations();
   const locale = useAnnouncementsResolvedLocale();
@@ -72,6 +87,38 @@ export default function Announcements() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const workspaceState = useMemo<AnnouncementsWorkspaceState>(() => ({
+    searchQuery,
+    selectedType,
+    selectedStatus,
+    selectedAudience,
+  }), [searchQuery, selectedAudience, selectedStatus, selectedType]);
+
+  useWorkspaceNavigationMemory({
+    moduleKey: 'human-resources',
+    tabKey: 'announcements',
+    state: workspaceState,
+    defaults: announcementWorkspaceDefaults,
+    urlFields: {
+      searchQuery: 'q',
+      selectedType: 'type',
+      selectedStatus: 'status',
+      selectedAudience: 'audience',
+    },
+    onRestore: (restoredState) => {
+      setSearchQuery(typeof restoredState.searchQuery === 'string' ? restoredState.searchQuery : '');
+      setSelectedType(typeFilterValues.includes(restoredState.selectedType) ? restoredState.selectedType : 'all');
+      setSelectedStatus(statusFilterValues.includes(restoredState.selectedStatus) ? restoredState.selectedStatus : 'all');
+      setSelectedAudience(audienceFilterValues.includes(restoredState.selectedAudience) ? restoredState.selectedAudience : 'all');
+    },
+  });
+
+  const clearAnnouncementFilters = () => {
+    setSearchQuery('');
+    setSelectedType('all');
+    setSelectedStatus('all');
+    setSelectedAudience('all');
+  };
 
   const canManage = Boolean(summary.can_manage);
 
@@ -412,6 +459,7 @@ export default function Announcements() {
       <AnnouncementFilters
         copy={copy.filters}
         audienceOptions={audienceFilterOptions}
+        onClearFilters={clearAnnouncementFilters}
         searchQuery={searchQuery}
         selectedAudience={selectedAudience}
         selectedStatus={selectedStatus}

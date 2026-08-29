@@ -5,6 +5,7 @@ import {
   Sheet,
   Plus,
 } from 'lucide-react';
+import { IndiceTitleBarOverflow } from '../../../../components/frontend-os';
 import { Button } from '../../../../components/ui/button';
 import {
   SalesTitleBar,
@@ -41,22 +42,6 @@ export function ProductsHeader({
           <Button
             variant="outline"
             className={salesTitleBarSecondaryActionClassName}
-            onClick={onOpenBulkIntegration}
-          >
-            <Sheet className="h-4 w-4" />
-            Integración masiva
-          </Button>
-          <Button
-            variant="outline"
-            className={salesTitleBarSecondaryActionClassName}
-            onClick={onOpenColumns}
-          >
-            <Columns3 className="h-4 w-4" />
-            {t.header.columnsAction}
-          </Button>
-          <Button
-            variant="outline"
-            className={salesTitleBarSecondaryActionClassName}
             onClick={onOpenPublicCatalog}
           >
             <Globe2 className="h-4 w-4" />
@@ -74,6 +59,23 @@ export function ProductsHeader({
             <Plus className="h-4 w-4" />
             {t.header.primaryAction}
           </Button>
+          <IndiceTitleBarOverflow
+            label={t.common.actions}
+            items={[
+              {
+                id: 'columns',
+                icon: <Columns3 className="h-4 w-4" />,
+                label: t.header.columnsAction,
+                onSelect: onOpenColumns,
+              },
+              {
+                id: 'bulk-integration',
+                icon: <Sheet className="h-4 w-4" />,
+                label: 'Integración masiva',
+                onSelect: onOpenBulkIntegration,
+              },
+            ]}
+          />
         </>
       )}
     />

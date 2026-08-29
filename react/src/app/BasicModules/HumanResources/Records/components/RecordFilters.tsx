@@ -1,146 +1,158 @@
-import { Search } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  IndiceFilterAdvancedSection,
+  IndiceFilterBar,
+  IndiceFilterDisclosureActions,
+  IndiceFilterField,
+  IndiceFilterSearch,
+  IndiceFilterSelect,
+  getIndiceFilterControlClassName,
+  useIndiceFilterDisclosureCopy,
+} from '../../../../components/frontend-os';
 import type { RecordFiltersState } from '../types/records.types';
 import type { RecordFiltersCopy } from '../translations';
 
 interface RecordFiltersProps {
   copy: RecordFiltersCopy;
   filters: RecordFiltersState;
+  onClearFilters: () => void;
   onFiltersChange: (filters: RecordFiltersState) => void;
   unitOptions: string[];
   businessOptions: string[];
 }
 
-export function RecordFilters({ copy, filters, onFiltersChange, unitOptions, businessOptions }: RecordFiltersProps) {
+export function RecordFilters({ copy, filters, onClearFilters, onFiltersChange, unitOptions, businessOptions }: RecordFiltersProps) {
+  const disclosureCopy = useIndiceFilterDisclosureCopy();
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const updateFilter = <K extends keyof RecordFiltersState>(key: K, value: RecordFiltersState[K]) => {
     onFiltersChange({ ...filters, [key]: value });
   };
+  const activeAdvancedFilterCount = [filters.unit, filters.business, filters.severity]
+    .filter((value) => value !== 'all').length
+    + Number(Boolean(filters.dateFrom))
+    + Number(Boolean(filters.dateTo));
+  const hasActiveFilters = Boolean(
+    filters.search.trim()
+      || filters.status !== 'all'
+      || filters.type !== 'all'
+      || activeAdvancedFilterCount > 0,
+  );
+
+  useEffect(() => {
+    if (activeAdvancedFilterCount > 0) setShowAdvancedFilters(true);
+  }, [activeAdvancedFilterCount]);
+
+  const handleClearFilters = () => {
+    onClearFilters();
+    setShowAdvancedFilters(false);
+  };
 
   return (
-    <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <h3 className="mb-4 text-base font-medium text-slate-900 dark:text-white">{copy.filters.title}</h3>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <div className="md:col-span-2">
-          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
-            {copy.filters.searchLabel}
-          </label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              value={filters.search}
-              onChange={(event) => updateFilter('search', event.target.value)}
-              placeholder={copy.filters.searchPlaceholder}
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-            />
-          </div>
-        </div>
+    <IndiceFilterBar
+      gridClassName="lg:grid-cols-3"
+      title={copy.filters.title}
+      summary={(
+        <IndiceFilterDisclosureActions
+          activeAdvancedCount={activeAdvancedFilterCount}
+          advancedLabel={showAdvancedFilters ? disclosureCopy.hideFilters : disclosureCopy.moreFilters}
+          clearLabel={disclosureCopy.clearFilters}
+          hasActiveFilters={hasActiveFilters}
+          isAdvancedOpen={showAdvancedFilters}
+          onClear={handleClearFilters}
+          onToggleAdvanced={() => setShowAdvancedFilters((current) => !current)}
+          tone="aqua"
+        />
+      )}
+    >
+      <IndiceFilterSearch
+        label={copy.filters.searchLabel}
+        value={filters.search}
+        onValueChange={(value) => updateFilter('search', value)}
+        onClear={() => updateFilter('search', '')}
+        placeholder={copy.filters.searchPlaceholder}
+        tone="aqua"
+      />
+      <IndiceFilterSelect
+        label={copy.filters.status}
+        value={filters.status}
+        onValueChange={(value) => updateFilter('status', value as RecordFiltersState['status'])}
+        options={[
+          { value: 'all', label: copy.filters.allStatuses },
+          { value: 'pending', label: copy.status.pending },
+          { value: 'reviewed', label: copy.status.reviewed },
+          { value: 'resolved', label: copy.status.resolved },
+        ]}
+        tone="aqua"
+      />
+      <IndiceFilterSelect
+        label={copy.filters.type}
+        value={filters.type}
+        onValueChange={(value) => updateFilter('type', value as RecordFiltersState['type'])}
+        options={[
+          { value: 'all', label: copy.filters.allTypes },
+          { value: 'incident', label: copy.types.incident },
+          { value: 'warning', label: copy.types.warning },
+          { value: 'recognition', label: copy.types.recognition },
+          { value: 'observation', label: copy.types.observation },
+          { value: 'training', label: copy.types.training },
+        ]}
+        tone="aqua"
+      />
 
-        <div>
-          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
-            {copy.filters.unit}
-          </label>
-          <select
+      {showAdvancedFilters ? (
+        <IndiceFilterAdvancedSection className="md:col-span-2 lg:col-span-3" gridClassName="lg:grid-cols-4">
+          <IndiceFilterSelect
+            label={copy.filters.unit}
             value={filters.unit}
-            onChange={(event) => updateFilter('unit', event.target.value)}
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-          >
-            <option value="all">{copy.filters.allUnits}</option>
-            {unitOptions.map((unit) => (
-              <option key={unit} value={unit}>{unit}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
-            {copy.filters.business}
-          </label>
-          <select
+            onValueChange={(value) => updateFilter('unit', value)}
+            options={[
+              { value: 'all', label: copy.filters.allUnits },
+              ...unitOptions.map((unit) => ({ value: unit, label: unit })),
+            ]}
+            tone="aqua"
+          />
+          <IndiceFilterSelect
+            label={copy.filters.business}
             value={filters.business}
-            onChange={(event) => updateFilter('business', event.target.value)}
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-          >
-            <option value="all">{copy.filters.allBusinesses}</option>
-            {businessOptions.map((business) => (
-              <option key={business} value={business}>{business}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
-            {copy.filters.status}
-          </label>
-          <select
-            value={filters.status}
-            onChange={(event) => updateFilter('status', event.target.value as RecordFiltersState['status'])}
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-          >
-            <option value="all">{copy.filters.allStatuses}</option>
-            <option value="pending">{copy.status.pending}</option>
-            <option value="reviewed">{copy.status.reviewed}</option>
-            <option value="resolved">{copy.status.resolved}</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
-            {copy.filters.type}
-          </label>
-          <select
-            value={filters.type}
-            onChange={(event) => updateFilter('type', event.target.value as RecordFiltersState['type'])}
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-          >
-            <option value="all">{copy.filters.allTypes}</option>
-            <option value="incident">{copy.types.incident}</option>
-            <option value="warning">{copy.types.warning}</option>
-            <option value="recognition">{copy.types.recognition}</option>
-            <option value="observation">{copy.types.observation}</option>
-            <option value="training">{copy.types.training}</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
-            {copy.filters.severity}
-          </label>
-          <select
+            onValueChange={(value) => updateFilter('business', value)}
+            options={[
+              { value: 'all', label: copy.filters.allBusinesses },
+              ...businessOptions.map((business) => ({ value: business, label: business })),
+            ]}
+            tone="aqua"
+          />
+          <IndiceFilterSelect
+            label={copy.filters.severity}
             value={filters.severity}
-            onChange={(event) => updateFilter('severity', event.target.value as RecordFiltersState['severity'])}
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-          >
-            <option value="all">{copy.filters.allSeverity}</option>
-            <option value="low">{copy.severity.low}</option>
-            <option value="medium">{copy.severity.medium}</option>
-            <option value="high">{copy.severity.high}</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
-            {copy.filters.dateFrom}
-          </label>
-          <input
-            type="date"
-            value={filters.dateFrom || ''}
-            onChange={(event) => updateFilter('dateFrom', event.target.value)}
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            onValueChange={(value) => updateFilter('severity', value as RecordFiltersState['severity'])}
+            options={[
+              { value: 'all', label: copy.filters.allSeverity },
+              { value: 'low', label: copy.severity.low },
+              { value: 'medium', label: copy.severity.medium },
+              { value: 'high', label: copy.severity.high },
+            ]}
+            tone="aqua"
           />
-        </div>
-
-        <div>
-          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
-            {copy.filters.dateTo}
-          </label>
-          <input
-            type="date"
-            value={filters.dateTo || ''}
-            onChange={(event) => updateFilter('dateTo', event.target.value)}
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-          />
-        </div>
-      </div>
-    </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <IndiceFilterField label={copy.filters.dateFrom}>
+              <input
+                type="date"
+                value={filters.dateFrom || ''}
+                onChange={(event) => updateFilter('dateFrom', event.target.value)}
+                className={getIndiceFilterControlClassName('aqua')}
+              />
+            </IndiceFilterField>
+            <IndiceFilterField label={copy.filters.dateTo}>
+              <input
+                type="date"
+                value={filters.dateTo || ''}
+                onChange={(event) => updateFilter('dateTo', event.target.value)}
+                className={getIndiceFilterControlClassName('aqua')}
+              />
+            </IndiceFilterField>
+          </div>
+        </IndiceFilterAdvancedSection>
+      ) : null}
+    </IndiceFilterBar>
   );
 }

@@ -5,7 +5,7 @@ import type { ControlFeedbackProps } from "../components/ControlFeedback";
 import type { ControlKpiStripLabels } from "../components/ControlKpiStrip";
 import type { ControlOperationsWorkspaceProps } from "../components/ControlOperationsWorkspace";
 import type { ControlTranslations } from "../translations";
-import { allFilterValue } from "./control.utils";
+import { allFilterValue, todayIsoDate } from "./control.utils";
 import type { useCalendarDateSelection } from "../hooks/useCalendarDateSelection";
 import type { useControlAttendanceFilters } from "../hooks/useControlAttendanceFilters";
 import type { useControlCalendarActions } from "../hooks/useControlCalendarActions";
@@ -176,6 +176,14 @@ export function buildControlControllerProps({
         controlDate: data.controlDate,
         copy,
         onBusinessFilterChange: filters.setBusinessFilter,
+        onClearFilters: () => {
+          filters.setSearchQuery("");
+          filters.setUnitFilter(allFilterValue);
+          filters.setBusinessFilter(allFilterValue);
+          filters.setStatusFilter(allFilterValue);
+          filters.setAttendanceListPage(1);
+          data.setControlDate(todayIsoDate());
+        },
         onDateChange: data.setControlDate,
         onSearchChange: filters.setSearchQuery,
         onStatusFilterChange: filters.setStatusFilter,

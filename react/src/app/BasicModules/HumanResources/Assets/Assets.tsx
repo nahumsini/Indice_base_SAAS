@@ -16,6 +16,8 @@ import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
 import { FailureToast } from '../../../components/FailureToast';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
+import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../hooks/useTablePagination';
+import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 import { useLanguage } from '../../../shared/context';
 import {
   StandardActionButton,
@@ -66,6 +68,17 @@ const LazyAssetPhotosModal = lazy(() =>
 
 type AssetSortField = Exclude<AssetColumnId, 'actions'>;
 
+type AssetsWorkspaceState = {
+  searchQuery: string;
+  typeFilter: 'all' | AssetType;
+  statusFilter: 'all' | HrAssetStatus;
+  unitFilter: string;
+  sortField: AssetSortField;
+  sortDirection: StandardSortDirection;
+  pageSize: number;
+  currentPage: number;
+};
+
 const defaultAssetsPageSize = 10;
 
 export default function Assets() {
@@ -106,6 +119,62 @@ export default function Assets() {
   const [sortDirection, setSortDirection] = useState<StandardSortDirection>('asc');
   const [pageSize, setPageSize] = useState(defaultAssetsPageSize);
   const [currentPage, setCurrentPage] = useState(1);
+  const workspaceDefaults = useMemo<AssetsWorkspaceState>(() => ({
+    searchQuery: '',
+    typeFilter: 'all',
+    statusFilter: 'all',
+    unitFilter: 'all',
+    sortField: 'asset',
+    sortDirection: 'asc',
+    pageSize: defaultAssetsPageSize,
+    currentPage: 1,
+  }), []);
+  const workspaceState = useMemo<AssetsWorkspaceState>(() => ({
+    searchQuery,
+    typeFilter,
+    statusFilter,
+    unitFilter,
+    sortField,
+    sortDirection,
+    pageSize,
+    currentPage,
+  }), [currentPage, pageSize, searchQuery, sortDirection, sortField, statusFilter, typeFilter, unitFilter]);
+
+  useWorkspaceNavigationMemory({
+    moduleKey: 'human-resources',
+    tabKey: 'assets',
+    state: workspaceState,
+    defaults: workspaceDefaults,
+    urlFields: {
+      searchQuery: 'q',
+      typeFilter: 'type',
+      statusFilter: 'status',
+      unitFilter: 'unit',
+      currentPage: 'page',
+      pageSize: 'pageSize',
+    },
+    onRestore: (restoredState) => {
+      setSearchQuery(typeof restoredState.searchQuery === 'string' ? restoredState.searchQuery : '');
+      setTypeFilter(restoredState.typeFilter === 'all' || assetTypeOptionByValue.has(restoredState.typeFilter) ? restoredState.typeFilter : 'all');
+      setStatusFilter(['all', 'available', 'assigned', 'maintenance', 'custody', 'inactive'].includes(restoredState.statusFilter) ? restoredState.statusFilter : 'all');
+      setUnitFilter(typeof restoredState.unitFilter === 'string' ? restoredState.unitFilter : 'all');
+      setSortField(allAssetColumnIds.includes(restoredState.sortField) ? restoredState.sortField : 'asset');
+      setSortDirection(restoredState.sortDirection === 'desc' ? 'desc' : 'asc');
+      setPageSize(DEFAULT_TABLE_PAGE_SIZE_OPTIONS.includes(restoredState.pageSize as (typeof DEFAULT_TABLE_PAGE_SIZE_OPTIONS)[number]) ? restoredState.pageSize : defaultAssetsPageSize);
+      setCurrentPage(Number.isInteger(restoredState.currentPage) && restoredState.currentPage > 0 ? restoredState.currentPage : 1);
+    },
+  });
+
+  const clearAssetFilters = () => {
+    setSearchQuery('');
+    setTypeFilter('all');
+    setStatusFilter('all');
+    setUnitFilter('all');
+    setSortField('asset');
+    setSortDirection('asc');
+    setPageSize(defaultAssetsPageSize);
+    setCurrentPage(1);
+  };
   const normalizedVisibleColumnIds = useMemo(() => {
     const nextVisible = allAssetColumnIds.filter(
       (columnId) => visibleColumnIds.includes(columnId) || lockedAssetColumnIds.includes(columnId),
@@ -545,6 +614,7 @@ export default function Assets() {
 
       <AssetFilters
         copy={t}
+        onClearFilters={clearAssetFilters}
         searchQuery={searchQuery}
         statusFilter={statusFilter}
         typeFilter={typeFilter}

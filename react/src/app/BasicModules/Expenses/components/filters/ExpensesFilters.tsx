@@ -1,5 +1,11 @@
 import { Search, X } from 'lucide-react';
-import { getIndiceFilterControlClassName, IndiceFilterBar } from '../../../../components/frontend-os';
+import { useEffect, useState } from 'react';
+import {
+  getIndiceFilterControlClassName,
+  IndiceFilterAdvancedSection,
+  IndiceFilterBar,
+  IndiceFilterDisclosureActions,
+} from '../../../../components/frontend-os';
 import type { Provider } from '../../types/expenses.types';
 import type { ExpenseListFilters, PeriodFilter } from '../../types/expenseView.types';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
@@ -24,11 +30,51 @@ const updateFilter = <K extends keyof ExpenseListFilters>(
 
 export function ExpensesFilters({ businessOptions, businessUnitOptions, filteredCount, filters, providers, onFiltersChange }: ExpensesFiltersProps) {
   const t = useExpensesTranslations();
+  const advancedFilterCount = [
+    filters.providerFilter !== 'all',
+    filters.businessUnitFilter !== 'all',
+    filters.businessFilter !== 'all',
+  ].filter(Boolean).length;
+  const hasActiveFilters = Boolean(
+    filters.searchTerm
+    || filters.periodFilter !== 'this_month'
+    || filters.statusFilter !== 'all'
+    || advancedFilterCount > 0,
+  );
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(advancedFilterCount > 0);
+
+  useEffect(() => {
+    if (advancedFilterCount > 0) setShowAdvancedFilters(true);
+  }, [advancedFilterCount]);
+
+  const clearFilters = () => {
+    onFiltersChange({
+      searchTerm: '',
+      periodFilter: 'this_month',
+      businessUnitFilter: 'all',
+      businessFilter: 'all',
+      providerFilter: 'all',
+      statusFilter: 'all',
+    });
+    setShowAdvancedFilters(false);
+  };
 
   return (
     <IndiceFilterBar
-      gridClassName="xl:grid-cols-[minmax(280px,1.4fr)_repeat(5,minmax(0,1fr))]"
-      summary={t.common.results(filteredCount)}
+      gridClassName="xl:grid-cols-[minmax(280px,1.4fr)_repeat(2,minmax(0,1fr))]"
+      summary={(
+        <IndiceFilterDisclosureActions
+          activeAdvancedCount={advancedFilterCount}
+          advancedLabel={showAdvancedFilters ? t.common.hideMoreFilters : t.common.moreFilters}
+          clearLabel={t.common.clearFilters}
+          hasActiveFilters={hasActiveFilters}
+          isAdvancedOpen={showAdvancedFilters}
+          onClear={clearFilters}
+          onToggleAdvanced={() => setShowAdvancedFilters(current => !current)}
+          resultSummary={t.common.results(filteredCount)}
+          tone="green"
+        />
+      )}
       title={t.filters.title}
     >
         <SearchFilter filters={filters} placeholder={t.expenses.searchPlaceholder} searchLabel={t.common.search} onFiltersChange={onFiltersChange} />
@@ -59,24 +105,28 @@ export function ExpensesFilters({ businessOptions, businessUnitOptions, filtered
             ['audited', t.statuses.audited],
           ]}
         />
-        <SelectFilter
-          label={t.filters.provider}
-          value={filters.providerFilter}
-          onChange={(value) => onFiltersChange(updateFilter(filters, 'providerFilter', value))}
-          options={providers.map(provider => [provider.id, provider.name])}
-        />
-        <SelectFilter
-          label={t.filters.unit}
-          value={filters.businessUnitFilter}
-          onChange={(value) => onFiltersChange(updateFilter(filters, 'businessUnitFilter', value))}
-          options={businessUnitOptions.map(option => [option.value, option.label])}
-        />
-        <SelectFilter
-          label={t.filters.business}
-          value={filters.businessFilter}
-          onChange={(value) => onFiltersChange(updateFilter(filters, 'businessFilter', value))}
-          options={businessOptions.map(option => [option.value, option.label])}
-        />
+        {showAdvancedFilters ? (
+          <IndiceFilterAdvancedSection className="md:col-span-2 xl:col-span-3" gridClassName="xl:grid-cols-3">
+            <SelectFilter
+              label={t.filters.provider}
+              value={filters.providerFilter}
+              onChange={(value) => onFiltersChange(updateFilter(filters, 'providerFilter', value))}
+              options={providers.map(provider => [provider.id, provider.name])}
+            />
+            <SelectFilter
+              label={t.filters.unit}
+              value={filters.businessUnitFilter}
+              onChange={(value) => onFiltersChange(updateFilter(filters, 'businessUnitFilter', value))}
+              options={businessUnitOptions.map(option => [option.value, option.label])}
+            />
+            <SelectFilter
+              label={t.filters.business}
+              value={filters.businessFilter}
+              onChange={(value) => onFiltersChange(updateFilter(filters, 'businessFilter', value))}
+              options={businessOptions.map(option => [option.value, option.label])}
+            />
+          </IndiceFilterAdvancedSection>
+        ) : null}
     </IndiceFilterBar>
   );
 }

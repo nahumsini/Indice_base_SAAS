@@ -16,7 +16,7 @@ export const esCO = {
       deleted: 'Línea de presupuesto eliminada de Finance.',
       emptyTitle: 'No hay líneas de presupuesto para el rango seleccionado',
       lineSaveFailed: 'No se pudo actualizar la línea de presupuesto en Finance.',
-      partialSaveFailed: 'No se pudieron guardar todas las líneas de presupuesto en Finance. Se conservaron localmente.',
+      partialSaveFailed: 'No se pudieron guardar todas las líneas de presupuesto en Finance. Solo se muestran las confirmadas; revisa y reintenta las faltantes.',
       updateFailed: 'No se pudo actualizar la línea de presupuesto en Finance.',
     },
     modal: {

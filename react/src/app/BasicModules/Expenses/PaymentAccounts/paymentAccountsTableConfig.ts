@@ -31,14 +31,19 @@ export const defaultPaymentColumnWidths: Record<PaymentColumnKey | 'actions', nu
 export const defaultPaymentColumns: PaymentColumnConfig[] = [
   { key: 'name', label: 'Cuenta de pago', description: 'Nombre operativo de la cuenta financiera.', sortField: 'name', visible: true, fixed: true },
   { key: 'type', label: 'Tipo', description: 'Banco, efectivo, tarjeta o billetera.', sortField: 'type', visible: true },
-  { key: 'unitId', label: 'Unidad', description: 'Unidad de negocio asignada.', sortField: 'unitId', visible: true },
-  { key: 'businessId', label: 'Negocio', description: 'Negocio relacionado dentro de la unidad.', sortField: 'businessId', visible: true },
-  { key: 'bank', label: 'Banco/Emisor', description: 'Institución, custodio o emisor.', sortField: 'bank', visible: true },
+  { key: 'unitId', label: 'Unidad', description: 'Unidad de negocio asignada.', sortField: 'unitId', visible: false },
+  { key: 'businessId', label: 'Negocio', description: 'Negocio relacionado dentro de la unidad.', sortField: 'businessId', visible: false },
+  { key: 'bank', label: 'Banco/Emisor', description: 'Institución, custodio o emisor.', sortField: 'bank', visible: false },
   { key: 'accountNumber', label: 'Número', description: 'Número o terminación visible.', sortField: 'accountNumber', visible: true },
   { key: 'balance', label: 'Saldo', description: 'Saldo operativo visible.', sortField: 'balance', visible: true },
   { key: 'currency', label: 'Moneda', description: 'Moneda de operación.', sortField: 'currency', visible: true },
-  { key: 'lastTransaction', label: 'Última transacción', description: 'Último movimiento registrado.', sortField: 'lastTransaction', visible: true },
+  { key: 'lastTransaction', label: 'Última transacción', description: 'Último movimiento registrado.', sortField: 'lastTransaction', visible: false },
   { key: 'isActive', label: 'Estado', description: 'Disponibilidad actual de la cuenta.', sortField: 'isActive', visible: true },
 ];
+
+export const legacyWidePaymentFactoryPreset = {
+  orderedKeys: defaultPaymentColumns.map(column => column.key),
+  visibleKeys: defaultPaymentColumns.map(column => column.key),
+};
 
 export const paymentHeaders = defaultPaymentColumns;

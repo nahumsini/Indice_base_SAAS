@@ -60,6 +60,7 @@ react/dist/
 react/.env.local
 
 ### Local handoff helpers ###
+.run/
 handoff/
 output/pdf/
 tmp/pdfs/
