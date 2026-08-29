@@ -1,5 +1,7 @@
 package com.indice.erp.auth;
 
+import java.text.Normalizer;
+import java.util.List;
 import java.util.Locale;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -8,6 +10,8 @@ public class AuthSecurityProperties {
 
     private boolean mfaEnabled = true;
     private boolean mfaRequired = true;
+    private boolean mfaTemporaryBypassEnabled = false;
+    private List<String> mfaTemporaryBypassCompanyNames = List.of();
     private int mfaOtpTtlSeconds = 300;
     private String mfaOtpHashSecret = "";
     private int mfaMaxAttempts = 5;
@@ -37,6 +41,31 @@ public class AuthSecurityProperties {
 
     public void setMfaRequired(boolean mfaRequired) {
         this.mfaRequired = mfaRequired;
+    }
+
+    public boolean isMfaRequiredForCompany(String companyName) {
+        if (!isMfaEnabled() || !isMfaRequired()) {
+            return false;
+        }
+        return !isMfaTemporaryBypassCompany(companyName);
+    }
+
+    public boolean isMfaTemporaryBypassEnabled() {
+        return mfaTemporaryBypassEnabled;
+    }
+
+    public void setMfaTemporaryBypassEnabled(boolean mfaTemporaryBypassEnabled) {
+        this.mfaTemporaryBypassEnabled = mfaTemporaryBypassEnabled;
+    }
+
+    public List<String> getMfaTemporaryBypassCompanyNames() {
+        return mfaTemporaryBypassCompanyNames == null ? List.of() : mfaTemporaryBypassCompanyNames;
+    }
+
+    public void setMfaTemporaryBypassCompanyNames(List<String> mfaTemporaryBypassCompanyNames) {
+        this.mfaTemporaryBypassCompanyNames = mfaTemporaryBypassCompanyNames == null
+            ? List.of()
+            : List.copyOf(mfaTemporaryBypassCompanyNames);
     }
 
     public int getMfaOtpTtlSeconds() {
@@ -170,5 +199,26 @@ public class AuthSecurityProperties {
 
     private String normalizeRole(String role) {
         return role == null ? "" : role.trim().toLowerCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
+    }
+
+    private boolean isMfaTemporaryBypassCompany(String companyName) {
+        if (!isMfaTemporaryBypassEnabled()) {
+            return false;
+        }
+        var normalizedCompanyName = normalizeCompanyName(companyName);
+        if (normalizedCompanyName.isBlank()) {
+            return false;
+        }
+        return getMfaTemporaryBypassCompanyNames().stream()
+            .map(this::normalizeCompanyName)
+            .anyMatch(normalizedCompanyName::equals);
+    }
+
+    private String normalizeCompanyName(String value) {
+        if (value == null) {
+            return "";
+        }
+        var normalized = Normalizer.normalize(value.trim(), Normalizer.Form.NFD);
+        return normalized.replaceAll("\\p{M}", "").toLowerCase(Locale.ROOT);
     }
 }

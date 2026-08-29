@@ -38,19 +38,43 @@ const sessionWithAccess = ({ role, modules, tabs }) => ({
 
 test('an expired authenticated session clears all cached credentials and notifies once', () => {
   let expirationNotifications = 0;
+  let localStorageClears = 0;
+  const previousWindow = globalThis.window;
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: {
+      localStorage: {
+        clear: () => {
+          localStorageClears += 1;
+        },
+      },
+    },
+  });
   const unsubscribe = subscribeToAuthenticationExpired(() => {
     expirationNotifications += 1;
   });
 
-  setCachedAuthSession({ csrfToken: 'session-csrf' });
-  setCachedCsrfToken('fallback-csrf');
-  expireCachedAuthSession();
-  expireCachedAuthSession();
+  try {
+    setCachedAuthSession({ csrfToken: 'session-csrf' });
+    setCachedCsrfToken('fallback-csrf');
+    expireCachedAuthSession();
+    expireCachedAuthSession();
 
-  assert.equal(getCachedAuthSession(), null);
-  assert.equal(getCachedCsrfToken(), null);
-  assert.equal(expirationNotifications, 1);
-  unsubscribe();
+    assert.equal(getCachedAuthSession(), null);
+    assert.equal(getCachedCsrfToken(), null);
+    assert.equal(expirationNotifications, 1);
+    assert.equal(localStorageClears, 2);
+  } finally {
+    unsubscribe();
+    if (previousWindow === undefined) {
+      delete globalThis.window;
+    } else {
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        value: previousWindow,
+      });
+    }
+  }
 });
 
 test('a role or grant revocation publishes one authorization revision without reacting to reordered grants', () => {

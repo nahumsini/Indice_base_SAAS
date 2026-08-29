@@ -182,7 +182,7 @@ public class AuthApiController {
             ));
         }
 
-        if (securityProperties.isMfaEnabled() && securityProperties.isMfaRequired()) {
+        if (securityProperties.isMfaRequiredForCompany(verification.login().companyName())) {
             recordCredentialAudit(verification, "SUCCESS", AuthFailureReason.MFA_REQUIRED,
                 "Password accepted; MFA required.", AuthLockoutService.LockoutState.open(), auditContext);
             var challenge = mfaChallengeService.startChallenge(verification.login(), session.getId(), auditContext);
