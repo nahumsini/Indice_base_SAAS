@@ -1,12 +1,11 @@
 package com.indice.erp.billing.subscription;
 
-import com.indice.erp.billing.BillingHashing;
 import com.indice.erp.billing.catalog.CommercialOfferSelection;
 import com.indice.erp.billing.catalog.CommercialOfferSelectionService;
 import com.indice.erp.billing.seats.SeatService;
 import com.indice.erp.billing.stripe.StripeBillingGateway;
 import com.indice.erp.billing.stripe.StripePhaseTwoProperties;
-import com.indice.erp.platformadmin.PlatformAdminService;
+import com.indice.erp.billing.stripe.StripeSecretProvider;
 import com.indice.erp.platformadmin.PlatformAuditService;
 import com.stripe.exception.StripeException;
 import com.stripe.model.SubscriptionItem;
@@ -19,46 +18,58 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class BillingProductSelectionService {
 
     private final JdbcTemplate jdbcTemplate;
-    private final TransactionTemplate transactions;
     private final CommercialOfferSelectionService offers;
     private final StripePhaseTwoProperties stripeProperties;
+    private final StripeSecretProvider stripeSecrets;
     private final StripeBillingGateway stripeGateway;
     private final SeatService seats;
-    private final PlatformAdminService platformAdminService;
     private final PlatformAuditService audit;
+    private final BillingSelectionChangeService changes;
+    private final BillingAccountAuthorityService billingAuthority;
 
     public BillingProductSelectionService(
         JdbcTemplate jdbcTemplate,
-        TransactionTemplate transactions,
         CommercialOfferSelectionService offers,
         StripePhaseTwoProperties stripeProperties,
+        StripeSecretProvider stripeSecrets,
         StripeBillingGateway stripeGateway,
         SeatService seats,
-        PlatformAdminService platformAdminService,
-        PlatformAuditService audit
+        PlatformAuditService audit,
+        BillingSelectionChangeService changes,
+        BillingAccountAuthorityService billingAuthority
     ) {
         this.jdbcTemplate = jdbcTemplate;
-        this.transactions = transactions;
         this.offers = offers;
         this.stripeProperties = stripeProperties;
+        this.stripeSecrets = stripeSecrets;
         this.stripeGateway = stripeGateway;
         this.seats = seats;
-        this.platformAdminService = platformAdminService;
         this.audit = audit;
+        this.changes = changes;
+        this.billingAuthority = billingAuthority;
     }
 
     public BillingSelectionResponse current(long companyId) {
+        return current(companyId, null);
+    }
+
+    public BillingSelectionResponse current(long companyId, Long actorUserId) {
         var state = state(companyId);
-        var selectedCodes = selectedCodes(companyId, state);
+        var currentCodes = selectedCodes(companyId, state);
+        var stored = state != null && state.stripeManaged()
+            ? changes.renewalTarget(companyId, state.id())
+            : changes.draft(companyId);
+        if (stored != null) {
+            return response(companyId, state, stored, currentCodes, false, actorUserId);
+        }
+        var selectedCodes = currentCodes;
         var interval = state == null ? "MONTH" : state.billingInterval();
         var extraSeats = state == null ? purchasedExtraSeats(companyId) : state.extraSeats();
         var historicalCatalog = state != null
@@ -67,7 +78,7 @@ public class BillingProductSelectionService {
         CommercialOfferSelection selection = selectedCodes.isEmpty() || historicalCatalog
             ? null
             : offers.select(selectedCodes, interval, extraSeats);
-        return response(companyId, state, selection, selectedCodes, false);
+        return response(companyId, state, selection, selectedCodes, currentCodes, false, actorUserId);
     }
 
     public BillingSelectionResponse preview(long companyId, BillingSelectionRequest request) {
@@ -79,7 +90,11 @@ public class BillingProductSelectionService {
             request == null ? null : request.product_codes(), interval, extraSeats,
             request == null ? null : request.promotion_code()
         );
-        return response(companyId, state, selection, selection.products().stream().map(CommercialOfferSelection.Product::code).toList(), false);
+        return response(
+            companyId, state, selection,
+            selection.products().stream().map(CommercialOfferSelection.Product::code).toList(),
+            selectedCodes(companyId, state), false, null
+        );
     }
 
     public BillingSelectionResponse update(
@@ -115,42 +130,49 @@ public class BillingProductSelectionService {
             );
         }
         validateCapacity(companyId, selection);
-        var oldProductIds = selectedProductIds(companyId, state);
-        var selectedProductIds = selection.products().stream().map(CommercialOfferSelection.Product::id).toList();
         var chargedNow = false;
+        var replayStatus = "";
 
         if (state != null && state.stripeManaged()) {
-            chargedNow = updateStripe(state, selection, cleanKey);
-            transactions.executeWithoutResult(ignored -> replaceSubscriptionSelection(state, selection));
-        } else {
-            if (request != null && request.extra_seats() != null && request.extra_seats() != purchasedExtraSeats(companyId)) {
-                throw new IllegalStateException("Registra un método de pago antes de cambiar usuarios adicionales.");
+            var effectiveAt = "TRIALING".equals(state.status()) ? state.trialEndsAt() : state.currentPeriodEndsAt();
+            var prepared = changes.prepareRenewal(
+                companyId, state.id(), actorUserId, cleanKey, effectiveAt, selection
+            );
+            replayStatus = prepared.replayed() ? prepared.change().status() : "";
+            if (!prepared.alreadyScheduled()) {
+                try {
+                    chargedNow = updateStripe(state, selection, cleanKey);
+                    changes.markStripeScheduled(prepared.change().id());
+                } catch (RuntimeException failure) {
+                    changes.markFailed(prepared.change().id(), failure);
+                    throw failure;
+                }
             }
-            transactions.executeWithoutResult(ignored -> replaceCourtesySelection(
-                companyId,
-                actorUserId,
-                cleanKey,
-                selectedProductIds
-            ));
+        } else {
+            changes.saveDraft(companyId, actorUserId, cleanKey, selection);
         }
 
-        var affected = new LinkedHashSet<Long>();
-        affected.addAll(oldProductIds);
-        affected.addAll(selectedProductIds);
-        affected.forEach(productId -> platformAdminService.synchronizeProductModuleAccess(companyId, productId));
-        audit.record(actorUserId, "BILLING_SELECTION_CHANGED", "COMPANY", Long.toString(companyId), companyId, "SUCCESS", Map.of(
+        var scheduled = state != null && state.stripeManaged()
+            ? changes.renewalTarget(companyId, state.id())
+            : changes.draft(companyId);
+        var auditAction = !replayStatus.isBlank()
+            ? "BILLING_SELECTION_CHANGE_REPLAYED"
+            : state != null && state.stripeManaged()
+                ? "BILLING_SELECTION_CHANGE_SCHEDULED"
+                : "BILLING_SELECTION_DRAFT_SAVED";
+        audit.record(actorUserId, auditAction, "COMPANY", Long.toString(companyId), companyId, "SUCCESS", Map.of(
             "offer_code", selection.offerCode(),
             "product_codes", selection.products().stream().map(CommercialOfferSelection.Product::code).toList(),
             "extra_seats", selection.extraSeats(),
             "change_timing", timing(state),
-            "charged_now", chargedNow
+            "charged_now", chargedNow,
+            "replay_status", replayStatus
         ));
+        if (scheduled == null) {
+            return current(companyId, actorUserId);
+        }
         return response(
-            companyId,
-            state(companyId),
-            selection,
-            selection.products().stream().map(CommercialOfferSelection.Product::code).toList(),
-            chargedNow
+            companyId, state(companyId), scheduled, selectedCodes(companyId, state), chargedNow, actorUserId
         );
     }
 
@@ -211,8 +233,8 @@ public class BillingProductSelectionService {
             existingComplementary.values().forEach(item -> mutations.add(Map.of("id", item.getId(), "deleted", true)));
             var parameters = new LinkedHashMap<String, Object>();
             parameters.put("items", mutations);
-            // Access is updated immediately, but Stripe must not create an off-cycle
-            // invoice. The full new recurring amount is collected at renewal.
+            // Stripe adopts the target recurring lines without an off-cycle invoice.
+            // Local access remains on the paid selection until the cut-off invoice succeeds.
             parameters.put("proration_behavior", "none");
             parameters.put("metadata", Map.of(
                 "indice_offer_code", selection.offerCode(),
@@ -393,91 +415,18 @@ public class BillingProductSelectionService {
         return "live".equalsIgnoreCase(stripeProperties.getMode()) ? "LIVE" : "TEST";
     }
 
-    private void replaceSubscriptionSelection(SubscriptionState state, CommercialOfferSelection selection) {
-        jdbcTemplate.update(
-            "UPDATE company_billing_subscriptions SET catalog_version_id = ?, offer_code = ?, billing_interval = ?, extra_seats = ?, subtotal_amount_cents = ?, discount_amount_cents = ?, promotion_code = ? WHERE id = ?",
-            selection.catalogVersionId(),
-            selection.offerCode(),
-            selection.billingInterval().name(),
-            selection.extraSeats(),
-            selection.subtotalAmountCents(),
-            selection.discountAmountCents(),
-            selection.promotionCode(),
-            state.id()
-        );
-        jdbcTemplate.update("DELETE FROM company_billing_subscription_products WHERE subscription_id = ?", state.id());
-        for (var product : selection.products()) {
-            jdbcTemplate.update(
-                "INSERT INTO company_billing_subscription_products (subscription_id, catalog_product_id, source) VALUES (?, ?, 'SELF_SERVICE')",
-                state.id(),
-                product.id()
-            );
-        }
-        jdbcTemplate.update(
-            "UPDATE company_seat_states SET included_seats = ?, purchased_extra_seats = ?, version = version + 1 WHERE company_id = ?",
-            selection.includedSeats(),
-            selection.extraSeats(),
-            state.companyId()
-        );
-        if (state.signupIntentId() != null && state.trialStartsAt() != null && state.trialEndsAt() != null) {
-            jdbcTemplate.update(
-                "DELETE FROM company_trial_product_grants WHERE company_id = ? AND source_signup_intent_id = ?",
-                state.companyId(),
-                state.signupIntentId()
-            );
-            for (var product : selection.products()) {
-                jdbcTemplate.update(
-                    "INSERT INTO company_trial_product_grants (company_id, catalog_product_id, source_signup_intent_id, status, starts_at, ends_at) VALUES (?, ?, ?, 'ACTIVE', ?, ?)",
-                    state.companyId(),
-                    product.id(),
-                    state.signupIntentId(),
-                    Timestamp.from(state.trialStartsAt()),
-                    Timestamp.from(state.trialEndsAt())
-                );
-            }
-        }
-    }
-
-    private void replaceCourtesySelection(long companyId, long actorUserId, String idempotencyKey, List<Long> selectedIds) {
-        var current = effectiveCourtesyBenefits(companyId);
-        var selected = new LinkedHashSet<>(selectedIds);
-        for (var benefit : current) {
-            if (!selected.contains(benefit.productId())) {
-                jdbcTemplate.update(
-                    "UPDATE company_benefit_grants SET status = 'REVOKED', revoked_by_user_id = ?, revoked_at = CURRENT_TIMESTAMP(6) WHERE id = ? AND status = 'ACTIVE'",
-                    actorUserId,
-                    benefit.id()
-                );
-            }
-        }
-        var existingIds = current.stream().map(CourtesyBenefit::productId).collect(java.util.stream.Collectors.toSet());
-        var expiry = current.stream().map(CourtesyBenefit::endsAt).filter(java.util.Objects::nonNull).max(Instant::compareTo).orElse(null);
-        for (var productId : selected) {
-            if (existingIds.contains(productId)) continue;
-            var reference = UUID.randomUUID().toString().replace("-", "");
-            var hash = BillingHashing.sha256("billing-selection:" + companyId + ":" + idempotencyKey + ":" + productId);
-            jdbcTemplate.update(
-                "INSERT INTO company_benefit_grants (public_reference, company_id, benefit_type, catalog_product_id, quantity, source_type, status, starts_at, ends_at, reason, idempotency_key_hash, created_by_user_id) VALUES (?, ?, 'PRODUCT', ?, 1, 'COURTESY', 'ACTIVE', CURRENT_TIMESTAMP(6), ?, ?, ?, ?)",
-                reference,
-                companyId,
-                productId,
-                expiry == null ? null : Timestamp.from(expiry),
-                "Selección actualizada desde Administración de suscripción.",
-                hash,
-                actorUserId
-            );
-        }
-    }
-
     private BillingSelectionResponse response(
         long companyId,
         SubscriptionState state,
         CommercialOfferSelection selection,
         List<String> selectedCodes,
-        boolean chargedNow
+        List<String> currentCodes,
+        boolean chargedNow,
+        Long actorUserId
     ) {
         var snapshot = seats.snapshot(companyId);
-        var source = state != null && state.stripeManaged() ? "STRIPE" : "COURTESY";
+        var stripeManaged = state != null && state.stripeManaged();
+        var source = stripeManaged ? "STRIPE" : "COURTESY";
         var status = state == null ? commercialStatus(companyId) : state.status();
         var availableSeats = selection == null
             ? snapshot.available()
@@ -485,6 +434,11 @@ public class BillingProductSelectionService {
                 0,
                 selection.includedSeats() + selection.extraSeats() + snapshot.benefitExtra() - snapshot.usedAndReserved()
             );
+        var catalogReady = selection != null && stripeCatalogReady(selection);
+        var stripeOperational = stripeSecrets.isApiConfigured();
+        var owner = actorUserId != null && billingAuthority.isOwner(companyId, actorUserId);
+        var canActivate = !stripeManaged && owner && stripeOperational && portalConfigured()
+            && catalogReady && !selectedCodes.isEmpty();
         return new BillingSelectionResponse(
             source,
             status,
@@ -508,8 +462,160 @@ public class BillingProductSelectionService {
             !(state != null && state.stripeManaged()),
             true,
             selectedCodes,
-            availableProducts(selection == null ? (state == null ? "MONTH" : state.billingInterval()) : selection.billingInterval().name())
+            availableProducts(selection == null ? (state == null ? "MONTH" : state.billingInterval()) : selection.billingInterval().name()),
+            "CURRENT",
+            "",
+            currentCodes,
+            !stripeManaged ? snapshot.included() : state.includedSeats(),
+            !stripeManaged ? purchasedExtraSeats(companyId) : state.extraSeats(),
+            stripeOperational,
+            configuredStripeMode(),
+            catalogReady,
+            canActivate,
+            stripeManaged && stripeOperational && portalConfigured() && hasStripeCustomer(companyId),
+            "IMMEDIATE",
+            "",
+            accessAllowed(companyId),
+            activationBlockReason(stripeManaged, owner, stripeOperational, catalogReady, selectedCodes)
         );
+    }
+
+    private BillingSelectionResponse response(
+        long companyId,
+        SubscriptionState state,
+        BillingSelectionChangeService.StoredChange change,
+        List<String> currentCodes,
+        boolean chargedNow,
+        Long actorUserId
+    ) {
+        var snapshot = seats.snapshot(companyId);
+        var scheduled = "RENEWAL".equals(change.kind());
+        var catalogReady = storedStripeCatalogReady(change);
+        var stripeOperational = stripeSecrets.isApiConfigured();
+        var owner = actorUserId != null && billingAuthority.isOwner(companyId, actorUserId);
+        var canActivate = !scheduled && owner && stripeOperational && portalConfigured()
+            && catalogReady && !change.productCodes().isEmpty();
+        var availableSeats = Math.max(
+            0,
+            change.includedSeats() + change.extraSeats() + snapshot.benefitExtra() - snapshot.usedAndReserved()
+        );
+        return new BillingSelectionResponse(
+            scheduled ? "STRIPE" : "DRAFT",
+            state == null ? commercialStatus(companyId) : state.status(),
+            change.catalogVersion(),
+            change.offerCode(),
+            change.billingInterval(),
+            change.currency(),
+            change.includedSeats(),
+            change.extraSeats(),
+            snapshot.usedAndReserved(),
+            availableSeats,
+            change.baseAmountCents(),
+            change.extraSeatUnitAmountCents(),
+            change.complementaryAmountCents(),
+            change.estimatedAmountCents(),
+            state == null || state.trialEndsAt() == null ? courtesyEnd(companyId) : state.trialEndsAt().toString(),
+            scheduled ? timing(state) : "PAYMENT_METHOD_REQUIRED",
+            chargedNow,
+            !scheduled,
+            true,
+            change.productCodes(),
+            availableProducts(change.billingInterval()),
+            scheduled ? change.status() : "DRAFT",
+            change.effectiveAt() == null ? "" : change.effectiveAt().toString(),
+            currentCodes,
+            state == null || !state.stripeManaged() ? snapshot.included() : state.includedSeats(),
+            state == null || !state.stripeManaged() ? purchasedExtraSeats(companyId) : state.extraSeats(),
+            stripeOperational,
+            configuredStripeMode(),
+            catalogReady,
+            canActivate,
+            scheduled && stripeOperational && portalConfigured() && hasStripeCustomer(companyId),
+            scheduled ? "AT_CUTOFF" : "AFTER_CHECKOUT",
+            change.reference(),
+            accessAllowed(companyId),
+            activationBlockReason(
+                scheduled, owner, stripeOperational, catalogReady, change.productCodes()
+            )
+        );
+    }
+
+    private boolean stripeCatalogReady(CommercialOfferSelection selection) {
+        if (selection == null || selection.lineItems().isEmpty()) return false;
+        for (var line : selection.lineItems()) {
+            var priceId = resolvedPriceId(
+                line.externalPriceId(), line.billableCode(), selection.billingInterval().name()
+            );
+            if (!validStripePrice(priceId)) return false;
+        }
+        return selection.promotionCode() == null || selection.promotionCode().isBlank()
+            || (selection.externalPromotionCodeId() != null
+                && selection.externalPromotionCodeId().startsWith("promo_"));
+    }
+
+    private boolean storedStripeCatalogReady(BillingSelectionChangeService.StoredChange change) {
+        try {
+            var selection = offers.select(
+                change.productCodes(), change.billingInterval(), change.extraSeats(), change.promotionCode()
+            );
+            return selection.catalogVersionId() == change.catalogVersionId() && stripeCatalogReady(selection);
+        } catch (IllegalArgumentException | IllegalStateException failure) {
+            return false;
+        }
+    }
+
+    private boolean portalConfigured() {
+        return stripeProperties.getPortalReturnUrl() != null
+            && !stripeProperties.getPortalReturnUrl().isBlank();
+    }
+
+    private boolean hasStripeCustomer(long companyId) {
+        var count = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*) FROM (
+                    SELECT stripe_customer_id
+                    FROM company_billing_customers
+                    WHERE company_id = ? AND status = 'ACTIVE' AND stripe_customer_id IS NOT NULL
+                    UNION ALL
+                    SELECT stripe_customer_id
+                    FROM company_billing_subscriptions
+                    WHERE company_id = ? AND stripe_customer_id IS NOT NULL
+                ) customer_rows
+                """,
+            Integer.class,
+            companyId,
+            companyId
+        );
+        return count != null && count > 0;
+    }
+
+    private String activationBlockReason(
+        boolean stripeManaged,
+        boolean owner,
+        boolean stripeOperational,
+        boolean catalogReady,
+        List<String> productCodes
+    ) {
+        if (stripeManaged) return "ALREADY_ACTIVE";
+        if (!owner) return "OWNER_REQUIRED";
+        if (!stripeOperational || !portalConfigured()) return "STRIPE_UNAVAILABLE";
+        if (!catalogReady || productCodes.isEmpty()) return "CATALOG_NOT_READY";
+        return "READY";
+    }
+
+    private boolean accessAllowed(long companyId) {
+        var lifecycle = jdbcTemplate.query(
+            "SELECT access_mode FROM company_commercial_states WHERE company_id = ?",
+            (rs, rowNum) -> text(rs.getString(1)).toUpperCase(Locale.ROOT),
+            companyId
+        ).stream().findFirst().orElse("");
+        if (!lifecycle.isBlank()) return "FULL".equals(lifecycle);
+        var activeModules = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM company_module_entitlements WHERE company_id = ? AND LOWER(COALESCE(status, 'active')) = 'active'",
+            Integer.class,
+            companyId
+        );
+        return activeModules != null && activeModules > 0;
     }
 
     private List<BillingSelectionResponse.Product> availableProducts(String interval) {
@@ -536,9 +642,11 @@ public class BillingProductSelectionService {
                 SELECT subscription.id, subscription.company_id, subscription.stripe_subscription_id,
                        subscription.stripe_extra_seat_item_id, subscription.status,
                        COALESCE(subscription.billing_interval, 'MONTH') AS billing_interval,
+                       COALESCE(subscription.included_seats, 5) AS included_seats,
                        COALESCE(subscription.extra_seats, 0) AS extra_seats,
                        subscription.signup_intent_id, subscription.trial_starts_at,
-                       subscription.trial_ends_at, subscription.catalog_version_id,
+                       subscription.trial_ends_at, subscription.current_period_ends_at,
+                       subscription.catalog_version_id,
                        COALESCE(version_row.version_code, '') AS catalog_version,
                        COALESCE(subscription.offer_code, '') AS offer_code,
                        subscription.subtotal_amount_cents,
@@ -557,10 +665,12 @@ public class BillingProductSelectionService {
                 rs.getString("stripe_extra_seat_item_id"),
                 text(rs.getString("status")).toUpperCase(Locale.ROOT),
                 text(rs.getString("billing_interval")).toUpperCase(Locale.ROOT),
+                rs.getInt("included_seats"),
                 rs.getInt("extra_seats"),
                 (Long) rs.getObject("signup_intent_id"),
                 instant(rs.getTimestamp("trial_starts_at")),
                 instant(rs.getTimestamp("trial_ends_at")),
+                instant(rs.getTimestamp("current_period_ends_at")),
                 (Long) rs.getObject("catalog_version_id"),
                 text(rs.getString("catalog_version")),
                 text(rs.getString("offer_code")),
@@ -739,10 +849,12 @@ public class BillingProductSelectionService {
         String stripeExtraSeatItemId,
         String status,
         String billingInterval,
+        int includedSeats,
         int extraSeats,
         Long signupIntentId,
         Instant trialStartsAt,
         Instant trialEndsAt,
+        Instant currentPeriodEndsAt,
         Long catalogVersionId,
         String catalogVersion,
         String offerCode,

@@ -6,21 +6,26 @@ import {
   CheckCircle2,
   ClipboardCheck,
   Flame,
+  ImagePlus,
   Lightbulb,
   LoaderCircle,
   MessageSquareText,
   Plus,
+  Printer,
   RefreshCw,
   TicketCheck,
+  Trash2,
   UserRoundCog,
   UserRoundX,
 } from 'lucide-react';
 import { IndiceModalFrame, IndiceModalValidation } from '../components/indice-modal';
+import { notifyDocumentPrintFailure } from '../BasicModules/shared/print/documentPrintFeedback';
 import { IndiceFilterBar, IndiceFilterSearch, IndiceFilterSelect, IndiceTitleBar } from '../components/frontend-os';
 import { DataTablePagination } from '../components/table/DataTablePagination';
 import { getSystemTicketCopy } from './translations';
 import { systemTicketsApi, type SystemTicketPortal } from './systemTicketsApi';
 import { SystemTicketDetailModal } from './SystemTicketDetailModal';
+import { printSystemTicketDetail } from './systemTicketPrint';
 import type {
   SystemTicket,
   SystemTicketCreatePayload,
@@ -60,6 +65,7 @@ export function SystemTicketsWorkspace({ portal, locale, initialFolio = '' }: { 
   const [error, setError] = useState('');
   const [feedback, setFeedback] = useState('');
   const [selected, setSelected] = useState<SystemTicket | null>(null);
+  const [printLoadingId, setPrintLoadingId] = useState<number | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -163,6 +169,34 @@ export function SystemTicketsWorkspace({ portal, locale, initialFolio = '' }: { 
     setTo('');
   };
 
+  const printTicket = (ticketId: number) => {
+    const targetWindow = window.open('', '_blank');
+    if (!targetWindow) {
+      notifyDocumentPrintFailure(locale, 'popup-blocked');
+      return;
+    }
+    const preparing = locale.toLowerCase().startsWith('es') ? 'Preparando documento…' : 'Preparing document…';
+    targetWindow.document.title = preparing;
+    targetWindow.document.body.textContent = preparing;
+    Object.assign(targetWindow.document.body.style, {
+      color: '#334155',
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '16px',
+      padding: '32px',
+    });
+    setPrintLoadingId(ticketId);
+    void systemTicketsApi.detail(portal, ticketId)
+      .then((fullDetail) => {
+        printSystemTicketDetail({ detail: fullDetail, locale, targetWindow });
+      })
+      .catch((printError) => {
+        targetWindow.close();
+        notifyDocumentPrintFailure(locale, 'generation');
+        setError(printError instanceof Error ? printError.message : 'No se pudo generar el expediente del ticket.');
+      })
+      .finally(() => setPrintLoadingId(null));
+  };
+
   return (
     <div className="space-y-5">
       <IndiceTitleBar
@@ -256,7 +290,14 @@ export function SystemTicketsWorkspace({ portal, locale, initialFolio = '' }: { 
                   <TableCell><StatusBadge status={ticket.status} copy={copy} /></TableCell>
                   <TableCell>{ticket.assignee_name ? <span className="inline-flex items-center gap-2 font-medium text-slate-800"><UserRoundCog className="h-4 w-4 text-[#177D66]" />{ticket.assignee_name}</span> : <span className="text-amber-700">{copy.unassigned}</span>}</TableCell>
                   <TableCell><TargetBadge ticket={ticket} copy={copy} locale={locale} /></TableCell>
-                  <TableCell className="text-right"><button type="button" onClick={() => setSelected(ticket)} className={actionClass}>{portal === 'root' ? copy.attend : copy.view}</button></TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <button type="button" onClick={() => setSelected(ticket)} className={actionClass}>{portal === 'root' ? copy.attend : copy.view}</button>
+                      <button type="button" disabled={printLoadingId === ticket.id} onClick={() => printTicket(ticket.id)} aria-label={`${copy.print} ${ticket.folio}`} title={copy.print} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#59C3A5]/40 bg-white text-[#176B5B] transition hover:border-[#177D66] hover:bg-[#59C3A5]/10 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900">
+                        {printLoadingId === ticket.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </TableCell>
                 </tr>
               ))}
             </tbody>
@@ -280,11 +321,12 @@ export function SystemTicketsWorkspace({ portal, locale, initialFolio = '' }: { 
 
       <CreateTicketModal
         copy={copy}
+        modules={data?.modules ?? []}
         open={createOpen}
         portal={portal}
         onOpenChange={setCreateOpen}
-        onCreated={async (ticket) => {
-          setFeedback(`${copy.createdMessage} ${ticket.folio}`);
+        onCreated={async (ticket, warning) => {
+          setFeedback(`${copy.createdMessage} ${ticket.folio}${warning ? ` ${warning}` : ''}`);
           const alreadyShowingActive = status === 'ACTIVE';
           setStatus('ACTIVE');
           if (alreadyShowingActive) await load();
@@ -305,21 +347,72 @@ export function SystemTicketsWorkspace({ portal, locale, initialFolio = '' }: { 
   );
 }
 
-function CreateTicketModal({ copy, open, portal, onOpenChange, onCreated }: { copy: ReturnType<typeof getSystemTicketCopy>; open: boolean; portal: SystemTicketPortal; onOpenChange: (open: boolean) => void; onCreated: (ticket: SystemTicket) => Promise<void> }) {
+function CreateTicketModal({ copy, modules, open, portal, onOpenChange, onCreated }: { copy: ReturnType<typeof getSystemTicketCopy>; modules: string[]; open: boolean; portal: SystemTicketPortal; onOpenChange: (open: boolean) => void; onCreated: (ticket: SystemTicket, warning?: string) => Promise<void> }) {
   const [form, setForm] = useState<SystemTicketCreatePayload>(initialCreate);
+  const [photo, setPhoto] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const photoPreview = useMemo(() => photo ? URL.createObjectURL(photo) : '', [photo]);
+
+  useEffect(() => () => {
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+  }, [photoPreview]);
+
+  const openPhotoPicker = () => {
+    if (!photoInputRef.current) return;
+    photoInputRef.current.value = '';
+    photoInputRef.current.click();
+  };
+
+  const choosePhoto = (file: File | null) => {
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+      setError(copy.photoTypeError);
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError(copy.photoSizeError);
+      return;
+    }
+    setError('');
+    setPhoto(file);
+  };
+
+  const clearPhoto = () => {
+    setPhoto(null);
+    if (photoInputRef.current) photoInputRef.current.value = '';
+  };
+
+  const changeOpen = (nextOpen: boolean) => {
+    if (!nextOpen && !saving) {
+      setError('');
+      clearPhoto();
+    }
+    onOpenChange(nextOpen);
+  };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!form.title.trim() || !form.description.trim()) return;
+    if (!form.module || !form.title.trim() || !form.description.trim()) return;
     setSaving(true);
     setError('');
     try {
       const created = await systemTicketsApi.create(portal, form);
+      let warning = '';
+      if (photo) {
+        try {
+          const presign = await systemTicketsApi.presignAttachment(portal, created.id, photo);
+          await systemTicketsApi.uploadAttachment(presign.upload_url, photo, presign.upload_headers);
+          await systemTicketsApi.registerAttachment(portal, created.id, presign, photo);
+        } catch {
+          warning = copy.photoUploadFailed;
+        }
+      }
       setForm(initialCreate);
+      clearPhoto();
       onOpenChange(false);
-      await onCreated(created);
+      await onCreated(created, warning);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Request could not be completed.');
     } finally {
@@ -330,7 +423,7 @@ function CreateTicketModal({ copy, open, portal, onOpenChange, onCreated }: { co
   return (
     <IndiceModalFrame
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={changeOpen}
       busy={saving}
       tone="aqua"
       modalType="standard-form"
@@ -340,8 +433,8 @@ function CreateTicketModal({ copy, open, portal, onOpenChange, onCreated }: { co
       footerSummary={form.title || copy.newTicket}
       footer={(
         <>
-          <button type="button" disabled={saving} onClick={() => onOpenChange(false)} className="h-10 rounded-xl border border-white/40 px-4 text-sm font-medium text-white">{copy.cancel}</button>
-          <button type="submit" form="system-ticket-create-form" disabled={saving || !form.title.trim() || !form.description.trim()} className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-medium text-[#176B5B] disabled:opacity-50">{saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <TicketCheck className="h-4 w-4" />}{saving ? copy.creating : copy.create}</button>
+          <button type="button" disabled={saving} onClick={() => changeOpen(false)} className="h-10 rounded-xl border border-white/40 px-4 text-sm font-medium text-white">{copy.cancel}</button>
+          <button type="submit" form="system-ticket-create-form" disabled={saving || !form.module || !form.title.trim() || !form.description.trim()} className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-medium text-[#176B5B] disabled:opacity-50">{saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <TicketCheck className="h-4 w-4" />}{saving ? copy.creating : copy.create}</button>
         </>
       )}
     >
@@ -353,10 +446,36 @@ function CreateTicketModal({ copy, open, portal, onOpenChange, onCreated }: { co
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={copy.priority}><select className={fieldClass} value={form.priority} onChange={(event) => setForm((current) => ({ ...current, priority: event.target.value as SystemTicketPriority }))}><option value="LOW">{copy.priorityLow}</option><option value="MEDIUM">{copy.priorityMedium}</option><option value="HIGH">{copy.priorityHigh}</option><option value="CRITICAL">{copy.priorityCritical}</option></select></Field>
-          <Field label={copy.moduleLabel}><input className={fieldClass} maxLength={120} placeholder={copy.modulePlaceholder} value={form.module} onChange={(event) => setForm((current) => ({ ...current, module: event.target.value }))} /></Field>
+          <Field label={copy.moduleLabel}>
+            <select className={fieldClass} required value={form.module} onChange={(event) => setForm((current) => ({ ...current, module: event.target.value }))}>
+              <option value="" disabled>{copy.selectModule}</option>
+              {modules.map((moduleName) => <option key={moduleName} value={moduleName}>{moduleName}</option>)}
+            </select>
+          </Field>
         </div>
         <Field label={copy.titleLabel}><input className={fieldClass} required maxLength={180} placeholder={copy.titlePlaceholder} value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} /></Field>
         <Field label={copy.descriptionLabel}><textarea className={`${fieldClass} min-h-36 resize-y py-3`} required maxLength={10_000} placeholder={copy.descriptionPlaceholder} value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} /></Field>
+        <Field label={copy.photoEvidence}>
+          <input ref={photoInputRef} className="hidden" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => choosePhoto(event.target.files?.[0] ?? null)} />
+          {photo ? (
+            <div className="flex items-center gap-3 rounded-2xl border border-[#59C3A5]/40 bg-[#59C3A5]/8 p-3">
+              <img src={photoPreview} alt={photo.name} className="h-16 w-16 rounded-xl border border-white object-cover shadow-sm" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-slate-900">{photo.name}</p>
+                <p className="mt-1 text-xs text-slate-500">{formatFileSize(photo.size)}</p>
+                <button type="button" onClick={openPhotoPicker} className="mt-2 text-xs font-medium text-[#177D66] underline underline-offset-2">{copy.changePhoto}</button>
+              </div>
+              <button type="button" onClick={clearPhoto} aria-label={copy.removePhoto} title={copy.removePhoto} className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-red-200 bg-white text-red-600 hover:bg-red-50">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <button type="button" onClick={openPhotoPicker} className="flex min-h-20 w-full items-center justify-center gap-3 rounded-2xl border border-dashed border-[#59C3A5] bg-[#59C3A5]/5 px-4 text-sm font-medium text-[#176B5B] transition hover:bg-[#59C3A5]/10">
+              <ImagePlus className="h-5 w-5" />{copy.addPhoto}
+            </button>
+          )}
+          <p className="mt-2 text-xs text-slate-500">{copy.photoHelp}</p>
+        </Field>
       </form>
     </IndiceModalFrame>
   );
@@ -415,4 +534,10 @@ function formatRemaining(value: number | null) {
 
 function formatDate(value: string, locale: string) {
   try { return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)); } catch { return value; }
+}
+
+function formatFileSize(value: number) {
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }

@@ -765,9 +765,7 @@ export default function PlatformAdminPage() {
       await refreshOverviewAndCompany();
       setAccountFeedback({
         type: "success",
-        message: result.charge_timing === "TRIAL_END"
-          ? `La prueba quedó con ${result.product_codes.length} módulo(s). Stripe usará esta selección al terminar la prueba.`
-          : `La suscripción quedó con ${result.product_codes.length} módulo(s). El acceso cambió ahora y Stripe usará el nuevo total en la próxima renovación.`,
+        message: `El cambio de ${result.product_codes.length} módulo(s) quedó programado sin cargo inmediato. Se aplicará al acceso después del pago en la fecha de corte${result.effective_at ? ` (${new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" }).format(new Date(result.effective_at))})` : ""}.`,
       });
       return true;
     } catch (saveError) {
@@ -1605,13 +1603,13 @@ function CustomersTab({
       >
         <Metric
           icon={CircleDollarSign}
-          label={english ? "Monthly billing" : "Facturación mensual"}
+          label={english ? "Monthly projection" : "Proyección mensual"}
           value={formatMoney(
             totals?.projected_monthly_billing_cents,
             totals?.currency,
             english,
           )}
-          caption={english ? "Active + scheduled" : "Activa + programada"}
+          caption={english ? "Stripe contracts + estimates" : "Contratos Stripe + estimaciones"}
           accent="gold"
         />
         <Metric

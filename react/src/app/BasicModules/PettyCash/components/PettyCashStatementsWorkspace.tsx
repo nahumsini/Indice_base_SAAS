@@ -347,6 +347,7 @@ export function PettyCashStatementsWorkspace({ funds, movements, settlementLines
 
       <PettyCashStatementDetailModal
         copy={copy}
+        fund={selectedStatement ? fundsById.get(selectedStatement.pettyCashFundId) ?? null : null}
         movements={selectedMovements}
         onClose={() => setSelectedStatement(null)}
         originText={selectedStatement && previousStatement(selectedStatement)

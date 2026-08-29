@@ -35,14 +35,12 @@ export default function SubscriptionManagementPage() {
             <div className="min-w-0">
               <p className="text-sm font-semibold">
                 {billing.managedContext.authority_mode === 'PLATFORM_ROOT'
-                  ? (currentLanguage.code.startsWith('es') ? 'Consulta Root' : 'Root review')
-                  : (currentLanguage.code.startsWith('es') ? 'Cliente de tu cartera' : 'Portfolio client')}
+                  ? copy.rootReview
+                  : copy.portfolioClient}
                 {' · '}{billing.managedContext.active_company.name}
               </p>
               <p className="mt-0.5 text-xs leading-5 text-blue-800 dark:text-blue-200">
-                {currentLanguage.code.startsWith('es')
-                  ? 'Estás viendo su plan, capacidad, módulos e historial en modo de solo lectura. Los cobros y cambios contractuales permanecen protegidos.'
-                  : 'You are viewing this client’s plan, capacity, modules, and history in read-only mode. Charges and contract changes remain protected.'}
+                {copy.readOnlyDescription}
               </p>
             </div>
           </section>
@@ -68,6 +66,7 @@ export default function SubscriptionManagementPage() {
               copy={copy}
               selection={billing.preview ?? billing.selection}
               subscription={billing.subscription}
+              languageCode={currentLanguage.code}
             />
             <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_25rem]">
               <ModuleSelectionPanel
@@ -75,6 +74,9 @@ export default function SubscriptionManagementPage() {
                 products={(billing.preview ?? billing.selection).available_products}
                 selectedCodes={billing.draft.productCodes}
                 disabled={Boolean(billing.action) || billing.readOnly}
+                languageCode={currentLanguage.code}
+                currency={(billing.preview ?? billing.selection).currency}
+                billingInterval={billing.draft.billingInterval}
                 onToggle={billing.toggleProduct}
               />
               <BillingConfigurationPanel
@@ -86,6 +88,7 @@ export default function SubscriptionManagementPage() {
                 action={billing.action}
                 hasChanges={billing.hasChanges}
                 readOnly={billing.readOnly}
+                languageCode={currentLanguage.code}
                 onChange={billing.updateDraft}
                 onReset={billing.reset}
                 onSave={() => void billing.save()}

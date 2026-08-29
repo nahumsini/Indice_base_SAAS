@@ -4,6 +4,7 @@ import com.indice.erp.billing.BillingHashing;
 import com.indice.erp.billing.audit.BillingAuditService;
 import com.indice.erp.billing.catalog.CommercialOfferSelection;
 import com.indice.erp.billing.catalog.CommercialOfferSelectionService;
+import com.indice.erp.billing.seats.SeatService;
 import com.indice.erp.billing.signup.BillingSignupConflictException;
 import com.indice.erp.billing.signup.BillingSignupIntentRepository;
 import com.indice.erp.billing.stripe.StripeCheckoutGateway;
@@ -37,6 +38,8 @@ public class BillingActivationService {
     private final StripeSecretProvider stripeSecrets;
     private final PlatformAdminService platformAdminService;
     private final BillingAuditService audit;
+    private final BillingSelectionChangeService selectionChanges;
+    private final SeatService seats;
     private final Clock clock;
 
     public BillingActivationService(
@@ -49,6 +52,8 @@ public class BillingActivationService {
         StripeSecretProvider stripeSecrets,
         PlatformAdminService platformAdminService,
         BillingAuditService audit,
+        BillingSelectionChangeService selectionChanges,
+        SeatService seats,
         Clock clock
     ) {
         this.jdbcTemplate = jdbcTemplate;
@@ -60,6 +65,8 @@ public class BillingActivationService {
         this.stripeSecrets = stripeSecrets;
         this.platformAdminService = platformAdminService;
         this.audit = audit;
+        this.selectionChanges = selectionChanges;
+        this.seats = seats;
         this.clock = clock;
     }
 
@@ -79,6 +86,10 @@ public class BillingActivationService {
             request == null ? null : request.promotion_code()
         );
         var owner = owner(companyId, actorUserId);
+        requireCapacity(companyId, selection);
+        selectionChanges.saveDraft(
+            companyId, actorUserId, "activation-draft-" + cleanKey, selection
+        );
         var fingerprint = fingerprint(companyId, selection);
         var idempotencyHash = BillingHashing.sha256("billing-activation:" + companyId + ":" + cleanKey);
         var intentId = transactions.execute(status -> createOrLoadIntent(
@@ -197,6 +208,7 @@ public class BillingActivationService {
             );
         });
         affected.forEach(productId -> platformAdminService.synchronizeProductModuleAccess(detail.companyId(), productId));
+        selectionChanges.completeCheckoutDraft(detail.companyId());
     }
 
     private long createOrLoadIntent(
@@ -296,6 +308,16 @@ public class BillingActivationService {
         );
         if (rows.isEmpty()) throw new IllegalArgumentException("Sólo el propietario puede activar el cobro de esta cuenta.");
         return rows.getFirst();
+    }
+
+    private void requireCapacity(long companyId, CommercialOfferSelection selection) {
+        var snapshot = seats.snapshot(companyId);
+        var selectedLimit = selection.includedSeats() + selection.extraSeats() + snapshot.benefitExtra();
+        if (snapshot.usedAndReserved() > selectedLimit) {
+            throw new IllegalArgumentException(
+                "La capacidad seleccionada es menor que los usuarios activos e invitaciones pendientes."
+            );
+        }
     }
 
     private void requireNoStripeSubscription(long companyId) {

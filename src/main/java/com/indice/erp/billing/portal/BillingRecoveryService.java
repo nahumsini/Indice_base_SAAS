@@ -4,6 +4,8 @@ import com.indice.erp.billing.BillingHashing;
 import com.indice.erp.billing.lifecycle.CommercialLifecycleService;
 import com.indice.erp.billing.stripe.StripePhaseTwoProperties;
 import com.indice.erp.billing.stripe.StripePhaseTwoUnavailableException;
+import com.indice.erp.billing.stripe.StripeSecretProvider;
+import com.indice.erp.billing.subscription.BillingAccountAuthorityService;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -16,14 +18,20 @@ public class BillingRecoveryService {
     private final JdbcTemplate jdbc;
     private final CommercialLifecycleService lifecycle;
     private final StripePhaseTwoProperties stripe;
+    private final StripeSecretProvider stripeSecrets;
     private final StripeCustomerPortalGateway portal;
+    private final BillingAccountAuthorityService billingAuthority;
 
     public BillingRecoveryService(JdbcTemplate jdbc, CommercialLifecycleService lifecycle,
-                                  StripePhaseTwoProperties stripe, StripeCustomerPortalGateway portal) {
+                                  StripePhaseTwoProperties stripe, StripeSecretProvider stripeSecrets,
+                                  StripeCustomerPortalGateway portal,
+                                  BillingAccountAuthorityService billingAuthority) {
         this.jdbc = jdbc;
         this.lifecycle = lifecycle;
         this.stripe = stripe;
+        this.stripeSecrets = stripeSecrets;
         this.portal = portal;
+        this.billingAuthority = billingAuthority;
     }
 
     public Map<String, Object> snapshot(long companyId, long userId) {
@@ -31,15 +39,15 @@ public class BillingRecoveryService {
         var body = new LinkedHashMap<String, Object>();
         body.put("enrolled", lifecycle.snapshot(companyId).isPresent());
         body.put("lifecycle", lifecycle.snapshot(companyId).orElse(null));
-        body.put("can_manage_billing", isOwner(companyId, userId));
-        body.put("portal_available", stripe.isEnabled() && !stripe.getPortalReturnUrl().isBlank()
+        body.put("can_manage_billing", billingAuthority.isOwner(companyId, userId));
+        body.put("portal_available", stripeSecrets.isApiConfigured() && !stripe.getPortalReturnUrl().isBlank()
             && customerId(companyId) != null);
         return body;
     }
 
     public Map<String, Object> createPortal(long companyId, long userId, String idempotencyKey) {
         requireOwner(companyId, userId);
-        if (!stripe.isEnabled() || stripe.getPortalReturnUrl().isBlank()) {
+        if (!stripeSecrets.isApiConfigured() || stripe.getPortalReturnUrl().isBlank()) {
             throw new StripePhaseTwoUnavailableException("Billing recovery portal is not configured.");
         }
         var customerId = customerId(companyId);
@@ -78,15 +86,6 @@ public class BillingRecoveryService {
     }
 
     private void requireOwner(long companyId, long userId) {
-        if (!isOwner(companyId, userId)) {
-            throw new SecurityException("Only the company owner can manage billing.");
-        }
-    }
-
-    private boolean isOwner(long companyId, long userId) {
-        var count = jdbc.queryForObject(
-            "SELECT COUNT(*) FROM company_ownerships WHERE company_id = ? AND owner_user_id = ?",
-            Integer.class, companyId, userId);
-        return count != null && count > 0;
+        billingAuthority.requireOwner(companyId, userId);
     }
 }

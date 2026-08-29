@@ -423,6 +423,22 @@ export interface PlatformCompanyDetail extends PlatformCompanySummary {
   invitations: PlatformCompanyInvitation[];
   invoices: PlatformInvoice[];
   benefits: PlatformBenefit[];
+  commercial_change?: {
+    reference: string;
+    kind: 'CHECKOUT_DRAFT' | 'RENEWAL' | string;
+    status: 'DRAFT' | 'PENDING_STRIPE' | 'SCHEDULED' | string;
+    effective_at?: string | null;
+    catalog_version: string;
+    offer_code: string;
+    billing_interval: string;
+    currency: string;
+    included_seats: number;
+    extra_seats: number;
+    estimated_amount_cents?: number | null;
+    requested_by_authority: 'CUSTOMER' | 'PLATFORM_ROOT' | string;
+    product_codes: string[];
+    product_names: string[];
+  } | null;
   seat_usage: {
     enforced: boolean;
     included?: number;
@@ -1115,6 +1131,9 @@ export const platformAdminApi = {
     trial_ends_at?: string | null;
     charge_timing: 'TRIAL_END' | 'NEXT_INVOICE' | 'PAYMENT_METHOD_REQUIRED' | string;
     charged_now: boolean;
+    selection_state: 'SCHEDULED' | string;
+    effective_at?: string | null;
+    change_reference?: string | null;
   }>(`${companyPath(companyId)}/products`, {
     method: 'PATCH',
     headers: { 'Idempotency-Key': crypto.randomUUID() },

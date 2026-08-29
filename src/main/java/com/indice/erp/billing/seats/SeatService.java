@@ -205,7 +205,7 @@ public class SeatService {
             (rs, rowNum) -> rs.getLong(1),
             companyId
         );
-        return state.isEmpty() ? SeatSnapshot.unlimited(companyId) : snapshotLocked(companyId);
+        return state.isEmpty() ? unlimitedSnapshot(companyId) : snapshotLocked(companyId);
     }
 
     @Transactional
@@ -307,6 +307,27 @@ public class SeatService {
                 rs.getInt("active_seats"),
                 rs.getInt("reserved_seats")
             ),
+            companyId
+        );
+    }
+
+    private SeatSnapshot unlimitedSnapshot(long companyId) {
+        return jdbcTemplate.queryForObject(
+            """
+                SELECT
+                    (SELECT COUNT(*) FROM user_companies membership
+                      WHERE membership.company_id = ?
+                        AND LOWER(COALESCE(membership.status, 'active')) IN ('active', 'activo')) AS active_seats,
+                    (SELECT COUNT(*) FROM user_invitations invitation
+                      WHERE invitation.company_id = ?
+                        AND LOWER(COALESCE(invitation.status, 'pending')) = 'pending'
+                        AND invitation.expires_at > UTC_TIMESTAMP()) AS pending_invitations
+                """,
+            (rs, rowNum) -> new SeatSnapshot(
+                companyId, false, 0, 0, 0,
+                rs.getInt("active_seats"), rs.getInt("pending_invitations")
+            ),
+            companyId,
             companyId
         );
     }

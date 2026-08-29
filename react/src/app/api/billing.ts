@@ -124,6 +124,20 @@ export interface BillingSelectionResponse {
   can_update: boolean;
   selected_product_codes: string[];
   available_products: BillingCatalogProduct[];
+  selection_state: 'CURRENT' | 'DRAFT' | 'PENDING_STRIPE' | 'SCHEDULED' | string;
+  effective_at: string;
+  current_product_codes: string[];
+  current_included_seats: number;
+  current_extra_seats: number;
+  stripe_enabled: boolean;
+  stripe_mode: 'TEST' | 'LIVE' | string;
+  stripe_catalog_ready: boolean;
+  activation_available: boolean;
+  payment_management_available: boolean;
+  access_change_timing: 'IMMEDIATE' | 'AFTER_CHECKOUT' | 'AT_CUTOFF' | string;
+  change_reference: string;
+  access_allowed: boolean;
+  activation_block_reason: 'READY' | 'OWNER_REQUIRED' | 'STRIPE_UNAVAILABLE' | 'CATALOG_NOT_READY' | 'ALREADY_ACTIVE' | string;
 }
 
 const billingAction = async <T>(path: string) => {

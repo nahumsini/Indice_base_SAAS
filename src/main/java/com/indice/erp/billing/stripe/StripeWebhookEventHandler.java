@@ -9,6 +9,7 @@ import com.indice.erp.billing.signup.BillingSignupIntent;
 import com.indice.erp.billing.signup.BillingSignupIntentRepository;
 import com.indice.erp.billing.signup.BillingTenantProvisioningService;
 import com.indice.erp.billing.subscription.BillingActivationService;
+import com.indice.erp.billing.subscription.BillingSelectionChangeService;
 import com.indice.erp.entitlement.CompanyEntitlementProjectionService;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -27,6 +28,7 @@ public class StripeWebhookEventHandler {
     private final CompanyEntitlementProjectionService entitlementProjection;
     private final CommercialLifecycleService commercialLifecycle;
     private final BillingActivationService activationService;
+    private final BillingSelectionChangeService selectionChanges;
 
     public StripeWebhookEventHandler(
         ObjectMapper objectMapper,
@@ -36,7 +38,8 @@ public class StripeWebhookEventHandler {
         BillingAuditService audit,
         CompanyEntitlementProjectionService entitlementProjection,
         CommercialLifecycleService commercialLifecycle,
-        BillingActivationService activationService
+        BillingActivationService activationService,
+        BillingSelectionChangeService selectionChanges
     ) {
         this.objectMapper = objectMapper;
         this.signupIntents = signupIntents;
@@ -46,6 +49,7 @@ public class StripeWebhookEventHandler {
         this.entitlementProjection = entitlementProjection;
         this.commercialLifecycle = commercialLifecycle;
         this.activationService = activationService;
+        this.selectionChanges = selectionChanges;
     }
 
     @Transactional
@@ -204,6 +208,7 @@ public class StripeWebhookEventHandler {
         var invoiceId = requiredText(object, "id");
         var subscriptionId = invoiceSubscriptionId(object);
         var association = subscriptionId == null ? null : projections.associationForSubscription(subscriptionId);
+        var periodStartsAt = nullableInstant(object.path("period_start"));
         projections.upsertInvoice(
             new BillingProjectionRepository.InvoiceSnapshot(
                 eventId,
@@ -217,7 +222,7 @@ public class StripeWebhookEventHandler {
                 nullableLong(object.path("amount_paid")),
                 text(object, "hosted_invoice_url"),
                 text(object, "invoice_pdf"),
-                nullableInstant(object.path("period_start")),
+                periodStartsAt,
                 nullableInstant(object.path("period_end"))
             ),
             association
@@ -229,6 +234,13 @@ public class StripeWebhookEventHandler {
             commercialLifecycle.applyInvoiceEvent(
                 association.companyId(), eventId, eventCreatedAt, eventType, text(object, "status")
             );
+            if (("invoice.paid".equals(eventType) || "invoice.payment_succeeded".equals(eventType))
+                && "paid".equalsIgnoreCase(text(object, "status"))) {
+                selectionChanges.applyDue(
+                    association.companyId(), subscriptionId, eventId, periodStartsAt
+                );
+                entitlementProjection.refreshIfEnrolled(association.companyId());
+            }
         }
         audit.record(
             "STRIPE_WEBHOOK", "INVOICE_PROJECTED", "SUCCESS", null, eventId, invoiceId,

@@ -97,6 +97,19 @@ class SystemTicketOperationsRepository {
         );
     }
 
+    List<String> listAvailableModuleNames() {
+        return jdbcTemplate.queryForList(
+            """
+                SELECT name
+                FROM modules
+                WHERE is_active = 1
+                  AND LOWER(lifecycle_status) IN ('pilot', 'released')
+                ORDER BY FIELD(module_category, 'basic', 'complementary', 'ai'), sort_order, name
+                """,
+            String.class
+        );
+    }
+
     void updateWorkflow(
         long ticketId,
         long actorUserId,

@@ -6,8 +6,10 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.indice.erp.billing.audit.BillingPaymentAuditService;
+import com.indice.erp.billing.portal.StripeCustomerPortalGateway;
 import com.indice.erp.billing.stripe.StripeBillingGateway;
-import com.indice.erp.billing.stripe.StripeSignupProperties;
+import com.indice.erp.billing.stripe.StripePhaseTwoProperties;
+import com.indice.erp.billing.stripe.StripeSecretProvider;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -25,16 +27,21 @@ class BillingSubscriptionManagementServiceTest {
     @Mock private CompanySubscriptionStatusProvider statusProvider;
     @Mock private SubscriptionSeatLimitService seatLimitService;
     @Mock private StripeBillingGateway stripeGateway;
+    @Mock private StripeCustomerPortalGateway portalGateway;
     @Mock private CompanySeatAllowanceService seatAllowanceService;
     @Mock private BillingPaymentAuditService auditService;
     private BillingSubscriptionManagementService service;
 
     @BeforeEach
     void setUp() {
-        var properties = new StripeSignupProperties();
+        var properties = new StripePhaseTwoProperties();
+        properties.setEnabled(true);
+        properties.setMode("test");
         properties.setSecretKey("sk_test_key");
-        service = new BillingSubscriptionManagementService(repository, statusProvider, seatLimitService, properties,
-            stripeGateway, seatAllowanceService, auditService);
+        service = new BillingSubscriptionManagementService(
+            repository, statusProvider, seatLimitService, properties, new StripeSecretProvider(properties),
+            stripeGateway, portalGateway, seatAllowanceService, auditService
+        );
         when(seatAllowanceService.currentUsage(7L)).thenReturn(new CompanySeatAllowance(5, 1, 4, 5, 0));
         when(seatLimitService.usage(7L)).thenReturn(new SubscriptionSeatUsage(5, 1, 0, 1, 4, true));
     }

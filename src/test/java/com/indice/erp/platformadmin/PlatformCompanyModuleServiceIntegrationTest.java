@@ -8,9 +8,13 @@ import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 import com.indice.erp.billing.catalog.CommercialOfferSelectionService;
+import com.indice.erp.billing.subscription.BillingSelectionChangeService;
+import com.indice.erp.billing.subscription.BillingProductSelectionService;
+import com.indice.erp.billing.subscription.BillingSelectionRequest;
 import com.indice.erp.billing.stripe.StripeBillingGateway;
 import com.stripe.model.Price;
 import com.stripe.model.Subscription;
@@ -58,6 +62,12 @@ class PlatformCompanyModuleServiceIntegrationTest {
     @Autowired
     private CommercialOfferSelectionService offers;
 
+    @Autowired
+    private BillingSelectionChangeService selectionChanges;
+
+    @Autowired
+    private BillingProductSelectionService billingSelections;
+
     @MockBean
     private StripeBillingGateway stripeGateway;
 
@@ -65,6 +75,7 @@ class PlatformCompanyModuleServiceIntegrationTest {
     private long companyId;
     private String subscriptionId;
     private List<String> selectedProductCodes;
+    private Instant cutoffAt;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -101,19 +112,23 @@ class PlatformCompanyModuleServiceIntegrationTest {
 
         subscriptionId = SUBSCRIPTION_PREFIX + discriminator;
         var now = Instant.now();
+        cutoffAt = now.plus(29, ChronoUnit.DAYS);
         jdbc.update(
             """
                 INSERT INTO company_billing_subscriptions (
                     stripe_subscription_id, company_id, catalog_version_id, offer_code,
                     billing_interval, currency, status, included_seats, extra_seats,
-                    trial_starts_at, trial_ends_at, last_event_id, last_event_created_at
-                ) VALUES (?, ?, ?, 'basic_1', 'MONTH', 'USD', 'trialing', 5, 0, ?, ?, ?, ?)
+                    trial_starts_at, trial_ends_at, current_period_starts_at,
+                    current_period_ends_at, last_event_id, last_event_created_at
+                ) VALUES (?, ?, ?, 'basic_1', 'MONTH', 'USD', 'trialing', 5, 0, ?, ?, ?, ?, ?, ?)
                 """,
             subscriptionId,
             companyId,
             activeCatalogId,
             Timestamp.from(now.minus(1, ChronoUnit.DAYS)),
-            Timestamp.from(now.plus(29, ChronoUnit.DAYS)),
+            Timestamp.from(cutoffAt),
+            Timestamp.from(now),
+            Timestamp.from(cutoffAt),
             "evt_platform_trial_" + discriminator,
             Timestamp.from(now)
         );
@@ -163,18 +178,20 @@ class PlatformCompanyModuleServiceIntegrationTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void trialModulesUpdateStripeWithoutImmediateChargeAndBecomeThePersistedSelection() throws Exception {
+    void trialModulesAreScheduledWithoutImmediateChargeAndApplyOnlyAfterThePaidCutoff() throws Exception {
+        var idempotencyKey = "trial-products-" + UUID.randomUUID();
         var result = service.updateTrialProducts(
             actorUserId,
             companyId,
-            "trial-products-" + UUID.randomUUID(),
+            idempotencyKey,
             new PlatformCompanyModuleService.ProductSelectionRequest(selectedProductCodes)
         );
 
         assertThat(result)
             .containsEntry("offer_code", "basic_2")
             .containsEntry("charge_timing", "TRIAL_END")
-            .containsEntry("charged_now", false);
+            .containsEntry("charged_now", false)
+            .containsEntry("selection_state", "SCHEDULED");
 
         var parameters = ArgumentCaptor.forClass(Map.class);
         verify(stripeGateway).updateSubscription(
@@ -201,12 +218,69 @@ class PlatformCompanyModuleServiceIntegrationTest {
             (rs, rowNum) -> rs.getString(1),
             subscriptionId
         );
-        assertThat(persistedCodes).containsExactlyInAnyOrderElementsOf(selectedProductCodes);
+        assertThat(persistedCodes).containsExactly(selectedProductCodes.getFirst());
+        assertThat(jdbc.queryForObject(
+            "SELECT offer_code FROM company_billing_subscriptions WHERE stripe_subscription_id = ?",
+            String.class,
+            subscriptionId
+        )).isEqualTo("basic_1");
+
+        var scheduledCodes = jdbc.query(
+            """
+                SELECT product.product_code
+                FROM company_billing_selection_changes change_row
+                JOIN company_billing_selection_change_products selected ON selected.change_id = change_row.id
+                JOIN billing_catalog_products product ON product.id = selected.catalog_product_id
+                WHERE change_row.company_id = ? AND change_row.status = 'SCHEDULED'
+                ORDER BY product.product_code
+                """,
+            (rs, rowNum) -> rs.getString(1),
+            companyId
+        );
+        assertThat(scheduledCodes).containsExactlyInAnyOrderElementsOf(selectedProductCodes);
+
+        assertThat(selectionChanges.applyDue(
+            companyId, subscriptionId, "evt_too_early", cutoffAt.minusSeconds(1)
+        )).isFalse();
+        assertThat(selectionChanges.applyDue(
+            companyId, "sub_other", "evt_wrong_subscription", cutoffAt
+        )).isFalse();
+        assertThat(selectionChanges.applyDue(
+            companyId, subscriptionId, "evt_paid_cutoff", cutoffAt
+        )).isTrue();
+        assertThat(selectionChanges.applyDue(
+            companyId, subscriptionId, "evt_paid_cutoff_duplicate", cutoffAt
+        )).isFalse();
+
+        var appliedCodes = jdbc.query(
+            """
+                SELECT product.product_code
+                FROM company_billing_subscription_products selected
+                JOIN company_billing_subscriptions subscription ON subscription.id = selected.subscription_id
+                JOIN billing_catalog_products product ON product.id = selected.catalog_product_id
+                WHERE subscription.stripe_subscription_id = ?
+                ORDER BY product.product_code
+                """,
+            (rs, rowNum) -> rs.getString(1),
+            subscriptionId
+        );
+        assertThat(appliedCodes).containsExactlyInAnyOrderElementsOf(selectedProductCodes);
         assertThat(jdbc.queryForObject(
             "SELECT offer_code FROM company_billing_subscriptions WHERE stripe_subscription_id = ?",
             String.class,
             subscriptionId
         )).isEqualTo("basic_2");
+
+        var replay = service.updateTrialProducts(
+            actorUserId,
+            companyId,
+            idempotencyKey,
+            new PlatformCompanyModuleService.ProductSelectionRequest(selectedProductCodes)
+        );
+        assertThat(replay).containsEntry("selection_state", "CURRENT");
+        verify(stripeGateway, times(1)).updateSubscription(
+            eq(subscriptionId), anyMap(), anyString()
+        );
     }
 
     @Test
@@ -234,6 +308,46 @@ class PlatformCompanyModuleServiceIntegrationTest {
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("catálogo activo cambió");
 
+        verify(stripeGateway, never()).updateSubscription(anyString(), anyMap(), anyString());
+    }
+
+    @Test
+    void selectionWithoutStripeRemainsADraftAndNeverCreatesCourtesyAccess() throws Exception {
+        jdbc.update("DELETE FROM company_billing_subscriptions WHERE stripe_subscription_id = ?", subscriptionId);
+        var benefitsBefore = jdbc.queryForObject(
+            "SELECT COUNT(*) FROM company_benefit_grants WHERE company_id = ?",
+            Integer.class,
+            companyId
+        );
+        var entitlementsBefore = jdbc.queryForObject(
+            "SELECT COUNT(*) FROM company_module_entitlements WHERE company_id = ?",
+            Integer.class,
+            companyId
+        );
+
+        var result = billingSelections.update(
+            companyId,
+            actorUserId,
+            "draft-products-" + UUID.randomUUID(),
+            new BillingSelectionRequest(selectedProductCodes, 0, "MONTH")
+        );
+
+        assertThat(result.selection_state()).isEqualTo("DRAFT");
+        assertThat(result.source()).isEqualTo("DRAFT");
+        assertThat(result.payment_method_required()).isTrue();
+        assertThat(result.access_change_timing()).isEqualTo("AFTER_CHECKOUT");
+        assertThat(result.current_product_codes()).isEmpty();
+        assertThat(result.used_seats()).isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+            "SELECT COUNT(*) FROM company_benefit_grants WHERE company_id = ?",
+            Integer.class,
+            companyId
+        )).isEqualTo(benefitsBefore);
+        assertThat(jdbc.queryForObject(
+            "SELECT COUNT(*) FROM company_module_entitlements WHERE company_id = ?",
+            Integer.class,
+            companyId
+        )).isEqualTo(entitlementsBefore);
         verify(stripeGateway, never()).updateSubscription(anyString(), anyMap(), anyString());
     }
 
@@ -298,6 +412,7 @@ class PlatformCompanyModuleServiceIntegrationTest {
 
     private void cleanTestState() {
         jdbc.update("DELETE FROM platform_audit_events WHERE actor_user_id IN (SELECT id FROM users WHERE email LIKE ?)", EMAIL_PREFIX + "%");
+        jdbc.update("DELETE FROM company_billing_selection_changes WHERE company_id IN (SELECT id FROM companies WHERE name LIKE ?)", COMPANY_PREFIX + "%");
         jdbc.update("DELETE FROM company_billing_subscriptions WHERE stripe_subscription_id LIKE ?", SUBSCRIPTION_PREFIX + "%");
         jdbc.update("DELETE FROM companies WHERE name LIKE ?", COMPANY_PREFIX + "%");
         jdbc.update("DELETE FROM users WHERE email LIKE ?", EMAIL_PREFIX + "%");

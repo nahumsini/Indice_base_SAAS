@@ -1,4 +1,4 @@
-import { Ban, Banknote, Building2, CheckCircle2, Coins, Copy, Download, ExternalLink, FolderOpen, Info, Loader2, MoreHorizontal, Paperclip, Plus, ReceiptText, Search, Trash2, Upload, WalletCards, X } from 'lucide-react';
+import { Ban, Banknote, Building2, CheckCircle2, Coins, Copy, Download, ExternalLink, FileText, FolderOpen, Info, Loader2, MoreHorizontal, Paperclip, Plus, ReceiptText, Search, Trash2, Upload, WalletCards, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { isAdminAccessRole } from '../../../access/accessRules';
 import { authApi } from '../../../api/auth';
@@ -47,7 +47,7 @@ import {
   getStatementLines,
   getStatementSettlementBalance,
 } from '../utils/pettyCash.utils';
-import { downloadPettyCashStatementPdf } from '../utils/pettyCashStatementPdf';
+import { getPettyCashAccountStatementCopy } from '../utils/pettyCashAccountStatementCopy';
 import { getPettyCashMethodLabel, PETTY_CASH_METHOD_KEYS } from '../utils/pettyCash.methods';
 import { usePettyCashTranslations } from '../hooks/usePettyCashTranslations';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
@@ -65,6 +65,7 @@ import {
   PettyCashStatusPill,
   usePettyCashTableSort,
 } from './PettyCashShared';
+import { PettyCashStatementDetailModal } from './statements/PettyCashStatementDetailModal';
 
 type PettyCashReconciliationWorkspaceProps = {
   funds: PettyCashFund[];
@@ -384,6 +385,7 @@ export function PettyCashReconciliationWorkspace({
   const copy = usePettyCashTranslations();
   const { currentLanguage } = useLanguage();
   const currencyCopy = getOperationalKpiCurrencyCopy(currentLanguage.code);
+  const accountStatementCopy = getPettyCashAccountStatementCopy(copy.locale);
   const { preferredCurrency } = usePreferredBusinessCurrency();
   const [selectedFundId, setSelectedFundId] = useState(initialFundId || funds[0]?.id || '');
   const [selectedStatementId, setSelectedStatementId] = useState('');
@@ -408,6 +410,7 @@ export function PettyCashReconciliationWorkspace({
   const [deletingLine, setDeletingLine] = useState<PettyCashSettlementLine | null>(null);
   const [deletingLineId, setDeletingLineId] = useState<string | null>(null);
   const [statementCloseId, setStatementCloseId] = useState<string | null>(null);
+  const [previewStatement, setPreviewStatement] = useState<PettyCashStatement | null>(null);
 
   const selectedFund = funds.find(fund => fund.id === selectedFundId);
   const fundStatements = useMemo(() => (
@@ -1069,27 +1072,17 @@ export function PettyCashReconciliationWorkspace({
     }
   };
 
-  const handleDownloadStatementPdf = (statement: PettyCashStatement) => {
-    const fund = getFundById(funds, statement.pettyCashFundId);
-    if (!fund) return;
-
-    downloadPettyCashStatementPdf({
-      copy,
-      fund,
-      locale: copy.locale,
-      movements,
-      settlementLines: getStatementLines(statement.id, settlementLines),
-      statement,
-    });
-  };
-
   return (
     <div className="space-y-6">
       <PettyCashHeaderBanner
+        additionalActionDisabled={!selectedStatement}
+        additionalActionIcon={FileText}
+        additionalActionLabel={accountStatementCopy.action}
         actionLabel={copy.reconciliation.header.uploadReceipt}
         description={copy.reconciliation.header.description}
         emoji="🧾"
         onAction={() => setIsReceiptModalOpen(true)}
+        onAdditionalAction={() => selectedStatement && setPreviewStatement(selectedStatement)}
         onSecondaryAction={() => setIsDepositModalOpen(true)}
         onTertiaryAction={() => setIsProviderModalOpen(true)}
         secondaryActionIcon={Banknote}
@@ -1419,6 +1412,16 @@ export function PettyCashReconciliationWorkspace({
           onSave={(draft) => handleCloseStatement(closingStatement, draft)}
         />
       ) : null}
+
+      <PettyCashStatementDetailModal
+        copy={copy}
+        fund={previewStatement ? getFundById(funds, previewStatement.pettyCashFundId) ?? null : null}
+        movements={previewStatement ? movements.filter(movement => movement.pettyCashStatementId === previewStatement.id) : []}
+        onClose={() => setPreviewStatement(null)}
+        originText={copy.statementsHistory.table.current}
+        receipts={previewStatement ? getStatementLines(previewStatement.id, settlementLines) : []}
+        statement={previewStatement}
+      />
 
       {isProviderModalOpen ? (
         <ProviderCreateModal

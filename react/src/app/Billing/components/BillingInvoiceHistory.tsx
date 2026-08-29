@@ -23,7 +23,7 @@ const statusStyles: Record<string, string> = {
 };
 
 export function BillingInvoiceHistory(props: Props) {
-  const canOpenPortal = !props.selection.payment_method_required;
+  const canOpenPortal = props.selection.payment_management_available;
 
   return (
     <section className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">

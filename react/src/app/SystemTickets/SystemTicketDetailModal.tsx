@@ -9,12 +9,14 @@ import {
   LoaderCircle,
   MessageSquareText,
   Paperclip,
+  Printer,
   Send,
   ShieldCheck,
   UserRoundCheck,
 } from 'lucide-react';
 import { IndiceModalFrame, IndiceModalValidation } from '../components/indice-modal';
 import { getSystemTicketCopy } from './translations';
+import { printSystemTicketDetail } from './systemTicketPrint';
 import { systemTicketsApi, type SystemTicketPortal } from './systemTicketsApi';
 import type {
   SystemTicket,
@@ -167,10 +169,18 @@ export function SystemTicketDetailModal({ assignees, locale, onClose, onChanged,
     }
   };
 
+  const printDetail = () => {
+    if (!detail) return;
+    printSystemTicketDetail({ detail, locale });
+  };
+
   const footer = portal === 'root' ? (
     <>
       <button type="button" disabled={saving || uploading} onClick={onClose} className="h-10 rounded-xl border border-white/40 px-4 text-sm font-medium text-white">
         {copy.close}
+      </button>
+      <button type="button" disabled={saving || uploading || loading || !detail} onClick={printDetail} className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/50 px-4 text-sm font-medium text-white disabled:opacity-50">
+        <Printer className="h-4 w-4" />{copy.print}
       </button>
       <button type="button" disabled={saving || uploading || !hasOperationalChanges} onClick={() => void saveOperations()} className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-medium text-[#176B5B] disabled:opacity-50">
         {saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
@@ -178,7 +188,12 @@ export function SystemTicketDetailModal({ assignees, locale, onClose, onChanged,
       </button>
     </>
   ) : (
-    <button type="button" onClick={onClose} className="h-10 rounded-xl bg-white px-4 text-sm font-medium text-[#176B5B]">{copy.close}</button>
+    <>
+      <button type="button" onClick={onClose} className="h-10 rounded-xl border border-white/40 px-4 text-sm font-medium text-white">{copy.close}</button>
+      <button type="button" disabled={loading || !detail} onClick={printDetail} className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-medium text-[#176B5B] disabled:opacity-50">
+        <Printer className="h-4 w-4" />{copy.print}
+      </button>
+    </>
   );
 
   return (
