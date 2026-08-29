@@ -41,4 +41,12 @@ public record BillingSignupRequest(
             courtesyCode, emailVerificationReference, null
         );
     }
+
+    public BillingSignupRequest withPhone(String normalizedPhone) {
+        return new BillingSignupRequest(
+            fullName, email, confirmEmail, password, companyName, countryCode, normalizedPhone,
+            industry, companySize, billingInterval, extraSeats, selectedProductCodes,
+            courtesyCode, emailVerificationReference, promotionCode
+        );
+    }
 }

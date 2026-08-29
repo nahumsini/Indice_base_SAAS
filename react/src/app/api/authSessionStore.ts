@@ -66,8 +66,21 @@ export const subscribeToAuthorizationChanged = (listener: () => void) => {
   };
 };
 
+export const clearBrowserLocalStorage = () => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.clear();
+  } catch {
+    // Storage can be unavailable in private browsing or restricted webviews.
+  }
+};
+
 export const expireCachedAuthSession = () => {
   const hadAuthenticatedSession = cachedAuthSession != null;
+  clearBrowserLocalStorage();
   setCachedAuthSession(null);
 
   if (!hadAuthenticatedSession) {

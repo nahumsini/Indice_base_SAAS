@@ -87,8 +87,7 @@ class AuthApiControllerTest {
             .willReturn(AuthLockoutService.LockoutState.open());
         given(sessionAuthService.verifyLoginCredentials(eq("Empresa Demo Spring"), eq("demo@example.com"), eq("demo123")))
             .willReturn(LoginCredentialVerificationResult.success(login, "demo@example.com", "empresa demo spring"));
-        given(securityProperties.isMfaEnabled()).willReturn(true);
-        given(securityProperties.isMfaRequired()).willReturn(true);
+        given(securityProperties.isMfaRequiredForCompany("Empresa Demo Spring")).willReturn(true);
         given(mfaChallengeService.startChallenge(eq(login), any(), any(LoginAuditContext.class)))
             .willReturn(LoginMfaChallengeService.MfaStartResult.started(
                 "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -181,7 +180,7 @@ class AuthApiControllerTest {
             .willReturn(AuthLockoutService.LockoutState.open());
         given(sessionAuthService.verifyLoginCredentials(eq("Empresa Demo Spring"), eq("demo@example.com"), eq("demo123")))
             .willReturn(LoginCredentialVerificationResult.success(login, "demo@example.com", "empresa demo spring"));
-        given(securityProperties.isMfaEnabled()).willReturn(false);
+        given(securityProperties.isMfaRequiredForCompany("Empresa Demo Spring")).willReturn(false);
         given(sessionAuthService.currentSession(any())).willReturn(Optional.of(session));
         given(sessionCsrfService.ensureCsrf(any())).willReturn("csrf-token");
 

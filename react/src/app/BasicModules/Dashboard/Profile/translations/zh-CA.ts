@@ -44,7 +44,13 @@ export const zhCA = {
     discard: "放弃",
     uploadingPhoto: "正在上传照片...",
   },
-  phone: { add: "添加电话", number: "号码", primary: "主要", remove: "移除" },
+  phone: {
+    add: "添加电话",
+    number: "号码",
+    primary: "主要",
+    remove: "移除",
+    formatHint: (example) => `示例：${example}`,
+  },
   progress: {
     completion: "个人资料已完成",
     essentials: "在一个页面中填写基本信息。",

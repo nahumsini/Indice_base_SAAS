@@ -11,6 +11,7 @@ import com.indice.erp.billing.stripe.StripeGatewayException;
 import com.indice.erp.billing.stripe.StripePhaseTwoProperties;
 import com.indice.erp.billing.stripe.StripeSecretProvider;
 import com.indice.erp.platformadmin.CourtesyCodeService;
+import com.indice.erp.support.PhoneNumberNormalizer;
 import java.time.Clock;
 import java.time.Duration;
 import java.nio.charset.StandardCharsets;
@@ -114,13 +115,14 @@ public class BillingSignupService {
             selection.products().stream().map(product -> product.code()).toList(),
             courtesySignup ? BillingHashing.sha256(request.courtesyCode().trim().toUpperCase(Locale.ROOT)) : ""
         );
+        var requestForStorage = request.withPhone(normalizedRequest.phone());
         var fingerprint = BillingHashing.sha256(json(normalizedRequest));
         var idempotencyHash = BillingHashing.sha256(idempotencyKey.trim());
         var intent = repository.createOrLoad(
             BillingHashing.randomReference(),
             idempotencyHash,
             fingerprint,
-            request,
+            requestForStorage,
             normalizedRequest.email(),
             passwordEncoder.encode(request.password()),
             selection,
@@ -269,6 +271,7 @@ public class BillingSignupService {
         if (!LAUNCH_COUNTRIES.contains(country)) {
             throw new IllegalArgumentException("Country must be MX, CA, US, CO or BR during launch.");
         }
+        PhoneNumberNormalizer.normalizeOptional(request.phone(), country);
         if (idempotencyKey == null || idempotencyKey.trim().length() < 8 || idempotencyKey.trim().length() > 200) {
             throw new IllegalArgumentException("A valid Idempotency-Key header is required.");
         }
@@ -293,7 +296,7 @@ public class BillingSignupService {
             request.password(),
             request.companyName().trim(),
             request.countryCode().trim().toUpperCase(Locale.ROOT),
-            blank(request.phone()),
+            PhoneNumberNormalizer.normalizeOptional(request.phone(), request.countryCode()),
             blank(request.industry()),
             blank(request.companySize()),
             normalizedBillingInterval,

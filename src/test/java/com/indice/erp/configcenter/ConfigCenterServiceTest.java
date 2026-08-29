@@ -678,6 +678,48 @@ class ConfigCenterServiceTest {
     }
 
     @Test
+    void saveCurrentUserNormalizesMexicoPhoneBeforeStorage() {
+        var service = newService();
+
+        when(jdbcTemplate.update("UPDATE users SET full_name = ? WHERE id = ?", "Ada Demo", 1L)).thenReturn(1);
+        when(jdbcTemplate.query(
+            contains("LEFT JOIN user_profiles p ON p.user_id = u.id"),
+            org.mockito.ArgumentMatchers.<RowMapper<Map<String, Object>>>any(),
+            eq(1L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            var rowMapper = (RowMapper<Map<String, Object>>) invocation.getArgument(1);
+            ResultSet rs = mock(ResultSet.class);
+            when(rs.getLong("id")).thenReturn(1L);
+            when(rs.getString("email")).thenReturn("ada@example.com");
+            when(rs.getString("full_name")).thenReturn("Ada Demo");
+            when(rs.getString("given_names")).thenReturn("Ada");
+            when(rs.getString("family_names")).thenReturn("Demo");
+            when(rs.getString("phone")).thenReturn("+528132456845");
+            when(rs.getString("country")).thenReturn("MX");
+            when(rs.getString("preferred_language")).thenReturn("es-MX");
+            when(rs.getString("avatar_url")).thenReturn(null);
+            when(rs.getString("avatar_object_key")).thenReturn(null);
+            when(rs.getString("avatar_content_type")).thenReturn(null);
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+
+        var saved = service.saveCurrentUser(1L, 1L, "admin", Map.of(
+            "primer_nombre", "Ada",
+            "apellido_paterno", "Demo",
+            "country", "MX",
+            "telefono", "+52 81 3245 6845",
+            "preferred_language", "es-MX"
+        ));
+
+        assertEquals("+528132456845", saved.get("telefono"));
+        verify(jdbcTemplate).update(
+            contains("INSERT INTO user_profiles (user_id, full_name, given_names, family_names"),
+            eq(1L), eq("Ada Demo"), eq("Ada"), eq("Demo"), eq("+528132456845"), eq("MX"), eq("es-MX")
+        );
+    }
+
+    @Test
     void saveCurrentUserPreservesMultipleGivenNamesAndFamilyNames() {
         var service = newService();
 

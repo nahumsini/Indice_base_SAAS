@@ -6,6 +6,7 @@ import com.indice.erp.configcenter.support.ConfigCenterSupport;
 import com.indice.erp.storage.ObjectStorageDisabledException;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
+import com.indice.erp.support.PhoneNumberNormalizer;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -125,8 +126,8 @@ public abstract class ConfigCenterProfileUseCases extends ConfigCenterSupport {
         var secondName = value(payload, "segundo_nombre");
         var lastName = value(payload, "apellido_paterno", "apellidos");
         var maternalLastName = value(payload, "apellido_materno");
-        var phone = value(payload, "telefono");
         var country = normalizeCountry(value(payload, "country", "pais"));
+        var phone = PhoneNumberNormalizer.normalizeOptional(value(payload, "telefono"), country);
         var preferredLanguage = firstNonBlank(value(payload, "preferred_language"), "es-419");
         var hasAvatarUpdate = hasAnyKey(payload, "avatar_object_key", "avatarObjectKey");
         var avatarObjectKey = "";

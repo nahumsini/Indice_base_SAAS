@@ -1,5 +1,6 @@
 package com.indice.erp.auth;
 
+import com.indice.erp.support.PhoneNumberNormalizer;
 import java.sql.Statement;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -40,7 +41,10 @@ public class SignupService {
         var industry = requireText(request.industry(), "Industry is required.", 120);
         var companySize = requireText(request.companySize(), "Company size is required.", 80);
         var country = requireText(request.country(), "Country is required.", 2).toUpperCase();
-        var phone = requireText(request.phone(), "Phone is required.", 50);
+        var phone = PhoneNumberNormalizer.normalizeRequired(
+            requireText(request.phone(), "Phone is required.", 50),
+            country
+        );
         ensureEmailAvailable(email);
 
         return new SignupProfile(
@@ -111,7 +115,7 @@ public class SignupService {
             "INSERT INTO user_profiles (user_id, full_name, phone, country) VALUES (?, ?, ?, ?)",
             userId,
             fullName,
-            clean(phone, 50),
+            PhoneNumberNormalizer.normalizeOptional(phone, country),
             clean(country, 2).toUpperCase()
         );
     }

@@ -44,7 +44,13 @@ export const koCA = {
     discard: "취소",
     uploadingPhoto: "사진 업로드 중...",
   },
-  phone: { add: "전화번호 추가", number: "번호", primary: "기본", remove: "삭제" },
+  phone: {
+    add: "전화번호 추가",
+    number: "번호",
+    primary: "기본",
+    remove: "삭제",
+    formatHint: (example) => `예: ${example}`,
+  },
   progress: {
     completion: "프로필 완료",
     essentials: "한 화면에서 필수 정보를 입력하세요.",

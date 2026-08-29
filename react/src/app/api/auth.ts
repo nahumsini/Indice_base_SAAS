@@ -1,5 +1,5 @@
 import { ApiClientError, apiClient } from '../lib/apiClient';
-import { getCachedAuthSession, setCachedAuthSession, setCachedCsrfToken } from './authSessionStore';
+import { clearBrowserLocalStorage, getCachedAuthSession, setCachedAuthSession, setCachedCsrfToken } from './authSessionStore';
 import type { AuthSessionResponse, LoginResponse, MfaRequiredResponse } from './auth.types';
 import { endpoints } from './endpoints';
 
@@ -280,6 +280,7 @@ export const authApi = {
         method: 'POST',
       });
     } finally {
+      clearBrowserLocalStorage();
       cacheSession(null);
       setCachedCsrfToken(null);
       clearPendingSessionRequest();

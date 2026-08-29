@@ -232,7 +232,15 @@ test('Productos conserva POS listo al recargar y el ticket muestra la unidad con
 
   assert.match(adaptersSource, /pos_ready: 'POS ready'/);
   assert.match(posCatalogSource, /Kilogram: 'kg'/);
-  assert.match(posCatalogSource, /packaging\.saleUnit === 'Unit' \? packaging\.baseUnit : packaging\.saleUnit/);
+  assert.match(posCatalogSource, /measuredBaseUnits = new Set\(\['Kilogram', 'Liter', 'Meter'\]\)/);
+  assert.match(posCatalogSource, /function shouldUseBaseUnitInPointOfSale/);
+  assert.match(posCatalogSource, /packaging\.pricingMode === 'Per base unit'/);
+  assert.match(posCatalogSource, /packaging\.saleUnit === 'Unit' && isMeasuredBaseUnit\(packaging\.baseUnit\)/);
+  assert.match(posCatalogSource, /shouldUseBaseUnitInPointOfSale\(product\) \? packaging\.baseUnit : packaging\.saleUnit/);
+  assert.match(posCatalogSource, /allowsDecimalQuantity: shouldUseBaseUnitInPointOfSale/);
+  assert.match(ticketSource, /quantityStepFor/);
+  assert.match(ticketSource, /item\.quantity - quantityStep/);
+  assert.match(ticketSource, /item\.quantity \+ quantityStep/);
   assert.match(ticketSource, /product\?\.unitLabel \?\? 'uds'/);
   assert.doesNotMatch(ticketSource, />uds<\/span>/);
 });

@@ -36,6 +36,12 @@ import {
 import { Input } from '../components/ui/input';
 import { languages, useLanguage } from '../shared/context';
 import { isValidAccountPassword } from '../shared/validation/password';
+import {
+  getPhoneExampleForCountry,
+  isPhoneInputDialCodeOnly,
+  normalizePhoneInputForCountry,
+  validatePhoneForCountry,
+} from '../shared/validation/phone';
 import { IndiceBrandLogo } from './components/IndiceBrandLogo';
 import {
   calculatePublicPlanPricing,
@@ -134,6 +140,8 @@ type SignupCopy = {
   phoneLabel: string;
   optional: string;
   phonePlaceholder: string;
+  phoneInvalidError: string;
+  phoneFormatHint: (example: string) => string;
   industryLabel: string;
   industryPlaceholder: string;
   companySizeLabel: string;
@@ -468,7 +476,9 @@ const esSignupCopy: SignupCopy = {
   countryLabel: 'País de operación',
   phoneLabel: 'Teléfono',
   optional: 'opcional',
-  phonePlaceholder: 'Solo números',
+  phonePlaceholder: '+52 81 3245 6845',
+  phoneInvalidError: 'Ingresa un teléfono válido para el país seleccionado.',
+  phoneFormatHint: (example) => `Puedes usar 10 dígitos o formato internacional. Ejemplo: ${example}`,
   industryLabel: 'Industria',
   industryPlaceholder: 'Restaurante, retail, servicios...',
   companySizeLabel: 'Tamaño de empresa',
@@ -581,7 +591,9 @@ const enSignupCopy: SignupCopy = {
   countryLabel: 'Operating country',
   phoneLabel: 'Phone',
   optional: 'optional',
-  phonePlaceholder: 'Numbers only',
+  phonePlaceholder: '+52 81 3245 6845',
+  phoneInvalidError: 'Enter a valid phone number for the selected country.',
+  phoneFormatHint: (example) => `Use local digits or international format. Example: ${example}`,
   industryLabel: 'Industry',
   industryPlaceholder: 'Restaurant, retail, services...',
   companySizeLabel: 'Company size',
@@ -698,7 +710,9 @@ const signupCopies: Record<string, SignupCopy> = {
     countryLabel: "Pays d'exploitation",
     phoneLabel: 'Téléphone',
     optional: 'optionnel',
-    phonePlaceholder: 'Chiffres seulement',
+    phonePlaceholder: '+52 81 3245 6845',
+    phoneInvalidError: 'Entrez un numéro de téléphone valide pour le pays sélectionné.',
+    phoneFormatHint: (example) => `Utilisez les chiffres locaux ou le format international. Exemple : ${example}`,
     industryLabel: 'Industrie',
     industryPlaceholder: 'Restaurant, détail, services...',
     companySizeLabel: "Taille de l'entreprise",
@@ -793,7 +807,9 @@ const signupCopies: Record<string, SignupCopy> = {
     countryLabel: 'País de operação',
     phoneLabel: 'Telefone',
     optional: 'opcional',
-    phonePlaceholder: 'Somente números',
+    phonePlaceholder: '+52 81 3245 6845',
+    phoneInvalidError: 'Digite um telefone válido para o país selecionado.',
+    phoneFormatHint: (example) => `Use os dígitos locais ou o formato internacional. Exemplo: ${example}`,
     industryLabel: 'Setor',
     industryPlaceholder: 'Restaurante, varejo, serviços...',
     companySizeLabel: 'Tamanho da empresa',
@@ -888,7 +904,9 @@ const signupCopies: Record<string, SignupCopy> = {
     countryLabel: '운영 국가',
     phoneLabel: '전화번호',
     optional: '선택 사항',
-    phonePlaceholder: '숫자만',
+    phonePlaceholder: '+52 81 3245 6845',
+    phoneInvalidError: '선택한 국가에 맞는 유효한 전화번호를 입력하세요.',
+    phoneFormatHint: (example) => `현지 번호 또는 국제 형식을 사용하세요. 예: ${example}`,
     industryLabel: '업종',
     industryPlaceholder: '레스토랑, 리테일, 서비스...',
     companySizeLabel: '회사 규모',
@@ -983,7 +1001,9 @@ const signupCopies: Record<string, SignupCopy> = {
     countryLabel: '运营国家',
     phoneLabel: '电话',
     optional: '可选',
-    phonePlaceholder: '仅限数字',
+    phonePlaceholder: '+52 81 3245 6845',
+    phoneInvalidError: '请输入与所选国家匹配的有效电话号码。',
+    phoneFormatHint: (example) => `可使用本地号码或国际格式。示例：${example}`,
     industryLabel: '行业',
     industryPlaceholder: '餐饮、零售、服务...',
     companySizeLabel: '公司规模',
@@ -1188,7 +1208,20 @@ const newIdempotencyKey = () => (
     : `signup-${Date.now()}-${Math.random().toString(16).slice(2)}`
 );
 
-const phoneDigitsOnly = (value: string) => value.replace(/\D/g, '').slice(0, 20);
+const normalizeSignupPhoneInput = (value: string, countryCode: string) => {
+  const trimmedValue = value.trim();
+  return trimmedValue ? normalizePhoneInputForCountry(trimmedValue, countryCode) : '';
+};
+
+const normalizedSignupPhoneForRequest = (form: BillingSignupRequest) => {
+  const trimmedPhone = form.phone.trim();
+  if (!trimmedPhone || isPhoneInputDialCodeOnly(trimmedPhone, form.countryCode)) {
+    return '';
+  }
+
+  const validation = validatePhoneForCountry(trimmedPhone, form.countryCode);
+  return validation.ok ? validation.e164 : trimmedPhone;
+};
 
 const currency = (amountCents: number, interval: 'MONTH' | 'YEAR', copy: SignupCopy) => {
   const value = new Intl.NumberFormat(copy.locale, {
@@ -1212,6 +1245,7 @@ const signupMonthlyPrice = (amountCents: number, copy: SignupCopy) => `${moneyOn
 const normalizeDraft = (value: unknown): BillingSignupRequest | null => {
   if (!value || typeof value !== 'object') return null;
   const draft = value as Partial<BillingSignupRequest>;
+  const countryCode = typeof draft.countryCode === 'string' ? draft.countryCode : emptyForm.countryCode;
   return {
     ...emptyForm,
     fullName: typeof draft.fullName === 'string' ? draft.fullName : emptyForm.fullName,
@@ -1219,8 +1253,8 @@ const normalizeDraft = (value: unknown): BillingSignupRequest | null => {
     confirmEmail: typeof draft.confirmEmail === 'string' ? draft.confirmEmail : emptyForm.confirmEmail,
     password: typeof draft.password === 'string' ? draft.password : emptyForm.password,
     companyName: typeof draft.companyName === 'string' ? draft.companyName : emptyForm.companyName,
-    countryCode: typeof draft.countryCode === 'string' ? draft.countryCode : emptyForm.countryCode,
-    phone: typeof draft.phone === 'string' ? phoneDigitsOnly(draft.phone) : emptyForm.phone,
+    countryCode,
+    phone: typeof draft.phone === 'string' ? normalizeSignupPhoneInput(draft.phone, countryCode) : emptyForm.phone,
     industry: typeof draft.industry === 'string' ? draft.industry : emptyForm.industry,
     companySize: typeof draft.companySize === 'string' ? draft.companySize : emptyForm.companySize,
     billingInterval: draft.billingInterval === 'YEAR' ? 'YEAR' : 'MONTH',
@@ -1256,9 +1290,12 @@ const loadStoredSignupDraft = () => {
 
 const saveSignupDraft = (form: BillingSignupRequest) => {
   if (typeof window === 'undefined') return;
+  const phone = isPhoneInputDialCodeOnly(form.phone, form.countryCode)
+    ? ''
+    : normalizeSignupPhoneInput(form.phone, form.countryCode);
   const sanitizedForm = {
     ...form,
-    phone: phoneDigitsOnly(form.phone),
+    phone,
   };
   window.sessionStorage.setItem(SIGNUP_DRAFT_STORAGE_KEY, JSON.stringify(sanitizedForm));
   window.localStorage.setItem(SIGNUP_DRAFT_STORAGE_KEY, JSON.stringify({
@@ -1396,13 +1433,22 @@ export default function SignupPage() {
       && emailVerification.verifiedEmail
       && emailVerification.verifiedEmail === normalizedEmail),
   );
+  const phoneProvided = Boolean(
+    form.phone.trim()
+    && !isPhoneInputDialCodeOnly(form.phone, form.countryCode)
+  );
+  const phoneValidation = useMemo(() => (
+    phoneProvided ? validatePhoneForCountry(form.phone, form.countryCode) : null
+  ), [form.countryCode, form.phone, phoneProvided]);
+  const phoneReady = !phoneValidation || phoneValidation.ok;
   const accountDetailsComplete = useMemo(() => (
     form.fullName.trim().length >= 2
     && form.companyName.trim().length >= 2
     && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())
     && form.email.trim().toLowerCase() === form.confirmEmail.trim().toLowerCase()
     && isValidAccountPassword(form.password)
-  ), [form.companyName, form.confirmEmail, form.email, form.fullName, form.password]);
+    && phoneReady
+  ), [form.companyName, form.confirmEmail, form.email, form.fullName, form.password, phoneReady]);
   const canSubmit = platformReady
     && accountDetailsComplete
     && emailVerified
@@ -1418,6 +1464,13 @@ export default function SignupPage() {
     const resetVerification = key === 'email' || key === 'confirmEmail' || key === 'fullName' || key === 'companyName';
     setForm((current) => {
       const next = { ...current, [key]: value };
+      if (key === 'countryCode') {
+        next.countryCode = String(value);
+        next.phone = normalizeSignupPhoneInput(current.phone, next.countryCode);
+      }
+      if (key === 'phone') {
+        next.phone = normalizeSignupPhoneInput(String(value), current.countryCode);
+      }
       if (resetVerification) {
         next.emailVerificationReference = '';
       }
@@ -1503,6 +1556,10 @@ export default function SignupPage() {
   const continueToBilling = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setAccountAttempted(true);
+    if (!phoneReady) {
+      setError(copy.phoneInvalidError);
+      return;
+    }
     if (!accountDetailsComplete) {
       setError(copy.accountIncompleteError);
       return;
@@ -1532,6 +1589,10 @@ export default function SignupPage() {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!phoneReady) {
+      setError(copy.phoneInvalidError);
+      return;
+    }
     if (!accountDetailsComplete) {
       setError(copy.accountIncompleteError);
       return;
@@ -1553,7 +1614,7 @@ export default function SignupPage() {
         email: form.email.trim().toLowerCase(),
         confirmEmail: form.confirmEmail.trim().toLowerCase(),
         companyName: form.companyName.trim(),
-        phone: phoneDigitsOnly(form.phone),
+        phone: normalizedSignupPhoneForRequest(form),
         industry: form.industry.trim(),
         companySize: form.companySize.trim(),
         emailVerificationReference: form.emailVerificationReference,
@@ -2039,7 +2100,12 @@ export default function SignupPage() {
                         {copy.phoneLabel}
                         <span className="relative block">
                           <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                          <Input type="tel" inputMode="numeric" pattern="[0-9]*" value={form.phone} onChange={(event) => update('phone', phoneDigitsOnly(event.target.value))} maxLength={20} className={`${brandInputClasses} pl-10`} placeholder={copy.phonePlaceholder} autoComplete="tel" />
+                          <Input type="tel" inputMode="tel" value={form.phone} onChange={(event) => update('phone', event.target.value)} maxLength={32} className={`${brandInputClasses} pl-10`} placeholder={getPhoneExampleForCountry(form.countryCode) || copy.phonePlaceholder} autoComplete="tel" />
+                        </span>
+                        <span className={`block text-xs font-normal ${phoneValidation && !phoneValidation.ok ? 'text-red-600' : 'text-slate-500'}`}>
+                          {phoneValidation && !phoneValidation.ok
+                            ? copy.phoneInvalidError
+                            : copy.phoneFormatHint(getPhoneExampleForCountry(form.countryCode))}
                         </span>
                       </label>
                       <label className="space-y-2 text-sm font-medium text-slate-700">

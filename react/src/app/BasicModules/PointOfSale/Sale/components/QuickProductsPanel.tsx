@@ -18,6 +18,13 @@ interface QuickProductsPanelProps {
   formatCurrency: (amount: number) => string;
 }
 
+const formatProductQuantity = (quantity: number, product: Product) => {
+  const normalized = Number(quantity.toFixed(3));
+  return (product.allowsDecimalQuantity || !Number.isInteger(normalized))
+    ? normalized.toLocaleString(undefined, { maximumFractionDigits: 3 })
+    : String(normalized);
+};
+
 export function QuickProductsPanel({
   categories,
   catalogProducts,
@@ -206,6 +213,7 @@ export function QuickProductsPanel({
                   <div className="mt-auto shrink-0 space-y-1.5">
                     <p className="break-words text-lg font-medium leading-none text-gray-950 dark:text-white">
                       {formatCurrency(product.salePrice)}
+                      <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">/ {product.unitLabel ?? 'uds'}</span>
                     </p>
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ${
@@ -214,7 +222,7 @@ export function QuickProductsPanel({
                         'bg-[#59C3A5]/15 text-[#14745F] dark:bg-[#59C3A5]/15 dark:text-[#9DE7D3]'
                       }`}>
                         <Boxes className="h-3.5 w-3.5" />
-                        {product.useInventory ? `Stock ${product.currentStock}` : 'Venta libre'}
+                        {product.useInventory ? `Stock ${formatProductQuantity(product.currentStock, product)} ${product.unitLabel ?? ''}` : 'Venta libre'}
                       </span>
                       <span className="text-[11px] font-medium text-gray-400 dark:text-gray-500">
                         {statusLabel}
@@ -305,7 +313,7 @@ export function QuickProductsPanel({
                   <div className="mt-3 flex items-center justify-between gap-2">
                     <span className="font-medium">{formatCurrency(product.salePrice)}</span>
                     <span className="text-xs text-[#14745F]">
-                      {product.useInventory ? `Stock ${product.currentStock}` : 'Disponible'}
+                      {product.useInventory ? `Stock ${formatProductQuantity(product.currentStock, product)} ${product.unitLabel ?? ''}` : 'Disponible'}
                     </span>
                   </div>
                 </button>

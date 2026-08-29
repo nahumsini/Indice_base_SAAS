@@ -93,6 +93,9 @@ const distributorAssignment = read(
   "src/app/PlatformAdmin/DistributorAssignmentModal.tsx",
 );
 const platformApi = read("src/app/api/platformAdmin.ts");
+const allCompanyActivityPanel = read(
+  "src/app/PlatformAdmin/AllCompanyActivityPanel.tsx",
+);
 const company = read("src/app/PlatformAdmin/CompanyAccountDrawer.tsx");
 const companyOverview = read(
   "src/app/PlatformAdmin/CompanyAccount/CompanyOverviewTab.tsx",
@@ -191,6 +194,23 @@ test("Root administra todos los tickets de sistema enviados por distribuidores",
   assert.match(systemTickets, /systemTicketsApi\.create\(portal, form\)/);
   assert.match(systemTickets, /setCreateOpen\(true\)/);
   assert.doesNotMatch(systemTickets, /localStorage/);
+});
+
+test("detalle de ticket separa el scroll del cuerpo del footer operativo", () => {
+  assert.match(systemTicketDetail, /modalType="standard-form"/);
+  assert.match(systemTicketDetail, /contentClassName="h-\[min\(94dvh,860px\)\]"/);
+  assert.match(systemTicketDetail, /bodyClassName="[^"]*overflow-y-auto[^"]*"/);
+  assert.match(systemTicketDetail, /bodyClassName="[^"]*overscroll-contain[^"]*"/);
+  assert.match(systemTicketDetail, /bodyClassName="[^"]*pb-24[^"]*sm:pb-10[^"]*"/);
+  assert.match(systemTicketDetail, /bodyClassName="[^"]*scrollbar-gutter:stable[^"]*"/);
+  assert.match(systemTicketDetail, /Control operativo/);
+  assert.match(systemTicketDetail, /copy\.status/);
+  assert.match(systemTicketDetail, /copy\.priority/);
+  assert.match(systemTicketDetail, /copy\.assignee/);
+  assert.match(systemTicketDetail, /copy\.target/);
+  assert.match(systemTicketDetail, /\{copy\.save\}/);
+  assert.match(systemTicketDetail, /\{copy\.close\}/);
+  assert.match(systemTicketDetail, /dark:bg-\[#59C3A5\]\/10/);
 });
 
 test("clientes concentra el acceso promocional sin recuperar la pestaña eliminada", () => {
@@ -812,4 +832,17 @@ test("órdenes de módulos y operación de consultoría persisten por API", () =
   assert.match(platformApi, /createConsultingLocation:/);
   assert.match(platformApi, /createConsultingAppointment:/);
   assert.doesNotMatch(consulting, /localStorage/);
+});
+
+test("actividades globales muestran línea editable de usuarios activos", () => {
+  assert.match(platformApi, /unique_active_users:\s*number/);
+  assert.match(platformApi, /recent_events_has_more:\s*boolean/);
+  assert.match(platformApi, /recentLimit=/);
+  assert.match(allCompanyActivityPanel, /LineChart/);
+  assert.match(allCompanyActivityPanel, /PLATFORM_ACTIVITY_CHART_STORAGE_KEY/);
+  assert.match(allCompanyActivityPanel, /unique_active_users/);
+  assert.match(allCompanyActivityPanel, /Active users/);
+  assert.match(allCompanyActivityPanel, /Customize/);
+  assert.match(allCompanyActivityPanel, /Load more activity/);
+  assert.doesNotMatch(allCompanyActivityPanel, /BarChart/);
 });

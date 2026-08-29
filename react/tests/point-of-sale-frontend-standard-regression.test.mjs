@@ -191,8 +191,10 @@ test('Venta muestra solamente productos disponibles en la caja seleccionada', ()
   assert.match(sale, /catalogProducts=\{availableProducts\}/);
   assert.match(products, /categoryCatalogProducts[\s\S]*matchingCatalogProducts/);
   assert.match(products, /matchingCatalogProducts\.map/);
-  assert.match(products, /product\.useInventory \? `Stock \$\{product\.currentStock\}` : 'Venta libre'/);
-  assert.match(products, /product\.useInventory \? `Stock \$\{product\.currentStock\}` : 'Disponible'/);
+  assert.match(products, /formatProductQuantity\(product\.currentStock, product\)/);
+  assert.match(products, /product\.unitLabel \?\? ''/);
+  assert.match(products, /product\.useInventory \? `Stock \$\{formatProductQuantity\(product\.currentStock, product\)\} \$\{product\.unitLabel \?\? ''\}` : 'Venta libre'/);
+  assert.match(products, /product\.useInventory \? `Stock \$\{formatProductQuantity\(product\.currentStock, product\)\} \$\{product\.unitLabel \?\? ''\}` : 'Disponible'/);
 });
 
 test('Cobro en efectivo conserva recibido, cambio y una jerarquia clara para caja', () => {

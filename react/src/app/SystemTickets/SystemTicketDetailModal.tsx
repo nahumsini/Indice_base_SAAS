@@ -188,6 +188,8 @@ export function SystemTicketDetailModal({ assignees, locale, onClose, onChanged,
       busy={saving || uploading}
       tone="aqua"
       modalType="standard-form"
+      contentClassName="h-[min(94dvh,860px)]"
+      bodyClassName="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-24 [scrollbar-gutter:stable] sm:px-6 sm:py-5 sm:pb-10"
       icon={<MessageSquareText className="h-5 w-5" />}
       eyebrow={current?.folio}
       title={current?.title ?? copy.detailTitle}
@@ -219,11 +221,11 @@ export function SystemTicketDetailModal({ assignees, locale, onClose, onChanged,
           </section>
 
           {portal === 'root' ? (
-            <section className="rounded-2xl border border-[#59C3A5]/30 bg-[#59C3A5]/8 p-4">
+            <section className="rounded-2xl border border-[#59C3A5]/30 bg-[#59C3A5]/8 p-4 dark:border-[#59C3A5]/40 dark:bg-[#59C3A5]/10">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-medium text-slate-950">Control operativo</p>
-                  <p className="mt-1 text-xs text-slate-500">Asigna, fija la meta y mueve el ticket sin perder trazabilidad.</p>
+                  <p className="text-sm font-medium text-slate-950 dark:text-white">Control operativo</p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">Asigna, fija la meta y mueve el ticket sin perder trazabilidad.</p>
                 </div>
                 {!current.assigned_to_user_id ? (
                   <button type="button" disabled={saving} onClick={() => void takeTicket()} className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white hover:bg-[#126553]">
