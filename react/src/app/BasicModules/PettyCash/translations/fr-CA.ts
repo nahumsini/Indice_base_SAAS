@@ -13,6 +13,7 @@ export const frCA = {
     tabs: { cash: 'Fonds', control: 'Justificatifs', statements: 'Releves', kpis: 'Indicateurs' },
   },
   common: {
+    ...enCA.common,
     actions: 'Actions',
     all: 'Tous',
     automaticCurrentStatement: 'Releve actuel automatique',

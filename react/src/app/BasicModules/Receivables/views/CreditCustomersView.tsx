@@ -151,16 +151,18 @@ export function CreditCustomersView({
     persistReceivablesColumns(creditCustomersColumnsStorageKey, columns);
   }, [columns]);
 
-  const filteredPolicies = useMemo(() => {
+  const scopedPolicies = useMemo(() => {
     const query = filters.search.trim();
 
     return creditPolicies.filter((policy) => (
       (!query || textMatch(`${policy.customerName} ${policy.notes}`, query))
-      && (filters.status === 'all' || policy.status === filters.status)
       && (filters.unit === 'all' || policy.unit === filters.unit)
       && (filters.business === 'all' || policy.business === filters.business)
     ));
   }, [creditPolicies, filters]);
+  const filteredPolicies = useMemo(() => scopedPolicies.filter((policy) => (
+    filters.status === 'all' || policy.status === filters.status
+  )), [filters.status, scopedPolicies]);
   const sortedPolicies = useMemo(
     () => sortReceivablesRows(filteredPolicies, sortState, getCreditCustomerSortValue),
     [filteredPolicies, sortState],
@@ -252,6 +254,8 @@ export function CreditCustomersView({
       <ReceivablesFilters
         copy={copy}
         filters={filters}
+        resultLabel={`${filteredPolicies.length} ${viewCopy.itemLabel}`}
+        showPeriod={false}
         statusOptions={[
           { value: 'active', label: copy.creditCustomerStatus.active },
           { value: 'review', label: copy.creditCustomerStatus.review },
@@ -262,8 +266,13 @@ export function CreditCustomersView({
         onChange={setFilters}
       />
       <CreditCustomersKpiArea
+        activeStatus={filters.status}
         copy={copy}
-        creditPolicies={filteredPolicies}
+        creditPolicies={scopedPolicies}
+        onStatusChange={(status) => setFilters((current) => ({
+          ...current,
+          status: current.status === status ? 'all' : status,
+        }))}
       />
       <div className="space-y-3 md:hidden">
         {pagination.paginatedRows.map((policy) => (

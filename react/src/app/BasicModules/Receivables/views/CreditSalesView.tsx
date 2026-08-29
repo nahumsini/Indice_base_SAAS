@@ -28,7 +28,7 @@ import {
   initialFilters,
 } from '../constants/receivables.constants';
 import type { ReceivablesTranslations } from '../translations';
-import type { CandidateSale, CreditPolicy, CreditSale, CreditSimulation } from '../types';
+import type { CandidateSale, CreditPolicy, CreditSale, CreditSaleStatus, CreditSimulation } from '../types';
 import {
   addMonths,
   formatMoney,
@@ -56,6 +56,8 @@ type CreditSalesSortState = {
 
 const creditSalesColumnsStorageKey = 'indice.receivables.creditSales.columns.v2';
 const creditSalesSortCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+const creditSalesSetupStatuses = new Set<CreditSaleStatus>(['draft', 'simulated', 'approved']);
+const creditSalesStoppedStatuses = new Set<CreditSaleStatus>(['cancelled', 'rejected']);
 
 function normalizeCreditSalesColumns(columns: ColumnConfig[], defaultColumns: ColumnConfig[]) {
   const currentById = new Map(columns.map((column) => [column.id, column]));
@@ -230,17 +232,22 @@ export function CreditSalesView({
   const [initialModalSaleId, setInitialModalSaleId] = useState<string | null>(null);
   const [detailSale, setDetailSale] = useState<CreditSale | null>(null);
   const [scheduleSale, setScheduleSale] = useState<CreditSale | null>(null);
-  const filteredSales = useMemo(() => {
+  const scopedSales = useMemo(() => {
     const query = filters.search.trim();
 
     return creditSales.filter((sale) => (
       (!query || textMatch(`${sale.saleNumber} ${sale.customerName}`, query))
       && matchesPeriod(sale.saleDate, filters.period)
-      && (filters.status === 'all' || sale.status === filters.status)
       && (filters.unit === 'all' || sale.unit === filters.unit)
       && (filters.business === 'all' || sale.business === filters.business)
     ));
   }, [creditSales, filters]);
+  const filteredSales = useMemo(() => scopedSales.filter((sale) => (
+    filters.status === 'all'
+    || (filters.status === 'setup' && creditSalesSetupStatuses.has(sale.status))
+    || (filters.status === 'stopped' && creditSalesStoppedStatuses.has(sale.status))
+    || sale.status === filters.status
+  )), [filters.status, scopedSales]);
   const sortedSales = useMemo(() => sortCreditSales(filteredSales, sortState), [filteredSales, sortState]);
   const pagination = useTablePagination({
     resetKey: JSON.stringify({ filters, sortState }),
@@ -357,10 +364,16 @@ export function CreditSalesView({
       <ReceivablesFilters
         copy={copy}
         filters={filters}
+        resultLabel={`${filteredSales.length} ${viewCopy.itemLabel}`}
         statusOptions={[
+          { value: 'setup', label: copy.kpiEngine.creditSales.segments.setup },
+          { value: 'stopped', label: copy.kpiEngine.creditSales.segments.stopped },
+          { value: 'draft', label: copy.status.draft },
           { value: 'active', label: copy.status.active },
           { value: 'simulated', label: copy.status.simulated },
+          { value: 'approved', label: copy.status.approved },
           { value: 'completed', label: copy.status.completed },
+          { value: 'cancelled', label: copy.status.cancelled },
           { value: 'rejected', label: copy.status.rejected },
         ]}
         unitOptions={getOptionsFromRows(creditSales, (sale) => sale.unit)}
@@ -369,8 +382,13 @@ export function CreditSalesView({
       />
 
       <CreditSalesKpiArea
+        activeStatus={filters.status}
         copy={copy}
-        creditSales={filteredSales}
+        creditSales={scopedSales}
+        onStatusChange={(status) => setFilters((current) => ({
+          ...current,
+          status: current.status === status ? 'all' : status,
+        }))}
         totalCreditSales={creditSales.length}
       />
 

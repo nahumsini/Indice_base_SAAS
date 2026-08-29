@@ -149,17 +149,19 @@ export function AccountsReceivableView({
     persistReceivablesColumns(accountsReceivableColumnsStorageKey, columns);
   }, [columns]);
 
-  const filteredInstallments = useMemo(() => {
+  const scopedInstallments = useMemo(() => {
     const query = filters.search.trim();
 
     return installments.filter((installment) => (
       (!query || textMatch(`${installment.saleNumber} ${installment.customerName} ${installment.installmentNumber}`, query))
       && matchesPeriod(installment.dueDate, filters.period)
-      && (filters.status === 'all' || installment.status === filters.status)
       && (filters.unit === 'all' || installment.unit === filters.unit)
       && (filters.business === 'all' || installment.business === filters.business)
     ));
   }, [filters, installments]);
+  const filteredInstallments = useMemo(() => scopedInstallments.filter((installment) => (
+    filters.status === 'all' || installment.status === filters.status
+  )), [filters.status, scopedInstallments]);
   const sortedInstallments = useMemo(
     () => sortReceivablesRows(filteredInstallments, sortState, getAccountsReceivableSortValue),
     [filteredInstallments, sortState],
@@ -257,6 +259,7 @@ export function AccountsReceivableView({
       <ReceivablesFilters
         copy={copy}
         filters={filters}
+        resultLabel={`${filteredInstallments.length} ${viewCopy.itemLabel}`}
         statusOptions={[
           { value: 'on_time', label: copy.status.on_time },
           { value: 'due_soon', label: copy.status.due_soon },
@@ -269,8 +272,13 @@ export function AccountsReceivableView({
         onChange={setFilters}
       />
       <AccountsReceivableKpiArea
+        activeStatus={filters.status}
         copy={copy}
-        installments={filteredInstallments}
+        installments={scopedInstallments}
+        onStatusChange={(status) => setFilters((current) => ({
+          ...current,
+          status: current.status === status ? 'all' : status,
+        }))}
         totalInstallments={installments.length}
       />
       <div className="space-y-3 md:hidden">

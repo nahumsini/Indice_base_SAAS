@@ -1,6 +1,5 @@
 import {
   AlertTriangle,
-  Banknote,
   CheckCircle2,
   CircleDollarSign,
   CreditCard,
@@ -24,7 +23,7 @@ import {
 } from '../../shared/businessCurrency';
 import { useKpiMonetaryAggregate, useKpiMonetaryAggregates } from '../../shared/kpiMonetaryApi';
 import type { ReceivablesTranslations } from '../translations';
-import type { CreditPolicy, ReceivableAccount, ReceivableInstallment, ReceivablePayment } from '../types';
+import type { CreditPolicy, PaymentMethod, ReceivableInstallment, ReceivablePayment } from '../types';
 import { formatPercent } from '../utils';
 
 const moneyFormatOptions: Intl.NumberFormatOptions = {
@@ -41,12 +40,16 @@ function hasReceipt(payment: ReceivablePayment) {
 }
 
 export function AccountsReceivableKpiArea({
+  activeStatus,
   copy,
   installments,
+  onStatusChange,
   totalInstallments,
 }: {
+  activeStatus: string;
   copy: ReceivablesTranslations;
   installments: ReceivableInstallment[];
+  onStatusChange: (status: string) => void;
   totalInstallments: number;
 }) {
   const { preferredCurrency } = usePreferredBusinessCurrency();
@@ -82,6 +85,8 @@ export function AccountsReceivableKpiArea({
       label: labels.labels.overdue,
       value: formatCount(overdueCount),
       valueClassName: 'text-rose-600',
+      active: activeStatus === 'overdue',
+      onClick: () => onStatusChange('overdue'),
     },
     {
       id: 'dueSoon',
@@ -90,6 +95,8 @@ export function AccountsReceivableKpiArea({
       label: labels.labels.dueSoon,
       value: formatCount(dueSoonCount),
       valueClassName: 'text-[#9A6B05]',
+      active: activeStatus === 'due_soon',
+      onClick: () => onStatusChange('due_soon'),
     },
   ];
   const alertChips: OperationalAlertChip[] = [];
@@ -100,6 +107,8 @@ export function AccountsReceivableKpiArea({
       icon: <AlertTriangle className="h-3.5 w-3.5" />,
       label: labels.alerts.overdue(overdueCount),
       tone: 'danger',
+      active: activeStatus === 'overdue',
+      onClick: () => onStatusChange('overdue'),
     });
   }
 
@@ -109,6 +118,8 @@ export function AccountsReceivableKpiArea({
       icon: <Timer className="h-3.5 w-3.5" />,
       label: labels.alerts.dueSoon(dueSoonCount),
       tone: 'warning',
+      active: activeStatus === 'due_soon',
+      onClick: () => onStatusChange('due_soon'),
     });
   }
 
@@ -131,11 +142,11 @@ export function AccountsReceivableKpiArea({
   }
 
   const distributionSegments: OperationalDistributionSegment[] = [
-    { id: 'onTime', className: 'bg-[#147514]', count: onTimeCount, label: labels.segments.onTime },
-    { id: 'dueSoon', className: 'bg-[#F4C84A]', count: dueSoonCount, label: labels.segments.dueSoon },
-    { id: 'overdue', className: 'bg-rose-500', count: overdueCount, label: labels.segments.overdue },
-    { id: 'partial', className: 'bg-blue-500', count: partialCount, label: labels.segments.partial },
-    { id: 'paid', className: 'bg-emerald-500', count: paidCount, label: labels.segments.paid },
+    { id: 'onTime', className: 'bg-[#147514]', count: onTimeCount, label: labels.segments.onTime, active: activeStatus === 'on_time', onClick: () => onStatusChange('on_time') },
+    { id: 'dueSoon', className: 'bg-[#F4C84A]', count: dueSoonCount, label: labels.segments.dueSoon, active: activeStatus === 'due_soon', onClick: () => onStatusChange('due_soon') },
+    { id: 'overdue', className: 'bg-rose-500', count: overdueCount, label: labels.segments.overdue, active: activeStatus === 'overdue', onClick: () => onStatusChange('overdue') },
+    { id: 'partial', className: 'bg-blue-500', count: partialCount, label: labels.segments.partial, active: activeStatus === 'partial', onClick: () => onStatusChange('partial') },
+    { id: 'paid', className: 'bg-emerald-500', count: paidCount, label: labels.segments.paid, active: activeStatus === 'paid', onClick: () => onStatusChange('paid') },
   ];
 
   return (
@@ -162,12 +173,18 @@ export function AccountsReceivableKpiArea({
 }
 
 export function PaymentsKpiArea({
-  accounts,
+  activeEvidence,
+  activeMethod,
   copy,
+  onEvidenceChange,
+  onMethodChange,
   payments,
 }: {
-  accounts: ReceivableAccount[];
+  activeEvidence: 'all' | 'with' | 'without';
+  activeMethod: PaymentMethod | 'all' | 'other';
   copy: ReceivablesTranslations;
+  onEvidenceChange: (evidence: 'with' | 'without') => void;
+  onMethodChange: (method: PaymentMethod | 'other') => void;
   payments: ReceivablePayment[];
 }) {
   const { preferredCurrency } = usePreferredBusinessCurrency();
@@ -205,12 +222,14 @@ export function PaymentsKpiArea({
       valueClassName: 'text-emerald-600',
     },
     {
-      id: 'transfer',
-      icon: <Banknote className="h-4 w-4" />,
-      iconClassName: 'text-blue-600',
-      label: labels.labels.transfer,
-      value: formatCount(transferCount),
-      valueClassName: 'text-blue-600',
+      id: 'missingReceipt',
+      icon: <FileWarning className="h-4 w-4" />,
+      iconClassName: 'text-amber-600',
+      label: labels.labels.missingReceipt,
+      value: formatCount(missingReceipts),
+      valueClassName: missingReceipts > 0 ? 'text-amber-600' : 'text-slate-950 dark:text-white',
+      active: activeEvidence === 'without',
+      onClick: () => onEvidenceChange('without'),
     },
   ];
   const alertChips: OperationalAlertChip[] = [];
@@ -221,6 +240,8 @@ export function PaymentsKpiArea({
       icon: <FileCheck2 className="h-3.5 w-3.5" />,
       label: labels.alerts.withReceipts(receiptCount),
       tone: 'success',
+      active: activeEvidence === 'with',
+      onClick: () => onEvidenceChange('with'),
     });
   }
 
@@ -230,6 +251,8 @@ export function PaymentsKpiArea({
       icon: <FileWarning className="h-3.5 w-3.5" />,
       label: labels.alerts.missingReceipts(missingReceipts),
       tone: 'warning',
+      active: activeEvidence === 'without',
+      onClick: () => onEvidenceChange('without'),
     });
   }
 
@@ -243,10 +266,10 @@ export function PaymentsKpiArea({
   }
 
   const distributionSegments: OperationalDistributionSegment[] = [
-    { id: 'transfer', className: 'bg-blue-500', count: transferCount, label: labels.segments.transfer },
-    { id: 'cash', className: 'bg-[#F4C84A]', count: cashCount, label: labels.segments.cash },
-    { id: 'card', className: 'bg-[#147514]', count: cardCount, label: labels.segments.card },
-    { id: 'other', className: 'bg-slate-400', count: otherCount, label: labels.segments.other },
+    { id: 'transfer', className: 'bg-blue-500', count: transferCount, label: labels.segments.transfer, active: activeMethod === 'transfer', onClick: () => onMethodChange('transfer') },
+    { id: 'cash', className: 'bg-[#F4C84A]', count: cashCount, label: labels.segments.cash, active: activeMethod === 'cash', onClick: () => onMethodChange('cash') },
+    { id: 'card', className: 'bg-[#147514]', count: cardCount, label: labels.segments.card, active: activeMethod === 'card', onClick: () => onMethodChange('card') },
+    { id: 'other', className: 'bg-slate-400', count: otherCount, label: labels.segments.other, active: activeMethod === 'other', onClick: () => onMethodChange('other') },
   ];
 
   return (
@@ -272,11 +295,15 @@ export function PaymentsKpiArea({
 }
 
 export function CreditCustomersKpiArea({
+  activeStatus,
   copy,
   creditPolicies,
+  onStatusChange,
 }: {
+  activeStatus: string;
   copy: ReceivablesTranslations;
   creditPolicies: CreditPolicy[];
+  onStatusChange: (status: string) => void;
 }) {
   const { preferredCurrency } = usePreferredBusinessCurrency();
   const labels = copy.kpiEngine.creditCustomers;
@@ -284,15 +311,24 @@ export function CreditCustomersKpiArea({
   const reviewCount = creditPolicies.filter((policy) => policy.status === 'review').length;
   const blockedCount = creditPolicies.filter((policy) => policy.status === 'blocked').length;
   const policyIds = creditPolicies.map((policy) => Number(policy.id)).filter((id) => Number.isSafeInteger(id) && id > 0);
-  const { data: policyMoney } = useKpiMonetaryAggregates([
+  const policyMoney = useKpiMonetaryAggregates([
     { key: 'line', metric: 'CREDIT_POLICY_LINE', preferredCurrency, ids: policyIds },
     { key: 'available', metric: 'CREDIT_POLICY_AVAILABLE', preferredCurrency, ids: policyIds },
   ]);
-  const totalLine = policyMoney.line?.preferredTotal ?? 0;
-  const totalAvailable = policyMoney.available?.preferredTotal ?? 0;
+  const lineAggregate = policyMoney.data.line;
+  const availableAggregate = policyMoney.data.available;
+  const totalLine = lineAggregate?.preferredTotal ?? 0;
+  const totalAvailable = availableAggregate?.preferredTotal ?? 0;
   const utilization = totalLine > 0 ? ((totalLine - totalAvailable) / totalLine) * 100 : 0;
-  const totalLineLabel = formatBusinessCurrencyAmount(totalLine, preferredCurrency, moneyFormatOptions);
-  const totalAvailableLabel = formatBusinessCurrencyAmount(totalAvailable, preferredCurrency, moneyFormatOptions);
+  const totalLineLabel = !policyMoney.loading && lineAggregate
+    ? formatBusinessCurrencyAmount(totalLine, preferredCurrency, moneyFormatOptions)
+    : '—';
+  const totalAvailableLabel = !policyMoney.loading && availableAggregate
+    ? formatBusinessCurrencyAmount(totalAvailable, preferredCurrency, moneyFormatOptions)
+    : '—';
+  const nativeTotalLabel = lineAggregate?.nativeTotals
+    .map(({ amount, currency }) => formatBusinessCurrencyAmount(amount, currency, moneyFormatOptions))
+    .join(' / ') || preferredCurrency;
   const metrics: OperationalKpiMetric[] = [
     {
       id: 'creditLine',
@@ -311,18 +347,20 @@ export function CreditCustomersKpiArea({
       valueClassName: 'text-emerald-600',
     },
     {
-      id: 'visibleCustomers',
+      id: 'utilization',
       icon: <UsersRound className="h-4 w-4" />,
-      label: labels.labels.visibleCustomers,
-      value: formatCount(creditPolicies.length),
+      label: labels.labels.utilization,
+      value: formatPercent(utilization),
     },
     {
       id: 'blocked',
       icon: <AlertTriangle className="h-4 w-4" />,
       iconClassName: 'text-rose-600',
       label: labels.labels.blocked,
-      value: `${formatCount(blockedCount)} · ${formatPercent(utilization)}`,
+      value: formatCount(blockedCount),
       valueClassName: blockedCount > 0 ? 'text-rose-600' : 'text-slate-950 dark:text-white',
+      active: activeStatus === 'blocked',
+      onClick: () => onStatusChange('blocked'),
     },
   ];
   const alertChips: OperationalAlertChip[] = [];
@@ -333,6 +371,8 @@ export function CreditCustomersKpiArea({
       icon: <CheckCircle2 className="h-3.5 w-3.5" />,
       label: labels.alerts.active(activeCount),
       tone: 'success',
+      active: activeStatus === 'active',
+      onClick: () => onStatusChange('active'),
     });
   }
 
@@ -342,6 +382,8 @@ export function CreditCustomersKpiArea({
       icon: <Timer className="h-3.5 w-3.5" />,
       label: labels.alerts.review(reviewCount),
       tone: 'warning',
+      active: activeStatus === 'review',
+      onClick: () => onStatusChange('review'),
     });
   }
 
@@ -351,13 +393,15 @@ export function CreditCustomersKpiArea({
       icon: <AlertTriangle className="h-3.5 w-3.5" />,
       label: labels.alerts.blocked(blockedCount),
       tone: 'danger',
+      active: activeStatus === 'blocked',
+      onClick: () => onStatusChange('blocked'),
     });
   }
 
   const distributionSegments: OperationalDistributionSegment[] = [
-    { id: 'active', className: 'bg-[#147514]', count: activeCount, label: labels.segments.active },
-    { id: 'review', className: 'bg-[#F4C84A]', count: reviewCount, label: labels.segments.review },
-    { id: 'blocked', className: 'bg-rose-500', count: blockedCount, label: labels.segments.blocked },
+    { id: 'active', className: 'bg-[#147514]', count: activeCount, label: labels.segments.active, active: activeStatus === 'active', onClick: () => onStatusChange('active') },
+    { id: 'review', className: 'bg-[#F4C84A]', count: reviewCount, label: labels.segments.review, active: activeStatus === 'review', onClick: () => onStatusChange('review') },
+    { id: 'blocked', className: 'bg-rose-500', count: blockedCount, label: labels.segments.blocked, active: activeStatus === 'blocked', onClick: () => onStatusChange('blocked') },
   ];
 
   return (
@@ -376,6 +420,22 @@ export function CreditCustomersKpiArea({
       })}
       insightIcon={<AlertTriangle className="h-4 w-4" />}
       metrics={metrics}
+      currencyContext={{
+        preferredCurrency,
+        nativeBreakdown: nativeTotalLabel,
+        rateLabel: lineAggregate?.exchangeRate.mode === 'daily'
+          ? copy.kpiEngine.currency.dailyRate
+          : copy.kpiEngine.currency.unavailable,
+        effectiveDate: lineAggregate?.exchangeRate.effectiveDate,
+        source: lineAggregate?.exchangeRate.source,
+        isPartial: Boolean(policyMoney.error || lineAggregate?.partial || availableAggregate?.partial),
+        excludedCount: Math.max(
+          lineAggregate?.excludedRecords ?? 0,
+          availableAggregate?.excludedRecords ?? 0,
+          policyMoney.error ? creditPolicies.length : 0,
+        ),
+        labels: copy.kpiEngine.currency,
+      }}
     />
   );
 }

@@ -25,7 +25,9 @@ import {
   getStatementSettlementBalance,
 } from '../utils/pettyCash.utils';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
-import { useKpiMonetaryAggregate, useKpiMonetaryAggregates, type KpiMonetaryBatchQuery } from '../../shared/kpiMonetaryApi';
+import { useKpiMonetaryAggregates, type KpiMonetaryBatchQuery } from '../../shared/kpiMonetaryApi';
+import { getOperationalKpiCurrencyCopy, OperationalKpiCurrencyStrip } from '../../shared/operational';
+import { useLanguage } from '../../../shared/context';
 import { getPettyCashMethodLabel } from '../utils/pettyCash.methods';
 import { usePettyCashTranslations } from '../hooks/usePettyCashTranslations';
 import {
@@ -53,7 +55,7 @@ const toneStyles: Record<KpiTone, { badge: string; bar: string; label: string; v
   critical: {
     badge: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300',
     bar: 'bg-rose-500',
-    label: 'Critico',
+    label: 'Crítico',
     value: 'text-rose-600 dark:text-rose-300',
   },
   healthy: {
@@ -71,7 +73,7 @@ const toneStyles: Record<KpiTone, { badge: string; bar: string; label: string; v
   review: {
     badge: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300',
     bar: 'bg-amber-500',
-    label: 'En revision',
+    label: 'En revisión',
     value: 'text-amber-600 dark:text-amber-300',
   },
 };
@@ -95,7 +97,9 @@ export function PettyCashFinancialViewWorkspace({
   statements,
 }: PettyCashFinancialViewWorkspaceProps) {
   const copy = usePettyCashTranslations();
-  const { exchangeRateMetadata, preferredCurrency } = usePreferredBusinessCurrency();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
+  const { currentLanguage } = useLanguage();
+  const currencyCopy = getOperationalKpiCurrencyCopy(currentLanguage.code);
   const [periodFilter, setPeriodFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<PettyCashStatementStatus | 'all'>('all');
   const [unitFilter, setUnitFilter] = useState('all');
@@ -161,25 +165,24 @@ export function PettyCashFinancialViewWorkspace({
 
   const statementIds = filteredStatements.map((statement) => statement.id);
   const fundIds = visibleFunds.map((fund) => fund.id);
-  const assignedAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_STATEMENT_FUNDED', preferredCurrency, ids: statementIds });
-  const estimatedAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_STATEMENT_ESTIMATED', preferredCurrency, ids: statementIds });
-  const verifiedAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_STATEMENT_VERIFIED', preferredCurrency, ids: statementIds });
-  const pendingAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_STATEMENT_PENDING', preferredCurrency, ids: statementIds });
-  const shortageAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_STATEMENT_SHORTAGE', preferredCurrency, ids: statementIds });
-  const balanceAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_BALANCE', preferredCurrency, ids: fundIds });
+  const summaryAggregates = useKpiMonetaryAggregates([
+    { key: 'assigned', metric: 'PETTY_CASH_STATEMENT_FUNDED', preferredCurrency, ids: statementIds },
+    { key: 'estimated', metric: 'PETTY_CASH_STATEMENT_ESTIMATED', preferredCurrency, ids: statementIds },
+    { key: 'verified', metric: 'PETTY_CASH_STATEMENT_VERIFIED', preferredCurrency, ids: statementIds },
+    { key: 'pending', metric: 'PETTY_CASH_STATEMENT_PENDING', preferredCurrency, ids: statementIds },
+    { key: 'shortage', metric: 'PETTY_CASH_STATEMENT_SHORTAGE', preferredCurrency, ids: statementIds },
+    { key: 'balance', metric: 'PETTY_CASH_BALANCE', preferredCurrency, ids: fundIds },
+  ]);
+  const balanceAggregate = summaryAggregates.data.balance;
   const summary = {
-    assignedAmount: assignedAggregate.data?.preferredTotal ?? 0,
-    currentBalanceAmount: balanceAggregate.data?.preferredTotal ?? 0,
-    estimatedUsageAmount: estimatedAggregate.data?.preferredTotal ?? 0,
-    pendingReconciliationAmount: pendingAggregate.data?.preferredTotal ?? 0,
+    assignedAmount: summaryAggregates.data.assigned?.preferredTotal ?? 0,
+    currentBalanceAmount: balanceAggregate?.preferredTotal ?? 0,
+    estimatedUsageAmount: summaryAggregates.data.estimated?.preferredTotal ?? 0,
+    pendingReconciliationAmount: summaryAggregates.data.pending?.preferredTotal ?? 0,
     riskCount: filteredStatements.filter((statement) => ['SHORTAGE', 'CUT_PENDING', 'PARTIALLY_SETTLED'].includes(statement.status)).length,
-    shortageAmount: shortageAggregate.data?.preferredTotal ?? 0,
-    verifiedExpenseAmount: verifiedAggregate.data?.preferredTotal ?? 0,
+    shortageAmount: summaryAggregates.data.shortage?.preferredTotal ?? 0,
+    verifiedExpenseAmount: summaryAggregates.data.verified?.preferredTotal ?? 0,
   };
-  const currencyCount = useMemo(
-    () => new Set(filteredStatements.map(statement => statement.currencyCode)).size,
-    [filteredStatements],
-  );
   const nativeBalance = useMemo(() => formatPettyCashNativeBreakdown(
     visibleFunds,
     fund => fund.currentBalanceAmount,
@@ -198,7 +201,7 @@ export function PettyCashFinancialViewWorkspace({
   const reconciliationRate = summary.estimatedUsageAmount > 0
     ? Math.round(clampPercent((summary.verifiedExpenseAmount / summary.estimatedUsageAmount) * 100))
     : 0;
-  const budgetAvailable = Math.max(0, summary.assignedAmount - summary.estimatedUsageAmount);
+  const budgetAvailable = Math.max(0, summary.currentBalanceAmount);
   const authorizedReceiptCount = filteredLines.filter(line => line.status === 'EXPENSE_CREATED').length;
   const pendingReceiptCount = filteredLines.filter(line => line.status !== 'EXPENSE_CREATED' && line.status !== 'REJECTED').length;
   const evidenceCoverage = filteredLines.length > 0
@@ -212,7 +215,6 @@ export function PettyCashFinancialViewWorkspace({
     + ((100 - pendingRatio) * 0.2)
     + ((100 - shortageRatio) * 0.2),
   ));
-  const activeKiosks = visibleFunds.filter(fund => fund.kioskEnabled).length;
 
   const monetaryGroups = useMemo(() => {
     const units = new Map<string, { ids: string[]; name: string }>();
@@ -227,19 +229,19 @@ export function PettyCashFinancialViewWorkspace({
       responsible.ids.push(statement.id);
       responsibles.set(statement.responsibleUserId, responsible);
     });
-    return { units: [...units.entries()].slice(0, 8), responsibles: [...responsibles.entries()].sort((a, b) => b[1].ids.length - a[1].ids.length).slice(0, 5) };
+    return { units: [...units.entries()], responsibles: [...responsibles.entries()] };
   }, [copy.common.notAvailable, filteredStatements, funds]);
   const groupQueries = useMemo<KpiMonetaryBatchQuery[]>(() => {
     const queries: KpiMonetaryBatchQuery[] = [];
     monetaryGroups.units.forEach(([key, group]) => ['FUNDED', 'PENDING', 'VERIFIED'].forEach((metric) => queries.push({ key: `unit-${metric}-${key}`, metric: `PETTY_CASH_STATEMENT_${metric}` as KpiMonetaryBatchQuery['metric'], preferredCurrency, ids: group.ids })));
-    visibleFunds.slice(0, 8).forEach((fund) => ['PENDING', 'VERIFIED'].forEach((metric) => queries.push({ key: `fund-${metric}-${fund.id}`, metric: `PETTY_CASH_STATEMENT_${metric}` as KpiMonetaryBatchQuery['metric'], preferredCurrency, ids: filteredStatements.filter((statement) => statement.pettyCashFundId === fund.id).map((statement) => statement.id) })));
+    visibleFunds.forEach((fund) => ['PENDING', 'VERIFIED'].forEach((metric) => queries.push({ key: `fund-${metric}-${fund.id}`, metric: `PETTY_CASH_STATEMENT_${metric}` as KpiMonetaryBatchQuery['metric'], preferredCurrency, ids: filteredStatements.filter((statement) => statement.pettyCashFundId === fund.id).map((statement) => statement.id) })));
     monetaryGroups.responsibles.forEach(([key, group]) => ['PENDING', 'VERIFIED'].forEach((metric) => queries.push({ key: `responsible-${metric}-${key}`, metric: `PETTY_CASH_STATEMENT_${metric}` as KpiMonetaryBatchQuery['metric'], preferredCurrency, ids: group.ids })));
     periodOptions.slice(0, 6).forEach((period) => queries.push({ key: `period-${period}`, metric: 'PETTY_CASH_STATEMENT_VERIFIED', preferredCurrency, ids: statements.filter((statement) => statement.periodKey === period && visibleFundIds.has(statement.pettyCashFundId)).map((statement) => statement.id) }));
     return queries;
   }, [filteredStatements, monetaryGroups, periodOptions, preferredCurrency, statements, visibleFundIds, visibleFunds]);
   const groupedAggregates = useKpiMonetaryAggregates(groupQueries);
   const unitPerformance = monetaryGroups.units.map(([key, group]) => ({ assigned: groupedAggregates.data[`unit-FUNDED-${key}`]?.preferredTotal ?? 0, name: group.name, pending: groupedAggregates.data[`unit-PENDING-${key}`]?.preferredTotal ?? 0, verified: groupedAggregates.data[`unit-VERIFIED-${key}`]?.preferredTotal ?? 0 })).sort((a, b) => b.verified - a.verified);
-  const topFunds = visibleFunds.slice(0, 8).map((fund) => ({ ...fund, pending: groupedAggregates.data[`fund-PENDING-${fund.id}`]?.preferredTotal ?? 0, spent: groupedAggregates.data[`fund-VERIFIED-${fund.id}`]?.preferredTotal ?? 0 })).sort((a, b) => b.spent - a.spent).slice(0, 5);
+  const topFunds = visibleFunds.map((fund) => ({ ...fund, pending: groupedAggregates.data[`fund-PENDING-${fund.id}`]?.preferredTotal ?? 0, spent: groupedAggregates.data[`fund-VERIFIED-${fund.id}`]?.preferredTotal ?? 0 })).sort((a, b) => b.spent - a.spent).slice(0, 5);
   const topResponsibles = monetaryGroups.responsibles.map(([key, group]) => ({ count: group.ids.length, name: group.name, pending: groupedAggregates.data[`responsible-PENDING-${key}`]?.preferredTotal ?? 0, spent: groupedAggregates.data[`responsible-VERIFIED-${key}`]?.preferredTotal ?? 0 })).sort((a, b) => b.spent - a.spent);
   const periodTrend = periodOptions.slice(0, 6).reverse().map((period) => ({ period, value: groupedAggregates.data[`period-${period}`]?.preferredTotal ?? 0 }));
   const maxTrend = Math.max(1, ...periodTrend.map(item => item.value));
@@ -295,20 +297,21 @@ export function PettyCashFinancialViewWorkspace({
     setSearchTerm('');
   };
 
-  const generatedAt = new Intl.DateTimeFormat(copy.locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date());
-  const rateLabel = exchangeRateMetadata.mode === 'manual' ? 'Tasa manual' : 'Tasa diaria';
-  const rateSource = exchangeRateMetadata.sourceName ?? 'Referencia de divisas';
-  const exchangeWarning = Boolean(exchangeRateMetadata.warnings?.length);
+  const summaryMoney = (value: number) => (
+    !summaryAggregates.loading && !summaryAggregates.error
+      ? formatPettyCashCurrency(value, preferredCurrency)
+      : '—'
+  );
 
   const kpiCards = [
     {
       description: 'Monto asignado a los cortes visibles, convertido a la divisa preferida.',
       helper: `${filteredStatements.length} cortes en alcance`,
       icon: WalletCards,
-      progress: 100,
+      progress: undefined,
       title: copy.financial.metrics.assignedFunds,
       tone: summary.assignedAmount > 0 ? 'healthy' : 'neutral',
-      value: formatPettyCashCurrency(summary.assignedAmount, preferredCurrency),
+      value: summaryMoney(summary.assignedAmount),
     },
     {
       description: 'Saldo operativo actual de los fondos relacionados con el filtro.',
@@ -317,7 +320,7 @@ export function PettyCashFinancialViewWorkspace({
       progress: summary.assignedAmount > 0 ? (summary.currentBalanceAmount / summary.assignedAmount) * 100 : 0,
       title: 'Saldo actual',
       tone: summary.currentBalanceAmount >= 0 ? 'healthy' : 'critical',
-      value: formatPettyCashCurrency(summary.currentBalanceAmount, preferredCurrency),
+      value: summaryMoney(summary.currentBalanceAmount),
     },
     {
       description: 'Compras comprobadas que ya pueden relacionarse con Expenses.',
@@ -326,16 +329,16 @@ export function PettyCashFinancialViewWorkspace({
       progress: reconciliationRate,
       title: copy.financial.metrics.verifiedExpense,
       tone: reconciliationRate >= 80 ? 'healthy' : reconciliationRate >= 50 ? 'review' : 'critical',
-      value: formatPettyCashCurrency(summary.verifiedExpenseAmount, preferredCurrency),
+      value: summaryMoney(summary.verifiedExpenseAmount),
     },
     {
-      description: 'Importe que todavia necesita evidencia o autorizacion.',
+      description: 'Importe que todavía necesita evidencia o autorización.',
       helper: `${pendingReceiptCount} comprobantes pendientes`,
       icon: FileText,
       progress: pendingRatio,
       title: copy.financial.metrics.pendingProof,
       tone: pendingRatio <= 15 ? 'healthy' : pendingRatio <= 40 ? 'review' : 'critical',
-      value: formatPettyCashCurrency(summary.pendingReconciliationAmount, preferredCurrency),
+      value: summaryMoney(summary.pendingReconciliationAmount),
     },
     {
       description: 'Diferencia detectada al cerrar cortes o revisar saldos.',
@@ -344,14 +347,15 @@ export function PettyCashFinancialViewWorkspace({
       progress: shortageRatio,
       title: copy.financial.metrics.shortages,
       tone: summary.shortageAmount === 0 ? 'healthy' : summary.shortageAmount <= summary.assignedAmount * 0.05 ? 'review' : 'critical',
-      value: formatPettyCashCurrency(summary.shortageAmount, preferredCurrency),
+      value: summaryMoney(summary.shortageAmount),
+      onClick: () => setStatusFilter(current => current === 'SHORTAGE' ? 'all' : 'SHORTAGE'),
     },
     {
       description: 'Porcentaje del uso estimado que ya fue comprobado.',
       helper: `${copy.financial.progress.verified} vs ${copy.financial.progress.pending}`,
       icon: Percent,
       progress: reconciliationRate,
-      title: 'Avance de comprobacion',
+      title: 'Avance de comprobación',
       tone: reconciliationRate >= 80 ? 'healthy' : reconciliationRate >= 50 ? 'review' : 'critical',
       value: `${reconciliationRate}%`,
     },
@@ -365,8 +369,8 @@ export function PettyCashFinancialViewWorkspace({
       value: `${evidenceCoverage}%`,
     },
     {
-      description: 'Puntaje combinado de comprobacion, evidencia, pendientes y faltantes.',
-      helper: `${activeKiosks} kioskos activos`,
+      description: 'Puntaje combinado de comprobación, evidencia, pendientes y faltantes.',
+      helper: `35% comprobación · 25% evidencia · 20% pendientes · 20% faltantes`,
       icon: ShieldCheck,
       progress: healthScore,
       title: 'Salud de caja chica',
@@ -377,7 +381,8 @@ export function PettyCashFinancialViewWorkspace({
     description: string;
     helper: string;
     icon: LucideIcon;
-    progress: number;
+    progress?: number;
+    onClick?: () => void;
     title: string;
     tone: KpiTone;
     value: string;
@@ -392,6 +397,24 @@ export function PettyCashFinancialViewWorkspace({
       />
 
       <PettyCashFilterShell
+        activeAdvancedCount={Number(unitFilter !== 'all') + Number(businessFilter !== 'all')}
+        advancedContent={(
+          <>
+            <PettyCashField label={copy.funds.table.unit}>
+              <select className={pettyCashInputClass} onChange={(event) => { setUnitFilter(event.target.value); setBusinessFilter('all'); }} value={unitFilter}>
+                <option value="all">{copy.common.all}</option>
+                {unitOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+              </select>
+            </PettyCashField>
+            <PettyCashField label={copy.funds.table.business}>
+              <select className={pettyCashInputClass} onChange={(event) => setBusinessFilter(event.target.value)} value={businessFilter}>
+                <option value="all">{copy.common.all}</option>
+                {businessOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+              </select>
+            </PettyCashField>
+          </>
+        )}
+        hasActiveFilters={Boolean(searchTerm || periodFilter !== 'all' || statusFilter !== 'all' || unitFilter !== 'all' || businessFilter !== 'all')}
         onClear={resetFilters}
         resultLabel={copy.financial.filters.result(filteredStatements.length)}
         subtitle={copy.financial.filters.subtitle}
@@ -407,18 +430,6 @@ export function PettyCashFinancialViewWorkspace({
             />
           </div>
         </PettyCashField>
-        <PettyCashField label={copy.funds.table.unit}>
-          <select className={pettyCashInputClass} onChange={(event) => { setUnitFilter(event.target.value); setBusinessFilter('all'); }} value={unitFilter}>
-            <option value="all">{copy.common.all}</option>
-            {unitOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-          </select>
-        </PettyCashField>
-        <PettyCashField label={copy.funds.table.business}>
-          <select className={pettyCashInputClass} onChange={(event) => setBusinessFilter(event.target.value)} value={businessFilter}>
-            <option value="all">{copy.common.all}</option>
-            {businessOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-          </select>
-        </PettyCashField>
         <PettyCashField label={copy.financial.filters.period}>
           <select className={pettyCashInputClass} onChange={(event) => setPeriodFilter(event.target.value)} value={periodFilter}>
             <option value="all">{copy.common.all}</option>
@@ -432,10 +443,24 @@ export function PettyCashFinancialViewWorkspace({
         </PettyCashField>
       </PettyCashFilterShell>
 
-      <section className="flex flex-col gap-3 rounded-2xl border border-[#59C3A5]/30 bg-[#E7F3F2] px-5 py-4 text-sm text-[#257B68] dark:border-[#59C3A5]/20 dark:bg-[#59C3A5]/10 dark:text-[#8FE0CA] md:flex-row md:items-center md:justify-between">
-        <p className="font-medium">Consolidado en {preferredCurrency} · {currencyCount || 1} {currencyCount === 1 ? 'divisa de origen' : 'divisas de origen'}: {nativeCurrencies}</p>
-        <p className="text-xs font-medium">{rateLabel} · {rateSource} · Fecha efectiva {exchangeRateMetadata.sourceDate} · Actualizado {generatedAt}{exchangeWarning ? ' · Con respaldo interno' : ''}</p>
-      </section>
+      <OperationalKpiCurrencyStrip context={{
+        preferredCurrency,
+        nativeBreakdown: balanceAggregate?.nativeTotals
+          .map(({ amount, currency }) => formatPettyCashCurrency(amount, currency as PettyCashFund['currencyCode']))
+          .join(' / ') || nativeCurrencies,
+        rateLabel: balanceAggregate?.exchangeRate.mode === 'daily' ? currencyCopy.dailyRate : currencyCopy.unavailable,
+        effectiveDate: balanceAggregate?.exchangeRate.effectiveDate,
+        source: balanceAggregate?.exchangeRate.source,
+        isPartial: Boolean(summaryAggregates.error || balanceAggregate?.partial),
+        excludedCount: balanceAggregate?.excludedRecords ?? (summaryAggregates.error ? visibleFunds.length : 0),
+        labels: currencyCopy,
+      }} />
+
+      {summaryAggregates.error ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
+          {copy.common.financialDataUnavailable}
+        </div>
+      ) : null}
 
       <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         {kpiCards.map(card => <KpiDecisionCard key={card.title} {...card} />)}
@@ -686,6 +711,7 @@ function KpiDecisionCard({
   description,
   helper,
   icon: Icon,
+  onClick,
   progress,
   title,
   tone,
@@ -694,7 +720,8 @@ function KpiDecisionCard({
   description: string;
   helper: string;
   icon: LucideIcon;
-  progress: number;
+  onClick?: () => void;
+  progress?: number;
   title: string;
   tone: KpiTone;
   value: string;
@@ -713,14 +740,20 @@ function KpiDecisionCard({
             <p className={`mt-2 text-3xl font-medium tracking-tight ${styles.value}`}>{value}</p>
           </div>
         </div>
-        <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${styles.badge}`}>{styles.label}</span>
+        {onClick ? (
+          <button type="button" aria-label={title} onClick={onClick} className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#147514]/40 ${styles.badge}`}>{styles.label}</button>
+        ) : (
+          <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${styles.badge}`}>{styles.label}</span>
+        )}
       </div>
-      <div className="mt-5 flex items-center gap-4">
-        <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-          <div className={`h-full rounded-full ${styles.bar}`} style={{ width: `${clampPercent(progress)}%` }} />
+      {progress !== undefined ? (
+        <div className="mt-5 flex items-center gap-4">
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+            <div className={`h-full rounded-full ${styles.bar}`} style={{ width: `${clampPercent(progress)}%` }} />
+          </div>
+          <span className="w-10 text-right text-sm font-medium text-slate-800 dark:text-slate-100">{Math.round(clampPercent(progress))}%</span>
         </div>
-        <span className="w-10 text-right text-sm font-medium text-slate-800 dark:text-slate-100">{Math.round(clampPercent(progress))}%</span>
-      </div>
+      ) : null}
       <p className="mt-4 text-sm font-medium text-slate-500 dark:text-slate-400">{helper}</p>
       <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{description}</p>
     </article>
