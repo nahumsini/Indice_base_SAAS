@@ -557,3 +557,24 @@ test('Ventas elimina con confirmación y espera la baja lógica del backend', ()
   assert.match(pageSource, /await deleteSaleRecord\(record\.id\)/);
   assert.match(contextSource, /await salesApi\.delete\('sales', backendId\)/);
 });
+
+test('Oportunidades y Clientes conservan tres acciones directas y envian Columnas al overflow', () => {
+  const opportunitiesPageSource = readFileSync(resolve(salesRoot, 'Prospectos/Prospectos.tsx'), 'utf8');
+  const opportunitiesHeaderSource = readFileSync(resolve(salesRoot, 'Prospectos/components/ProspectosHeader.tsx'), 'utf8');
+  const contactsSource = readFileSync(resolve(salesRoot, 'Contactos/Contactos.tsx'), 'utf8');
+
+  assert.match(opportunitiesPageSource, /actionsLabel=\{t\.table\.actions\}/);
+  assert.match(opportunitiesHeaderSource, /SelectTrigger aria-label=\{activeFlowLabel\}/);
+  assert.match(opportunitiesHeaderSource, /onClick=\{onCreateQuote\}/);
+  assert.match(opportunitiesHeaderSource, /onClick=\{onCreateOpportunity\}/);
+  assert.doesNotMatch(opportunitiesHeaderSource, /onClick=\{onManageFlow\}|onClick=\{onOpenColumns\}|onClick=\{onCreateSale\}/);
+  assert.match(opportunitiesHeaderSource, /id: 'manage-flow'[\s\S]*onSelect: onManageFlow/);
+  assert.match(opportunitiesHeaderSource, /id: 'columns'[\s\S]*onSelect: onOpenColumns/);
+  assert.match(opportunitiesHeaderSource, /id: 'create-sale'[\s\S]*onSelect: onCreateSale/);
+
+  assert.match(contactsSource, /onClick=\{\(\) => setIsImportModalOpen\(true\)\}/);
+  assert.match(contactsSource, /onClick=\{\(\) => setIsMetaImportModalOpen\(true\)\}/);
+  assert.match(contactsSource, /onClick=\{handleOpenCreateContact\}/);
+  assert.doesNotMatch(contactsSource, /onClick=\{\(\) => setIsColumnsModalOpen\(true\)\}/);
+  assert.match(contactsSource, /<IndiceTitleBarOverflow[\s\S]*id: 'columns'[\s\S]*onSelect: \(\) => setIsColumnsModalOpen\(true\)/);
+});

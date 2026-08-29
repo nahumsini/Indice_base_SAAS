@@ -1,4 +1,5 @@
 import { CalendarDays, MapPin, ShieldCheck, Table2 } from 'lucide-react';
+import { IndiceTitleBarOverflow } from '../../../../components/frontend-os';
 import { Button } from '../../../../components/ui/button';
 import type { AttendanceControlCopy } from './ControlAttendanceWidgets';
 import { cn } from '../../../../components/ui/utils';
@@ -23,10 +24,6 @@ export function AttendanceSettingsActions({
 }) {
   return (
     <HrTitleBar emoji="⏱️" title={copy.title} subtitle={copy.subtitle} actions={<>
-          <Button variant="outline" className={cn(actionButtonClassName, hrTitleBarSecondaryActionClass)} onClick={onOpenContractSites}>
-            <MapPin className="h-4 w-4" />
-            {copy.sections.locations}
-          </Button>
           <Button variant="outline" className={cn(actionButtonClassName, hrTitleBarSecondaryActionClass)} onClick={onOpenTimeTable}>
             <Table2 className="h-4 w-4" />
             {copy.labels.timeTable}
@@ -39,6 +36,16 @@ export function AttendanceSettingsActions({
             <ShieldCheck className="h-4 w-4" />
             {copy.kiosk.management.title}
           </Button>
+          <IndiceTitleBarOverflow
+            className={cn(actionButtonClassName, hrTitleBarSecondaryActionClass)}
+            items={[{
+              id: 'contract-sites',
+              icon: <MapPin className="h-4 w-4" />,
+              label: copy.sections.locations,
+              onSelect: onOpenContractSites,
+            }]}
+            label={copy.actionsLabel}
+          />
         </>}
     />
   );

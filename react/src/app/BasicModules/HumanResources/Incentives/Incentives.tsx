@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { humanResourcesApi, type BackendHrUser } from '../../../api/humanResources';
 import { hrIncentivesApi, type BackendHrIncentive, type CreateHrIncentivePayload } from '../../../api/HumanResources/incentives';
+import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import type { IncentiveColumn } from './components/IncentiveColumnsModal';
 import { IncentiveFilters } from './components/IncentiveFilters';
@@ -21,6 +22,18 @@ type IncentiveViewModel = RHIncentivo & {
   appliedCount: number;
   backendId: number;
   eligibleCount: number;
+};
+
+type IncentivesWorkspaceState = {
+  searchQuery: string;
+  selectedType: 'all' | RHIncentivo['tipo'];
+  selectedStatus: 'all' | RHIncentivo['estado'];
+};
+
+const incentiveWorkspaceDefaults: IncentivesWorkspaceState = {
+  searchQuery: '',
+  selectedType: 'all',
+  selectedStatus: 'all',
 };
 
 const defaultVisibleIncentiveColumns: IncentiveColumnId[] = [
@@ -48,6 +61,28 @@ export default function Incentives() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const workspaceState = useMemo<IncentivesWorkspaceState>(() => ({
+    searchQuery,
+    selectedType,
+    selectedStatus,
+  }), [searchQuery, selectedStatus, selectedType]);
+
+  useWorkspaceNavigationMemory({
+    moduleKey: 'human-resources',
+    tabKey: 'incentives',
+    state: workspaceState,
+    defaults: incentiveWorkspaceDefaults,
+    urlFields: {
+      searchQuery: 'q',
+      selectedType: 'type',
+      selectedStatus: 'status',
+    },
+    onRestore: (restoredState) => {
+      setSearchQuery(typeof restoredState.searchQuery === 'string' ? restoredState.searchQuery : '');
+      setSelectedType(['all', 'Automatizado', 'Manual'].includes(restoredState.selectedType) ? restoredState.selectedType : 'all');
+      setSelectedStatus(['all', 'Activo', 'Programado', 'Pausado'].includes(restoredState.selectedStatus) ? restoredState.selectedStatus : 'all');
+    },
+  });
 
   const loadIncentives = async () => {
     setIsLoading(true);
@@ -156,6 +191,11 @@ export default function Incentives() {
 
       <IncentiveFilters
         copy={copy}
+        onClearFilters={() => {
+          setSearchQuery('');
+          setSelectedType('all');
+          setSelectedStatus('all');
+        }}
         searchQuery={searchQuery}
         selectedStatus={selectedStatus}
         selectedType={selectedType}

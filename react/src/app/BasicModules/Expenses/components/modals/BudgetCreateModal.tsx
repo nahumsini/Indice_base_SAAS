@@ -8,9 +8,9 @@ import { financeCurrencySelectOptions } from '../../constants/financeCurrencyOpt
 import type { BudgetDraftState } from '../../Budgets/budgetDraftState';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import type { Provider } from '../../types/expenses.types';
-import { formatCurrency } from '../../utils/expenses.utils';
+import { formatBudgetCurrency } from '../../Budgets/budgetFormatting';
 import { BudgetTaxControls } from './BudgetTaxControls';
-import { useBudgetsTranslations } from '../../Budgets/hooks/useBudgetsTranslations';
+import { useBudgetsResolvedLocale, useBudgetsTranslations } from '../../Budgets/hooks/useBudgetsTranslations';
 import type { FinanceTranslations } from '../../translations';
 import { QuickProviderField } from './QuickProviderField';
 import { financeModalPrimaryButtonClass, financeModalSecondaryButtonClass } from './FinanceModalPrimitives';
@@ -45,13 +45,14 @@ export function BudgetCreateModal({
   onSubmit,
 }: BudgetCreateModalProps) {
   const t = useBudgetsTranslations();
+  const locale = useBudgetsResolvedLocale();
   const [activeStepId, setActiveStepId] = useState<BudgetStepId>('cost');
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const steps = useMemo<Array<{ id: BudgetStepId; label: string; icon: LucideIcon; title: string; description: string }>>(() => [
     { id: 'cost', label: t.budgets.modal.stepCost, icon: FileText, title: t.budgets.modal.titleCost, description: t.budgets.modal.subtitle },
     { id: 'schedule', label: t.budgets.modal.stepSchedule, icon: CalendarDays, title: t.budgets.modal.scheduleTitle, description: t.budgets.modal.scheduleDescription },
-    { id: 'review', label: 'Revisión final', icon: ScanSearch, title: 'Revisa el presupuesto', description: 'Confirma el alcance, la programación y el total antes de guardar.' },
+    { id: 'review', label: t.budgets.modal.reviewStep, icon: ScanSearch, title: t.budgets.modal.reviewTitle, description: t.budgets.modal.reviewDescription },
   ], [t]);
   const stepIndex = steps.findIndex(step => step.id === activeStepId);
   const currentStep = steps[Math.max(0, stepIndex)];
@@ -143,11 +144,11 @@ export function BudgetCreateModal({
           </button>
           <button type="submit" form={formId} disabled={!canContinue || isSaving} className={financeModalPrimaryButtonClass}>
             {isLastStep ? <Check className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            {isSaving ? 'Guardando…' : isLastStep ? (isEditMode ? t.budgets.modal.finishEdit : t.budgets.modal.finishCreate) : t.common.continue}
+            {isSaving ? t.budgets.modal.saving : isLastStep ? (isEditMode ? t.budgets.modal.finishEdit : t.budgets.modal.finishCreate) : t.common.continue}
           </button>
         </>
       )}
-      footerSummary={`${scheduleDates.length} ${scheduleDates.length === 1 ? 'fecha' : 'fechas'} · ${formatCurrency(plannedTotal, draft.budgetCurrencyCode)}`}
+      footerSummary={`${t.budgets.modal.scheduleDates(scheduleDates.length)} · ${formatBudgetCurrency(plannedTotal, draft.budgetCurrencyCode, locale)}`}
       icon={<Plus className="h-5 w-5" />}
       modalType="wizard"
       onOpenChange={(open) => !open && onClose()}
@@ -166,7 +167,7 @@ export function BudgetCreateModal({
           progressLabel={t.budgets.modal.stepOf(stepIndex + 1, steps.length)}
           steps={steps.map(({ id, label }) => ({ id, label }))}
         />
-        <IndiceModalValidation messages={errorMessage ? [errorMessage] : []} title="No se pudo guardar" />
+        <IndiceModalValidation messages={errorMessage ? [errorMessage] : []} title={t.budgets.modal.validationTitle} />
         <StepCard description={currentStep.description} icon={currentStep.icon} title={currentStep.title}>
           {activeStepId === 'cost' ? (
             <BudgetCostStep
@@ -195,14 +196,14 @@ export function BudgetCreateModal({
           {activeStepId === 'review' ? (
             <IndiceModalSummary
               columns={4}
-              description="El presupuesto está listo para guardarse. Puedes regresar a cualquier paso para corregirlo."
+               description={t.budgets.modal.reviewSummaryDescription}
               items={[
                 { label: t.budgets.modal.concept, value: draft.concept },
                 { label: t.budgets.modal.frequency, value: t.budgets.frequencies[draft.frequency] ?? draft.frequency },
-                { label: 'Fechas programadas', value: String(scheduleDates.length) },
-                { emphasized: true, label: 'Total planeado', value: formatCurrency(plannedTotal, draft.budgetCurrencyCode) },
+                 { label: t.budgets.modal.reviewScheduledDates, value: String(scheduleDates.length) },
+                 { emphasized: true, label: t.budgets.modal.reviewPlannedTotal, value: formatBudgetCurrency(plannedTotal, draft.budgetCurrencyCode, locale) },
               ]}
-              title="Resumen del presupuesto"
+               title={t.budgets.modal.reviewSummaryTitle}
               variant="success"
             />
           ) : null}
@@ -308,8 +309,8 @@ function BudgetScheduleStep({
         <p className="text-sm font-medium text-slate-900 dark:text-white">{t.budgets.modal.scheduleSummary}</p>
         <div className="mt-3 grid gap-3 md:grid-cols-3">
           <SummaryMetric label={t.budgets.budgetLine} value={String(scheduleCount)} />
-          <SummaryMetric label={t.budgets.columns.total.label} value={formatCurrency(totalPerOrder, currency)} />
-          <SummaryMetric label={t.budgets.period} value={formatCurrency(plannedTotal, currency)} />
+          <SummaryMetric label={t.budgets.columns.total.label} value={formatBudgetCurrency(totalPerOrder, currency, t.locale)} />
+          <SummaryMetric label={t.budgets.period} value={formatBudgetCurrency(plannedTotal, currency, t.locale)} />
         </div>
         <p className="mt-3 text-xs font-medium text-slate-500 dark:text-slate-400">
           {scheduleCount > 0

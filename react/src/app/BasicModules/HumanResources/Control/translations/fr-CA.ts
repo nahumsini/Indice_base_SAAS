@@ -5,6 +5,7 @@ export const frCA = {
   ...enCA,
   title: 'Contrôle',
   subtitle: 'Suivez la présence en temps réel et gérez les règles opérationnelles.',
+  actionsLabel: 'Opérations',
   selfShiftCalendar: {
     title: 'Mon calendrier de quarts', loadingTitle: 'Chargement du calendrier', loadingDescription: 'Vérification de vos quarts assignés.', month: 'Mois',
     shift: 'Quart', openShift: 'Quart ouvert', restDay: 'Jour de repos', noShift: 'Aucun quart', selectedDay: 'Jour sélectionné', today: 'Aujourd’hui',

@@ -9,7 +9,7 @@ import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
 import { usePersistentTableColumns } from '../hooks/usePersistentTableColumns';
 import { accountingAccountsService, providersService, toFinanceApiErrorMessage } from '../services';
 import type { FinanceReferenceOption } from '../types/finance-reference.types';
-import { defaultProviderColumns, type ProviderColumnConfig } from './providerTableConfig';
+import { defaultProviderColumns, legacyWideProviderFactoryPreset, type ProviderColumnConfig } from './providerTableConfig';
 import { ProviderColumnsModal } from './components/ProviderColumnsModal';
 import { ProviderCreateModal } from './components/ProviderCreateModal';
 import { QuickProviderCreateModal } from './components/QuickProviderCreateModal';
@@ -122,6 +122,7 @@ export default function ProveedoresPage({
   const [visibleColumns, setVisibleColumns] = usePersistentTableColumns<ProviderColumnConfig>(
     'indice.expenses.providers.columns.v1',
     translatedProviderColumns,
+    { legacyFactoryPresets: [legacyWideProviderFactoryPreset] },
   );
 
   useEffect(() => {

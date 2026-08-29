@@ -1,4 +1,5 @@
 import { ArrowRightLeft, Columns3, PackagePlus, SlidersHorizontal } from 'lucide-react';
+import { IndiceTitleBarOverflow } from '../../../../components/frontend-os';
 import { Button } from '../../../../components/ui/button';
 import {
   SalesTitleBar,
@@ -26,6 +27,10 @@ export function InventoryHeader({
 }) {
   const title = isMovementsView ? t.operational.movementsTitle : t.operational.title;
   const subtitle = isMovementsView ? t.operational.movementsSubtitle : t.operational.subtitle;
+  const eligibleActionCount = 2
+    + Number(showColumnsAction)
+    + Number(Boolean(isMovementsView && onInventoryAdjustment));
+  const hasOverflow = eligibleActionCount > 3;
 
   return (
     <SalesTitleBar
@@ -35,7 +40,7 @@ export function InventoryHeader({
       subtitle={subtitle}
       actions={(
         <>
-          {showColumnsAction ? (
+          {showColumnsAction && !hasOverflow ? (
             <Button
               variant="outline"
               className={salesTitleBarSecondaryActionClassName}
@@ -53,7 +58,7 @@ export function InventoryHeader({
             <ArrowRightLeft className="h-4 w-4" />
             {isMovementsView ? t.operational.actions.newTransfer : t.operational.actions.transferStock}
           </Button>
-          {isMovementsView ? (
+          {isMovementsView && onInventoryAdjustment ? (
             <Button
               variant="outline"
               className={salesTitleBarSecondaryActionClassName}
@@ -70,6 +75,17 @@ export function InventoryHeader({
             <PackagePlus className="h-4 w-4" />
             {isMovementsView ? t.operational.actions.receiveStock : t.operational.actions.addInventory}
           </Button>
+          {hasOverflow ? (
+            <IndiceTitleBarOverflow
+              label={t.common.actions}
+              items={showColumnsAction ? [{
+                id: 'columns',
+                icon: <Columns3 className="h-4 w-4" />,
+                label: t.header.secondaryAction,
+                onSelect: onOpenColumns,
+              }] : []}
+            />
+          ) : null}
         </>
       )}
     />

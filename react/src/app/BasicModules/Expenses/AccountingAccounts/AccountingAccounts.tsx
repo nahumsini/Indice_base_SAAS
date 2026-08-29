@@ -16,7 +16,7 @@ import {
   catalogTemplateToAccount,
   type AccountingCatalogTemplate,
 } from './accountingCatalogSeed';
-import { defaultAccountingColumns, type AccountingColumnConfig } from './accountingAccountsTableConfig';
+import { defaultAccountingColumns, legacyWideAccountingFactoryPreset, type AccountingColumnConfig } from './accountingAccountsTableConfig';
 import { AccountingAccountColumnsModal } from './components/AccountingAccountColumnsModal';
 import { AccountingAccountModal } from './components/AccountingAccountModal';
 import { AccountingCatalogImportModal } from './components/AccountingCatalogImportModal';
@@ -102,6 +102,7 @@ export default function AccountingAccounts() {
   const [visibleColumns, setVisibleColumns] = usePersistentTableColumns<AccountingColumnConfig>(
     'indice.expenses.accounting-accounts.columns.v1',
     translatedAccountingColumns,
+    { legacyFactoryPresets: [legacyWideAccountingFactoryPreset] },
   );
   const {
     businessOptions,
@@ -126,6 +127,11 @@ export default function AccountingAccounts() {
       isMounted = false;
     };
   }, []);
+
+  const summaryAccounts = useMemo(
+    () => filterAccountingAccounts(accounts, searchTerm, typeFilter, 'all'),
+    [accounts, searchTerm, typeFilter],
+  );
 
   const filteredAccounts = useMemo(() => {
     const filtered = filterAccountingAccounts(accounts, searchTerm, typeFilter, statusFilter);
@@ -258,7 +264,11 @@ export default function AccountingAccounts() {
         onStatusChange={setStatusFilter}
         onTypeChange={setTypeFilter}
       />
-      <AccountingAccountsSummary accounts={filteredAccounts} />
+      <AccountingAccountsSummary
+        accounts={summaryAccounts}
+        statusFilter={statusFilter}
+        onStatusChange={setStatusFilter}
+      />
       <AccountingAccountsTable
         accounts={filteredAccounts}
         businessOptions={businessOptions}

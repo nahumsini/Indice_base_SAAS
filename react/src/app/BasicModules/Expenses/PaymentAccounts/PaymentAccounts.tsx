@@ -12,7 +12,7 @@ import { usePaymentAccountsTranslations } from './hooks/usePaymentAccountsTransl
 import { paymentAccountsService, toFinanceApiErrorMessage } from '../services';
 import type { PaymentAccount, PaymentSortField, SortDirection } from './types';
 import { filterPaymentAccounts, sortPaymentAccounts } from './paymentAccounts.utils';
-import { defaultPaymentColumns, type PaymentColumnConfig } from './paymentAccountsTableConfig';
+import { defaultPaymentColumns, legacyWidePaymentFactoryPreset, type PaymentColumnConfig } from './paymentAccountsTableConfig';
 import { PaymentAccountColumnsModal } from './components/PaymentAccountColumnsModal';
 import { PaymentAccountModal } from './components/PaymentAccountModal';
 import { PaymentAccountsFilters } from './components/PaymentAccountsFilters';
@@ -109,6 +109,7 @@ export default function PaymentAccounts({ headerSubtitle, headerTitle, headerTon
   const [visibleColumns, setVisibleColumns] = usePersistentTableColumns<PaymentColumnConfig>(
     'indice.expenses.payment-accounts.columns.v1',
     translatedPaymentColumns,
+    { legacyFactoryPresets: [legacyWidePaymentFactoryPreset] },
   );
 
   useEffect(() => {
@@ -155,6 +156,11 @@ export default function PaymentAccounts({ headerSubtitle, headerTitle, headerTon
       ...pettyCashAccounts,
     ];
   }, [accounts, pettyCashFunds]);
+
+  const summaryAccounts = useMemo(
+    () => filterPaymentAccounts(paymentAccounts, searchTerm, typeFilter, 'all'),
+    [paymentAccounts, searchTerm, typeFilter],
+  );
 
   const filteredAccounts = useMemo(() => {
     const filtered = filterPaymentAccounts(paymentAccounts, searchTerm, typeFilter, statusFilter);
@@ -277,7 +283,12 @@ export default function PaymentAccounts({ headerSubtitle, headerTitle, headerTon
         </div>
       </div>
 
-      <PaymentAccountsSummary accounts={filteredAccounts} tone={headerTone} />
+      <PaymentAccountsSummary
+        accounts={summaryAccounts}
+        statusFilter={statusFilter}
+        tone={headerTone}
+        onStatusChange={setStatusFilter}
+      />
       <PaymentAccountsTable
         accounts={filteredAccounts}
         businessOptions={businessOptions}

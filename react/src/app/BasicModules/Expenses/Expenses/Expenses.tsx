@@ -182,6 +182,10 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     () => filterExpenses(operationalExpenses, filters),
     [filters, operationalExpenses],
   );
+  const summaryExpenses = useMemo(
+    () => filterExpenses(operationalExpenses, { ...filters, statusFilter: 'all' }),
+    [filters, operationalExpenses],
+  );
   const bulkEditableExpenses = useMemo(() => expenses.filter(expense => (
     isBackendId(expense.id)
     && !expense.purchaseOrderId
@@ -194,8 +198,8 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     paid: 0,
     pending: 0,
     overdue: 0,
-    overdueCount: filteredExpenses.filter((expense) => isExpenseEffectivelyOverdue(expense)).length,
-  }), [filteredExpenses]);
+    overdueCount: summaryExpenses.filter((expense) => isExpenseEffectivelyOverdue(expense)).length,
+  }), [summaryExpenses]);
 
   const handleBulkExpenseCreate = async (drafts: ExpenseBulkDraft[]) => {
     setIsBulkIntegrationSaving(true);
@@ -949,9 +953,11 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
       />
 
       <ExpensesSummary
-        expenses={filteredExpenses}
+        expenses={summaryExpenses}
         preferredCurrency={preferredCurrency}
+        statusFilter={filters.statusFilter}
         totals={totals}
+        onStatusChange={(statusFilter) => setFilters(current => ({ ...current, statusFilter }))}
       />
 
       <ExpenseTable

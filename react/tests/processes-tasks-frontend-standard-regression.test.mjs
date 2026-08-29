@@ -15,6 +15,19 @@ function collectFiles(path) {
   });
 }
 
+test('Indicadores usa la barra de titulo compartida y conserva sus dos acciones directas', () => {
+  const kpisSource = readFileSync(resolve(moduleRoot, 'KPIs/KPIs.tsx'), 'utf8');
+
+  assert.match(kpisSource, /<IndiceTitleBar/);
+  assert.match(kpisSource, /actions=\{headerActions\}/);
+  assert.match(kpisSource, /icon=\{headerCopy\.emoji\}/);
+  assert.match(kpisSource, /title=\{standardCopy\.title\}/);
+  assert.match(kpisSource, /tone="yellow"/);
+  assert.doesNotMatch(kpisSource, /LearningModeTitleBarBridge/);
+  assert.match(kpisSource, /onClick=\{\(\) => setRefreshKey/);
+  assert.match(kpisSource, /onClick=\{handlePrintPdf\}/);
+});
+
 test('Procesos y Tareas respeta la escala tipográfica del Frontend Engine V2', () => {
   const violations = collectFiles(moduleRoot).flatMap((file) => {
     const source = readFileSync(file, 'utf8');
@@ -268,4 +281,35 @@ test('las notas usan una bitácora fechada y accesible desde las tres vistas de 
   assert.match(dialogSource, /Historial del seguimiento/);
   assert.match(agendaSource, /<TaskFollowUpDialog/);
   assert.ok((agendaSource.match(/onOpenFollowUps=\{setFollowUpTask\}/g) ?? []).length >= 4);
+});
+
+test('los filtros progresivos conservan su memoria por pestaña', () => {
+  const moduleSource = readFileSync(resolve(moduleRoot, 'ProcessesTasks.tsx'), 'utf8');
+  const agendaFiltersSource = readFileSync(resolve(moduleRoot, 'Agenda/components/AgendaFilters.tsx'), 'utf8');
+  const agendaMemorySource = readFileSync(resolve(moduleRoot, 'Agenda/hooks/useAgendaFilters.ts'), 'utf8');
+  const projectsSource = readFileSync(resolve(moduleRoot, 'Projects/Projects.tsx'), 'utf8');
+  const processesSource = readFileSync(resolve(moduleRoot, 'Processes/Processes.tsx'), 'utf8');
+  const kpisSource = readFileSync(resolve(moduleRoot, 'KPIs/KPIs.tsx'), 'utf8');
+
+  assert.match(moduleSource, /import \{ Activity,/);
+  assert.match(moduleSource, /visitedTabIds/);
+  assert.match(moduleSource, /tabScrollPositionsRef/);
+  assert.match(moduleSource, /mode=\{tab\.id === activeTab \? 'visible' : 'hidden'\}/);
+
+  for (const source of [agendaFiltersSource, projectsSource, processesSource, kpisSource]) {
+    assert.match(source, /<IndiceFilterBar/);
+    assert.match(source, /<IndiceFilterDisclosureActions/);
+    assert.match(source, /<IndiceFilterAdvancedSection/);
+  }
+
+  for (const [source, tabKey] of [
+    [agendaMemorySource, 'calendar'],
+    [projectsSource, 'projects'],
+    [processesSource, 'processes'],
+    [kpisSource, 'kpis'],
+  ]) {
+    assert.match(source, /useWorkspaceNavigationMemory\(\{/);
+    assert.match(source, /moduleKey: 'processes-tasks'/);
+    assert.match(source, new RegExp(`tabKey: '${tabKey}'`));
+  }
 });

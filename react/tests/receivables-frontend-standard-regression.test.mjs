@@ -38,6 +38,27 @@ test('Cartera conserva sus primitivas visuales y la integración con Sales CRM',
   assert.match(modalFrameSource, /<IndiceModalFrame/);
 });
 
+test('Cartera mantiene sus acciones de titulo directas mientras no superan tres', () => {
+  const viewFiles = [
+    'views/AccountsReceivableView.tsx',
+    'views/PaymentsView.tsx',
+    'views/CreditSalesView.tsx',
+    'views/CreditCustomersView.tsx',
+  ];
+
+  for (const viewFile of viewFiles) {
+    const source = readFileSync(resolve(receivablesRoot, viewFile), 'utf8');
+    const titleBarSource = source.slice(
+      source.indexOf('<ReceivablesTitleBar'),
+      source.indexOf('<ReceivablesFilters'),
+    );
+
+    assert.match(titleBarSource, /onClick=\{\(\) => setShowColumnsModal\(true\)\}/);
+    assert.equal(titleBarSource.match(/<Button/g)?.length, 2);
+    assert.doesNotMatch(titleBarSource, /DropdownMenu/);
+  }
+});
+
 test('Cartera conserva expediente financiero e índices móviles compactos', () => {
   const accountsSource = readFileSync(resolve(receivablesRoot, 'views/AccountsReceivableView.tsx'), 'utf8');
   const paymentsSource = readFileSync(resolve(receivablesRoot, 'views/PaymentsView.tsx'), 'utf8');

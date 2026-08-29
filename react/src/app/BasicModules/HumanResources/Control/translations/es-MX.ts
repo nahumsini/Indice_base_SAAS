@@ -4,6 +4,7 @@ export const esMX = {
   ...({
     title: 'Control operativo',
     subtitle: 'Monitorea la asistencia en tiempo real y administra la configuracion.',
+    actionsLabel: 'Acciones',
     selfShiftCalendar: {
       title: 'Mi calendario de turnos', loadingTitle: 'Cargando calendario', loadingDescription: 'Revisando tus turnos asignados.', month: 'Mes',
       shift: 'Turno', openShift: 'Turno abierto', restDay: 'Descanso', noShift: 'Sin turno', selectedDay: 'Día seleccionado', today: 'Hoy',

@@ -1,24 +1,17 @@
-import { Search } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, useState } from 'react';
+import {
+  IndiceFilterAdvancedSection,
+  IndiceFilterBar,
+  IndiceFilterDisclosureActions,
+  IndiceFilterField,
+  IndiceFilterSearch,
+  IndiceFilterSelect,
+  getIndiceFilterControlClassName,
+  useIndiceFilterDisclosureCopy,
+} from '../../../../components/frontend-os';
 import type { AttendanceControlCopy } from './ControlAttendanceWidgets';
 import type { AttendanceFilterOption } from './EmployeeAttendanceList';
-
-const controlInputClassName = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-none outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100';
-
-function FilterField({
-  children,
-  label,
-}: {
-  children: ReactNode;
-  label: string;
-}) {
-  return (
-    <label className="block space-y-2">
-      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</span>
-      {children}
-    </label>
-  );
-}
+import { todayIsoDate } from '../utils/control.utils';
 
 export function AttendanceControlFilters({
   allFilterValue,
@@ -27,6 +20,7 @@ export function AttendanceControlFilters({
   controlDate,
   copy,
   onBusinessFilterChange,
+  onClearFilters,
   onDateChange,
   onSearchChange,
   onStatusFilterChange,
@@ -43,6 +37,7 @@ export function AttendanceControlFilters({
   controlDate: string;
   copy: AttendanceControlCopy;
   onBusinessFilterChange: (value: string) => void;
+  onClearFilters: () => void;
   onDateChange: (value: string) => void;
   onSearchChange: (value: string) => void;
   onStatusFilterChange: (value: string) => void;
@@ -53,80 +48,96 @@ export function AttendanceControlFilters({
   unitFilter: string;
   unitFilterOptions: AttendanceFilterOption[];
 }) {
+  const disclosureCopy = useIndiceFilterDisclosureCopy();
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const formatOptionLabel = (option: AttendanceFilterOption) => (
     typeof option.count === 'number' ? `${option.label} (${option.count})` : option.label
   );
+  const activeAdvancedFilterCount = [unitFilter, businessFilter].filter((value) => value !== allFilterValue).length;
+  const hasActiveFilters = Boolean(
+    searchQuery.trim()
+      || controlDate !== todayIsoDate()
+      || statusFilter !== allFilterValue
+      || activeAdvancedFilterCount > 0,
+  );
+
+  useEffect(() => {
+    if (activeAdvancedFilterCount > 0) setShowAdvancedFilters(true);
+  }, [activeAdvancedFilterCount]);
+
+  const handleClearFilters = () => {
+    onClearFilters();
+    setShowAdvancedFilters(false);
+  };
 
   return (
-    <section className="mb-5 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <h3 className="mb-4 text-base font-medium text-slate-800 dark:text-white">{copy.labels.filtersTitle}</h3>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <FilterField label={copy.labels.searchLabel}>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={(event) => onSearchChange(event.target.value)}
-              placeholder={copy.searchPlaceholder}
-              className={`${controlInputClassName} pl-10`}
-            />
-          </div>
-        </FilterField>
+    <IndiceFilterBar
+      className="mb-5"
+      gridClassName="lg:grid-cols-3"
+      title={copy.labels.filtersTitle}
+      summary={(
+        <IndiceFilterDisclosureActions
+          activeAdvancedCount={activeAdvancedFilterCount}
+          advancedLabel={showAdvancedFilters ? disclosureCopy.hideFilters : disclosureCopy.moreFilters}
+          clearLabel={disclosureCopy.clearFilters}
+          hasActiveFilters={hasActiveFilters}
+          isAdvancedOpen={showAdvancedFilters}
+          onClear={handleClearFilters}
+          onToggleAdvanced={() => setShowAdvancedFilters((current) => !current)}
+          tone="aqua"
+        />
+      )}
+    >
+        <IndiceFilterSearch
+          label={copy.labels.searchLabel}
+          value={searchQuery}
+          onValueChange={onSearchChange}
+          onClear={() => onSearchChange('')}
+          placeholder={copy.searchPlaceholder}
+          tone="aqua"
+        />
 
-        <FilterField label={copy.labels.unit}>
-          <select
-            value={unitFilter}
-            onChange={(event) => onUnitFilterChange(event.target.value)}
-            className={controlInputClassName}
-          >
-            <option value={allFilterValue}>{copy.labels.allUnits}</option>
-            {unitFilterOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </FilterField>
-
-        <FilterField label={copy.labels.business}>
-          <select
-            value={businessFilter}
-            onChange={(event) => onBusinessFilterChange(event.target.value)}
-            className={controlInputClassName}
-          >
-            <option value={allFilterValue}>{copy.labels.allBusinesses}</option>
-            {businessFilterOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </FilterField>
-
-        <FilterField label={copy.labels.period}>
+        <IndiceFilterField label={copy.labels.period}>
           <input
             type="date"
             value={controlDate}
             onChange={(event) => onDateChange(event.target.value)}
-            className={controlInputClassName}
+            className={getIndiceFilterControlClassName('aqua')}
           />
-        </FilterField>
+        </IndiceFilterField>
 
-        <FilterField label={copy.labels.status}>
-          <select
-            value={statusFilter}
-            onChange={(event) => onStatusFilterChange(event.target.value)}
-            className={controlInputClassName}
-          >
-            {statusFilterOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {formatOptionLabel(option)}
-              </option>
-            ))}
-          </select>
-        </FilterField>
-      </div>
-    </section>
+        <IndiceFilterSelect
+          label={copy.labels.status}
+          value={statusFilter}
+          onValueChange={onStatusFilterChange}
+          options={statusFilterOptions.map((option) => ({ ...option, label: formatOptionLabel(option) }))}
+          tone="aqua"
+        />
+
+        {showAdvancedFilters ? (
+          <IndiceFilterAdvancedSection className="md:col-span-2 lg:col-span-3" gridClassName="lg:grid-cols-2">
+            <IndiceFilterSelect
+              label={copy.labels.unit}
+              value={unitFilter}
+              onValueChange={onUnitFilterChange}
+              options={[
+                { value: allFilterValue, label: copy.labels.allUnits },
+                ...unitFilterOptions,
+              ]}
+              tone="aqua"
+            />
+            <IndiceFilterSelect
+              label={copy.labels.business}
+              value={businessFilter}
+              onValueChange={onBusinessFilterChange}
+              options={[
+                { value: allFilterValue, label: copy.labels.allBusinesses },
+                ...businessFilterOptions,
+              ]}
+              tone="aqua"
+            />
+          </IndiceFilterAdvancedSection>
+        ) : null}
+    </IndiceFilterBar>
   );
 }

@@ -1,7 +1,13 @@
 import type { ReactNode } from 'react';
-import { Building2, Columns3, KeyRound, Plus, Store } from 'lucide-react';
+import { Building2, Columns3, KeyRound, MoreHorizontal, Plus, Store } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { IndiceTitleBar } from '../../../../components/frontend-os';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../../../components/ui/dropdown-menu';
 import { useProvidersTranslations } from '../hooks/useProvidersTranslations';
 
 export type ProvidersHeaderVariant = 'finance' | 'sales';
@@ -42,6 +48,8 @@ export function ProvidersHeaderBanner({
   const t = useProvidersTranslations();
   const styles = headerVariantStyles[variant];
   const headerIcon = icon ?? <Building2 className="h-5 w-5" />;
+  const eligibleActionCount = 2 + Number(Boolean(onManagePayablesKiosks)) + Number(Boolean(onManageSupplierPortal));
+  const hasOverflow = eligibleActionCount > 3;
   const actionLayout = (
     <>
       {onManagePayablesKiosks ? (
@@ -56,14 +64,32 @@ export function ProvidersHeaderBanner({
           Portal de proveedores
         </Button>
       ) : null}
-      <Button variant="outline" className={`h-11 w-full justify-center gap-2 rounded-lg border-slate-200 bg-white px-4 text-sm font-medium shadow-none dark:border-slate-700 dark:bg-slate-800 sm:w-auto ${styles.columnsButton}`} onClick={onConfigureColumns}>
-        <Columns3 className="h-4 w-4" />
-        {t.common.columns}
-      </Button>
+      {!hasOverflow ? (
+        <Button variant="outline" className={`h-11 w-full justify-center gap-2 rounded-lg border-slate-200 bg-white px-4 text-sm font-medium shadow-none dark:border-slate-700 dark:bg-slate-800 sm:w-auto ${styles.columnsButton}`} onClick={onConfigureColumns}>
+          <Columns3 className="h-4 w-4" />
+          {t.common.columns}
+        </Button>
+      ) : null}
       <Button className={`h-11 w-full justify-center gap-2 rounded-lg px-4 text-sm font-medium shadow-sm sm:w-auto ${styles.addButton}`} onClick={onAddProvider}>
         <Plus className="h-4 w-4" />
         {t.providers.add}
       </Button>
+      {hasOverflow ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className={`h-11 w-full justify-center gap-2 rounded-lg border-slate-200 bg-white px-4 text-sm font-medium shadow-none dark:border-slate-700 dark:bg-slate-800 sm:w-auto ${styles.columnsButton}`}>
+              <MoreHorizontal className="h-4 w-4" />
+              {t.common.actions}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56 rounded-xl p-1.5">
+            <DropdownMenuItem className="rounded-lg py-2.5" onClick={onConfigureColumns}>
+              <Columns3 className="h-4 w-4" />
+              {t.common.columns}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
     </>
   );
 

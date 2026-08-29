@@ -1,4 +1,10 @@
-import { Search } from 'lucide-react';
+import {
+  IndiceFilterBar,
+  IndiceFilterDisclosureActions,
+  IndiceFilterSearch,
+  IndiceFilterSelect,
+  useIndiceFilterDisclosureCopy,
+} from '../../../../components/frontend-os';
 import type { AnnouncementFiltersCopy } from '../translations';
 
 interface AnnouncementFiltersProps {
@@ -11,6 +17,7 @@ interface AnnouncementFiltersProps {
   statusOptions: ReadonlyArray<{ value: string; label: string }>;
   typeOptions: ReadonlyArray<{ value: string; label: string }>;
   onAudienceChange: (value: string) => void;
+  onClearFilters: () => void;
   onSearchChange: (value: string) => void;
   onStatusChange: (value: string) => void;
   onTypeChange: (value: string) => void;
@@ -26,81 +33,49 @@ export function AnnouncementFilters({
   statusOptions,
   typeOptions,
   onAudienceChange,
+  onClearFilters,
   onSearchChange,
   onStatusChange,
   onTypeChange,
 }: AnnouncementFiltersProps) {
-  return (
-    <div className="mb-6 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <h3 className="text-base font-medium text-slate-900 dark:text-white">{copy.title}</h3>
-
-      <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
-        <label>
-          <span className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
-            {copy.searchLabel}
-          </span>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(event) => onSearchChange(event.target.value)}
-              placeholder={copy.searchPlaceholder}
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-            />
-          </div>
-        </label>
-
-        <FilterSelect
-          label={copy.type}
-          value={selectedType}
-          options={typeOptions}
-          onChange={onTypeChange}
-        />
-        <FilterSelect
-          label={copy.status}
-          value={selectedStatus}
-          options={statusOptions}
-          onChange={onStatusChange}
-        />
-        <FilterSelect
-          label={copy.audience}
-          value={selectedAudience}
-          options={audienceOptions}
-          onChange={onAudienceChange}
-        />
-      </div>
-    </div>
+  const disclosureCopy = useIndiceFilterDisclosureCopy();
+  const hasActiveFilters = Boolean(
+    searchQuery.trim()
+      || selectedAudience !== 'all'
+      || selectedStatus !== 'all'
+      || selectedType !== 'all',
   );
-}
 
-function FilterSelect({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string;
-  options: ReadonlyArray<{ value: string; label: string }>;
-  value: string;
-  onChange: (value: string) => void;
-}) {
   return (
-    <label>
-      <span className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
-        {label}
-      </span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
+    <IndiceFilterBar
+      className="mb-6"
+      gridClassName="lg:grid-cols-4"
+      title={copy.title}
+      summary={(
+        <IndiceFilterDisclosureActions
+          activeAdvancedCount={0}
+          advancedLabel={disclosureCopy.moreFilters}
+          clearLabel={disclosureCopy.clearFilters}
+          hasActiveFilters={hasActiveFilters}
+          isAdvancedOpen={false}
+          onClear={onClearFilters}
+          onToggleAdvanced={() => undefined}
+          showAdvancedToggle={false}
+          tone="aqua"
+        />
+      )}
+    >
+      <IndiceFilterSearch
+        label={copy.searchLabel}
+        value={searchQuery}
+        onValueChange={onSearchChange}
+        onClear={() => onSearchChange('')}
+        placeholder={copy.searchPlaceholder}
+        tone="aqua"
+      />
+      <IndiceFilterSelect label={copy.type} value={selectedType} options={[...typeOptions]} onValueChange={onTypeChange} tone="aqua" />
+      <IndiceFilterSelect label={copy.status} value={selectedStatus} options={[...statusOptions]} onValueChange={onStatusChange} tone="aqua" />
+      <IndiceFilterSelect label={copy.audience} value={selectedAudience} options={[...audienceOptions]} onValueChange={onAudienceChange} tone="aqua" />
+    </IndiceFilterBar>
   );
 }

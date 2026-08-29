@@ -52,6 +52,21 @@ test('los flujos de oportunidades son seleccionables y alimentan Kanban y filtro
   assert.match(stageEditor, /stage\.opportunityCount === 0/);
 });
 
+test('Clientes importa leads de Meta mediante el backend sin persistir el token en el navegador', () => {
+  const page = read('src/app/BasicModules/Sales/Contactos/Contactos.tsx');
+  const modal = read('src/app/BasicModules/Sales/Contactos/components/MetaLeadImportModal.tsx');
+  const api = read('src/app/BasicModules/Sales/salesApi.ts');
+
+  assert.match(page, /t\.metaImport\.trigger/);
+  assert.match(page, /<MetaLeadImportModal/);
+  assert.match(page, /onImported=\{reloadAll\}/);
+  assert.match(modal, /modalType="standard-form"/);
+  assert.match(modal, /type="password"/);
+  assert.match(modal, /setAccessToken\(''\)/);
+  assert.doesNotMatch(modal, /localStorage|sessionStorage/);
+  assert.match(api, /\/meta-leads\/import/);
+});
+
 test('las relaciones vacías del CRM permanecen vacías al volver a guardar', () => {
   const source = read('src/app/BasicModules/Sales/adapters/salesApiAdapters.ts');
 
