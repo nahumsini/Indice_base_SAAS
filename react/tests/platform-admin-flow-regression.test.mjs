@@ -196,6 +196,23 @@ test("Root administra todos los tickets de sistema enviados por distribuidores",
   assert.doesNotMatch(systemTickets, /localStorage/);
 });
 
+test("detalle de ticket separa el scroll del cuerpo del footer operativo", () => {
+  assert.match(systemTicketDetail, /modalType="standard-form"/);
+  assert.match(systemTicketDetail, /contentClassName="h-\[min\(94dvh,860px\)\]"/);
+  assert.match(systemTicketDetail, /bodyClassName="[^"]*overflow-y-auto[^"]*"/);
+  assert.match(systemTicketDetail, /bodyClassName="[^"]*overscroll-contain[^"]*"/);
+  assert.match(systemTicketDetail, /bodyClassName="[^"]*pb-24[^"]*sm:pb-10[^"]*"/);
+  assert.match(systemTicketDetail, /bodyClassName="[^"]*scrollbar-gutter:stable[^"]*"/);
+  assert.match(systemTicketDetail, /Control operativo/);
+  assert.match(systemTicketDetail, /copy\.status/);
+  assert.match(systemTicketDetail, /copy\.priority/);
+  assert.match(systemTicketDetail, /copy\.assignee/);
+  assert.match(systemTicketDetail, /copy\.target/);
+  assert.match(systemTicketDetail, /\{copy\.save\}/);
+  assert.match(systemTicketDetail, /\{copy\.close\}/);
+  assert.match(systemTicketDetail, /dark:bg-\[#59C3A5\]\/10/);
+});
+
 test("clientes concentra el acceso promocional sin recuperar la pestaña eliminada", () => {
   assert.doesNotMatch(page, /id:\s*["']courtesy["']/);
   assert.match(page, /Acceso promocional/);
