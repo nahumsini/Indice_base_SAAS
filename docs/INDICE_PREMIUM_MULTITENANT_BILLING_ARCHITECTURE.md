@@ -124,6 +124,13 @@ La oferta comercial se administra como una versión completa e inmutable una vez
   cambio crea y valida un borrador nuevo antes de publicarlo.
 - Las suscripciones existentes conservan su `catalog_version_id`, selección, subtotal, descuento y
   promoción. Publicar una nueva versión nunca recalcula retroactivamente un contrato histórico.
+- Desplegar frontend, backend, contenedores o configuración operativa no constituye una publicación
+  comercial y no puede modificar precios. Los despliegues conservan las filas existentes; sólo el
+  flujo auditado de borrador, validación y publicación puede cambiar la oferta para nuevas altas.
+- Ninguna migración ordinaria, seed o sincronización de arranque puede actualizar importes,
+  referencias Stripe o estados de versiones ya existentes. Una corrección excepcional de precios
+  requiere una decisión comercial explícita, una migración nueva y evidencia de preservación de los
+  contratos que referencian versiones históricas.
 
 La Administración de plataforma presenta este modelo en un solo constructor de oferta comercial.
 La disponibilidad técnica de módulos permanece separada porque controla si una función existe y
@@ -525,8 +532,10 @@ provisionar tenants ni modificar permisos:
 - La reconciliación asocia suscripciones que llegaron antes que el Checkout y copia su selección
   comercial sin crear empresas o usuarios. También expira Checkout abandonado y purga el payload
   crudo después de 90 días sin borrar la trazabilidad mínima.
-- Todos los secretos se reciben por variable o archivo montado; el archivo tiene precedencia. El
-  runtime rechaza configuración live y llaves `sk_live_` en esta fase.
+- Todos los secretos se reciben por variable o archivo montado; el archivo tiene precedencia. En
+  esa fase el runtime rechazaba configuración live y llaves `sk_live_`; la implementación actual
+  acepta el modo configurado, exige que llave, webhook y objetos coincidan con él y mantiene las
+  escrituras LIVE del catálogo detrás de un gate independiente.
 - La integración se inicia con `APP_BILLING_STRIPE_ENABLED=false` y el procesador con
   `APP_BILLING_STRIPE_PROCESSOR_ENABLED=false`. Ninguna suscripción concede capabilities ni
   cambia acceso todavía.
@@ -816,9 +825,34 @@ después eliminarla en una operación separada y verificable.
 
 ## 19. Próximo paso recomendado
 
+### Control de referencias del catálogo en Stripe
+
+Desde la migración V227, cada Product, Price y Promotion Code del catálogo queda vinculado al modo
+`TEST` o `LIVE`, al identificador de cuenta de Stripe y a una verificación remota fechada. Los
+identificadores heredados se clasifican como `UNVERIFIED` y no bastan para publicar una oferta.
+La validación y la publicación comparan en Stripe cuenta, modo, estado, importe, moneda, intervalo,
+producto, comportamiento fiscal y definición de promociones. Con Stripe habilitado, el motor
+comercial falla cerrado si la versión activa no pertenece al entorno configurado.
+
+Las escrituras LIVE permanecen deshabilitadas por defecto. Una ventana de mantenimiento debe
+habilitar temporalmente `APP_BILLING_STRIPE_CATALOG_LIVE_SYNC_ENABLED`, ejecutarse como
+`PLATFORM_ROOT` y confirmar exactamente `PUBLICAR EN STRIPE LIVE`; después debe restaurar la
+bandera a `false`. Esta capacidad no sustituye los demás gates financieros ni autoriza cobros
+públicos por sí sola.
+
+Desde V228, la base de datos garantiza que sólo exista una versión `ACTIVE` y una versión `DRAFT`
+del catálogo. La publicación bloquea ambas versiones y el contenido del borrador dentro de la
+transacción final, vuelve a comprobar sus invariantes y evita que dos publicaciones concurrentes
+dejen más de una oferta vigente.
+
+V229 serializa por producto y modo las sincronizaciones contra Stripe. Una operación abandona la
+persistencia local si el borrador, el producto o sus precios cambiaron mientras Stripe respondía;
+los reintentos conservan claves idempotentes y las operaciones abandonadas quedan trazables.
+
 Ejecutar el runbook de Fase 8 exclusivamente en Stripe Test Mode: reconciliar una empresa interna,
 certificar cobro, seats, almacenamiento y morosidad con Test Clocks, y producir la evidencia de
 restauración y rollback. Antes de cobros públicos deben cerrarse los precios de `basic_all` y
 almacenamiento, prorrateo, suspensión y exportaciones; rotarse secretos; implementarse MFA real
-para plataforma; y realizarse una revisión explícita que retire los bloqueos de `sk_live_` y
-`livemode=true`. No se habilitará enforcement global como parte del alta.
+para plataforma; y realizarse una revisión explícita que autorice el modo
+`sk_live_`/`livemode=true`, aun cuando el runtime ya pueda validarlo técnicamente. No se habilitará
+enforcement global como parte del alta.

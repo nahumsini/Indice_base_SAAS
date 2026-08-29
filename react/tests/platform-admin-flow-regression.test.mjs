@@ -93,6 +93,9 @@ const distributorAssignment = read(
   "src/app/PlatformAdmin/DistributorAssignmentModal.tsx",
 );
 const platformApi = read("src/app/api/platformAdmin.ts");
+const allCompanyActivityPanel = read(
+  "src/app/PlatformAdmin/AllCompanyActivityPanel.tsx",
+);
 const company = read("src/app/PlatformAdmin/CompanyAccountDrawer.tsx");
 const companyOverview = read(
   "src/app/PlatformAdmin/CompanyAccount/CompanyOverviewTab.tsx",
@@ -193,6 +196,23 @@ test("Root administra todos los tickets de sistema enviados por distribuidores",
   assert.doesNotMatch(systemTickets, /localStorage/);
 });
 
+test("detalle de ticket separa el scroll del cuerpo del footer operativo", () => {
+  assert.match(systemTicketDetail, /modalType="standard-form"/);
+  assert.match(systemTicketDetail, /contentClassName="h-\[min\(94dvh,860px\)\]"/);
+  assert.match(systemTicketDetail, /bodyClassName="[^"]*overflow-y-auto[^"]*"/);
+  assert.match(systemTicketDetail, /bodyClassName="[^"]*overscroll-contain[^"]*"/);
+  assert.match(systemTicketDetail, /bodyClassName="[^"]*pb-24[^"]*sm:pb-10[^"]*"/);
+  assert.match(systemTicketDetail, /bodyClassName="[^"]*scrollbar-gutter:stable[^"]*"/);
+  assert.match(systemTicketDetail, /Control operativo/);
+  assert.match(systemTicketDetail, /copy\.status/);
+  assert.match(systemTicketDetail, /copy\.priority/);
+  assert.match(systemTicketDetail, /copy\.assignee/);
+  assert.match(systemTicketDetail, /copy\.target/);
+  assert.match(systemTicketDetail, /\{copy\.save\}/);
+  assert.match(systemTicketDetail, /\{copy\.close\}/);
+  assert.match(systemTicketDetail, /dark:bg-\[#59C3A5\]\/10/);
+});
+
 test("clientes concentra el acceso promocional sin recuperar la pestaña eliminada", () => {
   assert.doesNotMatch(page, /id:\s*["']courtesy["']/);
   assert.match(page, /Acceso promocional/);
@@ -242,7 +262,9 @@ test("catálogo y módulos guía un flujo operativo de disponibilidad producto y
   assert.match(commercialOfferWorkspace, /modalType="standard-form"/);
   assert.match(commercialOfferWorkspace, /editorSection === "pricing"/);
   assert.match(commercialOfferWorkspace, /editorSection === "availability"/);
+  assert.match(commercialOfferWorkspace, /onClose=\{\(\) => setSelection\(null\)\}/);
   assert.match(commercialOfferDetail, /Módulos incluidos/);
+  assert.match(commercialOfferDetail, /setFeedback\(copy\.saved\);\s*onClose\(\);/);
   assert.match(commercialOfferDetail, /Mensual USD/);
   assert.match(commercialOfferDetail, /Anual USD/);
   assert.match(commercialOfferDetail, /Stripe Promotion ID/);
@@ -252,9 +274,15 @@ test("catálogo y módulos guía un flujo operativo de disponibilidad producto y
   assert.match(commercialOfferDetail, /Guardar disponibilidad/);
   assert.match(commercialOfferDetail, /No sumes el impuesto a estos precios/);
   assert.match(commercialOfferDetail, /Guardar y conectar con Stripe TEST/);
+  assert.match(commercialOfferDetail, /PUBLICAR EN STRIPE LIVE/);
+  assert.match(commercialOfferDetail, /target_mode: stripeMode/);
+  assert.match(commercialOfferDetail, /liveSyncEnabled/);
   assert.match(commercialOfferDetail, /synchronizeCatalogProductPrices/);
   assert.match(commercialOfferDetail, /suscripciones existentes/);
   assert.match(platformApi, /PlatformCatalogStripePriceSync/);
+  assert.match(platformApi, /stripe_sync_status/);
+  assert.match(platformApi, /catalog_live_sync_enabled/);
+  assert.match(platformApi, /drafts\/\$\{versionId\}\/validation`,\s*\{ method: 'POST' \}/);
   assert.match(platformApi, /stripe-prices\/synchronize/);
 });
 
@@ -371,6 +399,23 @@ test("clientes resume facturacion mensual cuentas activas y usuarios reales", ()
   assert.match(page, /customer_active_users/);
   assert.match(page, /Facturaci.n mensual/);
   assert.match(page, /usuarios activos totales/);
+});
+
+test("clientes conserva contratos históricos y confirma el nuevo total antes de modificar Stripe", () => {
+  assert.match(platformApi, /catalog_version_historical\?: boolean/);
+  assert.match(platformApi, /previewCompanyProducts/);
+  assert.match(platformApi, /products\/preview/);
+  assert.match(customerRow, /Contrato histórico/);
+  assert.match(companyModules, /subscriptionProductCodes/);
+  assert.match(companyModules, /Confirma el cambio comercial/);
+  assert.match(companyModules, /estimated_amount_cents/);
+  assert.match(companyModules, /pendingChange\.preview\.catalog_version/);
+  assert.match(platformApi, /expected_catalog_version: expectedCatalogVersion/);
+  assert.match(companyModules, /sin prorrateo ni cobro inmediato/);
+  assert.match(companyModules, /Acceso de cortesía/);
+  assert.doesNotMatch(companyModules, /se factura o acredita el prorrateo/);
+  assert.match(company, /onPreviewProducts/);
+  assert.match(page, /previewCompanyProducts/);
 });
 
 test("las tarjetas de clientes funcionan como filtros operativos", () => {
@@ -554,13 +599,13 @@ test("la entrega de la cuenta permite copiar todos los datos de acceso", () => {
 });
 
 test("la cuenta separa módulos activos de los disponibles para agregar", () => {
-  assert.match(companyModules, /Módulos activos/);
-  assert.match(companyModules, /Disponibles para agregar/);
+  assert.match(companyModules, /Contrato y accesos vigentes/);
+  assert.match(companyModules, /Oferta disponible/);
   assert.match(companyModules, /availableCatalogProducts/);
-  assert.match(companyModules, /Sólo aparecen módulos publicados y listos comercialmente/);
-  assert.match(companyModules, /onUpdateTrialProducts\(\[\.\.\.trialSelection, product\.product_code\]\)/);
-  assert.match(companyModules, /onGrant\(product\.product_code\)/);
-  assert.match(companyModules, /Esta cuenta ya tiene todos los módulos disponibles del catálogo/);
+  assert.match(companyModules, /Productos publicados de la versión activa/);
+  assert.match(companyModules, /requestPreview/);
+  assert.match(companyModules, /onGrant\(product\.code\)/);
+  assert.match(companyModules, /Esta cuenta ya tiene toda la oferta disponible/);
 });
 
 test("usuarios incluidos ocupan y liberan lugares con invitaciones controladas", () => {
@@ -787,4 +832,17 @@ test("órdenes de módulos y operación de consultoría persisten por API", () =
   assert.match(platformApi, /createConsultingLocation:/);
   assert.match(platformApi, /createConsultingAppointment:/);
   assert.doesNotMatch(consulting, /localStorage/);
+});
+
+test("actividades globales muestran línea editable de usuarios activos", () => {
+  assert.match(platformApi, /unique_active_users:\s*number/);
+  assert.match(platformApi, /recent_events_has_more:\s*boolean/);
+  assert.match(platformApi, /recentLimit=/);
+  assert.match(allCompanyActivityPanel, /LineChart/);
+  assert.match(allCompanyActivityPanel, /PLATFORM_ACTIVITY_CHART_STORAGE_KEY/);
+  assert.match(allCompanyActivityPanel, /unique_active_users/);
+  assert.match(allCompanyActivityPanel, /Active users/);
+  assert.match(allCompanyActivityPanel, /Customize/);
+  assert.match(allCompanyActivityPanel, /Load more activity/);
+  assert.doesNotMatch(allCompanyActivityPanel, /BarChart/);
 });

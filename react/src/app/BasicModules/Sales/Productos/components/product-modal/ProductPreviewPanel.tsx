@@ -17,6 +17,13 @@ import { ProductReadinessBadges } from './ProductReadinessBadges';
 
 const usageOrder: ProductUsageKey[] = ['sales', 'pos', 'inventory'];
 
+function presentationUnitLabel(product: SalesCatalogItem, t: ProductsTranslations) {
+  if (!product.packaging) return '';
+  return product.packaging.saleUnit === 'Unit'
+    ? t.packaging.baseUnitLabels[product.packaging.baseUnit]
+    : t.packaging.saleUnitLabels[product.packaging.saleUnit];
+}
+
 export function ProductPreviewPanel({
   embedded = false,
   product,
@@ -101,7 +108,7 @@ export function ProductPreviewPanel({
                   {t.packaging.previewTitle}
                 </p>
                 <p className="mt-2 text-sm font-medium text-slate-950">
-                  {t.packaging.priceSummary(formatProductCurrency(presentationPrice, product.currency), t.packaging.saleUnitLabels[product.packaging.saleUnit])}
+                  {t.packaging.priceSummary(formatProductCurrency(presentationPrice, product.currency), presentationUnitLabel(product, t))}
                 </p>
                 <p className="mt-1 text-xs font-medium text-slate-500">
                   {t.packaging.contentSummary(

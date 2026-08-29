@@ -1,15 +1,20 @@
 package com.indice.erp.platformadmin;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import com.indice.erp.billing.stripe.StripeCatalogGateway;
+import com.indice.erp.billing.stripe.StripeGatewayException;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -226,17 +231,38 @@ class PlatformCatalogManagementServiceIntegrationTest {
             .containsEntry("commercial_kind", "MODULE")
             .containsEntry("monthly_price_cents", 900L)
             .containsKey("commercial_model");
+        @SuppressWarnings("unchecked")
+        var stripeEnvironment = (Map<String, Object>) catalog.get("stripe_environment");
+        assertThat(stripeEnvironment)
+            .containsEntry("enabled", true)
+            .containsEntry("mode", "TEST")
+            .containsEntry("catalog_live_sync_enabled", false);
     }
 
     @Test
     void catalogPricesAreCreatedInStripeTestAsTaxExclusiveAndPersisted() {
+        given(stripeCatalogGateway.account())
+            .willReturn(new StripeCatalogGateway.AccountResult("acct_catalog_test", true, true));
         given(stripeCatalogGateway.upsertProduct(any(), anyString()))
-            .willReturn(new StripeCatalogGateway.ProductResult("prod_catalog_test"));
+            .willReturn(new StripeCatalogGateway.ProductResult("prod_catalog_test", false));
+        given(stripeCatalogGateway.verifyProduct("prod_catalog_test"))
+            .willReturn(new StripeCatalogGateway.ProductVerification(
+                "prod_catalog_test", "Catalog management add-on", "txcd_10103001", true, false
+            ));
         given(stripeCatalogGateway.createRecurringPrice(any(), anyString()))
             .willAnswer(invocation -> {
                 var command = invocation.getArgument(0, StripeCatalogGateway.PriceCommand.class);
                 var suffix = "month".equals(command.interval()) ? "monthly" : "annual";
-                return new StripeCatalogGateway.PriceResult("price_synced_" + suffix, "exclusive");
+                return new StripeCatalogGateway.PriceResult("price_synced_" + suffix, "exclusive", false);
+            });
+        given(stripeCatalogGateway.verifyRecurringPrice(anyString()))
+            .willAnswer(invocation -> {
+                var priceId = invocation.getArgument(0, String.class);
+                var monthly = priceId.endsWith("monthly");
+                return new StripeCatalogGateway.PriceVerification(
+                    priceId, "prod_catalog_test", "usd", monthly ? 1_200L : 12_000L,
+                    monthly ? "month" : "year", "exclusive", true, false
+                );
             });
 
         var result = stripeSynchronizationService.synchronize(
@@ -247,14 +273,18 @@ class PlatformCatalogManagementServiceIntegrationTest {
 
         assertThat(result)
             .containsEntry("stripe_mode", "TEST")
+            .containsEntry("stripe_account_id", "acct_catalog_test")
             .containsEntry("tax_behavior", "EXCLUSIVE")
             .containsEntry("tax_code", "txcd_10103001")
             .containsEntry("automatic_tax_enabled", true);
         assertThat(jdbc.queryForMap(
-            "SELECT external_product_id, stripe_tax_code FROM billing_catalog_products WHERE id = ?",
+            "SELECT external_product_id, stripe_tax_code, stripe_mode, stripe_account_id, stripe_sync_status FROM billing_catalog_products WHERE id = ?",
             productId
         )).containsEntry("external_product_id", "prod_catalog_test")
-            .containsEntry("stripe_tax_code", "txcd_10103001");
+            .containsEntry("stripe_tax_code", "txcd_10103001")
+            .containsEntry("stripe_mode", "TEST")
+            .containsEntry("stripe_account_id", "acct_catalog_test")
+            .containsEntry("stripe_sync_status", "READY");
         assertThat(jdbc.queryForList(
             """
                 SELECT billing_interval, unit_amount_cents, external_price_id, stripe_tax_behavior, status
@@ -267,6 +297,251 @@ class PlatformCatalogManagementServiceIntegrationTest {
             assertThat(price.get("external_price_id").toString()).startsWith("price_synced_");
         });
         verify(stripeCatalogGateway).upsertProduct(any(), anyString());
+
+        var repeated = stripeSynchronizationService.synchronize(
+            actorUserId,
+            productId,
+            new PlatformCatalogStripeSynchronizationService.SynchronizeRequest(1_200L, 12_000L)
+        );
+        assertThat(repeated.get("operation_id")).isNotEqualTo(result.get("operation_id"));
+        assertThat(jdbc.queryForObject(
+            "SELECT COUNT(*) FROM billing_catalog_stripe_sync_operations WHERE catalog_product_id = ?",
+            Integer.class,
+            productId
+        )).isEqualTo(2);
+    }
+
+    @Test
+    void partialStripeFailureIsRecordedWithoutPublishingPartialDatabaseState() {
+        given(stripeCatalogGateway.account())
+            .willReturn(new StripeCatalogGateway.AccountResult("acct_catalog_test", true, true));
+        given(stripeCatalogGateway.upsertProduct(any(), anyString()))
+            .willReturn(new StripeCatalogGateway.ProductResult("prod_catalog_partial", false));
+        given(stripeCatalogGateway.verifyProduct("prod_catalog_partial"))
+            .willReturn(new StripeCatalogGateway.ProductVerification(
+                "prod_catalog_partial", "Catalog management add-on", "txcd_10103001", true, false
+            ));
+        var calls = new AtomicInteger();
+        given(stripeCatalogGateway.createRecurringPrice(any(), anyString()))
+            .willAnswer(invocation -> {
+                if (calls.incrementAndGet() == 2) {
+                    throw new StripeGatewayException("Annual price failed", null);
+                }
+                return new StripeCatalogGateway.PriceResult("price_partial_month", "exclusive", false);
+            });
+        given(stripeCatalogGateway.verifyRecurringPrice("price_partial_month"))
+            .willReturn(new StripeCatalogGateway.PriceVerification(
+                "price_partial_month", "prod_catalog_partial", "usd", 1_200L,
+                "month", "exclusive", true, false
+            ));
+
+        assertThatThrownBy(() -> stripeSynchronizationService.synchronize(
+            actorUserId,
+            productId,
+            new PlatformCatalogStripeSynchronizationService.SynchronizeRequest(1_200L, 12_000L)
+        )).isInstanceOf(StripeGatewayException.class);
+
+        assertThat(jdbc.queryForMap(
+            "SELECT external_product_id, stripe_sync_status FROM billing_catalog_products WHERE id = ?",
+            productId
+        )).containsEntry("stripe_sync_status", "PENDING")
+            .containsEntry("external_product_id", null);
+        assertThat(jdbc.queryForList(
+            "SELECT unit_amount_cents, external_price_id FROM billing_catalog_prices WHERE catalog_product_id = ? ORDER BY billing_interval",
+            productId
+        )).allSatisfy(price -> assertThat(price.get("external_price_id").toString()).startsWith("price_catalog_management"));
+        assertThat(jdbc.queryForMap(
+            "SELECT status, attempt_count, last_error FROM billing_catalog_stripe_sync_operations WHERE catalog_product_id = ?",
+            productId
+        )).containsEntry("status", "FAILED")
+            .containsEntry("attempt_count", 1)
+            .containsEntry("last_error", "Annual price failed");
+
+        calls.set(0);
+        doAnswer(invocation -> {
+                var command = invocation.getArgument(0, StripeCatalogGateway.PriceCommand.class);
+                var suffix = "month".equals(command.interval()) ? "month" : "year";
+                return new StripeCatalogGateway.PriceResult("price_partial_" + suffix, "exclusive", false);
+            })
+            .when(stripeCatalogGateway).createRecurringPrice(any(), anyString());
+        given(stripeCatalogGateway.verifyRecurringPrice(anyString()))
+            .willAnswer(invocation -> {
+                var externalId = invocation.getArgument(0, String.class);
+                var monthly = externalId.endsWith("month");
+                return new StripeCatalogGateway.PriceVerification(
+                    externalId, "prod_catalog_partial", "usd", monthly ? 1_200L : 12_000L,
+                    monthly ? "month" : "year", "exclusive", true, false
+                );
+            });
+
+        stripeSynchronizationService.synchronize(
+            actorUserId,
+            productId,
+            new PlatformCatalogStripeSynchronizationService.SynchronizeRequest(1_200L, 12_000L)
+        );
+
+        assertThat(jdbc.queryForMap(
+            "SELECT status, attempt_count, last_error FROM billing_catalog_stripe_sync_operations WHERE catalog_product_id = ?",
+            productId
+        )).containsEntry("status", "SUCCEEDED")
+            .containsEntry("attempt_count", 2)
+            .containsEntry("last_error", null);
+        assertThat(jdbc.queryForObject(
+            "SELECT COUNT(*) FROM billing_catalog_stripe_sync_operations WHERE catalog_product_id = ?",
+            Integer.class,
+            productId
+        )).isEqualTo(1);
+    }
+
+    @Test
+    void aRunningOperationPreventsASecondStripeSynchronizationForTheSameProductAndMode() {
+        jdbc.update(
+            """
+                INSERT INTO billing_catalog_stripe_sync_operations (
+                    operation_key, catalog_version_id, catalog_product_id, stripe_mode,
+                    stripe_account_id, monthly_amount_cents, annual_amount_cents,
+                    status, running_scope, attempt_count, started_at
+                ) VALUES (?, ?, ?, 'TEST', 'acct_catalog_test', 1200, 12000,
+                          'RUNNING', ?, 1, CURRENT_TIMESTAMP(6))
+                """,
+            UUID.randomUUID().toString(), versionId, productId, productId + ":TEST"
+        );
+        given(stripeCatalogGateway.account())
+            .willReturn(new StripeCatalogGateway.AccountResult("acct_catalog_test", true, true));
+
+        assertThatThrownBy(() -> stripeSynchronizationService.synchronize(
+            actorUserId,
+            productId,
+            new PlatformCatalogStripeSynchronizationService.SynchronizeRequest(1_300L, 13_000L)
+        )).isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("sincronización de Stripe en curso");
+
+        verify(stripeCatalogGateway, never()).upsertProduct(any(), anyString());
+        assertThat(jdbc.queryForObject(
+            "SELECT COUNT(*) FROM billing_catalog_stripe_sync_operations WHERE catalog_product_id = ?",
+            Integer.class,
+            productId
+        )).isEqualTo(1);
+    }
+
+    @Test
+    void anAdministratorPriceChangeDuringStripeCallsIsNotOverwrittenByTheLateResponse() {
+        stubSuccessfulStripeSynchronization();
+        var calls = new AtomicInteger();
+        doAnswer(invocation -> {
+                var command = invocation.getArgument(0, StripeCatalogGateway.PriceCommand.class);
+                var suffix = "month".equals(command.interval()) ? "monthly" : "annual";
+                if (calls.incrementAndGet() == 1) {
+                    jdbc.update(
+                        "UPDATE billing_catalog_prices SET unit_amount_cents = 777, status = 'DRAFT' WHERE id = ?",
+                        priceId
+                    );
+                }
+                return new StripeCatalogGateway.PriceResult("price_synced_" + suffix, "exclusive", false);
+            })
+            .when(stripeCatalogGateway).createRecurringPrice(any(), anyString());
+
+        assertThatThrownBy(() -> stripeSynchronizationService.synchronize(
+            actorUserId,
+            productId,
+            new PlatformCatalogStripeSynchronizationService.SynchronizeRequest(1_200L, 12_000L)
+        )).isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("precios cambiaron durante la sincronización");
+
+        assertThat(jdbc.queryForMap(
+            "SELECT unit_amount_cents, external_price_id, status FROM billing_catalog_prices WHERE id = ?",
+            priceId
+        )).containsEntry("unit_amount_cents", 777L)
+            .containsEntry("external_price_id", "price_catalog_management_test")
+            .containsEntry("status", "DRAFT");
+        assertThat(jdbc.queryForMap(
+            "SELECT status, running_scope FROM billing_catalog_stripe_sync_operations WHERE catalog_product_id = ?",
+            productId
+        )).containsEntry("status", "FAILED")
+            .containsEntry("running_scope", null);
+    }
+
+    @Test
+    void validationRejectsARemoteStripePriceThatNoLongerMatchesTheCatalog() {
+        stubSuccessfulStripeSynchronization();
+        stripeSynchronizationService.synchronize(
+            actorUserId,
+            productId,
+            new PlatformCatalogStripeSynchronizationService.SynchronizeRequest(1_200L, 12_000L)
+        );
+        jdbc.update("UPDATE billing_catalog_products SET active = 1 WHERE id = ?", productId);
+        given(stripeCatalogGateway.verifyRecurringPrice(anyString()))
+            .willAnswer(invocation -> new StripeCatalogGateway.PriceVerification(
+                invocation.getArgument(0, String.class), "prod_catalog_test", "usd", 99_999L,
+                invocation.getArgument(0, String.class).endsWith("monthly") ? "month" : "year",
+                "exclusive", true, false
+            ));
+
+        var validation = service.validateDraft(actorUserId, versionId);
+        @SuppressWarnings("unchecked")
+        var blockers = (List<Map<String, Object>>) validation.get("blockers");
+
+        assertThat(validation).containsEntry("ready", false);
+        assertThat(blockers).anyMatch(blocker -> "STRIPE_PRICE_MISMATCH".equals(blocker.get("code")));
+        assertThat(jdbc.queryForList(
+            "SELECT stripe_sync_status FROM billing_catalog_prices WHERE catalog_product_id = ?",
+            String.class,
+            productId
+        )).containsOnly("ERROR");
+    }
+
+    @Test
+    void validationBindsAndVerifiesPromotionCodesAgainstTheConfiguredStripeAccount() {
+        given(stripeCatalogGateway.account())
+            .willReturn(new StripeCatalogGateway.AccountResult("acct_catalog_test", true, true));
+        given(stripeCatalogGateway.verifyPromotionCode("promo_catalog_test"))
+            .willReturn(new StripeCatalogGateway.PromotionVerification(
+                "promo_catalog_test", "SAVE20", "PERCENT", 2_000, null, null,
+                "ONCE", null, List.of(), true, false
+            ));
+        var created = service.createPromotion(
+            actorUserId,
+            new PlatformCatalogManagementService.PromotionRequest(
+                "SAVE20", "Save twenty", null, "PERCENT", 2_000, null,
+                "ONCE", null, null, null, "promo_catalog_test", true, 10, List.of()
+            )
+        );
+
+        service.validateDraft(actorUserId, versionId);
+
+        assertThat(jdbc.queryForMap(
+            "SELECT stripe_mode, stripe_account_id, stripe_sync_status, stripe_verified_at FROM billing_catalog_promotions WHERE id = ?",
+            created.get("id")
+        )).containsEntry("stripe_mode", "TEST")
+            .containsEntry("stripe_account_id", "acct_catalog_test")
+            .containsEntry("stripe_sync_status", "READY")
+            .doesNotContainEntry("stripe_verified_at", null);
+    }
+
+    private void stubSuccessfulStripeSynchronization() {
+        given(stripeCatalogGateway.account())
+            .willReturn(new StripeCatalogGateway.AccountResult("acct_catalog_test", true, true));
+        given(stripeCatalogGateway.upsertProduct(any(), anyString()))
+            .willReturn(new StripeCatalogGateway.ProductResult("prod_catalog_test", false));
+        given(stripeCatalogGateway.verifyProduct("prod_catalog_test"))
+            .willReturn(new StripeCatalogGateway.ProductVerification(
+                "prod_catalog_test", "Catalog management add-on", "txcd_10103001", true, false
+            ));
+        given(stripeCatalogGateway.createRecurringPrice(any(), anyString()))
+            .willAnswer(invocation -> {
+                var command = invocation.getArgument(0, StripeCatalogGateway.PriceCommand.class);
+                var suffix = "month".equals(command.interval()) ? "monthly" : "annual";
+                return new StripeCatalogGateway.PriceResult("price_synced_" + suffix, "exclusive", false);
+            });
+        given(stripeCatalogGateway.verifyRecurringPrice(anyString()))
+            .willAnswer(invocation -> {
+                var priceId = invocation.getArgument(0, String.class);
+                var monthly = priceId.endsWith("monthly");
+                return new StripeCatalogGateway.PriceVerification(
+                    priceId, "prod_catalog_test", "usd", monthly ? 1_200L : 12_000L,
+                    monthly ? "month" : "year", "exclusive", true, false
+                );
+            });
     }
 
     private void cleanTestState() {

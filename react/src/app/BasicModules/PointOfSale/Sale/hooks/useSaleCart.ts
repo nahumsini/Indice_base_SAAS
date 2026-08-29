@@ -30,6 +30,8 @@ export interface CartBatchResult {
   insufficientStock: string[];
 }
 
+const normalizeSaleQuantity = (quantity: number) => Number(quantity.toFixed(3));
+
 export function useSaleCart({ products, taxOverride }: UseSaleCartOptions) {
   const [cart, setCart] = useState<SaleItem[]>([]);
   const [barcodeInput, setBarcodeInput] = useState('');
@@ -52,7 +54,8 @@ export function useSaleCart({ products, taxOverride }: UseSaleCartOptions) {
   }, []);
 
   const updateQuantity = useCallback((itemId: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
+    const normalizedQuantity = normalizeSaleQuantity(newQuantity);
+    if (normalizedQuantity <= 0) {
       removeItem(itemId);
       return;
     }
@@ -63,23 +66,24 @@ export function useSaleCart({ products, taxOverride }: UseSaleCartOptions) {
       }
 
       const product = products.find((candidate) => candidate.id === item.productId);
-      if (product && product.useInventory && newQuantity > product.currentStock) {
+      if (product && product.useInventory && normalizedQuantity > product.currentStock) {
         setCartNotice(`Stock insuficiente para ${product.name}. Disponible: ${product.currentStock}.`);
         return item;
       }
 
-      return recalculateSaleItem(item, { quantity: newQuantity });
+      return recalculateSaleItem(item, { quantity: normalizedQuantity });
     }));
   }, [products, removeItem]);
 
-  const addToCart = useCallback((product: Product, quantity = 1) => {
+  const addToCart = useCallback((product: Product, quantity = product.minimumSaleQuantity ?? 1) => {
+    const requestedQuantity = normalizeSaleQuantity(quantity);
     if (product.useInventory) {
       const currentInCart = cart.find((item) => item.productId === product.id)?.quantity || 0;
 
       if (product.currentStock <= 0) {
         setCartNotice(`${product.name} esta agotado. Agrega inventario antes de venderlo en POS.`);
         return;
-      } else if (currentInCart + quantity > product.currentStock) {
+      } else if (currentInCart + requestedQuantity > product.currentStock) {
         setCartNotice(`Stock insuficiente para ${product.name}. Disponible: ${product.currentStock}.`);
         return;
       }
@@ -88,13 +92,13 @@ export function useSaleCart({ products, taxOverride }: UseSaleCartOptions) {
     const existingItem = cart.find((item) => item.productId === product.id);
 
     if (existingItem) {
-      updateQuantity(existingItem.id, existingItem.quantity + quantity);
+      updateQuantity(existingItem.id, existingItem.quantity + requestedQuantity);
       setLastAddedItem(existingItem.id);
       setCartNotice('');
       return;
     }
 
-    const newItem = buildSaleItem(product, quantity, taxOverride);
+    const newItem = buildSaleItem(product, requestedQuantity, taxOverride);
     setCart([newItem, ...cart]);
     setLastAddedItem(newItem.id);
     setCartNotice('');

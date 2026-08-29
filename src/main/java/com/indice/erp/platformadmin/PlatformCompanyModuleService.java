@@ -3,6 +3,7 @@ package com.indice.erp.platformadmin;
 import com.indice.erp.billing.catalog.CommercialOfferSelectionService;
 import com.indice.erp.billing.subscription.BillingProductSelectionService;
 import com.indice.erp.billing.subscription.BillingSelectionRequest;
+import com.indice.erp.billing.subscription.BillingSelectionResponse;
 import com.indice.erp.billing.stripe.StripeBillingGateway;
 import com.indice.erp.billing.stripe.StripePhaseTwoProperties;
 import com.stripe.exception.StripeException;
@@ -65,6 +66,36 @@ public class PlatformCompanyModuleService {
         return updateTrialProductsAfterAuthorization(actorUserId, companyId, idempotencyKey, request);
     }
 
+    public BillingSelectionResponse previewProducts(
+        long actorUserId,
+        long companyId,
+        ProductSelectionRequest request
+    ) {
+        accessService.require(actorUserId, "PLATFORM_BENEFITS_WRITE");
+        return previewProductsAfterAuthorization(companyId, request);
+    }
+
+    /** Caller must authorize the target company before invoking this shared operation. */
+    public BillingSelectionResponse previewProductsAfterAuthorization(
+        long companyId,
+        ProductSelectionRequest request
+    ) {
+        var subscription = subscription(companyId);
+        if (!subscription.stripeManaged()) {
+            throw new IllegalStateException(
+                "Esta cuenta todavía no tiene una suscripción administrada por Stripe."
+            );
+        }
+        return billingSelections.preview(
+            companyId,
+            new BillingSelectionRequest(
+                request == null ? null : request.product_codes(),
+                null,
+                subscription.billingInterval()
+            )
+        );
+    }
+
     /** Caller must authorize the target company before invoking this shared operation. */
     public Map<String, Object> updateTrialProductsAfterAuthorization(
         long actorUserId,
@@ -87,7 +118,8 @@ public class PlatformCompanyModuleService {
                 request == null ? null : request.product_codes(),
                 null,
                 subscription.billingInterval()
-            )
+            ),
+            request == null ? null : request.expected_catalog_version()
         );
         var selectedCodes = selection.selected_product_codes();
         audit.record(actorUserId, "TRIAL_PRODUCTS_UPDATED", "COMPANY", String.valueOf(companyId), companyId, "SUCCESS", Map.of(
@@ -215,7 +247,10 @@ public class PlatformCompanyModuleService {
         return value == null ? null : value.toInstant();
     }
 
-    public record ProductSelectionRequest(List<String> product_codes) {
+    public record ProductSelectionRequest(List<String> product_codes, String expected_catalog_version) {
+        public ProductSelectionRequest(List<String> productCodes) {
+            this(productCodes, null);
+        }
     }
 
     private record SubscriptionRecord(

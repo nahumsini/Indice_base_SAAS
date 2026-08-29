@@ -11,6 +11,7 @@ import type { PettyCashCurrency, PettyCashFund, PettyCashFundStatus, PettyCashSt
 import { hasPettyCashBackendId, pettyCashService } from '../services';
 import { useTablePagination } from '../../../hooks/useTablePagination';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
+import { ColumnasConfigModal, type ColumnConfig } from '../../../components/rh/ColumnasConfigModal';
 import { IndiceModalFrame, IndiceModalSummary, IndiceModalValidation } from '../../../components/indice-modal';
 import { KioskAdminActionButton, KioskAdminPanelAction } from '../../../components/kiosk-engine/KioskAdminPrimitives';
 import { KioskModalFrame } from '../../../components/kiosk-engine/KioskModalFrame';
@@ -41,8 +42,12 @@ import {
   pettyCashInputClass,
   PettyCashStatusPill,
   PettyCashTableShell,
+  normalizePettyCashColumns,
+  usePettyCashColumns,
   usePettyCashTableSort,
 } from './PettyCashShared';
+
+const pettyCashFundsColumnsStorageKey = 'indice.pettyCash.funds.columns.v1';
 
 type PettyCashFundsWorkspaceProps = {
   funds: PettyCashFund[];
@@ -270,6 +275,22 @@ const getUsableKioskPath = (fund?: PettyCashFund) => {
 
 export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, statements }: PettyCashFundsWorkspaceProps) {
   const copy = usePettyCashTranslations();
+  const defaultColumns = useMemo<ColumnConfig[]>(() => [
+    { id: 'fund', label: copy.funds.table.fund, visible: true, locked: true },
+    { id: 'responsible', label: copy.funds.table.responsible, visible: true },
+    { id: 'balance', label: copy.funds.table.balance, visible: true },
+    { id: 'pending', label: copy.funds.table.pending, visible: true },
+    { id: 'status', label: copy.funds.table.status, visible: true },
+    { id: 'unit', label: copy.funds.table.unit, visible: false },
+    { id: 'business', label: copy.funds.table.business, visible: false },
+    { id: 'source', label: copy.funds.table.source, visible: false },
+    { id: 'budget', label: copy.funds.table.budget, visible: false },
+    { id: 'kiosk', label: copy.funds.table.kiosk, visible: false },
+  ], [copy.funds.table]);
+  const fixedColumns = useMemo<ColumnConfig[]>(() => [
+    { id: 'actions', label: copy.common.actions, visible: true, locked: true },
+  ], [copy.common.actions]);
+  const { columns, setColumns, visibleColumns } = usePettyCashColumns(pettyCashFundsColumnsStorageKey, defaultColumns);
   const { preferredCurrency } = usePreferredBusinessCurrency();
   const { currentLanguage } = useLanguage();
   const currencyCopy = getOperationalKpiCurrencyCopy(currentLanguage.code);
@@ -277,6 +298,7 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
   const [unitFilter, setUnitFilter] = useState('all');
   const [businessFilter, setBusinessFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<PettyCashFundStatus | 'all'>('all');
+  const [showColumnsModal, setShowColumnsModal] = useState(false);
   const [isCreateFundOpen, setIsCreateFundOpen] = useState(false);
   const [editingFund, setEditingFund] = useState<PettyCashFund | null>(null);
   const [deletingFund, setDeletingFund] = useState<PettyCashFund | null>(null);
@@ -311,7 +333,7 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
       .filter(option => option.id)
       .sort((left, right) => left.name.localeCompare(right.name))
   ), [funds, unitFilter]);
-  const filteredFunds = useMemo(() => {
+  const scopedFunds = useMemo(() => {
     const search = searchTerm.trim().toLowerCase();
     return funds.filter((fund) => {
       const matchesSearch = !search
@@ -321,24 +343,25 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
         || fund.fundingSourceName.toLowerCase().includes(search)
         || fund.unitName.toLowerCase().includes(search)
         || fund.businessName.toLowerCase().includes(search);
-      const matchesStatus = statusFilter === 'all' || fund.status === statusFilter;
       const matchesUnit = unitFilter === 'all' || fund.unitId === unitFilter;
       const matchesBusiness = businessFilter === 'all' || fund.businessId === businessFilter;
-      return matchesSearch && matchesUnit && matchesBusiness && matchesStatus;
+      return matchesSearch && matchesUnit && matchesBusiness;
     });
-  }, [businessFilter, funds, searchTerm, statusFilter, unitFilter]);
-  const filteredFundIds = useMemo(() => new Set(filteredFunds.map(fund => fund.id)), [filteredFunds]);
-  const aggregateIds = filteredFunds.map((fund) => fund.id);
+  }, [businessFilter, funds, searchTerm, unitFilter]);
+  const filteredFunds = useMemo(() => scopedFunds.filter((fund) => (
+    statusFilter === 'all' || fund.status === statusFilter
+  )), [scopedFunds, statusFilter]);
+  const aggregateIds = scopedFunds.map((fund) => fund.id);
   const balanceAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_BALANCE', preferredCurrency, ids: aggregateIds });
   const limitAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_LIMIT', preferredCurrency, ids: aggregateIds });
   const balanceLabel = balanceAggregate.data && !balanceAggregate.loading
     ? formatPettyCashCurrency(balanceAggregate.data.preferredTotal, preferredCurrency) : '—';
   const limitLabel = limitAggregate.data && !limitAggregate.loading
     ? formatPettyCashCurrency(limitAggregate.data.preferredTotal, preferredCurrency) : '—';
-  const riskCount = filteredFunds.filter((fund) => fund.status === 'LOW_BALANCE' || fund.status === 'NEEDS_RECONCILIATION').length;
+  const riskCount = scopedFunds.filter((fund) => fund.status === 'LOW_BALANCE' || fund.status === 'NEEDS_RECONCILIATION').length;
   const currencyCount = useMemo(
-    () => new Set(filteredFunds.map(fund => fund.currencyCode)).size,
-    [filteredFunds],
+    () => new Set(scopedFunds.map(fund => fund.currencyCode)).size,
+    [scopedFunds],
   );
   const nativeBalance = balanceAggregate.data?.nativeTotals
     .map(({ amount, currency }) => formatPettyCashCurrency(amount, currency as PettyCashCurrency)).join(' / ') || preferredCurrency;
@@ -665,6 +688,7 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
         description={copy.funds.header.description}
         emoji="🗃️"
         onAction={() => setIsCreateFundOpen(true)}
+        onColumns={() => setShowColumnsModal(true)}
         onSecondaryAction={() => setIsKioskOpen(true)}
         secondaryActionIcon={KeyRound}
         secondaryActionLabel={copy.funds.header.kiosk}
@@ -678,6 +702,41 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
       ) : null}
 
       <PettyCashFilterShell
+        activeAdvancedCount={Number(unitFilter !== 'all') + Number(businessFilter !== 'all')}
+        advancedContent={(
+          <>
+            <PettyCashField label={copy.funds.table.unit}>
+              <select
+                className={pettyCashInputClass}
+                onChange={(event) => {
+                  setUnitFilter(event.target.value);
+                  setBusinessFilter('all');
+                }}
+                value={unitFilter}
+              >
+                <option value="all">{copy.common.all}</option>
+                {fundUnitOptions.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}
+              </select>
+            </PettyCashField>
+            <PettyCashField label={copy.funds.table.business}>
+              <select
+                className={pettyCashInputClass}
+                onChange={(event) => setBusinessFilter(event.target.value)}
+                value={businessFilter}
+              >
+                <option value="all">{copy.common.all}</option>
+                {fundBusinessOptions.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}
+              </select>
+            </PettyCashField>
+          </>
+        )}
+        hasActiveFilters={Boolean(searchTerm || statusFilter !== 'all' || unitFilter !== 'all' || businessFilter !== 'all')}
+        onClear={() => {
+          setSearchTerm('');
+          setStatusFilter('all');
+          setUnitFilter('all');
+          setBusinessFilter('all');
+        }}
         resultLabel={copy.funds.filters.result(filteredFunds.length)}
         subtitle={copy.funds.filters.subtitle}
       >
@@ -691,29 +750,6 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
               value={searchTerm}
             />
           </div>
-        </PettyCashField>
-        <PettyCashField label={copy.funds.table.unit}>
-          <select
-            className={pettyCashInputClass}
-            onChange={(event) => {
-              setUnitFilter(event.target.value);
-              setBusinessFilter('all');
-            }}
-            value={unitFilter}
-          >
-            <option value="all">{copy.common.all}</option>
-            {fundUnitOptions.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}
-          </select>
-        </PettyCashField>
-        <PettyCashField label={copy.funds.table.business}>
-          <select
-            className={pettyCashInputClass}
-            onChange={(event) => setBusinessFilter(event.target.value)}
-            value={businessFilter}
-          >
-            <option value="all">{copy.common.all}</option>
-            {fundBusinessOptions.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}
-          </select>
         </PettyCashField>
         <PettyCashField label={copy.funds.filters.status}>
           <select
@@ -737,17 +773,17 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
           { id: 'native-balance', icon: <WalletCards className="h-3.5 w-3.5" />, label: copy.common.nativeBreakdown(nativeBalance), tone: 'neutral' },
         ]}
         distributionSegments={[
-          { id: 'open', label: copy.status.fund.OPEN, count: filteredFunds.filter((fund) => fund.status === 'OPEN').length, className: 'bg-[#147514]' },
-          { id: 'low', label: copy.status.fund.LOW_BALANCE, count: filteredFunds.filter((fund) => fund.status === 'LOW_BALANCE').length, className: 'bg-amber-400' },
-          { id: 'reconciliation', label: copy.status.fund.NEEDS_RECONCILIATION, count: filteredFunds.filter((fund) => fund.status === 'NEEDS_RECONCILIATION').length, className: 'bg-rose-500' },
-          { id: 'closed', label: copy.status.fund.CLOSED, count: filteredFunds.filter((fund) => fund.status === 'CLOSED').length, className: 'bg-slate-400' },
+          { id: 'open', label: copy.status.fund.OPEN, count: scopedFunds.filter((fund) => fund.status === 'OPEN').length, className: 'bg-[#147514]', active: statusFilter === 'OPEN', onClick: () => setStatusFilter(current => current === 'OPEN' ? 'all' : 'OPEN') },
+          { id: 'low', label: copy.status.fund.LOW_BALANCE, count: scopedFunds.filter((fund) => fund.status === 'LOW_BALANCE').length, className: 'bg-amber-400', active: statusFilter === 'LOW_BALANCE', onClick: () => setStatusFilter(current => current === 'LOW_BALANCE' ? 'all' : 'LOW_BALANCE') },
+          { id: 'reconciliation', label: copy.status.fund.NEEDS_RECONCILIATION, count: scopedFunds.filter((fund) => fund.status === 'NEEDS_RECONCILIATION').length, className: 'bg-rose-500', active: statusFilter === 'NEEDS_RECONCILIATION', onClick: () => setStatusFilter(current => current === 'NEEDS_RECONCILIATION' ? 'all' : 'NEEDS_RECONCILIATION') },
+          { id: 'closed', label: copy.status.fund.CLOSED, count: scopedFunds.filter((fund) => fund.status === 'CLOSED').length, className: 'bg-slate-400', active: statusFilter === 'CLOSED', onClick: () => setStatusFilter(current => current === 'CLOSED' ? 'all' : 'CLOSED') },
         ]}
-        insight={copy.funds.insight(filteredFunds.length, riskCount, balanceLabel)}
+        insight={copy.funds.insight(scopedFunds.length, riskCount, balanceLabel)}
         insightIcon={<Info className="h-4 w-4" />}
         metrics={[
           { id: 'assigned', icon: <WalletCards className="h-4 w-4" />, label: copy.funds.metrics.assignedAmount, value: limitLabel },
           { id: 'balance', icon: <Landmark className="h-4 w-4" />, label: copy.funds.metrics.currentBalance, value: balanceLabel, valueClassName: (balanceAggregate.data?.preferredTotal ?? 0) < 0 ? 'text-rose-600' : 'text-[#147514]' },
-          { id: 'kiosks', icon: <ShieldCheck className="h-4 w-4" />, label: copy.funds.metrics.activeKiosks, value: filteredFunds.filter(fund => fund.kioskEnabled).length, valueClassName: 'text-sky-600' },
+          { id: 'kiosks', icon: <ShieldCheck className="h-4 w-4" />, label: copy.funds.metrics.activeKiosks, value: scopedFunds.filter(fund => fund.kioskEnabled).length, valueClassName: 'text-sky-600' },
           { id: 'risk', icon: <UserRound className="h-4 w-4" />, label: copy.funds.metrics.riskFunds, value: riskCount, valueClassName: riskCount > 0 ? 'text-rose-600' : 'text-[#147514]' },
         ]}
         currencyContext={{
@@ -757,7 +793,7 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
           effectiveDate: balanceAggregate.data?.exchangeRate.effectiveDate,
           source: balanceAggregate.data?.exchangeRate.source,
           isPartial: Boolean(balanceAggregate.error || balanceAggregate.data?.partial),
-          excludedCount: balanceAggregate.data?.excludedRecords ?? (balanceAggregate.error ? filteredFunds.length : 0),
+          excludedCount: balanceAggregate.data?.excludedRecords ?? (balanceAggregate.error ? scopedFunds.length : 0),
           labels: currencyCopy,
         }}
       />
@@ -840,22 +876,11 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
           />
         )}
       >
-        <table className="w-full min-w-[1320px] table-fixed">
+        <table className={visibleColumns.length <= 5 ? 'w-full min-w-[820px]' : 'w-full min-w-[1120px]'}>
           <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60">
             <tr>
-              {[
-                { key: 'fund', label: copy.funds.table.fund, width: 'w-[190px]' },
-                { key: 'unit', label: copy.funds.table.unit, width: 'w-[140px]' },
-                { key: 'business', label: copy.funds.table.business, width: 'w-[150px]' },
-                { key: 'responsible', label: copy.funds.table.responsible, width: 'w-[160px]' },
-                { key: 'source', label: copy.funds.table.source, width: 'w-[180px]' },
-                { key: 'budget', label: copy.funds.table.budget, width: 'w-[150px]' },
-                { key: 'balance', label: copy.funds.table.balance, width: 'w-[140px]' },
-                { key: 'pending', label: copy.funds.table.pending, width: 'w-[140px]' },
-                { key: 'kiosk', label: copy.funds.table.kiosk, width: 'w-[120px]' },
-                { key: 'status', label: copy.funds.table.status, width: 'w-[150px]' },
-              ].map(column => (
-                <PettyCashSortableHeader key={column.key} columnKey={column.key} label={column.label} onSort={fundSort.onSort} sortDirection={fundSort.sortDirection} sortKey={fundSort.sortKey} widthClass={column.width} />
+              {visibleColumns.map(column => (
+                <PettyCashSortableHeader key={column.id} columnKey={column.id as keyof typeof fundSortAccessors} label={column.label} onSort={fundSort.onSort} sortDirection={fundSort.sortDirection} sortKey={fundSort.sortKey} />
               ))}
               <PettyCashSortableHeader align="right" label={copy.common.actions} widthClass="w-[220px]" />
             </tr>
@@ -863,7 +888,7 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
             {fundsPagination.paginatedRows.length === 0 ? (
               <tr>
-                <td colSpan={11} className="px-6 py-12 text-center text-sm font-medium text-slate-500 dark:text-slate-400">
+                <td colSpan={visibleColumns.length + 1} className="px-6 py-12 text-center text-sm font-medium text-slate-500 dark:text-slate-400">
                   {copy.funds.filters.result(0)}
                 </td>
               </tr>
@@ -879,29 +904,18 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
 
               return (
                 <tr key={fund.id} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/70">
-                  <td className="px-5 py-4">
-                    <p className="font-medium text-slate-900 dark:text-white">{fund.name}</p>
-                    <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{fundAccountName}</p>
-                  </td>
-                  <td className="px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">{fund.unitName}</td>
-                  <td className="px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">{fund.businessName}</td>
-                  <td className="px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">{fund.responsibleName}</td>
-                  <td className="px-5 py-4">
-                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{fund.fundingSourceName}</p>
-                    <p className="mt-1 truncate text-xs font-medium text-slate-500 dark:text-slate-400">{fund.fundingMethods.map(method => getPettyCashMethodLabel(copy.funds.methodLabels, method)).join(', ')}</p>
-                  </td>
-                  <td className="px-5 py-4">
-                    <p className="text-sm font-medium text-slate-900 dark:text-white">{formatPettyCashCurrency(fund.limitAmount, fund.currencyCode)}</p>
-                    <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{budgetLineName}</p>
-                  </td>
-                  <td className={`px-5 py-4 text-sm font-medium tabular-nums ${fund.currentBalanceAmount < 0 ? 'text-red-600 dark:text-red-300' : 'text-[#147514] dark:text-emerald-300'}`}>{formatPettyCashCurrency(fund.currentBalanceAmount, fund.currencyCode)}</td>
-                  <td className="px-5 py-4 text-sm font-medium tabular-nums text-amber-600 dark:text-amber-300">{formatPettyCashCurrency(pendingSettlement, fund.currencyCode)}</td>
-                  <td className="px-5 py-4">
-                    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${fund.kioskEnabled ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200' : 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>
-                      {fund.kioskEnabled ? copy.common.enabled : copy.common.disabled}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4"><PettyCashStatusPill kind="fund" status={fund.status} /></td>
+                  {visibleColumns.map(column => {
+                    if (column.id === 'fund') return <td key={column.id} className="px-5 py-4"><p className="font-medium text-slate-900 dark:text-white">{fund.name}</p><p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{fundAccountName}</p></td>;
+                    if (column.id === 'unit') return <td key={column.id} className="px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">{fund.unitName}</td>;
+                    if (column.id === 'business') return <td key={column.id} className="px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">{fund.businessName}</td>;
+                    if (column.id === 'responsible') return <td key={column.id} className="px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">{fund.responsibleName}</td>;
+                    if (column.id === 'source') return <td key={column.id} className="px-5 py-4"><p className="text-sm font-medium text-slate-700 dark:text-slate-300">{fund.fundingSourceName}</p><p className="mt-1 truncate text-xs font-medium text-slate-500 dark:text-slate-400">{fund.fundingMethods.map(method => getPettyCashMethodLabel(copy.funds.methodLabels, method)).join(', ')}</p></td>;
+                    if (column.id === 'budget') return <td key={column.id} className="px-5 py-4"><p className="text-sm font-medium text-slate-900 dark:text-white">{formatPettyCashCurrency(fund.limitAmount, fund.currencyCode)}</p><p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{budgetLineName}</p></td>;
+                    if (column.id === 'balance') return <td key={column.id} className={`px-5 py-4 text-sm font-medium tabular-nums ${fund.currentBalanceAmount < 0 ? 'text-red-600 dark:text-red-300' : 'text-[#147514] dark:text-emerald-300'}`}>{formatPettyCashCurrency(fund.currentBalanceAmount, fund.currencyCode)}</td>;
+                    if (column.id === 'pending') return <td key={column.id} className="px-5 py-4 text-sm font-medium tabular-nums text-amber-600 dark:text-amber-300">{formatPettyCashCurrency(pendingSettlement, fund.currencyCode)}</td>;
+                    if (column.id === 'kiosk') return <td key={column.id} className="px-5 py-4"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${fund.kioskEnabled ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200' : 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>{fund.kioskEnabled ? copy.common.enabled : copy.common.disabled}</span></td>;
+                    return <td key={column.id} className="px-5 py-4"><PettyCashStatusPill kind="fund" status={fund.status} /></td>;
+                  })}
                   <td className="px-5 py-4 text-right">
                     <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                       <button
@@ -949,6 +963,16 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
         </table>
       </PettyCashTableShell>
       </div>
+
+      <ColumnasConfigModal
+        isOpen={showColumnsModal}
+        columns={columns}
+        defaultColumns={defaultColumns}
+        fixedColumns={fixedColumns}
+        theme="expenses"
+        onClose={() => setShowColumnsModal(false)}
+        onSave={(nextColumns) => setColumns(normalizePettyCashColumns(nextColumns, defaultColumns))}
+      />
 
       {isCreateFundOpen ? (
         <CreateFundModal

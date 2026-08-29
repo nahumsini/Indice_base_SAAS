@@ -21,7 +21,6 @@ import {
 import { cn } from '../../../components/ui/utils';
 import { authApi } from '../../../api/auth';
 import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../api/dashboard';
-import { humanResourcesApi, type BackendHrUser } from '../../../api/humanResources';
 import { useTablePagination } from '../../../hooks/useTablePagination';
 import { useLanguage } from '../../../shared/context';
 import { accentButtonClass, priorityClasses } from '../Processes/processesData';
@@ -36,6 +35,7 @@ import { listProjects, type ProjectRecord } from '../Projects/projectsApi';
 import { TaskCompletionDialog } from './components/TaskCompletionDialog';
 import { TaskFormDialog, type TaskFormValues } from './components/TaskFormDialog';
 import { defaultTaskScopeForActor } from '../shared/assignmentScope';
+import { listProcessTaskAssignmentOptions } from '../shared/assignmentCatalogApi';
 import { useAgendaTranslations, type AgendaTranslations } from '../Agenda/translations';
 import { useTaskQueueTranslations, type TaskQueueCopy } from './taskQueueTranslations';
 import {
@@ -173,26 +173,6 @@ function normalizeBusinessOption(business: BackendBusiness): ProcessBusinessOpti
     id: business.id,
     name: compactText(business.name),
     unitId: business.unitId ?? business.unit_id ?? null,
-  };
-}
-
-function normalizeCollaboratorOption(user: BackendHrUser): ProcessCollaboratorOption | null {
-  const userCompanyId = user.user_company_id ?? user.legacy_user_company_id ?? null;
-  const name = compactText(user.full_name) || compactText(`${user.first_name ?? ''} ${user.last_name ?? ''}`);
-
-  if (!userCompanyId || !name || user.status !== 'active') {
-    return null;
-  }
-
-  return {
-    userCompanyId,
-    userId: user.user_id ?? null,
-    name,
-    email: user.email,
-    unitId: user.unit_id ?? null,
-    unitName: compactText(user.unit_name),
-    businessId: user.business_id ?? null,
-    businessName: compactText(user.business_name),
   };
 }
 
@@ -408,12 +388,12 @@ export default function Tasks() {
 
   useEffect(() => {
     const loadRelationsForTaskForm = async () => {
-      const [projectResult, processResult, unitResult, businessResult, hrUserResult] = await Promise.allSettled([
+      const [projectResult, processResult, unitResult, businessResult, assignmentResult] = await Promise.allSettled([
         listProjects(),
         listProcesses(),
         dashboardApi.listUnits(),
         dashboardApi.listBusinesses(),
-        humanResourcesApi.listHrUsers(),
+        listProcessTaskAssignmentOptions(),
       ]);
 
       setProjects(projectResult.status === 'fulfilled' ? projectResult.value : []);
@@ -435,10 +415,8 @@ export default function Tasks() {
           : [],
       );
       setCatalogCollaborators(
-        hrUserResult.status === 'fulfilled'
-          ? hrUserResult.value.items
-              .map(normalizeCollaboratorOption)
-              .filter((option): option is ProcessCollaboratorOption => option !== null)
+        assignmentResult.status === 'fulfilled'
+          ? assignmentResult.value
               .sort((left, right) => left.name.localeCompare(right.name))
           : [],
       );

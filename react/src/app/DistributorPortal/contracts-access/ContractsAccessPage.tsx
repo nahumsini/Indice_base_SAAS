@@ -116,21 +116,32 @@ export function ContractsAccessPage({ copy, locale }: { copy: DistributorPortalC
     }
   };
 
-  const updateTrialProducts = async (productCodes: string[]) => {
-    if (!selected || saving) return;
+  const previewCompanyProducts = async (productCodes: string[]) => {
+    if (!selected) throw new Error('Selecciona una cuenta antes de revisar el cambio.');
+    return distributorPortalApi.previewCompanyProducts(selected.id, productCodes);
+  };
+
+  const updateTrialProducts = async (productCodes: string[], expectedCatalogVersion: string) => {
+    if (!selected || saving) return false;
     setSaving(true);
     setFeedback(null);
     try {
-      const result = await distributorPortalApi.updateTrialProducts(selected.id, productCodes);
+      const result = await distributorPortalApi.updateTrialProducts(
+        selected.id,
+        productCodes,
+        expectedCatalogVersion,
+      );
       await refreshCompany();
       setFeedback({
         type: 'success',
         message: result.charge_timing === 'TRIAL_END'
           ? `La prueba quedó configurada con ${result.product_codes.length} módulo(s); Stripe usará esta selección al terminar.`
-          : `La cuenta quedó con ${result.product_codes.length} módulo(s); el cambio se reflejará en su facturación.`,
+          : `La cuenta quedó con ${result.product_codes.length} módulo(s); Stripe usará el nuevo total en la próxima renovación.`,
       });
+      return true;
     } catch (saveError) {
       setFeedback({ type: 'error', message: saveError instanceof Error ? saveError.message : 'No se pudieron actualizar los módulos.' });
+      return false;
     } finally {
       setSaving(false);
     }
@@ -286,6 +297,7 @@ export function ContractsAccessPage({ copy, locale }: { copy: DistributorPortalC
           onBenefit={setBenefit}
           onSubmitBenefit={submitBenefit}
           onGrantProduct={grantProductAccess}
+          onPreviewProducts={previewCompanyProducts}
           onUpdateTrialProducts={updateTrialProducts}
           onRefreshCompany={refreshCompany}
           onRevokeBenefit={(reference, label) => void revokeBenefit(reference, label)}

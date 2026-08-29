@@ -32,6 +32,17 @@ export type PhoneValidationResult =
 
 const MAX_PHONE_DIGITS = 15;
 const PHONE_DIGIT_LIMIT_CACHE = new Map<CountryCode, number>();
+const PHONE_EXAMPLES_BY_COUNTRY: Partial<Record<CountryCode, string>> = {
+  AR: '+54 11 2345 6789',
+  BR: '+55 11 91234 5678',
+  CA: '+1 416 555 1234',
+  CL: '+56 9 1234 5678',
+  CO: '+57 320 1234567',
+  ES: '+34 612 34 56 78',
+  MX: '+52 81 3245 6845',
+  PE: '+51 912 345 678',
+  US: '+1 202 555 0125',
+};
 
 function stripToDigits(rawNumber: string): string {
   return rawNumber.replace(/\D/g, '');
@@ -144,6 +155,15 @@ export function getPhoneDigitLimitForCountry(country?: string): number | undefin
   }
 
   return inferNationalDigitLimit(normalizedCountry);
+}
+
+export function getPhoneExampleForCountry(country?: string): string {
+  const normalizedCountry = normalizePhoneCountry(country);
+  if (!normalizedCountry) {
+    return '';
+  }
+
+  return PHONE_EXAMPLES_BY_COUNTRY[normalizedCountry] ?? `${getVisiblePhoneDialCode(normalizedCountry)} 123456789`;
 }
 
 export function normalizePhoneInputForCountry(

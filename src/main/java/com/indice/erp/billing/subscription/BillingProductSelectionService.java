@@ -88,6 +88,16 @@ public class BillingProductSelectionService {
         String idempotencyKey,
         BillingSelectionRequest request
     ) {
+        return update(companyId, actorUserId, idempotencyKey, request, null);
+    }
+
+    public BillingSelectionResponse update(
+        long companyId,
+        long actorUserId,
+        String idempotencyKey,
+        BillingSelectionRequest request,
+        String expectedCatalogVersion
+    ) {
         var cleanKey = requireIdempotencyKey(idempotencyKey);
         var state = state(companyId);
         var interval = interval(request, state);
@@ -97,6 +107,13 @@ public class BillingProductSelectionService {
             request == null ? null : request.product_codes(), interval, extraSeats,
             request == null ? null : request.promotion_code()
         );
+        if (expectedCatalogVersion != null
+            && !expectedCatalogVersion.isBlank()
+            && !expectedCatalogVersion.trim().equals(selection.catalogVersion())) {
+            throw new IllegalStateException(
+                "El catálogo activo cambió desde la vista previa. Revisa el nuevo total antes de confirmar."
+            );
+        }
         validateCapacity(companyId, selection);
         var oldProductIds = selectedProductIds(companyId, state);
         var selectedProductIds = selection.products().stream().map(CommercialOfferSelection.Product::id).toList();
@@ -306,8 +323,16 @@ public class BillingProductSelectionService {
 
     private Map<String, String> allCommercialPriceIds() {
         var rows = jdbcTemplate.query(
-            "SELECT external_price_id, billable_code FROM billing_catalog_prices WHERE price_type IN ('BASE', 'ADDON', 'PRODUCT', 'PACKAGE', 'SEAT') AND external_price_id IS NOT NULL",
-            (rs, rowNum) -> Map.entry(rs.getString(1), rs.getString(2))
+            """
+                SELECT external_price_id, billable_code FROM billing_catalog_prices
+                WHERE price_type IN ('BASE', 'ADDON', 'PRODUCT', 'PACKAGE', 'SEAT')
+                  AND external_price_id IS NOT NULL
+                  AND (? = 0 OR (stripe_mode = ? AND stripe_verified_at IS NOT NULL
+                       AND stripe_sync_status = 'READY'))
+                """,
+            (rs, rowNum) -> Map.entry(rs.getString(1), rs.getString(2)),
+            stripeProperties.isEnabled() ? 1 : 0,
+            configuredStripeMode()
         );
         var result = new LinkedHashMap<String, String>();
         rows.forEach(entry -> result.put(entry.getKey(), entry.getValue()));
@@ -344,8 +369,16 @@ public class BillingProductSelectionService {
 
     private Map<String, String> allComplementaryPriceIds() {
         var rows = jdbcTemplate.query(
-            "SELECT external_price_id, billable_code FROM billing_catalog_prices WHERE price_type = 'ADDON' AND billable_code <> 'extra_seat' AND external_price_id IS NOT NULL",
-            (rs, rowNum) -> Map.entry(rs.getString(1), rs.getString(2))
+            """
+                SELECT external_price_id, billable_code FROM billing_catalog_prices
+                WHERE price_type = 'ADDON' AND billable_code <> 'extra_seat'
+                  AND external_price_id IS NOT NULL
+                  AND (? = 0 OR (stripe_mode = ? AND stripe_verified_at IS NOT NULL
+                       AND stripe_sync_status = 'READY'))
+                """,
+            (rs, rowNum) -> Map.entry(rs.getString(1), rs.getString(2)),
+            stripeProperties.isEnabled() ? 1 : 0,
+            configuredStripeMode()
         );
         var result = new LinkedHashMap<String, String>();
         rows.forEach(entry -> result.put(entry.getKey(), entry.getValue()));
@@ -354,6 +387,10 @@ public class BillingProductSelectionService {
 
     private String resolvedPriceId(String catalogPriceId, String billableCode, String interval) {
         return validStripePrice(catalogPriceId) ? catalogPriceId : stripeProperties.priceId(billableCode, interval);
+    }
+
+    private String configuredStripeMode() {
+        return "live".equalsIgnoreCase(stripeProperties.getMode()) ? "LIVE" : "TEST";
     }
 
     private void replaceSubscriptionSelection(SubscriptionState state, CommercialOfferSelection selection) {

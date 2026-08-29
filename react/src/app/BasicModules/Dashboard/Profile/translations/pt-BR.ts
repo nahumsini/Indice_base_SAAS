@@ -45,7 +45,13 @@ export const ptBR = {
     discard: "Descartar",
     uploadingPhoto: "Enviando foto...",
   },
-  phone: { add: "Adicionar telefone", number: "Número", primary: "Principal", remove: "Remover" },
+  phone: {
+    add: "Adicionar telefone",
+    number: "Número",
+    primary: "Principal",
+    remove: "Remover",
+    formatHint: (example) => `Exemplo: ${example}`,
+  },
   progress: {
     completion: "Perfil completo",
     essentials: "Preencha o essencial em uma única tela.",

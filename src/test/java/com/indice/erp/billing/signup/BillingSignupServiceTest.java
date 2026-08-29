@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -132,6 +133,51 @@ class BillingSignupServiceTest {
         assertThatThrownBy(() -> service.createCheckout(request, "idempotency-key-password-limit"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("no more than 72 bytes");
+    }
+
+    @Test
+    void rejectsPhoneNumbersThatDoNotMatchTheSelectedCountry() {
+        var request = new BillingSignupRequest(
+            "Premium Owner", "owner@example.com", "owner@example.com", "very-secure-password", "Premium Company",
+            "MX", "+1 202 555 0125", null, null, "MONTH", 0, List.of("basic_hr"), null, "e".repeat(64)
+        );
+
+        assertThatThrownBy(() -> service.createCheckout(request, "idempotency-key-invalid-phone"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("valid phone number");
+    }
+
+    @Test
+    void storesNormalizedPhoneWhenCreatingCheckoutIntent() {
+        var product = new CommercialOfferSelection.Product(7L, "basic_hr", "Recursos Humanos");
+        var selection = new CommercialOfferSelection(
+            3L, "2026.07-premium-v1", "basic_1", BillingInterval.MONTH, "USD",
+            5, 0, 5_900L, 5_900L, 1_200L, List.of(product)
+        );
+        var request = new BillingSignupRequest(
+            "Premium Owner", "owner@example.com", "owner@example.com", "very-secure-password", "Premium Company",
+            "MX", "+52 81 3245 6845", null, null, "MONTH", 0, List.of("basic_hr"), null, "e".repeat(64)
+        );
+        var checkout = new BillingSignupIntent(
+            17L, "a".repeat(64), "b".repeat(64), "c".repeat(64), "CHECKOUT_CREATED",
+            "cus_test", "cs_test", null, "https://checkout.stripe.test/cs_test",
+            Instant.parse("2026-07-21T12:30:00Z")
+        );
+        when(offers.select(any(), anyString(), anyInt(), any())).thenReturn(selection);
+        when(emailVerificationService.requireVerified(anyString(), anyString()))
+            .thenReturn(new BillingSignupEmailVerificationService.VerifiedEmail(
+                "owner@example.com", "e".repeat(64), Instant.parse("2026-07-21T11:59:00Z")
+            ));
+        when(repository.createOrLoad(anyString(), anyString(), anyString(), any(), anyString(), anyString(), any(), anyString(), any()))
+            .thenReturn(checkout);
+
+        service.createCheckout(request, "idempotency-key-phone-normalized");
+
+        verify(repository).createOrLoad(
+            anyString(), anyString(), anyString(),
+            argThat(savedRequest -> "+528132456845".equals(savedRequest.phone())),
+            anyString(), anyString(), any(), anyString(), any()
+        );
     }
 
     @Test

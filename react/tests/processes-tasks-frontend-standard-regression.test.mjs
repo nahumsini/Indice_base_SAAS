@@ -38,6 +38,26 @@ test('Procesos y Tareas conserva el shell, los modales y el Kiosk Engine compart
   assert.match(managerSource, /<KioskModalFrame/);
 });
 
+test('los catálogos de asignación pertenecen a Procesos y no requieren acceso a Colaboradores de RH', () => {
+  const assignmentCatalogSource = readFileSync(resolve(moduleRoot, 'shared/assignmentCatalogApi.ts'), 'utf8');
+  const consumers = [
+    'Agenda/hooks/useAgendaCatalogs.ts',
+    'Tasks/Tasks.tsx',
+    'Processes/Processes.tsx',
+    'Projects/Projects.tsx',
+    'KPIs/KPIs.tsx',
+  ];
+
+  assert.match(assignmentCatalogSource, /\/api\/v1\/process-tasks\/assignment-catalog/);
+  assert.doesNotMatch(assignmentCatalogSource, /email:\s*item\./);
+
+  for (const relativePath of consumers) {
+    const source = readFileSync(resolve(moduleRoot, relativePath), 'utf8');
+    assert.match(source, /listProcessTaskAssignmentOptions/);
+    assert.doesNotMatch(source, /humanResourcesApi|\/api\/v1\/hr\/users/);
+  }
+});
+
 test('tareas y agenda mantienen nombres relacionados, actualización y lista móvil compacta', () => {
   const taskApiSource = readFileSync(resolve(moduleRoot, 'Tasks/tasksApi.ts'), 'utf8');
   const tasksSource = readFileSync(resolve(moduleRoot, 'Tasks/Tasks.tsx'), 'utf8');

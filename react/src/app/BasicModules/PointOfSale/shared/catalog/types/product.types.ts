@@ -11,6 +11,9 @@ export interface CatalogProduct {
   description: string;
   saleType: 'unit' | 'bulk' | 'package';
   unitLabel?: string;
+  quantityStep?: number;
+  minimumSaleQuantity?: number;
+  allowsDecimalQuantity?: boolean;
   costPrice: number;
   profitMargin: number;
   salePrice: number;

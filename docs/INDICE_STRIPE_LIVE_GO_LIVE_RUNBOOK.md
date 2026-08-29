@@ -26,7 +26,9 @@ webhooks, impuestos y secretos separados. Ningún secreto se guarda en Git.
 - Cada usuario adicional cuesta USD 12 al mes o USD 144 al año, sin descuento anual.
 - La primera consultoría de 50 minutos está incluida; cada sesión posterior se compra por separado
   a USD 89.
-- Se incluyen 5 GiB. Cada bloque adicional es de 1 GiB por USD 1 al mes o USD 12 al año.
+- Se incluyen 5 GiB y cada bloque adicional representa otros 5 GiB. Su precio
+  mensual y anual debe ser aprobado explícitamente antes de ejecutar este
+  runbook; no existe un importe LIVE predeterminado.
 - Los precios son exclusivos de impuestos. Stripe Tax usa la dirección fiscal.
 
 Productos básicos: Recursos Humanos; Procesos y Tareas; Gastos + Caja Chica; Punto de Venta +
@@ -77,6 +79,10 @@ para el usuario sin privilegios del backend. El mismo mecanismo se usa para
 ## Creación y auditoría del catálogo LIVE
 
 ```bash
+INDICE_BASIC_ALL_MONTHLY_CENTS='<importe-aprobado>' \
+INDICE_BASIC_ALL_ANNUAL_CENTS='<importe-aprobado>' \
+INDICE_STORAGE_BLOCK_MONTHLY_CENTS='<importe-aprobado-5gib>' \
+INDICE_STORAGE_BLOCK_ANNUAL_CENTS='<importe-aprobado-5gib>' \
 STRIPE_SECRET_KEY_FILE=/root/indice-production/secrets/stripe-live-key \
 STRIPE_CATALOG_OUTPUT_FILE=/root/indice-production/secrets/stripe-live-prices.env \
 deployment/scripts/bootstrap-stripe-live-catalog.sh
@@ -85,6 +91,10 @@ STRIPE_SECRET_KEY_FILE=/root/indice-production/secrets/stripe-live-key \
 STRIPE_REQUIRED_TAX_COUNTRIES=CA,MX \
 deployment/scripts/audit-stripe-live-readiness.sh
 ```
+
+El script de catálogo se niega a crear `basic_all` o almacenamiento LIVE sin
+los cuatro importes explícitos anteriores. Esos valores requieren la aprobación
+comercial registrada; no deben inferirse de TEST ni de un catálogo histórico.
 
 La lista fiscal del segundo comando es un ejemplo. Debe contener únicamente los países que el
 contador confirme como registros activos obligatorios para Índice. El script falla si una marca,

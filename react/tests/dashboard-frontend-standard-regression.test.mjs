@@ -123,6 +123,8 @@ test('Perfil usa captura compacta, guardado explícito y seguridad progresiva', 
   assert.match(profileSource, /profileCompletion/);
   assert.match(profileSource, /<details className="group/);
   assert.match(profileSource, /xl:grid-cols-2/);
+  assert.match(profileSource, /getPhoneExampleForCountry\(phone\.country\)/);
+  assert.match(profileSource, /phone:\s*validation\.e164/);
   assert.doesNotMatch(profileSource, /PROFILE_AUTO_SAVE_DEBOUNCE_MS/);
   assert.doesNotMatch(profileSource, /runWithMinimumDuration\(configCenterApi\.getCurrentUser\(\)\)/);
   assert.doesNotMatch(profileSource, /<input type="email"[^>]*readOnly/);

@@ -47,7 +47,13 @@ export const frCA = {
     discard: "Ignorer",
     uploadingPhoto: "Téléversement de la photo...",
   },
-  phone: { add: "Ajouter un téléphone", number: "Numéro", primary: "Principal", remove: "Retirer" },
+  phone: {
+    add: "Ajouter un téléphone",
+    number: "Numéro",
+    primary: "Principal",
+    remove: "Retirer",
+    formatHint: (example) => `Exemple : ${example}`,
+  },
   progress: {
     completion: "Profil complet",
     essentials: "Remplissez l'essentiel dans une seule vue.",

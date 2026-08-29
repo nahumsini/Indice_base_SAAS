@@ -1,0 +1,16 @@
+.git
+.gitattributes
+.gitignore
+.idea
+.vscode
+.mvn/wrapper/maven-wrapper.jar
+target
+build
+handoff
+docs
+postman
+react/node_modules
+react/figmaDoc
+deployment/env/.env
+deployment/env/*.local
+deployment/env/*.secret

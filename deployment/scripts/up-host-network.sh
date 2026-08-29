@@ -54,8 +54,11 @@ WEB_CONTAINER="${WEB_CONTAINER:-indice-erp-web-1}"
 BACKEND_CONTAINER="${BACKEND_CONTAINER:-indice-erp-backend-1}"
 MINIO_CONTAINER="${MINIO_CONTAINER:-indice-erp-minio-1}"
 
-WEB_IMAGE="${WEB_IMAGE:-indice-erp-web:latest}"
-BACKEND_IMAGE="${BACKEND_IMAGE:-indice-erp-backend:latest}"
+# Release commands may select immutable application images without mutating the
+# durable environment file. The DEPLOY_* names are intentionally distinct from
+# the runtime keys loaded above so the file cannot overwrite the release choice.
+WEB_IMAGE="${DEPLOY_WEB_IMAGE:-${WEB_IMAGE:-indice-erp-web:latest}}"
+BACKEND_IMAGE="${DEPLOY_BACKEND_IMAGE:-${BACKEND_IMAGE:-indice-erp-backend:latest}}"
 MINIO_IMAGE="${MINIO_IMAGE:-minio/minio:latest}"
 MINIO_DATA_VOLUME="${MINIO_DATA_VOLUME:-indice-erp_minio-data}"
 WEB_NGINX_HOST_CONFIG="${WEB_NGINX_HOST_CONFIG:-$(dirname "${ENV_FILE}")/../runtime/nginx-host.conf}"

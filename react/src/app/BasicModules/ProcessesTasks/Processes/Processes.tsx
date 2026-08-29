@@ -59,7 +59,6 @@ import {
   normalizeRecurrenceConfig,
 } from './processesData';
 import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../api/dashboard';
-import { humanResourcesApi, type BackendHrUser } from '../../../api/humanResources';
 import { createProcess, deleteProcess, listProcesses, materializeProcess, updateProcess } from './processesApi';
 import { ProcessFormDialog } from './components/ProcessFormDialog';
 import {
@@ -72,6 +71,7 @@ import {
 import { useProcessesTranslations, type ProcessesTranslations } from './translations';
 import { useRowSelection } from '../../shared/operational';
 import { collaboratorCanReceiveAssignment as canCollaboratorReceiveAssignment } from '../shared/assignmentScope';
+import { listProcessTaskAssignmentOptions } from '../shared/assignmentCatalogApi';
 import type {
   Option,
   ProcessBusinessOption,
@@ -487,26 +487,6 @@ function normalizeBusinessOption(business: BackendBusiness): ProcessBusinessOpti
   };
 }
 
-function normalizeCollaboratorOption(user: BackendHrUser): ProcessCollaboratorOption | null {
-  const userCompanyId = user.user_company_id ?? user.legacy_user_company_id ?? null;
-  const name = compactText(user.full_name) || compactText(`${user.first_name ?? ''} ${user.last_name ?? ''}`);
-
-  if (!userCompanyId || !name || user.status !== 'active') {
-    return null;
-  }
-
-  return {
-    userCompanyId,
-    userId: user.user_id ?? null,
-    name,
-    email: user.email,
-    unitId: user.unit_id ?? null,
-    unitName: compactText(user.unit_name),
-    businessId: user.business_id ?? null,
-    businessName: compactText(user.business_name),
-  };
-}
-
 function responsibleStillMatchesScope(
   collaborators: ProcessCollaboratorOption[],
   responsibleUserCompanyId: number | null | undefined,
@@ -749,10 +729,10 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
 
   const loadCatalogs = async () => {
     try {
-      const [units, businesses, hrUsers] = await Promise.all([
+      const [units, businesses, assignmentOptions] = await Promise.all([
         dashboardApi.listUnits(),
         dashboardApi.listBusinesses(),
-        humanResourcesApi.listHrUsers(),
+        listProcessTaskAssignmentOptions(),
       ]);
 
       setCatalogUnits(
@@ -768,9 +748,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
           .sort((left, right) => processCollator.compare(left.name, right.name)),
       );
       setCatalogCollaborators(
-        hrUsers.items
-          .map(normalizeCollaboratorOption)
-          .filter((option): option is ProcessCollaboratorOption => option !== null)
+        assignmentOptions
           .sort((left, right) => processCollator.compare(left.name, right.name)),
       );
     } catch (error) {

@@ -40,6 +40,9 @@ cp deployment/env/.env.example deployment/env/.env
   pública; no lo expongas en JavaScript del navegador)
 - `APP_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET`
 - `APP_KIOSK_TOKEN_PROTECTION_SECRET` (obligatoria; distinta de los demás secretos)
+- `APP_BILLING_STORAGE_INCLUDED_BYTES=5368709120` y
+  `APP_BILLING_STORAGE_BLOCK_BYTES=5368709120` para conservar la cuota y el
+  bloque comercial aprobados de 5 GiB
 - tiempos de sesión de kioskos (`APP_*_KIOSK_*_SECONDS`); la plantilla contiene los valores estándar aprobados
 - `MYSQL_*`
 - `MINIO_*`
@@ -105,6 +108,85 @@ debe usarse como autorización para desplegar esos valores en producción.
 El preflight sólo aprueba el código y la configuración. No crea
 `deployment/env/.env`, no genera secretos productivos y no publica imágenes en
 un registry.
+
+### Publicación segura del catálogo en Stripe
+
+En APPTEST, configura Stripe en modo `test`, conserva
+`APP_BILLING_STRIPE_CATALOG_LIVE_SYNC_ENABLED=false` y usa el administrador de
+plataforma para conectar los precios. La acción **Validar oferta** vuelve a
+consultar Stripe y compara cuenta, modo, Product, Price, importe, moneda,
+intervalo, impuestos y promociones. Sólo una validación sin bloqueos habilita
+**Publicar oferta**.
+
+No cambies una base que contiene referencias TEST directamente a LIVE mientras
+existe tráfico. Para preparar producción:
+
+1. Completa la certificación de Stripe TEST y conserva su evidencia.
+2. Ejecuta los gates financieros y `audit-stripe-live-readiness.sh`.
+3. Abre una ventana de mantenimiento sin altas ni cambios de suscripción.
+4. Despliega temporalmente con modo `live` y
+   `APP_BILLING_STRIPE_CATALOG_LIVE_SYNC_ENABLED=true`.
+5. Un administrador `PLATFORM_ROOT` sincroniza cada producto enviando
+   `target_mode=LIVE` y la confirmación exacta `PUBLICAR EN STRIPE LIVE`.
+6. Valida remotamente la oferta, revisa la cuenta mostrada y publícala.
+7. Restaura inmediatamente
+   `APP_BILLING_STRIPE_CATALOG_LIVE_SYNC_ENABLED=false`, recrea el backend y
+   ejecuta el smoke test.
+
+La bandera sólo habilita la escritura controlada del catálogo; no activa
+procesadores, provisioning, lifecycle, entitlement enforcement ni autoriza por
+sí misma cobros públicos. Si cualquier referencia no coincide, conserva la
+versión activa anterior y ejecuta el rollback de aplicación documentado.
+
+### Conservación de precios durante un despliegue
+
+Un despliegue de aplicación no publica, recalcula ni reemplaza precios. Los
+importes vigentes pertenecen a las versiones persistidas en
+`billing_catalog_versions` y `billing_catalog_prices`; cada suscripción conserva
+su `catalog_version_id`. Preparar un cambio desde Administración de plataforma
+copia la oferta activa a un borrador con los mismos importes. El cambio sólo se
+hace público mediante las acciones auditadas de validar y publicar oferta.
+
+Reglas obligatorias para toda liberación:
+
+- No ejecutar SQL manual, seeds, sincronizaciones de Stripe ni acciones del
+  administrador de catálogo como parte de `up`, `preflight`, publicación del
+  frontend o recreación de contenedores.
+- Una migración ordinaria no puede modificar `unit_amount_cents`,
+  `external_price_id`, el estado de un precio ni el estado de una versión ya
+  existente. Una corrección comercial excepcional requiere una decisión
+  explícita, migración nueva, evidencia antes/después y plan de rollback.
+- No editar ni reemplazar migraciones aplicadas. El rollback de la aplicación
+  conserva la base de datos y, por tanto, conserva los precios y contratos.
+- Antes y después del despliegue, guardar y comparar en el registro de la
+  liberación la salida ordenada de estas consultas de solo lectura:
+
+```sql
+SELECT version.version_code,
+       version.status AS version_status,
+       product.product_code,
+       price.price_type,
+       price.billing_interval,
+       price.currency,
+       price.unit_amount_cents,
+       price.status AS price_status
+FROM billing_catalog_versions version
+JOIN billing_catalog_products product
+  ON product.catalog_version_id = version.id
+JOIN billing_catalog_prices price
+  ON price.catalog_version_id = version.id
+ AND price.catalog_product_id = product.id
+WHERE version.status IN ('ACTIVE', 'DRAFT')
+ORDER BY version.id, product.product_code, price.billing_interval, price.id;
+
+SELECT catalog_version_id, COUNT(*) AS subscription_count
+FROM company_billing_subscriptions
+GROUP BY catalog_version_id
+ORDER BY catalog_version_id;
+```
+
+Si la comparación cambia sin que la liberación incluya una publicación
+comercial autorizada, detener el despliegue y conservar la versión anterior.
 
 Los tiempos estándar enviados al backend son: RH 3 minutos; Expenses 5 minutos
 de inactividad y 8 horas de sesión; Caja Chica 15 minutos y 4 horas; Procesos y
@@ -221,8 +303,8 @@ APP_DIR=/home/corazon/app.indiceapp.com \
 DEPLOY_ENV_FILE=/home/corazon/apps/indice-erp-docker/current/deployment/env/.env \
 PUBLIC_URL=https://app.indiceapp.com \
 HOST_BACKEND_PORT=8083 \
-WEB_IMAGE="indice-erp-web:${RELEASE_SHA}" \
-BACKEND_IMAGE="indice-erp-backend:${RELEASE_SHA}" \
+DEPLOY_WEB_IMAGE="indice-erp-web:${RELEASE_SHA}" \
+DEPLOY_BACKEND_IMAGE="indice-erp-backend:${RELEASE_SHA}" \
 ./deployment/scripts/up-host-network.sh
 ```
 
@@ -234,8 +316,8 @@ APP_DIR=/home/corazon/apptest.indiceapp.com \
 DEPLOY_ENV_FILE=/home/corazon/apps/indice-erp-docker/apptest/deployment/env/.env \
 PUBLIC_URL=https://apptest.indiceapp.com \
 HOST_BACKEND_PORT=8082 \
-WEB_IMAGE="indice-erp-web:${RELEASE_SHA}" \
-BACKEND_IMAGE="indice-erp-backend:${RELEASE_SHA}" \
+DEPLOY_WEB_IMAGE="indice-erp-web:${RELEASE_SHA}" \
+DEPLOY_BACKEND_IMAGE="indice-erp-backend:${RELEASE_SHA}" \
 ./deployment/scripts/up-host-network.sh
 ```
 

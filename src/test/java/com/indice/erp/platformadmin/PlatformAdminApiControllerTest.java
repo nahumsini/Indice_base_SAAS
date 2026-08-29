@@ -3,6 +3,8 @@ package com.indice.erp.platformadmin;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -19,6 +21,7 @@ import com.indice.erp.config.AppWebProperties;
 import com.indice.erp.configcenter.InvitationEmailResult;
 import com.indice.erp.configcenter.InvitationEmailService;
 import com.indice.erp.consulting.ConsultingAdministrationService;
+import com.indice.erp.billing.subscription.BillingSelectionResponse;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -167,7 +170,8 @@ class PlatformAdminApiControllerTest {
             .andExpect(jsonPath("$.status").value("DRAFT"))
             .andExpect(jsonPath("$.stripe_mode").value("TEST"));
 
-        mockMvc.perform(get("/api/v1/platform-admin/catalog/drafts/77/validation"))
+        mockMvc.perform(post("/api/v1/platform-admin/catalog/drafts/77/validation")
+                .header("X-CSRF-Token", "csrf-test"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.ready").value(true))
             .andExpect(jsonPath("$.blockers").isEmpty());
@@ -177,6 +181,8 @@ class PlatformAdminApiControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.status").value("ACTIVE"))
             .andExpect(jsonPath("$.published").value(true));
+
+        verify(csrf, times(3)).requireCsrf(any(), eq("csrf-test"));
     }
 
     @Test
@@ -301,6 +307,30 @@ class PlatformAdminApiControllerTest {
             .andExpect(jsonPath("$.offer_code").value("basic_2"))
             .andExpect(jsonPath("$.charge_timing").value("TRIAL_END"))
             .andExpect(jsonPath("$.charged_now").value(false));
+    }
+
+    @Test
+    void platformRootCanPreviewAProductChangeBeforeUpdatingStripe() throws Exception {
+        var platformRoot = new AuthSessionUser(99L, 7L, "Platform Root", "root");
+        given(auth.currentUser(any())).willReturn(Optional.of(platformRoot));
+        given(companyModules.previewProducts(eq(99L), eq(22L), any()))
+            .willReturn(new BillingSelectionResponse(
+                "STRIPE", "ACTIVE", "2026.08-v2", "custom_offer", "MONTH", "USD",
+                5, 0, 2, 3, 12_900L, 0, 0, 12_900L, null,
+                "NEXT_INVOICE", false, false, true,
+                List.of("module_hr", "module_process"), List.of()
+            ));
+
+        mockMvc.perform(post("/api/v1/platform-admin/companies/22/products/preview")
+                .header("X-CSRF-Token", "csrf-test")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    { "product_codes": ["module_hr", "module_process"] }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.catalog_version").value("2026.08-v2"))
+            .andExpect(jsonPath("$.estimated_amount_cents").value(12900))
+            .andExpect(jsonPath("$.change_timing").value("NEXT_INVOICE"));
     }
 
     @Test

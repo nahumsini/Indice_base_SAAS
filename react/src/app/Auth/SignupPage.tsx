@@ -36,7 +36,23 @@ import {
 import { Input } from '../components/ui/input';
 import { languages, useLanguage } from '../shared/context';
 import { isValidAccountPassword } from '../shared/validation/password';
+import {
+  getPhoneExampleForCountry,
+  isPhoneInputDialCodeOnly,
+  normalizePhoneInputForCountry,
+  validatePhoneForCountry,
+} from '../shared/validation/phone';
 import { IndiceBrandLogo } from './components/IndiceBrandLogo';
+import {
+  calculatePublicPlanPricing,
+  pricingModeForConfig,
+  publishedProductAmount,
+  publishedSeatAmount,
+  publishedTierAmount,
+  selectAllCompatibleProductCodes,
+  toggleCompatibleProductCode,
+} from './PublicPlans/publicPlansPricing';
+import { parsePublicPlanSearch } from './PublicPlans/publicPlansSelection';
 
 const SIGNUP_DRAFT_STORAGE_KEY = 'indice.auth.signupDraft.v1';
 const SIGNUP_BUILDER_MIGRATION_KEY = 'indice.auth.signupBuilder.v2';
@@ -124,6 +140,8 @@ type SignupCopy = {
   phoneLabel: string;
   optional: string;
   phonePlaceholder: string;
+  phoneInvalidError: string;
+  phoneFormatHint: (example: string) => string;
   industryLabel: string;
   industryPlaceholder: string;
   companySizeLabel: string;
@@ -458,7 +476,9 @@ const esSignupCopy: SignupCopy = {
   countryLabel: 'País de operación',
   phoneLabel: 'Teléfono',
   optional: 'opcional',
-  phonePlaceholder: 'Solo números',
+  phonePlaceholder: '+52 81 3245 6845',
+  phoneInvalidError: 'Ingresa un teléfono válido para el país seleccionado.',
+  phoneFormatHint: (example) => `Puedes usar 10 dígitos o formato internacional. Ejemplo: ${example}`,
   industryLabel: 'Industria',
   industryPlaceholder: 'Restaurante, retail, servicios...',
   companySizeLabel: 'Tamaño de empresa',
@@ -571,7 +591,9 @@ const enSignupCopy: SignupCopy = {
   countryLabel: 'Operating country',
   phoneLabel: 'Phone',
   optional: 'optional',
-  phonePlaceholder: 'Numbers only',
+  phonePlaceholder: '+52 81 3245 6845',
+  phoneInvalidError: 'Enter a valid phone number for the selected country.',
+  phoneFormatHint: (example) => `Use local digits or international format. Example: ${example}`,
   industryLabel: 'Industry',
   industryPlaceholder: 'Restaurant, retail, services...',
   companySizeLabel: 'Company size',
@@ -688,7 +710,9 @@ const signupCopies: Record<string, SignupCopy> = {
     countryLabel: "Pays d'exploitation",
     phoneLabel: 'Téléphone',
     optional: 'optionnel',
-    phonePlaceholder: 'Chiffres seulement',
+    phonePlaceholder: '+52 81 3245 6845',
+    phoneInvalidError: 'Entrez un numéro de téléphone valide pour le pays sélectionné.',
+    phoneFormatHint: (example) => `Utilisez les chiffres locaux ou le format international. Exemple : ${example}`,
     industryLabel: 'Industrie',
     industryPlaceholder: 'Restaurant, détail, services...',
     companySizeLabel: "Taille de l'entreprise",
@@ -783,7 +807,9 @@ const signupCopies: Record<string, SignupCopy> = {
     countryLabel: 'País de operação',
     phoneLabel: 'Telefone',
     optional: 'opcional',
-    phonePlaceholder: 'Somente números',
+    phonePlaceholder: '+52 81 3245 6845',
+    phoneInvalidError: 'Digite um telefone válido para o país selecionado.',
+    phoneFormatHint: (example) => `Use os dígitos locais ou o formato internacional. Exemplo: ${example}`,
     industryLabel: 'Setor',
     industryPlaceholder: 'Restaurante, varejo, serviços...',
     companySizeLabel: 'Tamanho da empresa',
@@ -878,7 +904,9 @@ const signupCopies: Record<string, SignupCopy> = {
     countryLabel: '운영 국가',
     phoneLabel: '전화번호',
     optional: '선택 사항',
-    phonePlaceholder: '숫자만',
+    phonePlaceholder: '+52 81 3245 6845',
+    phoneInvalidError: '선택한 국가에 맞는 유효한 전화번호를 입력하세요.',
+    phoneFormatHint: (example) => `현지 번호 또는 국제 형식을 사용하세요. 예: ${example}`,
     industryLabel: '업종',
     industryPlaceholder: '레스토랑, 리테일, 서비스...',
     companySizeLabel: '회사 규모',
@@ -973,7 +1001,9 @@ const signupCopies: Record<string, SignupCopy> = {
     countryLabel: '运营国家',
     phoneLabel: '电话',
     optional: '可选',
-    phonePlaceholder: '仅限数字',
+    phonePlaceholder: '+52 81 3245 6845',
+    phoneInvalidError: '请输入与所选国家匹配的有效电话号码。',
+    phoneFormatHint: (example) => `可使用本地号码或国际格式。示例：${example}`,
     industryLabel: '行业',
     industryPlaceholder: '餐饮、零售、服务...',
     companySizeLabel: '公司规模',
@@ -1012,8 +1042,6 @@ const signupCopies: Record<string, SignupCopy> = {
     },
   },
 };
-
-type SignupPlanTier = 'basic_1' | 'basic_2' | 'basic_3' | 'basic_all';
 
 type ModulePlanCopy = {
   trialTitle: string;
@@ -1180,7 +1208,20 @@ const newIdempotencyKey = () => (
     : `signup-${Date.now()}-${Math.random().toString(16).slice(2)}`
 );
 
-const phoneDigitsOnly = (value: string) => value.replace(/\D/g, '').slice(0, 20);
+const normalizeSignupPhoneInput = (value: string, countryCode: string) => {
+  const trimmedValue = value.trim();
+  return trimmedValue ? normalizePhoneInputForCountry(trimmedValue, countryCode) : '';
+};
+
+const normalizedSignupPhoneForRequest = (form: BillingSignupRequest) => {
+  const trimmedPhone = form.phone.trim();
+  if (!trimmedPhone || isPhoneInputDialCodeOnly(trimmedPhone, form.countryCode)) {
+    return '';
+  }
+
+  const validation = validatePhoneForCountry(trimmedPhone, form.countryCode);
+  return validation.ok ? validation.e164 : trimmedPhone;
+};
 
 const currency = (amountCents: number, interval: 'MONTH' | 'YEAR', copy: SignupCopy) => {
   const value = new Intl.NumberFormat(copy.locale, {
@@ -1201,35 +1242,10 @@ const moneyOnly = (amountCents: number, copy: SignupCopy) => (
 
 const signupMonthlyPrice = (amountCents: number, copy: SignupCopy) => `${moneyOnly(amountCents, copy)}/mo`;
 
-const signupBaseAmount = (tier: SignupPlanTier) => {
-  if (tier === 'basic_1') return 6900;
-  if (tier === 'basic_2') return 10900;
-  if (tier === 'basic_all') return 19900;
-  return 14900;
-};
-
-const signupEstimatedAmount = (
-  tier: SignupPlanTier,
-  extraSeats: number,
-  interval: 'MONTH' | 'YEAR',
-) => {
-  const packageAmount = signupBaseAmount(tier);
-  const seatAmount = Math.max(0, extraSeats) * 1200;
-  return interval === 'YEAR'
-    ? Math.round(packageAmount * 12 * 0.8) + seatAmount * 12
-    : packageAmount + seatAmount;
-};
-
-const tierForSelection = (selectedCount: number, availableCount: number): SignupPlanTier => {
-  if (availableCount > 0 && selectedCount >= 4 && selectedCount <= availableCount) return 'basic_all';
-  if (selectedCount === 3) return 'basic_3';
-  if (selectedCount === 2) return 'basic_2';
-  return 'basic_1';
-};
-
 const normalizeDraft = (value: unknown): BillingSignupRequest | null => {
   if (!value || typeof value !== 'object') return null;
   const draft = value as Partial<BillingSignupRequest>;
+  const countryCode = typeof draft.countryCode === 'string' ? draft.countryCode : emptyForm.countryCode;
   return {
     ...emptyForm,
     fullName: typeof draft.fullName === 'string' ? draft.fullName : emptyForm.fullName,
@@ -1237,8 +1253,8 @@ const normalizeDraft = (value: unknown): BillingSignupRequest | null => {
     confirmEmail: typeof draft.confirmEmail === 'string' ? draft.confirmEmail : emptyForm.confirmEmail,
     password: typeof draft.password === 'string' ? draft.password : emptyForm.password,
     companyName: typeof draft.companyName === 'string' ? draft.companyName : emptyForm.companyName,
-    countryCode: typeof draft.countryCode === 'string' ? draft.countryCode : emptyForm.countryCode,
-    phone: typeof draft.phone === 'string' ? phoneDigitsOnly(draft.phone) : emptyForm.phone,
+    countryCode,
+    phone: typeof draft.phone === 'string' ? normalizeSignupPhoneInput(draft.phone, countryCode) : emptyForm.phone,
     industry: typeof draft.industry === 'string' ? draft.industry : emptyForm.industry,
     companySize: typeof draft.companySize === 'string' ? draft.companySize : emptyForm.companySize,
     billingInterval: draft.billingInterval === 'YEAR' ? 'YEAR' : 'MONTH',
@@ -1274,9 +1290,12 @@ const loadStoredSignupDraft = () => {
 
 const saveSignupDraft = (form: BillingSignupRequest) => {
   if (typeof window === 'undefined') return;
+  const phone = isPhoneInputDialCodeOnly(form.phone, form.countryCode)
+    ? ''
+    : normalizeSignupPhoneInput(form.phone, form.countryCode);
   const sanitizedForm = {
     ...form,
-    phone: phoneDigitsOnly(form.phone),
+    phone,
   };
   window.sessionStorage.setItem(SIGNUP_DRAFT_STORAGE_KEY, JSON.stringify(sanitizedForm));
   window.localStorage.setItem(SIGNUP_DRAFT_STORAGE_KEY, JSON.stringify({
@@ -1333,6 +1352,11 @@ export default function SignupPage() {
         setConfig(value);
         setForm((current) => {
           const availableCodes = new Set(value.products.map((product) => product.code));
+          const plansHandoff = parsePublicPlanSearch(
+            location.search,
+            value.products.map((product) => product.code),
+            value.launchCountries,
+          );
           const legacyFullSelection = typeof window !== 'undefined'
             && !window.sessionStorage.getItem(SIGNUP_BUILDER_MIGRATION_KEY)
             && value.products.length > 0
@@ -1341,16 +1365,20 @@ export default function SignupPage() {
           if (typeof window !== 'undefined') {
             window.sessionStorage.setItem(SIGNUP_BUILDER_MIGRATION_KEY, 'ready');
           }
-          const selectedProductCodes = legacyFullSelection
+          const selectedProductCodes = plansHandoff?.selectedProductCodes ?? (legacyFullSelection
             ? []
-            : current.selectedProductCodes.filter((code) => availableCodes.has(code));
+            : current.selectedProductCodes.filter((code) => availableCodes.has(code)));
           if (
-            selectedProductCodes.length === current.selectedProductCodes.length
+            !plansHandoff
+            && selectedProductCodes.length === current.selectedProductCodes.length
             && selectedProductCodes.every((code, index) => code === current.selectedProductCodes[index])
           ) return current;
           const next = {
             ...current,
             selectedProductCodes,
+            billingInterval: plansHandoff?.billingInterval ?? current.billingInterval,
+            extraSeats: plansHandoff?.extraSeats ?? current.extraSeats,
+            countryCode: plansHandoff?.countryCode ?? current.countryCode,
           };
           saveSignupDraft(next);
           return next;
@@ -1384,40 +1412,12 @@ export default function SignupPage() {
   }, [emailVerification.resendAvailableInSeconds]);
 
   const selectedCount = form.selectedProductCodes.length;
-  const basicProducts = config?.products.filter((product) => product.productType === 'BASIC') ?? [];
-  const selectedBasicCount = basicProducts.filter((product) => form.selectedProductCodes.includes(product.code)).length;
-  const selectedComplementaryProducts = config?.products.filter(
-    (product) => product.productType === 'ADDON' && form.selectedProductCodes.includes(product.code),
-  ) ?? [];
-  const offerCode = config && selectedBasicCount >= 4 && selectedBasicCount <= basicProducts.length
-    ? 'basic_all'
-    : `basic_${selectedBasicCount}`;
-  const basePrice = config?.prices.find((price) => (
-    price.billableCode === offerCode
-    && price.priceType === 'BASE'
-    && price.billingInterval === form.billingInterval
-  ));
-  const seatPrice = config?.prices.find((price) => (
-    price.billableCode === 'extra_seat'
-    && price.priceType === 'ADDON'
-    && price.billingInterval === form.billingInterval
-  ));
-  const complementaryPrices = selectedComplementaryProducts.map((product) => config?.prices.find((price) => (
-    price.billableCode === product.code
-    && price.priceType === 'ADDON'
-    && price.billingInterval === form.billingInterval
-  ))?.unitAmountCents ?? null);
-  const complementaryPricesReady = complementaryPrices.every((amount) => amount != null);
-  const complementaryAmount = complementaryPricesReady
-    ? complementaryPrices.reduce((total, amount) => total + (amount ?? 0), 0)
+  const pricing = config
+    ? calculatePublicPlanPricing(config, form.selectedProductCodes, form.extraSeats, form.billingInterval)
     : null;
-  const estimatedAmount = basePrice?.unitAmountCents == null
-    || seatPrice?.unitAmountCents == null
-    || complementaryAmount == null
-    ? null
-    : basePrice.unitAmountCents + complementaryAmount + seatPrice.unitAmountCents * form.extraSeats;
-  const validSelection = selectedBasicCount >= 1
-    && selectedBasicCount <= basicProducts.length;
+  const pricingMode = config ? pricingModeForConfig(config) : 'LEGACY_TIERS';
+  const estimatedAmount = pricing?.estimatedAmountCents ?? null;
+  const validSelection = pricing?.validSelection ?? false;
   const courtesyRequested = form.courtesyCode.trim().length > 0;
   const platformReady = Boolean(
     config?.provisioningEnabled
@@ -1433,13 +1433,22 @@ export default function SignupPage() {
       && emailVerification.verifiedEmail
       && emailVerification.verifiedEmail === normalizedEmail),
   );
+  const phoneProvided = Boolean(
+    form.phone.trim()
+    && !isPhoneInputDialCodeOnly(form.phone, form.countryCode)
+  );
+  const phoneValidation = useMemo(() => (
+    phoneProvided ? validatePhoneForCountry(form.phone, form.countryCode) : null
+  ), [form.countryCode, form.phone, phoneProvided]);
+  const phoneReady = !phoneValidation || phoneValidation.ok;
   const accountDetailsComplete = useMemo(() => (
     form.fullName.trim().length >= 2
     && form.companyName.trim().length >= 2
     && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())
     && form.email.trim().toLowerCase() === form.confirmEmail.trim().toLowerCase()
     && isValidAccountPassword(form.password)
-  ), [form.companyName, form.confirmEmail, form.email, form.fullName, form.password]);
+    && phoneReady
+  ), [form.companyName, form.confirmEmail, form.email, form.fullName, form.password, phoneReady]);
   const canSubmit = platformReady
     && accountDetailsComplete
     && emailVerified
@@ -1449,14 +1458,19 @@ export default function SignupPage() {
   const knownIndustry = !form.industry
     || industryValues.includes(form.industry as (typeof industryValues)[number]);
   const availableProductCodes = useMemo(() => config?.products.map((product) => product.code) ?? [], [config]);
-  const selectedTier = tierForSelection(selectedBasicCount, basicProducts.length);
   const includedSeats = config?.includedSeats ?? 5;
-  const visibleSignupEstimate = signupEstimatedAmount(selectedTier, form.extraSeats, form.billingInterval);
 
   const update = <K extends keyof BillingSignupRequest>(key: K, value: BillingSignupRequest[K]) => {
     const resetVerification = key === 'email' || key === 'confirmEmail' || key === 'fullName' || key === 'companyName';
     setForm((current) => {
       const next = { ...current, [key]: value };
+      if (key === 'countryCode') {
+        next.countryCode = String(value);
+        next.phone = normalizeSignupPhoneInput(current.phone, next.countryCode);
+      }
+      if (key === 'phone') {
+        next.phone = normalizeSignupPhoneInput(String(value), current.countryCode);
+      }
       if (resetVerification) {
         next.emailVerificationReference = '';
       }
@@ -1470,19 +1484,12 @@ export default function SignupPage() {
   };
 
   const toggleProduct = (code: string) => {
-    if (!availableProductCodes.includes(code)) return;
-    const currentSelection = form.selectedProductCodes.filter((productCode) => availableProductCodes.includes(productCode));
-    if (currentSelection.includes(code)) {
-      const product = config?.products.find((item) => item.code === code);
-      if (product?.productType === 'BASIC' && selectedBasicCount === 1) return;
-      update('selectedProductCodes', currentSelection.filter((current) => current !== code));
-      return;
-    }
-    update('selectedProductCodes', [...currentSelection, code]);
+    if (!config || !availableProductCodes.includes(code)) return;
+    update('selectedProductCodes', toggleCompatibleProductCode(config, form.selectedProductCodes, code));
   };
 
-  const selectAllProducts = () => update('selectedProductCodes', availableProductCodes);
-  const clearProducts = () => update('selectedProductCodes', basicProducts.slice(0, 1).map((product) => product.code));
+  const selectAllProducts = () => update('selectedProductCodes', config ? selectAllCompatibleProductCodes(config) : []);
+  const clearProducts = () => update('selectedProductCodes', []);
 
   const startEmailVerification = async () => {
     const response = await billingSignupApi.startEmailVerification({
@@ -1549,6 +1556,10 @@ export default function SignupPage() {
   const continueToBilling = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setAccountAttempted(true);
+    if (!phoneReady) {
+      setError(copy.phoneInvalidError);
+      return;
+    }
     if (!accountDetailsComplete) {
       setError(copy.accountIncompleteError);
       return;
@@ -1578,6 +1589,10 @@ export default function SignupPage() {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!phoneReady) {
+      setError(copy.phoneInvalidError);
+      return;
+    }
     if (!accountDetailsComplete) {
       setError(copy.accountIncompleteError);
       return;
@@ -1599,7 +1614,7 @@ export default function SignupPage() {
         email: form.email.trim().toLowerCase(),
         confirmEmail: form.confirmEmail.trim().toLowerCase(),
         companyName: form.companyName.trim(),
-        phone: phoneDigitsOnly(form.phone),
+        phone: normalizedSignupPhoneForRequest(form),
         industry: form.industry.trim(),
         companySize: form.companySize.trim(),
         emailVerificationReference: form.emailVerificationReference,
@@ -1617,18 +1632,15 @@ export default function SignupPage() {
     }
   };
 
-  const configuredMonthlyAmount = (billableCode: string, fallbackAmount: number) => (
-    config?.prices.find((price) => (
-      price.billableCode === billableCode
-      && price.billingInterval === 'MONTH'
-      && price.unitAmountCents != null
-    ))?.unitAmountCents ?? fallbackAmount
-  );
-  const oneModulePriceLabel = signupMonthlyPrice(configuredMonthlyAmount('basic_1', 6900), copy);
-  const twoModulePriceLabel = signupMonthlyPrice(configuredMonthlyAmount('basic_2', 10900), copy);
-  const threeModulePriceLabel = signupMonthlyPrice(configuredMonthlyAmount('basic_3', 14900), copy);
-  const allModulesPriceLabel = signupMonthlyPrice(configuredMonthlyAmount('basic_all', 19900), copy);
-  const extraSeatPriceLabel = signupMonthlyPrice(configuredMonthlyAmount('extra_seat', 1200), copy);
+  const pendingPriceLabel = copy.pendingCompletePrice;
+  const priceLabel = (amount: number | null) => amount == null
+    ? pendingPriceLabel
+    : signupMonthlyPrice(amount, copy);
+  const oneModulePriceLabel = priceLabel(config ? publishedTierAmount(config, 1, 'MONTH') : null);
+  const twoModulePriceLabel = priceLabel(config ? publishedTierAmount(config, 2, 'MONTH') : null);
+  const threeModulePriceLabel = priceLabel(config ? publishedTierAmount(config, 3, 'MONTH') : null);
+  const allModulesPriceLabel = priceLabel(config ? publishedTierAmount(config, 4, 'MONTH') : null);
+  const extraSeatPriceLabel = priceLabel(config ? publishedSeatAmount(config, 'MONTH') : null);
   const pricingGuide = [
     {
       tier: 'basic_1' as const,
@@ -1657,7 +1669,7 @@ export default function SignupPage() {
     experienceCopy.stepConfiguration,
     experienceCopy.stepActivation,
   ];
-  const selectedPrice = selectedCount === 0 ? 0 : (estimatedAmount ?? visibleSignupEstimate);
+  const selectedPrice = selectedCount === 0 ? 0 : (estimatedAmount ?? 0);
   const companyInvalid = accountAttempted && form.companyName.trim().length < 2;
   const ownerInvalid = accountAttempted && form.fullName.trim().length < 2;
   const emailInvalid = accountAttempted && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim());
@@ -1836,24 +1848,35 @@ export default function SignupPage() {
 
                     <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/70">
                       <p className="px-4 pt-3 text-xs font-medium text-slate-500">{experienceCopy.priceGuide}</p>
-                      <div className="mt-2 grid grid-cols-2 sm:grid-cols-4">
-                        {pricingGuide.map((item, index) => {
-                          const active = selectedCount > 0 && selectedTier === item.tier;
-                          const accents = ['#59C3A5', '#F4C84A', '#FF6B5E', '#2563EB'];
-                          return (
-                            <div key={item.tier} className={`relative border-t border-slate-200 px-3 py-3 text-center sm:border-l sm:first:border-l-0 ${active ? 'bg-white shadow-[inset_0_-3px_0_var(--tier-accent)]' : ''}`} style={{ '--tier-accent': accents[index] } as CSSProperties}>
-                              <span className={`block text-xs ${active ? 'font-medium text-slate-800' : 'text-slate-500'}`}>{item.title}</span>
-                              <span className={`mt-1 block text-base ${active ? 'font-semibold text-slate-900' : 'font-medium text-slate-600'}`}>{item.price}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
+                      {pricingMode === 'LEGACY_TIERS' ? (
+                        <div className="mt-2 grid grid-cols-2 sm:grid-cols-4">
+                          {pricingGuide.map((item, index) => {
+                            const active = selectedCount > 0 && pricing?.offerCode === item.tier;
+                            const accents = ['#59C3A5', '#F4C84A', '#FF6B5E', '#2563EB'];
+                            return (
+                              <div key={item.tier} className={`relative border-t border-slate-200 px-3 py-3 text-center sm:border-l sm:first:border-l-0 ${active ? 'bg-white shadow-[inset_0_-3px_0_var(--tier-accent)]' : ''}`} style={{ '--tier-accent': accents[index] } as CSSProperties}>
+                                <span className={`block text-xs ${active ? 'font-medium text-slate-800' : 'text-slate-500'}`}>{item.title}</span>
+                                <span className={`mt-1 block text-base ${active ? 'font-semibold text-slate-900' : 'font-medium text-slate-600'}`}>{item.price}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="mt-2 flex items-center justify-between gap-4 border-t border-slate-200 bg-white px-4 py-4">
+                          <span className="text-sm font-medium text-slate-600">{experienceCopy.selectedProducts(selectedCount)}</span>
+                          <span className="text-lg font-semibold text-slate-900">
+                            {pricing?.baseAmountCents == null ? pendingPriceLabel : currency(pricing.baseAmountCents, form.billingInterval, copy)}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-5 grid gap-3 sm:grid-cols-2">
                       {config?.products.map((product) => {
                         const selected = form.selectedProductCodes.includes(product.code);
                         const visual = productVisual(product.code);
+                        const productAmount = publishedProductAmount(config, product, form.billingInterval);
+                        const showProductAmount = pricingMode === 'DIRECT_PRODUCTS' || product.productType === 'ADDON';
                         return (
                           <button
                             key={product.code}
@@ -1875,23 +1898,19 @@ export default function SignupPage() {
                             </span>
                             <span className="mt-3 text-base font-medium leading-5 text-slate-900">{productLabel(product.code, product.displayName, copy)}</span>
                           <span className="mt-2 text-sm font-medium" style={{ color: visual.accent }}>
-                            {product.productType === 'ADDON'
-                              ? currency(
-                                  config?.prices.find((price) => price.billableCode === product.code
-                                    && price.priceType === 'ADDON'
-                                    && price.billingInterval === form.billingInterval)?.unitAmountCents ?? 0,
-                                  form.billingInterval,
-                                  copy,
-                                )
+                            {showProductAmount
+                              ? productAmount == null
+                                ? pendingPriceLabel
+                                : currency(productAmount, form.billingInterval, copy)
                               : experienceCopy.countsAsOne}
                           </span>
                           </button>
                         );
                       })}
                     </div>
-                    {selectedBasicCount === 0 ? <p className="mt-4 text-sm font-medium text-amber-700">{experienceCopy.chooseAtLeastOne}</p> : null}
+                    {selectedCount === 0 ? <p className="mt-4 text-sm font-medium text-amber-700">{experienceCopy.chooseAtLeastOne}</p> : null}
                     {!validSelection && selectedCount > 0 ? <p className="mt-3 text-sm font-medium text-amber-700">{copy.invalidSelection}</p> : null}
-                    {basePrice?.status === 'PENDING_PRICE' ? <p className="mt-3 text-sm font-semibold text-amber-700">{copy.pendingCompletePrice}</p> : null}
+                    {validSelection && estimatedAmount == null ? <p className="mt-3 text-sm font-semibold text-amber-700">{copy.pendingCompletePrice}</p> : null}
                   </fieldset>
 
                   <label className="block space-y-2 text-sm font-medium text-slate-700">
@@ -2081,7 +2100,12 @@ export default function SignupPage() {
                         {copy.phoneLabel}
                         <span className="relative block">
                           <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                          <Input type="tel" inputMode="numeric" pattern="[0-9]*" value={form.phone} onChange={(event) => update('phone', phoneDigitsOnly(event.target.value))} maxLength={20} className={`${brandInputClasses} pl-10`} placeholder={copy.phonePlaceholder} autoComplete="tel" />
+                          <Input type="tel" inputMode="tel" value={form.phone} onChange={(event) => update('phone', event.target.value)} maxLength={32} className={`${brandInputClasses} pl-10`} placeholder={getPhoneExampleForCountry(form.countryCode) || copy.phonePlaceholder} autoComplete="tel" />
+                        </span>
+                        <span className={`block text-xs font-normal ${phoneValidation && !phoneValidation.ok ? 'text-red-600' : 'text-slate-500'}`}>
+                          {phoneValidation && !phoneValidation.ok
+                            ? copy.phoneInvalidError
+                            : copy.phoneFormatHint(getPhoneExampleForCountry(form.countryCode))}
                         </span>
                       </label>
                       <label className="space-y-2 text-sm font-medium text-slate-700">

@@ -46,7 +46,13 @@ export const enUS = {
     discard: "Discard",
     uploadingPhoto: "Uploading photo...",
   },
-  phone: { add: "Add phone", number: "Number", primary: "Primary", remove: "Remove" },
+  phone: {
+    add: "Add phone",
+    number: "Number",
+    primary: "Primary",
+    remove: "Remove",
+    formatHint: (example) => `Example: ${example}`,
+  },
   progress: {
     completion: "Profile complete",
     essentials: "Complete the essentials in a single view.",

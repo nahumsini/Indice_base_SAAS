@@ -9,11 +9,10 @@ import org.springframework.stereotype.Component;
 public class StorageQuotaProperties {
 
     public static final long FIVE_GIB = 5L * 1024L * 1024L * 1024L;
-    public static final long ONE_GIB = 1024L * 1024L * 1024L;
 
     private boolean enforcementEnabled;
     private long includedBytes = FIVE_GIB;
-    private long blockBytes = ONE_GIB;
+    private long blockBytes = FIVE_GIB;
     private int reservationTtlMinutes = 30;
     private int cleanupBatchSize = 200;
     private long cleanupDelayMs = 300_000;
