@@ -90,6 +90,9 @@ const distributorAssignment = read(
   "src/app/PlatformAdmin/DistributorAssignmentModal.tsx",
 );
 const platformApi = read("src/app/api/platformAdmin.ts");
+const allCompanyActivityPanel = read(
+  "src/app/PlatformAdmin/AllCompanyActivityPanel.tsx",
+);
 const company = read("src/app/PlatformAdmin/CompanyAccountDrawer.tsx");
 const companyOverview = read(
   "src/app/PlatformAdmin/CompanyAccount/CompanyOverviewTab.tsx",
@@ -560,4 +563,17 @@ test("órdenes de módulos y operación de consultoría persisten por API", () =
   assert.match(platformApi, /createConsultingLocation:/);
   assert.match(platformApi, /createConsultingAppointment:/);
   assert.doesNotMatch(consulting, /localStorage/);
+});
+
+test("actividades globales muestran línea editable de usuarios activos", () => {
+  assert.match(platformApi, /unique_active_users:\s*number/);
+  assert.match(platformApi, /recent_events_has_more:\s*boolean/);
+  assert.match(platformApi, /recentLimit=/);
+  assert.match(allCompanyActivityPanel, /LineChart/);
+  assert.match(allCompanyActivityPanel, /PLATFORM_ACTIVITY_CHART_STORAGE_KEY/);
+  assert.match(allCompanyActivityPanel, /unique_active_users/);
+  assert.match(allCompanyActivityPanel, /Active users/);
+  assert.match(allCompanyActivityPanel, /Customize/);
+  assert.match(allCompanyActivityPanel, /Load more activity/);
+  assert.doesNotMatch(allCompanyActivityPanel, /BarChart/);
 });

@@ -202,6 +202,8 @@ export interface PlatformCompanyMember {
   role?: string | null;
   status?: string | null;
   is_owner?: boolean;
+  platform_role?: string | null;
+  platform_status?: string | null;
   created_at?: string | null;
 }
 
@@ -213,6 +215,116 @@ export interface PlatformCompanyInvitation {
   status: string;
   expires_at?: string | null;
   created_at?: string | null;
+}
+
+export interface PlatformCompanyUserActivityMember {
+  membership_id: number;
+  user_id: number;
+  name?: string | null;
+  email: string;
+  role?: string | null;
+  status?: string | null;
+  platform_role?: string | null;
+  platform_status?: string | null;
+  created_at?: string | null;
+  last_login_at?: string | null;
+  new_user: boolean;
+  recently_active: boolean;
+  logged_in_last_24h: boolean;
+  failed_login_events_24h: number;
+}
+
+export interface PlatformCompanyUserActivity {
+  company_id: number;
+  generated_at: string;
+  activity_window_minutes: number;
+  new_user_window_days: number;
+  totals: {
+    total_users: number;
+    active_users: number;
+    inactive_users: number;
+    active_now_users: number;
+    logged_in_users_24h: number;
+    new_users_30d: number;
+    old_users: number;
+    platform_roots: number;
+    failed_login_events_24h: number;
+  };
+  members: PlatformCompanyUserActivityMember[];
+  activity_buckets: Array<{
+    label: string;
+    unique_active_users: number;
+    successful_logins: number;
+    failed_attempts: number;
+    total_events: number;
+  }>;
+  recent_events: Array<{
+    id: number;
+    user_id?: number | null;
+    name?: string | null;
+    email?: string | null;
+    event_type?: string | null;
+    stage?: string | null;
+    outcome?: string | null;
+    failure_reason_code?: string | null;
+    ip_address?: string | null;
+    user_agent?: string | null;
+    created_at?: string | null;
+  }>;
+}
+
+export interface PlatformAllCompanyActivityRow {
+  company_id: number;
+  company_name: string;
+  owner_email?: string | null;
+  platform_status?: string | null;
+  billing_status?: string | null;
+  billing_currency?: string | null;
+  billing_interval?: string | null;
+  current_period_ends_at?: string | null;
+  last_invoice_status?: string | null;
+  last_invoice_due_cents?: number | null;
+  last_invoice_paid_cents?: number | null;
+  last_invoice_period_ends_at?: string | null;
+  total_users: number;
+  active_users: number;
+  active_now_users: number;
+  logged_in_users_24h: number;
+  new_users_30d: number;
+  platform_roots: number;
+  failed_login_events_24h: number;
+  auth_events_24h: number;
+}
+
+export interface PlatformAllCompanyUserActivity {
+  generated_at: string;
+  activity_window_minutes: number;
+  new_user_window_days: number;
+  totals: {
+    companies: number;
+    total_users: number;
+    active_users: number;
+    active_now_users: number;
+    logged_in_users_24h: number;
+    new_users_30d: number;
+    platform_roots: number;
+    failed_login_events_24h: number;
+    auth_events_24h: number;
+  };
+  server: {
+    available_processors: number;
+    system_load_average: number;
+    heap_used_bytes: number;
+    heap_max_bytes: number;
+  };
+  companies: PlatformAllCompanyActivityRow[];
+  activity_buckets: PlatformCompanyUserActivity['activity_buckets'];
+  recent_events_limit: number;
+  recent_events_has_more: boolean;
+  recent_events: Array<PlatformCompanyUserActivity['recent_events'][number] & {
+    company_id?: number | null;
+    company_name?: string | null;
+  }>;
 }
 
 export interface PlatformInvoice {
@@ -548,6 +660,9 @@ export interface PlatformCompanyUserMutationResult {
   membership_id?: number;
   user_id?: number;
   status?: string;
+  role?: string;
+  platform_role?: string | null;
+  platform_status?: string | null;
   email?: string;
   full_name?: string;
   expires_at?: string;
@@ -569,6 +684,12 @@ export const platformAdminApi = {
     `${endpoints.platformAdmin.overview}?q=${encodeURIComponent(query)}&limit=500`,
   ),
   getCompany: (companyId: number) => apiClient<PlatformCompanyDetail>(companyPath(companyId)),
+  getCompanyUserActivity: (companyId: number) => apiClient<PlatformCompanyUserActivity>(
+    `${companyPath(companyId)}/users/activity`,
+  ),
+  getAllCompanyUserActivity: (recentLimit = 10) => apiClient<PlatformAllCompanyUserActivity>(
+    `${endpoints.platformAdmin.companies}/users/activity?recentLimit=${encodeURIComponent(String(recentLimit))}`,
+  ),
   createCompanyAccount: (payload: PlatformAccountCreatePayload) => apiClient<PlatformAccountCreateResult>(
     endpoints.platformAdmin.companies,
     {
@@ -616,6 +737,14 @@ export const platformAdminApi = {
   updateCompanyUserStatus: (companyId: number, userId: number, status: 'active' | 'inactive') => apiClient<PlatformCompanyUserMutationResult>(
     `${companyPath(companyId)}/users/${userId}/status`,
     { method: 'PATCH', body: JSON.stringify({ status }) },
+  ),
+  updateCompanyUserRole: (companyId: number, userId: number, role: 'user' | 'admin' | 'superadmin' | 'root') => apiClient<PlatformCompanyUserMutationResult>(
+    `${companyPath(companyId)}/users/${userId}/role`,
+    { method: 'PATCH', body: JSON.stringify({ role }) },
+  ),
+  updateCompanyUserPlatformAccess: (companyId: number, userId: number, platformRole: 'PLATFORM_ROOT' | 'NONE') => apiClient<PlatformCompanyUserMutationResult>(
+    `${companyPath(companyId)}/users/${userId}/platform-access`,
+    { method: 'PATCH', body: JSON.stringify({ platform_role: platformRole }) },
   ),
   extendCompanyTrial: (companyId: number, days: 7 | 15 | 30) => apiClient<PlatformTrialExtensionResult>(
     `${companyPath(companyId)}/trial-extension`,

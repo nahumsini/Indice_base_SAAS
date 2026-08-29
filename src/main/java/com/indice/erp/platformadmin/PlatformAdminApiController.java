@@ -368,6 +368,19 @@ public class PlatformAdminApiController {
         return withUser(session, userId -> service.company(userId, companyId));
     }
 
+    @GetMapping("/companies/{companyId}/users/activity")
+    public ResponseEntity<?> companyUserActivity(HttpSession session, @PathVariable long companyId) {
+        return withUser(session, userId -> companyUsers.activity(userId, companyId));
+    }
+
+    @GetMapping("/companies/users/activity")
+    public ResponseEntity<?> allCompanyUserActivity(
+        HttpSession session,
+        @RequestParam(name = "recentLimit", defaultValue = "10") int recentLimit
+    ) {
+        return withUser(session, userId -> companyUsers.allActivity(userId, recentLimit));
+    }
+
     @PostMapping("/companies/{companyId}/users/invitations")
     public ResponseEntity<?> inviteCompanyUser(
         HttpSession session,
@@ -457,6 +470,46 @@ public class PlatformAdminApiController {
             }
             csrf.requireCsrf(session, csrfToken);
             return ResponseEntity.ok(companyUsers.updateStatus(current.userId(), companyId, userId, request));
+        } catch (RuntimeException exception) {
+            return error(exception);
+        }
+    }
+
+    @PatchMapping("/companies/{companyId}/users/{userId}/role")
+    public ResponseEntity<?> updateCompanyUserRole(
+        HttpSession session,
+        @PathVariable long companyId,
+        @PathVariable long userId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody PlatformCompanyUserService.MemberRoleRequest request
+    ) {
+        try {
+            var current = auth.currentUser(session).orElse(null);
+            if (current == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            }
+            csrf.requireCsrf(session, csrfToken);
+            return ResponseEntity.ok(companyUsers.updateRole(current.userId(), companyId, userId, request));
+        } catch (RuntimeException exception) {
+            return error(exception);
+        }
+    }
+
+    @PatchMapping("/companies/{companyId}/users/{userId}/platform-access")
+    public ResponseEntity<?> updateCompanyUserPlatformAccess(
+        HttpSession session,
+        @PathVariable long companyId,
+        @PathVariable long userId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody PlatformCompanyUserService.PlatformAccessRequest request
+    ) {
+        try {
+            var current = auth.currentUser(session).orElse(null);
+            if (current == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            }
+            csrf.requireCsrf(session, csrfToken);
+            return ResponseEntity.ok(companyUsers.updatePlatformAccess(current.userId(), companyId, userId, request));
         } catch (RuntimeException exception) {
             return error(exception);
         }

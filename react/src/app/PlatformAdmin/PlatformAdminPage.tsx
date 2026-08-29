@@ -80,6 +80,7 @@ import { QuickTestAccountModal } from "./QuickTestAccount";
 import CompanyAccountDrawer, { type CompanyAccountTab } from "./CompanyAccountDrawer";
 import { CustomerUsersModal } from "./Customers/CustomerUsersModal";
 import ConsultingAdminTab from "./ConsultingAdminTab";
+import { CompaniesDirectoryTab } from "./UsersDirectoryTab";
 import { CatalogProductCard } from "./Catalog";
 import { ModuleAvailabilityWorkspace } from "./CatalogWorkspace";
 import {
@@ -135,7 +136,7 @@ import {
 } from "../api/platformAdmin";
 
 type AdminTab =
-  "customers" | "billing" | "catalog" | "consulting" | "training" | "systemTickets" | "audit";
+  "customers" | "companies" | "billing" | "catalog" | "consulting" | "training" | "systemTickets" | "audit";
 type BillingSortKey =
   "customer" | "invoice" | "status" | "amount" | "paid" | "period";
 type CatalogPriceSortKey =
@@ -185,6 +186,7 @@ const tabDefinitions: {
   icon: typeof LayoutDashboard;
 }[] = [
   { id: "customers", es: "Clientes", en: "Customers", icon: Building2 },
+  { id: "companies", es: "Empresas", en: "Companies", icon: Users },
   { id: "billing", es: "Facturación", en: "Billing", icon: CreditCard },
   {
     id: "catalog",
@@ -234,8 +236,11 @@ export default function PlatformAdminPage() {
     [activeTab],
   );
   const restoreAdminNavigation = useCallback(
-    (restored: { section: AdminTab }) => {
-      if (isAdminTab(restored.section)) setActiveTab(restored.section);
+    (restored: { section?: unknown }) => {
+      const section = restored.section === "users" || restored.section === "activities"
+        ? "companies"
+        : restored.section;
+      if (isAdminTab(section)) setActiveTab(section);
     },
     [],
   );
@@ -1043,6 +1048,17 @@ export default function PlatformAdminPage() {
                   setCompanyDeletionName("");
                   setCompanyDeletionReason("");
                   setCompanyDeletion(company);
+                }}
+              />
+            ) : null}
+            {activeTab === "companies" ? (
+              <CompaniesDirectoryTab
+                english={english}
+                companies={overview?.companies ?? []}
+                canManageRoles={context?.role === "PLATFORM_ROOT"}
+                onOpenCompany={(company) => {
+                  setSelectedInitialTab("overview");
+                  setSelected(company);
                 }}
               />
             ) : null}

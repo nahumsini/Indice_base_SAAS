@@ -1423,6 +1423,7 @@ public class PlatformAdminService {
             """
                 SELECT membership.id, user.id AS user_id, user.full_name, user.email,
                        membership.role, membership.status, membership.created_at,
+                       administrator.platform_role, administrator.status AS platform_status,
                        EXISTS (
                            SELECT 1
                            FROM company_ownerships ownership
@@ -1432,6 +1433,8 @@ public class PlatformAdminService {
                        ) AS is_owner
                 FROM user_companies membership
                 JOIN users user ON user.id = membership.user_id
+                LEFT JOIN platform_administrators administrator
+                  ON administrator.user_id = user.id
                 WHERE membership.company_id = ?
                 ORDER BY CASE WHEN LOWER(COALESCE(membership.role, '')) IN ('owner', 'super_admin') THEN 0 ELSE 1 END,
                          user.full_name, user.email
@@ -1445,6 +1448,8 @@ public class PlatformAdminService {
                 row.put("role", nullable(rs.getString("role")));
                 row.put("status", nullable(rs.getString("status")));
                 row.put("is_owner", rs.getBoolean("is_owner"));
+                row.put("platform_role", nullable(rs.getString("platform_role")));
+                row.put("platform_status", nullable(rs.getString("platform_status")));
                 row.put("created_at", instant(rs.getTimestamp("created_at")));
                 return row;
             },
