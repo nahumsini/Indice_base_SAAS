@@ -13,6 +13,14 @@ import {
   subscribeToAuthenticationExpired,
 } from '../src/app/api/authSessionStore.ts';
 import { canAccessKioskCenter } from '../src/app/access/tabScopeCatalog.ts';
+import {
+  buildPublicPlanSearch,
+  parsePublicPlanSearch,
+} from '../src/app/Auth/PublicPlans/publicPlansSelection.ts';
+import {
+  calculatePublicPlanPricing,
+  publishedTierAmount,
+} from '../src/app/Auth/PublicPlans/publicPlansPricing.ts';
 
 const sessionWithAccess = ({ role, modules, tabs }) => ({
   user: {
@@ -166,4 +174,70 @@ test('public demos use an isolated credential route without changing secure logi
   assert.match(authApiSource, /async demoLogin/);
   assert.match(endpoints, /demoLogin:\s*'\/api\/v1\/auth\/demo-login'/);
   assert.match(endpoints, /login:\s*'\/api\/v1\/auth\/login'/);
+});
+
+test('public plan handoff only preserves products and commercial values allowed by the published config', () => {
+  const search = buildPublicPlanSearch({
+    selectedProductCodes: ['basic_hr', 'basic_receivables'],
+    billingInterval: 'YEAR',
+    extraSeats: 12,
+    countryCode: 'CA',
+    locale: 'fr-CA',
+  });
+  const tamperedParams = new URLSearchParams(search);
+  tamperedParams.set('products', 'basic_hr,forged_product,basic_hr,basic_receivables');
+  tamperedParams.set('extraSeats', '9999');
+  const parsed = parsePublicPlanSearch(
+    tamperedParams.toString(),
+    ['basic_hr', 'basic_receivables'],
+    ['MX', 'CA'],
+  );
+
+  assert.deepEqual(parsed, {
+    selectedProductCodes: ['basic_hr', 'basic_receivables'],
+    billingInterval: 'YEAR',
+    extraSeats: 500,
+    countryCode: 'CA',
+  });
+  assert.equal(parsePublicPlanSearch('?source=campaign', ['basic_hr'], ['MX']), null);
+});
+
+test('public plan estimates are derived from active catalog prices instead of visual constants', () => {
+  const config = {
+    currency: 'USD',
+    products: [
+      { id: 1, code: 'basic_hr', displayName: 'HR', productType: 'BASIC', unitAmountCents: null },
+      { id: 2, code: 'basic_receivables', displayName: 'Receivables', productType: 'BASIC', unitAmountCents: null },
+    ],
+    prices: [
+      { billableCode: 'basic_1', priceType: 'BASE', billingInterval: 'MONTH', currency: 'USD', unitAmountCents: 7300, includedQuantity: 1, status: 'ACTIVE' },
+      { billableCode: 'basic_2', priceType: 'BASE', billingInterval: 'MONTH', currency: 'USD', unitAmountCents: 11700, includedQuantity: 1, status: 'ACTIVE' },
+      { billableCode: 'extra_seat', priceType: 'ADDON', billingInterval: 'MONTH', currency: 'USD', unitAmountCents: 900, includedQuantity: 1, status: 'ACTIVE' },
+    ],
+  };
+
+  const pricing = calculatePublicPlanPricing(config, ['basic_hr', 'basic_receivables'], 3, 'MONTH');
+  assert.equal(pricing.baseAmountCents, 11700);
+  assert.equal(pricing.extraSeatsAmountCents, 2700);
+  assert.equal(pricing.estimatedAmountCents, 14400);
+  assert.equal(publishedTierAmount(config, 1, 'MONTH'), 7300);
+});
+
+test('public plans route remains a read-only configurator and hands validated choices to signup', async () => {
+  const [page, pricing, signupPage, routes] = await Promise.all([
+    readFile(new URL('../src/app/Auth/PublicPlans/PublicPlansPage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/Auth/PublicPlans/publicPlansPricing.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/Auth/SignupPage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/routes.tsx', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(routes, /path:\s*'\/planes'/);
+  assert.match(routes, /path:\s*'\/plans'/);
+  assert.match(page, /billingSignupApi\.config\(\)/);
+  assert.match(page, /navigate\(`\/signup\?\$\{buildPublicPlanSearch/);
+  assert.doesNotMatch(page, /billingSignupApi\.checkout/);
+  assert.match(signupPage, /parsePublicPlanSearch/);
+  assert.match(signupPage, /billingInterval:\s*plansHandoff\?\.billingInterval/);
+  assert.match(pricing, /config\.prices\.find/);
+  assert.doesNotMatch(`${page}\n${pricing}`, /\b(6900|10900|14900|19900)\b/);
 });

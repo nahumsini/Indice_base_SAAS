@@ -37,6 +37,7 @@ import { Input } from '../components/ui/input';
 import { languages, useLanguage } from '../shared/context';
 import { isValidAccountPassword } from '../shared/validation/password';
 import { IndiceBrandLogo } from './components/IndiceBrandLogo';
+import { parsePublicPlanSearch } from './PublicPlans/publicPlansSelection';
 
 const SIGNUP_DRAFT_STORAGE_KEY = 'indice.auth.signupDraft.v1';
 const SIGNUP_BUILDER_MIGRATION_KEY = 'indice.auth.signupBuilder.v2';
@@ -1333,6 +1334,11 @@ export default function SignupPage() {
         setConfig(value);
         setForm((current) => {
           const availableCodes = new Set(value.products.map((product) => product.code));
+          const plansHandoff = parsePublicPlanSearch(
+            location.search,
+            value.products.map((product) => product.code),
+            value.launchCountries,
+          );
           const legacyFullSelection = typeof window !== 'undefined'
             && !window.sessionStorage.getItem(SIGNUP_BUILDER_MIGRATION_KEY)
             && value.products.length > 0
@@ -1341,16 +1347,20 @@ export default function SignupPage() {
           if (typeof window !== 'undefined') {
             window.sessionStorage.setItem(SIGNUP_BUILDER_MIGRATION_KEY, 'ready');
           }
-          const selectedProductCodes = legacyFullSelection
+          const selectedProductCodes = plansHandoff?.selectedProductCodes ?? (legacyFullSelection
             ? []
-            : current.selectedProductCodes.filter((code) => availableCodes.has(code));
+            : current.selectedProductCodes.filter((code) => availableCodes.has(code)));
           if (
-            selectedProductCodes.length === current.selectedProductCodes.length
+            !plansHandoff
+            && selectedProductCodes.length === current.selectedProductCodes.length
             && selectedProductCodes.every((code, index) => code === current.selectedProductCodes[index])
           ) return current;
           const next = {
             ...current,
             selectedProductCodes,
+            billingInterval: plansHandoff?.billingInterval ?? current.billingInterval,
+            extraSeats: plansHandoff?.extraSeats ?? current.extraSeats,
+            countryCode: plansHandoff?.countryCode ?? current.countryCode,
           };
           saveSignupDraft(next);
           return next;
