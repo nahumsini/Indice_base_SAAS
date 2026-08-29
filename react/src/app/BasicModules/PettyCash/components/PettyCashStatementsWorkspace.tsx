@@ -1,11 +1,13 @@
 import { Banknote, CheckCircle2, Coins, Eye, Info, ReceiptText, Search, WalletCards } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTablePagination } from '../../../hooks/useTablePagination';
+import { ColumnasConfigModal, type ColumnConfig } from '../../../components/rh/ColumnasConfigModal';
 import type { PettyCashFund, PettyCashMovement, PettyCashSettlementLine, PettyCashStatement } from '../types/pettyCash.types';
 import { formatPettyCashCurrency, formatPettyCashIsoDate, formatPettyCashNativeBreakdown } from '../utils/pettyCash.utils';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
-import { useKpiMonetaryAggregate } from '../../shared/kpiMonetaryApi';
-import { OperationalKpiArea } from '../../shared/operational';
+import { useKpiMonetaryAggregates } from '../../shared/kpiMonetaryApi';
+import { getOperationalKpiCurrencyCopy, OperationalKpiArea } from '../../shared/operational';
+import { useLanguage } from '../../../shared/context';
 import { usePettyCashTranslations } from '../hooks/usePettyCashTranslations';
 import {
   PettyCashEmptyState,
@@ -16,7 +18,9 @@ import {
   PettyCashSortableHeader,
   PettyCashStatusPill,
   PettyCashTableShell,
+  normalizePettyCashColumns,
   pettyCashInputClass,
+  usePettyCashColumns,
   usePettyCashTableSort,
 } from './PettyCashShared';
 import { PettyCashStatementDetailModal } from './statements/PettyCashStatementDetailModal';
@@ -29,14 +33,34 @@ type Props = {
 };
 
 const normalize = (value: string) => value.trim().toLocaleLowerCase();
+const pettyCashStatementsColumnsStorageKey = 'indice.pettyCash.statements.columns.v1';
 
 export function PettyCashStatementsWorkspace({ funds, movements, settlementLines, statements }: Props) {
   const copy = usePettyCashTranslations();
+  const defaultColumns = useMemo<ColumnConfig[]>(() => [
+    { id: 'statement', label: copy.statementsHistory.table.statement, visible: true, locked: true },
+    { id: 'fund', label: copy.statementsHistory.table.fund, visible: true },
+    { id: 'period', label: copy.statementsHistory.table.period, visible: true },
+    { id: 'approved', label: copy.statementsHistory.table.approved, visible: true },
+    { id: 'closing', label: copy.statementsHistory.table.closing, visible: true },
+    { id: 'status', label: copy.statementsHistory.table.status, visible: true },
+    { id: 'opening', label: copy.statementsHistory.table.opening, visible: false },
+    { id: 'funded', label: copy.statementsHistory.table.funded, visible: false },
+    { id: 'captured', label: copy.statementsHistory.table.captured, visible: false },
+    { id: 'source', label: copy.statementsHistory.table.source, visible: false },
+  ], [copy.statementsHistory.table]);
+  const fixedColumns = useMemo<ColumnConfig[]>(() => [
+    { id: 'actions', label: copy.statementsHistory.table.actions, visible: true, locked: true },
+  ], [copy.statementsHistory.table.actions]);
+  const { columns, setColumns, visibleColumns } = usePettyCashColumns(pettyCashStatementsColumnsStorageKey, defaultColumns);
   const { preferredCurrency } = usePreferredBusinessCurrency();
+  const { currentLanguage } = useLanguage();
+  const currencyCopy = getOperationalKpiCurrencyCopy(currentLanguage.code);
   const [search, setSearch] = useState('');
   const [fundId, setFundId] = useState('all');
   const [period, setPeriod] = useState('all');
   const [status, setStatus] = useState('all');
+  const [showColumnsModal, setShowColumnsModal] = useState(false);
   const [selectedStatement, setSelectedStatement] = useState<PettyCashStatement | null>(null);
 
   const fundsById = useMemo(() => new Map(funds.map(fund => [fund.id, fund])), [funds]);
@@ -57,12 +81,11 @@ export function PettyCashStatementsWorkspace({ funds, movements, settlementLines
     return index > 0 ? items[index - 1] : undefined;
   };
 
-  const filteredStatements = useMemo(() => {
+  const scopedStatements = useMemo(() => {
     const query = normalize(search);
     return [...statements]
       .filter(statement => fundId === 'all' || statement.pettyCashFundId === fundId)
       .filter(statement => period === 'all' || statement.periodKey === period)
-      .filter(statement => status === 'all' || statement.status === status)
       .filter(statement => {
         if (!query) return true;
         const fund = fundsById.get(statement.pettyCashFundId);
@@ -70,7 +93,10 @@ export function PettyCashStatementsWorkspace({ funds, movements, settlementLines
           .some(value => normalize(value ?? '').includes(query));
       })
       .sort((left, right) => right.periodKey.localeCompare(left.periodKey) || right.id.localeCompare(left.id));
-  }, [fundId, fundsById, period, search, statements, status]);
+  }, [fundId, fundsById, period, search, statements]);
+  const filteredStatements = useMemo(() => scopedStatements.filter(statement => (
+    status === 'all' || statement.status === status
+  )), [scopedStatements, status]);
 
   const statementSortAccessors = useMemo(() => ({
     approved: (statement: PettyCashStatement) => statement.verifiedExpenseAmount,
@@ -82,6 +108,7 @@ export function PettyCashStatementsWorkspace({ funds, movements, settlementLines
     period: (statement: PettyCashStatement) => statement.periodStart,
     statement: (statement: PettyCashStatement) => statement.folio,
     status: (statement: PettyCashStatement) => statement.status,
+    source: (statement: PettyCashStatement) => previousStatement(statement)?.folio ?? '',
   }), [fundsById]);
   const statementSort = usePettyCashTableSort(filteredStatements, statementSortAccessors, 'period', 'desc');
   const pagination = useTablePagination({
@@ -89,25 +116,33 @@ export function PettyCashStatementsWorkspace({ funds, movements, settlementLines
     rows: statementSort.sortedRows,
   });
 
-  const statementIds = filteredStatements.map((statement) => statement.id);
-  const openingAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_STATEMENT_OPENING', preferredCurrency, ids: statementIds });
-  const fundedAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_STATEMENT_FUNDED', preferredCurrency, ids: statementIds });
-  const capturedAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_STATEMENT_ESTIMATED', preferredCurrency, ids: statementIds });
-  const approvedAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_STATEMENT_VERIFIED', preferredCurrency, ids: statementIds });
-  const closingAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_STATEMENT_CLOSING', preferredCurrency, ids: statementIds });
+  const statementIds = scopedStatements.map((statement) => statement.id);
+  const aggregates = useKpiMonetaryAggregates([
+    { key: 'opening', metric: 'PETTY_CASH_STATEMENT_OPENING', preferredCurrency, ids: statementIds },
+    { key: 'funded', metric: 'PETTY_CASH_STATEMENT_FUNDED', preferredCurrency, ids: statementIds },
+    { key: 'captured', metric: 'PETTY_CASH_STATEMENT_ESTIMATED', preferredCurrency, ids: statementIds },
+    { key: 'approved', metric: 'PETTY_CASH_STATEMENT_VERIFIED', preferredCurrency, ids: statementIds },
+    { key: 'closing', metric: 'PETTY_CASH_STATEMENT_CLOSING', preferredCurrency, ids: statementIds },
+  ]);
   const totals = {
-    approved: approvedAggregate.data?.preferredTotal ?? 0,
-    captured: capturedAggregate.data?.preferredTotal ?? 0,
-    closing: closingAggregate.data?.preferredTotal ?? 0,
-    funded: fundedAggregate.data?.preferredTotal ?? 0,
-    opening: openingAggregate.data?.preferredTotal ?? 0,
+    approved: aggregates.data.approved?.preferredTotal ?? 0,
+    captured: aggregates.data.captured?.preferredTotal ?? 0,
+    closing: aggregates.data.closing?.preferredTotal ?? 0,
+    funded: aggregates.data.funded?.preferredTotal ?? 0,
+    opening: aggregates.data.opening?.preferredTotal ?? 0,
   };
-  const currencyCount = new Set(filteredStatements.map(statement => statement.currencyCode)).size;
+  const currencyCount = new Set(scopedStatements.map(statement => statement.currencyCode)).size;
   const nativeClosing = formatPettyCashNativeBreakdown(
-    filteredStatements,
+    scopedStatements,
     statement => statement.declaredClosingBalanceAmount,
     statement => statement.currencyCode,
   );
+  const formatAggregateTotal = (key: keyof typeof totals) => (
+    !aggregates.loading && aggregates.data[key]
+      ? formatPettyCashCurrency(totals[key], preferredCurrency)
+      : '—'
+  );
+  const closingAggregate = aggregates.data.closing;
   const selectedMovements = selectedStatement
     ? movements.filter(movement => movement.pettyCashStatementId === selectedStatement.id)
     : [];
@@ -119,11 +154,28 @@ export function PettyCashStatementsWorkspace({ funds, movements, settlementLines
     <div className="space-y-6">
       <PettyCashHeaderBanner
         emoji="📋"
+        onColumns={() => setShowColumnsModal(true)}
         title={copy.statementsHistory.header.title}
         description={copy.statementsHistory.header.description}
       />
 
       <PettyCashFilterShell
+        activeAdvancedCount={Number(fundId !== 'all')}
+        advancedContent={(
+          <PettyCashField label={copy.statementsHistory.filters.fund}>
+            <select className={pettyCashInputClass} value={fundId} onChange={event => setFundId(event.target.value)}>
+              <option value="all">{copy.common.all}</option>
+              {funds.map(fund => <option key={fund.id} value={fund.id}>{fund.name}</option>)}
+            </select>
+          </PettyCashField>
+        )}
+        hasActiveFilters={Boolean(search || fundId !== 'all' || period !== 'all' || status !== 'all')}
+        onClear={() => {
+          setSearch('');
+          setFundId('all');
+          setPeriod('all');
+          setStatus('all');
+        }}
         resultLabel={copy.statementsHistory.filters.result(filteredStatements.length)}
         subtitle={copy.statementsHistory.filters.subtitle}
       >
@@ -132,12 +184,6 @@ export function PettyCashStatementsWorkspace({ funds, movements, settlementLines
             <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
             <input className={`${pettyCashInputClass} pl-9`} value={search} onChange={event => setSearch(event.target.value)} placeholder={copy.statementsHistory.filters.searchPlaceholder} />
           </div>
-        </PettyCashField>
-        <PettyCashField label={copy.statementsHistory.filters.fund}>
-          <select className={pettyCashInputClass} value={fundId} onChange={event => setFundId(event.target.value)}>
-            <option value="all">{copy.common.all}</option>
-            {funds.map(fund => <option key={fund.id} value={fund.id}>{fund.name}</option>)}
-          </select>
         </PettyCashField>
         <PettyCashField label={copy.statementsHistory.filters.period}>
           <select className={pettyCashInputClass} value={period} onChange={event => setPeriod(event.target.value)}>
@@ -160,18 +206,33 @@ export function PettyCashStatementsWorkspace({ funds, movements, settlementLines
           { id: 'native-closing', icon: <WalletCards className="h-3.5 w-3.5" />, label: copy.common.nativeBreakdown(nativeClosing), tone: 'neutral' },
         ]}
         distributionSegments={[
-          { id: 'approved', label: copy.statementsHistory.metrics.approved, count: totals.approved, className: 'bg-[#147514]' },
-          { id: 'captured', label: copy.statementsHistory.metrics.captured, count: Math.max(0, totals.captured - totals.approved), className: 'bg-amber-400' },
-          { id: 'closing', label: copy.statementsHistory.metrics.closing, count: Math.max(0, totals.closing), className: 'bg-sky-400' },
+          ...statuses.map((statementStatus, index) => ({
+            id: statementStatus,
+            label: copy.status.statement[statementStatus],
+            count: scopedStatements.filter(statement => statement.status === statementStatus).length,
+            className: ['bg-[#147514]', 'bg-amber-400', 'bg-sky-500', 'bg-rose-500', 'bg-slate-400'][index % 5],
+            active: status === statementStatus,
+            onClick: () => setStatus(current => current === statementStatus ? 'all' : statementStatus),
+          })),
         ]}
-        insight={`${copy.statementsHistory.filters.result(filteredStatements.length)} · ${copy.statementsHistory.metrics.approved}: ${formatPettyCashCurrency(totals.approved, preferredCurrency)} · ${copy.statementsHistory.metrics.closing}: ${formatPettyCashCurrency(totals.closing, preferredCurrency)}`}
+        insight={`${copy.statementsHistory.filters.result(scopedStatements.length)} · ${copy.statementsHistory.metrics.approved}: ${formatAggregateTotal('approved')} · ${copy.statementsHistory.metrics.closing}: ${formatAggregateTotal('closing')}`}
         insightIcon={<Info className="h-4 w-4" />}
         metrics={[
-          { id: 'opening', icon: <WalletCards className="h-4 w-4" />, label: copy.statementsHistory.metrics.opening, value: formatPettyCashCurrency(totals.opening, preferredCurrency) },
-          { id: 'funded', icon: <Banknote className="h-4 w-4" />, label: copy.statementsHistory.metrics.funded, value: formatPettyCashCurrency(totals.funded, preferredCurrency), valueClassName: 'text-sky-600' },
-          { id: 'approved', icon: <CheckCircle2 className="h-4 w-4" />, label: copy.statementsHistory.metrics.approved, value: formatPettyCashCurrency(totals.approved, preferredCurrency), valueClassName: 'text-[#147514]' },
-          { id: 'closing', icon: <WalletCards className="h-4 w-4" />, label: copy.statementsHistory.metrics.closing, value: formatPettyCashCurrency(totals.closing, preferredCurrency), valueClassName: totals.closing < 0 ? 'text-rose-600' : 'text-slate-950' },
+          { id: 'opening', icon: <WalletCards className="h-4 w-4" />, label: copy.statementsHistory.metrics.opening, value: formatAggregateTotal('opening') },
+          { id: 'funded', icon: <Banknote className="h-4 w-4" />, label: copy.statementsHistory.metrics.funded, value: formatAggregateTotal('funded'), valueClassName: 'text-sky-600' },
+          { id: 'approved', icon: <CheckCircle2 className="h-4 w-4" />, label: copy.statementsHistory.metrics.approved, value: formatAggregateTotal('approved'), valueClassName: 'text-[#147514]' },
+          { id: 'closing', icon: <WalletCards className="h-4 w-4" />, label: copy.statementsHistory.metrics.closing, value: formatAggregateTotal('closing'), valueClassName: totals.closing < 0 ? 'text-rose-600' : 'text-slate-950' },
         ]}
+        currencyContext={{
+          preferredCurrency,
+          nativeBreakdown: nativeClosing,
+          rateLabel: closingAggregate?.exchangeRate.mode === 'daily' ? currencyCopy.dailyRate : currencyCopy.unavailable,
+          effectiveDate: closingAggregate?.exchangeRate.effectiveDate,
+          source: closingAggregate?.exchangeRate.source,
+          isPartial: Boolean(aggregates.error || closingAggregate?.partial),
+          excludedCount: closingAggregate?.excludedRecords ?? (aggregates.error ? scopedStatements.length : 0),
+          labels: currencyCopy,
+        }}
       />
 
       {filteredStatements.length ? (
@@ -233,19 +294,12 @@ export function PettyCashStatementsWorkspace({ funds, movements, settlementLines
             totalPages={pagination.totalPages}
           />
         )}>
-          <table className="w-full min-w-[1320px]">
+          <table className={visibleColumns.length <= 6 ? 'w-full min-w-[860px]' : 'w-full min-w-[1120px]'}>
             <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60">
               <tr>
-                <PettyCashSortableHeader columnKey="statement" label={copy.statementsHistory.table.statement} onSort={statementSort.onSort} sortDirection={statementSort.sortDirection} sortKey={statementSort.sortKey} />
-                <PettyCashSortableHeader columnKey="fund" label={copy.statementsHistory.table.fund} onSort={statementSort.onSort} sortDirection={statementSort.sortDirection} sortKey={statementSort.sortKey} />
-                <PettyCashSortableHeader columnKey="period" label={copy.statementsHistory.table.period} onSort={statementSort.onSort} sortDirection={statementSort.sortDirection} sortKey={statementSort.sortKey} />
-                <PettyCashSortableHeader columnKey="opening" label={copy.statementsHistory.table.opening} onSort={statementSort.onSort} sortDirection={statementSort.sortDirection} sortKey={statementSort.sortKey} />
-                <PettyCashSortableHeader columnKey="funded" label={copy.statementsHistory.table.funded} onSort={statementSort.onSort} sortDirection={statementSort.sortDirection} sortKey={statementSort.sortKey} />
-                <PettyCashSortableHeader columnKey="captured" label={copy.statementsHistory.table.captured} onSort={statementSort.onSort} sortDirection={statementSort.sortDirection} sortKey={statementSort.sortKey} />
-                <PettyCashSortableHeader columnKey="approved" label={copy.statementsHistory.table.approved} onSort={statementSort.onSort} sortDirection={statementSort.sortDirection} sortKey={statementSort.sortKey} />
-                <PettyCashSortableHeader columnKey="closing" label={copy.statementsHistory.table.closing} onSort={statementSort.onSort} sortDirection={statementSort.sortDirection} sortKey={statementSort.sortKey} />
-                <PettyCashSortableHeader label={copy.statementsHistory.table.source} />
-                <PettyCashSortableHeader columnKey="status" label={copy.statementsHistory.table.status} onSort={statementSort.onSort} sortDirection={statementSort.sortDirection} sortKey={statementSort.sortKey} />
+                {visibleColumns.map(column => (
+                  <PettyCashSortableHeader key={column.id} columnKey={column.id as keyof typeof statementSortAccessors} label={column.label} onSort={statementSort.onSort} sortDirection={statementSort.sortDirection} sortKey={statementSort.sortKey} />
+                ))}
                 <PettyCashSortableHeader align="right" label={copy.statementsHistory.table.actions} />
               </tr>
             </thead>
@@ -256,16 +310,18 @@ export function PettyCashStatementsWorkspace({ funds, movements, settlementLines
                 const funded = statement.assignedAmount + statement.additionalDepositAmount;
                 return (
                   <tr key={statement.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
-                    <td className="px-5 py-4 text-sm font-medium text-slate-900 dark:text-white">{statement.folio}</td>
-                    <td className="px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">{fund?.name ?? copy.common.notAvailable}</td>
-                    <td className="px-5 py-4 text-sm font-medium text-slate-600 dark:text-slate-400">{formatPettyCashIsoDate(statement.periodStart)} – {formatPettyCashIsoDate(statement.periodEnd)}</td>
-                    <td className="px-5 py-4 text-sm font-medium tabular-nums">{formatPettyCashCurrency(statement.openingBalanceAmount, statement.currencyCode)}</td>
-                    <td className="px-5 py-4 text-sm font-medium tabular-nums text-sky-700 dark:text-sky-300">{formatPettyCashCurrency(funded, statement.currencyCode)}</td>
-                    <td className="px-5 py-4 text-sm font-medium tabular-nums text-amber-700 dark:text-amber-300">{formatPettyCashCurrency(statement.estimatedUsageAmount, statement.currencyCode)}</td>
-                    <td className="px-5 py-4 text-sm font-medium tabular-nums text-[#147514] dark:text-emerald-300">{formatPettyCashCurrency(statement.verifiedExpenseAmount, statement.currencyCode)}</td>
-                    <td className={`px-5 py-4 text-sm font-medium tabular-nums ${statement.declaredClosingBalanceAmount < 0 ? 'text-red-600' : ''}`}>{formatPettyCashCurrency(statement.declaredClosingBalanceAmount, statement.currencyCode)}</td>
-                    <td className="px-5 py-4 text-sm font-medium text-slate-500">{previous ? copy.statementsHistory.table.previous(previous.folio) : copy.statementsHistory.table.current}</td>
-                    <td className="px-5 py-4"><PettyCashStatusPill kind="statement" status={statement.status} /></td>
+                    {visibleColumns.map(column => {
+                      if (column.id === 'statement') return <td key={column.id} className="px-5 py-4 text-sm font-medium text-slate-900 dark:text-white">{statement.folio}</td>;
+                      if (column.id === 'fund') return <td key={column.id} className="px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">{fund?.name ?? copy.common.notAvailable}</td>;
+                      if (column.id === 'period') return <td key={column.id} className="px-5 py-4 text-sm font-medium text-slate-600 dark:text-slate-400">{formatPettyCashIsoDate(statement.periodStart)} – {formatPettyCashIsoDate(statement.periodEnd)}</td>;
+                      if (column.id === 'opening') return <td key={column.id} className="px-5 py-4 text-sm font-medium tabular-nums">{formatPettyCashCurrency(statement.openingBalanceAmount, statement.currencyCode)}</td>;
+                      if (column.id === 'funded') return <td key={column.id} className="px-5 py-4 text-sm font-medium tabular-nums text-sky-700 dark:text-sky-300">{formatPettyCashCurrency(funded, statement.currencyCode)}</td>;
+                      if (column.id === 'captured') return <td key={column.id} className="px-5 py-4 text-sm font-medium tabular-nums text-amber-700 dark:text-amber-300">{formatPettyCashCurrency(statement.estimatedUsageAmount, statement.currencyCode)}</td>;
+                      if (column.id === 'approved') return <td key={column.id} className="px-5 py-4 text-sm font-medium tabular-nums text-[#147514] dark:text-emerald-300">{formatPettyCashCurrency(statement.verifiedExpenseAmount, statement.currencyCode)}</td>;
+                      if (column.id === 'closing') return <td key={column.id} className={`px-5 py-4 text-sm font-medium tabular-nums ${statement.declaredClosingBalanceAmount < 0 ? 'text-red-600' : ''}`}>{formatPettyCashCurrency(statement.declaredClosingBalanceAmount, statement.currencyCode)}</td>;
+                      if (column.id === 'source') return <td key={column.id} className="px-5 py-4 text-sm font-medium text-slate-500">{previous ? copy.statementsHistory.table.previous(previous.folio) : copy.statementsHistory.table.current}</td>;
+                      return <td key={column.id} className="px-5 py-4"><PettyCashStatusPill kind="statement" status={statement.status} /></td>;
+                    })}
                     <td className="px-5 py-4 text-right">
                       <button type="button" onClick={() => setSelectedStatement(statement)} title={copy.statementsHistory.table.view} aria-label={copy.statementsHistory.table.view} className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#147514]/20 bg-[#147514]/10 text-[#147514] hover:bg-[#147514] hover:text-white"><Eye className="h-4 w-4" /></button>
                     </td>
@@ -278,6 +334,16 @@ export function PettyCashStatementsWorkspace({ funds, movements, settlementLines
         </div>
         </>
       ) : <PettyCashEmptyState label={copy.statementsHistory.table.empty} />}
+
+      <ColumnasConfigModal
+        isOpen={showColumnsModal}
+        columns={columns}
+        defaultColumns={defaultColumns}
+        fixedColumns={fixedColumns}
+        theme="expenses"
+        onClose={() => setShowColumnsModal(false)}
+        onSave={(nextColumns) => setColumns(normalizePettyCashColumns(nextColumns, defaultColumns))}
+      />
 
       <PettyCashStatementDetailModal
         copy={copy}

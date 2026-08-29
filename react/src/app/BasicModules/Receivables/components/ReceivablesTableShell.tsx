@@ -6,6 +6,7 @@ import {
   TableRow,
 } from '../../../components/ui/table';
 import { DataTablePagination } from '../../../components/table/DataTablePagination';
+import { cn } from '../../../components/ui/utils';
 
 interface ReceivablesTableShellProps {
   children: ReactNode;
@@ -38,10 +39,16 @@ export function ReceivablesTableShell({
   totalCount,
   totalPages,
 }: ReceivablesTableShellProps) {
+  const tableWidthClassName = emptyColSpan <= 6
+    ? 'min-w-[760px]'
+    : emptyColSpan <= 8
+      ? 'min-w-[940px]'
+      : 'min-w-[1120px]';
+
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
       <div className="overflow-x-auto">
-        <Table className="min-w-[1120px]">
+        <Table className={cn(tableWidthClassName)}>
           {children}
           {totalCount === 0 ? (
             <TableBody>
