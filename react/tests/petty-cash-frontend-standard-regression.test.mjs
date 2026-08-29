@@ -73,12 +73,18 @@ test('Petty Cash usa filtros progresivos y columnas persistentes en sus índices
   assert.match(sharedSource, /<IndiceFilterDisclosureActions/);
   assert.match(sharedSource, /<IndiceFilterAdvancedSection/);
   assert.match(sharedSource, /usePettyCashColumns/);
+  assert.match(sharedSource, /const eligibleActionCount = \[/);
+  assert.match(sharedSource, /const hasOverflow = eligibleActionCount > 3/);
+  assert.match(sharedSource, /!hasOverflow && onColumns/);
+  assert.match(sharedSource, /\{hasOverflow \? \(/);
   assert.match(fundsSource, /indice\.pettyCash\.funds\.columns\.v1/);
   assert.match(fundsSource, /onColumns=\{\(\) => setShowColumnsModal\(true\)\}/);
+  assert.match(fundsSource, /onSecondaryAction=\{\(\) => setIsKioskOpen\(true\)\}/);
   assert.match(statementsSource, /indice\.pettyCash\.statements\.columns\.v1/);
   assert.match(statementsSource, /<ColumnasConfigModal/);
   assert.match(reconciliationSource, /<PettyCashFilterShell/);
   assert.match(reconciliationSource, /advancedContent=/);
+  assert.match(reconciliationSource, /onTertiaryAction=\{\(\) => setIsProviderModalOpen\(true\)\}/);
 });
 
 test('Petty Cash consolida moneda y evita avances KPI artificiales', () => {

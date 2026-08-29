@@ -3,6 +3,23 @@ import type { ReactNode } from 'react';
 import type { IndiceModuleTone } from '../../styles/moduleColors';
 import { Button } from '../ui/button';
 import { cn } from '../ui/utils';
+import { useLanguage } from '../../context/LanguageContext';
+
+const disclosureCopyByLanguage = {
+  en: { clearFilters: 'Clear filters', hideFilters: 'Hide filters', moreFilters: 'More filters' },
+  es: { clearFilters: 'Limpiar filtros', hideFilters: 'Ocultar filtros', moreFilters: 'Más filtros' },
+  fr: { clearFilters: 'Effacer les filtres', hideFilters: 'Masquer les filtres', moreFilters: 'Plus de filtres' },
+  ko: { clearFilters: '필터 초기화', hideFilters: '필터 숨기기', moreFilters: '필터 더보기' },
+  pt: { clearFilters: 'Limpar filtros', hideFilters: 'Ocultar filtros', moreFilters: 'Mais filtros' },
+  zh: { clearFilters: '清除筛选条件', hideFilters: '隐藏筛选条件', moreFilters: '更多筛选条件' },
+} as const;
+
+/** Shared localized labels for the filter disclosure and factory reset controls. */
+export function useIndiceFilterDisclosureCopy() {
+  const { currentLanguage } = useLanguage();
+  const language = currentLanguage.code.split('-')[0] as keyof typeof disclosureCopyByLanguage;
+  return disclosureCopyByLanguage[language] ?? disclosureCopyByLanguage.en;
+}
 
 const activeCountClassNames: Record<IndiceModuleTone, string> = {
   aqua: 'bg-[#177D66] text-white',

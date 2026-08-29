@@ -1,9 +1,7 @@
-import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { Expense } from '../types/expenses.types';
 import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 import {
-  type BudgetDraft,
-  generateProjectedBudgetEntries,
   getNextMonthRange,
   getNextQuarterRange,
 } from './budgetUtils';
@@ -13,7 +11,6 @@ export const MISSING_ACCOUNTING_ACCOUNT_FILTER = '__missing_accounting_account__
 
 interface UseBudgetLogicParams {
   expenses: Expense[];
-  onExpensesChange: Dispatch<SetStateAction<Expense[]>>;
 }
 
 type BudgetsWorkspaceState = {
@@ -23,8 +20,10 @@ type BudgetsWorkspaceState = {
   customEndDate: string;
   customStartDate: string;
   futureFilter: BudgetFutureFilter;
+  healthFilter: string;
   providerFilter: string;
   searchTerm: string;
+  statusFilter: string;
 };
 
 const budgetsWorkspaceDefaults: BudgetsWorkspaceState = {
@@ -34,8 +33,10 @@ const budgetsWorkspaceDefaults: BudgetsWorkspaceState = {
   customEndDate: '',
   customStartDate: '',
   futureFilter: 'next_month',
+  healthFilter: 'all',
   providerFilter: 'all',
   searchTerm: '',
+  statusFilter: 'all',
 };
 
 const budgetsWorkspaceUrlFields: Partial<Record<keyof BudgetsWorkspaceState, string>> = {
@@ -45,8 +46,10 @@ const budgetsWorkspaceUrlFields: Partial<Record<keyof BudgetsWorkspaceState, str
   customEndDate: 'bu_end',
   customStartDate: 'bu_start',
   futureFilter: 'bu_period',
+  healthFilter: 'bu_health',
   providerFilter: 'bu_provider',
   searchTerm: 'bu_q',
+  statusFilter: 'bu_status',
 };
 
 const isWithinRange = (date: Date, start: Date, end: Date) => {
@@ -54,15 +57,17 @@ const isWithinRange = (date: Date, start: Date, end: Date) => {
   return time >= start.getTime() && time <= end.getTime();
 };
 
-export function useBudgetLogic({ expenses, onExpensesChange }: UseBudgetLogicParams) {
+export function useBudgetLogic({ expenses }: UseBudgetLogicParams) {
   const [futureFilter, setFutureFilter] = useState<BudgetFutureFilter>('next_month');
   const [customEndDate, setCustomEndDate] = useState('');
   const [customStartDate, setCustomStartDate] = useState('');
   const [businessFilter, setBusinessFilter] = useState('all');
   const [businessUnitFilter, setBusinessUnitFilter] = useState('all');
   const [accountingAccountFilter, setAccountingAccountFilter] = useState('all');
+  const [healthFilter, setHealthFilter] = useState('all');
   const [providerFilter, setProviderFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const workspaceState = useMemo<BudgetsWorkspaceState>(() => ({
     accountingAccountFilter,
     businessFilter,
@@ -70,8 +75,10 @@ export function useBudgetLogic({ expenses, onExpensesChange }: UseBudgetLogicPar
     customEndDate,
     customStartDate,
     futureFilter,
+    healthFilter,
     providerFilter,
     searchTerm,
+    statusFilter,
   }), [
     accountingAccountFilter,
     businessFilter,
@@ -79,8 +86,10 @@ export function useBudgetLogic({ expenses, onExpensesChange }: UseBudgetLogicPar
     customEndDate,
     customStartDate,
     futureFilter,
+    healthFilter,
     providerFilter,
     searchTerm,
+    statusFilter,
   ]);
   const restoreWorkspaceState = useCallback((restoredState: BudgetsWorkspaceState) => {
     setAccountingAccountFilter(restoredState.accountingAccountFilter);
@@ -89,8 +98,10 @@ export function useBudgetLogic({ expenses, onExpensesChange }: UseBudgetLogicPar
     setCustomEndDate(restoredState.customEndDate);
     setCustomStartDate(restoredState.customStartDate);
     setFutureFilter(restoredState.futureFilter);
+    setHealthFilter(restoredState.healthFilter);
     setProviderFilter(restoredState.providerFilter);
     setSearchTerm(restoredState.searchTerm);
+    setStatusFilter(restoredState.statusFilter);
   }, []);
 
   useWorkspaceNavigationMemory({
@@ -106,7 +117,7 @@ export function useBudgetLogic({ expenses, onExpensesChange }: UseBudgetLogicPar
     return expenses.filter(expense => expense.type === 'budget');
   }, [expenses]);
 
-  const filteredBudgetExpenses = useMemo(() => {
+  const summaryBudgetExpenses = useMemo(() => {
     const now = new Date();
     const customStart = customStartDate ? new Date(`${customStartDate}T00:00:00`) : getNextMonthRange(now).start;
     const customEnd = customEndDate ? new Date(`${customEndDate}T23:59:59`) : new Date(2999, 11, 31);
@@ -128,6 +139,7 @@ export function useBudgetLogic({ expenses, onExpensesChange }: UseBudgetLogicPar
       const matchesProvider = providerFilter === 'all' || expense.providerId === providerFilter;
       const accountingAccount = expense.accountingAccount?.trim() || MISSING_ACCOUNTING_ACCOUNT_FILTER;
       const matchesAccountingAccount = accountingAccountFilter === 'all' || accountingAccount === accountingAccountFilter;
+      const matchesStatus = statusFilter === 'all' || (expense.budgetStatus ?? expense.status) === statusFilter;
 
       return (
         isWithinRange(expense.dueDate, range.start, range.end) &&
@@ -135,7 +147,8 @@ export function useBudgetLogic({ expenses, onExpensesChange }: UseBudgetLogicPar
         matchesBusinessUnit &&
         matchesBusiness &&
         matchesProvider &&
-        matchesAccountingAccount
+        matchesAccountingAccount &&
+        matchesStatus
       );
     });
   }, [
@@ -148,32 +161,38 @@ export function useBudgetLogic({ expenses, onExpensesChange }: UseBudgetLogicPar
     futureFilter,
     providerFilter,
     searchTerm,
+    statusFilter,
   ]);
 
-  const addBudgetEntries = (draft: BudgetDraft) => {
-    const entries = generateProjectedBudgetEntries(draft, budgetExpenses.length);
-    onExpensesChange(prevExpenses => [...prevExpenses, ...entries]);
-    return entries;
-  };
+  const filteredBudgetExpenses = useMemo(
+    () => summaryBudgetExpenses.filter(expense => (
+      healthFilter === 'all' || (expense.budgetHealthStatus ?? 'ON_TRACK') === healthFilter
+    )),
+    [healthFilter, summaryBudgetExpenses],
+  );
 
   return {
     accountingAccountFilter,
-    addBudgetEntries,
     businessFilter,
     businessUnitFilter,
     customEndDate,
     customStartDate,
     filteredBudgetExpenses,
+    summaryBudgetExpenses,
     futureFilter,
+    healthFilter,
     providerFilter,
     searchTerm,
+    statusFilter,
     setAccountingAccountFilter,
     setBusinessFilter,
     setBusinessUnitFilter,
     setCustomEndDate,
     setCustomStartDate,
     setFutureFilter,
+    setHealthFilter,
     setProviderFilter,
     setSearchTerm,
+    setStatusFilter,
   };
 }

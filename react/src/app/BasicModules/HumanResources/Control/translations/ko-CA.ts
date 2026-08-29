@@ -5,6 +5,7 @@ export const koCA = {
   ...enCA,
   title: '관리',
   subtitle: '출석을 실시간으로 모니터링하고 운영 규칙을 관리합니다.',
+  actionsLabel: '작업',
   selfShiftCalendar: {
     title: '내 근무 일정', loadingTitle: '일정 불러오는 중', loadingDescription: '배정된 근무를 확인하고 있습니다.', month: '월',
     shift: '근무', openShift: '자율 근무', restDay: '휴무일', noShift: '근무 없음', selectedDay: '선택한 날짜', today: '오늘',

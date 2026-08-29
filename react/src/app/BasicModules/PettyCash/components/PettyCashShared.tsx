@@ -74,6 +74,13 @@ export function PettyCashHeaderBanner({
   tertiaryActionLabel?: string;
   title: string;
 }) {
+  const eligibleActionCount = [
+    Boolean(actionLabel && onAction),
+    Boolean(secondaryActionLabel && onSecondaryAction),
+    Boolean(tertiaryActionLabel && onTertiaryAction),
+    Boolean(onColumns),
+  ].filter(Boolean).length;
+  const hasOverflow = eligibleActionCount > 3;
   const actionLayout = (
     <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-row sm:items-center">
       {secondaryActionLabel && onSecondaryAction ? (
@@ -86,6 +93,26 @@ export function PettyCashHeaderBanner({
           {secondaryActionLabel}
         </button>
       ) : null}
+      {!hasOverflow && tertiaryActionLabel && onTertiaryAction ? (
+        <button
+          type="button"
+          onClick={onTertiaryAction}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-[#147514] shadow-none transition hover:bg-[#147514] hover:text-white dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-700 dark:hover:text-white"
+        >
+          {TertiaryActionIcon ? <TertiaryActionIcon className="h-4 w-4" /> : null}
+          {tertiaryActionLabel}
+        </button>
+      ) : null}
+      {!hasOverflow && onColumns ? (
+        <button
+          type="button"
+          onClick={onColumns}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-none transition hover:border-[#147514]/30 hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+        >
+          <Columns3 className="h-4 w-4" />
+          <HeaderColumnsLabel />
+        </button>
+      ) : null}
       {actionLabel && onAction ? (
         <button
           type="button"
@@ -96,7 +123,7 @@ export function PettyCashHeaderBanner({
           {actionLabel}
         </button>
       ) : null}
-      {(tertiaryActionLabel && onTertiaryAction) || onColumns ? (
+      {hasOverflow ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button type="button" className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-none transition hover:border-[#147514]/30 hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
@@ -105,12 +132,6 @@ export function PettyCashHeaderBanner({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56 rounded-xl p-1.5">
-            {tertiaryActionLabel && onTertiaryAction ? (
-              <DropdownMenuItem className="rounded-lg py-2.5" onClick={onTertiaryAction}>
-                {TertiaryActionIcon ? <TertiaryActionIcon /> : null}
-                {tertiaryActionLabel}
-              </DropdownMenuItem>
-            ) : null}
             {onColumns ? (
               <DropdownMenuItem className="rounded-lg py-2.5" onClick={onColumns}>
                 <Columns3 />

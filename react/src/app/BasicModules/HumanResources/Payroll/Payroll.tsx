@@ -19,7 +19,6 @@ import {
   Printer,
   ReceiptText,
   Save,
-  Search,
   Settings,
   ShieldCheck,
   SlidersHorizontal,
@@ -53,6 +52,15 @@ import { ColumnasConfigModal, type ColumnConfig } from '../../../components/rh/C
 import { IndiceModalFrame } from '../../../components/indice-modal';
 import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
 import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../hooks/useTablePagination';
+import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
+import {
+  IndiceFilterAdvancedSection,
+  IndiceFilterBar,
+  IndiceFilterDisclosureActions,
+  IndiceFilterSearch,
+  IndiceFilterSelect,
+  useIndiceFilterDisclosureCopy,
+} from '../../../components/frontend-os';
 import { ApiClientError, buildApiUrl } from '../../../lib/apiClient';
 import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../api/dashboard';
 import {
@@ -88,7 +96,7 @@ import {
   PayrollRunPrintPortal,
 } from './PayrollRunPrintPortal';
 import type { PayrollRunPdfDocumentProps } from './PayrollRunPdfDocument';
-import { SelectField, DateField } from './components/PayrollFormFields';
+import { DateField } from './components/PayrollFormFields';
 import { DetailMetric } from './components/DetailMetric';
 import { PayrollHeaderBar } from './components/PayrollHeaderBar';
 import { PayrollCreateRunDialog } from './components/PayrollCreateRunDialog';
@@ -140,6 +148,36 @@ type PayrollRateValues = Pick<PayrollPreferences, PayrollRateFieldKey>;
 type PayrollRateDrafts = Record<PayrollRateProfileKey, PayrollRateValues>;
 
 type PayrollCopy = PayrollTranslations;
+
+type PayrollFilters = {
+  period_range: string;
+  period_from: string;
+  period_to: string;
+  pay_period: string;
+  grouping_mode: string;
+  unit_id: string;
+  business_id: string;
+  status: string;
+};
+
+const defaultPayrollFilters: PayrollFilters = {
+  period_range: 'all_year',
+  period_from: '',
+  period_to: '',
+  pay_period: '',
+  grouping_mode: '',
+  unit_id: '',
+  business_id: '',
+  status: '',
+};
+
+type PayrollWorkspaceState = PayrollFilters & {
+  searchQuery: string;
+  currentPage: number;
+  pageSize: number;
+  sortColumn: string;
+  sortDirection: 'asc' | 'desc';
+};
 
 type PayrollRunColumnId =
   | 'period'
@@ -689,17 +727,9 @@ export default function Payroll() {
     grouping_mode: 'single',
     period_start_date: localDateInputValue(),
   }));
-  const [filters, setFilters] = useState({
-    period_range: 'all_year',
-    period_from: '',
-    period_to: '',
-    pay_period: '',
-    grouping_mode: '',
-    unit_id: '',
-    business_id: '',
-    status: '',
-  });
+  const [filters, setFilters] = useState<PayrollFilters>(defaultPayrollFilters);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [visibleColumnIds, setVisibleColumnIds] = useLocalStorageState<PayrollRunColumnId[]>(
     'indice.hr.payroll.visibleColumns.v1',
@@ -712,6 +742,59 @@ export default function Payroll() {
     direction: 'asc' | 'desc';
   } | null>(null);
   const [lineDraftsByLineId, setLineDraftsByLineId] = useState<Record<number, PayrollLineDraft>>({});
+  const disclosureCopy = useIndiceFilterDisclosureCopy();
+  const workspaceDefaults = useMemo<PayrollWorkspaceState>(() => ({
+    ...defaultPayrollFilters,
+    searchQuery: '',
+    currentPage: 1,
+    pageSize: defaultPayrollPageSize,
+    sortColumn: '',
+    sortDirection: 'asc',
+  }), []);
+  const workspaceState = useMemo<PayrollWorkspaceState>(() => ({
+    ...filters,
+    searchQuery,
+    currentPage,
+    pageSize,
+    sortColumn: sortConfig?.column ?? '',
+    sortDirection: sortConfig?.direction ?? 'asc',
+  }), [currentPage, filters, pageSize, searchQuery, sortConfig?.column, sortConfig?.direction]);
+
+  useWorkspaceNavigationMemory({
+    moduleKey: 'human-resources',
+    tabKey: 'payroll',
+    state: workspaceState,
+    defaults: workspaceDefaults,
+    urlFields: {
+      searchQuery: 'q',
+      period_range: 'period',
+      period_from: 'from',
+      period_to: 'to',
+      pay_period: 'frequency',
+      grouping_mode: 'type',
+      unit_id: 'unit',
+      business_id: 'business',
+      status: 'status',
+      currentPage: 'page',
+      pageSize: 'pageSize',
+    },
+    onRestore: (restoredState) => {
+      setFilters({
+        period_range: typeof restoredState.period_range === 'string' ? restoredState.period_range : defaultPayrollFilters.period_range,
+        period_from: typeof restoredState.period_from === 'string' ? restoredState.period_from : '',
+        period_to: typeof restoredState.period_to === 'string' ? restoredState.period_to : '',
+        pay_period: typeof restoredState.pay_period === 'string' ? restoredState.pay_period : '',
+        grouping_mode: typeof restoredState.grouping_mode === 'string' ? restoredState.grouping_mode : '',
+        unit_id: typeof restoredState.unit_id === 'string' ? restoredState.unit_id : '',
+        business_id: typeof restoredState.business_id === 'string' ? restoredState.business_id : '',
+        status: typeof restoredState.status === 'string' ? restoredState.status : '',
+      });
+      setSearchQuery(typeof restoredState.searchQuery === 'string' ? restoredState.searchQuery : '');
+      setCurrentPage(Number.isInteger(restoredState.currentPage) && restoredState.currentPage > 0 ? restoredState.currentPage : 1);
+      setPageSize(DEFAULT_TABLE_PAGE_SIZE_OPTIONS.includes(restoredState.pageSize as (typeof DEFAULT_TABLE_PAGE_SIZE_OPTIONS)[number]) ? restoredState.pageSize : defaultPayrollPageSize);
+      setSortConfig(restoredState.sortColumn ? { column: restoredState.sortColumn, direction: restoredState.sortDirection === 'desc' ? 'desc' : 'asc' } : null);
+    },
+  });
 
   const isSaving = busyState !== null;
   const activeBusyKind = busyState?.kind ?? null;
@@ -1489,6 +1572,34 @@ export default function Payroll() {
     }
   }, [currentPage, totalPages]);
 
+  const activeAdvancedFilterCount = [
+    filters.pay_period,
+    filters.grouping_mode,
+    filters.unit_id,
+    filters.business_id,
+  ].filter(Boolean).length;
+  const hasActiveFilters = Boolean(
+    searchQuery.trim()
+      || filters.period_range !== defaultPayrollFilters.period_range
+      || filters.period_from
+      || filters.period_to
+      || filters.status
+      || activeAdvancedFilterCount > 0,
+  );
+
+  useEffect(() => {
+    if (activeAdvancedFilterCount > 0) setShowAdvancedFilters(true);
+  }, [activeAdvancedFilterCount]);
+
+  const handleClearFilters = () => {
+    setFilters(defaultPayrollFilters);
+    setSearchQuery('');
+    setSortConfig(null);
+    setCurrentPage(1);
+    setPageSize(defaultPayrollPageSize);
+    setShowAdvancedFilters(false);
+  };
+
   const operationalRuns = filteredRuns.map((run) => ({
     ...run,
     jurisdictionLabel: resolveRunJurisdictionLabel(run),
@@ -1565,108 +1676,125 @@ export default function Payroll() {
         </div>
       ) : (
         <>
-          <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            <div className="mb-5">
-              <h3 className="text-base font-medium text-slate-950 dark:text-white">{copy.filterBar.title}</h3>
-            </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-              <div className="space-y-2 md:col-span-2">
-                <label htmlFor="payroll-run-search" className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                  {searchCopy.label}
-                </label>
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    id="payroll-run-search"
-                    type="search"
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder={searchCopy.placeholder}
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-                  />
-                </div>
-              </div>
-              <SelectField
-                label={copy.labels.period}
-                value={filters.period_range}
-                onChange={(value) => setFilters({ ...filters, period_range: value })}
-                options={[
-                  { value: 'this_month', label: copy.labels.periodThisMonth },
-                  { value: 'last_month', label: copy.labels.periodLastMonth },
-                  { value: 'two_months_ago', label: copy.labels.periodTwoMonthsAgo },
-                  { value: 'all_year', label: copy.labels.periodAllYear },
-                  { value: 'custom', label: copy.labels.periodCustom },
-                ]}
+          <IndiceFilterBar
+            className="mb-6"
+            gridClassName="lg:grid-cols-3"
+            title={copy.filterBar.title}
+            summary={(
+              <IndiceFilterDisclosureActions
+                activeAdvancedCount={activeAdvancedFilterCount}
+                advancedLabel={showAdvancedFilters ? disclosureCopy.hideFilters : disclosureCopy.moreFilters}
+                clearLabel={disclosureCopy.clearFilters}
+                hasActiveFilters={hasActiveFilters}
+                isAdvancedOpen={showAdvancedFilters}
+                onClear={handleClearFilters}
+                onToggleAdvanced={() => setShowAdvancedFilters((current) => !current)}
+                tone="aqua"
               />
-              {filters.period_range === 'custom' && (
-                <>
-                  <DateField
-                    label={copy.labels.periodFrom}
-                    value={filters.period_from}
-                    onChange={(value) => setFilters({ ...filters, period_from: value })}
-                  />
-                  <DateField
-                    label={copy.labels.periodTo}
-                    value={filters.period_to}
-                    onChange={(value) => setFilters({ ...filters, period_to: value })}
-                  />
-                </>
-              )}
-              <SelectField
-                label={copy.labels.frequency}
-                value={filters.pay_period}
-                onChange={(value) => setFilters({ ...filters, pay_period: value })}
-                options={[
-                  { value: '', label: copy.labels.all },
-                  { value: 'weekly', label: copy.frequencies.weekly },
-                  { value: 'biweekly', label: copy.frequencies.biweekly },
-                  { value: 'semimonthly', label: copy.frequencies.semimonthly },
-                  { value: 'monthly', label: copy.frequencies.monthly },
-                ]}
-              />
-              <SelectField
-                label={copy.labels.payrollType}
-                value={filters.grouping_mode}
-                onChange={(value) => setFilters({ ...filters, grouping_mode: value })}
-                options={[
-                  { value: '', label: copy.labels.all },
-                  { value: 'single', label: copy.groupingModes.single },
-                  { value: 'unit', label: copy.groupingModes.unit },
-                  { value: 'business', label: copy.groupingModes.business },
-                ]}
-              />
-              <SelectField
-                label={copy.labels.unit}
-                value={filters.unit_id}
-                onChange={(value) => setFilters({ ...filters, unit_id: value })}
-                options={[
-                  { value: '', label: copy.labels.all },
-                  ...units.map((unit) => ({ value: String(unit.id), label: unit.name })),
-                ]}
-              />
-              <SelectField
-                label={copy.labels.business}
-                value={filters.business_id}
-                onChange={(value) => setFilters({ ...filters, business_id: value })}
-                options={[
-                  { value: '', label: copy.labels.all },
-                  ...businesses.map((business) => ({ value: String(business.id), label: business.name })),
-                ]}
-              />
-              <SelectField
-                label={copy.labels.status}
-                value={filters.status}
-                onChange={(value) => setFilters({ ...filters, status: value })}
-                options={[
-                  { value: '', label: copy.labels.all },
-                  { value: 'draft', label: copy.statuses.draft },
-                  { value: 'approved', label: copy.statuses.approved },
-                  { value: 'paid', label: copy.statuses.paid },
-                  { value: 'cancelled', label: copy.statuses.cancelled },
-                ]}
-              />
-            </div>
-          </section>
+            )}
+          >
+            <IndiceFilterSearch
+              label={searchCopy.label}
+              value={searchQuery}
+              onValueChange={setSearchQuery}
+              onClear={() => setSearchQuery('')}
+              placeholder={searchCopy.placeholder}
+              tone="aqua"
+            />
+            <IndiceFilterSelect
+              label={copy.labels.period}
+              value={filters.period_range}
+              onValueChange={(value) => setFilters({ ...filters, period_range: value })}
+              options={[
+                { value: 'this_month', label: copy.labels.periodThisMonth },
+                { value: 'last_month', label: copy.labels.periodLastMonth },
+                { value: 'two_months_ago', label: copy.labels.periodTwoMonthsAgo },
+                { value: 'all_year', label: copy.labels.periodAllYear },
+                { value: 'custom', label: copy.labels.periodCustom },
+              ]}
+              tone="aqua"
+            />
+            <IndiceFilterSelect
+              label={copy.labels.status}
+              value={filters.status || '__all__'}
+              onValueChange={(value) => setFilters({ ...filters, status: value === '__all__' ? '' : value })}
+              options={[
+                { value: '__all__', label: copy.labels.all },
+                { value: 'draft', label: copy.statuses.draft },
+                { value: 'approved', label: copy.statuses.approved },
+                { value: 'paid', label: copy.statuses.paid },
+                { value: 'cancelled', label: copy.statuses.cancelled },
+              ]}
+              tone="aqua"
+            />
+
+            {filters.period_range === 'custom' ? (
+              <>
+                <DateField
+                  label={copy.labels.periodFrom}
+                  value={filters.period_from}
+                  onChange={(value) => setFilters({ ...filters, period_from: value })}
+                />
+                <DateField
+                  label={copy.labels.periodTo}
+                  value={filters.period_to}
+                  onChange={(value) => setFilters({ ...filters, period_to: value })}
+                />
+              </>
+            ) : null}
+
+            {showAdvancedFilters ? (
+              <IndiceFilterAdvancedSection className="md:col-span-2 lg:col-span-3" gridClassName="lg:grid-cols-4">
+                <IndiceFilterSelect
+                  label={copy.labels.frequency}
+                  value={filters.pay_period || '__all__'}
+                  onValueChange={(value) => setFilters({ ...filters, pay_period: value === '__all__' ? '' : value })}
+                  options={[
+                    { value: '__all__', label: copy.labels.all },
+                    { value: 'weekly', label: copy.frequencies.weekly },
+                    { value: 'biweekly', label: copy.frequencies.biweekly },
+                    { value: 'semimonthly', label: copy.frequencies.semimonthly },
+                    { value: 'monthly', label: copy.frequencies.monthly },
+                  ]}
+                  tone="aqua"
+                />
+                <IndiceFilterSelect
+                  label={copy.labels.payrollType}
+                  value={filters.grouping_mode || '__all__'}
+                  onValueChange={(value) => setFilters({ ...filters, grouping_mode: value === '__all__' ? '' : value })}
+                  options={[
+                    { value: '__all__', label: copy.labels.all },
+                    { value: 'single', label: copy.groupingModes.single },
+                    { value: 'unit', label: copy.groupingModes.unit },
+                    { value: 'business', label: copy.groupingModes.business },
+                  ]}
+                  tone="aqua"
+                />
+                <IndiceFilterSelect
+                  label={copy.labels.unit}
+                  value={filters.unit_id || '__all__'}
+                  onValueChange={(value) => setFilters({ ...filters, unit_id: value === '__all__' ? '' : value, business_id: '' })}
+                  options={[
+                    { value: '__all__', label: copy.labels.all },
+                    ...units.map((unit) => ({ value: String(unit.id), label: unit.name })),
+                  ]}
+                  tone="aqua"
+                />
+                <IndiceFilterSelect
+                  label={copy.labels.business}
+                  value={filters.business_id || '__all__'}
+                  onValueChange={(value) => setFilters({ ...filters, business_id: value === '__all__' ? '' : value })}
+                  options={[
+                    { value: '__all__', label: copy.labels.all },
+                    ...businesses
+                      .filter((business) => !filters.unit_id || String(business.unitId ?? business.unit_id ?? '') === filters.unit_id)
+                      .map((business) => ({ value: String(business.id), label: business.name })),
+                  ]}
+                  tone="aqua"
+                />
+              </IndiceFilterAdvancedSection>
+            ) : null}
+          </IndiceFilterBar>
 
           {shouldShowSetupGuide ? (
             <PayrollSetupGuide

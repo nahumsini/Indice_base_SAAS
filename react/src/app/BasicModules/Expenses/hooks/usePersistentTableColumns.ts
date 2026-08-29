@@ -6,7 +6,37 @@ type PersistableColumn = {
   visible: boolean;
 };
 
-function reconcileColumns<T extends PersistableColumn>(candidate: unknown, defaults: T[]): T[] {
+export type LegacyFactoryColumnPreset = {
+  orderedKeys: string[];
+  visibleKeys: string[];
+};
+
+type PersistentTableColumnOptions = {
+  legacyFactoryPresets?: LegacyFactoryColumnPreset[];
+};
+
+function matchesLegacyFactoryPreset(candidate: unknown, preset: LegacyFactoryColumnPreset) {
+  if (!Array.isArray(candidate) || candidate.length !== preset.orderedKeys.length) return false;
+  const visibleKeys = new Set(preset.visibleKeys);
+
+  return candidate.every((column, index) => (
+    Boolean(column)
+    && typeof column === 'object'
+    && 'key' in column
+    && 'visible' in column
+    && String(column.key) === preset.orderedKeys[index]
+    && column.visible === visibleKeys.has(String(column.key))
+  ));
+}
+
+function reconcileColumns<T extends PersistableColumn>(
+  candidate: unknown,
+  defaults: T[],
+  legacyFactoryPresets: LegacyFactoryColumnPreset[] = [],
+): T[] {
+  if (legacyFactoryPresets.some(preset => matchesLegacyFactoryPreset(candidate, preset))) {
+    return defaults.map(column => ({ ...column }));
+  }
   const storedColumns = Array.isArray(candidate) ? candidate : [];
   const defaultsByKey = new Map(defaults.map(column => [column.key, column]));
   const restored: T[] = [];
@@ -30,21 +60,34 @@ function reconcileColumns<T extends PersistableColumn>(candidate: unknown, defau
   return [...restored, ...defaults.filter(column => defaultsByKey.has(column.key)).map(column => ({ ...column }))];
 }
 
-function loadColumns<T extends PersistableColumn>(storageKey: string, defaults: T[]): T[] {
+function loadColumns<T extends PersistableColumn>(
+  storageKey: string,
+  defaults: T[],
+  legacyFactoryPresets: LegacyFactoryColumnPreset[],
+): T[] {
   if (typeof window === 'undefined') return defaults.map(column => ({ ...column }));
   try {
-    return reconcileColumns(JSON.parse(window.localStorage.getItem(storageKey) ?? '[]'), defaults);
+    return reconcileColumns(
+      JSON.parse(window.localStorage.getItem(storageKey) ?? '[]'),
+      defaults,
+      legacyFactoryPresets,
+    );
   } catch {
     return defaults.map(column => ({ ...column }));
   }
 }
 
-export function usePersistentTableColumns<T extends PersistableColumn>(storageKey: string, defaults: T[]) {
-  const signature = JSON.stringify(defaults);
-  const [columns, setColumnsState] = useState<T[]>(() => loadColumns(storageKey, defaults));
+export function usePersistentTableColumns<T extends PersistableColumn>(
+  storageKey: string,
+  defaults: T[],
+  options: PersistentTableColumnOptions = {},
+) {
+  const legacyFactoryPresets = options.legacyFactoryPresets ?? [];
+  const signature = JSON.stringify({ defaults, legacyFactoryPresets });
+  const [columns, setColumnsState] = useState<T[]>(() => loadColumns(storageKey, defaults, legacyFactoryPresets));
 
   useEffect(() => {
-    setColumnsState(current => reconcileColumns(current, defaults));
+    setColumnsState(current => reconcileColumns(current, defaults, legacyFactoryPresets));
   }, [signature]);
 
   useEffect(() => {
@@ -63,6 +106,7 @@ export function usePersistentTableColumns<T extends PersistableColumn>(storageKe
     setColumnsState(current => reconcileColumns(
       typeof update === 'function' ? update(current) : update,
       defaults,
+      legacyFactoryPresets,
     ));
   }, [signature]);
 

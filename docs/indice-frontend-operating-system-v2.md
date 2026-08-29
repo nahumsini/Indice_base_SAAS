@@ -791,6 +791,82 @@ If the views are peers, use `sections`. A workflow navigator is not a modal
 wizard and must not introduce Next/Back requirements unless the business flow
 itself requires validation before advancing.
 
+### 10.2 Tab And Workspace Memory Standard
+
+Moving between module tabs must not erase a user's safe operating context. Use one shared memory
+contract instead of adding unrelated `localStorage` or `sessionStorage` effects inside each view.
+
+The contract has four distinct layers:
+
+1. **Navigation memory** remembers the last valid module tab through `useRoutedModuleTab`. The
+   active tab remains represented by the route so Back, Forward, reload, bookmarks, and direct
+   links behave predictably.
+2. **Workspace memory** uses `useWorkspaceNavigationMemory` for recoverable state owned by one
+   tab. Its key is scoped by authenticated company, user, `moduleKey`, and `tabKey`, with the
+   workspace-state API as the durable copy and scoped local storage as the offline cache.
+3. **Session position** may remember scroll or another harmless return position for the current
+   browser session. It is not durable business state.
+4. **User preferences** such as visible columns, column order, and column widths follow Section 17.
+   They remain independent from filters and are not cleared by a normal tab-memory reset.
+
+Approved workspace-memory fields include:
+
+- search and filter values
+- period and date scope
+- organization, unit, business, ownership, category, and status scope
+- sort field and direction
+- table or board view mode
+- page size
+- the current page only when the restored result scope is still valid; otherwise return to page 1
+- safe analytical display choices that do not change permissions or authoritative calculations
+
+Do not persist as tab memory:
+
+- open modals, popovers, menus, confirmations, or disclosure-only UI state
+- loading, submitting, retry, toast, error, or success state
+- row selection, bulk selection, pending deletion, or another consequential transient action
+- fetched records, backend totals, exchange rates, permission results, entitlements, or tenant/user
+  authority
+- credentials, session material, tokens, sensitive drafts, payment data, or secrets
+
+Restore order and behavior:
+
+1. Start from the current factory defaults.
+2. Merge the newest valid durable workspace state.
+3. Apply explicitly mapped URL fields last; a direct link always wins over remembered state.
+4. Validate every restored enum, identifier, and dependent option against the user's current
+   permissions and available data. Reset stale or unauthorized values safely.
+5. When a parent scope invalidates a remembered child filter, clear the child and persist the
+   corrected state.
+6. If a restored secondary filter is active, open `More filters` automatically. Derive this from
+   active values instead of persisting the disclosure button's open/closed state.
+7. Restore scroll only after the view is ready, without stealing focus.
+
+Operational rules:
+
+- use stable English `moduleKey` and `tabKey` identifiers; visible localized labels are not storage
+  keys
+- wait for navigation memory before redirecting an absent or invalid tab route
+- debounce remote saves and keep the scoped local copy usable when the backend is temporarily
+  unavailable
+- do not let remembered state trigger a mutation, reopen a destructive flow, or bypass current
+  authorization
+- `Clear filters` restores the documented factory filter state, resets pagination, persists that
+  result, and leaves column preferences unchanged
+- a schema or option change must normalize recognized fields and ignore unknown legacy fields; it
+  must not make the tab unusable
+- do not add a second tab-memory hook or module-specific storage convention when either shared hook
+  covers the use case
+
+Required regression coverage for a recoverable workspace:
+
+- configure tab A, navigate to tab B, and return to tab A without losing tab A's filters
+- reload and restore the last valid tab and its safe workspace state
+- open a direct URL and confirm its mapped fields override remembered values
+- confirm different companies and users never read one another's memory
+- remove or revoke a remembered option and confirm the view returns to a valid state
+- clear filters and confirm the factory filter state persists while column preferences remain
+
 ---
 
 ## 11. Emoji And Icon Identity Standard
@@ -841,9 +917,32 @@ Left:
 
 Right:
 
-- Columns button when table has configurable columns
 - primary CTA
-- secondary actions if needed
+- up to two frequent secondary or contextual actions
+- Columns when the table has useful optional columns and the action remains direct under the
+  hierarchy below
+
+Action hierarchy and overflow:
+
+- determine the eligible title-bar actions after applying permissions, entitlements, feature
+  state, and the current view context
+- when there are one to three eligible actions, render all of them directly; `Columns` remains a
+  normal visible action when it is part of this set
+- when there are four or more eligible actions, keep the three highest-priority actions direct
+  and render a fourth neutral `Actions` overflow control
+- the primary CTA always remains direct and uses the module accent; frequent contextual actions
+  take the remaining direct positions
+- whenever the overflow exists, place `Columns` inside it together with infrequent,
+  administrative, export/import, or destructive actions as applicable; never duplicate
+  `Columns` outside and inside the menu
+- never create an `Actions` overflow only to hide `Columns` when the complete action set contains
+  three or fewer actions
+- the overflow control is a container and does not count as a fourth direct business action; the
+  visible business-action limit remains one primary plus at most two secondary actions
+- keep the overflow as the final control, preserve each item's permission, disabled, busy, and
+  confirmation behavior, and provide keyboard navigation, focus return, and a localized label
+- responsive layouts may wrap or stack the same controls, but must not change their priority or
+  silently remove an action
 
 Visual:
 
@@ -877,6 +976,15 @@ Collaborators
 Files, assignments, schedules, and payroll context
 
 [Columns] [Add collaborator]
+```
+
+Examples by eligible action count:
+
+```txt
+Three actions: [Kiosk] [Columns] [Create fund]
+
+Four or more: [Kiosk] [Approve] [Create fund] [Actions v]
+Actions menu: [Columns] [Export] [Deactivate]
 ```
 
 ---
@@ -916,14 +1024,41 @@ Input standard:
 Operational list behavior:
 
 - use the shared `IndiceFilterBar`, `IndiceFilterSearch`, and `IndiceFilterSelect` primitives
-- keep the bar header to `Filters` by default; result counters, live timestamps, notices,
-  and refresh actions belong in the title bar, data context, or table footer
+- keep the bar header anchored by `Filters`; a compact filtered-result count and the shared
+  disclosure/clear controls may share that header, while live timestamps, notices, and refresh
+  actions belong in the title bar, data context, or table footer
 - expose only filters that materially narrow the current dataset
 - allow an inline clear action inside search when a query is active
 - debounce remote search by approximately 250-350 ms; local in-memory search may update immediately
 - reset table pagination to page 1 whenever a filter changes
 - when filters depend on one another, changing the parent narrows the child options and clears
   a child value that is no longer valid
+
+Operational lists with more than four useful filters must use progressive disclosure:
+
+- keep Search and the two or three filters used for the primary operating decision visible
+- place organizational, classification, ownership, evidence, or other secondary filters behind
+  a `More filters` action in the filter-bar header
+- show the number of active secondary filters in the action and expose its state with
+  `aria-expanded`
+- automatically open the secondary area when a restored or externally applied secondary filter
+  is active; never hide an active value from the user
+- keep custom date inputs adjacent to the selected period control even when the secondary area is
+  collapsed
+- provide one clear action whenever any filter differs from the view's factory state; clearing
+  restores that state, resets pagination, and collapses the secondary area
+- omit controls that do not materially affect the current view; an empty or ignored selector must
+  not be rendered merely to keep all sibling tabs structurally identical
+- do not add `More filters` when the complete useful filter set contains four or fewer controls;
+  use the normal responsive grid for that simpler case
+
+Use the shared `IndiceFilterDisclosureActions` and `IndiceFilterAdvancedSection` presentation
+primitives for this pattern. The owning module retains filter values, defaults, option derivation,
+and business behavior.
+
+Recoverable list and analytics filters follow the tab-memory contract in Section 10.2. Do not add
+ad hoc browser-storage effects for new views. Remember filter values, not the open state of `More
+filters`; restored active secondary values reveal that section automatically.
 
 Analytical views may use `IndiceFilterSegmented` inside the same shared card for a small,
 bounded choice such as Today, Week, Month, or All. The segmented control must keep its label,
@@ -1410,6 +1545,25 @@ This is the approved columns modal pattern.
 
 All `Columns` buttons across modules should open the standardized columns modal or a direct evolution of it.
 
+Expose column configuration only when the table has useful optional fields or user-relevant order
+choices. A short fixed summary, semantic reconciliation table, or table with no meaningful optional
+columns must not add a `Columns` action merely for visual consistency.
+
+Entry point:
+
+- when the complete title-bar action set contains three or fewer actions, keep `Columns` visible in
+  the title bar
+- when four or more actions require the shared `Actions` overflow, place `Columns` inside that menu
+  and do not duplicate it as a direct button
+- when a table is embedded in a workspace without its own title bar, `Columns` may live in the table
+  toolbar defined in Section 16
+- every entry point opens the same approved columns modal and restores focus to its trigger on close
+
+Column visibility, order, and width are durable user preferences under this section, not tab-filter
+memory. Switching tabs or clearing filters must not reset them. `Restore defaults` inside the
+columns modal resets only the column preference to the current factory preset; it does not clear
+filters, navigation memory, or other workspace state.
+
 Required:
 
 - module-colored header
@@ -1433,6 +1587,12 @@ Rules:
 - do not remove column data from state
 - control visibility and order only in UI
 - default visible columns must be operational, not decorative
+- the factory preset should expose only the identity, decision, amount, due-date, status, and
+  action fields needed for the dominant workflow; secondary data remains available in the modal
+- persist a user's visibility and order choices independently from the factory preset
+- `Restore defaults` must restore the current Indice factory visibility and order
+- when a factory preset becomes more compact, migrate only an exact recognized legacy factory
+  preset; do not overwrite a real user customization, even when it contains many visible columns
 - fixed/locked columns must remain visible
 - do not create alternative columns modal designs
 - generic shell may live in shared UI only if it contains no business logic

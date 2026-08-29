@@ -887,6 +887,7 @@ export default function Prospectos({ learningModeActive = false }: ProspectosPro
   return (
     <section className="space-y-5">
       <ProspectosHeader
+        actionsLabel={t.table.actions}
         copy={t.header}
         flows={opportunityFlows}
         selectedFlowId={selectedFlowId}

@@ -284,12 +284,17 @@ export function useFinancialOverview({
     const periodRange = getPeriodRange(periodFilter, referenceDate, customStartDate, customEndDate);
     const comparisonRange = getPreviousPeriodRange(periodFilter, referenceDate, periodRange);
     const budgetsById = new Map(sources.budgets.map(budget => [budget.id, budget]));
+    const matchesPaymentStatus = (expense: FinanceExpense) => (
+      paymentStatus === 'all'
+      || (paymentStatus === 'OPEN' && expense.paymentStatus !== 'PAID')
+      || expense.paymentStatus === paymentStatus
+    );
     const matchesDimensions = (expense: FinanceExpense) => (
       (unitId === 'all' || expense.unitId === unitId)
       && (businessId === 'all' || expense.businessId === businessId)
       && (providerId === 'all' || expense.providerId === providerId)
       && (accountingAccountId === 'all' || expense.accountingAccountId === accountingAccountId)
-      && (paymentStatus === 'all' || expense.paymentStatus === paymentStatus)
+      && matchesPaymentStatus(expense)
     );
     const filteredExpenses = sources.expenses.filter(expense => (
       isWithinRange(parseLocalDate(expense.expenseDate), periodRange) && matchesDimensions(expense)

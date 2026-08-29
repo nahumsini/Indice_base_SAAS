@@ -192,7 +192,7 @@ export function BudgetTaxControls<TDraft extends TaxControlDraft>({ compact = fa
               <input
                 value={draft.taxRate}
                 onChange={(event) => applyDraftChange({ taxRate: event.target.value, taxMode: 'auto', taxSpecialAmount: '' })}
-                placeholder="Ej. 8.875"
+                placeholder={t.budgets.modal.taxRatePlaceholder}
                 className={fieldClass}
               />
             </label>

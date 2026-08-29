@@ -89,6 +89,27 @@ export type SalesProductImageUploadResponse = {
   sizeBytes?: number;
 };
 
+export type MetaLeadImportRequest = {
+  pageId: string;
+  accessToken: string;
+  maxLeads: number;
+};
+
+export type MetaLeadImportResponse = {
+  downloaded: number;
+  imported: number;
+  skippedPreviouslyImported: number;
+  skippedDuplicates: number;
+  skippedInvalid: number;
+  contacts: Array<{
+    id: number;
+    contactCode: string;
+    contactPerson: string;
+    email: string;
+    phone: string;
+  }>;
+};
+
 const buildCollectionPath = (collection: SalesApiCollection, id?: number | string) => (
   `${endpoints.sales.base}/${collection}${id === undefined ? '' : `/${id}`}`
 );
@@ -141,6 +162,12 @@ export const salesApi = {
     return apiClient<OpportunityFlowApiFlow>(`${endpoints.sales.base}/opportunity-flow/${flowId}`, {
       method: 'PUT',
       body: JSON.stringify({ name, stages }),
+    });
+  },
+  importMetaLeads(payload: MetaLeadImportRequest) {
+    return apiClient<MetaLeadImportResponse>(`${endpoints.sales.base}/meta-leads/import`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
     });
   },
   list<TItem = Record<string, unknown>>(
