@@ -37,7 +37,7 @@ export function OwnerStep({
   };
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+    <section className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800 sm:p-5">
       <AccountStepTitle
         number="2"
         icon={KeyRound}
@@ -120,7 +120,7 @@ export function OwnerStep({
                 onChange({ temporary_password: generateTemporaryPassword() });
                 onShowPasswordChange(true);
               }}
-              className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 text-xs font-semibold text-[#143675] hover:bg-blue-100"
+              className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border border-[#59C3A5]/40 bg-[#59C3A5]/10 px-3 text-xs font-medium text-[#176B5B] hover:bg-[#59C3A5]/20 dark:border-[#59C3A5]/30 dark:text-[#8FE0CA]"
             >
               <Sparkles className="h-4 w-4" /> {copy.actions.generate}
             </button>

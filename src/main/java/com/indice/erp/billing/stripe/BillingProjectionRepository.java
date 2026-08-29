@@ -41,10 +41,11 @@ public class BillingProjectionRepository {
                         stripe_subscription_id, stripe_customer_id, company_id, signup_intent_id,
                         catalog_version_id, offer_code, billing_interval, currency,
                         status, collection_method, included_seats, extra_seats,
+                        subtotal_amount_cents, discount_amount_cents, promotion_code,
                         cancel_at_period_end, trial_starts_at, trial_ends_at,
                         current_period_starts_at, current_period_ends_at, canceled_at,
                         latest_invoice_id, last_payment_status, last_event_id, last_event_created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                 incoming.subscriptionId(),
                 incoming.customerId(),
@@ -58,6 +59,9 @@ public class BillingProjectionRepository {
                 incoming.collectionMethod(),
                 intent == null ? 5 : intent.includedSeats(),
                 intent == null ? 0 : intent.extraSeats(),
+                intent == null ? null : intent.subtotalAmountCents(),
+                intent == null ? 0 : intent.discountAmountCents(),
+                intent == null ? null : intent.promotionCode(),
                 incoming.cancelAtPeriodEnd(),
                 timestamp(incoming.trialStartsAt()),
                 timestamp(incoming.trialEndsAt()),
@@ -93,6 +97,9 @@ public class BillingProjectionRepository {
                         billing_interval = COALESCE(billing_interval, ?),
                         currency = COALESCE(?, currency),
                         status = ?, collection_method = ?, included_seats = ?, extra_seats = ?,
+                        subtotal_amount_cents = COALESCE(?, subtotal_amount_cents),
+                        discount_amount_cents = COALESCE(?, discount_amount_cents),
+                        promotion_code = COALESCE(?, promotion_code),
                         cancel_at_period_end = ?, trial_starts_at = ?, trial_ends_at = ?,
                         current_period_starts_at = ?, current_period_ends_at = ?, canceled_at = ?,
                         latest_invoice_id = COALESCE(?, latest_invoice_id),
@@ -111,6 +118,9 @@ public class BillingProjectionRepository {
                 incoming.collectionMethod(),
                 effectiveIntent == null ? 5 : effectiveIntent.includedSeats(),
                 effectiveIntent == null ? 0 : effectiveIntent.extraSeats(),
+                effectiveIntent == null ? null : effectiveIntent.subtotalAmountCents(),
+                effectiveIntent == null ? null : effectiveIntent.discountAmountCents(),
+                effectiveIntent == null ? null : effectiveIntent.promotionCode(),
                 incoming.cancelAtPeriodEnd(),
                 timestamp(incoming.trialStartsAt()),
                 timestamp(incoming.trialEndsAt()),
@@ -323,11 +333,15 @@ public class BillingProjectionRepository {
                 SET signup_intent_id = COALESCE(signup_intent_id, ?), company_id = COALESCE(company_id, ?),
                     catalog_version_id = COALESCE(catalog_version_id, ?), offer_code = COALESCE(offer_code, ?),
                     billing_interval = COALESCE(billing_interval, ?), currency = COALESCE(currency, ?),
-                    included_seats = ?, extra_seats = ?
+                    included_seats = ?, extra_seats = ?,
+                    subtotal_amount_cents = COALESCE(?, subtotal_amount_cents),
+                    discount_amount_cents = COALESCE(?, discount_amount_cents),
+                    promotion_code = COALESCE(?, promotion_code)
                 WHERE id = ?
                 """,
             signupIntentId, intent.companyId(), intent.catalogVersionId(), intent.offerCode(),
-            intent.billingInterval(), intent.currency(), intent.includedSeats(), intent.extraSeats(), subscriptionInternalId
+            intent.billingInterval(), intent.currency(), intent.includedSeats(), intent.extraSeats(),
+            intent.subtotalAmountCents(), intent.discountAmountCents(), intent.promotionCode(), subscriptionInternalId
         );
         copyIntentProducts(subscriptionInternalId, signupIntentId);
     }
@@ -354,14 +368,17 @@ public class BillingProjectionRepository {
         var rows = jdbcTemplate.query(
             """
                 SELECT company_id, catalog_version_id, offer_code, billing_interval, currency,
-                       included_seats, requested_extra_seats
+                       included_seats, requested_extra_seats, subtotal_amount_cents,
+                       discount_amount_cents, promotion_code
                 FROM billing_signup_intents
                 WHERE id = ?
                 """,
             (rs, rowNum) -> new IntentDetails(
                 (Long) rs.getObject("company_id"), rs.getLong("catalog_version_id"),
                 rs.getString("offer_code"), rs.getString("billing_interval"), rs.getString("currency"),
-                rs.getInt("included_seats"), rs.getInt("requested_extra_seats")
+                rs.getInt("included_seats"), rs.getInt("requested_extra_seats"),
+                (Long) rs.getObject("subtotal_amount_cents"), rs.getLong("discount_amount_cents"),
+                rs.getString("promotion_code")
             ),
             signupIntentId
         );
@@ -432,7 +449,10 @@ public class BillingProjectionRepository {
         String billingInterval,
         String currency,
         int includedSeats,
-        int extraSeats
+        int extraSeats,
+        Long subtotalAmountCents,
+        long discountAmountCents,
+        String promotionCode
     ) {
     }
 

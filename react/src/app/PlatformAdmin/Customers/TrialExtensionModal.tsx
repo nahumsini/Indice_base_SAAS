@@ -45,7 +45,7 @@ export function TrialExtensionModal({
       onOpenChange={(open) => !open && onClose()}
       modalType="standard-form"
       contentClassName="sm:max-w-2xl"
-      tone="blue"
+      tone="aqua"
       icon={<CalendarPlus className="h-5 w-5" />}
       eyebrow={english ? "Controlled trial" : "Prueba controlada"}
       title={english ? "Extend trial" : "Extender periodo de prueba"}
@@ -85,15 +85,15 @@ export function TrialExtensionModal({
       <form id="trial-extension-form" onSubmit={submit} className="space-y-4">
         <IndiceModalValidation messages={error ? [error] : []} />
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-800/60">
           <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-4">
             <div className="flex min-w-0 items-center gap-3">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-[#2563EB]">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#e8f5f2] text-[#177D66]">
                 <CalendarClock className="h-5 w-5" />
               </span>
               <div className="min-w-0">
-                <p className="truncate font-semibold text-slate-900">{company.name}</p>
-                <p className="mt-0.5 text-xs text-slate-500">
+                <p className="truncate font-medium text-slate-900 dark:text-white">{company.name}</p>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                   {company.trial_ends_at
                     ? `${english ? "Current end" : "Vencimiento actual"}: ${formatDate(company.trial_ends_at, english)}`
                     : english
@@ -102,7 +102,7 @@ export function TrialExtensionModal({
                 </p>
               </div>
             </div>
-            <span className="shrink-0 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+            <span className="shrink-0 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
               {remainingDays > 0
                 ? english
                   ? `${remainingDays} days left`
@@ -114,7 +114,7 @@ export function TrialExtensionModal({
           </div>
 
           <fieldset className="mt-4">
-            <legend className="text-sm font-semibold text-slate-800">
+            <legend className="text-sm font-medium text-slate-800 dark:text-slate-200">
               {english ? "Days to add" : "Días por agregar"}
             </legend>
             <div className="mt-3 grid grid-cols-3 gap-3">
@@ -123,10 +123,10 @@ export function TrialExtensionModal({
                 return (
                   <label
                     key={option}
-                    className={`cursor-pointer rounded-2xl border px-3 py-4 text-center transition focus-within:ring-2 focus-within:ring-[#2563EB]/25 ${
+                    className={`cursor-pointer rounded-2xl border px-3 py-4 text-center transition focus-within:ring-2 focus-within:ring-[#59C3A5]/25 ${
                       selected
-                        ? "border-[#2563EB] bg-blue-50 text-[#174799] shadow-sm"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-blue-200"
+                        ? "border-[#59C3A5] bg-[#59C3A5]/12 text-[#176B5B] shadow-sm"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                     }`}
                   >
                     <input
@@ -137,7 +137,7 @@ export function TrialExtensionModal({
                       onChange={() => setDays(option)}
                       className="sr-only"
                     />
-                    <span className="block text-2xl font-semibold tabular-nums">+{option}</span>
+                    <span className="block text-2xl font-medium tabular-nums">+{option}</span>
                     <span className="mt-1 block text-xs font-medium">
                       {english ? "days" : "días"}
                     </span>
@@ -148,7 +148,7 @@ export function TrialExtensionModal({
           </fieldset>
         </section>
 
-        <div className="flex gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm leading-6 text-[#143675]">
+        <div className="flex gap-3 rounded-xl border border-[#59C3A5]/30 bg-[#59C3A5]/10 px-4 py-3 text-sm leading-6 text-[#176B5B] dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/10 dark:text-[#8FE0CA]">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
             {english

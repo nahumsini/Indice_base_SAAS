@@ -33,6 +33,8 @@ export function SessionCreateModal({
   consultants,
   locations,
   attendingConsultant,
+  busy = false,
+  submitError = "",
   onClose,
   onCreate,
 }: {
@@ -40,6 +42,8 @@ export function SessionCreateModal({
   consultants: Consultant[];
   locations: PlatformConsultingLocation[];
   attendingConsultant?: { name: string };
+  busy?: boolean;
+  submitError?: string;
   onClose: () => void;
   onCreate: (input: SessionInput) => void;
 }) {
@@ -83,6 +87,7 @@ export function SessionCreateModal({
   };
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (busy) return;
     if (!formRef.current?.reportValidity()) return;
     onCreate(value);
   };
@@ -101,6 +106,7 @@ export function SessionCreateModal({
   return (
     <IndiceModalFrame
       open
+      busy={busy}
       onOpenChange={(open) => !open && onClose()}
       modalType="wizard"
       tone="blue"
@@ -120,8 +126,12 @@ export function SessionCreateModal({
             {stepIndex === 0 ? "Cancelar" : "Anterior"}
           </button>
           {step === "assignment" ? (
-            <button type="submit" form="session-create-form" disabled={!canSubmit}>
-              Agregar sesión
+            <button
+              type="submit"
+              form="session-create-form"
+              disabled={!canSubmit || busy}
+            >
+              {busy ? "Agregando…" : "Agregar sesión"}
             </button>
           ) : (
             <button type="button" onClick={advance}>
@@ -143,7 +153,9 @@ export function SessionCreateModal({
           progressLabel="Progreso para agregar sesión"
           steps={steps}
         />
-        <IndiceModalValidation messages={error ? [error] : []} />
+        <IndiceModalValidation
+          messages={[error, submitError].filter(Boolean)}
+        />
 
         {step === "customer" ? (
           <section className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 sm:grid-cols-2">

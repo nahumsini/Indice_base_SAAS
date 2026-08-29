@@ -63,7 +63,17 @@ import {
 } from "../components/frontend-os";
 import { useWorkspaceNavigationMemory } from "../hooks/useWorkspaceNavigationMemory";
 import { DataTablePagination } from "../components/table/DataTablePagination";
-import { IndiceTableActionGroup } from "../components/table/IndiceTableEngine";
+import {
+  getIndiceTableMinimumWidth,
+  IndiceOperationalTable,
+  IndiceTableActionGroup,
+  IndiceTableColGroup,
+  IndiceTableHeaderRow,
+  IndiceTableShell,
+  type IndiceTableColumnDefinition,
+} from "../components/table/IndiceTableEngine";
+import { TableBody, TableCell, TableRow } from "../components/ui/table";
+import { usePersistentColumnWidths } from "../hooks/usePersistentColumnWidths";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -82,15 +92,17 @@ import { CustomerUsersModal } from "./Customers/CustomerUsersModal";
 import ConsultingAdminTab from "./ConsultingAdminTab";
 import { CompaniesDirectoryTab } from "./UsersDirectoryTab";
 import { CatalogProductCard } from "./Catalog";
-import { ModuleAvailabilityWorkspace } from "./CatalogWorkspace";
+import { CommercialOfferWorkspace, ModuleAvailabilityWorkspace } from "./CatalogWorkspace";
 import {
   CustomersTable,
   CustomerColumnsModal,
+  CustomerControlCenter,
   TrialExtensionModal,
   basicCommercialStatus,
   compareCustomerValues,
   getCustomerTableCopy,
   loadCustomerTableColumnIds,
+  matchesCustomerStatusFilter,
   saveCustomerTableColumnIds,
   type CustomerTableColumnId,
   type CustomerSortKey,
@@ -178,6 +190,35 @@ const controlClass =
 const tableHeadClass =
   "whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-slate-500";
 const tableCellClass = "px-4 py-3 align-middle text-sm text-slate-700";
+const catalogPriceColumnIds: CatalogPriceSortKey[] = [
+  "concept",
+  "type",
+  "monthly",
+  "yearly",
+  "status",
+];
+const catalogPriceColumnDefaults: Record<CatalogPriceSortKey, number> = {
+  concept: 270,
+  type: 160,
+  monthly: 210,
+  yearly: 210,
+  status: 190,
+};
+const catalogPriceColumnMinimums: Record<CatalogPriceSortKey, number> = {
+  concept: 220,
+  type: 130,
+  monthly: 180,
+  yearly: 180,
+  status: 160,
+};
+const catalogPriceColumnMaximums: Record<CatalogPriceSortKey, number> = {
+  concept: 420,
+  type: 260,
+  monthly: 320,
+  yearly: 320,
+  status: 280,
+};
+const catalogPriceActionsWidth = 220;
 
 const tabDefinitions: {
   id: AdminTab;
@@ -421,8 +462,7 @@ export default function PlatformAdminPage() {
           company.distributor_company_name,
           String(company.id),
         ].some((value) => value?.toLowerCase().includes(normalizedQuery));
-      const matchesStatus =
-        statusFilter === "all" || basicCommercialStatus(company) === statusFilter;
+      const matchesStatus = matchesCustomerStatusFilter(company, statusFilter);
       const matchesUserType =
         userTypeFilter === "all" || company.user_type === userTypeFilter;
       return matchesQuery && matchesUserType && matchesStatus;
@@ -956,7 +996,7 @@ export default function PlatformAdminPage() {
               };
             })}
             onValueChange={setActiveTab}
-            tone="blue"
+            tone={activeTab === "customers" ? "aqua" : "blue"}
             value={activeTab}
             variant="sections"
           />
@@ -1216,7 +1256,7 @@ export default function PlatformAdminPage() {
           open
           onOpenChange={(open) => !open && setCourtesyAccessOpen(false)}
           modalType="operational-workspace"
-          tone="blue"
+          tone="aqua"
           icon={<Gift className="h-5 w-5" />}
           eyebrow={english ? "Customers" : "Clientes"}
           title={english ? "Promotional access" : "Acceso promocional"}
@@ -1276,7 +1316,7 @@ export default function PlatformAdminPage() {
           onConfirm={() => void confirmCompanyDeletion()}
           open
           title={english ? "Delete account" : "Eliminar cuenta"}
-          tone="blue"
+          tone="coral"
         >
           <Field label={english ? "Deletion reason" : "Motivo de eliminación"}>
             <textarea autoFocus minLength={5} value={companyDeletionReason} onChange={(event) => setCompanyDeletionReason(event.target.value)} className={`${controlClass} min-h-24 resize-y py-2`} />
@@ -1365,14 +1405,8 @@ function CustomersTab({
     saveCustomerTableColumnIds(visibleColumns);
   }, [visibleColumns]);
   const demoAndTrialAccounts = allCompanies.filter((company) =>
-    ["demo", "trial"].includes(basicCommercialStatus(company)),
+    matchesCustomerStatusFilter(company, "temporary"),
   ).length;
-  const attentionAccounts = allCompanies.filter((company) => {
-    const paymentStatus = (company.last_invoice_status || company.last_payment_status || "").toLowerCase();
-    return basicCommercialStatus(company) === "inactive" ||
-      company.billing_amount_kind === "UNAVAILABLE" ||
-      ["past_due", "unpaid", "failed"].includes(paymentStatus);
-  }).length;
   const pagination = (
     <DataTablePagination
       currentPage={page}
@@ -1391,24 +1425,24 @@ function CustomersTab({
   return (
     <div className="space-y-5">
       <IndiceTitleBar
-        tone="blue"
+        tone="aqua"
         icon={<Building2 className="h-5 w-5" />}
         title={
           english
-            ? "Accounts, contracts and access"
-            : "Cuentas, contratos y acceso"
+            ? "Customer control center"
+            : "Centro de control de clientes"
         }
         subtitle={
           english
-            ? "Create companies, provide demo access, and manage plans and modules in one place."
-            : "Crea empresas, entrega accesos de demostración y administra planes y módulos desde un solo lugar."
+            ? "Control each customer's health, owner, access, billing and next action from one place."
+            : "Controla la salud, responsable, acceso, facturación y siguiente acción de cada cliente desde un solo lugar."
         }
         actions={
           <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
               onClick={() => setColumnsOpen(true)}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-medium text-[#143675] transition hover:bg-blue-50"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#59C3A5]/45 bg-white px-4 text-sm font-medium text-[#176B5B] transition hover:bg-[#59C3A5]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/25 dark:bg-slate-900 dark:text-[#8FE0CA]"
             >
               <Columns3 className="h-4 w-4" />
               {copy.columns}
@@ -1418,22 +1452,22 @@ function CustomersTab({
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-medium text-[#143675] transition hover:bg-blue-50"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#59C3A5]/45 bg-white px-4 text-sm font-medium text-[#176B5B] transition hover:bg-[#59C3A5]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/25 dark:bg-slate-900 dark:text-[#8FE0CA]"
                   >
                     <MoreHorizontal className="h-4 w-4" />
                     {copy.more}
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-64 rounded-xl border-blue-100 bg-white p-1.5">
+                <DropdownMenuContent align="end" className="min-w-64 rounded-xl border-[#59C3A5]/30 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-900">
                   {canManageCourtesy ? (
                     <DropdownMenuItem onSelect={onOpenCourtesy} className="rounded-lg py-2.5">
-                      <Gift className="h-4 w-4 text-[#2563EB]" />
+                      <Gift className="h-4 w-4 text-[#177D66]" />
                       {english ? "Promotional access" : "Acceso promocional"}
                     </DropdownMenuItem>
                   ) : null}
                   {canCreate ? (
                     <DropdownMenuItem onSelect={onQuickCreate} className="rounded-lg py-2.5">
-                      <Sparkles className="h-4 w-4 text-[#2563EB]" />
+                      <Sparkles className="h-4 w-4 text-[#177D66]" />
                       {english ? "Quick test account" : "Cuenta de prueba rápida"}
                     </DropdownMenuItem>
                   ) : null}
@@ -1444,7 +1478,7 @@ function CustomersTab({
               <button
                 type="button"
                 onClick={onCreate}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 text-sm font-medium text-white transition hover:bg-[#1D4ED8]"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white transition hover:bg-[#126553] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/30"
               >
                 <Plus className="h-4 w-4" />
                 {english ? "Add account" : "Agregar cuenta"}
@@ -1453,8 +1487,15 @@ function CustomersTab({
           </div>
         }
       />
+      <CustomerControlCenter
+        english={english}
+        companies={allCompanies}
+        activeFilter={statusFilter}
+        onFilter={onStatus}
+        onOpenCompany={(company) => onOpenCompany(company)}
+      />
       <IndiceFilterBar
-        title={english ? "Filters" : "Filtros"}
+        title={english ? "Customer portfolio" : "Cartera de clientes"}
         gridClassName="lg:grid-cols-[minmax(0,1fr)_220px_260px]"
       >
         <IndiceFilterSearch
@@ -1462,14 +1503,14 @@ function CustomersTab({
           placeholder={
             english ? "Company, email or ID" : "Empresa, correo o ID"
           }
-          tone="blue"
+          tone="aqua"
           value={query}
           onValueChange={onQuery}
           onClear={() => onQuery("")}
         />
         <IndiceFilterSelect
           label={english ? "Account type" : "Tipo de cuenta"}
-          tone="blue"
+          tone="aqua"
           value={userTypeFilter}
           onValueChange={onUserType}
           options={[
@@ -1484,7 +1525,7 @@ function CustomersTab({
         />
         <IndiceFilterSelect
           label={english ? "Commercial status" : "Estado comercial"}
-          tone="blue"
+          tone="aqua"
           value={statusFilter}
           onValueChange={onStatus}
           options={[
@@ -1493,18 +1534,38 @@ function CustomersTab({
               label: english ? "All statuses" : "Todos los estados",
             },
             { value: "active", label: english ? "Active" : "Activa" },
+            {
+              value: "temporary",
+              label: english ? "Demo and trial" : "Demo y prueba",
+            },
             { value: "trial", label: english ? "Trial" : "Prueba" },
             { value: "demo", label: "Demo" },
             {
               value: "inactive",
               label: english ? "Inactive" : "Inactiva",
             },
+            {
+              value: "attention",
+              label: english ? "Needs attention" : "Requiere atención",
+            },
+            {
+              value: "expiring",
+              label: english ? "Trial ending in 7 days" : "Prueba vence en 7 días",
+            },
+            {
+              value: "no_offer",
+              label: english ? "No offer configured" : "Sin oferta configurada",
+            },
+            {
+              value: "no_adoption",
+              label: english ? "No active users" : "Sin usuarios activos",
+            },
             { value: "deleted", label: english ? "Deleted" : "Eliminado" },
           ]}
         />
       </IndiceFilterBar>
       <section
-        className="grid gap-3 md:grid-cols-2 xl:grid-cols-4"
+        className="grid gap-3 md:grid-cols-3"
         aria-label={english ? "Customer KPIs" : "KPIs de clientes"}
       >
         <Metric
@@ -1520,28 +1581,27 @@ function CustomersTab({
         />
         <Metric
           icon={Building2}
-          label={english ? "Active customers" : "Clientes activos"}
+          label={english ? "Active accounts" : "Cuentas activas"}
           value={String(totals?.active_customer_companies ?? 0)}
           caption={
             english
               ? `${totals?.customer_active_users ?? 0} total active users`
               : `${totals?.customer_active_users ?? 0} usuarios activos totales`
           }
-          accent="blue"
+          accent="mint"
+          active={statusFilter === "active"}
+          actionLabel={english ? "Filter active accounts" : "Filtrar cuentas activas"}
+          onClick={() => onStatus(statusFilter === "active" ? "all" : "active")}
         />
         <Metric
           icon={Sparkles}
           label={english ? "Demo and trial" : "Demo y prueba"}
           value={String(demoAndTrialAccounts)}
           caption={english ? "Temporary access" : "Acceso temporal"}
-          accent="mint"
-        />
-        <Metric
-          icon={CircleAlert}
-          label={english ? "Need attention" : "Requieren atención"}
-          value={String(attentionAccounts)}
-          caption={english ? "Access or billing review" : "Revisión de acceso o cobro"}
-          accent="coral"
+          accent="blue"
+          active={statusFilter === "temporary"}
+          actionLabel={english ? "Filter demo and trial accounts" : "Filtrar cuentas demo y prueba"}
+          onClick={() => onStatus(statusFilter === "temporary" ? "all" : "temporary")}
         />
       </section>
       <CustomersTable
@@ -1876,9 +1936,9 @@ function compareInvoiceValues(
 }
 
 type CatalogView = "products" | "prices";
-type CatalogWorkspaceView = "modules" | "products" | "prices";
+type CatalogWorkspaceView = "offer" | "modules";
 const isCatalogWorkspaceView = (value: unknown): value is CatalogWorkspaceView =>
-  value === "modules" || value === "products" || value === "prices";
+  value === "offer" || value === "modules";
 const operationalLocaleLabels: Record<string, string> = {
   "en-CA": "English (Canada)",
   "en-US": "English (United States)",
@@ -2000,7 +2060,7 @@ function CatalogAndModulesTab({
   onCatalogChange: (data: PlatformCatalog) => void;
   onModuleChange: (change: ModuleAvailabilityChange) => void;
 }) {
-  const [view, setView] = useState<CatalogWorkspaceView>("modules");
+  const [view, setView] = useState<CatalogWorkspaceView>("offer");
   const catalogNavigationState = useMemo(() => ({ step: view }), [view]);
   const restoreCatalogNavigation = useCallback(
     (restored: { step: CatalogWorkspaceView }) => {
@@ -2012,7 +2072,7 @@ function CatalogAndModulesTab({
     moduleKey: "platform-admin",
     tabKey: "catalog-navigation",
     state: catalogNavigationState,
-    defaults: { step: "modules" as CatalogWorkspaceView },
+    defaults: { step: "offer" as CatalogWorkspaceView },
     urlFields: { step: "catalog-step" },
     onRestore: restoreCatalogNavigation,
     rememberScroll: false,
@@ -2038,39 +2098,6 @@ function CatalogAndModulesTab({
     (product) =>
       !workingVersion || product.catalog_version_id === workingVersion.id,
   );
-  const versionPrices = (catalog?.prices ?? []).filter(
-    (price) => !workingVersion || price.catalog_version_id === workingVersion.id,
-  );
-  const activeProducts = versionProducts.filter((product) => product.active).length;
-  const linkedCapabilities = versionProducts.reduce(
-    (total, product) => total + product.capabilities.length,
-    0,
-  );
-  const commercialPriceGroups = buildCatalogPriceGroups(
-    versionPrices,
-    versionProducts,
-  );
-  const productsWithPrice = commercialPriceGroups.filter((group) =>
-    [group.monthly, group.yearly].some(
-      (price) => price?.unit_amount_cents != null,
-    ),
-  ).length;
-  const productsReadyForSale = commercialPriceGroups.filter(
-    (group) => group.status === "ready",
-  ).length;
-  const productsNeedingAttention = commercialPriceGroups.filter(
-    (group) => group.status === "review",
-  ).length;
-  const productsWithoutRates = versionProducts.filter(
-    (product) =>
-      product.active &&
-      !versionPrices.some(
-        (price) =>
-          price.catalog_product_id === product.id ||
-          price.billable_code === product.product_code ||
-          product.capabilities.includes(price.billable_code),
-      ),
-  ).length;
 
   const synchronizeComplementaries = async () => {
     if (syncing) return;
@@ -2196,29 +2223,23 @@ function CatalogAndModulesTab({
 
   const workspaceTabs = [
     {
-      id: "modules" as const,
-      label: english ? "Availability" : "Disponibilidad",
-      description: english ? "What can be offered" : "Qué se puede ofrecer",
-      icon: Boxes,
-    },
-    {
-      id: "products" as const,
-      label: english ? "Products and packages" : "Productos y paquetes",
-      description: english ? "What the customer selects" : "Lo que el cliente elige",
+      id: "offer" as const,
+      label: english ? "Commercial offer" : "Oferta comercial",
+      description: english ? "Modules, packages, prices and promotions" : "Módulos, paquetes, precios y promociones",
       icon: PackageCheck,
     },
     {
-      id: "prices" as const,
-      label: english ? "Prices and publication" : "Precios y publicación",
-      description: english ? "Review and publish" : "Revisa y publica",
-      icon: CircleDollarSign,
+      id: "modules" as const,
+      label: english ? "Technical availability" : "Disponibilidad técnica",
+      description: english ? "Advanced system control" : "Control avanzado del sistema",
+      icon: Boxes,
     },
   ];
 
   return (
     <div className="space-y-5">
       <IndiceTitleBar
-        tone="blue"
+        tone="aqua"
         icon={<Boxes className="h-5 w-5" />}
         title={english ? "Catalog and modules" : "Catálogo y módulos"}
         subtitle={
@@ -2231,7 +2252,7 @@ function CatalogAndModulesTab({
             type="button"
             disabled={syncing}
             onClick={() => void synchronizeComplementaries()}
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-white px-3 text-xs font-semibold text-[#143675] shadow-sm hover:bg-blue-50 disabled:opacity-60"
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#59C3A5]/35 bg-white px-4 text-sm font-medium text-[#176B5B] shadow-sm transition hover:bg-[#59C3A5]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/25 disabled:opacity-60 dark:bg-slate-900 dark:text-[#8FE0CA]"
           >
             <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
             {english ? "Sync add-ons" : "Sincronizar complementos"}
@@ -2240,7 +2261,7 @@ function CatalogAndModulesTab({
       />
 
       {syncFeedback ? (
-        <div className={`rounded-xl border px-4 py-3 text-sm font-medium ${syncFeedback.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
+        <div role={syncFeedback.type === "success" ? "status" : "alert"} className={`rounded-xl border px-4 py-3 text-sm font-medium ${syncFeedback.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
           {syncFeedback.message}
         </div>
       ) : null}
@@ -2257,12 +2278,12 @@ function CatalogAndModulesTab({
           };
         })}
         onValueChange={setView}
-        tone="blue"
+        tone="aqua"
         value={view}
-        variant="workflow"
+        variant="sections"
       />
 
-      <section className="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
+      <section className="overflow-hidden rounded-2xl border border-[#59C3A5]/30 bg-white shadow-sm dark:border-[#59C3A5]/25 dark:bg-slate-900">
         <div className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-start gap-3">
             <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${draftVersion ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>
@@ -2274,31 +2295,27 @@ function CatalogAndModulesTab({
             </span>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-sm font-semibold text-slate-950">
+                <h2 className="text-sm font-medium text-slate-950 dark:text-white">
                   {draftVersion
                     ? english
-                      ? "Offer being prepared"
-                      : "Oferta en preparación"
+                      ? "You have unpublished changes"
+                      : "Tienes cambios sin publicar"
                     : english
-                      ? "Published offer"
-                      : "Oferta publicada"}
+                      ? "Active offer"
+                      : "Oferta activa"}
                 </h2>
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${draftVersion ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-700"}`}>
-                  {draftVersion ? (english ? "Draft" : "Borrador") : english ? "Active" : "Activa"}
-                </span>
-                <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
-                  Stripe test
+                <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-200">
+                  {english ? "Test mode" : "Modo de prueba"}
                 </span>
               </div>
-              <p className="mt-1 truncate text-xs text-slate-500">
-                {workingVersion?.version_code || (english ? "No version" : "Sin versión")}
+              <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
                 {draftVersion
                   ? english
-                    ? " · Changes are not visible to customers until publication."
-                    : " · Los cambios no son visibles para clientes hasta publicar."
+                    ? "Customers will keep seeing the current offer until you publish these changes."
+                    : "Los clientes seguirán viendo la oferta actual hasta que publiques estos cambios."
                   : english
-                    ? " · Customers and Billing use this version."
-                    : " · Clientes y Facturación utilizan esta versión."}
+                    ? "Customers and Billing use this offer."
+                    : "Clientes y Facturación utilizan esta oferta."}
               </p>
             </div>
           </div>
@@ -2308,7 +2325,7 @@ function CatalogAndModulesTab({
                 type="button"
                 disabled={!canManage || catalogWorkflowBusy}
                 onClick={() => void prepareCatalogDraft()}
-                className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#2563EB] px-4 text-xs font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-50"
+                className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white transition hover:bg-[#126553] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/30 disabled:opacity-50"
               >
                 <Plus className="h-4 w-4" />
                 {english ? "Prepare changes" : "Preparar cambios"}
@@ -2343,74 +2360,25 @@ function CatalogAndModulesTab({
           onChange={onModuleChange}
         />
       ) : (
-        <div className="space-y-4">
-          <section className="grid gap-3 md:grid-cols-3">
-            {view === "products" ? (
-              <>
-                <Metric
-                  icon={PackageCheck}
-                  label={english ? "Active products" : "Productos activos"}
-                  value={String(activeProducts)}
-                  accent="blue"
-                />
-                <Metric
-                  icon={CircleAlert}
-                  label={english ? "Products missing prices" : "Productos sin precio"}
-                  value={String(productsWithoutRates)}
-                  accent="gold"
-                />
-                <Metric
-                  icon={Boxes}
-                  label={english ? "Linked capabilities" : "Capacidades vinculadas"}
-                  value={String(linkedCapabilities)}
-                  accent="mint"
-                />
-              </>
-            ) : (
-              <>
-                <Metric
-                  icon={CircleDollarSign}
-                  label={english ? "Products with a price" : "Productos con precio"}
-                  value={String(productsWithPrice)}
-                  accent="blue"
-                />
-                <Metric
-                  icon={CircleAlert}
-                  label={english ? "Require attention" : "Requieren atención"}
-                  value={String(productsNeedingAttention)}
-                  accent="gold"
-                />
-                <Metric
-                  icon={BadgeCheck}
-                  label={english ? "Ready to sell" : "Listos para vender"}
-                  value={String(productsReadyForSale)}
-                  accent="mint"
-                />
-              </>
-            )}
-          </section>
-          <CatalogTab
-            canManage={canManage}
-            english={english}
-            data={catalog}
-            modules={modules?.modules ?? []}
-            onChange={(nextCatalog) => {
-              setCatalogValidation(null);
-              onCatalogChange(nextCatalog);
-            }}
-            view={view}
-          />
-        </div>
+        <CommercialOfferWorkspace
+          canManage={canManage}
+          catalog={catalog}
+          modules={modules?.modules ?? []}
+          onChange={(nextCatalog) => {
+            setCatalogValidation(null);
+            onCatalogChange(nextCatalog);
+          }}
+        />
       )}
 
       {draftVersion ? (
-        <div className="sticky bottom-4 z-20 flex flex-col gap-3 rounded-2xl border border-blue-200 bg-white/95 p-4 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.5)] backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+        <div className="sticky bottom-4 z-20 flex flex-col gap-3 rounded-2xl border border-[#59C3A5]/40 bg-white/95 p-4 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.5)] backdrop-blur dark:bg-slate-900/95 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-medium text-slate-950">
               {english ? "Unpublished changes" : "Cambios sin publicar"}
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              {draftVersion.version_code} · {english ? "Validate the offer before publishing it." : "Valida la oferta antes de publicarla."}
+              {english ? "Validate the offer before publishing it." : "Valida la oferta antes de publicarla."}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -2418,7 +2386,7 @@ function CatalogAndModulesTab({
               type="button"
               disabled={!canManage || catalogWorkflowBusy}
               onClick={() => void validateCatalogDraft()}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-medium text-[#143675] hover:bg-blue-50 disabled:opacity-50"
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#59C3A5]/40 bg-white px-4 text-sm font-medium text-[#176B5B] transition hover:bg-[#59C3A5]/10 disabled:opacity-50 dark:bg-slate-900 dark:text-[#8FE0CA]"
             >
               <ShieldCheck className="h-4 w-4" />
               {english ? "Validate offer" : "Validar oferta"}
@@ -2445,6 +2413,7 @@ function CatalogTab({
   data,
   modules,
   onChange,
+  productSummary,
   view,
 }: {
   canManage: boolean;
@@ -2452,6 +2421,11 @@ function CatalogTab({
   data: PlatformCatalog | null;
   modules: PlatformModule[];
   onChange: (data: PlatformCatalog) => void;
+  productSummary: {
+    activeProducts: number;
+    linkedCapabilities: number;
+    productsWithoutRates: number;
+  };
   view: CatalogView;
 }) {
   const [editing, setEditing] = useState<CatalogEditTarget | null>(null);
@@ -2462,6 +2436,8 @@ function CatalogTab({
   const [priceQuery, setPriceQuery] = useState("");
   const [priceTypeFilter, setPriceTypeFilter] = useState("all");
   const [priceStatusFilter, setPriceStatusFilter] = useState("all");
+  const [pricePage, setPricePage] = useState(1);
+  const [pricePageSize, setPricePageSize] = useState(10);
   const [catalogSaving, setCatalogSaving] = useState(false);
   const [catalogFeedback, setCatalogFeedback] = useState<{
     type: "success" | "error";
@@ -2491,6 +2467,15 @@ function CatalogTab({
     () => buildCatalogPriceGroups(versionPrices, products),
     [products, versionPrices],
   );
+  const priceStatusCounts = useMemo(
+    () => ({
+      all: priceGroups.length,
+      inactive: priceGroups.filter((group) => group.status === "inactive").length,
+      ready: priceGroups.filter((group) => group.status === "ready").length,
+      review: priceGroups.filter((group) => group.status === "review").length,
+    }),
+    [priceGroups],
+  );
   const filteredPriceGroups = useMemo(() => {
     const query = priceQuery.trim().toLowerCase();
     return priceGroups.filter((group) => {
@@ -2519,6 +2504,58 @@ function CatalogTab({
         compareCatalogPriceGroupValues(left, right, priceSort.key) * direction,
     );
   }, [filteredPriceGroups, priceSort]);
+  const priceTotalPages = Math.max(1, Math.ceil(prices.length / pricePageSize));
+  const pagedPrices = prices.slice(
+    (pricePage - 1) * pricePageSize,
+    pricePage * pricePageSize,
+  );
+  useEffect(() => {
+    setPricePage(1);
+  }, [priceQuery, priceStatusFilter, priceTypeFilter]);
+  useEffect(() => {
+    if (pricePage > priceTotalPages) setPricePage(priceTotalPages);
+  }, [pricePage, priceTotalPages]);
+  const priceColumnLabels = useMemo<Record<CatalogPriceSortKey, string>>(
+    () => ({
+      concept: english ? "Item" : "Concepto",
+      monthly: english ? "Monthly" : "Mensual",
+      status: english ? "Sales status" : "Estado de venta",
+      type: english ? "Type" : "Tipo",
+      yearly: english ? "Annual" : "Anual",
+    }),
+    [english],
+  );
+  const { columnWidths: priceColumnWidths, resizeColumn: resizePriceColumn } =
+    usePersistentColumnWidths<CatalogPriceSortKey>({
+      defaults: catalogPriceColumnDefaults,
+      headerLabels: priceColumnLabels,
+      maxWidths: catalogPriceColumnMaximums,
+      minWidths: catalogPriceColumnMinimums,
+      sortableColumnIds: catalogPriceColumnIds,
+      storageKey: "indice-platform-admin-catalog-price-widths-v1",
+    });
+  const priceTableColumns = useMemo<
+    Array<IndiceTableColumnDefinition<CatalogPriceSortKey>>
+  >(
+    () =>
+      catalogPriceColumnIds.map((columnId) => ({
+        id: columnId,
+        label: priceColumnLabels[columnId],
+        width: priceColumnWidths[columnId],
+        defaultWidth: catalogPriceColumnDefaults[columnId],
+        contentMinimumWidth: catalogPriceColumnMinimums[columnId],
+        maxWidth: catalogPriceColumnMaximums[columnId],
+        sortable: true,
+        resizeLabel: english
+          ? `Resize ${priceColumnLabels[columnId]} column`
+          : `Ajustar columna ${priceColumnLabels[columnId]}`,
+      })),
+    [english, priceColumnLabels, priceColumnWidths],
+  );
+  const priceTableMinimumWidth = getIndiceTableMinimumWidth({
+    actionsWidth: catalogPriceActionsWidth,
+    columns: priceTableColumns,
+  });
   const changePriceSort = (key: CatalogPriceSortKey) =>
     setPriceSort((current) =>
       current.key !== key
@@ -2591,7 +2628,7 @@ function CatalogTab({
         <section>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-slate-950 dark:text-white">
+              <h2 className="text-xl font-medium text-slate-950 dark:text-white">
                 {english ? "Products customers can select" : "Productos que puede elegir el cliente"}
               </h2>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -2614,12 +2651,35 @@ function CatalogTab({
                 active: false,
                 capabilities: [],
               } })}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-4 text-sm font-medium text-white transition hover:bg-[#126553] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/30 disabled:opacity-50"
             >
               <Plus className="h-4 w-4" />
               {english ? "New package" : "Nuevo paquete"}
             </button>
           </div>
+          <section
+            aria-label={english ? "Product indicators" : "Indicadores de productos"}
+            className="mb-4 grid gap-3 md:grid-cols-3"
+          >
+            <Metric
+              icon={PackageCheck}
+              label={english ? "Active products" : "Productos activos"}
+              value={String(productSummary.activeProducts)}
+              accent="mint"
+            />
+            <Metric
+              icon={CircleAlert}
+              label={english ? "Products missing prices" : "Productos sin precio"}
+              value={String(productSummary.productsWithoutRates)}
+              accent="gold"
+            />
+            <Metric
+              icon={Boxes}
+              label={english ? "Linked capabilities" : "Capacidades vinculadas"}
+              value={String(productSummary.linkedCapabilities)}
+              accent="blue"
+            />
+          </section>
           {products.length ? (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {products.map((product) => {
@@ -2695,14 +2755,14 @@ function CatalogTab({
                   ? "Product or offer"
                   : "Producto u oferta"
               }
-              tone="blue"
+              tone="aqua"
               value={priceQuery}
               onValueChange={setPriceQuery}
               onClear={() => setPriceQuery("")}
             />
             <IndiceFilterSelect
               label={english ? "Type" : "Tipo"}
-              tone="blue"
+              tone="aqua"
               value={priceTypeFilter}
               onValueChange={setPriceTypeFilter}
               options={[
@@ -2720,7 +2780,7 @@ function CatalogTab({
             />
             <IndiceFilterSelect
               label={english ? "Sales status" : "Estado de venta"}
-              tone="blue"
+              tone="aqua"
               value={priceStatusFilter}
               onValueChange={setPriceStatusFilter}
               options={[
@@ -2743,72 +2803,112 @@ function CatalogTab({
               ]}
             />
           </IndiceFilterBar>
-          <Panel
-            title={english ? "Commercial prices" : "Precios comerciales"}
-            description={
-              english
-                ? "Review monthly and annual prices together. Technical billing data remains inside the edit view."
-                : "Revisa juntos los precios mensual y anual. Los datos técnicos de cobro permanecen dentro de la edición."
-            }
+          <section
+            aria-label={english ? "Commercial price status" : "Estado de precios comerciales"}
+            className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
           >
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[920px]">
-                <thead className="bg-slate-50 dark:bg-slate-900">
+            <CatalogStatusMetric
+              active={priceStatusFilter === "all"}
+              icon={CircleDollarSign}
+              label={english ? "Commercial products" : "Productos comerciales"}
+              value={priceStatusCounts.all}
+              tone="aqua"
+              onClick={() => setPriceStatusFilter("all")}
+            />
+            <CatalogStatusMetric
+              active={priceStatusFilter === "review"}
+              icon={CircleAlert}
+              label={english ? "Require attention" : "Requieren atención"}
+              value={priceStatusCounts.review}
+              tone="warning"
+              onClick={() => setPriceStatusFilter("review")}
+            />
+            <CatalogStatusMetric
+              active={priceStatusFilter === "ready"}
+              icon={BadgeCheck}
+              label={english ? "Ready to sell" : "Listos para vender"}
+              value={priceStatusCounts.ready}
+              tone="success"
+              onClick={() => setPriceStatusFilter("ready")}
+            />
+            <CatalogStatusMetric
+              active={priceStatusFilter === "inactive"}
+              icon={Activity}
+              label={english ? "Inactive" : "Inactivos"}
+              value={priceStatusCounts.inactive}
+              tone="neutral"
+              onClick={() => setPriceStatusFilter("inactive")}
+            />
+          </section>
+          <IndiceTableShell
+            pagination={prices.length ? (
+              <DataTablePagination
+                currentPage={pricePage}
+                totalPages={priceTotalPages}
+                pageSize={pricePageSize}
+                pageSizeOptions={[10, 25, 50, 100, 200]}
+                totalCount={prices.length}
+                pageStart={(pricePage - 1) * pricePageSize + 1}
+                pageEnd={Math.min(pricePage * pricePageSize, prices.length)}
+                itemLabel={english ? "products" : "productos"}
+                onPageChange={setPricePage}
+                onPageSizeChange={(nextSize) => {
+                  setPricePageSize(nextSize);
+                  setPricePage(1);
+                }}
+              />
+            ) : undefined}
+          >
+            <IndiceOperationalTable minimumWidth={priceTableMinimumWidth}>
+              <IndiceTableColGroup
+                columns={priceTableColumns}
+                actionsWidth={catalogPriceActionsWidth}
+              />
+              <IndiceTableHeaderRow
+                actions={{
+                  label: english ? "Actions" : "Acciones",
+                  width: catalogPriceActionsWidth,
+                }}
+                columns={priceTableColumns}
+                onResize={resizePriceColumn}
+                onSort={changePriceSort}
+                sortState={priceSort.direction ? {
+                  columnId: priceSort.key,
+                  direction: priceSort.direction,
+                } : null}
+                tone="blue"
+              />
+              <TableBody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {pagedPrices.map((group) => (
+                  <CatalogPriceGroupRow
+                    key={group.key}
+                    group={group}
+                    english={english}
+                    onEdit={(price) =>
+                      setEditing({ kind: "price", value: price })
+                    }
+                  />
+                ))}
+                {!pagedPrices.length ? (
                   <tr>
-                    {(
-                      [
-                        ["concept", english ? "Item" : "Concepto"],
-                        ["type", english ? "Type" : "Tipo"],
-                        ["monthly", english ? "Monthly" : "Mensual"],
-                        ["yearly", english ? "Annual" : "Anual"],
-                        ["status", english ? "Sales status" : "Estado de venta"],
-                      ] as const
-                    ).map(([key, label]) => (
-                      <SortableCatalogPriceHeader
-                        key={key}
-                        column={key}
-                        label={label}
-                        sort={priceSort}
-                        onSort={changePriceSort}
+                    <td colSpan={6}>
+                      <EmptyRow
+                        icon={CircleDollarSign}
+                        text={
+                          english
+                            ? "No products match the selected filters."
+                            : "No hay productos que coincidan con los filtros."
+                        }
                       />
-                    ))}
-                    <th className={`${tableHeadClass} text-right`}>
-                      {english ? "Actions" : "Acciones"}
-                    </th>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {prices.map((group) => (
-                    <CatalogPriceGroupRow
-                      key={group.key}
-                      group={group}
-                      english={english}
-                      onEdit={(price) =>
-                        setEditing({ kind: "price", value: price })
-                      }
-                    />
-                  ))}
-                  {!prices.length ? (
-                    <tr>
-                      <td colSpan={6}>
-                        <EmptyRow
-                          icon={CircleDollarSign}
-                          text={
-                            english
-                              ? "No products match the selected filters."
-                              : "No hay productos que coincidan con los filtros."
-                          }
-                        />
-                      </td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
+                ) : null}
+              </TableBody>
+            </IndiceOperationalTable>
+          </IndiceTableShell>
         </div>
       )}
-      <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-[#143675]">
+      <div className="rounded-2xl border border-[#59C3A5]/30 bg-[#59C3A5]/10 px-4 py-3 text-sm text-[#176B5B] dark:text-[#8FE0CA]">
         {english
           ? "Price changes apply to new sales. Existing customers and previous invoices keep the conditions already agreed."
           : "Los cambios de precio se aplican a nuevas ventas. Los clientes actuales y las facturas anteriores conservan las condiciones ya acordadas."}
@@ -2832,6 +2932,53 @@ function CatalogTab({
   );
 }
 
+function CatalogStatusMetric({
+  active,
+  icon: Icon,
+  label,
+  onClick,
+  tone,
+  value,
+}: {
+  active: boolean;
+  icon: typeof Users;
+  label: string;
+  onClick: () => void;
+  tone: "aqua" | "neutral" | "success" | "warning";
+  value: number;
+}) {
+  const toneClasses = {
+    aqua: "bg-[#59C3A5]/15 text-[#177D66] dark:text-[#8FE0CA]",
+    neutral: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
+    success: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300",
+    warning: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300",
+  };
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={`flex min-h-24 items-center gap-3 rounded-2xl border bg-white p-4 text-left shadow-sm transition hover:border-[#59C3A5]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/30 dark:bg-slate-900 ${
+        active
+          ? "border-[#59C3A5] ring-2 ring-[#59C3A5]/15"
+          : "border-slate-200 dark:border-slate-700"
+      }`}
+    >
+      <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${toneClasses[tone]}`}>
+        <Icon className="h-5 w-5" />
+      </span>
+      <span className="min-w-0">
+        <span className="block truncate text-sm text-slate-500 dark:text-slate-400">
+          {label}
+        </span>
+        <span className="mt-1 block text-2xl font-medium text-slate-950 dark:text-white">
+          {value}
+        </span>
+      </span>
+    </button>
+  );
+}
+
 function CatalogPriceGroupRow({
   group,
   english,
@@ -2842,21 +2989,21 @@ function CatalogPriceGroupRow({
   onEdit: (price: PlatformCatalogPrice) => void;
 }) {
   return (
-    <tr className="hover:bg-slate-50/80 dark:hover:bg-slate-800/60">
-      <td className={tableCellClass}>
+    <TableRow className="border-slate-100 hover:bg-[#59C3A5]/5 dark:border-slate-800 dark:hover:bg-[#59C3A5]/10">
+      <TableCell className={`${tableCellClass} h-[72px] dark:text-slate-300`}>
         <p className="font-medium text-slate-900 dark:text-white">
           {group.name}
         </p>
         <p className="mt-0.5 text-xs text-slate-500">{group.currency}</p>
-      </td>
-      <td className={tableCellClass}>
+      </TableCell>
+      <TableCell className={`${tableCellClass} h-[72px] dark:text-slate-300`}>
         {catalogPriceTypeLabel(group.priceType, english)}
-      </td>
+      </TableCell>
       <CatalogPriceVariantCell price={group.monthly} english={english} />
       <CatalogPriceVariantCell price={group.yearly} english={english} />
-      <td className={tableCellClass}>
+      <TableCell className={`${tableCellClass} h-[72px] dark:text-slate-300`}>
         <span
-          className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${group.status === "inactive" ? "bg-slate-200 text-slate-600" : group.status === "ready" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800"}`}
+          className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${group.status === "inactive" ? "bg-slate-200 text-slate-600" : group.status === "ready" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800"}`}
         >
           {group.status === "inactive"
             ? english
@@ -2870,8 +3017,8 @@ function CatalogPriceGroupRow({
                 ? "Needs review"
                 : "Requiere revisión"}
         </span>
-      </td>
-      <td className={`${tableCellClass} text-right`}>
+      </TableCell>
+      <TableCell className={`${tableCellClass} h-[72px] text-right dark:text-slate-300`}>
         <IndiceTableActionGroup>
           {group.monthly ? (
             <button
@@ -2879,10 +3026,10 @@ function CatalogPriceGroupRow({
               onClick={() => onEdit(group.monthly!)}
               aria-label={english ? "Edit monthly price" : "Editar precio mensual"}
               title={english ? "Edit monthly price" : "Editar precio mensual"}
-              className="inline-flex h-9 min-w-9 items-center justify-center gap-1 rounded-lg border border-blue-200 bg-white px-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-50"
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#59C3A5]/40 bg-white px-2.5 text-xs font-medium text-[#176B5B] transition hover:bg-[#59C3A5]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/25 dark:bg-slate-900 dark:text-[#8FE0CA]"
             >
               <PencilLine className="h-3.5 w-3.5" />
-              M
+              {english ? "Monthly" : "Mensual"}
             </button>
           ) : null}
           {group.yearly ? (
@@ -2891,15 +3038,15 @@ function CatalogPriceGroupRow({
               onClick={() => onEdit(group.yearly!)}
               aria-label={english ? "Edit annual price" : "Editar precio anual"}
               title={english ? "Edit annual price" : "Editar precio anual"}
-              className="inline-flex h-9 min-w-9 items-center justify-center gap-1 rounded-lg border border-blue-200 bg-white px-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-50"
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#59C3A5]/40 bg-white px-2.5 text-xs font-medium text-[#176B5B] transition hover:bg-[#59C3A5]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/25 dark:bg-slate-900 dark:text-[#8FE0CA]"
             >
               <PencilLine className="h-3.5 w-3.5" />
-              A
+              {english ? "Annual" : "Anual"}
             </button>
           ) : null}
         </IndiceTableActionGroup>
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -2912,17 +3059,17 @@ function CatalogPriceVariantCell({
 }) {
   if (!price) {
     return (
-      <td className={tableCellClass}>
+      <TableCell className={`${tableCellClass} h-[72px] dark:text-slate-300`}>
         <span className="text-sm text-slate-400">
           {english ? "Not configured" : "No configurado"}
         </span>
-      </td>
+      </TableCell>
     );
   }
   const inactive = isInactiveCatalogPrice(price);
   const ready = isReadyCatalogPrice(price);
   return (
-    <td className={tableCellClass}>
+    <TableCell className={`${tableCellClass} h-[72px] dark:text-slate-300`}>
       <p className="font-medium text-slate-900 dark:text-white">
         {formatMoney(price.unit_amount_cents, price.currency, english)}
       </p>
@@ -2945,52 +3092,7 @@ function CatalogPriceVariantCell({
                 ? "Billing connection pending"
                 : "Falta conexión de cobro"}
       </p>
-    </td>
-  );
-}
-
-function SortableCatalogPriceHeader({
-  column,
-  label,
-  sort,
-  onSort,
-}: {
-  column: CatalogPriceSortKey;
-  label: string;
-  sort: { key: CatalogPriceSortKey; direction: SortDirection };
-  onSort: (key: CatalogPriceSortKey) => void;
-}) {
-  const activeDirection = sort.key === column ? sort.direction : null;
-  const Icon =
-    activeDirection === "asc"
-      ? ArrowUp
-      : activeDirection === "desc"
-        ? ArrowDown
-        : ArrowUpDown;
-  return (
-    <th
-      className={tableHeadClass}
-      aria-sort={
-        activeDirection === "asc"
-          ? "ascending"
-          : activeDirection === "desc"
-            ? "descending"
-            : "none"
-      }
-    >
-      <button
-        type="button"
-        onClick={() => onSort(column)}
-        className={`group inline-flex items-center gap-1.5 rounded-md py-1 text-left transition hover:text-[#2563EB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/25 ${activeDirection ? "font-semibold text-[#2563EB]" : ""}`}
-        title={`${label} · ${activeDirection ?? "sort"}`}
-      >
-        <span>{label}</span>
-        <Icon
-          className={`h-3.5 w-3.5 ${activeDirection ? "opacity-100" : "opacity-45 group-hover:opacity-100"}`}
-          aria-hidden="true"
-        />
-      </button>
-    </th>
+    </TableCell>
   );
 }
 
@@ -3055,7 +3157,7 @@ function CatalogEditModal({
         if (!open) onCancel();
       }}
       modalType="standard-form"
-      tone="blue"
+      tone="aqua"
       icon={<PencilLine className="h-5 w-5" />}
       eyebrow={english ? "Commercial catalog" : "Catálogo comercial"}
       title={
@@ -3086,7 +3188,7 @@ function CatalogEditModal({
             type="submit"
             disabled={saving}
             form="catalog-edit-form"
-            className="h-11 rounded-xl bg-white px-5 text-sm font-semibold text-[#1D4ED8] shadow-sm transition hover:bg-blue-50 disabled:cursor-wait disabled:bg-white/45 disabled:text-white/80"
+            className="h-11 rounded-xl bg-white px-5 text-sm font-medium text-[#177D66] shadow-sm transition hover:bg-[#59C3A5]/10 disabled:cursor-wait disabled:bg-white/45 disabled:text-white/80"
           >
             {saving
               ? english ? "Saving…" : "Guardando…"
@@ -3104,7 +3206,7 @@ function CatalogEditModal({
             {error}
           </div>
         ) : null}
-        <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-[#143675]">
+        <div className="rounded-2xl border border-[#59C3A5]/30 bg-[#59C3A5]/10 px-4 py-3 text-sm text-[#176B5B] dark:text-[#8FE0CA]">
           {product
             ? english
               ? "Mark the product as available now. Missing prices or Stripe links will be checked before the offer is published."
@@ -3158,7 +3260,7 @@ function CatalogEditModal({
                 {modules.filter((module) => module.assignment_enabled).map((module) => {
                   const selected = product.capabilities.includes(module.slug);
                   return (
-                    <label key={module.id} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium ${selected ? "border-blue-300 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-700"}`}>
+                    <label key={module.id} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium ${selected ? "border-[#59C3A5] bg-[#59C3A5]/10 text-[#176B5B]" : "border-slate-200 bg-white text-slate-700"}`}>
                       <input
                         type="checkbox"
                         checked={selected}
@@ -4668,21 +4770,32 @@ function Metric({
   value,
   caption,
   accent,
+  active = false,
+  actionLabel,
+  onClick,
 }: {
   icon: typeof Users;
   label: string;
   value: string;
   caption?: string;
   accent: "mint" | "blue" | "gold" | "coral";
+  active?: boolean;
+  actionLabel?: string;
+  onClick?: () => void;
 }) {
   const accents = {
-    mint: "bg-[#e8f5f2] text-[#177D66]",
-    blue: "bg-blue-50 text-[#143675]",
-    gold: "bg-amber-50 text-amber-700",
-    coral: "bg-red-50 text-[#d84f49]",
+    mint: "bg-[#e8f5f2] text-[#177D66] dark:bg-emerald-950/40 dark:text-emerald-300",
+    blue: "bg-blue-50 text-[#143675] dark:bg-blue-950/45 dark:text-blue-300",
+    gold: "bg-amber-50 text-amber-700 dark:bg-amber-950/35 dark:text-amber-300",
+    coral: "bg-red-50 text-[#d84f49] dark:bg-red-950/35 dark:text-red-300",
   };
-  return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_14px_35px_-32px_rgba(15,23,42,0.7)]">
+  const cardClassName = `w-full rounded-2xl border bg-white p-4 text-left shadow-[0_14px_35px_-32px_rgba(15,23,42,0.7)] transition dark:bg-slate-800 ${
+    active
+      ? "border-[#59C3A5] ring-2 ring-[#59C3A5]/20 dark:border-[#59C3A5]"
+      : "border-slate-200 dark:border-slate-700"
+  } ${onClick ? "cursor-pointer hover:-translate-y-0.5 hover:border-[#59C3A5] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/30" : ""}`;
+  const content = (
+    <>
       <div className="flex items-center gap-3">
         <span
           className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${accents[accent]}`}
@@ -4690,20 +4803,39 @@ function Metric({
           <Icon className="h-5 w-5" />
         </span>
         <div className="min-w-0">
-          <p className="truncate text-xs text-slate-500">{label}</p>
-          <p className="mt-0.5 truncate text-xl font-medium tracking-tight text-slate-950">
+          <p className="truncate text-xs text-slate-500 dark:text-slate-400">{label}</p>
+          <p className="mt-0.5 truncate text-xl font-medium tracking-tight text-slate-950 dark:text-white">
             {value}
           </p>
           {caption ? (
-            <p className="mt-0.5 truncate text-[11px] text-slate-400">
+            <p className="mt-0.5 truncate text-[11px] text-slate-400 dark:text-slate-500">
               {caption}
             </p>
           ) : null}
         </div>
+        {onClick ? (
+          <span className={`ml-auto rounded-full px-2 py-1 text-[11px] font-medium ${active ? "bg-[#59C3A5]/20 text-[#176B5B] dark:bg-[#59C3A5]/15 dark:text-[#8FE0CA]" : "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300"}`}>
+            {active ? "✓" : "→"}
+          </span>
+        ) : null}
       </div>
-    </article>
+    </>
+  );
+  return onClick ? (
+    <button
+      type="button"
+      aria-label={actionLabel || label}
+      aria-pressed={active}
+      onClick={onClick}
+      className={cardClassName}
+    >
+      {content}
+    </button>
+  ) : (
+    <article className={cardClassName}>{content}</article>
   );
 }
+
 function SmallMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3">

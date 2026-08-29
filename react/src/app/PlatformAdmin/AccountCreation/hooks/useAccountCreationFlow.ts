@@ -57,11 +57,17 @@ export function useAccountCreationFlow({
 }: UseAccountCreationFlowProps) {
   const navigate = useNavigate();
   const selectableProducts = useMemo(
-    () =>
-      products.filter(
+    () => {
+      const versionedOffer = products.some((product) => product.commercial_model);
+      return products.filter(
         (product) =>
-          product.active && ["BASIC", "ADDON"].includes(product.product_type.toUpperCase()),
-      ),
+          product.active &&
+          product.commercially_available !== false &&
+          (versionedOffer
+            ? ["MODULE", "PACKAGE"].includes(product.commercial_kind || "MODULE")
+            : ["BASIC", "ADDON"].includes(product.product_type.toUpperCase())),
+      );
+    },
     [products],
   );
   const restoredDraft = useMemo(
@@ -198,11 +204,12 @@ export function useAccountCreationFlow({
       return;
     }
     if (saving) return;
-    const hasBasicProduct = selectableProducts.some(
-      (product) => product.product_type.toUpperCase() === "BASIC"
-        && form.product_codes.includes(product.product_code),
+    const versionedOffer = selectableProducts.some((product) => product.commercial_model);
+    const hasRequiredProduct = selectableProducts.some(
+      (product) => form.product_codes.includes(product.product_code)
+        && (versionedOffer || product.product_type.toUpperCase() === "BASIC"),
     );
-    if (!hasBasicProduct) {
+    if (!hasRequiredProduct) {
       setError(copy.errors.selectModule);
       return;
     }

@@ -1,7 +1,7 @@
 import {
   opportunitySources,
-  opportunityStages,
   opportunityTemperatures,
+  type OpportunityFlowStage,
 } from '../../salesCrmContext';
 import {
   SalesFilterBar,
@@ -13,6 +13,7 @@ import type { OpportunityFocusFilter, OpportunityPeriodFilter } from '../types/p
 import { ChevronDown, ChevronUp, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { useEffect, useState } from 'react';
+import { getOpportunityStageLabel } from '../utils/prospectosFlow';
 
 export function ProspectosFilters({
   copy,
@@ -23,6 +24,7 @@ export function ProspectosFilters({
   ownerFilter,
   temperatureFilter,
   sourceFilter,
+  stages,
   showOwnerFilter,
   ownerSelectOptions,
   onSearchChange,
@@ -42,6 +44,7 @@ export function ProspectosFilters({
   ownerFilter: string;
   temperatureFilter: string;
   sourceFilter: string;
+  stages: OpportunityFlowStage[];
   showOwnerFilter: boolean;
   ownerSelectOptions: Array<{ value: string; label: string }>;
   onSearchChange: (value: string) => void;
@@ -147,9 +150,9 @@ export function ProspectosFilters({
         onValueChange={onStageFilterChange}
         options={[
           { value: 'all', label: copy.filters.all },
-          ...opportunityStages.map((stage) => ({
-            value: stage,
-            label: copy.options.stages[stage],
+          ...stages.map((stage) => ({
+            value: stage.key,
+            label: getOpportunityStageLabel(stage, copy.options.stages as Record<string, string>),
           })),
         ]}
       />

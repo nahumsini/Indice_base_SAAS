@@ -9,7 +9,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
-import { opportunityStages, type OpportunityStage } from '../../salesCrmContext';
+import type { OpportunityFlowStage, OpportunityStage } from '../../salesCrmContext';
 import type {
   OperationalAlertChip,
   OperationalDistributionSegment,
@@ -19,7 +19,7 @@ import type {
 import { OperationalKpiArea } from '../../../shared/operational';
 import type { ProspectosCopy } from '../translations';
 import type { OpportunityPeriodFilter } from '../types/prospectosTypes';
-import { stageProgressStyles } from '../utils/prospectosStatus';
+import { getOpportunityStageDotClass, getOpportunityStageLabel } from '../utils/prospectosFlow';
 
 export function ProspectosKpiStrip({
   copy,
@@ -41,6 +41,7 @@ export function ProspectosKpiStrip({
   convertedPipelineLabel,
   pipelineExchangeRateDate,
   stageCounts,
+  stages,
   currencyContext,
 }: {
   copy: ProspectosCopy;
@@ -62,6 +63,7 @@ export function ProspectosKpiStrip({
   convertedPipelineLabel: string;
   pipelineExchangeRateDate: string;
   stageCounts: Array<{ stage: OpportunityStage; count: number }>;
+  stages: OpportunityFlowStage[];
   currencyContext: OperationalKpiCurrencyContext;
 }) {
   const periodLabel = periodFilter === 'all'
@@ -179,11 +181,14 @@ export function ProspectosKpiStrip({
     tone: 'neutral',
   });
 
-  const distributionSegments: OperationalDistributionSegment[] = opportunityStages.map((stage) => ({
-    id: stage,
-    label: copy.kpiEngine.segments[stage],
-    count: stageCounts.find((stageCount) => stageCount.stage === stage)?.count ?? 0,
-    className: stageProgressStyles[stage],
+  const distributionSegments: OperationalDistributionSegment[] = stages.map((stage) => ({
+    id: stage.key,
+    label: stage.usesDefaultLabel
+      ? (copy.kpiEngine.segments as Record<string, string>)[stage.key]
+        ?? getOpportunityStageLabel(stage, copy.options.stages as Record<string, string>)
+      : stage.label,
+    count: stageCounts.find((stageCount) => stageCount.stage === stage.key)?.count ?? 0,
+    className: getOpportunityStageDotClass(stage),
   }));
 
   return (

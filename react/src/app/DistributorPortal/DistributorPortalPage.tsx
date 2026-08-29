@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowLeft, FileKey2, GraduationCap, Handshake, TicketCheck } from 'lucide-react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { IndiceBrandLogo } from '../Auth/components/IndiceBrandLogo';
 import { useLanguage } from '../shared/context';
 import { ContractsAccessPage } from './contracts-access/ContractsAccessPage';
@@ -12,10 +12,15 @@ import { TrainingWorkspace } from '../Training';
 
 export default function DistributorPortalPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { currentLanguage } = useLanguage();
   const copy = getDistributorPortalCopy(currentLanguage.code);
   const ticketCopy = getSystemTicketCopy(currentLanguage.code);
-  const [activeTab, setActiveTab] = useState<'contracts' | 'consulting' | 'training' | 'tickets'>('contracts');
+  const requestedTab = searchParams.get('tab');
+  const initialTab = requestedTab === 'consulting' || requestedTab === 'training' || requestedTab === 'tickets'
+    ? requestedTab
+    : 'contracts';
+  const [activeTab, setActiveTab] = useState<'contracts' | 'consulting' | 'training' | 'tickets'>(initialTab);
 
   return (
     <div className="min-h-screen bg-[#F7F8FA] text-[#222831] dark:bg-slate-950 dark:text-white">
@@ -52,7 +57,7 @@ export default function DistributorPortalPage() {
         {activeTab === 'contracts' ? <ContractsAccessPage copy={copy} locale={currentLanguage.code} /> : null}
         {activeTab === 'consulting' ? <DistributorConsultingPage /> : null}
         {activeTab === 'training' ? <TrainingWorkspace portal="distributor" locale={currentLanguage.code} /> : null}
-        {activeTab === 'tickets' ? <SystemTicketsWorkspace portal="distributor" locale={currentLanguage.code} /> : null}
+        {activeTab === 'tickets' ? <SystemTicketsWorkspace portal="distributor" locale={currentLanguage.code} initialFolio={searchParams.get('ticket') ?? ''} /> : null}
       </main>
     </div>
   );

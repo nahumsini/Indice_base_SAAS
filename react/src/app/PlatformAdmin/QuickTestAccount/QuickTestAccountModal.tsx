@@ -24,7 +24,7 @@ export default function QuickTestAccountModal(
       open
       onOpenChange={(open) => !open && props.onClose()}
       modalType="wizard"
-      tone="blue"
+      tone="aqua"
       contentClassName="sm:max-w-4xl"
       bodyClassName="px-4 py-4 sm:px-6 sm:py-5"
       eyebrow={copy.modal.eyebrow}
@@ -63,7 +63,7 @@ export default function QuickTestAccountModal(
       >
         <IndiceModalWizardStepper
           activeStepId={flow.step}
-          accent="blue"
+          accent="aqua"
           progressLabel={copy.progress.label}
           steps={[
             { id: "scenario", label: copy.steps.scenario },

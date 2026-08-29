@@ -47,6 +47,7 @@ public class SalesService {
     private final BusinessExchangeRateService businessExchangeRateService;
     private final KpiCurrencyAggregationService kpiCurrencyAggregationService;
     private final SalesProductAvailabilityLinkCodec availabilityLinkCodec;
+    private final OpportunityFlowService opportunityFlowService;
     private final Map<String, SalesEntityDefinition> definitions = SalesDefinitions.definitions();
 
     public SalesService(
@@ -57,7 +58,8 @@ public class SalesService {
             CompanyStorageMeter storageMeter,
             BusinessExchangeRateService businessExchangeRateService,
             KpiCurrencyAggregationService kpiCurrencyAggregationService,
-            SalesProductAvailabilityLinkCodec availabilityLinkCodec) {
+            SalesProductAvailabilityLinkCodec availabilityLinkCodec,
+            OpportunityFlowService opportunityFlowService) {
         this.salesRepository = salesRepository;
         this.referenceService = referenceService;
         this.objectStorageService = objectStorageService;
@@ -66,6 +68,7 @@ public class SalesService {
         this.businessExchangeRateService = businessExchangeRateService;
         this.kpiCurrencyAggregationService = kpiCurrencyAggregationService;
         this.availabilityLinkCodec = availabilityLinkCodec;
+        this.opportunityFlowService = opportunityFlowService;
     }
 
     public Map<String, Object> context(long companyId, long userId) {
@@ -75,7 +78,7 @@ public class SalesService {
         body.put("units", salesRepository.contextUnits(companyId));
         body.put("businesses", salesRepository.contextBusinesses(companyId));
         body.put("currentUserCompanyId", currentUserCompanyId(users, userId));
-        body.put("dictionaries", dictionaries());
+        body.put("dictionaries", dictionaries(companyId));
         return body;
     }
 
@@ -115,6 +118,19 @@ public class SalesService {
     public Map<String, Object> create(long companyId, long userId, String collection, Map<String, Object> payload) {
         var definition = definition(collection);
         var normalizedPayload = normalizeBeforeSave(companyId, collection, payload);
+        Long opportunityFlowId = null;
+        if ("opportunities".equals(collection)) {
+            opportunityFlowId = SalesPayloadSupport.longValue(normalizedPayload, "flowId");
+            removeOpportunityFlowControl(normalizedPayload);
+            if (opportunityFlowId == null) {
+                opportunityFlowId = opportunityFlowService.defaultFlowId(companyId);
+            }
+            if (!SalesPayloadSupport.contains(normalizedPayload, "stage")) {
+                normalizedPayload.put("stage", opportunityFlowService.initialStage(companyId, opportunityFlowId));
+            }
+            normalizedPayload.put("stage", opportunityFlowService.requireActiveStage(
+                    companyId, opportunityFlowId, SalesPayloadSupport.stringValue(normalizedPayload, "stage")));
+        }
         if ("sales".equals(collection)) {
             assignAuthenticatedSeller(companyId, userId, normalizedPayload);
             normalizedPayload.putAll(SalesCommissionCalculator.calculate(
@@ -123,6 +139,18 @@ public class SalesService {
         }
         referenceService.validateEntityPayload(companyId, collection, normalizedPayload);
         var id = salesRepository.create(companyId, userId, definition, normalizedPayload);
+        if ("opportunities".equals(collection)) {
+            var position = opportunityFlowService.initializeOpportunity(
+                    companyId,
+                    userId,
+                    id,
+                    opportunityFlowId,
+                    SalesPayloadSupport.stringValue(normalizedPayload, "stage"));
+            salesRepository.update(companyId, userId, definition, id, Map.of(
+                    "stage", position.stageKey(),
+                    "lifecycleStatus", position.lifecycleStatus(),
+                    "probabilityPercent", position.probabilityPercent()));
+        }
         if ("quotes".equals(collection)) {
             createQuoteItemsFromPayload(companyId, id, normalizedPayload);
             refreshQuoteAmount(companyId, id);
@@ -151,6 +179,22 @@ public class SalesService {
             }
         }
         var normalizedPayload = normalizeBeforeSave(companyId, collection, updatePayload);
+        Long opportunityFlowId = null;
+        if ("opportunities".equals(collection) && SalesPayloadSupport.contains(normalizedPayload, "stage")) {
+            opportunityFlowId = SalesPayloadSupport.longValue(normalizedPayload, "flowId");
+            removeOpportunityFlowControl(normalizedPayload);
+            var position = opportunityFlowService.moveOpportunity(
+                    companyId,
+                    userId,
+                    id,
+                    opportunityFlowId,
+                    SalesPayloadSupport.stringValue(normalizedPayload, "stage"));
+            normalizedPayload.put("stage", position.stageKey());
+            normalizedPayload.put("lifecycleStatus", position.lifecycleStatus());
+            normalizedPayload.put("probabilityPercent", position.probabilityPercent());
+        } else if ("opportunities".equals(collection)) {
+            removeOpportunityFlowControl(normalizedPayload);
+        }
         if ("sales".equals(collection)) {
             removeClientCommissionCalculation(normalizedPayload);
             if (commissionInputsChanged(payload)) {
@@ -1127,20 +1171,23 @@ public class SalesService {
         opportunityPayload.put("companyName", quote.get("clientName"));
         opportunityPayload.put("contactPerson", quote.get("contactPerson"));
         opportunityPayload.put("source", "quote");
-        opportunityPayload.put("stage", "proposal");
         opportunityPayload.put("status", "active");
         opportunityPayload.put("estimatedValue", quote.get("amount"));
         opportunityPayload.put("currency", quote.get("currency"));
-        opportunityPayload.put("probabilityPercent", 75);
         opportunityPayload.put("ownerUserCompanyId", quote.get("assignedSellerUserCompanyId"));
         opportunityPayload.put("ownerName", quote.get("assignedSellerName"));
         opportunityPayload.put("notes", "Created from quote " + quote.get("quoteNumber"));
         return opportunityPayload;
     }
 
-    private Map<String, Object> dictionaries() {
+    private void removeOpportunityFlowControl(Map<String, Object> payload) {
+        payload.remove("flowId");
+        payload.remove("flow_id");
+    }
+
+    private Map<String, Object> dictionaries(long companyId) {
         var dictionaries = new LinkedHashMap<String, Object>();
-        dictionaries.put("opportunityStages", List.of("new", "contacted", "qualified", "proposal", "negotiation", "won", "lost"));
+        dictionaries.put("opportunityStages", opportunityFlowService.activeStageKeys(companyId));
         dictionaries.put("temperatures", List.of("hot", "warm", "cold"));
         dictionaries.put("sources", List.of("manual", "website", "referral", "campaign", "social_media", "whatsapp", "existing_customer", "other"));
         dictionaries.put("opportunityStatuses", List.of("active", "pending_follow_up", "overdue", "on_hold", "closed"));

@@ -26,7 +26,7 @@ import {
   type CustomerCommercialStatus,
 } from "./customerTableUtils";
 
-const cellClass = "overflow-hidden whitespace-normal px-4 py-4 align-middle text-sm font-normal text-slate-700";
+const cellClass = "overflow-hidden whitespace-normal px-4 py-4 align-middle text-sm font-normal text-slate-700 dark:text-slate-200";
 
 const planLabels: Record<string, { en: string; es: string }> = {
   basic_1: { en: "One module", es: "Un módulo" },
@@ -147,7 +147,7 @@ export function CustomerTableRow({
                 </span>
               ))}
               {(company.product_names?.length ?? 0) > (compact ? 2 : 3) ? (
-                <span className="px-1 py-0.5 text-xs font-medium text-[#2563EB]">
+                <span className="px-1 py-0.5 text-xs font-medium text-[#177D66]">
                   +{(company.product_names?.length ?? 0) - (compact ? 2 : 3)}
                 </span>
               ) : null}
@@ -198,7 +198,7 @@ export function CustomerTableRow({
         return (
           <>
             <p className="inline-flex items-center gap-1.5 font-medium text-slate-700">
-              <CalendarClock className="h-3.5 w-3.5 text-[#2563EB]" />
+              <CalendarClock className="h-3.5 w-3.5 text-[#177D66]" />
               {hasFiniteTrial
                 ? remainingTrialDays > 0
                   ? copy.daysRemaining(remainingTrialDays)
@@ -220,7 +220,7 @@ export function CustomerTableRow({
   };
 
   return (
-    <TableRow className={`group border-slate-200 hover:bg-blue-50/35 ${deleted ? "bg-slate-50 opacity-75" : ""}`}>
+    <TableRow className={`group border-slate-200 hover:bg-[#59C3A5]/5 ${deleted ? "bg-slate-50 opacity-75" : ""}`}>
       {columns.map((columnId) => (
         <TableCell
           key={columnId}
@@ -240,44 +240,46 @@ export function CustomerTableRow({
             label={copy.manage}
             icon={<Settings2 className="h-4 w-4" />}
             onClick={() => onOpenCompany(company)}
-            className="border-blue-200 bg-blue-50 text-[#1D4ED8] hover:bg-blue-100"
+            primary
           />
           {!deleted ? <CustomerActionButton
             label={copy.manageUsers}
             icon={<Users className="h-4 w-4" />}
             onClick={() => onOpenUsers(company)}
-            className="border-emerald-200 bg-emerald-50 text-[#177D66] hover:bg-emerald-100"
           /> : null}
-          {!deleted && canEditTypes && accountType !== "ROOT" ? (
-            <CustomerActionButton
-              label={copy.editType}
-              icon={<PencilLine className="h-4 w-4" />}
-              onClick={() => onEditType?.(company)}
-              className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
-            />
-          ) : null}
-          {!deleted && (canAssignDistributor || canExtendTrial || (canDelete && accountType !== "ROOT")) ? (
+          {!deleted && (
+            (canEditTypes && accountType !== "ROOT") ||
+            canAssignDistributor ||
+            canExtendTrial ||
+            (canDelete && accountType !== "ROOT")
+          ) ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
                   aria-label={copy.more}
                   title={copy.more}
-                  className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/25"
+                  className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-[#59C3A5] hover:bg-[#59C3A5]/10 hover:text-[#177D66] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/25 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                 >
                   <MoreHorizontal className="h-4 w-4" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-52 rounded-xl border-slate-200 bg-white p-1.5">
+              <DropdownMenuContent align="end" className="min-w-56 rounded-xl border-slate-200 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-900">
+                {canEditTypes && accountType !== "ROOT" ? (
+                  <DropdownMenuItem onSelect={() => onEditType?.(company)} className="rounded-lg py-2">
+                    <PencilLine className="h-4 w-4 text-[#177D66]" />
+                    {copy.editType}
+                  </DropdownMenuItem>
+                ) : null}
                 {canAssignDistributor ? (
                   <DropdownMenuItem onSelect={() => onAssignDistributor?.(company)} className="rounded-lg py-2">
-                    <Handshake className="h-4 w-4 text-[#2563EB]" />
+                    <Handshake className="h-4 w-4 text-[#177D66]" />
                     {company.distributor_company_id ? copy.changeDistributor : copy.assignDistributor}
                   </DropdownMenuItem>
                 ) : null}
                 {canExtendTrial ? (
                   <DropdownMenuItem onSelect={() => onExtendTrial?.(company)} className="rounded-lg py-2">
-                    <CalendarPlus className="h-4 w-4 text-[#2563EB]" />
+                    <CalendarPlus className="h-4 w-4 text-[#177D66]" />
                     {copy.extendTrial}
                   </DropdownMenuItem>
                 ) : null}
@@ -297,15 +299,15 @@ export function CustomerTableRow({
 }
 
 function CustomerActionButton({
-  className,
   icon,
   label,
   onClick,
+  primary = false,
 }: {
-  className: string;
   icon: ReactNode;
   label: string;
   onClick: () => void;
+  primary?: boolean;
 }) {
   return (
     <button
@@ -313,7 +315,11 @@ function CustomerActionButton({
       aria-label={label}
       title={label}
       onClick={onClick}
-      className={`grid h-9 w-9 place-items-center rounded-lg border shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/25 ${className}`}
+      className={`grid h-9 w-9 place-items-center rounded-lg border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/25 ${
+        primary
+          ? "border-[#59C3A5]/50 bg-[#59C3A5]/12 text-[#177D66] hover:bg-[#59C3A5]/20 dark:border-[#59C3A5]/40 dark:bg-[#59C3A5]/10 dark:text-[#8FE0CA]"
+          : "border-slate-200 bg-white text-slate-600 hover:border-[#59C3A5] hover:bg-[#59C3A5]/10 hover:text-[#177D66] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+      }`}
     >
       {icon}
     </button>

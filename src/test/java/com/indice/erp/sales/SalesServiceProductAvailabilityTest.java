@@ -33,6 +33,7 @@ class SalesServiceProductAvailabilityTest {
     @Mock BusinessExchangeRateService exchangeRates;
     @Mock KpiCurrencyAggregationService currencies;
     @Mock SalesProductAvailabilityLinkCodec codec;
+    @Mock OpportunityFlowService opportunityFlowService;
 
     private SalesService service;
     private final SalesEntityDefinition products = SalesDefinitions.definitions().get("products");
@@ -40,7 +41,7 @@ class SalesServiceProductAvailabilityTest {
     @BeforeEach
     void setUp() {
         service = new SalesService(repository, referenceService, objectStorageService,
-            storageProperties, storageMeter, exchangeRates, currencies, codec);
+            storageProperties, storageMeter, exchangeRates, currencies, codec, opportunityFlowService);
     }
 
     @Test

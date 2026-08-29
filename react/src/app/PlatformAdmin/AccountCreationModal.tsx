@@ -90,7 +90,7 @@ export default function AccountCreationModal(props: AccountCreationModalProps) {
       busy={flow.saving}
       onOpenChange={(open) => !open && flow.closeModal()}
       modalType="wizard"
-      tone="blue"
+      tone="aqua"
       contentClassName="sm:max-h-[min(860px,calc(100dvh-2rem))]"
       bodyClassName="px-4 py-4 sm:px-6 sm:py-5"
       eyebrow={copy.modal.eyebrow}
@@ -123,22 +123,22 @@ export default function AccountCreationModal(props: AccountCreationModalProps) {
         >
           <IndiceModalWizardStepper
             activeStepId={flow.step}
-            accent="blue"
+            accent="aqua"
             progressLabel={copy.progress.label}
             steps={localizedSteps}
           />
 
           {flow.step !== "company" ? (
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2 text-xs text-[#143675]">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-xl border border-[#59C3A5]/30 bg-[#59C3A5]/10 px-3 py-2 text-xs text-[#176B5B] dark:text-[#8FE0CA]">
               <span>
-                <strong>{copy.context.company}:</strong>{" "}
+                <span className="font-medium">{copy.context.company}:</span>{" "}
                 {flow.form.company_name || "—"}
               </span>
               <span>{accountTypeLabel}</span>
               {flow.step === "access" ? (
                 <>
                   <span className="truncate">
-                    <strong>{copy.context.owner}:</strong>{" "}
+                    <span className="font-medium">{copy.context.owner}:</span>{" "}
                     {flow.form.owner_email}
                   </span>
                   <span>{flow.form.employee_count} {currentLanguage.code.startsWith("es") ? "empleados" : "employees"}</span>
@@ -150,7 +150,7 @@ export default function AccountCreationModal(props: AccountCreationModalProps) {
           <IndiceModalValidation messages={flow.error ? [flow.error] : []} />
 
           {flow.restoredDraft ? (
-            <div className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-[#143675]">
+            <div className="flex items-center gap-2 rounded-xl border border-[#59C3A5]/35 bg-[#59C3A5]/10 px-3 py-2 text-xs text-[#176B5B] dark:text-[#8FE0CA]">
               <ShieldCheck className="h-4 w-4 shrink-0" />
               <p>{copy.notices.restored}</p>
             </div>
@@ -184,13 +184,14 @@ export default function AccountCreationModal(props: AccountCreationModalProps) {
               copy={copy}
               form={flow.form}
               products={flow.selectableProducts}
+              extraUserMonthlyPrice={props.products.find((product) => product.commercial_kind === "SEAT")?.monthly_price_cents}
               onChange={flow.updateForm}
               onToggleProduct={flow.toggleProduct}
             />
           ) : null}
 
           {flow.step === "access" ? (
-            <div className="flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs leading-5 text-[#143675]">
+            <div className="flex items-center gap-2 rounded-xl border border-[#59C3A5]/30 bg-[#59C3A5]/10 px-3 py-2 text-xs leading-5 text-[#176B5B] dark:text-[#8FE0CA]">
               <ShieldCheck className="h-4 w-4 shrink-0" />
               <p>{copy.notices.audit}</p>
             </div>

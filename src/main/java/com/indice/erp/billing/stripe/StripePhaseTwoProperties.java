@@ -18,6 +18,7 @@ public class StripePhaseTwoProperties {
     private String portalReturnUrl = "";
     private boolean automaticTaxEnabled = true;
     private boolean taxIdCollectionEnabled = true;
+    private String catalogProductTaxCode = "txcd_10103001";
     private String priceBasic1Monthly = "";
     private String priceBasic1Annual = "";
     private String priceBasic2Monthly = "";
@@ -121,6 +122,14 @@ public class StripePhaseTwoProperties {
 
     public void setTaxIdCollectionEnabled(boolean taxIdCollectionEnabled) {
         this.taxIdCollectionEnabled = taxIdCollectionEnabled;
+    }
+
+    public String getCatalogProductTaxCode() {
+        return catalogProductTaxCode;
+    }
+
+    public void setCatalogProductTaxCode(String catalogProductTaxCode) {
+        this.catalogProductTaxCode = normalized(catalogProductTaxCode);
     }
 
     public String getPriceBasic1Monthly() {

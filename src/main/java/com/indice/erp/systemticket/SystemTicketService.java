@@ -5,6 +5,7 @@ import com.indice.erp.distributorportal.DistributorPortfolioAccessPolicy;
 import com.indice.erp.platformadmin.PlatformAdminAccessService;
 import java.sql.Timestamp;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -79,13 +80,15 @@ public class SystemTicketService {
         var description = requireText(request.description(), 10_000, "Description");
         var moduleName = optionalText(request.module(), 120);
         var folio = createFolio();
+        var targetResolutionAt = targetResolutionAt(priority);
 
         jdbcTemplate.update(
             """
                 INSERT INTO system_support_tickets (
                     folio, distributor_company_id, reported_by_user_id, ticket_type,
-                    priority, module_name, title, description, status, last_updated_by_user_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?)
+                    priority, module_name, title, description, status,
+                    target_resolution_at, last_updated_by_user_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?)
                 """,
             folio,
             companyId,
@@ -95,6 +98,7 @@ public class SystemTicketService {
             moduleName,
             title,
             description,
+            Timestamp.from(targetResolutionAt),
             actorUserId
         );
         var ticket = findVisible(folio, companyId);
@@ -259,6 +263,16 @@ public class SystemTicketService {
     private String createFolio() {
         var suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase(Locale.ROOT);
         return "SYS-" + FOLIO_DATE.format(clock.instant()) + "-" + suffix;
+    }
+
+    private Instant targetResolutionAt(String priority) {
+        var hours = switch (priority) {
+            case "CRITICAL" -> 4;
+            case "HIGH" -> 24;
+            case "MEDIUM" -> 72;
+            default -> 120;
+        };
+        return clock.instant().plus(Duration.ofHours(hours));
     }
 
     private long requireActorUserId(AuthSessionUser actor) {

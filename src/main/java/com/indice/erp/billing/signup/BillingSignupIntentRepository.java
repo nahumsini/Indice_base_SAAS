@@ -47,10 +47,11 @@ public class BillingSignupIntentRepository {
                             public_token_hash, request_idempotency_hash, request_fingerprint,
                             catalog_version_id, offer_code, billing_interval, currency,
                             included_seats, requested_extra_seats, estimated_amount_cents,
+                            subtotal_amount_cents, discount_amount_cents, promotion_code,
                             full_name, email_normalized, email_verification_reference, email_verified_at,
                             password_hash, company_name,
                             country_code, phone, industry, company_size
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                     new String[] {"id"}
                 );
@@ -68,20 +69,27 @@ public class BillingSignupIntentRepository {
                 } else {
                     statement.setLong(10, selection.estimatedAmountCents());
                 }
-                statement.setString(11, request.fullName().trim());
-                statement.setString(12, emailNormalized);
-                statement.setString(13, emailVerificationReference);
-                if (emailVerifiedAt == null) {
-                    statement.setNull(14, java.sql.Types.TIMESTAMP);
+                if (selection.subtotalAmountCents() == null) {
+                    statement.setNull(11, java.sql.Types.BIGINT);
                 } else {
-                    statement.setTimestamp(14, Timestamp.from(emailVerifiedAt));
+                    statement.setLong(11, selection.subtotalAmountCents());
                 }
-                statement.setString(15, passwordHash);
-                statement.setString(16, request.companyName().trim());
-                statement.setString(17, request.countryCode().trim().toUpperCase(java.util.Locale.ROOT));
-                statement.setString(18, blankToNull(request.phone()));
-                statement.setString(19, blankToNull(request.industry()));
-                statement.setString(20, blankToNull(request.companySize()));
+                statement.setLong(12, selection.discountAmountCents());
+                statement.setString(13, selection.promotionCode());
+                statement.setString(14, request.fullName().trim());
+                statement.setString(15, emailNormalized);
+                statement.setString(16, emailVerificationReference);
+                if (emailVerifiedAt == null) {
+                    statement.setNull(17, java.sql.Types.TIMESTAMP);
+                } else {
+                    statement.setTimestamp(17, Timestamp.from(emailVerifiedAt));
+                }
+                statement.setString(18, passwordHash);
+                statement.setString(19, request.companyName().trim());
+                statement.setString(20, request.countryCode().trim().toUpperCase(java.util.Locale.ROOT));
+                statement.setString(21, blankToNull(request.phone()));
+                statement.setString(22, blankToNull(request.industry()));
+                statement.setString(23, blankToNull(request.companySize()));
                 return statement;
             }, keyHolder);
         } catch (DuplicateKeyException exception) {

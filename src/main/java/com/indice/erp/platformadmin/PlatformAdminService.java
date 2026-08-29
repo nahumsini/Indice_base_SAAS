@@ -1107,15 +1107,49 @@ public class PlatformAdminService {
             """
                 SELECT product.id, product.catalog_version_id, version.version_code,
                        product.product_code, product.display_name, product.product_type,
+                       product.commercial_kind, product.description,
+                       (SELECT monthly_price.unit_amount_cents
+                          FROM billing_catalog_prices monthly_price
+                         WHERE monthly_price.catalog_product_id = product.id
+                           AND monthly_price.billing_interval = 'MONTH'
+                           AND monthly_price.currency = 'USD'
+                         ORDER BY monthly_price.id DESC LIMIT 1) AS monthly_price_cents,
+                       (SELECT annual_price.unit_amount_cents
+                          FROM billing_catalog_prices annual_price
+                         WHERE annual_price.catalog_product_id = product.id
+                           AND annual_price.billing_interval = 'YEAR'
+                           AND annual_price.currency = 'USD'
+                         ORDER BY annual_price.id DESC LIMIT 1) AS annual_price_cents,
+                       EXISTS(
+                         SELECT 1 FROM billing_catalog_products model_marker
+                         WHERE model_marker.catalog_version_id = product.catalog_version_id
+                           AND model_marker.commercial_kind = 'SEAT'
+                           AND BINARY model_marker.product_code = BINARY 'extra_user'
+                       ) AS commercial_model,
                        product.sort_order, product.active,
-                       CASE WHEN product.product_type = 'CORE' OR availability.id IS NOT NULL THEN 1 ELSE 0 END AS commercially_available,
-                       GROUP_CONCAT(capability.capability_code ORDER BY capability.capability_code SEPARATOR ',') AS capabilities
+                       CASE
+                         WHEN product.product_type = 'CORE' OR availability.id IS NOT NULL THEN 1
+                         WHEN product.active = 1 AND product.commercial_kind IN ('MODULE', 'PACKAGE', 'SEAT')
+                          AND (SELECT COUNT(DISTINCT direct_price.billing_interval)
+                                 FROM billing_catalog_prices direct_price
+                                WHERE direct_price.catalog_product_id = product.id
+                                  AND direct_price.billing_interval IN ('MONTH', 'YEAR')
+                                  AND direct_price.currency = 'USD' AND direct_price.unit_amount_cents > 0
+                                  AND direct_price.status IN ('READY', 'ACTIVE')) = 2 THEN 1
+                         ELSE 0
+                       END AS commercially_available,
+                       GROUP_CONCAT(capability.capability_code ORDER BY capability.capability_code SEPARATOR ',') AS capabilities,
+                       (SELECT GROUP_CONCAT(child.product_code ORDER BY package_item.sort_order, child.id SEPARATOR ',')
+                          FROM billing_package_items package_item
+                          JOIN billing_catalog_products child ON child.id = package_item.included_product_id
+                         WHERE package_item.package_product_id = product.id) AS included_product_codes
                 FROM billing_catalog_products product
                 JOIN billing_catalog_versions version ON version.id = product.catalog_version_id
                 LEFT JOIN billing_product_capabilities capability ON capability.product_id = product.id
                 LEFT JOIN billing_available_commercial_products availability ON availability.id = product.id
                 GROUP BY product.id, product.catalog_version_id, version.version_code,
                          product.product_code, product.display_name, product.product_type,
+                         product.commercial_kind, product.description,
                          product.sort_order, product.active, availability.id
                 ORDER BY version.effective_from DESC, product.sort_order, product.id
                 """,
@@ -1127,10 +1161,16 @@ public class PlatformAdminService {
                 row.put("product_code", rs.getString("product_code"));
                 row.put("display_name", rs.getString("display_name"));
                 row.put("product_type", rs.getString("product_type"));
+                row.put("commercial_kind", rs.getString("commercial_kind"));
+                row.put("commercial_model", rs.getBoolean("commercial_model"));
+                row.put("description", nullable(rs.getString("description")));
+                row.put("monthly_price_cents", rs.getObject("monthly_price_cents"));
+                row.put("annual_price_cents", rs.getObject("annual_price_cents"));
                 row.put("sort_order", rs.getInt("sort_order"));
                 row.put("active", rs.getBoolean("active"));
                 row.put("commercially_available", rs.getBoolean("commercially_available"));
                 row.put("capabilities", csv(rs.getString("capabilities"), ","));
+                row.put("included_product_codes", csv(rs.getString("included_product_codes"), ","));
                 return row;
             }
         );
@@ -1163,7 +1203,46 @@ public class PlatformAdminService {
                 return row;
             }
         );
-        return Map.of("versions", versions, "products", products, "prices", prices);
+        var promotions = jdbcTemplate.query(
+            """
+                SELECT promotion.id, promotion.catalog_version_id, version.version_code,
+                       promotion.promotion_code, promotion.display_name, promotion.description,
+                       promotion.discount_type, promotion.percent_basis_points,
+                       promotion.amount_off_cents, promotion.currency, promotion.duration_type,
+                       promotion.duration_cycles, promotion.starts_at, promotion.ends_at,
+                       promotion.external_promotion_code_id, promotion.active, promotion.sort_order,
+                       (SELECT GROUP_CONCAT(product.product_code ORDER BY product.sort_order, product.id SEPARATOR ',')
+                          FROM billing_catalog_promotion_products link
+                          JOIN billing_catalog_products product ON product.id = link.catalog_product_id
+                         WHERE link.promotion_id = promotion.id) AS product_codes
+                FROM billing_catalog_promotions promotion
+                JOIN billing_catalog_versions version ON version.id = promotion.catalog_version_id
+                ORDER BY version.effective_from DESC, promotion.sort_order, promotion.id
+                """,
+            (rs, rowNum) -> {
+                var row = new LinkedHashMap<String, Object>();
+                row.put("id", rs.getLong("id"));
+                row.put("catalog_version_id", rs.getLong("catalog_version_id"));
+                row.put("version_code", rs.getString("version_code"));
+                row.put("promotion_code", rs.getString("promotion_code"));
+                row.put("display_name", rs.getString("display_name"));
+                row.put("description", nullable(rs.getString("description")));
+                row.put("discount_type", rs.getString("discount_type"));
+                row.put("percent_basis_points", rs.getObject("percent_basis_points"));
+                row.put("amount_off_cents", rs.getObject("amount_off_cents"));
+                row.put("currency", rs.getString("currency"));
+                row.put("duration_type", rs.getString("duration_type"));
+                row.put("duration_cycles", rs.getObject("duration_cycles"));
+                row.put("starts_at", instant(rs.getTimestamp("starts_at")));
+                row.put("ends_at", instant(rs.getTimestamp("ends_at")));
+                row.put("external_promotion_code_id", nullable(rs.getString("external_promotion_code_id")));
+                row.put("active", rs.getBoolean("active"));
+                row.put("sort_order", rs.getInt("sort_order"));
+                row.put("product_codes", csv(rs.getString("product_codes"), ","));
+                return row;
+            }
+        );
+        return Map.of("versions", versions, "products", products, "prices", prices, "promotions", promotions);
     }
 
     public Map<String, Object> modules(long actorUserId) {

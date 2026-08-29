@@ -179,12 +179,10 @@ class ConsultingAppointmentEmailService {
     }
 
     private String attendeeBody(BookingEmail booking) {
-        var paymentNote = "IN_PERSON".equals(booking.consultationMode())
-            ? "La modalidad presencial tiene un costo adicional. El equipo te enviará la cotización antes de confirmar la cita."
-            : "ADDITIONAL".equals(booking.sessionKind())
-                ? "Esta sesión adicional cuesta %s. El equipo te compartirá el enlace de pago antes de confirmarla."
-                    .formatted(price(booking))
-                : "Esta es la primera sesión virtual de 50 minutos incluida con tu cuenta.";
+        var paymentNote = "ADDITIONAL".equals(booking.sessionKind())
+            ? "Esta sesión adicional cuesta %s. El equipo te compartirá el enlace de pago antes de confirmarla."
+                .formatted(price(booking))
+            : "Esta sesión forma parte de la implementación incluida con tu cuenta.";
         return """
             Hola %s,
 

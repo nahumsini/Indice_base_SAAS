@@ -14,18 +14,34 @@ public class CommercialOfferSelectionService {
     private static final int MAX_EXTRA_SEATS = 500;
 
     private final JdbcTemplate jdbcTemplate;
+    private final VersionedCommercialOfferEngine versionedEngine;
 
-    public CommercialOfferSelectionService(JdbcTemplate jdbcTemplate) {
+    public CommercialOfferSelectionService(JdbcTemplate jdbcTemplate, VersionedCommercialOfferEngine versionedEngine) {
         this.jdbcTemplate = jdbcTemplate;
+        this.versionedEngine = versionedEngine;
     }
 
     public CommercialOfferSelection select(List<String> requestedProductCodes, String intervalValue, int extraSeats) {
+        return select(requestedProductCodes, intervalValue, extraSeats, null);
+    }
+
+    public CommercialOfferSelection select(
+        List<String> requestedProductCodes,
+        String intervalValue,
+        int extraSeats,
+        String promotionCode
+    ) {
         var interval = BillingInterval.parse(intervalValue);
         if (extraSeats < 0 || extraSeats > MAX_EXTRA_SEATS) {
             throw new IllegalArgumentException("Extra seats must be between 0 and 500.");
         }
 
         var version = activeVersion();
+        if (versionedEngine.ready(version.id(), interval)) {
+            return versionedEngine.select(
+                version.id(), version.code(), requestedProductCodes, interval, extraSeats, promotionCode
+            );
+        }
         var available = jdbcTemplate.query(
             """
                 SELECT product.id, product.product_code, product.display_name, product.product_type,
@@ -100,7 +116,13 @@ public class CommercialOfferSelectionService {
             complementaryAmount,
             basePrice.externalPriceId(),
             seatPrice.externalPriceId(),
-            selected
+            selected,
+            legacyLineItems(offerCode, interval, extraSeats, basePrice, seatPrice, selected),
+            capabilities(selected),
+            estimated,
+            0,
+            null,
+            null
         );
     }
 
@@ -111,6 +133,9 @@ public class CommercialOfferSelectionService {
     public List<CommercialOfferSelection.Product> activeProducts(String intervalValue) {
         var interval = BillingInterval.parse(intervalValue);
         var version = activeVersion();
+        if (versionedEngine.ready(version.id(), interval)) {
+            return versionedEngine.products(version.id(), interval);
+        }
         return jdbcTemplate.query(
             """
                 SELECT product.id, product.product_code, product.display_name, product.product_type,
@@ -238,6 +263,42 @@ public class CommercialOfferSelectionService {
             }
         }
         return normalized;
+    }
+
+    private List<CommercialOfferSelection.LineItem> legacyLineItems(
+        String offerCode,
+        BillingInterval interval,
+        int extraSeats,
+        PriceDefinition basePrice,
+        PriceDefinition seatPrice,
+        List<CommercialOfferSelection.Product> selected
+    ) {
+        var lines = new java.util.ArrayList<CommercialOfferSelection.LineItem>();
+        lines.add(new CommercialOfferSelection.LineItem(
+            null, offerCode, "BASE", 1, basePrice.unitAmountCents(), basePrice.externalPriceId()
+        ));
+        selected.stream().filter(CommercialOfferSelection.Product::complementary).forEach(product -> lines.add(
+            new CommercialOfferSelection.LineItem(
+                product.id(), product.code(), "PRODUCT", 1, product.unitAmountCents(), product.externalPriceId()
+            )
+        ));
+        if (extraSeats > 0) {
+            lines.add(new CommercialOfferSelection.LineItem(
+                null, "extra_seat", "SEAT", extraSeats, seatPrice.unitAmountCents(), seatPrice.externalPriceId()
+            ));
+        }
+        return List.copyOf(lines);
+    }
+
+    private List<String> capabilities(List<CommercialOfferSelection.Product> products) {
+        if (products.isEmpty()) return List.of();
+        var ids = products.stream().map(CommercialOfferSelection.Product::id).toList();
+        var placeholders = String.join(",", java.util.Collections.nCopies(ids.size(), "?"));
+        return jdbcTemplate.query(
+            "SELECT DISTINCT CASE capability_code WHEN 'sales' THEN 'crm' ELSE capability_code END FROM billing_product_capabilities WHERE product_id IN (" + placeholders + ") ORDER BY 1",
+            (rs, rowNum) -> rs.getString(1),
+            ids.toArray()
+        );
     }
 
     private record CatalogVersion(long id, String code) {

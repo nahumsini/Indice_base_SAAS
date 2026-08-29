@@ -14,6 +14,7 @@ type TicketCopy = {
   active: string;
   open: string;
   inReview: string;
+  waitingOnReporter: string;
   planned: string;
   resolved: string;
   closed: string;
@@ -59,6 +60,35 @@ type TicketCopy = {
   createdAt: string;
   reporter: string;
   itemLabel: string;
+  assignee: string;
+  unassigned: string;
+  overdue: string;
+  critical: string;
+  resolvedToday: string;
+  target: string;
+  takeTicket: string;
+  attend: string;
+  conversation: string;
+  internalNote: string;
+  sendMessage: string;
+  messagePlaceholder: string;
+  evidence: string;
+  addEvidence: string;
+  activity: string;
+  noActivity: string;
+  sla: string;
+  firstResponse: string;
+  resolutionTime: string;
+  compliance: string;
+  allAssignees: string;
+  allModules: string;
+  allDistributors: string;
+  onlyOverdue: string;
+  from: string;
+  to: string;
+  clearFilters: string;
+  noAssignee: string;
+  uploadHelp: string;
 };
 
 const en: TicketCopy = {
@@ -67,7 +97,7 @@ const en: TicketCopy = {
   rootSubtitle: 'Create, review, and manage system reports from Root and every distributor account.',
   newTicket: 'New ticket', filters: 'Ticket filters', filterSubtitle: 'Find reports by folio, title, module, or distributor.',
   search: 'Search', searchPlaceholder: 'Folio, title, module, or distributor', status: 'Status', type: 'Type', all: 'All', active: 'Open folios',
-  open: 'Open', inReview: 'In review', planned: 'Planned', resolved: 'Resolved', closed: 'Closed', failure: 'Failure', improvement: 'Improvement',
+  open: 'Open', inReview: 'In review', waitingOnReporter: 'Waiting on reporter', planned: 'Planned', resolved: 'Resolved', closed: 'Closed', failure: 'Failure', improvement: 'Improvement',
   total: 'Total reports', completed: 'Completed', folio: 'Folio', report: 'Report', distributor: 'Distributor', priority: 'Priority', module: 'Module',
   reportedBy: 'Reported by', updated: 'Last update', actions: 'Actions', view: 'View ticket', noTickets: 'No tickets match these filters.',
   noTicketsHelp: 'Create the first report or adjust the filters.', loading: 'Loading system tickets…', retry: 'Try again',
@@ -77,7 +107,13 @@ const en: TicketCopy = {
   priorityLow: 'Low', priorityMedium: 'Medium', priorityHigh: 'High', priorityCritical: 'Critical', cancel: 'Cancel', create: 'Create ticket', creating: 'Creating…',
   createdMessage: 'Ticket created successfully.', detailTitle: 'Ticket details', rootResponse: 'Root response',
   rootResponsePlaceholder: 'Share progress, a solution, or the next action with the distributor.', save: 'Save changes', saving: 'Saving…', close: 'Close',
-  createdAt: 'Created', reporter: 'Reporter', itemLabel: 'tickets',
+  createdAt: 'Created', reporter: 'Reporter', itemLabel: 'tickets', assignee: 'Owner', unassigned: 'Unassigned', overdue: 'Overdue',
+  critical: 'Critical', resolvedToday: 'Resolved today', target: 'Attention target', takeTicket: 'Take ticket', attend: 'Attend',
+  conversation: 'Conversation', internalNote: 'Internal note', sendMessage: 'Send message', messagePlaceholder: 'Write an update or request more information…',
+  evidence: 'Evidence', addEvidence: 'Add evidence', activity: 'Activity', noActivity: 'No activity recorded.', sla: 'Service indicators',
+  firstResponse: 'First response', resolutionTime: 'Resolution time', compliance: 'Target compliance', allAssignees: 'All owners',
+  allModules: 'All modules', allDistributors: 'All distributors', onlyOverdue: 'Only overdue', from: 'From', to: 'To', clearFilters: 'Clear filters',
+  noAssignee: 'No owner', uploadHelp: 'PNG, JPG, PDF, Word or Excel up to 10 MB.',
 };
 
 const es: TicketCopy = {
@@ -87,7 +123,7 @@ const es: TicketCopy = {
   rootSubtitle: 'Crea, revisa y administra reportes de Root y de todas las cuentas distribuidoras.',
   newTicket: 'Nuevo ticket', filters: 'Filtros de tickets', filterSubtitle: 'Encuentra reportes por folio, título, módulo o distribuidor.',
   search: 'Buscar', searchPlaceholder: 'Folio, título, módulo o distribuidor', status: 'Estado', type: 'Tipo', all: 'Todos', active: 'Folios abiertos',
-  open: 'Abierto', inReview: 'En revisión', planned: 'Planeado', resolved: 'Resuelto', closed: 'Cerrado', failure: 'Falla', improvement: 'Mejora',
+  open: 'Abierto', inReview: 'En revisión', waitingOnReporter: 'Esperando respuesta', planned: 'Planeado', resolved: 'Resuelto', closed: 'Cerrado', failure: 'Falla', improvement: 'Mejora',
   total: 'Reportes totales', completed: 'Completados', folio: 'Folio', report: 'Reporte', distributor: 'Distribuidor', priority: 'Prioridad', module: 'Módulo',
   reportedBy: 'Reportado por', updated: 'Última actualización', actions: 'Acciones', view: 'Ver ticket', noTickets: 'No hay tickets con estos filtros.',
   noTicketsHelp: 'Crea el primer reporte o ajusta los filtros.', loading: 'Cargando tickets de sistema…', retry: 'Reintentar',
@@ -97,7 +133,13 @@ const es: TicketCopy = {
   priorityLow: 'Baja', priorityMedium: 'Media', priorityHigh: 'Alta', priorityCritical: 'Crítica', cancel: 'Cancelar', create: 'Crear ticket', creating: 'Creando…',
   createdMessage: 'Ticket creado correctamente.', detailTitle: 'Detalle del ticket', rootResponse: 'Respuesta de Root',
   rootResponsePlaceholder: 'Comparte avances, la solución o el siguiente paso con el distribuidor.', save: 'Guardar cambios', saving: 'Guardando…', close: 'Cerrar',
-  createdAt: 'Creado', reporter: 'Reportante', itemLabel: 'tickets',
+  createdAt: 'Creado', reporter: 'Reportante', itemLabel: 'tickets', assignee: 'Responsable', unassigned: 'Sin asignar', overdue: 'Vencidos',
+  critical: 'Críticos', resolvedToday: 'Resueltos hoy', target: 'Meta de atención', takeTicket: 'Tomar ticket', attend: 'Atender',
+  conversation: 'Conversación', internalNote: 'Nota interna', sendMessage: 'Enviar mensaje', messagePlaceholder: 'Escribe un avance o solicita más información…',
+  evidence: 'Evidencias', addEvidence: 'Agregar evidencia', activity: 'Actividad', noActivity: 'No hay actividad registrada.', sla: 'Indicadores de servicio',
+  firstResponse: 'Primera respuesta', resolutionTime: 'Tiempo de resolución', compliance: 'Cumplimiento de meta', allAssignees: 'Todos los responsables',
+  allModules: 'Todos los módulos', allDistributors: 'Todos los distribuidores', onlyOverdue: 'Solo vencidos', from: 'Desde', to: 'Hasta', clearFilters: 'Limpiar filtros',
+  noAssignee: 'Sin responsable', uploadHelp: 'PNG, JPG, PDF, Word o Excel de hasta 10 MB.',
 };
 
 const fr: TicketCopy = {

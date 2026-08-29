@@ -47,7 +47,7 @@ public class ConsultingAppointmentService {
         JdbcTemplate jdbcTemplate,
         ConsultingAppointmentEmailService emailService,
         Clock clock,
-        @Value("${app.consulting.additional-session-amount-cents:8900}") long additionalSessionAmountCents
+        @Value("${app.consulting.additional-session-amount-cents:7900}") long additionalSessionAmountCents
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.emailService = emailService;
@@ -117,13 +117,9 @@ public class ConsultingAppointmentService {
         var included = includedSessionAvailable(user.companyId());
         var sessionKind = included ? "INCLUDED" : "ADDITIONAL";
         var status = "REQUESTED";
-        var paymentStatus = "IN_PERSON".equals(mode)
-            ? "QUOTE_PENDING"
-            : included ? "INCLUDED" : "PENDING";
-        Long amount = "IN_PERSON".equals(mode)
-            ? location.feeCents()
-            : included ? null : additionalSessionAmountCents;
-        var currency = location == null ? "USD" : location.currency();
+        var paymentStatus = included ? "INCLUDED" : "PENDING";
+        Long amount = included ? null : additionalSessionAmountCents;
+        var currency = "USD";
         var companyName = companyName(user.companyId());
         var serviceLocationCode = location == null ? null : location.code();
         var serviceLocationName = location == null ? null : location.displayName();

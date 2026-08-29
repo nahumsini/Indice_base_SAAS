@@ -25,7 +25,7 @@ export function CompanyStep({
   lockedAccountType,
 }: CompanyStepProps) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+    <section className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800 sm:p-5">
       <AccountStepTitle
         number="1"
         icon={Building2}
@@ -74,7 +74,7 @@ export function CompanyStep({
                   .value as PlatformAccountCreatePayload["account_type"],
               })
             }
-            className={`${accountControlClass} disabled:cursor-not-allowed disabled:bg-blue-50 disabled:text-blue-800`}
+            className={`${accountControlClass} disabled:cursor-not-allowed disabled:bg-[#59C3A5]/10 disabled:text-[#176B5B]`}
           >
             <option value="SUPER_ADMIN">{copy.company.superAdmin}</option>
             <option value="DISTRIBUTOR">{copy.company.distributor}</option>

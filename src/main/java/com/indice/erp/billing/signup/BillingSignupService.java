@@ -105,7 +105,9 @@ public class BillingSignupService {
             );
 
         var extraSeats = request.extraSeats() == null ? 0 : request.extraSeats();
-        var selection = offerSelectionService.select(request.selectedProductCodes(), request.billingInterval(), extraSeats);
+        var selection = offerSelectionService.select(
+            request.selectedProductCodes(), request.billingInterval(), extraSeats, request.promotionCode()
+        );
         var normalizedRequest = normalizedRequest(
             request,
             selection.billingInterval().name(),
@@ -150,21 +152,11 @@ public class BillingSignupService {
             if (properties.getSuccessUrl().isBlank() || properties.getCancelUrl().isBlank()) {
                 throw new IllegalStateException("Stripe checkout success and cancel URLs are required.");
             }
-            var basePriceId = requirePriceId(selection.baseExternalPriceId(), spec.offerCode(), spec.billingInterval());
             var lineItems = new ArrayList<StripeCheckoutGateway.LineItem>();
-            lineItems.add(new StripeCheckoutGateway.LineItem(basePriceId, 1));
-            if (spec.extraSeats() > 0) {
-                lineItems.add(new StripeCheckoutGateway.LineItem(
-                    requirePriceId(selection.extraSeatExternalPriceId(), "extra_seat", spec.billingInterval()),
-                    spec.extraSeats()
-                ));
-            }
-            selection.products().stream()
-                .filter(CommercialOfferSelection.Product::complementary)
-                .forEach(product -> lineItems.add(new StripeCheckoutGateway.LineItem(
-                    requirePriceId(product.externalPriceId(), product.code(), spec.billingInterval()),
-                    1
-                )));
+            selection.lineItems().forEach(line -> lineItems.add(new StripeCheckoutGateway.LineItem(
+                requirePriceId(line.externalPriceId(), line.billableCode(), spec.billingInterval()),
+                line.quantity()
+            )));
 
             var customerId = intent.stripeCustomerId();
             if (customerId == null || customerId.isBlank()) {
@@ -204,7 +196,8 @@ public class BillingSignupService {
                     30,
                     requestedExpiry,
                     List.copyOf(lineItems),
-                    Map.copyOf(metadata)
+                    Map.copyOf(metadata),
+                    selection.externalPromotionCodeId()
                 ),
                 "indice-signup-checkout-" + intent.id()
             );
@@ -306,7 +299,8 @@ public class BillingSignupService {
             normalizedBillingInterval,
             request.extraSeats() == null ? 0 : request.extraSeats(),
             sortedProducts,
-            courtesyCodeHash
+            courtesyCodeHash,
+            blank(request.promotionCode()).toUpperCase(Locale.ROOT)
         );
     }
 
@@ -334,7 +328,8 @@ public class BillingSignupService {
         String billingInterval,
         int extraSeats,
         List<String> selectedProductCodes,
-        String courtesyCodeHash
+        String courtesyCodeHash,
+        String promotionCode
     ) {
     }
 

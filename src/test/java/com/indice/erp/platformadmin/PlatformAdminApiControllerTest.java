@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -59,6 +60,9 @@ class PlatformAdminApiControllerTest {
 
     @MockBean
     private PlatformCatalogManagementService catalogManagement;
+
+    @MockBean
+    private PlatformCatalogStripeSynchronizationService catalogStripeSynchronization;
 
     @MockBean
     private PlatformModuleWorkOrderService moduleWorkOrders;
@@ -173,6 +177,32 @@ class PlatformAdminApiControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.status").value("ACTIVE"))
             .andExpect(jsonPath("$.published").value(true));
+    }
+
+    @Test
+    void platformRootCanSynchronizeCatalogPricesWithStripeTest() throws Exception {
+        var platformRoot = new AuthSessionUser(99L, 7L, "Platform Root", "root");
+        given(auth.currentUser(any())).willReturn(Optional.of(platformRoot));
+        given(catalogStripeSynchronization.synchronize(eq(99L), eq(41L), any())).willReturn(Map.of(
+            "catalog_product_id", 41L,
+            "stripe_product_id", "prod_test_41",
+            "stripe_mode", "TEST",
+            "currency", "USD",
+            "tax_behavior", "EXCLUSIVE",
+            "tax_code", "txcd_10103001",
+            "automatic_tax_enabled", true,
+            "monthly", Map.of("external_price_id", "price_month_test"),
+            "annual", Map.of("external_price_id", "price_year_test")
+        ));
+
+        mockMvc.perform(post("/api/v1/platform-admin/catalog/products/41/stripe-prices/synchronize")
+                .header("X-CSRF-Token", "csrf-test")
+                .contentType(APPLICATION_JSON)
+                .content("{\"monthly_amount_cents\":7900,\"annual_amount_cents\":80500}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.stripe_mode").value("TEST"))
+            .andExpect(jsonPath("$.tax_behavior").value("EXCLUSIVE"))
+            .andExpect(jsonPath("$.monthly.external_price_id").value("price_month_test"));
     }
 
     @Test
@@ -607,5 +637,56 @@ class PlatformAdminApiControllerTest {
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.status").value("CONFIRMED"))
             .andExpect(jsonPath("$.consultant_name").value("Andrea Ruiz"));
+    }
+
+    @Test
+    void platformRootCanReadAndUpdateConsultantAvailability() throws Exception {
+        var platformRoot = new AuthSessionUser(99L, 7L, "Platform Root", "root");
+        given(auth.currentUser(any())).willReturn(Optional.of(platformRoot));
+        given(consulting.consultantAvailability(99L, "andrea@example.com")).willReturn(Map.of(
+            "consultantEmail", "andrea@example.com",
+            "consultantName", "Andrea Ruiz",
+            "timezone", "America/Monterrey",
+            "configured", true,
+            "days", List.of(Map.of(
+                "dayOfWeek", 1,
+                "enabled", true,
+                "startTime", "09:00",
+                "endTime", "17:00"
+            ))
+        ));
+        given(consulting.updateConsultantAvailability(eq(99L), any())).willReturn(Map.of(
+            "consultantEmail", "andrea@example.com",
+            "consultantName", "Andrea Ruiz",
+            "timezone", "America/Monterrey",
+            "configured", true,
+            "days", List.of()
+        ));
+
+        mockMvc.perform(get("/api/v1/platform-admin/consulting/availability")
+                .param("consultantEmail", "andrea@example.com"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.consultantEmail").value("andrea@example.com"));
+
+        mockMvc.perform(put("/api/v1/platform-admin/consulting/availability")
+                .header("X-CSRF-Token", "csrf-test")
+                .contentType(APPLICATION_JSON)
+                .content("""
+                    {
+                      "consultantEmail": "andrea@example.com",
+                      "timezone": "America/Monterrey",
+                      "days": [
+                        {"dayOfWeek": 1, "enabled": true, "startTime": "09:00", "endTime": "17:00"},
+                        {"dayOfWeek": 2, "enabled": true, "startTime": "09:00", "endTime": "17:00"},
+                        {"dayOfWeek": 3, "enabled": true, "startTime": "09:00", "endTime": "17:00"},
+                        {"dayOfWeek": 4, "enabled": true, "startTime": "09:00", "endTime": "17:00"},
+                        {"dayOfWeek": 5, "enabled": true, "startTime": "09:00", "endTime": "17:00"},
+                        {"dayOfWeek": 6, "enabled": false, "startTime": "", "endTime": ""},
+                        {"dayOfWeek": 7, "enabled": false, "startTime": "", "endTime": ""}
+                      ]
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.configured").value(true));
     }
 }

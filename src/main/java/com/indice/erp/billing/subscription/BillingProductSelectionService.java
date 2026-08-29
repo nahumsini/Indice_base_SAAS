@@ -61,7 +61,10 @@ public class BillingProductSelectionService {
         var selectedCodes = selectedCodes(companyId, state);
         var interval = state == null ? "MONTH" : state.billingInterval();
         var extraSeats = state == null ? purchasedExtraSeats(companyId) : state.extraSeats();
-        CommercialOfferSelection selection = selectedCodes.isEmpty()
+        var historicalCatalog = state != null
+            && state.catalogVersionId() != null
+            && !state.catalogVersionId().equals(activeCatalogVersionId());
+        CommercialOfferSelection selection = selectedCodes.isEmpty() || historicalCatalog
             ? null
             : offers.select(selectedCodes, interval, extraSeats);
         return response(companyId, state, selection, selectedCodes, false);
@@ -72,7 +75,10 @@ public class BillingProductSelectionService {
         var interval = interval(request, state);
         requireStableActiveInterval(state, interval);
         var extraSeats = requestedExtraSeats(request, state, companyId);
-        var selection = offers.select(request == null ? null : request.product_codes(), interval, extraSeats);
+        var selection = offers.select(
+            request == null ? null : request.product_codes(), interval, extraSeats,
+            request == null ? null : request.promotion_code()
+        );
         return response(companyId, state, selection, selection.products().stream().map(CommercialOfferSelection.Product::code).toList(), false);
     }
 
@@ -87,7 +93,10 @@ public class BillingProductSelectionService {
         var interval = interval(request, state);
         requireStableActiveInterval(state, interval);
         var extraSeats = requestedExtraSeats(request, state, companyId);
-        var selection = offers.select(request == null ? null : request.product_codes(), interval, extraSeats);
+        var selection = offers.select(
+            request == null ? null : request.product_codes(), interval, extraSeats,
+            request == null ? null : request.promotion_code()
+        );
         validateCapacity(companyId, selection);
         var oldProductIds = selectedProductIds(companyId, state);
         var selectedProductIds = selection.products().stream().map(CommercialOfferSelection.Product::id).toList();
@@ -131,6 +140,9 @@ public class BillingProductSelectionService {
     private boolean updateStripe(SubscriptionState state, CommercialOfferSelection selection, String idempotencyKey) {
         if (!Set.of("TRIALING", "ACTIVE", "PAST_DUE").contains(state.status())) {
             throw new IllegalStateException("La suscripción no permite modificar módulos en su estado actual.");
+        }
+        if (selection.lineItems().stream().noneMatch(line -> "BASE".equals(line.itemType()))) {
+            return updateVersionedStripeOffer(state, selection, idempotencyKey);
         }
         var basePriceId = resolvedPriceId(
             selection.baseExternalPriceId(), selection.offerCode(), selection.billingInterval().name()
@@ -204,6 +216,104 @@ public class BillingProductSelectionService {
         }
     }
 
+    private boolean updateVersionedStripeOffer(
+        SubscriptionState state,
+        CommercialOfferSelection selection,
+        String idempotencyKey
+    ) {
+        var desired = new LinkedHashMap<String, CommercialOfferSelection.LineItem>();
+        for (var line : selection.lineItems()) {
+            if (!validStripePrice(line.externalPriceId())) {
+                throw new IllegalStateException("Los precios de Stripe para esta selección aún no están configurados.");
+            }
+            desired.put(line.billableCode(), line);
+        }
+        try {
+            var stripeSubscription = stripeGateway.retrieveSubscription(state.stripeSubscriptionId());
+            var items = stripeSubscription.getItems() == null ? List.<SubscriptionItem>of() : stripeSubscription.getItems().getData();
+            var codeByPrice = allCommercialPriceIds();
+            var existing = new LinkedHashMap<String, SubscriptionItem>();
+            for (var item : items) {
+                if (item.getPrice() == null || item.getPrice().getId() == null) continue;
+                var code = codeByPrice.get(item.getPrice().getId());
+                if (code != null) existing.put(code, item);
+            }
+            var mutations = new ArrayList<Map<String, Object>>();
+            for (var line : desired.values()) {
+                var current = existing.remove(line.billableCode());
+                if (current == null) {
+                    mutations.add(Map.of("price", line.externalPriceId(), "quantity", line.quantity()));
+                } else {
+                    mutations.add(Map.of(
+                        "id", current.getId(), "price", line.externalPriceId(), "quantity", line.quantity()
+                    ));
+                }
+            }
+            existing.values().forEach(item -> mutations.add(Map.of("id", item.getId(), "deleted", true)));
+            var parameters = new LinkedHashMap<String, Object>();
+            parameters.put("items", mutations);
+            parameters.put("proration_behavior", "none");
+            var metadata = new LinkedHashMap<String, Object>();
+            metadata.put("indice_offer_code", selection.offerCode());
+            metadata.put(
+                "indice_product_codes",
+                String.join(",", selection.products().stream().map(CommercialOfferSelection.Product::code).toList())
+            );
+            metadata.put("indice_change_timing", timing(state));
+            if (selection.externalPromotionCodeId() != null && !selection.externalPromotionCodeId().isBlank()) {
+                metadata.put("indice_promotion_code", selection.promotionCode());
+                parameters.put("discounts", List.of(Map.of("promotion_code", selection.externalPromotionCodeId())));
+            } else {
+                parameters.put("discounts", List.of());
+            }
+            parameters.put("metadata", metadata);
+            var updated = stripeGateway.updateSubscription(
+                state.stripeSubscriptionId(), parameters,
+                "indice.billing.selection." + state.companyId() + "." + idempotencyKey
+            );
+            synchronizeVersionedStripeItems(
+                state, selection, updated.getItems() == null ? List.of() : updated.getItems().getData()
+            );
+            return false;
+        } catch (StripeException exception) {
+            throw new IllegalStateException("Stripe no pudo actualizar la selección comercial.", exception);
+        }
+    }
+
+    private void synchronizeVersionedStripeItems(
+        SubscriptionState state,
+        CommercialOfferSelection selection,
+        List<SubscriptionItem> items
+    ) {
+        jdbcTemplate.update(
+            "DELETE FROM company_billing_subscription_items WHERE subscription_id = ? AND item_type <> 'STORAGE'",
+            state.id()
+        );
+        var lineByPrice = new LinkedHashMap<String, CommercialOfferSelection.LineItem>();
+        selection.lineItems().forEach(line -> lineByPrice.put(line.externalPriceId(), line));
+        for (var item : items) {
+            if (item.getPrice() == null) continue;
+            var line = lineByPrice.get(item.getPrice().getId());
+            if (line == null) continue;
+            jdbcTemplate.update(
+                "INSERT INTO company_billing_subscription_items (subscription_id, item_type, catalog_product_id, billable_code, billing_interval, external_price_id, stripe_subscription_item_id, quantity, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE')",
+                state.id(), "SEAT".equals(line.itemType()) ? "SEAT" : "PRODUCT", line.productId(),
+                line.billableCode(), selection.billingInterval().name(), line.externalPriceId(), item.getId(),
+                item.getQuantity() == null ? line.quantity() : item.getQuantity().intValue()
+            );
+        }
+    }
+
+    private Map<String, String> allCommercialPriceIds() {
+        var rows = jdbcTemplate.query(
+            "SELECT external_price_id, billable_code FROM billing_catalog_prices WHERE price_type IN ('BASE', 'ADDON', 'PRODUCT', 'PACKAGE', 'SEAT') AND external_price_id IS NOT NULL",
+            (rs, rowNum) -> Map.entry(rs.getString(1), rs.getString(2))
+        );
+        var result = new LinkedHashMap<String, String>();
+        rows.forEach(entry -> result.put(entry.getKey(), entry.getValue()));
+        return result;
+    }
+
     private void synchronizeStripeItems(
         SubscriptionState state,
         CommercialOfferSelection selection,
@@ -248,11 +358,14 @@ public class BillingProductSelectionService {
 
     private void replaceSubscriptionSelection(SubscriptionState state, CommercialOfferSelection selection) {
         jdbcTemplate.update(
-            "UPDATE company_billing_subscriptions SET catalog_version_id = ?, offer_code = ?, billing_interval = ?, extra_seats = ? WHERE id = ?",
+            "UPDATE company_billing_subscriptions SET catalog_version_id = ?, offer_code = ?, billing_interval = ?, extra_seats = ?, subtotal_amount_cents = ?, discount_amount_cents = ?, promotion_code = ? WHERE id = ?",
             selection.catalogVersionId(),
             selection.offerCode(),
             selection.billingInterval().name(),
             selection.extraSeats(),
+            selection.subtotalAmountCents(),
+            selection.discountAmountCents(),
+            selection.promotionCode(),
             state.id()
         );
         jdbcTemplate.update("DELETE FROM company_billing_subscription_products WHERE subscription_id = ?", state.id());
@@ -338,8 +451,10 @@ public class BillingProductSelectionService {
         return new BillingSelectionResponse(
             source,
             status,
-            selection == null ? activeCatalogVersion() : selection.catalogVersion(),
-            selection == null ? "" : selection.offerCode(),
+            selection == null
+                ? (state != null && !state.catalogVersion().isBlank() ? state.catalogVersion() : activeCatalogVersion())
+                : selection.catalogVersion(),
+            selection == null ? (state == null ? "" : state.offerCode()) : selection.offerCode(),
             selection == null ? (state == null ? "MONTH" : state.billingInterval()) : selection.billingInterval().name(),
             selection == null ? "USD" : selection.currency(),
             selection == null ? snapshot.included() : selection.includedSeats(),
@@ -349,7 +464,7 @@ public class BillingProductSelectionService {
             selection == null ? null : selection.baseAmountCents(),
             selection == null ? 0 : selection.extraSeatUnitAmountCents(),
             selection == null ? 0 : selection.complementaryAmountCents(),
-            selection == null ? null : selection.estimatedAmountCents(),
+            selection == null ? storedEstimatedAmount(state) : selection.estimatedAmountCents(),
             state == null || state.trialEndsAt() == null ? courtesyEnd(companyId) : state.trialEndsAt().toString(),
             timing(state),
             chargedNow,
@@ -367,19 +482,37 @@ public class BillingProductSelectionService {
             product.code(),
             product.displayName(),
             product.productType(),
+            product.commercialKind(),
             product.unitAmountCents(),
-            !product.complementary() || validStripePrice(product.externalPriceId()),
-            jdbcTemplate.query(
+            validStripePrice(product.externalPriceId()) || (!product.complementary() && product.unitAmountCents() == null),
+            product.capabilities().isEmpty() ? jdbcTemplate.query(
                 "SELECT capability_code FROM billing_product_capabilities WHERE product_id = ? ORDER BY capability_code",
-                (rs, rowNum) -> rs.getString(1),
-                product.id()
-            )
+                (rs, rowNum) -> rs.getString(1), product.id()
+            ) : product.capabilities(),
+            product.includedProductCodes()
         )).toList();
     }
 
     private SubscriptionState state(long companyId) {
         return jdbcTemplate.query(
-            "SELECT id, company_id, stripe_subscription_id, stripe_extra_seat_item_id, status, COALESCE(billing_interval, 'MONTH') AS billing_interval, COALESCE(extra_seats, 0) AS extra_seats, signup_intent_id, trial_starts_at, trial_ends_at FROM company_billing_subscriptions WHERE company_id = ? ORDER BY last_event_created_at DESC, id DESC LIMIT 1",
+            """
+                SELECT subscription.id, subscription.company_id, subscription.stripe_subscription_id,
+                       subscription.stripe_extra_seat_item_id, subscription.status,
+                       COALESCE(subscription.billing_interval, 'MONTH') AS billing_interval,
+                       COALESCE(subscription.extra_seats, 0) AS extra_seats,
+                       subscription.signup_intent_id, subscription.trial_starts_at,
+                       subscription.trial_ends_at, subscription.catalog_version_id,
+                       COALESCE(version_row.version_code, '') AS catalog_version,
+                       COALESCE(subscription.offer_code, '') AS offer_code,
+                       subscription.subtotal_amount_cents,
+                       COALESCE(subscription.discount_amount_cents, 0) AS discount_amount_cents
+                FROM company_billing_subscriptions subscription
+                LEFT JOIN billing_catalog_versions version_row
+                  ON version_row.id = subscription.catalog_version_id
+                WHERE subscription.company_id = ?
+                ORDER BY subscription.last_event_created_at DESC, subscription.id DESC
+                LIMIT 1
+                """,
             (rs, rowNum) -> new SubscriptionState(
                 rs.getLong("id"),
                 rs.getLong("company_id"),
@@ -390,7 +523,12 @@ public class BillingProductSelectionService {
                 rs.getInt("extra_seats"),
                 (Long) rs.getObject("signup_intent_id"),
                 instant(rs.getTimestamp("trial_starts_at")),
-                instant(rs.getTimestamp("trial_ends_at"))
+                instant(rs.getTimestamp("trial_ends_at")),
+                (Long) rs.getObject("catalog_version_id"),
+                text(rs.getString("catalog_version")),
+                text(rs.getString("offer_code")),
+                (Long) rs.getObject("subtotal_amount_cents"),
+                rs.getLong("discount_amount_cents")
             ),
             companyId
         ).stream().findFirst().orElse(null);
@@ -480,6 +618,18 @@ public class BillingProductSelectionService {
         ).stream().findFirst().orElse("");
     }
 
+    private Long activeCatalogVersionId() {
+        return jdbcTemplate.query(
+            "SELECT id FROM billing_catalog_versions WHERE status = 'ACTIVE' ORDER BY effective_from DESC, id DESC LIMIT 1",
+            (rs, rowNum) -> rs.getLong(1)
+        ).stream().findFirst().orElse(null);
+    }
+
+    private Long storedEstimatedAmount(SubscriptionState state) {
+        if (state == null || state.subtotalAmountCents() == null) return null;
+        return Math.max(0, state.subtotalAmountCents() - state.discountAmountCents());
+    }
+
     private String timing(SubscriptionState state) {
         if (state == null || !state.stripeManaged()) return "PAYMENT_METHOD_REQUIRED";
         return "TRIALING".equals(state.status()) ? "TRIAL_END" : "NEXT_INVOICE";
@@ -555,7 +705,12 @@ public class BillingProductSelectionService {
         int extraSeats,
         Long signupIntentId,
         Instant trialStartsAt,
-        Instant trialEndsAt
+        Instant trialEndsAt,
+        Long catalogVersionId,
+        String catalogVersion,
+        String offerCode,
+        Long subtotalAmountCents,
+        long discountAmountCents
     ) {
         boolean stripeManaged() {
             return stripeSubscriptionId != null

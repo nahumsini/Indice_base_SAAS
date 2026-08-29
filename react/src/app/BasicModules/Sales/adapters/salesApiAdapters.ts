@@ -3,6 +3,7 @@ import type {
   SalesCatalogItem,
   SalesContact,
   SalesOpportunity,
+  OpportunityFlowStage,
   SalesPostSaleCase,
   SalesQuote,
   SalesQuoteItem,
@@ -145,6 +146,30 @@ const toApiToken = (value: unknown) => {
   return apiValueMap[raw] ?? raw.trim().toLowerCase().replace(/[\s-]+/g, '_');
 };
 
+export const toFrontendOpportunityStageKey = (value: unknown) => apiLabel(value, 'New');
+export const toBackendOpportunityStageKey = (value: unknown) => toApiToken(value);
+
+export function toFrontendOpportunityFlowStage(
+  row: {
+    key: string;
+    label: string;
+    type: OpportunityFlowStage['type'];
+    colorToken: OpportunityFlowStage['colorToken'];
+    defaultProbabilityPercent: number;
+    position: number;
+    required: boolean;
+    opportunityCount: number;
+  },
+  factory: boolean,
+): OpportunityFlowStage {
+  const key = toFrontendOpportunityStageKey(row.key);
+  return {
+    ...row,
+    key,
+    usesDefaultLabel: factory && Object.prototype.hasOwnProperty.call(valueMap, row.key),
+  };
+}
+
 const backendIdFrom = (item?: EntityWithBackendId | null) => {
   if (!item) return undefined;
   return item.backendId ?? toOptionalNumber(item.id);
@@ -276,7 +301,11 @@ export function toFrontendOpportunity(row: ApiRow): SalesOpportunity {
     phone: toStringValue(row.phone),
     email: toStringValue(row.email),
     source: apiLabel(row.source, 'Manual') as SalesOpportunity['source'],
-    stage: apiLabel(row.stage, 'New') as SalesOpportunity['stage'],
+    flowId: toOptionalNumber(row.flowId),
+    stage: toFrontendOpportunityStageKey(row.stage) as SalesOpportunity['stage'],
+    lifecycleStatus: ['OPEN', 'WON', 'LOST'].includes(toStringValue(row.lifecycleStatus).toUpperCase())
+      ? toStringValue(row.lifecycleStatus).toUpperCase() as SalesOpportunity['lifecycleStatus']
+      : undefined,
     temperature: apiLabel(row.temperature, 'Warm') as SalesOpportunity['temperature'],
     ownerUserCompanyId: toOptionalNumber(row.ownerUserCompanyId) ?? null,
     owner: toStringValue(row.ownerName),
@@ -306,6 +335,7 @@ export function toBackendOpportunity(opportunity: Partial<SalesOpportunity>, con
     phone: opportunity.phone,
     email: opportunity.email,
     source: toApiToken(opportunity.source),
+    flowId: opportunity.flowId,
     stage: toApiToken(opportunity.stage),
     temperature: toApiToken(opportunity.temperature),
     status: toApiToken(opportunity.status),

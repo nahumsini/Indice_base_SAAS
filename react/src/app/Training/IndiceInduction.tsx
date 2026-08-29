@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import {
+  ArrowLeft,
+  ArrowRight,
   BarChart3,
   Boxes,
   Building2,
@@ -6,7 +9,6 @@ import {
   CircleDollarSign,
   ClipboardList,
   Landmark,
-  Lightbulb,
   PackageSearch,
   ReceiptText,
   ShoppingCart,
@@ -130,41 +132,156 @@ const modules = [
   },
 ];
 
+const operatingJourney = [
+  { title: 'Definir estructura', text: 'Configura empresa, unidades, usuarios, puestos y permisos.' },
+  { title: 'Asignar responsables', text: 'Cada actividad tiene una persona, una fecha y una expectativa clara.' },
+  { title: 'Ejecutar procesos', text: 'El equipo trabaja con tareas, evidencias y seguimiento visible.' },
+  { title: 'Vender o entregar', text: 'La operación comercial conecta clientes, productos y compromisos.' },
+  { title: 'Registrar movimientos', text: 'Ventas, gastos, inventario y efectivo dejan evidencia.' },
+  { title: 'Medir resultados', text: 'Los datos operativos se convierten en indicadores y alertas.' },
+  { title: 'Mejorar', text: 'El dueño decide con contexto y el consultor acompaña el cambio.' },
+];
+
+const painScenarios = [
+  {
+    pain: '“Siento que se pierde dinero en efectivo”',
+    diagnosis: 'Falta trazabilidad de fondos, responsables, comprobantes y cortes.',
+    module: 'Caja Chica',
+    pillar: 'Finanzas',
+    result: 'Cada movimiento queda asociado a una persona, evidencia y estado.',
+  },
+  {
+    pain: '“Mi personal llega cuando quiere”',
+    diagnosis: 'No existe una lectura confiable de horarios, asistencia e incidencias.',
+    module: 'Recursos Humanos',
+    pillar: 'Personas',
+    result: 'La empresa obtiene registros, reglas y seguimiento sobre su equipo.',
+  },
+  {
+    pain: '“Todo depende de que yo recuerde las cosas”',
+    diagnosis: 'El conocimiento está en mensajes y personas, no en un proceso repetible.',
+    module: 'Procesos y Tareas',
+    pillar: 'Procesos',
+    result: 'El trabajo se asigna, ejecuta, comprueba y mejora sin depender del fundador.',
+  },
+  {
+    pain: '“Tenemos prospectos, pero nadie les da seguimiento”',
+    diagnosis: 'No hay responsables, etapas ni siguiente acción comercial visible.',
+    module: 'Ventas y CRM',
+    pillar: 'Productos',
+    result: 'Cada oportunidad conserva contexto, responsable y próximo paso.',
+  },
+  {
+    pain: '“El inventario nunca coincide”',
+    diagnosis: 'Las compras, ventas y movimientos de almacén están desconectados.',
+    module: 'Inventarios',
+    pillar: 'Productos',
+    result: 'La existencia se explica mediante movimientos y responsables verificables.',
+  },
+];
+
+const knowledgeOptions = [
+  { label: 'Mostrar todos los módulos para impresionar al cliente.', correct: false, feedback: 'Satura la conversación y convierte la sesión en un catálogo sin contexto.' },
+  { label: 'Diagnosticar el dolor y demostrar solo el recorrido que genera valor.', correct: true, feedback: 'Correcto. Primero se entiende la empresa; después se conectan dolor, pilar, módulo y resultado.' },
+  { label: 'Ofrecer un descuento antes de conocer la operación.', correct: false, feedback: 'El precio no sustituye el diagnóstico. Primero debe construirse valor.' },
+];
+
 export function IndiceInduction() {
+  const [activePillar, setActivePillar] = useState(0);
+  const [activeJourneyStep, setActiveJourneyStep] = useState(0);
+  const [activeCountry, setActiveCountry] = useState(0);
+  const [activeScenario, setActiveScenario] = useState(0);
+  const [activeModule, setActiveModule] = useState(0);
+  const [knowledgeAnswer, setKnowledgeAnswer] = useState<number | null>(null);
+
+  const selectedPillar = pillars[activePillar];
+  const SelectedPillarIcon = selectedPillar.icon;
+  const selectedMarket = countries[activeCountry];
+  const selectedScenario = painScenarios[activeScenario];
+  const selectedModule = modules[activeModule];
+  const SelectedModuleIcon = selectedModule.icon;
+
   return (
     <div className="space-y-6" data-training-view="induction">
-      <section className="overflow-hidden rounded-3xl border border-blue-100 bg-slate-950 text-white shadow-sm">
-        <div className="grid gap-8 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,.42),transparent_36%),radial-gradient(circle_at_bottom_left,rgba(89,195,165,.25),transparent_34%)] p-7 lg:grid-cols-[1.2fr_.8fr] lg:p-10">
-          <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">Curso de inducción para distribuidores y vendedores</p><h2 className="mt-3 text-3xl font-semibold leading-tight lg:text-4xl">Entender Índice antes de vender Índice</h2><p className="mt-4 max-w-3xl text-base leading-7 text-slate-300">Índice es un sistema operativo empresarial que conecta personas, procesos, productos y finanzas. Su propósito es dar claridad sobre lo que ocurre, ordenar la ejecución y convertir la actividad diaria en mejores decisiones.</p></div>
-          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-            {[['Visibilidad', 'Entender qué está pasando.'], ['Control', 'Asignar, ejecutar y comprobar.'], ['Decisión', 'Actuar con información y contexto.']].map(([title, text]) => <div key={title} className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur"><p className="font-semibold">{title}</p><p className="mt-1 text-sm text-slate-300">{text}</p></div>)}
+      <section className="overflow-hidden rounded-xl border border-[#59C3A5]/25 bg-white dark:border-[#59C3A5]/30 dark:bg-slate-900">
+        <div className="grid lg:grid-cols-[1.15fr_.85fr]">
+          <div className="p-6 lg:p-8">
+            <div className="flex items-center gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#59C3A5]/15 text-[#177D66] dark:text-[#8FE0CA]"><Sparkles className="h-5 w-5" /></span><div><p className="text-xs font-medium text-[#177D66] dark:text-[#8FE0CA]">Inducción interactiva</p><p className="text-xs text-slate-500 dark:text-slate-400">Aprende · relaciona · comprueba</p></div></div>
+            <h2 className="mt-5 max-w-3xl text-3xl font-medium leading-tight text-slate-950 dark:text-white">Entender Índice antes de vender Índice</h2>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">No memorices un catálogo. Aprende a reconocer el problema empresarial, conectarlo con los cuatro pilares y demostrar un resultado concreto.</p>
+            <div className="mt-6 flex flex-wrap gap-2">{['Visibilidad', 'Control', 'Decisión'].map((item, index) => <span key={item} className="inline-flex items-center gap-2 rounded-full border border-[#59C3A5]/25 bg-[#59C3A5]/5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200"><span className="grid h-5 w-5 place-items-center rounded-full bg-[#177D66] text-[10px] text-white">{index + 1}</span>{item}</span>)}</div>
+          </div>
+          <div className="border-t border-[#59C3A5]/20 bg-[#59C3A5]/8 p-6 dark:bg-[#59C3A5]/10 lg:border-l lg:border-t-0">
+            <p className="text-xs font-medium text-[#177D66] dark:text-[#8FE0CA]">La explicación en 20 segundos</p>
+            <blockquote className="mt-3 text-lg leading-7 text-slate-900 dark:text-white">“Índice conecta personas, procesos, productos y finanzas para que una empresa pueda ver lo que ocurre, controlar su operación y decidir con información.”</blockquote>
+            <div className="mt-5 rounded-xl border border-white/70 bg-white/80 p-4 text-sm leading-6 text-slate-600 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-300"><span className="font-medium text-slate-900 dark:text-white">Regla del distribuidor:</span> si la explicación comienza enumerando módulos, todavía no está comunicando el valor de Índice.</div>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-[.8fr_1.2fr]">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-blue-50 text-blue-600"><Lightbulb className="h-5 w-5" /></span><h3 className="mt-4 text-xl font-semibold text-slate-950">¿Qué problema resuelve?</h3><p className="mt-3 text-sm leading-6 text-slate-600">Las empresas suelen crecer con información dispersa, tareas por mensajes, autorizaciones verbales y reportes que llegan tarde. Índice reúne la estructura, la ejecución y los resultados para que el dueño y su equipo trabajen con una misma versión de la operación.</p><div className="mt-5 rounded-2xl bg-blue-50 p-4 text-sm leading-6 text-blue-900"><strong>La herramienta no sustituye la gestión.</strong> La vuelve visible, ordenada y medible, mientras la red de consultores acompaña al cliente para convertirla en hábitos de operación.</div></div>
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">La propuesta completa</p><div className="mt-4 grid gap-3 sm:grid-cols-2">{[
-          ['Tecnología sencilla', 'Módulos conectados para ejecutar el trabajo cotidiano.'],
-          ['Metodología empresarial', 'Un marco común de personas, procesos, productos y finanzas.'],
-          ['Acompañamiento humano', 'Distribuidores y consultores cercanos durante la adopción.'],
-          ['Relación de largo plazo', 'Mejora continua conforme cambia y crece la empresa.'],
-        ].map(([title, text]) => <div key={title} className="rounded-2xl border border-slate-100 bg-slate-50 p-4"><CheckCircle2 className="h-5 w-5 text-emerald-500" /><p className="mt-3 font-semibold text-slate-900">{title}</p><p className="mt-1 text-sm leading-5 text-slate-600">{text}</p></div>)}</div></div>
+      <InteractiveSection number="01" eyebrow="Metodología Índice" title="Explora los cuatro pilares" description="Selecciona cada pilar y practica las preguntas que ayudan a construir el mapa de la empresa.">
+        <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-1" role="tablist" aria-label="Pilares de Índice">{pillars.map((pillar, index) => { const Icon = pillar.icon; const active = index === activePillar; return <button key={pillar.title} type="button" role="tab" aria-selected={active} onClick={() => setActivePillar(index)} className={`flex min-h-14 items-center gap-3 rounded-xl border p-3 text-left text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5] ${active ? 'border-transparent bg-slate-950 text-white dark:bg-white dark:text-slate-950' : 'border-slate-200 bg-white text-slate-700 hover:border-[#59C3A5] hover:bg-[#59C3A5]/5 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'}`}><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: active ? `${pillar.color}30` : `${pillar.color}18`, color: active ? '#fff' : pillar.color }}><Icon className="h-4 w-4" /></span><span>{pillar.title}</span></button>; })}</div>
+          <article role="tabpanel" className="rounded-xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/60">
+            <div className="flex items-start gap-4"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: `${selectedPillar.color}18`, color: selectedPillar.color }}><SelectedPillarIcon className="h-6 w-6" /></span><div><p className="text-xs font-medium" style={{ color: selectedPillar.color }}>Pilar {activePillar + 1} de 4</p><h4 className="mt-1 text-xl font-medium text-slate-950 dark:text-white">{selectedPillar.title}</h4><p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{selectedPillar.promise}</p></div></div>
+            <div className="mt-5 grid gap-3 md:grid-cols-3">{selectedPillar.questions.map((question) => <div key={question} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"><Target className="h-4 w-4" style={{ color: selectedPillar.color }} /><p className="mt-3 text-sm leading-5 text-slate-700 dark:text-slate-200">{question}</p></div>)}</div>
+            <p className="mt-5 border-t border-slate-200 pt-4 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-300"><span className="font-medium text-slate-900 dark:text-white">Módulos relacionados:</span> {selectedPillar.modules}</p>
+          </article>
+        </div>
+      </InteractiveSection>
+
+      <InteractiveSection number="02" eyebrow="Sistema conectado" title="Sigue el recorrido de la operación" description="Índice no son módulos aislados. Selecciona una etapa para ver cómo la actividad se transforma en una decisión.">
+        <div className="grid gap-2 sm:grid-cols-4 lg:grid-cols-7" role="tablist" aria-label="Recorrido operativo">{operatingJourney.map((step, index) => <button key={step.title} type="button" role="tab" aria-selected={activeJourneyStep === index} onClick={() => setActiveJourneyStep(index)} className={`min-h-20 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${activeJourneyStep === index ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}><span className="text-xs opacity-70">0{index + 1}</span><span className="mt-2 block text-sm font-medium leading-5">{step.title}</span></button>)}</div>
+        <div className="mt-4 flex items-center justify-between gap-4 rounded-xl bg-blue-50 p-4 text-blue-950 dark:bg-blue-950/40 dark:text-blue-100"><div><p className="text-xs font-medium text-blue-700 dark:text-blue-300">Etapa {activeJourneyStep + 1}</p><p className="mt-1 text-sm leading-6">{operatingJourney[activeJourneyStep].text}</p></div><div className="flex shrink-0 gap-2"><IconButton label="Etapa anterior" disabled={activeJourneyStep === 0} onClick={() => setActiveJourneyStep((value) => Math.max(0, value - 1))}><ArrowLeft className="h-4 w-4" /></IconButton><IconButton label="Siguiente etapa" disabled={activeJourneyStep === operatingJourney.length - 1} onClick={() => setActiveJourneyStep((value) => Math.min(operatingJourney.length - 1, value + 1))}><ArrowRight className="h-4 w-4" /></IconButton></div></div>
+      </InteractiveSection>
+
+      <InteractiveSection number="03" eyebrow="Práctica consultiva" title="Convierte un dolor en una solución" description="Elige lo que dice el cliente. La academia te muestra el razonamiento correcto antes de presentar un módulo.">
+        <div className="grid gap-5 lg:grid-cols-[.85fr_1.15fr]">
+          <div className="space-y-2" role="listbox" aria-label="Dolores del cliente">{painScenarios.map((scenario, index) => <button key={scenario.pain} type="button" role="option" aria-selected={activeScenario === index} onClick={() => setActiveScenario(index)} className={`w-full rounded-xl border p-4 text-left text-sm leading-5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5] ${activeScenario === index ? 'border-[#177D66] bg-[#59C3A5]/10 text-slate-950 dark:text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}>{scenario.pain}</button>)}</div>
+          <div className="rounded-xl bg-slate-950 p-5 text-white dark:bg-slate-800">
+            <p className="text-xs font-medium text-[#8FE0CA]">Mapa de razonamiento</p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2"><ReasoningCard label="1. Dolor" value={selectedScenario.pain} /><ReasoningCard label="2. Diagnóstico" value={selectedScenario.diagnosis} /><ReasoningCard label="3. Pilar y módulo" value={`${selectedScenario.pillar} · ${selectedScenario.module}`} /><ReasoningCard label="4. Resultado" value={selectedScenario.result} /></div>
+            <p className="mt-5 border-t border-white/10 pt-4 text-sm leading-6 text-slate-300"><span className="font-medium text-white">Cómo presentarlo:</span> demuestra únicamente las funciones que prueban este resultado. Después confirma con el cliente si resuelven su necesidad.</p>
+          </div>
+        </div>
+      </InteractiveSection>
+
+      <InteractiveSection number="04" eyebrow="Lectura comercial" title="Adapta la conversación al mercado" description="Selecciona un país para revisar una hipótesis comercial. Debe validarse con el cliente y no representa una promesa estadística o regulatoria.">
+        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Mercados">{countries.map((market, index) => <button key={market.country} type="button" role="tab" aria-selected={activeCountry === index} onClick={() => setActiveCountry(index)} className={`rounded-full border px-4 py-2 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5] ${activeCountry === index ? 'border-[#177D66] bg-[#177D66] text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}>{market.flag} {market.country}</button>)}</div>
+        <article className="mt-5 grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/60 lg:grid-cols-[1.1fr_.9fr]">
+          <div><p className="text-xs font-medium text-[#177D66] dark:text-[#8FE0CA]">Oportunidad en {selectedMarket.country}</p><p className="mt-2 text-base leading-7 text-slate-800 dark:text-slate-100">{selectedMarket.opportunity}</p></div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1"><InfoCard label="Conversación" value={selectedMarket.conversation} tone="blue" /><InfoCard label="Puerta de entrada" value={selectedMarket.entry} tone="aqua" /></div>
+        </article>
+      </InteractiveSection>
+
+      <InteractiveSection number="05" eyebrow="Catálogo aplicado" title="Explora los módulos por valor" description="Selecciona un módulo para comprender su propósito, sus funciones esenciales y el cambio que produce en la empresa.">
+        <div className="flex gap-2 overflow-x-auto pb-2" role="tablist" aria-label="Módulos básicos">{modules.map((module, index) => <button key={module.title} type="button" role="tab" aria-selected={activeModule === index} onClick={() => setActiveModule(index)} className={`shrink-0 rounded-full border px-4 py-2 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5] ${activeModule === index ? 'border-slate-950 bg-slate-950 text-white dark:border-white dark:bg-white dark:text-slate-950' : 'border-slate-200 bg-white text-slate-600 hover:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}>{module.title}</button>)}</div>
+        <article className="mt-4 grid gap-5 rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900 lg:grid-cols-[.8fr_1.2fr]">
+          <div className="flex items-start gap-4"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: `${selectedModule.color}18`, color: selectedModule.color }}><SelectedModuleIcon className="h-6 w-6" /></span><div><h4 className="text-xl font-medium text-slate-950 dark:text-white">{selectedModule.title}</h4><p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{selectedModule.purpose}</p><p className="mt-4 rounded-xl bg-[#59C3A5]/10 p-4 text-sm leading-6 text-slate-700 dark:text-slate-200"><span className="font-medium text-[#177D66] dark:text-[#8FE0CA]">Valor para el cliente:</span> {selectedModule.value}</p></div></div>
+          <div className="grid gap-3 sm:grid-cols-2">{selectedModule.functions.map((feature) => <div key={feature} className="flex items-center gap-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-200"><CheckCircle2 className="h-5 w-5 shrink-0 text-[#177D66] dark:text-[#8FE0CA]" />{feature}</div>)}</div>
+        </article>
+      </InteractiveSection>
+
+      <section className="rounded-xl border border-[#59C3A5]/30 bg-[#59C3A5]/10 p-5 dark:bg-[#59C3A5]/10">
+        <div className="grid gap-5 lg:grid-cols-[.8fr_1.2fr]"><div><p className="text-xs font-medium text-[#177D66] dark:text-[#8FE0CA]">Comprobación rápida</p><h3 className="mt-1 text-2xl font-medium text-slate-950 dark:text-white">¿Cómo debe comenzar una demostración?</h3><p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">Selecciona una respuesta para comprobar si comprendiste la lógica consultiva.</p></div><div className="space-y-2">{knowledgeOptions.map((option, index) => { const selected = knowledgeAnswer === index; return <button key={option.label} type="button" onClick={() => setKnowledgeAnswer(index)} className={`w-full rounded-xl border p-4 text-left text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5] ${selected ? option.correct ? 'border-[#177D66] bg-white text-slate-950 dark:bg-slate-900 dark:text-white' : 'border-rose-300 bg-rose-50 text-rose-950 dark:bg-rose-950/30 dark:text-rose-100' : 'border-white/80 bg-white/70 text-slate-700 hover:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200'}`}><span className="flex items-start gap-3"><span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border ${selected ? option.correct ? 'border-[#177D66] bg-[#177D66] text-white' : 'border-rose-500 bg-rose-500 text-white' : 'border-slate-300'}`}>{selected ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}</span><span><span>{option.label}</span>{selected ? <span className="mt-2 block text-xs leading-5 opacity-80">{option.feedback}</span> : null}</span></span></button>; })}</div></div>
       </section>
-
-      <section><SectionHeading eyebrow="Metodología Índice" title="Cuatro pilares para controlar una empresa" description="Los pilares no son departamentos aislados. Forman un circuito: las personas ejecutan procesos para entregar productos o servicios, y las finanzas muestran el resultado de esa ejecución." /><div className="mt-4 grid gap-4 md:grid-cols-2">{pillars.map((pillar) => { const Icon = pillar.icon; return <article key={pillar.title} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-2xl" style={{ backgroundColor: `${pillar.color}18`, color: pillar.color }}><Icon className="h-5 w-5" /></span><div><p className="text-xs font-semibold uppercase tracking-wide" style={{ color: pillar.color }}>Pilar</p><h4 className="text-lg font-semibold text-slate-950">{pillar.title}</h4></div></div><p className="mt-4 text-sm leading-6 text-slate-600">{pillar.promise}</p><div className="mt-4 space-y-2">{pillar.questions.map((question) => <p key={question} className="flex gap-2 text-sm text-slate-700"><Target className="mt-0.5 h-4 w-4 shrink-0" style={{ color: pillar.color }} />{question}</p>)}</div><p className="mt-4 border-t border-slate-100 pt-4 text-xs leading-5 text-slate-500"><strong className="text-slate-700">Módulos relacionados:</strong> {pillar.modules}</p></article>; })}</div></section>
-
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><SectionHeading eyebrow="Cómo se conectan" title="De la actividad diaria a la decisión" description="Un distribuidor debe demostrar el recorrido completo, no módulos aislados." compact /><div className="mt-6 grid gap-3 lg:grid-cols-7">{['1. Definir estructura', '2. Asignar responsables', '3. Ejecutar procesos', '4. Vender o entregar', '5. Registrar movimientos', '6. Medir resultados', '7. Mejorar'].map((step, index) => <div key={step} className="relative rounded-2xl bg-slate-50 p-4 text-center text-sm font-medium text-slate-700">{step}{index < 6 ? <span className="absolute -right-2 top-1/2 z-10 hidden -translate-y-1/2 text-blue-400 lg:block">→</span> : null}</div>)}</div></section>
-
-      <section><SectionHeading eyebrow="Lectura comercial" title="Oportunidades por país" description="Estas son hipótesis comerciales cualitativas para orientar la conversación. Deben validarse con cada cliente; no representan estadísticas ni promesas regulatorias." /><div className="mt-4 grid gap-4 lg:grid-cols-2">{countries.map((market) => <article key={market.country} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center gap-3"><span className="text-3xl">{market.flag}</span><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Oportunidad</p><h4 className="text-lg font-semibold text-slate-950">{market.country}</h4></div></div><p className="mt-4 text-sm leading-6 text-slate-700">{market.opportunity}</p><div className="mt-4 grid gap-3 sm:grid-cols-2"><div className="rounded-2xl bg-blue-50 p-3"><p className="text-xs font-semibold uppercase text-blue-700">Conversación</p><p className="mt-1 text-xs leading-5 text-blue-900">{market.conversation}</p></div><div className="rounded-2xl bg-emerald-50 p-3"><p className="text-xs font-semibold uppercase text-emerald-700">Puerta de entrada</p><p className="mt-1 text-xs leading-5 text-emerald-900">{market.entry}</p></div></div></article>)}</div></section>
-
-      <section><SectionHeading eyebrow="Catálogo base" title="Módulos básicos de Índice" description="El vendedor debe comprender para qué sirve cada módulo, qué funciones agrupa y qué problema empresarial ayuda a resolver." /><div className="mt-4 grid gap-4 lg:grid-cols-2">{modules.map((module) => { const Icon = module.icon; return <article key={module.title} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl" style={{ backgroundColor: `${module.color}18`, color: module.color }}><Icon className="h-5 w-5" /></span><div><h4 className="text-lg font-semibold text-slate-950">{module.title}</h4><p className="mt-1 text-sm leading-5 text-slate-600">{module.purpose}</p></div></div><div className="mt-4 grid gap-2 sm:grid-cols-2">{module.functions.map((feature) => <p key={feature} className="flex gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-700"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />{feature}</p>)}</div><p className="mt-4 border-t border-slate-100 pt-4 text-sm leading-5 text-slate-700"><strong>Valor para el cliente:</strong> {module.value}</p></article>; })}</div></section>
-
-      <section className="rounded-3xl border border-blue-200 bg-[linear-gradient(135deg,#EFF6FF,#ECFDF5)] p-6"><div className="flex gap-4"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white text-blue-600 shadow-sm"><Sparkles className="h-5 w-5" /></span><div><h3 className="text-xl font-semibold text-slate-950">Cómo estudiar esta inducción</h3><ol className="mt-3 grid gap-2 text-sm leading-6 text-slate-700 sm:grid-cols-2"><li>1. Aprende a explicar Índice sin enumerar funciones.</li><li>2. Comprende los cuatro pilares y cómo se conectan.</li><li>3. Relaciona dolores empresariales con módulos.</li><li>4. Practica una demostración basada en diagnóstico.</li><li>5. Continúa al Programa práctico y completa sus casillas.</li></ol></div></div></section>
     </div>
   );
 }
 
-function SectionHeading({ eyebrow, title, description, compact = false }: { eyebrow: string; title: string; description: string; compact?: boolean }) {
-  return <div className={compact ? '' : 'max-w-4xl'}><p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-600">{eyebrow}</p><h3 className="mt-1 text-2xl font-semibold text-slate-950">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{description}</p></div>;
+function InteractiveSection({ number, eyebrow, title, description, children }: { number: string; eyebrow: string; title: string; description: string; children: React.ReactNode }) {
+  return <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 lg:p-6"><div className="mb-5 flex items-start gap-4"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#59C3A5]/15 text-sm font-medium text-[#177D66] dark:text-[#8FE0CA]">{number}</span><div><p className="text-xs font-medium text-[#177D66] dark:text-[#8FE0CA]">{eyebrow}</p><h3 className="mt-1 text-2xl font-medium text-slate-950 dark:text-white">{title}</h3><p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600 dark:text-slate-300">{description}</p></div></div>{children}</section>;
+}
+
+function IconButton({ label, disabled, onClick, children }: { label: string; disabled: boolean; onClick: () => void; children: React.ReactNode }) {
+  return <button type="button" aria-label={label} disabled={disabled} onClick={onClick} className="grid h-9 w-9 place-items-center rounded-xl border border-blue-200 bg-white text-blue-700 transition hover:border-blue-400 disabled:cursor-not-allowed disabled:opacity-35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-200">{children}</button>;
+}
+
+function ReasoningCard({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-xl border border-white/10 bg-white/5 p-4"><p className="text-xs font-medium text-[#8FE0CA]">{label}</p><p className="mt-2 text-sm leading-6 text-slate-200">{value}</p></div>;
+}
+
+function InfoCard({ label, value, tone }: { label: string; value: string; tone: 'blue' | 'aqua' }) {
+  const toneClasses = tone === 'blue' ? 'bg-blue-50 text-blue-950 dark:bg-blue-950/35 dark:text-blue-100' : 'bg-[#59C3A5]/10 text-slate-800 dark:text-slate-100';
+  return <div className={`rounded-xl p-4 ${toneClasses}`}><p className="text-xs font-medium opacity-70">{label}</p><p className="mt-2 text-sm leading-6">{value}</p></div>;
 }

@@ -82,6 +82,9 @@ export interface PlatformConsultingConsultant {
   active: boolean;
   createdAt: string;
   updatedAt: string;
+  sourceType?: "DISTRIBUTOR" | "CORPORATE";
+  companyId?: number | null;
+  companyName?: string | null;
 }
 
 export interface PlatformConsultingWorkspace {
@@ -89,6 +92,28 @@ export interface PlatformConsultingWorkspace {
   appointments: PlatformConsultingAppointment[];
   locations: PlatformConsultingLocation[];
   consultants: PlatformConsultingConsultant[];
+}
+
+export interface PlatformConsultingAvailabilityDay {
+  dayOfWeek: number;
+  enabled: boolean;
+  startTime: string;
+  endTime: string;
+}
+
+export interface PlatformConsultingAvailability {
+  consultantEmail: string;
+  consultantName: string;
+  timezone: string;
+  configured: boolean;
+  updatedAt?: string | null;
+  days: PlatformConsultingAvailabilityDay[];
+}
+
+export interface PlatformConsultingAvailabilityUpdate {
+  consultantEmail: string;
+  timezone: string;
+  days: PlatformConsultingAvailabilityDay[];
 }
 
 export interface PlatformConsultingAppointmentUpdate {
@@ -439,10 +464,16 @@ export interface PlatformCatalogProduct {
   product_code: string;
   display_name: string;
   product_type: string;
+  commercial_kind?: 'CORE' | 'MODULE' | 'PACKAGE' | 'SEAT' | string;
+  commercial_model?: boolean;
+  description?: string | null;
+  monthly_price_cents?: number | null;
+  annual_price_cents?: number | null;
   sort_order: number;
   active: boolean;
   commercially_available?: boolean;
   capabilities: string[];
+  included_product_codes?: string[];
 }
 
 export interface PlatformCatalogPrice {
@@ -466,6 +497,55 @@ export interface PlatformCatalog {
   versions: PlatformCatalogVersion[];
   products: PlatformCatalogProduct[];
   prices: PlatformCatalogPrice[];
+  promotions?: PlatformCatalogPromotion[];
+}
+
+export interface PlatformCatalogPromotion {
+  id: number;
+  catalog_version_id: number;
+  version_code: string;
+  promotion_code: string;
+  display_name: string;
+  description?: string | null;
+  discount_type: 'PERCENT' | 'FIXED';
+  percent_basis_points?: number | null;
+  amount_off_cents?: number | null;
+  currency: string;
+  duration_type: 'ONCE' | 'REPEATING' | 'FOREVER';
+  duration_cycles?: number | null;
+  starts_at?: string | null;
+  ends_at?: string | null;
+  external_promotion_code_id?: string | null;
+  active: boolean;
+  sort_order: number;
+  product_codes: string[];
+}
+
+export interface PlatformCatalogProductPayload {
+  display_name: string;
+  sort_order: number;
+  active: boolean;
+  capabilities: string[];
+  commercial_kind?: 'MODULE' | 'PACKAGE' | 'SEAT';
+  description?: string | null;
+  included_product_codes?: string[];
+}
+
+export interface PlatformCatalogPromotionPayload {
+  promotion_code: string;
+  display_name: string;
+  description?: string | null;
+  discount_type: 'PERCENT' | 'FIXED';
+  percent_basis_points?: number | null;
+  amount_off_cents?: number | null;
+  duration_type: 'ONCE' | 'REPEATING' | 'FOREVER';
+  duration_cycles?: number | null;
+  starts_at?: string | null;
+  ends_at?: string | null;
+  external_promotion_code_id?: string | null;
+  active: boolean;
+  sort_order: number;
+  product_codes: string[];
 }
 
 export interface PlatformCatalogValidation {
@@ -474,6 +554,32 @@ export interface PlatformCatalogValidation {
   ready: boolean;
   blockers: Array<{ code: string; product_code: string; message: string }>;
   stripe_mode: 'TEST';
+}
+
+export interface PlatformCatalogStripePriceSync {
+  catalog_product_id: number;
+  stripe_product_id: string;
+  stripe_mode: 'TEST';
+  currency: 'USD';
+  tax_behavior: 'EXCLUSIVE';
+  tax_code: string;
+  automatic_tax_enabled: boolean;
+  monthly: {
+    id: number;
+    billing_interval: 'MONTH';
+    amount_cents: number;
+    external_price_id: string;
+    reused: boolean;
+    status: 'READY';
+  };
+  annual: {
+    id: number;
+    billing_interval: 'YEAR';
+    amount_cents: number;
+    external_price_id: string;
+    reused: boolean;
+    status: 'READY';
+  };
 }
 
 export interface PlatformModule {
@@ -781,13 +887,13 @@ export const platformAdminApi = {
   }>(`${endpoints.platformAdmin.catalog}/drafts/${versionId}/publish`, { method: 'POST' }),
   updateCatalogProduct: (
     productId: number,
-    payload: { display_name: string; sort_order: number; active: boolean; capabilities: string[] },
+    payload: PlatformCatalogProductPayload,
   ) => apiClient<Partial<PlatformCatalogProduct>>(
     `${endpoints.platformAdmin.catalog}/products/${productId}`,
     { method: 'PATCH', body: JSON.stringify(payload) },
   ),
   createCatalogProduct: (
-    payload: { display_name: string; sort_order: number; active: boolean; capabilities: string[] },
+    payload: PlatformCatalogProductPayload,
   ) => apiClient<Partial<PlatformCatalogProduct>>(
     `${endpoints.platformAdmin.catalog}/products`,
     { method: 'POST', body: JSON.stringify(payload) },
@@ -797,6 +903,21 @@ export const platformAdminApi = {
     payload: { unit_amount_cents: number | null; external_price_id: string | null; status: string },
   ) => apiClient<Partial<PlatformCatalogPrice>>(
     `${endpoints.platformAdmin.catalog}/prices/${priceId}`,
+    { method: 'PATCH', body: JSON.stringify(payload) },
+  ),
+  synchronizeCatalogProductPrices: (
+    productId: number,
+    payload: { monthly_amount_cents: number; annual_amount_cents: number },
+  ) => apiClient<PlatformCatalogStripePriceSync>(
+    `${endpoints.platformAdmin.catalog}/products/${productId}/stripe-prices/synchronize`,
+    { method: 'POST', body: JSON.stringify(payload) },
+  ),
+  createCatalogPromotion: (payload: PlatformCatalogPromotionPayload) => apiClient<Partial<PlatformCatalogPromotion>>(
+    `${endpoints.platformAdmin.catalog}/promotions`,
+    { method: 'POST', body: JSON.stringify(payload) },
+  ),
+  updateCatalogPromotion: (promotionId: number, payload: PlatformCatalogPromotionPayload) => apiClient<Partial<PlatformCatalogPromotion>>(
+    `${endpoints.platformAdmin.catalog}/promotions/${promotionId}`,
     { method: 'PATCH', body: JSON.stringify(payload) },
   ),
   getModules: () => apiClient<PlatformModules>(endpoints.platformAdmin.modules),
@@ -822,6 +943,13 @@ export const platformAdminApi = {
   createConsultingAppointment: (payload: PlatformConsultingAppointmentCreate) => apiClient<PlatformConsultingAppointment>(
     `${consultingPath}/appointments`,
     { method: 'POST', body: JSON.stringify(payload) },
+  ),
+  getConsultingAvailability: (consultantEmail: string) => apiClient<PlatformConsultingAvailability>(
+    `${consultingPath}/availability?consultantEmail=${encodeURIComponent(consultantEmail)}`,
+  ),
+  updateConsultingAvailability: (payload: PlatformConsultingAvailabilityUpdate) => apiClient<PlatformConsultingAvailability>(
+    `${consultingPath}/availability`,
+    { method: 'PUT', body: JSON.stringify(payload) },
   ),
   createConsultingLocation: (payload: {
     cityName: string;

@@ -39,6 +39,11 @@ export type {
   CustomerRelationType,
   LostReason,
   OpportunityNextAction,
+  OpportunityFlowColorToken,
+  OpportunityFlow,
+  OpportunityFlowPosition,
+  OpportunityFlowStage,
+  OpportunityFlowStageType,
   OpportunityProbability,
   OpportunitySource,
   OpportunityStage,
@@ -75,6 +80,7 @@ export type {
 
 export {
   customerRelationTypes,
+  defaultOpportunityFlowStages,
   lostReasons,
   opportunityLinkedQuoteStatuses,
   opportunityNextActions,

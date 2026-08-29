@@ -19,6 +19,7 @@ const RestaurantKioskPage = lazy(() => import('./BasicModules/PointOfSale/Restau
 const PlatformAdminPage = lazy(() => import('./PlatformAdmin/PlatformAdminPage'));
 const DistributorPortalPage = lazy(() => import('./DistributorPortal/DistributorPortalPage'));
 const MultiKioskMobilePage = lazy(() => import('./KioskCenter/MultiKioskMobilePage'));
+const TrainingCertificateVerificationPage = lazy(() => import('./Training/TrainingCertificateVerificationPage'));
 
 const chunkReloadStorageKey = 'indice:route-chunk-reload-attempted';
 const renderChunkReloadStorageKey = 'indice:render-chunk-reload-attempted';
@@ -521,6 +522,10 @@ export const router = createBrowserRouter([
   {
     path: '/supplier-portal/:portalCode',
     element: <SupplierPortalRoute />,
+  },
+  {
+    path: '/certificates/verify/:folio',
+    element: <Suspense fallback={<LoadingBarOverlay isVisible title="Validando certificado" description="Consultando autenticidad y vigencia." />}><TrainingCertificateVerificationPage /></Suspense>,
   },
   {
     path: '/pos-self-service/:publicAccessToken',

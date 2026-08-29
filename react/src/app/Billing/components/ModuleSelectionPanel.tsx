@@ -11,18 +11,16 @@ type Props = {
 };
 
 export function ModuleSelectionPanel({ copy, products, selectedCodes, disabled, onToggle }: Props) {
-  const groups = [
-    {
-      type: 'BASIC',
-      title: copy.baseModules,
-      description: copy.baseModulesDescription,
-    },
-    {
-      type: 'ADDON',
-      title: copy.complementaryModules,
-      description: copy.complementaryModulesDescription,
-    },
-  ];
+  const versionedOffer = products.some((product) => product.commercial_kind === 'PACKAGE');
+  const groups = versionedOffer
+    ? [
+        { type: 'MODULE', title: copy.baseModules, description: copy.baseModulesDescription },
+        { type: 'PACKAGE', title: copy.complementaryModules, description: copy.complementaryModulesDescription },
+      ]
+    : [
+        { type: 'BASIC', title: copy.baseModules, description: copy.baseModulesDescription },
+        { type: 'ADDON', title: copy.complementaryModules, description: copy.complementaryModulesDescription },
+      ];
   const selectedBasicCount = products.filter(
     (product) => product.product_type === 'BASIC' && selectedCodes.includes(product.product_code),
   ).length;
@@ -43,7 +41,11 @@ export function ModuleSelectionPanel({ copy, products, selectedCodes, disabled, 
       {products.length ? (
         <div className="space-y-5 p-4">
           {groups.map((group) => {
-            const groupedProducts = products.filter((product) => product.product_type === group.type);
+            const groupedProducts = products.filter((product) =>
+              versionedOffer
+                ? (product.commercial_kind || 'MODULE') === group.type
+                : product.product_type === group.type,
+            );
             if (!groupedProducts.length) return null;
             return (
               <div key={group.type}>
@@ -55,11 +57,15 @@ export function ModuleSelectionPanel({ copy, products, selectedCodes, disabled, 
           {groupedProducts.map((product) => {
             const selected = selectedCodes.includes(product.product_code);
             const lastBase = product.product_type === 'BASIC' && selected && selectedBasicCount === 1;
+            const selectedCapabilities = products
+              .filter((candidate) => candidate.product_code !== product.product_code && selectedCodes.includes(candidate.product_code))
+              .flatMap((candidate) => candidate.capabilities);
+            const overlaps = versionedOffer && !selected && product.capabilities.some((capability) => selectedCapabilities.includes(capability));
             return (
               <button
                 key={product.id}
                 type="button"
-                disabled={disabled || lastBase}
+                disabled={disabled || lastBase || overlaps}
                 aria-pressed={selected}
                 onClick={() => onToggle(product.product_code)}
                 className={`group min-h-24 rounded-xl border p-3 text-left outline-none transition focus-visible:ring-2 focus-visible:ring-[#2563EB]/40 ${selected ? 'border-[#59C3A5] bg-[#59C3A5]/7 dark:border-[#59C3A5]/60 dark:bg-[#59C3A5]/10' : 'border-slate-200 bg-white hover:border-[#59C3A5]/50 hover:bg-[#59C3A5]/5 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-[#59C3A5]/40'} disabled:cursor-not-allowed disabled:opacity-60`}
@@ -76,11 +82,12 @@ export function ModuleSelectionPanel({ copy, products, selectedCodes, disabled, 
                 <p className="mt-0.5 line-clamp-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
                   {product.capabilities.slice(0, 3).map(humanize).join(' · ') || copy.moduleFallback}
                 </p>
-                {product.product_type === 'ADDON' ? (
+                {versionedOffer || product.product_type === 'ADDON' ? (
                   <p className="mt-1 text-xs font-medium text-[#143675] dark:text-blue-200">
-                    {formatPrice(product.unit_amount_cents)}
+                    {formatPrice(product.unit_amount_cents)}{product.commercial_kind === 'PACKAGE' ? ' · precio de paquete' : ''}
                   </p>
                 ) : null}
+                {overlaps ? <p className="mt-1 text-[11px] text-amber-700">Ya está incluido en otra selección.</p> : null}
               </button>
             );
           })}

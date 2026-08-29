@@ -97,7 +97,7 @@ export function CustomersTable({
           onResize={resizeColumn}
           onSort={onSort}
           sortState={sort?.direction ? { columnId: sort.key as CustomerTableColumnId, direction: sort.direction } : null}
-          tone="blue"
+          tone="aqua"
         />
         <TableBody>
           {companies.map((company) => (
@@ -125,7 +125,7 @@ export function CustomersTable({
             <TableRow>
               <TableCell colSpan={columns.length + 1} className="px-6 py-14 text-center">
                 <div className="flex flex-col items-center justify-center gap-2 text-sm text-slate-500">
-                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-50 text-[#2563EB]">
+                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#e8f5f2] text-[#177D66]">
                     <Building2 className="h-5 w-5" />
                   </span>
                   {copy.noAccounts}

@@ -26,7 +26,7 @@ export function QuickDetailsStep({
   onChange: (patch: Partial<QuickTestDraft>) => void;
 }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+    <section className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800 sm:p-5">
       <AccountStepTitle
         number="2"
         icon={ClipboardCheck}
@@ -113,30 +113,30 @@ export function QuickDetailsStep({
           </select>
         </AccountField>
       </div>
-      <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
-        <div className="flex items-center gap-2 text-sm font-semibold text-[#143675]">
+      <div className="mt-4 rounded-2xl border border-[#59C3A5]/30 bg-[#59C3A5]/10 p-4">
+        <div className="flex items-center gap-2 text-sm font-medium text-[#176B5B] dark:text-[#8FE0CA]">
           <ShieldCheck className="h-4 w-4" />
           {copy.details.summary}
         </div>
         <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
           <div>
             <dt className="text-xs text-slate-500">{copy.details.scenario}</dt>
-            <dd className="mt-0.5 font-semibold text-slate-800">{option.label}</dd>
+            <dd className="mt-0.5 font-medium text-slate-800 dark:text-white">{option.label}</dd>
           </div>
           <div>
             <dt className="text-xs text-slate-500">{copy.details.access}</dt>
-            <dd className="mt-0.5 font-semibold text-slate-800">
+            <dd className="mt-0.5 font-medium text-slate-800 dark:text-white">
               {copy.scenario.modules(moduleCount)} · {copy.scenario.days(draft.access_days)}
             </dd>
           </div>
           <div>
             <dt className="text-xs text-slate-500">{copy.details.capacity}</dt>
-            <dd className="mt-0.5 font-semibold text-slate-800">
+            <dd className="mt-0.5 font-medium text-slate-800 dark:text-white">
               {copy.scenario.employees(draft.employee_count)}
             </dd>
           </div>
         </dl>
-        <p className="mt-3 border-t border-blue-100 pt-3 text-xs leading-5 text-[#143675]">
+        <p className="mt-3 border-t border-[#59C3A5]/25 pt-3 text-xs leading-5 text-[#176B5B] dark:text-[#8FE0CA]">
           {copy.details.notice}
         </p>
       </div>

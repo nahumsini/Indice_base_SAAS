@@ -134,4 +134,93 @@ class CommercialOfferSelectionIntegrationTest {
             .extracting(CommercialOfferSelection.Product::code)
             .containsExactly(basic.code(), "addon_maintenance");
     }
+
+    @Test
+    @Transactional
+    void pricesIndividualModulesPackagesSeatsAndPromotionsWithoutDuplicateCapabilities() {
+        jdbcTemplate.update("UPDATE billing_catalog_versions SET status = 'SUPERSEDED' WHERE status = 'ACTIVE'");
+        jdbcTemplate.update(
+            "INSERT INTO billing_catalog_versions (version_code, status, effective_from) VALUES ('catalog-direct-test', 'ACTIVE', CURRENT_TIMESTAMP)"
+        );
+        var versionId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+
+        var peopleId = insertProduct(versionId, "module_people_test", "Personas", "MODULE", 10);
+        var processId = insertProduct(versionId, "module_process_test", "Procesos", "MODULE", 20);
+        var packageId = insertProduct(versionId, "package_control_test", "Control operativo", "PACKAGE", 30);
+        var seatId = insertProduct(versionId, "extra_user", "Usuario adicional", "SEAT", 90);
+        jdbcTemplate.update(
+            "INSERT INTO billing_product_capabilities (product_id, capability_code) VALUES (?, 'human_resources'), (?, 'processes'), (?, 'human_resources'), (?, 'processes')",
+            peopleId, processId, packageId, packageId
+        );
+        jdbcTemplate.update(
+            "INSERT INTO billing_package_items (package_product_id, included_product_id, sort_order) VALUES (?, ?, 10), (?, ?, 20)",
+            packageId, peopleId, packageId, processId
+        );
+        insertPrices(versionId, peopleId, "module_people_test", "PRODUCT", 10_000, 96_000);
+        insertPrices(versionId, processId, "module_process_test", "PRODUCT", 8_000, 76_800);
+        insertPrices(versionId, packageId, "package_control_test", "PACKAGE", 15_000, 144_000);
+        insertPrices(versionId, seatId, "extra_user", "SEAT", 1_000, 9_600);
+        jdbcTemplate.update(
+            """
+                INSERT INTO billing_catalog_promotions
+                    (catalog_version_id, promotion_code, display_name, discount_type,
+                     percent_basis_points, duration_type, external_promotion_code_id, active)
+                VALUES (?, 'CRECE20', 'Crece 20%', 'PERCENT', 2000, 'ONCE', 'promo_direct_test', 1)
+                """,
+            versionId
+        );
+
+        var selection = service.select(List.of("package_control_test"), "MONTH", 2, "crece20");
+
+        assertThat(selection.catalogVersion()).isEqualTo("catalog-direct-test");
+        assertThat(selection.offerCode()).isEqualTo("package_control_test");
+        assertThat(selection.subtotalAmountCents()).isEqualTo(17_000);
+        assertThat(selection.discountAmountCents()).isEqualTo(3_400);
+        assertThat(selection.estimatedAmountCents()).isEqualTo(13_600);
+        assertThat(selection.moduleSlugs()).containsExactly("human_resources", "processes");
+        assertThat(selection.lineItems())
+            .extracting(CommercialOfferSelection.LineItem::billableCode)
+            .containsExactly("package_control_test", "extra_user");
+
+        assertThatThrownBy(() -> service.select(
+            List.of("package_control_test", "module_people_test"), "MONTH", 0, null
+        ))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("repite el módulo");
+    }
+
+    private long insertProduct(long versionId, String code, String name, String kind, int sortOrder) {
+        jdbcTemplate.update(
+            """
+                INSERT INTO billing_catalog_products
+                    (catalog_version_id, product_code, display_name, product_type,
+                     commercial_kind, sort_order, active)
+                VALUES (?, ?, ?, 'ADDON', ?, ?, 1)
+                """,
+            versionId, code, name, kind, sortOrder
+        );
+        return jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+    }
+
+    private void insertPrices(
+        long versionId,
+        long productId,
+        String code,
+        String priceType,
+        long monthly,
+        long annual
+    ) {
+        jdbcTemplate.update(
+            """
+                INSERT INTO billing_catalog_prices
+                    (catalog_version_id, catalog_product_id, billable_code, price_type,
+                     billing_interval, currency, unit_amount_cents, included_quantity,
+                     external_price_id, status)
+                VALUES (?, ?, ?, ?, 'MONTH', 'USD', ?, 1, CONCAT('price_', ?, '_month'), 'READY'),
+                       (?, ?, ?, ?, 'YEAR', 'USD', ?, 1, CONCAT('price_', ?, '_year'), 'READY')
+                """,
+            versionId, productId, code, priceType, monthly, code,
+            versionId, productId, code, priceType, annual, code
+        );
+    }
 }

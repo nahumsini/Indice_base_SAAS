@@ -30,8 +30,25 @@ public interface StripeCheckoutGateway {
         int trialDays,
         Instant expiresAt,
         List<LineItem> lineItems,
-        Map<String, String> metadata
+        Map<String, String> metadata,
+        String promotionCodeId
     ) {
+        public CheckoutCommand(
+            String customerId,
+            String successUrl,
+            String cancelUrl,
+            boolean automaticTaxEnabled,
+            boolean taxIdCollectionEnabled,
+            int trialDays,
+            Instant expiresAt,
+            List<LineItem> lineItems,
+            Map<String, String> metadata
+        ) {
+            this(
+                customerId, successUrl, cancelUrl, automaticTaxEnabled,
+                taxIdCollectionEnabled, trialDays, expiresAt, lineItems, metadata, null
+            );
+        }
     }
 
     record LineItem(String priceId, long quantity) {

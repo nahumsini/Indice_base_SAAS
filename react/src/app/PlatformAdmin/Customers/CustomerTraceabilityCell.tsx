@@ -44,7 +44,7 @@ export function CustomerTraceabilityCell({
               ? copy.changeDistributor
               : copy.assignDistributor
           }: ${company.name}`}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-[#174799] transition hover:border-blue-200 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/25"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-[#177D66] transition hover:border-[#59C3A5] hover:bg-[#59C3A5]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/25"
         >
           <PencilLine className="h-4 w-4" />
         </button>
