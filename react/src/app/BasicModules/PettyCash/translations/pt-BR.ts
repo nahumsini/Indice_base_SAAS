@@ -13,6 +13,7 @@ export const ptBR = {
     tabs: { cash: 'Fundos', control: 'Comprovantes', statements: 'Fechamentos', kpis: 'Indicadores' },
   },
   common: {
+    ...enCA.common,
     actions: 'Acoes',
     all: 'Todos',
     automaticCurrentStatement: 'Fechamento atual automatico',
