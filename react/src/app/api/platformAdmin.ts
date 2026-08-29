@@ -534,6 +534,73 @@ export interface PlatformAudit {
   events: PlatformAuditEvent[];
 }
 
+export interface PlatformAnalyticsSummary {
+  sessions: number;
+  views: number;
+  active_seconds: number;
+  interactions: number;
+  active_users?: number;
+  active_companies?: number;
+  visitors?: number;
+  conversions?: number;
+}
+
+export interface PlatformAnalyticsPage {
+  route: string;
+  section: string;
+  sessions: number;
+  users: number;
+  views: number;
+  active_seconds: number;
+  interactions: number;
+  conversions: number;
+}
+
+export interface PlatformAnalyticsTrend {
+  date: string;
+  app_users: number;
+  app_sessions: number;
+  web_visitors: number;
+  web_sessions: number;
+  app_active_seconds: number;
+  web_active_seconds: number;
+}
+
+export interface PlatformAnalyticsCompany {
+  company_id: number;
+  company_name: string;
+  active_users: number;
+  sessions: number;
+  views: number;
+  active_seconds: number;
+  last_seen_at: string;
+}
+
+export interface PlatformAnalytics {
+  period: { days: number; from: string; to: string };
+  app: PlatformAnalyticsSummary;
+  web: PlatformAnalyticsSummary;
+  trend: PlatformAnalyticsTrend[];
+  app_pages: PlatformAnalyticsPage[];
+  web_pages: PlatformAnalyticsPage[];
+  companies: PlatformAnalyticsCompany[];
+  company_options: Array<{ id: number; name: string }>;
+  web_sources: Array<{
+    source: string;
+    medium: string;
+    sessions: number;
+    visitors: number;
+    conversions: number;
+  }>;
+  web_connector: { configured: boolean; receiving_data: boolean };
+  data_since?: string | null;
+  privacy: {
+    captures_content: boolean;
+    captures_full_urls: boolean;
+    attention_metric: 'ACTIVE_VISIBLE_TIME';
+  };
+}
+
 export interface BenefitPayload {
   benefit_type: 'PRODUCT' | 'SEAT' | 'STORAGE';
   product_code?: string;
@@ -806,6 +873,11 @@ export const platformAdminApi = {
     { method: 'PATCH', body: JSON.stringify({ active, reason }) },
   ),
   getAudit: () => apiClient<PlatformAudit>(`${endpoints.platformAdmin.audit}?limit=200`),
+  getAnalytics: (days = 30, companyId?: number) => {
+    const query = new URLSearchParams({ days: String(days) });
+    if (companyId) query.set('companyId', String(companyId));
+    return apiClient<PlatformAnalytics>(`${endpoints.productAnalytics.platformDashboard}?${query.toString()}`);
+  },
   getConsulting: () => apiClient<PlatformConsultingWorkspace>(consultingPath),
   createConsultingConsultant: (payload: { firstName: string; lastName: string; phone: string; email: string }) => apiClient<PlatformConsultingConsultant>(
     `${consultingPath}/consultants`,

@@ -36,6 +36,8 @@ cp deployment/env/.env.example deployment/env/.env
 - `APP_WEB_ALLOWED_ORIGINS`
 - `MINIO_CORS_ALLOWED_ORIGINS`
 - `APP_SESSION_COOKIE_SECURE`
+- `APP_PRODUCT_ANALYTICS_WEB_INGEST_TOKEN` (déjalo vacío para mantener deshabilitada la ingesta
+  pública; no lo expongas en JavaScript del navegador)
 - `APP_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET`
 - `APP_KIOSK_TOKEN_PROTECTION_SECRET` (obligatoria; distinta de los demás secretos)
 - tiempos de sesión de kioskos (`APP_*_KIOSK_*_SECONDS`); la plantilla contiene los valores estándar aprobados
@@ -190,6 +192,10 @@ Dev override adds:
 - The backend uses the internal MinIO endpoint for server-side access and rewrites presigned URLs onto `MINIO_PUBLIC_ENDPOINT`.
 - MinIO CORS is configured cluster-wide through `MINIO_API_CORS_ALLOW_ORIGIN`, sourced from `MINIO_CORS_ALLOWED_ORIGINS`.
 - Session auth is still servlet-session based, so this deployment should be treated as a single backend replica unless session storage is externalized.
+- La ingesta web de analítica está deshabilitada cuando
+  `APP_PRODUCT_ANALYTICS_WEB_INGEST_TOKEN` está vacío. No la habilites hasta cumplir el contrato de
+  seguridad de `docs/product-analytics-security-contract.md`; el token sólo puede vivir en un
+  conector servidor-a-servidor con límite de tasa y nunca en el bundle público.
 - `minio-init` is safe to rerun; it creates the bucket if missing.
 - The MySQL and MinIO data directories are persisted via named Docker volumes.
 

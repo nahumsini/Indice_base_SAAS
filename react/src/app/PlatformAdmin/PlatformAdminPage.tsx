@@ -83,6 +83,8 @@ import {
 import { useLanguage } from "../shared/context";
 import { SystemTicketsWorkspace } from "../SystemTickets";
 import { TrainingWorkspace } from "../Training";
+import { InternalDevelopmentWorkspace } from "../InternalDevelopment";
+import { UsageAnalyticsWorkspace } from "./UsageAnalyticsWorkspace";
 import AccountCreationModal from "./AccountCreationModal";
 import AccountTypeEditModal from "./AccountTypeEditModal";
 import DistributorAssignmentModal from "./DistributorAssignmentModal";
@@ -147,7 +149,7 @@ import {
 } from "../api/platformAdmin";
 
 type AdminTab =
-  "customers" | "billing" | "catalog" | "consulting" | "training" | "systemTickets" | "audit";
+  "customers" | "billing" | "catalog" | "consulting" | "training" | "systemTickets" | "internalDevelopment" | "audit";
 type BillingSortKey =
   "customer" | "invoice" | "status" | "amount" | "paid" | "period";
 type CatalogPriceSortKey =
@@ -241,7 +243,13 @@ const tabDefinitions: {
     en: "System tickets",
     icon: TicketCheck,
   },
-  { id: "audit", es: "Auditoría", en: "Audit", icon: ClipboardList },
+  {
+    id: "internalDevelopment",
+    es: "Registro de desarrollo interno",
+    en: "Internal development log",
+    icon: FileClock,
+  },
+  { id: "audit", es: "Uso y auditoría", en: "Usage & audit", icon: Activity },
 ];
 
 const isAdminTab = (value: unknown): value is AdminTab =>
@@ -291,8 +299,12 @@ export default function PlatformAdminPage() {
   });
   const [context, setContext] = useState<PlatformAdminContext | null>(null);
   const visibleTabs = useMemo(
-    () => tabs.filter((tab) => tab.id !== "systemTickets" || Boolean(context?.can_manage_system_tickets)),
-    [context?.can_manage_system_tickets, tabs],
+    () => tabs.filter((tab) => {
+      if (tab.id === "systemTickets") return Boolean(context?.can_manage_system_tickets);
+      if (tab.id === "internalDevelopment") return context?.role === "PLATFORM_ROOT";
+      return true;
+    }),
+    [context?.can_manage_system_tickets, context?.role, tabs],
   );
   useEffect(() => {
     if (
@@ -1115,6 +1127,9 @@ export default function PlatformAdminPage() {
             ) : null}
             {activeTab === "systemTickets" && context?.can_manage_system_tickets ? (
               <SystemTicketsWorkspace portal="root" locale={currentLanguage.code} />
+            ) : null}
+            {activeTab === "internalDevelopment" && context?.role === "PLATFORM_ROOT" ? (
+              <InternalDevelopmentWorkspace locale={currentLanguage.code} />
             ) : null}
             {activeTab === "audit" ? (
               <AuditTab english={english} data={auditLog} />
@@ -3992,110 +4007,7 @@ function AuditTab({
   english: boolean;
   data: PlatformAudit | null;
 }) {
-  return (
-    <div className="space-y-5">
-      <IndiceTitleBar
-        tone="blue"
-        icon={<ClipboardList className="h-5 w-5" />}
-        eyebrow={english ? "Audit" : "Auditoría"}
-        title={english ? "Platform traceability" : "Trazabilidad de plataforma"}
-        subtitle={
-          english
-            ? "Commercial and administrative events with actor, outcome and technical reference."
-            : "Eventos comerciales y administrativos con actor, resultado y referencia técnica."
-        }
-      />
-      <Panel
-        title={english ? "Recent events" : "Eventos recientes"}
-        description={
-          english
-            ? `${data?.events.length ?? 0} events loaded.`
-            : `${data?.events.length ?? 0} eventos cargados.`
-        }
-      >
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px]">
-            <thead className="bg-slate-50">
-              <tr>
-                {[
-                  english ? "Date" : "Fecha",
-                  english ? "Event" : "Evento",
-                  english ? "Outcome" : "Resultado",
-                  english ? "Customer" : "Cliente",
-                  english ? "Actor" : "Actor",
-                  english ? "Reference" : "Referencia",
-                ].map((label) => (
-                  <th key={label} className={tableHeadClass}>
-                    {label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {(data?.events ?? []).map((event) => (
-                <tr key={event.id} className="hover:bg-slate-50/80">
-                  <td className={tableCellClass}>
-                    {formatDateTime(event.occurred_at)}
-                  </td>
-                  <td className={tableCellClass}>
-                    <p className="font-medium text-slate-900">
-                      {humanize(event.action)}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {humanize(event.category)}
-                    </p>
-                  </td>
-                  <td className={tableCellClass}>
-                    <StatusBadge status={event.outcome} />
-                  </td>
-                  <td className={tableCellClass}>
-                    {event.company_name ||
-                      (event.company_id
-                        ? `Company #${event.company_id}`
-                        : english
-                          ? "System"
-                          : "Sistema")}
-                  </td>
-                  <td className={tableCellClass}>
-                    {event.actor_email ||
-                      (event.actor_user_id
-                        ? `User #${event.actor_user_id}`
-                        : english
-                          ? "Automatic"
-                          : "Automático")}
-                  </td>
-                  <td className={tableCellClass}>
-                    <span className="font-mono text-[11px] text-slate-500">
-                      {shortId(
-                        event.request_id ||
-                          event.stripe_event_id ||
-                          event.stripe_object_id ||
-                          `event-${event.id}`,
-                      )}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-              {!data?.events.length ? (
-                <tr>
-                  <td colSpan={6}>
-                    <EmptyRow
-                      icon={ClipboardList}
-                      text={
-                        english
-                          ? "No audit events yet."
-                          : "Aún no hay eventos de auditoría."
-                      }
-                    />
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
-    </div>
-  );
+  return <UsageAnalyticsWorkspace english={english} audit={data} />;
 }
 
 function CompanyDrawer({
