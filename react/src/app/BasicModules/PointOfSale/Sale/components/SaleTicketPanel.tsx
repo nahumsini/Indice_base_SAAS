@@ -29,6 +29,17 @@ interface SaleTicketPanelProps {
   formatCurrency: (amount: number) => string;
 }
 
+const formatSaleQuantity = (quantity: number, product?: Product) => {
+  const normalized = Number(quantity.toFixed(3));
+  return (product?.allowsDecimalQuantity || !Number.isInteger(normalized))
+    ? normalized.toLocaleString(undefined, { maximumFractionDigits: 3 })
+    : String(normalized);
+};
+
+const quantityStepFor = (product?: Product) => (
+  product?.quantityStep && product.quantityStep > 0 ? product.quantityStep : 1
+);
+
 export function SaleTicketPanel({
   cart,
   barcodeInput,
@@ -63,7 +74,7 @@ export function SaleTicketPanel({
           <div className="min-w-0">
             <h2 className="text-xl font-medium text-white">Ticket actual</h2>
             <p className="text-sm text-gray-300">
-              {`${itemCount} ${itemCount === 1 ? 'articulo' : 'articulos'} en caja`}
+              {`${formatSaleQuantity(itemCount)} ${itemCount === 1 ? 'articulo' : 'articulos'} en caja`}
             </p>
           </div>
         </div>
@@ -134,6 +145,7 @@ export function SaleTicketPanel({
             {cart.map((item) => {
               const product = products.find((candidate) => candidate.id === item.productId);
               const { hasLowStock, isOutOfStock } = getProductStockState(product);
+              const quantityStep = quantityStepFor(product);
 
               return (
                 <div
@@ -148,7 +160,7 @@ export function SaleTicketPanel({
                   <div data-pos-ticket-item-layout className="flex flex-col gap-2 md:flex-row md:items-center">
                     <div data-pos-ticket-item-summary className="flex min-w-0 flex-1 items-center gap-2.5">
                       <div data-pos-ticket-quantity className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-lg bg-[#F4C84A]/25 text-[#222831] dark:bg-[#F4C84A]/15 dark:text-[#F4C84A]">
-                        <span className="text-lg font-medium leading-none">{item.quantity}</span>
+                        <span className="text-lg font-medium leading-none">{formatSaleQuantity(item.quantity, product)}</span>
                         <span className="text-[10px] font-medium leading-none">{product?.unitLabel ?? 'uds'}</span>
                       </div>
 
@@ -182,7 +194,7 @@ export function SaleTicketPanel({
                               <span className="text-gray-400 dark:text-gray-500">•</span>
                               <span className="flex items-center gap-1">
                                 <Package className="h-3 w-3" />
-                                Stock {product.currentStock}
+                                Stock {formatSaleQuantity(product.currentStock, product)} {product.unitLabel ?? ''}
                               </span>
                             </>
                           )}
@@ -213,7 +225,7 @@ export function SaleTicketPanel({
                     <div data-pos-ticket-item-actions className="flex shrink-0 items-center justify-end gap-1 rounded-lg bg-[#F7F8FA] p-1 dark:bg-gray-950/30">
                       <div className="flex items-center gap-1.5">
                         <button
-                          onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+                          onClick={() => onUpdateQuantity(item.id, item.quantity - quantityStep)}
                           disabled={preticketLocked}
                           className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 transition hover:border-[#FF6B5E]/40 hover:bg-[#FF6B5E]/10 active:scale-95 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                           aria-label={`Restar ${item.name}`}
@@ -221,10 +233,10 @@ export function SaleTicketPanel({
                           <Minus className="h-4 w-4" />
                         </button>
                         <span className="flex h-10 min-w-10 items-center justify-center rounded-lg bg-white px-2 text-center text-sm font-medium text-[#222831] ring-1 ring-gray-200 dark:bg-gray-800 dark:text-white dark:ring-gray-700">
-                          {item.quantity}
+                          {formatSaleQuantity(item.quantity, product)}
                         </span>
                         <button
-                          onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                          onClick={() => onUpdateQuantity(item.id, item.quantity + quantityStep)}
                           disabled={preticketLocked}
                           className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 transition hover:border-[#FF6B5E]/40 hover:bg-[#FF6B5E]/10 active:scale-95 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                           aria-label={`Sumar ${item.name}`}

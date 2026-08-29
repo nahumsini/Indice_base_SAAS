@@ -32,7 +32,7 @@ const taxRateByCategory: Record<SalesProductTaxCategory, number> = {
 
 function saleTypeFromProduct(product: SalesCatalogItem): PointOfSaleProduct['saleType'] {
   if (product.type === 'Package') return 'package';
-  return product.packaging?.pricingMode === 'Per base unit' ? 'bulk' : 'unit';
+  return shouldUseBaseUnitInPointOfSale(product) ? 'bulk' : 'unit';
 }
 
 const compactUnitLabels: Record<string, string> = {
@@ -50,14 +50,34 @@ const compactUnitLabels: Record<string, string> = {
   Unit: 'uds',
 };
 
+const measuredBaseUnits = new Set(['Kilogram', 'Liter', 'Meter']);
+
+function isMeasuredBaseUnit(unit?: string) {
+  return Boolean(unit && measuredBaseUnits.has(unit));
+}
+
+function shouldUseBaseUnitInPointOfSale(product: SalesCatalogItem) {
+  const packaging = product.packaging;
+  return Boolean(packaging && (
+    packaging.pricingMode === 'Per base unit'
+    || (packaging.saleUnit === 'Unit' && isMeasuredBaseUnit(packaging.baseUnit))
+  ));
+}
+
 function unitLabelFromProduct(product: SalesCatalogItem) {
   const packaging = product.packaging;
   if (!packaging) return 'uds';
 
   // "Unit" is only a generic sale container. For weighed/measured products,
   // the base unit is the meaningful quantity shown to the cashier.
-  const unit = packaging.saleUnit === 'Unit' ? packaging.baseUnit : packaging.saleUnit;
+  const unit = shouldUseBaseUnitInPointOfSale(product) ? packaging.baseUnit : packaging.saleUnit;
   return compactUnitLabels[unit] ?? unit;
+}
+
+function saleQuantityStepFromProduct(product: SalesCatalogItem) {
+  const saleIncrement = numberFrom(product.packaging?.saleIncrement);
+  if (saleIncrement > 0) return saleIncrement;
+  return isMeasuredBaseUnit(product.packaging?.baseUnit) ? 0.01 : 1;
 }
 
 function shouldExposeInPointOfSale(product: SalesCatalogItem) {
@@ -138,6 +158,8 @@ export function toPointOfSaleProduct(
   const costPrice = stock?.unitCost || product.cost || 0;
   const currentStock = stock?.available ?? 0;
   const minStock = stock?.minimum ?? 0;
+  const quantityStep = saleQuantityStepFromProduct(product);
+  const minimumSaleQuantity = numberFrom(product.packaging?.minimumSaleQuantity) || quantityStep;
 
   return {
     id: product.id,
@@ -149,6 +171,9 @@ export function toPointOfSaleProduct(
     description: product.description,
     saleType: saleTypeFromProduct(product),
     unitLabel: unitLabelFromProduct(product),
+    quantityStep,
+    minimumSaleQuantity,
+    allowsDecimalQuantity: shouldUseBaseUnitInPointOfSale(product) || !Number.isInteger(quantityStep),
     costPrice,
     profitMargin: salePrice > 0 ? Math.max(((salePrice - costPrice) / salePrice) * 100, 0) : 0,
     salePrice,

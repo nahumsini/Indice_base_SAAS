@@ -74,6 +74,12 @@ export function ProductSearchModal({
     style: 'currency',
     currency: productCurrency || currency,
   }).format(amount);
+  const formatQuantity = (amount: number, product: Product) => {
+    const normalized = Number(amount.toFixed(3));
+    return (product.allowsDecimalQuantity || !Number.isInteger(normalized))
+      ? normalized.toLocaleString(undefined, { maximumFractionDigits: 3 })
+      : String(normalized);
+  };
 
   if (!isOpen) {
     return null;
@@ -187,7 +193,7 @@ export function ProductSearchModal({
                           ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
                           : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
                     }`}>
-                      Stock: {product.currentStock}
+                      Stock: {formatQuantity(product.currentStock, product)} {product.unitLabel ?? ''}
                     </span>
                   </div>
                   <p className="min-h-[2.5rem] text-sm font-medium text-gray-900 line-clamp-2 dark:text-white">
@@ -197,6 +203,7 @@ export function ProductSearchModal({
                     <div className="min-w-0">
                       <p className="truncate text-xl font-medium text-[#C64237] dark:text-[#FFB5AE]">
                         {formatCurrency(product.salePrice, product.currency)}
+                        <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">/ {product.unitLabel ?? 'uds'}</span>
                       </p>
                       <p className="truncate text-xs font-medium text-gray-500 dark:text-gray-400">
                         Costo: {formatCurrency(product.costPrice, product.currency)}
