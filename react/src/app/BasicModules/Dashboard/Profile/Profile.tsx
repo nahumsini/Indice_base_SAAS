@@ -10,6 +10,7 @@ import {
   PROFILE_COUNTRY_OPTIONS,
 } from '../../../shared/profileCountries';
 import {
+  getPhoneExampleForCountry,
   isPhoneInputDialCodeOnly,
   normalizePhoneInputForCountry,
   validatePhoneForProfileCountry,
@@ -615,7 +616,7 @@ export default function Profile() {
         formattedPhones.push({
           id: phone.id,
           label: phone.label.trim() || `Phone ${formattedPhones.length + 1}`,
-          phone: validation.international,
+          phone: validation.e164,
           country: phone.country,
           is_primary: formattedPhones.length === 0,
         });
@@ -900,6 +901,9 @@ export default function Profile() {
                       placeholder={phoneCopy.number}
                     />
                   </div>
+                  <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+                    {phoneCopy.formatHint(getPhoneExampleForCountry(phone.country))}
+                  </p>
                 </div>
             ))}
             <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">

@@ -44,7 +44,13 @@ export const esMX = {
     discard: "Descartar",
     uploadingPhoto: "Subiendo foto...",
   },
-  phone: { add: "Agregar teléfono", number: "Número", primary: "Principal", remove: "Quitar" },
+  phone: {
+    add: "Agregar teléfono",
+    number: "Número",
+    primary: "Principal",
+    remove: "Quitar",
+    formatHint: (example) => `Ejemplo: ${example}`,
+  },
   progress: {
     completion: "Perfil completo",
     essentials: "Completa lo esencial en una sola vista.",

@@ -20,6 +20,14 @@ const positiveCases = [
   { country: 'PE', national: '912345678', international: '+51 912 345 678' },
 ];
 
+const mexicoTicketCases = [
+  '+52 81 3245 6845',
+  '81 3245 6845',
+  '8132456845',
+  '+528132456845',
+  '(81) 3245-6845',
+];
+
 const visibleDialCodeCountries = new Set(['MX', 'CO', 'US', 'CA', 'BR']);
 
 const negativeCases = [
@@ -36,17 +44,26 @@ const run = async () => {
     await build({
       absWorkingDir: process.cwd(),
       bundle: true,
-      entryPoints: ['src/app/shared/validation/phone.ts'],
       format: 'esm',
       outfile: bundledModulePath,
       platform: 'node',
+      stdin: {
+        contents: `
+          export * from './src/app/shared/validation/phone.ts';
+          export * from './src/app/shared/profileCountries.ts';
+        `,
+        loader: 'ts',
+        resolveDir: process.cwd(),
+      },
       target: ['node22'],
     });
 
     const {
+      getPhoneExampleForCountry,
       isPhoneInputDialCodeOnly,
       normalizePhoneInputForCountry,
       normalizePhoneInputForCountrySelection,
+      splitProfilePhone,
       validatePhoneForProfileCountry,
     } = await import(pathToFileURL(bundledModulePath).href);
 
@@ -76,6 +93,19 @@ const run = async () => {
       );
     });
 
+    mexicoTicketCases.forEach((value) => {
+      const normalizedValue = normalizePhoneInputForCountry(value, 'MX');
+      const validation = validatePhoneForProfileCountry(normalizedValue, 'MX');
+      assert.equal(
+        validation.ok,
+        true,
+        `Expected reported Mexico phone value ${value} to pass after normalization (${normalizedValue})`,
+      );
+      if (validation.ok) {
+        assert.equal(validation.e164, '+528132456845');
+      }
+    });
+
     negativeCases.forEach(({ selectedCountry, value, description }) => {
       const normalizedValue = normalizePhoneInputForCountry(value, selectedCountry);
       const validation = validatePhoneForProfileCountry(normalizedValue, selectedCountry);
@@ -100,9 +130,19 @@ const run = async () => {
       '+55 ',
       'Changing a blank phone row to Brazil should show the Brazil country code',
     );
+    assert.equal(
+      getPhoneExampleForCountry('MX'),
+      '+52 81 3245 6845',
+      'Mexico helper should show the accepted format from the support ticket',
+    );
+    assert.deepEqual(
+      splitProfilePhone('+528132456845', 'MX'),
+      { country: 'MX', dialCode: '+52', number: '8132456845' },
+      'Profile should split canonical E.164 Mexico phones using +52, not +528',
+    );
 
     console.log(
-      `Phone validation regression passed: ${positiveCases.length * 2} positive assertions, ${negativeCases.length} negative assertions, and visible-prefix assertions.`,
+      `Phone validation regression passed: ${positiveCases.length * 2 + mexicoTicketCases.length} positive assertions, ${negativeCases.length} negative assertions, and visible-prefix assertions.`,
     );
   } finally {
     rmSync(tempDir, { force: true, recursive: true });

@@ -163,6 +163,15 @@ export function splitProfilePhone(
   const phoneMatch = normalizedPhone.match(PHONE_PREFIX_PATTERN);
 
   if (normalizedCountry) {
+    const parsedPhone = parsePhoneNumberFromString(normalizedPhone, normalizedCountry as CountryCode);
+    if (parsedPhone?.country === normalizedCountry) {
+      return {
+        country: normalizedCountry,
+        dialCode: getDialCodeForProfileCountry(normalizedCountry),
+        number: parsedPhone.nationalNumber,
+      };
+    }
+
     return {
       country: normalizedCountry,
       dialCode: getDialCodeForProfileCountry(normalizedCountry),

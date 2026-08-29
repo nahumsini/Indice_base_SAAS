@@ -164,6 +164,16 @@ test('signup and login share the exact delivered credential contract', async () 
   assert.match(signupPage, /startEmailVerification/);
   assert.match(signupPage, /verifyEmailCode/);
   assert.match(signupPage, /emailVerificationReference:\s*form\.emailVerificationReference/);
+  assert.match(signupPage, /normalizeSignupPhoneInput/);
+  assert.match(signupPage, /validatePhoneForCountry\(form\.phone,\s*form\.countryCode\)/);
+  assert.match(signupPage, /phone:\s*normalizedSignupPhoneForRequest\(form\)/);
+  const signupPhoneField = signupPage.slice(
+    signupPage.indexOf('{copy.phoneLabel}'),
+    signupPage.indexOf('{copy.industryLabel}'),
+  );
+  assert.doesNotMatch(signupPage, /phoneDigitsOnly/);
+  assert.match(signupPhoneField, /inputMode="tel"/);
+  assert.doesNotMatch(signupPhoneField, /pattern="\[0-9\]\*"/);
   assert.match(signupApi, /confirmEmail:\s*string/);
   assert.match(signupApi, /emailVerificationReference:\s*string/);
   assert.match(signupApi, /startEmailVerification/);
