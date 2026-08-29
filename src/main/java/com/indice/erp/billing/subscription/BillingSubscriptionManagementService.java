@@ -1,10 +1,12 @@
 package com.indice.erp.billing.subscription;
 
 import com.indice.erp.billing.audit.BillingPaymentAuditService;
-import com.indice.erp.billing.stripe.StripeSignupProperties;
+import com.indice.erp.billing.BillingHashing;
+import com.indice.erp.billing.portal.StripeCustomerPortalGateway;
 import com.indice.erp.billing.stripe.StripeBillingGateway;
 import com.indice.erp.billing.stripe.StripeIdempotencyKeys;
-import com.stripe.Stripe;
+import com.indice.erp.billing.stripe.StripePhaseTwoProperties;
+import com.indice.erp.billing.stripe.StripeSecretProvider;
 import com.stripe.exception.StripeException;
 import java.time.Instant;
 import java.util.Map;
@@ -16,8 +18,10 @@ public class BillingSubscriptionManagementService {
     private final BillingSubscriptionRepository repository;
     private final CompanySubscriptionStatusProvider statusProvider;
     private final SubscriptionSeatLimitService seatLimitService;
-    private final StripeSignupProperties stripeProperties;
+    private final StripePhaseTwoProperties stripeProperties;
+    private final StripeSecretProvider stripeSecrets;
     private final StripeBillingGateway stripeGateway;
+    private final StripeCustomerPortalGateway portalGateway;
     private final CompanySeatAllowanceService seatAllowanceService;
     private final BillingPaymentAuditService auditService;
 
@@ -25,8 +29,10 @@ public class BillingSubscriptionManagementService {
         BillingSubscriptionRepository repository,
         CompanySubscriptionStatusProvider statusProvider,
         SubscriptionSeatLimitService seatLimitService,
-        StripeSignupProperties stripeProperties,
+        StripePhaseTwoProperties stripeProperties,
+        StripeSecretProvider stripeSecrets,
         StripeBillingGateway stripeGateway,
+        StripeCustomerPortalGateway portalGateway,
         CompanySeatAllowanceService seatAllowanceService,
         BillingPaymentAuditService auditService
     ) {
@@ -34,7 +40,9 @@ public class BillingSubscriptionManagementService {
         this.statusProvider = statusProvider;
         this.seatLimitService = seatLimitService;
         this.stripeProperties = stripeProperties;
+        this.stripeSecrets = stripeSecrets;
         this.stripeGateway = stripeGateway;
+        this.portalGateway = portalGateway;
         this.seatAllowanceService = seatAllowanceService;
         this.auditService = auditService;
     }
@@ -96,14 +104,17 @@ public class BillingSubscriptionManagementService {
         }
         requireStripeSecret();
         try {
-            Stripe.apiKey = stripeProperties.getSecretKey();
-            var session = com.stripe.model.billingportal.Session.create(Map.of(
-                "customer", record.stripeCustomerId(),
-                "return_url", stripeProperties.getPortalReturnUrl()
-            ));
+            if (stripeProperties.getPortalReturnUrl().isBlank()) {
+                throw new IllegalStateException("Stripe billing portal return URL is not configured.");
+            }
+            var session = portalGateway.create(
+                record.stripeCustomerId(),
+                stripeProperties.getPortalReturnUrl(),
+                "indice.company." + companyId + ".portal." + BillingHashing.randomReference()
+            );
             auditService.subscriptionAction(companyId, record.stripeSubscriptionId(), "portal.opened", "succeeded", null);
-            return new BillingPortalResponse(session.getUrl());
-        } catch (StripeException ex) {
+            return new BillingPortalResponse(session.url());
+        } catch (RuntimeException ex) {
             auditService.subscriptionAction(companyId, record.stripeSubscriptionId(), "portal.opened", "failed",
                 "Stripe billing portal could not be opened.");
             throw new IllegalStateException("Stripe billing portal could not be opened.", ex);
@@ -173,7 +184,7 @@ public class BillingSubscriptionManagementService {
     }
 
     private void requireStripeSecret() {
-        if (stripeProperties.getSecretKey().isBlank()) {
+        if (!stripeSecrets.isApiConfigured()) {
             throw new IllegalStateException("Stripe subscription management is not configured.");
         }
     }

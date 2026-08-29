@@ -1,8 +1,8 @@
 # Índice Premium Multi-Tenant y Billing
 
-Estado: arquitectura aprobada; catálogo comercial versionado implementado hasta V223
+Estado: arquitectura aprobada; catálogo y cambios programados al corte implementados hasta V230
 
-Fecha de corte: 27 de agosto de 2026
+Fecha de corte documental: 28 de agosto de 2026
 
 Base técnica de Fases 1–8: rama `nahum-mac-20-julio-premium-multitenant-billing`
 
@@ -225,8 +225,9 @@ cliente.
 
 ### 5.2 Tablas nuevas o adaptadas
 
-Los nombres definitivos se validarán contra el esquema al implementar. Las migraciones usarán el
-siguiente número libre; con el corte actual comienzan después de `V143`.
+Los nombres definitivos se validan contra el esquema implementado. Las migraciones son
+forward-only y deben usar el siguiente número libre; esta arquitectura está materializada hasta
+`V230`.
 
 | Tabla | Responsabilidad |
 |---|---|
@@ -236,6 +237,8 @@ siguiente número libre; con el corte actual comienzan después de `V143`.
 | `company_billing_customers` | `company_id` ↔ Stripe Customer |
 | `company_billing_subscriptions` | Estado y periodos de la suscripción |
 | `company_billing_subscription_items` | Paquete, seats, complementarios y almacenamiento |
+| `company_billing_selection_changes` | Borrador o cambio contractual programado, importes bloqueados, actor y fecha de corte |
+| `company_billing_selection_change_products` | Productos exactos que componen el cambio programado |
 | `company_entitlement_policies` | Cohorte y modo de evaluación comercial por `company_id` |
 | `company_entitlements` | Proyección efectiva y explicable de capabilities |
 | `entitlement_decision_events` | Diferencias shadow y bloqueos aplicados, con retención limitada |
@@ -271,6 +274,34 @@ se deja a un portal genérico que desconozca la composición de capabilities.
 
 Todos los IDs de Stripe se inyectan por configuración/secret manager. No se codifican precios ni
 secretos en Java, TypeScript o migraciones.
+
+### 5.4 Contrato único de selección, corte y tarjetas
+
+Las pantallas de cliente y Administración de plataforma consumen el mismo servicio de selección
+comercial y deben mostrar por separado el acceso vigente y la selección objetivo. Aplican estas
+reglas:
+
+1. Una selección de una cuenta sin suscripción Stripe es `DRAFT`. Guardarla no concede módulos,
+   no amplía seats y no genera cargos. Checkout convierte la selección confirmada en contrato.
+2. Un acceso gratuito otorgado por `PLATFORM_ROOT` es una cortesía explícita, auditable e
+   independiente del borrador. Nunca se crea implícitamente al guardar una tarifa.
+3. En una suscripción Stripe vigente, agregar o quitar productos o seats usa
+   `proration_behavior=none`: no existe factura ni cargo fuera de ciclo.
+4. El objetivo se guarda como `SCHEDULED` con importes, catálogo, productos, capacidad, actor y
+   `effective_at` bloqueados. La fecha efectiva es `trial_end` durante prueba o
+   `current_period_end` durante renovación.
+5. Stripe conserva las líneas recurrentes objetivo, pero Índice mantiene los entitlements y seats
+   pagados anteriores hasta recibir una factura firmada y pagada cuyo `period_start` alcance la
+   fecha efectiva y corresponda a la misma suscripción.
+6. Antes del mismo corte, un cambio posterior sustituye al anterior de manera idempotente. Si una
+   factura de un corte anterior sigue sin pago, se bloquea programar otro cambio para no perder la
+   relación entre importe cobrado y acceso concedido.
+7. Un fallo de pago no aplica la nueva selección. El acceso anterior sigue la política de gracia,
+   solo lectura y suspensión del ciclo de vida comercial.
+8. El propietario administra tarjetas y facturas únicamente mediante Checkout o Customer Portal
+   hospedados por Stripe. Índice y `PLATFORM_ROOT` no reciben PAN, CVV ni fecha de expiración; Root
+   sólo consulta el estado y administra el contrato o las cortesías mediante operaciones
+   auditadas.
 
 ## 6. Ciclo de vida y cobranza
 
@@ -793,8 +824,7 @@ Un producto puede aparecer en Checkout únicamente cuando:
 3. Definir el precio comercial inicial del bloque de 5 GB después de elegir región y redondeo.
 4. Precisar si una identidad consolidada puede ser propietaria simultánea de dos `company_id` o si
    la consolidación obliga a transferir/fusionar primero la estructura comercial.
-5. Definir prorrateo al subir de paquete y fecha efectiva al bajarlo.
-6. Definir qué exportaciones permanecen disponibles durante suspensión y retención.
+5. Definir qué exportaciones permanecen disponibles durante suspensión y retención.
 
 Estas decisiones no impidieron construir la infraestructura durable de Fases 1–7. Sí bloquean
 la publicación completa de Prices, el encendido de Checkout para clientes y el enforcement.
@@ -845,7 +875,7 @@ los reintentos conservan claves idempotentes y las operaciones abandonadas queda
 Ejecutar el runbook de Fase 8 exclusivamente en Stripe Test Mode: reconciliar una empresa interna,
 certificar cobro, seats, almacenamiento y morosidad con Test Clocks, y producir la evidencia de
 restauración y rollback. Antes de cobros públicos deben cerrarse los precios de `basic_all` y
-almacenamiento, prorrateo, suspensión y exportaciones; rotarse secretos; implementarse MFA real
+almacenamiento, suspensión y exportaciones; rotarse secretos; implementarse MFA real
 para plataforma; y realizarse una revisión explícita que autorice el modo
 `sk_live_`/`livemode=true`, aun cuando el runtime ya pueda validarlo técnicamente. No se habilitará
 enforcement global como parte del alta.

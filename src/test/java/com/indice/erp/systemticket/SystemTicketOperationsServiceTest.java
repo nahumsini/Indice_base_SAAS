@@ -52,6 +52,7 @@ class SystemTicketOperationsServiceTest {
         var resolved = ticket(8L, 99L, "RESOLVED", "MEDIUM", false, NOW.plusSeconds(3600), NOW);
         given(repository.listTickets(null)).willReturn(List.of(overdue, resolved));
         given(repository.listAssignees()).willReturn(List.of());
+        given(repository.listAvailableModuleNames()).willReturn(List.of("Punto de Venta", "Recursos Humanos"));
 
         var workspace = service.listForPlatform(
             99L,
@@ -62,6 +63,7 @@ class SystemTicketOperationsServiceTest {
         assertThat(workspace.summary().total()).isEqualTo(2);
         assertThat(workspace.summary().overdue()).isEqualTo(1);
         assertThat(workspace.summary().completed()).isEqualTo(1);
+        assertThat(workspace.modules()).containsExactly("Inventarios", "Punto de Venta", "Recursos Humanos");
         verify(platformAccess).require(99L, "SYSTEM_TICKETS_MANAGE");
     }
 

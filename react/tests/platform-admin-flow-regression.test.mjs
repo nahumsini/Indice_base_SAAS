@@ -373,11 +373,11 @@ test("la tabla suma los lugares adicionales concedidos durante la prueba", () =>
   assert.match(customerRow, /company\.courtesy_extra_seats \|\| 0/);
 });
 
-test("clientes resume facturacion mensual cuentas activas y usuarios reales", () => {
+test("clientes distingue la proyeccion mensual de cobros y resume cuentas y usuarios reales", () => {
   assert.match(page, /projected_monthly_billing_cents/);
   assert.match(page, /active_customer_companies/);
   assert.match(page, /customer_active_users/);
-  assert.match(page, /Facturaci.n mensual/);
+  assert.match(page, /Proyecci.n mensual/);
   assert.match(page, /usuarios activos totales/);
 });
 

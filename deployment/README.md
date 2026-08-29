@@ -136,6 +136,26 @@ procesadores, provisioning, lifecycle, entitlement enforcement ni autoriza por
 sí misma cobros públicos. Si cualquier referencia no coincide, conserva la
 versión activa anterior y ejecuta el rollback de aplicación documentado.
 
+### Certificación del día de corte y métodos de pago
+
+Una liberación que incluya V230 debe certificarse primero en Stripe TEST con una
+suscripción y un Test Clock. La evidencia debe confirmar:
+
+1. guardar una selección sin Stripe crea un borrador y no concede módulos ni seats;
+2. Checkout es la única transición que activa ese primer contrato;
+3. agregar o quitar productos en una suscripción no crea factura ni cargo inmediato;
+4. el acceso vigente no cambia antes del corte;
+5. `invoice.payment_failed` conserva la selección anterior y activa la política de mora;
+6. una factura pagada de la misma suscripción, con `period_start` en el corte, aplica una sola vez
+   los productos y seats programados;
+7. el propietario puede abrir Customer Portal para cambiar tarjeta, mientras otro administrador y
+   una sesión delegada Root reciben `403` o modo de solo lectura;
+8. Índice no registra ni persiste PAN, CVV, fecha de expiración o secretos Stripe.
+
+No habilites cobros LIVE si existe un cambio `PENDING_STRIPE`, un evento webhook fallido o una
+factura del corte anterior sin reconciliar. El rollback de aplicación conserva las tablas V230;
+las migraciones no se revierten ni se editan.
+
 Los tiempos estándar enviados al backend son: RH 3 minutos; Expenses 5 minutos
 de inactividad y 8 horas de sesión; Caja Chica 15 minutos y 4 horas; Procesos y
 Tareas 30 minutos y 8 horas. Para cambiarlos en un ambiente, modifica únicamente

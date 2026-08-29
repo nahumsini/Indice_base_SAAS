@@ -63,3 +63,16 @@ test('Petty Cash no introduce texto operativo menor a 12 px', () => {
 
   assert.deepEqual(violations, []);
 });
+
+test('Saldos ofrece vista previa, descarga e impresión del estado de cuenta', () => {
+  const reconciliationSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashReconciliationWorkspace.tsx'), 'utf8');
+  const detailSource = readFileSync(resolve(pettyCashRoot, 'components/statements/PettyCashStatementDetailModal.tsx'), 'utf8');
+  const pdfSource = readFileSync(resolve(pettyCashRoot, 'utils/pettyCashStatementPdf.ts'), 'utf8');
+
+  assert.match(reconciliationSource, /additionalActionLabel=\{accountStatementCopy\.action\}/);
+  assert.match(reconciliationSource, /setPreviewStatement\(selectedStatement\)/);
+  assert.match(detailSource, /downloadPettyCashStatementPdf/);
+  assert.match(detailSource, /printPettyCashStatementPdf/);
+  assert.match(pdfSource, /format: 'a4'/);
+  assert.match(pdfSource, /openStandardPdfForPrint/);
+});

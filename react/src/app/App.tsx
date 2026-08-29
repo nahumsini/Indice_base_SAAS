@@ -31,6 +31,7 @@ import { canAccessModulePage } from './access/accessRules';
 import { allowedModuleTabIds, canAccessKioskCenter, MODULE_TAB_SCOPE_CATALOG } from './access/tabScopeCatalog';
 import { BusinessCurrencyProvider } from './BasicModules/shared/BusinessCurrencyContext';
 import { useAuthorizationRevision } from './hooks/useAuthorizationRevision';
+import { ProductAnalyticsTracker } from './analytics/ProductAnalyticsTracker';
 
 const getNavigationSuccessToast = (state: unknown) => {
   if (!state || typeof state !== 'object' || !('successToast' in state)) {
@@ -812,6 +813,12 @@ export default function App() {
       className={`notranslate flex h-dvh min-h-0 flex-col overflow-hidden ${darkMode ? 'dark bg-gray-900' : 'bg-gray-50'}`}
     >
       <BusinessCurrencyProvider>
+        <ProductAnalyticsTracker
+          userId={sessionTabAccess?.user.id}
+          routeKey={currentPage}
+          sectionKey={requestedTabId}
+          locale={sessionTabAccess ? document.documentElement.lang : undefined}
+        />
         <div className="shrink-0">
           <Header
             learningModeActive={learningModeActive}

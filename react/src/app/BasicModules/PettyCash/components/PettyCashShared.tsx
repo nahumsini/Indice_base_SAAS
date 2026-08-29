@@ -43,11 +43,15 @@ const getStatusCopy = (kind: StatusKind, status: string) => {
 };
 
 export function PettyCashHeaderBanner({
+  additionalActionDisabled,
+  additionalActionIcon: AdditionalActionIcon,
+  additionalActionLabel,
   actionLabel,
   description,
   emoji,
   icon: Icon,
   onAction,
+  onAdditionalAction,
   onColumns,
   onSecondaryAction,
   onTertiaryAction,
@@ -57,11 +61,15 @@ export function PettyCashHeaderBanner({
   tertiaryActionLabel,
   title,
 }: {
+  additionalActionDisabled?: boolean;
+  additionalActionIcon?: LucideIcon;
+  additionalActionLabel?: string;
   actionLabel?: string;
   description: string;
   emoji?: string;
   icon?: LucideIcon;
   onAction?: () => void;
+  onAdditionalAction?: () => void;
   onColumns?: () => void;
   onSecondaryAction?: () => void;
   onTertiaryAction?: () => void;
@@ -73,6 +81,17 @@ export function PettyCashHeaderBanner({
 }) {
   const actionLayout = (
     <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-row sm:items-center">
+      {additionalActionLabel && onAdditionalAction ? (
+        <button
+          type="button"
+          disabled={additionalActionDisabled}
+          onClick={onAdditionalAction}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-none transition hover:border-[#147514]/30 hover:bg-[#147514]/5 hover:text-[#147514] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
+        >
+          {AdditionalActionIcon ? <AdditionalActionIcon className="h-4 w-4" /> : null}
+          {additionalActionLabel}
+        </button>
+      ) : null}
       {secondaryActionLabel && onSecondaryAction ? (
         <button
           type="button"

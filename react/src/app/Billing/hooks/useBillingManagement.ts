@@ -72,7 +72,7 @@ export function useBillingManagement(copy: BillingCopy) {
   }), [state.draft]);
   const readOnly = Boolean(state.managedContext?.active && state.managedContext.read_only);
   const readOnlyMessage = state.managedContext?.active_company
-    ? `Delegated billing access for ${state.managedContext.active_company.name} is read-only.`
+    ? copy.delegatedReadOnly(state.managedContext.active_company.name)
     : '';
 
   useEffect(() => {

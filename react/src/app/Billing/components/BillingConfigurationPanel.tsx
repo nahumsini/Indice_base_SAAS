@@ -1,8 +1,10 @@
-import { Boxes, CreditCard, ReceiptText, Users } from 'lucide-react';
-import { Button } from '../../components/ui/button';
+import { CalendarClock } from 'lucide-react';
 import type { BillingSelectionResponse, BillingSubscriptionResponse } from '../../api/billing';
+import { formatBillingDate } from '../billingFormatters';
+import { toBillingPresentation } from '../billingPresentation.adapter';
 import type { BillingDraft } from '../types';
 import type { BillingCopy } from '../translations';
+import { BillingActionDock } from './BillingActionDock';
 import { BillingPaymentSection } from './BillingPaymentSection';
 import { BillingPriceSummary } from './BillingPriceSummary';
 import { BillingUserControl } from './BillingUserControl';
@@ -16,6 +18,7 @@ type Props = {
   action: string;
   hasChanges: boolean;
   readOnly: boolean;
+  languageCode: string;
   onChange: (patch: Partial<BillingDraft>) => void;
   onReset: () => void;
   onSave: () => void;
@@ -26,42 +29,31 @@ type Props = {
 export function BillingConfigurationPanel(props: Props) {
   const visible = props.preview ?? props.selection;
   const paymentRequired = props.selection.payment_method_required;
-  const paymentCommercialChanges = paymentRequired && (
-    props.draft.extraSeats !== props.selection.extra_seats
-    || props.draft.billingInterval !== props.selection.billing_interval
-  );
   const billingCycleLocked = ['ACTIVE', 'PAST_DUE'].includes(props.selection.status.toUpperCase());
-  const capacity = visible.included_seats + props.draft.extraSeats;
-  const steps = [
-    { icon: Boxes, label: props.copy.planStep, value: props.draft.productCodes.length },
-    { icon: Users, label: props.copy.peopleStep, value: capacity },
-    { icon: CreditCard, label: props.copy.paymentStep, value: paymentRequired ? '!' : '✓' },
-  ];
+  const presentation = toBillingPresentation(visible, props.subscription, props.hasChanges);
+  const activationHelp = props.selection.activation_block_reason === 'OWNER_REQUIRED'
+    ? props.copy.ownerPaymentRequired
+    : props.selection.activation_block_reason === 'STRIPE_UNAVAILABLE'
+      ? props.copy.stripeDisabled
+      : props.copy.stripeCatalogPending;
 
   return (
     <aside className="lg:sticky lg:top-4 lg:self-start">
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-        <header className="flex items-center gap-3 border-b border-slate-200 p-4 dark:border-slate-800">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
-            <ReceiptText className="h-5 w-5" />
+        <header className="flex items-start gap-3 border-b border-slate-200 p-4 dark:border-slate-800">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue-50 text-[#2563EB] dark:bg-blue-950/50 dark:text-blue-200">
+            <CalendarClock className="h-5 w-5" />
           </span>
-          <div>
-            <h2 className="font-medium text-slate-950 dark:text-white">{props.copy.currentPlan}</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">{visible.catalog_version}</p>
+          <div className="min-w-0 flex-1">
+            <h2 className="font-medium text-slate-950 dark:text-white">{props.copy.planAtCutoff}</h2>
+            <p className="mt-0.5 text-xs leading-5 text-slate-500 dark:text-slate-400">
+              {props.copy.cutoffDate}: {formatBillingDate(presentation.cutoffAt, props.languageCode, props.copy.noDate)}
+            </p>
           </div>
+          <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+            {presentation.targetModuleCount} {props.copy.modulesShort}
+          </span>
         </header>
-
-        <div aria-label={props.copy.configurationGuide} className="grid grid-cols-3 border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950/40">
-          {steps.map(({ icon: Icon, label, value }) => (
-            <div key={label} className="flex min-w-0 items-center gap-2 border-r border-slate-200 px-3 py-2.5 last:border-r-0 dark:border-slate-800">
-              <Icon className="h-4 w-4 shrink-0 text-[#177D66] dark:text-[#8FE0CA]" />
-              <div className="min-w-0">
-                <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">{label}</p>
-                <p className="text-xs font-medium text-slate-900 dark:text-white">{value}</p>
-              </div>
-            </div>
-          ))}
-        </div>
 
         <section className="p-4">
           <label className="block">
@@ -88,7 +80,7 @@ export function BillingConfigurationPanel(props: Props) {
           paymentRequired={paymentRequired}
           onChange={(extraSeats) => props.onChange({ extraSeats })}
         />
-        <BillingPriceSummary copy={props.copy} visible={visible} draft={props.draft} />
+        <BillingPriceSummary copy={props.copy} visible={visible} draft={props.draft} languageCode={props.languageCode} />
         <BillingPaymentSection
           copy={props.copy}
           selection={props.selection}
@@ -96,18 +88,23 @@ export function BillingConfigurationPanel(props: Props) {
           action={props.action}
           hasChanges={props.hasChanges}
           readOnly={props.readOnly}
-          onActivate={props.onActivate}
           onSubscriptionAction={props.onSubscriptionAction}
         />
 
-        {props.readOnly ? null : <footer className="grid grid-cols-2 gap-2 border-t border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-          <Button type="button" variant="outline" onClick={props.onReset} disabled={!props.hasChanges || Boolean(props.action)} className="h-10 rounded-xl bg-white dark:bg-slate-900">
-            {props.copy.reset}
-          </Button>
-          <Button type="button" onClick={props.onSave} disabled={!props.hasChanges || !props.draft.productCodes.length || paymentCommercialChanges || Boolean(props.action)} className="h-10 rounded-xl bg-[#177D66] hover:bg-[#126653]">
-            {props.action === 'save' ? props.copy.saving : props.copy.save}
-          </Button>
-        </footer>}
+        {props.readOnly ? null : (
+          <BillingActionDock
+            copy={props.copy}
+            primaryAction={presentation.primaryAction}
+            action={props.action}
+            hasChanges={props.hasChanges}
+            hasProducts={Boolean(props.draft.productCodes.length)}
+            activationAvailable={props.selection.activation_available}
+            activationHelp={activationHelp}
+            onReset={props.onReset}
+            onSave={props.onSave}
+            onActivate={props.onActivate}
+          />
+        )}
       </section>
     </aside>
   );

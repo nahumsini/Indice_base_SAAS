@@ -51,8 +51,13 @@ export function CompanyModulesTab({
   const [previewError, setPreviewError] = useState("");
   const [pendingChange, setPendingChange] = useState<PendingChange | null>(null);
   const stripeTrial = company.billing_status?.toUpperCase() === "TRIALING" && Boolean(company.stripe_subscription_id);
-  const stripeManaged = Boolean(company.stripe_subscription_id);
+  const stripeManaged = Boolean(
+    company.stripe_subscription_id
+    && !company.stripe_subscription_id.startsWith("internal_")
+    && !company.stripe_subscription_id.startsWith("legacy_"),
+  );
   const versionedOffer = products.some((product) => product.commercial_model);
+  const commercialSyncing = company.commercial_change?.status === "PENDING_STRIPE";
 
   const subscriptionProductCodes = useMemo(
     () => new Set(
@@ -61,6 +66,12 @@ export function CompanyModulesTab({
         .map((product) => product.code),
     ),
     [company.products],
+  );
+  const targetProductCodes = useMemo(
+    () => ["PENDING_STRIPE", "SCHEDULED"].includes(company.commercial_change?.status || "")
+      ? new Set(company.commercial_change.product_codes)
+      : subscriptionProductCodes,
+    [company.commercial_change, subscriptionProductCodes],
   );
 
   const contractedProducts = useMemo<DisplayProduct[]>(
@@ -122,8 +133,9 @@ export function CompanyModulesTab({
     const benefits = activeProductBenefits.get(product.code) || [];
     const removableBenefit = benefits.find((benefit) => benefit.source_type.toUpperCase() !== "SUBSCRIPTION");
     const subscriptionProduct = subscriptionProductCodes.has(product.code);
-    const canRemoveFromStripe = subscriptionProduct && subscriptionProductCodes.size > 1;
-    const busy = saving || previewingCode !== null;
+    const targetProduct = targetProductCodes.has(product.code);
+    const canRemoveFromStripe = subscriptionProduct && targetProduct && targetProductCodes.size > 1;
+    const busy = saving || previewingCode !== null || commercialSyncing;
     const price = product.monthlyPriceCents == null
       ? null
       : new Intl.NumberFormat("es-MX", { style: "currency", currency: "USD" }).format(product.monthlyPriceCents / 100);
@@ -161,14 +173,28 @@ export function CompanyModulesTab({
             </p>
           ) : null}
         </div>
-        {stripeManaged && subscriptionProduct ? (
+        {stripeManaged && subscriptionProduct && !targetProduct ? (
+          <button
+            type="button"
+            className="h-9 shrink-0 rounded-lg border border-blue-200 bg-white px-3 text-xs font-medium text-blue-700 transition hover:bg-blue-50 disabled:opacity-60"
+            disabled={busy}
+            title="Conservar este producto en la selección del próximo corte"
+            onClick={() => void requestPreview(
+              [...targetProductCodes, product.code],
+              `Conservar ${product.name}`,
+              product.code,
+            )}
+          >
+            {previewingCode === product.code ? <LoaderCircle className="mx-auto h-4 w-4 animate-spin" /> : "Conservar"}
+          </button>
+        ) : stripeManaged && subscriptionProduct ? (
           <button
             type="button"
             className="h-9 shrink-0 rounded-lg border border-rose-200 px-3 text-xs font-medium text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={busy || !canRemoveFromStripe}
             title={canRemoveFromStripe ? "Revisar el nuevo total antes de quitar" : "La suscripción debe conservar al menos un producto"}
             onClick={() => void requestPreview(
-              Array.from(subscriptionProductCodes).filter((code) => code !== product.code),
+              Array.from(targetProductCodes).filter((code) => code !== product.code),
               `Quitar ${product.name}`,
               product.code,
             )}
@@ -184,14 +210,28 @@ export function CompanyModulesTab({
           >
             Quitar acceso
           </button>
-        ) : active ? null : stripeManaged ? (
+        ) : active ? null : stripeManaged && targetProduct ? (
+          <button
+            type="button"
+            className="h-9 shrink-0 rounded-lg border border-rose-200 bg-white px-3 text-xs font-medium text-rose-600 transition hover:bg-rose-50 disabled:opacity-60"
+            disabled={busy || targetProductCodes.size <= 1}
+            title={targetProductCodes.size > 1 ? "Quitar este producto del cambio programado" : "La selección debe conservar al menos un producto"}
+            onClick={() => void requestPreview(
+              Array.from(targetProductCodes).filter((code) => code !== product.code),
+              `Quitar ${product.name} del cambio programado`,
+              product.code,
+            )}
+          >
+            {previewingCode === product.code ? <LoaderCircle className="mx-auto h-4 w-4 animate-spin" /> : "Quitar del cambio"}
+          </button>
+        ) : stripeManaged ? (
           <button
             type="button"
             className="h-9 shrink-0 rounded-lg bg-blue-600 px-3 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={busy}
             title="Revisar el nuevo total antes de agregar"
             onClick={() => void requestPreview(
-              [...subscriptionProductCodes, product.code],
+              [...targetProductCodes, product.code],
               `Agregar ${product.name}`,
               product.code,
             )}
@@ -225,6 +265,40 @@ export function CompanyModulesTab({
         </div>
       ) : null}
 
+      {company.commercial_change ? (
+        <div className="border-b border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-medium">
+              {company.commercial_change.status === "PENDING_STRIPE"
+                ? "Cambio pendiente de confirmar con Stripe"
+                : company.commercial_change.status === "SCHEDULED"
+                  ? "Cambio contractual programado"
+                  : "Borrador de contratación sin activar"}
+            </p>
+            {company.commercial_change.status === "PENDING_STRIPE" ? (
+              <button
+                type="button"
+                className="h-8 rounded-lg border border-blue-300 bg-white px-3 text-xs font-medium text-blue-800 disabled:opacity-60"
+                disabled={saving || previewingCode !== null}
+                onClick={() => void requestPreview(
+                  company.commercial_change!.product_codes,
+                  "Reintentar la sincronización pendiente",
+                  "commercial-retry",
+                )}
+              >
+                {previewingCode === "commercial-retry" ? "Revisando…" : "Reintentar"}
+              </button>
+            ) : null}
+          </div>
+          <p className="mt-1 text-xs leading-5 text-blue-800">
+            {company.commercial_change.product_names.join(" · ") || "Sin productos"}
+            {company.commercial_change.effective_at
+              ? ` · Se aplicará después del cobro del ${new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short", year: "numeric" }).format(new Date(company.commercial_change.effective_at))}.`
+              : " · No concede acceso ni genera cargos hasta completar Stripe."}
+          </p>
+        </div>
+      ) : null}
+
       {previewError ? (
         <div role="alert" className="border-b border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{previewError}</div>
       ) : null}
@@ -232,7 +306,7 @@ export function CompanyModulesTab({
       {pendingChange ? (
         <div className="border-b border-blue-200 bg-blue-50 px-4 py-4 text-sm text-blue-950">
           <p className="font-medium">Confirma el cambio comercial</p>
-          <p className="mt-1 text-blue-800">{pendingChange.description}. El acceso cambia al confirmar; Stripe no hará prorrateo ni un cobro inmediato.</p>
+          <p className="mt-1 text-blue-800">{pendingChange.description}. No habrá prorrateo ni cargo inmediato; el cambio de acceso se aplicará después del cobro en la fecha de corte.</p>
           <div className="mt-3 grid gap-2 sm:grid-cols-3">
             <div className="rounded-lg bg-white px-3 py-2 ring-1 ring-blue-100">
               <p className="text-xs text-slate-500">Nueva versión</p>
@@ -248,7 +322,7 @@ export function CompanyModulesTab({
             </div>
             <div className="rounded-lg bg-white px-3 py-2 ring-1 ring-blue-100">
               <p className="text-xs text-slate-500">Aplicación</p>
-              <p className="mt-0.5 font-medium text-slate-900">{pendingChange.preview.change_timing === "TRIAL_END" ? "Al terminar la prueba" : "Próxima renovación"}</p>
+              <p className="mt-0.5 font-medium text-slate-900">{pendingChange.preview.change_timing === "TRIAL_END" ? "Al terminar la prueba" : "Fecha de corte"}</p>
             </div>
           </div>
           <div className="mt-3 flex justify-end gap-2">
@@ -292,10 +366,10 @@ export function CompanyModulesTab({
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
         <p>
           {stripeTrial
-            ? "Stripe no cobra durante la prueba. Los cambios confirmados definen el total que empezará a cobrarse al vencer."
+            ? "Stripe no cobra durante la prueba. Los cambios confirmados definen el total y el acceso que comenzarán después del cobro al vencer."
             : stripeManaged
-              ? "Los cambios se sincronizan con Stripe sin prorrateo ni cobro inmediato; el nuevo total se aplica en la próxima renovación."
-              : "Los accesos administrativos no generan cargos automáticos hasta completar el alta de cobro en Stripe."}
+              ? "Los cambios se programan en Stripe sin prorrateo ni cobro inmediato; el nuevo acceso se aplica después del pago en la fecha de corte."
+              : "Los accesos de cortesía son independientes del borrador comercial y no generan cargos automáticos."}
         </p>
       </div>
     </WorkspaceSection>

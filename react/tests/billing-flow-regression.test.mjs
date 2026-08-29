@@ -12,6 +12,12 @@ const userControl = read("src/app/Billing/components/BillingUserControl.tsx");
 const priceSummary = read("src/app/Billing/components/BillingPriceSummary.tsx");
 const overview = read("src/app/Billing/components/BillingOverviewBar.tsx");
 const modules = read("src/app/Billing/components/ModuleSelectionPanel.tsx");
+const productCard = read("src/app/Billing/components/BillingProductCard.tsx");
+const actionDock = read("src/app/Billing/components/BillingActionDock.tsx");
+const payment = read("src/app/Billing/components/BillingPaymentSection.tsx");
+const presentation = read("src/app/Billing/billingPresentation.adapter.ts");
+const formatters = read("src/app/Billing/billingFormatters.ts");
+const translations = read("src/app/Billing/translations/index.ts");
 const hook = read("src/app/Billing/hooks/useBillingManagement.ts");
 const api = read("src/app/api/billing.ts");
 const endpoints = read("src/app/api/endpoints.ts");
@@ -79,6 +85,33 @@ test("la experiencia expresa usuarios totales y calcula incluidos, adicionales y
   assert.match(userControl, /type="number"/);
   assert.match(userControl, /availableUsers/);
   assert.match(userControl, /pendingInvitations/);
+});
+
+test("la interfaz presenta el contrato actual y el próximo corte sin filtrar códigos internos", () => {
+  assert.match(overview, /toBillingPresentation/);
+  assert.match(overview, /currentModuleCount/);
+  assert.match(overview, /targetModuleCount/);
+  assert.doesNotMatch(overview, /selection\.offer_code/);
+  assert.match(formatters, /Intl\.NumberFormat\(locale/);
+  assert.match(formatters, /Intl\.DateTimeFormat\(locale/);
+});
+
+test("los módulos tienen identidad localizada y no contienen nombres de producto codificados", () => {
+  assert.match(modules, /BillingProductCard/);
+  assert.match(productCard, /copy\.moduleNames/);
+  assert.match(productCard, /copy\.capabilityNames/);
+  assert.match(productCard, /formatBillingMoney/);
+  assert.doesNotMatch(productCard, /basic_hr|basic_process_tasks|basic_expenses/);
+  assert.match(translations, /moduleNamesEs/);
+  assert.match(translations, /moduleNamesEn/);
+});
+
+test("billing mantiene una sola acción comercial primaria según el estado", () => {
+  assert.match(panel, /BillingActionDock/);
+  assert.match(presentation, /'ACTIVATE' \| 'RETRY_SYNC' \| 'SCHEDULE' \| 'NONE'/);
+  assert.match(actionDock, /isActivation \? props\.onActivate : props\.onSave/);
+  assert.doesNotMatch(payment, /onActivate/);
+  assert.match(payment, /variant="outline"/);
 });
 
 test("el backend consulta el nombre real del estado comercial y proyecta la capacidad", () => {

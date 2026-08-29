@@ -780,7 +780,52 @@ public class PlatformAdminService {
         body.put("benefits", listBenefits(companyId));
         body.put("seat_usage", seatUsage(companyId));
         body.put("storage_usage", storageSnapshot(companyId));
+        body.put("commercial_change", companyCommercialChange(companyId));
         return body;
+    }
+
+    private Map<String, Object> companyCommercialChange(long companyId) {
+        return jdbcTemplate.query(
+            """
+                SELECT change_row.public_reference, change_row.change_kind, change_row.status,
+                       change_row.effective_at, version_row.version_code, change_row.offer_code,
+                       change_row.billing_interval, change_row.currency,
+                       change_row.included_seats, change_row.extra_seats,
+                       change_row.estimated_amount_cents, change_row.requested_by_authority,
+                       (SELECT GROUP_CONCAT(product.product_code ORDER BY selected.sort_order, product.id SEPARATOR ',')
+                          FROM company_billing_selection_change_products selected
+                          JOIN billing_catalog_products product ON product.id = selected.catalog_product_id
+                         WHERE selected.change_id = change_row.id) AS product_codes,
+                       (SELECT GROUP_CONCAT(product.display_name ORDER BY selected.sort_order, product.id SEPARATOR '|')
+                          FROM company_billing_selection_change_products selected
+                          JOIN billing_catalog_products product ON product.id = selected.catalog_product_id
+                         WHERE selected.change_id = change_row.id) AS product_names
+                FROM company_billing_selection_changes change_row
+                JOIN billing_catalog_versions version_row ON version_row.id = change_row.catalog_version_id
+                WHERE change_row.company_id = ? AND change_row.status IN ('DRAFT', 'PENDING_STRIPE', 'SCHEDULED')
+                ORDER BY FIELD(change_row.status, 'PENDING_STRIPE', 'SCHEDULED', 'DRAFT'), change_row.id DESC
+                LIMIT 1
+                """,
+            (rs, rowNum) -> {
+                var row = new LinkedHashMap<String, Object>();
+                row.put("reference", rs.getString("public_reference"));
+                row.put("kind", rs.getString("change_kind"));
+                row.put("status", rs.getString("status"));
+                row.put("effective_at", instant(rs.getTimestamp("effective_at")));
+                row.put("catalog_version", rs.getString("version_code"));
+                row.put("offer_code", rs.getString("offer_code"));
+                row.put("billing_interval", rs.getString("billing_interval"));
+                row.put("currency", rs.getString("currency"));
+                row.put("included_seats", rs.getInt("included_seats"));
+                row.put("extra_seats", rs.getInt("extra_seats"));
+                row.put("estimated_amount_cents", rs.getObject("estimated_amount_cents"));
+                row.put("requested_by_authority", rs.getString("requested_by_authority"));
+                row.put("product_codes", csv(rs.getString("product_codes"), ","));
+                row.put("product_names", csv(rs.getString("product_names"), "\\|"));
+                return row;
+            },
+            companyId
+        ).stream().findFirst().orElse(null);
     }
 
     @Transactional

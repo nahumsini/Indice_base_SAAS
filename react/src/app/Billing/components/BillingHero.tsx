@@ -15,25 +15,18 @@ type Props = {
 };
 
 export function BillingHero({ copy, selection, subscription, loading, leaving, onBack, onRefresh }: Props) {
-  const accessActive = subscription?.access_allowed ?? selection?.status !== 'SUSPENDED';
+  const accessActive = subscription?.access_allowed ?? selection?.access_allowed ?? false;
   return (
     <IndiceTitleBar
       tone="aqua"
       icon={<CreditCard className="h-5 w-5" />}
-      eyebrow={copy.eyebrow}
       title={copy.title}
-      subtitle={(
-        <>
-          {copy.description}
-          <span className="mt-2 flex flex-wrap items-center gap-2">
-            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${accessActive ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200'}`}>
-              <ShieldCheck className="h-3.5 w-3.5" /> {accessActive ? copy.accessActive : copy.accessAttention}
-            </span>
-          </span>
-        </>
-      )}
+      subtitle={copy.description}
       actions={(
         <>
+          <span className={`inline-flex h-10 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-medium ${accessActive ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200'}`}>
+            <ShieldCheck className="h-3.5 w-3.5" /> {accessActive ? copy.accessActive : copy.accessAttention}
+          </span>
           <Button type="button" variant="outline" onClick={onBack} disabled={loading || leaving} className="h-10 rounded-xl bg-white dark:bg-slate-900">
             <ArrowLeft className={`h-4 w-4 ${leaving ? 'animate-pulse' : ''}`} /> {copy.back}
           </Button>
