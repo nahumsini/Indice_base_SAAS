@@ -214,6 +214,31 @@ test('Cobro en efectivo conserva recibido, cambio y una jerarquia clara para caj
   assert.match(calculations, /recordedCashChange/);
 });
 
+test('Square Terminal mantiene cobro verificado por backend y recuperable', () => {
+  const api = readFileSync(resolve(pointOfSaleRoot, 'Sale/services/posBackendApi.ts'), 'utf8');
+  const client = readFileSync(resolve(pointOfSaleRoot, 'Sale/services/squareTerminalPaymentClient.ts'), 'utf8');
+  const checkout = readFileSync(resolve(pointOfSaleRoot, 'Sale/hooks/useSaleCheckout.ts'), 'utf8');
+  const sale = readFileSync(resolve(pointOfSaleRoot, 'Sale/Sale.tsx'), 'utf8');
+  const recovery = readFileSync(resolve(pointOfSaleRoot, 'Sale/components/SquareTerminalRecoveryPanel.tsx'), 'utf8');
+  const setup = readFileSync(resolve(pointOfSaleRoot, 'CashRegisters/SquareTerminalSetupPanel.tsx'), 'utf8');
+
+  assert.match(api, /listRecoverableSquareTerminalPayments/);
+  assert.match(api, /unassignSquareTerminal[\s\S]*method: 'DELETE'/);
+  assert.match(api, /disableSquareTerminal[\s\S]*\/disable/);
+  assert.match(api, /refreshSquareTerminalPairingCode[\s\S]*\/pairing-code/);
+  assert.match(client, /recoverSquareTerminalPayment\(current\.intentId\)/);
+  assert.doesNotMatch(client, /getSquareTerminalPayment\(current\.intentId\)/);
+  assert.match(checkout, /Square Terminal MVP only supports one full card payment/);
+  assert.match(checkout, /recoverSquareTerminalIntent/);
+  assert.match(checkout, /handleCheckoutSaved\(/);
+  assert.match(sale, /SquareTerminalRecoveryPanel/);
+  assert.match(recovery, /listRecoverableSquareTerminalPayments/);
+  assert.match(recovery, /cancelSquareTerminalPayment/);
+  assert.match(setup, /assignSquareTerminal/);
+  assert.match(setup, /unassignSquareTerminal/);
+  assert.match(setup, /disableSquareTerminal/);
+});
+
 test('Devoluciones y movimientos operan dentro del workspace izquierdo', () => {
   const sale = readFileSync(resolve(pointOfSaleRoot, 'Sale/Sale.tsx'), 'utf8');
   const frame = readFileSync(resolve(pointOfSaleRoot, 'Sale/components/PosModalFrame.tsx'), 'utf8');
