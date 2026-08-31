@@ -18,11 +18,15 @@ export class IndiceClient {
 
   constructor(
     private readonly config: IndiceMcpConfig,
-    private readonly fetchImplementation: typeof fetch = fetch
+    private readonly fetchImplementation: typeof fetch = fetch,
+    private readonly delegatedAccessToken: string | undefined = config.accessToken
   ) {
   }
 
   async getSalesToday(preferredCurrency?: string): Promise<SalesTodaySummary> {
+    if (this.config.authMode === "delegated") {
+      return this.getDelegatedSalesToday(preferredCurrency);
+    }
     await this.ensureAuthenticated();
     const currency = normalizeCurrency(preferredCurrency ?? this.config.preferredCurrency);
     let response = await this.request(
@@ -51,6 +55,49 @@ export class IndiceClient {
     return parsed.data;
   }
 
+  async hasValidDelegatedAccess(): Promise<boolean> {
+    if (this.config.authMode !== "delegated" || !this.delegatedAccessToken) {
+      return false;
+    }
+    const response = await this.request("/api/v1/ai/access/verify", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${this.delegatedAccessToken}` }
+    });
+    if (response.status === 401) {
+      return false;
+    }
+    if (!response.ok) {
+      throw await this.apiError(response, "Indice could not verify delegated authorization.");
+    }
+    return true;
+  }
+
+  private async getDelegatedSalesToday(preferredCurrency?: string): Promise<SalesTodaySummary> {
+    if (!this.delegatedAccessToken) {
+      throw new IndiceApiError("Indice delegated authorization is required.", 401);
+    }
+    const currency = normalizeCurrency(preferredCurrency ?? this.config.preferredCurrency);
+    const response = await this.request(
+      `/api/v1/ai/tools/sales/today?preferredCurrency=${encodeURIComponent(currency)}`,
+      {
+        method: "GET",
+        headers: { Authorization: `Bearer ${this.delegatedAccessToken}` }
+      }
+    );
+    if (!response.ok) {
+      throw await this.apiError(response, response.status === 403
+        ? "Your current Indice permissions do not allow today's sales tool."
+        : "Indice delegated authorization failed.");
+    }
+
+    const payload: unknown = await response.json();
+    const parsed = salesTodaySummarySchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new IndiceApiError("Indice returned an invalid sales summary contract.");
+    }
+    return parsed.data;
+  }
+
   private async ensureAuthenticated(): Promise<void> {
     if (this.authenticated) {
       return;
@@ -65,7 +112,6 @@ export class IndiceClient {
   }
 
   private async authenticate(): Promise<void> {
-
     this.cookies.clear();
     const csrfResponse = await this.request("/api/v1/auth/csrf", { method: "GET" });
     if (!csrfResponse.ok) {
@@ -83,9 +129,9 @@ export class IndiceClient {
         "X-CSRF-Token": csrfPayload.csrfToken
       },
       body: JSON.stringify({
-        companyName: this.config.companyName,
-        email: this.config.email,
-        password: this.config.password
+        companyName: requiredSessionValue(this.config.companyName, "company name"),
+        email: requiredSessionValue(this.config.email, "email"),
+        password: requiredSessionValue(this.config.password, "password")
       })
     });
     if (!loginResponse.ok) {
@@ -148,4 +194,11 @@ function normalizeCurrency(value: string): string {
     throw new IndiceApiError("preferred_currency must use a three-letter ISO code.");
   }
   return normalized;
+}
+
+function requiredSessionValue(value: string | undefined, field: string): string {
+  if (!value) {
+    throw new IndiceApiError(`Indice session ${field} is required.`);
+  }
+  return value;
 }

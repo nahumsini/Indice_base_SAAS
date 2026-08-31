@@ -1,10 +1,13 @@
 export type McpTransport = "stdio" | "http";
+export type IndiceAuthMode = "session" | "delegated";
 
 export interface IndiceMcpConfig {
   backendUrl: URL;
-  companyName: string;
-  email: string;
-  password: string;
+  authMode: IndiceAuthMode;
+  companyName?: string;
+  email?: string;
+  password?: string;
+  accessToken?: string;
   preferredCurrency: string;
   timeoutMs: number;
   transport: McpTransport;
@@ -19,12 +22,25 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): IndiceMcpConfi
     throw new Error("INDICE_MCP_TRANSPORT must be stdio or http.");
   }
   const host = localMcpHost(optional(env, "INDICE_MCP_HOST", "127.0.0.1"));
+  const authMode = optional(env, "INDICE_MCP_AUTH_MODE", transport === "http" ? "delegated" : "session");
+  if (authMode !== "session" && authMode !== "delegated") {
+    throw new Error("INDICE_MCP_AUTH_MODE must be session or delegated.");
+  }
+  if (transport === "http" && authMode !== "delegated") {
+    throw new Error("HTTP transport requires delegated authorization.");
+  }
 
   return {
     backendUrl,
-    companyName: required(env, "INDICE_COMPANY_NAME"),
-    email: required(env, "INDICE_EMAIL"),
-    password: required(env, "INDICE_PASSWORD"),
+    authMode,
+    ...(authMode === "session" ? {
+      companyName: required(env, "INDICE_COMPANY_NAME"),
+      email: required(env, "INDICE_EMAIL"),
+      password: required(env, "INDICE_PASSWORD")
+    } : {}),
+    ...(optionalValue(env, "INDICE_ACCESS_TOKEN") ? {
+      accessToken: optionalValue(env, "INDICE_ACCESS_TOKEN")
+    } : {}),
     preferredCurrency: currency(optional(env, "INDICE_PREFERRED_CURRENCY", "MXN")),
     timeoutMs: positiveInteger(optional(env, "INDICE_HTTP_TIMEOUT_MS", "5000"), "INDICE_HTTP_TIMEOUT_MS"),
     transport,
@@ -72,6 +88,10 @@ function required(env: NodeJS.ProcessEnv, key: string): string {
 
 function optional(env: NodeJS.ProcessEnv, key: string, fallback: string): string {
   return env[key]?.trim() || fallback;
+}
+
+function optionalValue(env: NodeJS.ProcessEnv, key: string): string | undefined {
+  return env[key]?.trim() || undefined;
 }
 
 function positiveInteger(value: string, key: string): number {

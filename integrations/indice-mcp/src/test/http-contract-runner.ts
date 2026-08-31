@@ -3,9 +3,13 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { loadConfig } from "../config.js";
 
 const config = loadConfig();
+if (!config.accessToken) {
+  throw new Error("INDICE_ACCESS_TOKEN is required for the delegated HTTP contract test.");
+}
 const client = new Client({ name: "indice-local-http-contract-runner", version: "0.1.0" });
 const transport = new StreamableHTTPClientTransport(
-  new URL(`http://${config.host}:${config.port}/mcp`)
+  new URL(`http://${config.host}:${config.port}/mcp`),
+  { requestInit: { headers: { Authorization: `Bearer ${config.accessToken}` } } }
 );
 
 await client.connect(transport);

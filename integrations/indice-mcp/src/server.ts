@@ -9,8 +9,8 @@ import { createIndiceMcpServer } from "./mcpServer.js";
 
 async function main(): Promise<void> {
   const config = loadConfig();
-  const indiceClient = new IndiceClient(config);
   if (config.transport === "stdio") {
+    const indiceClient = new IndiceClient(config);
     const server = createIndiceMcpServer(indiceClient);
     await server.connect(new StdioServerTransport());
     console.error("Indice MCP is ready on stdio.");
@@ -19,6 +19,40 @@ async function main(): Promise<void> {
 
   const app = createMcpExpressApp({ host: config.host });
   app.post("/mcp", async (request, response) => {
+    const authorization = request.header("authorization");
+    if (!authorization?.toLowerCase().startsWith("bearer ")) {
+      response
+        .status(401)
+        .header("WWW-Authenticate", "Bearer realm=\"indice-mcp\"")
+        .json({
+          jsonrpc: "2.0",
+          error: { code: -32001, message: "Authorization required" },
+          id: null
+        });
+      return;
+    }
+    const accessToken = authorization.slice("bearer ".length).trim();
+    const indiceClient = new IndiceClient(config, fetch, accessToken);
+    try {
+      if (!await indiceClient.hasValidDelegatedAccess()) {
+        response
+          .status(401)
+          .header("WWW-Authenticate", "Bearer realm=\"indice-mcp\", error=\"invalid_token\"")
+          .json({
+            jsonrpc: "2.0",
+            error: { code: -32001, message: "Invalid or expired authorization" },
+            id: null
+          });
+        return;
+      }
+    } catch {
+      response.status(502).json({
+        jsonrpc: "2.0",
+        error: { code: -32002, message: "Indice authorization service is unavailable" },
+        id: null
+      });
+      return;
+    }
     const server = createIndiceMcpServer(indiceClient);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
     response.on("close", () => {
@@ -49,8 +83,14 @@ async function main(): Promise<void> {
     id: null
   }));
 
-  app.listen(config.port, config.host, () => {
+  const httpServer = app.listen(config.port, config.host, () => {
     console.error(`Indice MCP is ready at http://${config.host}:${config.port}/mcp.`);
+  });
+  await new Promise<void>((resolve, reject) => {
+    httpServer.once("error", reject);
+    const shutdown = () => httpServer.close(error => error ? reject(error) : resolve());
+    process.once("SIGINT", shutdown);
+    process.once("SIGTERM", shutdown);
   });
 }
 

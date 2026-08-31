@@ -14,8 +14,31 @@ test("loads a loopback-only local configuration", () => {
 
   assert.equal(config.backendUrl.toString(), "http://127.0.0.1:8082/");
   assert.equal(config.preferredCurrency, "MXN");
+  assert.equal(config.authMode, "session");
   assert.equal(config.transport, "stdio");
   assert.equal(config.host, "127.0.0.1");
+});
+
+test("defaults HTTP transport to delegated authorization without local credentials", () => {
+  const config = loadConfig({
+    INDICE_BACKEND_URL: "http://127.0.0.1:8082",
+    INDICE_MCP_TRANSPORT: "http"
+  });
+
+  assert.equal(config.authMode, "delegated");
+  assert.equal(config.companyName, undefined);
+  assert.equal(config.password, undefined);
+});
+
+test("rejects shared password sessions over HTTP", () => {
+  assert.throws(
+    () => loadConfig({
+      ...baseEnvironment,
+      INDICE_MCP_TRANSPORT: "http",
+      INDICE_MCP_AUTH_MODE: "session"
+    }),
+    /requires delegated authorization/
+  );
 });
 
 test("rejects a remote backend in the local MVP", () => {

@@ -66,6 +66,7 @@ test("does not expose backend error bodies", async () => {
 function config(): IndiceMcpConfig {
   return {
     backendUrl: new URL("http://127.0.0.1:8082"),
+    authMode: "session",
     companyName: "Demo Company",
     email: "demo@example.com",
     password: "local-password",
@@ -76,6 +77,61 @@ function config(): IndiceMcpConfig {
     port: 3010
   };
 }
+
+test("uses the delegated business endpoint without a password or cookie", async () => {
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  const fakeFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    requests.push({ url: input.toString(), ...(init ? { init } : {}) });
+    return jsonResponse(summary(), 200);
+  }) as typeof fetch;
+  const delegatedConfig: IndiceMcpConfig = {
+    backendUrl: new URL("http://127.0.0.1:8082"),
+    authMode: "delegated",
+    preferredCurrency: "MXN",
+    timeoutMs: 5000,
+    transport: "http",
+    host: "127.0.0.1",
+    port: 3010
+  };
+
+  const client = new IndiceClient(delegatedConfig, fakeFetch, "idx_ai_delegated-token-value-1234567890");
+  const result = await client.getSalesToday("cad");
+
+  assert.equal(result.saleCount, 2);
+  assert.equal(requests.length, 1);
+  assert.match(requests[0]?.url ?? "", /\/api\/v1\/ai\/tools\/sales\/today\?preferredCurrency=CAD$/);
+  assert.equal(
+    new Headers(requests[0]?.init?.headers).get("Authorization"),
+    "Bearer idx_ai_delegated-token-value-1234567890"
+  );
+  assert.equal(new Headers(requests[0]?.init?.headers).get("Cookie"), null);
+});
+
+test("verifies delegated access without exposing token details", async () => {
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  const fakeFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    requests.push({ url: input.toString(), ...(init ? { init } : {}) });
+    return new Response(null, { status: 204 });
+  }) as typeof fetch;
+  const delegatedConfig: IndiceMcpConfig = {
+    backendUrl: new URL("http://127.0.0.1:8082"),
+    authMode: "delegated",
+    preferredCurrency: "MXN",
+    timeoutMs: 5000,
+    transport: "http",
+    host: "127.0.0.1",
+    port: 3010
+  };
+
+  const client = new IndiceClient(delegatedConfig, fakeFetch, "idx_ai_delegated-token-value-1234567890");
+
+  assert.equal(await client.hasValidDelegatedAccess(), true);
+  assert.equal(requests[0]?.url, "http://127.0.0.1:8082/api/v1/ai/access/verify");
+  assert.equal(
+    new Headers(requests[0]?.init?.headers).get("Authorization"),
+    "Bearer idx_ai_delegated-token-value-1234567890"
+  );
+});
 
 function jsonResponse(body: unknown, status: number, setCookie?: string): Response {
   const headers = new Headers({ "Content-Type": "application/json" });

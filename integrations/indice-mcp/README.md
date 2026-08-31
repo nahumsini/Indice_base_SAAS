@@ -12,12 +12,17 @@ Adaptador MCP de solo lectura para las herramientas de negocio de Índice. El se
 
 Usa las variables descritas en `.env.example`. No copies credenciales a archivos versionados ni las pases como argumentos del proceso.
 
-Variables obligatorias:
+Siempre es obligatoria:
 
 - `INDICE_BACKEND_URL`
+
+El transporte `stdio` conserva un modo de desarrollo con sesión. En ese caso también requiere:
+
 - `INDICE_COMPANY_NAME`
 - `INDICE_EMAIL`
 - `INDICE_PASSWORD`
+
+El transporte HTTP exige `INDICE_MCP_AUTH_MODE=delegated`. Cada cliente debe enviar su propio token `idx_ai_...` en `Authorization: Bearer`; el servidor MCP no guarda una contraseña compartida. `INDICE_ACCESS_TOKEN` se usa únicamente por el cliente local de prueba.
 
 ## Verificación
 
@@ -28,9 +33,9 @@ npm run test:contract
 npm run test:http-contract
 ```
 
-`test:contract` realiza el recorrido MCP completo en memoria: lista herramientas, ejecuta `get_sales_today`, inicia sesión en Índice y valida la respuesta real del backend.
+`test:contract` realiza el recorrido MCP completo en memoria con el modo de sesión local: lista herramientas, ejecuta `get_sales_today`, inicia sesión en Índice y valida la respuesta real del backend.
 
-Con el servidor HTTP ya iniciado, `test:http-contract` repite el contrato atravesando el transporte Streamable HTTP real.
+Con el servidor HTTP ya iniciado, `test:http-contract` repite el contrato atravesando Streamable HTTP con un token delegado temporal.
 
 ## Transportes
 
@@ -43,18 +48,24 @@ npm start
 Para probar Streamable HTTP exclusivamente en loopback:
 
 ```bash
-INDICE_MCP_TRANSPORT=http npm start
+INDICE_MCP_TRANSPORT=http INDICE_MCP_AUTH_MODE=delegated npm start
 ```
 
-El endpoint local será `http://127.0.0.1:3010/mcp`. Esta versión rechaza backends y enlaces MCP que no sean locales. La exposición externa y la autorización delegada pertenecen a la siguiente fase; el bootstrap con credenciales locales no debe desplegarse.
+El endpoint local será `http://127.0.0.1:3010/mcp`. Esta versión rechaza backends y enlaces MCP que no sean locales. El modo HTTP rechaza peticiones sin token y valida expiración o revocación contra Spring Boot antes de procesar MCP.
 
 ## Seguridad del MVP
 
 - Solo lectura.
-- `companyId`, usuario y permisos proceden de la sesión de Índice.
+- `companyId`, usuario y membresía proceden de la sesión o del token delegado emitido por Índice.
 - El MCP no acepta campos de autoridad.
-- Sesión mantenida únicamente en memoria.
-- Reautenticación única después de un `401`.
+- Los tokens se guardan en la base solo como SHA-256 y se muestran una vez al crearlos.
+- Alcance inicial único: `sales.today:read`; expiración máxima de 90 días y revocación inmediata.
+- Cada consulta vuelve a validar suscripción, módulo `crm`, acceso del usuario, permiso `crm.kpis` y entitlement comercial `sales`.
+- La sesión con contraseña existe solo para `stdio` local y se mantiene únicamente en memoria.
 - URLs locales obligatorias.
 - Cookies, contraseñas y tokens no se registran.
 - Timeout obligatorio y validación estricta de la respuesta backend.
+
+## Límite antes de conectar ChatGPT por Internet
+
+El token delegado actual cierra la seguridad local y sirve para pruebas. Un despliegue público todavía requiere HTTPS y un flujo OAuth 2.1 con PKCE y metadata de recurso protegido; no se debe publicar el endpoint actual como si ya fuera OAuth.

@@ -9,16 +9,17 @@ Validar el recorrido completo `cliente MCP -> herramienta de negocio -> API Índ
 ```text
 Cliente compatible con MCP
         |
+        | Authorization: Bearer <token delegado>
         | get_sales_today
         v
 Índice MCP (Node.js, proceso independiente)
         |
-        | sesión HTTP de Índice
+        | valida token por petición
         v
-GET /api/v1/sales/kpis/today
+GET /api/v1/ai/tools/sales/today
         |
-        | companyId derivado de la sesión
-        | permisos sales + crm.kpis
+        | usuario + companyId + membresía derivados del token
+        | suscripción + crm + crm.kpis + sales
         v
 Spring Boot -> sales_records
 ```
@@ -32,23 +33,39 @@ El MCP no consulta MySQL. El backend conserva la autoridad sobre empresa, permis
 - Salida: fecha comercial, zona horaria, número de ventas y agregado monetario tipado.
 - Lectura únicamente; no acepta `companyId`, usuario, rol ni permisos desde el modelo.
 
-## Autenticación local
+## Autenticación local terminada
 
-El adaptador inicia una sesión normal contra `/api/v1/auth/login`, guarda cookies solo en memoria y reutiliza los controles existentes de Índice. Las credenciales se reciben por variables de entorno y nunca deben versionarse.
+Spring Boot expone el ciclo de conexiones en `/api/v1/ai/connections`: listar, crear y revocar. Crear o revocar exige una sesión normal de Índice y CSRF. Solo se permite una membresía directa y activa; un contexto sintético de soporte no puede emitir tokens.
 
-Este mecanismo sirve para probar localmente, pero no debe desplegarse ni exponerse a Internet.
+El token:
 
-## Paso obligatorio antes de pruebas externas
+- se muestra una sola vez;
+- se guarda solo como hash SHA-256;
+- pertenece a un usuario, empresa y membresía concretos;
+- contiene el alcance `sales.today:read`;
+- expira entre 1 y 90 días;
+- deja de funcionar al revocarse, expirar o desactivarse la membresía.
 
-La pantalla futura **Conectar IA** debe emitir una autorización delegada, revocable y ligada a:
+El modo `stdio` con contraseña se conserva únicamente como bootstrap de desarrollo. Streamable HTTP no acepta ese modo.
 
-- usuario;
-- empresa activa;
-- capacidades y permisos efectivos;
-- herramientas permitidas;
-- expiración y auditoría.
+## Prueba local validada
 
-El MCP remoto debe validar esa autorización por solicitud y no almacenar contraseñas de Índice. Solo después se habilitará HTTPS público y la conexión desde ChatGPT u otros clientes.
+La validación sobre una copia aislada de la base funcional confirmó:
+
+- Flyway desde el historial real hasta `V239`, sin migraciones pendientes;
+- una venta creada por la API normal de Índice por `1,234.56 MXN`;
+- respuesta idéntica por Streamable HTTP y `get_sales_today`;
+- exclusión de una venta centinela de otra empresa por `999,999.99 MXN`;
+- `401` sin token;
+- `204` al revocar y `401` en el siguiente uso.
+
+La base funcional no fue modificada durante esta validación.
+
+## Siguiente frontera: conexión externa
+
+Antes de registrar el MCP en ChatGPT se necesita HTTPS y OAuth 2.1 con PKCE, metadata de recurso protegido y descubrimiento del servidor de autorización. El token delegado local es la base de identidad y permisos, pero no reemplaza ese protocolo público.
+
+La futura pantalla **Conectar IA** consumirá los endpoints ya creados, mostrará el token una sola vez durante desarrollo y después iniciará el consentimiento OAuth sin exponer detalles técnicos al usuario.
 
 ## Criterio de salida del MVP local
 
@@ -56,6 +73,6 @@ Se considera completo cuando pasan:
 
 1. pruebas unitarias y de seguridad del endpoint Spring;
 2. pruebas unitarias y de contrato del MCP;
-3. llamada real por Streamable HTTP;
+3. llamada real por Streamable HTTP con token delegado;
 4. autenticación real y respuesta real del backend local;
-5. verificación de que la empresa proviene de la sesión y no del modelo.
+5. aislamiento multiempresa y revocación comprobados.
