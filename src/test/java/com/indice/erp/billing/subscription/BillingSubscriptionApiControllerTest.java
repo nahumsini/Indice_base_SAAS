@@ -52,6 +52,9 @@ class BillingSubscriptionApiControllerTest {
     @MockBean
     private ManagedCompanyContextService managedCompanyContextService;
 
+    @MockBean
+    private BillingAccountAuthorityService billingAuthorityService;
+
     @BeforeEach
     void directBillingContext() {
         given(managedCompanyContextService.resolveBillingContext(any(), any()))
@@ -140,16 +143,33 @@ class BillingSubscriptionApiControllerTest {
     }
 
     @Test
+    void portalRejectsAnAdministratorWhoIsNotTheAccountOwner() throws Exception {
+        given(sessionAuthService.currentActor(any())).willReturn(Optional.of(
+            new AuthSessionUser(2L, 7L, 12L, "Account Admin", "admin")
+        ));
+        willThrow(new BillingAccountAuthorityService.BillingOwnerRequiredException(
+            "Sólo el propietario puede administrar el método de pago."
+        )).given(billingAuthorityService).requireOwner(7L, 2L);
+
+        mockMvc.perform(post("/api/v1/billing/subscription/portal")
+                .header("X-CSRF-Token", "csrf-token"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Sólo el propietario puede administrar el método de pago."));
+
+        verifyNoInteractions(subscriptionService);
+    }
+
+    @Test
     void selectionReturnsCommercialCatalogForCurrentCompany() throws Exception {
         given(sessionAuthService.currentActor(any())).willReturn(Optional.of(owner()));
-        given(selectionService.current(7L)).willReturn(selection());
+        given(selectionService.current(7L, 1L)).willReturn(selection());
 
         mockMvc.perform(get("/api/v1/billing/subscription/selection"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.selected_product_codes[0]").value("basic_hr"))
             .andExpect(jsonPath("$.available_products[0].display_name").value("Recursos Humanos"));
 
-        verify(selectionService).current(7L);
+        verify(selectionService).current(7L, 1L);
     }
 
     @Test
@@ -209,13 +229,13 @@ class BillingSubscriptionApiControllerTest {
             .willReturn(new ManagedCompanyContextService.BillingContext(
                 44L, "Portfolio client", "DISTRIBUTOR_PORTFOLIO", true, true
             ));
-        given(selectionService.current(44L)).willReturn(selection());
+        given(selectionService.current(44L, 1L)).willReturn(selection());
 
         mockMvc.perform(get("/api/v1/billing/subscription/selection"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.selected_product_codes[0]").value("basic_hr"));
 
-        verify(selectionService).current(44L);
+        verify(selectionService).current(44L, 1L);
     }
 
     @Test

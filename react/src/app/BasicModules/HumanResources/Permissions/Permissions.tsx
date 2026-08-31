@@ -10,6 +10,7 @@ import { FailureToast } from '../../../components/FailureToast';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { ApiClientError } from '../../../lib/apiClient';
+import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 import type { PermissionFormData } from './components/CreatePermissionModal';
 import type { PermissionColumn } from './components/PermissionColumnsModal';
 import { PermissionFilters } from './components/PermissionFilters';
@@ -37,6 +38,14 @@ const defaultFilters: PermissionFilterState = {
   type: 'all',
   payrollTreatment: 'all',
   employee: 'all',
+};
+
+type PermissionsWorkspaceState = {
+  search: string;
+  status: PermissionFilterState['status'];
+  type: PermissionFilterState['type'];
+  payrollTreatment: PermissionFilterState['payrollTreatment'];
+  employee: string;
 };
 
 const defaultVisiblePermissionColumns: PermissionColumnId[] = [
@@ -77,6 +86,30 @@ export default function Permissions() {
   });
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const workspaceState = useMemo<PermissionsWorkspaceState>(() => ({ ...filters }), [filters]);
+
+  useWorkspaceNavigationMemory<PermissionsWorkspaceState>({
+    moduleKey: 'human-resources',
+    tabKey: 'permissions',
+    state: workspaceState,
+    defaults: { ...defaultFilters },
+    urlFields: {
+      search: 'q',
+      status: 'status',
+      type: 'type',
+      payrollTreatment: 'payroll',
+      employee: 'employee',
+    },
+    onRestore: (restoredState) => {
+      setFilters({
+        search: typeof restoredState.search === 'string' ? restoredState.search : '',
+        status: ['all', 'pending', 'approved', 'rejected'].includes(restoredState.status) ? restoredState.status : 'all',
+        type: ['all', 'vacation', 'sick_leave', 'personal', 'maternity', 'bereavement', 'unpaid', 'other'].includes(restoredState.type) ? restoredState.type : 'all',
+        payrollTreatment: ['all', 'paid', 'unpaid'].includes(restoredState.payrollTreatment) ? restoredState.payrollTreatment : 'all',
+        employee: typeof restoredState.employee === 'string' ? restoredState.employee : 'all',
+      });
+    },
+  });
 
   const isManager = viewMode === 'management';
 
@@ -388,6 +421,7 @@ export default function Permissions() {
       <PermissionFilters
         copy={copy}
         filters={filters}
+        onClearFilters={() => setFilters(defaultFilters)}
         onFiltersChange={setFilters}
         isManager={isManager}
         permissions={permissions}

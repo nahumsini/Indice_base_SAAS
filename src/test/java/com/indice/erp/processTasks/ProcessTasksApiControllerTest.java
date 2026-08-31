@@ -14,6 +14,10 @@ import com.indice.erp.processTasks.processes.ProcessesService;
 import com.indice.erp.processTasks.projects.ProjectsApiController;
 import com.indice.erp.processTasks.projects.ProjectsService;
 import com.indice.erp.processTasks.tasks.ProcessTaskAttachmentsApiController;
+import com.indice.erp.processTasks.tasks.ProcessTaskAssignmentCatalogApiController;
+import com.indice.erp.processTasks.tasks.ProcessTaskAssignmentCatalogResponse;
+import com.indice.erp.processTasks.tasks.ProcessTaskAssignmentCatalogService;
+import com.indice.erp.processTasks.tasks.ProcessTaskAssignmentOption;
 import com.indice.erp.processTasks.tasks.ProcessTasksApiController;
 import com.indice.erp.processTasks.tasks.ProcessTasksService;
 import java.util.Map;
@@ -40,6 +44,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest({
     ProcessesApiController.class,
     ProcessTasksApiController.class,
+    ProcessTaskAssignmentCatalogApiController.class,
     ProcessTaskAttachmentsApiController.class,
     ProjectsApiController.class,
     AgendaApiController.class,
@@ -66,6 +71,9 @@ class ProcessTasksApiControllerTest {
 
     @MockBean
     private ProcessTasksService processTasksService;
+
+    @MockBean
+    private ProcessTaskAssignmentCatalogService processTaskAssignmentCatalogService;
 
     @MockBean
     private ProjectsService projectsService;
@@ -126,6 +134,35 @@ class ProcessTasksApiControllerTest {
         given(processTasksAccessService.canAccess(currentUser)).willReturn(false);
 
         mockMvc.perform(get("/api/v1/process-tasks"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Forbidden"));
+    }
+
+    @Test
+    void assignmentCatalogUsesProcessesAccessWithoutRequiringHrCollaborators() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "user");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(processTaskAssignmentCatalogService.list(7L, 1L)).willReturn(
+            new ProcessTaskAssignmentCatalogResponse(java.util.List.of(
+                new ProcessTaskAssignmentOption(15L, 1L, "Usuario Demo", 3L, "Cancun", 9L, "Sucursal Centro")
+            ))
+        );
+
+        mockMvc.perform(get("/api/v1/process-tasks/assignment-catalog"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.count").value(1))
+            .andExpect(jsonPath("$.items[0].userCompanyId").value(15))
+            .andExpect(jsonPath("$.items[0].unitId").value(3))
+            .andExpect(jsonPath("$.items[0].businessId").value(9));
+    }
+
+    @Test
+    void assignmentCatalogReturnsForbiddenWhenProcessesModuleIsDenied() throws Exception {
+        var currentUser = new AuthSessionUser(1L, 7L, "Usuario Demo", "user");
+        given(sessionAuthService.currentUser(any())).willReturn(Optional.of(currentUser));
+        given(processTasksAccessService.canAccess(currentUser)).willReturn(false);
+
+        mockMvc.perform(get("/api/v1/process-tasks/assignment-catalog"))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.message").value("Forbidden"));
     }

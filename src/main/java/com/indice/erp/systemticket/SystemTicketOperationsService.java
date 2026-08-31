@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Predicate;
 import java.util.function.ToLongFunction;
 import org.springframework.stereotype.Service;
@@ -198,8 +199,11 @@ public class SystemTicketOperationsService {
         var allTickets = repository.listTickets(distributorCompanyId);
         var filters = normalizeFilters(rawFilters);
         var filtered = allTickets.stream().filter(ticket -> matches(ticket, filters)).toList();
-        var modules = allTickets.stream().map(Ticket::module)
-            .filter(value -> value != null && !value.isBlank()).distinct().sorted().toList();
+        var moduleNames = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+        moduleNames.addAll(repository.listAvailableModuleNames());
+        allTickets.stream().map(Ticket::module)
+            .filter(value -> value != null && !value.isBlank()).forEach(moduleNames::add);
+        var modules = List.copyOf(moduleNames);
         var distributors = allTickets.stream()
             .map(ticket -> new FilterOption(String.valueOf(ticket.distributor_company_id()), ticket.distributor_name()))
             .distinct().sorted((left, right) -> left.label().compareToIgnoreCase(right.label())).toList();

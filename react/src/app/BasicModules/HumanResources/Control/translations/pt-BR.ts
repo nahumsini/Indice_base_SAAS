@@ -5,6 +5,7 @@ export const ptBR = {
   ...enCA,
   title: 'Controle',
   subtitle: 'Monitore presença em tempo real e gerencie regras operacionais.',
+  actionsLabel: 'Ações',
   selfShiftCalendar: {
     title: 'Meu calendário de turnos', loadingTitle: 'Carregando calendário', loadingDescription: 'Verificando seus turnos atribuídos.', month: 'Mês',
     shift: 'Turno', openShift: 'Turno aberto', restDay: 'Dia de descanso', noShift: 'Sem turno', selectedDay: 'Dia selecionado', today: 'Hoje',

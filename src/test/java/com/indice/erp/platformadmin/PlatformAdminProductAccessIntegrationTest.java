@@ -2,6 +2,8 @@ package com.indice.erp.platformadmin;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -21,6 +23,8 @@ class PlatformAdminProductAccessIntegrationTest {
 
     private static final String EMAIL_PREFIX = "platform-product-access-";
     private static final String COMPANY_PREFIX = "platform-product-access-";
+    private static final String PRODUCT_PREFIX = "platform_projection_product_";
+    private static final String SUBSCRIPTION_PREFIX = "sub_platform_projection_";
 
     @Autowired
     private JdbcTemplate jdbc;
@@ -124,6 +128,71 @@ class PlatformAdminProductAccessIntegrationTest {
             assertThat(company).containsEntry("billing_currency", "USD");
             assertThat(company).containsEntry("projected_offer_code", "basic_1");
             assertThat(company.get("billing_amount_cents")).isEqualTo(9_300L);
+        });
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void overviewUsesThePinnedVersionedSubtotalAndDiscountForStripeContracts() {
+        var discriminator = UUID.randomUUID().toString().replace("-", "");
+        var productCode = PRODUCT_PREFIX + discriminator;
+        var catalogVersionId = jdbc.queryForObject(
+            "SELECT id FROM billing_catalog_versions WHERE status = 'ACTIVE' ORDER BY id DESC LIMIT 1",
+            Long.class
+        );
+        jdbc.update(
+            "INSERT INTO billing_catalog_products (catalog_version_id, product_code, display_name, product_type, commercial_kind, sort_order, active) VALUES (?, ?, 'Versioned projection test', 'BASIC', 'MODULE', 9990, 1)",
+            catalogVersionId,
+            productCode
+        );
+        var productId = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        jdbc.update(
+            "INSERT INTO billing_catalog_prices (catalog_version_id, catalog_product_id, billable_code, price_type, billing_interval, currency, unit_amount_cents, included_quantity, status, effective_from) VALUES (?, ?, ?, 'PRODUCT', 'MONTH', 'USD', 16000, 1, 'ACTIVE', CURRENT_TIMESTAMP(6))",
+            catalogVersionId,
+            productId,
+            productCode
+        );
+        var subscriptionId = SUBSCRIPTION_PREFIX + discriminator;
+        jdbc.update(
+            """
+                INSERT INTO company_billing_subscriptions (
+                    stripe_subscription_id, company_id, catalog_version_id, offer_code,
+                    billing_interval, currency, status, included_seats, extra_seats,
+                    subtotal_amount_cents, discount_amount_cents, promotion_code,
+                    last_event_id, last_event_created_at
+                ) VALUES (?, ?, ?, 'custom_offer', 'MONTH', 'USD', 'active', 5, 0,
+                          16000, 2500, 'LAUNCH', ?, ?)
+                """,
+            subscriptionId,
+            companyId,
+            catalogVersionId,
+            "evt_" + discriminator,
+            Timestamp.from(Instant.now())
+        );
+        var localSubscriptionId = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        jdbc.update(
+            "INSERT INTO company_billing_subscription_products (subscription_id, catalog_product_id, source) VALUES (?, ?, 'SIGNUP_INTENT')",
+            localSubscriptionId,
+            productId
+        );
+
+        var overview = service.overview(actorUserId, COMPANY_PREFIX, 25);
+        var companies = (List<Map<String, Object>>) overview.get("companies");
+        assertThat(companies).singleElement().satisfies(company -> {
+            assertThat(company).containsEntry("recurring_amount_cents", 13_500L);
+            assertThat(company).containsEntry("billing_amount_cents", 13_500L);
+            assertThat(company).containsEntry("billing_amount_kind", "NEXT_INVOICE");
+            assertThat(company).containsEntry("catalog_version_id", catalogVersionId);
+            assertThat(company).containsEntry("catalog_version_historical", false);
+        });
+
+        var detail = service.company(actorUserId, companyId);
+        assertThat(detail).containsEntry("recurring_amount_cents", 13_500L);
+        var products = (List<Map<String, Object>>) detail.get("products");
+        assertThat(products).singleElement().satisfies(product -> {
+            assertThat(product).containsEntry("code", productCode);
+            assertThat(product).containsEntry("catalog_version_id", catalogVersionId);
+            assertThat(product).containsEntry("monthly_price_cents", 16_000L);
         });
     }
 
@@ -233,6 +302,9 @@ class PlatformAdminProductAccessIntegrationTest {
 
     private void cleanTestState() {
         jdbc.update("DELETE FROM platform_audit_events WHERE actor_user_id IN (SELECT id FROM users WHERE email LIKE ?)", EMAIL_PREFIX + "%");
+        jdbc.update("DELETE FROM company_billing_subscriptions WHERE stripe_subscription_id LIKE ?", SUBSCRIPTION_PREFIX + "%");
+        jdbc.update("DELETE price FROM billing_catalog_prices price JOIN billing_catalog_products product ON product.id = price.catalog_product_id WHERE product.product_code LIKE ?", PRODUCT_PREFIX + "%");
+        jdbc.update("DELETE FROM billing_catalog_products WHERE product_code LIKE ?", PRODUCT_PREFIX + "%");
         jdbc.update("DELETE FROM companies WHERE name LIKE ?", COMPANY_PREFIX + "%");
         jdbc.update("DELETE FROM users WHERE email LIKE ?", EMAIL_PREFIX + "%");
     }

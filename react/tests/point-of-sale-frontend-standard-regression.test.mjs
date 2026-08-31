@@ -560,3 +560,14 @@ test('Venta mantiene caja, turno, catÃ¡logo e inventario dentro del mismo almacÃ
   assert.match(audits, /businessUnitId: row\.unitId == null \? '' : String\(row\.unitId\)/);
   assert.match(audits, /businessId: row\.businessId == null \? '' : String\(row\.businessId\)/);
 });
+
+test('Clientes POS reutiliza la barra compacta y el overflow de Contactos de Ventas', () => {
+  const moduleSource = readFileSync(resolve(pointOfSaleRoot, 'PuntoDeVenta.tsx'), 'utf8');
+  const contactsSource = readFileSync(resolve(root, 'src/app/BasicModules/Sales/Contactos/Contactos.tsx'), 'utf8');
+
+  assert.match(moduleSource, /const Clientes = lazy\(\(\) => import\('\.\.\/Sales\/Contactos'\)\)/);
+  assert.match(moduleSource, /<Clientes titleBarTitle=\{t\.tabs\.clientes\}/);
+  assert.match(contactsSource, /<IndiceTitleBarOverflow/);
+  assert.match(contactsSource, /id: 'columns'[\s\S]*onSelect: \(\) => setIsColumnsModalOpen\(true\)/);
+  assert.match(contactsSource, /t\.metaImport\.trigger/);
+});

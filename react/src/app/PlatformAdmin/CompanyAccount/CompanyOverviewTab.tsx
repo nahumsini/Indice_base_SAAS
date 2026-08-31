@@ -27,6 +27,11 @@ export function CompanyOverviewTab({
   const origin = commercialOrigin(company);
   const plan = company.offer_code ? humanize(company.offer_code) : "Sin plan";
   const nextEvent = company.current_period_ends_at || company.trial_ends_at;
+  const paymentStatus = company.stripe_subscription_id
+    ? (company.last_payment_status ? humanize(company.last_payment_status) : "Administrado en Stripe")
+    : company.stripe_customer_id
+      ? "Cliente Stripe sin contrato"
+      : "Sin Stripe";
 
   return (
     <WorkspaceSection
@@ -39,18 +44,29 @@ export function CompanyOverviewTab({
         <SummaryDatum label="Tipo de usuario" value={humanize(company.user_type)} hint="Rol propietario de la cuenta" />
         <SummaryDatum label="Trazabilidad" value={origin.value} hint={origin.hint} />
         <SummaryDatum label="Acceso" value={accessLabel} hint={`${activeProductCount} módulo(s) activo(s)`} />
-        <SummaryDatum label="Plan" value={plan} hint={company.stripe_subscription_id ? "Suscripción sincronizada" : "Sin contrato comercial"} />
+        <SummaryDatum
+          label="Plan"
+          value={plan}
+          hint={company.stripe_subscription_id
+            ? `${company.catalog_version_historical ? "Contrato histórico" : "Catálogo vigente"}${company.catalog_version ? ` · ${company.catalog_version}` : ""}`
+            : "Sin contrato comercial"}
+        />
         <SummaryDatum
           label="Tarifa"
           value={formatMoney(company.recurring_amount_cents, company.currency)}
-          hint={company.billing_interval ? humanize(company.billing_interval) : "Sin periodicidad"}
+          hint={company.billing_interval ? `${humanize(company.billing_interval)} · antes de impuestos` : "Sin periodicidad"}
         />
         <SummaryDatum
           label="Usuarios"
           value={`${activeUserCount} de ${capacity}`}
           hint={`${availableSeats} lugar(es) disponible(s)`}
         />
-        <SummaryDatum label="Próximo evento" value={formatDate(nextEvent)} hint={nextEvent ? "Fecha comercial registrada" : "Sin fecha programada"} />
+        <SummaryDatum label="Próximo corte" value={formatDate(nextEvent)} hint={nextEvent ? "El cargo y el cambio programado se concilian en esta fecha" : "Sin fecha programada"} />
+        <SummaryDatum
+          label="Método de pago"
+          value={paymentStatus}
+          hint="El propietario administra las tarjetas en Stripe; Root no accede a sus datos."
+        />
       </div>
       <div className="border-t border-slate-100 p-4 sm:p-5">
         <div className={`flex flex-col gap-4 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between ${

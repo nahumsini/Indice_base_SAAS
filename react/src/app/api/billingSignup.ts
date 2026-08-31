@@ -6,13 +6,17 @@ export type BillingSignupProduct = {
   code: string;
   displayName: string;
   productType: 'BASIC' | 'ADDON' | string;
+  commercialKind?: 'MODULE' | 'PACKAGE' | string;
   unitAmountCents: number | null;
   externalPriceId?: string | null;
+  description?: string | null;
+  includedProductCodes?: string[];
+  capabilities?: string[];
 };
 
 export type BillingSignupPrice = {
   billableCode: string;
-  priceType: 'BASE' | 'ADDON';
+  priceType: 'BASE' | 'ADDON' | 'PRODUCT' | 'PACKAGE' | 'SEAT' | string;
   billingInterval: 'MONTH' | 'YEAR';
   currency: string;
   unitAmountCents: number | null;
@@ -30,6 +34,13 @@ export type BillingSignupConfig = {
   cardRequired: boolean;
   automaticCharge: boolean;
   includedSeats: number;
+  annualDiscountPercent?: number;
+  includedConsultationsPerMonth?: number;
+  consultationMinutes?: number;
+  includedStorageGiB?: number;
+  storageBlockGiB?: number;
+  storageBlockMonthlyAmountCents?: number;
+  paymentGraceDays?: number;
   currency: string;
   launchCountries: string[];
   products: BillingSignupProduct[];

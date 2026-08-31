@@ -5,8 +5,8 @@ Entorno real: `https://app.indiceapp.com`
 
 ## Resultado esperado
 
-Una empresa nueva puede crear su cuenta, seleccionar uno de los seis paquetes básicos, registrar
-una tarjeta en Stripe, comenzar 30 días de prueba con acceso completo y recibir el cobro recurrente
+Una empresa nueva puede crear su cuenta, seleccionar una oferta aprobada, registrar
+una tarjeta en Stripe, comenzar 15 días de prueba con `Corporativiza` y recibir el cobro recurrente
 al finalizar la prueba. Los códigos de cortesía siguen omitiendo Stripe y la tarjeta.
 
 La activación LIVE no es un cambio de una sola llave. TEST y LIVE tienen productos, precios,
@@ -16,17 +16,18 @@ webhooks, impuestos y secretos separados. Ningún secreto se guarda en Git.
 
 | Selección | Mensual | Anual |
 |---|---:|---:|
-| 1 producto básico | USD 69 | USD 662.40 |
-| 2 productos básicos | USD 109 | USD 1,046.40 |
-| 3 productos básicos | USD 149 | USD 1,430.40 |
-| 4, 5 o 6 productos básicos | USD 199 | USD 1,910.40 |
+| 1 módulo básico | USD 79 | USD 758.40 |
+| 2 o más módulos sueltos, cada uno | USD 49 | USD 470.40 |
+| Controla | USD 99 | USD 950.40 |
+| Escala Ventas o Escala POS | USD 149 | USD 1,430.40 |
+| Corporativiza | USD 199 | USD 1,910.40 |
 
 - El anual descuenta 20% únicamente al paquete.
 - Cinco usuarios están incluidos.
 - Cada usuario adicional cuesta USD 12 al mes o USD 144 al año, sin descuento anual.
-- La primera consultoría de 50 minutos está incluida; cada sesión posterior se compra por separado
-  a USD 89.
-- Se incluyen 5 GiB. Cada bloque adicional es de 1 GiB por USD 1 al mes o USD 12 al año.
+- Una consultoría de 60 minutos al mes está incluida y no es acumulable; cada sesión adicional se
+  compra por separado a USD 79.
+- Se incluyen 100 GiB; cada bloque adicional de 100 GiB cuesta USD 15 mensual o USD 180 anual.
 - Los precios son exclusivos de impuestos. Stripe Tax usa la dirección fiscal.
 
 Productos básicos: Recursos Humanos; Procesos y Tareas; Gastos + Caja Chica; Punto de Venta +
@@ -41,7 +42,7 @@ No abrir el alta pública en LIVE mientras falte cualquiera de estas condiciones
 2. Marca pública y dominio de Stripe muestran Índice, no otra marca histórica.
 3. Stripe Tax está activo y tiene los registros fiscales LIVE confirmados por el contador de
    Índice. El sistema no debe inventar países donde la empresa no está registrada.
-4. Los doce precios recurrentes LIVE coinciden con la tabla aprobada y usan USD, impuestos
+4. Todos los precios recurrentes LIVE coinciden con la tabla aprobada y usan USD, impuestos
    exclusivos y el intervalo correcto.
 5. El webhook LIVE está firmado y apunta exactamente a
    `https://app.indiceapp.com/api/v1/billing/stripe/webhook`.
@@ -78,13 +79,13 @@ para el usuario sin privilegios del backend. El mismo mecanismo se usa para
 
 ```bash
 STRIPE_SECRET_KEY_FILE=/root/indice-production/secrets/stripe-live-key \
-STRIPE_CATALOG_OUTPUT_FILE=/root/indice-production/secrets/stripe-live-prices.env \
-deployment/scripts/bootstrap-stripe-live-catalog.sh
-
-STRIPE_SECRET_KEY_FILE=/root/indice-production/secrets/stripe-live-key \
 STRIPE_REQUIRED_TAX_COUNTRIES=CA,MX \
 deployment/scripts/audit-stripe-live-readiness.sh
 ```
+
+El catálogo LIVE se sincroniza únicamente desde el borrador aprobado en Administración de
+plataforma, durante la ventana de mantenimiento y con la confirmación Root descrita en
+`deployment/README.md`. El script de escalones históricos está retirado.
 
 La lista fiscal del segundo comando es un ejemplo. Debe contener únicamente los países que el
 contador confirme como registros activos obligatorios para Índice. El script falla si una marca,
@@ -121,8 +122,8 @@ APP_BILLING_LIFECYCLE_SCHEDULER_ENABLED=true
 APP_BILLING_LIFECYCLE_RETENTION_DAYS=90
 ```
 
-Los doce `APP_BILLING_STRIPE_PRICE_*` se copian desde el archivo protegido generado. El preflight
-impide iniciar LIVE si falta una llave, firma, URL, precio o control de ciclo comercial.
+Los Product y Price IDs verificados permanecen versionados en la base. El preflight impide iniciar
+LIVE si falta una llave, firma, URL o control de ciclo comercial.
 
 ## Despliegue y prueba de control
 
@@ -132,7 +133,7 @@ impide iniciar LIVE si falta una llave, firma, URL, precio o control de ciclo co
 4. Configurar y auditar cuenta, catálogo, impuestos y webhook LIVE.
 5. Activar las variables finales y reiniciar únicamente backend/web.
 6. Crear una cuenta interna con un correo nuevo y un plan de un producto.
-7. Verificar en Stripe y root: tarjeta, trial de 30 días, cliente, suscripción, impuestos, empresa,
+7. Verificar en Stripe y root: tarjeta, trial de 15 días, cliente, suscripción, impuestos, empresa,
    propietario, cinco usuarios incluidos y seis módulos durante la prueba.
 8. Reembolsar/cancelar la compra de control según corresponda y comprobar el evento de webhook.
 9. Sólo entonces publicar el enlace de alta al mercado.
@@ -152,10 +153,9 @@ Reiniciar el backend con esas banderas detiene altas y procesamiento nuevos; no 
 datos. Después se restaura la imagen anterior o el respaldo sólo si el incidente realmente lo
 requiere.
 
-## Alcance pendiente del almacenamiento automático
+## Compuerta del almacenamiento automático
 
-El cobro de bloques de almacenamiento ya existe como mutación explícita del propietario. La compra
-automática al rebasar 5 GiB debe permanecer desactivada hasta certificar consentimiento, carreras de
-cargas simultáneas, prorrateo, factura y reconciliación Stripe/MinIO. Hasta entonces se informa el
-límite y el propietario agrega el bloque antes de cargar más archivos; no se debe prometer un cargo
-automático en el copy comercial.
+El runtime ya reserva automáticamente bloques de 100 GiB sin interrumpir la carga y sincroniza la
+cantidad a Stripe sin prorrateo para la siguiente factura. LIVE permanece bloqueado hasta certificar
+en TEST consentimiento, cargas simultáneas, reintentos del outbox, factura y reconciliación
+Stripe/object storage.

@@ -10,13 +10,17 @@ type Props = {
   action: string;
   hasChanges: boolean;
   readOnly: boolean;
-  onActivate: () => void;
   onSubscriptionAction: (name: 'portal' | 'cancel' | 'resume') => void;
 };
 
 export function BillingPaymentSection(props: Props) {
   const paymentRequired = props.selection.payment_method_required;
   const busy = Boolean(props.action);
+  const activationHelp = props.selection.activation_block_reason === 'OWNER_REQUIRED'
+    ? props.copy.ownerPaymentRequired
+    : props.selection.activation_block_reason === 'STRIPE_UNAVAILABLE'
+      ? props.copy.stripeDisabled
+      : props.copy.stripeCatalogPending;
 
   return (
     <section className="border-t border-slate-200 p-4 dark:border-slate-800">
@@ -48,13 +52,9 @@ export function BillingPaymentSection(props: Props) {
         </p>
       ) : null}
 
-      {props.readOnly ? null : paymentRequired ? (
-        <Button type="button" onClick={props.onActivate} disabled={busy} className="mt-3 h-11 w-full rounded-xl bg-[#177D66] font-medium hover:bg-[#126653]">
-          {props.action === 'activate' ? props.copy.activating : props.copy.activateStripe}<ExternalLink className="ml-2 h-4 w-4" />
-        </Button>
-      ) : (
+      {props.readOnly || paymentRequired ? null : (
         <>
-          <Button type="button" onClick={() => props.onSubscriptionAction('portal')} disabled={busy || props.hasChanges} className="mt-3 h-11 w-full justify-between rounded-xl bg-[#177D66] hover:bg-[#126653]">
+          <Button type="button" variant="outline" onClick={() => props.onSubscriptionAction('portal')} disabled={busy || props.hasChanges || !props.selection.payment_management_available} className="mt-3 h-11 w-full justify-between rounded-xl bg-white text-[#143675] hover:bg-blue-50 dark:bg-slate-900 dark:text-blue-200 dark:hover:bg-blue-950/30">
             {props.action === 'portal' ? props.copy.openingPortal : props.copy.openPortal}<ExternalLink className="h-4 w-4" />
           </Button>
           {props.hasChanges ? <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">{props.copy.saveBeforePayment}</p> : null}
@@ -67,6 +67,11 @@ export function BillingPaymentSection(props: Props) {
           ) : null}
         </>
       )}
+      {!props.readOnly && paymentRequired && !props.selection.activation_available ? (
+        <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200">
+          {activationHelp}
+        </p>
+      ) : null}
     </section>
   );
 }

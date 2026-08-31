@@ -38,6 +38,27 @@ test('Cartera conserva sus primitivas visuales y la integración con Sales CRM',
   assert.match(modalFrameSource, /<IndiceModalFrame/);
 });
 
+test('Cartera mantiene sus acciones de titulo directas mientras no superan tres', () => {
+  const viewFiles = [
+    'views/AccountsReceivableView.tsx',
+    'views/PaymentsView.tsx',
+    'views/CreditSalesView.tsx',
+    'views/CreditCustomersView.tsx',
+  ];
+
+  for (const viewFile of viewFiles) {
+    const source = readFileSync(resolve(receivablesRoot, viewFile), 'utf8');
+    const titleBarSource = source.slice(
+      source.indexOf('<ReceivablesTitleBar'),
+      source.indexOf('<ReceivablesFilters'),
+    );
+
+    assert.match(titleBarSource, /onClick=\{\(\) => setShowColumnsModal\(true\)\}/);
+    assert.equal(titleBarSource.match(/<Button/g)?.length, 2);
+    assert.doesNotMatch(titleBarSource, /DropdownMenu/);
+  }
+});
+
 test('Cartera conserva expediente financiero e índices móviles compactos', () => {
   const accountsSource = readFileSync(resolve(receivablesRoot, 'views/AccountsReceivableView.tsx'), 'utf8');
   const paymentsSource = readFileSync(resolve(receivablesRoot, 'views/PaymentsView.tsx'), 'utf8');
@@ -62,4 +83,43 @@ test('Cartera no introduce texto operativo menor a 12 px', () => {
   });
 
   assert.deepEqual(violations, []);
+});
+
+test('Cartera usa filtros progresivos y omite controles que no afectan cada vista', () => {
+  const filtersSource = readFileSync(resolve(receivablesRoot, 'components/ReceivablesFilters.tsx'), 'utf8');
+  const accountsSource = readFileSync(resolve(receivablesRoot, 'views/AccountsReceivableView.tsx'), 'utf8');
+  const paymentsSource = readFileSync(resolve(receivablesRoot, 'views/PaymentsView.tsx'), 'utf8');
+  const salesSource = readFileSync(resolve(receivablesRoot, 'views/CreditSalesView.tsx'), 'utf8');
+  const customersSource = readFileSync(resolve(receivablesRoot, 'views/CreditCustomersView.tsx'), 'utf8');
+
+  assert.match(filtersSource, /advancedFilterCount/);
+  assert.match(filtersSource, /showAdvancedFilters/);
+  assert.match(filtersSource, /<IndiceFilterDisclosureActions/);
+  assert.match(filtersSource, /<IndiceFilterAdvancedSection/);
+  assert.match(filtersSource, /hasAdvancedFilters && showAdvancedFilters/);
+  assert.match(filtersSource, /resultSummary=/);
+  assert.match(filtersSource, /showPeriod \? \(/);
+  assert.match(filtersSource, /showStatus \? \(/);
+  assert.match(paymentsSource, /showOrganization=\{false\}/);
+  assert.match(paymentsSource, /showStatus=\{false\}/);
+  assert.match(paymentsSource, /advancedContent=/);
+  assert.match(customersSource, /showPeriod=\{false\}/);
+  assert.doesNotMatch(accountsSource, /show(?:Organization|Period|Status)=\{false\}/);
+  assert.doesNotMatch(salesSource, /show(?:Organization|Period|Status)=\{false\}/);
+});
+
+test('Cartera conecta KPI, filtros avanzados y ancho de tabla compacto', () => {
+  const kpiSource = readFileSync(resolve(receivablesRoot, 'components/ReceivablesKpiAreas.tsx'), 'utf8');
+  const creditKpiSource = readFileSync(resolve(receivablesRoot, 'components/CreditSalesKpiArea.tsx'), 'utf8');
+  const tableSource = readFileSync(resolve(receivablesRoot, 'components/ReceivablesTableShell.tsx'), 'utf8');
+  const paymentsSource = readFileSync(resolve(receivablesRoot, 'views/PaymentsView.tsx'), 'utf8');
+
+  assert.match(kpiSource, /onStatusChange/);
+  assert.match(kpiSource, /onEvidenceChange/);
+  assert.match(kpiSource, /currencyContext=/);
+  assert.match(creditKpiSource, /useKpiMonetaryAggregates/);
+  assert.match(creditKpiSource, /onStatusChange/);
+  assert.match(tableSource, /emptyColSpan <= 6/);
+  assert.match(paymentsSource, /methodFilter/);
+  assert.match(paymentsSource, /evidenceFilter/);
 });

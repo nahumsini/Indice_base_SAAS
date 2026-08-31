@@ -8,15 +8,15 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "app.billing.storage")
 public class StorageQuotaProperties {
 
-    public static final long FIVE_GIB = 5L * 1024L * 1024L * 1024L;
-    public static final long ONE_GIB = 1024L * 1024L * 1024L;
+    public static final long ONE_HUNDRED_GIB = 100L * 1024L * 1024L * 1024L;
 
     private boolean enforcementEnabled;
-    private long includedBytes = FIVE_GIB;
-    private long blockBytes = ONE_GIB;
+    private long includedBytes = ONE_HUNDRED_GIB;
+    private long blockBytes = ONE_HUNDRED_GIB;
     private int reservationTtlMinutes = 30;
     private int cleanupBatchSize = 200;
     private long cleanupDelayMs = 300_000;
+    private long overageSyncDelayMs = 60_000;
 
     public boolean isEnforcementEnabled() { return enforcementEnabled; }
     public void setEnforcementEnabled(boolean value) { this.enforcementEnabled = value; }
@@ -31,4 +31,6 @@ public class StorageQuotaProperties {
     public long getCleanupDelayMs() { return cleanupDelayMs; }
     public void setCleanupDelayMs(long value) { this.cleanupDelayMs = Math.max(60_000, value); }
     public Duration reservationTtl() { return Duration.ofMinutes(reservationTtlMinutes); }
+    public long getOverageSyncDelayMs() { return overageSyncDelayMs; }
+    public void setOverageSyncDelayMs(long value) { this.overageSyncDelayMs = Math.max(10_000, value); }
 }

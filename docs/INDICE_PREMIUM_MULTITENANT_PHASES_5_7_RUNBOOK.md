@@ -146,7 +146,7 @@ expiradas se procesan en lotes y se bloquea primero el estado de compañía para
 ```dotenv
 APP_BILLING_STORAGE_ENFORCEMENT_ENABLED=false
 APP_BILLING_STORAGE_INCLUDED_BYTES=5368709120
-APP_BILLING_STORAGE_BLOCK_BYTES=1073741824
+APP_BILLING_STORAGE_BLOCK_BYTES=5368709120
 APP_BILLING_STORAGE_RESERVATION_TTL_MINUTES=30
 ```
 
@@ -154,7 +154,7 @@ Verificación:
 
 ```sql
 SELECT company_id, included_bytes, purchased_blocks, used_bytes, reserved_bytes,
-       included_bytes + (purchased_blocks * 1073741824) AS paid_limit_bytes
+       included_bytes + (purchased_blocks * 5368709120) AS paid_limit_bytes
 FROM company_storage_states
 WHERE company_id = ?;
 

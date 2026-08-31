@@ -13,6 +13,7 @@ export const koCA = {
     tabs: { cash: '자금', control: '영수증', statements: '월별 명세', kpis: '지표' },
   },
   common: {
+    ...enCA.common,
     clear: '\uC9C0\uC6B0\uAE30',
     actions: '작업',
     all: '전체',

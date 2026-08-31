@@ -10,8 +10,10 @@ import com.indice.erp.billing.stripe.StripeCheckoutGateway;
 import com.indice.erp.billing.stripe.StripeGatewayException;
 import com.indice.erp.billing.stripe.StripePhaseTwoProperties;
 import com.indice.erp.billing.stripe.StripeSecretProvider;
+import com.indice.erp.auth.SignupTrialTerms;
 import com.indice.erp.platformadmin.CourtesyCodeService;
 import com.indice.erp.support.PhoneNumberNormalizer;
+import com.indice.erp.support.SupportedCountryCodes;
 import java.time.Clock;
 import java.time.Duration;
 import java.nio.charset.StandardCharsets;
@@ -20,7 +22,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Pattern;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -29,7 +30,6 @@ import org.springframework.stereotype.Service;
 public class BillingSignupService {
 
     private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
-    private static final Set<String> LAUNCH_COUNTRIES = Set.of("MX", "CA", "US", "CO", "BR");
 
     private final CommercialOfferSelectionService offerSelectionService;
     private final BillingSignupIntentRepository repository;
@@ -195,7 +195,7 @@ public class BillingSignupService {
                     appendReference(properties.getCancelUrl(), spec.publicReference()),
                     properties.isAutomaticTaxEnabled(),
                     properties.isTaxIdCollectionEnabled(),
-                    30,
+                    SignupTrialTerms.TRIAL_DAYS,
                     requestedExpiry,
                     List.copyOf(lineItems),
                     Map.copyOf(metadata),
@@ -268,8 +268,8 @@ public class BillingSignupService {
             throw new IllegalArgumentException("Password must contain at least 10 characters and no more than 72 bytes.");
         }
         var country = request.countryCode() == null ? "" : request.countryCode().trim().toUpperCase(Locale.ROOT);
-        if (!LAUNCH_COUNTRIES.contains(country)) {
-            throw new IllegalArgumentException("Country must be MX, CA, US, CO or BR during launch.");
+        if (!SupportedCountryCodes.contains(country)) {
+            throw new IllegalArgumentException("Country must be a valid ISO 3166-1 alpha-2 code.");
         }
         PhoneNumberNormalizer.normalizeOptional(request.phone(), country);
         if (idempotencyKey == null || idempotencyKey.trim().length() < 8 || idempotencyKey.trim().length() > 200) {

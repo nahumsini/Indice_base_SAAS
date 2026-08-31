@@ -3,6 +3,7 @@ package com.indice.erp.platformadmin;
 import com.indice.erp.billing.BillingHashing;
 import com.indice.erp.billing.catalog.CommercialOfferSelection;
 import com.indice.erp.billing.catalog.CommercialOfferSelectionService;
+import com.indice.erp.billing.stripe.StripePhaseTwoProperties;
 import com.indice.erp.entitlement.CompanyEntitlementProjectionService;
 import com.indice.erp.billing.storage.StorageQuotaService;
 import com.indice.erp.configcenter.users.ConfigCenterTabPermissionCatalog;
@@ -19,6 +20,7 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +40,28 @@ public class PlatformAdminService {
     private final StorageQuotaService storageQuota;
     private final CommercialOfferSelectionService commercialOffers;
     private final Clock clock;
+    private final StripePhaseTwoProperties stripeProperties;
+
+    @Autowired
+    public PlatformAdminService(
+        JdbcTemplate jdbcTemplate,
+        PlatformAdminAccessService accessService,
+        PlatformAuditService audit,
+        CompanyEntitlementProjectionService entitlementProjection,
+        StorageQuotaService storageQuota,
+        CommercialOfferSelectionService commercialOffers,
+        Clock clock,
+        StripePhaseTwoProperties stripeProperties
+    ) {
+        this.jdbcTemplate = jdbcTemplate;
+        this.accessService = accessService;
+        this.audit = audit;
+        this.entitlementProjection = entitlementProjection;
+        this.storageQuota = storageQuota;
+        this.commercialOffers = commercialOffers;
+        this.clock = clock;
+        this.stripeProperties = stripeProperties;
+    }
 
     public PlatformAdminService(
         JdbcTemplate jdbcTemplate,
@@ -48,13 +72,7 @@ public class PlatformAdminService {
         CommercialOfferSelectionService commercialOffers,
         Clock clock
     ) {
-        this.jdbcTemplate = jdbcTemplate;
-        this.accessService = accessService;
-        this.audit = audit;
-        this.entitlementProjection = entitlementProjection;
-        this.storageQuota = storageQuota;
-        this.commercialOffers = commercialOffers;
-        this.clock = clock;
+        this(jdbcTemplate, accessService, audit, entitlementProjection, storageQuota, commercialOffers, clock, null);
     }
 
     public Map<String, Object> context(long actorUserId) {
@@ -115,11 +133,17 @@ public class PlatformAdminService {
                        policy.mode AS entitlement_mode,
                        subscription.status AS billing_status,
                        subscription.stripe_subscription_id,
+                       subscription.catalog_version_id,
+                       subscription_catalog.version_code AS catalog_version,
+                       active_catalog.id AS active_catalog_version_id,
+                       active_catalog.version_code AS active_catalog_version,
                        lifecycle.state AS lifecycle_state,
                        lifecycle.access_mode AS access_mode,
                        subscription.offer_code,
                        subscription.billing_interval,
                        subscription.currency,
+                       subscription.subtotal_amount_cents,
+                       COALESCE(subscription.discount_amount_cents, 0) AS discount_amount_cents,
                        subscription.cancel_at_period_end,
                        subscription.trial_ends_at,
                        (
@@ -145,6 +169,12 @@ public class PlatformAdminService {
                              AND benefit.status = 'ACTIVE'
                              AND benefit.ends_at IS NULL
                        ) AS permanent_demo,
+                       EXISTS (
+                           SELECT 1
+                           FROM platform_trial_extensions extension
+                           WHERE extension.company_id = company.id
+                             AND extension.status = 'COMPLETED'
+                       ) AS trial_extension_used,
                        subscription.current_period_ends_at,
                        subscription.last_payment_status,
                        COALESCE(seats.included_seats, 0) AS included_seats,
@@ -159,43 +189,50 @@ public class PlatformAdminService {
                              AND (seat_benefit.ends_at IS NULL OR seat_benefit.ends_at > CURRENT_TIMESTAMP(6))
                        ), 0) AS courtesy_extra_seats,
                        COALESCE(storage.purchased_blocks, 0) AS purchased_storage_blocks,
-                       COALESCE((
-                           SELECT base_price.unit_amount_cents
-                           FROM billing_catalog_prices base_price
-                           WHERE base_price.catalog_version_id = subscription.catalog_version_id
-                             AND base_price.billable_code = subscription.offer_code
-                             AND base_price.billing_interval = subscription.billing_interval
-                             AND base_price.currency = subscription.currency
-                             AND base_price.price_type = 'BASE'
-                           ORDER BY base_price.effective_from DESC, base_price.id DESC
-                           LIMIT 1
-                       ), 0)
-                       + COALESCE(subscription.extra_seats, 0) * COALESCE((
-                           SELECT seat_price.unit_amount_cents
-                           FROM billing_catalog_prices seat_price
-                           WHERE seat_price.catalog_version_id = subscription.catalog_version_id
-                             AND seat_price.billable_code = 'extra_seat'
-                             AND seat_price.billing_interval = subscription.billing_interval
-                             AND seat_price.currency = subscription.currency
-                             AND seat_price.price_type = 'ADDON'
-                           ORDER BY seat_price.effective_from DESC, seat_price.id DESC
-                           LIMIT 1
-                       ), 0)
-                       + COALESCE((
-                           SELECT SUM(addon_price.unit_amount_cents)
-                           FROM company_billing_subscription_products selected_addon
-                           JOIN billing_catalog_products addon_product
-                             ON addon_product.id = selected_addon.catalog_product_id
-                            AND addon_product.product_type = 'ADDON'
-                           JOIN billing_catalog_prices addon_price
-                             ON addon_price.catalog_product_id = addon_product.id
-                            AND addon_price.catalog_version_id = subscription.catalog_version_id
-                            AND addon_price.billing_interval = subscription.billing_interval
-                            AND addon_price.currency = subscription.currency
-                            AND addon_price.price_type = 'ADDON'
-                            AND addon_price.status IN ('READY', 'ACTIVE')
-                           WHERE selected_addon.subscription_id = subscription.id
-                       ), 0)
+                       COALESCE(
+                           GREATEST(
+                               subscription.subtotal_amount_cents
+                                   - COALESCE(subscription.discount_amount_cents, 0),
+                               0
+                           ),
+                           COALESCE((
+                               SELECT base_price.unit_amount_cents
+                               FROM billing_catalog_prices base_price
+                               WHERE base_price.catalog_version_id = subscription.catalog_version_id
+                                 AND base_price.billable_code = subscription.offer_code
+                                 AND base_price.billing_interval = subscription.billing_interval
+                                 AND base_price.currency = subscription.currency
+                                 AND base_price.price_type = 'BASE'
+                               ORDER BY base_price.effective_from DESC, base_price.id DESC
+                               LIMIT 1
+                           ), 0)
+                           + COALESCE(subscription.extra_seats, 0) * COALESCE((
+                               SELECT seat_price.unit_amount_cents
+                               FROM billing_catalog_prices seat_price
+                               WHERE seat_price.catalog_version_id = subscription.catalog_version_id
+                                 AND seat_price.billable_code = 'extra_seat'
+                                 AND seat_price.billing_interval = subscription.billing_interval
+                                 AND seat_price.currency = subscription.currency
+                                 AND seat_price.price_type = 'ADDON'
+                               ORDER BY seat_price.effective_from DESC, seat_price.id DESC
+                               LIMIT 1
+                           ), 0)
+                           + COALESCE((
+                               SELECT SUM(addon_price.unit_amount_cents)
+                               FROM company_billing_subscription_products selected_addon
+                               JOIN billing_catalog_products addon_product
+                                 ON addon_product.id = selected_addon.catalog_product_id
+                                AND addon_product.product_type = 'ADDON'
+                               JOIN billing_catalog_prices addon_price
+                                 ON addon_price.catalog_product_id = addon_product.id
+                                AND addon_price.catalog_version_id = subscription.catalog_version_id
+                                AND addon_price.billing_interval = subscription.billing_interval
+                                AND addon_price.currency = subscription.currency
+                                AND addon_price.price_type = 'ADDON'
+                                AND addon_price.status IN ('READY', 'ACTIVE')
+                               WHERE selected_addon.subscription_id = subscription.id
+                           ), 0)
+                       )
                        + COALESCE(storage.purchased_blocks, 0) * COALESCE((
                            SELECT storage_price.unit_amount_cents
                            FROM billing_catalog_prices storage_price
@@ -303,6 +340,18 @@ public class PlatformAdminService {
                       FROM company_billing_subscriptions candidate
                       WHERE candidate.company_id = company.id
                   )
+                LEFT JOIN billing_catalog_versions subscription_catalog
+                  ON subscription_catalog.id = subscription.catalog_version_id
+                LEFT JOIN billing_catalog_versions active_catalog
+                  ON active_catalog.id = (
+                      SELECT active_version.id
+                      FROM billing_catalog_versions active_version
+                      WHERE active_version.status = 'ACTIVE'
+                        AND (active_version.effective_from IS NULL OR active_version.effective_from <= CURRENT_TIMESTAMP(6))
+                        AND (active_version.effective_to IS NULL OR active_version.effective_to > CURRENT_TIMESTAMP(6))
+                      ORDER BY active_version.effective_from DESC, active_version.id DESC
+                      LIMIT 1
+                  )
                 LEFT JOIN billing_signup_intents signup ON signup.id = subscription.signup_intent_id
                 LEFT JOIN billing_invoice_snapshots invoice
                   ON invoice.id = (
@@ -340,11 +389,24 @@ public class PlatformAdminService {
                 row.put("billing_status", nullable(rs.getString("billing_status")));
                 var stripeSubscriptionId = nullable(rs.getString("stripe_subscription_id"));
                 row.put("billing_managed_by_stripe", isStripeManaged(stripeSubscriptionId));
+                var catalogVersionId = (Long) rs.getObject("catalog_version_id");
+                var activeCatalogVersionId = (Long) rs.getObject("active_catalog_version_id");
+                row.put("catalog_version_id", catalogVersionId);
+                row.put("catalog_version", nullable(rs.getString("catalog_version")));
+                row.put("active_catalog_version_id", activeCatalogVersionId);
+                row.put("active_catalog_version", nullable(rs.getString("active_catalog_version")));
+                row.put(
+                    "catalog_version_historical",
+                    catalogVersionId != null && activeCatalogVersionId != null
+                        && !catalogVersionId.equals(activeCatalogVersionId)
+                );
                 row.put("lifecycle_state", nullable(rs.getString("lifecycle_state")));
                 row.put("access_mode", nullable(rs.getString("access_mode")));
                 row.put("offer_code", nullable(rs.getString("offer_code")));
                 row.put("billing_interval", nullable(rs.getString("billing_interval")));
                 row.put("currency", nullable(rs.getString("currency")));
+                row.put("subtotal_amount_cents", rs.getObject("subtotal_amount_cents"));
+                row.put("discount_amount_cents", rs.getLong("discount_amount_cents"));
                 row.put("cancel_at_period_end", rs.getBoolean("cancel_at_period_end"));
                 var billingStatus = nullable(rs.getString("billing_status"));
                 var stripeTrialEndsAt = instant(rs.getTimestamp("trial_ends_at"));
@@ -361,7 +423,7 @@ public class PlatformAdminService {
                 row.put("trial_ends_at", effectiveTrialEndsAt);
                 row.put("trial_source", trialSource);
                 row.put("trial_days_remaining", remainingDays(effectiveTrialEndsAt));
-                row.put("trial_extendable", trialSource != null);
+                row.put("trial_extendable", trialSource != null && !rs.getBoolean("trial_extension_used"));
                 row.put("trial_permanent", rs.getBoolean("permanent_demo"));
                 row.put("current_period_ends_at", instant(rs.getTimestamp("current_period_ends_at")));
                 row.put("last_payment_status", nullable(rs.getString("last_payment_status")));
@@ -602,9 +664,15 @@ public class PlatformAdminService {
                        subscription.status AS billing_status,
                        subscription.stripe_customer_id,
                        subscription.stripe_subscription_id,
+                       subscription.catalog_version_id,
+                       subscription_catalog.version_code AS catalog_version,
+                       active_catalog.id AS active_catalog_version_id,
+                       active_catalog.version_code AS active_catalog_version,
                        subscription.offer_code, subscription.billing_interval,
                        subscription.currency,
                        subscription.included_seats, subscription.extra_seats,
+                       subscription.subtotal_amount_cents,
+                       COALESCE(subscription.discount_amount_cents, 0) AS discount_amount_cents,
                        subscription.cancel_at_period_end,
                        subscription.trial_starts_at,
                        subscription.trial_ends_at,
@@ -631,6 +699,18 @@ public class PlatformAdminService {
                 LEFT JOIN users owner ON owner.id = ownership.owner_user_id
                 LEFT JOIN company_billing_subscriptions subscription
                   ON subscription.id = (SELECT MAX(candidate.id) FROM company_billing_subscriptions candidate WHERE candidate.company_id = company.id)
+                LEFT JOIN billing_catalog_versions subscription_catalog
+                  ON subscription_catalog.id = subscription.catalog_version_id
+                LEFT JOIN billing_catalog_versions active_catalog
+                  ON active_catalog.id = (
+                      SELECT active_version.id
+                      FROM billing_catalog_versions active_version
+                      WHERE active_version.status = 'ACTIVE'
+                        AND (active_version.effective_from IS NULL OR active_version.effective_from <= CURRENT_TIMESTAMP(6))
+                        AND (active_version.effective_to IS NULL OR active_version.effective_to > CURRENT_TIMESTAMP(6))
+                      ORDER BY active_version.effective_from DESC, active_version.id DESC
+                      LIMIT 1
+                  )
                 LEFT JOIN company_seat_states seats ON seats.company_id = company.id
                 LEFT JOIN company_commercial_states lifecycle ON lifecycle.company_id = company.id
                 WHERE company.id = ?
@@ -655,11 +735,30 @@ public class PlatformAdminService {
                 row.put("billing_status", nullable(rs.getString("billing_status")));
                 row.put("stripe_customer_id", nullable(rs.getString("stripe_customer_id")));
                 row.put("stripe_subscription_id", nullable(rs.getString("stripe_subscription_id")));
+                var catalogVersionId = (Long) rs.getObject("catalog_version_id");
+                var activeCatalogVersionId = (Long) rs.getObject("active_catalog_version_id");
+                row.put("catalog_version_id", catalogVersionId);
+                row.put("catalog_version", nullable(rs.getString("catalog_version")));
+                row.put("active_catalog_version_id", activeCatalogVersionId);
+                row.put("active_catalog_version", nullable(rs.getString("active_catalog_version")));
+                row.put(
+                    "catalog_version_historical",
+                    catalogVersionId != null && activeCatalogVersionId != null
+                        && !catalogVersionId.equals(activeCatalogVersionId)
+                );
                 row.put("offer_code", nullable(rs.getString("offer_code")));
                 row.put("billing_interval", nullable(rs.getString("billing_interval")));
                 row.put("currency", nullable(rs.getString("currency")));
                 row.put("included_seats", rs.getObject("included_seats"));
                 row.put("extra_seats", rs.getObject("extra_seats"));
+                var subtotalAmountCents = (Long) rs.getObject("subtotal_amount_cents");
+                var discountAmountCents = rs.getLong("discount_amount_cents");
+                row.put("subtotal_amount_cents", subtotalAmountCents);
+                row.put("discount_amount_cents", discountAmountCents);
+                row.put(
+                    "recurring_amount_cents",
+                    subtotalAmountCents == null ? null : Math.max(0L, subtotalAmountCents - discountAmountCents)
+                );
                 row.put("cancel_at_period_end", rs.getBoolean("cancel_at_period_end"));
                 row.put("trial_starts_at", instant(rs.getTimestamp("trial_starts_at")));
                 row.put("trial_ends_at", instant(rs.getTimestamp("trial_ends_at")));
@@ -687,7 +786,52 @@ public class PlatformAdminService {
         body.put("benefits", listBenefits(companyId));
         body.put("seat_usage", seatUsage(companyId));
         body.put("storage_usage", storageSnapshot(companyId));
+        body.put("commercial_change", companyCommercialChange(companyId));
         return body;
+    }
+
+    private Map<String, Object> companyCommercialChange(long companyId) {
+        return jdbcTemplate.query(
+            """
+                SELECT change_row.public_reference, change_row.change_kind, change_row.status,
+                       change_row.effective_at, version_row.version_code, change_row.offer_code,
+                       change_row.billing_interval, change_row.currency,
+                       change_row.included_seats, change_row.extra_seats,
+                       change_row.estimated_amount_cents, change_row.requested_by_authority,
+                       (SELECT GROUP_CONCAT(product.product_code ORDER BY selected.sort_order, product.id SEPARATOR ',')
+                          FROM company_billing_selection_change_products selected
+                          JOIN billing_catalog_products product ON product.id = selected.catalog_product_id
+                         WHERE selected.change_id = change_row.id) AS product_codes,
+                       (SELECT GROUP_CONCAT(product.display_name ORDER BY selected.sort_order, product.id SEPARATOR '|')
+                          FROM company_billing_selection_change_products selected
+                          JOIN billing_catalog_products product ON product.id = selected.catalog_product_id
+                         WHERE selected.change_id = change_row.id) AS product_names
+                FROM company_billing_selection_changes change_row
+                JOIN billing_catalog_versions version_row ON version_row.id = change_row.catalog_version_id
+                WHERE change_row.company_id = ? AND change_row.status IN ('DRAFT', 'PENDING_STRIPE', 'SCHEDULED')
+                ORDER BY FIELD(change_row.status, 'PENDING_STRIPE', 'SCHEDULED', 'DRAFT'), change_row.id DESC
+                LIMIT 1
+                """,
+            (rs, rowNum) -> {
+                var row = new LinkedHashMap<String, Object>();
+                row.put("reference", rs.getString("public_reference"));
+                row.put("kind", rs.getString("change_kind"));
+                row.put("status", rs.getString("status"));
+                row.put("effective_at", instant(rs.getTimestamp("effective_at")));
+                row.put("catalog_version", rs.getString("version_code"));
+                row.put("offer_code", rs.getString("offer_code"));
+                row.put("billing_interval", rs.getString("billing_interval"));
+                row.put("currency", rs.getString("currency"));
+                row.put("included_seats", rs.getInt("included_seats"));
+                row.put("extra_seats", rs.getInt("extra_seats"));
+                row.put("estimated_amount_cents", rs.getObject("estimated_amount_cents"));
+                row.put("requested_by_authority", rs.getString("requested_by_authority"));
+                row.put("product_codes", csv(rs.getString("product_codes"), ","));
+                row.put("product_names", csv(rs.getString("product_names"), "\\|"));
+                return row;
+            },
+            companyId
+        ).stream().findFirst().orElse(null);
     }
 
     @Transactional
@@ -1107,7 +1251,9 @@ public class PlatformAdminService {
             """
                 SELECT product.id, product.catalog_version_id, version.version_code,
                        product.product_code, product.display_name, product.product_type,
-                       product.commercial_kind, product.description,
+                       product.commercial_kind, product.description, product.external_product_id,
+                       product.stripe_mode, product.stripe_account_id, product.stripe_verified_at,
+                       product.stripe_sync_status,
                        (SELECT monthly_price.unit_amount_cents
                           FROM billing_catalog_prices monthly_price
                          WHERE monthly_price.catalog_product_id = product.id
@@ -1130,11 +1276,15 @@ public class PlatformAdminService {
                        CASE
                          WHEN product.product_type = 'CORE' OR availability.id IS NOT NULL THEN 1
                          WHEN product.active = 1 AND product.commercial_kind IN ('MODULE', 'PACKAGE', 'SEAT')
+                          AND product.stripe_verified_at IS NOT NULL
+                          AND product.stripe_sync_status = 'READY'
                           AND (SELECT COUNT(DISTINCT direct_price.billing_interval)
                                  FROM billing_catalog_prices direct_price
                                 WHERE direct_price.catalog_product_id = product.id
                                   AND direct_price.billing_interval IN ('MONTH', 'YEAR')
                                   AND direct_price.currency = 'USD' AND direct_price.unit_amount_cents > 0
+                                  AND direct_price.stripe_verified_at IS NOT NULL
+                                  AND direct_price.stripe_sync_status = 'READY'
                                   AND direct_price.status IN ('READY', 'ACTIVE')) = 2 THEN 1
                          ELSE 0
                        END AS commercially_available,
@@ -1149,7 +1299,9 @@ public class PlatformAdminService {
                 LEFT JOIN billing_available_commercial_products availability ON availability.id = product.id
                 GROUP BY product.id, product.catalog_version_id, version.version_code,
                          product.product_code, product.display_name, product.product_type,
-                         product.commercial_kind, product.description,
+                         product.commercial_kind, product.description, product.external_product_id,
+                         product.stripe_mode, product.stripe_account_id, product.stripe_verified_at,
+                         product.stripe_sync_status,
                          product.sort_order, product.active, availability.id
                 ORDER BY version.effective_from DESC, product.sort_order, product.id
                 """,
@@ -1164,6 +1316,11 @@ public class PlatformAdminService {
                 row.put("commercial_kind", rs.getString("commercial_kind"));
                 row.put("commercial_model", rs.getBoolean("commercial_model"));
                 row.put("description", nullable(rs.getString("description")));
+                row.put("external_product_id", nullable(rs.getString("external_product_id")));
+                row.put("stripe_mode", nullable(rs.getString("stripe_mode")));
+                row.put("stripe_account_id", nullable(rs.getString("stripe_account_id")));
+                row.put("stripe_verified_at", instant(rs.getTimestamp("stripe_verified_at")));
+                row.put("stripe_sync_status", rs.getString("stripe_sync_status"));
                 row.put("monthly_price_cents", rs.getObject("monthly_price_cents"));
                 row.put("annual_price_cents", rs.getObject("annual_price_cents"));
                 row.put("sort_order", rs.getInt("sort_order"));
@@ -1179,7 +1336,9 @@ public class PlatformAdminService {
                 SELECT price.id, price.catalog_version_id, price.catalog_product_id, version.version_code,
                        price.billable_code, price.price_type, price.billing_interval,
                        price.currency, price.unit_amount_cents, price.included_quantity,
-                       price.external_price_id, price.status, price.effective_from, price.effective_to
+                       price.external_price_id, price.stripe_mode, price.stripe_account_id,
+                       price.stripe_verified_at, price.stripe_sync_status,
+                       price.status, price.effective_from, price.effective_to
                 FROM billing_catalog_prices price
                 JOIN billing_catalog_versions version ON version.id = price.catalog_version_id
                 ORDER BY version.effective_from DESC, price.price_type, price.billable_code, price.billing_interval
@@ -1197,6 +1356,10 @@ public class PlatformAdminService {
                 row.put("unit_amount_cents", rs.getObject("unit_amount_cents"));
                 row.put("included_quantity", rs.getInt("included_quantity"));
                 row.put("external_price_id", nullable(rs.getString("external_price_id")));
+                row.put("stripe_mode", nullable(rs.getString("stripe_mode")));
+                row.put("stripe_account_id", nullable(rs.getString("stripe_account_id")));
+                row.put("stripe_verified_at", instant(rs.getTimestamp("stripe_verified_at")));
+                row.put("stripe_sync_status", rs.getString("stripe_sync_status"));
                 row.put("status", rs.getString("status"));
                 row.put("effective_from", instant(rs.getTimestamp("effective_from")));
                 row.put("effective_to", instant(rs.getTimestamp("effective_to")));
@@ -1210,7 +1373,9 @@ public class PlatformAdminService {
                        promotion.discount_type, promotion.percent_basis_points,
                        promotion.amount_off_cents, promotion.currency, promotion.duration_type,
                        promotion.duration_cycles, promotion.starts_at, promotion.ends_at,
-                       promotion.external_promotion_code_id, promotion.active, promotion.sort_order,
+                       promotion.external_promotion_code_id, promotion.stripe_mode,
+                       promotion.stripe_account_id, promotion.stripe_verified_at,
+                       promotion.stripe_sync_status, promotion.active, promotion.sort_order,
                        (SELECT GROUP_CONCAT(product.product_code ORDER BY product.sort_order, product.id SEPARATOR ',')
                           FROM billing_catalog_promotion_products link
                           JOIN billing_catalog_products product ON product.id = link.catalog_product_id
@@ -1236,13 +1401,27 @@ public class PlatformAdminService {
                 row.put("starts_at", instant(rs.getTimestamp("starts_at")));
                 row.put("ends_at", instant(rs.getTimestamp("ends_at")));
                 row.put("external_promotion_code_id", nullable(rs.getString("external_promotion_code_id")));
+                row.put("stripe_mode", nullable(rs.getString("stripe_mode")));
+                row.put("stripe_account_id", nullable(rs.getString("stripe_account_id")));
+                row.put("stripe_verified_at", instant(rs.getTimestamp("stripe_verified_at")));
+                row.put("stripe_sync_status", rs.getString("stripe_sync_status"));
                 row.put("active", rs.getBoolean("active"));
                 row.put("sort_order", rs.getInt("sort_order"));
                 row.put("product_codes", csv(rs.getString("product_codes"), ","));
                 return row;
             }
         );
-        return Map.of("versions", versions, "products", products, "prices", prices, "promotions", promotions);
+        var result = new LinkedHashMap<String, Object>();
+        result.put("versions", versions);
+        result.put("products", products);
+        result.put("prices", prices);
+        result.put("promotions", promotions);
+        result.put("stripe_environment", Map.of(
+            "enabled", stripeProperties != null && stripeProperties.isEnabled(),
+            "mode", stripeProperties != null && "live".equalsIgnoreCase(stripeProperties.getMode()) ? "LIVE" : "TEST",
+            "catalog_live_sync_enabled", stripeProperties != null && stripeProperties.isCatalogLiveSyncEnabled()
+        ));
+        return result;
     }
 
     public Map<String, Object> modules(long actorUserId) {
@@ -1431,14 +1610,31 @@ public class PlatformAdminService {
     private List<Map<String, Object>> companyProducts(long companyId) {
         return jdbcTemplate.query(
             """
-                SELECT product_code, display_name, product_type, sort_order,
-                       GROUP_CONCAT(DISTINCT source ORDER BY source SEPARATOR ', ') AS source
+                SELECT product.id AS catalog_product_id, product.catalog_version_id,
+                       version.version_code AS catalog_version, product.product_code,
+                       product.display_name, product.product_type, product.commercial_kind,
+                       product.sort_order,
+                       GROUP_CONCAT(DISTINCT active_product.source ORDER BY active_product.source SEPARATOR ', ') AS source,
+                       (SELECT monthly_price.unit_amount_cents
+                          FROM billing_catalog_prices monthly_price
+                         WHERE monthly_price.catalog_product_id = product.id
+                           AND monthly_price.billing_interval = 'MONTH'
+                           AND monthly_price.currency = 'USD'
+                         ORDER BY monthly_price.id DESC LIMIT 1) AS monthly_price_cents,
+                       (SELECT annual_price.unit_amount_cents
+                          FROM billing_catalog_prices annual_price
+                         WHERE annual_price.catalog_product_id = product.id
+                           AND annual_price.billing_interval = 'YEAR'
+                           AND annual_price.currency = 'USD'
+                         ORDER BY annual_price.id DESC LIMIT 1) AS annual_price_cents,
+                       (SELECT GROUP_CONCAT(capability.capability_code ORDER BY capability.capability_code SEPARATOR ',')
+                          FROM billing_product_capabilities capability
+                         WHERE capability.product_id = product.id) AS capabilities
                 FROM (
-                    SELECT product.product_code, product.display_name, product.product_type,
-                           product.sort_order, CONCAT('SUBSCRIPTION_', selected_product.source) AS source
+                    SELECT selected_product.catalog_product_id,
+                           CONCAT('SUBSCRIPTION_', selected_product.source) AS source
                     FROM company_billing_subscription_products selected_product
                     JOIN company_billing_subscriptions subscription ON subscription.id = selected_product.subscription_id
-                    JOIN billing_catalog_products product ON product.id = selected_product.catalog_product_id
                     WHERE subscription.id = (
                         SELECT MAX(candidate.id)
                         FROM company_billing_subscriptions candidate
@@ -1447,35 +1643,42 @@ public class PlatformAdminService {
                       AND LOWER(subscription.status) IN ('trialing', 'active', 'past_due')
                       AND (subscription.current_period_ends_at IS NULL OR subscription.current_period_ends_at > CURRENT_TIMESTAMP(6))
                     UNION ALL
-                    SELECT product.product_code, product.display_name, product.product_type,
-                           product.sort_order, 'TRIAL'
+                    SELECT trial.catalog_product_id, 'TRIAL'
                     FROM company_trial_product_grants trial
-                    JOIN billing_catalog_products product ON product.id = trial.catalog_product_id
                     WHERE trial.company_id = ?
                       AND trial.status = 'ACTIVE'
                       AND trial.starts_at <= CURRENT_TIMESTAMP(6)
                       AND trial.ends_at > CURRENT_TIMESTAMP(6)
                     UNION ALL
-                    SELECT product.product_code, product.display_name, product.product_type,
-                           product.sort_order, CONCAT('BENEFIT_', benefit.source_type)
+                    SELECT benefit.catalog_product_id, CONCAT('BENEFIT_', benefit.source_type)
                     FROM company_benefit_grants benefit
-                    JOIN billing_catalog_products product ON product.id = benefit.catalog_product_id
                     WHERE benefit.company_id = ?
                       AND benefit.benefit_type = 'PRODUCT'
                       AND benefit.status = 'ACTIVE'
                       AND benefit.starts_at <= CURRENT_TIMESTAMP(6)
                       AND (benefit.ends_at IS NULL OR benefit.ends_at > CURRENT_TIMESTAMP(6))
-                ) active_products
-                GROUP BY product_code, display_name, product_type, sort_order
-                ORDER BY sort_order, display_name
+                ) active_product
+                JOIN billing_catalog_products product ON product.id = active_product.catalog_product_id
+                JOIN billing_catalog_versions version ON version.id = product.catalog_version_id
+                GROUP BY product.id, product.catalog_version_id, version.version_code,
+                         product.product_code, product.display_name, product.product_type,
+                         product.commercial_kind, product.sort_order
+                ORDER BY product.sort_order, product.display_name
                 """,
             (rs, rowNum) -> {
                 var row = new LinkedHashMap<String, Object>();
+                row.put("catalog_product_id", rs.getLong("catalog_product_id"));
+                row.put("catalog_version_id", rs.getLong("catalog_version_id"));
+                row.put("catalog_version", rs.getString("catalog_version"));
                 row.put("code", rs.getString("product_code"));
                 row.put("name", rs.getString("display_name"));
                 row.put("type", rs.getString("product_type"));
+                row.put("commercial_kind", rs.getString("commercial_kind"));
                 row.put("source", rs.getString("source"));
                 row.put("sort_order", rs.getInt("sort_order"));
+                row.put("monthly_price_cents", rs.getObject("monthly_price_cents"));
+                row.put("annual_price_cents", rs.getObject("annual_price_cents"));
+                row.put("capabilities", csv(rs.getString("capabilities"), ","));
                 return row;
             },
             companyId,

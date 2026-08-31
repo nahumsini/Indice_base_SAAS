@@ -117,7 +117,7 @@ class BillingTenantProvisioningIntegrationTest {
             "SELECT TIMESTAMPDIFF(DAY, MIN(starts_at), MAX(ends_at)) FROM company_trial_product_grants WHERE source_signup_intent_id = ?",
             Integer.class,
             intent.id()
-        )).isEqualTo(30);
+        )).isEqualTo(15);
         assertThat(jdbc.queryForObject(
             "SELECT COUNT(*) FROM user_company_module_roles WHERE user_company_id = ?",
             Integer.class,

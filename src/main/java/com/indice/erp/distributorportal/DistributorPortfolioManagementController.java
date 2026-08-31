@@ -129,6 +129,19 @@ public class DistributorPortfolioManagementController {
         });
     }
 
+    @PostMapping("/companies/{companyId}/products/preview")
+    public ResponseEntity<?> previewProducts(
+        HttpSession session,
+        @PathVariable long companyId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody PlatformCompanyModuleService.ProductSelectionRequest request
+    ) {
+        return mutate(session, csrfToken, actor -> {
+            portfolioAccess.requireClient(actor, companyId);
+            return ResponseEntity.ok(companyModules.previewProductsAfterAuthorization(companyId, request));
+        });
+    }
+
     @PostMapping("/companies/{companyId}/benefits")
     public ResponseEntity<?> grantBenefit(
         HttpSession session,

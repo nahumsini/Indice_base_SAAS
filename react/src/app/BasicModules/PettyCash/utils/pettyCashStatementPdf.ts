@@ -13,7 +13,11 @@ import {
   getStatementSettlementBalance,
 } from './pettyCash.utils';
 import { buildDocumentFileName } from '../../shared/print/documentFileName';
-import { addStandardPdfFooters, applyStandardPdfMetadata } from '../../shared/print/documentPdfEngine';
+import {
+  addStandardPdfFooters,
+  applyStandardPdfMetadata,
+  openStandardPdfForPrint,
+} from '../../shared/print/documentPdfEngine';
 
 type PdfDocumentWithTable = jsPDF & {
   lastAutoTable?: {
@@ -78,7 +82,7 @@ const labelsFor = (locale: string) => {
       attachments: 'Adjuntos',
       budgetLine: 'Linea presupuestal',
       closingBalance: 'Saldo declarado',
-      documentTitle: 'Corte de caja chica',
+      documentTitle: 'Estado de cuenta de caja chica',
       expenseDate: 'Fecha',
       generated: 'Generado',
       legalNote: 'Documento operativo para control interno. No sustituye comprobantes fiscales ni politicas de aprobacion.',
@@ -337,7 +341,7 @@ const addIdentityBlocks = (
   return y + 48;
 };
 
-export function downloadPettyCashStatementPdf({
+export function buildPettyCashStatementPdf({
   copy,
   fund,
   locale,
@@ -345,11 +349,12 @@ export function downloadPettyCashStatementPdf({
   settlementLines,
   statement,
 }: PettyCashStatementPdfContext) {
-  const doc = new jsPDF({ format: 'letter', unit: 'mm' });
+  const doc = new jsPDF({ format: 'a4', unit: 'mm' });
   const labels = labelsFor(locale);
-  const statementMovements = movements.filter(movement => (
-    movement.pettyCashStatementId === statement.id || movement.pettyCashFundId === fund.id
-  ));
+  const exactStatementMovements = movements.filter(movement => movement.pettyCashStatementId === statement.id);
+  const statementMovements = exactStatementMovements.length > 0
+    ? exactStatementMovements
+    : movements.filter(movement => movement.pettyCashFundId === fund.id && !movement.pettyCashStatementId);
 
   applyStandardPdfMetadata(doc, {
     subject: labels.documentTitle,
@@ -417,9 +422,21 @@ export function downloadPettyCashStatementPdf({
     locale,
     version: '1.0',
   });
+
+  return doc;
+}
+
+export function downloadPettyCashStatementPdf(context: PettyCashStatementPdfContext) {
+  const doc = buildPettyCashStatementPdf(context);
+  const { statement } = context;
   doc.save(buildDocumentFileName({
-    documentType: 'petty-cash-statement',
+    documentType: 'petty-cash-account-statement',
     identifier: statement.folio,
     period: statement.periodKey,
   }));
+}
+
+export function printPettyCashStatementPdf(context: PettyCashStatementPdfContext) {
+  const doc = buildPettyCashStatementPdf(context);
+  return openStandardPdfForPrint(doc, { locale: context.locale });
 }

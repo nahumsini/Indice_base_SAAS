@@ -28,6 +28,7 @@ public class BillingSubscriptionApiController {
     private final BillingActivationService activationService;
     private final BillingInvoiceHistoryService invoiceHistoryService;
     private final ManagedCompanyContextService managedCompanies;
+    private final BillingAccountAuthorityService billingAuthority;
 
     public BillingSubscriptionApiController(
         SessionAuthService sessionAuthService,
@@ -36,7 +37,8 @@ public class BillingSubscriptionApiController {
         BillingProductSelectionService selectionService,
         BillingActivationService activationService,
         BillingInvoiceHistoryService invoiceHistoryService,
-        ManagedCompanyContextService managedCompanies
+        ManagedCompanyContextService managedCompanies,
+        BillingAccountAuthorityService billingAuthority
     ) {
         this.sessionAuthService = sessionAuthService;
         this.csrfService = csrfService;
@@ -45,6 +47,7 @@ public class BillingSubscriptionApiController {
         this.activationService = activationService;
         this.invoiceHistoryService = invoiceHistoryService;
         this.managedCompanies = managedCompanies;
+        this.billingAuthority = billingAuthority;
     }
 
     @GetMapping("/selection")
@@ -53,7 +56,7 @@ public class BillingSubscriptionApiController {
         if (user.isEmpty()) return unauthorized();
         try {
             var context = managedCompanies.resolveBillingContext(user.get(), session);
-            return ResponseEntity.ok(selectionService.current(context.companyId()));
+            return ResponseEntity.ok(selectionService.current(context.companyId(), user.get().userId()));
         } catch (ManagedCompanyContextForbiddenException ex) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(message(ex.getMessage()));
         } catch (IllegalArgumentException ex) {
@@ -94,9 +97,12 @@ public class BillingSubscriptionApiController {
         @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
         @RequestBody BillingSelectionRequest request
     ) {
-        return manage(session, csrfToken, context -> activationService.createCheckout(
-            context.billing().companyId(), context.actor().userId(), idempotencyKey, request
-        ));
+        return manage(session, csrfToken, context -> {
+            billingAuthority.requireOwner(context.billing().companyId(), context.actor().userId());
+            return activationService.createCheckout(
+                context.billing().companyId(), context.actor().userId(), idempotencyKey, request
+            );
+        });
     }
 
     @GetMapping
@@ -153,7 +159,10 @@ public class BillingSubscriptionApiController {
         HttpSession session,
         @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
     ) {
-        return manage(session, csrfToken, context -> subscriptionService.portal(context.billing().companyId()));
+        return manage(session, csrfToken, context -> {
+            billingAuthority.requireOwner(context.billing().companyId(), context.actor().userId());
+            return subscriptionService.portal(context.billing().companyId());
+        });
     }
 
     private ResponseEntity<?> manage(HttpSession session, String csrfToken, Action action) {
@@ -182,6 +191,8 @@ public class BillingSubscriptionApiController {
             return ResponseEntity.ok(action.run(new BillingActorContext(user.get(), billing)));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message(ex.getMessage()));
+        } catch (BillingAccountAuthorityService.BillingOwnerRequiredException ex) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(message(ex.getMessage()));
         } catch (IllegalStateException ex) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(message(ex.getMessage()));
         }

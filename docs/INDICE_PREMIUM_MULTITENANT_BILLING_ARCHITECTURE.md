@@ -1,8 +1,8 @@
 # Índice Premium Multi-Tenant y Billing
 
-Estado: arquitectura aprobada; catálogo comercial versionado implementado hasta V223
+Estado: arquitectura aprobada; oferta comercial de lanzamiento 2026.08 confirmada
 
-Fecha de corte: 27 de agosto de 2026
+Fecha de corte documental: 30 de agosto de 2026
 
 Base técnica de Fases 1–8: rama `nahum-mac-20-julio-premium-multitenant-billing`
 
@@ -124,6 +124,13 @@ La oferta comercial se administra como una versión completa e inmutable una vez
   cambio crea y valida un borrador nuevo antes de publicarlo.
 - Las suscripciones existentes conservan su `catalog_version_id`, selección, subtotal, descuento y
   promoción. Publicar una nueva versión nunca recalcula retroactivamente un contrato histórico.
+- Desplegar frontend, backend, contenedores o configuración operativa no constituye una publicación
+  comercial y no puede modificar precios. Los despliegues conservan las filas existentes; sólo el
+  flujo auditado de borrador, validación y publicación puede cambiar la oferta para nuevas altas.
+- Ninguna migración ordinaria, seed o sincronización de arranque puede actualizar importes,
+  referencias Stripe o estados de versiones ya existentes. Una corrección excepcional de precios
+  requiere una decisión comercial explícita, una migración nueva y evidencia de preservación de los
+  contratos que referencian versiones históricas.
 
 La Administración de plataforma presenta este modelo en un solo constructor de oferta comercial.
 La disponibilidad técnica de módulos permanece separada porque controla si una función existe y
@@ -152,32 +159,82 @@ versiones nuevas.
 - Se usará Stripe Tax. CFDI y motores fiscales adicionales se incorporarán posteriormente mediante
   adaptadores por país, sin cambiar el núcleo de la suscripción.
 
+### 3.3.2 Oferta comercial aprobada `2026.08-global-v1`
+
+La versión que reemplazará el tarifario histórico para nuevas altas se cobra en USD antes de los
+impuestos que Stripe calcula y muestra antes de confirmar Checkout:
+
+| Oferta | Composición | Mensual | Anual |
+|---|---|---:|---:|
+| Módulo individual | Un producto básico | USD 79 | USD 758.40 |
+| Módulos sueltos desde dos | Por producto básico | USD 49 | USD 470.40 por producto |
+| `controla` | Recursos Humanos + Tareas y Procesos | USD 99 | USD 950.40 |
+| `escala_sales` | RH + Tareas + Gastos/Caja Chica + Ventas/Inventarios | USD 149 | USD 1,430.40 |
+| `escala_pos` | RH + Tareas + Gastos/Caja Chica + POS/Inventarios | USD 149 | USD 1,430.40 |
+| `corporativiza` | Los seis productos básicos | USD 199 | USD 1,910.40 |
+
+- Panel Inicial y KPIs son núcleo incluido y nunca líneas cobrables.
+- Cada suscripción incluye cinco lugares; el propietario consume uno. El cliente compra capacidad,
+  aunque no asigne todos los lugares, y cada lugar adicional cuesta USD 12 al mes o USD 144 al año.
+- El anual aplica 20 % de descuento sólo a módulos básicos y paquetes. Usuarios, almacenamiento,
+  consultoría adicional e impuestos no reciben descuento.
+- Cada suscripción incluye una sesión mensual no acumulable de consultoría de 60 minutos, sujeta a
+  disponibilidad. El beneficio se consume en el mes calendario de la cita; una cancelación libera
+  el beneficio de ese mes. Una sesión adicional cuesta USD 79.
+- Los módulos complementarios no se publican en el lanzamiento. Su precio aprobado futuro es USD
+  29 mensuales antes de impuestos, pero necesitan una decisión de publicación posterior.
+- La suscripción conserva su versión e importe mientras mantenga la misma oferta. Cambiar de paquete,
+  cancelar y volver a contratar adopta la versión vigente; un adicional nuevo usa su precio vigente.
+- Las comparaciones públicas usan únicamente la suma real de productos vendibles. No se inventan
+  precios tachados ni descuentos sobre precios que Índice no haya ofrecido de buena fe.
+- Los mercados prioritarios de lanzamiento son Canadá, Estados Unidos, México y Colombia. Checkout
+  recaba país legal, dirección fiscal y Tax ID cuando corresponda; Stripe calcula los impuestos
+  aplicables antes de que el cliente confirme.
+
 ### 3.4 Prueba
 
-- Duración: 30 días.
+- Duración pública inicial: 15 días.
 - Requiere tarjeta válida para comenzar.
-- Desbloquea todos los productos básicos durante la prueba.
+- No genera cargo al comenzar y desbloquea `corporativiza` durante la prueba.
 - El cliente elige el paquete que empezará a pagar al terminar la prueba.
 - Stripe cobra automáticamente al concluirla, salvo cancelación previa.
 - Antes del vencimiento el propietario puede cambiar el paquete objetivo.
+- Después de completar la consultoría, Índice o un distribuidor autorizado pueden extender una sola
+  vez la fecha final hasta un máximo total de 30 días. La extensión no es automática, no se ofrece
+  como derecho garantizado y registra actor, autoridad, motivo y fechas en auditoría.
 
 La prueba amplía entitlements; no debe falsificar un plan pagado ni alterar permanentemente las
 asignaciones de módulos del usuario.
 
 ### 3.5 Almacenamiento
 
-- Cada `company_id` incluye 5 GB de archivos de usuario.
-- Los bloques adicionales son de 5 GB.
-- Precio de un bloque: dos veces el costo directo vigente del proveedor de objetos para esos 5 GB.
+- Cada `company_id` incluye 100 GiB de archivos de usuario.
+- Los bloques adicionales son de 100 GiB y cuestan USD 15 mensuales o USD 180 anuales, sin descuento.
 - El precio debe almacenarse como versión de catálogo y no calcularse retroactivamente en cada
   factura.
 - La cuota cubre archivos cargados por usuarios. Base de datos, índices, logs técnicos, auditoría y
   copias internas no consumen la cuota comercial.
-- Alertas de consumo recomendadas: 80%, 90% y 100%.
-- Al llegar al límite se bloquean nuevas cargas, no la lectura ni la descarga de archivos existentes.
+- Al rebasar la capacidad, el backend reserva idempotentemente el bloque siguiente y lo programa
+  para la próxima factura; no corta el servicio ni elimina archivos.
+- La compra automática se informa en Billing y por correo conforme al consentimiento aceptado en
+  Checkout. Reducir bloques sólo es posible cuando el uso real cabe en la nueva capacidad.
 
 Antes de publicar el precio se debe fijar región AWS, clase de almacenamiento, moneda de referencia
 y redondeo comercial. La fórmula aprobada permanece aunque cambie la tarifa del proveedor.
+
+### 3.6 Cancelación y reembolsos
+
+- Cancelar no genera penalización y conserva el servicio hasta el final del periodo ya pagado; no
+  se renueva el periodo siguiente.
+- Los cargos mensuales ya iniciados no son reembolsables, salvo cobro duplicado, error atribuible a
+  Índice, obligación legal o decisión expresa de soporte.
+- Una renovación anual puede solicitar reembolso dentro de los siete días calendario posteriores
+  al cobro sólo si no existió uso material desde la renovación. El reembolso cancela el nuevo
+  periodo anual y el acceso sigue la política de cancelación y retención aplicable.
+- Usuarios, bloques de almacenamiento, consultorías consumidas, impuestos y cargos de periodos ya
+  utilizados no se prorratean ni reciben el descuento anual de paquetes y módulos.
+- Toda excepción queda auditada y se ejecuta en Stripe; soporte no captura ni almacena datos de
+  tarjeta.
 
 ## 4. Propiedad, identidad y acceso multi-company
 
@@ -225,8 +282,9 @@ cliente.
 
 ### 5.2 Tablas nuevas o adaptadas
 
-Los nombres definitivos se validarán contra el esquema al implementar. Las migraciones usarán el
-siguiente número libre; con el corte actual comienzan después de `V143`.
+Los nombres definitivos se validan contra el esquema implementado. Las migraciones son
+forward-only y deben usar el siguiente número libre; esta arquitectura está materializada hasta
+`V233`.
 
 | Tabla | Responsabilidad |
 |---|---|
@@ -236,6 +294,8 @@ siguiente número libre; con el corte actual comienzan después de `V143`.
 | `company_billing_customers` | `company_id` ↔ Stripe Customer |
 | `company_billing_subscriptions` | Estado y periodos de la suscripción |
 | `company_billing_subscription_items` | Paquete, seats, complementarios y almacenamiento |
+| `company_billing_selection_changes` | Borrador o cambio contractual programado, importes bloqueados, actor y fecha de corte |
+| `company_billing_selection_change_products` | Productos exactos que componen el cambio programado |
 | `company_entitlement_policies` | Cohorte y modo de evaluación comercial por `company_id` |
 | `company_entitlements` | Proyección efectiva y explicable de capabilities |
 | `entitlement_decision_events` | Diferencias shadow y bloqueos aplicados, con retención limitada |
@@ -258,12 +318,14 @@ los datos sensibles fuera de Índice.
 Stripe será la autoridad sobre pago, factura, método de pago y periodo. Índice será la autoridad
 sobre identidad, estructura organizacional, permisos y la proyección operativa de entitlements.
 
-Modelo de items recomendado:
+Modelo de items aprobado para `2026.08-global-v1`:
 
-- Un Price para cada escalón de paquete mensual y anual: 1, 2, 3 y todos.
-- Un item con cantidad para usuarios adicionales.
-- Un item por módulo complementario contratado.
-- Un item con cantidad para bloques adicionales de 5 GB.
+- Un Price mensual y anual por módulo individual y por paquete público.
+- Una línea `module_additional_unit` con cantidad para selecciones de dos o más módulos sueltos o
+  para módulos agregados a un paquete.
+- Una línea `extra_user` con cantidad para usuarios adicionales.
+- Una línea `storage_block_100_gib` con cantidad para bloques adicionales de 100 GiB.
+- Las consultorías adicionales se cobran por separado y no modifican la suscripción recurrente.
 
 La selección concreta de productos básicos se guarda localmente y en metadata de Stripe. Cambiar
 productos dentro del mismo escalón se realiza desde Índice mediante una operación idempotente; no
@@ -271,6 +333,36 @@ se deja a un portal genérico que desconozca la composición de capabilities.
 
 Todos los IDs de Stripe se inyectan por configuración/secret manager. No se codifican precios ni
 secretos en Java, TypeScript o migraciones.
+
+### 5.4 Contrato único de selección, corte y tarjetas
+
+Las pantallas de cliente y Administración de plataforma consumen el mismo servicio de selección
+comercial y deben mostrar por separado el acceso vigente y la selección objetivo. Aplican estas
+reglas:
+
+1. Una selección de una cuenta sin suscripción Stripe es `DRAFT`. Guardarla no concede módulos,
+   no amplía seats y no genera cargos. Checkout convierte la selección confirmada en contrato.
+2. Un acceso gratuito otorgado por `PLATFORM_ROOT` es una cortesía explícita, auditable e
+   independiente del borrador. Nunca se crea implícitamente al guardar una tarifa.
+3. En una suscripción Stripe vigente, agregar o quitar productos o seats usa
+   `proration_behavior=none`: no existe factura ni cargo fuera de ciclo.
+4. El objetivo se guarda como `SCHEDULED` con importes, catálogo, productos, capacidad, actor y
+   `effective_at` bloqueados. La fecha efectiva es `trial_end` durante prueba o
+   `current_period_end` durante renovación.
+5. Stripe conserva las líneas recurrentes objetivo, pero Índice mantiene los entitlements y seats
+   pagados anteriores hasta recibir una factura firmada y pagada cuyo `period_start` alcance la
+   fecha efectiva y corresponda a la misma suscripción.
+6. Antes del mismo corte, un cambio posterior sustituye al anterior de manera idempotente. Si una
+   factura de un corte anterior sigue sin pago, se bloquea programar otro cambio para no perder la
+   relación entre importe cobrado y acceso concedido.
+   Una baja seguida de un alta después del corte es una selección nueva para el siguiente corte y
+   nunca restaura gratis el acceso retirado; la fotografía pagada de cada periodo es inmutable.
+7. Un fallo de pago no aplica la nueva selección. El acceso anterior sigue la política de gracia,
+   solo lectura y suspensión del ciclo de vida comercial.
+8. El propietario administra tarjetas y facturas únicamente mediante Checkout o Customer Portal
+   hospedados por Stripe. Índice y `PLATFORM_ROOT` no reciben PAN, CVV ni fecha de expiración; Root
+   sólo consulta el estado y administra el contrato o las cortesías mediante operaciones
+   auditadas.
 
 ## 6. Ciclo de vida y cobranza
 
@@ -456,6 +548,10 @@ Criterio de salida: las decisiones shadow coinciden con permisos actuales sin af
 
 #### Estado implementado de Fase 1 — 21 de julio de 2026
 
+Los estados de fase fechados son evidencia histórica y describen lo vigente en su fecha. Las
+decisiones comerciales actuales están únicamente en la sección 3 y reemplazan sus importes,
+duraciones o capacidades anteriores.
+
 La Fase 1 quedó incorporada con compatibilidad hacia atrás y sin activar bloqueos comerciales:
 
 - `TenantContext` resuelve `user_id`, `company_id`, `user_company_id`, rol y scope organizacional
@@ -525,8 +621,10 @@ provisionar tenants ni modificar permisos:
 - La reconciliación asocia suscripciones que llegaron antes que el Checkout y copia su selección
   comercial sin crear empresas o usuarios. También expira Checkout abandonado y purga el payload
   crudo después de 90 días sin borrar la trazabilidad mínima.
-- Todos los secretos se reciben por variable o archivo montado; el archivo tiene precedencia. El
-  runtime rechaza configuración live y llaves `sk_live_` en esta fase.
+- Todos los secretos se reciben por variable o archivo montado; el archivo tiene precedencia. En
+  esa fase el runtime rechazaba configuración live y llaves `sk_live_`; la implementación actual
+  acepta el modo configurado, exige que llave, webhook y objetos coincidan con él y mantiene las
+  escrituras LIVE del catálogo detrás de un gate independiente.
 - La integración se inicia con `APP_BILLING_STRIPE_ENABLED=false` y el procesador con
   `APP_BILLING_STRIPE_PROCESSOR_ENABLED=false`. Ninguna suscripción concede capabilities ni
   cambia acceso todavía.
@@ -574,6 +672,9 @@ enforcement comercial:
 - El Checkout conserva una referencia opaca en las URLs de éxito y cancelación. La pantalla
   pública `/signup` permite seleccionar 1, 2, 3 o todos los productos, mensual/anual y seats
   adicionales; `basic_all` permanece no comprable mientras su precio esté pendiente.
+- El alta pública acepta países ISO 3166-1 alpha-2 y muestra sus nombres localizados. La capacidad
+  efectiva de cobrar y calcular impuestos permanece sujeta a los países y registros habilitados
+  en Stripe; el backend no reduce artificialmente el registro a una lista regional fija.
 - `/signup/complete` consulta el estado local y solo habilita el login cuando el webhook firmado
   ya dejó la cuenta lista. Recargar o recibir el mismo evento nuevamente no crea duplicados.
 - Después de `checkout.session.completed`, un servicio transaccional con bloqueo de fila crea una
@@ -783,19 +884,18 @@ Un producto puede aparecer en Checkout únicamente cuando:
 - cuenta con UI premium responsive, accesible y traducida;
 - puede activarse y desactivarse con feature flag sin despliegue destructivo.
 
-## 17. Decisiones pendientes antes de activar cobros
+## 17. Decisiones pendientes antes de activar cobros LIVE
 
-1. Confirmar el precio mensual exacto del paquete de todos los productos básicos.
-2. Confirmar la política instalada de 14 días con acceso completo más 14 días en solo lectura;
-   con esa configuración la suspensión ocurre al finalizar el día 28 de morosidad.
-3. Definir el precio comercial inicial del bloque de 5 GB después de elegir región y redondeo.
-4. Precisar si una identidad consolidada puede ser propietaria simultánea de dos `company_id` o si
-   la consolidación obliga a transferir/fusionar primero la estructura comercial.
-5. Definir prorrateo al subir de paquete y fecha efectiva al bajarlo.
-6. Definir qué exportaciones permanecen disponibles durante suspensión y retención.
+Los importes, prueba, usuarios, consultoría, almacenamiento, cancelación y ventana de reembolso ya
+están aprobados en la sección 3. Antes de LIVE aún se debe:
 
-Estas decisiones no impidieron construir la infraestructura durable de Fases 1–7. Sí bloquean
-la publicación completa de Prices, el encendido de Checkout para clientes y el enforcement.
+1. Certificar de punta a punta la oferta `2026.08-global-v1` en Stripe TEST, incluidos Test Clocks,
+   pago fallido, recuperación, cambio de plan, almacenamiento y cancelación.
+2. Confirmar con finanzas los registros fiscales reales que Stripe Tax debe activar por país.
+3. Precisar si una identidad consolidada puede ser propietaria simultánea de dos `company_id` o si
+   debe transferir o fusionar primero la estructura comercial.
+4. Definir qué exportaciones permanecen disponibles durante suspensión y retención.
+5. Aprobar expresamente una ventana de publicación LIVE y el rollback según `deployment/README.md`.
 
 ## 18. Cuándo retirar `saas-multitenant/`
 
@@ -816,9 +916,34 @@ después eliminarla en una operación separada y verificable.
 
 ## 19. Próximo paso recomendado
 
+### Control de referencias del catálogo en Stripe
+
+Desde la migración V227, cada Product, Price y Promotion Code del catálogo queda vinculado al modo
+`TEST` o `LIVE`, al identificador de cuenta de Stripe y a una verificación remota fechada. Los
+identificadores heredados se clasifican como `UNVERIFIED` y no bastan para publicar una oferta.
+La validación y la publicación comparan en Stripe cuenta, modo, estado, importe, moneda, intervalo,
+producto, comportamiento fiscal y definición de promociones. Con Stripe habilitado, el motor
+comercial falla cerrado si la versión activa no pertenece al entorno configurado.
+
+Las escrituras LIVE permanecen deshabilitadas por defecto. Una ventana de mantenimiento debe
+habilitar temporalmente `APP_BILLING_STRIPE_CATALOG_LIVE_SYNC_ENABLED`, ejecutarse como
+`PLATFORM_ROOT` y confirmar exactamente `PUBLICAR EN STRIPE LIVE`; después debe restaurar la
+bandera a `false`. Esta capacidad no sustituye los demás gates financieros ni autoriza cobros
+públicos por sí sola.
+
+Desde V228, la base de datos garantiza que sólo exista una versión `ACTIVE` y una versión `DRAFT`
+del catálogo. La publicación bloquea ambas versiones y el contenido del borrador dentro de la
+transacción final, vuelve a comprobar sus invariantes y evita que dos publicaciones concurrentes
+dejen más de una oferta vigente.
+
+V229 serializa por producto y modo las sincronizaciones contra Stripe. Una operación abandona la
+persistencia local si el borrador, el producto o sus precios cambiaron mientras Stripe respondía;
+los reintentos conservan claves idempotentes y las operaciones abandonadas quedan trazables.
+
 Ejecutar el runbook de Fase 8 exclusivamente en Stripe Test Mode: reconciliar una empresa interna,
 certificar cobro, seats, almacenamiento y morosidad con Test Clocks, y producir la evidencia de
-restauración y rollback. Antes de cobros públicos deben cerrarse los precios de `basic_all` y
-almacenamiento, prorrateo, suspensión y exportaciones; rotarse secretos; implementarse MFA real
-para plataforma; y realizarse una revisión explícita que retire los bloqueos de `sk_live_` y
-`livemode=true`. No se habilitará enforcement global como parte del alta.
+restauración y rollback. Antes de cobros públicos deben certificarse `2026.08-global-v1`,
+almacenamiento, suspensión y exportaciones; rotarse secretos; implementarse MFA real
+para plataforma; y realizarse una revisión explícita que autorice el modo
+`sk_live_`/`livemode=true`, aun cuando el runtime ya pueda validarlo técnicamente. No se habilitará
+enforcement global como parte del alta.

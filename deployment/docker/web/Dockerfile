@@ -28,11 +28,12 @@ COPY react ./
 ARG VITE_API_BASE_URL=
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 
-RUN npm run build
+RUN npm run build \
+    && chmod -R a+rX dist
 
 FROM nginxinc/nginx-unprivileged:stable-alpine
 
-COPY deployment/docker/web/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --chmod=0644 deployment/docker/web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /workspace/react/dist /usr/share/nginx/html
 
 EXPOSE 8080

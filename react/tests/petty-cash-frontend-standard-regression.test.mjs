@@ -63,3 +63,51 @@ test('Petty Cash no introduce texto operativo menor a 12 px', () => {
 
   assert.deepEqual(violations, []);
 });
+
+test('Petty Cash usa filtros progresivos y columnas persistentes en sus índices principales', () => {
+  const sharedSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashShared.tsx'), 'utf8');
+  const fundsSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashFundsWorkspace.tsx'), 'utf8');
+  const reconciliationSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashReconciliationWorkspace.tsx'), 'utf8');
+  const statementsSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashStatementsWorkspace.tsx'), 'utf8');
+
+  assert.match(sharedSource, /<IndiceFilterDisclosureActions/);
+  assert.match(sharedSource, /<IndiceFilterAdvancedSection/);
+  assert.match(sharedSource, /usePettyCashColumns/);
+  assert.match(sharedSource, /const eligibleActionCount = \[/);
+  assert.match(sharedSource, /const hasOverflow = eligibleActionCount > 3/);
+  assert.match(sharedSource, /!hasOverflow && onColumns/);
+  assert.match(sharedSource, /\{hasOverflow \? \(/);
+  assert.match(fundsSource, /indice\.pettyCash\.funds\.columns\.v1/);
+  assert.match(fundsSource, /onColumns=\{\(\) => setShowColumnsModal\(true\)\}/);
+  assert.match(fundsSource, /onSecondaryAction=\{\(\) => setIsKioskOpen\(true\)\}/);
+  assert.match(statementsSource, /indice\.pettyCash\.statements\.columns\.v1/);
+  assert.match(statementsSource, /<ColumnasConfigModal/);
+  assert.match(reconciliationSource, /<PettyCashFilterShell/);
+  assert.match(reconciliationSource, /advancedContent=/);
+  assert.match(reconciliationSource, /onTertiaryAction=\{\(\) => setIsProviderModalOpen\(true\)\}/);
+});
+
+test('Petty Cash consolida moneda y evita avances KPI artificiales', () => {
+  const financialSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashFinancialViewWorkspace.tsx'), 'utf8');
+  const statementsSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashStatementsWorkspace.tsx'), 'utf8');
+
+  assert.match(financialSource, /<OperationalKpiCurrencyStrip/);
+  assert.match(financialSource, /const summaryAggregates = useKpiMonetaryAggregates/);
+  assert.doesNotMatch(financialSource, /progress:\s*100/);
+  assert.match(financialSource, /budgetAvailable = Math\.max\(0, summary\.currentBalanceAmount\)/);
+  assert.match(statementsSource, /const aggregates = useKpiMonetaryAggregates/);
+  assert.match(statementsSource, /currencyContext=/);
+});
+
+test('Saldos ofrece vista previa, descarga e impresión del estado de cuenta', () => {
+  const reconciliationSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashReconciliationWorkspace.tsx'), 'utf8');
+  const detailSource = readFileSync(resolve(pettyCashRoot, 'components/statements/PettyCashStatementDetailModal.tsx'), 'utf8');
+  const pdfSource = readFileSync(resolve(pettyCashRoot, 'utils/pettyCashStatementPdf.ts'), 'utf8');
+
+  assert.match(reconciliationSource, /additionalActionLabel=\{accountStatementCopy\.action\}/);
+  assert.match(reconciliationSource, /setPreviewStatement\(selectedStatement\)/);
+  assert.match(detailSource, /downloadPettyCashStatementPdf/);
+  assert.match(detailSource, /printPettyCashStatementPdf/);
+  assert.match(pdfSource, /format: 'a4'/);
+  assert.match(pdfSource, /openStandardPdfForPrint/);
+});

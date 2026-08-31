@@ -15,6 +15,19 @@ function collectFiles(path) {
   });
 }
 
+test('Control aplica la regla de tres acciones directas y un overflow final', () => {
+  const actionsSource = readFileSync(resolve(moduleRoot, 'Control/components/AttendanceSettingsActions.tsx'), 'utf8');
+
+  assert.match(actionsSource, /<IndiceTitleBarOverflow/);
+  assert.match(actionsSource, /onClick=\{onOpenTimeTable\}/);
+  assert.match(actionsSource, /onClick=\{onOpenSchedules\}/);
+  assert.match(actionsSource, /onClick=\{onOpenKiosks\}/);
+  assert.doesNotMatch(actionsSource, /onClick=\{onOpenContractSites\}/);
+  assert.match(actionsSource, /id: 'contract-sites'/);
+  assert.match(actionsSource, /onSelect: onOpenContractSites/);
+  assert.match(actionsSource, /label=\{copy\.actionsLabel\}/);
+});
+
 test('Recursos Humanos respeta la escala tipográfica del Frontend Engine V2', () => {
   const violations = collectFiles(moduleRoot).flatMap((file) => {
     const source = readFileSync(file, 'utf8');
@@ -210,4 +223,49 @@ test('Los flujos fiscales suspenden el detalle antes de abrir una vista secundar
 
   assert.match(payrollSource.slice(reportingStart, reportingEnd), /setIsRunDialogOpen\(false\)/);
   assert.match(payrollSource.slice(colombiaStart, colombiaEnd), /setIsRunDialogOpen\(false\)/);
+});
+
+test('los filtros de Recursos Humanos comparten divulgación y memoria por pestaña', () => {
+  const denseFilterSources = [
+    readFileSync(resolve(moduleRoot, 'Employees/components/EmployeesFilters.tsx'), 'utf8'),
+    readFileSync(resolve(moduleRoot, 'Control/components/AttendanceControlFilters.tsx'), 'utf8'),
+    readFileSync(resolve(moduleRoot, 'Payroll/Payroll.tsx'), 'utf8'),
+    readFileSync(resolve(moduleRoot, 'Records/components/RecordFilters.tsx'), 'utf8'),
+    readFileSync(resolve(moduleRoot, 'Permissions/components/PermissionFilters.tsx'), 'utf8'),
+    readFileSync(resolve(moduleRoot, 'KPIs/KPIs.tsx'), 'utf8'),
+  ];
+  const simpleFilterSources = [
+    readFileSync(resolve(moduleRoot, 'Announcements/components/AnnouncementFilters.tsx'), 'utf8'),
+    readFileSync(resolve(moduleRoot, 'Assets/components/AssetFilters.tsx'), 'utf8'),
+    readFileSync(resolve(moduleRoot, 'Incentives/components/IncentiveFilters.tsx'), 'utf8'),
+  ];
+
+  for (const source of denseFilterSources) {
+    assert.match(source, /<IndiceFilterBar/);
+    assert.match(source, /<IndiceFilterDisclosureActions/);
+    assert.match(source, /<IndiceFilterAdvancedSection/);
+  }
+  for (const source of simpleFilterSources) {
+    assert.match(source, /<IndiceFilterBar/);
+    assert.match(source, /<IndiceFilterDisclosureActions/);
+    assert.match(source, /showAdvancedToggle=\{false\}/);
+    assert.doesNotMatch(source, /<IndiceFilterAdvancedSection/);
+  }
+
+  for (const [relativePath, tabKey] of [
+    ['Employees/Employees.tsx', 'collaborators'],
+    ['Control/hooks/useControlController.ts', 'control'],
+    ['Payroll/Payroll.tsx', 'payroll'],
+    ['Announcements/Announcements.tsx', 'announcements'],
+    ['Assets/Assets.tsx', 'assets'],
+    ['Records/Records.tsx', 'records'],
+    ['Permissions/Permissions.tsx', 'permissions'],
+    ['Incentives/Incentives.tsx', 'incentives'],
+    ['KPIs/KPIs.tsx', 'kpis'],
+  ]) {
+    const source = readFileSync(resolve(moduleRoot, relativePath), 'utf8');
+    assert.match(source, /useWorkspaceNavigationMemory(?:<[^>]+>)?\(\{/);
+    assert.match(source, /moduleKey: ['"]human-resources['"]/);
+    assert.match(source, new RegExp(`tabKey: ['"]${tabKey}['"]`));
+  }
 });

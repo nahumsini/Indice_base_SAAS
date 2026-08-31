@@ -41,7 +41,9 @@ export const toFinanceApiErrorMessage = (
   if (error instanceof ApiClientError) {
     const backendMessage = messageFromPayload(error.payload);
     if (backendMessage) {
-      return backendMessageTranslations[backendMessage] ?? backendMessage;
+      const translatedMessage = backendMessageTranslations[backendMessage];
+      if (translatedMessage) return translatedMessage;
+      return error.status >= 500 ? fallbackMessage : statusMessages[error.status] ?? fallbackMessage;
     }
     return statusMessages[error.status] ?? fallbackMessage;
   }

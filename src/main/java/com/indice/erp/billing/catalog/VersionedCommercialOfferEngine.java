@@ -1,5 +1,6 @@
 package com.indice.erp.billing.catalog;
 
+import com.indice.erp.billing.stripe.StripePhaseTwoProperties;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -15,11 +16,43 @@ import org.springframework.stereotype.Component;
 final class VersionedCommercialOfferEngine {
 
     private static final int INCLUDED_SEATS = 5;
+    private static final String ADDITIONAL_MODULE_UNIT = "module_additional_unit";
 
     private final JdbcTemplate jdbcTemplate;
+    private final StripePhaseTwoProperties stripeProperties;
 
-    VersionedCommercialOfferEngine(JdbcTemplate jdbcTemplate) {
+    VersionedCommercialOfferEngine(JdbcTemplate jdbcTemplate, StripePhaseTwoProperties stripeProperties) {
         this.jdbcTemplate = jdbcTemplate;
+        this.stripeProperties = stripeProperties;
+    }
+
+    boolean configured(long versionId) {
+        return Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+            """
+                SELECT EXISTS(
+                    SELECT 1
+                    FROM billing_catalog_products product
+                    LEFT JOIN billing_catalog_prices price ON price.catalog_product_id = product.id
+                    WHERE product.catalog_version_id = ? AND product.active = 1
+                      AND (
+                          product.commercial_kind = 'SEAT'
+                          OR (
+                              product.commercial_kind IN ('MODULE', 'PACKAGE')
+                              AND price.price_type IN ('PRODUCT', 'PACKAGE')
+                          )
+                          OR price.external_price_id IS NOT NULL
+                          OR price.stripe_mode IS NOT NULL
+                          OR price.stripe_verified_at IS NOT NULL
+                      )
+                )
+                """,
+            Boolean.class,
+            versionId
+        ));
+    }
+
+    boolean requiresVerifiedReferences() {
+        return stripeProperties.isEnabled();
     }
 
     boolean ready(long versionId, BillingInterval interval) {
@@ -31,6 +64,8 @@ final class VersionedCommercialOfferEngine {
                     WHERE seat.catalog_version_id = ? AND seat.active = 1 AND seat.commercial_kind = 'SEAT'
                       AND price.billing_interval = ? AND price.currency = 'USD'
                       AND price.unit_amount_cents > 0 AND price.status IN ('READY', 'ACTIVE')
+                      AND (? = 0 OR (price.stripe_mode = ? AND price.stripe_verified_at IS NOT NULL
+                           AND price.stripe_sync_status = 'READY' AND price.external_price_id LIKE 'price_%'))
                 )
                 AND EXISTS(
                     SELECT 1 FROM billing_catalog_products offer
@@ -39,9 +74,13 @@ final class VersionedCommercialOfferEngine {
                       AND offer.commercial_kind IN ('MODULE', 'PACKAGE')
                       AND price.billing_interval = ? AND price.currency = 'USD'
                       AND price.unit_amount_cents > 0 AND price.status IN ('READY', 'ACTIVE')
+                      AND (? = 0 OR (price.stripe_mode = ? AND price.stripe_verified_at IS NOT NULL
+                           AND price.stripe_sync_status = 'READY' AND price.external_price_id LIKE 'price_%'))
                 )
                 """,
-            Boolean.class, versionId, interval.name(), versionId, interval.name()
+            Boolean.class,
+            versionId, interval.name(), verificationFlag(), mode(),
+            versionId, interval.name(), verificationFlag(), mode()
         ));
     }
 
@@ -64,6 +103,8 @@ final class VersionedCommercialOfferEngine {
                  AND price.billing_interval = ? AND price.currency = 'USD'
                  AND price.price_type IN ('PRODUCT', 'PACKAGE')
                  AND price.status IN ('READY', 'ACTIVE')
+                 AND (? = 0 OR (price.stripe_mode = ? AND price.stripe_verified_at IS NOT NULL
+                      AND price.stripe_sync_status = 'READY' AND price.external_price_id LIKE 'price_%'))
                  AND (price.effective_from IS NULL OR price.effective_from <= CURRENT_TIMESTAMP)
                  AND (price.effective_to IS NULL OR price.effective_to > CURRENT_TIMESTAMP)
                 WHERE product.catalog_version_id = ? AND product.active = 1
@@ -84,7 +125,7 @@ final class VersionedCommercialOfferEngine {
                 (Long) rs.getObject("unit_amount_cents"), rs.getString("external_price_id"),
                 rs.getString("description"), csv(rs.getString("included_codes")), csv(rs.getString("capabilities"))
             ),
-            interval.name(), versionId
+            interval.name(), verificationFlag(), mode(), versionId
         );
     }
 
@@ -107,13 +148,30 @@ final class VersionedCommercialOfferEngine {
         requireNoOverlap(selected);
 
         var lines = new ArrayList<CommercialOfferSelection.LineItem>();
-        for (var product : selected) {
+        var packages = selected.stream().filter(CommercialOfferSelection.Product::packageOffer).toList();
+        var modules = selected.stream().filter(product -> !product.packageOffer()).toList();
+        for (var product : packages) {
             requireReadyAmount(product.displayName(), product.unitAmountCents());
             lines.add(new CommercialOfferSelection.LineItem(
-                product.id(), product.code(), product.packageOffer() ? "PACKAGE" : "PRODUCT",
+                product.id(), product.code(), "PACKAGE",
                 1, product.unitAmountCents(), product.externalPriceId()
             ));
         }
+        if (modules.size() == 1 && packages.isEmpty()) {
+            var product = modules.getFirst();
+            requireReadyAmount(product.displayName(), product.unitAmountCents());
+            lines.add(new CommercialOfferSelection.LineItem(
+                product.id(), product.code(), "PRODUCT", 1,
+                product.unitAmountCents(), product.externalPriceId()
+            ));
+        } else if (!modules.isEmpty()) {
+            var volumePrice = commercialUnit(versionId, interval, ADDITIONAL_MODULE_UNIT, "VOLUME");
+            lines.add(new CommercialOfferSelection.LineItem(
+                volumePrice.productId(), volumePrice.billableCode(), "PRODUCT", modules.size(),
+                volumePrice.unitAmountCents(), volumePrice.externalPriceId()
+            ));
+        }
+        var productSubtotal = total(lines);
         var seat = seat(versionId, interval);
         if (extraSeats > 0) {
             lines.add(new CommercialOfferSelection.LineItem(
@@ -123,19 +181,46 @@ final class VersionedCommercialOfferEngine {
         }
         var subtotal = total(lines);
         var promotion = promotion(versionId, promotionCode, lines, subtotal);
-        var productSubtotal = selected.stream().map(CommercialOfferSelection.Product::unitAmountCents)
-            .reduce(0L, Math::addExact);
-        var modules = selected.stream().flatMap(product -> product.capabilities().stream())
+        var moduleSlugs = selected.stream().flatMap(product -> product.capabilities().stream())
             .map(this::canonicalCapability).distinct().sorted().toList();
-        var offerCode = selected.size() == 1 && selected.getFirst().packageOffer()
+        var offerCode = selected.size() == 1
             ? selected.getFirst().code()
             : "custom_offer";
         return new CommercialOfferSelection(
             versionId, versionCode, offerCode, interval, "USD", INCLUDED_SEATS, extraSeats,
             Math.subtractExact(subtotal, promotion.discountAmountCents()), productSubtotal,
-            seat.unitAmountCents(), 0, null, seat.externalPriceId(), selected, lines, modules,
+            seat.unitAmountCents(), 0, null, seat.externalPriceId(), selected, lines, moduleSlugs,
             subtotal, promotion.discountAmountCents(), promotion.code(), promotion.externalPromotionCodeId()
         );
+    }
+
+    private CommercialUnitDefinition commercialUnit(
+        long versionId,
+        BillingInterval interval,
+        String productCode,
+        String commercialKind
+    ) {
+        return jdbcTemplate.query(
+            """
+                SELECT product.id, product.product_code, price.unit_amount_cents, price.external_price_id
+                FROM billing_catalog_products product
+                JOIN billing_catalog_prices price ON price.catalog_product_id = product.id
+                WHERE product.catalog_version_id = ? AND product.active = 1
+                  AND BINARY product.product_code = BINARY ?
+                  AND product.commercial_kind = ?
+                  AND price.billing_interval = ? AND price.currency = 'USD'
+                  AND price.status IN ('READY', 'ACTIVE')
+                  AND (? = 0 OR (price.stripe_mode = ? AND price.stripe_verified_at IS NOT NULL
+                       AND price.stripe_sync_status = 'READY' AND price.external_price_id LIKE 'price_%'))
+                LIMIT 1
+                """,
+            (rs, rowNum) -> new CommercialUnitDefinition(
+                rs.getLong(1), rs.getString(2), (Long) rs.getObject(3), rs.getString(4)
+            ),
+            versionId, productCode, commercialKind, interval.name(), verificationFlag(), mode()
+        ).stream().findFirst().orElseThrow(() -> new IllegalStateException(
+            "La tarifa para modulos adicionales todavia no esta lista."
+        ));
     }
 
     private SeatDefinition seat(long versionId, BillingInterval interval) {
@@ -147,10 +232,12 @@ final class VersionedCommercialOfferEngine {
                 WHERE product.catalog_version_id = ? AND product.active = 1 AND product.commercial_kind = 'SEAT'
                   AND price.billing_interval = ? AND price.currency = 'USD'
                   AND price.status IN ('READY', 'ACTIVE')
+                  AND (? = 0 OR (price.stripe_mode = ? AND price.stripe_verified_at IS NOT NULL
+                       AND price.stripe_sync_status = 'READY' AND price.external_price_id LIKE 'price_%'))
                 ORDER BY product.sort_order, product.id LIMIT 1
                 """,
             (rs, rowNum) -> new SeatDefinition(rs.getLong(1), rs.getString(2), (Long) rs.getObject(3), rs.getString(4)),
-            versionId, interval.name()
+            versionId, interval.name(), verificationFlag(), mode()
         ).stream().findFirst().orElseThrow(() -> new IllegalStateException("La tarifa de usuario adicional no está lista."));
     }
 
@@ -168,6 +255,8 @@ final class VersionedCommercialOfferEngine {
                        external_promotion_code_id
                 FROM billing_catalog_promotions
                 WHERE catalog_version_id = ? AND UPPER(promotion_code) = ? AND active = 1
+                  AND (? = 0 OR (stripe_mode = ? AND stripe_verified_at IS NOT NULL
+                       AND stripe_sync_status = 'READY' AND external_promotion_code_id LIKE 'promo_%'))
                   AND (starts_at IS NULL OR starts_at <= CURRENT_TIMESTAMP)
                   AND (ends_at IS NULL OR ends_at > CURRENT_TIMESTAMP)
                 LIMIT 1
@@ -175,7 +264,7 @@ final class VersionedCommercialOfferEngine {
             (rs, rowNum) -> new PromotionDefinition(
                 rs.getLong(1), rs.getString(2), rs.getString(3), (Integer) rs.getObject(4),
                 (Long) rs.getObject(5), rs.getString(6)
-            ), versionId, code
+            ), versionId, code, verificationFlag(), mode()
         );
         if (rows.isEmpty()) throw new IllegalArgumentException("La promoción no existe o ya no está vigente.");
         var promotion = rows.getFirst();
@@ -206,13 +295,21 @@ final class VersionedCommercialOfferEngine {
             for (var capability : product.capabilities()) {
                 var canonical = canonicalCapability(capability);
                 var previous = ownerByCapability.putIfAbsent(canonical, product.displayName());
-                if (previous != null) {
+                if (previous != null && !"inventory".equals(canonical)) {
                     throw new IllegalArgumentException(
                         "La selección repite el módulo " + canonical + " en " + previous + " y " + product.displayName() + "."
                     );
                 }
             }
         }
+    }
+
+    private int verificationFlag() {
+        return requiresVerifiedReferences() ? 1 : 0;
+    }
+
+    private String mode() {
+        return "live".equalsIgnoreCase(stripeProperties.getMode()) ? "LIVE" : "TEST";
     }
 
     private long total(List<CommercialOfferSelection.LineItem> lines) {
@@ -245,6 +342,7 @@ final class VersionedCommercialOfferEngine {
     }
 
     private record SeatDefinition(long productId, String billableCode, long unitAmountCents, String externalPriceId) {}
+    private record CommercialUnitDefinition(long productId, String billableCode, long unitAmountCents, String externalPriceId) {}
     private record PromotionDefinition(long id, String code, String discountType, Integer percentBasisPoints, Long amountOffCents, String externalPromotionCodeId) {}
     private record PromotionResult(String code, long discountAmountCents, String externalPromotionCodeId) {
         private static PromotionResult none() { return new PromotionResult(null, 0, null); }

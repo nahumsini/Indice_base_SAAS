@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -37,6 +38,7 @@ public class ConsultingAppointmentService {
     private static final Set<String> CANCELLABLE_STATUSES = Set.of("REQUESTED", "CONFIRMED", "PAYMENT_REQUIRED");
     private static final Duration JOIN_WINDOW_BEFORE = Duration.ofMinutes(15);
     private static final Duration JOIN_WINDOW_AFTER = Duration.ofMinutes(90);
+    private static final int SESSION_DURATION_MINUTES = 60;
 
     private final JdbcTemplate jdbcTemplate;
     private final ConsultingAppointmentEmailService emailService;
@@ -59,9 +61,11 @@ public class ConsultingAppointmentService {
         requireAccess(user);
         var distributor = distributorRelationship(user.companyId());
         var response = new LinkedHashMap<String, Object>();
-        response.put("duration_minutes", 50);
+        response.put("duration_minutes", SESSION_DURATION_MINUTES);
         response.put("join_window_minutes", JOIN_WINDOW_BEFORE.toMinutes());
-        response.put("included_session_available", includedSessionAvailable(user.companyId()));
+        response.put("included_session_available", includedSessionAvailable(
+            user.companyId(), clock.instant(), ZoneId.of("UTC")
+        ));
         response.put("additional_session_amount_cents", additionalSessionAmountCents);
         response.put("currency", "USD");
         response.put("contact", contact(user));
@@ -114,7 +118,7 @@ public class ConsultingAppointmentService {
         }
 
         jdbcTemplate.queryForObject("SELECT id FROM companies WHERE id = ? FOR UPDATE", Long.class, user.companyId());
-        var included = includedSessionAvailable(user.companyId());
+        var included = includedSessionAvailable(user.companyId(), preferred, ZoneId.of(timezone));
         var sessionKind = included ? "INCLUDED" : "ADDITIONAL";
         var status = "REQUESTED";
         var paymentStatus = included ? "INCLUDED" : "PENDING";
@@ -137,7 +141,7 @@ public class ConsultingAppointmentService {
                      topic, notes, preferred_start_at, alternative_start_at, timezone, duration_minutes,
                      consultation_mode, country_code, service_location_code, service_location_name,
                      session_kind, status, payment_status, amount_cents, currency)
-                    VALUES (?, ?, ?, ?, ?, 'CLIENT_PORTAL', ?, ?, ?, ?, ?, ?, ?, ?, 50, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, 'CLIENT_PORTAL', ?, ?, ?, ?, ?, ?, ?, ?, 60, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                 Statement.RETURN_GENERATED_KEYS
             );
@@ -434,15 +438,57 @@ public class ConsultingAppointmentService {
         return !now.isBefore(start.minus(JOIN_WINDOW_BEFORE)) && !now.isAfter(start.plus(JOIN_WINDOW_AFTER));
     }
 
-    private boolean includedSessionAvailable(long companyId) {
+    private boolean includedSessionAvailable(long companyId, Instant appointmentTime, ZoneId timezone) {
+        if (!hasIncludedConsultingBenefit(companyId)) return false;
+        var period = consultationMonth(appointmentTime, timezone);
         var count = jdbcTemplate.queryForObject(
             """
                 SELECT COUNT(*) FROM consulting_appointments
                 WHERE company_id = ? AND session_kind = 'INCLUDED' AND status <> 'CANCELLED'
+                  AND COALESCE(confirmed_start_at, preferred_start_at) >= ?
+                  AND COALESCE(confirmed_start_at, preferred_start_at) < ?
                 """,
-            Long.class, companyId
+            Long.class, companyId, Timestamp.from(period.startsAt()), Timestamp.from(period.endsAt())
         );
         return count == null || count == 0;
+    }
+
+    private boolean hasIncludedConsultingBenefit(long companyId) {
+        return Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+            """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM company_billing_subscriptions subscription
+                    WHERE subscription.company_id = ?
+                      AND LOWER(subscription.status) IN ('trialing', 'active', 'past_due')
+                    UNION ALL
+                    SELECT 1
+                    FROM company_trial_product_grants trial
+                    WHERE trial.company_id = ? AND trial.status = 'ACTIVE'
+                      AND trial.starts_at <= CURRENT_TIMESTAMP(6)
+                      AND trial.ends_at > CURRENT_TIMESTAMP(6)
+                    UNION ALL
+                    SELECT 1
+                    FROM company_benefit_grants benefit
+                    WHERE benefit.company_id = ? AND benefit.benefit_type = 'PRODUCT'
+                      AND benefit.status = 'ACTIVE'
+                      AND benefit.starts_at <= CURRENT_TIMESTAMP(6)
+                      AND (benefit.ends_at IS NULL OR benefit.ends_at > CURRENT_TIMESTAMP(6))
+                )
+                """,
+            Boolean.class,
+            companyId,
+            companyId,
+            companyId
+        ));
+    }
+
+    static ConsultationMonth consultationMonth(Instant appointmentTime, ZoneId timezone) {
+        var localMonth = ZonedDateTime.ofInstant(appointmentTime, timezone)
+            .withDayOfMonth(1)
+            .toLocalDate()
+            .atStartOfDay(timezone);
+        return new ConsultationMonth(localMonth.toInstant(), localMonth.plusMonths(1).toInstant());
     }
 
     private DistributorRelationship distributorRelationship(long clientCompanyId) {
@@ -548,6 +594,9 @@ public class ConsultingAppointmentService {
     }
 
     private record DistributorRelationship(long companyId, String companyName) {
+    }
+
+    record ConsultationMonth(Instant startsAt, Instant endsAt) {
     }
 
     public record BookingRequest(

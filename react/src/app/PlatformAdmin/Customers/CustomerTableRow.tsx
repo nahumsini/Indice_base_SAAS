@@ -141,6 +141,11 @@ export function CustomerTableRow({
               {plan ? plan[english ? "en" : "es"] : effectiveOfferCode || copy.noPlan}
             </p>
             <div className="mt-1.5 flex flex-wrap gap-1">
+              {company.catalog_version_historical ? (
+                <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700">
+                  {english ? "Historical contract" : "Contrato histórico"}
+                </span>
+              ) : null}
               {(company.product_names ?? []).slice(0, compact ? 2 : 3).map((name) => (
                 <span key={name} className="rounded-md bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">
                   {name}

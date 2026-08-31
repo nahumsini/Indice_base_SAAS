@@ -1,4 +1,10 @@
-import { Search } from 'lucide-react';
+import {
+  IndiceFilterBar,
+  IndiceFilterDisclosureActions,
+  IndiceFilterSearch,
+  IndiceFilterSelect,
+  useIndiceFilterDisclosureCopy,
+} from '../../../../components/frontend-os';
 import type { IncentivesTranslations } from '../translations';
 import type { RHIncentivo } from '../types';
 
@@ -8,6 +14,7 @@ interface IncentiveFiltersProps {
   selectedStatus: 'all' | RHIncentivo['estado'];
   selectedType: 'all' | RHIncentivo['tipo'];
   onSearchChange: (value: string) => void;
+  onClearFilters: () => void;
   onStatusChange: (value: 'all' | RHIncentivo['estado']) => void;
   onTypeChange: (value: 'all' | RHIncentivo['tipo']) => void;
 }
@@ -18,56 +25,63 @@ export function IncentiveFilters({
   selectedStatus,
   selectedType,
   onSearchChange,
+  onClearFilters,
   onStatusChange,
   onTypeChange,
 }: IncentiveFiltersProps) {
+  const disclosureCopy = useIndiceFilterDisclosureCopy();
+  const hasActiveFilters = Boolean(searchQuery.trim() || selectedStatus !== 'all' || selectedType !== 'all');
+
   return (
-    <div className="mb-5 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <h3 className="mb-4 text-base font-medium text-slate-900 dark:text-white">{copy.filters.title}</h3>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.4fr_1fr_1fr]">
-        <div>
-          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
-            {copy.filters.searchLabel}
-          </label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(event) => onSearchChange(event.target.value)}
-              placeholder={copy.filters.searchPlaceholder}
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">{copy.filters.type}</label>
-          <select
-            value={selectedType}
-            onChange={(event) => onTypeChange(event.target.value as 'all' | RHIncentivo['tipo'])}
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-          >
-            <option value="all">{copy.filters.allTypes}</option>
-            <option value="Automatizado">{copy.types.Automatizado}</option>
-            <option value="Manual">{copy.types.Manual}</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">{copy.filters.status}</label>
-          <select
-            value={selectedStatus}
-            onChange={(event) => onStatusChange(event.target.value as 'all' | RHIncentivo['estado'])}
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-          >
-            <option value="all">{copy.filters.allStatuses}</option>
-            <option value="Activo">{copy.statuses.Activo}</option>
-            <option value="Programado">{copy.statuses.Programado}</option>
-            <option value="Pausado">{copy.statuses.Pausado}</option>
-          </select>
-        </div>
-      </div>
-    </div>
+    <IndiceFilterBar
+      className="mb-5"
+      gridClassName="lg:grid-cols-3"
+      title={copy.filters.title}
+      summary={(
+        <IndiceFilterDisclosureActions
+          activeAdvancedCount={0}
+          advancedLabel={disclosureCopy.moreFilters}
+          clearLabel={disclosureCopy.clearFilters}
+          hasActiveFilters={hasActiveFilters}
+          isAdvancedOpen={false}
+          onClear={onClearFilters}
+          onToggleAdvanced={() => undefined}
+          showAdvancedToggle={false}
+          tone="aqua"
+        />
+      )}
+    >
+      <IndiceFilterSearch
+        label={copy.filters.searchLabel}
+        value={searchQuery}
+        onValueChange={onSearchChange}
+        onClear={() => onSearchChange('')}
+        placeholder={copy.filters.searchPlaceholder}
+        tone="aqua"
+      />
+      <IndiceFilterSelect
+        label={copy.filters.type}
+        value={selectedType}
+        onValueChange={(value) => onTypeChange(value as 'all' | RHIncentivo['tipo'])}
+        options={[
+          { value: 'all', label: copy.filters.allTypes },
+          { value: 'Automatizado', label: copy.types.Automatizado },
+          { value: 'Manual', label: copy.types.Manual },
+        ]}
+        tone="aqua"
+      />
+      <IndiceFilterSelect
+        label={copy.filters.status}
+        value={selectedStatus}
+        onValueChange={(value) => onStatusChange(value as 'all' | RHIncentivo['estado'])}
+        options={[
+          { value: 'all', label: copy.filters.allStatuses },
+          { value: 'Activo', label: copy.statuses.Activo },
+          { value: 'Programado', label: copy.statuses.Programado },
+          { value: 'Pausado', label: copy.statuses.Pausado },
+        ]}
+        tone="aqua"
+      />
+    </IndiceFilterBar>
   );
 }

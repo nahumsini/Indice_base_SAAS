@@ -1,10 +1,19 @@
-import { Search } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  IndiceFilterAdvancedSection,
+  IndiceFilterBar,
+  IndiceFilterDisclosureActions,
+  IndiceFilterSearch,
+  IndiceFilterSelect,
+  useIndiceFilterDisclosureCopy,
+} from '../../../../components/frontend-os';
 import type { PermissionItem, PermissionFilterState } from '../types/permissions.types';
 import type { PermissionsTranslations } from '../translations';
 
 interface PermissionFiltersProps {
   copy: PermissionsTranslations;
   filters: PermissionFilterState;
+  onClearFilters: () => void;
   onFiltersChange: (filters: PermissionFilterState) => void;
   isManager?: boolean;
   permissions: PermissionItem[];
@@ -13,10 +22,13 @@ interface PermissionFiltersProps {
 export function PermissionFilters({
   copy,
   filters,
+  onClearFilters,
   onFiltersChange,
   isManager = false,
   permissions,
 }: PermissionFiltersProps) {
+  const disclosureCopy = useIndiceFilterDisclosureCopy();
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const employeeOptions = Array.from(
     new Set(
       permissions
@@ -28,96 +40,104 @@ export function PermissionFilters({
   const updateFilter = <K extends keyof PermissionFilterState>(key: K, value: PermissionFilterState[K]) => {
     onFiltersChange({ ...filters, [key]: value });
   };
+  const activeAdvancedFilterCount = isManager && filters.employee !== 'all' ? 1 : 0;
+  const hasActiveFilters = Boolean(
+    filters.search.trim()
+      || filters.status !== 'all'
+      || filters.type !== 'all'
+      || filters.payrollTreatment !== 'all'
+      || activeAdvancedFilterCount > 0,
+  );
+
+  useEffect(() => {
+    if (activeAdvancedFilterCount > 0) setShowAdvancedFilters(true);
+  }, [activeAdvancedFilterCount]);
+
+  const handleClearFilters = () => {
+    onClearFilters();
+    setShowAdvancedFilters(false);
+  };
 
   return (
-    <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <h3 className="mb-4 text-base font-medium text-slate-900 dark:text-white">{copy.filters.title}</h3>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <div className="xl:col-span-2">
-          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
-            {copy.filters.searchLabel}
-          </label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={filters.search}
-              onChange={(event) => updateFilter('search', event.target.value)}
-              placeholder={copy.filters.searchPlaceholder}
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-            />
-          </div>
-        </div>
+    <IndiceFilterBar
+      gridClassName="lg:grid-cols-4"
+      title={copy.filters.title}
+      summary={(
+        <IndiceFilterDisclosureActions
+          activeAdvancedCount={activeAdvancedFilterCount}
+          advancedLabel={showAdvancedFilters ? disclosureCopy.hideFilters : disclosureCopy.moreFilters}
+          clearLabel={disclosureCopy.clearFilters}
+          hasActiveFilters={hasActiveFilters}
+          isAdvancedOpen={showAdvancedFilters}
+          onClear={handleClearFilters}
+          onToggleAdvanced={() => setShowAdvancedFilters((current) => !current)}
+          showAdvancedToggle={isManager}
+          tone="aqua"
+        />
+      )}
+    >
+      <IndiceFilterSearch
+        label={copy.filters.searchLabel}
+        value={filters.search}
+        onValueChange={(value) => updateFilter('search', value)}
+        onClear={() => updateFilter('search', '')}
+        placeholder={copy.filters.searchPlaceholder}
+        tone="aqua"
+      />
+      <IndiceFilterSelect
+        label={copy.filters.status}
+        value={filters.status}
+        onValueChange={(value) => updateFilter('status', value as PermissionFilterState['status'])}
+        options={[
+          { value: 'all', label: copy.filters.allStatuses },
+          { value: 'pending', label: copy.status.pending },
+          { value: 'approved', label: copy.status.approved },
+          { value: 'rejected', label: copy.status.rejected },
+        ]}
+        tone="aqua"
+      />
+      <IndiceFilterSelect
+        label={copy.filters.type}
+        value={filters.type}
+        onValueChange={(value) => updateFilter('type', value as PermissionFilterState['type'])}
+        options={[
+          { value: 'all', label: copy.filters.allTypes },
+          { value: 'vacation', label: copy.types.vacation },
+          { value: 'sick_leave', label: copy.types.sick_leave },
+          { value: 'personal', label: copy.types.personal },
+          { value: 'maternity', label: copy.types.maternity },
+          { value: 'bereavement', label: copy.types.bereavement },
+          { value: 'unpaid', label: copy.types.unpaid },
+          { value: 'other', label: copy.types.other },
+        ]}
+        tone="aqua"
+      />
+      <IndiceFilterSelect
+        label={copy.filters.payrollTreatment}
+        value={filters.payrollTreatment}
+        onValueChange={(value) => updateFilter('payrollTreatment', value as PermissionFilterState['payrollTreatment'])}
+        options={[
+          { value: 'all', label: copy.filters.allPayrollTreatments },
+          { value: 'paid', label: copy.payrollTreatment.paid },
+          { value: 'unpaid', label: copy.payrollTreatment.unpaid },
+        ]}
+        tone="aqua"
+      />
 
-        <div>
-          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
-            {copy.filters.status}
-          </label>
-          <select
-            value={filters.status}
-            onChange={(event) => updateFilter('status', event.target.value as PermissionFilterState['status'])}
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-          >
-            <option value="all">{copy.filters.allStatuses}</option>
-            <option value="pending">{copy.status.pending}</option>
-            <option value="approved">{copy.status.approved}</option>
-            <option value="rejected">{copy.status.rejected}</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
-            {copy.filters.type}
-          </label>
-          <select
-            value={filters.type}
-            onChange={(event) => updateFilter('type', event.target.value as PermissionFilterState['type'])}
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-          >
-            <option value="all">{copy.filters.allTypes}</option>
-            <option value="vacation">{copy.types.vacation}</option>
-            <option value="sick_leave">{copy.types.sick_leave}</option>
-            <option value="personal">{copy.types.personal}</option>
-            <option value="maternity">{copy.types.maternity}</option>
-            <option value="bereavement">{copy.types.bereavement}</option>
-            <option value="unpaid">{copy.types.unpaid}</option>
-            <option value="other">{copy.types.other}</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
-            {copy.filters.payrollTreatment}
-          </label>
-          <select
-            value={filters.payrollTreatment}
-            onChange={(event) => updateFilter('payrollTreatment', event.target.value as PermissionFilterState['payrollTreatment'])}
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-          >
-            <option value="all">{copy.filters.allPayrollTreatments}</option>
-            <option value="paid">{copy.payrollTreatment.paid}</option>
-            <option value="unpaid">{copy.payrollTreatment.unpaid}</option>
-          </select>
-        </div>
-
-        {isManager ? (
-          <div>
-            <label className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
-              {copy.filters.employee}
-            </label>
-            <select
-              value={filters.employee}
-              onChange={(event) => updateFilter('employee', event.target.value)}
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-            >
-              <option value="all">{copy.filters.allEmployees}</option>
-              {employeeOptions.map((employee) => (
-                <option key={employee} value={employee}>{employee}</option>
-              ))}
-            </select>
-          </div>
-        ) : null}
-      </div>
-    </div>
+      {isManager && showAdvancedFilters ? (
+        <IndiceFilterAdvancedSection className="md:col-span-2 lg:col-span-4" gridClassName="lg:grid-cols-4">
+          <IndiceFilterSelect
+            label={copy.filters.employee}
+            value={filters.employee}
+            onValueChange={(value) => updateFilter('employee', value)}
+            options={[
+              { value: 'all', label: copy.filters.allEmployees },
+              ...employeeOptions.map((employee) => ({ value: employee, label: employee })),
+            ]}
+            tone="aqua"
+          />
+        </IndiceFilterAdvancedSection>
+      ) : null}
+    </IndiceFilterBar>
   );
 }

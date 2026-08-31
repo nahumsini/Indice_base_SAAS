@@ -47,7 +47,7 @@ class PlatformTrialExtensionServiceTest {
     }
 
     @Test
-    void rejectsAnyDurationOutsideTheThreeControlledPresets() {
+    void rejectsAnyDurationOutsideTheSingleControlledExtension() {
         when(access.require(9L, "PLATFORM_ACCOUNTS_WRITE"))
             .thenReturn(new PlatformAdminAccessService.Access(1L, "PLATFORM_ROOT", List.of()));
 
@@ -55,10 +55,10 @@ class PlatformTrialExtensionServiceTest {
             9L,
             22L,
             "trial-extension-60",
-            new PlatformTrialExtensionService.ExtensionRequest(60)
+            new PlatformTrialExtensionService.ExtensionRequest(60, true)
         ))
             .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("7, 15 o 30");
+            .hasMessageContaining("15 días");
 
         verifyNoInteractions(jdbc, transactions, stripe, lifecycle, entitlements);
     }
@@ -76,7 +76,7 @@ class PlatformTrialExtensionServiceTest {
             9L,
             22L,
             "trial-extension-7",
-            new PlatformTrialExtensionService.ExtensionRequest(7)
+            new PlatformTrialExtensionService.ExtensionRequest(15, true)
         ))
             .isInstanceOf(PlatformAdminForbiddenException.class)
             .hasMessageContaining("Sólo Root");

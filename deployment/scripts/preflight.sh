@@ -82,6 +82,8 @@ if [[ "${USE_EXAMPLE}" == "false" ]]; then
     APP_WEB_PUBLIC_URL
     APP_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET
     APP_KIOSK_TOKEN_PROTECTION_SECRET
+    APP_BILLING_STORAGE_INCLUDED_BYTES
+    APP_BILLING_STORAGE_BLOCK_BYTES
   )
 
   for key in "${required_keys[@]}"; do
@@ -143,6 +145,15 @@ if [[ "${USE_EXAMPLE}" == "false" ]]; then
     exit 1
   fi
 
+  if [[ "$(read_env_value APP_BILLING_STORAGE_INCLUDED_BYTES)" != "107374182400" ]]; then
+    echo "APP_BILLING_STORAGE_INCLUDED_BYTES must preserve the approved 100 GiB included quota." >&2
+    exit 1
+  fi
+  if [[ "$(read_env_value APP_BILLING_STORAGE_BLOCK_BYTES)" != "107374182400" ]]; then
+    echo "APP_BILLING_STORAGE_BLOCK_BYTES must preserve the approved 100 GiB commercial block." >&2
+    exit 1
+  fi
+
   public_url="$(read_env_value WEB_PUBLIC_URL)"
   if [[ "${public_url}" == https://* && "$(read_env_value APP_SESSION_COOKIE_SECURE)" != "true" ]]; then
     echo "APP_SESSION_COOKIE_SECURE must be true when WEB_PUBLIC_URL uses HTTPS." >&2
@@ -153,6 +164,17 @@ if [[ "${USE_EXAMPLE}" == "false" ]]; then
     stripe_mode="$(read_env_value APP_BILLING_STRIPE_MODE)"
     if [[ "${stripe_mode}" != "test" && "${stripe_mode}" != "live" ]]; then
       echo "APP_BILLING_STRIPE_MODE must be test or live." >&2
+      exit 1
+    fi
+
+    catalog_live_sync="$(read_env_value APP_BILLING_STRIPE_CATALOG_LIVE_SYNC_ENABLED)"
+    catalog_live_sync="${catalog_live_sync:-false}"
+    if [[ "${catalog_live_sync}" != "true" && "${catalog_live_sync}" != "false" ]]; then
+      echo "APP_BILLING_STRIPE_CATALOG_LIVE_SYNC_ENABLED must be true or false." >&2
+      exit 1
+    fi
+    if [[ "${stripe_mode}" == "test" && "${catalog_live_sync}" == "true" ]]; then
+      echo "Stripe catalog LIVE synchronization cannot be enabled while Stripe mode is test." >&2
       exit 1
     fi
 
@@ -178,27 +200,9 @@ if [[ "${USE_EXAMPLE}" == "false" ]]; then
       APP_BILLING_STRIPE_SUCCESS_URL
       APP_BILLING_STRIPE_CANCEL_URL
       APP_BILLING_STRIPE_PORTAL_RETURN_URL
-      APP_BILLING_STRIPE_PRICE_BASIC_1_MONTHLY
-      APP_BILLING_STRIPE_PRICE_BASIC_1_ANNUAL
-      APP_BILLING_STRIPE_PRICE_BASIC_2_MONTHLY
-      APP_BILLING_STRIPE_PRICE_BASIC_2_ANNUAL
-      APP_BILLING_STRIPE_PRICE_BASIC_3_MONTHLY
-      APP_BILLING_STRIPE_PRICE_BASIC_3_ANNUAL
-      APP_BILLING_STRIPE_PRICE_BASIC_ALL_MONTHLY
-      APP_BILLING_STRIPE_PRICE_BASIC_ALL_ANNUAL
-      APP_BILLING_STRIPE_PRICE_EXTRA_SEAT_MONTHLY
-      APP_BILLING_STRIPE_PRICE_EXTRA_SEAT_ANNUAL
-      APP_BILLING_STRIPE_PRICE_STORAGE_BLOCK_MONTHLY
-      APP_BILLING_STRIPE_PRICE_STORAGE_BLOCK_ANNUAL
     )
     for key in "${stripe_required_keys[@]}"; do
       require_env_value "${key}"
-    done
-    for key in "${stripe_required_keys[@]:3}"; do
-      [[ "$(read_env_value "${key}")" == price_* ]] || {
-        echo "${key} must contain a Stripe price_ ID." >&2
-        exit 1
-      }
     done
 
     if [[ "${stripe_mode}" == "live" ]]; then

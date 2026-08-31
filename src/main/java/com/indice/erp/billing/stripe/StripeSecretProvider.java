@@ -51,6 +51,15 @@ public class StripeSecretProvider {
         return value;
     }
 
+    public boolean isApiConfigured() {
+        try {
+            secretKey();
+            return true;
+        } catch (StripePhaseTwoUnavailableException unavailable) {
+            return false;
+        }
+    }
+
     private String resolve(String fileName, String directValue) {
         if (fileName != null && !fileName.isBlank()) {
             try {

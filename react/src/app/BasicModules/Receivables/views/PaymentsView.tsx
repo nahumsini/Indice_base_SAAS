@@ -18,7 +18,7 @@ import { useTablePagination } from '../../../hooks/useTablePagination';
 import { DataTablePagination } from '../../../components/table/DataTablePagination';
 import { getReceivableDetailCopy } from '../components/receivableDetail.copy';
 import { PaymentsKpiArea } from '../components/ReceivablesKpiAreas';
-import { ReceivablesFilters } from '../components/ReceivablesFilters';
+import { FilterSelect, ReceivablesFilters } from '../components/ReceivablesFilters';
 import {
   normalizeReceivablesColumns,
   persistReceivablesColumns,
@@ -37,7 +37,7 @@ import {
   initialFilters,
 } from '../constants/receivables.constants';
 import type { ReceivablesTranslations } from '../translations';
-import type { ReceivableAccount, ReceivablePayment } from '../types';
+import type { PaymentMethod, ReceivableAccount, ReceivablePayment } from '../types';
 import {
   formatMoney,
   matchesPeriod,
@@ -108,13 +108,13 @@ export function PaymentsView({
   const viewCopy = copy.views.payments;
   const defaultColumns = useMemo<ColumnConfig[]>(() => [
     { id: 'date', label: viewCopy.table.date, visible: true, locked: true },
-    { id: 'sale', label: viewCopy.table.sale, visible: true },
+    { id: 'sale', label: viewCopy.table.sale, visible: false },
     { id: 'customer', label: viewCopy.table.customer, visible: true },
     { id: 'method', label: viewCopy.table.method, visible: true },
     { id: 'amount', label: viewCopy.table.amount, visible: true },
     { id: 'reference', label: viewCopy.table.reference, visible: false },
     { id: 'registeredBy', label: viewCopy.table.registeredBy, visible: false },
-    { id: 'files', label: viewCopy.table.files, visible: false },
+    { id: 'files', label: viewCopy.table.files, visible: true },
   ], [viewCopy.table]);
   const fixedColumns = useMemo<ColumnConfig[]>(() => [
     { id: 'actions', label: viewCopy.table.actions, visible: true, locked: true },
@@ -122,6 +122,8 @@ export function PaymentsView({
   const [columns, setColumns] = useState<ColumnConfig[]>(() => readReceivablesColumns(paymentsColumnsStorageKey, defaultColumns));
   const visibleColumns = useMemo(() => columns.filter((column) => column.visible), [columns]);
   const [filters, setFilters] = useState({ ...initialFilters, status: 'all' });
+  const [methodFilter, setMethodFilter] = useState<PaymentMethod | 'all' | 'other'>('all');
+  const [evidenceFilter, setEvidenceFilter] = useState<'all' | 'with' | 'without'>('all');
   const [showColumnsModal, setShowColumnsModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [filesPayment, setFilesPayment] = useState<ReceivablePayment | null>(null);
@@ -142,7 +144,7 @@ export function PaymentsView({
     persistReceivablesColumns(paymentsColumnsStorageKey, columns);
   }, [columns]);
 
-  const filteredPayments = useMemo(() => {
+  const scopedPayments = useMemo(() => {
     const query = filters.search.trim();
 
     return payments.filter((payment) => (
@@ -150,12 +152,18 @@ export function PaymentsView({
       && matchesPeriod(payment.paymentDate, filters.period)
     ));
   }, [filters, payments]);
+  const filteredPayments = useMemo(() => scopedPayments.filter((payment) => (
+    (methodFilter === 'all'
+      || (methodFilter === 'other' ? ['check', 'wallet'].includes(payment.method) : payment.method === methodFilter))
+    && (evidenceFilter === 'all'
+      || (evidenceFilter === 'with' ? hasPaymentReceipt(payment) : !hasPaymentReceipt(payment)))
+  )), [evidenceFilter, methodFilter, scopedPayments]);
   const sortedPayments = useMemo(
     () => sortReceivablesRows(filteredPayments, sortState, getPaymentSortValue),
     [filteredPayments, sortState],
   );
   const pagination = useTablePagination({
-    resetKey: JSON.stringify(filters),
+    resetKey: JSON.stringify({ evidenceFilter, filters, methodFilter }),
     rows: sortedPayments,
   });
   const handleSort = (columnId: PaymentsColumnId) => {
@@ -173,7 +181,12 @@ export function PaymentsView({
       return payment.saleNumber;
     }
     if (columnId === 'customer') {
-      return payment.customerName;
+      return (
+        <>
+          <div className="font-medium text-slate-950 dark:text-white">{payment.customerName}</div>
+          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{payment.saleNumber}</div>
+        </>
+      );
     }
     if (columnId === 'method') {
       return copy.paymentMethods[payment.method];
@@ -230,17 +243,55 @@ export function PaymentsView({
         )}
       />
       <ReceivablesFilters
+        advancedContent={(
+          <>
+            <FilterSelect
+              label={copy.filters.method}
+              onChange={(value) => setMethodFilter(value as PaymentMethod | 'all' | 'other')}
+              options={[
+                { value: 'all', label: copy.filters.all },
+                ...(['cash', 'card', 'transfer', 'check', 'wallet'] as PaymentMethod[]).map((method) => ({
+                  value: method,
+                  label: copy.paymentMethods[method],
+                })),
+                { value: 'other', label: copy.kpiEngine.payments.segments.other },
+              ]}
+              value={methodFilter}
+            />
+            <FilterSelect
+              label={copy.filters.evidence}
+              onChange={(value) => setEvidenceFilter(value as 'all' | 'with' | 'without')}
+              options={[
+                { value: 'all', label: copy.filters.all },
+                { value: 'with', label: copy.filters.withEvidence },
+                { value: 'without', label: copy.filters.withoutEvidence },
+              ]}
+              value={evidenceFilter}
+            />
+          </>
+        )}
         copy={copy}
+        extraAdvancedFilterCount={Number(methodFilter !== 'all') + Number(evidenceFilter !== 'all')}
         filters={filters}
+        onClearAdvanced={() => {
+          setMethodFilter('all');
+          setEvidenceFilter('all');
+        }}
+        resultLabel={`${filteredPayments.length} ${viewCopy.itemLabel}`}
+        showOrganization={false}
+        showStatus={false}
         statusOptions={[]}
         unitOptions={[]}
         businessOptions={[]}
         onChange={setFilters}
       />
       <PaymentsKpiArea
-        accounts={allAccounts}
+        activeEvidence={evidenceFilter}
+        activeMethod={methodFilter}
         copy={copy}
-        payments={filteredPayments}
+        payments={scopedPayments}
+        onEvidenceChange={(evidence) => setEvidenceFilter((current) => current === evidence ? 'all' : evidence)}
+        onMethodChange={(method) => setMethodFilter((current) => current === method ? 'all' : method)}
       />
       <div className="space-y-3 md:hidden">
         {pagination.paginatedRows.map((payment) => (

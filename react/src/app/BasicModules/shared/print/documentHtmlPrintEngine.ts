@@ -27,6 +27,7 @@ export interface DocumentHtmlPrintParams {
   notifyOnBlocked?: boolean;
   orientation?: DocumentPageOrientation;
   pageSize?: DocumentPageSize;
+  targetWindow?: Window | null;
 }
 
 export const printDocumentHtml = ({
@@ -38,6 +39,7 @@ export const printDocumentHtml = ({
   notifyOnBlocked = true,
   orientation = 'portrait',
   pageSize = 'a4',
+  targetWindow,
 }: DocumentHtmlPrintParams) => {
   if (!bodyHtml.trim()) return false;
 
@@ -67,7 +69,7 @@ export const printDocumentHtml = ({
 </html>`;
 
   const blobUrl = URL.createObjectURL(new Blob([htmlDocument], { type: 'text/html;charset=utf-8' }));
-  const printWindow = window.open(blobUrl, '_blank');
+  const printWindow = targetWindow ?? window.open(blobUrl, '_blank');
   if (!printWindow) {
     URL.revokeObjectURL(blobUrl);
     if (notifyOnBlocked) notifyDocumentPrintFailure(locale, 'popup-blocked');
@@ -80,6 +82,7 @@ export const printDocumentHtml = ({
     printWindow.print();
     window.setTimeout(cleanup, 30_000);
   }, { once: true });
+  if (targetWindow) printWindow.location.replace(blobUrl);
   window.setTimeout(cleanup, 60_000);
   return true;
 };

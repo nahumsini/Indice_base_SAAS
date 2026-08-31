@@ -5,6 +5,7 @@ export const zhCA = {
   ...enCA,
   title: '控制',
   subtitle: '实时监控考勤并管理运营规则。',
+  actionsLabel: '操作',
   selfShiftCalendar: {
     title: '我的排班日历', loadingTitle: '正在加载日历', loadingDescription: '正在检查已分配的班次。', month: '月份',
     shift: '班次', openShift: '弹性班次', restDay: '休息日', noShift: '无班次', selectedDay: '所选日期', today: '今天',

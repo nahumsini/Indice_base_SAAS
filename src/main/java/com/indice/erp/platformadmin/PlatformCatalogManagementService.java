@@ -11,24 +11,32 @@ import java.util.LinkedHashSet;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class PlatformCatalogManagementService {
 
     private static final List<String> PRICE_STATUSES = List.of("DRAFT", "READY", "ACTIVE", "ARCHIVED");
+    private static final long MAX_CATALOG_AMOUNT_CENTS = 100_000_000L;
 
     private final JdbcTemplate jdbcTemplate;
     private final PlatformAdminAccessService accessService;
     private final PlatformAuditService audit;
+    private final PlatformCatalogStripeVerificationService stripeVerification;
+    private final TransactionTemplate transactions;
 
     public PlatformCatalogManagementService(
         JdbcTemplate jdbcTemplate,
         PlatformAdminAccessService accessService,
-        PlatformAuditService audit
+        PlatformAuditService audit,
+        PlatformCatalogStripeVerificationService stripeVerification,
+        TransactionTemplate transactions
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.accessService = accessService;
         this.audit = audit;
+        this.stripeVerification = stripeVerification;
+        this.transactions = transactions;
     }
 
     @Transactional
@@ -129,9 +137,17 @@ public class PlatformCatalogManagementService {
         var description = request == null || request.description() == null
             ? current.description()
             : nullable(request.description());
+        var stripeIdentityChanged = !displayName.equals(current.displayName());
         jdbcTemplate.update(
-            "UPDATE billing_catalog_products SET display_name = ?, description = ?, commercial_kind = ?, sort_order = ?, active = ? WHERE id = ?",
-            displayName, description, commercialKind, sortOrder, active, productId
+            """
+                UPDATE billing_catalog_products
+                SET display_name = ?, description = ?, commercial_kind = ?, sort_order = ?, active = ?,
+                    stripe_verified_at = CASE WHEN ? THEN NULL ELSE stripe_verified_at END,
+                    stripe_sync_status = CASE WHEN ? THEN 'PENDING' ELSE stripe_sync_status END
+                WHERE id = ?
+                """,
+            displayName, description, commercialKind, sortOrder, active,
+            stripeIdentityChanged, stripeIdentityChanged, productId
         );
         if (request != null && request.included_product_codes() != null) {
             replacePackageItems(productId, current.catalogVersionId(), request.included_product_codes());
@@ -211,13 +227,15 @@ public class PlatformCatalogManagementService {
                 INSERT INTO billing_catalog_promotions (
                     catalog_version_id, promotion_code, display_name, description, discount_type,
                     percent_basis_points, amount_off_cents, currency, duration_type, duration_cycles,
-                    starts_at, ends_at, external_promotion_code_id, active, sort_order
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'USD', ?, ?, ?, ?, ?, ?, ?)
+                    starts_at, ends_at, external_promotion_code_id, stripe_sync_status, active, sort_order
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'USD', ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
             draftId, normalized.code(), normalized.displayName(), normalized.description(),
             normalized.discountType(), normalized.percentBasisPoints(), normalized.amountOffCents(),
             normalized.durationType(), normalized.durationCycles(), normalized.startsAt(), normalized.endsAt(),
-            normalized.externalPromotionCodeId(), normalized.active(), normalized.sortOrder()
+            normalized.externalPromotionCodeId(),
+            normalized.externalPromotionCodeId() == null ? "PENDING" : "UNVERIFIED",
+            normalized.active(), normalized.sortOrder()
         );
         var promotionId = jdbcTemplate.queryForObject(
             "SELECT id FROM billing_catalog_promotions WHERE catalog_version_id = ? AND UPPER(promotion_code) = ?",
@@ -241,13 +259,17 @@ public class PlatformCatalogManagementService {
                 UPDATE billing_catalog_promotions
                 SET promotion_code = ?, display_name = ?, description = ?, discount_type = ?,
                     percent_basis_points = ?, amount_off_cents = ?, duration_type = ?, duration_cycles = ?,
-                    starts_at = ?, ends_at = ?, external_promotion_code_id = ?, active = ?, sort_order = ?
+                    starts_at = ?, ends_at = ?, external_promotion_code_id = ?,
+                    stripe_mode = NULL, stripe_account_id = NULL, stripe_verified_at = NULL,
+                    stripe_sync_status = ?, active = ?, sort_order = ?
                 WHERE id = ?
                 """,
             normalized.code(), normalized.displayName(), normalized.description(), normalized.discountType(),
             normalized.percentBasisPoints(), normalized.amountOffCents(), normalized.durationType(),
             normalized.durationCycles(), normalized.startsAt(), normalized.endsAt(),
-            normalized.externalPromotionCodeId(), normalized.active(), normalized.sortOrder(), current.id()
+            normalized.externalPromotionCodeId(),
+            normalized.externalPromotionCodeId() == null ? "PENDING" : "UNVERIFIED",
+            normalized.active(), normalized.sortOrder(), current.id()
         );
         replacePromotionProducts(current.id(), current.catalogVersionId(), normalized.productCodes());
         audit.record(actorUserId, "CATALOG_PROMOTION_UPDATED", "BILLING_PROMOTION", Long.toString(current.id()), null, "SUCCESS", Map.of(
@@ -264,7 +286,9 @@ public class PlatformCatalogManagementService {
         var amount = request == null || request.unit_amount_cents() == null
             ? current.unitAmountCents()
             : request.unit_amount_cents();
-        if (amount != null && amount < 0) throw new IllegalArgumentException("El importe no puede ser negativo.");
+        if (amount != null && (amount < 0 || amount > MAX_CATALOG_AMOUNT_CENTS)) {
+            throw new IllegalArgumentException("El importe está fuera del límite operativo permitido.");
+        }
         var status = request == null || request.status() == null
             ? current.status()
             : request.status().trim().toUpperCase(Locale.ROOT);
@@ -290,10 +314,18 @@ public class PlatformCatalogManagementService {
                 UPDATE billing_catalog_prices
                 SET unit_amount_cents = ?, external_price_id = ?, status = ?,
                     stripe_tax_behavior = CASE WHEN ? THEN stripe_tax_behavior ELSE NULL END,
-                    stripe_synced_at = CASE WHEN ? THEN stripe_synced_at ELSE NULL END
+                    stripe_synced_at = CASE WHEN ? THEN stripe_synced_at ELSE NULL END,
+                    stripe_mode = CASE WHEN ? THEN stripe_mode ELSE NULL END,
+                    stripe_account_id = CASE WHEN ? THEN stripe_account_id ELSE NULL END,
+                    stripe_verified_at = CASE WHEN ? THEN stripe_verified_at ELSE NULL END,
+                    stripe_sync_status = CASE WHEN ? THEN stripe_sync_status ELSE 'PENDING' END
                 WHERE id = ?
                 """,
-            amount, externalPriceId, status, preservesStripeVerification, preservesStripeVerification, priceId
+            amount, externalPriceId, status,
+            preservesStripeVerification, preservesStripeVerification,
+            preservesStripeVerification, preservesStripeVerification,
+            preservesStripeVerification, preservesStripeVerification,
+            priceId
         );
         audit.record(actorUserId, "CATALOG_PRICE_UPDATED", "BILLING_PRICE", Long.toString(priceId), null, "SUCCESS", Map.of(
             "billable_code", current.billableCode(),
@@ -316,17 +348,19 @@ public class PlatformCatalogManagementService {
         if (!"DRAFT".equals(version.status())) {
             throw new IllegalStateException("Sólo una versión en borrador puede validarse.");
         }
-        var blockers = draftBlockers(versionId);
-        return Map.of(
-            "catalog_version_id", versionId,
-            "version_code", version.versionCode(),
-            "ready", blockers.isEmpty(),
-            "blockers", blockers,
-            "stripe_mode", "TEST"
-        );
+        var remoteVerification = stripeVerification.verify(actorUserId, versionId);
+        var blockers = new ArrayList<Map<String, Object>>(draftBlockers(versionId));
+        blockers.addAll(remoteVerification.blockers());
+        var result = new LinkedHashMap<String, Object>();
+        result.put("catalog_version_id", versionId);
+        result.put("version_code", version.versionCode());
+        result.put("ready", blockers.isEmpty());
+        result.put("blockers", blockers);
+        result.put("stripe_mode", remoteVerification.stripeMode());
+        result.put("stripe_account_id", remoteVerification.stripeAccountId());
+        return result;
     }
 
-    @Transactional
     public Map<String, Object> publishDraft(long actorUserId, long versionId) {
         var authority = accessService.require(actorUserId, "PLATFORM_MODULES_WRITE");
         if (!"PLATFORM_ROOT".equals(authority.role())) {
@@ -338,32 +372,74 @@ public class PlatformCatalogManagementService {
         if (!blockers.isEmpty()) {
             throw new IllegalStateException("La versión tiene pendientes y todavía no puede publicarse.");
         }
-        var now = java.sql.Timestamp.from(Instant.now());
-        jdbcTemplate.update(
-            "UPDATE billing_catalog_versions SET status = 'SUPERSEDED', effective_to = ? WHERE status = 'ACTIVE'",
-            now
+        var stripeMode = String.valueOf(validation.get("stripe_mode"));
+        return transactions.execute(status -> {
+            lockDraftRows(versionId);
+            if (!draftBlockers(versionId).isEmpty()) {
+                throw new IllegalStateException(
+                    "La oferta cambió durante la validación; vuelve a validarla antes de publicar."
+                );
+            }
+            var now = java.sql.Timestamp.from(Instant.now());
+            jdbcTemplate.update(
+                "UPDATE billing_catalog_versions SET status = 'SUPERSEDED', effective_to = ? WHERE status = 'ACTIVE'",
+                now
+            );
+            var updated = jdbcTemplate.update(
+                "UPDATE billing_catalog_versions SET status = 'ACTIVE', effective_from = ?, effective_to = NULL WHERE id = ? AND status = 'DRAFT'",
+                now,
+                versionId
+            );
+            if (updated != 1) throw new IllegalStateException("La versión dejó de estar disponible para publicación.");
+            jdbcTemplate.update(
+                "UPDATE billing_catalog_prices SET status = 'ACTIVE', effective_from = ?, effective_to = NULL WHERE catalog_version_id = ? AND status IN ('READY', 'ACTIVE')",
+                now,
+                versionId
+            );
+            var publishedVersion = version(versionId);
+            audit.record(actorUserId, "CATALOG_VERSION_PUBLISHED", "BILLING_CATALOG", Long.toString(versionId), null, "SUCCESS", Map.of(
+                "version_code", publishedVersion.versionCode(), "stripe_mode", stripeMode
+            ));
+            return Map.<String, Object>of(
+                "catalog_version_id", versionId,
+                "version_code", publishedVersion.versionCode(),
+                "status", publishedVersion.status(),
+                "published", true,
+                "stripe_mode", stripeMode
+            );
+        });
+    }
+
+    private void lockDraftRows(long versionId) {
+        jdbcTemplate.queryForList(
+            """
+                SELECT id FROM billing_catalog_versions
+                WHERE status IN ('ACTIVE', 'DRAFT') ORDER BY id FOR UPDATE
+                """,
+            Long.class
         );
-        var updated = jdbcTemplate.update(
-            "UPDATE billing_catalog_versions SET status = 'ACTIVE', effective_from = ?, effective_to = NULL WHERE id = ? AND status = 'DRAFT'",
-            now,
+        var status = jdbcTemplate.queryForObject(
+            "SELECT status FROM billing_catalog_versions WHERE id = ? FOR UPDATE",
+            String.class,
             versionId
         );
-        if (updated != 1) throw new IllegalStateException("La versión dejó de estar disponible para publicación.");
-        jdbcTemplate.update(
-            "UPDATE billing_catalog_prices SET status = 'ACTIVE', effective_from = ?, effective_to = NULL WHERE catalog_version_id = ? AND status IN ('READY', 'ACTIVE')",
-            now,
+        if (!"DRAFT".equals(status)) {
+            throw new IllegalStateException("La versión dejó de estar disponible para publicación.");
+        }
+        jdbcTemplate.queryForList(
+            "SELECT id FROM billing_catalog_products WHERE catalog_version_id = ? FOR UPDATE",
+            Long.class,
             versionId
         );
-        var version = version(versionId);
-        audit.record(actorUserId, "CATALOG_VERSION_PUBLISHED", "BILLING_CATALOG", Long.toString(versionId), null, "SUCCESS", Map.of(
-            "version_code", version.versionCode(), "stripe_mode", "TEST"
-        ));
-        return Map.of(
-            "catalog_version_id", versionId,
-            "version_code", version.versionCode(),
-            "status", version.status(),
-            "published", true,
-            "stripe_mode", "TEST"
+        jdbcTemplate.queryForList(
+            "SELECT id FROM billing_catalog_prices WHERE catalog_version_id = ? FOR UPDATE",
+            Long.class,
+            versionId
+        );
+        jdbcTemplate.queryForList(
+            "SELECT id FROM billing_catalog_promotions WHERE catalog_version_id = ? FOR UPDATE",
+            Long.class,
+            versionId
         );
     }
 
@@ -395,11 +471,13 @@ public class PlatformCatalogManagementService {
             """
                 INSERT INTO billing_catalog_products (
                     catalog_version_id, product_code, display_name, description, product_type,
-                    commercial_kind, external_product_id, stripe_tax_code, stripe_synced_at,
+                    commercial_kind, external_product_id, stripe_tax_code, stripe_mode,
+                    stripe_account_id, stripe_verified_at, stripe_sync_status, stripe_synced_at,
                     sort_order, active
                 )
                 SELECT ?, product_code, display_name, description, product_type,
-                       commercial_kind, external_product_id, stripe_tax_code, stripe_synced_at,
+                       commercial_kind, external_product_id, stripe_tax_code, stripe_mode,
+                       stripe_account_id, stripe_verified_at, stripe_sync_status, stripe_synced_at,
                        sort_order, active
                 FROM billing_catalog_products WHERE catalog_version_id = ?
                 """,
@@ -440,11 +518,13 @@ public class PlatformCatalogManagementService {
                 INSERT INTO billing_catalog_promotions (
                     catalog_version_id, promotion_code, display_name, description, discount_type,
                     percent_basis_points, amount_off_cents, currency, duration_type, duration_cycles,
-                    starts_at, ends_at, external_promotion_code_id, active, sort_order
+                    starts_at, ends_at, external_promotion_code_id, stripe_mode, stripe_account_id,
+                    stripe_verified_at, stripe_sync_status, active, sort_order
                 )
                 SELECT ?, promotion_code, display_name, description, discount_type,
                        percent_basis_points, amount_off_cents, currency, duration_type, duration_cycles,
-                       starts_at, ends_at, external_promotion_code_id, active, sort_order
+                       starts_at, ends_at, external_promotion_code_id, stripe_mode, stripe_account_id,
+                       stripe_verified_at, stripe_sync_status, active, sort_order
                 FROM billing_catalog_promotions WHERE catalog_version_id = ?
                 """,
             draftId, active.id()
@@ -482,13 +562,15 @@ public class PlatformCatalogManagementService {
                 INSERT INTO billing_catalog_prices (
                     catalog_version_id, catalog_product_id, billable_code, price_type,
                     billing_interval, currency, unit_amount_cents, included_quantity,
-                    external_price_id, stripe_tax_behavior, stripe_synced_at,
+                    external_price_id, stripe_tax_behavior, stripe_mode, stripe_account_id,
+                    stripe_verified_at, stripe_sync_status, stripe_synced_at,
                     status, effective_from, effective_to
                 )
                 SELECT ?, draft_product.id, price.billable_code, price.price_type,
                        price.billing_interval, price.currency, price.unit_amount_cents,
                        price.included_quantity, price.external_price_id,
-                       price.stripe_tax_behavior, price.stripe_synced_at,
+                       price.stripe_tax_behavior, price.stripe_mode, price.stripe_account_id,
+                       price.stripe_verified_at, price.stripe_sync_status, price.stripe_synced_at,
                        CASE WHEN price.status = 'ACTIVE' THEN 'READY' ELSE price.status END,
                        NULL, NULL
                 FROM billing_catalog_prices price
@@ -702,7 +784,7 @@ public class PlatformCatalogManagementService {
             "message", "La tarifa de " + code + " cambió y debe conectarse nuevamente con Stripe."
         )));
         var products = jdbcTemplate.query(
-            "SELECT id, product_code, display_name, commercial_kind FROM billing_catalog_products WHERE catalog_version_id = ? AND active = 1 AND commercial_kind IN ('MODULE', 'PACKAGE', 'SEAT')",
+            "SELECT id, product_code, display_name, commercial_kind FROM billing_catalog_products WHERE catalog_version_id = ? AND active = 1 AND commercial_kind IN ('MODULE', 'PACKAGE', 'SEAT', 'VOLUME', 'STORAGE')",
             (rs, rowNum) -> Map.<String, Object>of(
                 "id", rs.getLong(1), "code", rs.getString(2), "name", rs.getString(3), "kind", rs.getString(4)
             ),
@@ -722,14 +804,47 @@ public class PlatformCatalogManagementService {
                 "message", "Falta el producto de usuario adicional."
             ));
         }
+        var duplicateNames = jdbcTemplate.query(
+            """
+                SELECT LOWER(TRIM(display_name)), GROUP_CONCAT(product_code ORDER BY product_code)
+                FROM billing_catalog_products
+                WHERE catalog_version_id = ? AND active = 1
+                  AND commercial_kind IN ('MODULE', 'PACKAGE', 'SEAT', 'VOLUME', 'STORAGE')
+                GROUP BY LOWER(TRIM(display_name)) HAVING COUNT(*) > 1
+                """,
+            (rs, rowNum) -> Map.entry(rs.getString(1), rs.getString(2)),
+            versionId
+        );
+        duplicateNames.forEach(duplicate -> blockers.add(Map.of(
+            "code", "DUPLICATE_COMMERCIAL_NAME",
+            "product_code", duplicate.getValue(),
+            "message", "Hay productos activos con el mismo nombre comercial: " + duplicate.getKey() + "."
+        )));
         for (var product : products) {
             var productId = ((Number) product.get("id")).longValue();
+            var productStripeReady = Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+                """
+                    SELECT external_product_id LIKE 'prod_%'
+                       AND stripe_verified_at IS NOT NULL AND stripe_sync_status = 'READY'
+                    FROM billing_catalog_products WHERE id = ?
+                    """,
+                Boolean.class,
+                productId
+            ));
+            if (!productStripeReady) {
+                blockers.add(Map.of(
+                    "code", "STRIPE_PRODUCT_NOT_VERIFIED",
+                    "product_code", product.get("code"),
+                    "message", "El producto " + product.get("name") + " todavía no está verificado en Stripe."
+                ));
+            }
             var readyIntervals = jdbcTemplate.queryForObject(
                 """
                     SELECT COUNT(DISTINCT billing_interval) FROM billing_catalog_prices
                     WHERE catalog_product_id = ? AND billing_interval IN ('MONTH', 'YEAR')
                       AND unit_amount_cents > 0 AND LEFT(external_price_id, 6) = 'price_'
                       AND stripe_tax_behavior = 'EXCLUSIVE' AND stripe_synced_at IS NOT NULL
+                      AND stripe_verified_at IS NOT NULL AND stripe_sync_status = 'READY'
                       AND status IN ('READY', 'ACTIVE')
                     """,
                 Integer.class,
@@ -742,7 +857,7 @@ public class PlatformCatalogManagementService {
                     "message", "Faltan las tarifas mensual y anual conectadas con Stripe para " + product.get("name") + "."
                 ));
             }
-            if ("SEAT".equals(product.get("kind"))) continue;
+            if (List.of("SEAT", "VOLUME", "STORAGE").contains(product.get("kind"))) continue;
             var invalidCapabilities = jdbcTemplate.queryForObject(
                 """
                     SELECT COUNT(*) FROM billing_product_capabilities capability
@@ -785,6 +900,7 @@ public class PlatformCatalogManagementService {
                 SELECT promotion_code, display_name FROM billing_catalog_promotions
                 WHERE catalog_version_id = ? AND active = 1
                   AND (external_promotion_code_id IS NULL OR external_promotion_code_id NOT LIKE 'promo_%'
+                       OR stripe_verified_at IS NULL OR stripe_sync_status <> 'READY'
                        OR (discount_type = 'PERCENT' AND (percent_basis_points IS NULL OR percent_basis_points < 1 OR percent_basis_points > 10000))
                        OR (discount_type = 'FIXED' AND (amount_off_cents IS NULL OR amount_off_cents < 1)))
                 """,
@@ -945,8 +1061,9 @@ public class PlatformCatalogManagementService {
         if ("PERCENT".equals(discountType) && (basisPoints == null || basisPoints < 1 || basisPoints > 10_000)) {
             throw new IllegalArgumentException("El porcentaje debe ser mayor a 0 y no superar 100%.");
         }
-        if ("FIXED".equals(discountType) && (amount == null || amount < 1)) {
-            throw new IllegalArgumentException("El descuento fijo debe ser mayor a cero.");
+        if ("FIXED".equals(discountType)
+            && (amount == null || amount < 1 || amount > MAX_CATALOG_AMOUNT_CENTS)) {
+            throw new IllegalArgumentException("El descuento fijo debe ser mayor a cero y respetar el límite operativo.");
         }
         var duration = request.duration_type() == null ? "ONCE" : request.duration_type().trim().toUpperCase(Locale.ROOT);
         if (!List.of("ONCE", "REPEATING", "FOREVER").contains(duration)) {
@@ -959,6 +1076,10 @@ public class PlatformCatalogManagementService {
         var stripeId = nullable(request.external_promotion_code_id());
         if (stripeId != null && !stripeId.startsWith("promo_")) {
             throw new IllegalArgumentException("El Stripe Promotion Code ID debe comenzar con promo_.");
+        }
+        if (request.starts_at() != null && request.ends_at() != null
+            && !request.ends_at().isAfter(request.starts_at())) {
+            throw new IllegalArgumentException("El fin de la promoción debe ser posterior a su inicio.");
         }
         return new NormalizedPromotion(
             code, displayName, nullable(request.description()), discountType, basisPoints, amount,
@@ -1014,7 +1135,7 @@ public class PlatformCatalogManagementService {
     private String commercialKind(String rawValue, String productType) {
         if ("CORE".equalsIgnoreCase(productType)) return "CORE";
         var value = rawValue == null ? "MODULE" : rawValue.trim().toUpperCase(Locale.ROOT);
-        if (!List.of("MODULE", "PACKAGE", "SEAT").contains(value)) {
+        if (!List.of("MODULE", "PACKAGE", "SEAT", "VOLUME", "STORAGE").contains(value)) {
             throw new IllegalArgumentException("Tipo comercial inválido.");
         }
         return value;
@@ -1045,7 +1166,12 @@ public class PlatformCatalogManagementService {
     }
 
     private Map<String, Object> versionMap(long id, String code, String status) {
-        return Map.of("id", id, "version_code", code, "status", status, "stripe_mode", "TEST");
+        return Map.of(
+            "id", id,
+            "version_code", code,
+            "status", status,
+            "stripe_mode", stripeVerification.configuredMode()
+        );
     }
 
     public record ProductUpdateRequest(

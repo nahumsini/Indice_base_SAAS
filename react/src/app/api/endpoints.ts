@@ -33,6 +33,10 @@ export const endpoints = {
   platform: {
     context: '/api/v1/platform/context',
   },
+  productAnalytics: {
+    appCollect: '/api/v1/product-analytics/app/collect',
+    platformDashboard: '/api/v1/product-analytics/platform-dashboard',
+  },
   platformAdmin: {
     context: '/api/v1/platform-admin/context',
     overview: '/api/v1/platform-admin/overview',
@@ -43,6 +47,7 @@ export const endpoints = {
     audit: '/api/v1/platform-admin/audit',
     systemTickets: '/api/v1/platform-admin/system-tickets',
     training: '/api/v1/platform-admin/training',
+    internalDevelopment: '/api/v1/platform-admin/internal-development',
   },
   distributorPortal: {
     context: '/api/v1/distributor-portal/context',

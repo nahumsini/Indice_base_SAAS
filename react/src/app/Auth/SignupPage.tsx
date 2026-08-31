@@ -43,6 +43,16 @@ import {
   validatePhoneForCountry,
 } from '../shared/validation/phone';
 import { IndiceBrandLogo } from './components/IndiceBrandLogo';
+import {
+  calculatePublicPlanPricing,
+  pricingModeForConfig,
+  publishedProductAmount,
+  publishedSeatAmount,
+  publishedTierAmount,
+  selectAllCompatibleProductCodes,
+  toggleCompatibleProductCode,
+} from './PublicPlans/publicPlansPricing';
+import { parsePublicPlanSearch } from './PublicPlans/publicPlansSelection';
 
 const SIGNUP_DRAFT_STORAGE_KEY = 'indice.auth.signupDraft.v1';
 const SIGNUP_BUILDER_MIGRATION_KEY = 'indice.auth.signupBuilder.v2';
@@ -198,9 +208,9 @@ const esSignupExperience: SignupExperienceCopy = {
   stepAccount: 'Cuenta',
   stepConfiguration: 'Configuración',
   stepActivation: 'Activación',
-  trialBadge: '30 días sin costo',
+  trialBadge: '15 días sin costo',
   valueTitle: 'Empieza con todo Índice. Decide después.',
-  valueBody: 'Usa todos los módulos Basic durante 30 días y define tu configuración antes del primer cobro.',
+  valueBody: 'Usa el paquete Corporativiza completo durante 15 días y define tu configuración antes del primer cobro.',
   allModulesBenefit: 'Todos los módulos Basic durante la prueba',
   includedSeatsBenefit: (includedSeats) => `${includedSeats} usuarios incluidos`,
   consultationBenefit: 'Primera consultoría de orientación sin costo',
@@ -217,7 +227,7 @@ const esSignupExperience: SignupExperienceCopy = {
   continueLabel: 'Continuar y elegir módulos',
   noCharge: 'No se realizará ningún cobro en este paso.',
   billingValueTitle: 'Configura hoy. Decide con experiencia.',
-  billingValueBody: 'Tendrás acceso completo durante la prueba. Tu selección define lo que conservarás después de los 30 días.',
+  billingValueBody: 'Tendrás acceso completo durante la prueba. Tu selección define lo que conservarás después de los 15 días.',
   configurationEyebrow: 'Configura tu prueba',
   configurationTitle: 'Arma el plan de tu empresa',
   configurationBody: 'Elige tus módulos y ve cómo cambia tu paquete antes de continuar al pago seguro.',
@@ -236,9 +246,9 @@ const enSignupExperience: SignupExperienceCopy = {
   stepAccount: 'Account',
   stepConfiguration: 'Configuration',
   stepActivation: 'Activation',
-  trialBadge: '30 days at no cost',
+  trialBadge: '15 days at no cost',
   valueTitle: 'Start with all of Indice. Decide later.',
-  valueBody: 'Use every Basic module for 30 days and define your configuration before the first charge.',
+  valueBody: 'Use the complete Corporativiza package for 15 days and define your configuration before the first charge.',
   allModulesBenefit: 'Every Basic module during your trial',
   includedSeatsBenefit: (includedSeats) => `${includedSeats} users included`,
   consultationBenefit: 'First guidance consultation at no cost',
@@ -255,7 +265,7 @@ const enSignupExperience: SignupExperienceCopy = {
   continueLabel: 'Continue and choose modules',
   noCharge: 'No charge will be made in this step.',
   billingValueTitle: 'Configure today. Decide with experience.',
-  billingValueBody: 'You have full access during the trial. Your selection defines what you keep after 30 days.',
+  billingValueBody: 'You have full access during the trial. Your selection defines what you keep after 15 days.',
   configurationEyebrow: 'Configure your trial',
   configurationTitle: 'Build your company plan',
   configurationBody: 'Choose your modules and watch your package update before continuing to secure checkout.',
@@ -280,9 +290,9 @@ const signupExperienceCopies: Record<string, SignupExperienceCopy> = {
     stepAccount: 'Compte',
     stepConfiguration: 'Configuration',
     stepActivation: 'Activation',
-    trialBadge: '30 jours sans frais',
+    trialBadge: '15 jours sans frais',
     valueTitle: 'Commencez avec tout Indice. Décidez ensuite.',
-    valueBody: 'Utilisez tous les modules Basic pendant 30 jours et définissez votre configuration avant le premier prélèvement.',
+    valueBody: 'Utilisez le forfait Corporativiza complet pendant 15 jours et définissez votre configuration avant le premier prélèvement.',
     allModulesBenefit: 'Tous les modules Basic pendant l’essai',
     includedSeatsBenefit: (includedSeats) => `${includedSeats} utilisateurs inclus`,
     consultationBenefit: 'Première consultation d’orientation sans frais',
@@ -299,7 +309,7 @@ const signupExperienceCopies: Record<string, SignupExperienceCopy> = {
     continueLabel: 'Continuer et choisir les modules',
     noCharge: 'Aucun prélèvement ne sera effectué à cette étape.',
     billingValueTitle: 'Configurez aujourd’hui. Décidez avec expérience.',
-    billingValueBody: 'Vous disposez d’un accès complet pendant l’essai. Votre sélection définit ce que vous conserverez après 30 jours.',
+    billingValueBody: 'Vous disposez d’un accès complet pendant l’essai. Votre sélection définit ce que vous conserverez après 15 jours.',
     configurationEyebrow: 'Configurez votre essai',
     selectedProducts: (count) => `${count} ${count === 1 ? 'module sélectionné' : 'modules sélectionnés'}`,
   },
@@ -308,9 +318,9 @@ const signupExperienceCopies: Record<string, SignupExperienceCopy> = {
     stepAccount: 'Conta',
     stepConfiguration: 'Configuração',
     stepActivation: 'Ativação',
-    trialBadge: '30 dias sem custo',
+    trialBadge: '15 dias sem custo',
     valueTitle: 'Comece com todo o Índice. Decida depois.',
-    valueBody: 'Use todos os módulos Basic por 30 dias e defina sua configuração antes da primeira cobrança.',
+    valueBody: 'Use o pacote Corporativiza completo por 15 dias e defina sua configuração antes da primeira cobrança.',
     allModulesBenefit: 'Todos os módulos Basic durante o teste',
     includedSeatsBenefit: (includedSeats) => `${includedSeats} usuários incluídos`,
     consultationBenefit: 'Primeira consultoria de orientação sem custo',
@@ -327,7 +337,7 @@ const signupExperienceCopies: Record<string, SignupExperienceCopy> = {
     continueLabel: 'Continuar e escolher módulos',
     noCharge: 'Nenhuma cobrança será feita nesta etapa.',
     billingValueTitle: 'Configure hoje. Decida com experiência.',
-    billingValueBody: 'Você terá acesso completo durante o teste. Sua seleção define o que será mantido após 30 dias.',
+    billingValueBody: 'Você terá acesso completo durante o teste. Sua seleção define o que será mantido após 15 dias.',
     configurationEyebrow: 'Configure seu teste',
     selectedProducts: (count) => `${count} ${count === 1 ? 'módulo selecionado' : 'módulos selecionados'}`,
   },
@@ -336,9 +346,9 @@ const signupExperienceCopies: Record<string, SignupExperienceCopy> = {
     stepAccount: '계정',
     stepConfiguration: '구성',
     stepActivation: '활성화',
-    trialBadge: '30일 무료',
+    trialBadge: '15일 무료',
     valueTitle: 'Indice 전체로 시작하고 나중에 결정하세요.',
-    valueBody: '30일 동안 모든 Basic 모듈을 사용하고 첫 결제 전에 구성을 정하세요.',
+    valueBody: '15일 동안 전체 Corporativiza 패키지를 사용하고 첫 결제 전에 구성을 정하세요.',
     allModulesBenefit: '체험 기간 모든 Basic 모듈 이용',
     includedSeatsBenefit: (includedSeats) => `사용자 ${includedSeats}명 포함`,
     consultationBenefit: '첫 안내 상담 무료',
@@ -355,7 +365,7 @@ const signupExperienceCopies: Record<string, SignupExperienceCopy> = {
     continueLabel: '계속해서 모듈 선택',
     noCharge: '이 단계에서는 결제되지 않습니다.',
     billingValueTitle: '오늘 구성하고 경험을 바탕으로 결정하세요.',
-    billingValueBody: '체험 기간 동안 전체 기능을 이용합니다. 선택한 구성은 30일 이후 유지할 항목을 정합니다.',
+    billingValueBody: '체험 기간 동안 전체 기능을 이용합니다. 선택한 구성은 15일 이후 유지할 항목을 정합니다.',
     configurationEyebrow: '체험 구성',
     selectedProducts: (count) => `${count}개 모듈 선택됨`,
   },
@@ -364,9 +374,9 @@ const signupExperienceCopies: Record<string, SignupExperienceCopy> = {
     stepAccount: '账户',
     stepConfiguration: '配置',
     stepActivation: '激活',
-    trialBadge: '30 天免费',
+    trialBadge: '15 天免费',
     valueTitle: '从完整的 Indice 开始，之后再决定。',
-    valueBody: '免费使用全部 Basic 模块 30 天，并在首次扣款前确定配置。',
+    valueBody: '免费使用完整 Corporativiza 套餐 15 天，并在首次扣款前确定配置。',
     allModulesBenefit: '试用期间使用全部 Basic 模块',
     includedSeatsBenefit: (includedSeats) => `包含 ${includedSeats} 位用户`,
     consultationBenefit: '首次指导咨询免费',
@@ -383,7 +393,7 @@ const signupExperienceCopies: Record<string, SignupExperienceCopy> = {
     continueLabel: '继续并选择模块',
     noCharge: '此步骤不会产生任何费用。',
     billingValueTitle: '今天完成配置，体验后再决定。',
-    billingValueBody: '试用期间可完整使用全部功能。您的选择将决定 30 天后保留的模块。',
+    billingValueBody: '试用期间可完整使用全部功能。您的选择将决定 15 天后保留的模块。',
     configurationEyebrow: '配置试用',
     selectedProducts: (count) => `已选择 ${count} 个模块`,
   },
@@ -450,7 +460,7 @@ const esSignupCopy: SignupCopy = {
   accountDetailsButton: 'Datos de cuenta',
   preparingStripe: 'Preparando Stripe...',
   continuePayment: 'Continuar al pago seguro',
-  legalText: 'Al continuar aceptas iniciar una suscripción con 30 días de prueba. Stripe solicitará una tarjeta y cobrará automáticamente al finalizar.',
+  legalText: 'Al continuar aceptas iniciar una suscripción con 15 días de prueba. Stripe solicitará una tarjeta y cobrará automáticamente al finalizar.',
   accountFieldsetTitle: 'Datos de la cuenta y la empresa',
   companyLabel: 'Empresa o espacio',
   companyPlaceholder: 'Nombre de tu empresa',
@@ -517,6 +527,11 @@ const esSignupCopy: SignupCopy = {
     basic_pos_inventory: 'Punto de Venta + Inventarios',
     basic_sales_inventory: 'Ventas + Inventarios',
     basic_receivables: 'Cartera',
+    module_hr: 'Recursos Humanos', module_process_tasks: 'Tareas y Procesos',
+    module_expenses: 'Gastos + Caja Chica', module_pos_inventory: 'Punto de Venta + Inventarios',
+    module_sales_inventory: 'Ventas + Inventarios', module_receivables: 'Cartera',
+    controla: 'Controla', escala_sales: 'Escala · Ventas', escala_pos: 'Escala · Punto de Venta',
+    corporativiza: 'Corporativiza',
   },
 };
 
@@ -565,7 +580,7 @@ const enSignupCopy: SignupCopy = {
   accountDetailsButton: 'Account details',
   preparingStripe: 'Preparing Stripe...',
   continuePayment: 'Continue to secure payment',
-  legalText: 'By continuing, you agree to start a subscription with a 30-day trial. Stripe will request a card and bill automatically when the trial ends.',
+  legalText: 'By continuing, you agree to start a subscription with a 15-day trial. Stripe will request a card and bill automatically when the trial ends.',
   accountFieldsetTitle: 'Account and company details',
   companyLabel: 'Company or workspace',
   companyPlaceholder: 'Your company name',
@@ -632,6 +647,11 @@ const enSignupCopy: SignupCopy = {
     basic_pos_inventory: 'Point of Sale + Inventory',
     basic_sales_inventory: 'Sales + Inventory',
     basic_receivables: 'Receivables',
+    module_hr: 'Human Resources', module_process_tasks: 'Tasks and Processes',
+    module_expenses: 'Expenses + Petty Cash', module_pos_inventory: 'Point of Sale + Inventory',
+    module_sales_inventory: 'Sales + Inventory', module_receivables: 'Receivables',
+    controla: 'Controla', escala_sales: 'Escala · Sales', escala_pos: 'Escala · Point of Sale',
+    corporativiza: 'Corporativiza',
   },
 };
 
@@ -687,7 +707,7 @@ const signupCopies: Record<string, SignupCopy> = {
     accountDetailsButton: 'Détails du compte',
     preparingStripe: 'Préparation de Stripe...',
     continuePayment: 'Continuer au paiement sécurisé',
-    legalText: "En continuant, vous acceptez de commencer un abonnement avec 30 jours d'essai. Stripe demandera une carte et facturera automatiquement à la fin.",
+    legalText: "En continuant, vous acceptez de commencer un abonnement avec 15 jours d'essai. Stripe demandera une carte et facturera automatiquement à la fin.",
     accountFieldsetTitle: "Informations du compte et de l'entreprise",
     companyLabel: 'Entreprise ou espace',
     companyPlaceholder: 'Nom de votre entreprise',
@@ -738,6 +758,11 @@ const signupCopies: Record<string, SignupCopy> = {
       basic_pos_inventory: 'Point de vente + inventaire',
       basic_sales_inventory: 'Ventes + inventaire',
       basic_receivables: 'Comptes clients',
+      module_hr: 'Ressources humaines', module_process_tasks: 'Tâches et processus',
+      module_expenses: 'Dépenses + petite caisse', module_pos_inventory: 'Point de vente + inventaire',
+      module_sales_inventory: 'Ventes + inventaire', module_receivables: 'Comptes clients',
+      controla: 'Controla', escala_sales: 'Escala · Ventes', escala_pos: 'Escala · Point de vente',
+      corporativiza: 'Corporativiza',
     },
   },
   'pt-BR': {
@@ -784,7 +809,7 @@ const signupCopies: Record<string, SignupCopy> = {
     accountDetailsButton: 'Dados da conta',
     preparingStripe: 'Preparando Stripe...',
     continuePayment: 'Continuar para pagamento seguro',
-    legalText: 'Ao continuar, você aceita iniciar uma assinatura com 30 dias de teste. A Stripe solicitará um cartão e cobrará automaticamente ao final.',
+    legalText: 'Ao continuar, você aceita iniciar uma assinatura com 15 dias de teste. A Stripe solicitará um cartão e cobrará automaticamente ao final.',
     accountFieldsetTitle: 'Dados da conta e da empresa',
     companyLabel: 'Empresa ou espaço',
     companyPlaceholder: 'Nome da sua empresa',
@@ -835,6 +860,11 @@ const signupCopies: Record<string, SignupCopy> = {
       basic_pos_inventory: 'Ponto de venda + estoque',
       basic_sales_inventory: 'Vendas + estoque',
       basic_receivables: 'Contas a receber',
+      module_hr: 'Recursos humanos', module_process_tasks: 'Tarefas e processos',
+      module_expenses: 'Despesas + caixa pequeno', module_pos_inventory: 'Ponto de venda + estoque',
+      module_sales_inventory: 'Vendas + estoque', module_receivables: 'Contas a receber',
+      controla: 'Controla', escala_sales: 'Escala · Vendas', escala_pos: 'Escala · Ponto de venda',
+      corporativiza: 'Corporativiza',
     },
   },
   'ko-CA': {
@@ -881,7 +911,7 @@ const signupCopies: Record<string, SignupCopy> = {
     accountDetailsButton: '계정 정보',
     preparingStripe: 'Stripe 준비 중...',
     continuePayment: '보안 결제로 계속',
-    legalText: '계속하면 30일 체험 구독 시작에 동의합니다. Stripe가 카드를 요청하고 체험 종료 후 자동 결제합니다.',
+    legalText: '계속하면 15일 체험 구독 시작에 동의합니다. Stripe가 카드를 요청하고 체험 종료 후 자동 결제합니다.',
     accountFieldsetTitle: '계정 및 회사 정보',
     companyLabel: '회사 또는 작업 공간',
     companyPlaceholder: '회사 이름',
@@ -932,6 +962,11 @@ const signupCopies: Record<string, SignupCopy> = {
       basic_pos_inventory: '판매 시점 + 재고',
       basic_sales_inventory: '영업 + 재고',
       basic_receivables: '미수금',
+      module_hr: '인사 관리', module_process_tasks: '작업 및 프로세스',
+      module_expenses: '비용 + 소액 현금', module_pos_inventory: '판매 시점 + 재고',
+      module_sales_inventory: '영업 + 재고', module_receivables: '미수금',
+      controla: 'Controla', escala_sales: 'Escala · 영업', escala_pos: 'Escala · 판매 시점',
+      corporativiza: 'Corporativiza',
     },
   },
   'zh-CA': {
@@ -978,7 +1013,7 @@ const signupCopies: Record<string, SignupCopy> = {
     accountDetailsButton: '账户信息',
     preparingStripe: '正在准备 Stripe...',
     continuePayment: '继续安全付款',
-    legalText: '继续即表示你同意开始包含 30 天试用的订阅。Stripe 会要求提供银行卡，并在试用结束后自动扣费。',
+    legalText: '继续即表示你同意开始包含 15 天试用的订阅。Stripe 会要求提供银行卡，并在试用结束后自动扣费。',
     accountFieldsetTitle: '账户和企业信息',
     companyLabel: '企业或工作空间',
     companyPlaceholder: '你的公司名称',
@@ -1029,11 +1064,14 @@ const signupCopies: Record<string, SignupCopy> = {
       basic_pos_inventory: '销售点 + 库存',
       basic_sales_inventory: '销售 + 库存',
       basic_receivables: '应收账款',
+      module_hr: '人力资源', module_process_tasks: '任务与流程',
+      module_expenses: '费用 + 备用金', module_pos_inventory: '销售点 + 库存',
+      module_sales_inventory: '销售 + 库存', module_receivables: '应收账款',
+      controla: 'Controla', escala_sales: 'Escala · 销售', escala_pos: 'Escala · 销售点',
+      corporativiza: 'Corporativiza',
     },
   },
 };
-
-type SignupPlanTier = 'basic_1' | 'basic_2' | 'basic_3' | 'basic_all';
 
 type ModulePlanCopy = {
   trialTitle: string;
@@ -1052,9 +1090,9 @@ type ModulePlanCopy = {
 };
 
 const enModulePlanCopy: ModulePlanCopy = {
-  trialTitle: '30-day free trial before billing',
+  trialTitle: '15-day free trial before billing',
   trialBody: (includedSeats, extraSeatPrice) => (
-    `Every plan includes ${includedSeats} users. Extra users are ${extraSeatPrice} each. The first 30 days include all Basic modules, no matter which paid plan you choose. Prices exclude taxes.`
+    `Every plan includes ${includedSeats} users. Extra users are ${extraSeatPrice} each. The first 15 days include the complete Corporativiza package, no matter which paid plan you choose. Prices exclude taxes.`
   ),
   oneTitle: 'One module',
   oneDescription: (includedSeats) => `Start with one selected module after checkout. Includes ${includedSeats} users.`,
@@ -1074,9 +1112,9 @@ const enModulePlanCopy: ModulePlanCopy = {
 };
 
 const esModulePlanCopy: ModulePlanCopy = {
-  trialTitle: '30 días de prueba antes del cobro',
+  trialTitle: '15 días de prueba antes del cobro',
   trialBody: (includedSeats, extraSeatPrice) => (
-    `Cada plan incluye ${includedSeats} usuarios. Los usuarios extra cuestan ${extraSeatPrice} cada uno. Los primeros 30 días incluyen todos los módulos Basic, sin importar el plan pagado que elijas. Precios sin impuestos.`
+    `Cada plan incluye ${includedSeats} usuarios. Los usuarios extra cuestan ${extraSeatPrice} cada uno. Los primeros 15 días incluyen el paquete Corporativiza completo, sin importar el plan pagado que elijas. Precios sin impuestos.`
   ),
   oneTitle: 'Un módulo',
   oneDescription: (includedSeats) => `Comienza con un módulo seleccionado después del pago. Incluye ${includedSeats} usuarios.`,
@@ -1096,9 +1134,9 @@ const esModulePlanCopy: ModulePlanCopy = {
 };
 
 const frModulePlanCopy: ModulePlanCopy = {
-  trialTitle: 'Essai gratuit de 30 jours avant facturation',
+  trialTitle: 'Essai gratuit de 15 jours avant facturation',
   trialBody: (includedSeats, extraSeatPrice) => (
-    `Chaque forfait inclut ${includedSeats} utilisateurs. Les utilisateurs supplémentaires coûtent ${extraSeatPrice} chacun. Les 30 premiers jours incluent tous les modules Basic, peu importe le forfait choisi. Taxes exclues.`
+    `Chaque forfait inclut ${includedSeats} utilisateurs. Les utilisateurs supplémentaires coûtent ${extraSeatPrice} chacun. Les 15 premiers jours incluent le forfait Corporativiza complet, peu importe le forfait choisi. Taxes exclues.`
   ),
   oneTitle: 'Un module',
   oneDescription: (includedSeats) => `Commencez avec un module sélectionné après le paiement. Inclut ${includedSeats} utilisateurs.`,
@@ -1118,9 +1156,9 @@ const frModulePlanCopy: ModulePlanCopy = {
 };
 
 const ptModulePlanCopy: ModulePlanCopy = {
-  trialTitle: 'Teste grátis de 30 dias antes da cobrança',
+  trialTitle: 'Teste grátis de 15 dias antes da cobrança',
   trialBody: (includedSeats, extraSeatPrice) => (
-    `Cada plano inclui ${includedSeats} usuários. Usuários extras custam ${extraSeatPrice} cada. Os primeiros 30 dias incluem todos os módulos Basic, independentemente do plano pago escolhido. Preços sem impostos.`
+    `Cada plano inclui ${includedSeats} usuários. Usuários extras custam ${extraSeatPrice} cada. Os primeiros 15 dias incluem o pacote Corporativiza completo, independentemente do plano pago escolhido. Preços sem impostos.`
   ),
   oneTitle: 'Um módulo',
   oneDescription: (includedSeats) => `Comece com um módulo selecionado após o pagamento. Inclui ${includedSeats} usuários.`,
@@ -1140,9 +1178,9 @@ const ptModulePlanCopy: ModulePlanCopy = {
 };
 
 const koModulePlanCopy: ModulePlanCopy = {
-  trialTitle: '결제 전 30일 무료 체험',
+  trialTitle: '결제 전 15일 무료 체험',
   trialBody: (includedSeats, extraSeatPrice) => (
-    `모든 플랜에는 사용자 ${includedSeats}명이 포함됩니다. 추가 사용자는 각각 ${extraSeatPrice}입니다. 첫 30일 동안은 선택한 유료 플랜과 관계없이 모든 Basic 모듈을 사용할 수 있습니다. 세금은 별도입니다.`
+    `모든 플랜에는 사용자 ${includedSeats}명이 포함됩니다. 추가 사용자는 각각 ${extraSeatPrice}입니다. 첫 15일 동안은 선택한 유료 플랜과 관계없이 전체 Corporativiza 패키지를 사용할 수 있습니다. 세금은 별도입니다.`
   ),
   oneTitle: '모듈 1개',
   oneDescription: (includedSeats) => `결제 후 선택한 모듈 1개로 시작합니다. 사용자 ${includedSeats}명이 포함됩니다.`,
@@ -1162,9 +1200,9 @@ const koModulePlanCopy: ModulePlanCopy = {
 };
 
 const zhModulePlanCopy: ModulePlanCopy = {
-  trialTitle: '计费前 30 天免费试用',
+  trialTitle: '计费前 15 天免费试用',
   trialBody: (includedSeats, extraSeatPrice) => (
-    `每个套餐包含 ${includedSeats} 位用户。额外用户每位 ${extraSeatPrice}。前 30 天包含所有 Basic 模块，无论你选择哪个付费套餐。价格不含税。`
+    `每个套餐包含 ${includedSeats} 位用户。额外用户每位 ${extraSeatPrice}。前 15 天包含完整 Corporativiza 套餐，无论你选择哪个付费套餐。价格不含税。`
   ),
   oneTitle: '一个模块',
   oneDescription: (includedSeats) => `结账后从一个已选模块开始。包含 ${includedSeats} 位用户。`,
@@ -1215,6 +1253,16 @@ const normalizedSignupPhoneForRequest = (form: BillingSignupRequest) => {
   return validation.ok ? validation.e164 : trimmedPhone;
 };
 
+const countryDisplayName = (countryCode: string, locale: string, labels: Record<string, string>) => {
+  const translated = labels[countryCode];
+  if (translated) return translated;
+  try {
+    return new Intl.DisplayNames([locale], { type: 'region' }).of(countryCode) ?? countryCode;
+  } catch {
+    return countryCode;
+  }
+};
+
 const currency = (amountCents: number, interval: 'MONTH' | 'YEAR', copy: SignupCopy) => {
   const value = new Intl.NumberFormat(copy.locale, {
     style: 'currency',
@@ -1233,32 +1281,6 @@ const moneyOnly = (amountCents: number, copy: SignupCopy) => (
 );
 
 const signupMonthlyPrice = (amountCents: number, copy: SignupCopy) => `${moneyOnly(amountCents, copy)}/mo`;
-
-const signupBaseAmount = (tier: SignupPlanTier) => {
-  if (tier === 'basic_1') return 6900;
-  if (tier === 'basic_2') return 10900;
-  if (tier === 'basic_all') return 19900;
-  return 14900;
-};
-
-const signupEstimatedAmount = (
-  tier: SignupPlanTier,
-  extraSeats: number,
-  interval: 'MONTH' | 'YEAR',
-) => {
-  const packageAmount = signupBaseAmount(tier);
-  const seatAmount = Math.max(0, extraSeats) * 1200;
-  return interval === 'YEAR'
-    ? Math.round(packageAmount * 12 * 0.8) + seatAmount * 12
-    : packageAmount + seatAmount;
-};
-
-const tierForSelection = (selectedCount: number, availableCount: number): SignupPlanTier => {
-  if (availableCount > 0 && selectedCount >= 4 && selectedCount <= availableCount) return 'basic_all';
-  if (selectedCount === 3) return 'basic_3';
-  if (selectedCount === 2) return 'basic_2';
-  return 'basic_1';
-};
 
 const normalizeDraft = (value: unknown): BillingSignupRequest | null => {
   if (!value || typeof value !== 'object') return null;
@@ -1329,12 +1351,12 @@ const productLabel = (code: string, fallback: string, copy: SignupCopy) => {
 };
 
 const productVisual = (code: string) => {
-  if (code === 'basic_hr') return { accent: '#59C3A5', emoji: ['👥'] };
-  if (code === 'basic_process_tasks') return { accent: '#F4C84A', emoji: ['✅'] };
-  if (code === 'basic_expenses') return { accent: '#147514', emoji: ['💸', '💰'] };
-  if (code === 'basic_pos_inventory') return { accent: '#FF6B5E', emoji: ['🛒', '📦'] };
-  if (code === 'basic_sales_inventory') return { accent: '#FF6B5E', emoji: ['💼', '📦'] };
-  if (code === 'basic_receivables') return { accent: '#147514', emoji: ['📙'] };
+  if (code === 'basic_hr' || code === 'module_hr') return { accent: '#59C3A5', emoji: ['👥'] };
+  if (code === 'basic_process_tasks' || code === 'module_process_tasks') return { accent: '#F4C84A', emoji: ['✅'] };
+  if (code === 'basic_expenses' || code === 'module_expenses') return { accent: '#147514', emoji: ['💸', '💰'] };
+  if (code === 'basic_pos_inventory' || code === 'module_pos_inventory') return { accent: '#FF6B5E', emoji: ['🛒', '📦'] };
+  if (code === 'basic_sales_inventory' || code === 'module_sales_inventory') return { accent: '#FF6B5E', emoji: ['💼', '📦'] };
+  if (code === 'basic_receivables' || code === 'module_receivables') return { accent: '#147514', emoji: ['📙'] };
   return { accent: '#2563EB', emoji: ['▦'] };
 };
 
@@ -1370,6 +1392,11 @@ export default function SignupPage() {
         setConfig(value);
         setForm((current) => {
           const availableCodes = new Set(value.products.map((product) => product.code));
+          const plansHandoff = parsePublicPlanSearch(
+            location.search,
+            value.products.map((product) => product.code),
+            value.launchCountries,
+          );
           const legacyFullSelection = typeof window !== 'undefined'
             && !window.sessionStorage.getItem(SIGNUP_BUILDER_MIGRATION_KEY)
             && value.products.length > 0
@@ -1378,16 +1405,20 @@ export default function SignupPage() {
           if (typeof window !== 'undefined') {
             window.sessionStorage.setItem(SIGNUP_BUILDER_MIGRATION_KEY, 'ready');
           }
-          const selectedProductCodes = legacyFullSelection
+          const selectedProductCodes = plansHandoff?.selectedProductCodes ?? (legacyFullSelection
             ? []
-            : current.selectedProductCodes.filter((code) => availableCodes.has(code));
+            : current.selectedProductCodes.filter((code) => availableCodes.has(code)));
           if (
-            selectedProductCodes.length === current.selectedProductCodes.length
+            !plansHandoff
+            && selectedProductCodes.length === current.selectedProductCodes.length
             && selectedProductCodes.every((code, index) => code === current.selectedProductCodes[index])
           ) return current;
           const next = {
             ...current,
             selectedProductCodes,
+            billingInterval: plansHandoff?.billingInterval ?? current.billingInterval,
+            extraSeats: plansHandoff?.extraSeats ?? current.extraSeats,
+            countryCode: plansHandoff?.countryCode ?? current.countryCode,
           };
           saveSignupDraft(next);
           return next;
@@ -1421,40 +1452,12 @@ export default function SignupPage() {
   }, [emailVerification.resendAvailableInSeconds]);
 
   const selectedCount = form.selectedProductCodes.length;
-  const basicProducts = config?.products.filter((product) => product.productType === 'BASIC') ?? [];
-  const selectedBasicCount = basicProducts.filter((product) => form.selectedProductCodes.includes(product.code)).length;
-  const selectedComplementaryProducts = config?.products.filter(
-    (product) => product.productType === 'ADDON' && form.selectedProductCodes.includes(product.code),
-  ) ?? [];
-  const offerCode = config && selectedBasicCount >= 4 && selectedBasicCount <= basicProducts.length
-    ? 'basic_all'
-    : `basic_${selectedBasicCount}`;
-  const basePrice = config?.prices.find((price) => (
-    price.billableCode === offerCode
-    && price.priceType === 'BASE'
-    && price.billingInterval === form.billingInterval
-  ));
-  const seatPrice = config?.prices.find((price) => (
-    price.billableCode === 'extra_seat'
-    && price.priceType === 'ADDON'
-    && price.billingInterval === form.billingInterval
-  ));
-  const complementaryPrices = selectedComplementaryProducts.map((product) => config?.prices.find((price) => (
-    price.billableCode === product.code
-    && price.priceType === 'ADDON'
-    && price.billingInterval === form.billingInterval
-  ))?.unitAmountCents ?? null);
-  const complementaryPricesReady = complementaryPrices.every((amount) => amount != null);
-  const complementaryAmount = complementaryPricesReady
-    ? complementaryPrices.reduce((total, amount) => total + (amount ?? 0), 0)
+  const pricing = config
+    ? calculatePublicPlanPricing(config, form.selectedProductCodes, form.extraSeats, form.billingInterval)
     : null;
-  const estimatedAmount = basePrice?.unitAmountCents == null
-    || seatPrice?.unitAmountCents == null
-    || complementaryAmount == null
-    ? null
-    : basePrice.unitAmountCents + complementaryAmount + seatPrice.unitAmountCents * form.extraSeats;
-  const validSelection = selectedBasicCount >= 1
-    && selectedBasicCount <= basicProducts.length;
+  const pricingMode = config ? pricingModeForConfig(config) : 'LEGACY_TIERS';
+  const estimatedAmount = pricing?.estimatedAmountCents ?? null;
+  const validSelection = pricing?.validSelection ?? false;
   const courtesyRequested = form.courtesyCode.trim().length > 0;
   const platformReady = Boolean(
     config?.provisioningEnabled
@@ -1495,9 +1498,7 @@ export default function SignupPage() {
   const knownIndustry = !form.industry
     || industryValues.includes(form.industry as (typeof industryValues)[number]);
   const availableProductCodes = useMemo(() => config?.products.map((product) => product.code) ?? [], [config]);
-  const selectedTier = tierForSelection(selectedBasicCount, basicProducts.length);
   const includedSeats = config?.includedSeats ?? 5;
-  const visibleSignupEstimate = signupEstimatedAmount(selectedTier, form.extraSeats, form.billingInterval);
 
   const update = <K extends keyof BillingSignupRequest>(key: K, value: BillingSignupRequest[K]) => {
     const resetVerification = key === 'email' || key === 'confirmEmail' || key === 'fullName' || key === 'companyName';
@@ -1523,19 +1524,12 @@ export default function SignupPage() {
   };
 
   const toggleProduct = (code: string) => {
-    if (!availableProductCodes.includes(code)) return;
-    const currentSelection = form.selectedProductCodes.filter((productCode) => availableProductCodes.includes(productCode));
-    if (currentSelection.includes(code)) {
-      const product = config?.products.find((item) => item.code === code);
-      if (product?.productType === 'BASIC' && selectedBasicCount === 1) return;
-      update('selectedProductCodes', currentSelection.filter((current) => current !== code));
-      return;
-    }
-    update('selectedProductCodes', [...currentSelection, code]);
+    if (!config || !availableProductCodes.includes(code)) return;
+    update('selectedProductCodes', toggleCompatibleProductCode(config, form.selectedProductCodes, code));
   };
 
-  const selectAllProducts = () => update('selectedProductCodes', availableProductCodes);
-  const clearProducts = () => update('selectedProductCodes', basicProducts.slice(0, 1).map((product) => product.code));
+  const selectAllProducts = () => update('selectedProductCodes', config ? selectAllCompatibleProductCodes(config) : []);
+  const clearProducts = () => update('selectedProductCodes', []);
 
   const startEmailVerification = async () => {
     const response = await billingSignupApi.startEmailVerification({
@@ -1678,18 +1672,15 @@ export default function SignupPage() {
     }
   };
 
-  const configuredMonthlyAmount = (billableCode: string, fallbackAmount: number) => (
-    config?.prices.find((price) => (
-      price.billableCode === billableCode
-      && price.billingInterval === 'MONTH'
-      && price.unitAmountCents != null
-    ))?.unitAmountCents ?? fallbackAmount
-  );
-  const oneModulePriceLabel = signupMonthlyPrice(configuredMonthlyAmount('basic_1', 6900), copy);
-  const twoModulePriceLabel = signupMonthlyPrice(configuredMonthlyAmount('basic_2', 10900), copy);
-  const threeModulePriceLabel = signupMonthlyPrice(configuredMonthlyAmount('basic_3', 14900), copy);
-  const allModulesPriceLabel = signupMonthlyPrice(configuredMonthlyAmount('basic_all', 19900), copy);
-  const extraSeatPriceLabel = signupMonthlyPrice(configuredMonthlyAmount('extra_seat', 1200), copy);
+  const pendingPriceLabel = copy.pendingCompletePrice;
+  const priceLabel = (amount: number | null) => amount == null
+    ? pendingPriceLabel
+    : signupMonthlyPrice(amount, copy);
+  const oneModulePriceLabel = priceLabel(config ? publishedTierAmount(config, 1, 'MONTH') : null);
+  const twoModulePriceLabel = priceLabel(config ? publishedTierAmount(config, 2, 'MONTH') : null);
+  const threeModulePriceLabel = priceLabel(config ? publishedTierAmount(config, 3, 'MONTH') : null);
+  const allModulesPriceLabel = priceLabel(config ? publishedTierAmount(config, 4, 'MONTH') : null);
+  const extraSeatPriceLabel = priceLabel(config ? publishedSeatAmount(config, 'MONTH') : null);
   const pricingGuide = [
     {
       tier: 'basic_1' as const,
@@ -1718,7 +1709,7 @@ export default function SignupPage() {
     experienceCopy.stepConfiguration,
     experienceCopy.stepActivation,
   ];
-  const selectedPrice = selectedCount === 0 ? 0 : (estimatedAmount ?? visibleSignupEstimate);
+  const selectedPrice = selectedCount === 0 ? 0 : (estimatedAmount ?? 0);
   const companyInvalid = accountAttempted && form.companyName.trim().length < 2;
   const ownerInvalid = accountAttempted && form.fullName.trim().length < 2;
   const emailInvalid = accountAttempted && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim());
@@ -1897,24 +1888,35 @@ export default function SignupPage() {
 
                     <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/70">
                       <p className="px-4 pt-3 text-xs font-medium text-slate-500">{experienceCopy.priceGuide}</p>
-                      <div className="mt-2 grid grid-cols-2 sm:grid-cols-4">
-                        {pricingGuide.map((item, index) => {
-                          const active = selectedCount > 0 && selectedTier === item.tier;
-                          const accents = ['#59C3A5', '#F4C84A', '#FF6B5E', '#2563EB'];
-                          return (
-                            <div key={item.tier} className={`relative border-t border-slate-200 px-3 py-3 text-center sm:border-l sm:first:border-l-0 ${active ? 'bg-white shadow-[inset_0_-3px_0_var(--tier-accent)]' : ''}`} style={{ '--tier-accent': accents[index] } as CSSProperties}>
-                              <span className={`block text-xs ${active ? 'font-medium text-slate-800' : 'text-slate-500'}`}>{item.title}</span>
-                              <span className={`mt-1 block text-base ${active ? 'font-semibold text-slate-900' : 'font-medium text-slate-600'}`}>{item.price}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
+                      {pricingMode === 'LEGACY_TIERS' ? (
+                        <div className="mt-2 grid grid-cols-2 sm:grid-cols-4">
+                          {pricingGuide.map((item, index) => {
+                            const active = selectedCount > 0 && pricing?.offerCode === item.tier;
+                            const accents = ['#59C3A5', '#F4C84A', '#FF6B5E', '#2563EB'];
+                            return (
+                              <div key={item.tier} className={`relative border-t border-slate-200 px-3 py-3 text-center sm:border-l sm:first:border-l-0 ${active ? 'bg-white shadow-[inset_0_-3px_0_var(--tier-accent)]' : ''}`} style={{ '--tier-accent': accents[index] } as CSSProperties}>
+                                <span className={`block text-xs ${active ? 'font-medium text-slate-800' : 'text-slate-500'}`}>{item.title}</span>
+                                <span className={`mt-1 block text-base ${active ? 'font-semibold text-slate-900' : 'font-medium text-slate-600'}`}>{item.price}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="mt-2 flex items-center justify-between gap-4 border-t border-slate-200 bg-white px-4 py-4">
+                          <span className="text-sm font-medium text-slate-600">{experienceCopy.selectedProducts(selectedCount)}</span>
+                          <span className="text-lg font-semibold text-slate-900">
+                            {pricing?.baseAmountCents == null ? pendingPriceLabel : currency(pricing.baseAmountCents, form.billingInterval, copy)}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-5 grid gap-3 sm:grid-cols-2">
                       {config?.products.map((product) => {
                         const selected = form.selectedProductCodes.includes(product.code);
                         const visual = productVisual(product.code);
+                        const productAmount = publishedProductAmount(config, product, form.billingInterval);
+                        const showProductAmount = pricingMode === 'DIRECT_PRODUCTS' || product.productType === 'ADDON';
                         return (
                           <button
                             key={product.code}
@@ -1936,23 +1938,19 @@ export default function SignupPage() {
                             </span>
                             <span className="mt-3 text-base font-medium leading-5 text-slate-900">{productLabel(product.code, product.displayName, copy)}</span>
                           <span className="mt-2 text-sm font-medium" style={{ color: visual.accent }}>
-                            {product.productType === 'ADDON'
-                              ? currency(
-                                  config?.prices.find((price) => price.billableCode === product.code
-                                    && price.priceType === 'ADDON'
-                                    && price.billingInterval === form.billingInterval)?.unitAmountCents ?? 0,
-                                  form.billingInterval,
-                                  copy,
-                                )
+                            {showProductAmount
+                              ? productAmount == null
+                                ? pendingPriceLabel
+                                : currency(productAmount, form.billingInterval, copy)
                               : experienceCopy.countsAsOne}
                           </span>
                           </button>
                         );
                       })}
                     </div>
-                    {selectedBasicCount === 0 ? <p className="mt-4 text-sm font-medium text-amber-700">{experienceCopy.chooseAtLeastOne}</p> : null}
+                    {selectedCount === 0 ? <p className="mt-4 text-sm font-medium text-amber-700">{experienceCopy.chooseAtLeastOne}</p> : null}
                     {!validSelection && selectedCount > 0 ? <p className="mt-3 text-sm font-medium text-amber-700">{copy.invalidSelection}</p> : null}
-                    {basePrice?.status === 'PENDING_PRICE' ? <p className="mt-3 text-sm font-semibold text-amber-700">{copy.pendingCompletePrice}</p> : null}
+                    {validSelection && estimatedAmount == null ? <p className="mt-3 text-sm font-semibold text-amber-700">{copy.pendingCompletePrice}</p> : null}
                   </fieldset>
 
                   <label className="block space-y-2 text-sm font-medium text-slate-700">
@@ -2076,7 +2074,7 @@ export default function SignupPage() {
                       <MapPin className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
                       <select value={form.countryCode} onChange={(event) => update('countryCode', event.target.value)} className={`${brandSelectClasses} pl-10`}>
                         {(config?.launchCountries.length ? config.launchCountries : ['MX', 'CA']).map((countryCode) => (
-                          <option key={countryCode} value={countryCode}>{copy.countryLabels[countryCode] ?? countryCode}</option>
+                          <option key={countryCode} value={countryCode}>{countryDisplayName(countryCode, currentLanguage.code, copy.countryLabels)}</option>
                         ))}
                       </select>
                     </span>

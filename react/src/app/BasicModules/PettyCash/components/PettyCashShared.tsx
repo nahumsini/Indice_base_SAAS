@@ -1,10 +1,13 @@
 import type { LucideIcon } from 'lucide-react';
-import { ArrowDown, ArrowUp, ArrowUpDown, Columns3, MoreHorizontal, Plus, RefreshCcw } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Columns3, MoreHorizontal, Plus } from 'lucide-react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import type { ColumnConfig } from '../../../components/rh/ColumnasConfigModal';
 import { DataTablePagination } from '../../../components/table/DataTablePagination';
 import {
   getIndiceFilterControlClassName,
+  IndiceFilterAdvancedSection,
   IndiceFilterBar,
+  IndiceFilterDisclosureActions,
   IndiceFilterField,
   IndiceTitleBar,
   IndiceViewState,
@@ -43,11 +46,15 @@ const getStatusCopy = (kind: StatusKind, status: string) => {
 };
 
 export function PettyCashHeaderBanner({
+  additionalActionDisabled,
+  additionalActionIcon: AdditionalActionIcon,
+  additionalActionLabel,
   actionLabel,
   description,
   emoji,
   icon: Icon,
   onAction,
+  onAdditionalAction,
   onColumns,
   onSecondaryAction,
   onTertiaryAction,
@@ -57,11 +64,15 @@ export function PettyCashHeaderBanner({
   tertiaryActionLabel,
   title,
 }: {
+  additionalActionDisabled?: boolean;
+  additionalActionIcon?: LucideIcon;
+  additionalActionLabel?: string;
   actionLabel?: string;
   description: string;
   emoji?: string;
   icon?: LucideIcon;
   onAction?: () => void;
+  onAdditionalAction?: () => void;
   onColumns?: () => void;
   onSecondaryAction?: () => void;
   onTertiaryAction?: () => void;
@@ -71,8 +82,26 @@ export function PettyCashHeaderBanner({
   tertiaryActionLabel?: string;
   title: string;
 }) {
+  const eligibleActionCount = [
+    Boolean(actionLabel && onAction),
+    Boolean(secondaryActionLabel && onSecondaryAction),
+    Boolean(tertiaryActionLabel && onTertiaryAction),
+    Boolean(onColumns),
+  ].filter(Boolean).length;
+  const hasOverflow = eligibleActionCount > 3;
   const actionLayout = (
     <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-row sm:items-center">
+      {additionalActionLabel && onAdditionalAction ? (
+        <button
+          type="button"
+          disabled={additionalActionDisabled}
+          onClick={onAdditionalAction}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-none transition hover:border-[#147514]/30 hover:bg-[#147514]/5 hover:text-[#147514] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
+        >
+          {AdditionalActionIcon ? <AdditionalActionIcon className="h-4 w-4" /> : null}
+          {additionalActionLabel}
+        </button>
+      ) : null}
       {secondaryActionLabel && onSecondaryAction ? (
         <button
           type="button"
@@ -81,6 +110,26 @@ export function PettyCashHeaderBanner({
         >
           {SecondaryActionIcon ? <SecondaryActionIcon className="h-4 w-4" /> : null}
           {secondaryActionLabel}
+        </button>
+      ) : null}
+      {!hasOverflow && tertiaryActionLabel && onTertiaryAction ? (
+        <button
+          type="button"
+          onClick={onTertiaryAction}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-[#147514] shadow-none transition hover:bg-[#147514] hover:text-white dark:border-slate-700 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-700 dark:hover:text-white"
+        >
+          {TertiaryActionIcon ? <TertiaryActionIcon className="h-4 w-4" /> : null}
+          {tertiaryActionLabel}
+        </button>
+      ) : null}
+      {!hasOverflow && onColumns ? (
+        <button
+          type="button"
+          onClick={onColumns}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-none transition hover:border-[#147514]/30 hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+        >
+          <Columns3 className="h-4 w-4" />
+          <HeaderColumnsLabel />
         </button>
       ) : null}
       {actionLabel && onAction ? (
@@ -93,7 +142,7 @@ export function PettyCashHeaderBanner({
           {actionLabel}
         </button>
       ) : null}
-      {(tertiaryActionLabel && onTertiaryAction) || onColumns ? (
+      {hasOverflow ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button type="button" className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-none transition hover:border-[#147514]/30 hover:bg-[#147514]/5 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
@@ -102,12 +151,6 @@ export function PettyCashHeaderBanner({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56 rounded-xl p-1.5">
-            {tertiaryActionLabel && onTertiaryAction ? (
-              <DropdownMenuItem className="rounded-lg py-2.5" onClick={onTertiaryAction}>
-                {TertiaryActionIcon ? <TertiaryActionIcon /> : null}
-                {tertiaryActionLabel}
-              </DropdownMenuItem>
-            ) : null}
             {onColumns ? (
               <DropdownMenuItem className="rounded-lg py-2.5" onClick={onColumns}>
                 <Columns3 />
@@ -142,48 +185,118 @@ function HeaderActionsLabel() {
 }
 
 export function PettyCashFilterShell({
+  activeAdvancedCount = 0,
+  advancedContent,
   children,
   clearLabel,
+  hasActiveFilters = false,
   onClear,
   resultLabel,
   subtitle,
 }: {
+  activeAdvancedCount?: number;
+  advancedContent?: ReactNode;
   children: ReactNode;
   clearLabel?: string;
+  hasActiveFilters?: boolean;
   onClear?: () => void;
   resultLabel: string;
   subtitle?: string;
 }) {
   const copy = usePettyCashTranslations();
   const resolvedClearLabel = clearLabel ?? copy.common.clear;
-  const summary = (
-    <div className="flex flex-wrap items-center gap-3">
-      <span className="rounded-full border border-[#147514]/15 bg-[#147514]/10 px-3 py-1 text-sm font-medium text-[#147514] dark:border-emerald-900/50 dark:bg-emerald-400/10 dark:text-emerald-300">
-        {resultLabel}
-      </span>
-      {onClear ? (
-        <button
-          type="button"
-          onClick={onClear}
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 transition hover:text-[#147514] dark:text-slate-400 dark:hover:text-emerald-300"
-        >
-          <RefreshCcw className="h-3.5 w-3.5" />
-          {resolvedClearLabel}
-        </button>
-      ) : null}
-    </div>
-  );
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(activeAdvancedCount > 0);
+
+  useEffect(() => {
+    if (activeAdvancedCount > 0) setShowAdvancedFilters(true);
+  }, [activeAdvancedCount]);
+
+  const clearFilters = () => {
+    onClear?.();
+    setShowAdvancedFilters(false);
+  };
 
   return (
     <IndiceFilterBar
-      gridClassName="lg:grid-cols-4"
+      gridClassName="lg:grid-cols-3"
       subtitle={subtitle}
-      summary={summary}
+      summary={(
+        <IndiceFilterDisclosureActions
+          activeAdvancedCount={activeAdvancedCount}
+          advancedLabel={showAdvancedFilters ? copy.common.hideMoreFilters : copy.common.moreFilters}
+          clearLabel={resolvedClearLabel}
+          hasActiveFilters={hasActiveFilters}
+          isAdvancedOpen={showAdvancedFilters}
+          onClear={clearFilters}
+          onToggleAdvanced={() => setShowAdvancedFilters(current => !current)}
+          resultSummary={(
+            <span className="rounded-full border border-[#147514]/15 bg-[#147514]/10 px-3 py-1 text-[#147514] dark:border-emerald-900/50 dark:bg-emerald-400/10 dark:text-emerald-300">
+              {resultLabel}
+            </span>
+          )}
+          showAdvancedToggle={Boolean(advancedContent)}
+          tone="green"
+        />
+      )}
       title={copy.common.filters}
     >
       {children}
+      {advancedContent && showAdvancedFilters ? (
+        <IndiceFilterAdvancedSection className="md:col-span-2 lg:col-span-3" gridClassName="xl:grid-cols-2">
+          {advancedContent}
+        </IndiceFilterAdvancedSection>
+      ) : null}
     </IndiceFilterBar>
   );
+}
+
+export function normalizePettyCashColumns(columns: ColumnConfig[], defaultColumns: ColumnConfig[]) {
+  const currentById = new Map(columns.map(column => [column.id, column]));
+  const defaultsById = new Map(defaultColumns.map(column => [column.id, column]));
+  const normalized = columns
+    .filter(column => defaultsById.has(column.id))
+    .map(column => {
+      const defaultColumn = defaultsById.get(column.id)!;
+      return {
+        ...defaultColumn,
+        visible: defaultColumn.locked ? true : column.visible,
+      };
+    });
+
+  return [
+    ...normalized,
+    ...defaultColumns.filter(column => !currentById.has(column.id)),
+  ];
+}
+
+export function usePettyCashColumns(storageKey: string, defaultColumns: ColumnConfig[]) {
+  const [columns, setColumns] = useState<ColumnConfig[]>(() => {
+    if (typeof window === 'undefined') return defaultColumns;
+    try {
+      const stored = window.localStorage.getItem(storageKey);
+      return stored
+        ? normalizePettyCashColumns(JSON.parse(stored) as ColumnConfig[], defaultColumns)
+        : defaultColumns;
+    } catch {
+      return defaultColumns;
+    }
+  });
+
+  useEffect(() => {
+    setColumns(current => normalizePettyCashColumns(current, defaultColumns));
+  }, [defaultColumns]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(storageKey, JSON.stringify(columns));
+    }
+  }, [columns, storageKey]);
+
+  return {
+    columns,
+    setColumns,
+    visibleColumns: columns.filter(column => column.visible),
+  };
 }
 
 export function PettyCashField({

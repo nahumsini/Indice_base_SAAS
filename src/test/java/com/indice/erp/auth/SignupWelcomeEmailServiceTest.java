@@ -58,14 +58,14 @@ class SignupWelcomeEmailServiceTest {
             .andExpect(jsonPath("$.content[0].value", containsString("Email: ada@example.com")))
             .andExpect(jsonPath("$.content[0].value", containsString("Password: The password you created during signup")))
             .andExpect(jsonPath("$.content[0].value", containsString("Sign in here:\nhttps://app.indice.test/login")))
-            .andExpect(jsonPath("$.content[0].value", containsString("Your account includes a 30-day trial.")))
+            .andExpect(jsonPath("$.content[0].value", containsString("Your account includes a 15-day trial.")))
             .andExpect(jsonPath("$.content[0].value", containsString("contact us at support@indice.test")))
             .andExpect(jsonPath("$.content[1].type").value("text/html"))
             .andExpect(jsonPath("$.content[1].value", containsString("Welcome to Indice")))
             .andExpect(jsonPath("$.content[1].value", containsString("Open your workspace")))
             .andExpect(jsonPath("$.content[1].value", containsString("Workspace ready")))
             .andExpect(jsonPath("$.content[1].value", containsString("The password created during signup")))
-            .andExpect(jsonPath("$.content[1].value", containsString("30-day trial active")))
+            .andExpect(jsonPath("$.content[1].value", containsString("15-day trial active")))
             .andRespond(withAccepted());
 
         service.sendWelcome(profile(), billing());
@@ -132,7 +132,7 @@ class SignupWelcomeEmailServiceTest {
         assertTrue(message.getValue().getText().contains("Email: ada@example.com"));
         assertTrue(message.getValue().getText().contains("Password: The password you created during signup"));
         assertTrue(message.getValue().getText().contains("Sign in here:\nhttps://app.indice.test/login"));
-        assertTrue(message.getValue().getText().contains("Your account includes a 30-day trial."));
+        assertTrue(message.getValue().getText().contains("Your account includes a 15-day trial."));
         assertTrue(message.getValue().getText().contains("contact us at support@indice.test"));
     }
 

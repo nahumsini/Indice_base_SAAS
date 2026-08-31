@@ -136,9 +136,20 @@ public class PlatformAdminApiController {
         }
     }
 
-    @GetMapping("/catalog/drafts/{versionId}/validation")
-    public ResponseEntity<?> validateCatalogDraft(HttpSession session, @PathVariable long versionId) {
-        return withUser(session, userId -> catalogManagement.validateDraft(userId, versionId));
+    @PostMapping("/catalog/drafts/{versionId}/validation")
+    public ResponseEntity<?> validateCatalogDraft(
+        HttpSession session,
+        @PathVariable long versionId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken
+    ) {
+        try {
+            var current = auth.currentUser(session).orElse(null);
+            if (current == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            csrf.requireCsrf(session, csrfToken);
+            return ResponseEntity.ok(catalogManagement.validateDraft(current.userId(), versionId));
+        } catch (RuntimeException exception) {
+            return error(exception);
+        }
     }
 
     @PostMapping("/catalog/drafts/{versionId}/publish")
@@ -774,6 +785,25 @@ public class PlatformAdminApiController {
             return ResponseEntity.ok(companyModules.updateTrialProducts(
                 current.userId(), companyId, idempotencyKey, request
             ));
+        } catch (RuntimeException exception) {
+            return error(exception);
+        }
+    }
+
+    @PostMapping("/companies/{companyId}/products/preview")
+    public ResponseEntity<?> previewCompanyProducts(
+        HttpSession session,
+        @PathVariable long companyId,
+        @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+        @RequestBody PlatformCompanyModuleService.ProductSelectionRequest request
+    ) {
+        try {
+            var current = auth.currentUser(session).orElse(null);
+            if (current == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            }
+            csrf.requireCsrf(session, csrfToken);
+            return ResponseEntity.ok(companyModules.previewProducts(current.userId(), companyId, request));
         } catch (RuntimeException exception) {
             return error(exception);
         }

@@ -4,37 +4,42 @@ Estado: implementación para `apptest.indiceapp.com`. Producción permanece fuer
 
 ## 1. Reglas comerciales aprobadas
 
-- El registro comercial normal exige tarjeta aunque los primeros 30 días no tengan cargo.
-- La prueba comienza al crear la cuenta mediante Stripe Checkout y ofrece 30 días completos.
+- El registro comercial normal exige tarjeta aunque los primeros 15 días no tengan cargo.
+- La prueba comienza mediante Stripe Checkout, ofrece `Corporativiza` y cobra al terminar la
+  selección confirmada. Después de una consultoría puede extenderse una sola vez hasta 30 días.
 - Stripe Tax calcula el impuesto desde la dirección fiscal; todos los precios son exclusivos de impuestos.
 - Al terminar la prueba sin una suscripción vigente, la cuenta y sus datos se conservan 90 días en modo de solo lectura.
 - Un código de cortesía creado por un administrador raíz puede omitir Stripe y la tarjeta. Puede limitarse por correo, productos, usuarios adicionales, vigencia, usos y campaña, o ser permanente.
 - Los códigos se guardan como SHA-256. El valor legible se presenta una sola vez al crearlo.
-- La primera consultoría de 50 minutos está incluida. Las adicionales cuestan USD 89 y son cargos separados, nunca parte de la mensualidad o del descuento anual.
+- Una consultoría virtual de 60 minutos por mes está incluida y no es acumulable. Las adicionales
+  cuestan USD 79 y son cargos separados.
 - Cada plan incluye 5 empleados. Cada empleado adicional cuesta USD 12 al mes; en anual cuesta USD 144 por año, sin descuento adicional.
-- La facturación anual aplica 20 % de descuento únicamente al paquete base.
-- Se incluyen 5 GiB. Cada bloque adicional representa 1 GiB y cuesta USD 1 al mes o USD 12 al año. La medición y compra de bloques existe, pero la activación automática debe permanecer en observación hasta certificar reconciliación y facturación.
+- La facturación anual aplica 20 % de descuento a módulos y paquetes; no a usuarios,
+  almacenamiento o consultoría.
+- Se incluyen 100 GiB y cada bloque automático adicional de 100 GiB cuesta USD 15 al mes o USD 180
+  al año. El servicio no se corta; la cantidad se incorpora a la siguiente factura.
 - Los precios de lanzamiento son tarifas de lealtad mientras la suscripción permanezca activa.
 
 ## 2. Catálogo de productos elegibles
 
-Los seis productos básicos seleccionables son:
+Los seis módulos básicos seleccionables son:
 
-1. Recursos Humanos (`basic_hr`).
-2. Tareas y Procesos (`basic_process_tasks`).
-3. Expenses + Caja Chica (`basic_expenses`).
-4. Punto de Venta + Inventarios (`basic_pos_inventory`).
-5. Ventas + Inventarios (`basic_sales_inventory`).
-6. Cartera (`basic_receivables`).
+1. Recursos Humanos (`module_hr`).
+2. Tareas y Procesos (`module_process_tasks`).
+3. Gastos + Caja Chica (`module_expenses`).
+4. Punto de Venta + Inventarios (`module_pos_inventory`).
+5. Ventas + Inventarios (`module_sales_inventory`).
+6. Cartera (`module_receivables`).
 
 Punto de Venta + Inventarios y Ventas + Inventarios pueden contratarse juntos y cuentan como dos productos. La capacidad técnica `inventory` se proyecta una sola vez.
 
-| Productos elegidos | Mensual | Anual, 20 % menos |
-|---:|---:|---:|
-| 1 | USD 69 | USD 662.40 |
-| 2 | USD 109 | USD 1,046.40 |
-| 3 | USD 149 | USD 1,430.40 |
-| 4, 5 o 6 | USD 199 | USD 1,910.40 |
+| Oferta | Mensual | Anual, 20 % menos |
+|---|---:|---:|
+| Un módulo | USD 79 | USD 758.40 |
+| Dos o más módulos sueltos, cada uno | USD 49 | USD 470.40 |
+| Controla | USD 99 | USD 950.40 |
+| Escala Ventas o Escala POS | USD 149 | USD 1,430.40 |
+| Corporativiza | USD 199 | USD 1,910.40 |
 
 Los importes se almacenan en centavos y se resuelven desde `billing_catalog_prices`, no desde componentes React.
 
@@ -88,18 +93,9 @@ APP_BILLING_STRIPE_WEBHOOK_SECRET=whsec_...
 APP_BILLING_STRIPE_PROCESSOR_ENABLED=true
 APP_BILLING_PROVISIONING_ENABLED=true
 
-APP_BILLING_STRIPE_PRICE_BASIC_1_MONTHLY=price_...
-APP_BILLING_STRIPE_PRICE_BASIC_1_ANNUAL=price_...
-APP_BILLING_STRIPE_PRICE_BASIC_2_MONTHLY=price_...
-APP_BILLING_STRIPE_PRICE_BASIC_2_ANNUAL=price_...
-APP_BILLING_STRIPE_PRICE_BASIC_3_MONTHLY=price_...
-APP_BILLING_STRIPE_PRICE_BASIC_3_ANNUAL=price_...
-APP_BILLING_STRIPE_PRICE_BASIC_ALL_MONTHLY=price_...
-APP_BILLING_STRIPE_PRICE_BASIC_ALL_ANNUAL=price_...
-APP_BILLING_STRIPE_PRICE_EXTRA_SEAT_MONTHLY=price_...
-APP_BILLING_STRIPE_PRICE_EXTRA_SEAT_ANNUAL=price_...
-APP_BILLING_STRIPE_PRICE_STORAGE_BLOCK_MONTHLY=price_...
-APP_BILLING_STRIPE_PRICE_STORAGE_BLOCK_ANNUAL=price_...
+APP_BILLING_STRIPE_CATALOG_LIVE_SYNC_ENABLED=false
+APP_BILLING_STORAGE_INCLUDED_BYTES=107374182400
+APP_BILLING_STORAGE_BLOCK_BYTES=107374182400
 ```
 
 La llave publicable y el account ID no son utilizados por el checkout actual: la sesión la crea el backend y el navegador es redirigido a Stripe Checkout.
@@ -108,13 +104,10 @@ Los dos interruptores anteriores quedan en `false` durante el Paso A y sólo se
 cambian a `true` después de validar la firma del webhook. Los valores mostrados
 en esta sección representan el estado certificado actual de staging.
 
-El catálogo TEST se crea de forma repetible con:
-
-```bash
-STRIPE_SECRET_KEY='sk_test_...' ./deployment/scripts/bootstrap-stripe-test-catalog.sh
-```
-
-El resultado contiene sólo Price IDs y puede incorporarse al archivo secreto del VPS. El script rechaza llaves que no sean `sk_test_`.
+El catálogo TEST se crea desde **Administración de plataforma → Oferta comercial**. Root conecta
+cada producto del borrador con Stripe TEST, valida remotamente cuenta, modo, importes, USD,
+intervalos e impuestos y sólo entonces publica la versión. No se copian Price IDs manualmente ni se
+usa el script legado de escalones.
 
 ## 5. Secuencia de activación
 
@@ -141,7 +134,7 @@ GET /api/v1/billing/signup/config         -> checkoutEnabled=true
 
 - solicita tarjeta y dirección fiscal;
 - usa Stripe Tax;
-- muestra 30 días de prueba;
+- muestra 15 días de prueba;
 - selecciona los precios correctos para paquete e integrantes adicionales;
 - no crea todavía la empresa.
 
@@ -238,6 +231,10 @@ Además:
 Como las llaves TEST se compartieron por chat, deben rotarse al cerrar la certificación de staging. Esto no afecta producción.
 
 ## 8. Certificación ejecutada el 2 de agosto de 2026
+
+> Evidencia histórica del catálogo `2026.07-premium-v1`. No certifica los precios, prueba ni
+> almacenamiento de `2026.08-global-v1`; la nueva oferta requiere una ejecución completa de la
+> etapa 9 en Stripe TEST.
 
 Versión desplegada: `be5fc2f2`, rama
 `feature/stripe-staging-courtesy-2026-08-01`.

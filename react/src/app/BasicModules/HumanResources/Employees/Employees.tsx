@@ -280,6 +280,21 @@ export default function Employees({ learningModeActive = false }: EmployeesProps
       });
     },
   });
+  const clearEmployeeFilters = useCallback(() => {
+    setSearchQuery(employeesWorkspaceDefaults.searchQuery);
+    setUnitFilter(employeesWorkspaceDefaults.unitFilter);
+    setBusinessFilter(employeesWorkspaceDefaults.businessFilter);
+    setDepartmentFilter(employeesWorkspaceDefaults.departmentFilter);
+    setStatusFilter(employeesWorkspaceDefaults.statusFilter);
+    setSortState({
+      columnId: employeesWorkspaceDefaults.sortColumn,
+      direction: employeesWorkspaceDefaults.sortDirection,
+    });
+    restorePagination({
+      currentPage: employeesWorkspaceDefaults.currentPage,
+      pageSize: employeesWorkspaceDefaults.pageSize,
+    });
+  }, [restorePagination, setBusinessFilter, setDepartmentFilter, setSearchQuery, setSortState, setStatusFilter, setUnitFilter]);
   const {
     employeePositionOptions,
     inlineDepartmentOptions,
@@ -487,6 +502,7 @@ export default function Employees({ learningModeActive = false }: EmployeesProps
         departmentFilterOptions={departmentFilterOptions}
         filtersCopy={copy.filters}
         onBusinessFilterChange={setBusinessFilter}
+        onClearFilters={clearEmployeeFilters}
         onDepartmentFilterChange={setDepartmentFilter}
         onSearchQueryChange={setSearchQuery}
         onStatusFilterChange={setStatusFilter}

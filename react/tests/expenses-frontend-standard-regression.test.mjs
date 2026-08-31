@@ -45,6 +45,9 @@ test('Expenses mantiene acciones visibles y semánticas con el patrón de Agenda
   const actionsSource = readFileSync(resolve(expensesRoot, 'components/table/ExpenseRowActions.tsx'), 'utf8');
   const headerSource = readFileSync(resolve(expensesRoot, 'components/header/ExpensesHeader.tsx'), 'utf8');
   const providersHeaderSource = readFileSync(resolve(expensesRoot, 'Providers/components/ProvidersHeaderBanner.tsx'), 'utf8');
+  const accountingHeaderSource = readFileSync(resolve(expensesRoot, 'AccountingAccounts/components/AccountingAccountsHeaderBanner.tsx'), 'utf8');
+  const paymentAccountsHeaderSource = readFileSync(resolve(expensesRoot, 'PaymentAccounts/components/PaymentAccountsHeaderBanner.tsx'), 'utf8');
+  const budgetHeaderSource = readFileSync(resolve(expensesRoot, 'Budgets/components/BudgetTableHeader.tsx'), 'utf8');
   const providersPageSource = readFileSync(resolve(expensesRoot, 'Providers/ProveedoresPage.tsx'), 'utf8');
   const mobileSource = readFileSync(resolve(expensesRoot, 'Expenses/components/ExpenseMobileCards.tsx'), 'utf8');
   const columnsSource = readFileSync(resolve(expensesRoot, 'constants/expenseColumns.ts'), 'utf8');
@@ -60,12 +63,21 @@ test('Expenses mantiene acciones visibles y semánticas con el patrón de Agenda
   assert.match(actionsSource, /<ShieldCheck/);
   assert.match(actionsSource, /<Trash2/);
   assert.match(actionsSource, /rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2/);
-  assert.doesNotMatch(headerSource, /<DropdownMenu>/);
+  assert.match(headerSource, /const eligibleActionCount = 4/);
+  assert.match(headerSource, /const hasOverflow = eligibleActionCount > 3/);
+  assert.match(headerSource, /<DropdownMenu>/);
   assert.doesNotMatch(headerSource, /onOpenPayablesKiosk/);
+  assert.match(providersHeaderSource, /const eligibleActionCount = 2 \+ Number/);
+  assert.match(providersHeaderSource, /const hasOverflow = eligibleActionCount > 3/);
+  assert.match(providersHeaderSource, /<DropdownMenu>/);
   assert.match(providersHeaderSource, /onClick=\{onManagePayablesKiosks\}/);
   assert.match(providersHeaderSource, /Kioscos CxP/);
   assert.match(providersPageSource, /<PayablesKioskManagementModal/);
   assert.match(headerSource, /onClick=\{onConfigureColumns\}/);
+  for (const directHeaderSource of [accountingHeaderSource, paymentAccountsHeaderSource, budgetHeaderSource]) {
+    assert.doesNotMatch(directHeaderSource, /<DropdownMenu>/);
+    assert.match(directHeaderSource, /onConfigureColumns/);
+  }
   assert.doesNotMatch(mobileSource, /isExpanded/);
   assert.match(columnsSource, /key: 'balance', label: 'Balance', visible: true/);
   assert.match(columnsSource, /key: 'accountingAccount', label: 'Accounting account', visible: false/);
@@ -160,18 +172,64 @@ test('La vista predeterminada de Gastos prioriza operación y vencimiento', () =
   assert.match(columnsHookSource, /reconcileExpenseColumns\(JSON\.parse\(storedColumns\), true\)/);
 });
 
-test('Los filtros de Gastos priorizan periodo, estado y proveedor', () => {
+test('Los filtros financieros repliegan criterios secundarios sin ocultar valores activos', () => {
   const filtersSource = readFileSync(resolve(expensesRoot, 'components/filters/ExpensesFilters.tsx'), 'utf8');
+  const budgetsSource = readFileSync(resolve(expensesRoot, 'components/filters/BudgetFiltersPanel.tsx'), 'utf8');
+  const providersSource = readFileSync(resolve(expensesRoot, 'Providers/components/ProvidersFilterBar.tsx'), 'utf8');
+  const disclosureSource = readFileSync(resolve(root, 'src/app/components/frontend-os/IndiceFilterDisclosure.tsx'), 'utf8');
   const periodIndex = filtersSource.indexOf('label={t.filters.period}');
   const statusIndex = filtersSource.indexOf('label={t.filters.status}');
   const providerIndex = filtersSource.indexOf('label={t.filters.provider}');
-  const unitIndex = filtersSource.indexOf('label={t.filters.unit}');
-  const businessIndex = filtersSource.indexOf('label={t.filters.business}');
 
   assert.ok(periodIndex < statusIndex);
   assert.ok(statusIndex < providerIndex);
-  assert.ok(providerIndex < unitIndex);
-  assert.ok(unitIndex < businessIndex);
+  for (const source of [filtersSource, budgetsSource, providersSource]) {
+    assert.match(source, /advancedFilterCount/);
+    assert.match(source, /showAdvancedFilters/);
+    assert.match(source, /setShowAdvancedFilters\(true\)/);
+    assert.match(source, /<IndiceFilterDisclosureActions/);
+    assert.match(source, /<IndiceFilterAdvancedSection/);
+  }
+  assert.match(filtersSource, /filters\.providerFilter !== 'all'/);
+  assert.match(budgetsSource, /accountingAccountFilter !== 'all'/);
+  assert.match(providersSource, /props\.businessUnitFilter !== 'all'/);
+  assert.match(disclosureSource, /aria-expanded=\{isAdvancedOpen\}/);
+  assert.match(disclosureSource, /activeAdvancedCount > 0/);
+});
+
+test('Los catalogos financieros usan presets compactos y migran solo la fabrica anterior exacta', () => {
+  const providersConfig = readFileSync(resolve(expensesRoot, 'Providers/providerTableConfig.ts'), 'utf8');
+  const accountingConfig = readFileSync(resolve(expensesRoot, 'AccountingAccounts/accountingAccountsTableConfig.ts'), 'utf8');
+  const paymentConfig = readFileSync(resolve(expensesRoot, 'PaymentAccounts/paymentAccountsTableConfig.ts'), 'utf8');
+  const persistenceSource = readFileSync(resolve(expensesRoot, 'hooks/usePersistentTableColumns.ts'), 'utf8');
+  const providersPage = readFileSync(resolve(expensesRoot, 'Providers/ProveedoresPage.tsx'), 'utf8');
+  const accountingPage = readFileSync(resolve(expensesRoot, 'AccountingAccounts/AccountingAccounts.tsx'), 'utf8');
+  const paymentPage = readFileSync(resolve(expensesRoot, 'PaymentAccounts/PaymentAccounts.tsx'), 'utf8');
+
+  for (const key of ['folio', 'name', 'type', 'contactName', 'accountingAccount', 'status']) {
+    assert.match(providersConfig, new RegExp(`key: '${key}'.*visible: true`));
+  }
+  for (const key of ['company', 'businessUnit', 'business', 'email', 'phone', 'taxId', 'address', 'attachments', 'authorizer', 'performer']) {
+    assert.match(providersConfig, new RegExp(`key: '${key}'.*visible: false`));
+  }
+  for (const key of ['code', 'name', 'type', 'isActive']) {
+    assert.match(accountingConfig, new RegExp(`key: '${key}'.*visible: true`));
+  }
+  for (const key of ['countryCode', 'localStandard', 'statementSection', 'unitId', 'businessId', 'description', 'balance']) {
+    assert.match(accountingConfig, new RegExp(`key: '${key}'.*visible: false`));
+  }
+  for (const key of ['name', 'type', 'accountNumber', 'balance', 'currency', 'isActive']) {
+    assert.match(paymentConfig, new RegExp(`key: '${key}'.*visible: true`));
+  }
+  for (const key of ['unitId', 'businessId', 'bank', 'lastTransaction']) {
+    assert.match(paymentConfig, new RegExp(`key: '${key}'.*visible: false`));
+  }
+  assert.match(persistenceSource, /matchesLegacyFactoryPreset/);
+  assert.match(persistenceSource, /String\(column\.key\) === preset\.orderedKeys\[index\]/);
+  assert.match(persistenceSource, /column\.visible === visibleKeys\.has/);
+  for (const source of [providersPage, accountingPage, paymentPage]) {
+    assert.match(source, /legacyFactoryPresets:/);
+  }
 });
 
 test('Gastos permite integración masiva validada y protege registros con origen financiero', () => {
@@ -309,4 +367,102 @@ test('La memoria de Expenses conserva filtros, orden y pagina sin reabrir operac
     /type \w+WorkspaceState = \{[^}]*(?:draft|editing|Modal|pendingDelete)/s,
     'La memoria de navegacion no debe persistir borradores, modales ni eliminaciones pendientes',
   );
+});
+
+test('Control presupuestal usa los contratos compartidos de filtros, tabla y vista movil', () => {
+  const filtersSource = readFileSync(resolve(expensesRoot, 'components/filters/BudgetFiltersPanel.tsx'), 'utf8');
+  const tableSource = readFileSync(resolve(expensesRoot, 'Budgets/components/BudgetLinesTable.tsx'), 'utf8');
+  const mobileSource = readFileSync(resolve(expensesRoot, 'Budgets/components/BudgetLineMobileCards.tsx'), 'utf8');
+  const sharedFiltersSource = readFileSync(resolve(root, 'src/app/components/frontend-os/IndiceFilterBar.tsx'), 'utf8');
+
+  assert.match(filtersSource, /<IndiceFilterBar/);
+  assert.match(filtersSource, /<IndiceFilterSearch/);
+  assert.match(filtersSource, /<IndiceFilterSelect/);
+  assert.match(filtersSource, /label=\{t\.budgets\.health\}/);
+  assert.match(filtersSource, /label=\{t\.filters\.status\}/);
+  assert.match(tableSource, /usePersistentColumnWidths/);
+  assert.match(tableSource, /<IndiceTableHeaderRow/);
+  assert.match(tableSource, /<IndiceOperationalTable/);
+  assert.match(tableSource, /tone="green"/);
+  assert.match(tableSource, /<BudgetLineMobileCards/);
+  assert.match(mobileSource, /md:hidden/);
+  assert.match(sharedFiltersSource, /options\.filter\(option => option\.value\.trim\(\)\.length > 0\)/);
+  assert.doesNotMatch(tableSource, /<table className="min-w-\[1220px\]/);
+});
+
+test('Control presupuestal consolida KPIs y no presenta fallas locales como registros confirmados', () => {
+  const summarySource = readFileSync(resolve(expensesRoot, 'Budgets/components/BudgetSummaryBar.tsx'), 'utf8');
+  const tableSource = readFileSync(resolve(expensesRoot, 'Budgets/BudgetTable.tsx'), 'utf8');
+  const errorsSource = readFileSync(resolve(expensesRoot, 'services/finance-api.errors.ts'), 'utf8');
+
+  assert.match(summarySource, /useKpiMonetaryAggregates/);
+  assert.doesNotMatch(summarySource, /useKpiMonetaryAggregate\(/);
+  assert.match(summarySource, /getBudgetLineNumericId/);
+  assert.match(tableSource, /onExpensesChange\(currentExpenses => \[\.\.\.savedEntries, \.\.\.currentExpenses\]\)/);
+  assert.doesNotMatch(tableSource, /\[\.\.\.savedEntries, \.\.\.failedEntries, \.\.\.currentExpenses\]/);
+  assert.match(tableSource, /Promise\.allSettled\(expenseIds\.map/);
+  assert.match(tableSource, /confirmDisabled=\{isDeleting\}/);
+  assert.doesNotMatch(errorsSource, /\?\? backendMessage/);
+});
+
+test('El asistente de presupuesto obtiene toda la copia visible desde i18n', () => {
+  const modalSource = readFileSync(resolve(expensesRoot, 'components/modals/BudgetCreateModal.tsx'), 'utf8');
+  const taxSource = readFileSync(resolve(expensesRoot, 'components/modals/BudgetTaxControls.tsx'), 'utf8');
+
+  assert.match(modalSource, /t\.budgets\.modal\.reviewStep/);
+  assert.match(modalSource, /t\.budgets\.modal\.saving/);
+  assert.match(modalSource, /t\.budgets\.modal\.validationTitle/);
+  assert.match(modalSource, /formatBudgetCurrency/);
+  assert.match(taxSource, /t\.budgets\.modal\.taxRatePlaceholder/);
+  assert.doesNotMatch(modalSource, /Revisi[oÃ³]n final|Guardando|No se pudo guardar|Resumen del presupuesto/);
+});
+
+test('Las barras operativas de Finanzas permiten navegar por estado sin duplicar motores visuales', () => {
+  const sharedSource = readFileSync(resolve(root, 'src/app/BasicModules/shared/operational/OperationalKpiArea.tsx'), 'utf8');
+  const expensesSummary = readFileSync(resolve(expensesRoot, 'components/kpis/ExpensesSummary.tsx'), 'utf8');
+  const budgetSummary = readFileSync(resolve(expensesRoot, 'Budgets/components/BudgetSummaryBar.tsx'), 'utf8');
+  const accountingSummary = readFileSync(resolve(expensesRoot, 'AccountingAccounts/components/AccountingAccountsSummary.tsx'), 'utf8');
+  const paymentSummary = readFileSync(resolve(expensesRoot, 'PaymentAccounts/components/PaymentAccountsSummary.tsx'), 'utf8');
+
+  assert.match(sharedSource, /export function OperationalStatusNavigator/);
+  assert.match(sharedSource, /aria-pressed=\{active\}/);
+  assert.match(sharedSource, /segment\.onClick/);
+  assert.match(expensesSummary, /onStatusChange\('pending_and_overdue'\)/);
+  assert.match(expensesSummary, /onStatusChange\('overdue'\)/);
+  assert.match(expensesSummary, /onStatusChange\('paid'\)/);
+  assert.match(budgetSummary, /onHealthChange\('EXCEEDED'\)/);
+  assert.match(budgetSummary, /onHealthChange\('WARNING'\)/);
+  assert.doesNotMatch(budgetSummary, /else if \(healthTotals\.warningCount/);
+  assert.match(accountingSummary, /<OperationalStatusNavigator/);
+  assert.match(paymentSummary, /<OperationalStatusNavigator/);
+});
+
+test('Indicadores usa alcance monetario unico, filtros progresivos y PDF coherente', () => {
+  const pageSource = readFileSync(resolve(expensesRoot, 'KPIs/GastosKPIPage.tsx'), 'utf8');
+  const overviewSource = readFileSync(resolve(expensesRoot, 'KPIs/useFinancialOverview.ts'), 'utf8');
+
+  assert.match(pageSource, /const allBudgetLineIds = overview\.filteredBudgetLines/);
+  assert.match(pageSource, /metric: 'BUDGET_PLANNED'.*ids: allBudgetLineIds/);
+  assert.match(pageSource, /metric: 'BUDGET_ACTUAL'.*ids: allBudgetLineIds/);
+  assert.match(pageSource, /const expenseCount = overview\.filteredExpenses\.length/);
+  assert.match(pageSource, /costDrivers: driverRows/);
+  assert.match(pageSource, /overview: overviewForPdf/);
+  assert.match(pageSource, /disabled=\{!isCompanyPrintIdentityReady \|\| monetaryDataLoading \|\| monetaryDataError\}/);
+  assert.match(pageSource, /<IndiceFilterBar/);
+  assert.match(pageSource, /<IndiceFilterDisclosureActions/);
+  assert.match(pageSource, /<IndiceFilterAdvancedSection/);
+  assert.match(pageSource, /<OperationalKpiCurrencyStrip/);
+  assert.doesNotMatch(pageSource, /metrics\.expenseCount \* 5/);
+  assert.match(overviewSource, /paymentStatus === 'OPEN' && expense\.paymentStatus !== 'PAID'/);
+});
+
+test('Las tarjetas de Indicadores exponen formula, umbral y acciones de seguimiento', () => {
+  const pageSource = readFileSync(resolve(expensesRoot, 'KPIs/GastosKPIPage.tsx'), 'utf8');
+
+  assert.match(pageSource, /45% pagos · 35% sin vencimiento · 20% evidencia/);
+  assert.match(pageSource, /onAction: \(\) => setPaymentStatus\('PAID'\)/);
+  assert.match(pageSource, /onAction: \(\) => setPaymentStatus\('OPEN'\)/);
+  assert.match(pageSource, /onAction: \(\) => setPaymentStatus\('OVERDUE'\)/);
+  assert.match(pageSource, /typeof progress === 'number'/);
+  assert.match(pageSource, /formatter=\{\(value\) => displayMoney\(Number\(value\)\)\}/);
 });

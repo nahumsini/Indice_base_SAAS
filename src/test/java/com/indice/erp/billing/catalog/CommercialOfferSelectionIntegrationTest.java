@@ -189,6 +189,84 @@ class CommercialOfferSelectionIntegrationTest {
             .hasMessageContaining("repite el módulo");
     }
 
+    @Test
+    @Transactional
+    void pricesTheApprovedGlobalOfferIncludingVolumeModulesAndUndiscountedAnnualSeats() {
+        activateApprovedGlobalDraft();
+
+        assertThat(service.activeProducts("MONTH"))
+            .extracting(CommercialOfferSelection.Product::code)
+            .containsExactly(
+                "module_hr", "module_process_tasks", "module_expenses",
+                "module_sales_inventory", "module_pos_inventory", "module_receivables",
+                "controla", "escala_sales", "escala_pos", "corporativiza"
+            );
+
+        var oneModule = service.select(List.of("module_hr"), "MONTH", 0);
+        assertThat(oneModule.offerCode()).isEqualTo("module_hr");
+        assertThat(oneModule.estimatedAmountCents()).isEqualTo(7_900);
+
+        var oneModuleAnnual = service.select(List.of("module_hr"), "YEAR", 0);
+        assertThat(oneModuleAnnual.estimatedAmountCents()).isEqualTo(75_840);
+
+        var twoModules = service.select(
+            List.of("module_sales_inventory", "module_pos_inventory"), "MONTH", 0
+        );
+        assertThat(twoModules.estimatedAmountCents()).isEqualTo(9_800);
+        assertThat(twoModules.lineItems())
+            .extracting(CommercialOfferSelection.LineItem::billableCode)
+            .containsExactly("module_additional_unit");
+        assertThat(twoModules.lineItems().getFirst().quantity()).isEqualTo(2);
+
+        var twoModulesAnnual = service.select(
+            List.of("module_hr", "module_process_tasks"), "YEAR", 0
+        );
+        assertThat(twoModulesAnnual.estimatedAmountCents()).isEqualTo(94_080);
+
+        assertThat(service.select(List.of("controla"), "MONTH", 0).estimatedAmountCents())
+            .isEqualTo(9_900);
+        assertThat(service.select(List.of("controla"), "YEAR", 0).estimatedAmountCents())
+            .isEqualTo(95_040);
+        assertThat(service.select(List.of("escala_sales"), "MONTH", 0).estimatedAmountCents())
+            .isEqualTo(14_900);
+        assertThat(service.select(List.of("escala_pos"), "MONTH", 0).estimatedAmountCents())
+            .isEqualTo(14_900);
+        assertThat(service.select(List.of("corporativiza"), "MONTH", 2).estimatedAmountCents())
+            .isEqualTo(22_300);
+        assertThat(service.select(List.of("corporativiza"), "YEAR", 2).estimatedAmountCents())
+            .isEqualTo(219_840);
+
+        var packageWithModule = service.select(List.of("controla", "module_expenses"), "MONTH", 0);
+        assertThat(packageWithModule.estimatedAmountCents()).isEqualTo(14_800);
+        assertThat(packageWithModule.lineItems())
+            .extracting(CommercialOfferSelection.LineItem::billableCode)
+            .containsExactly("controla", "module_additional_unit");
+
+        assertThatThrownBy(() -> service.select(
+            List.of("controla", "module_hr"), "MONTH", 0
+        ))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("repite el módulo");
+    }
+
+    private void activateApprovedGlobalDraft() {
+        var versionId = jdbcTemplate.queryForObject(
+            "SELECT id FROM billing_catalog_versions WHERE version_code = '2026.08-global-v1'",
+            Long.class
+        );
+        jdbcTemplate.update(
+            "UPDATE billing_catalog_versions SET status = 'SUPERSEDED', effective_to = CURRENT_TIMESTAMP WHERE status = 'ACTIVE'"
+        );
+        jdbcTemplate.update(
+            "UPDATE billing_catalog_versions SET status = 'ACTIVE', effective_from = CURRENT_TIMESTAMP WHERE id = ?",
+            versionId
+        );
+        jdbcTemplate.update(
+            "UPDATE billing_catalog_prices SET status = 'READY' WHERE catalog_version_id = ?",
+            versionId
+        );
+    }
+
     private long insertProduct(long versionId, String code, String name, String kind, int sortOrder) {
         jdbcTemplate.update(
             """

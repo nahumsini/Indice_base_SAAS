@@ -1,6 +1,6 @@
 import { AlertTriangle, CircleDollarSign, Clock3, Percent, ReceiptText } from 'lucide-react';
 import type { Expense, ExpenseStatus } from '../../types/expenses.types';
-import type { ExpenseTotals } from '../../types/expenseView.types';
+import type { ExpenseListFilters, ExpenseTotals } from '../../types/expenseView.types';
 import { useExpensesTranslations } from '../../Expenses/hooks/useExpensesTranslations';
 import {
   defaultBusinessCurrency,
@@ -15,7 +15,9 @@ import { useLanguage } from '../../../../shared/context';
 type ExpensesSummaryProps = {
   expenses: Expense[];
   preferredCurrency?: string;
+  statusFilter: ExpenseListFilters['statusFilter'];
   totals: ExpenseTotals;
+  onStatusChange: (status: ExpenseListFilters['statusFilter']) => void;
 };
 
 type StatusMetric = {
@@ -39,7 +41,9 @@ const statusConfig: Array<Omit<StatusMetric, 'amount' | 'amountLabel' | 'count' 
 
 export function ExpensesSummary({
   expenses,
+  onStatusChange,
   preferredCurrency = defaultBusinessCurrency,
+  statusFilter,
   totals,
 }: ExpensesSummaryProps) {
   const t = useExpensesTranslations();
@@ -81,18 +85,39 @@ export function ExpensesSummary({
       : t.expenses.summary.insightAllSettled;
 
   const alertChips: OperationalAlertChip[] = [];
-  if (totals.overdueCount > 0) alertChips.push({ id: 'overdue', tone: 'danger', icon: <AlertTriangle className="h-3.5 w-3.5" />, label: t.expenses.summary.overdue(totals.overdueCount) });
-  if (openPaymentCount > 0) alertChips.push({ id: 'open', tone: 'warning', icon: <Clock3 className="h-3.5 w-3.5" />, label: t.expenses.summary.openBalanceChip(openPaymentCount) });
+  if (totals.overdueCount > 0) alertChips.push({
+    id: 'overdue',
+    tone: 'danger',
+    icon: <AlertTriangle className="h-3.5 w-3.5" />,
+    label: t.expenses.summary.overdue(totals.overdueCount),
+    active: statusFilter === 'overdue',
+    onClick: () => onStatusChange('overdue'),
+  });
+  if (openPaymentCount > 0) alertChips.push({
+    id: 'open',
+    tone: 'warning',
+    icon: <Clock3 className="h-3.5 w-3.5" />,
+    label: t.expenses.summary.openBalanceChip(openPaymentCount),
+    active: statusFilter === 'pending_and_overdue',
+    onClick: () => onStatusChange('pending_and_overdue'),
+  });
 
   return <OperationalKpiArea
     alertChips={alertChips}
     metrics={[
-      { id: 'total', icon: <ReceiptText className="h-4 w-4" />, label: t.expenses.summary.metricTotalVisible(expenses.length), value: totalAmountLabel },
-      { id: 'open', icon: <CircleDollarSign className="h-4 w-4" />, label: t.expenses.summary.metricOpenBalance, value: openAmountLabel, valueClassName: 'text-amber-600' },
-      { id: 'overdue', icon: <Clock3 className="h-4 w-4" />, label: t.expenses.summary.metricOverdue, value: overdueAmountLabel, valueClassName: 'text-rose-600' },
-      { id: 'compliance', icon: <Percent className="h-4 w-4" />, label: t.expenses.summary.metricCompliance, value: `${paidPercentage.toFixed(0)}%`, valueClassName: 'text-sky-600' },
+      { id: 'total', icon: <ReceiptText className="h-4 w-4" />, label: t.expenses.summary.metricTotalVisible(expenses.length), value: totalAmountLabel, active: statusFilter === 'all', onClick: () => onStatusChange('all') },
+      { id: 'open', icon: <CircleDollarSign className="h-4 w-4" />, label: t.expenses.summary.metricOpenBalance, value: openAmountLabel, valueClassName: 'text-amber-600', active: statusFilter === 'pending_and_overdue', onClick: () => onStatusChange('pending_and_overdue') },
+      { id: 'overdue', icon: <Clock3 className="h-4 w-4" />, label: t.expenses.summary.metricOverdue, value: overdueAmountLabel, valueClassName: 'text-rose-600', active: statusFilter === 'overdue', onClick: () => onStatusChange('overdue') },
+      { id: 'settled', icon: <Percent className="h-4 w-4" />, label: t.expenses.summary.metricCompliance, value: `${paidPercentage.toFixed(0)}%`, valueClassName: 'text-sky-600', active: statusFilter === 'paid', onClick: () => onStatusChange('paid') },
     ]}
-    distributionSegments={statusMetrics.map((metric) => ({ id: metric.status, label: metric.label, count: metric.count, className: metric.barClass }))}
+    distributionSegments={statusMetrics.map((metric) => ({
+      id: metric.status,
+      label: metric.label,
+      count: metric.count,
+      className: metric.barClass,
+      active: statusFilter === metric.status,
+      onClick: () => onStatusChange(metric.status),
+    }))}
     insight={insight}
     insightIcon={<AlertTriangle className="h-4 w-4" />}
     currencyContext={{

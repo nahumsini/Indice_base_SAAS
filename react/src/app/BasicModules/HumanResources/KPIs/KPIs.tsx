@@ -7,12 +7,10 @@ import {
   CheckCircle2,
   ClipboardList,
   FileWarning,
-  Filter,
   IdCard,
   Laptop,
   Printer,
   RefreshCw,
-  Search,
   ShieldCheck,
   Users,
 } from 'lucide-react';
@@ -45,6 +43,17 @@ import {
 } from '../../../api/humanResources';
 import { LoadingBarOverlay, runWithMinimumDuration } from '../../../components/LoadingBarOverlay';
 import { cn } from '../../../components/ui/utils';
+import {
+  IndiceFilterAdvancedSection,
+  IndiceFilterBar,
+  IndiceFilterDisclosureActions,
+  IndiceFilterField,
+  IndiceFilterSearch,
+  IndiceFilterSelect,
+  getIndiceFilterControlClassName,
+  useIndiceFilterDisclosureCopy,
+} from '../../../components/frontend-os';
+import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 import { useLanguage } from '../../../shared/context';
 import { formatBusinessCurrencyAmount } from '../../shared/businessCurrency';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
@@ -59,6 +68,16 @@ import { getHrKpiStandardCopy } from './translations/standardUiCopy';
 
 type PeriodFilter = 'thisMonth' | 'lastMonth' | 'thisQuarter' | 'annualized' | 'specificDate';
 type HealthStatus = 'healthy' | 'watch' | 'critical';
+
+type HrKpiWorkspaceState = {
+  searchQuery: string;
+  selectedDate: string;
+  periodFilter: PeriodFilter;
+  unitFilter: string;
+  businessFilter: string;
+  departmentFilter: string;
+  attendanceStatusFilter: string;
+};
 
 interface KpiCardModel {
   id: string;
@@ -493,35 +512,11 @@ function KpiCard({ card, copy }: { card: KpiCardModel; copy: KPIsTranslations })
   );
 }
 
-function SelectField({
-  label,
-  value,
-  onChange,
-  children,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  children: ReactNode;
-}) {
-  return (
-    <label className="flex min-w-0 flex-col gap-2 overflow-hidden">
-      <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-11 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900/30"
-      >
-        {children}
-      </select>
-    </label>
-  );
-}
-
 export default function KPIs() {
   const copy = useKPIsTranslations();
   const { currentLanguage } = useLanguage();
   const standardCopy = getHrKpiStandardCopy(currentLanguage.code);
+  const disclosureCopy = useIndiceFilterDisclosureCopy();
   const { preferredCurrency } = usePreferredBusinessCurrency();
   const { identity: companyPrintIdentity, isReady: isCompanyPrintIdentityReady } = useCompanyPrintIdentity();
   const [employees, setEmployees] = useState<BackendHrUser[]>([]);
@@ -543,9 +538,53 @@ export default function KPIs() {
   const [departmentFilter, setDepartmentFilter] = useState(allValue);
   const [attendanceStatusFilter, setAttendanceStatusFilter] = useState(allValue);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [sourceWarnings, setSourceWarnings] = useState<string[]>([]);
   const [lastUpdatedAt, setLastUpdatedAt] = useState('');
+  const workspaceDefaults = useMemo<HrKpiWorkspaceState>(() => ({
+    searchQuery: '',
+    selectedDate: todayIsoDate(),
+    periodFilter: 'thisMonth',
+    unitFilter: allValue,
+    businessFilter: allValue,
+    departmentFilter: allValue,
+    attendanceStatusFilter: allValue,
+  }), []);
+  const workspaceState = useMemo<HrKpiWorkspaceState>(() => ({
+    searchQuery,
+    selectedDate,
+    periodFilter,
+    unitFilter,
+    businessFilter,
+    departmentFilter,
+    attendanceStatusFilter,
+  }), [attendanceStatusFilter, businessFilter, departmentFilter, periodFilter, searchQuery, selectedDate, unitFilter]);
+
+  useWorkspaceNavigationMemory({
+    moduleKey: 'human-resources',
+    tabKey: 'kpis',
+    state: workspaceState,
+    defaults: workspaceDefaults,
+    urlFields: {
+      searchQuery: 'q',
+      selectedDate: 'date',
+      periodFilter: 'period',
+      unitFilter: 'unit',
+      businessFilter: 'business',
+      departmentFilter: 'department',
+      attendanceStatusFilter: 'status',
+    },
+    onRestore: (restoredState) => {
+      setSearchQuery(typeof restoredState.searchQuery === 'string' ? restoredState.searchQuery : '');
+      setSelectedDate(/^\d{4}-\d{2}-\d{2}$/.test(restoredState.selectedDate) ? restoredState.selectedDate : workspaceDefaults.selectedDate);
+      setPeriodFilter(['thisMonth', 'lastMonth', 'thisQuarter', 'annualized', 'specificDate'].includes(restoredState.periodFilter) ? restoredState.periodFilter : 'thisMonth');
+      setUnitFilter(typeof restoredState.unitFilter === 'string' ? restoredState.unitFilter : allValue);
+      setBusinessFilter(typeof restoredState.businessFilter === 'string' ? restoredState.businessFilter : allValue);
+      setDepartmentFilter(typeof restoredState.departmentFilter === 'string' ? restoredState.departmentFilter : allValue);
+      setAttendanceStatusFilter(typeof restoredState.attendanceStatusFilter === 'string' ? restoredState.attendanceStatusFilter : allValue);
+    },
+  });
 
   const filters = useMemo(
     () => ({ searchQuery, unitFilter, businessFilter, departmentFilter }),
@@ -1295,6 +1334,30 @@ export default function KPIs() {
     [copy.dashboard.filters],
   );
   const periodRange = useMemo(() => periodRangeFor(periodFilter, selectedDate), [periodFilter, selectedDate]);
+  const activeAdvancedFilterCount = [unitFilter, businessFilter, departmentFilter]
+    .filter((value) => value !== allValue).length;
+  const hasActiveFilters = Boolean(
+    searchQuery.trim()
+      || periodFilter !== 'thisMonth'
+      || selectedDate !== workspaceDefaults.selectedDate
+      || attendanceStatusFilter !== allValue
+      || activeAdvancedFilterCount > 0,
+  );
+
+  useEffect(() => {
+    if (activeAdvancedFilterCount > 0) setShowAdvancedFilters(true);
+  }, [activeAdvancedFilterCount]);
+
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setUnitFilter(allValue);
+    setBusinessFilter(allValue);
+    setPeriodFilter('thisMonth');
+    setAttendanceStatusFilter(allValue);
+    setDepartmentFilter(allValue);
+    setSelectedDate(todayIsoDate());
+    setShowAdvancedFilters(false);
+  };
   const periodLabel = periodOptions.find((option) => option.value === periodFilter)?.label ?? copy.dashboard.filters.thisMonth;
   const periodScopeLabel = periodFilter === 'specificDate'
     ? formatDateLabel(selectedDate, currentLanguage.code)
@@ -1398,87 +1461,98 @@ export default function KPIs() {
           </>}
       />
 
-      <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-center gap-2 text-sm font-medium text-slate-900 dark:text-white">
-            <Filter className="h-4 w-4 text-emerald-500" />
-            {copy.dashboard.filters.title}
-          </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs font-medium text-slate-500 dark:text-slate-400 sm:justify-end">
-            <span>{standardCopy.results(filteredEmployees.length)}</span>
-            <button type="button" onClick={() => { setSearchQuery(''); setUnitFilter(allValue); setBusinessFilter(allValue); setPeriodFilter('thisMonth'); setAttendanceStatusFilter(allValue); setDepartmentFilter(allValue); setSelectedDate(todayIsoDate()); }} className="inline-flex items-center gap-1.5 transition hover:text-emerald-600 dark:hover:text-emerald-300"><RefreshCw className="h-3.5 w-3.5" />{standardCopy.clear}</button>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          <label className="flex min-w-0 flex-col gap-2 md:col-span-2">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              {copy.dashboard.filters.search}
-            </span>
-            <span className="relative block min-w-0">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder={copy.dashboard.filters.searchPlaceholder}
-                className="h-11 w-full min-w-0 rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900/30"
-              />
-            </span>
-          </label>
+      <IndiceFilterBar
+        gridClassName="lg:grid-cols-4"
+        title={copy.dashboard.filters.title}
+        summary={(
+          <IndiceFilterDisclosureActions
+            activeAdvancedCount={activeAdvancedFilterCount}
+            advancedLabel={showAdvancedFilters ? disclosureCopy.hideFilters : disclosureCopy.moreFilters}
+            clearLabel={disclosureCopy.clearFilters}
+            hasActiveFilters={hasActiveFilters}
+            isAdvancedOpen={showAdvancedFilters}
+            onClear={handleClearFilters}
+            onToggleAdvanced={() => setShowAdvancedFilters((current) => !current)}
+            resultSummary={standardCopy.results(filteredEmployees.length)}
+            tone="aqua"
+          />
+        )}
+      >
+        <IndiceFilterSearch
+          label={copy.dashboard.filters.search}
+          value={searchQuery}
+          onValueChange={setSearchQuery}
+          onClear={() => setSearchQuery('')}
+          placeholder={copy.dashboard.filters.searchPlaceholder}
+          tone="aqua"
+        />
+        <IndiceFilterSelect
+          label={copy.dashboard.filters.period}
+          value={periodFilter}
+          onValueChange={(value) => setPeriodFilter(value as PeriodFilter)}
+          options={periodOptions}
+          tone="aqua"
+        />
+        <IndiceFilterField label={standardCopy.operationalDate}>
+          <input
+            aria-label={standardCopy.operationalDate}
+            type="date"
+            value={selectedDate}
+            onChange={(event) => setSelectedDate(event.target.value || todayIsoDate())}
+            className={getIndiceFilterControlClassName('aqua')}
+          />
+        </IndiceFilterField>
+        <IndiceFilterSelect
+          label={standardCopy.status}
+          value={attendanceStatusFilter}
+          onValueChange={setAttendanceStatusFilter}
+          options={[
+            { value: allValue, label: standardCopy.allStatuses },
+            { value: 'on_time', label: copy.dashboard.labels.onTime },
+            { value: 'late', label: copy.dashboard.labels.late },
+            { value: 'leave', label: copy.dashboard.labels.leave },
+            { value: 'rest', label: copy.dashboard.labels.rest },
+            { value: 'absence', label: copy.dashboard.labels.absence },
+            { value: 'pending', label: copy.dashboard.labels.noRecord },
+          ]}
+          tone="aqua"
+        />
 
-          <SelectField label={copy.dashboard.filters.unit} value={unitFilter} onChange={(value) => { setUnitFilter(value); setBusinessFilter(allValue); }}>
-            <option value={allValue}>{copy.dashboard.filters.allUnits}</option>
-            {unitOptions.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
-          </SelectField>
-
-          <SelectField label={copy.dashboard.filters.business} value={businessFilter} onChange={setBusinessFilter}>
-            <option value={allValue}>{copy.dashboard.filters.allBusinesses}</option>
-            {businessOptions.map((business) => <option key={business.id} value={business.id}>{business.name}</option>)}
-          </SelectField>
-
-          <label className="flex min-w-0 flex-col gap-2 overflow-hidden">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              {copy.dashboard.filters.period}
-            </span>
-            <div className="grid gap-2">
-              <select
-                value={periodFilter}
-                onChange={(event) => setPeriodFilter(event.target.value as PeriodFilter)}
-                className="h-11 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900/30"
-              >
-                {periodOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </label>
-
-          <SelectField label={standardCopy.status} value={attendanceStatusFilter} onChange={setAttendanceStatusFilter}>
-            <option value={allValue}>{standardCopy.allStatuses}</option>
-            <option value="on_time">{copy.dashboard.labels.onTime}</option>
-            <option value="late">{copy.dashboard.labels.late}</option>
-            <option value="leave">{copy.dashboard.labels.leave}</option>
-            <option value="rest">{copy.dashboard.labels.rest}</option>
-            <option value="absence">{copy.dashboard.labels.absence}</option>
-            <option value="pending">{copy.dashboard.labels.noRecord}</option>
-          </SelectField>
-
-          <SelectField label={copy.dashboard.filters.department} value={departmentFilter} onChange={setDepartmentFilter}>
-            <option value={allValue}>{copy.dashboard.filters.allDepartments}</option>
-            {departmentOptions.map((department) => (
-              <option key={department} value={department}>
-                {department}
-              </option>
-            ))}
-          </SelectField>
-
-          <label className="flex min-w-0 flex-col gap-2 overflow-hidden">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{standardCopy.operationalDate}</span>
-            <input aria-label={standardCopy.operationalDate} type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value || todayIsoDate())} className="h-11 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900/30" />
-          </label>
-        </div>
-      </section>
+        {showAdvancedFilters ? (
+          <IndiceFilterAdvancedSection className="md:col-span-2 lg:col-span-4" gridClassName="lg:grid-cols-3">
+            <IndiceFilterSelect
+              label={copy.dashboard.filters.unit}
+              value={unitFilter}
+              onValueChange={(value) => { setUnitFilter(value); setBusinessFilter(allValue); }}
+              options={[
+                { value: allValue, label: copy.dashboard.filters.allUnits },
+                ...unitOptions.map((unit) => ({ value: String(unit.id), label: unit.name })),
+              ]}
+              tone="aqua"
+            />
+            <IndiceFilterSelect
+              label={copy.dashboard.filters.business}
+              value={businessFilter}
+              onValueChange={setBusinessFilter}
+              options={[
+                { value: allValue, label: copy.dashboard.filters.allBusinesses },
+                ...businessOptions.map((business) => ({ value: String(business.id), label: business.name })),
+              ]}
+              tone="aqua"
+            />
+            <IndiceFilterSelect
+              label={copy.dashboard.filters.department}
+              value={departmentFilter}
+              onValueChange={setDepartmentFilter}
+              options={[
+                { value: allValue, label: copy.dashboard.filters.allDepartments },
+                ...departmentOptions.map((department) => ({ value: department, label: department })),
+              ]}
+              tone="aqua"
+            />
+          </IndiceFilterAdvancedSection>
+        ) : null}
+      </IndiceFilterBar>
 
       {sourceWarnings.length > 0 ? (
         <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">

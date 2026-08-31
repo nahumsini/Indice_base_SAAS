@@ -20,6 +20,18 @@ import { useControlKioskActions } from "./useControlKioskActions";
 import { useControlSaveActions } from "./useControlSaveActions";
 import { useControlToasts } from "./useControlToasts";
 import { useControlTranslations } from "./useControlTranslations";
+import { useWorkspaceNavigationMemory } from "../../../../hooks/useWorkspaceNavigationMemory";
+import { todayIsoDate } from "../utils/control.utils";
+
+type ControlWorkspaceState = {
+  searchQuery: string;
+  unitFilter: string;
+  businessFilter: string;
+  statusFilter: string;
+  controlDate: string;
+  attendanceListPage: number;
+  attendanceListPageSize: number;
+};
 
 export function useControlController(): ControlControllerResult {
   const { currentLanguage } = useLanguage();
@@ -89,6 +101,59 @@ export function useControlController(): ControlControllerResult {
     controlDate,
     copy,
     overview,
+  });
+  const workspaceDefaults = useMemo<ControlWorkspaceState>(() => ({
+    searchQuery: "",
+    unitFilter: "all",
+    businessFilter: "all",
+    statusFilter: "all",
+    controlDate: todayIsoDate(),
+    attendanceListPage: 1,
+    attendanceListPageSize: 10,
+  }), []);
+  const workspaceState = useMemo<ControlWorkspaceState>(() => ({
+    searchQuery: filters.searchQuery,
+    unitFilter: filters.unitFilter,
+    businessFilter: filters.businessFilter,
+    statusFilter: filters.statusFilter,
+    controlDate,
+    attendanceListPage: filters.attendanceListPage,
+    attendanceListPageSize: filters.attendanceListPageSize,
+  }), [
+    controlDate,
+    filters.attendanceListPage,
+    filters.attendanceListPageSize,
+    filters.businessFilter,
+    filters.searchQuery,
+    filters.statusFilter,
+    filters.unitFilter,
+  ]);
+
+  useWorkspaceNavigationMemory({
+    moduleKey: "human-resources",
+    tabKey: "control",
+    state: workspaceState,
+    defaults: workspaceDefaults,
+    urlFields: {
+      searchQuery: "q",
+      unitFilter: "unit",
+      businessFilter: "business",
+      statusFilter: "status",
+      controlDate: "date",
+    },
+    onRestore: (restoredState) => {
+      filters.setSearchQuery(typeof restoredState.searchQuery === "string" ? restoredState.searchQuery : "");
+      filters.setUnitFilter(typeof restoredState.unitFilter === "string" ? restoredState.unitFilter : "all");
+      filters.setBusinessFilter(typeof restoredState.businessFilter === "string" ? restoredState.businessFilter : "all");
+      filters.setStatusFilter(typeof restoredState.statusFilter === "string" ? restoredState.statusFilter : "all");
+      setControlDate(/^\d{4}-\d{2}-\d{2}$/.test(restoredState.controlDate) ? restoredState.controlDate : workspaceDefaults.controlDate);
+      filters.setAttendanceListPage(Number.isInteger(restoredState.attendanceListPage) && restoredState.attendanceListPage > 0 ? restoredState.attendanceListPage : 1);
+      filters.setAttendanceListPageSize(
+        filters.attendanceListPageSizeOptions.includes(restoredState.attendanceListPageSize as (typeof filters.attendanceListPageSizeOptions)[number])
+          ? restoredState.attendanceListPageSize
+          : workspaceDefaults.attendanceListPageSize,
+      );
+    },
   });
   const [isKioskQrDialogOpen, setIsKioskQrDialogOpen] = useState(false);
   const calendarSelection = useCalendarDateSelection({

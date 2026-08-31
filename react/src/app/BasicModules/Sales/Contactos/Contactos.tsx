@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  CloudDownload,
   Columns3,
   Mail,
   MessageCircle,
@@ -11,6 +12,7 @@ import {
 } from 'lucide-react';
 import { authApi } from '../../../api/auth';
 import { humanResourcesApi } from '../../../api/humanResources';
+import { IndiceTitleBarOverflow } from '../../../components/frontend-os';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
 import { DataTablePagination } from '../../../components/table/DataTablePagination';
@@ -71,6 +73,7 @@ import { ContactFiscalBadge } from './components/ContactFiscalBadge';
 import { ContactFormModal } from './components/ContactFormModal';
 import { ContactLearningGuide } from './components/ContactLearningGuide';
 import { ImportContactsModal } from './components/ImportContactsModal';
+import { MetaLeadImportModal } from './components/MetaLeadImportModal';
 import { ContactRelationshipSignal } from './components/ContactRelationshipSignal';
 import {
   defaultContactVisibleColumns,
@@ -154,10 +157,11 @@ const contactosWorkspaceUrlFields: Partial<Record<keyof ContactosWorkspaceState,
 export default function Contactos({ learningModeActive = false, titleBarTitle }: ContactosProps) {
   const t = useContactosTranslations();
   const learningCopy = useContactosLearningTranslations();
-  const { contacts, opportunities, quotes, addContact, updateContact, deleteContact } = useSalesCrm();
+  const { contacts, opportunities, quotes, addContact, updateContact, deleteContact, reloadAll } = useSalesCrm();
   const [searchQuery, setSearchQuery] = useState('');
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isMetaImportModalOpen, setIsMetaImportModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<SalesContact | null>(null);
   const [pendingDeleteContact, setPendingDeleteContact] = useState<SalesContact | null>(null);
   const [form, setForm] = useState<ContactFormState>(initialContactForm);
@@ -634,19 +638,19 @@ export default function Contactos({ learningModeActive = false, titleBarTitle }:
               type="button"
               variant="outline"
               className={salesTitleBarSecondaryActionClassName}
-              onClick={() => setIsColumnsModalOpen(true)}
+              onClick={() => setIsImportModalOpen(true)}
             >
-              <Columns3 className="h-4 w-4" />
-              {t.header.columnsAction}
+              <UploadCloud className="h-4 w-4" />
+              {t.header.importContacts}
             </Button>
             <Button
               type="button"
               variant="outline"
               className={salesTitleBarSecondaryActionClassName}
-              onClick={() => setIsImportModalOpen(true)}
+              onClick={() => setIsMetaImportModalOpen(true)}
             >
-              <UploadCloud className="h-4 w-4" />
-              {t.header.importContacts}
+              <CloudDownload className="h-4 w-4" />
+              {t.metaImport.trigger}
             </Button>
             <Button
               type="button"
@@ -656,6 +660,17 @@ export default function Contactos({ learningModeActive = false, titleBarTitle }:
               <Plus className="h-4 w-4" />
               {t.header.addContact}
             </Button>
+            <IndiceTitleBarOverflow
+              label={t.table.columns.actions}
+              items={[
+                {
+                  id: 'columns',
+                  icon: <Columns3 className="h-4 w-4" />,
+                  label: t.header.columnsAction,
+                  onSelect: () => setIsColumnsModalOpen(true),
+                },
+              ]}
+            />
           </>
         )}
       />
@@ -823,6 +838,13 @@ export default function Contactos({ learningModeActive = false, titleBarTitle }:
         isOpen={isImportModalOpen}
         onOpenChange={setIsImportModalOpen}
         onImportContacts={handleImportContacts}
+      />
+
+      <MetaLeadImportModal
+        copy={t.metaImport}
+        open={isMetaImportModalOpen}
+        onOpenChange={setIsMetaImportModalOpen}
+        onImported={reloadAll}
       />
 
       <ContactDeleteDialog
