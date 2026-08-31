@@ -176,6 +176,9 @@ Flyway is now enabled in transitional baseline mode for the existing shared sche
 
 See:
 
+- [`integrations/indice-mcp/README.md`](integrations/indice-mcp/README.md) — local read-only MCP business tools
+- [`docs/indice-mcp-local-mvp.md`](docs/indice-mcp-local-mvp.md) — architecture, security boundary, and delegated-auth path
+
 - [`docs/README.md`](docs/README.md)
 - [`AGENTS.md`](AGENTS.md) — repository working rules and authority hierarchy
 - [`docs/indice-frontend-operating-system-v2.md`](docs/indice-frontend-operating-system-v2.md)
