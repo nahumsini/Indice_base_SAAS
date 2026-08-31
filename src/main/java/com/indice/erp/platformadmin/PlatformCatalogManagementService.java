@@ -784,7 +784,7 @@ public class PlatformCatalogManagementService {
             "message", "La tarifa de " + code + " cambió y debe conectarse nuevamente con Stripe."
         )));
         var products = jdbcTemplate.query(
-            "SELECT id, product_code, display_name, commercial_kind FROM billing_catalog_products WHERE catalog_version_id = ? AND active = 1 AND commercial_kind IN ('MODULE', 'PACKAGE', 'SEAT')",
+            "SELECT id, product_code, display_name, commercial_kind FROM billing_catalog_products WHERE catalog_version_id = ? AND active = 1 AND commercial_kind IN ('MODULE', 'PACKAGE', 'SEAT', 'VOLUME', 'STORAGE')",
             (rs, rowNum) -> Map.<String, Object>of(
                 "id", rs.getLong(1), "code", rs.getString(2), "name", rs.getString(3), "kind", rs.getString(4)
             ),
@@ -809,7 +809,7 @@ public class PlatformCatalogManagementService {
                 SELECT LOWER(TRIM(display_name)), GROUP_CONCAT(product_code ORDER BY product_code)
                 FROM billing_catalog_products
                 WHERE catalog_version_id = ? AND active = 1
-                  AND commercial_kind IN ('MODULE', 'PACKAGE', 'SEAT')
+                  AND commercial_kind IN ('MODULE', 'PACKAGE', 'SEAT', 'VOLUME', 'STORAGE')
                 GROUP BY LOWER(TRIM(display_name)) HAVING COUNT(*) > 1
                 """,
             (rs, rowNum) -> Map.entry(rs.getString(1), rs.getString(2)),
@@ -857,7 +857,7 @@ public class PlatformCatalogManagementService {
                     "message", "Faltan las tarifas mensual y anual conectadas con Stripe para " + product.get("name") + "."
                 ));
             }
-            if ("SEAT".equals(product.get("kind"))) continue;
+            if (List.of("SEAT", "VOLUME", "STORAGE").contains(product.get("kind"))) continue;
             var invalidCapabilities = jdbcTemplate.queryForObject(
                 """
                     SELECT COUNT(*) FROM billing_product_capabilities capability
@@ -1135,7 +1135,7 @@ public class PlatformCatalogManagementService {
     private String commercialKind(String rawValue, String productType) {
         if ("CORE".equalsIgnoreCase(productType)) return "CORE";
         var value = rawValue == null ? "MODULE" : rawValue.trim().toUpperCase(Locale.ROOT);
-        if (!List.of("MODULE", "PACKAGE", "SEAT").contains(value)) {
+        if (!List.of("MODULE", "PACKAGE", "SEAT", "VOLUME", "STORAGE").contains(value)) {
             throw new IllegalArgumentException("Tipo comercial inválido.");
         }
         return value;

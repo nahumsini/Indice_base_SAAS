@@ -202,7 +202,11 @@ export function CommercialOfferDetail({
           sort_order: product?.sort_order ?? 500, active, capabilities: product?.capabilities ?? [],
           commercial_kind: product?.commercial_kind === "PACKAGE"
             ? "PACKAGE"
-            : product?.commercial_kind === "SEAT" ? "SEAT" : "MODULE",
+            : product?.commercial_kind === "SEAT"
+              ? "SEAT"
+              : product?.commercial_kind === "VOLUME"
+                ? "VOLUME"
+                : product?.commercial_kind === "STORAGE" ? "STORAGE" : "MODULE",
           included_product_codes: product?.commercial_kind === "PACKAGE" ? included : undefined,
         });
       }

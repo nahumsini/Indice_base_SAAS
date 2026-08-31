@@ -33,7 +33,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 class PlatformCatalogManagementServiceIntegrationTest {
 
     private static final String EMAIL_PREFIX = "catalog-management-";
-    private static final String VERSION_PREFIX = "catalog-management-";
 
     @Autowired
     private JdbcTemplate jdbc;
@@ -69,12 +68,10 @@ class PlatformCatalogManagementServiceIntegrationTest {
             actorUserId,
             actorUserId
         );
-        var versionCode = VERSION_PREFIX + discriminator;
-        jdbc.update(
-            "INSERT INTO billing_catalog_versions (version_code, status) VALUES (?, 'DRAFT')",
-            versionCode
+        versionId = jdbc.queryForObject(
+            "SELECT id FROM billing_catalog_versions WHERE status = 'DRAFT' ORDER BY id DESC LIMIT 1",
+            Long.class
         );
-        versionId = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         jdbc.update(
             """
                 INSERT INTO billing_catalog_products
@@ -237,6 +234,40 @@ class PlatformCatalogManagementServiceIntegrationTest {
             .containsEntry("enabled", true)
             .containsEntry("mode", "TEST")
             .containsEntry("catalog_live_sync_enabled", false);
+    }
+
+    @Test
+    void quantityAndStorageProductsKeepTheirCommercialKindWhenEdited() {
+        for (var productCode : List.of("module_additional_unit", "storage_block_100_gib")) {
+            var helperProduct = jdbc.queryForMap(
+                "SELECT id, display_name, sort_order, active, commercial_kind FROM billing_catalog_products WHERE catalog_version_id = ? AND product_code = ?",
+                versionId,
+                productCode
+            );
+            var helperProductId = ((Number) helperProduct.get("id")).longValue();
+            var commercialKind = helperProduct.get("commercial_kind").toString();
+
+            var updated = service.updateProduct(
+                actorUserId,
+                helperProductId,
+                new PlatformCatalogManagementService.ProductUpdateRequest(
+                    helperProduct.get("display_name").toString(),
+                    ((Number) helperProduct.get("sort_order")).intValue(),
+                    Boolean.parseBoolean(helperProduct.get("active").toString()),
+                    null,
+                    commercialKind,
+                    null,
+                    null
+                )
+            );
+
+            assertThat(updated).containsEntry("commercial_kind", commercialKind);
+            assertThat(jdbc.queryForObject(
+                "SELECT commercial_kind FROM billing_catalog_products WHERE id = ?",
+                String.class,
+                helperProductId
+            )).isEqualTo(commercialKind);
+        }
     }
 
     @Test
@@ -549,10 +580,9 @@ class PlatformCatalogManagementServiceIntegrationTest {
             "DELETE FROM platform_audit_events WHERE actor_user_id IN (SELECT id FROM users WHERE email LIKE ?)",
             EMAIL_PREFIX + "%"
         );
-        jdbc.update(
-            "DELETE FROM billing_catalog_versions WHERE version_code LIKE ?",
-            VERSION_PREFIX + "%"
-        );
+        jdbc.update("DELETE FROM billing_catalog_promotions WHERE promotion_code = 'SAVE20'");
+        jdbc.update("DELETE FROM billing_catalog_prices WHERE billable_code = 'addon_catalog_management'");
+        jdbc.update("DELETE FROM billing_catalog_products WHERE product_code = 'addon_catalog_management'");
         jdbc.update(
             "DELETE FROM platform_administrators WHERE user_id IN (SELECT id FROM users WHERE email LIKE ?)",
             EMAIL_PREFIX + "%"

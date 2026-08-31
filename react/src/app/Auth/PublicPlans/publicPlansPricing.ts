@@ -47,15 +47,24 @@ export function calculatePublicPlanPricing(
     : extraSeatUnitAmountCents * normalizedExtraSeats;
 
   if (pricingMode === 'DIRECT_PRODUCTS') {
-    const amounts = selectedProducts.map((product) => findProductPrice(config, product, billingInterval));
-    const pricesReady = amounts.every((amount): amount is number => amount != null);
-    const baseAmountCents = pricesReady
-      ? amounts.reduce((total, amount) => total + amount, 0)
+    const packageProducts = selectedProducts.filter((product) => product.commercialKind === 'PACKAGE');
+    const moduleProducts = selectedProducts.filter((product) => product.commercialKind !== 'PACKAGE');
+    const packageAmounts = packageProducts.map((product) => findProductPrice(config, product, billingInterval));
+    const packagePricesReady = packageAmounts.every((amount): amount is number => amount != null);
+    const moduleAmount = moduleProducts.length === 0
+      ? 0
+      : moduleProducts.length === 1 && packageProducts.length === 0
+        ? findProductPrice(config, moduleProducts[0], billingInterval)
+        : findPublishedPrice(config, 'module_additional_unit', 'PRODUCT', billingInterval) == null
+          ? null
+          : findPublishedPrice(config, 'module_additional_unit', 'PRODUCT', billingInterval)! * moduleProducts.length;
+    const baseAmountCents = packagePricesReady && moduleAmount != null
+      ? packageAmounts.reduce((total, amount) => total + amount, 0) + moduleAmount
       : null;
     const validSelection = allCodesKnown && selectedProducts.length > 0 && !overlappingSelection;
     return {
       pricingMode,
-      offerCode: selectedProducts.length === 1 && selectedProducts[0].commercialKind === 'PACKAGE'
+      offerCode: selectedProducts.length === 1
         ? selectedProducts[0].code
         : validSelection ? 'custom_offer' : null,
       selectedBasicCount: selectedProducts.length,
@@ -139,6 +148,8 @@ export function selectAllCompatibleProductCodes(config: BillingSignupConfig) {
   if (pricingModeForConfig(config) === 'LEGACY_TIERS') {
     return config.products.map((product) => product.code);
   }
+  const corporatePackage = config.products.find((product) => product.code === 'corporativiza');
+  if (corporatePackage) return [corporatePackage.code];
   return config.products.reduce<string[]>((selection, product) => {
     const selectedProducts = config.products.filter((candidate) => selection.includes(candidate.code));
     return selectedProducts.some((candidate) => productsOverlap(candidate, product))
@@ -208,7 +219,9 @@ function hasProductOverlap(products: readonly BillingSignupProduct[]) {
 function productsOverlap(left: BillingSignupProduct, right: BillingSignupProduct) {
   const leftCapabilities = productCapabilities(left);
   const rightCapabilities = productCapabilities(right);
-  return [...leftCapabilities].some((capability) => rightCapabilities.has(capability));
+  return [...leftCapabilities].some((capability) => (
+    capability !== 'inventory' && rightCapabilities.has(capability)
+  ));
 }
 
 function productCapabilities(product: BillingSignupProduct) {

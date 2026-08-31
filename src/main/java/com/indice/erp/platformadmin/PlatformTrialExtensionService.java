@@ -1,6 +1,7 @@
 package com.indice.erp.platformadmin;
 
 import com.indice.erp.billing.BillingHashing;
+import com.indice.erp.auth.SignupTrialTerms;
 import com.indice.erp.billing.lifecycle.CommercialLifecycleService;
 import com.indice.erp.billing.stripe.StripeBillingGateway;
 import com.indice.erp.entitlement.CompanyEntitlementProjectionService;
@@ -12,7 +13,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Set;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -20,7 +20,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 public class PlatformTrialExtensionService {
 
-    private static final Set<Integer> ALLOWED_DAYS = Set.of(7, 15, 30);
+    private static final int EXTENSION_DAYS = 15;
 
     private final JdbcTemplate jdbc;
     private final TransactionTemplate transactions;
@@ -73,8 +73,11 @@ public class PlatformTrialExtensionService {
     ) {
         var cleanKey = requireIdempotencyKey(idempotencyKey);
         var days = request == null || request.days() == null ? 0 : request.days();
-        if (!ALLOWED_DAYS.contains(days)) {
-            throw new IllegalArgumentException("La extensión debe ser de 7, 15 o 30 días.");
+        if (days != EXTENSION_DAYS) {
+            throw new IllegalArgumentException("La extensión autorizada es de 15 días.");
+        }
+        if (request == null || !Boolean.TRUE.equals(request.consultation_confirmed())) {
+            throw new IllegalArgumentException("Confirma que la sesión de consultoría se realizó.");
         }
 
         var keyHash = BillingHashing.sha256("platform-trial-extension:" + companyId + ":" + cleanKey);
@@ -122,6 +125,7 @@ public class PlatformTrialExtensionService {
                 "added_days", days,
                 "prior_ends_at", mutation.source().priorEndsAt().toString(),
                 "extended_ends_at", mutation.extendedEndsAt().toString(),
+                "consultation_confirmed", true,
                 "charged_now", false
             )
         );
@@ -153,24 +157,41 @@ public class PlatformTrialExtensionService {
         if (pending != null && pending > 0) {
             throw new IllegalStateException("Ya existe una extensión en proceso para esta cuenta.");
         }
+        var completed = jdbc.queryForObject(
+            "SELECT COUNT(*) FROM platform_trial_extensions WHERE company_id = ? AND status = 'COMPLETED'",
+            Integer.class,
+            companyId
+        );
+        if (completed != null && completed > 0) {
+            throw new IllegalStateException("La cuenta ya utilizó su única extensión de prueba.");
+        }
         var source = trialSource(companyId);
         if (source == null) {
             throw new IllegalStateException("La cuenta no tiene una prueba o demo extensible.");
         }
+        var maximumEnd = source.startedAt().plus(
+            SignupTrialTerms.MAX_EXTENDED_TRIAL_DAYS,
+            ChronoUnit.DAYS
+        );
         var now = clock.instant();
         var base = source.priorEndsAt().isAfter(now) ? source.priorEndsAt() : now;
         var extendedEndsAt = base.plus(days, ChronoUnit.DAYS);
+        if (extendedEndsAt.isAfter(maximumEnd)) {
+            throw new IllegalStateException("La prueba no puede superar 30 días totales.");
+        }
         var reference = BillingHashing.randomReference().substring(0, 32);
         jdbc.update(
             """
                 INSERT INTO platform_trial_extensions (
                     public_reference, company_id, actor_user_id, idempotency_key_hash,
                     source_type, source_record_id, stripe_subscription_id, added_days,
+                    trial_started_at, consultation_confirmed,
                     prior_ends_at, extended_ends_at, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PREPARED')
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 'PREPARED')
                 """,
             reference, companyId, actorUserId, keyHash, source.type(), source.recordId(),
-            source.stripeSubscriptionId(), days, Timestamp.from(source.priorEndsAt()),
+            source.stripeSubscriptionId(), days, Timestamp.from(source.startedAt()),
+            Timestamp.from(source.priorEndsAt()),
             Timestamp.from(extendedEndsAt)
         );
         return new PreparedMutation(reference, source, days, extendedEndsAt, false);
@@ -283,6 +304,7 @@ public class PlatformTrialExtensionService {
                        subscription.id AS subscription_id,
                        UPPER(COALESCE(subscription.status, '')) AS subscription_status,
                        subscription.stripe_subscription_id,
+                       subscription.trial_starts_at AS stripe_trial_starts_at,
                        subscription.trial_ends_at AS stripe_trial_ends_at,
                        courtesy.id AS courtesy_signup_intent_id,
                        (
@@ -294,6 +316,15 @@ public class PlatformTrialExtensionService {
                              AND benefit.status = 'ACTIVE'
                              AND benefit.ends_at IS NOT NULL
                        ) AS local_demo_ends_at,
+                       (
+                           SELECT MIN(benefit.starts_at)
+                           FROM company_benefit_grants benefit
+                           WHERE benefit.company_id = company.id
+                             AND benefit.benefit_type = 'PRODUCT'
+                             AND benefit.source_type IN ('COURTESY', 'PROMOTION', 'SUPPORT', 'TEST')
+                             AND benefit.status = 'ACTIVE'
+                             AND benefit.ends_at IS NOT NULL
+                       ) AS local_demo_starts_at,
                        EXISTS (
                            SELECT 1
                            FROM company_benefit_grants benefit
@@ -321,6 +352,7 @@ public class PlatformTrialExtensionService {
             (rs, rowNum) -> {
                 var subscriptionStatus = rs.getString("subscription_status");
                 var stripeSubscriptionId = rs.getString("stripe_subscription_id");
+                var stripeStartsAt = instant(rs.getTimestamp("stripe_trial_starts_at"));
                 var stripeEndsAt = instant(rs.getTimestamp("stripe_trial_ends_at"));
                 var stripeManaged = stripeSubscriptionId != null
                     && !stripeSubscriptionId.isBlank()
@@ -331,16 +363,19 @@ public class PlatformTrialExtensionService {
                         "STRIPE",
                         (Long) rs.getObject("subscription_id"),
                         stripeSubscriptionId,
+                        stripeStartsAt == null ? stripeEndsAt.minus(SignupTrialTerms.TRIAL_DAYS, ChronoUnit.DAYS) : stripeStartsAt,
                         stripeEndsAt
                     );
                 }
                 if (!subscriptionStatus.isBlank() || rs.getBoolean("permanent_access")) return null;
                 var localEndsAt = instant(rs.getTimestamp("local_demo_ends_at"));
                 if (localEndsAt == null) return null;
+                var localStartsAt = instant(rs.getTimestamp("local_demo_starts_at"));
                 return new TrialSource(
                     "LOCAL_DEMO",
                     (Long) rs.getObject("courtesy_signup_intent_id"),
                     null,
+                    localStartsAt == null ? localEndsAt.minus(SignupTrialTerms.TRIAL_DAYS, ChronoUnit.DAYS) : localStartsAt,
                     localEndsAt
                 );
             },
@@ -383,7 +418,7 @@ public class PlatformTrialExtensionService {
         return jdbc.query(
             """
                 SELECT public_reference, source_type, source_record_id, stripe_subscription_id,
-                       added_days, prior_ends_at, extended_ends_at, status
+                       added_days, trial_started_at, prior_ends_at, extended_ends_at, status
                 FROM platform_trial_extensions
                 WHERE idempotency_key_hash = ?
                 LIMIT 1
@@ -394,6 +429,7 @@ public class PlatformTrialExtensionService {
                     rs.getString("source_type"),
                     (Long) rs.getObject("source_record_id"),
                     rs.getString("stripe_subscription_id"),
+                    instant(rs.getTimestamp("trial_started_at")),
                     instant(rs.getTimestamp("prior_ends_at"))
                 ),
                 rs.getInt("added_days"),
@@ -455,13 +491,14 @@ public class PlatformTrialExtensionService {
         return value == null ? null : value.toInstant();
     }
 
-    public record ExtensionRequest(Integer days) {
+    public record ExtensionRequest(Integer days, Boolean consultation_confirmed) {
     }
 
     private record TrialSource(
         String type,
         Long recordId,
         String stripeSubscriptionId,
+        Instant startedAt,
         Instant priorEndsAt
     ) {
         boolean stripeManaged() {

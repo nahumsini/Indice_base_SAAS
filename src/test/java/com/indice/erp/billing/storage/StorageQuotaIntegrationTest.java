@@ -45,6 +45,9 @@ class StorageQuotaIntegrationTest {
     @Autowired
     private StorageBlockPurchaseService purchases;
 
+    @Autowired
+    private StorageOverageSyncService overageSync;
+
     @MockBean
     private ObjectStorageService objectStorage;
 
@@ -84,9 +87,19 @@ class StorageQuotaIntegrationTest {
 
         assertThat(replay.id()).isEqualTo(first.id());
         assertThat(storage.snapshot(tenant.companyId()).reservedBytes()).isEqualTo(60);
-        assertThatThrownBy(() -> storage.reserve(
-            tenant.companyId(), "HR", "documents", "tenant/second.pdf", 50))
-            .isInstanceOf(StorageQuotaExceededException.class);
+        storage.reserve(tenant.companyId(), "HR", "documents", "tenant/second.pdf", 50);
+        assertThat(storage.snapshot(tenant.companyId())).satisfies(snapshot -> {
+            assertThat(snapshot.purchasedBlocks()).isEqualTo(1);
+            assertThat(snapshot.reservedBytes()).isEqualTo(110);
+            assertThat(snapshot.limitBytes()).isEqualTo(150);
+        });
+        assertThat(jdbc.queryForObject(
+            "SELECT status FROM company_storage_overage_syncs WHERE company_id = ?",
+            String.class, tenant.companyId())).isEqualTo("PENDING");
+        assertThat(overageSync.synchronizeCompany(tenant.companyId())).isTrue();
+        assertThat(jdbc.queryForObject(
+            "SELECT status FROM company_storage_overage_syncs WHERE company_id = ?",
+            String.class, tenant.companyId())).isEqualTo("SYNCED");
 
         objectSizes.put("tenant/first.pdf", 60L);
         storage.commitStoredObject(tenant.companyId(), "documents", "tenant/first.pdf", 60);
@@ -94,13 +107,17 @@ class StorageQuotaIntegrationTest {
 
         assertThat(storage.snapshot(tenant.companyId())).satisfies(snapshot -> {
             assertThat(snapshot.usedBytes()).isEqualTo(60);
-            assertThat(snapshot.reservedBytes()).isZero();
+            assertThat(snapshot.reservedBytes()).isEqualTo(50);
             assertThat(snapshot.availableBytes()).isEqualTo(40);
         });
 
         storage.release(tenant.companyId(), "tenant/first.pdf", "deleted_by_user");
         storage.release(tenant.companyId(), "tenant/first.pdf", "duplicate_delete");
-        assertThat(storage.snapshot(tenant.companyId()).usedBytes()).isZero();
+        storage.release(tenant.companyId(), "tenant/second.pdf", "canceled_upload");
+        assertThat(storage.snapshot(tenant.companyId())).satisfies(snapshot -> {
+            assertThat(snapshot.usedBytes()).isZero();
+            assertThat(snapshot.reservedBytes()).isZero();
+        });
     }
 
     @Test

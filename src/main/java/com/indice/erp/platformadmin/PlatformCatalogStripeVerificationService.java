@@ -285,7 +285,7 @@ public class PlatformCatalogStripeVerificationService {
                        stripe_mode, stripe_account_id, stripe_sync_status
                 FROM billing_catalog_products
                 WHERE catalog_version_id = ? AND active = 1
-                  AND commercial_kind IN ('MODULE', 'PACKAGE', 'SEAT')
+                  AND commercial_kind IN ('MODULE', 'PACKAGE', 'SEAT', 'VOLUME', 'STORAGE')
                 """,
             (rs, rowNum) -> new ProductReference(
                 rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4),

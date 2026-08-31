@@ -116,7 +116,10 @@ public class StorageBlockPurchaseService {
             (rs, rowNum) -> new String[]{rs.getString(1), rs.getString(2), rs.getString(3)},
             companyId).stream().findFirst()
             .orElseThrow(() -> new IllegalStateException("An active Stripe subscription is required."));
-        var priceId = stripeProperties.priceId("storage_block", subscription[2]);
+        var priceId = activeStoragePrice(subscription[2]);
+        if (priceId == null || priceId.isBlank()) {
+            priceId = stripeProperties.priceId("storage_block", subscription[2]);
+        }
         if (target > 0 && (priceId == null || priceId.isBlank())) {
             throw new IllegalStateException(
                 "The Stripe storage-block price is not configured for this billing interval.");
@@ -158,6 +161,29 @@ public class StorageBlockPurchaseService {
         jdbcTemplate.update(
             "UPDATE company_storage_mutations SET status = 'COMPLETED', stripe_subscription_item_id = ?, completed_at = CURRENT_TIMESTAMP(6) WHERE public_reference = ?",
             stripeResult.subscriptionItemId(), prepared.reference());
+    }
+
+    private String activeStoragePrice(String billingInterval) {
+        return jdbcTemplate.query(
+            """
+                SELECT price.external_price_id
+                FROM billing_catalog_versions version
+                JOIN billing_catalog_products product
+                  ON product.catalog_version_id = version.id
+                 AND product.product_code = 'storage_block_100_gib'
+                 AND product.active = 1
+                JOIN billing_catalog_prices price
+                  ON price.catalog_product_id = product.id
+                 AND price.billing_interval = ? AND price.currency = 'USD'
+                 AND price.status IN ('READY', 'ACTIVE')
+                 AND price.external_price_id LIKE 'price_%'
+                WHERE version.status = 'ACTIVE'
+                ORDER BY version.effective_from DESC, version.id DESC
+                LIMIT 1
+                """,
+            (rs, rowNum) -> rs.getString(1),
+            billingInterval
+        ).stream().findFirst().orElse(null);
     }
 
     private void fail(String reference, RuntimeException exception) {

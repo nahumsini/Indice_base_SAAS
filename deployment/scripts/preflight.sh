@@ -145,12 +145,12 @@ if [[ "${USE_EXAMPLE}" == "false" ]]; then
     exit 1
   fi
 
-  if [[ "$(read_env_value APP_BILLING_STORAGE_INCLUDED_BYTES)" != "5368709120" ]]; then
-    echo "APP_BILLING_STORAGE_INCLUDED_BYTES must preserve the approved 5 GiB included quota." >&2
+  if [[ "$(read_env_value APP_BILLING_STORAGE_INCLUDED_BYTES)" != "107374182400" ]]; then
+    echo "APP_BILLING_STORAGE_INCLUDED_BYTES must preserve the approved 100 GiB included quota." >&2
     exit 1
   fi
-  if [[ "$(read_env_value APP_BILLING_STORAGE_BLOCK_BYTES)" != "5368709120" ]]; then
-    echo "APP_BILLING_STORAGE_BLOCK_BYTES must preserve the approved 5 GiB commercial block." >&2
+  if [[ "$(read_env_value APP_BILLING_STORAGE_BLOCK_BYTES)" != "107374182400" ]]; then
+    echo "APP_BILLING_STORAGE_BLOCK_BYTES must preserve the approved 100 GiB commercial block." >&2
     exit 1
   fi
 
@@ -200,27 +200,9 @@ if [[ "${USE_EXAMPLE}" == "false" ]]; then
       APP_BILLING_STRIPE_SUCCESS_URL
       APP_BILLING_STRIPE_CANCEL_URL
       APP_BILLING_STRIPE_PORTAL_RETURN_URL
-      APP_BILLING_STRIPE_PRICE_BASIC_1_MONTHLY
-      APP_BILLING_STRIPE_PRICE_BASIC_1_ANNUAL
-      APP_BILLING_STRIPE_PRICE_BASIC_2_MONTHLY
-      APP_BILLING_STRIPE_PRICE_BASIC_2_ANNUAL
-      APP_BILLING_STRIPE_PRICE_BASIC_3_MONTHLY
-      APP_BILLING_STRIPE_PRICE_BASIC_3_ANNUAL
-      APP_BILLING_STRIPE_PRICE_BASIC_ALL_MONTHLY
-      APP_BILLING_STRIPE_PRICE_BASIC_ALL_ANNUAL
-      APP_BILLING_STRIPE_PRICE_EXTRA_SEAT_MONTHLY
-      APP_BILLING_STRIPE_PRICE_EXTRA_SEAT_ANNUAL
-      APP_BILLING_STRIPE_PRICE_STORAGE_BLOCK_MONTHLY
-      APP_BILLING_STRIPE_PRICE_STORAGE_BLOCK_ANNUAL
     )
     for key in "${stripe_required_keys[@]}"; do
       require_env_value "${key}"
-    done
-    for key in "${stripe_required_keys[@]:3}"; do
-      [[ "$(read_env_value "${key}")" == price_* ]] || {
-        echo "${key} must contain a Stripe price_ ID." >&2
-        exit 1
-      }
     done
 
     if [[ "${stripe_mode}" == "live" ]]; then

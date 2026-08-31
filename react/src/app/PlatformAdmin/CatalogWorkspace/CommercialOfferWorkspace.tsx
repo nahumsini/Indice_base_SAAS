@@ -37,7 +37,7 @@ import { usePersistentColumnWidths } from "../../hooks/usePersistentColumnWidths
 import { useLanguage } from "../../shared/context";
 import { CommercialOfferDetail } from "./CommercialOfferDetail";
 
-type OfferFilter = "ALL" | "MODULE" | "PACKAGE" | "SEAT" | "PROMOTION";
+type OfferFilter = "ALL" | "MODULE" | "PACKAGE" | "SEAT" | "VOLUME" | "STORAGE" | "PROMOTION";
 type AvailabilityFilter = "ALL" | "ACTIVE" | "INACTIVE";
 type ConfigurationFilter = "ALL" | "READY" | "CONFIGURATION_PENDING" | "STRIPE_PENDING";
 type OfferColumnId = "offer" | "type" | "monthly" | "annual" | "configuration" | "availability";
@@ -89,7 +89,9 @@ const money = (cents?: number | null, english = false) =>
 
 const kindLabel = (kind?: string, english = false) => {
   if (kind === "PACKAGE") return english ? "Package" : "Paquete";
-  if (kind === "SEAT") return english ? "Quantity product" : "Por cantidad";
+  if (kind === "SEAT") return english ? "Extra users" : "Usuarios adicionales";
+  if (kind === "VOLUME") return english ? "Volume price" : "Precio por volumen";
+  if (kind === "STORAGE") return english ? "Storage overage" : "Excedente de almacenamiento";
   return english ? "Individual module" : "Módulo individual";
 };
 
@@ -199,6 +201,8 @@ export function CommercialOfferWorkspace({
     modules: queryProducts.filter((product) => product.commercial_kind === "MODULE").length,
     packages: queryProducts.filter((product) => product.commercial_kind === "PACKAGE").length,
     seats: queryProducts.filter((product) => product.commercial_kind === "SEAT").length,
+    volume: queryProducts.filter((product) => product.commercial_kind === "VOLUME").length,
+    storage: queryProducts.filter((product) => product.commercial_kind === "STORAGE").length,
     promotions: queryPromotions.length,
     ready:
       queryProducts.filter((product) => productConfiguration(product) === "READY").length +
@@ -382,6 +386,8 @@ export function CommercialOfferWorkspace({
             { value: "MODULE", label: `${english ? "Modules" : "Módulos"} (${counts.modules})` },
             { value: "PACKAGE", label: `${english ? "Packages" : "Paquetes"} (${counts.packages})` },
             { value: "SEAT", label: `${english ? "Users" : "Usuarios"} (${counts.seats})` },
+            { value: "VOLUME", label: `${english ? "Volume" : "Volumen"} (${counts.volume})` },
+            { value: "STORAGE", label: `${english ? "Storage" : "Almacenamiento"} (${counts.storage})` },
             { value: "PROMOTION", label: `${english ? "Promotions" : "Promociones"} (${counts.promotions})` },
           ]}
         />

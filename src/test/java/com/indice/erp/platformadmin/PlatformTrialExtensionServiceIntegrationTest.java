@@ -1,6 +1,7 @@
 package com.indice.erp.platformadmin;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -108,14 +109,22 @@ class PlatformTrialExtensionServiceIntegrationTest {
             actorUserId,
             companyId,
             key,
-            new PlatformTrialExtensionService.ExtensionRequest(15)
+            new PlatformTrialExtensionService.ExtensionRequest(15, true)
         );
         var replay = service.extend(
             actorUserId,
             companyId,
             key,
-            new PlatformTrialExtensionService.ExtensionRequest(15)
+            new PlatformTrialExtensionService.ExtensionRequest(15, true)
         );
+        assertThatThrownBy(() -> service.extend(
+            actorUserId,
+            companyId,
+            "second-extension-" + UUID.randomUUID(),
+            new PlatformTrialExtensionService.ExtensionRequest(15, true)
+        ))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("única extensión");
 
         var persistedEnd = jdbc.queryForObject(
             "SELECT ends_at FROM company_benefit_grants WHERE id = ?",
@@ -149,7 +158,7 @@ class PlatformTrialExtensionServiceIntegrationTest {
         assertThat(companySummary)
             .containsEntry("trial_source", "LOCAL_DEMO")
             .containsEntry("trial_days_remaining", 22)
-            .containsEntry("trial_extendable", true);
+            .containsEntry("trial_extendable", false);
         verifyNoInteractions(stripeGateway);
     }
 
@@ -183,7 +192,7 @@ class PlatformTrialExtensionServiceIntegrationTest {
             actorUserId,
             companyId,
             "stripe-trial-" + UUID.randomUUID(),
-            new PlatformTrialExtensionService.ExtensionRequest(7)
+            new PlatformTrialExtensionService.ExtensionRequest(15, true)
         );
 
         var parameters = ArgumentCaptor.forClass(Map.class);
@@ -193,16 +202,16 @@ class PlatformTrialExtensionServiceIntegrationTest {
             contains(".trial-extension.")
         );
         assertThat(parameters.getValue())
-            .containsEntry("trial_end", stripeEnd.plus(7, ChronoUnit.DAYS).getEpochSecond())
+            .containsEntry("trial_end", stripeEnd.plus(15, ChronoUnit.DAYS).getEpochSecond())
             .containsEntry("proration_behavior", "none");
         assertThat(jdbc.queryForObject(
             "SELECT trial_ends_at FROM company_billing_subscriptions WHERE stripe_subscription_id = ?",
             Timestamp.class,
             subscriptionId
-        ).toInstant()).isEqualTo(stripeEnd.plus(7, ChronoUnit.DAYS));
+        ).toInstant()).isEqualTo(stripeEnd.plus(15, ChronoUnit.DAYS));
         assertThat(result)
             .containsEntry("source", "STRIPE")
-            .containsEntry("added_days", 7)
+            .containsEntry("added_days", 15)
             .containsEntry("charged_now", false);
     }
 

@@ -40,9 +40,10 @@ cp deployment/env/.env.example deployment/env/.env
   pública; no lo expongas en JavaScript del navegador)
 - `APP_HR_KIOSK_IDENTIFICATION_TOKEN_SECRET`
 - `APP_KIOSK_TOKEN_PROTECTION_SECRET` (obligatoria; distinta de los demás secretos)
-- `APP_BILLING_STORAGE_INCLUDED_BYTES=5368709120` y
-  `APP_BILLING_STORAGE_BLOCK_BYTES=5368709120` para conservar la cuota y el
-  bloque comercial aprobados de 5 GiB
+- `APP_BILLING_STORAGE_INCLUDED_BYTES=107374182400` y
+  `APP_BILLING_STORAGE_BLOCK_BYTES=107374182400` para conservar la cuota incluida
+  y el bloque comercial aprobados de 100 GiB; el excedente se programa para la
+  siguiente factura sin interrumpir el servicio
 - tiempos de sesión de kioskos (`APP_*_KIOSK_*_SECONDS`); la plantilla contiene los valores estándar aprobados
 - `MYSQL_*`
 - `MINIO_*`

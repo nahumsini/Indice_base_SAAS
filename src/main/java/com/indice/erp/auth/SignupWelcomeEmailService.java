@@ -138,7 +138,7 @@ public class SignupWelcomeEmailService {
             ? ""
             : """
 
-                Your account includes a 30-day trial. During the trial, you can configure your team, review your modules, and prepare your workspace before billing begins.
+                Your account includes a 15-day trial. During the trial, you can configure your team, review your modules, and prepare your workspace before billing begins.
                 """;
         return """
             Hi %s,
@@ -178,7 +178,7 @@ public class SignupWelcomeEmailService {
         var email = escape(clean(welcome.email(), ""));
         var loginHref = escape(loginUrl);
         var support = escape(supportEmail());
-        var trialStatus = welcome.trialEnd() == null ? "Active workspace" : "30-day trial active";
+        var trialStatus = welcome.trialEnd() == null ? "Active workspace" : "15-day trial active";
         return """
             <!doctype html>
             <html>

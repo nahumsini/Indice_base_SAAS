@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 final class VersionedCommercialOfferEngine {
 
     private static final int INCLUDED_SEATS = 5;
+    private static final String ADDITIONAL_MODULE_UNIT = "module_additional_unit";
 
     private final JdbcTemplate jdbcTemplate;
     private final StripePhaseTwoProperties stripeProperties;
@@ -147,13 +148,30 @@ final class VersionedCommercialOfferEngine {
         requireNoOverlap(selected);
 
         var lines = new ArrayList<CommercialOfferSelection.LineItem>();
-        for (var product : selected) {
+        var packages = selected.stream().filter(CommercialOfferSelection.Product::packageOffer).toList();
+        var modules = selected.stream().filter(product -> !product.packageOffer()).toList();
+        for (var product : packages) {
             requireReadyAmount(product.displayName(), product.unitAmountCents());
             lines.add(new CommercialOfferSelection.LineItem(
-                product.id(), product.code(), product.packageOffer() ? "PACKAGE" : "PRODUCT",
+                product.id(), product.code(), "PACKAGE",
                 1, product.unitAmountCents(), product.externalPriceId()
             ));
         }
+        if (modules.size() == 1 && packages.isEmpty()) {
+            var product = modules.getFirst();
+            requireReadyAmount(product.displayName(), product.unitAmountCents());
+            lines.add(new CommercialOfferSelection.LineItem(
+                product.id(), product.code(), "PRODUCT", 1,
+                product.unitAmountCents(), product.externalPriceId()
+            ));
+        } else if (!modules.isEmpty()) {
+            var volumePrice = commercialUnit(versionId, interval, ADDITIONAL_MODULE_UNIT, "VOLUME");
+            lines.add(new CommercialOfferSelection.LineItem(
+                volumePrice.productId(), volumePrice.billableCode(), "PRODUCT", modules.size(),
+                volumePrice.unitAmountCents(), volumePrice.externalPriceId()
+            ));
+        }
+        var productSubtotal = total(lines);
         var seat = seat(versionId, interval);
         if (extraSeats > 0) {
             lines.add(new CommercialOfferSelection.LineItem(
@@ -163,19 +181,46 @@ final class VersionedCommercialOfferEngine {
         }
         var subtotal = total(lines);
         var promotion = promotion(versionId, promotionCode, lines, subtotal);
-        var productSubtotal = selected.stream().map(CommercialOfferSelection.Product::unitAmountCents)
-            .reduce(0L, Math::addExact);
-        var modules = selected.stream().flatMap(product -> product.capabilities().stream())
+        var moduleSlugs = selected.stream().flatMap(product -> product.capabilities().stream())
             .map(this::canonicalCapability).distinct().sorted().toList();
-        var offerCode = selected.size() == 1 && selected.getFirst().packageOffer()
+        var offerCode = selected.size() == 1
             ? selected.getFirst().code()
             : "custom_offer";
         return new CommercialOfferSelection(
             versionId, versionCode, offerCode, interval, "USD", INCLUDED_SEATS, extraSeats,
             Math.subtractExact(subtotal, promotion.discountAmountCents()), productSubtotal,
-            seat.unitAmountCents(), 0, null, seat.externalPriceId(), selected, lines, modules,
+            seat.unitAmountCents(), 0, null, seat.externalPriceId(), selected, lines, moduleSlugs,
             subtotal, promotion.discountAmountCents(), promotion.code(), promotion.externalPromotionCodeId()
         );
+    }
+
+    private CommercialUnitDefinition commercialUnit(
+        long versionId,
+        BillingInterval interval,
+        String productCode,
+        String commercialKind
+    ) {
+        return jdbcTemplate.query(
+            """
+                SELECT product.id, product.product_code, price.unit_amount_cents, price.external_price_id
+                FROM billing_catalog_products product
+                JOIN billing_catalog_prices price ON price.catalog_product_id = product.id
+                WHERE product.catalog_version_id = ? AND product.active = 1
+                  AND BINARY product.product_code = BINARY ?
+                  AND product.commercial_kind = ?
+                  AND price.billing_interval = ? AND price.currency = 'USD'
+                  AND price.status IN ('READY', 'ACTIVE')
+                  AND (? = 0 OR (price.stripe_mode = ? AND price.stripe_verified_at IS NOT NULL
+                       AND price.stripe_sync_status = 'READY' AND price.external_price_id LIKE 'price_%'))
+                LIMIT 1
+                """,
+            (rs, rowNum) -> new CommercialUnitDefinition(
+                rs.getLong(1), rs.getString(2), (Long) rs.getObject(3), rs.getString(4)
+            ),
+            versionId, productCode, commercialKind, interval.name(), verificationFlag(), mode()
+        ).stream().findFirst().orElseThrow(() -> new IllegalStateException(
+            "La tarifa para modulos adicionales todavia no esta lista."
+        ));
     }
 
     private SeatDefinition seat(long versionId, BillingInterval interval) {
@@ -250,7 +295,7 @@ final class VersionedCommercialOfferEngine {
             for (var capability : product.capabilities()) {
                 var canonical = canonicalCapability(capability);
                 var previous = ownerByCapability.putIfAbsent(canonical, product.displayName());
-                if (previous != null) {
+                if (previous != null && !"inventory".equals(canonical)) {
                     throw new IllegalArgumentException(
                         "La selección repite el módulo " + canonical + " en " + previous + " y " + product.displayName() + "."
                     );
@@ -297,6 +342,7 @@ final class VersionedCommercialOfferEngine {
     }
 
     private record SeatDefinition(long productId, String billableCode, long unitAmountCents, String externalPriceId) {}
+    private record CommercialUnitDefinition(long productId, String billableCode, long unitAmountCents, String externalPriceId) {}
     private record PromotionDefinition(long id, String code, String discountType, Integer percentBasisPoints, Long amountOffCents, String externalPromotionCodeId) {}
     private record PromotionResult(String code, long discountAmountCents, String externalPromotionCodeId) {
         private static PromotionResult none() { return new PromotionResult(null, 0, null); }

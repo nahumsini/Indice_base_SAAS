@@ -59,12 +59,12 @@ export const distributorPortalApi = {
     `${companyPath(companyId)}/users/${userId}/status`,
     { method: 'PATCH', body: JSON.stringify({ status }) },
   ),
-  extendCompanyTrial: (companyId: number, days: 7 | 15 | 30) => apiClient<PlatformTrialExtensionResult>(
+  extendCompanyTrial: (companyId: number, days: 15) => apiClient<PlatformTrialExtensionResult>(
     `${companyPath(companyId)}/trial-extension`,
     {
       method: 'PATCH',
       headers: { 'Idempotency-Key': crypto.randomUUID() },
-      body: JSON.stringify({ days }),
+      body: JSON.stringify({ days, consultation_confirmed: true }),
     },
   ),
   grantBenefit: (companyId: number, payload: BenefitPayload) => apiClient<PlatformBenefit>(

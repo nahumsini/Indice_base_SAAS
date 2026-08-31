@@ -1,6 +1,7 @@
 package com.indice.erp.billing.signup;
 
 import com.indice.erp.auth.SignupWelcomeEmailService;
+import com.indice.erp.auth.SignupTrialTerms;
 import com.indice.erp.billing.audit.BillingAuditService;
 import com.indice.erp.billing.BillingHashing;
 import com.indice.erp.billing.lifecycle.CommercialLifecycleService;
@@ -26,7 +27,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 public class BillingTenantProvisioningService {
 
-    private static final Duration TRIAL_DURATION = Duration.ofDays(30);
+    private static final Duration TRIAL_DURATION = Duration.ofDays(SignupTrialTerms.TRIAL_DAYS);
     private static final int MAX_PROVISIONING_LOCK_RETRIES = 3;
 
     private final BillingProvisioningProperties properties;
@@ -143,12 +144,15 @@ public class BillingTenantProvisioningService {
         );
 
         var selectedProductIds = Set.copyOf(signupIntents.productIds(intentId));
+        var initialAccessProductIds = courtesySignup
+            ? selectedProductIds
+            : fullTrialProductIds(intent.catalogVersionId(), selectedProductIds);
         var moduleSlugs = provisionOwnerModules(
             intent.catalogVersionId(),
             companyId,
             membershipId,
             courtesy,
-            selectedProductIds
+            initialAccessProductIds
         );
         provisionOwnerTabs(membershipId, moduleSlugs);
         associateBillingRecords(intentId, companyId, intent.stripeCustomerId());
@@ -161,7 +165,7 @@ public class BillingTenantProvisioningService {
             signupIntents.markCourtesyProvisioned(intentId, companyId);
         } else {
             trial = resolveTrialWindow(intent);
-            provisionTrialProducts(intent.catalogVersionId(), intentId, companyId, trial);
+            provisionTrialProducts(intent.catalogVersionId(), intentId, companyId, trial, initialAccessProductIds);
             commercialLifecycle.initializeTrial(companyId, trial.endsAt());
         }
         storageQuota.initializeCompany(companyId);
@@ -397,27 +401,46 @@ public class BillingTenantProvisioningService {
         return new TrialWindow(startsAt, startsAt.plus(TRIAL_DURATION));
     }
 
-    private void provisionTrialProducts(long catalogVersionId, long intentId, long companyId, TrialWindow trial) {
-        jdbcTemplate.update(
+    private Set<Long> fullTrialProductIds(long catalogVersionId, Set<Long> selectedProductIds) {
+        var corporate = jdbcTemplate.query(
             """
-                INSERT INTO company_trial_product_grants (
-                    company_id, catalog_product_id, source_signup_intent_id,
-                    status, starts_at, ends_at
-                )
-                SELECT ?, p.id, ?, 'ACTIVE', ?, ?
-                FROM billing_available_commercial_products p
-                JOIN billing_signup_intent_products selected
-                  ON selected.catalog_product_id = p.id
-                 AND selected.signup_intent_id = ?
-                WHERE p.catalog_version_id = ?
+                SELECT id FROM billing_catalog_products
+                WHERE catalog_version_id = ? AND product_code = 'corporativiza'
+                  AND commercial_kind = 'PACKAGE' AND active = 1
+                LIMIT 1
                 """,
-            companyId,
-            intentId,
-            Timestamp.from(trial.startsAt()),
-            Timestamp.from(trial.endsAt()),
-            intentId,
+            (rs, rowNum) -> rs.getLong(1),
             catalogVersionId
         );
+        return corporate.isEmpty() ? selectedProductIds : Set.of(corporate.getFirst());
+    }
+
+    private void provisionTrialProducts(
+        long catalogVersionId,
+        long intentId,
+        long companyId,
+        TrialWindow trial,
+        Set<Long> trialProductIds
+    ) {
+        for (var productId : trialProductIds) {
+            jdbcTemplate.update(
+                """
+                    INSERT INTO company_trial_product_grants (
+                        company_id, catalog_product_id, source_signup_intent_id,
+                        status, starts_at, ends_at
+                    )
+                    SELECT ?, product.id, ?, 'ACTIVE', ?, ?
+                    FROM billing_catalog_products product
+                    WHERE product.id = ? AND product.catalog_version_id = ? AND product.active = 1
+                    """,
+                companyId,
+                intentId,
+                Timestamp.from(trial.startsAt()),
+                Timestamp.from(trial.endsAt()),
+                productId,
+                catalogVersionId
+            );
+        }
     }
 
     private void provisionCourtesyBenefits(

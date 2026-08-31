@@ -83,7 +83,7 @@ export function PublicPlansHeader({ copy }: PublicPlansHeaderProps) {
           {languagePicker()}
           <Link
             to="/login"
-            className="inline-flex h-12 items-center justify-center rounded-full bg-emerald-700 px-6 text-base font-bold text-white shadow-sm transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-200"
+            className="inline-flex h-12 items-center justify-center rounded-full bg-emerald-700 px-6 text-base font-medium text-white shadow-sm transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-200"
           >
             {copy.login}
           </Link>
@@ -110,7 +110,7 @@ export function PublicPlansHeader({ copy }: PublicPlansHeaderProps) {
             ))}
             <div className="mt-3 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row">
               {languagePicker(true)}
-              <Link to="/login" className="inline-flex h-11 flex-1 items-center justify-center rounded-full bg-emerald-700 px-5 font-bold text-white">
+              <Link to="/login" className="inline-flex h-11 flex-1 items-center justify-center rounded-full bg-emerald-700 px-5 font-medium text-white">
                 {copy.login}
               </Link>
             </div>

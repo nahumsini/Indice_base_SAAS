@@ -3,7 +3,7 @@ import type { ConsultingTranslations } from './types';
 export const zhCA: ConsultingTranslations = {
   title: '咨询', subtitle: '预约并跟进与 Indice 团队的咨询。',
   loading: '正在准备咨询日程…', errorDescription: '请重试以加载您的咨询和可用时间。', requestError: '无法发送请求。您填写的内容仍保留在页面上，请重试。', retry: '重试',
-  benefitIncluded: '您的首次线上咨询已包含在服务中', benefitAdditional: '额外咨询', duration: '50 分钟', pendingNotice: '请选择方便的日期和时间。Indice 顾问将联系您，了解需求并确认咨询。',
+  benefitIncluded: '每月包含一次线上咨询，未使用次数不可累积', benefitAdditional: '额外咨询', duration: '60 分钟', pendingNotice: '请选择方便的日期和时间。Indice 顾问将联系您，了解需求并确认咨询。',
   brandPromiseTitle: '在企业成长的路上，您从不孤单', brandPromiseDescription: 'Indice 陪伴企业成长的每一个阶段。当您需要帮助时，我们会与您一起分析业务情况、支持决策，并协助您以最高效的方式实施 Indice。', consultantChangeNote: '我们希望您感到被支持并安心。如果需要，您可以为下一次咨询申请更换顾问。',
   scheduleTitle: '申请咨询', scheduleDescription: '先告诉我们方便的时间，再一起确定最合适的支持方式。', stepSession: '3 · 形式', stepTime: '1 · 日期和时间', stepConsultant: '2 · 顾问', stepContext: '4 · 主题和联系方式', includedBadge: '已包含在账户中', additionalBadge: '需要单独付费',
   preferredDate: '首选日期', preferredTime: '首选时间', alternativeTitle: '备选时间', addAlternative: '添加备选时间', removeAlternative: '移除备选时间', timezone: '时区',
