@@ -8,6 +8,7 @@ import com.indice.erp.billing.subscription.CompanyModuleEntitlementService;
 import com.indice.erp.billing.subscription.CompanySubscriptionStatusProvider;
 import com.indice.erp.entitlement.CompanyEntitlementService;
 import com.indice.erp.entitlement.EntitlementPolicyMode;
+import com.indice.erp.processTasks.ProcessTasksAccessService;
 import java.util.Locale;
 import java.util.Set;
 import org.springframework.stereotype.Service;
@@ -26,19 +27,22 @@ public class AiToolAuthorizationService {
     private final ModuleAccessService moduleAccessService;
     private final TabPermissionAccessService tabPermissionAccessService;
     private final CompanyEntitlementService companyEntitlementService;
+    private final ProcessTasksAccessService processTasksAccessService;
 
     public AiToolAuthorizationService(
         CompanySubscriptionStatusProvider subscriptionStatusProvider,
         CompanyModuleEntitlementService moduleEntitlementService,
         ModuleAccessService moduleAccessService,
         TabPermissionAccessService tabPermissionAccessService,
-        CompanyEntitlementService companyEntitlementService
+        CompanyEntitlementService companyEntitlementService,
+        ProcessTasksAccessService processTasksAccessService
     ) {
         this.subscriptionStatusProvider = subscriptionStatusProvider;
         this.moduleEntitlementService = moduleEntitlementService;
         this.moduleAccessService = moduleAccessService;
         this.tabPermissionAccessService = tabPermissionAccessService;
         this.companyEntitlementService = companyEntitlementService;
+        this.processTasksAccessService = processTasksAccessService;
     }
 
     public boolean canReadSalesToday(AuthSessionUser user) {
@@ -68,6 +72,14 @@ public class AiToolAuthorizationService {
         }
         return moduleAccessService.canAccess(user, "kpis")
             && tabPermissionAccessService.canAccess(user, EXECUTIVE_KPI_PERMISSION);
+    }
+
+    public boolean canCreateTask(AuthSessionUser user) {
+        if (!subscriptionStatusProvider.currentStatus(user.companyId()).accessAllowed()) {
+            return false;
+        }
+        return moduleEntitlementService.hasActiveEntitlement(user.companyId(), "processes")
+            && processTasksAccessService.canAccess(user);
     }
 
     private String normalizeRole(String role) {

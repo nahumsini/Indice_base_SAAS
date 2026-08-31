@@ -21,10 +21,12 @@ public class AiAccessTokenService {
 
     public static final String SALES_TODAY_READ = "sales.today:read";
     public static final String BUSINESS_SNAPSHOT_READ = "business.snapshot:read";
+    public static final String TASKS_CREATE = "tasks.create";
 
     private static final Set<String> DEFAULT_SCOPES = Set.of(
         SALES_TODAY_READ,
-        BUSINESS_SNAPSHOT_READ
+        BUSINESS_SNAPSHOT_READ,
+        TASKS_CREATE
     );
 
     private static final String PROVIDER = "generic_mcp";

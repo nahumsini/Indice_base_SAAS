@@ -3,9 +3,17 @@ import {
   businessSnapshotQuerySchema,
   businessSnapshotSchema,
   salesTodaySummarySchema,
+  taskCommitRequestSchema,
+  taskCommitResponseSchema,
+  taskPreviewRequestSchema,
+  taskPreviewResponseSchema,
   type BusinessSnapshot,
   type BusinessSnapshotQuery,
-  type SalesTodaySummary
+  type SalesTodaySummary,
+  type TaskCommitRequest,
+  type TaskCommitResponse,
+  type TaskPreviewRequest,
+  type TaskPreviewResponse
 } from "./contracts.js";
 
 export class IndiceApiError extends Error {
@@ -81,6 +89,62 @@ export class IndiceClient {
     return this.parseBusinessSnapshot(response);
   }
 
+  async previewCreateTask(request: TaskPreviewRequest): Promise<TaskPreviewResponse> {
+    const delegatedToken = this.requireDelegatedToken();
+    const normalized = taskPreviewRequestSchema.safeParse(request);
+    if (!normalized.success) {
+      throw new IndiceApiError(normalized.error.issues[0]?.message ?? "Invalid task details.");
+    }
+    const response = await this.request("/api/v1/ai/tools/tasks/preview", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${delegatedToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(normalized.data)
+    });
+    if (!response.ok) {
+      throw await this.apiError(response, response.status === 403
+        ? "Your current Indice permissions do not allow task creation."
+        : "Indice could not prepare the task.");
+    }
+    const payload: unknown = await response.json();
+    const parsed = taskPreviewResponseSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new IndiceApiError("Indice returned an invalid task preview contract.");
+    }
+    return parsed.data;
+  }
+
+  async createTask(request: TaskCommitRequest): Promise<TaskCommitResponse> {
+    const delegatedToken = this.requireDelegatedToken();
+    const normalized = taskCommitRequestSchema.safeParse(request);
+    if (!normalized.success) {
+      throw new IndiceApiError(normalized.error.issues[0]?.message ?? "Invalid task confirmation.");
+    }
+    const response = await this.request("/api/v1/ai/tools/tasks/commit", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${delegatedToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(normalized.data)
+    });
+    if (!response.ok) {
+      throw await this.apiError(response, response.status === 403
+        ? "Your current Indice permissions do not allow task creation."
+        : response.status === 409
+          ? "The task confirmation expired, was already used, or conflicts with another request. Prepare it again."
+          : "Indice could not create the confirmed task.");
+    }
+    const payload: unknown = await response.json();
+    const parsed = taskCommitResponseSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new IndiceApiError("Indice returned an invalid created task contract.");
+    }
+    return parsed.data;
+  }
+
   async hasValidDelegatedAccess(): Promise<boolean> {
     if (this.config.authMode !== "delegated" || !this.delegatedAccessToken) {
       return false;
@@ -122,6 +186,13 @@ export class IndiceClient {
       throw new IndiceApiError("Indice returned an invalid sales summary contract.");
     }
     return parsed.data;
+  }
+
+  private requireDelegatedToken(): string {
+    if (this.config.authMode !== "delegated" || !this.delegatedAccessToken) {
+      throw new IndiceApiError("Indice delegated authorization is required for actions.", 401);
+    }
+    return this.delegatedAccessToken;
   }
 
   private async getDelegatedBusinessSnapshot(query: BusinessSnapshotQuery): Promise<BusinessSnapshot> {

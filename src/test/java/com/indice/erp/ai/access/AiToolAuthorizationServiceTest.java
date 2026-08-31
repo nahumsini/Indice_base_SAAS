@@ -15,6 +15,7 @@ import com.indice.erp.billing.subscription.CompanySubscriptionStatusProvider;
 import com.indice.erp.entitlement.CompanyEntitlementResolution;
 import com.indice.erp.entitlement.CompanyEntitlementService;
 import com.indice.erp.entitlement.EntitlementPolicyMode;
+import com.indice.erp.processTasks.ProcessTasksAccessService;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,6 +33,7 @@ class AiToolAuthorizationServiceTest {
     @Mock private ModuleAccessService moduleAccessService;
     @Mock private TabPermissionAccessService tabPermissionAccessService;
     @Mock private CompanyEntitlementService companyEntitlementService;
+    @Mock private ProcessTasksAccessService processTasksAccessService;
 
     private AiToolAuthorizationService service;
 
@@ -42,7 +44,8 @@ class AiToolAuthorizationServiceTest {
             moduleEntitlementService,
             moduleAccessService,
             tabPermissionAccessService,
-            companyEntitlementService
+            companyEntitlementService,
+            processTasksAccessService
         );
     }
 
@@ -91,6 +94,24 @@ class AiToolAuthorizationServiceTest {
         when(tabPermissionAccessService.canAccess(eq(USER), any())).thenReturn(false);
 
         assertFalse(service.canReadBusinessSnapshot(USER));
+    }
+
+    @Test
+    void allowsTaskCreationOnlyWithCurrentProcessesAccess() {
+        when(subscriptionStatusProvider.currentStatus(23L)).thenReturn(CompanySubscriptionStatus.activeLegacy());
+        when(moduleEntitlementService.hasActiveEntitlement(23L, "processes")).thenReturn(true);
+        when(processTasksAccessService.canAccess(USER)).thenReturn(true);
+
+        assertTrue(service.canCreateTask(USER));
+    }
+
+    @Test
+    void revokingProcessesAccessImmediatelyBlocksTaskCreation() {
+        when(subscriptionStatusProvider.currentStatus(23L)).thenReturn(CompanySubscriptionStatus.activeLegacy());
+        when(moduleEntitlementService.hasActiveEntitlement(23L, "processes")).thenReturn(true);
+        when(processTasksAccessService.canAccess(USER)).thenReturn(false);
+
+        assertFalse(service.canCreateTask(USER));
     }
 
     private void allowLegacyAccess() {

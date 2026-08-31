@@ -1,12 +1,14 @@
 # Índice MCP
 
-Adaptador MCP de solo lectura para las herramientas de negocio de Índice. El servidor llama a la API Spring Boot autenticada; nunca se conecta directamente a MySQL.
+Adaptador MCP para herramientas de negocio de Índice. El servidor llama a la API Spring Boot autenticada; nunca se conecta directamente a MySQL. Las consultas son de solo lectura y la primera acción usa confirmación explícita, idempotencia y auditoría.
 
 Herramientas disponibles:
 
 - `get_sales_today`: cantidad y total monetario vendido hoy.
 - `get_business_snapshot`: resumen ejecutivo por periodo con ventas, cobros, gastos, utilidad, cuentas pendientes, caja chica, tareas, asistencia y alertas.
 - `get_attention_items`: excepciones críticas y de seguimiento ordenadas por prioridad, sin ruido saludable.
+- `preview_create_task`: prepara la tarea exacta, asignada al usuario conectado, sin crearla.
+- `create_task`: crea únicamente la vista previa confirmada y vigente.
 
 ## Requisitos
 
@@ -14,6 +16,7 @@ Herramientas disponibles:
 - Backend local de Índice en `http://127.0.0.1:8082`.
 - Para `get_sales_today`: acceso al producto `sales`, módulo `crm` y permiso `crm.kpis`.
 - Para `get_business_snapshot` y `get_attention_items`: acceso al módulo `kpis` y permiso `kpis.kpis`.
+- Para crear tareas: suscripción activa, entitlement y acceso vigente al módulo `processes`.
 
 ## Configuración local
 
@@ -40,7 +43,7 @@ npm run test:contract
 npm run test:http-contract
 ```
 
-`test:contract` realiza el recorrido MCP completo en memoria con el modo de sesión local: lista herramientas, ejecuta las consultas disponibles, inicia sesión en Índice y valida las respuestas reales del backend.
+`test:contract` realiza el recorrido MCP completo en memoria con el modo de sesión local: lista herramientas, ejecuta las consultas disponibles, inicia sesión en Índice y valida las respuestas reales del backend. Las acciones requieren el modo delegado.
 
 Con el servidor HTTP ya iniciado, `test:http-contract` repite el contrato atravesando Streamable HTTP con un token delegado temporal.
 
@@ -62,12 +65,14 @@ El endpoint local será `http://127.0.0.1:3010/mcp`. Esta versión rechaza backe
 
 ## Seguridad del MVP
 
-- Solo lectura.
+- Las consultas son de solo lectura. La única acción habilitada es crear una tarea para el usuario conectado.
 - `companyId`, usuario y membresía proceden de la sesión o del token delegado emitido por Índice.
 - El MCP no acepta campos de autoridad.
 - Los tokens se guardan en la base solo como SHA-256 y se muestran una vez al crearlos.
-- Alcances iniciales: `sales.today:read` y `business.snapshot:read`; expiración máxima de 90 días y revocación inmediata.
+- Alcances iniciales: `sales.today:read`, `business.snapshot:read` y `tasks.create`; expiración máxima de 90 días y revocación inmediata.
 - Cada consulta vuelve a validar suscripción, módulo, acceso del usuario y permiso vigente. Ventas también valida el entitlement comercial `sales`.
+- `create_task` exige una vista previa de máximo 5 minutos y solo recibe el token de confirmación más una clave de idempotencia; no puede cambiar título, descripción, prioridad ni fecha ya confirmados.
+- Cada vista previa, ejecución, repetición y fallo queda auditado. Una repetición con la misma clave devuelve la misma tarea sin duplicarla.
 - La sesión con contraseña existe solo para `stdio` local y se mantiene únicamente en memoria.
 - URLs locales obligatorias.
 - Cookies, contraseñas y tokens no se registran.

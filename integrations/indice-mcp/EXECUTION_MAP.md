@@ -2,7 +2,7 @@
 
 ## Objetivo comercial
 
-Entregar primero un asistente de consulta confiable para dueños de PYMEs. Las acciones se habilitan después de demostrar permisos, confirmación, idempotencia y auditoría.
+Entregar un asistente confiable para dueños de PYMEs: consulta el negocio y ejecuta acciones pequeñas solo con permisos, confirmación, idempotencia y auditoría.
 
 ## Fase 1: paquete vendible de lectura
 
@@ -22,16 +22,18 @@ Regla: cada herramienta expone una pregunta de negocio, no tablas ni CRUD genér
 
 ## Fase 2: primera acción segura
 
-La primera acción será `create_task`, no registrar pagos ni modificar inventario.
+La primera acción es `create_task`, no registrar pagos ni modificar inventario.
 
-Debe incluir antes de activarse:
+Implementado:
 
 - alcance `tasks.create` separado;
-- permiso vigente `processes.calendar` o el permiso exacto que corresponda al flujo;
-- vista previa y confirmación explícita del usuario;
+- suscripción, entitlement y acceso vigente al módulo `processes`;
+- `preview_create_task` sin creación y confirmación con vigencia de 5 minutos;
+- `create_task` sin campos mutables: solo confirmación e idempotencia;
+- asignación limitada al usuario conectado;
 - clave de idempotencia para impedir duplicados;
-- auditoría con usuario, empresa, herramienta, argumentos, resultado y fecha;
-- respuesta con el identificador y enlace interno de la tarea creada.
+- auditoría con usuario, empresa, conexión, argumentos normalizados, resultado, fecha y correlación;
+- respuesta con identificador y folio de la tarea creada.
 
 ## Acciones posteriores por riesgo
 

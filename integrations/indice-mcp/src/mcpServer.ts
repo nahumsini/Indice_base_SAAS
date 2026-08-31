@@ -4,12 +4,18 @@ import type {
   AttentionItems,
   BusinessSnapshot,
   BusinessSnapshotQuery,
-  SalesTodaySummary
+  SalesTodaySummary,
+  TaskCommitRequest,
+  TaskCommitResponse,
+  TaskPreviewRequest,
+  TaskPreviewResponse
 } from "./contracts.js";
 
 export interface IndiceBusinessReader {
   getSalesToday(preferredCurrency?: string): Promise<SalesTodaySummary>;
   getBusinessSnapshot(query?: BusinessSnapshotQuery): Promise<BusinessSnapshot>;
+  previewCreateTask(request: TaskPreviewRequest): Promise<TaskPreviewResponse>;
+  createTask(request: TaskCommitRequest): Promise<TaskCommitResponse>;
 }
 
 export function createIndiceMcpServer(reader: IndiceBusinessReader): McpServer {
@@ -209,7 +215,110 @@ export function createIndiceMcpServer(reader: IndiceBusinessReader): McpServer {
     }
   });
 
+  server.registerTool("preview_create_task", {
+    title: "Prepare task creation",
+    description: "Prepara una vista previa exacta para crear una tarea en Índice asignada al usuario conectado. No crea la tarea. Muestra la vista previa al usuario y espera su confirmación explícita antes de usar create_task.",
+    inputSchema: {
+      title: z.string().trim().min(1).max(180)
+        .describe("Título claro de la tarea."),
+      description: z.string().trim().min(1).max(2000).optional()
+        .describe("Descripción opcional de la tarea."),
+      priority: z.enum(["low", "medium", "high"]).optional()
+        .describe("Prioridad. El valor predeterminado es medium."),
+      due_date: z.iso.date().optional()
+        .describe("Fecha de vencimiento exacta en formato YYYY-MM-DD.")
+    },
+    outputSchema: {
+      confirmationToken: z.string().startsWith("idx_confirm_"),
+      expiresAt: z.iso.datetime(),
+      requiresConfirmation: z.literal(true),
+      task: z.object({
+        title: z.string(),
+        description: z.string().nullable(),
+        priority: z.enum(["low", "medium", "high"]),
+        dueDate: z.iso.date().nullable(),
+        assignee: z.literal("Usuario conectado")
+      })
+    },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false
+    }
+  }, async ({ title, description, priority, due_date }) => {
+    try {
+      const result = await reader.previewCreateTask({
+        title,
+        description,
+        priority,
+        dueDate: due_date
+      });
+      return {
+        content: [{ type: "text", text: humanTaskPreview(result) }],
+        structuredContent: result
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Indice is unavailable.";
+      return { isError: true, content: [{ type: "text", text: message }] };
+    }
+  });
+
+  server.registerTool("create_task", {
+    title: "Create confirmed task",
+    description: "Crea en Índice únicamente la tarea contenida en una vista previa vigente. Úsala solo después de que el usuario confirme explícitamente los datos exactos mostrados por preview_create_task. No acepta título, descripción, prioridad ni fecha para impedir cambios posteriores a la confirmación.",
+    inputSchema: {
+      confirmation_token: z.string().startsWith("idx_confirm_")
+        .describe("Token interno devuelto por preview_create_task."),
+      idempotency_key: z.string().min(8).max(128)
+        .describe("Clave única generada para este intento, preferentemente un UUID. Reutiliza la misma al reintentar.")
+    },
+    outputSchema: {
+      replayed: z.boolean(),
+      correlationId: z.uuid(),
+      task: z.object({
+        id: z.number().int().positive(),
+        folio: z.string().nullable(),
+        title: z.string(),
+        status: z.string(),
+        dueDate: z.iso.date().nullable()
+      })
+    },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false
+    }
+  }, async ({ confirmation_token, idempotency_key }) => {
+    try {
+      const result = await reader.createTask({
+        confirmationToken: confirmation_token,
+        idempotencyKey: idempotency_key
+      });
+      return {
+        content: [{ type: "text", text: humanCreatedTask(result) }],
+        structuredContent: result
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Indice is unavailable.";
+      return { isError: true, content: [{ type: "text", text: message }] };
+    }
+  });
+
   return server;
+}
+
+function humanTaskPreview(result: TaskPreviewResponse): string {
+  const due = result.task.dueDate ? ` Vence: ${result.task.dueDate}.` : " Sin fecha de vencimiento.";
+  const description = result.task.description ? ` Descripción: ${result.task.description}.` : "";
+  return `Vista previa: ${result.task.title}. Prioridad: ${result.task.priority}.${due}${description} Asignada al usuario conectado. Confirma explícitamente estos datos para crearla; la autorización vence en 5 minutos.`;
+}
+
+function humanCreatedTask(result: TaskCommitResponse): string {
+  const folio = result.task.folio ? ` (${result.task.folio})` : "";
+  const replay = result.replayed ? " La respuesta corresponde al mismo intento ya procesado; no se creó un duplicado." : "";
+  return `Tarea creada en Índice${folio}: ${result.task.title}.${replay}`;
 }
 
 function attentionItems(snapshot: BusinessSnapshot): AttentionItems {

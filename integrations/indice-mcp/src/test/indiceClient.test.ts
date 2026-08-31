@@ -188,6 +188,50 @@ test("rejects custom snapshot filters without both dates before calling Indice",
   assert.equal(called, false);
 });
 
+test("previews and commits a task through delegated endpoints without mutable commit fields", async () => {
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  const responses = [jsonResponse(taskPreview(), 200), jsonResponse(createdTask(), 201)];
+  const fakeFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    requests.push({ url: input.toString(), ...(init ? { init } : {}) });
+    return responses.shift() as Response;
+  }) as typeof fetch;
+  const delegatedConfig: IndiceMcpConfig = {
+    backendUrl: new URL("http://127.0.0.1:8082"),
+    authMode: "delegated",
+    preferredCurrency: "MXN",
+    timeoutMs: 5000,
+    transport: "http",
+    host: "127.0.0.1",
+    port: 3010
+  };
+  const client = new IndiceClient(delegatedConfig, fakeFetch, "idx_ai_delegated-token-value-1234567890");
+
+  const preview = await client.previewCreateTask({
+    title: "Revisar alertas MCP",
+    priority: "high",
+    dueDate: "2026-09-01"
+  });
+  const created = await client.createTask({
+    confirmationToken: preview.confirmationToken,
+    idempotencyKey: "550e8400-e29b-41d4-a716-446655440000"
+  });
+
+  assert.equal(created.task.id, 701);
+  assert.equal(requests[0]?.url, "http://127.0.0.1:8082/api/v1/ai/tools/tasks/preview");
+  assert.deepEqual(JSON.parse(String(requests[0]?.init?.body)), {
+    title: "Revisar alertas MCP",
+    priority: "high",
+    dueDate: "2026-09-01"
+  });
+  assert.equal(requests[1]?.url, "http://127.0.0.1:8082/api/v1/ai/tools/tasks/commit");
+  assert.deepEqual(JSON.parse(String(requests[1]?.init?.body)), {
+    confirmationToken: preview.confirmationToken,
+    idempotencyKey: "550e8400-e29b-41d4-a716-446655440000"
+  });
+  assert.equal(new Headers(requests[1]?.init?.headers).get("Authorization"),
+    "Bearer idx_ai_delegated-token-value-1234567890");
+});
+
 function jsonResponse(body: unknown, status: number, setCookie?: string): Response {
   const headers = new Headers({ "Content-Type": "application/json" });
   if (setCookie) {
@@ -243,5 +287,34 @@ function businessSnapshot() {
       title: "Cartera vencida",
       description: "Hay saldo vencido que requiere cobranza activa."
     }]
+  };
+}
+
+function taskPreview() {
+  return {
+    confirmationToken: "idx_confirm_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFG",
+    expiresAt: "2026-08-31T18:05:00Z",
+    requiresConfirmation: true,
+    task: {
+      title: "Revisar alertas MCP",
+      description: null,
+      priority: "high",
+      dueDate: "2026-09-01",
+      assignee: "Usuario conectado"
+    }
+  };
+}
+
+function createdTask() {
+  return {
+    replayed: false,
+    correlationId: "550e8400-e29b-41d4-a716-446655440000",
+    task: {
+      id: 701,
+      folio: "T-701",
+      title: "Revisar alertas MCP",
+      status: "pending",
+      dueDate: "2026-09-01"
+    }
   };
 }

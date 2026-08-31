@@ -12,6 +12,12 @@ test("lists and executes get_sales_today through MCP", async () => {
     },
     async getBusinessSnapshot() {
       return businessSnapshot();
+    },
+    async previewCreateTask() {
+      return taskPreview();
+    },
+    async createTask() {
+      return createdTask();
     }
   });
   const client = new Client({ name: "indice-mcp-test", version: "0.1.0" });
@@ -24,7 +30,9 @@ test("lists and executes get_sales_today through MCP", async () => {
     assert.deepEqual(tools.tools.map(tool => tool.name), [
       "get_sales_today",
       "get_business_snapshot",
-      "get_attention_items"
+      "get_attention_items",
+      "preview_create_task",
+      "create_task"
     ]);
     assert.equal(tools.tools[0]?.annotations?.readOnlyHint, true);
 
@@ -63,6 +71,12 @@ test("returns prioritized attention items without exposing healthy noise", async
           { status: "critical", title: "Utilidad negativa", description: "Los gastos superan las ventas." }
         ]
       };
+    },
+    async previewCreateTask() {
+      return taskPreview();
+    },
+    async createTask() {
+      return createdTask();
     }
   });
   const client = new Client({ name: "indice-mcp-test", version: "0.1.0" });
@@ -108,6 +122,12 @@ test("executes get_business_snapshot through MCP with safe business filters", as
         preferredCurrency: "CAD"
       });
       return businessSnapshot();
+    },
+    async previewCreateTask() {
+      return taskPreview();
+    },
+    async createTask() {
+      return createdTask();
     }
   });
   const client = new Client({ name: "indice-mcp-test", version: "0.1.0" });
@@ -130,6 +150,65 @@ test("executes get_business_snapshot through MCP with safe business filters", as
     assert.deepEqual(result.structuredContent, businessSnapshot());
     assert.match(firstText(result.content), /ventas/);
     assert.match(firstText(result.content), /Cartera vencida/);
+  } finally {
+    await client.close();
+    await server.close();
+  }
+});
+
+test("requires preview and passes only the confirmed token to task creation", async () => {
+  let committed: unknown;
+  const server = createIndiceMcpServer({
+    async getSalesToday() {
+      return summary();
+    },
+    async getBusinessSnapshot() {
+      return businessSnapshot();
+    },
+    async previewCreateTask(request) {
+      assert.deepEqual(request, {
+        title: "Revisar alertas MCP",
+        description: undefined,
+        priority: "high",
+        dueDate: "2026-09-01"
+      });
+      return taskPreview();
+    },
+    async createTask(request) {
+      committed = request;
+      return createdTask();
+    }
+  });
+  const client = new Client({ name: "indice-mcp-test", version: "0.1.0" });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+  await server.connect(serverTransport);
+  await client.connect(clientTransport);
+  try {
+    const preview = await client.callTool({
+      name: "preview_create_task",
+      arguments: {
+        title: "Revisar alertas MCP",
+        priority: "high",
+        due_date: "2026-09-01"
+      }
+    });
+    assert.equal(preview.isError, undefined);
+    assert.match(firstText(preview.content), /Confirma explícitamente/);
+
+    const created = await client.callTool({
+      name: "create_task",
+      arguments: {
+        confirmation_token: taskPreview().confirmationToken,
+        idempotency_key: "550e8400-e29b-41d4-a716-446655440000"
+      }
+    });
+    assert.equal(created.isError, undefined);
+    assert.deepEqual(committed, {
+      confirmationToken: taskPreview().confirmationToken,
+      idempotencyKey: "550e8400-e29b-41d4-a716-446655440000"
+    });
+    assert.match(firstText(created.content), /Tarea creada/);
   } finally {
     await client.close();
     await server.close();
@@ -194,5 +273,34 @@ function businessSnapshot() {
       title: "Cartera vencida",
       description: "Hay saldo vencido que requiere cobranza activa."
     }]
+  };
+}
+
+function taskPreview() {
+  return {
+    confirmationToken: "idx_confirm_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFG",
+    expiresAt: "2026-08-31T18:05:00Z",
+    requiresConfirmation: true as const,
+    task: {
+      title: "Revisar alertas MCP",
+      description: null,
+      priority: "high" as const,
+      dueDate: "2026-09-01",
+      assignee: "Usuario conectado" as const
+    }
+  };
+}
+
+function createdTask() {
+  return {
+    replayed: false,
+    correlationId: "550e8400-e29b-41d4-a716-446655440000",
+    task: {
+      id: 701,
+      folio: "T-701",
+      title: "Revisar alertas MCP",
+      status: "pending",
+      dueDate: "2026-09-01"
+    }
   };
 }

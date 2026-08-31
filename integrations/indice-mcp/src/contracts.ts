@@ -116,3 +116,51 @@ export const attentionItemsSchema = z.object({
 });
 
 export type AttentionItems = z.infer<typeof attentionItemsSchema>;
+
+export const taskPrioritySchema = z.enum(["low", "medium", "high"]);
+
+export const taskPreviewRequestSchema = z.object({
+  title: z.string().trim().min(1).max(180),
+  description: z.string().trim().min(1).max(2000).optional(),
+  priority: taskPrioritySchema.optional(),
+  dueDate: z.iso.date().optional()
+});
+
+export const taskDraftSchema = z.object({
+  title: z.string().min(1).max(180),
+  description: z.string().nullable(),
+  priority: taskPrioritySchema,
+  dueDate: z.iso.date().nullable(),
+  assignee: z.literal("Usuario conectado")
+});
+
+export const taskPreviewResponseSchema = z.object({
+  confirmationToken: z.string().startsWith("idx_confirm_"),
+  expiresAt: z.iso.datetime(),
+  requiresConfirmation: z.literal(true),
+  task: taskDraftSchema
+});
+
+export const taskCommitRequestSchema = z.object({
+  confirmationToken: z.string().startsWith("idx_confirm_"),
+  idempotencyKey: z.string().min(8).max(128)
+});
+
+export const taskResultSchema = z.object({
+  id: z.number().int().positive(),
+  folio: z.string().nullable(),
+  title: z.string().min(1),
+  status: z.string().min(1),
+  dueDate: z.iso.date().nullable()
+});
+
+export const taskCommitResponseSchema = z.object({
+  replayed: z.boolean(),
+  correlationId: z.uuid(),
+  task: taskResultSchema
+});
+
+export type TaskPreviewRequest = z.infer<typeof taskPreviewRequestSchema>;
+export type TaskPreviewResponse = z.infer<typeof taskPreviewResponseSchema>;
+export type TaskCommitRequest = z.infer<typeof taskCommitRequestSchema>;
+export type TaskCommitResponse = z.infer<typeof taskCommitResponseSchema>;
