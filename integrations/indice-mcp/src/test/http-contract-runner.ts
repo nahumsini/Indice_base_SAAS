@@ -21,6 +21,9 @@ try {
   if (!tools.tools.some(tool => tool.name === "get_business_snapshot")) {
     throw new Error("get_business_snapshot was not registered over Streamable HTTP.");
   }
+  if (!tools.tools.some(tool => tool.name === "get_attention_items")) {
+    throw new Error("get_attention_items was not registered over Streamable HTTP.");
+  }
   const salesResult = await client.callTool({
     name: "get_sales_today",
     arguments: { preferred_currency: config.preferredCurrency }
@@ -35,9 +38,17 @@ try {
   if (snapshotResult.isError) {
     throw new Error(firstText(snapshotResult.content) || "Business snapshot tool call failed over Streamable HTTP.");
   }
+  const attentionResult = await client.callTool({
+    name: "get_attention_items",
+    arguments: { period: "monthly", preferred_currency: config.preferredCurrency }
+  });
+  if (attentionResult.isError) {
+    throw new Error(firstText(attentionResult.content) || "Attention items tool call failed over Streamable HTTP.");
+  }
   process.stdout.write(`${JSON.stringify({
     salesToday: salesResult.structuredContent,
-    businessSnapshot: snapshotResult.structuredContent
+    businessSnapshot: snapshotResult.structuredContent,
+    attentionItems: attentionResult.structuredContent
   }, null, 2)}\n`);
 } finally {
   await client.close();

@@ -96,3 +96,23 @@ export const businessSnapshotSchema = z.object({
 
 export type BusinessSnapshotQuery = z.infer<typeof businessSnapshotQuerySchema>;
 export type BusinessSnapshot = z.infer<typeof businessSnapshotSchema>;
+
+export const attentionItemsSchema = z.object({
+  range: businessSnapshotSchema.shape.range,
+  context: businessSnapshotSchema.shape.context.extend({
+    source: z.literal("executive_kpis")
+  }),
+  overview: z.object({
+    executiveScore: z.number().int(),
+    criticalCount: z.number().int().nonnegative(),
+    watchCount: z.number().int().nonnegative(),
+    healthy: z.boolean()
+  }),
+  items: z.array(z.object({
+    status: z.enum(["critical", "watch"]),
+    title: z.string().min(1),
+    description: z.string().min(1)
+  }))
+});
+
+export type AttentionItems = z.infer<typeof attentionItemsSchema>;

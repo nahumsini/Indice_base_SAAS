@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as z from "zod/v4";
 import type {
+  AttentionItems,
   BusinessSnapshot,
   BusinessSnapshotQuery,
   SalesTodaySummary
@@ -142,7 +143,107 @@ export function createIndiceMcpServer(reader: IndiceBusinessReader): McpServer {
     }
   });
 
+  server.registerTool("get_attention_items", {
+    title: "Get attention items",
+    description: "Obtiene únicamente las excepciones críticas y de seguimiento que requieren atención en la empresa autorizada en Índice. Úsala para preguntas como qué requiere mi atención, qué está mal o qué debo resolver primero. Para consultar solo hoy usa period=custom con la misma fecha en from y to.",
+    inputSchema: {
+      period: z.enum(["monthly", "bimonthly", "quarterly", "semester", "annual", "custom"])
+        .optional()
+        .describe("Periodo de análisis. El valor predeterminado es monthly."),
+      from: z.iso.date().optional()
+        .describe("Fecha inicial YYYY-MM-DD. Solo se usa con period=custom."),
+      to: z.iso.date().optional()
+        .describe("Fecha final YYYY-MM-DD. Solo se usa con period=custom."),
+      preferred_currency: z.string().regex(/^[A-Z]{3}$/).optional()
+        .describe("Moneda ISO de tres letras, por ejemplo MXN, CAD o USD.")
+    },
+    outputSchema: {
+      range: z.object({
+        from: z.iso.date(),
+        to: z.iso.date(),
+        period: z.enum(["monthly", "bimonthly", "quarterly", "semester", "annual", "custom"])
+      }),
+      context: z.object({
+        currency: z.string().regex(/^[A-Z]{3}$/),
+        generatedAt: z.iso.datetime(),
+        scopeLabel: z.string(),
+        source: z.literal("executive_kpis")
+      }),
+      overview: z.object({
+        executiveScore: z.number().int(),
+        criticalCount: z.number().int().nonnegative(),
+        watchCount: z.number().int().nonnegative(),
+        healthy: z.boolean()
+      }),
+      items: z.array(z.object({
+        status: z.enum(["critical", "watch"]),
+        title: z.string(),
+        description: z.string()
+      }))
+    },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false
+    }
+  }, async ({ period, from, to, preferred_currency }) => {
+    try {
+      const snapshot = await reader.getBusinessSnapshot({
+        period,
+        from,
+        to,
+        preferredCurrency: preferred_currency
+      });
+      const result = attentionItems(snapshot);
+      return {
+        content: [{ type: "text", text: humanAttentionItems(result) }],
+        structuredContent: result
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Indice is unavailable.";
+      return {
+        isError: true,
+        content: [{ type: "text", text: message }]
+      };
+    }
+  });
+
   return server;
+}
+
+function attentionItems(snapshot: BusinessSnapshot): AttentionItems {
+  const items = snapshot.alerts
+    .filter((alert): alert is typeof alert & { status: "critical" | "watch" } => alert.status !== "healthy")
+    .sort((left, right) => riskOrder(left.status) - riskOrder(right.status));
+  const criticalCount = items.filter(item => item.status === "critical").length;
+  const watchCount = items.filter(item => item.status === "watch").length;
+  return {
+    range: snapshot.range,
+    context: {
+      ...snapshot.context,
+      source: "executive_kpis"
+    },
+    overview: {
+      executiveScore: snapshot.summary.executiveScore,
+      criticalCount,
+      watchCount,
+      healthy: items.length === 0
+    },
+    items
+  };
+}
+
+function riskOrder(status: "critical" | "watch"): number {
+  return status === "critical" ? 0 : 1;
+}
+
+function humanAttentionItems(result: AttentionItems): string {
+  if (result.overview.healthy) {
+    return `No hay alertas críticas ni de seguimiento para el periodo. Score ejecutivo: ${result.overview.executiveScore}/100.`;
+  }
+  const items = result.items.map(item => `${item.status === "critical" ? "Crítico" : "Seguimiento"}: ${item.title}`).join("; ");
+  return `Score ejecutivo ${result.overview.executiveScore}/100. Requieren atención: ${items}.`;
 }
 
 function humanBusinessSnapshot(snapshot: BusinessSnapshot): string {

@@ -6,13 +6,14 @@ Herramientas disponibles:
 
 - `get_sales_today`: cantidad y total monetario vendido hoy.
 - `get_business_snapshot`: resumen ejecutivo por periodo con ventas, cobros, gastos, utilidad, cuentas pendientes, caja chica, tareas, asistencia y alertas.
+- `get_attention_items`: excepciones críticas y de seguimiento ordenadas por prioridad, sin ruido saludable.
 
 ## Requisitos
 
 - Node.js 22 o posterior.
 - Backend local de Índice en `http://127.0.0.1:8082`.
 - Para `get_sales_today`: acceso al producto `sales`, módulo `crm` y permiso `crm.kpis`.
-- Para `get_business_snapshot`: acceso al módulo `kpis` y permiso `kpis.kpis`.
+- Para `get_business_snapshot` y `get_attention_items`: acceso al módulo `kpis` y permiso `kpis.kpis`.
 
 ## Configuración local
 
@@ -39,7 +40,7 @@ npm run test:contract
 npm run test:http-contract
 ```
 
-`test:contract` realiza el recorrido MCP completo en memoria con el modo de sesión local: lista herramientas, ejecuta `get_sales_today` y `get_business_snapshot`, inicia sesión en Índice y valida las respuestas reales del backend.
+`test:contract` realiza el recorrido MCP completo en memoria con el modo de sesión local: lista herramientas, ejecuta las consultas disponibles, inicia sesión en Índice y valida las respuestas reales del backend.
 
 Con el servidor HTTP ya iniciado, `test:http-contract` repite el contrato atravesando Streamable HTTP con un token delegado temporal.
 

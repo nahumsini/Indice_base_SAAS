@@ -10,6 +10,7 @@ Entregar primero un asistente de consulta confiable para dueños de PYMEs. Las a
 | --- | --- | --- | --- | --- |
 | P0 | `get_sales_today` | ¿Cuánto vendí hoy? ¿Cuántas ventas hice? | `SalesKpiTodayService` | Funcional |
 | P0 | `get_business_snapshot` | ¿Cómo va el negocio? ¿Cuánto gasté? ¿Cuánto me deben? ¿Qué está vencido? | `ExecutiveKpiService` | Implementada |
+| P0 | `get_attention_items` | ¿Qué requiere mi atención? ¿Qué debo resolver primero? | `ExecutiveKpiService` | Implementada |
 | P1 | `get_sales_breakdown` | ¿Qué producto, canal o vendedor vendió más? | Ventas, tickets y KPI ejecutivo | Siguiente |
 | P1 | `get_cash_status` | ¿Cuánto hay en caja? ¿Hay diferencias o cierres pendientes? | POS, caja y arqueos | Pendiente |
 | P1 | `get_inventory_alerts` | ¿Qué productos tienen poco inventario o riesgo de agotarse? | Inventario y productos | Pendiente |

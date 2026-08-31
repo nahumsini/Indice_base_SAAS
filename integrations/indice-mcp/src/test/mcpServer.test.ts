@@ -21,7 +21,11 @@ test("lists and executes get_sales_today through MCP", async () => {
   await client.connect(clientTransport);
   try {
     const tools = await client.listTools();
-    assert.deepEqual(tools.tools.map(tool => tool.name), ["get_sales_today", "get_business_snapshot"]);
+    assert.deepEqual(tools.tools.map(tool => tool.name), [
+      "get_sales_today",
+      "get_business_snapshot",
+      "get_attention_items"
+    ]);
     assert.equal(tools.tools[0]?.annotations?.readOnlyHint, true);
 
     const result = await client.callTool({
@@ -32,6 +36,59 @@ test("lists and executes get_sales_today through MCP", async () => {
     assert.equal(result.isError, undefined);
     assert.deepEqual(result.structuredContent, summary());
     assert.match(firstText(result.content), /2 ventas/);
+  } finally {
+    await client.close();
+    await server.close();
+  }
+});
+
+test("returns prioritized attention items without exposing healthy noise", async () => {
+  const server = createIndiceMcpServer({
+    async getSalesToday() {
+      return summary();
+    },
+    async getBusinessSnapshot(query) {
+      assert.deepEqual(query, {
+        period: "monthly",
+        from: undefined,
+        to: undefined,
+        preferredCurrency: "MXN"
+      });
+      const snapshot = businessSnapshot();
+      return {
+        ...snapshot,
+        alerts: [
+          { status: "watch", title: "Tareas vencidas", description: "Hay compromisos fuera de tiempo." },
+          { status: "healthy", title: "Lectura sana", description: "Sin riesgo." },
+          { status: "critical", title: "Utilidad negativa", description: "Los gastos superan las ventas." }
+        ]
+      };
+    }
+  });
+  const client = new Client({ name: "indice-mcp-test", version: "0.1.0" });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+  await server.connect(serverTransport);
+  await client.connect(clientTransport);
+  try {
+    const result = await client.callTool({
+      name: "get_attention_items",
+      arguments: { period: "monthly", preferred_currency: "MXN" }
+    });
+
+    assert.equal(result.isError, undefined);
+    const content = result.structuredContent as {
+      overview: { criticalCount: number; watchCount: number; healthy: boolean };
+      items: Array<{ status: string; title: string }>;
+    };
+    assert.deepEqual(content.overview, {
+      executiveScore: 81,
+      criticalCount: 1,
+      watchCount: 1,
+      healthy: false
+    });
+    assert.deepEqual(content.items.map(item => item.title), ["Utilidad negativa", "Tareas vencidas"]);
+    assert.match(firstText(result.content), /Utilidad negativa/);
   } finally {
     await client.close();
     await server.close();
