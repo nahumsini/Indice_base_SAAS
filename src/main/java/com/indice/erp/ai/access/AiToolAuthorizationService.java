@@ -18,6 +18,8 @@ public class AiToolAuthorizationService {
     private static final Set<String> PRIVILEGED_ROLES = Set.of("root", "superadmin");
     private static final TabPermissionRequirement SALES_KPI_PERMISSION =
         TabPermissionRequirement.one("crm.kpis");
+    private static final TabPermissionRequirement EXECUTIVE_KPI_PERMISSION =
+        TabPermissionRequirement.one("kpis.kpis");
 
     private final CompanySubscriptionStatusProvider subscriptionStatusProvider;
     private final CompanyModuleEntitlementService moduleEntitlementService;
@@ -55,6 +57,17 @@ public class AiToolAuthorizationService {
         return commercialEntitlement.policy_mode() != EntitlementPolicyMode.ENFORCE
             || commercialEntitlement.allowed()
             || PRIVILEGED_ROLES.contains(normalizeRole(user.role()));
+    }
+
+    public boolean canReadBusinessSnapshot(AuthSessionUser user) {
+        if (!subscriptionStatusProvider.currentStatus(user.companyId()).accessAllowed()) {
+            return false;
+        }
+        if (!moduleEntitlementService.hasActiveEntitlement(user.companyId(), "kpis")) {
+            return false;
+        }
+        return moduleAccessService.canAccess(user, "kpis")
+            && tabPermissionAccessService.canAccess(user, EXECUTIVE_KPI_PERMISSION);
     }
 
     private String normalizeRole(String role) {

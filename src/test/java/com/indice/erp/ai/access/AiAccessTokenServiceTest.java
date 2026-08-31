@@ -49,7 +49,11 @@ class AiAccessTokenServiceTest {
         var issued = service.issue(OWNER, "ChatGPT ventas", 7);
 
         assertEquals(91L, issued.id());
-        assertEquals(Set.of(AiAccessTokenService.SALES_TODAY_READ), issued.scopes());
+        var expectedScopes = Set.of(
+            AiAccessTokenService.SALES_TODAY_READ,
+            AiAccessTokenService.BUSINESS_SNAPSHOT_READ
+        );
+        assertEquals(expectedScopes, issued.scopes());
         assertEquals(NOW.plusSeconds(7L * 24 * 60 * 60), issued.expiresAt());
         assertTrue(issued.accessToken().startsWith("idx_ai_"));
 
@@ -61,7 +65,7 @@ class AiAccessTokenServiceTest {
             eq(issued.tokenPrefix()),
             hash.capture(),
             eq(issued.expiresAt()),
-            eq(Set.of(AiAccessTokenService.SALES_TODAY_READ))
+            eq(expectedScopes)
         );
         assertEquals(64, hash.getValue().length());
         assertFalse(hash.getValue().contains(issued.accessToken()));
@@ -92,5 +96,18 @@ class AiAccessTokenServiceTest {
         assertTrue(result.isPresent());
         verify(repository).markUsed(91L, NOW);
         assertTrue(service.authenticate("Basic abc", AiAccessTokenService.SALES_TODAY_READ).isEmpty());
+    }
+
+    @Test
+    void verifiesAnActiveTokenWithoutCouplingVerificationToOneToolScope() {
+        var stored = new AiAccessTokenRepository.StoredToken(
+            91L,
+            OWNER,
+            Set.of(AiAccessTokenService.BUSINESS_SNAPSHOT_READ)
+        );
+        when(repository.findActiveByHash(anyString(), eq(NOW))).thenReturn(Optional.of(stored));
+
+        assertTrue(service.authenticate("Bearer idx_ai_abcdefghijklmnopqrstuvwxyz1234567890").isPresent());
+        verify(repository).markUsed(91L, NOW);
     }
 }

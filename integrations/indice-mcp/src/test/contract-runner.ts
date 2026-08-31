@@ -16,15 +16,29 @@ try {
   if (!tools.tools.some(tool => tool.name === "get_sales_today")) {
     throw new Error("get_sales_today was not registered.");
   }
-  const result = await client.callTool({
+  if (!tools.tools.some(tool => tool.name === "get_business_snapshot")) {
+    throw new Error("get_business_snapshot was not registered.");
+  }
+  const salesResult = await client.callTool({
     name: "get_sales_today",
     arguments: { preferred_currency: config.preferredCurrency }
   });
-  if (result.isError) {
-    const message = firstText(result.content) || "Tool call failed.";
+  if (salesResult.isError) {
+    const message = firstText(salesResult.content) || "Sales tool call failed.";
     throw new Error(message);
   }
-  process.stdout.write(`${JSON.stringify(result.structuredContent, null, 2)}\n`);
+  const snapshotResult = await client.callTool({
+    name: "get_business_snapshot",
+    arguments: { period: "monthly", preferred_currency: config.preferredCurrency }
+  });
+  if (snapshotResult.isError) {
+    const message = firstText(snapshotResult.content) || "Business snapshot tool call failed.";
+    throw new Error(message);
+  }
+  process.stdout.write(`${JSON.stringify({
+    salesToday: salesResult.structuredContent,
+    businessSnapshot: snapshotResult.structuredContent
+  }, null, 2)}\n`);
 } finally {
   await client.close();
   await server.close();

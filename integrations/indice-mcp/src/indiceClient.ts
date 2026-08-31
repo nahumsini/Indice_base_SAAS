@@ -1,5 +1,12 @@
 import type { IndiceMcpConfig } from "./config.js";
-import { salesTodaySummarySchema, type SalesTodaySummary } from "./contracts.js";
+import {
+  businessSnapshotQuerySchema,
+  businessSnapshotSchema,
+  salesTodaySummarySchema,
+  type BusinessSnapshot,
+  type BusinessSnapshotQuery,
+  type SalesTodaySummary
+} from "./contracts.js";
 
 export class IndiceApiError extends Error {
   constructor(
@@ -55,6 +62,25 @@ export class IndiceClient {
     return parsed.data;
   }
 
+  async getBusinessSnapshot(query: BusinessSnapshotQuery = {}): Promise<BusinessSnapshot> {
+    const normalized = normalizeBusinessSnapshotQuery(query, this.config.preferredCurrency);
+    if (this.config.authMode === "delegated") {
+      return this.getDelegatedBusinessSnapshot(normalized);
+    }
+    await this.ensureAuthenticated();
+    let response = await this.request(businessSnapshotPath("/api/v1/kpis/executive-panel", normalized), {
+      method: "GET"
+    });
+    if (response.status === 401) {
+      this.authenticated = false;
+      await this.ensureAuthenticated();
+      response = await this.request(businessSnapshotPath("/api/v1/kpis/executive-panel", normalized), {
+        method: "GET"
+      });
+    }
+    return this.parseBusinessSnapshot(response);
+  }
+
   async hasValidDelegatedAccess(): Promise<boolean> {
     if (this.config.authMode !== "delegated" || !this.delegatedAccessToken) {
       return false;
@@ -94,6 +120,34 @@ export class IndiceClient {
     const parsed = salesTodaySummarySchema.safeParse(payload);
     if (!parsed.success) {
       throw new IndiceApiError("Indice returned an invalid sales summary contract.");
+    }
+    return parsed.data;
+  }
+
+  private async getDelegatedBusinessSnapshot(query: BusinessSnapshotQuery): Promise<BusinessSnapshot> {
+    if (!this.delegatedAccessToken) {
+      throw new IndiceApiError("Indice delegated authorization is required.", 401);
+    }
+    const response = await this.request(
+      businessSnapshotPath("/api/v1/ai/tools/business/snapshot", query),
+      {
+        method: "GET",
+        headers: { Authorization: `Bearer ${this.delegatedAccessToken}` }
+      }
+    );
+    return this.parseBusinessSnapshot(response);
+  }
+
+  private async parseBusinessSnapshot(response: Response): Promise<BusinessSnapshot> {
+    if (!response.ok) {
+      throw await this.apiError(response, response.status === 403
+        ? "Your current Indice permissions do not allow the business snapshot tool."
+        : "Indice could not load the business snapshot.");
+    }
+    const payload: unknown = await response.json();
+    const parsed = businessSnapshotSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new IndiceApiError("Indice returned an invalid business snapshot contract.");
     }
     return parsed.data;
   }
@@ -194,6 +248,31 @@ function normalizeCurrency(value: string): string {
     throw new IndiceApiError("preferred_currency must use a three-letter ISO code.");
   }
   return normalized;
+}
+
+function normalizeBusinessSnapshotQuery(
+  query: BusinessSnapshotQuery,
+  defaultCurrency: string
+): BusinessSnapshotQuery {
+  const candidate = {
+    ...query,
+    preferredCurrency: normalizeCurrency(query.preferredCurrency ?? defaultCurrency)
+  };
+  const parsed = businessSnapshotQuerySchema.safeParse(candidate);
+  if (!parsed.success) {
+    throw new IndiceApiError(parsed.error.issues[0]?.message ?? "Invalid business snapshot filters.");
+  }
+  return parsed.data;
+}
+
+function businessSnapshotPath(path: string, query: BusinessSnapshotQuery): string {
+  const params = new URLSearchParams();
+  if (query.period) params.set("period", query.period);
+  if (query.from) params.set("from", query.from);
+  if (query.to) params.set("to", query.to);
+  if (query.preferredCurrency) params.set("preferredCurrency", query.preferredCurrency);
+  const serialized = params.toString();
+  return serialized ? `${path}?${serialized}` : path;
 }
 
 function requiredSessionValue(value: string | undefined, field: string): string {

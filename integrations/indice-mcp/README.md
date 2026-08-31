@@ -2,11 +2,17 @@
 
 Adaptador MCP de solo lectura para las herramientas de negocio de Índice. El servidor llama a la API Spring Boot autenticada; nunca se conecta directamente a MySQL.
 
+Herramientas disponibles:
+
+- `get_sales_today`: cantidad y total monetario vendido hoy.
+- `get_business_snapshot`: resumen ejecutivo por periodo con ventas, cobros, gastos, utilidad, cuentas pendientes, caja chica, tareas, asistencia y alertas.
+
 ## Requisitos
 
 - Node.js 22 o posterior.
 - Backend local de Índice en `http://127.0.0.1:8082`.
-- Usuario local con acceso al producto `sales` y permiso `crm.kpis`.
+- Para `get_sales_today`: acceso al producto `sales`, módulo `crm` y permiso `crm.kpis`.
+- Para `get_business_snapshot`: acceso al módulo `kpis` y permiso `kpis.kpis`.
 
 ## Configuración local
 
@@ -33,7 +39,7 @@ npm run test:contract
 npm run test:http-contract
 ```
 
-`test:contract` realiza el recorrido MCP completo en memoria con el modo de sesión local: lista herramientas, ejecuta `get_sales_today`, inicia sesión en Índice y valida la respuesta real del backend.
+`test:contract` realiza el recorrido MCP completo en memoria con el modo de sesión local: lista herramientas, ejecuta `get_sales_today` y `get_business_snapshot`, inicia sesión en Índice y valida las respuestas reales del backend.
 
 Con el servidor HTTP ya iniciado, `test:http-contract` repite el contrato atravesando Streamable HTTP con un token delegado temporal.
 
@@ -59,8 +65,8 @@ El endpoint local será `http://127.0.0.1:3010/mcp`. Esta versión rechaza backe
 - `companyId`, usuario y membresía proceden de la sesión o del token delegado emitido por Índice.
 - El MCP no acepta campos de autoridad.
 - Los tokens se guardan en la base solo como SHA-256 y se muestran una vez al crearlos.
-- Alcance inicial único: `sales.today:read`; expiración máxima de 90 días y revocación inmediata.
-- Cada consulta vuelve a validar suscripción, módulo `crm`, acceso del usuario, permiso `crm.kpis` y entitlement comercial `sales`.
+- Alcances iniciales: `sales.today:read` y `business.snapshot:read`; expiración máxima de 90 días y revocación inmediata.
+- Cada consulta vuelve a validar suscripción, módulo, acceso del usuario y permiso vigente. Ventas también valida el entitlement comercial `sales`.
 - La sesión con contraseña existe solo para `stdio` local y se mantiene únicamente en memoria.
 - URLs locales obligatorias.
 - Cookies, contraseñas y tokens no se registran.

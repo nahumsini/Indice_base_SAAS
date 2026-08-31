@@ -73,6 +73,26 @@ class AiToolAuthorizationServiceTest {
         assertFalse(service.canReadSalesToday(USER));
     }
 
+    @Test
+    void allowsBusinessSnapshotOnlyWithCurrentExecutiveKpiAccess() {
+        when(subscriptionStatusProvider.currentStatus(23L)).thenReturn(CompanySubscriptionStatus.activeLegacy());
+        when(moduleEntitlementService.hasActiveEntitlement(23L, "kpis")).thenReturn(true);
+        when(moduleAccessService.canAccess(USER, "kpis")).thenReturn(true);
+        when(tabPermissionAccessService.canAccess(eq(USER), any())).thenReturn(true);
+
+        assertTrue(service.canReadBusinessSnapshot(USER));
+    }
+
+    @Test
+    void revokingExecutiveKpiPermissionImmediatelyBlocksBusinessSnapshot() {
+        when(subscriptionStatusProvider.currentStatus(23L)).thenReturn(CompanySubscriptionStatus.activeLegacy());
+        when(moduleEntitlementService.hasActiveEntitlement(23L, "kpis")).thenReturn(true);
+        when(moduleAccessService.canAccess(USER, "kpis")).thenReturn(true);
+        when(tabPermissionAccessService.canAccess(eq(USER), any())).thenReturn(false);
+
+        assertFalse(service.canReadBusinessSnapshot(USER));
+    }
+
     private void allowLegacyAccess() {
         when(subscriptionStatusProvider.currentStatus(23L)).thenReturn(CompanySubscriptionStatus.activeLegacy());
         when(moduleEntitlementService.hasActiveEntitlement(23L, "crm")).thenReturn(true);

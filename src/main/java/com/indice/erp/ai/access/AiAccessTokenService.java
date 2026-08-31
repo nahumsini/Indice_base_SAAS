@@ -20,6 +20,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class AiAccessTokenService {
 
     public static final String SALES_TODAY_READ = "sales.today:read";
+    public static final String BUSINESS_SNAPSHOT_READ = "business.snapshot:read";
+
+    private static final Set<String> DEFAULT_SCOPES = Set.of(
+        SALES_TODAY_READ,
+        BUSINESS_SNAPSHOT_READ
+    );
 
     private static final String PROVIDER = "generic_mcp";
     private static final String TOKEN_PREFIX = "idx_ai_";
@@ -54,7 +60,7 @@ public class AiAccessTokenService {
         var rawToken = generateToken();
         var expiresAt = now.plus(Duration.ofDays(days));
         var visiblePrefix = rawToken.substring(0, Math.min(18, rawToken.length()));
-        var scopes = Set.of(SALES_TODAY_READ);
+        var scopes = DEFAULT_SCOPES;
         var id = repository.insert(
             owner,
             PROVIDER,
@@ -84,13 +90,25 @@ public class AiAccessTokenService {
         String authorizationHeader,
         String requiredScope
     ) {
+        return authenticateStoredToken(authorizationHeader, requiredScope);
+    }
+
+    @Transactional
+    public Optional<AiAccessTokenRepository.StoredToken> authenticate(String authorizationHeader) {
+        return authenticateStoredToken(authorizationHeader, null);
+    }
+
+    private Optional<AiAccessTokenRepository.StoredToken> authenticateStoredToken(
+        String authorizationHeader,
+        String requiredScope
+    ) {
         var rawToken = bearerToken(authorizationHeader);
         if (rawToken.isEmpty()) {
             return Optional.empty();
         }
         var now = clock.instant();
         var stored = repository.findActiveByHash(sha256Hex(rawToken.get()), now)
-            .filter(token -> token.scopes().contains(requiredScope));
+            .filter(token -> requiredScope == null || token.scopes().contains(requiredScope));
         stored.ifPresent(token -> repository.markUsed(token.id(), now));
         return stored;
     }

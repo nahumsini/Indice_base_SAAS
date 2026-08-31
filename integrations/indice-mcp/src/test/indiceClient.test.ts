@@ -133,6 +133,61 @@ test("verifies delegated access without exposing token details", async () => {
   );
 });
 
+test("loads a delegated business snapshot without accepting tenant identifiers", async () => {
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  const fakeFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    requests.push({ url: input.toString(), ...(init ? { init } : {}) });
+    return jsonResponse(businessSnapshot(), 200);
+  }) as typeof fetch;
+  const delegatedConfig: IndiceMcpConfig = {
+    backendUrl: new URL("http://127.0.0.1:8082"),
+    authMode: "delegated",
+    preferredCurrency: "MXN",
+    timeoutMs: 5000,
+    transport: "http",
+    host: "127.0.0.1",
+    port: 3010
+  };
+  const client = new IndiceClient(delegatedConfig, fakeFetch, "idx_ai_delegated-token-value-1234567890");
+
+  const result = await client.getBusinessSnapshot({ period: "monthly", preferredCurrency: "cad" });
+
+  assert.equal(result.summary.operatingProfit, 850);
+  assert.equal(requests.length, 1);
+  assert.equal(
+    requests[0]?.url,
+    "http://127.0.0.1:8082/api/v1/ai/tools/business/snapshot?period=monthly&preferredCurrency=CAD"
+  );
+  assert.equal(
+    new Headers(requests[0]?.init?.headers).get("Authorization"),
+    "Bearer idx_ai_delegated-token-value-1234567890"
+  );
+});
+
+test("rejects custom snapshot filters without both dates before calling Indice", async () => {
+  let called = false;
+  const fakeFetch = (async () => {
+    called = true;
+    return jsonResponse(businessSnapshot(), 200);
+  }) as typeof fetch;
+  const delegatedConfig: IndiceMcpConfig = {
+    backendUrl: new URL("http://127.0.0.1:8082"),
+    authMode: "delegated",
+    preferredCurrency: "MXN",
+    timeoutMs: 5000,
+    transport: "http",
+    host: "127.0.0.1",
+    port: 3010
+  };
+  const client = new IndiceClient(delegatedConfig, fakeFetch, "idx_ai_delegated-token-value-1234567890");
+
+  await assert.rejects(
+    () => client.getBusinessSnapshot({ period: "custom", from: "2026-08-01" }),
+    /requires from and to/
+  );
+  assert.equal(called, false);
+});
+
 function jsonResponse(body: unknown, status: number, setCookie?: string): Response {
   const headers = new Headers({ "Content-Type": "application/json" });
   if (setCookie) {
@@ -155,5 +210,38 @@ function summary() {
       excludedRecords: 0,
       excludedCurrencies: []
     }
+  };
+}
+
+function businessSnapshot() {
+  return {
+    range: { from: "2026-08-01", to: "2026-08-31", period: "monthly" },
+    context: {
+      currency: "CAD",
+      generatedAt: "2026-08-31T18:00:00Z",
+      scopeLabel: "Empresa completa"
+    },
+    summary: {
+      salesTotal: 1250,
+      collectedTotal: 900,
+      expensesTotal: 400,
+      payablesTotal: 100,
+      receivablesTotal: 350,
+      overdueReceivables: 50,
+      pettyCashBalance: 80,
+      operatingProfit: 850,
+      operatingMargin: 68,
+      totalTasks: 12,
+      overdueTasks: 2,
+      absences: 1,
+      attendanceRate: 95,
+      organizationRows: 2,
+      executiveScore: 81
+    },
+    alerts: [{
+      status: "watch",
+      title: "Cartera vencida",
+      description: "Hay saldo vencido que requiere cobranza activa."
+    }]
   };
 }

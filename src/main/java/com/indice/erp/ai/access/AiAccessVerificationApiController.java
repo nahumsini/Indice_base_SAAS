@@ -25,7 +25,7 @@ public class AiAccessVerificationApiController {
     public ResponseEntity<?> verify(
         @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
     ) {
-        if (tokenService.authenticate(authorization, AiAccessTokenService.SALES_TODAY_READ).isEmpty()) {
+        if (tokenService.authenticate(authorization).isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .header(HttpHeaders.WWW_AUTHENTICATE, BEARER_CHALLENGE)
                 .body(Map.of("message", "Invalid or expired access token."));

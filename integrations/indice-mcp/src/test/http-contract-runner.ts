@@ -18,14 +18,27 @@ try {
   if (!tools.tools.some(tool => tool.name === "get_sales_today")) {
     throw new Error("get_sales_today was not registered over Streamable HTTP.");
   }
-  const result = await client.callTool({
+  if (!tools.tools.some(tool => tool.name === "get_business_snapshot")) {
+    throw new Error("get_business_snapshot was not registered over Streamable HTTP.");
+  }
+  const salesResult = await client.callTool({
     name: "get_sales_today",
     arguments: { preferred_currency: config.preferredCurrency }
   });
-  if (result.isError) {
-    throw new Error(firstText(result.content) || "Tool call failed over Streamable HTTP.");
+  if (salesResult.isError) {
+    throw new Error(firstText(salesResult.content) || "Sales tool call failed over Streamable HTTP.");
   }
-  process.stdout.write(`${JSON.stringify(result.structuredContent, null, 2)}\n`);
+  const snapshotResult = await client.callTool({
+    name: "get_business_snapshot",
+    arguments: { period: "monthly", preferred_currency: config.preferredCurrency }
+  });
+  if (snapshotResult.isError) {
+    throw new Error(firstText(snapshotResult.content) || "Business snapshot tool call failed over Streamable HTTP.");
+  }
+  process.stdout.write(`${JSON.stringify({
+    salesToday: salesResult.structuredContent,
+    businessSnapshot: snapshotResult.structuredContent
+  }, null, 2)}\n`);
 } finally {
   await client.close();
 }
