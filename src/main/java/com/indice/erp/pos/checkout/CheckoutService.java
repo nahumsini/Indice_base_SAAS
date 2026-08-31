@@ -186,6 +186,34 @@ public class CheckoutService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public void validateForCheckout(PosContext context, PosCheckoutRequest request) {
+        validator.validateRequest(request);
+        var register = cashRegisterService.requireOperationalRegister(context, request.cashRegisterId());
+        var shift = shiftRepository.findOpenByUserAndRegister(context, register.id()).orElse(null);
+        validator.requireOpenShift(context, shift, register);
+        var currency = CheckoutCalculator.normalizeCurrency(request.currencyCode());
+        requireShiftCurrency(shift, currency);
+        var customer = customer(context, request.customerId());
+        var lines = calculator.lines(request.items(), currency, productResolver(context));
+        if (request.preticketId() != null && request.restaurantOrderId() != null) {
+            throw PosApiException.badRequest("Checkout accepts either preticketId or restaurantOrderId, not both.");
+        }
+        var preticket = claimedPreticket(context, request.preticketId(), register);
+        validatePreticketLines(request, preticket);
+        var restaurantOrder = claimedRestaurantOrder(context, request.restaurantOrderId(), register);
+        validateRestaurantLines(request, restaurantOrder);
+        validateDiscountRules(context, request, lines, customer,
+            restaurantOrder != null ? "RESTAURANT" : preticket == null ? "POS" : "KIOSK", currency,
+            register.warehouseId(), register.unitId(), register.businessId());
+        var payments = calculator.payments(request.payments(), currency);
+        var totals = calculator.totals(lines, payments);
+        validator.validateLines(lines);
+        validator.validatePayments(payments);
+        validator.validateTotals(totals);
+        inventoryDeductionService.requireAvailable(context, shift, lines);
+    }
+
     private List<RuleResponse> validateDiscountRules(
             PosContext context,
             PosCheckoutRequest request,

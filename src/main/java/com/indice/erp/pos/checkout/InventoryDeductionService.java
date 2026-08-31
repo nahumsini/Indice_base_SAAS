@@ -57,6 +57,18 @@ public class InventoryDeductionService {
         return deducted;
     }
 
+    public void requireAvailable(PosContext context, ShiftRecord shift, List<CheckoutLine> lines) {
+        for (var line : lines) {
+            if (!line.stockTracked() || line.productId() == null) {
+                continue;
+            }
+            if (!repository.hasAvailable(context, shift.warehouseId(), line.productId(), line.quantity())) {
+                throw PosApiException.badRequest(
+                    "Insufficient stock for " + line.productNameSnapshot() + " in selected warehouse.");
+            }
+        }
+    }
+
     private InventoryMovementCommand movementCommand(
             ShiftRecord shift,
             TicketRecord ticket,
