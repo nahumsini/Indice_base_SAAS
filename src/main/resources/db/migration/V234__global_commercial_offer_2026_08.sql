@@ -5,8 +5,22 @@
 -- remains an explicit Root operation so the current active catalog and every
 -- subscription attached to it keep their historical terms.
 
+-- Preserve any previous working draft as history before claiming the single
+-- DRAFT slot for this approved offer. Nothing is deleted and the ACTIVE offer
+-- remains untouched.
+UPDATE billing_catalog_versions
+SET status = 'SUPERSEDED',
+    effective_to = COALESCE(effective_to, CURRENT_TIMESTAMP)
+WHERE status = 'DRAFT'
+  AND BINARY version_code <> BINARY '2026.08-global-v1';
+
 INSERT INTO billing_catalog_versions (version_code, status, effective_from)
-VALUES ('2026.08-global-v1', 'DRAFT', NULL);
+SELECT '2026.08-global-v1', 'DRAFT', NULL
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM billing_catalog_versions
+    WHERE BINARY version_code = BINARY '2026.08-global-v1'
+);
 
 INSERT INTO billing_catalog_products (
     catalog_version_id, product_code, display_name, description, product_type,
