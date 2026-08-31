@@ -148,7 +148,7 @@ CREATE TABLE IF NOT EXISTS pos_square_terminal_payment_intents (
   CONSTRAINT fk_pos_square_intents_register FOREIGN KEY (cash_register_id) REFERENCES pos_cash_registers(id) ON DELETE RESTRICT,
   CONSTRAINT fk_pos_square_intents_shift FOREIGN KEY (shift_id) REFERENCES pos_shifts(id) ON DELETE RESTRICT,
   CONSTRAINT fk_pos_square_intents_terminal FOREIGN KEY (terminal_id) REFERENCES pos_square_terminals(id) ON DELETE RESTRICT,
-  CONSTRAINT fk_pos_square_intents_ticket FOREIGN KEY (pos_ticket_id) REFERENCES pos_tickets(id) ON DELETE SET NULL,
+  CONSTRAINT fk_pos_square_intents_ticket FOREIGN KEY (pos_ticket_id) REFERENCES pos_tickets(id) ON DELETE RESTRICT,
   CONSTRAINT fk_pos_square_intents_user FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE RESTRICT,
   CONSTRAINT chk_pos_square_intents_status CHECK (status IN ('WAITING', 'APPROVED', 'DECLINED', 'CANCELLED', 'UNCERTAIN')),
   CONSTRAINT chk_pos_square_intents_amount CHECK (amount > 0)

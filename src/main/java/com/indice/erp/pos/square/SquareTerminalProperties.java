@@ -17,7 +17,7 @@ public class SquareTerminalProperties {
     private String webhookNotificationUrl = "";
     private String redirectUrl = "";
     private String apiVersion = "2026-08-20";
-    private String tokenProtectionSecret = "";
+    private String tokenProtectionSecret = "indice-local-square-token-protection-secret-2026";
     private long paymentTimeoutSeconds = 300;
     private long oauthStateTtlSeconds = 600;
 

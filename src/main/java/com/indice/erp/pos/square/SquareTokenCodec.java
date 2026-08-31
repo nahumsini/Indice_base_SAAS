@@ -10,6 +10,7 @@ import java.util.Base64;
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -22,6 +23,7 @@ public class SquareTokenCodec {
     private final SecretKeySpec key;
     private final SecureRandom random;
 
+    @Autowired
     public SquareTokenCodec(SquareTerminalProperties properties) {
         this(properties.getTokenProtectionSecret(), new SecureRandom());
     }
