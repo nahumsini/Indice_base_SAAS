@@ -455,6 +455,8 @@ const exactAliases: Record<string, string> = {
   'Horas': 'Hours',
   'Días': 'Days',
   'El pre-ticket vencerá automáticamente después de este tiempo.': 'The pre-ticket will expire automatically after this time.',
+  'No se pudo completar el pago con Square Terminal.': 'Square Terminal payment could not be completed.',
+  'caja': 'register',
 };
 
 const translations: Record<string, LocalizedText> = {
@@ -863,6 +865,58 @@ const translations: Record<string, LocalizedText> = {
   Hours: { es: 'Horas', fr: 'Heures', pt: 'Horas', ko: '시간', zh: '小时' },
   Days: { es: 'Días', fr: 'Jours', pt: 'Dias', ko: '일', zh: '天' },
   'The pre-ticket will expire automatically after this time.': { es: 'El pre-ticket vencerá automáticamente después de este tiempo.', fr: 'Le pré-ticket expirera automatiquement après cette durée.', pt: 'O pré-ticket vencerá automaticamente após esse tempo.', ko: '이 시간이 지나면 사전 티켓이 자동으로 만료됩니다.', zh: '预票将在此时间后自动过期。' },
+  'Square Terminal': { es: 'Square Terminal', fr: 'Square Terminal', pt: 'Square Terminal', ko: 'Square Terminal', zh: 'Square Terminal' },
+  'Connect Square, pair a device, and assign it to a POS register.': { es: 'Conecta Square, vincula un dispositivo y asígnalo a una caja POS.', fr: 'Connectez Square, jumelez un appareil et affectez-le à une caisse POS.', pt: 'Conecte o Square, emparelhe um dispositivo e atribua-o a uma caixa POS.', ko: 'Square를 연결하고 기기를 페어링한 뒤 POS 계산대에 배정하세요.', zh: '连接 Square，配对设备，并将其分配到 POS 收银台。' },
+  'Connect Square before linking a location.': { es: 'Conecta Square antes de vincular una ubicación.', fr: 'Connectez Square avant de lier un emplacement.', pt: 'Conecte o Square antes de vincular um local.', ko: '위치를 연결하기 전에 Square를 연결하세요.', zh: '请先连接 Square，再绑定地点。' },
+  'Square Terminal status could not be loaded.': { es: 'No se pudo cargar el estado de Square Terminal.', fr: 'Impossible de charger l’état de Square Terminal.', pt: 'Não foi possível carregar o status do Square Terminal.', ko: 'Square Terminal 상태를 불러올 수 없습니다.', zh: '无法加载 Square Terminal 状态。' },
+  'Square authorization could not be started.': { es: 'No se pudo iniciar la autorización de Square.', fr: 'Impossible de démarrer l’autorisation Square.', pt: 'Não foi possível iniciar a autorização do Square.', ko: 'Square 인증을 시작할 수 없습니다.', zh: '无法启动 Square 授权。' },
+  'Square location linked.': { es: 'Ubicación de Square vinculada.', fr: 'Emplacement Square lié.', pt: 'Local do Square vinculado.', ko: 'Square 위치가 연결되었습니다.', zh: 'Square 地点已绑定。' },
+  'Square location could not be linked.': { es: 'No se pudo vincular la ubicación de Square.', fr: 'Impossible de lier l’emplacement Square.', pt: 'Não foi possível vincular o local do Square.', ko: 'Square 위치를 연결할 수 없습니다.', zh: '无法绑定 Square 地点。' },
+  'Enter this code on the Square Terminal device.': { es: 'Ingresa este código en el dispositivo Square Terminal.', fr: 'Saisissez ce code sur le terminal Square.', pt: 'Digite este código no dispositivo Square Terminal.', ko: '이 코드를 Square Terminal 기기에 입력하세요.', zh: '请在 Square Terminal 设备上输入此代码。' },
+  'Enter this refreshed code on the Square Terminal device.': { es: 'Ingresa este código actualizado en el dispositivo Square Terminal.', fr: 'Saisissez ce code actualisé sur le terminal Square.', pt: 'Digite este código atualizado no dispositivo Square Terminal.', ko: '갱신된 코드를 Square Terminal 기기에 입력하세요.', zh: '请在 Square Terminal 设备上输入刷新后的代码。' },
+  'Square terminal pairing could not be created.': { es: 'No se pudo crear el emparejamiento de Square Terminal.', fr: 'Impossible de créer le jumelage du terminal Square.', pt: 'Não foi possível criar o emparelhamento do Square Terminal.', ko: 'Square Terminal 페어링을 만들 수 없습니다.', zh: '无法创建 Square Terminal 配对。' },
+  'Square terminal pairing code could not be refreshed.': { es: 'No se pudo actualizar el código de emparejamiento de Square Terminal.', fr: 'Impossible d’actualiser le code de jumelage du terminal Square.', pt: 'Não foi possível atualizar o código de emparelhamento do Square Terminal.', ko: 'Square Terminal 페어링 코드를 갱신할 수 없습니다.', zh: '无法刷新 Square Terminal 配对码。' },
+  'Square terminal assigned to register.': { es: 'Square Terminal asignado a la caja.', fr: 'Terminal Square affecté à la caisse.', pt: 'Square Terminal atribuído à caixa.', ko: 'Square Terminal이 계산대에 배정되었습니다.', zh: 'Square Terminal 已分配给收银台。' },
+  'Square terminal could not be assigned.': { es: 'No se pudo asignar Square Terminal.', fr: 'Impossible d’affecter le terminal Square.', pt: 'Não foi possível atribuir o Square Terminal.', ko: 'Square Terminal을 배정할 수 없습니다.', zh: '无法分配 Square Terminal。' },
+  'Square terminal unassigned from register.': { es: 'Square Terminal desvinculado de la caja.', fr: 'Terminal Square retiré de la caisse.', pt: 'Square Terminal removido da caixa.', ko: 'Square Terminal이 계산대에서 해제되었습니다.', zh: 'Square Terminal 已从收银台取消分配。' },
+  'Square terminal could not be unassigned.': { es: 'No se pudo desvincular Square Terminal.', fr: 'Impossible de retirer le terminal Square.', pt: 'Não foi possível remover o Square Terminal.', ko: 'Square Terminal 배정을 해제할 수 없습니다.', zh: '无法取消分配 Square Terminal。' },
+  'Square terminal disabled.': { es: 'Square Terminal deshabilitado.', fr: 'Terminal Square désactivé.', pt: 'Square Terminal desativado.', ko: 'Square Terminal이 비활성화되었습니다.', zh: 'Square Terminal 已停用。' },
+  'Square terminal could not be disabled.': { es: 'No se pudo deshabilitar Square Terminal.', fr: 'Impossible de désactiver le terminal Square.', pt: 'Não foi possível desativar o Square Terminal.', ko: 'Square Terminal을 비활성화할 수 없습니다.', zh: '无法停用 Square Terminal。' },
+  'Loading Square setup...': { es: 'Cargando configuración de Square...', fr: 'Chargement de la configuration Square...', pt: 'Carregando configuração do Square...', ko: 'Square 설정을 불러오는 중...', zh: '正在加载 Square 设置...' },
+  '1. Connect Square': { es: '1. Conectar Square', fr: '1. Connecter Square', pt: '1. Conectar Square', ko: '1. Square 연결', zh: '1. 连接 Square' },
+  disabled: { es: 'deshabilitado', fr: 'désactivé', pt: 'desativado', ko: '비활성화됨', zh: '已停用' },
+  'Connect Square': { es: 'Conectar Square', fr: 'Connecter Square', pt: 'Conectar Square', ko: 'Square 연결', zh: '连接 Square' },
+  '2. Link location': { es: '2. Vincular ubicación', fr: '2. Lier l’emplacement', pt: '2. Vincular local', ko: '2. 위치 연결', zh: '2. 绑定地点' },
+  available: { es: 'disponible', fr: 'disponible', pt: 'disponível', ko: '사용 가능', zh: '可用' },
+  'Link location': { es: 'Vincular ubicación', fr: 'Lier l’emplacement', pt: 'Vincular local', ko: '위치 연결', zh: '绑定地点' },
+  '3. Pair and assign': { es: '3. Emparejar y asignar', fr: '3. Jumeler et affecter', pt: '3. Emparelhar e atribuir', ko: '3. 페어링 및 배정', zh: '3. 配对并分配' },
+  terminals: { es: 'terminales', fr: 'terminaux', pt: 'terminais', ko: '터미널', zh: '终端' },
+  'Generate pairing code': { es: 'Generar código de emparejamiento', fr: 'Générer le code de jumelage', pt: 'Gerar código de emparelhamento', ko: '페어링 코드 생성', zh: '生成配对码' },
+  'Assign to register': { es: 'Asignar a caja', fr: 'Affecter à une caisse', pt: 'Atribuir à caixa', ko: '계산대에 배정', zh: '分配到收银台' },
+  'Refresh code': { es: 'Actualizar código', fr: 'Actualiser le code', pt: 'Atualizar código', ko: '코드 새로고침', zh: '刷新代码' },
+  Unassign: { es: 'Desvincular', fr: 'Retirer', pt: 'Remover', ko: '배정 해제', zh: '取消分配' },
+  Disable: { es: 'Deshabilitar', fr: 'Désactiver', pt: 'Desativar', ko: '비활성화', zh: '停用' },
+  'Square payment recovery': { es: 'Recuperación de pagos Square', fr: 'Récupération des paiements Square', pt: 'Recuperação de pagamentos Square', ko: 'Square 결제 복구', zh: 'Square 付款恢复' },
+  'Recover or cancel pending terminal payments before charging again.': { es: 'Recupera o cancela pagos pendientes de la terminal antes de volver a cobrar.', fr: 'Récupérez ou annulez les paiements de terminal en attente avant de facturer de nouveau.', pt: 'Recupere ou cancele pagamentos pendentes no terminal antes de cobrar novamente.', ko: '다시 결제하기 전에 대기 중인 터미널 결제를 복구하거나 취소하세요.', zh: '再次收费前，请恢复或取消待处理的终端付款。' },
+  'Square recovery payments could not be loaded.': { es: 'No se pudieron cargar los pagos Square recuperables.', fr: 'Impossible de charger les paiements Square récupérables.', pt: 'Não foi possível carregar pagamentos Square recuperáveis.', ko: '복구 가능한 Square 결제를 불러올 수 없습니다.', zh: '无法加载可恢复的 Square 付款。' },
+  'Square payment could not be cancelled.': { es: 'No se pudo cancelar el pago Square.', fr: 'Impossible d’annuler le paiement Square.', pt: 'Não foi possível cancelar o pagamento Square.', ko: 'Square 결제를 취소할 수 없습니다.', zh: '无法取消 Square 付款。' },
+  'not sent to Square yet': { es: 'aún no enviado a Square', fr: 'pas encore envoyé à Square', pt: 'ainda não enviado ao Square', ko: '아직 Square로 전송되지 않음', zh: '尚未发送到 Square' },
+  Recover: { es: 'Recuperar', fr: 'Récupérer', pt: 'Recuperar', ko: '복구', zh: '恢复' },
+  'Recovering Square Terminal payment through the backend...': { es: 'Recuperando el pago de Square Terminal desde el backend...', fr: 'Récupération du paiement Square Terminal depuis le backend...', pt: 'Recuperando pagamento do Square Terminal pelo backend...', ko: '백엔드에서 Square Terminal 결제를 복구하는 중...', zh: '正在通过后端恢复 Square Terminal 付款...' },
+  'Square payment was already approved and the POS sale is already linked. Refreshing register data...': { es: 'El pago Square ya fue aprobado y la venta POS ya está vinculada. Actualizando datos de caja...', fr: 'Le paiement Square est déjà approuvé et la vente POS est liée. Actualisation des données de caisse...', pt: 'O pagamento Square já foi aprovado e a venda POS já está vinculada. Atualizando dados da caixa...', ko: 'Square 결제가 이미 승인되었고 POS 판매가 연결되었습니다. 계산대 데이터를 새로고침 중...', zh: 'Square 付款已批准，POS 销售已关联。正在刷新收银台数据...' },
+  'Square Terminal payment is not approved yet.': { es: 'El pago de Square Terminal aún no está aprobado.', fr: 'Le paiement Square Terminal n’est pas encore approuvé.', pt: 'O pagamento do Square Terminal ainda não foi aprovado.', ko: 'Square Terminal 결제가 아직 승인되지 않았습니다.', zh: 'Square Terminal 付款尚未批准。' },
+  'Square Terminal payment could not be recovered.': { es: 'No se pudo recuperar el pago de Square Terminal.', fr: 'Impossible de récupérer le paiement Square Terminal.', pt: 'Não foi possível recuperar o pagamento do Square Terminal.', ko: 'Square Terminal 결제를 복구할 수 없습니다.', zh: '无法恢复 Square Terminal 付款。' },
+  'Square Terminal payment could not be completed.': { es: 'No se pudo completar el pago con Square Terminal.', fr: 'Impossible de terminer le paiement Square Terminal.', pt: 'Não foi possível concluir o pagamento com Square Terminal.', ko: 'Square Terminal 결제를 완료할 수 없습니다.', zh: '无法完成 Square Terminal 付款。' },
+  'Square Terminal MVP only supports one full card payment for the current ticket.': { es: 'El MVP de Square Terminal solo admite un pago completo con tarjeta para el ticket actual.', fr: 'Le MVP Square Terminal prend seulement en charge un paiement carte complet pour le ticket en cours.', pt: 'O MVP do Square Terminal aceita apenas um pagamento completo por cartão para o ticket atual.', ko: 'Square Terminal MVP는 현재 티켓에 대해 전체 카드 결제 1건만 지원합니다.', zh: 'Square Terminal MVP 仅支持当前票据的一笔全额银行卡付款。' },
+  'Square Terminal payment was not approved.': { es: 'El pago de Square Terminal no fue aprobado.', fr: 'Le paiement Square Terminal n’a pas été approuvé.', pt: 'O pagamento do Square Terminal não foi aprovado.', ko: 'Square Terminal 결제가 승인되지 않았습니다.', zh: 'Square Terminal 付款未获批准。' },
+  'Card payments must be completed through Square Terminal before the POS sale can close.': { es: 'Los pagos con tarjeta deben completarse en Square Terminal antes de cerrar la venta POS.', fr: 'Les paiements par carte doivent être terminés sur Square Terminal avant de clôturer la vente POS.', pt: 'Pagamentos por cartão devem ser concluídos no Square Terminal antes de fechar a venda POS.', ko: 'POS 판매를 마감하기 전에 카드 결제를 Square Terminal에서 완료해야 합니다.', zh: '银行卡付款必须先通过 Square Terminal 完成，才能关闭 POS 销售。' },
+  'Square Terminal timed out locally. Verifying the payment with the backend...': { es: 'Square Terminal agotó el tiempo local. Verificando el pago con el backend...', fr: 'Square Terminal a expiré localement. Vérification du paiement avec le backend...', pt: 'Square Terminal expirou localmente. Verificando o pagamento com o backend...', ko: 'Square Terminal 로컬 시간이 초과되었습니다. 백엔드로 결제를 확인하는 중...', zh: 'Square Terminal 本地超时。正在通过后端验证付款...' },
+  'Payment request sent to Square Terminal. Waiting for the customer...': { es: 'Solicitud de pago enviada a Square Terminal. Esperando al cliente...', fr: 'Demande de paiement envoyée à Square Terminal. En attente du client...', pt: 'Solicitação de pagamento enviada ao Square Terminal. Aguardando o cliente...', ko: '결제 요청이 Square Terminal로 전송되었습니다. 고객 대기 중...', zh: '付款请求已发送到 Square Terminal。正在等待客户...' },
+  'Square payment approved and POS sale completed.': { es: 'Pago Square aprobado y venta POS completada.', fr: 'Paiement Square approuvé et vente POS terminée.', pt: 'Pagamento Square aprovado e venda POS concluída.', ko: 'Square 결제가 승인되었고 POS 판매가 완료되었습니다.', zh: 'Square 付款已批准，POS 销售已完成。' },
+  'Square payment approved. Finalizing POS sale...': { es: 'Pago Square aprobado. Finalizando venta POS...', fr: 'Paiement Square approuvé. Finalisation de la vente POS...', pt: 'Pagamento Square aprovado. Finalizando venda POS...', ko: 'Square 결제가 승인되었습니다. POS 판매 완료 중...', zh: 'Square 付款已批准。正在完成 POS 销售...' },
+  'Square Terminal declined the payment.': { es: 'Square Terminal rechazó el pago.', fr: 'Square Terminal a refusé le paiement.', pt: 'Square Terminal recusou o pagamento.', ko: 'Square Terminal에서 결제가 거절되었습니다.', zh: 'Square Terminal 拒绝了付款。' },
+  'Square Terminal payment was cancelled.': { es: 'El pago de Square Terminal fue cancelado.', fr: 'Le paiement Square Terminal a été annulé.', pt: 'O pagamento do Square Terminal foi cancelado.', ko: 'Square Terminal 결제가 취소되었습니다.', zh: 'Square Terminal 付款已取消。' },
+  'Square payment is uncertain. Use recovery before charging again.': { es: 'El pago Square está incierto. Usa recuperación antes de volver a cobrar.', fr: 'Le paiement Square est incertain. Utilisez la récupération avant de facturer de nouveau.', pt: 'O pagamento Square está incerto. Use a recuperação antes de cobrar novamente.', ko: 'Square 결제 상태가 불확실합니다. 다시 결제하기 전에 복구를 사용하세요.', zh: 'Square 付款状态不确定。再次收费前请使用恢复。' },
 };
 
 function translateCanonical(canonical: string, language: LegacyLanguage) {
@@ -904,6 +958,36 @@ function translateDynamic(text: string, language: LegacyLanguage) {
     pt: `Caixa ${registerPrefix[1]}`,
     ko: `${registerPrefix[1]} 계산대`,
     zh: `收银台 ${registerPrefix[1]}`,
+  });
+
+  const availableCount = text.match(/^(\d+) available$/i);
+  if (availableCount) return select(language, {
+    en: `${availableCount[1]} available`,
+    es: `${availableCount[1]} disponibles`,
+    fr: `${availableCount[1]} disponibles`,
+    pt: `${availableCount[1]} disponíveis`,
+    ko: `${availableCount[1]}개 사용 가능`,
+    zh: `${availableCount[1]} 个可用`,
+  });
+
+  const terminalCount = text.match(/^(\d+) terminals$/i);
+  if (terminalCount) return select(language, {
+    en: `${terminalCount[1]} terminals`,
+    es: `${terminalCount[1]} terminales`,
+    fr: `${terminalCount[1]} terminaux`,
+    pt: `${terminalCount[1]} terminais`,
+    ko: `${terminalCount[1]}개 터미널`,
+    zh: `${terminalCount[1]} 个终端`,
+  });
+
+  const squareIntent = text.match(/^Intent #(.+) · (.+)$/i);
+  if (squareIntent) return select(language, {
+    en: `Intent #${squareIntent[1]} · ${squareIntent[2]}`,
+    es: `Intento #${squareIntent[1]} · ${squareIntent[2]}`,
+    fr: `Intention #${squareIntent[1]} · ${squareIntent[2]}`,
+    pt: `Intenção #${squareIntent[1]} · ${squareIntent[2]}`,
+    ko: `의도 #${squareIntent[1]} · ${squareIntent[2]}`,
+    zh: `意图 #${squareIntent[1]} · ${squareIntent[2]}`,
   });
 
   const shiftStart = text.match(/^(?:Inicio|Start|Début|Início|시작|开始) (.+)$/i);
