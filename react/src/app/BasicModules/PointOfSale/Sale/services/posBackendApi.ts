@@ -259,6 +259,63 @@ export type PosCheckoutResponse = {
   printableSummary: PosPrintableSummary;
 };
 
+export type PosSquareTerminalStatusResponse = {
+  enabled: boolean;
+  environment: string;
+};
+
+export type PosSquareLocationResponse = {
+  id: string;
+  name: string;
+  currencyCode?: string | null;
+  countryCode?: string | null;
+};
+
+export type PosSquareTerminalResponse = {
+  terminalId: number;
+  name: string;
+  squareDeviceId?: string | null;
+  squareLocationId: string;
+  status: string;
+  assignedRegisterId?: number | null;
+};
+
+export type PosSquarePairTerminalResponse = {
+  terminalId: number;
+  deviceCodeId: string;
+  pairingCode: string;
+  pairBy?: string | null;
+};
+
+export type PosSquareTerminalPaymentStatus = 'waiting' | 'approved' | 'declined' | 'cancelled' | 'uncertain';
+
+export type PosSquareTerminalPaymentPayload = {
+  idempotencyKey: string;
+  cashRegisterId: number;
+  customerId?: number | null;
+  preticketId?: number | null;
+  restaurantOrderId?: number | null;
+  currencyCode: string;
+  items: PosCheckoutItemPayload[];
+  notes?: string | null;
+};
+
+export type PosSquareTerminalPaymentResponse = {
+  intentId: number;
+  status: PosSquareTerminalPaymentStatus | string;
+  amount: number | string;
+  currencyCode: string;
+  squareCheckoutId?: string | null;
+  squarePaymentId?: string | null;
+  message?: string | null;
+  posTicketId?: number | null;
+  checkout?: PosCheckoutResponse | null;
+};
+
+export type PosSquareTerminalPaymentListResponse = {
+  items: PosSquareTerminalPaymentResponse[];
+};
+
 const posBasePath = '/api/v1/pos';
 
 export const posBackendApi = {
@@ -329,6 +386,78 @@ export const posBackendApi = {
     return apiClient<PosCheckoutResponse>(`${posBasePath}/sales/checkout`, {
       method: 'POST',
       body: JSON.stringify(payload),
+    });
+  },
+  squareStatus() {
+    return apiClient<PosSquareTerminalStatusResponse>(`${posBasePath}/square/status`);
+  },
+  startSquareOAuth() {
+    return apiClient<{ authorizationUrl: string }>(`${posBasePath}/square/oauth/start`, { method: 'POST' });
+  },
+  squareLocations() {
+    return apiClient<{ items: PosSquareLocationResponse[] }>(`${posBasePath}/square/locations`);
+  },
+  linkSquareLocation(squareLocationId: string) {
+    return apiClient<unknown>(`${posBasePath}/square/locations/link`, {
+      method: 'POST',
+      body: JSON.stringify({ squareLocationId }),
+    });
+  },
+  pairSquareTerminal(squareLocationId: string, name: string) {
+    return apiClient<PosSquarePairTerminalResponse>(`${posBasePath}/square/terminals/pairing-code`, {
+      method: 'POST',
+      body: JSON.stringify({ squareLocationId, name }),
+    });
+  },
+  squareTerminals() {
+    return apiClient<{ items: PosSquareTerminalResponse[] }>(`${posBasePath}/square/terminals`);
+  },
+  assignSquareTerminal(registerId: number | string, terminalId: number | string) {
+    return apiClient<PosSquareTerminalResponse>(`${posBasePath}/square/registers/${registerId}/terminal`, {
+      method: 'POST',
+      body: JSON.stringify({ terminalId: Number(terminalId) }),
+    });
+  },
+  unassignSquareTerminal(registerId: number | string) {
+    return apiClient<void>(`${posBasePath}/square/registers/${registerId}/terminal`, {
+      method: 'DELETE',
+    });
+  },
+  disableSquareTerminal(terminalId: number | string) {
+    return apiClient<PosSquareTerminalResponse>(`${posBasePath}/square/terminals/${terminalId}/disable`, {
+      method: 'POST',
+    });
+  },
+  refreshSquareTerminalPairingCode(terminalId: number | string) {
+    return apiClient<PosSquarePairTerminalResponse>(`${posBasePath}/square/terminals/${terminalId}/pairing-code`, {
+      method: 'POST',
+    });
+  },
+  createSquareTerminalPayment(payload: PosSquareTerminalPaymentPayload) {
+    return apiClient<PosSquareTerminalPaymentResponse>(`${posBasePath}/square/terminal-payments`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+  listRecoverableSquareTerminalPayments(params: { cashRegisterId?: number | string; shiftId?: number | string; limit?: number } = {}) {
+    const query = new URLSearchParams();
+    if (params.cashRegisterId) query.set('cashRegisterId', String(params.cashRegisterId));
+    if (params.shiftId) query.set('shiftId', String(params.shiftId));
+    if (params.limit) query.set('limit', String(params.limit));
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return apiClient<PosSquareTerminalPaymentListResponse>(`${posBasePath}/square/terminal-payments/recoverable${suffix}`);
+  },
+  getSquareTerminalPayment(intentId: number | string) {
+    return apiClient<PosSquareTerminalPaymentResponse>(`${posBasePath}/square/terminal-payments/${intentId}`);
+  },
+  cancelSquareTerminalPayment(intentId: number | string) {
+    return apiClient<PosSquareTerminalPaymentResponse>(`${posBasePath}/square/terminal-payments/${intentId}/cancel`, {
+      method: 'POST',
+    });
+  },
+  recoverSquareTerminalPayment(intentId: number | string) {
+    return apiClient<PosSquareTerminalPaymentResponse>(`${posBasePath}/square/terminal-payments/${intentId}/recover`, {
+      method: 'POST',
     });
   },
   listCashMovements(shiftId: number | string) {
