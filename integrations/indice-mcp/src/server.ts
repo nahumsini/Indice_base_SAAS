@@ -35,6 +35,7 @@ async function main(): Promise<void> {
     response
       .status(200)
       .header("Cache-Control", "no-store")
+      .header("Access-Control-Allow-Origin", "https://chatgpt.com")
       .json({
         resource: config.resourceUrl.toString(),
         authorization_servers: [config.oauthIssuer.toString().replace(/\/$/, "")],

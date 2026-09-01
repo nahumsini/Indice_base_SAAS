@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,13 +24,17 @@ public class AiOAuthMetadataController {
         this.accessTokenService = accessTokenService;
     }
 
-    @GetMapping({
-        "/.well-known/oauth-protected-resource",
-        "/.well-known/oauth-protected-resource/api/v1/ai/mcp"
-    })
+    @GetMapping(
+        value = {
+            "/.well-known/oauth-protected-resource",
+            "/.well-known/oauth-protected-resource/api/v1/ai/mcp"
+        },
+        produces = MediaType.APPLICATION_JSON_VALUE
+    )
     public ResponseEntity<?> protectedResource() {
         return ResponseEntity.ok()
             .cacheControl(CacheControl.noStore())
+            .header(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://chatgpt.com")
             .body(Map.of(
                 "resource", properties.getResourceUrl(),
                 "authorization_servers", List.of(properties.getIssuerUrl()),
@@ -37,7 +43,7 @@ public class AiOAuthMetadataController {
             ));
     }
 
-    @GetMapping("/.well-known/oauth-authorization-server")
+    @GetMapping(value = "/.well-known/oauth-authorization-server", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> authorizationServer() {
         var metadata = new LinkedHashMap<String, Object>();
         metadata.put("issuer", properties.getIssuerUrl());
@@ -50,6 +56,9 @@ public class AiOAuthMetadataController {
         metadata.put("code_challenge_methods_supported", List.of("S256"));
         metadata.put("scopes_supported", new ArrayList<>(new TreeSet<>(accessTokenService.supportedScopes())));
         metadata.put("resource_parameter_supported", true);
-        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(metadata);
+        return ResponseEntity.ok()
+            .cacheControl(CacheControl.noStore())
+            .header(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://chatgpt.com")
+            .body(metadata);
     }
 }
