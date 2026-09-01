@@ -291,6 +291,18 @@ docker compose \
   --env-file "${ENV_FILE}" \
   -f "${DEPLOY_DIR}/compose/docker-compose.yml" \
   config --quiet
+docker compose \
+  --env-file "${ENV_FILE}" \
+  -f "${DEPLOY_DIR}/compose/docker-compose.staging.yml" \
+  --profile ai \
+  config --no-interpolate --quiet
+if [[ "${USE_EXAMPLE}" == "false" ]]; then
+  APP_IMAGE_TAG=release-check docker compose \
+    --env-file "${ENV_FILE}" \
+    -f "${DEPLOY_DIR}/compose/docker-compose.staging.yml" \
+    --profile ai \
+    config --quiet
+fi
 
 latest_migration=0
 for migration in "${ROOT_DIR}"/src/main/resources/db/migration/V*__*.sql; do

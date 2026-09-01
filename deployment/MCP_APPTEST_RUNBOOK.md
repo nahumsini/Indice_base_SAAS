@@ -35,27 +35,35 @@ INDICE_PREFERRED_CURRENCY=MXN
 Reemplaza `git-REPLACE_ME` por la etiqueta inmutable real. No agregues tokens,
 contraseñas de usuarios ni la clave de ejecución del túnel a ese archivo.
 
-## Despliegue controlado
+## Despliegue controlado con el stack APPTEST
 
-Primero valida sin cambiar contenedores:
+En el VPS, APPTEST usa el proyecto Compose `indice-apptest`, los puertos locales
+`8180`/`8182` y su archivo protegido `/root/indice-apptest/staging.env`. Valida la
+resolución completa sin cambiar contenedores:
 
 ```bash
 RELEASE_SHA="$(git rev-parse --short=12 HEAD)"
-APP_DIR=/home/corazon/apptest.indiceapp.com \
-DEPLOY_ENV_FILE=/home/corazon/apps/indice-erp-docker/apptest/deployment/env/.env \
-PUBLIC_URL=https://apptest.indiceapp.com \
-HOST_BACKEND_PORT=8082 \
-DEPLOY_MCP_ENABLED=true \
-DEPLOY_DRY_RUN=true \
-DEPLOY_WEB_IMAGE="indice-erp-web:${RELEASE_SHA}" \
-DEPLOY_BACKEND_IMAGE="indice-erp-backend:${RELEASE_SHA}" \
-DEPLOY_MCP_IMAGE="indice-erp-mcp:${RELEASE_SHA}" \
-./deployment/scripts/up-host-network.sh
+APP_IMAGE_TAG="${RELEASE_SHA}" docker compose \
+  --project-name indice-apptest \
+  --env-file /root/indice-apptest/staging.env \
+  -f deployment/compose/docker-compose.staging.yml \
+  --profile ai config --quiet
 ```
 
-Si pasa, repite el comando con `DEPLOY_DRY_RUN=false`. El despliegue conserva el
-conjunto anterior con sufijo `-rollback` y lo restaura automáticamente si falla
-la salud de MinIO, backend, MCP, web o el smoke test público.
+Si pasa y existe un respaldo verificado de MySQL, reemplaza únicamente los
+servicios de aplicación. `--no-deps` evita reiniciar MySQL o MinIO:
+
+```bash
+APP_IMAGE_TAG="${RELEASE_SHA}" docker compose \
+  --project-name indice-apptest \
+  --env-file /root/indice-apptest/staging.env \
+  -f deployment/compose/docker-compose.staging.yml \
+  --profile ai up -d --no-deps backend mcp web
+```
+
+Conserva las imágenes anteriores hasta terminar el smoke test y la prueba real
+desde ChatGPT. No ejecutes el script legado `/home/corazon/scripts/deploy-apptest.sh`:
+ese procedimiento administra nombres y puertos de otro conjunto.
 
 ## Túnel y prueba funcional
 
@@ -76,14 +84,21 @@ El puerto `3010` no debe publicarse en firewall, proxy web, balanceador ni DNS.
 
 ## Rollback
 
-Sólo si las migraciones son compatibles con la versión anterior:
+Sólo si las migraciones son compatibles con la versión anterior, detén primero
+el MCP y vuelve a levantar backend/web con la etiqueta anterior conservada:
 
 ```bash
-CONFIRM_ROLLBACK=true \
-MCP_ENABLED=true \
-HOST_BACKEND_PORT=8082 \
-MCP_HOST_PORT=3010 \
-./deployment/scripts/rollback-host-network.sh
+docker compose \
+  --project-name indice-apptest \
+  --env-file /root/indice-apptest/staging.env \
+  -f deployment/compose/docker-compose.staging.yml \
+  --profile ai stop mcp
+
+APP_IMAGE_TAG="ETIQUETA_ANTERIOR" docker compose \
+  --project-name indice-apptest \
+  --env-file /root/indice-apptest/staging.env \
+  -f deployment/compose/docker-compose.staging.yml \
+  up -d backend web
 ```
 
 ## Bloqueo de producción
