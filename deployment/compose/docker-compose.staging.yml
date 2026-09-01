@@ -182,6 +182,7 @@ services:
       dockerfile: deployment/docker/web/Dockerfile
       args:
         WEB_NGINX_CONFIG: deployment/docker/web/nginx.host.conf
+        WEB_NGINX_LISTEN_PORT: "8180"
         WEB_NGINX_BACKEND_PORT: "8182"
         WEB_NGINX_MINIO_PORT: "8900"
     network_mode: host

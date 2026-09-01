@@ -17,6 +17,7 @@ RELEASE_SHA="$(git rev-parse --short=12 HEAD)"
 docker build -f deployment/docker/backend/Dockerfile -t "indice-erp-backend:${RELEASE_SHA}" .
 docker build \
   --build-arg WEB_NGINX_CONFIG=deployment/docker/web/nginx.host.conf \
+  --build-arg WEB_NGINX_LISTEN_PORT=8180 \
   --build-arg WEB_NGINX_BACKEND_PORT=8182 \
   --build-arg WEB_NGINX_MINIO_PORT=8900 \
   -f deployment/docker/web/Dockerfile \

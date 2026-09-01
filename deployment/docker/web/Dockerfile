@@ -34,11 +34,13 @@ RUN npm run build \
 FROM nginxinc/nginx-unprivileged:stable-alpine
 
 ARG WEB_NGINX_CONFIG=deployment/docker/web/nginx.conf
+ARG WEB_NGINX_LISTEN_PORT=8080
 ARG WEB_NGINX_BACKEND_PORT=8082
 ARG WEB_NGINX_MINIO_PORT=9000
 
 COPY --chmod=0644 ${WEB_NGINX_CONFIG} /etc/nginx/conf.d/default.conf
 RUN sed -i \
+      -e "s#listen 8080;#listen ${WEB_NGINX_LISTEN_PORT};#g" \
       -e "s#127\\.0\\.0\\.1:8082#127.0.0.1:${WEB_NGINX_BACKEND_PORT}#g" \
       -e "s#127\\.0\\.0\\.1:9000#127.0.0.1:${WEB_NGINX_MINIO_PORT}#g" \
       /etc/nginx/conf.d/default.conf
