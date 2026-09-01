@@ -133,6 +133,42 @@ public class AiAccessTokenRepository {
         );
     }
 
+    public int rotate(
+        long tokenId,
+        AuthSessionUser owner,
+        String tokenPrefix,
+        String tokenHash,
+        Instant expiresAt,
+        Set<String> scopes
+    ) {
+        var updated = jdbcTemplate.update(
+            """
+                UPDATE ai_access_tokens
+                SET token_prefix = ?, token_hash = ?, expires_at = ?, last_used_at = NULL
+                WHERE id = ?
+                  AND user_id = ?
+                  AND company_id = ?
+                  AND user_company_id = ?
+                  AND revoked_at IS NULL
+                """,
+            tokenPrefix,
+            tokenHash,
+            Timestamp.from(expiresAt),
+            tokenId,
+            owner.userId(),
+            owner.companyId(),
+            owner.userCompanyId()
+        );
+        if (updated != 1) return updated;
+        jdbcTemplate.update("DELETE FROM ai_access_token_scopes WHERE token_id = ?", tokenId);
+        scopes.forEach(scope -> jdbcTemplate.update(
+            "INSERT INTO ai_access_token_scopes (token_id, scope_code) VALUES (?, ?)",
+            tokenId,
+            scope
+        ));
+        return updated;
+    }
+
     public Optional<StoredToken> findActiveByHash(String tokenHash, Instant now) {
         var rows = jdbcTemplate.query(
             """

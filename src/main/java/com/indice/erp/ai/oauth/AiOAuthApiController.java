@@ -51,7 +51,7 @@ public class AiOAuthApiController {
             response.put("client_id_issued_at", client.createdAt().getEpochSecond());
             response.put("client_name", client.clientName());
             response.put("redirect_uris", client.redirectUris());
-            response.put("grant_types", List.of("authorization_code"));
+            response.put("grant_types", List.of("authorization_code", "refresh_token"));
             response.put("response_types", List.of("code"));
             response.put("token_endpoint_auth_method", "none");
             return ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore()).body(response);
@@ -117,17 +117,18 @@ public class AiOAuthApiController {
         try {
             var result = oauthService.exchange(new AiOAuthService.TokenRequest(
                 form.get("grant_type"), form.get("code"), form.get("redirect_uri"), form.get("client_id"),
-                form.get("code_verifier"), form.get("resource")
+                form.get("code_verifier"), form.get("resource"), form.get("refresh_token"), form.get("scope")
             ));
+            var response = new LinkedHashMap<String, Object>();
+            response.put("access_token", result.accessToken());
+            response.put("token_type", "Bearer");
+            response.put("expires_in", result.expiresIn());
+            response.put("scope", result.scope());
+            response.put("refresh_token", result.refreshToken());
             return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
                 .header(HttpHeaders.PRAGMA, "no-cache")
-                .body(Map.of(
-                    "access_token", result.accessToken(),
-                    "token_type", "Bearer",
-                    "expires_in", result.expiresIn(),
-                    "scope", result.scope()
-                ));
+                .body(response);
         } catch (AiOAuthException exception) {
             return oauthError(HttpStatus.BAD_REQUEST, exception);
         } catch (IllegalStateException exception) {

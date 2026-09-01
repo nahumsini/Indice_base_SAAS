@@ -14,6 +14,7 @@ public class AiOAuthProperties {
     private String resourceUrl = "http://localhost:3010/mcp";
     private Duration authorizationCodeTtl = Duration.ofMinutes(5);
     private int accessTokenDays = 30;
+    private int refreshTokenDays = 90;
     private Set<String> allowedRedirectHosts = Set.of("chatgpt.com", "chat.openai.com");
 
     public String getIssuerUrl() {
@@ -53,6 +54,17 @@ public class AiOAuthProperties {
             throw new IllegalArgumentException("AI OAuth access-token-days must be between 1 and 90.");
         }
         this.accessTokenDays = accessTokenDays;
+    }
+
+    public int getRefreshTokenDays() {
+        return refreshTokenDays;
+    }
+
+    public void setRefreshTokenDays(int refreshTokenDays) {
+        if (refreshTokenDays < 1 || refreshTokenDays > 365) {
+            throw new IllegalArgumentException("AI OAuth refresh-token-days must be between 1 and 365.");
+        }
+        this.refreshTokenDays = refreshTokenDays;
     }
 
     public Set<String> getAllowedRedirectHosts() {

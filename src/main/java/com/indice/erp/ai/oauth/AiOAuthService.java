@@ -56,9 +56,12 @@ public class AiOAuthService {
             || redirectUris.stream().anyMatch(uri -> !properties.isAllowedRedirectUri(uri))) {
             throw invalidClientMetadata("Only approved ChatGPT HTTPS redirect URLs are accepted.");
         }
-        if (request.grantTypes() != null && !request.grantTypes().isEmpty()
-            && !Set.of("authorization_code").equals(Set.copyOf(request.grantTypes()))) {
-            throw invalidClientMetadata("Only the authorization_code grant is supported.");
+        if (request.grantTypes() != null && !request.grantTypes().isEmpty()) {
+            var grantTypes = Set.copyOf(request.grantTypes());
+            if (!grantTypes.contains("authorization_code")
+                || !Set.of("authorization_code", "refresh_token").containsAll(grantTypes)) {
+                throw invalidClientMetadata("Only authorization_code with optional refresh_token is supported.");
+            }
         }
         if (request.responseTypes() != null && !request.responseTypes().isEmpty()
             && !Set.of("code").equals(Set.copyOf(request.responseTypes()))) {
@@ -124,9 +127,9 @@ public class AiOAuthService {
 
     @Transactional
     public TokenResult exchange(TokenRequest request) {
-        if (request == null || !"authorization_code".equals(text(request.grantType()))) {
-            throw new AiOAuthException("unsupported_grant_type", "Only authorization_code is supported.");
-        }
+        if (request == null) throw unsupportedGrantType();
+        if ("refresh_token".equals(text(request.grantType()))) return refresh(request);
+        if (!"authorization_code".equals(text(request.grantType()))) throw unsupportedGrantType();
         if (!PKCE_VERIFIER.matcher(text(request.codeVerifier())).matches()) {
             throw invalidGrant();
         }
@@ -152,12 +155,75 @@ public class AiOAuthService {
             properties.getAccessTokenDays(),
             stored.scopes()
         );
+        var refreshToken = issueRefreshToken(
+            stored.clientId(), issued.id(), stored.user(), stored.resource(), stored.scopes()
+        );
         repository.markClientUsed(stored.clientId(), now);
         return new TokenResult(
             issued.accessToken(),
             Math.max(1L, Duration.between(now, issued.expiresAt()).toSeconds()),
-            String.join(" ", new TreeSet<>(stored.scopes()))
+            String.join(" ", new TreeSet<>(stored.scopes())),
+            refreshToken
         );
+    }
+
+    private TokenResult refresh(TokenRequest request) {
+        var refreshToken = text(request.refreshToken());
+        if (refreshToken.isBlank()) throw invalidGrant();
+        var stored = repository.findRefreshForUpdate(sha256Hex(refreshToken)).orElseThrow(this::invalidGrant);
+        var now = clock.instant();
+        var requestedResource = text(request.resource());
+        if (stored.usedAt() != null
+            || !stored.expiresAt().isAfter(now)
+            || !stored.clientId().equals(text(request.clientId()))
+            || (!requestedResource.isBlank() && !stored.resource().equals(requestedResource))
+            || !properties.getResourceUrl().equals(stored.resource())) {
+            throw invalidGrant();
+        }
+        var scopes = refreshScopes(request.scope(), stored.scopes());
+        repository.markRefreshUsed(stored.id(), now);
+        var issued = accessTokenService.rotate(
+            stored.user(), stored.accessTokenId(), properties.getAccessTokenDays(), scopes
+        );
+        var rotatedRefreshToken = issueRefreshToken(
+            stored.clientId(), stored.accessTokenId(), stored.user(), stored.resource(), scopes
+        );
+        repository.markClientUsed(stored.clientId(), now);
+        return new TokenResult(
+            issued.accessToken(),
+            Math.max(1L, Duration.between(now, issued.expiresAt()).toSeconds()),
+            String.join(" ", new TreeSet<>(scopes)),
+            rotatedRefreshToken
+        );
+    }
+
+    private String issueRefreshToken(
+        String clientId,
+        long accessTokenId,
+        AuthSessionUser user,
+        String resource,
+        Set<String> scopes
+    ) {
+        var rawToken = "idx_oauth_refresh_" + randomToken();
+        repository.insertRefreshToken(
+            sha256Hex(rawToken),
+            clientId,
+            accessTokenId,
+            user,
+            resource,
+            scopes,
+            clock.instant().plus(Duration.ofDays(properties.getRefreshTokenDays()))
+        );
+        return rawToken;
+    }
+
+    private Set<String> refreshScopes(String requested, Set<String> granted) {
+        if (requested == null || requested.isBlank()) return granted;
+        var scopes = parseScopes(requested);
+        if (scopes.isEmpty() || !granted.containsAll(scopes)) {
+            throw new AiOAuthException("invalid_scope", "Refresh cannot add permissions to this connection.");
+        }
+        return scopes;
     }
 
     private ValidatedAuthorization validateAuthorizationRequest(AuthorizationRequest request) {
@@ -258,6 +324,13 @@ public class AiOAuthService {
         return new AiOAuthException("invalid_grant", "Authorization code is invalid, expired, or already used.");
     }
 
+    private AiOAuthException unsupportedGrantType() {
+        return new AiOAuthException(
+            "unsupported_grant_type",
+            "Only authorization_code and refresh_token are supported."
+        );
+    }
+
     public record DynamicRegistration(
         String clientName,
         List<String> redirectUris,
@@ -285,9 +358,11 @@ public class AiOAuthService {
         String redirectUri,
         String clientId,
         String codeVerifier,
-        String resource
+        String resource,
+        String refreshToken,
+        String scope
     ) { }
-    public record TokenResult(String accessToken, long expiresIn, String scope) { }
+    public record TokenResult(String accessToken, long expiresIn, String scope, String refreshToken) { }
     private record ValidatedAuthorization(AiOAuthRepository.RegisteredClient client, Set<String> scopes) { }
     private record QueryParameter(String name, String value) { }
 }

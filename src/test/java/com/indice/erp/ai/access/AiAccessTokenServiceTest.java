@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -148,5 +149,20 @@ class AiAccessTokenServiceTest {
 
         assertTrue(service.authenticate("Bearer idx_ai_abcdefghijklmnopqrstuvwxyz1234567890").isPresent());
         verify(repository).markUsed(91L, NOW);
+    }
+
+    @Test
+    void rotatesAnExistingConnectionWithoutCreatingAnotherActiveSlot() {
+        var scopes = Set.of(AiAccessTokenService.SALES_READ);
+        when(repository.rotate(eq(91L), eq(OWNER), anyString(), anyString(), any(), eq(scopes)))
+            .thenReturn(1);
+
+        var rotated = service.rotate(OWNER, 91L, 30, scopes);
+
+        assertEquals(91L, rotated.id());
+        assertEquals(scopes, rotated.scopes());
+        assertTrue(rotated.accessToken().startsWith("idx_ai_"));
+        verify(repository, never()).countActive(anyLong(), anyLong(), any());
+        verify(repository, never()).insert(any(), anyString(), anyString(), anyString(), anyString(), any(), any());
     }
 }

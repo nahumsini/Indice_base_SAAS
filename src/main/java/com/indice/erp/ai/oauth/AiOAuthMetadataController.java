@@ -51,7 +51,7 @@ public class AiOAuthMetadataController {
         metadata.put("authorization_endpoint", properties.authorizationEndpoint());
         metadata.put("token_endpoint", properties.tokenEndpoint());
         metadata.put("registration_endpoint", properties.registrationEndpoint());
-        metadata.put("grant_types_supported", List.of("authorization_code"));
+        metadata.put("grant_types_supported", List.of("authorization_code", "refresh_token"));
         metadata.put("response_types_supported", List.of("code"));
         metadata.put("token_endpoint_auth_methods_supported", List.of("none"));
         metadata.put("code_challenge_methods_supported", List.of("S256"));

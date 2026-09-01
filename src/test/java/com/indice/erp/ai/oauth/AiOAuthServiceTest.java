@@ -64,6 +64,22 @@ class AiOAuthServiceTest {
     }
 
     @Test
+    void acceptsChatGptRegistrationWithRefreshTokenRotation() {
+        when(repository.registerOrReuse(any(), eq("ChatGPT"), any(), eq(List.of(REDIRECT))))
+            .thenReturn(client());
+
+        var registered = service.register(new AiOAuthService.DynamicRegistration(
+            "ChatGPT",
+            List.of(REDIRECT),
+            List.of("authorization_code", "refresh_token"),
+            List.of("code"),
+            "none"
+        ));
+
+        assertThat(registered.clientId()).isEqualTo("client-1");
+    }
+
+    @Test
     void validatesTenantConsentWithoutCreatingAConnection() {
         var client = client();
         when(repository.findActiveClient("client-1")).thenReturn(Optional.of(client));
@@ -98,12 +114,44 @@ class AiOAuthServiceTest {
             ));
 
         var result = service.exchange(new AiOAuthService.TokenRequest(
-            "authorization_code", "one-time-code", REDIRECT, "client-1", VERIFIER, RESOURCE
+            "authorization_code", "one-time-code", REDIRECT, "client-1", VERIFIER, RESOURCE, null, null
         ));
 
         assertThat(result.accessToken()).isEqualTo("idx_ai_secret");
         assertThat(result.scope()).isEqualTo("sales.read");
+        assertThat(result.refreshToken()).startsWith("idx_oauth_refresh_");
         verify(repository).markAuthorizationCodeUsed(99L, NOW);
+        verify(repository).markClientUsed("client-1", NOW);
+    }
+
+    @Test
+    void rotatesRefreshAndAccessTokensWithoutExpandingPermissions() {
+        var stored = new AiOAuthRepository.StoredRefreshToken(
+            88L,
+            "client-1",
+            7L,
+            RESOURCE,
+            Set.of("sales.read", "tasks.create"),
+            NOW.plusSeconds(3600),
+            null,
+            user
+        );
+        when(repository.findRefreshForUpdate(any())).thenReturn(Optional.of(stored));
+        when(accessTokenService.rotate(eq(user), eq(7L), eq(30), eq(Set.of("sales.read"))))
+            .thenReturn(new AiAccessTokenService.IssuedConnection(
+                7L, "generic_mcp", "ChatGPT", "idx_ai_rotated", Set.of("sales.read"),
+                NOW.plusSeconds(3600), NOW, "idx_ai_new_secret"
+            ));
+
+        var result = service.exchange(new AiOAuthService.TokenRequest(
+            "refresh_token", null, null, "client-1", null, RESOURCE,
+            "idx_oauth_refresh_old", "sales.read"
+        ));
+
+        assertThat(result.accessToken()).isEqualTo("idx_ai_new_secret");
+        assertThat(result.scope()).isEqualTo("sales.read");
+        assertThat(result.refreshToken()).startsWith("idx_oauth_refresh_");
+        verify(repository).markRefreshUsed(88L, NOW);
         verify(repository).markClientUsed("client-1", NOW);
     }
 
@@ -111,7 +159,7 @@ class AiOAuthServiceTest {
     void rejectsTokenExchangeForAnotherResource() {
         assertThatThrownBy(() -> service.exchange(new AiOAuthService.TokenRequest(
             "authorization_code", "code", REDIRECT, "client-1", VERIFIER,
-            "https://other.example/mcp"
+            "https://other.example/mcp", null, null
         )))
             .isInstanceOf(AiOAuthException.class)
             .hasMessageContaining("resource");

@@ -148,6 +148,99 @@ public class AiOAuthRepository {
         if (updated != 1) throw new IllegalArgumentException("invalid_grant");
     }
 
+    public void insertRefreshToken(
+        String tokenHash,
+        String clientId,
+        long accessTokenId,
+        AuthSessionUser user,
+        String resource,
+        Set<String> scopes,
+        Instant expiresAt
+    ) {
+        jdbcTemplate.update(
+            """
+                INSERT INTO ai_oauth_refresh_tokens
+                    (token_hash, client_id, access_token_id, user_id, company_id, user_company_id,
+                     resource_uri, scopes, expires_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?)
+                """,
+            tokenHash,
+            clientId,
+            accessTokenId,
+            user.userId(),
+            user.companyId(),
+            user.userCompanyId(),
+            resource,
+            json(scopes.stream().sorted().toList()),
+            Timestamp.from(expiresAt)
+        );
+    }
+
+    public Optional<StoredRefreshToken> findRefreshForUpdate(String tokenHash) {
+        return jdbcTemplate.query(
+            """
+                SELECT refresh_token.id,
+                       refresh_token.client_id,
+                       refresh_token.access_token_id,
+                       refresh_token.resource_uri,
+                       refresh_token.scopes,
+                       refresh_token.expires_at,
+                       refresh_token.used_at,
+                       refresh_token.user_id,
+                       refresh_token.company_id,
+                       refresh_token.user_company_id,
+                       COALESCE(user_row.full_name, user_row.email) AS user_name,
+                       membership.role
+                FROM ai_oauth_refresh_tokens refresh_token
+                INNER JOIN ai_oauth_clients oauth_client
+                    ON oauth_client.client_id = refresh_token.client_id
+                   AND oauth_client.disabled_at IS NULL
+                INNER JOIN ai_access_tokens access_token
+                    ON access_token.id = refresh_token.access_token_id
+                   AND access_token.user_id = refresh_token.user_id
+                   AND access_token.company_id = refresh_token.company_id
+                   AND access_token.user_company_id = refresh_token.user_company_id
+                   AND access_token.revoked_at IS NULL
+                INNER JOIN users user_row ON user_row.id = refresh_token.user_id
+                INNER JOIN companies company_row ON company_row.id = refresh_token.company_id
+                INNER JOIN user_companies membership
+                    ON membership.id = refresh_token.user_company_id
+                   AND membership.user_id = refresh_token.user_id
+                   AND membership.company_id = refresh_token.company_id
+                WHERE refresh_token.token_hash = ?
+                  AND LOWER(COALESCE(membership.status, 'active')) IN ('active', 'activo')
+                  AND COALESCE(company_row.platform_status, 'ACTIVE') = 'ACTIVE'
+                LIMIT 1
+                FOR UPDATE
+                """,
+            (rs, rowNum) -> new StoredRefreshToken(
+                rs.getLong("id"),
+                rs.getString("client_id"),
+                rs.getLong("access_token_id"),
+                rs.getString("resource_uri"),
+                Set.copyOf(strings(rs.getString("scopes"))),
+                rs.getTimestamp("expires_at").toInstant(),
+                rs.getTimestamp("used_at") == null ? null : rs.getTimestamp("used_at").toInstant(),
+                new AuthSessionUser(
+                    rs.getLong("user_id"),
+                    rs.getLong("company_id"),
+                    rs.getLong("user_company_id"),
+                    rs.getString("user_name"),
+                    rs.getString("role")
+                )
+            ),
+            tokenHash
+        ).stream().findFirst();
+    }
+
+    public void markRefreshUsed(long id, Instant now) {
+        var updated = jdbcTemplate.update(
+            "UPDATE ai_oauth_refresh_tokens SET used_at = ? WHERE id = ? AND used_at IS NULL",
+            Timestamp.from(now), id
+        );
+        if (updated != 1) throw new IllegalArgumentException("invalid_grant");
+    }
+
     public void markClientUsed(String clientId, Instant now) {
         jdbcTemplate.update(
             "UPDATE ai_oauth_clients SET last_used_at = ? WHERE client_id = ? AND disabled_at IS NULL",
@@ -198,6 +291,17 @@ public class AiOAuthRepository {
         String resource,
         Set<String> scopes,
         String codeChallenge,
+        Instant expiresAt,
+        Instant usedAt,
+        AuthSessionUser user
+    ) { }
+
+    public record StoredRefreshToken(
+        long id,
+        String clientId,
+        long accessTokenId,
+        String resource,
+        Set<String> scopes,
         Instant expiresAt,
         Instant usedAt,
         AuthSessionUser user

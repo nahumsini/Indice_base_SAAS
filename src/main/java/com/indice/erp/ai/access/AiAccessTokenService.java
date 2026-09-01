@@ -126,6 +126,45 @@ public class AiAccessTokenService {
     }
 
     @Transactional
+    public IssuedConnection rotate(
+        AuthSessionUser owner,
+        long connectionId,
+        Integer expiresInDays,
+        Set<String> requestedScopes
+    ) {
+        requireDirectMembership(owner);
+        var days = expiresInDays == null ? DEFAULT_EXPIRY_DAYS : expiresInDays;
+        if (days < 1 || days > MAX_EXPIRY_DAYS) {
+            throw new IllegalArgumentException("expiresInDays must be between 1 and 90.");
+        }
+        var scopes = normalizeScopes(requestedScopes);
+        var now = clock.instant();
+        var rawToken = generateToken();
+        var expiresAt = now.plus(Duration.ofDays(days));
+        var visiblePrefix = rawToken.substring(0, Math.min(18, rawToken.length()));
+        if (repository.rotate(
+            connectionId,
+            owner,
+            visiblePrefix,
+            sha256Hex(rawToken),
+            expiresAt,
+            scopes
+        ) != 1) {
+            throw new IllegalArgumentException("AI connection is no longer active.");
+        }
+        return new IssuedConnection(
+            connectionId,
+            PROVIDER,
+            "Conexión renovada",
+            visiblePrefix,
+            scopes,
+            expiresAt,
+            now,
+            rawToken
+        );
+    }
+
+    @Transactional
     public Optional<AiAccessTokenRepository.StoredToken> authenticate(
         String authorizationHeader,
         String requiredScope
