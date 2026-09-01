@@ -112,7 +112,8 @@ public class MultiKioskAdminV2Controller {
 
     private void requireEnabled() {
         if (!flags.registryEnabled() || !flags.sessionsEnabled()
-                || !flags.auditEnabled() || !flags.globalCenterEnabled()) {
+                || !flags.auditEnabled() || !flags.globalCenterEnabled()
+                || !flags.multiDashboardEnabled()) {
             throw new KioskUnavailableException();
         }
     }

@@ -101,7 +101,7 @@ El objetivo del Engine v2 es consolidar estas responsabilidades sin retirar prem
 3. Migrar kioskos existentes de manera incremental y compatible.
 4. Evitar que cada módulo reconstruya seguridad e infraestructura pública.
 5. Mantener independencia absoluta de reglas y datos por módulo.
-6. Crear una experiencia móvil consistente con el lenguaje visual actual.
+6. Crear una experiencia mobile-first responsive, consistente con el lenguaje visual actual.
 7. Permitir kioskos para usuarios internos, proveedores, clientes y público anónimo.
 8. Preparar capacidades futuras entre módulos con candados explícitos.
 9. Preparar el Global Kiosk Center.
@@ -746,6 +746,11 @@ Los límites no deben depender únicamente de IP.
 
 Toda capacidad mutante exige `Idempotency-Key`. La clave se acota por compañía, kiosko, identidad y capacidad.
 
+El contrato v2 responde `409` con `KIOSK_IDEMPOTENCY_MISMATCH` cuando la clave pertenece a
+otra operación lógica y con `KIOSK_IDEMPOTENCY_IN_PROGRESS` mientras la operación original sigue
+en curso. El cliente solo rota la clave ante `MISMATCH`; ante `IN_PROGRESS` conserva la misma clave
+para recuperar el resultado original sin duplicar la mutación.
+
 ### 17.5 Autorización
 
 La autorización efectiva es la intersección de:
@@ -1197,7 +1202,7 @@ Un kiosko nuevo se conecta a este patrón en el siguiente orden:
 6. componerla con `KioskModalFrame` y primitives `indice-modal`;
 7. conectar la acción al dispatcher con CSRF, idempotencia y sesión;
 8. localizar copy, errores y etiquetas accesibles;
-9. probar mobile, teclado, archivos, fallos, expiración y doble envío;
+9. probar mobile, tablet, desktop, teclado, archivos, fallos, expiración y doble envío;
 10. certificar paridad funcional y auditoría antes de retirar el overlay legacy.
 
 ### 21.15 Criterios de aceptación de modales de kiosko
@@ -1214,7 +1219,7 @@ Un kiosko nuevo se conecta a este patrón en el siguiente orden:
 - [ ] Archivos completan presign, registro, adopción y auditoría antes de considerarse evidencia.
 - [ ] Expiración o reset limpia estado sensible y cierra el modal.
 - [ ] Loading, empty, validation, offline, submitting, partial-file-failure, success y retry están cubiertos.
-- [ ] La experiencia pública fue probada a 320, 360, 390, 430 y 480 CSS pixels.
+- [ ] La experiencia pública fue probada a 320, 360, 390, 430, 480, 768, 1024 y 1440 CSS pixels.
 - [ ] La administración fue probada en tablet y desktop dentro del máximo de su tipo.
 - [ ] Copy visible, títulos, errores, tooltips y `aria-label` están localizados.
 
@@ -1288,22 +1293,43 @@ Las acciones profundas redirigen a la administración del módulo.
 
 ---
 
-## 24. Multikiosco móvil para empleados
+## 24. Multikiosco responsive de compañía para colaboradores
 
 ### 24.1 Propósito
 
-El Multikiosco es un launcher móvil curado para empleados. Reúne accesos directos a varios
-kioscos existentes, pero no es un superkiosco: no combina formularios, capacidades, datos ni
-reglas de negocio de los kioscos hijos.
+El Multikiosco es un launcher responsive de la compañía para colaboradores. Reúne herramientas
+operativas de los módulos activos, pero no es un superkiosco: no combina formularios, capacidades,
+datos ni reglas de negocio de sus módulos propietarios.
 
 El `Centro de kioscos` dentro de Índice es exclusivamente administrativo. Desde ahí se crea el
-Multikiosco, se ordenan sus accesos, se asignan empleados y se administra el enlace o QR. El
-trabajo operativo nunca se realiza dentro de la aplicación normal de Índice.
+Multikiosco, se ordenan sus herramientas y se administra el enlace o QR. No existe una asignación
+de personas por Multikiosco: su audiencia es la membresía activa de la compañía. El trabajo
+operativo nunca se realiza dentro de la aplicación normal de Índice.
+
+El constructor tiene dos pasos: `Datos` y `Herramientas`. El contrato administrativo nuevo recibe
+la composición en `tool_keys`; `employee_ids` no forma parte de la autoridad ni es requisito para
+crear o actualizar un Multikiosco. Una `tool_key` es un identificador estable y versionado de una
+capacidad para colaboradores, no el identificador de un kiosco creado por un administrador.
+
+El catálogo del constructor nace del manifiesto de adapters, del entitlement y de la configuración
+vigente de la compañía. No consulta el inventario de kioscos creados y un `GET` de catálogo nunca
+provisiona datos. Las herramientas iniciales disponibles son `employee.attendance@1` y
+`employee.my-tasks@1`. Recursos condicionados, como fondos de Caja chica, solo pueden publicarse
+como herramienta cuando su adapter resuelva y revalide la autorización funcional de la persona.
+
+El launcher padre tampoco selecciona ni impone `unit_id` o `business_id`. Esas columnas históricas
+del Multikiosco no participan en composición ni autorización y las escrituras nuevas las normalizan
+a `NULL`. El alcance se evalúa dentro del módulo propietario después del PIN. Como frontera de
+compatibilidad, el Engine puede materializar una definición interna administrada por el sistema para
+alojar sesiones, capacidades, idempotencia y auditoría; esa definición no es un kiosco creado, no
+aparece en Inventario, no expone enlace hijo y nunca concede autoridad por sí misma.
 
 ### 24.2 Audiencia y exclusiones
 
-- Solo empleados con membresía activa y PIN personal vigente.
-- Solo definiciones con `audience = EMPLOYEE` y `employee_center_enabled = true`.
+- Cualquier colaborador con membresía activa en la compañía y PIN personal vigente puede
+  identificarse en el launcher.
+- Solo herramientas declaradas para colaboradores por un adapter habilitado y por un módulo con
+  entitlement vigente.
 - Proveedores, clientes, público anónimo, citas y experiencias POS continúan por sus enlaces
   específicos y no aparecen en un Multikiosco de empleados.
 
@@ -1313,9 +1339,9 @@ trabajo operativo nunca se realiza dentro de la aplicación normal de Índice.
 Enlace especial o QR del Multikiosco
 → validación de estado y vigencia
 → PIN personal del empleado
-→ launcher móvil con cards autorizadas
-→ seleccionar un kiosco
-→ crear sesión contextual del kiosco hijo
+→ launcher responsive con herramientas autorizadas
+→ seleccionar una herramienta
+→ crear sesión contextual de la herramienta
 → abrir su Full Workspace
 → regresar al launcher
 ```
@@ -1329,35 +1355,87 @@ Una card aparece únicamente por la intersección de:
 
 ```text
 Multikiosco ACTIVE y no expirado
-+ asignación ACTIVE del empleado
-+ kiosco hijo incluido en la composición
-+ kiosco hijo ACTIVE y no expirado
-+ membresía y módulo habilitados
-+ alcance organizacional compatible
-+ adapter y capacidades habilitados
++ membresía ACTIVE de la persona en la compañía del Multikiosco
++ PIN personal ACTIVE de esa membresía
++ tool_key incluida en la composición
++ manifiesto y adapter de la herramienta habilitados
++ entitlement empresarial y módulo de la persona habilitados
++ permiso de pestaña requerido por el adapter del módulo
++ propiedad o alcance funcional compatible
++ capacidades de sesión habilitadas
 ```
 
-La asignación al Multikiosco es una fuente de grant, nunca una elevación. Si cualquiera de las
-condiciones deja de cumplirse, la card desaparece y las sesiones dejan de ser válidas.
+Toda persona activa de la compañía con PIN puede abrir el launcher. No es necesario que pueda operar
+todas las herramientas incluidas: el launcher calcula la intersección para cada persona y omite cualquier
+card sin módulo, permiso de pestaña, propiedad o alcance compatible. Si la intersección queda vacía, conserva la
+sesión del launcher y muestra un estado educativo sin inventar acceso. Abrir una card por identificador
+directo vuelve a ejecutar la misma autorización y falla cerrado.
+
+La composición del Multikiosco habilita una herramienta en el launcher, pero no es una fuente de
+grant ni una elevación. La tabla histórica
+`multi_kiosk_assignments` puede conservarse por compatibilidad y auditoría, pero no participa en la
+autenticación, en la continuidad de sesión ni en el catálogo efectivo, y el constructor administrativo
+no crea nuevas filas en ella. Si cualquiera de las condiciones efectivas deja de cumplirse, la card
+desaparece y sus sesiones contextuales dejan de ser válidas.
+
+Los contratos antiguos con `kiosk_definition_ids` pueden conservarse temporalmente para leer y
+editar Multikioscos existentes, sin incorporar esas definiciones al catálogo nuevo. Una actualización
+nunca elimina en silencio una composición heredada: el cliente la preserva explícitamente hasta que
+una migración controlada la sustituya por `tool_keys`.
+
+La sesión contextual `MOBILE_MULTI_KIOSK` valida la compañía, el Multikiosco activo y vigente, la
+herramienta incluida y la membresía activa exacta. No consulta `multi_kiosk_assignments` ni el alcance
+histórico del padre; antes de crearla y en cada uso se vuelve a ejecutar la autorización efectiva de
+la herramienta.
+
+Cada adapter declara las permission keys de pestaña aplicables al workspace y, cuando sea
+necesario, puede restringirlas por capacidad. Se aplican con semántica `any-of`; no declarar una
+permission key falla cerrado. El permiso de pestaña complementa, pero nunca sustituye, el
+entitlement, el módulo, la propiedad o alcance funcional ni las capacidades de la sesión.
 
 ### 24.5 Sesiones
 
-- La sesión del Multikiosco está ligada al navegador móvil.
+- La sesión del Multikiosco está ligada al navegador que realizó la identificación.
 - Inactividad predeterminada: ocho horas.
 - Vida absoluta predeterminada: doce horas.
-- Cada kiosco hijo crea una sesión Engine propia `MOBILE_MULTI_KIOSK`.
-- El kiosco hijo conserva su límite de inactividad, capacidades, idempotencia, auditoría y
+- Cada herramienta crea una sesión Engine propia `MOBILE_MULTI_KIOSK` sobre su frontera interna
+  compatible.
+- `MOBILE_MULTI_KIOSK` se conserva como nombre técnico compatible del canal aunque la experiencia
+  opere en celular, tablet o computadora; el tipo de dispositivo no concede autoridad adicional.
+- `AUTHENTICATED_WEB` y `MOBILE_MULTI_KIOSK` ejecutan exclusivamente el contrato de empleado del
+  adapter; `PUBLIC_LINK` conserva el contrato público y nunca se promueve por inferencia.
+- La herramienta conserva su límite de inactividad, capacidades, idempotencia, auditoría y
   verificaciones especializadas.
-- Rotar el enlace, deshabilitar, revocar o retirar al empleado cierra las sesiones relacionadas.
+- La verificación del PIN consume dos presupuestos antes de ejecutar `bcrypt`: uno por red
+  (`5` intentos por `15` minutos) y otro agregado por compañía y Multikiosco (`30` intentos por
+  `30` minutos). Cambiar de red no renueva el presupuesto agregado; una autenticación válida
+  descuenta únicamente el intento que acaba de consumir y conserva los fallos previos.
+- El presupuesto agregado se configura con
+  `kiosk.engine.multi-kiosk.pin.aggregate.maximum-attempts` y
+  `kiosk.engine.multi-kiosk.pin.aggregate.window-seconds`. Ambos valores deben ser estrictamente
+  mayores que la capa por red o el servicio falla cerrado durante el arranque. Los scopes se
+  almacenan como hashes y nunca contienen el PIN ni datos personales.
+- Rotar el enlace, deshabilitar o revocar el Multikiosco cierra sus sesiones relacionadas. Desactivar
+  la membresía o rotar o revocar el PIN invalida las sesiones de esa persona dentro de la misma
+  compañía; la continuidad vuelve a comprobar membresía y credencial en cada solicitud.
+- En una estación compartida se debe usar siempre `Cerrar sesión / Cambiar colaborador`. Un timeout
+  más corto se define por política explícita de ambiente; nunca se deduce del viewport o User-Agent.
 
 ### 24.6 Superficie y rutas
 
 - Administración: `/kiosk-center`, solo para roles administrativos.
 - API administrativa: `/api/v2/kiosk-center/multi-kiosks`.
-- Experiencia móvil: `/multi-kiosk/{publicAccessToken}`.
+- Experiencia operativa responsive: `/multi-kiosk/{publicAccessToken}`.
 - API pública: `/api/v2/multi-kiosks/public/{publicAccessToken}`.
-- Escritorio muestra únicamente instrucción y QR; no habilita acciones operativas.
-- Tokens de kioscos hijos nunca se exponen en el catálogo del launcher.
+- Cierre de sesión: `DELETE /api/v2/multi-kiosks/public/{publicAccessToken}/session`, con
+  `X-CSRF-Token`, `X-Multi-Kiosk-Session-Token` y la sesión de navegador actual. El cierre es
+  idempotente y revoca únicamente la sesión padre y las sesiones hijas correlacionadas por
+  compañía, Multikiosco, empleado y navegador.
+- Celular, tablet y computadora ofrecen el mismo acceso por PIN, launcher y Full Workspace,
+  adaptado al ancho disponible. El QR permanece como medio opcional para compartir el enlace.
+- Tokens o referencias internas de implementación nunca se exponen en el catálogo administrativo de
+  herramientas. Los identificadores técnicos que sobrevivan por compatibilidad se tratan como opacos
+  y nunca sustituyen la autorización efectiva.
 
 ---
 
@@ -1795,18 +1873,32 @@ Estado ejecutado al 18 de julio de 2026:
 - feature flag independiente `kiosk.global-center.enabled`, activado y verificado en el ambiente local de cierre;
 - smoke final: ruta SPA `200`, API sin sesión `401`, backend/web healthy y Nginx válido.
 
-### Fase 9 — Multikiosco móvil
+### Fase 9 — Multikiosco para empleados
 
 - Constructor administrativo en el Centro de kioscos.
-- Composición ordenada de definiciones existentes.
-- Asignaciones explícitas a empleados con PIN.
+- Composición ordenada de herramientas nativas declaradas por los módulos activos.
+- Acceso de compañía para cualquier membresía activa con PIN, sin asignaciones por Multikiosco.
 - Enlace y QR propios del Multikiosco.
-- Launcher y Full Workspace exclusivamente móviles.
-- Sesión contextual independiente por kiosco hijo.
+- Launcher y Full Workspace responsive para celular, tablet y computadora.
+- Sesión contextual independiente por herramienta.
 
-Estado al 3 de agosto de 2026: contrato e implementación base cerrados bajo el candado
-`kiosk.multi-dashboard.enabled`. La activación por ambiente requiere migración `V161`, secretos
-de protección válidos y smoke de enlace, PIN, catálogo efectivo, sesión hija y revocación.
+Estado ejecutado al 31 de agosto de 2026: el Centro de kioscos incorpora administración,
+inventario, preparación de accesos y actividad. El constructor del Multikiosco se compone con el
+catálogo nativo de herramientas de los módulos, no con kioscos creados; inicia con Asistencia y Mis
+tareas, preservando composiciones anteriores mediante una frontera de compatibilidad. El catálogo
+efectivo aplica membresía, PIN, entitlement, módulo, permiso de pestaña, propiedad, alcance y
+capacidad; la composición nunca concede por sí sola autoridad sobre el dominio propietario. El
+cierre de sesión revoca el contexto padre y sus sesiones contextuales correlacionadas. Asistencia
+exige evidencia durable y ubicación conforme a su política; Caja chica conserva su flujo
+especializado y su validación monetaria hasta contar con un adapter personal de fondos autorizados.
+El entitlement empresarial del módulo se revalida en catálogo, workspace y acciones; la superficie
+pública falla cerrada si la auditoría no está disponible y las cuotas operativas se aíslan
+con la identidad autoritativa del colaborador, no con una señal compartida del dispositivo.
+
+La activación de un ambiente continúa bajo `kiosk.multi-dashboard.enabled` y requiere migración
+`V161`, secretos de protección válidos y smoke físico en móvil y computadora de enlace, PIN,
+cámara/rostro, GPS, almacenamiento de evidencia, catálogo efectivo, sesión hija y revocación.
+La ausencia de cámara o GPS en una estación nunca rebaja un factor exigido por el módulo.
 
 ### Fase 10 — Nuevos kioskos
 
@@ -1882,7 +1974,8 @@ El Engine v2 se considera establecido cuando:
 - Audio y video quedan deshabilitados.
 - Todo opera en línea.
 - Global Kiosk Center coordina, no posee lógica funcional.
-- Multikiosco es exclusivo para empleados asignados e identificados por su enlace y PIN personal.
+- Multikiosco pertenece a la compañía: cualquier colaborador activo se identifica con su PIN personal
+  y recibe únicamente las cards autorizadas por sus permisos efectivos.
 - Clientes y proveedores continúan por enlaces específicos.
 - Petty Cash guía el diseño público.
 - El sistema React `indice-modal` guía la administración.

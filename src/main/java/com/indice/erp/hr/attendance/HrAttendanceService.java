@@ -13,9 +13,11 @@ import com.indice.erp.hr.attendance.kiosk.AttendanceKioskDeviceRepository;
 import com.indice.erp.hr.attendance.kiosk.AttendanceKioskDeviceService;
 import com.indice.erp.hr.attendance.kiosk.AttendanceKioskPinThrottleService;
 import com.indice.erp.hr.attendance.kiosk.AttendanceKioskTokenService;
+import com.indice.erp.hr.attendance.kiosk.KioskDeviceRow;
 import com.indice.erp.hr.attendance.locations.AttendanceAllowedLocationRepository;
 import com.indice.erp.hr.attendance.locations.AttendanceLocationRepository;
 import com.indice.erp.hr.attendance.locations.AttendanceWorkSiteAssignmentRepository;
+import com.indice.erp.hr.attendance.models.AttendanceHrUser;
 import com.indice.erp.hr.attendance.records.AttendanceDailyRecordRepository;
 import com.indice.erp.hr.attendance.schedule.AttendanceScheduleCandidateService;
 import com.indice.erp.hr.attendance.usecases.records.HrAttendanceSelfDailyRecordUseCases;
@@ -25,6 +27,7 @@ import com.indice.erp.hr.attendance.util.AttendanceDateParser;
 import com.indice.erp.location.GoogleMapsCoordinateExtractor;
 import com.indice.erp.kiosk.engine.KioskDefinitionStatus;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -396,6 +399,59 @@ public class HrAttendanceService extends HrAttendanceSelfDailyRecordUseCases {
             companyId, currentUser.userId(), kioskDeviceId, status, reason);
     }
 
+    /**
+     * Builds the attendance workspace for an employee already authenticated by the Kiosk Engine.
+     * The legacy public token is used only as an internal device reference; it is never returned.
+     */
+    public Map<String, Object> employeeKioskBootstrap(
+            String deviceToken,
+            long companyId,
+            long userId) {
+        var access = requireEmployeeKioskAccess(deviceToken, companyId, userId);
+        var eventTimestamp = LocalDateTime.now();
+        var activityDate = resolveOperationalAttendanceDate(
+            companyId, access.user().id(), eventTimestamp, "check_out");
+        var scheduleRule = loadScheduleRule(companyId, access.user().id(), activityDate);
+        var dailyRecord = attendanceDailyRecordRepository.loadDailyRecord(
+            companyId, access.user().id(), activityDate);
+        var openDailyRecord = attendanceDailyRecordRepository.loadOpenDailyRecord(
+            companyId, access.user().id(), eventTimestamp.toLocalDate());
+        if (openDailyRecord != null && openDailyRecord.attendanceDate().equals(activityDate)) {
+            activityDate = openDailyRecord.attendanceDate();
+            scheduleRule = loadScheduleRule(companyId, access.user().id(), activityDate);
+            dailyRecord = openDailyRecord;
+        }
+
+        var body = new LinkedHashMap<>(publicKioskBootstrap(deviceToken));
+        body.remove("auth_methods");
+        body.put("authentication", "ENGINE_PIN_SESSION");
+        body.put("user", Map.of(
+            "id", access.user().id(),
+            "user_code", access.user().userCode(),
+            "full_name", access.user().fullName(),
+            "position_title", access.user().positionTitle(),
+            "department", access.user().department()
+        ));
+        body.put("today_activity", toPublicKioskDayActivity(activityDate, dailyRecord, scheduleRule));
+        body.put("identity_evidence_required", true);
+        return body;
+    }
+
+    /**
+     * Issues a short-lived module token for an Engine-authenticated employee. The token is minted
+     * after revalidating company, active device, active employee and kiosk scope, and is consumed
+     * only by the existing attendance public workflow so face/photo and GPS rules remain intact.
+     */
+    public String employeeKioskIdentificationToken(
+            String deviceToken,
+            long companyId,
+            long userId) {
+        var access = requireEmployeeKioskAccess(deviceToken, companyId, userId);
+        var expiresAt = attendanceKioskTokenService.nextIdentificationExpiryEpochSeconds();
+        return attendanceKioskTokenService.createIdentificationToken(
+            deviceToken, access.user().id(), "pin", expiresAt);
+    }
+
     public Map<String, Object> listAccessProfiles(AuthSessionUser currentUser) {
         var companyId = currentUser.companyId();
         var scope = hrAttendanceScopeAccess.resolve(currentUser);
@@ -675,5 +731,27 @@ public class HrAttendanceService extends HrAttendanceSelfDailyRecordUseCases {
             selfUserCompanyId
         );
         return count != null && count > 0;
+    }
+
+    private EmployeeKioskAccess requireEmployeeKioskAccess(
+            String deviceToken,
+            long companyId,
+            long userId) {
+        if (companyId <= 0 || userId <= 0) {
+            throw new SecurityException("Authenticated employee kiosk identity is required.");
+        }
+        var kioskDevice = attendanceKioskDeviceRepository.getByPublicAccessToken(deviceToken);
+        if (kioskDevice.companyId() != companyId) {
+            throw new SecurityException("Attendance kiosk does not belong to the authenticated company.");
+        }
+        var user = attendanceUserLookupService.resolveLinkedAttendanceUser(companyId, userId);
+        if ("terminated".equalsIgnoreCase(user.status())) {
+            throw new SecurityException("Terminated employees cannot use the attendance kiosk.");
+        }
+        validatePublicKioskScope(kioskDevice, user);
+        return new EmployeeKioskAccess(kioskDevice, user);
+    }
+
+    private record EmployeeKioskAccess(KioskDeviceRow kioskDevice, AttendanceHrUser user) {
     }
 }

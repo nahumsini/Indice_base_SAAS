@@ -10,6 +10,7 @@ import com.indice.erp.kiosk.engine.KioskCapabilityDescriptor;
 import com.indice.erp.kiosk.engine.KioskDefinitionStatus;
 import com.indice.erp.kiosk.engine.KioskDispatchResult;
 import com.indice.erp.kiosk.engine.KioskEngineFeatureFlags;
+import com.indice.erp.kiosk.engine.KioskIdempotencyConflictException;
 import com.indice.erp.kiosk.engine.KioskModuleAdapter;
 import com.indice.erp.kiosk.engine.KioskOperationPolicy;
 import com.indice.erp.kiosk.engine.KioskRateLimitService;
@@ -189,6 +190,48 @@ class KioskPublicV2ControllerTest {
             .andExpect(jsonPath("$.data.task.id").value(91))
             .andExpect(jsonPath("$.meta.kioskSessionId").value("session-17"))
             .andExpect(jsonPath("$.meta.capability").value("process-tasks.task.complete@1"));
+    }
+
+    @Test
+    void idempotencyMismatchUsesAStableConflictContractWithoutLeakingRequestDetails() throws Exception {
+        var taskCapability = new KioskCapabilityDescriptor(
+            "process-tasks.task.complete", 1, "PROCESS_TASKS", KioskOperationPolicy.DIRECT,
+            KioskAccessLevel.CONTROLLED, true, true);
+        given(adapter.capabilities(any(KioskResolvedDefinition.class)))
+            .willReturn(Set.of(identityCapability, taskCapability));
+        given(dispatcher.dispatchWithMetadata(any(), any(), any()))
+            .willThrow(KioskIdempotencyConflictException.requestMismatch());
+
+        mockMvc.perform(post("/api/v2/kiosks/public/secret-token/actions/process-tasks.task.complete@1")
+                .header("X-CSRF-Token", "csrf-token")
+                .header("Idempotency-Key", "stale-sensitive-key")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"resource_id\":91,\"kiosk_session_token\":\"sensitive-session\"}"))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.error.code").value("KIOSK_IDEMPOTENCY_MISMATCH"))
+            .andExpect(jsonPath("$.error.retryable").value(true))
+            .andExpect(jsonPath("$.error.message").value(
+                "La clave de reintento pertenece a otra operación."));
+    }
+
+    @Test
+    void idempotencyInProgressKeepsTheRetryableConflictDistinctFromAMismatch() throws Exception {
+        var taskCapability = new KioskCapabilityDescriptor(
+            "process-tasks.task.complete", 1, "PROCESS_TASKS", KioskOperationPolicy.DIRECT,
+            KioskAccessLevel.CONTROLLED, true, true);
+        given(adapter.capabilities(any(KioskResolvedDefinition.class)))
+            .willReturn(Set.of(identityCapability, taskCapability));
+        given(dispatcher.dispatchWithMetadata(any(), any(), any()))
+            .willThrow(KioskIdempotencyConflictException.inProgress());
+
+        mockMvc.perform(post("/api/v2/kiosks/public/secret-token/actions/process-tasks.task.complete@1")
+                .header("X-CSRF-Token", "csrf-token")
+                .header("Idempotency-Key", "operation-in-progress")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"resource_id\":91,\"kiosk_session_token\":\"active-session\"}"))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.error.code").value("KIOSK_IDEMPOTENCY_IN_PROGRESS"))
+            .andExpect(jsonPath("$.error.retryable").value(true));
     }
 
     @Test

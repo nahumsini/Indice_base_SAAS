@@ -12,7 +12,6 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HexFormat;
@@ -40,6 +39,7 @@ public class MultiKioskService {
     private final BCryptPasswordEncoder passwordEncoder;
     private final KioskPayloadProtectionService protection;
     private final KioskEmployeeAccessService employeeAccess;
+    private final KioskEmployeeToolCatalogService employeeTools;
     private final KioskMultiDashboardService dashboard;
     private final KioskRateLimitService rateLimits;
     private final Duration inactivityTimeout;
@@ -51,6 +51,7 @@ public class MultiKioskService {
             BCryptPasswordEncoder passwordEncoder,
             KioskPayloadProtectionService protection,
             KioskEmployeeAccessService employeeAccess,
+            KioskEmployeeToolCatalogService employeeTools,
             KioskMultiDashboardService dashboard,
             KioskRateLimitService rateLimits,
             @Value("${app.kiosk.multi.inactivity-timeout-seconds:28800}") int inactivitySeconds,
@@ -60,6 +61,7 @@ public class MultiKioskService {
         this.passwordEncoder = passwordEncoder;
         this.protection = protection;
         this.employeeAccess = employeeAccess;
+        this.employeeTools = employeeTools;
         this.dashboard = dashboard;
         this.rateLimits = rateLimits;
         this.inactivityTimeout = Duration.ofSeconds(Math.max(60, inactivitySeconds));
@@ -73,9 +75,28 @@ public class MultiKioskService {
                        COALESCE(business_ref.name, '') AS business_name,
                        (SELECT COUNT(*) FROM multi_kiosk_items item
                          WHERE item.multi_kiosk_id = definition.id) AS kiosk_count,
-                       (SELECT COUNT(*) FROM multi_kiosk_assignments assignment
-                         WHERE assignment.multi_kiosk_id = definition.id
-                           AND assignment.status = 'ACTIVE') AS employee_count
+                       (SELECT COUNT(*) FROM multi_kiosk_items item
+                          INNER JOIN kiosk_definitions child
+                            ON child.id = item.kiosk_definition_id
+                           AND child.company_id = definition.company_id
+                         WHERE item.multi_kiosk_id = definition.id
+                           AND child.code LIKE 'INDICE-EMPLOYEE-TOOL-%') AS tool_count,
+                       (SELECT COUNT(DISTINCT membership.id)
+                          FROM user_companies membership
+                         WHERE membership.company_id = definition.company_id
+                           AND LOWER(COALESCE(membership.status, 'active')) IN ('active', 'activo')
+                           AND EXISTS (
+                               SELECT 1 FROM kiosk_identity_credentials credential
+                                WHERE credential.company_id = membership.company_id
+                                  AND credential.credential_type = 'PIN'
+                                  AND credential.status = 'ACTIVE'
+                                  AND credential.secret_hash IS NOT NULL
+                                  AND credential.secret_hash <> ''
+                                  AND ((credential.identity_type = 'EMPLOYEE'
+                                        AND credential.identity_id = membership.id)
+                                    OR (credential.identity_type = 'USER'
+                                        AND credential.identity_id = membership.user_id))
+                           )) AS eligible_member_count
                 FROM multi_kiosk_definitions definition
                 LEFT JOIN units unit_ref ON unit_ref.id = definition.unit_id
                 LEFT JOIN businesses business_ref ON business_ref.id = definition.business_id
@@ -94,9 +115,28 @@ public class MultiKioskService {
                        COALESCE(business_ref.name, '') AS business_name,
                        (SELECT COUNT(*) FROM multi_kiosk_items item
                          WHERE item.multi_kiosk_id = definition.id) AS kiosk_count,
-                       (SELECT COUNT(*) FROM multi_kiosk_assignments assignment
-                         WHERE assignment.multi_kiosk_id = definition.id
-                           AND assignment.status = 'ACTIVE') AS employee_count
+                       (SELECT COUNT(*) FROM multi_kiosk_items item
+                          INNER JOIN kiosk_definitions child
+                            ON child.id = item.kiosk_definition_id
+                           AND child.company_id = definition.company_id
+                         WHERE item.multi_kiosk_id = definition.id
+                           AND child.code LIKE 'INDICE-EMPLOYEE-TOOL-%') AS tool_count,
+                       (SELECT COUNT(DISTINCT membership.id)
+                          FROM user_companies membership
+                         WHERE membership.company_id = definition.company_id
+                           AND LOWER(COALESCE(membership.status, 'active')) IN ('active', 'activo')
+                           AND EXISTS (
+                               SELECT 1 FROM kiosk_identity_credentials credential
+                                WHERE credential.company_id = membership.company_id
+                                  AND credential.credential_type = 'PIN'
+                                  AND credential.status = 'ACTIVE'
+                                  AND credential.secret_hash IS NOT NULL
+                                  AND credential.secret_hash <> ''
+                                  AND ((credential.identity_type = 'EMPLOYEE'
+                                        AND credential.identity_id = membership.id)
+                                    OR (credential.identity_type = 'USER'
+                                        AND credential.identity_id = membership.user_id))
+                           )) AS eligible_member_count
                 FROM multi_kiosk_definitions definition
                 LEFT JOIN units unit_ref ON unit_ref.id = definition.unit_id
                 LEFT JOIN businesses business_ref ON business_ref.id = definition.business_id
@@ -109,8 +149,23 @@ public class MultiKioskService {
         );
         if (rows.isEmpty()) throw new KioskUnavailableException();
         var result = new LinkedHashMap<>(rows.getFirst());
-        result.put("kiosks", items(multiKioskId));
-        result.put("employees", assignments(multiKioskId));
+        var composition = items(multiKioskId);
+        result.put("kiosks", composition);
+        result.put("tools", composition.stream()
+            .filter(item -> item.get("tool_key") != null)
+            .toList());
+        result.put("tool_keys", composition.stream()
+            .map(item -> item.get("tool_key"))
+            .filter(java.util.Objects::nonNull)
+            .map(String::valueOf)
+            .toList());
+        result.put("legacy_kiosk_definition_ids", composition.stream()
+            .filter(item -> item.get("tool_key") == null)
+            .map(item -> ((Number) item.get("id")).longValue())
+            .toList());
+        // Kept only as a response-shape compatibility field. Company PIN access is not
+        // represented or authorized by legacy per-Multi-kiosk assignment rows.
+        result.put("employees", List.of());
         return Collections.unmodifiableMap(result);
     }
 
@@ -125,6 +180,12 @@ public class MultiKioskService {
                        (SELECT GROUP_CONCAT(DISTINCT module_role.module_slug ORDER BY module_role.module_slug)
                           FROM user_company_module_roles module_role
                          WHERE module_role.user_company_id = membership.id) AS module_slugs,
+                       (SELECT GROUP_CONCAT(
+                                   DISTINCT CONCAT(tab_permission.module_slug, '.', tab_permission.tab_key)
+                                   ORDER BY tab_permission.module_slug, tab_permission.tab_key)
+                          FROM user_company_tab_permissions tab_permission
+                         WHERE tab_permission.user_company_id = membership.id
+                           AND tab_permission.can_view = 1) AS tab_scopes,
                        EXISTS(
                          SELECT 1 FROM kiosk_identity_credentials credential
                          WHERE credential.company_id = membership.company_id
@@ -164,20 +225,28 @@ public class MultiKioskService {
                         .filter(value -> !value.isBlank())
                         .distinct()
                         .toList());
+                row.put("tab_scopes", normalizedTabScopes(rs.getString("tab_scopes")));
+                row.put("tab_scopes_unrestricted",
+                    FULL_MODULE_ROLES.contains(normalizeRole(rs.getString("role"))));
                 row.put("pin_ready", rs.getBoolean("pin_ready"));
                 return Collections.unmodifiableMap(row);
             },
             companyId
         );
-        return Map.of(
-            "kiosks", employeeAccess.catalog(companyId),
-            "employees", employees
-        );
+        var result = new LinkedHashMap<String, Object>();
+        result.put("tools", employeeTools.availableTools(companyId));
+        // Compatibility shape only. Native-tool catalog authority never queries definitions.
+        result.put("kiosks", List.of());
+        result.put("employees", employees);
+        result.put("access_population", "COMPANY_PIN");
+        return Map.copyOf(result);
     }
 
     @Transactional
     public Map<String, Object> create(long companyId, long actorUserId, Map<String, Object> payload) {
         var input = normalizeInput(companyId, payload);
+        var composition = resolveComposition(
+            companyId, actorUserId, input, List.of());
         var token = randomToken();
         var code = "MK-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT);
         jdbcTemplate.update(
@@ -194,10 +263,13 @@ public class MultiKioskService {
         );
         var id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         if (id == null) throw new IllegalStateException("Multi-kiosk could not be created.");
-        replaceComposition(id, input.kioskIds());
-        replaceAssignments(id, input.employeeIds(), actorUserId);
+        replaceComposition(id, composition);
+        // On create every native tool was resolved from the canonical manifest immediately
+        // before provisioning, so its normalized key set is the authoritative audit count.
+        // Avoid re-reading the compatibility definitions only to classify the same items.
+        var toolCount = (long) input.toolKeys().size();
         audit(companyId, id, "MULTI_KIOSK_CREATED", "USER", actorUserId,
-            Map.of("kiosk_count", input.kioskIds().size(), "employee_count", input.employeeIds().size()));
+            Map.of("kiosk_count", composition.size(), "tool_count", toolCount));
         return detail(companyId, id);
     }
 
@@ -206,6 +278,8 @@ public class MultiKioskService {
             long companyId, long multiKioskId, long actorUserId, Map<String, Object> payload) {
         requireAdminDefinition(companyId, multiKioskId, false);
         var input = normalizeInput(companyId, payload);
+        var composition = resolveComposition(
+            companyId, actorUserId, input, compositionIds(multiKioskId));
         jdbcTemplate.update(
             """
                 UPDATE multi_kiosk_definitions
@@ -218,19 +292,23 @@ public class MultiKioskService {
             input.themeKey(), input.locale(), input.expiresAt(), actorUserId,
             multiKioskId, companyId
         );
-        replaceComposition(multiKioskId, input.kioskIds());
-        replaceAssignments(multiKioskId, input.employeeIds(), actorUserId);
+        replaceComposition(multiKioskId, composition);
         revokeSessions(multiKioskId);
+        var toolCount = compositionMetadata(companyId, composition).stream()
+            .filter(CompositionItem::employeeTool).count();
         audit(companyId, multiKioskId, "MULTI_KIOSK_UPDATED", "USER", actorUserId,
-            Map.of("kiosk_count", input.kioskIds().size(), "employee_count", input.employeeIds().size()));
+            Map.of("kiosk_count", composition.size(), "tool_count", toolCount));
         return detail(companyId, multiKioskId);
     }
 
     @Transactional
     public Map<String, Object> rotateLink(long companyId, long multiKioskId, long actorUserId) {
-        requireAdminDefinition(companyId, multiKioskId, true);
+        var current = requireAdminDefinition(companyId, multiKioskId, true);
+        if ("REVOKED".equals(current.status())) {
+            throw new IllegalStateException("Multi-kiosk is revoked.");
+        }
         var token = randomToken();
-        jdbcTemplate.update(
+        var updated = jdbcTemplate.update(
             """
                 UPDATE multi_kiosk_definitions
                 SET public_token_hash = ?, public_token_hint = ?, protected_public_token = ?,
@@ -241,6 +319,7 @@ public class MultiKioskService {
             sha256(token), tokenHint(token), protection.protect(token), actorUserId,
             multiKioskId, companyId
         );
+        if (updated != 1) throw new KioskUnavailableException();
         revokeSessions(multiKioskId);
         audit(companyId, multiKioskId, "MULTI_KIOSK_LINK_ROTATED", "USER", actorUserId, Map.of());
         return detail(companyId, multiKioskId);
@@ -275,7 +354,6 @@ public class MultiKioskService {
             "company_name", companyName(definition.companyId()),
             "theme_key", definition.themeKey(),
             "locale", definition.locale(),
-            "scope", scope(definition),
             "access_methods", List.of("PIN")
         );
     }
@@ -289,15 +367,21 @@ public class MultiKioskService {
             audit(definition.companyId(), definition.id(), "MULTI_KIOSK_PIN_FAILED", "ANONYMOUS", null, Map.of());
             throw new SecurityException("Invalid personal PIN.");
         }
-        var candidates = identityCandidates(definition.id(), definition.companyId());
-        var matches = candidates.stream()
-            .filter(candidate -> passwordEncoder.matches(pin.trim(), candidate.secretHash()))
-            .toList();
-        if (matches.size() != 1) {
+        var matchesByMembership = new LinkedHashMap<Long, IdentityCandidate>();
+        for (var candidate : identityCandidates(definition)) {
+            if (passwordEncoder.matches(pin.trim(), candidate.secretHash())) {
+                // EMPLOYEE and USER compatibility credentials may both point to the same
+                // membership. They represent one person, not an ambiguous PIN collision.
+                matchesByMembership.putIfAbsent(candidate.userCompanyId(), candidate);
+            }
+        }
+        if (matchesByMembership.size() != 1) {
             audit(definition.companyId(), definition.id(), "MULTI_KIOSK_PIN_FAILED", "ANONYMOUS", null, Map.of());
             throw new SecurityException("Invalid personal PIN.");
         }
-        var identity = matches.getFirst();
+        var identity = matchesByMembership.values().iterator().next();
+        rateLimits.releaseSuccessfulMultiKioskPinAttempt(
+            definition.companyId(), definition.id(), networkSignal);
         var rawToken = randomToken();
         var sessionId = UUID.randomUUID().toString();
         var expiresAt = Instant.now().plus(absoluteLifetime);
@@ -334,6 +418,74 @@ public class MultiKioskService {
             "kiosks", effectiveCards(definition.id(), session.asUser()),
             "expires_at", session.expiresAt().toString()
         );
+    }
+
+    /**
+     * Closes only the supplied browser-bound parent session and its safely correlated child
+     * sessions. The parent row remains resolvable after revocation so retries are idempotent.
+     */
+    @Transactional
+    public Map<String, Object> logout(
+            String publicToken, String sessionToken, String browserReference) {
+        var definition = resolve(publicToken, false);
+        if (sessionToken == null || sessionToken.isBlank()
+                || browserReference == null || browserReference.isBlank()) {
+            throw new SecurityException("Session required.");
+        }
+        var accessTokenHash = sha256(sessionToken.trim());
+        var browserHash = sha256(browserReference.trim());
+        var rows = jdbcTemplate.query(
+            """
+                SELECT session_id, user_id, user_company_id
+                FROM multi_kiosk_sessions
+                WHERE multi_kiosk_id = ? AND company_id = ?
+                  AND access_token_hash = ? AND browser_session_hash = ?
+                LIMIT 1
+                """,
+            (rs, rowNum) -> new LogoutSession(
+                rs.getString("session_id"), rs.getLong("user_id"),
+                rs.getLong("user_company_id")),
+            definition.id(), definition.companyId(), accessTokenHash, browserHash
+        );
+        if (rows.isEmpty()) throw new SecurityException("Session required.");
+        var current = rows.getFirst();
+        var parentRevoked = jdbcTemplate.update(
+            """
+                UPDATE multi_kiosk_sessions
+                SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP)
+                WHERE session_id = ? AND multi_kiosk_id = ? AND company_id = ?
+                  AND access_token_hash = ? AND browser_session_hash = ?
+                  AND revoked_at IS NULL
+                """,
+            current.sessionId(), definition.id(), definition.companyId(),
+            accessTokenHash, browserHash
+        );
+        var childSessionsRevoked = jdbcTemplate.update(
+            """
+                UPDATE kiosk_sessions child
+                SET child.revoked_at = COALESCE(child.revoked_at, CURRENT_TIMESTAMP)
+                WHERE child.company_id = ?
+                  AND child.channel = 'MOBILE_MULTI_KIOSK'
+                  AND child.identity_type = 'USER' AND child.identity_id = ?
+                  AND child.browser_session_hash = ?
+                  AND JSON_UNQUOTE(JSON_EXTRACT(
+                        child.scope_snapshot_json, '$.multi_kiosk_id')) = CAST(? AS CHAR)
+                  AND JSON_UNQUOTE(JSON_EXTRACT(
+                        child.scope_snapshot_json, '$.user_company_id')) = CAST(? AS CHAR)
+                  AND child.revoked_at IS NULL
+                """,
+            definition.companyId(), current.userId(), browserHash,
+            definition.id(), current.userCompanyId()
+        );
+        if (parentRevoked > 0 || childSessionsRevoked > 0) {
+            audit(definition.companyId(), definition.id(), "MULTI_KIOSK_SESSION_CLOSED",
+                "EMPLOYEE", current.userCompanyId(), Map.of(
+                    "session_id", current.sessionId(),
+                    "child_sessions_revoked", childSessionsRevoked,
+                    "reason", "EMPLOYEE_LOGOUT"
+                ));
+        }
+        return Map.of("signed_out", true);
     }
 
     public Map<String, Object> launchChild(
@@ -382,15 +534,22 @@ public class MultiKioskService {
         }
         var locale = string(payload.get("default_locale"));
         if (locale.isBlank()) locale = "es-MX";
-        var unitId = longValue(payload.get("unit_id"));
-        var businessId = longValue(payload.get("business_id"));
-        validateScope(companyId, unitId, businessId);
-        var kioskIds = idList(payload.get("kiosk_definition_ids"), "kiosk_definition_ids", 24);
-        var employeeIds = idList(payload.get("employee_ids"), "employee_ids", 250);
-        if (kioskIds.isEmpty()) throw new IllegalArgumentException("Select at least one kiosk.");
-        if (employeeIds.isEmpty()) throw new IllegalArgumentException("Assign at least one employee.");
-        validateChildren(companyId, unitId, businessId, kioskIds);
-        validateEmployees(companyId, unitId, businessId, kioskIds, employeeIds);
+        var toolKeysSpecified = payload.containsKey("tool_keys");
+        var toolKeys = toolKeysSpecified
+            ? employeeTools.normalizeToolKeys(payload.get("tool_keys"))
+            : List.<String>of();
+        employeeTools.requireAvailable(companyId, toolKeys);
+        var legacyField = payload.containsKey("legacy_kiosk_definition_ids")
+            ? "legacy_kiosk_definition_ids"
+            : payload.containsKey("kiosk_definition_ids") ? "kiosk_definition_ids" : null;
+        var legacySpecified = legacyField != null;
+        var legacyIds = legacySpecified
+            ? idList(payload.get(legacyField), legacyField, 24)
+            : List.<Long>of();
+        validateChildren(companyId, legacyIds);
+        if (!toolKeysSpecified && !legacySpecified) {
+            throw new IllegalArgumentException("tool_keys is required.");
+        }
         Timestamp expiresAt = null;
         var expiresText = string(payload.get("expires_at"));
         if (!expiresText.isBlank()) {
@@ -402,115 +561,49 @@ public class MultiKioskService {
                 throw new IllegalArgumentException("Expiration is invalid.");
             }
         }
-        return new MultiInput(name, description, theme, locale, unitId, businessId,
-            kioskIds, employeeIds, expiresAt);
+        // A Multi-kiosk is a company launcher. Organizational authority belongs to each
+        // child definition and the authenticated membership, never to the parent launcher.
+        return new MultiInput(name, description, theme, locale, null, null,
+            toolKeys, toolKeysSpecified, legacyIds, legacySpecified, expiresAt);
     }
 
-    private void validateScope(long companyId, Long unitId, Long businessId) {
-        if (businessId != null && unitId == null) {
-            throw new IllegalArgumentException("Business Unit is required when Business is selected.");
+    private List<Long> resolveComposition(
+            long companyId,
+            long actorUserId,
+            MultiInput input,
+            List<Long> existingIds) {
+        if (!input.toolKeysSpecified() && !input.legacyIdsSpecified()) {
+            if (existingIds.isEmpty()) {
+                throw new IllegalArgumentException("Select at least one employee tool.");
+            }
+            return existingIds;
         }
-        if (unitId != null) {
-            var count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM units WHERE id = ? AND company_id = ?", Integer.class,
-                unitId, companyId);
-            if (count == null || count == 0) throw new IllegalArgumentException("Unit is unavailable.");
+        var existing = compositionMetadata(companyId, existingIds);
+        var toolIds = input.toolKeysSpecified()
+            ? employeeTools.provisionDefinitions(companyId, actorUserId, input.toolKeys())
+            : existing.stream().filter(CompositionItem::employeeTool).map(CompositionItem::id).toList();
+        var legacyIds = input.legacyIdsSpecified()
+            ? input.legacyIds()
+            : existing.stream().filter(item -> !item.employeeTool()).map(CompositionItem::id).toList();
+        var merged = new LinkedHashSet<Long>();
+        merged.addAll(toolIds);
+        merged.addAll(legacyIds);
+        if (merged.isEmpty()) {
+            throw new IllegalArgumentException("Select at least one employee tool or legacy kiosk.");
         }
-        if (businessId != null) {
-            var count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM businesses WHERE id = ? AND company_id = ? AND unit_id = ?",
-                Integer.class, businessId, companyId, unitId);
-            if (count == null || count == 0) throw new IllegalArgumentException("Business is unavailable.");
+        if (merged.size() > 24) {
+            throw new IllegalArgumentException("Multi-kiosk composition contains too many items.");
         }
+        return List.copyOf(merged);
     }
 
-    private void validateChildren(
-            long companyId, Long unitId, Long businessId, List<Long> kioskIds) {
+    private void validateChildren(long companyId, List<Long> kioskIds) {
         var catalog = employeeAccess.catalog(companyId);
         var byId = new LinkedHashMap<Long, Map<String, Object>>();
         catalog.forEach(row -> byId.put(((Number) row.get("id")).longValue(), row));
         for (var id : kioskIds) {
-            var child = byId.get(id);
-            if (child == null) throw new IllegalArgumentException("One or more kiosks are unavailable.");
-            var childUnit = number(child.get("unit_id"));
-            var childBusiness = number(child.get("business_id"));
-            if (unitId != null && childUnit != null && !unitId.equals(childUnit)) {
-                throw new IllegalArgumentException("A kiosk is outside the multi-kiosk unit.");
-            }
-            if (businessId != null && childBusiness != null && !businessId.equals(childBusiness)) {
-                throw new IllegalArgumentException("A kiosk is outside the multi-kiosk business.");
-            }
-        }
-    }
-
-    private void validateEmployees(
-            long companyId, Long unitId, Long businessId,
-            List<Long> kioskIds, List<Long> employeeIds) {
-        var childModules = jdbcTemplate.query(
-            "SELECT id, owner_module, unit_id, business_id FROM kiosk_definitions WHERE company_id = ? AND id IN (" + placeholders(kioskIds.size()) + ")",
-            (rs, rowNum) -> new ChildRequirement(
-                rs.getLong("id"), KioskEmployeeAccessService.moduleSlug(rs.getString("owner_module")),
-                rs.getObject("unit_id", Long.class), rs.getObject("business_id", Long.class)),
-            args(companyId, kioskIds)
-        );
-        for (var userCompanyId : employeeIds) {
-            var memberships = jdbcTemplate.query(
-                """
-                    SELECT membership.user_id, COALESCE(membership.role, 'user') AS role,
-                           work.unit_id, work.business_id,
-                           EXISTS(
-                             SELECT 1 FROM kiosk_identity_credentials credential
-                             WHERE credential.company_id = membership.company_id
-                               AND credential.credential_type = 'PIN' AND credential.status = 'ACTIVE'
-                               AND credential.secret_hash IS NOT NULL AND credential.secret_hash <> ''
-                               AND ((credential.identity_type = 'EMPLOYEE' AND credential.identity_id = membership.id)
-                                 OR (credential.identity_type = 'USER' AND credential.identity_id = membership.user_id))
-                           ) AS pin_ready
-                    FROM user_companies membership
-                    LEFT JOIN user_work_profiles work
-                      ON work.company_id = membership.company_id
-                     AND work.user_company_id = membership.id
-                    WHERE membership.id = ? AND membership.company_id = ?
-                      AND LOWER(COALESCE(membership.status, 'active')) IN ('active', 'activo')
-                    LIMIT 1
-                    """,
-                (rs, rowNum) -> new EmployeeScope(
-                    rs.getLong("user_id"), rs.getString("role"),
-                    rs.getObject("unit_id", Long.class), rs.getObject("business_id", Long.class),
-                    rs.getBoolean("pin_ready")),
-                userCompanyId, companyId
-            );
-            if (memberships.isEmpty()) throw new IllegalArgumentException("An employee is unavailable.");
-            var membership = memberships.getFirst();
-            if (!membership.pinReady()) {
-                throw new IllegalArgumentException("Every assigned employee must have an active personal PIN.");
-            }
-            var modules = FULL_MODULE_ROLES.contains(normalizeRole(membership.role()))
-                ? Set.<String>of()
-                : Set.copyOf(jdbcTemplate.query(
-                    "SELECT DISTINCT module_slug FROM user_company_module_roles WHERE user_company_id = ?",
-                    (rs, rowNum) -> com.indice.erp.access.ModuleSlugNormalizer.normalize(rs.getString("module_slug")),
-                    userCompanyId));
-            for (var child : childModules) {
-                if (!FULL_MODULE_ROLES.contains(normalizeRole(membership.role()))
-                        && !modules.contains(child.moduleSlug())) {
-                    throw new IllegalArgumentException("An employee does not have access to every selected module.");
-                }
-                if (membership.unitId() != null && child.unitId() != null
-                        && !membership.unitId().equals(child.unitId())) {
-                    throw new IllegalArgumentException("An employee is outside a selected kiosk unit.");
-                }
-                if (membership.businessId() != null && child.businessId() != null
-                        && !membership.businessId().equals(child.businessId())) {
-                    throw new IllegalArgumentException("An employee is outside a selected kiosk business.");
-                }
-            }
-            if (unitId != null && membership.unitId() != null && !unitId.equals(membership.unitId())) {
-                throw new IllegalArgumentException("An employee is outside the multi-kiosk unit.");
-            }
-            if (businessId != null && membership.businessId() != null
-                    && !businessId.equals(membership.businessId())) {
-                throw new IllegalArgumentException("An employee is outside the multi-kiosk business.");
+            if (!byId.containsKey(id)) {
+                throw new IllegalArgumentException("One or more kiosks are unavailable.");
             }
         }
     }
@@ -525,67 +618,75 @@ public class MultiKioskService {
         }
     }
 
-    private void replaceAssignments(long multiKioskId, List<Long> employeeIds, long actorUserId) {
-        var requested = Set.copyOf(employeeIds);
-        jdbcTemplate.update(
-            "UPDATE multi_kiosk_assignments SET status = 'REVOKED', revoked_at = CURRENT_TIMESTAMP WHERE multi_kiosk_id = ? AND user_company_id NOT IN (" + placeholders(employeeIds.size()) + ")",
-            args(multiKioskId, employeeIds)
+    private List<Long> compositionIds(long multiKioskId) {
+        return jdbcTemplate.query(
+            """
+                SELECT kiosk_definition_id
+                FROM multi_kiosk_items
+                WHERE multi_kiosk_id = ?
+                ORDER BY sort_order, kiosk_definition_id
+                """,
+            (rs, rowNum) -> rs.getLong("kiosk_definition_id"),
+            multiKioskId
         );
-        for (var userCompanyId : requested) {
-            jdbcTemplate.update(
+    }
+
+    private List<CompositionItem> compositionMetadata(long companyId, List<Long> definitionIds) {
+        var result = new java.util.ArrayList<CompositionItem>();
+        for (var definitionId : definitionIds) {
+            var rows = jdbcTemplate.query(
                 """
-                    INSERT INTO multi_kiosk_assignments (
-                        multi_kiosk_id, user_company_id, status, granted_by, revoked_at
-                    ) VALUES (?, ?, 'ACTIVE', ?, NULL)
-                    ON DUPLICATE KEY UPDATE status = 'ACTIVE', granted_by = VALUES(granted_by), revoked_at = NULL
+                    SELECT id, owner_module, kiosk_type, legacy_reference_id, code
+                    FROM kiosk_definitions
+                    WHERE id = ? AND company_id = ?
+                    LIMIT 1
                     """,
-                multiKioskId, userCompanyId, actorUserId
+                (rs, rowNum) -> new CompositionItem(
+                    rs.getLong("id"),
+                    employeeTools.manifestForCode(
+                        rs.getString("owner_module"), rs.getString("kiosk_type"),
+                        rs.getString("code"), rs.getObject("legacy_reference_id", Long.class))
+                        .isPresent()),
+                definitionId, companyId
             );
+            if (rows.isEmpty()) {
+                throw new KioskUnavailableException();
+            }
+            result.add(rows.getFirst());
         }
+        return List.copyOf(result);
     }
 
     private List<Map<String, Object>> items(long multiKioskId) {
         return jdbcTemplate.query(
             """
                 SELECT definition.id, definition.name, definition.owner_module,
-                       definition.kiosk_type, definition.unit_id, definition.business_id,
+                       definition.kiosk_type, definition.legacy_reference_id, definition.code,
+                       definition.unit_id, definition.business_id,
                        item.sort_order
                 FROM multi_kiosk_items item
                 INNER JOIN kiosk_definitions definition ON definition.id = item.kiosk_definition_id
                 WHERE item.multi_kiosk_id = ?
                 ORDER BY item.sort_order, definition.id
                 """,
-            (rs, rowNum) -> Map.of(
-                "id", rs.getLong("id"),
-                "name", rs.getString("name"),
-                "owner_module", rs.getString("owner_module"),
-                "module_slug", KioskEmployeeAccessService.moduleSlug(rs.getString("owner_module")),
-                "kiosk_type", rs.getString("kiosk_type"),
-                "sort_order", rs.getInt("sort_order")
-            ),
-            multiKioskId
-        );
-    }
-
-    private List<Map<String, Object>> assignments(long multiKioskId) {
-        return jdbcTemplate.query(
-            """
-                SELECT membership.id AS user_company_id, membership.user_id,
-                       COALESCE(NULLIF(profile.full_name, ''), NULLIF(user.full_name, ''), user.email) AS name,
-                       user.email
-                FROM multi_kiosk_assignments assignment
-                INNER JOIN user_companies membership ON membership.id = assignment.user_company_id
-                INNER JOIN users user ON user.id = membership.user_id
-                LEFT JOIN user_profiles profile ON profile.user_id = user.id
-                WHERE assignment.multi_kiosk_id = ? AND assignment.status = 'ACTIVE'
-                ORDER BY name, user.email
-                """,
-            (rs, rowNum) -> Map.of(
-                "user_company_id", rs.getLong("user_company_id"),
-                "user_id", rs.getLong("user_id"),
-                "name", rs.getString("name"),
-                "email", rs.getString("email")
-            ),
+            (rs, rowNum) -> {
+                var tool = employeeTools.manifestForCode(
+                    rs.getString("owner_module"), rs.getString("kiosk_type"),
+                    rs.getString("code"), rs.getObject("legacy_reference_id", Long.class));
+                if (tool.isPresent()) {
+                    return employeeTools.detailRow(
+                        tool.get(), rs.getLong("id"), rs.getInt("sort_order"));
+                }
+                var row = new LinkedHashMap<String, Object>();
+                row.put("id", rs.getLong("id"));
+                row.put("name", rs.getString("name"));
+                row.put("owner_module", rs.getString("owner_module"));
+                row.put("module_slug", KioskEmployeeAccessService.moduleSlug(
+                    rs.getString("owner_module")));
+                row.put("kiosk_type", rs.getString("kiosk_type"));
+                row.put("sort_order", rs.getInt("sort_order"));
+                return Collections.unmodifiableMap(row);
+            },
             multiKioskId
         );
     }
@@ -607,7 +708,12 @@ public class MultiKioskService {
         row.put("public_token_hint", rs.getString("public_token_hint"));
         row.put("configuration_version", rs.getInt("configuration_version"));
         row.put("kiosk_count", rs.getInt("kiosk_count"));
-        row.put("employee_count", rs.getInt("employee_count"));
+        row.put("tool_count", rs.getInt("tool_count"));
+        var eligibleMemberCount = rs.getInt("eligible_member_count");
+        row.put("access_population", "COMPANY_PIN");
+        row.put("eligible_member_count", eligibleMemberCount);
+        // Backward-compatible alias for clients that still render this count.
+        row.put("employee_count", eligibleMemberCount);
         row.put("updated_at", instant(rs.getTimestamp("updated_at")));
         try {
             row.put("access_path", "/multi-kiosk/" + protection.reveal(rs.getString("protected_public_token")));
@@ -667,17 +773,26 @@ public class MultiKioskService {
                 FROM multi_kiosk_sessions session
                 INNER JOIN user_companies membership ON membership.id = session.user_company_id
                   AND membership.company_id = session.company_id
-                INNER JOIN users user ON user.id = session.user_id
+                INNER JOIN users user
+                  ON user.id = session.user_id AND user.id = membership.user_id
                 LEFT JOIN user_profiles profile ON profile.user_id = user.id
-                INNER JOIN multi_kiosk_assignments assignment
-                  ON assignment.multi_kiosk_id = session.multi_kiosk_id
-                 AND assignment.user_company_id = session.user_company_id
-                 AND assignment.status = 'ACTIVE'
                 WHERE session.multi_kiosk_id = ? AND session.company_id = ?
                   AND session.access_token_hash = ? AND session.browser_session_hash = ?
                   AND session.revoked_at IS NULL AND session.expires_at > CURRENT_TIMESTAMP
                   AND session.last_activity_at >= TIMESTAMPADD(SECOND, ?, CURRENT_TIMESTAMP)
                   AND LOWER(COALESCE(membership.status, 'active')) IN ('active', 'activo')
+                  AND EXISTS (
+                      SELECT 1 FROM kiosk_identity_credentials credential
+                       WHERE credential.company_id = session.company_id
+                         AND credential.credential_type = 'PIN'
+                         AND credential.status = 'ACTIVE'
+                         AND credential.secret_hash IS NOT NULL
+                         AND credential.secret_hash <> ''
+                         AND ((credential.identity_type = 'EMPLOYEE'
+                               AND credential.identity_id = membership.id)
+                           OR (credential.identity_type = 'USER'
+                               AND credential.identity_id = membership.user_id))
+                  )
                 LIMIT 1
                 """,
             (rs, rowNum) -> new MultiSession(
@@ -695,14 +810,13 @@ public class MultiKioskService {
         return result;
     }
 
-    private List<IdentityCandidate> identityCandidates(long multiKioskId, long companyId) {
+    private List<IdentityCandidate> identityCandidates(MultiDefinition definition) {
         return jdbcTemplate.query(
             """
                 SELECT membership.id AS user_company_id, membership.user_id,
                        COALESCE(NULLIF(profile.full_name, ''), NULLIF(user.full_name, ''), user.email) AS name,
                        COALESCE(membership.role, 'user') AS role, credential.secret_hash
-                FROM multi_kiosk_assignments assignment
-                INNER JOIN user_companies membership ON membership.id = assignment.user_company_id
+                FROM user_companies membership
                 INNER JOIN users user ON user.id = membership.user_id
                 LEFT JOIN user_profiles profile ON profile.user_id = user.id
                 INNER JOIN kiosk_identity_credentials credential
@@ -710,28 +824,20 @@ public class MultiKioskService {
                  AND credential.credential_type = 'PIN' AND credential.status = 'ACTIVE'
                  AND ((credential.identity_type = 'EMPLOYEE' AND credential.identity_id = membership.id)
                    OR (credential.identity_type = 'USER' AND credential.identity_id = membership.user_id))
-                WHERE assignment.multi_kiosk_id = ? AND assignment.status = 'ACTIVE'
-                  AND membership.company_id = ?
+                WHERE membership.company_id = ?
                   AND LOWER(COALESCE(membership.status, 'active')) IN ('active', 'activo')
                   AND credential.secret_hash IS NOT NULL AND credential.secret_hash <> ''
                 ORDER BY membership.id
-                LIMIT 250
-                """,
+            """,
             (rs, rowNum) -> new IdentityCandidate(
-                companyId, rs.getLong("user_id"), rs.getLong("user_company_id"),
+                definition.companyId(), rs.getLong("user_id"), rs.getLong("user_company_id"),
                 rs.getString("name"), rs.getString("role"), rs.getString("secret_hash")),
-            multiKioskId, companyId
+            definition.companyId()
         );
     }
 
     private List<Map<String, Object>> effectiveCards(long multiKioskId, AuthSessionUser user) {
-        var available = dashboard.list(user);
-        var byId = new LinkedHashMap<Long, Map<String, Object>>();
-        available.forEach(card -> byId.put(((Number) card.get("id")).longValue(), card));
-        var orderedIds = jdbcTemplate.query(
-            "SELECT kiosk_definition_id FROM multi_kiosk_items WHERE multi_kiosk_id = ? ORDER BY sort_order, kiosk_definition_id",
-            (rs, rowNum) -> rs.getLong("kiosk_definition_id"), multiKioskId);
-        return orderedIds.stream().map(byId::get).filter(java.util.Objects::nonNull).toList();
+        return dashboard.listForMultiKiosk(user, multiKioskId);
     }
 
     private void requireChild(long multiKioskId, AuthSessionUser user, long kioskId) {
@@ -758,6 +864,9 @@ public class MultiKioskService {
     private void audit(
             long companyId, Long multiKioskId, String eventType,
             String actorType, Long actorId, Map<String, Object> snapshot) {
+        var effectiveSnapshot = new LinkedHashMap<String, Object>();
+        if (snapshot != null) effectiveSnapshot.putAll(snapshot);
+        effectiveSnapshot.putIfAbsent("access_population", "COMPANY_PIN");
         jdbcTemplate.update(
             """
                 INSERT INTO multi_kiosk_audit_events (
@@ -767,7 +876,7 @@ public class MultiKioskService {
                 ) VALUES (?, ?, ?, ?, ?, 'SUCCEEDED', ?, ?, ?, TIMESTAMPADD(DAY, 365, CURRENT_TIMESTAMP))
                 """,
             UUID.randomUUID().toString(), multiKioskId, multiKioskId, companyId,
-            eventType, actorType, actorId, json(snapshot)
+            eventType, actorType, actorId, json(effectiveSnapshot)
         );
     }
 
@@ -776,15 +885,8 @@ public class MultiKioskService {
             "id", definition.id(), "name", definition.name(),
             "description", definition.description() == null ? "" : definition.description(),
             "company_name", companyName(definition.companyId()),
-            "theme_key", definition.themeKey(), "scope", scope(definition)
+            "theme_key", definition.themeKey()
         );
-    }
-
-    private Map<String, Object> scope(MultiDefinition definition) {
-        var result = new LinkedHashMap<String, Object>();
-        result.put("unit_id", definition.unitId());
-        result.put("business_id", definition.businessId());
-        return Collections.unmodifiableMap(result);
     }
 
     private String companyName(long companyId) {
@@ -804,18 +906,6 @@ public class MultiKioskService {
         }
         if (result.size() > maximum) throw new IllegalArgumentException(field + " contains too many items.");
         return List.copyOf(result);
-    }
-
-    private Object[] args(long first, List<Long> values) {
-        var result = new ArrayList<Object>();
-        result.add(first);
-        result.addAll(values);
-        return result.toArray();
-    }
-
-    private String placeholders(int count) {
-        if (count <= 0) throw new IllegalArgumentException("At least one item is required.");
-        return String.join(",", java.util.Collections.nCopies(count, "?"));
     }
 
     private String effectiveStatus(String status, Timestamp expiresAt) {
@@ -863,10 +953,6 @@ public class MultiKioskService {
         }
     }
 
-    private Long number(Object value) {
-        return value instanceof Number number ? number.longValue() : null;
-    }
-
     private Object nullable(String value) {
         return value == null || value.isBlank() ? null : value;
     }
@@ -884,22 +970,44 @@ public class MultiKioskService {
         return "super admin".equals(normalized) ? "superadmin" : normalized;
     }
 
+    private List<String> normalizedTabScopes(String rawScopes) {
+        if (rawScopes == null || rawScopes.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(rawScopes.split(","))
+            .map(String::trim)
+            .filter(value -> !value.isBlank())
+            .map(value -> {
+                var separator = value.indexOf('.');
+                if (separator <= 0 || separator == value.length() - 1) {
+                    return "";
+                }
+                return com.indice.erp.access.ModuleSlugNormalizer.normalize(
+                    value.substring(0, separator)) + value.substring(separator);
+            })
+            .filter(value -> !value.isBlank())
+            .distinct()
+            .sorted()
+            .toList();
+    }
+
     private record MultiInput(
         String name, String description, String themeKey, String locale,
-        Long unitId, Long businessId, List<Long> kioskIds, List<Long> employeeIds,
+        Long unitId, Long businessId,
+        List<String> toolKeys, boolean toolKeysSpecified,
+        List<Long> legacyIds, boolean legacyIdsSpecified,
         Timestamp expiresAt) {}
+
+    private record CompositionItem(long id, boolean employeeTool) {}
 
     private record MultiDefinition(
         long id, long companyId, String name, String description, String status,
         Long unitId, Long businessId, String themeKey, String locale, Instant expiresAt) {}
 
     private record AdminDefinition(String status) {}
-    private record ChildRequirement(long id, String moduleSlug, Long unitId, Long businessId) {}
-    private record EmployeeScope(
-        long userId, String role, Long unitId, Long businessId, boolean pinReady) {}
-
     private record IdentityCandidate(
-        long companyId, long userId, long userCompanyId, String name, String role, String secretHash) {
+        long companyId, long userId, long userCompanyId, String name, String role,
+        String secretHash) {
         AuthSessionUser asUser() {
             return new AuthSessionUser(userId, companyId, userCompanyId, name, role);
         }
@@ -912,4 +1020,5 @@ public class MultiKioskService {
             return new AuthSessionUser(userId, companyId, userCompanyId, name, role);
         }
     }
+    private record LogoutSession(String sessionId, long userId, long userCompanyId) {}
 }

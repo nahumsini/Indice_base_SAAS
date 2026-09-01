@@ -22,6 +22,11 @@ import {
 import {
   getProductImageTargetDimensions,
 } from '../src/app/BasicModules/Sales/Productos/utils/productImageOptimization.ts';
+import {
+  employeeHasRequiredKioskTabScopes,
+  employeeMatchesKioskOrganizationScope,
+  evaluateEmployeeKioskAccess,
+} from '../src/app/KioskCenter/multiKioskEmployeeAccess.ts';
 
 function memorySessionStorage() {
   const values = new Map();
@@ -77,7 +82,10 @@ test('task kiosk rotates a stale idempotency key once after a request mismatch',
     request: async (idempotencyKey) => {
       usedKeys.push(idempotencyKey);
       if (usedKeys.length === 1) {
-        throw new Error('Idempotency-Key was already used with another request.');
+        throw Object.assign(new Error('La clave de reintento pertenece a otra operación.'), {
+          status: 409,
+          code: 'KIOSK_IDEMPOTENCY_MISMATCH',
+        });
       }
       return 'created';
     },
@@ -112,6 +120,182 @@ test('shared finance kiosk mutations rotate a stale idempotency key once', async
   assert.equal(usedKeys.length, 2);
   assert.equal(usedKeys[0], staleKey);
   assert.notEqual(usedKeys[1], staleKey);
+});
+
+test('multi-kiosk action reuses one key after a transport timeout and completes it only on success', async () => {
+  const sessionStorage = memorySessionStorage();
+  globalThis.window = { sessionStorage };
+  const usedKeys = [];
+  const payload = { pin: '61942', employeeName: 'Sensitive collaborator', total_amount: 42 };
+  const operation = 'multi-kiosk:child:27:action:petty-cash.receipt.create@1';
+
+  await assert.rejects(
+    executeSharedKioskMutationWithMismatchRecovery({
+      operation,
+      payload,
+      request: async (idempotencyKey) => {
+        usedKeys.push(idempotencyKey);
+        throw new Error('Network timeout');
+      },
+    }),
+    /Network timeout/,
+  );
+
+  const recovered = await executeSharedKioskMutationWithMismatchRecovery({
+    operation,
+    payload,
+    request: async (idempotencyKey) => {
+      usedKeys.push(idempotencyKey);
+      return 'created';
+    },
+  });
+  assert.equal(recovered, 'created');
+  assert.equal(usedKeys[1], usedKeys[0]);
+  completeKioskIdempotentOperation(operation);
+
+  await executeSharedKioskMutationWithMismatchRecovery({
+    operation,
+    payload,
+    request: async (idempotencyKey) => {
+      usedKeys.push(idempotencyKey);
+      return 'next-operation';
+    },
+  });
+  completeKioskIdempotentOperation(operation);
+  assert.notEqual(usedKeys[2], usedKeys[1]);
+  assert.doesNotMatch(sessionStorage.snapshot(), /61942|Sensitive collaborator|total_amount/i);
+});
+
+test('multi-kiosk action replaces a stale mismatched key once without changing the payload', async () => {
+  const sessionStorage = memorySessionStorage();
+  globalThis.window = { sessionStorage };
+  const usedKeys = [];
+  const payload = { task_id: 91, progress_percentage: 100 };
+
+  const operation = 'multi-kiosk:child:14:action:process-tasks.task.complete@1';
+  const result = await executeSharedKioskMutationWithMismatchRecovery({
+    operation,
+    payload,
+    request: async (idempotencyKey) => {
+      usedKeys.push(idempotencyKey);
+      if (usedKeys.length === 1) {
+        throw Object.assign(new Error('La clave de reintento pertenece a otra operación.'), {
+          status: 409,
+          code: 'KIOSK_IDEMPOTENCY_MISMATCH',
+        });
+      }
+      return 'completed';
+    },
+  });
+
+  assert.equal(result, 'completed');
+  assert.equal(usedKeys.length, 2);
+  assert.notEqual(usedKeys[1], usedKeys[0]);
+  completeKioskIdempotentOperation(operation);
+});
+
+test('multi-kiosk keeps the same key while an idempotent action is still processing', async () => {
+  const sessionStorage = memorySessionStorage();
+  globalThis.window = { sessionStorage };
+  const usedKeys = [];
+  const operation = 'multi-kiosk:child:14:action:process-tasks.task.complete@1';
+  const payload = { task_id: 91, progress_percentage: 100 };
+
+  await assert.rejects(
+    executeSharedKioskMutationWithMismatchRecovery({
+      operation,
+      payload,
+      request: async (idempotencyKey) => {
+        usedKeys.push(idempotencyKey);
+        throw Object.assign(new Error('La operación sigue en proceso.'), {
+          status: 409,
+          code: 'KIOSK_IDEMPOTENCY_IN_PROGRESS',
+        });
+      },
+    }),
+    error => error?.code === 'KIOSK_IDEMPOTENCY_IN_PROGRESS',
+  );
+
+  await executeSharedKioskMutationWithMismatchRecovery({
+    operation,
+    payload,
+    request: async (idempotencyKey) => {
+      usedKeys.push(idempotencyKey);
+      return 'completed';
+    },
+  });
+
+  assert.equal(usedKeys.length, 2);
+  assert.equal(usedKeys[1], usedKeys[0]);
+  completeKioskIdempotentOperation(operation);
+});
+
+test('multi-kiosk employee eligibility applies any alias per kiosk and all selected kiosks', () => {
+  const attendance = {
+    required_tab_scopes: ['human_resources.attendance', 'human_resources.control'],
+  };
+
+  assert.equal(employeeHasRequiredKioskTabScopes(
+    [attendance], ['human_resources.attendance'], false), true);
+  assert.equal(employeeHasRequiredKioskTabScopes(
+    [attendance], ['human_resources.control'], false), true);
+  assert.equal(employeeHasRequiredKioskTabScopes(
+    [attendance], ['human_resources.people'], false), false);
+  assert.equal(employeeHasRequiredKioskTabScopes(
+    [attendance, { required_tab_scopes: ['petty_cash.funds'] }],
+    ['human_resources.attendance'], false), false);
+  assert.equal(employeeHasRequiredKioskTabScopes(
+    [attendance], undefined, false), false);
+  assert.equal(employeeHasRequiredKioskTabScopes(
+    [{}], ['human_resources.attendance'], true), false);
+});
+
+test('multi-kiosk employee eligibility matches backend organizational scope semantics', () => {
+  assert.equal(employeeMatchesKioskOrganizationScope(
+    { unit_id: null, business_id: null }, { unit_id: 8, business_id: 19 }), true);
+  assert.equal(employeeMatchesKioskOrganizationScope(
+    { unit_id: null, business_id: 19 }, { unit_id: 8, business_id: 19 }), false);
+  assert.equal(employeeMatchesKioskOrganizationScope(
+    { unit_id: 8, business_id: null }, { unit_id: 8, business_id: 19 }), true);
+  assert.equal(employeeMatchesKioskOrganizationScope(
+    { unit_id: 8, business_id: 21 }, { unit_id: 8, business_id: 19 }), false);
+  assert.equal(employeeMatchesKioskOrganizationScope(
+    { unit_id: 7, business_id: null }, { unit_id: null, business_id: null }), true);
+});
+
+test('multi-kiosk launcher filters each kiosk independently for a company collaborator', () => {
+  const employee = {
+    module_slugs: ['human_resources'],
+    tab_scopes: ['human_resources.attendance'],
+    unit_id: 6,
+    business_id: 8,
+  };
+  const kiosks = [
+    {
+      module_slug: 'processes',
+      required_tab_scopes: ['processes.calendar'],
+      unit_id: 24,
+      business_id: 29,
+    },
+    {
+      module_slug: 'human_resources',
+      required_tab_scopes: ['human_resources.attendance', 'human_resources.control'],
+      unit_id: null,
+      business_id: null,
+    },
+  ];
+
+  const access = kiosks.map(kiosk => evaluateEmployeeKioskAccess(employee, kiosk, false));
+
+  assert.equal(access.filter(item => (
+    item.moduleAllowed && item.scopeAllowed && item.organizationAllowed
+  )).length, 1);
+  assert.equal(access[0].moduleAllowed, false);
+  assert.deepEqual(access[1], {
+    moduleAllowed: true,
+    organizationAllowed: true,
+    scopeAllowed: true,
+  });
 });
 
 test('task kiosk completion is not blocked by an evidence transport failure', async () => {
@@ -404,25 +588,81 @@ test('administrative kiosk managers share replacement views without portaled act
   assert.match(expensesSource, /Compartir y administrar liga/);
 });
 
-test('kiosk center is an administrative multi-kiosk builder and never an in-app employee workspace', async () => {
-  const [appSource, navigationSource, centerSource, mobileSource] = await Promise.all([
+test('kiosk center composes native company tools while the public multi-kiosk works across browser sizes', async () => {
+  const [appSource, navigationSource, centerSource, editorSource, lifecycleSource, accessSource, activitySource, mobileSource, mobileTranslations, apiSource, workspaceCopySource, adminTranslations] = await Promise.all([
     readFile(new URL('../src/app/App.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/config/navigation.ts', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/KioskCenter/MultiKioskCenterPage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/MultiKioskEditorModal.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/MultiKioskLifecycleModals.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/KioskAccessView.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/KioskActivityView.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/KioskCenter/MultiKioskMobilePage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/multiKioskMobileTranslations.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/api/multiKiosks.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/kioskCenterWorkspaceTranslations.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/multiKioskAdminTranslations.ts', import.meta.url), 'utf8'),
   ]);
 
   assert.match(appSource, /KioskCenter\/MultiKioskCenterPage/);
   assert.match(appSource, /currentPage === 'kiosk-center'/);
   assert.match(appSource, /currentPage === 'kiosk-management'/);
   assert.match(navigationSource, /'kiosk-management'/);
-  assert.match(centerSource, /Crear Multikiosco/);
-  assert.match(centerSource, /multiKioskAdminApi\.create/);
-  assert.match(centerSource, /kiosk_definition_ids/);
-  assert.match(centerSource, /employee_ids/);
-  assert.doesNotMatch(centerSource, /employeeKiosksApi|AUTHENTICATED_WEB/);
-  assert.match(mobileSource, /useDesktopViewport/);
-  assert.match(mobileSource, /Abre este Multikiosco en tu celular/);
+  assert.match(centerSource, /getMultiKioskAdminCopy/);
+  assert.match(centerSource, /tools: \[\], employees: \[\]/);
+  assert.match(centerSource, /IndiceWorkspaceNavigation/);
+  for (const view of ['multi-kiosks', 'inventory', 'people', 'activity']) {
+    assert.match(centerSource, new RegExp(`['"]${view}['"]`));
+  }
+  assert.match(editorSource, /multiKioskAdminApi\.create/);
+  assert.match(editorSource, /tool_keys: editor\.toolKeys/);
+  assert.match(editorSource, /legacy_kiosk_definition_ids/);
+  assert.match(editorSource, /toolKeys: string\[\]/);
+  assert.match(editorSource, /legacyKioskDefinitionIds: number\[\]/);
+  assert.doesNotMatch(editorSource, /\bkiosk_definition_ids:/);
+  assert.doesNotMatch(editorSource, /employee_ids|employeeIds|toggleEmployee|Buscar empleado/);
+  assert.doesNotMatch(apiSource, /employee_ids/);
+  assert.match(editorSource, /copy\.editor\.footerSummary/);
+  assert.match(editorSource, /copy\.editor\.stepTools/);
+  assert.match(editorSource, /copy\.editor\.companyAccessDescription/);
+  assert.match(editorSource, /copy\.editor\.catalogTitle/);
+  assert.match(editorSource, /copy\.editor\.catalogDescription/);
+  assert.match(adminTranslations, /Catálogo nativo de módulos/);
+  assert.match(adminTranslations, /No dependen de kioscos creados/);
+  for (const locale of ['en-CA', 'en-US', 'fr-CA', 'es-MX', 'es-CO', 'pt-BR', 'ko-CA', 'zh-CA']) {
+    assert.match(adminTranslations, new RegExp(`['"]${locale}['"]`));
+  }
+  assert.match(editorSource, /unit_id: null,\s*business_id: null/);
+  assert.doesNotMatch(editorSource, /matchesScope|unitOptions|businessOptions/);
+  assert.doesNotMatch(editorSource, /Unidad de negocio|Todos los negocios/);
+  assert.match(editorSource, /default_locale/);
+  assert.match(editorSource, /languages\.map/);
+  assert.doesNotMatch(centerSource, /Empleados asignados|employee_count\} empleados|asígnalo a los colaboradores/);
+  assert.match(centerSource, /adminCopy\.center\.toolsPublished/);
+  assert.match(centerSource, /item\.tool_count/);
+  assert.doesNotMatch(centerSource, /catalog\.kiosks|item\.kiosk_count/);
+  assert.match(apiSource, /interface MultiKioskCatalogTool/);
+  assert.match(apiSource, /tool_key\?: string/);
+  assert.match(apiSource, /tool_keys\?: string\[\]/);
+  assert.match(apiSource, /legacy_kiosk_definition_ids\?: number\[\]/);
+  assert.match(accessSource, /copy\.access\.readinessNote/);
+  assert.match(accessSource, /MultiKioskCatalogTool/);
+  assert.doesNotMatch(accessSource, /MultiKioskCatalogKiosk|employeeMatchesKioskOrganizationScope/);
+  assert.match(workspaceCopySource, /Aquí no se asignan colaboradores al Multikiosco/);
+  assert.doesNotMatch(workspaceCopySource, /colaboradores asignados|Assigned collaborators/);
+  assert.match(lifecycleSource, /KioskModalFrame/);
+  assert.doesNotMatch(`${centerSource}\n${lifecycleSource}`, /window\.confirm/);
+  assert.match(accessSource, /tab_scopes/);
+  assert.match(accessSource, /effective_access/);
+  assert.match(activitySource, /kioskCenterApi\.audit/);
+  assert.doesNotMatch(`${centerSource}\n${editorSource}\n${accessSource}`, /employeeKiosksApi|AUTHENTICATED_WEB/);
+  assert.match(mobileSource, /if \(multiKioskMobileSession\.get\(token\)\)/);
+  assert.match(mobileSource, /bootstrap && !session/);
+  assert.doesNotMatch(mobileSource, /useDesktopViewport|bootstrap && desktop|copy\.desktop/);
+  assert.doesNotMatch(mobileTranslations, /mobileOnly|únicamente en móvil|only on mobile/);
+  assert.match(mobileSource, /session\.kiosks\.length === 0 \? copy\.launcher\.noAccess/);
+  assert.match(mobileSource, /workspace\.session\.capabilities\.includes\('process-tasks\.task\.create@1'\)/);
+  assert.match(mobileTranslations, /noAccess:/);
 });
 
 test('POS kiosk administration keeps one canonical table with direct actions and printable QR posters', async () => {
@@ -703,5 +943,128 @@ test('multi-kiosk mobile client binds parent and child sessions without exposing
   assert.match(source, /X-Kiosk-Session-Token/);
   assert.match(source, /X-CSRF-Token/);
   assert.match(source, /Idempotency-Key/);
+  assert.match(source, /executeKioskMutationWithMismatchRecovery/);
+  assert.match(source, /completeKioskIdempotentOperation/);
+  assert.match(source, /multi-kiosk:child:\$\{kioskId\}:action:\$\{capability\}/);
+  assert.doesNotMatch(source, /Idempotency-Key': crypto\.randomUUID/);
   assert.doesNotMatch(source, /public_token.*child|child.*public_token/i);
+});
+
+test('multi-kiosk employee workspaces dispatch attendance and petty cash only through child actions', async () => {
+  const [page, attendance, pettyCash, uploads, attendanceCapture] = await Promise.all([
+    readFile(new URL('../src/app/KioskCenter/MultiKioskMobilePage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/AttendanceMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/PettyCashMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/multiKioskWorkspaceUploads.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/useMultiKioskAttendancePhotoCapture.ts', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(page, /workspace\.kiosk\.module === 'HUMAN_RESOURCES'/);
+  assert.match(page, /workspace\.kiosk\.module === 'PETTY_CASH'/);
+  assert.match(attendance, /PublicKioskIdentityPanel/);
+  assert.match(attendance, /usePublicKioskViewModel/);
+  assert.match(attendance, /attendance\.face\.verification\.begin@1/);
+  assert.match(attendance, /attendance\.face\.verification\.capture\.presign@1/);
+  assert.match(attendance, /attendance\.face\.verification\.complete@1/);
+  assert.match(attendance, /attendance\.photo\.presign@1/);
+  assert.match(attendance, /attendance\.punch\.create@1/);
+  assert.match(attendance, /!canCreatePunch \|\| !hasIdentityEvidence/);
+  assert.match(attendance, /if \(!locationState\)/);
+  assert.match(attendance, /multiKioskPublicApi\.action/);
+  assert.doesNotMatch(attendance, /humanResourcesApi\.|attendancePublicKiosk|deviceToken/);
+  assert.doesNotMatch(attendanceCapture, /humanResourcesApi|attendancePublicKiosk/);
+
+  assert.match(pettyCash, /petty-cash\.receipt\.create@1/);
+  assert.match(pettyCash, /petty-cash\.attachment\.presign@1/);
+  assert.match(pettyCash, /petty-cash\.attachment\.register@1/);
+  assert.match(pettyCash, /petty-cash\.attachments\.read@1/);
+  assert.match(pettyCash, /resource_id: receiptId/);
+  assert.match(pettyCash, /KioskWorkspaceTabs/);
+  assert.match(pettyCash, /multiKioskPublicApi\.action/);
+  assert.doesNotMatch(pettyCash, /pettyCashKioskApi\.|public-kiosk/);
+
+  assert.match(uploads, /method: 'PUT'/);
+  assert.doesNotMatch(uploads, /\/api\//);
+});
+
+test('multi-kiosk mobile workspace uses only canonical version-one capability keys', async () => {
+  const [page, attendance, pettyCash] = await Promise.all([
+    readFile(new URL('../src/app/KioskCenter/MultiKioskMobilePage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/AttendanceMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/PettyCashMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
+  ]);
+
+  const mobileWorkspaceSource = `${page}\n${attendance}\n${pettyCash}`;
+  assert.doesNotMatch(mobileWorkspaceSource, /@[vV]1\b/);
+  assert.match(page, /process-tasks\.task\.create@1/);
+  assert.match(page, /process-tasks\.task\.complete@1/);
+});
+
+test('multi-kiosk launcher lets a shared device return safely to employee PIN identification', async () => {
+  const [page, api, identityGate, translations] = await Promise.all([
+    readFile(new URL('../src/app/KioskCenter/MultiKioskMobilePage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/api/multiKiosks.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/components/kiosk-engine/KioskIdentityGate.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/multiKioskMobileTranslations.ts', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(page, /<KioskIdentityGate/);
+  assert.match(page, /pinLength=\{5\}/);
+  assert.doesNotMatch(page, /id="multi-kiosk-pin"/);
+  assert.match(identityGate, /type="password"/);
+  assert.match(page, /copy\.launcher\.signOut/);
+  assert.match(translations, /signOut: 'Cerrar sesión \/ Cambiar colaborador'/);
+  assert.match(page, /await multiKioskPublicApi\.signOut\(token, bootstrap\.csrf_token\)/);
+  assert.match(page, /finally \{/);
+  assert.match(page, /multiKioskMobileSession\.clearAuthority\(token\)/);
+  assert.match(page, /setWorkspace\(null\)/);
+  assert.match(page, /setActiveKioskId\(null\)/);
+  assert.match(page, /setSession\(null\)/);
+  assert.match(page, /<Launcher[\s\S]*onSignOut=\{signOut\}/);
+  assert.match(api, /signOut:[\s\S]*method: 'DELETE'/);
+  assert.match(api, /signOut:[\s\S]*'X-CSRF-Token': csrfToken/);
+  assert.match(api, /signOut:[\s\S]*'X-Multi-Kiosk-Session-Token': multiKioskMobileSession\.get\(token\)/);
+});
+
+test('multi-kiosk clears every local authority boundary on child authorization failure', async () => {
+  const [page, api, attendance, pettyCash] = await Promise.all([
+    readFile(new URL('../src/app/KioskCenter/MultiKioskMobilePage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/api/multiKiosks.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/AttendanceMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/PettyCashMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(api, /clearAuthority:[\s\S]*removeStoredByPrefix\(childSessionPrefix\(token\)\)/);
+  assert.match(api, /error\.status === 401 \|\| error\.status === 403/);
+  assert.match(page, /const handleAuthorizationFailure = useCallback/);
+  assert.match(page, /clearLocalAuthority\(copy\.errors\.sessionExpired\)/);
+  assert.match(page, /<TaskWorkspace[\s\S]*onAuthorizationFailure=\{handleAuthorizationFailure\}/);
+  assert.match(page, /<AttendanceMultiKioskWorkspace[\s\S]*onAuthorizationFailure=\{handleAuthorizationFailure\}/);
+  assert.match(page, /<PettyCashMultiKioskWorkspace[\s\S]*onAuthorizationFailure=\{handleAuthorizationFailure\}/);
+  assert.match(attendance, /onAuthorizationFailure\(error\)/);
+  assert.match(pettyCash, /onAuthorizationFailure\(error\)/);
+});
+
+test('multi-kiosk applies its configured locale without replacing an explicit kiosk choice', async () => {
+  const [page, shell, translations, editor, adminTranslations] = await Promise.all([
+    readFile(new URL('../src/app/KioskCenter/MultiKioskMobilePage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/components/kiosk-engine/KioskPublicShell.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/multiKioskMobileTranslations.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/MultiKioskEditorModal.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/multiKioskAdminTranslations.ts', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(page, /defaultLocale=\{bootstrap\?\.locale\}/);
+  assert.match(page, /locale=\{currentLanguage\.code\}/);
+  assert.match(shell, /kioskLanguageStorageKey/);
+  assert.match(shell, /explicitLocale/);
+  assert.match(editor, /copy\.editor\.initialLanguage/);
+  assert.match(adminTranslations, /initialLanguage: 'Idioma inicial'/);
+  for (const locale of ['en-CA', 'en-US', 'fr-CA', 'es-MX', 'es-CO', 'pt-BR', 'ko-CA', 'zh-CA']) {
+    assert.match(translations, new RegExp(`['"]${locale}['"]`));
+  }
+  assert.match(shell, /'fr-CA': frenchUtilityCopy/);
+  assert.match(shell, /'pt-BR': portugueseUtilityCopy/);
+  assert.match(shell, /'ko-CA': koreanUtilityCopy/);
+  assert.match(shell, /'zh-CA': chineseUtilityCopy/);
 });

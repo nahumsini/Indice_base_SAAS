@@ -26,6 +26,25 @@ public interface KioskModuleAdapter {
         return false;
     }
 
+    /**
+     * Tab permission keys that may authorize opening this definition from an employee center.
+     * The keys use any-of semantics. An empty set fails closed and keeps the definition out of
+     * employee launchers even when a grant, module assignment and organization scope exist.
+     */
+    default Set<String> employeeCenterTabPermissionKeys(KioskResolvedDefinition definition) {
+        return Set.of();
+    }
+
+    /**
+     * Tab permission keys that may authorize one capability in an employee workspace.
+     * Adapters may narrow individual capabilities; the workspace requirement is the default.
+     */
+    default Set<String> employeeCapabilityTabPermissionKeys(
+            KioskResolvedDefinition definition,
+            KioskCapabilityDescriptor capability) {
+        return employeeCenterTabPermissionKeys(definition);
+    }
+
     default Map<String, Object> employeeBootstrap(KioskExecutionContext context) {
         throw new UnsupportedOperationException("This kiosk does not expose an employee workspace.");
     }

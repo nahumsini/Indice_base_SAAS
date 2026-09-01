@@ -70,6 +70,66 @@ public class PettyCashPublicKioskService {
         return body;
     }
 
+    /** Builds a fund workspace for an employee already authenticated by the Kiosk Engine. */
+    public Map<String, Object> employeeBootstrap(
+            String fundToken,
+            long companyId,
+            long userId) {
+        var context = requireEmployeeContext(fundToken, companyId, userId);
+        var body = new LinkedHashMap<String, Object>();
+        body.put("fund", publicFundMap(context.fund()));
+        body.put("scope_label", scopeLabel(context.fund()));
+        body.put("authentication", "ENGINE_PIN_SESSION");
+        body.put("user", employeeMap(context.employee()));
+        body.put("recent_receipts", employeeRecentReceipts(context.fund(), context.employee()));
+        body.putAll(employeeHistory(context.fund(), context.employee()));
+        body.put("inactivity_timeout_seconds", inactivityTimeoutSeconds);
+        return body;
+    }
+
+    /** Returns only the authenticated employee's receipt history for an Engine workspace. */
+    public Map<String, Object> employeeMovements(
+            String fundToken,
+            long companyId,
+            long userId) {
+        var context = requireEmployeeContext(fundToken, companyId, userId);
+        var body = new LinkedHashMap<String, Object>();
+        body.put("fund", publicFundMap(context.fund()));
+        body.put("recent_receipts", employeeRecentReceipts(context.fund(), context.employee()));
+        body.putAll(employeeHistory(context.fund(), context.employee()));
+        return body;
+    }
+
+    /**
+     * Revalidates the Engine identity against the active fund and returns an ephemeral module token.
+     * The caller uses it server-side only to preserve the existing ownership and fund guards.
+     */
+    public String employeeIdentificationToken(
+            String fundToken,
+            long companyId,
+            long userId) {
+        var context = requireEmployeeContext(fundToken, companyId, userId);
+        return tokenService.createIdentificationToken(
+            normalizeFundToken(fundToken),
+            context.employee().userCompanyId(),
+            "pin",
+            tokenService.nextIdentificationExpiryEpochSeconds()
+        );
+    }
+
+    /** Revalidates that a receipt belongs to the authenticated employee before file operations. */
+    public void requireEmployeeOwnedReceipt(
+            String fundToken,
+            long companyId,
+            long userId,
+            long settlementLineId) {
+        if (settlementLineId <= 0) {
+            throw new IllegalArgumentException("A valid settlementLineId is required.");
+        }
+        requireEmployeeOwnedKioskReceipt(
+            requireEmployeeContext(fundToken, companyId, userId), settlementLineId, false);
+    }
+
     @Transactional(noRollbackFor = IllegalArgumentException.class)
     public Map<String, Object> publicIdentify(String fundToken, Map<String, Object> payload) {
         var fund = getActiveKioskFund(fundToken);
@@ -241,6 +301,13 @@ public class PettyCashPublicKioskService {
     private void requireEmployeeOwnedKioskReceipt(
             PublicPettyCashKioskContext context,
             long settlementLineId) {
+        requireEmployeeOwnedKioskReceipt(context, settlementLineId, true);
+    }
+
+    private void requireEmployeeOwnedKioskReceipt(
+            PublicPettyCashKioskContext context,
+            long settlementLineId,
+            boolean requireDeletableStatus) {
         var rows = jdbcTemplate.query(
             """
                 SELECT created_by_user_id, status, metadata_json
@@ -271,7 +338,7 @@ public class PettyCashPublicKioskService {
                 receipt.metadataJson())) {
             throw FinanceApiException.forbidden("Only receipts created by the identified employee can be deleted.");
         }
-        if (!isKioskDeletableStatus(receipt.status())) {
+        if (requireDeletableStatus && !isKioskDeletableStatus(receipt.status())) {
             throw FinanceApiException.conflict("This receipt can no longer be deleted from the kiosk.");
         }
     }
@@ -313,6 +380,30 @@ public class PettyCashPublicKioskService {
             fund.companyId(),
             employee.fullName(),
             "petty_cash_kiosk",
+            true,
+            scopeForFund(fund)
+        );
+        return new PublicPettyCashKioskContext(fund, employee, financeContext);
+    }
+
+    private PublicPettyCashKioskContext requireEmployeeContext(
+            String fundToken,
+            long companyId,
+            long userId) {
+        if (companyId <= 0 || userId <= 0) {
+            throw new SecurityException("Authenticated employee kiosk identity is required.");
+        }
+        var fund = getActiveKioskFund(fundToken);
+        if (fund.companyId() != companyId) {
+            throw new SecurityException("Petty cash kiosk does not belong to the authenticated company.");
+        }
+        var employee = loadEmployeeByUserId(companyId, userId);
+        validateEmployeeAccess(fund, employee);
+        var financeContext = new FinanceContext(
+            employee.userId(),
+            fund.companyId(),
+            employee.fullName(),
+            "petty_cash_employee_kiosk",
             true,
             scopeForFund(fund)
         );
@@ -425,6 +516,7 @@ public class PettyCashPublicKioskService {
                 WHERE e.company_id = ?
                   AND e.id = ?
                   AND LOWER(COALESCE(uc.status, 'active')) = 'active'
+                  AND COALESCE(LOWER(e.status), 'active') <> 'terminated'
                 """,
             (rs, rowNum) -> new PublicPettyCashEmployee(
                 rs.getLong("user_company_id"),
@@ -441,6 +533,44 @@ public class PettyCashPublicKioskService {
         return rows.stream()
             .findFirst()
             .orElseThrow(() -> new IllegalArgumentException("Identified collaborator is not active."));
+    }
+
+    private PublicPettyCashEmployee loadEmployeeByUserId(long companyId, long userId) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT e.id AS user_company_id,
+                       uc.user_id,
+                       COALESCE(e.user_code, '') AS user_code,
+                       TRIM(CONCAT_WS(' ', COALESCE(e.first_name, ''), COALESCE(e.last_name, ''))) AS full_name,
+                       COALESCE(e.position, '') AS position_title,
+                       COALESCE(e.department, '') AS department,
+                       COALESCE(LOWER(e.status), 'active') AS status
+                FROM hr_users e
+                JOIN user_companies uc ON uc.id = e.id
+                WHERE e.company_id = ?
+                  AND uc.company_id = ?
+                  AND uc.user_id = ?
+                  AND LOWER(COALESCE(uc.status, 'active')) = 'active'
+                  AND COALESCE(LOWER(e.status), 'active') <> 'terminated'
+                ORDER BY e.id ASC
+                LIMIT 1
+                """,
+            (rs, rowNum) -> new PublicPettyCashEmployee(
+                rs.getLong("user_company_id"),
+                rs.getLong("user_id"),
+                fallback(rs.getString("user_code"), ""),
+                fallback(rs.getString("full_name"), ""),
+                fallback(rs.getString("position_title"), ""),
+                fallback(rs.getString("department"), ""),
+                fallback(rs.getString("status"), "active")
+            ),
+            companyId,
+            companyId,
+            userId
+        );
+        return rows.stream()
+            .findFirst()
+            .orElseThrow(() -> new SecurityException("No active employee is linked to this kiosk session."));
     }
 
     private void validateEmployeeAccess(PettyCashFundRecord fund, PublicPettyCashEmployee employee) {
@@ -477,6 +607,41 @@ public class PettyCashPublicKioskService {
         return new ArrayList<>(items);
     }
 
+    private List<Map<String, Object>> employeeRecentReceipts(
+            PettyCashFundRecord fund,
+            PublicPettyCashEmployee employee) {
+        var items = jdbcTemplate.query(
+            """
+                SELECT receipt.id, receipt.description, receipt.total_amount,
+                       receipt.currency_code, receipt.expense_date,
+                       receipt.attachment_count, receipt.status
+                FROM finance_petty_cash_settlement_lines receipt
+                WHERE receipt.company_id = ?
+                  AND receipt.petty_cash_fund_id = ?
+                  AND receipt.deleted_at IS NULL
+                """ + employeeReceiptOwnershipSql("receipt") + """
+                ORDER BY receipt.expense_date DESC, receipt.id DESC
+                LIMIT 10
+                """,
+            (rs, rowNum) -> {
+                var row = new LinkedHashMap<String, Object>();
+                row.put("id", rs.getLong("id"));
+                row.put("description", rs.getString("description"));
+                row.put("total_amount", rs.getBigDecimal("total_amount"));
+                row.put("currency_code", rs.getString("currency_code"));
+                row.put("expense_date", rs.getObject("expense_date", LocalDate.class));
+                row.put("attachment_count", rs.getInt("attachment_count"));
+                row.put("status", rs.getString("status"));
+                return row;
+            },
+            fund.companyId(),
+            fund.id(),
+            employee.userId(),
+            employee.userCompanyId()
+        );
+        return new ArrayList<>(items);
+    }
+
     private Map<String, Object> publicHistory(
             PettyCashFundRecord fund,
             PublicPettyCashEmployee employee) {
@@ -484,6 +649,17 @@ public class PettyCashPublicKioskService {
         history.put("periods", publicPeriods(fund));
         history.put("expenses", publicExpenses(fund, employee));
         history.put("income_movements", publicIncomeMovements(fund));
+        return history;
+    }
+
+    private Map<String, Object> employeeHistory(
+            PettyCashFundRecord fund,
+            PublicPettyCashEmployee employee) {
+        var history = new LinkedHashMap<String, Object>();
+        history.put("periods", publicPeriods(fund));
+        history.put("expenses", employeeExpenses(fund, employee));
+        // Replenishments and transfers belong to the shared fund, not to an employee receipt.
+        history.put("income_movements", List.of());
         return history;
     }
 
@@ -564,6 +740,64 @@ public class PettyCashPublicKioskService {
             fund.id()
         );
         return new ArrayList<>(items);
+    }
+
+    private List<Map<String, Object>> employeeExpenses(
+            PettyCashFundRecord fund,
+            PublicPettyCashEmployee employee) {
+        var items = jdbcTemplate.query(
+            """
+                SELECT settlement_line.id,
+                       settlement_line.petty_cash_statement_id,
+                       statement.period_key,
+                       settlement_line.description,
+                       settlement_line.receipt_reference,
+                       settlement_line.total_amount,
+                       settlement_line.currency_code,
+                       settlement_line.expense_date,
+                       settlement_line.attachment_count,
+                       settlement_line.status
+                FROM finance_petty_cash_settlement_lines settlement_line
+                JOIN finance_petty_cash_statements statement
+                  ON statement.id = settlement_line.petty_cash_statement_id
+                 AND statement.deleted_at IS NULL
+                WHERE settlement_line.company_id = ?
+                  AND settlement_line.petty_cash_fund_id = ?
+                  AND settlement_line.deleted_at IS NULL
+                """ + employeeReceiptOwnershipSql("settlement_line") + """
+                ORDER BY settlement_line.expense_date DESC, settlement_line.id DESC
+                """,
+            (rs, rowNum) -> {
+                var row = new LinkedHashMap<String, Object>();
+                row.put("id", rs.getLong("id"));
+                row.put("statement_id", rs.getLong("petty_cash_statement_id"));
+                row.put("period_key", rs.getString("period_key"));
+                row.put("description", rs.getString("description"));
+                row.put("receipt_reference", rs.getString("receipt_reference"));
+                row.put("total_amount", rs.getBigDecimal("total_amount"));
+                row.put("currency_code", rs.getString("currency_code"));
+                row.put("expense_date", rs.getObject("expense_date", LocalDate.class));
+                row.put("attachment_count", rs.getInt("attachment_count"));
+                row.put("status", rs.getString("status"));
+                row.put("can_delete", isKioskDeletableStatus(rs.getString("status")));
+                return row;
+            },
+            fund.companyId(),
+            fund.id(),
+            employee.userId(),
+            employee.userCompanyId()
+        );
+        return new ArrayList<>(items);
+    }
+
+    private String employeeReceiptOwnershipSql(String alias) {
+        return """
+                  AND %1$s.created_by_user_id = ?
+                  AND JSON_VALID(%1$s.metadata_json)
+                  AND JSON_UNQUOTE(JSON_EXTRACT(%1$s.metadata_json, '$.source')) = 'petty_cash_kiosk'
+                  AND CAST(JSON_UNQUOTE(JSON_EXTRACT(
+                        %1$s.metadata_json, '$.identifiedUserCompanyId')) AS UNSIGNED) = ?
+                """.formatted(alias);
     }
 
     private List<Map<String, Object>> publicIncomeMovements(PettyCashFundRecord fund) {

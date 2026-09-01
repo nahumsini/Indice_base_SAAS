@@ -1,6 +1,7 @@
 package com.indice.erp.kiosk.api;
 
 import com.indice.erp.auth.SessionCsrfService;
+import com.indice.erp.kiosk.engine.KioskClientNetworkSignal;
 import com.indice.erp.kiosk.engine.KioskEngineFeatureFlags;
 import com.indice.erp.kiosk.engine.KioskUnavailableException;
 import com.indice.erp.kiosk.engine.MultiKioskService;
@@ -8,6 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -72,6 +74,18 @@ public class MultiKioskPublicV2Controller {
             multiKiosks.session(publicToken, multiSessionToken, session.getId()), null, null));
     }
 
+    @DeleteMapping("/session")
+    public ResponseEntity<?> logout(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestHeader("X-Multi-Kiosk-Session-Token") String multiSessionToken,
+            @PathVariable String publicToken) {
+        requireEnabled();
+        csrf.requireCsrf(session, csrfToken);
+        return ResponseEntity.ok(responses.success(
+            multiKiosks.logout(publicToken, multiSessionToken, session.getId()), null, null));
+    }
+
     @PostMapping("/kiosks/{kioskId}/sessions")
     public ResponseEntity<?> launchChild(
             HttpSession session,
@@ -122,16 +136,12 @@ public class MultiKioskPublicV2Controller {
 
     private void requireEnabled() {
         if (!flags.registryEnabled() || !flags.sessionsEnabled()
-                || !flags.multiDashboardEnabled()) {
+                || !flags.auditEnabled() || !flags.multiDashboardEnabled()) {
             throw new KioskUnavailableException();
         }
     }
 
     private String networkSignal(HttpServletRequest request) {
-        var forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            return forwarded.split(",", 2)[0].trim();
-        }
-        return request.getRemoteAddr();
+        return KioskClientNetworkSignal.from(request);
     }
 }

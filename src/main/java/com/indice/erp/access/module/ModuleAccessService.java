@@ -20,7 +20,7 @@ public class ModuleAccessService {
 
     public boolean canAccess(AuthSessionUser user, String rawModuleSlug) {
         var moduleSlug = ModuleSlugNormalizer.normalize(rawModuleSlug);
-        if (moduleSlug.isBlank() || !companyCanUseModule(user.companyId(), moduleSlug)) {
+        if (moduleSlug.isBlank() || !companyCanAccess(user.companyId(), moduleSlug)) {
             return false;
         }
         if (FULL_ACCESS_ROLES.contains(normalizeRole(user.role()))) {
@@ -63,7 +63,16 @@ public class ModuleAccessService {
         return grants != null && grants > 0;
     }
 
-    private boolean companyCanUseModule(long companyId, String moduleSlug) {
+    /**
+     * Company-level entitlement and release gate. This intentionally does not grant a user any
+     * module or tab authority; callers must apply those narrower gates when a person operates the
+     * module.
+     */
+    public boolean companyCanAccess(long companyId, String rawModuleSlug) {
+        var moduleSlug = ModuleSlugNormalizer.normalize(rawModuleSlug);
+        if (companyId <= 0 || moduleSlug.isBlank()) {
+            return false;
+        }
         var count = jdbcTemplate.queryForObject(
             """
                 SELECT COUNT(*)

@@ -1,10 +1,11 @@
 package com.indice.erp.kiosk.engine;
 
-import com.indice.erp.access.ModuleSlugNormalizer;
+import com.indice.erp.access.module.ModuleAccessService;
+import com.indice.erp.access.tab.TabPermissionAccessService;
+import com.indice.erp.access.tab.TabPermissionRequirement;
 import com.indice.erp.auth.AuthSessionUser;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -16,14 +17,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class KioskMultiDashboardService {
 
-    private static final Set<String> FULL_MODULE_ACCESS_ROLES = Set.of("root", "superadmin");
     private final JdbcTemplate jdbcTemplate;
     private final KioskRegistryService registry;
     private final KioskAdapterRegistry adapterRegistry;
     private final KioskEngineFeatureFlags featureFlags;
     private final KioskSessionService sessions;
     private final KioskEmployeeAccessService employeeAccess;
+    private final KioskEmployeeToolCatalogService employeeTools;
     private final KioskActionDispatcher dispatcher;
+    private final TabPermissionAccessService tabPermissions;
+    private final ModuleAccessService moduleAccess;
 
     public KioskMultiDashboardService(
             JdbcTemplate jdbcTemplate,
@@ -32,26 +35,78 @@ public class KioskMultiDashboardService {
             KioskEngineFeatureFlags featureFlags,
             KioskSessionService sessions,
             KioskEmployeeAccessService employeeAccess,
-            KioskActionDispatcher dispatcher) {
+            KioskEmployeeToolCatalogService employeeTools,
+            KioskActionDispatcher dispatcher,
+            TabPermissionAccessService tabPermissions,
+            ModuleAccessService moduleAccess) {
         this.jdbcTemplate = jdbcTemplate;
         this.registry = registry;
         this.adapterRegistry = adapterRegistry;
         this.featureFlags = featureFlags;
         this.sessions = sessions;
         this.employeeAccess = employeeAccess;
+        this.employeeTools = employeeTools;
         this.dispatcher = dispatcher;
+        this.tabPermissions = tabPermissions;
+        this.moduleAccess = moduleAccess;
     }
 
     public List<Map<String, Object>> list(AuthSessionUser user) {
-        var moduleAccess = moduleAccess(user);
+        return eligibleCards(user, true);
+    }
+
+    /**
+     * Returns only the children composed into one active company Multi-kiosk that the current
+     * member can actually use. Multi-kiosk membership is company-wide; it deliberately does not
+     * create or require a persistent per-person kiosk grant.
+     */
+    public List<Map<String, Object>> listForMultiKiosk(
+            AuthSessionUser user,
+            long multiKioskId) {
+        if (user == null || user.userCompanyId() == null || multiKioskId <= 0) {
+            return List.of();
+        }
+        var orderedIds = jdbcTemplate.query(
+            """
+                SELECT item.kiosk_definition_id
+                FROM multi_kiosk_items item
+                INNER JOIN multi_kiosk_definitions parent
+                  ON parent.id = item.multi_kiosk_id
+                 AND parent.company_id = ?
+                 AND parent.status = 'ACTIVE'
+                 AND (parent.expires_at IS NULL OR parent.expires_at > CURRENT_TIMESTAMP)
+                WHERE item.multi_kiosk_id = ?
+                ORDER BY item.sort_order, item.kiosk_definition_id
+                """,
+            (rs, rowNum) -> rs.getLong("kiosk_definition_id"),
+            user.companyId(), multiKioskId
+        );
+        if (orderedIds.isEmpty()) return List.of();
+
+        var eligibleById = new LinkedHashMap<Long, Map<String, Object>>();
+        eligibleCards(user, false).forEach(card ->
+            eligibleById.put(((Number) card.get("id")).longValue(), card));
+        return orderedIds.stream()
+            .map(eligibleById::get)
+            .filter(java.util.Objects::nonNull)
+            .toList();
+    }
+
+    private List<Map<String, Object>> eligibleCards(
+            AuthSessionUser user,
+            boolean requireExplicitGrant) {
         return registry.list(user.companyId()).stream()
             .filter(definition -> definition.effectiveStatus(java.time.Instant.now()).operational())
+            .filter(definition -> !requireExplicitGrant
+                || employeeTools.manifestFor(definition).isEmpty())
             .filter(definition -> employeeAccess.isEmployeeEligible(user.companyId(), definition.id()))
             .filter(definition -> featureFlags.adapterEnabled(definition.ownerModule()))
-            .filter(definition -> moduleAccess.allModules()
-                || moduleAccess.slugs().contains(moduleSlug(definition.ownerModule())))
-            .filter(definition -> scopeAllows(user, definition))
-            .filter(this::hasEnabledCapability)
+            .filter(definition -> moduleAccess.canAccess(
+                user, KioskEmployeeAccessService.moduleSlug(definition.ownerModule())))
+            .filter(definition -> tabPermissionAllows(user, definition))
+            .filter(definition -> !requireExplicitGrant || hasExplicitGrant(user, definition))
+            .filter(definition -> organizationScopeAllows(user, definition))
+            .filter(definition -> hasEnabledCapability(user, definition))
             .map(this::card)
             .toList();
     }
@@ -71,9 +126,10 @@ public class KioskMultiDashboardService {
         var definitionCapabilities = adapter.capabilities(definition);
         registry.synchronizeCapabilities(definition, definitionCapabilities);
         var capabilities = definitionCapabilities.stream()
-            .filter(descriptor -> registry.capabilityEnabled(definition.id(), descriptor))
+            .filter(descriptor -> employeeCapabilityAllowed(user, definition, adapter, descriptor))
             .map(KioskCapabilityDescriptor::versionedKey)
             .collect(Collectors.toUnmodifiableSet());
+        if (capabilities.isEmpty()) throw new KioskUnavailableException();
         var launch = sessions.createAuthenticatedIndexSession(
             definition, user.userId(), browserSessionReference, capabilities);
         var data = new LinkedHashMap<String, Object>();
@@ -100,16 +156,17 @@ public class KioskMultiDashboardService {
             long multiKioskId,
             long kioskDefinitionId,
             String browserSessionReference) {
-        requireAllowed(user, kioskDefinitionId);
+        requireAllowedForMultiKiosk(user, multiKioskId, kioskDefinitionId);
         if (user.userCompanyId() == null) throw new KioskUnavailableException();
         var definition = registry.requireById(user.companyId(), kioskDefinitionId);
         var adapter = adapterRegistry.requireAdapter(definition.ownerModule());
         var definitionCapabilities = adapter.capabilities(definition);
         registry.synchronizeCapabilities(definition, definitionCapabilities);
         var capabilities = definitionCapabilities.stream()
-            .filter(descriptor -> registry.capabilityEnabled(definition.id(), descriptor))
+            .filter(descriptor -> employeeCapabilityAllowed(user, definition, adapter, descriptor))
             .map(KioskCapabilityDescriptor::versionedKey)
             .collect(Collectors.toUnmodifiableSet());
+        if (capabilities.isEmpty()) throw new KioskUnavailableException();
         var launch = sessions.createMobileMultiKioskSession(
             definition, multiKioskId, user.userId(), user.userCompanyId(),
             browserSessionReference, capabilities);
@@ -165,7 +222,7 @@ public class KioskMultiDashboardService {
             long kioskDefinitionId,
             String accessToken,
             String browserSessionReference) {
-        requireAllowed(user, kioskDefinitionId);
+        requireAllowedForMultiKiosk(user, multiKioskId, kioskDefinitionId);
         if (user.userCompanyId() == null) throw new KioskUnavailableException();
         var definition = registry.requireById(user.companyId(), kioskDefinitionId);
         var principal = sessions.requireMobileMultiKioskSession(
@@ -206,14 +263,15 @@ public class KioskMultiDashboardService {
             throw new UnsupportedOperationException(
                 "This kiosk requires its module-specific verification step.");
         }
-        sessions.requireAuthenticatedIndexSession(
+        var principal = sessions.requireAuthenticatedIndexSession(
             definition, accessToken, browserSessionReference, user.userId());
         var parsed = parseCapability(versionedCapability);
+        requireEmployeeCapabilityAllowed(user, definition, adapter, parsed.versionedKey());
         var normalized = new LinkedHashMap<String, Object>(payload == null ? Map.of() : payload);
         normalized.put("kiosk_session_token", accessToken);
         var resourceId = number(normalized.get("resource_id"));
         return dispatcher.dispatchWithMetadata(
-            authenticatedContext(definition, browserSessionReference).resolved(definition, null),
+            authenticatedContext(definition, browserSessionReference).resolved(definition, principal),
             new KioskActionRequest(parsed.key(), parsed.version(), resourceId, normalized),
             idempotencyKey
         );
@@ -229,7 +287,7 @@ public class KioskMultiDashboardService {
             String browserSessionReference,
             Map<String, Object> payload,
             String idempotencyKey) {
-        requireAllowed(user, kioskDefinitionId);
+        requireAllowedForMultiKiosk(user, multiKioskId, kioskDefinitionId);
         if (user.userCompanyId() == null) throw new KioskUnavailableException();
         var definition = registry.requireById(user.companyId(), kioskDefinitionId);
         var adapter = adapterRegistry.requireAdapter(definition.ownerModule());
@@ -241,7 +299,8 @@ public class KioskMultiDashboardService {
             definition, multiKioskId, accessToken, browserSessionReference,
             user.userId(), user.userCompanyId());
         var parsed = parseCapability(versionedCapability);
-        if (!principal.grantedCapabilities().contains(versionedCapability)) {
+        requireEmployeeCapabilityAllowed(user, definition, adapter, parsed.versionedKey());
+        if (!principal.grantedCapabilities().contains(parsed.versionedKey())) {
             throw new SecurityException("Kiosk capability is not granted.");
         }
         var normalized = new LinkedHashMap<String, Object>(payload == null ? Map.of() : payload);
@@ -260,11 +319,22 @@ public class KioskMultiDashboardService {
         }
     }
 
+    private void requireAllowedForMultiKiosk(
+            AuthSessionUser user,
+            long multiKioskId,
+            long kioskDefinitionId) {
+        if (listForMultiKiosk(user, multiKioskId).stream()
+                .noneMatch(card -> ((Number) card.get("id")).longValue() == kioskDefinitionId)) {
+            throw new KioskUnavailableException();
+        }
+    }
+
     private KioskExecutionContext authenticatedContext(
             KioskResolvedDefinition definition,
             String browserSessionReference) {
         return new KioskExecutionContext(
-            definition.ownerModule(), "AUTHENTICATED_WEB", "definition:" + definition.id(),
+            definition.ownerModule(), KioskExecutionChannels.AUTHENTICATED_WEB,
+            "definition:" + definition.id(),
             "internal", browserSessionReference);
     }
 
@@ -272,20 +342,28 @@ public class KioskMultiDashboardService {
             KioskResolvedDefinition definition,
             String browserSessionReference) {
         return new KioskExecutionContext(
-            definition.ownerModule(), "MOBILE_MULTI_KIOSK", "definition:" + definition.id(),
+            definition.ownerModule(), KioskExecutionChannels.MOBILE_MULTI_KIOSK,
+            "definition:" + definition.id(),
             "mobile", browserSessionReference);
     }
 
     private ParsedCapability parseCapability(String value) {
         var normalized = value == null ? "" : value.trim();
-        var marker = normalized.lastIndexOf("@v");
-        if (marker <= 0 || marker + 2 >= normalized.length()) {
+        var marker = normalized.lastIndexOf('@');
+        if (marker <= 0 || marker + 1 >= normalized.length()) {
             throw new IllegalArgumentException("Versioned kiosk capability is required.");
+        }
+        var rawVersion = normalized.substring(marker + 1);
+        if (rawVersion.startsWith("v")) {
+            rawVersion = rawVersion.substring(1);
+        }
+        if (rawVersion.isBlank()) {
+            throw new IllegalArgumentException("Versioned kiosk capability is invalid.");
         }
         try {
             return new ParsedCapability(
                 normalized.substring(0, marker),
-                Integer.parseInt(normalized.substring(marker + 2)));
+                Integer.parseInt(rawVersion));
         } catch (NumberFormatException failure) {
             throw new IllegalArgumentException("Versioned kiosk capability is invalid.");
         }
@@ -300,16 +378,65 @@ public class KioskMultiDashboardService {
         }
     }
 
-    private boolean hasEnabledCapability(KioskResolvedDefinition definition) {
+    private boolean hasEnabledCapability(AuthSessionUser user, KioskResolvedDefinition definition) {
         var adapter = adapterRegistry.requireAdapter(definition.ownerModule());
         var definitionCapabilities = adapter.capabilities(definition);
         registry.synchronizeCapabilities(definition, definitionCapabilities);
         return definitionCapabilities.stream()
-            .anyMatch(capability -> registry.capabilityEnabled(definition.id(), capability));
+            .anyMatch(capability -> employeeCapabilityAllowed(user, definition, adapter, capability));
     }
 
-    private boolean scopeAllows(AuthSessionUser user, KioskResolvedDefinition definition) {
-        return hasExplicitGrant(user, definition) && organizationScopeAllows(user, definition);
+    Set<String> requiredTabPermissionKeys(long companyId, long kioskDefinitionId) {
+        var definition = registry.requireById(companyId, kioskDefinitionId);
+        return Set.copyOf(adapterRegistry.requireAdapter(definition.ownerModule())
+            .employeeCenterTabPermissionKeys(definition));
+    }
+
+    boolean tabPermissionAllows(AuthSessionUser user, long kioskDefinitionId) {
+        return tabPermissionAllows(user, registry.requireById(user.companyId(), kioskDefinitionId));
+    }
+
+    private boolean tabPermissionAllows(AuthSessionUser user, KioskResolvedDefinition definition) {
+        var keys = adapterRegistry.requireAdapter(definition.ownerModule())
+            .employeeCenterTabPermissionKeys(definition);
+        return hasAnyTabPermission(user, keys);
+    }
+
+    private boolean employeeCapabilityAllowed(
+            AuthSessionUser user,
+            KioskResolvedDefinition definition,
+            KioskModuleAdapter adapter,
+            KioskCapabilityDescriptor capability) {
+        if (!registry.capabilityEnabled(definition.id(), capability)) {
+            return false;
+        }
+        if (!adapter.supportsEmployeeCenter(definition)) {
+            return true;
+        }
+        return hasAnyTabPermission(
+            user, adapter.employeeCapabilityTabPermissionKeys(definition, capability));
+    }
+
+    private void requireEmployeeCapabilityAllowed(
+            AuthSessionUser user,
+            KioskResolvedDefinition definition,
+            KioskModuleAdapter adapter,
+            String versionedCapability) {
+        var capability = adapter.capabilities(definition).stream()
+            .filter(candidate -> candidate.versionedKey().equals(versionedCapability))
+            .findFirst()
+            .orElseThrow(KioskUnavailableException::new);
+        if (!employeeCapabilityAllowed(user, definition, adapter, capability)) {
+            throw new KioskUnavailableException();
+        }
+    }
+
+    private boolean hasAnyTabPermission(AuthSessionUser user, Set<String> permissionKeys) {
+        if (permissionKeys == null || permissionKeys.isEmpty()) {
+            return false;
+        }
+        return tabPermissions.canAccess(
+            user, TabPermissionRequirement.any(permissionKeys.toArray(String[]::new)));
     }
 
     private boolean organizationScopeAllows(AuthSessionUser user, KioskResolvedDefinition definition) {
@@ -343,61 +470,17 @@ public class KioskMultiDashboardService {
     private boolean hasExplicitGrant(AuthSessionUser user, KioskResolvedDefinition definition) {
         var count = jdbcTemplate.queryForObject(
             """
-                SELECT (
-                    EXISTS(
-                        SELECT 1 FROM kiosk_grants
-                        WHERE kiosk_definition_id = ? AND status = 'ACTIVE'
-                          AND ((identity_type = 'USER' AND identity_id = ?)
-                            OR (identity_type = 'EMPLOYEE' AND identity_id = ?))
-                    ) OR EXISTS(
-                        SELECT 1
-                        FROM multi_kiosk_items item
-                        INNER JOIN multi_kiosk_definitions parent
-                          ON parent.id = item.multi_kiosk_id
-                         AND parent.company_id = ?
-                         AND parent.status = 'ACTIVE'
-                         AND (parent.expires_at IS NULL OR parent.expires_at > CURRENT_TIMESTAMP)
-                        INNER JOIN multi_kiosk_assignments assignment
-                          ON assignment.multi_kiosk_id = parent.id
-                         AND assignment.status = 'ACTIVE'
-                        WHERE item.kiosk_definition_id = ?
-                          AND assignment.user_company_id = ?
-                    )
+                SELECT EXISTS(
+                    SELECT 1 FROM kiosk_grants
+                    WHERE kiosk_definition_id = ? AND status = 'ACTIVE'
+                      AND ((identity_type = 'USER' AND identity_id = ?)
+                        OR (identity_type = 'EMPLOYEE' AND identity_id = ?))
                 )
                 """,
             Integer.class,
-            definition.id(), user.userId(), user.userCompanyId() == null ? -1L : user.userCompanyId(),
-            user.companyId(), definition.id(), user.userCompanyId() == null ? -1L : user.userCompanyId()
+            definition.id(), user.userId(), user.userCompanyId() == null ? -1L : user.userCompanyId()
         );
         return count != null && count > 0;
-    }
-
-    private ModuleAccess moduleAccess(AuthSessionUser user) {
-        var role = normalizeRole(user.role());
-        if (FULL_MODULE_ACCESS_ROLES.contains(role)) {
-            return new ModuleAccess(true, Set.of());
-        }
-        var userCompanyId = user.userCompanyId();
-        if (userCompanyId == null) {
-            userCompanyId = jdbcTemplate.query(
-                """
-                    SELECT id FROM user_companies
-                    WHERE company_id = ? AND user_id = ?
-                      AND LOWER(COALESCE(status, 'active')) IN ('active', 'activo')
-                    ORDER BY id DESC LIMIT 1
-                    """,
-                (rs, rowNum) -> rs.getLong("id"), user.companyId(), user.userId()
-            ).stream().findFirst().orElse(null);
-        }
-        if (userCompanyId == null) {
-            return new ModuleAccess(false, Set.of());
-        }
-        var slugs = jdbcTemplate.query(
-            "SELECT DISTINCT module_slug FROM user_company_module_roles WHERE user_company_id = ?",
-            (rs, rowNum) -> ModuleSlugNormalizer.normalize(rs.getString("module_slug")),
-            userCompanyId
-        );
-        return new ModuleAccess(false, Set.copyOf(slugs));
     }
 
     private Map<String, Object> card(KioskResolvedDefinition definition) {
@@ -407,6 +490,13 @@ public class KioskMultiDashboardService {
         card.put("module", definition.ownerModule());
         card.put("module_slug", KioskEmployeeAccessService.moduleSlug(definition.ownerModule()));
         card.put("kiosk_type", definition.kioskType());
+        employeeTools.manifestFor(definition).ifPresent(tool -> {
+            card.put("tool_key", tool.toolKey());
+            card.put("key", tool.toolKey());
+            card.put("workspace_kind", tool.workspaceKind());
+            card.put("audience_policy", "COMPANY_MEMBERS");
+            card.put("readiness", "AVAILABLE");
+        });
         card.put("purpose", purpose(definition.ownerModule()));
         card.put("scope", Map.of(
             "unit_id", definition.unitId() == null ? "" : definition.unitId(),
@@ -427,25 +517,10 @@ public class KioskMultiDashboardService {
         };
     }
 
-    private String moduleSlug(String ownerModule) {
-        return switch (ownerModule) {
-            case "PROCESS_TASKS" -> "processes";
-            case "PETTY_CASH" -> "petty_cash";
-            case "HUMAN_RESOURCES" -> "human_resources";
-            case "EXPENSES" -> "expenses";
-            default -> ModuleSlugNormalizer.normalize(ownerModule);
-        };
-    }
-
-    private String normalizeRole(String role) {
-        var value = role == null ? "" : role.trim().toLowerCase(Locale.ROOT);
-        return "super admin".equals(value) ? "superadmin" : value;
-    }
-
-    private record ModuleAccess(boolean allModules, Set<String> slugs) {
-    }
-
     private record ParsedCapability(String key, int version) {
+        String versionedKey() {
+            return key + "@" + version;
+        }
     }
 
     private record OrganizationScope(Long unitId, Long businessId) {

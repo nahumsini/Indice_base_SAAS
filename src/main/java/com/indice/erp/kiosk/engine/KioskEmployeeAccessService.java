@@ -63,6 +63,7 @@ public class KioskEmployeeAccessService {
                 WHERE definition.company_id = ?
                   AND definition.audience = 'EMPLOYEE'
                   AND definition.employee_center_enabled = 1
+                  AND definition.code NOT LIKE 'INDICE-EMPLOYEE-TOOL-%'
                   AND grant_row.identity_type = 'USER'
                   AND grant_row.identity_id = ?
                   AND grant_row.capability_key = '*'
@@ -77,10 +78,13 @@ public class KioskEmployeeAccessService {
     public List<Long> assignedToInvitation(long invitationId) {
         return jdbcTemplate.query(
             """
-                SELECT kiosk_definition_id
-                FROM user_invitation_kiosk_assignments
-                WHERE invitation_id = ?
-                ORDER BY kiosk_definition_id
+                SELECT assignment.kiosk_definition_id
+                FROM user_invitation_kiosk_assignments assignment
+                INNER JOIN kiosk_definitions definition
+                  ON definition.id = assignment.kiosk_definition_id
+                 AND definition.code NOT LIKE 'INDICE-EMPLOYEE-TOOL-%'
+                WHERE assignment.invitation_id = ?
+                ORDER BY assignment.kiosk_definition_id
                 """,
             (rs, rowNum) -> rs.getLong("kiosk_definition_id"),
             invitationId
@@ -102,6 +106,7 @@ public class KioskEmployeeAccessService {
                 WHERE definition.company_id = ?
                   AND definition.audience = 'EMPLOYEE'
                   AND definition.employee_center_enabled = 1
+                  AND definition.code NOT LIKE 'INDICE-EMPLOYEE-TOOL-%'
                   AND definition.status = 'ACTIVE'
                   AND (definition.expires_at IS NULL OR definition.expires_at > CURRENT_TIMESTAMP)
                 ORDER BY definition.owner_module, definition.name, definition.id
@@ -205,6 +210,7 @@ public class KioskEmployeeAccessService {
                     WHERE definition.id = ? AND definition.company_id = ?
                       AND definition.audience = 'EMPLOYEE'
                       AND definition.employee_center_enabled = 1
+                      AND definition.code NOT LIKE 'INDICE-EMPLOYEE-TOOL-%'
                     ON DUPLICATE KEY UPDATE
                         status = 'ACTIVE', source = 'INVITATION',
                         granted_by = VALUES(granted_by), revoked_at = NULL
@@ -261,6 +267,7 @@ public class KioskEmployeeAccessService {
                     FROM kiosk_definitions
                     WHERE id = ? AND company_id = ? AND audience = 'EMPLOYEE'
                       AND employee_center_enabled = 1 AND status = 'ACTIVE'
+                      AND code NOT LIKE 'INDICE-EMPLOYEE-TOOL-%'
                       AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
                     LIMIT 1
                     """,
@@ -319,6 +326,7 @@ public class KioskEmployeeAccessService {
                 INNER JOIN kiosk_definitions definition
                     ON definition.id = grant_row.kiosk_definition_id
                 WHERE definition.company_id = ?
+                  AND definition.code NOT LIKE 'INDICE-EMPLOYEE-TOOL-%'
                   AND grant_row.identity_type = 'USER'
                   AND grant_row.identity_id = ?
                   AND grant_row.capability_key = '*'
@@ -338,6 +346,7 @@ public class KioskEmployeeAccessService {
                 INNER JOIN kiosk_definitions definition
                     ON definition.id = grant_row.kiosk_definition_id
                 WHERE definition.company_id = ? AND definition.id = ?
+                  AND definition.code NOT LIKE 'INDICE-EMPLOYEE-TOOL-%'
                   AND grant_row.identity_type = 'USER'
                   AND grant_row.identity_id = ?
                   AND grant_row.capability_key = '*'

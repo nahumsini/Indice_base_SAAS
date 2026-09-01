@@ -2166,9 +2166,9 @@ The identity gate is mobile first and must also remain composed on tablet and de
 - use a compact header and remove nonessential pre-authentication information;
 - after authorization, the module workspace may expand beyond the gate width according to its view type.
 
-#### Authorized mobile workspace pattern
+#### Authorized compact workspace pattern
 
-Controlled transaction kiosks for Caja Chica, Procesos y Tareas, Asistencia, and Cuentas por Pagar continue as mobile workspaces after identity. Authorization must not switch them back to a desktop dashboard.
+Controlled transaction kiosks for Caja Chica, Procesos y Tareas, Asistencia, and Cuentas por Pagar continue as compact, mobile-first workspaces after identity. Mobile-first is not mobile-only: opening the public route on tablet or desktop preserves the same PIN, session, launcher, and operational workspace without a mandatory QR interstitial. Authorization must not switch the experience into an administrative desktop dashboard.
 
 Use the following composition:
 

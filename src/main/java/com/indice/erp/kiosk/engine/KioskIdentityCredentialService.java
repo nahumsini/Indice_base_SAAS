@@ -79,6 +79,7 @@ public class KioskIdentityCredentialService {
                 """,
             companyId, normalizedType, identityId
         );
+        revokeMultiKioskSessions(companyId, normalizedType, identityId);
     }
 
     @Transactional
@@ -90,15 +91,44 @@ public class KioskIdentityCredentialService {
         if (stillGranted) {
             return;
         }
-        jdbcTemplate.update(
+        var normalizedType = normalizeType(identityType);
+        var revoked = jdbcTemplate.update(
             """
                 UPDATE kiosk_identity_credentials
                 SET status = 'REVOKED', rotated_at = CURRENT_TIMESTAMP
                 WHERE company_id = ? AND identity_type = ? AND identity_id = ?
                   AND credential_type = 'PIN' AND status = 'ACTIVE'
                 """,
-            companyId, normalizeType(identityType), identityId
+            companyId, normalizedType, identityId
         );
+        if (revoked > 0) {
+            revokeMultiKioskSessions(companyId, normalizedType, identityId);
+        }
+    }
+
+    private void revokeMultiKioskSessions(
+            long companyId,
+            String identityType,
+            long identityId) {
+        if ("USER".equals(identityType)) {
+            jdbcTemplate.update(
+                """
+                    UPDATE multi_kiosk_sessions
+                    SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP)
+                    WHERE company_id = ? AND user_id = ? AND revoked_at IS NULL
+                    """,
+                companyId, identityId
+            );
+        } else if ("EMPLOYEE".equals(identityType)) {
+            jdbcTemplate.update(
+                """
+                    UPDATE multi_kiosk_sessions
+                    SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP)
+                    WHERE company_id = ? AND user_company_id = ? AND revoked_at IS NULL
+                    """,
+                companyId, identityId
+            );
+        }
     }
 
     private String normalizeType(String value) {

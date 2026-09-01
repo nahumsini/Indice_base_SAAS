@@ -1,0 +1,43 @@
+package com.indice.erp.kiosk.api;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
+import com.indice.erp.kiosk.engine.KioskEngineFeatureFlags;
+import com.indice.erp.kiosk.engine.KioskUnavailableException;
+import com.indice.erp.kiosk.engine.MultiKioskService;
+import jakarta.servlet.http.HttpSession;
+import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+class MultiKioskAdminV2ControllerTest {
+
+    private final KioskInternalRequestGuard guard = mock(KioskInternalRequestGuard.class);
+    private final KioskEngineFeatureFlags flags = mock(KioskEngineFeatureFlags.class);
+    private final MultiKioskService multiKiosks = mock(MultiKioskService.class);
+    private final KioskV2ResponseFactory responses = mock(KioskV2ResponseFactory.class);
+    private final HttpSession session = mock(HttpSession.class);
+    private MultiKioskAdminV2Controller controller;
+
+    @BeforeEach
+    void setUp() {
+        when(flags.registryEnabled()).thenReturn(true);
+        when(flags.sessionsEnabled()).thenReturn(true);
+        when(flags.auditEnabled()).thenReturn(true);
+        when(flags.globalCenterEnabled()).thenReturn(true);
+        when(flags.multiDashboardEnabled()).thenReturn(false);
+        controller = new MultiKioskAdminV2Controller(guard, flags, multiKiosks, responses);
+    }
+
+    @Test
+    void rejectsAdministrativeMutationWhenMultiDashboardIsDisabled() {
+        assertThatThrownBy(() -> controller.create(
+            session, "csrf-token", Map.of("name", "Operations")))
+            .isInstanceOf(KioskUnavailableException.class);
+
+        verifyNoInteractions(guard, multiKiosks, responses);
+    }
+}

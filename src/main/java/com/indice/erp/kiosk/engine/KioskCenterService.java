@@ -30,6 +30,7 @@ public class KioskCenterService {
     public List<Map<String, Object>> list(long companyId) {
         return jdbcTemplate.query(centerSelect()
                 + " WHERE definition.company_id = ?"
+                + " AND definition.code NOT LIKE 'INDICE-EMPLOYEE-TOOL-%'"
                 + " ORDER BY definition.owner_module ASC, definition.name ASC",
             this::mapCenterRow,
             companyId
@@ -38,7 +39,8 @@ public class KioskCenterService {
 
     public Map<String, Object> detail(long companyId, long kioskDefinitionId) {
         var rows = jdbcTemplate.query(centerSelect()
-                + " WHERE definition.company_id = ? AND definition.id = ? LIMIT 1",
+                + " WHERE definition.company_id = ? AND definition.id = ?"
+                + " AND definition.code NOT LIKE 'INDICE-EMPLOYEE-TOOL-%' LIMIT 1",
             this::mapCenterRow,
             companyId,
             kioskDefinitionId

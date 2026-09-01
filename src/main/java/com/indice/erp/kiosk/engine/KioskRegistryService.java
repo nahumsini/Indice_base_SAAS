@@ -41,7 +41,8 @@ public class KioskRegistryService {
             throw new KioskUnavailableException();
         }
         var definitions = jdbcTemplate.query(
-            definitionSelect() + " WHERE definition.owner_module = ? AND definition.public_token_hash = ? LIMIT 1",
+            definitionSelect() + " WHERE definition.owner_module = ? AND definition.public_token_hash = ?"
+                + " AND definition.code NOT LIKE 'INDICE-EMPLOYEE-TOOL-%' LIMIT 1",
             this::mapDefinition, ownerModule.trim(), sha256(publicToken.trim()));
         return requireOperational(definitions);
     }
@@ -53,7 +54,8 @@ public class KioskRegistryService {
             throw new KioskUnavailableException();
         }
         var definitions = jdbcTemplate.query(
-            definitionSelect() + " WHERE definition.owner_module = ? AND definition.public_token_hash = ? LIMIT 1",
+            definitionSelect() + " WHERE definition.owner_module = ? AND definition.public_token_hash = ?"
+                + " AND definition.code NOT LIKE 'INDICE-EMPLOYEE-TOOL-%' LIMIT 1",
             this::mapDefinition, ownerModule.trim(), sha256(publicToken.trim()));
         if (definitions.isEmpty()) {
             throw new KioskUnavailableException();
@@ -77,7 +79,8 @@ public class KioskRegistryService {
             throw new KioskUnavailableException();
         }
         var definitions = jdbcTemplate.query(
-            definitionSelect() + " WHERE definition.public_token_hash = ? LIMIT 1",
+            definitionSelect() + " WHERE definition.public_token_hash = ?"
+                + " AND definition.code NOT LIKE 'INDICE-EMPLOYEE-TOOL-%' LIMIT 1",
             this::mapDefinition, sha256(publicToken.trim()));
         if (definitions.isEmpty()) {
             throw new KioskUnavailableException();
@@ -101,7 +104,8 @@ public class KioskRegistryService {
             throw new KioskUnavailableException();
         }
         var definitions = jdbcTemplate.query(
-            definitionSelect() + " WHERE definition.public_token_hash = ? LIMIT 1",
+            definitionSelect() + " WHERE definition.public_token_hash = ?"
+                + " AND definition.code NOT LIKE 'INDICE-EMPLOYEE-TOOL-%' LIMIT 1",
             this::mapDefinition,
             sha256(publicToken.trim())
         );

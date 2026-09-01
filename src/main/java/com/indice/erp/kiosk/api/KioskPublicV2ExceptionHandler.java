@@ -2,6 +2,7 @@ package com.indice.erp.kiosk.api;
 
 import com.indice.erp.kiosk.engine.KioskRateLimitExceededException;
 import com.indice.erp.kiosk.engine.KioskEngineDisabledException;
+import com.indice.erp.kiosk.engine.KioskIdempotencyConflictException;
 import com.indice.erp.kiosk.engine.KioskUnavailableException;
 import com.indice.erp.billing.lifecycle.CommercialAccessRestrictedException;
 import com.indice.erp.hr.attendance.kiosk.api.PublicKioskAttendanceApiController;
@@ -73,7 +74,7 @@ public class KioskPublicV2ExceptionHandler {
     @ExceptionHandler(KioskEngineDisabledException.class)
     public ResponseEntity<?> engineDisabled(KioskEngineDisabledException failure) {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(
-            responses.error("KIOSK_ENGINE_DISABLED", "El motor de kioskos no estÃ¡ disponible.", true));
+            responses.error("KIOSK_ENGINE_DISABLED", "El motor de kioscos no está disponible.", true));
     }
 
     @ExceptionHandler({KioskUnavailableException.class, NoSuchElementException.class})
@@ -107,6 +108,16 @@ public class KioskPublicV2ExceptionHandler {
     public ResponseEntity<?> unsupported(UnsupportedOperationException failure) {
         return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body(
             responses.error("KIOSK_METHOD_NOT_AVAILABLE", "Este método no está disponible.", false));
+    }
+
+    @ExceptionHandler(KioskIdempotencyConflictException.class)
+    public ResponseEntity<?> idempotencyConflict(KioskIdempotencyConflictException failure) {
+        var message = switch (failure.reason()) {
+            case REQUEST_MISMATCH -> "La clave de reintento pertenece a otra operación.";
+            case IN_PROGRESS -> "Esta operación todavía se está procesando. Intenta de nuevo en un momento.";
+        };
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(
+            responses.error(failure.code(), message, true));
     }
 
     @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})

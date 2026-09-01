@@ -219,10 +219,55 @@ public class KioskSessionService {
             KioskCapabilityDescriptor capability,
             Map<String, Object> payload,
             String browserSessionReference) {
+        return requireSession(
+            definition, capability, payload, browserSessionReference,
+            KioskExecutionChannels.PUBLIC_LINK);
+    }
+
+    @Transactional
+    public KioskSessionPrincipal requireSession(
+            KioskResolvedDefinition definition,
+            KioskCapabilityDescriptor capability,
+            Map<String, Object> payload,
+            String browserSessionReference,
+            String requestChannel) {
+        return requireSessionInternal(
+            definition, capability, payload, browserSessionReference, requestChannel, null);
+    }
+
+    /**
+     * Restores a mobile child session only after the Multi-kiosk boundary supplied the exact
+     * principal that it already validated against parent composition and company membership.
+     * This is deliberately separate from {@link #requireSession}: a request channel by itself
+     * must never turn Multi-kiosk composition into a general kiosk grant.
+     */
+    @Transactional
+    public KioskSessionPrincipal requirePrevalidatedMobileSession(
+            KioskResolvedDefinition definition,
+            KioskCapabilityDescriptor capability,
+            Map<String, Object> payload,
+            String browserSessionReference,
+            KioskSessionPrincipal expectedSession) {
+        if (expectedSession == null) {
+            throw new SecurityException("Mobile Multi-kiosk authority is required.");
+        }
+        return requireSessionInternal(
+            definition, capability, payload, browserSessionReference,
+            KioskExecutionChannels.MOBILE_MULTI_KIOSK, expectedSession);
+    }
+
+    private KioskSessionPrincipal requireSessionInternal(
+            KioskResolvedDefinition definition,
+            KioskCapabilityDescriptor capability,
+            Map<String, Object> payload,
+            String browserSessionReference,
+            String requestChannel,
+            KioskSessionPrincipal expectedMobileSession) {
         var accessToken = tokenFrom(payload);
         if (accessToken == null) {
             throw new SecurityException("Kiosk authentication is required.");
         }
+        var persistedChannel = KioskExecutionChannels.persistedSessionChannel(requestChannel);
         var rows = jdbcTemplate.query(
             """
                 SELECT session_id, kiosk_definition_id, company_id, identity_type, identity_id,
@@ -230,7 +275,7 @@ public class KioskSessionService {
                        GREATEST(0, TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP, expires_at))
                            AS expires_in_seconds
                 FROM kiosk_sessions
-                WHERE kiosk_definition_id = ? AND access_token_hash = ?
+                WHERE kiosk_definition_id = ? AND access_token_hash = ? AND channel = ?
                   AND revoked_at IS NULL
                   AND expires_at > CURRENT_TIMESTAMP
                   AND last_activity_at >= TIMESTAMPADD(SECOND, ?, CURRENT_TIMESTAMP)
@@ -249,7 +294,8 @@ public class KioskSessionService {
                     expiresAt
                 );
             },
-            definition.id(), sha256(accessToken), -inactivityTimeout(definition).getSeconds()
+            definition.id(), sha256(accessToken), persistedChannel,
+            -inactivityTimeout(definition).getSeconds()
         );
         if (rows.isEmpty()) {
             throw new SecurityException("Kiosk authentication is required.");
@@ -258,7 +304,16 @@ public class KioskSessionService {
         if (!session.grantedCapabilities().contains(capability.versionedKey())) {
             throw new SecurityException("Kiosk capability is not granted.");
         }
-        if (!hasGrant(definition.id(), session.identityType(), session.identityId(), capability.key())) {
+        if (expectedMobileSession == null) {
+            if (!hasGrant(
+                    definition.id(), session.identityType(), session.identityId(), capability.key())) {
+                throw new SecurityException("Kiosk grant is not active.");
+            }
+        } else if (!sameSession(expectedMobileSession, session, definition)) {
+            throw new SecurityException("Kiosk session context does not match the request channel.");
+        }
+        if (expectedMobileSession != null
+                && !KioskExecutionChannels.MOBILE_MULTI_KIOSK.equals(persistedChannel)) {
             throw new SecurityException("Kiosk grant is not active.");
         }
         jdbcTemplate.update(
@@ -266,6 +321,21 @@ public class KioskSessionService {
             session.sessionId()
         );
         return session;
+    }
+
+    private boolean sameSession(
+            KioskSessionPrincipal expected,
+            KioskSessionPrincipal restored,
+            KioskResolvedDefinition definition) {
+        return expected.sessionId() != null
+            && expected.sessionId().equals(restored.sessionId())
+            && expected.kioskDefinitionId() == definition.id()
+            && restored.kioskDefinitionId() == definition.id()
+            && expected.companyId() == definition.companyId()
+            && restored.companyId() == definition.companyId()
+            && expected.identityType() != null
+            && expected.identityType().equals(restored.identityType())
+            && expected.identityId() == restored.identityId();
     }
 
     @Transactional
@@ -453,34 +523,14 @@ public class KioskSessionService {
     private boolean hasGrant(long definitionId, String identityType, long identityId, String capabilityKey) {
         var count = jdbcTemplate.queryForObject(
             """
-                SELECT (
-                    EXISTS(
-                        SELECT 1 FROM kiosk_grants
-                        WHERE kiosk_definition_id = ? AND identity_type = ? AND identity_id = ?
-                          AND status = 'ACTIVE' AND capability_key IN ('*', ?)
-                    ) OR (
-                        ? = 'USER' AND EXISTS(
-                            SELECT 1
-                            FROM multi_kiosk_items item
-                            INNER JOIN multi_kiosk_definitions parent
-                              ON parent.id = item.multi_kiosk_id
-                             AND parent.status = 'ACTIVE'
-                             AND (parent.expires_at IS NULL OR parent.expires_at > CURRENT_TIMESTAMP)
-                            INNER JOIN multi_kiosk_assignments assignment
-                              ON assignment.multi_kiosk_id = parent.id
-                             AND assignment.status = 'ACTIVE'
-                            INNER JOIN user_companies membership
-                              ON membership.id = assignment.user_company_id
-                             AND membership.company_id = parent.company_id
-                             AND LOWER(COALESCE(membership.status, 'active')) IN ('active', 'activo')
-                            WHERE item.kiosk_definition_id = ? AND membership.user_id = ?
-                        )
-                    )
+                SELECT EXISTS(
+                    SELECT 1 FROM kiosk_grants
+                    WHERE kiosk_definition_id = ? AND identity_type = ? AND identity_id = ?
+                      AND status = 'ACTIVE' AND capability_key IN ('*', ?)
                 )
                 """,
             Integer.class,
-            definitionId, identityType, identityId, capabilityKey,
-            identityType, definitionId, identityId
+            definitionId, identityType, identityId, capabilityKey
         );
         return count != null && count > 0;
     }
@@ -500,15 +550,11 @@ public class KioskSessionService {
                  AND parent.company_id = ?
                  AND parent.status = 'ACTIVE'
                  AND (parent.expires_at IS NULL OR parent.expires_at > CURRENT_TIMESTAMP)
-                INNER JOIN multi_kiosk_assignments assignment
-                  ON assignment.multi_kiosk_id = parent.id
-                 AND assignment.user_company_id = ?
-                 AND assignment.status = 'ACTIVE'
                 INNER JOIN user_companies membership
-                  ON membership.id = assignment.user_company_id
-                 AND membership.company_id = parent.company_id
-                 AND membership.user_id = ?
-                 AND LOWER(COALESCE(membership.status, 'active')) IN ('active', 'activo')
+                  ON membership.id = ?
+                  AND membership.company_id = parent.company_id
+                  AND membership.user_id = ?
+                  AND LOWER(COALESCE(membership.status, 'active')) IN ('active', 'activo')
                 WHERE item.kiosk_definition_id = ?
                 """,
             Integer.class,
