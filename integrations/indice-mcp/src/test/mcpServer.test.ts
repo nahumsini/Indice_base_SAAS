@@ -39,7 +39,14 @@ test("lists and executes get_sales_today through MCP", async () => {
     ]) {
       assert.ok(names.includes(expected), `${expected} should be registered`);
     }
-    assert.equal(tools.tools[0]?.annotations?.readOnlyHint, true);
+    for (const tool of tools.tools) {
+      assert.ok(tool.title, `${tool.name} should have a title`);
+      assert.ok(tool.description, `${tool.name} should have a description`);
+      assert.ok(tool.outputSchema, `${tool.name} should have an output schema`);
+      assert.equal(typeof tool.annotations?.readOnlyHint, "boolean", `${tool.name} should declare readOnlyHint`);
+      assert.equal(typeof tool.annotations?.destructiveHint, "boolean", `${tool.name} should declare destructiveHint`);
+      assert.equal(typeof tool.annotations?.openWorldHint, "boolean", `${tool.name} should declare openWorldHint`);
+    }
 
     const result = await client.callTool({
       name: "get_sales_today",

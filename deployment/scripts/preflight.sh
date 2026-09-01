@@ -102,6 +102,11 @@ validate_mcp_configuration() {
     echo "APPTEST MCP must bind to INDICE_MCP_HOST=127.0.0.1." >&2
     return 1
   }
+
+  if ! grep -Fq "location = /api/v1/ai/mcp" "${DEPLOY_DIR}/docker/web/nginx.host.conf"; then
+    echo "Host Nginx must expose only the exact OAuth-protected MCP route." >&2
+    return 1
+  fi
 }
 
 validate_mcp_configuration
