@@ -53,7 +53,7 @@ El modo `stdio` con contraseña se conserva únicamente como bootstrap de desarr
 
 La validación inicial sobre una copia aislada de la base funcional confirmó:
 
-- Flyway desde el historial real hasta `V239`, sin migraciones pendientes;
+- Flyway desde el historial real hasta `V243`, sin migraciones pendientes;
 - una venta creada por la API normal de Índice por `1,234.56 MXN`;
 - respuesta idéntica por Streamable HTTP y `get_sales_today`;
 - exclusión de una venta centinela de otra empresa por `999,999.99 MXN`;
