@@ -31,7 +31,7 @@ async function main(): Promise<void> {
     ...(error ? [`error=\"${error}\"`] : [])
   ].join(", ")}`;
 
-  app.get("/.well-known/oauth-protected-resource", (_request, response) => {
+  const protectedResourceMetadata = (_request: Request, response: Response) => {
     response
       .status(200)
       .header("Cache-Control", "no-store")
@@ -41,7 +41,9 @@ async function main(): Promise<void> {
         scopes_supported: supportedScopes,
         resource_documentation: `${config.oauthIssuer.toString().replace(/\/$/, "")}/home-panel/integrations`
       });
-  });
+  };
+  app.get("/.well-known/oauth-protected-resource", protectedResourceMetadata);
+  app.get("/.well-known/oauth-protected-resource/mcp", protectedResourceMetadata);
   app.post("/mcp", async (request, response) => {
     const authorization = request.header("authorization");
     if (!authorization?.toLowerCase().startsWith("bearer ")) {

@@ -22,7 +22,10 @@ public class AiOAuthMetadataController {
         this.accessTokenService = accessTokenService;
     }
 
-    @GetMapping("/.well-known/oauth-protected-resource")
+    @GetMapping({
+        "/.well-known/oauth-protected-resource",
+        "/.well-known/oauth-protected-resource/api/v1/ai/mcp"
+    })
     public ResponseEntity<?> protectedResource() {
         return ResponseEntity.ok()
             .cacheControl(CacheControl.noStore())
