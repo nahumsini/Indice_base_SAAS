@@ -327,6 +327,139 @@ public class ExecutiveKpiDomainRepository {
                 (int) balances[6], (int) balances[7]);
     }
 
+    public List<ProductPortfolioSalesRow> loadProductPortfolioSales(ExecutiveKpiScope scope) {
+        var filter = numericScope(scope, "sale", "sale.sale_date");
+        return jdbcTemplate.query("""
+                SELECT product.id AS product_id,
+                       product.name AS product_name,
+                       COALESCE(product.sku, '') AS sku,
+                       COALESCE(NULLIF(TRIM(product.category), ''), 'uncategorized') AS category,
+                       UPPER(TRIM(sale.currency)) AS currency,
+                       SUM(line.subtotal_amount
+                           * (1 - LEAST(100, GREATEST(0, COALESCE(line.discount_percent, 0))) / 100)) AS revenue,
+                       SUM(CASE
+                           WHEN line.unit_cost IS NOT NULL AND line.unit_cost >= 0
+                           THEN line.quantity * line.unit_cost
+                           ELSE 0
+                       END) AS cost,
+                       SUM(line.quantity) AS units,
+                       COUNT(DISTINCT sale.id) AS sale_count,
+                       SUM(CASE WHEN line.unit_cost IS NULL OR line.unit_cost < 0 THEN 1 ELSE 0 END)
+                           AS missing_cost_lines
+                FROM sales_records sale
+                JOIN JSON_TABLE(
+                    COALESCE(sale.sale_lines_json, JSON_ARRAY()),
+                    '$[*]' COLUMNS (
+                        product_id BIGINT PATH '$.productId' NULL ON EMPTY NULL ON ERROR,
+                        quantity DECIMAL(19,4) PATH '$.quantity' NULL ON EMPTY NULL ON ERROR,
+                        subtotal_amount DECIMAL(19,4) PATH '$.subtotal' NULL ON EMPTY NULL ON ERROR,
+                        discount_percent DECIMAL(9,4) PATH '$.discountPercent' NULL ON EMPTY NULL ON ERROR,
+                        unit_cost DECIMAL(19,4) PATH '$.unitCost' NULL ON EMPTY NULL ON ERROR
+                    )
+                ) line
+                JOIN sales_products product ON product.id = line.product_id
+                    AND product.company_id = sale.company_id
+                    AND product.deleted_at IS NULL
+                WHERE sale.deleted_at IS NULL AND %s
+                  AND line.product_id IS NOT NULL
+                  AND line.quantity > 0
+                  AND line.subtotal_amount >= 0
+                """.formatted(VALID_SALE_PREDICATE) + filter.sql()
+                + " GROUP BY product.id, product.name, product.sku, product.category, UPPER(TRIM(sale.currency))",
+                (rs, rowNum) -> new ProductPortfolioSalesRow(
+                rs.getLong("product_id"),
+                rs.getString("product_name"),
+                rs.getString("sku"),
+                rs.getString("category"),
+                rs.getString("currency"),
+                rs.getBigDecimal("revenue"),
+                rs.getBigDecimal("cost"),
+                rs.getBigDecimal("units"),
+                integer(rs.getObject("sale_count")),
+                integer(rs.getObject("missing_cost_lines"))), filter.params().toArray());
+    }
+
+    public ProductPortfolioSalesQuality loadProductPortfolioSalesQuality(ExecutiveKpiScope scope) {
+        var filter = numericScope(scope, "sale", "sale.sale_date");
+        return jdbcTemplate.queryForObject("""
+                SELECT COUNT(DISTINCT sale.id) AS sale_records,
+                       COUNT(DISTINCT CASE
+                           WHEN JSON_LENGTH(COALESCE(sale.sale_lines_json, JSON_ARRAY())) = 0 THEN sale.id
+                       END) AS sales_without_lines,
+                       COUNT(DISTINCT CASE
+                           WHEN line.product_id IS NOT NULL AND line.quantity > 0
+                            AND line.subtotal_amount >= 0 AND product.id IS NOT NULL THEN sale.id
+                       END) AS attributed_sales,
+                       SUM(CASE
+                           WHEN JSON_LENGTH(COALESCE(sale.sale_lines_json, JSON_ARRAY())) > 0
+                            AND (line.product_id IS NULL OR line.quantity IS NULL OR line.quantity <= 0
+                                 OR line.subtotal_amount IS NULL OR line.subtotal_amount < 0
+                                 OR line.discount_percent < 0 OR line.discount_percent > 100)
+                           THEN 1 ELSE 0
+                       END) AS invalid_line_rows,
+                       SUM(CASE
+                           WHEN JSON_LENGTH(COALESCE(sale.sale_lines_json, JSON_ARRAY())) > 0
+                            AND line.product_id IS NOT NULL AND product.id IS NULL
+                           THEN 1 ELSE 0
+                       END) AS unlinked_product_rows,
+                       COUNT(DISTINCT CASE
+                           WHEN sale.currency IS NULL OR UPPER(TRIM(sale.currency)) NOT REGEXP '^[A-Z]{3}$'
+                           THEN sale.id
+                       END) AS invalid_currency_records
+                FROM sales_records sale
+                LEFT JOIN JSON_TABLE(
+                    COALESCE(sale.sale_lines_json, JSON_ARRAY()),
+                    '$[*]' COLUMNS (
+                        product_id BIGINT PATH '$.productId' NULL ON EMPTY NULL ON ERROR,
+                        quantity DECIMAL(19,4) PATH '$.quantity' NULL ON EMPTY NULL ON ERROR,
+                        subtotal_amount DECIMAL(19,4) PATH '$.subtotal' NULL ON EMPTY NULL ON ERROR,
+                        discount_percent DECIMAL(9,4) PATH '$.discountPercent' NULL ON EMPTY NULL ON ERROR
+                    )
+                ) line ON TRUE
+                LEFT JOIN sales_products product ON product.id = line.product_id
+                    AND product.company_id = sale.company_id
+                    AND product.deleted_at IS NULL
+                WHERE sale.deleted_at IS NULL AND %s
+                """.formatted(VALID_SALE_PREDICATE) + filter.sql(), (rs, rowNum) -> new ProductPortfolioSalesQuality(
+                integer(rs.getObject("sale_records")),
+                integer(rs.getObject("attributed_sales")),
+                integer(rs.getObject("sales_without_lines")),
+                integer(rs.getObject("invalid_line_rows")),
+                integer(rs.getObject("unlinked_product_rows")),
+                integer(rs.getObject("invalid_currency_records"))), filter.params().toArray());
+    }
+
+    public List<ProductPortfolioInventoryRow> loadProductPortfolioInventory(ExecutiveKpiScope scope) {
+        var filter = inventoryScope(scope, "balance", null);
+        return jdbcTemplate.query("""
+                SELECT balance.product_id,
+                       COUNT(*) AS stock_locations,
+                       SUM(COALESCE(balance.available_quantity, 0)) AS available_quantity,
+                       SUM(COALESCE(balance.minimum_quantity, 0)) AS minimum_quantity,
+                       SUM(CASE WHEN balance.available_quantity <= 0 THEN 1 ELSE 0 END) AS out_of_stock_locations,
+                       SUM(CASE
+                           WHEN balance.available_quantity > 0
+                            AND balance.available_quantity <= balance.minimum_quantity THEN 1 ELSE 0
+                       END) AS low_stock_locations,
+                       SUM(CASE
+                           WHEN balance.available_quantity < 0 OR balance.minimum_quantity < 0
+                            OR balance.reserved_quantity < 0 THEN 1 ELSE 0
+                       END) AS invalid_quantity_rows
+                FROM sales_inventory_balances balance
+                JOIN sales_products product ON product.id = balance.product_id
+                    AND product.company_id = balance.company_id
+                    AND product.deleted_at IS NULL
+                WHERE balance.deleted_at IS NULL AND balance.uses_inventory = 1
+                """ + filter.sql() + " GROUP BY balance.product_id", (rs, rowNum) -> new ProductPortfolioInventoryRow(
+                rs.getLong("product_id"),
+                rs.getBigDecimal("available_quantity"),
+                rs.getBigDecimal("minimum_quantity"),
+                integer(rs.getObject("stock_locations")),
+                integer(rs.getObject("out_of_stock_locations")),
+                integer(rs.getObject("low_stock_locations")),
+                integer(rs.getObject("invalid_quantity_rows"))), filter.params().toArray());
+    }
+
     public SalesSnapshot loadSales(ExecutiveKpiScope scope) {
         var salesFilter = numericScope(scope, "sale", null);
         var salesParams = withBounds(scope, salesFilter.params());
@@ -546,6 +679,68 @@ public class ExecutiveKpiDomainRepository {
                 """ + filter.sql() + " GROUP BY product.currency", filter.params());
     }
 
+    public PeopleSnapshot loadPeople(ExecutiveKpiScope scope) {
+        var params = new ArrayList<Object>();
+        params.add(scope.from().toString());
+        params.add(scope.to().toString());
+        params.add(scope.companyId());
+        var narrowerScope = new StringBuilder();
+        if (scope.unitId() != null) {
+            narrowerScope.append(" AND person.unit_id = ?");
+            params.add(scope.unitId());
+        }
+        if (scope.businessId() != null) {
+            narrowerScope.append(" AND person.business_id = ?");
+            params.add(scope.businessId());
+        }
+
+        return jdbcTemplate.queryForObject("""
+                WITH bounds AS (SELECT CAST(? AS DATE) AS from_date, CAST(? AS DATE) AS to_date)
+                SELECT COUNT(DISTINCT person.user_company_id) AS active_collaborators,
+                       SUM(CASE WHEN attendance.id IS NOT NULL THEN 1 ELSE 0 END) AS attendance_records,
+                       SUM(CASE
+                             WHEN LOWER(COALESCE(attendance.corrected_status, attendance.system_status, ''))
+                                  IN ('on_time', 'late', 'absence')
+                             THEN 1 ELSE 0
+                           END) AS scheduled_attendance_records,
+                       SUM(CASE
+                             WHEN LOWER(COALESCE(attendance.corrected_status, attendance.system_status, '')) = 'absence'
+                             THEN 1 ELSE 0
+                           END) AS absence_records,
+                       SUM(CASE
+                             WHEN LOWER(COALESCE(attendance.corrected_status, attendance.system_status, '')) = 'late'
+                               OR (LOWER(COALESCE(attendance.corrected_status, attendance.system_status, '')) = 'on_time'
+                                   AND COALESCE(attendance.minutes_late, 0) > 0)
+                             THEN 1 ELSE 0
+                           END) AS late_records,
+                       SUM(CASE
+                             WHEN attendance.id IS NOT NULL
+                              AND LOWER(COALESCE(attendance.corrected_status, attendance.system_status, ''))
+                                  NOT IN ('on_time', 'late', 'leave', 'rest', 'absence', 'pending', 'not_scheduled')
+                             THEN 1 ELSE 0
+                           END) AS invalid_status_rows,
+                       SUM(CASE WHEN COALESCE(attendance.minutes_late, 0) < 0 THEN 1 ELSE 0 END)
+                           AS invalid_minutes_rows
+                FROM hr_users person
+                CROSS JOIN bounds
+                LEFT JOIN user_attendance_daily_records attendance
+                  ON attendance.company_id = person.company_id
+                 AND attendance.user_company_id = person.user_company_id
+                 AND attendance.attendance_date BETWEEN bounds.from_date AND bounds.to_date
+                WHERE person.company_id = ?
+                  AND LOWER(COALESCE(person.status, 'active')) IN ('active', 'activo')
+                """ + narrowerScope,
+                (rs, rowNum) -> new PeopleSnapshot(
+                        integer(rs.getObject("active_collaborators")),
+                        integer(rs.getObject("attendance_records")),
+                        integer(rs.getObject("scheduled_attendance_records")),
+                        integer(rs.getObject("absence_records")),
+                        integer(rs.getObject("late_records")),
+                        integer(rs.getObject("invalid_status_rows")),
+                        integer(rs.getObject("invalid_minutes_rows"))),
+                params.toArray());
+    }
+
     private ScopeFilter pettyCashLineScope(ExecutiveKpiScope scope, String dateColumn) {
         var params = new ArrayList<Object>();
         var sql = new StringBuilder(" AND line.company_id = ?");
@@ -676,6 +871,48 @@ public class ExecutiveKpiDomainRepository {
             int missingSaleDate, int invalidSaleAmountRows, int invalidSaleCurrencyRows,
             int missingOpportunityDate, int invalidProbabilityRows,
             int invalidOpportunityAmountRows, int invalidOpportunityCurrencyRows) {
+    }
+
+    public record ProductPortfolioSalesRow(
+            long productId,
+            String productName,
+            String sku,
+            String category,
+            String currency,
+            BigDecimal revenue,
+            BigDecimal cost,
+            BigDecimal units,
+            int saleCount,
+            int missingCostLines) {
+    }
+
+    public record ProductPortfolioSalesQuality(
+            int saleRecords,
+            int attributedSales,
+            int salesWithoutLines,
+            int invalidLineRows,
+            int unlinkedProductRows,
+            int invalidCurrencyRecords) {
+    }
+
+    public record ProductPortfolioInventoryRow(
+            long productId,
+            BigDecimal availableQuantity,
+            BigDecimal minimumQuantity,
+            int stockLocations,
+            int outOfStockLocations,
+            int lowStockLocations,
+            int invalidQuantityRows) {
+    }
+
+    public record PeopleSnapshot(
+            int activeCollaborators,
+            int attendanceRecords,
+            int scheduledAttendanceRecords,
+            int absenceRecords,
+            int lateRecords,
+            int invalidStatusRows,
+            int invalidMinutesRows) {
     }
 
     public record CurrencyCount(String currency, int count) {

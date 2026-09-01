@@ -2,6 +2,7 @@ package com.indice.erp.kpis.executive;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -42,8 +43,12 @@ class ExecutiveKpiDomainServiceTest {
         var transactionManager = mock(PlatformTransactionManager.class);
         when(transactionManager.getTransaction(any(TransactionDefinition.class)))
                 .thenReturn(new SimpleTransactionStatus());
+        var currencyAggregationService = new KpiCurrencyAggregationService();
         service = new ExecutiveKpiDomainService(
-                repository, new KpiCurrencyAggregationService(), exchangeRateService, transactionManager);
+                repository, currencyAggregationService, exchangeRateService,
+                new ExecutiveKpiDiagnosisService(),
+                new ExecutiveProductPortfolioService(repository, currencyAggregationService),
+                transactionManager);
         scope = new ExecutiveKpiScope(1L, LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 16),
                 "custom", null, null, "", "all", "MXN", LocalDate.of(2026, 8, 16));
         previous = scope.previousPeriod();
@@ -71,7 +76,6 @@ class ExecutiveKpiDomainServiceTest {
                 new ExecutiveKpiDomainRepository.CurrencyCount("MXN", 2)));
         when(repository.loadSalesCountByCurrency(previous)).thenReturn(List.of(
                 new ExecutiveKpiDomainRepository.CurrencyCount("MXN", 2)));
-
         when(repository.loadExpenseValue(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyBoolean())).thenReturn(List.of());
         when(repository.loadBudgetValue(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString())).thenReturn(List.of());
         when(repository.loadBudgetQuality(org.mockito.ArgumentMatchers.any()))
@@ -80,17 +84,24 @@ class ExecutiveKpiDomainServiceTest {
         when(repository.loadPettyCashSettlements(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
         when(repository.loadInventoryValue(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
         when(repository.loadPipelineValue(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
+        lenient().when(repository.loadProductPortfolioSales(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
+        lenient().when(repository.loadProductPortfolioInventory(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
+        lenient().when(repository.loadProductPortfolioSalesQuality(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new ExecutiveKpiDomainRepository.ProductPortfolioSalesQuality(0, 0, 0, 0, 0, 0));
     }
 
     @Test
     void buildsVersionedDomainsWithComparableOperationalMetricsAndConvertedSales() {
+        when(repository.loadPeople(scope)).thenReturn(
+                new ExecutiveKpiDomainRepository.PeopleSnapshot(8, 40, 40, 2, 4, 0, 0));
         when(repository.loadSalesValue(scope)).thenReturn(List.of(
                 new KpiMoneyAmount(new BigDecimal("100.00"), "USD"),
                 new KpiMoneyAmount(new BigDecimal("1700.00"), "MXN")));
         when(repository.loadSalesValue(previous)).thenReturn(List.of(
                 new KpiMoneyAmount(new BigDecimal("1000.00"), "MXN")));
 
-        var result = service.build(scope);
+        var snapshot = service.buildSnapshot(scope);
+        var result = snapshot.domains();
 
         assertThat(result.contractVersion()).isEqualTo("2.1");
         assertThat(result.items()).extracting(ExecutiveKpiDomainContracts.Domain::id)
@@ -102,6 +113,39 @@ class ExecutiveKpiDomainServiceTest {
         assertThat(metric(result, "inventory", "reservedRate").value()).isEqualByComparingTo("30.00");
         assertThat(result.dataQuality().partial()).isFalse();
         assertThat(result.dataQuality().decisionReady()).isTrue();
+        assertThat(snapshot.diagnosis().contractVersion()).isEqualTo("1.0");
+        assertThat(snapshot.diagnosis().methodology().id()).isEqualTo("indice-four-sectors");
+        assertThat(snapshot.diagnosis().sectors())
+                .extracting(ExecutiveKpiDiagnosisContracts.Sector::id)
+                .containsExactly("people", "processes", "products", "finance");
+        assertThat(snapshot.diagnosis().score()).isNotNull();
+        assertThat(snapshot.diagnosis().coveragePercent()).isEqualTo(88);
+        assertThat(diagnosisFinding(snapshot.diagnosis(), "people_attendance").value())
+                .isEqualByComparingTo("95.00");
+        assertThat(diagnosisFinding(snapshot.diagnosis(), "people_punctuality").value())
+                .isEqualByComparingTo("89.47");
+        assertThat(snapshot.diagnosis().crossSectorFindings())
+                .allMatch(finding -> finding.sectorIds().stream().distinct().count() >= 2);
+        assertThat(snapshot.productPortfolio().contractVersion()).isEqualTo("1.0");
+        assertThat(snapshot.productPortfolio().methodology().externalMarketDataIncluded()).isFalse();
+    }
+
+    @Test
+    void keepsPeopleAsADataGapWhenThePeriodHasNoAttendanceEvidence() {
+        when(repository.loadPeople(scope)).thenReturn(
+                new ExecutiveKpiDomainRepository.PeopleSnapshot(8, 0, 0, 0, 0, 0, 0));
+        when(repository.loadSalesValue(scope)).thenReturn(List.of());
+        when(repository.loadSalesValue(previous)).thenReturn(List.of());
+
+        var diagnosis = service.buildSnapshot(scope).diagnosis();
+        var people = diagnosis.sectors().stream().filter(sector -> sector.id().equals("people")).findFirst().orElseThrow();
+
+        assertThat(people.score()).isNull();
+        assertThat(people.coveragePercent()).isZero();
+        assertThat(people.findings()).allMatch(finding -> finding.kind().equals("data_gap"));
+        assertThat(diagnosis.score()).isNull();
+        assertThat(diagnosis.decisionReady()).isFalse();
+        assertThat(diagnosis.dataQuality().issues()).anyMatch(issue -> issue.contains("no hay registros de asistencia"));
     }
 
     @Test
@@ -228,6 +272,16 @@ class ExecutiveKpiDomainServiceTest {
                 .filter(domain -> domain.id().equals(domainId))
                 .flatMap(domain -> domain.metrics().stream())
                 .filter(metric -> metric.id().equals(metricId))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private ExecutiveKpiDiagnosisContracts.Finding diagnosisFinding(
+            ExecutiveKpiDiagnosisContracts.Diagnosis diagnosis,
+            String code) {
+        return diagnosis.sectors().stream()
+                .flatMap(sector -> sector.findings().stream())
+                .filter(finding -> finding.code().equals(code))
                 .findFirst()
                 .orElseThrow();
     }

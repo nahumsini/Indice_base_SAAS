@@ -22,10 +22,15 @@ public class ExecutiveKpiService {
 
     private final ExecutiveKpiRepository repository;
     private final ExecutiveKpiDomainService domainService;
+    private final ExecutiveDecisionMatrixService decisionMatrixService;
 
-    public ExecutiveKpiService(ExecutiveKpiRepository repository, ExecutiveKpiDomainService domainService) {
+    public ExecutiveKpiService(
+            ExecutiveKpiRepository repository,
+            ExecutiveKpiDomainService domainService,
+            ExecutiveDecisionMatrixService decisionMatrixService) {
         this.repository = repository;
         this.domainService = domainService;
+        this.decisionMatrixService = decisionMatrixService;
     }
 
     public Map<String, Object> getExecutivePanel(long companyId, long userId, Map<String, String> params) {
@@ -55,6 +60,7 @@ public class ExecutiveKpiService {
         var score = buildExecutiveScore(summary);
         summary.put("executiveScore", score);
         summary.put("operatingMargin", percent(number(summary.get("operatingProfit")), number(summary.get("salesTotal"))));
+        var nativeCurrencies = repository.loadNativeCurrencies(scope);
 
         var body = new LinkedHashMap<String, Object>();
         body.put("range", Map.of(
@@ -68,10 +74,13 @@ public class ExecutiveKpiService {
                 "risk", scope.risk()));
         body.put("context", Map.of(
                 "currency", scope.preferredCurrency(),
-                "nativeCurrencies", repository.loadNativeCurrencies(scope),
+                "nativeCurrencies", nativeCurrencies,
                 "generatedAt", Instant.now().toString(),
                 "scopeLabel", scopeLabel(scope),
-                "authoritativeContract", "domains/2.1"));
+                "authoritativeContract", "domains/2.1",
+                "diagnosisContract", "diagnosis/1.0",
+                "productPortfolioContract", "portfolio-bcg/1.0",
+                "decisionMatrixContract", "decision-matrices/1.0"));
         body.put("summary", summary);
         body.put("kpiCards", buildCards(summary));
         body.put("unitRows", rows);
@@ -82,7 +91,12 @@ public class ExecutiveKpiService {
         body.put("absenteeism", repository.loadAbsenteeism(scope));
         body.put("alerts", buildAlerts(summary, rows));
         body.put("rankings", buildRankings(rows));
-        body.put("domains", domainService.build(scope));
+        var executiveSnapshot = domainService.buildSnapshot(scope);
+        body.put("domains", executiveSnapshot.domains());
+        body.put("diagnosis", executiveSnapshot.diagnosis());
+        body.put("productPortfolio", executiveSnapshot.productPortfolio());
+        body.put("decisionMatrices", decisionMatrixService.build(
+                scope, rows, executiveSnapshot.productPortfolio(), nativeCurrencies));
         return body;
     }
 

@@ -16,7 +16,10 @@ class ExecutiveKpiServiceTest {
     @BeforeEach
     void setUp() {
         repository = mock(ExecutiveKpiRepository.class);
-        service = new ExecutiveKpiService(repository, mock(ExecutiveKpiDomainService.class));
+        service = new ExecutiveKpiService(
+                repository,
+                mock(ExecutiveKpiDomainService.class),
+                mock(ExecutiveDecisionMatrixService.class));
     }
 
     @Test

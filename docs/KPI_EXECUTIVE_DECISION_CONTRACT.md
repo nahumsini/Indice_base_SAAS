@@ -101,6 +101,7 @@ Si alguna condición falla, la cabecera muestra revisión requerida, los dominio
 
 ## Fuentes físicas
 
+- Personas: `hr_users`, `user_attendance_daily_records`.
 - Tareas y procesos: `process_tasks`.
 - Gastos y presupuesto: `finance_expenses`, `finance_budgets`, `finance_budget_lines`.
 - Caja chica: `finance_petty_cash_funds`, `finance_petty_cash_settlement_lines`.
@@ -108,6 +109,114 @@ Si alguna condición falla, la cabecera muestra revisión requerida, los dominio
 - Ventas: `sales_records`, `sales_opportunities`.
 - Alcance organizacional: `units`, `businesses`.
 - Tasas: instantánea diaria producida por `BusinessExchangeRateService`.
+
+## Autoevaluador Índice `diagnosis/1.0`
+
+La primera pestaña conserva `domains/2.1` como evidencia compatible y agrega un contrato hermano
+`diagnosis/1.0`. Ambos se calculan dentro de la misma lectura `REPEATABLE READ`. El diagnóstico no
+reemplaza las cifras de dominio ni convierte el score ejecutivo histórico en una metodología nueva.
+
+Los cuatro sectores son `people`, `processes`, `products` y `finance`:
+
+- Personas observa regularidad de asistencia sobre jornadas comparables `on_time`, `late` y `absence`;
+  la puntualidad usa únicamente jornadas con presencia (`on_time` o `late`). Permisos, descansos,
+  pendientes y días no programados no entran al denominador. No se presumen días esperados que el
+  sistema no pueda demostrar.
+- Procesos usa cumplimiento, rezago vencido y tareas sin responsable de `domains/2.1`.
+- Productos usa agotados, stock bajo, venta del periodo y conversión comercial de `domains/2.1`.
+- Finanzas usa control presupuestal, pagos vencidos, utilización de caja chica y fondos en atención de
+  `domains/2.1`.
+
+Cada regla publica un código estable, fuente, métrica, valor, base temporal, peso, disponibilidad y
+módulo responsable. La interfaz localiza su explicación y acción; no inventa reglas de negocio.
+
+La clasificación tipo FODA es deliberadamente interna:
+
+- `strength`: evidencia disponible con estado sano;
+- `symptom`: evidencia crítica;
+- `opportunity`: evidencia en atención;
+- `data_gap`: evidencia ausente, parcial o estructuralmente inválida.
+
+No se presentan factores externos como oportunidades o amenazas sin una fuente externa explícita. Los
+patrones entre sectores son hipótesis de revisión producidas por reglas nombradas, no causalidad
+demostrada.
+
+El score usa 100 puntos para `healthy`, 60 para `watch` y 25 para `critical`, ponderados sólo entre
+reglas disponibles. Un sector requiere al menos 50% de su peso cubierto para publicar score. El score
+general requiere score publicable en los cuatro sectores. Un dato ausente reduce cobertura y nunca
+recibe cero. `decisionReady=true` exige cobertura mínima de todos los sectores, ausencia de parciales,
+calidad íntegra de `domains/2.1` y registros de Personas estructuralmente válidos.
+
+## Matriz de portafolio de productos `portfolio-bcg/1.0`
+
+La primera pestaña agrega el contrato hermano `portfolio-bcg/1.0`, calculado dentro de la misma lectura
+`REPEATABLE READ` y con los mismos filtros de empresa, Unidad, Negocio, periodo y moneda preferida. Es
+una adaptación interna de la matriz BCG: no representa participación de mercado, no usa datos de
+competidores y no debe comunicarse como la matriz BCG clásica sin esta aclaración.
+
+La población se obtiene de los renglones de producto de `sales_records.sale_lines_json`, enlazados al
+catálogo vigente `sales_products`. Se excluyen ventas canceladas, rechazadas o anuladas y renglones con
+producto inexistente, cantidad negativa, subtotal negativo o descuento fuera de 0-100. La venta neta por
+renglón es `subtotal * (1 - discountPercent / 100)`. Los subtotales se consolidan con las mismas reglas de
+moneda y evidencia cambiaria de los demás KPI. El inventario de `sales_inventory_balances` es evidencia
+complementaria y no altera el cuadrante.
+
+Los ejes y umbrales son explícitos:
+
+- Fuerza relativa = venta neta actual del producto / venta neta actual del líder de su categoría. Es alta
+  desde 50%.
+- Crecimiento = `(venta neta actual - venta neta anterior) / venta neta anterior`. Es alto desde 0%.
+- Un producto sin venta anterior positiva o con importes parcialmente excluidos permanece
+  `unclassified`; la ausencia de comparación nunca se convierte en crecimiento cero.
+- Los cuadrantes son `star` (fuerza alta, crecimiento alto), `cash_cow` (fuerza alta, crecimiento bajo),
+  `question_mark` (fuerza baja, crecimiento alto) y `dog` (fuerza baja, crecimiento bajo).
+- El tamaño de la burbuja representa la venta actual del producto / venta total actual del portafolio.
+
+La respuesta calcula totales y resúmenes con toda la población elegible. Para conservar legibilidad, la
+visualización contiene como máximo los 40 productos con mayor venta y publica `truncated=true` cuando
+aplica. `dataQuality.decisionReady=true` exige renglones atribuibles en ambos periodos, al menos un
+producto clasificable, ausencia de anomalías estructurales y conversión monetaria completa y verificable.
+
+## Matrices de decisión `decision-matrices/1.0`
+
+La pestaña Matriz agrega el contrato hermano `decision-matrices/1.0`, calculado dentro de la misma
+lectura `REPEATABLE READ` y con el mismo alcance autenticado, periodo y moneda preferida. Estas vistas
+son instrumentos internos de orientación: hacen explícita su evidencia, sus umbrales y su calidad, y no
+incorporan datos de mercado o causalidad que el sistema no pueda demostrar.
+
+### Salud empresarial
+
+Cruza margen operativo con ejecución observada por Unidad y Negocio. El margen se considera alto desde
+10%. La ejecución se considera alta desde 70 puntos y combina cumplimiento de tareas, control del rezago
+y asistencia: 65%, 15% y 20% cuando las tres evidencias existen; 80% y 20% para tareas y rezago cuando no
+hay asistencia comparable. Sólo se clasifica un elemento con ventas positivas y tareas medidas.
+
+Los cuadrantes son `engine` (margen y ejecución altos), `contained_potential` (ejecución alta y margen
+bajo), `fragile_growth` (margen alto y ejecución baja) y `priority_intervention` (ambos bajos). Una mezcla
+de monedas de origen se reporta como calidad parcial; nunca se presenta como una consolidación confiable.
+
+### Rentabilidad y rotación de producto
+
+Cruza velocidad diaria de venta con margen de contribución. La velocidad alta es la mediana de los
+productos elegibles del periodo y el margen alto comienza en 20%. El costo se obtiene exclusivamente de
+`unitCost` capturado en cada renglón de venta; un producto con costo ausente o incompleto permanece
+`unclassified`. El margen de contribución es una orientación comercial y no sustituye la contabilidad de
+costos.
+
+Los cuadrantes son `winner` (rotación y margen altos), `sacrificed_volume` (rotación alta y margen bajo),
+`hidden_gem` (rotación baja y margen alto) y `catalog_drain` (ambos bajos).
+
+### Inventario inteligente
+
+Cruza la velocidad promedio diaria del periodo con la existencia disponible actual. La cobertura se
+calcula como `availableQuantity / salesVelocityPerDay`. Menos de 14 días indica `stockout_risk`, entre 14
+y 60 días indica `balanced` y más de 60 días indica `overstock`. Una existencia positiva sin venta en el
+periodo indica `stagnant`. Los productos sin inventario rastreable permanecen `unclassified`.
+
+Cada matriz publica su propio `dataQuality`. `decisionReady=true` requiere al menos un elemento
+clasificable y ausencia de exclusiones o evidencia parcial relevante. Los puntos no clasificables se
+conservan para explicar el vacío; la interfaz no completa costos, ventas, tareas, existencias ni monedas
+con supuestos.
 
 ## Criterio de liberación
 

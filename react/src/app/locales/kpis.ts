@@ -9,7 +9,7 @@ const esMx = {
     executive: 'Modulo Indice',
   },
   tabs: {
-    kpis: 'Panel ejecutivo',
+    kpis: 'Matrices',
     informesContables: 'Estados financieros',
     informesAutomatizados: 'Automatizaciones',
   },
@@ -58,7 +58,7 @@ const enUs: typeof esMx = {
     executive: 'Indice module',
   },
   tabs: {
-    kpis: 'Executive panel',
+    kpis: 'Matrices',
     informesContables: 'Financial statements',
     informesAutomatizados: 'Automations',
   },
@@ -101,8 +101,8 @@ export const kpisTranslations = {
   'es-CO': esMx,
   'en-US': enUs,
   'en-CA': enUs,
-  'fr-CA': enUs,
-  'pt-BR': enUs,
-  'ko-CA': enUs,
-  'zh-CA': enUs,
+  'fr-CA': { ...enUs, tabs: { ...enUs.tabs, kpis: 'Matrices' } },
+  'pt-BR': { ...enUs, tabs: { ...enUs.tabs, kpis: 'Matrizes' } },
+  'ko-CA': { ...enUs, tabs: { ...enUs.tabs, kpis: '매트릭스' } },
+  'zh-CA': { ...enUs, tabs: { ...enUs.tabs, kpis: '矩阵' } },
 };

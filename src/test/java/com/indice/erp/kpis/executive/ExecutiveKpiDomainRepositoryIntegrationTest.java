@@ -158,6 +158,115 @@ class ExecutiveKpiDomainRepositoryIntegrationTest {
         assertThat(total(repository.loadPettyCashSettlements(scope()))).isEqualByComparingTo("120.00");
     }
 
+    @Test
+    void peopleSnapshotUsesValidDailyAttendanceWithinTheTenantAndOrganizationScope() {
+        var email = "kpi.people." + token + "@example.com";
+        jdbc.update("INSERT INTO users (email, password_hash, full_name) VALUES (?, '$2a$10$kpitest', ?)",
+                email, "KPI Person " + token);
+        var userId = jdbc.queryForObject("SELECT id FROM users WHERE email = ?", Long.class, email);
+        jdbc.update("""
+                INSERT INTO user_companies (user_id, company_id, role, status, visibility)
+                VALUES (?, ?, 'user', 'active', 'all')
+                """, userId, companyId);
+        var userCompanyId = jdbc.queryForObject(
+                "SELECT id FROM user_companies WHERE user_id = ? AND company_id = ?",
+                Long.class, userId, companyId);
+        jdbc.update("""
+                INSERT INTO user_work_profiles
+                    (company_id, user_company_id, user_id, unit_id, business_id,
+                     position, department, hire_date, workday_hours, status)
+                VALUES (?, ?, ?, ?, ?, 'Operator', 'Operations', '2026-01-01', 8.00, 'active')
+                """, companyId, userCompanyId, userId, unitId, businessId);
+        insertAttendance(userId, userCompanyId, "2026-08-04", "on_time", 0);
+        insertAttendance(userId, userCompanyId, "2026-08-05", "late", 12);
+        insertAttendance(userId, userCompanyId, "2026-08-06", "absence", 0);
+        insertAttendance(userId, userCompanyId, "2026-07-20", "absence", 0);
+
+        var people = repository.loadPeople(scope());
+
+        assertThat(people.activeCollaborators()).isEqualTo(1);
+        assertThat(people.attendanceRecords()).isEqualTo(3);
+        assertThat(people.scheduledAttendanceRecords()).isEqualTo(3);
+        assertThat(people.absenceRecords()).isEqualTo(1);
+        assertThat(people.lateRecords()).isEqualTo(1);
+        assertThat(people.invalidStatusRows()).isZero();
+        assertThat(people.invalidMinutesRows()).isZero();
+    }
+
+    @Test
+    void productPortfolioUsesCanonicalSaleLinesAndScopedInventory() {
+        jdbc.update("""
+                INSERT INTO sales_products
+                    (company_id, product_code, sku, name, category, currency, inventory_ready)
+                VALUES (?, ?, ?, ?, 'Beverages', 'MXN', 1)
+                """, companyId, "BCG-" + token, "SKU-" + token, "Portfolio product " + token);
+        var productId = jdbc.queryForObject(
+                "SELECT id FROM sales_products WHERE company_id = ? AND product_code = ?",
+                Long.class, companyId, "BCG-" + token);
+        jdbc.update("""
+                INSERT INTO sales_records
+                    (company_id, unit_id, business_id, sale_number, customer_name, sale_date,
+                     total_amount, subtotal, currency, commercial_status, finance_status,
+                     inventory_status, delivery_status, commission_status, inventory_movement_status,
+                     sale_lines_json)
+                VALUES (?, ?, ?, ?, 'Portfolio customer', '2026-08-10', 90, 90, 'MXN', 'completed',
+                        'captured', 'deducted', 'pending', 'pending', 'generated',
+                        JSON_ARRAY(JSON_OBJECT('productId', CAST(? AS CHAR), 'quantity', 4,
+                            'subtotal', 100, 'discountPercent', 10)))
+                """, companyId, unitId, businessId, "BCG-CURRENT-" + token, productId);
+        jdbc.update("""
+                INSERT INTO sales_records
+                    (company_id, unit_id, business_id, sale_number, customer_name, sale_date,
+                     total_amount, subtotal, currency, commercial_status, finance_status,
+                     inventory_status, delivery_status, commission_status, inventory_movement_status,
+                     sale_lines_json)
+                VALUES (?, ?, ?, ?, 'Portfolio customer', '2026-07-20', 50, 50, 'MXN', 'completed',
+                        'captured', 'deducted', 'pending', 'pending', 'generated',
+                        JSON_ARRAY(JSON_OBJECT('productId', CAST(? AS CHAR), 'quantity', 2,
+                            'subtotal', 50, 'discountPercent', 0)))
+                """, companyId, unitId, businessId, "BCG-PREVIOUS-" + token, productId);
+        jdbc.update("""
+                INSERT INTO sales_inventory_warehouses
+                    (company_id, warehouse_code, name, business_unit_id, business_unit_name,
+                     business_id, business_name)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, companyId, "BCG-WH-" + token, "Portfolio warehouse " + token,
+                String.valueOf(unitId), "Monterrey " + token,
+                String.valueOf(businessId), "Linda Vista " + token);
+        var warehouseId = jdbc.queryForObject(
+                "SELECT id FROM sales_inventory_warehouses WHERE company_id = ? AND warehouse_code = ?",
+                Long.class, companyId, "BCG-WH-" + token);
+        jdbc.update("""
+                INSERT INTO sales_inventory_balances
+                    (company_id, balance_code, product_id, warehouse_id, warehouse_name,
+                     available_quantity, reserved_quantity, minimum_quantity, unit_cost, uses_inventory,
+                     business_unit_id, business_unit_name, business_id, business_name)
+                VALUES (?, ?, ?, ?, ?, 3, 0, 5, 10, 1, ?, ?, ?, ?)
+                """, companyId, "BCG-BAL-" + token, productId, warehouseId,
+                "Portfolio warehouse " + token, String.valueOf(unitId), "Monterrey " + token,
+                String.valueOf(businessId), "Linda Vista " + token);
+
+        var current = repository.loadProductPortfolioSales(scope());
+        var prior = repository.loadProductPortfolioSales(scope().previousPeriod());
+        var quality = repository.loadProductPortfolioSalesQuality(scope());
+        var inventory = repository.loadProductPortfolioInventory(scope());
+
+        assertThat(current).singleElement().satisfies(row -> {
+            assertThat(row.productId()).isEqualTo(productId);
+            assertThat(row.revenue()).isEqualByComparingTo("90.00000000");
+            assertThat(row.units()).isEqualByComparingTo("4.0000");
+        });
+        assertThat(prior).singleElement().satisfies(row ->
+                assertThat(row.revenue()).isEqualByComparingTo("50.00000000"));
+        assertThat(quality.saleRecords()).isEqualTo(1);
+        assertThat(quality.attributedSales()).isEqualTo(1);
+        assertThat(quality.invalidLineRows()).isZero();
+        assertThat(inventory).singleElement().satisfies(row -> {
+            assertThat(row.availableQuantity()).isEqualByComparingTo("3.00");
+            assertThat(row.lowStockLocations()).isEqualTo(1);
+        });
+    }
+
     private ExecutiveKpiScope scope() {
         return new ExecutiveKpiScope(companyId, LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 16),
                 "custom", unitId, businessId, "", "all", "MXN", LocalDate.of(2026, 8, 16));
@@ -202,6 +311,14 @@ class ExecutiveKpiDomainRepositoryIntegrationTest {
                         'deducted', 'pending', 'pending', 'generated')
                 """, companyId, unitId, businessId, "SALE-" + commercialStatus + '-' + token,
                 "Customer " + token, saleDate, amount, amount, commercialStatus);
+    }
+
+    private void insertAttendance(long userId, long userCompanyId, String date, String status, int minutesLate) {
+        jdbc.update("""
+                INSERT INTO user_attendance_daily_records
+                    (company_id, user_company_id, user_id, attendance_date, system_status, minutes_late)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """, companyId, userCompanyId, userId, date, status, minutesLate);
     }
 
     private BigDecimal total(java.util.List<com.indice.erp.kpis.currency.KpiMoneyAmount> amounts) {

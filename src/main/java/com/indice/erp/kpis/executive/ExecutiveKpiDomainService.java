@@ -37,16 +37,22 @@ public class ExecutiveKpiDomainService {
     private final ExecutiveKpiDomainRepository repository;
     private final KpiCurrencyAggregationService currencyAggregationService;
     private final BusinessExchangeRateService exchangeRateService;
+    private final ExecutiveKpiDiagnosisService diagnosisService;
+    private final ExecutiveProductPortfolioService productPortfolioService;
     private final TransactionTemplate readTransaction;
 
     public ExecutiveKpiDomainService(
             ExecutiveKpiDomainRepository repository,
             KpiCurrencyAggregationService currencyAggregationService,
             BusinessExchangeRateService exchangeRateService,
+            ExecutiveKpiDiagnosisService diagnosisService,
+            ExecutiveProductPortfolioService productPortfolioService,
             PlatformTransactionManager transactionManager) {
         this.repository = repository;
         this.currencyAggregationService = currencyAggregationService;
         this.exchangeRateService = exchangeRateService;
+        this.diagnosisService = diagnosisService;
+        this.productPortfolioService = productPortfolioService;
         this.readTransaction = new TransactionTemplate(transactionManager);
         this.readTransaction.setName("executive-kpi-consistent-read");
         this.readTransaction.setReadOnly(true);
@@ -55,13 +61,34 @@ public class ExecutiveKpiDomainService {
     }
 
     public Dashboard build(ExecutiveKpiScope scope) {
-        // Exchange-rate refresh may write its daily cache, so it must finish before the read-only KPI snapshot starts.
+        // Preserve the domains/2.1-only entry point for existing callers.
         var rates = exchangeRateService.loadDailyRates();
         var dashboard = readTransaction.execute(status -> buildConsistent(scope, rates));
         if (dashboard == null) {
             throw new IllegalStateException("Unable to build the executive KPI snapshot.");
         }
         return dashboard;
+    }
+
+    public Snapshot buildSnapshot(ExecutiveKpiScope scope) {
+        // Exchange-rate refresh may write its daily cache, so it must finish before the read-only KPI snapshot starts.
+        var rates = exchangeRateService.loadDailyRates();
+        var snapshot = readTransaction.execute(status -> {
+            var domains = buildConsistent(scope, rates);
+            var diagnosis = diagnosisService.build(scope, domains, repository.loadPeople(scope));
+            var productPortfolio = productPortfolioService.build(scope, rates);
+            return new Snapshot(domains, diagnosis, productPortfolio);
+        });
+        if (snapshot == null) {
+            throw new IllegalStateException("Unable to build the executive KPI snapshot.");
+        }
+        return snapshot;
+    }
+
+    public record Snapshot(
+            Dashboard domains,
+            ExecutiveKpiDiagnosisContracts.Diagnosis diagnosis,
+            ExecutiveProductPortfolioContracts.Portfolio productPortfolio) {
     }
 
     private Dashboard buildConsistent(ExecutiveKpiScope scope, BusinessExchangeRatesResponse rates) {

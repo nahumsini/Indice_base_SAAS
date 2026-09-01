@@ -5,19 +5,19 @@ export type KpisLearningTabId = 'kpis' | 'accounting-reports' | 'automated-repor
 const control = createLearningModeControl;
 
 export const kpisLearningLabels: Record<KpisLearningTabId, string> = {
-  kpis: 'Panel ejecutivo',
-  'accounting-reports': 'Informes contables',
+  kpis: 'Matrices · Índice IME',
+  'accounting-reports': 'Estados financieros · cierre auditable',
   'automated-reports': 'Informes automatizados',
 };
 
 export const kpisLearningControls: Record<KpisLearningTabId, readonly LearningModeControl[]> = {
   kpis: [
     control({
-      id: 'executive-refresh', emoji: '🔄', kind: 'Botón de acción', title: 'Actualizar',
-      purpose: 'Consulta nuevamente los datos que alimentan el panel ejecutivo.',
-      behavior: 'Recarga indicadores y conserva el contexto de filtros disponible.',
+      id: 'executive-refresh', emoji: '🔄', kind: 'Botón de acción', title: 'Actualizar matrices',
+      purpose: 'Consulta nuevamente la evidencia que alimenta IME, FODA, BCG y las matrices operativas.',
+      behavior: 'Recalcula puntajes, cuadrantes, hallazgos, cobertura y prioridades sin modificar la operación.',
       whenToUse: 'Úsalo después de registrar cambios importantes o antes de una revisión.',
-      result: 'Evita decidir con una versión anterior de la operación.', focus: 'la vigencia de los indicadores',
+      result: 'Evita interpretar la madurez con una versión anterior de la operación.', focus: 'la vigencia del IME',
       stories: {
         emily: 'Emily actualiza antes de su reunión semanal y revisa lo ocurrido en todas las cafeterías con datos recientes.',
         juanito: 'Juanito confirma cuándo se actualizaron los números; sabe que precisión también significa oportunidad.',
@@ -25,9 +25,9 @@ export const kpisLearningControls: Record<KpisLearningTabId, readonly LearningMo
       },
     }),
     control({
-      id: 'executive-filters', emoji: '📅', kind: 'Filtros ejecutivos', title: 'Periodo, negocio y comparación',
-      purpose: 'Define qué parte de la empresa y qué intervalo explican el panel.',
-      behavior: 'Recalcula KPIs, metas, tendencias y alertas con un alcance común.',
+      id: 'executive-filters', emoji: '📅', kind: 'Filtros ejecutivos', title: 'Periodo, unidad y negocio',
+      purpose: 'Define qué parte de la empresa y qué intervalo explican el Índice IME.',
+      behavior: 'Recalcula las cuatro dimensiones con un alcance común y comparable.',
       whenToUse: 'Úsalo antes de comparar o atribuir una variación.',
       result: 'Evita mezclar negocios, monedas o periodos que no son equivalentes.', focus: 'el contexto de cada indicador',
       stories: {
@@ -37,9 +37,9 @@ export const kpisLearningControls: Record<KpisLearningTabId, readonly LearningMo
       },
     }),
     control({
-      id: 'executive-detail', emoji: '🔍', kind: 'Exploración del indicador', title: 'Abrir detalle y señales',
-      purpose: 'Pasa del resultado agregado a la composición, tendencia y causa probable.',
-      behavior: 'Selecciona una tarjeta, gráfica o señal y abre el contexto ejecutivo relacionado.',
+      id: 'executive-detail', emoji: '🔍', kind: 'Exploración del IME', title: 'Madurez, FODA y matrices de decisión',
+      purpose: 'Pasa del IME empresarial a dimensiones, salud empresarial, portafolio, rentabilidad e inventario.',
+      behavior: 'Explica niveles y cuadrantes con evidencia, umbrales, calidad de datos y una acción recomendada.',
       whenToUse: 'Úsalo cuando un KPI cambie o esté fuera de meta.',
       result: 'Evita reaccionar a una cifra sin comprender qué la produjo.', focus: 'la explicación detrás del KPI',
       stories: {
@@ -49,9 +49,9 @@ export const kpisLearningControls: Record<KpisLearningTabId, readonly LearningMo
       },
     }),
     control({
-      id: 'executive-export', emoji: '📤', kind: 'Botón de acción', title: 'Exportar panel',
-      purpose: 'Genera un reporte del análisis ejecutivo visible.',
-      behavior: 'Prepara el documento con periodo, filtros y datos disponibles.',
+      id: 'executive-export', emoji: '📤', kind: 'Botón de acción', title: 'Exportar matriz activa',
+      purpose: 'Abre una vista previa de la matriz o análisis que estás revisando.',
+      behavior: 'Prepara datos y documento visual con periodo, filtros, identidad y composición original.',
       whenToUse: 'Úsalo después de validar el contexto y comprender las señales.',
       result: 'Comparte una versión consistente sin reconstruir cifras manualmente.', focus: 'el reporte ejecutivo compartido',
       stories: {
@@ -63,11 +63,11 @@ export const kpisLearningControls: Record<KpisLearningTabId, readonly LearningMo
   ],
   'accounting-reports': [
     control({
-      id: 'accounting-report-filters', emoji: '📅', kind: 'Filtros de reporte', title: 'Periodo, empresa, unidad y moneda',
-      purpose: 'Define el alcance contable antes de generar información.',
-      behavior: 'Aplica criterios comunes al catálogo de informes y sus resultados.',
-      whenToUse: 'Úsalo antes de consultar estados o comparar periodos.',
-      result: 'Evita reportes correctos técnicamente, pero equivocados para la pregunta.', focus: 'el alcance del informe contable',
+      id: 'accounting-report-filters', emoji: '📅', kind: 'Filtros de reporte', title: 'Periodo, unidad y negocio',
+      purpose: 'Define el alcance común de los cuatro estados, el balance de comprobación y las conciliaciones.',
+      behavior: 'Mantiene fechas, moneda funcional y dimensiones organizacionales comparables.',
+      whenToUse: 'Úsalo antes de sincronizar, conciliar o comparar periodos.',
+      result: 'Evita mezclar operaciones que no comparten el mismo contexto contable.', focus: 'el alcance del cierre',
       stories: {
         emily: 'Emily selecciona la empresa y periodo correctos antes de comparar cafeterías.',
         juanito: 'Juanito confirma moneda y fechas; sabe que dos totales solo se comparan si comparten contexto.',
@@ -75,11 +75,11 @@ export const kpisLearningControls: Record<KpisLearningTabId, readonly LearningMo
       },
     }),
     control({
-      id: 'accounting-report-search', emoji: '🔎', kind: 'Botón de acción', title: 'Consultar informes',
-      purpose: 'Aplica los filtros y genera la lista o contenido contable solicitado.',
-      behavior: 'Valida criterios y consulta datos sin modificar operaciones.',
-      whenToUse: 'Úsalo después de elegir el informe y completar el alcance.',
-      result: 'Concentra la consulta en una fuente reproducible.', focus: 'la consulta contable reproducible',
+      id: 'accounting-report-search', emoji: '🔄', kind: 'Botón de acción', title: 'Sincronizar operaciones',
+      purpose: 'Convierte ventas, gastos, cobros y nómina elegibles en asientos de doble partida.',
+      behavior: 'Importa cada evento una sola vez, conserva su origen y bloquea monedas o costos sin evidencia.',
+      whenToUse: 'Úsalo antes de revisar el periodo o después de aprobar nuevas operaciones.',
+      result: 'Deja una ruta auditable del módulo operativo al mayor contable.', focus: 'la integridad del mayor',
       stories: {
         emily: 'Emily consulta el estado del periodo y lo revisa con el mismo alcance que su contador.',
         juanito: 'Juanito repite la consulta con criterios guardados y obtiene una comparación consistente.',
@@ -87,11 +87,11 @@ export const kpisLearningControls: Record<KpisLearningTabId, readonly LearningMo
       },
     }),
     control({
-      id: 'accounting-report-select', emoji: '📑', kind: 'Selector de informe', title: 'Elegir y abrir un informe',
-      purpose: 'Selecciona el reporte adecuado para la decisión: posición, resultados, auxiliares u otros disponibles.',
-      behavior: 'Cambia la estructura de lectura manteniendo los filtros del contexto.',
-      whenToUse: 'Úsalo según la pregunta que deseas responder, no solo por costumbre.',
-      result: 'Evita exigir a un mismo reporte respuestas para las que no fue diseñado.', focus: 'la elección del informe correcto',
+      id: 'accounting-report-select', emoji: '📑', kind: 'Vistas del cierre', title: 'Estados, balance y calidad',
+      purpose: 'Separa presentación financiera, detalle del mayor y controles de conciliación.',
+      behavior: 'Cambia la lectura sin perder filtros, comparativo ni periodo de cierre.',
+      whenToUse: 'Revisa primero calidad, después el balance y finalmente los cuatro estados.',
+      result: 'Evita cerrar un periodo con auxiliares diferentes del mayor o fuentes pendientes.', focus: 'la secuencia de revisión',
       stories: {
         emily: 'Emily usa resultados para desempeño y auxiliares cuando necesita explicar una cuenta específica.',
         juanito: 'Juanito empieza por la pregunta y elige el informe que contiene sus componentes correctos.',
