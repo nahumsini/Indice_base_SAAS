@@ -342,6 +342,23 @@ El MCP se habilita primero sólo en APPTEST. Sigue el procedimiento completo de
 para la publicación de OpenAI sólo se expone `/api/v1/ai/mcp`, protegida por
 OAuth y con los permisos de Índice.
 
+Después de aprobar todas las puertas de APPTEST, producción conserva el MCP en
+loopback pero usa `3011` para no colisionar con APPTEST en el mismo host:
+
+```bash
+RELEASE_SHA="$(git rev-parse --short=12 HEAD)"
+APP_DIR=/home/corazon/app.indiceapp.com \
+DEPLOY_ENV_FILE=/home/corazon/apps/indice-erp-docker/current/deployment/env/.env \
+PUBLIC_URL=https://app.indiceapp.com \
+HOST_BACKEND_PORT=8083 \
+MCP_HOST_PORT=3011 \
+DEPLOY_WEB_IMAGE="indice-erp-web:${RELEASE_SHA}" \
+DEPLOY_BACKEND_IMAGE="indice-erp-backend:${RELEASE_SHA}" \
+DEPLOY_MCP_ENABLED=true \
+DEPLOY_MCP_IMAGE="indice-erp-mcp:${RELEASE_SHA}" \
+./deployment/scripts/up-host-network.sh
+```
+
 APPTEST must use a separate environment file and its own ports. Never point this command at the production `.env`:
 
 ```bash
