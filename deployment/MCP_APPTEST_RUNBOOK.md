@@ -125,9 +125,11 @@ El puerto `3010` no debe publicarse en firewall, balanceador ni DNS. El proxy we
 solo puede publicar la ruta MCP exacta y debe conservar el encabezado `Authorization`.
 
 Si cPanel/Apache excluye todo `/.well-known/` para ACME, conserva esa exclusión
-general pero agrega antes dos `ProxyPass` exactos hacia el frontend de APPTEST:
+general pero agrega antes tres `ProxyPass` exactos hacia el frontend de APPTEST:
 `/.well-known/oauth-protected-resource` y
-`/.well-known/oauth-authorization-server`. Ejecuta `apachectl configtest` antes
+`/.well-known/oauth-authorization-server`, además de
+`/.well-known/openai-apps-challenge` para la validación del dominio. Ejecuta
+`apachectl configtest` antes
 de recargar Apache; los retos ACME deben continuar fuera del proxy.
 
 ## Rollback
