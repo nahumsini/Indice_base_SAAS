@@ -89,8 +89,7 @@ del host; nunca en Git, en la imagen ni en variables del frontend.
 
 Valida, en este orden:
 
-- `GET http://127.0.0.1:3010/mcp` devuelve `405`; demuestra que el MCP está vivo.
-- Una solicitud sin `Bearer` devuelve `401`.
+- `GET http://127.0.0.1:3010/mcp` sin `Bearer` devuelve `401`; demuestra que el MCP está vivo y protegido.
 - El `401` anuncia la metadata OAuth pública de APPTEST.
 - Los dos documentos `/.well-known/` responden por HTTPS y anuncian APPTEST, no producción.
 - ChatGPT muestra el consentimiento de Índice y vuelve con un token mediante PKCE.

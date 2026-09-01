@@ -379,8 +379,8 @@ if [[ "${MCP_ENABLED}" == "true" ]]; then
   sleep "${MCP_STARTUP_WAIT_SECONDS:-5}"
   MCP_HTTP_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' \
     "http://127.0.0.1:${HOST_MCP_PORT}/mcp")"
-  if [[ "${MCP_HTTP_STATUS}" != "405" ]]; then
-    echo "MCP readiness check failed: expected HTTP 405 from GET /mcp, received ${MCP_HTTP_STATUS}." >&2
+  if [[ "${MCP_HTTP_STATUS}" != "401" ]]; then
+    echo "MCP readiness check failed: expected protected HTTP 401 from GET /mcp, received ${MCP_HTTP_STATUS}." >&2
     exit 1
   fi
 fi

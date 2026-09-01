@@ -176,7 +176,7 @@ services:
         - CMD
         - node
         - -e
-        - fetch('http://127.0.0.1:3010/mcp').then(response=>process.exit(response.status===405?0:1)).catch(()=>process.exit(1))
+        - fetch('http://127.0.0.1:3010/mcp').then(response=>process.exit(response.status===401?0:1)).catch(()=>process.exit(1))
       interval: 15s
       timeout: 5s
       retries: 8

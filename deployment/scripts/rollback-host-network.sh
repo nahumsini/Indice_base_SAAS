@@ -80,8 +80,8 @@ curl --fail --silent --show-error "http://127.0.0.1:${HOST_BACKEND_PORT}/api/v1/
 if [[ "${MCP_ENABLED}" == "true" ]]; then
   MCP_HTTP_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' \
     "http://127.0.0.1:${HOST_MCP_PORT}/mcp")"
-  [[ "${MCP_HTTP_STATUS}" == "405" ]] || {
-    echo "MCP rollback readiness check failed: expected HTTP 405, received ${MCP_HTTP_STATUS}." >&2
+  [[ "${MCP_HTTP_STATUS}" == "401" ]] || {
+    echo "MCP rollback readiness check failed: expected protected HTTP 401, received ${MCP_HTTP_STATUS}." >&2
     exit 1
   }
 fi
