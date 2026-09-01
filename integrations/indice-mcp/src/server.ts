@@ -4,7 +4,7 @@ import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { Request, Response } from "express";
-import { loadConfig } from "./config.js";
+import { allowedMcpHosts, loadConfig } from "./config.js";
 import { IndiceClient } from "./indiceClient.js";
 import { createIndiceMcpServer } from "./mcpServer.js";
 
@@ -18,7 +18,10 @@ async function main(): Promise<void> {
     return;
   }
 
-  const app = createMcpExpressApp({ host: config.host });
+  const app = createMcpExpressApp({
+    host: config.host,
+    allowedHosts: allowedMcpHosts(config.host, config.resourceUrl)
+  });
   const supportedScopes = [
     "sales.today:read", "business.snapshot:read", "hr.people:read", "hr.attendance:read",
     "tasks.read", "sales.read", "pos.read", "inventory.read", "expenses.read",

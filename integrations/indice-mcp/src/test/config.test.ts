@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { loadConfig } from "../config.js";
+import { allowedMcpHosts, loadConfig } from "../config.js";
 
 const baseEnvironment: NodeJS.ProcessEnv = {
   INDICE_BACKEND_URL: "http://127.0.0.1:8082",
@@ -44,6 +44,10 @@ test("loads the production OAuth resource identity independently from the privat
   assert.equal(config.oauthIssuer.toString(), "https://app.indiceapp.com/");
   assert.equal(config.oauthResourceMetadataUrl.toString(), "https://app.indiceapp.com/.well-known/oauth-protected-resource");
   assert.equal(config.resourceUrl.toString(), "https://app.indiceapp.com/api/v1/ai/mcp");
+  assert.deepEqual(
+    allowedMcpHosts(config.host, config.resourceUrl),
+    ["127.0.0.1", "app.indiceapp.com"]
+  );
 });
 
 test("rejects shared password sessions over HTTP", () => {

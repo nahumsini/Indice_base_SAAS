@@ -32,6 +32,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): IndiceMcpConfi
   if (transport === "http" && authMode !== "delegated") {
     throw new Error("HTTP transport requires delegated authorization.");
   }
+  const resourceUrl = absoluteHttpUrl(
+    optional(env, "INDICE_MCP_RESOURCE", "http://localhost:3010/mcp"),
+    "INDICE_MCP_RESOURCE"
+  );
 
   return {
     backendUrl,
@@ -54,8 +58,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): IndiceMcpConfi
       optional(env, "INDICE_OAUTH_RESOURCE_METADATA_URL", "http://localhost:8080/.well-known/oauth-protected-resource"),
       "INDICE_OAUTH_RESOURCE_METADATA_URL"
     ),
-    resourceUrl: absoluteHttpUrl(optional(env, "INDICE_MCP_RESOURCE", "http://localhost:3010/mcp"), "INDICE_MCP_RESOURCE")
+    resourceUrl
   };
+}
+
+export function allowedMcpHosts(host: string, resourceUrl: URL): string[] {
+  return [...new Set([
+    host === "::1" ? "[::1]" : host,
+    resourceUrl.hostname
+  ])];
 }
 
 function absoluteHttpUrl(value: string, key: string): URL {
