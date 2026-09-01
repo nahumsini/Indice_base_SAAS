@@ -80,11 +80,14 @@ docker run --rm -d --name indice-mysql-tests \
   -e MYSQL_USER=indice_test_user \
   -e MYSQL_PASSWORD=indice_test_pass \
   -e MYSQL_ROOT_PASSWORD=indice_test_root \
-  mysql:8.0
+  mysql:8.0 \
+  --character-set-server=utf8mb4 \
+  --collation-server=utf8mb4_0900_ai_ci
 ```
 
 Si el puerto `3307` ya pertenece a otra instancia local, crea en ella
-`indice_test_db` y otorga acceso exclusivo a `indice_test_user`, o configura
+`indice_test_db` con `utf8mb4_0900_ai_ci` y otorga acceso exclusivo a
+`indice_test_user`, o configura
 `TEST_DATASOURCE_URL`, `TEST_DATASOURCE_USERNAME` y
 `TEST_DATASOURCE_PASSWORD` para otra instancia aislada. Las pruebas pueden
 crear y modificar datos; nunca uses `indice_db` ni credenciales productivas.
