@@ -50,7 +50,7 @@ const legacySubTabAliases: Partial<Record<string, PanelInicialTabId>> = {
 };
 
 export default function PanelInicial({ learningModeActive = false, onNavigate }: PanelInicialProps) {
-  const { t, currentLanguage } = useLanguage();
+  const { t } = useLanguage();
   const shellCopy = usePanelInicialTranslations();
   const guidanceCopy = usePanelInicialGuidanceTranslations();
   const mainContentRef = useRef<HTMLDivElement | null>(null);
@@ -80,13 +80,13 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
     { id: 'consulting', label: t.panelInicial.tabs.consulting, helper: shellCopy.tabDescriptions.consulting, emoji: '🤝', component: Consulting },
     {
       id: 'integrations',
-      label: currentLanguage.code.startsWith('es') ? 'Integraciones' : 'Integrations',
-      helper: currentLanguage.code.startsWith('es') ? 'Conexiones seguras con asistentes de IA' : 'Secure connections with AI assistants',
+      label: shellCopy.integrationsLabel,
+      helper: shellCopy.tabDescriptions.integrations,
       emoji: '🤖',
       component: Integrations,
     },
     { id: 'users', label: t.panelInicial.tabs.users, helper: shellCopy.tabDescriptions.users, emoji: '👥', component: Users },
-  ], [currentLanguage.code, shellCopy.tabDescriptions, t.panelInicial.tabs]);
+  ], [shellCopy.integrationsLabel, shellCopy.tabDescriptions, t.panelInicial.tabs]);
   const visibleSubTabs = sessionAccess.loaded
     ? subTabs.filter((tab) => (
         canAccessHomePanelTab(
@@ -163,7 +163,7 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
   };
 
   return (
-    <LearningModeHeaderActionsProvider active={learningModeActive}>
+    <LearningModeHeaderActionsProvider active={learningModeActive && activeSubTab !== 'integrations'}>
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--indice-background)] dark:bg-slate-950">
       <LoadingBarOverlay
         isVisible={isTabLoading || !sessionAccess.loaded}

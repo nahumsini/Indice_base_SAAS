@@ -1,12 +1,14 @@
 import type { PanelInicialShellTranslations } from './types';
 
 export const zhCA: PanelInicialShellTranslations = {
+  integrationsLabel: '连接人工智能',
   subtitle: '配置个人资料、企业结构、用户和运营偏好。',
   tabDescriptions: {
     profile: '个人资料与安全',
     businessStructure: '部门、职位与组织',
     businessProfile: '企业身份与诊断',
     consulting: '咨询预约与跟进',
+    integrations: '连接助手，使用企业信息做出更好的决策',
     personalPerformance: '个人目标与绩效',
     users: '访问、角色与权限',
   },

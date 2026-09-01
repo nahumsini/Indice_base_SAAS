@@ -18,6 +18,7 @@
     "test:processes-tasks-ui": "node --test tests/processes-tasks-frontend-standard-regression.test.mjs",
     "test:human-resources-ui": "node --test tests/human-resources-frontend-standard-regression.test.mjs",
     "test:dashboard-ui": "node --test tests/dashboard-frontend-standard-regression.test.mjs",
+    "test:integrations-ui": "node --test tests/integrations-frontend-regression.test.mjs",
     "test:invitation": "node --experimental-strip-types --test tests/invitation-frontend-regression.test.mjs",
     "test:learning-mode": "node --experimental-strip-types --test tests/learning-mode-first-entry-regression.test.mjs",
     "test:users": "node --test tests/users-access-regression.test.mjs",

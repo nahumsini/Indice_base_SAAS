@@ -653,7 +653,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                         <DropdownMenuItem onClick={() => navigate('/home-panel/integrations')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
                           <Bot className="h-4 w-4 mr-3 text-[#177D66]" />
                           <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {currentLanguage.code.startsWith('es') ? 'Conectar IA' : 'Connect AI'}
+                            {copy.actions.connectAi}
                           </span>
                         </DropdownMenuItem>
                       ) : null}
