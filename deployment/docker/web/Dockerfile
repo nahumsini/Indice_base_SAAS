@@ -33,7 +33,15 @@ RUN npm run build \
 
 FROM nginxinc/nginx-unprivileged:stable-alpine
 
-COPY --chmod=0644 deployment/docker/web/nginx.conf /etc/nginx/conf.d/default.conf
+ARG WEB_NGINX_CONFIG=deployment/docker/web/nginx.conf
+ARG WEB_NGINX_BACKEND_PORT=8082
+ARG WEB_NGINX_MINIO_PORT=9000
+
+COPY --chmod=0644 ${WEB_NGINX_CONFIG} /etc/nginx/conf.d/default.conf
+RUN sed -i \
+      -e "s#127\\.0\\.0\\.1:8082#127.0.0.1:${WEB_NGINX_BACKEND_PORT}#g" \
+      -e "s#127\\.0\\.0\\.1:9000#127.0.0.1:${WEB_NGINX_MINIO_PORT}#g" \
+      /etc/nginx/conf.d/default.conf
 COPY --from=build /workspace/react/dist /usr/share/nginx/html
 
 EXPOSE 8080

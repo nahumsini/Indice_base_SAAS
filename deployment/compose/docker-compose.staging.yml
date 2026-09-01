@@ -177,6 +177,13 @@ services:
 
   web:
     image: indice-erp-web:${APP_IMAGE_TAG:?APP_IMAGE_TAG is required}
+    build:
+      context: ../..
+      dockerfile: deployment/docker/web/Dockerfile
+      args:
+        WEB_NGINX_CONFIG: deployment/docker/web/nginx.host.conf
+        WEB_NGINX_BACKEND_PORT: "8182"
+        WEB_NGINX_MINIO_PORT: "8900"
     network_mode: host
     restart: unless-stopped
     depends_on:
