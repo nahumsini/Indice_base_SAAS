@@ -8,6 +8,7 @@ import com.indice.erp.kiosk.engine.KioskActionRequest;
 import com.indice.erp.kiosk.engine.KioskClientNetworkSignal;
 import com.indice.erp.kiosk.engine.KioskEngineFeatureFlags;
 import com.indice.erp.kiosk.engine.KioskExecutionContext;
+import com.indice.erp.kiosk.engine.KioskExecutionChannels;
 import com.indice.erp.kiosk.engine.KioskRateLimitService;
 import com.indice.erp.kiosk.engine.KioskRateLimitType;
 import com.indice.erp.kiosk.engine.KioskRegistryService;
@@ -230,7 +231,7 @@ public class ProcurementSupplierPortalPublicGateway {
         var networkSignal = KioskClientNetworkSignal.from(request);
         return new KioskExecutionContext(
             ProcurementSupplierPortalCapabilities.OWNER_MODULE,
-            "LEGACY_PUBLIC_LINK",
+            KioskExecutionChannels.LEGACY_PUBLIC_LINK,
             token(portalCode),
             networkSignal,
             browserSession.getId()

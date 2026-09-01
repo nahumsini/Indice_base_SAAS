@@ -88,7 +88,7 @@ public final class ConfigCenterTabPermissionCatalog {
         tab("receivables", "credit-customers", "Credit Customers", "Clientes de crédito"),
 
         tab("kpis", "kpis", "KPIs", "KPIs"),
-        tab("kpis", "accounting-reports", "Accounting Reports", "Informes contables"),
+        tab("kpis", "accounting-reports", "Financial Statements", "Estados financieros"),
         tab("kpis", "automated-reports", "Automated Reports", "Informes automatizados")
     );
     static final Set<String> VALID_KEYS = validKeys();
@@ -343,7 +343,7 @@ public final class ConfigCenterTabPermissionCatalog {
             case "receivables.payments" -> description("Register and reconcile customer payments against receivables.", "Registrar y conciliar pagos de clientes contra cuentas por cobrar.");
             case "receivables.credit-customers" -> description("Manage customers, limits and conditions for credit sales.", "Administrar clientes, límites y condiciones para ventas a crédito.");
             case "kpis.kpis" -> description("Build and review operational indicators for the assigned scope.", "Crear y consultar indicadores operativos del alcance asignado.");
-            case "kpis.accounting-reports" -> description("Review accounting-oriented reports generated from operational data.", "Consultar reportes contables generados a partir de datos operativos.");
+            case "kpis.accounting-reports" -> description("Review auditable financial statements generated from the accounting ledger.", "Revisar estados financieros auditables generados desde el mayor contable.");
             case "kpis.automated-reports" -> description("Configure and review recurring automated reports.", "Configurar y consultar reportes automatizados recurrentes.");
             default -> description("Access this operational tab within the assigned scope.", "Acceder a esta pestaña operativa dentro del alcance asignado.");
         };

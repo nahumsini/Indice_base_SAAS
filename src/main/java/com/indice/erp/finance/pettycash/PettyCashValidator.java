@@ -58,8 +58,21 @@ class PettyCashValidator {
         requireName(request.description());
         FinanceValidationSupport.requireCurrencyCode(request.currencyCode());
         requirePositive(request.totalAmount(), "totalAmount");
-        requireNonNegative(request.taxAmount() == null ? BigDecimal.ZERO : request.taxAmount(), "taxAmount");
-        requireNonNegative(request.subtotalAmount() == null ? BigDecimal.ZERO : request.subtotalAmount(), "subtotalAmount");
+        var taxAmount = request.taxAmount() == null ? BigDecimal.ZERO : request.taxAmount();
+        requireNonNegative(taxAmount, "taxAmount");
+        var subtotalAmount = request.subtotalAmount();
+        if (subtotalAmount == null) {
+            subtotalAmount = request.totalAmount().subtract(taxAmount);
+            if (subtotalAmount.signum() < 0) {
+                throw FinanceApiException.badRequest("taxAmount cannot exceed totalAmount.");
+            }
+        } else {
+            requireNonNegative(subtotalAmount, "subtotalAmount");
+        }
+        if (subtotalAmount.add(taxAmount).compareTo(request.totalAmount()) != 0) {
+            throw FinanceApiException.badRequest(
+                "subtotalAmount plus taxAmount must equal totalAmount.");
+        }
         referenceValidator.validateSettlementReferences(context, request.expenseId(), request.providerId(), request.accountingAccountId());
     }
 

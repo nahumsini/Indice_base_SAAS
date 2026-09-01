@@ -26,6 +26,8 @@ public class KioskActionDispatcher {
 
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
     private static final int MAX_IDEMPOTENCY_KEY_LENGTH = 128;
+    private static final Set<String> IDEMPOTENCY_TRANSPORT_FIELDS = Set.of(
+        "kiosk_session_token", "identification_token", "identificationToken");
     private final KioskAdapterRegistry registry;
     private final KioskRegistryService definitionRegistry;
     private final KioskSessionService sessionService;
@@ -111,7 +113,14 @@ public class KioskActionDispatcher {
                     .noneMatch(candidate -> candidate.versionedKey().equals(capability.versionedKey()))) {
                 throw new SecurityException("Kiosk capability is not available for this kiosk type.");
             }
-            executionContext = context.resolved(definition, null);
+            /*
+             * Employee channels arrive with a principal that was already restored from the
+             * authoritative parent/child session boundary. Keep that principal while consuming
+             * the rate-limit bucket so one collaborator cannot exhaust the shared "mobile"
+             * network bucket for every other collaborator. The token is still revalidated below
+             * and must match this principal before authorization or execution.
+             */
+            executionContext = context.resolved(definition, context.session());
             var moduleManagedPinThrottle = isIdentityEstablishment(request)
                 && Boolean.TRUE.equals(capability.inputContract().get("moduleManagedPinThrottle"));
             var stablePinScope = "";
@@ -136,8 +145,22 @@ public class KioskActionDispatcher {
                 throw new SecurityException("Kiosk capability is not available.");
             }
             if (!isIdentityEstablishment(request) && capability.accessLevel() != KioskAccessLevel.PUBLIC) {
-                var session = sessionService.requireSession(
-                    definition, capability, request.payload(), context.browserSessionReference());
+                KioskSessionPrincipal session;
+                if (KioskExecutionChannels.MOBILE_MULTI_KIOSK.equals(context.channel())) {
+                    if (context.session() == null) {
+                        throw new SecurityException("Mobile Multi-kiosk authority is required.");
+                    }
+                    session = sessionService.requirePrevalidatedMobileSession(
+                        definition, capability, request.payload(), context.browserSessionReference(),
+                        context.session());
+                } else {
+                    session = sessionService.requireSession(
+                        definition, capability, request.payload(), context.browserSessionReference(),
+                        context.channel());
+                    if (context.session() != null) {
+                        requireSameSession(context.session(), session, definition);
+                    }
+                }
                 executionContext = executionContext.resolved(definition, session);
                 identityReferenceHash = sha256(
                     definition.companyId() + ":" + session.identityType() + ":" + session.identityId());
@@ -169,7 +192,7 @@ public class KioskActionDispatcher {
             actionId = auditService.beginAction(executionContext, request, capability, normalizedKey);
             MDC.put("actionId", actionId);
 
-            var response = "AUTHENTICATED_WEB".equals(executionContext.channel())
+            var response = KioskExecutionChannels.isEmployeeChannel(executionContext.channel())
                 ? adapter.executeEmployee(executionContext, request)
                 : adapter.execute(executionContext, request);
             fileIntentService.captureOutcome(executionContext, request, capability, response);
@@ -216,6 +239,20 @@ public class KioskActionDispatcher {
             KioskCapabilityDescriptor capability) {
         var sessionId = context.session() == null ? null : context.session().sessionId();
         return new KioskDispatchResult(data, sessionId, capability.versionedKey());
+    }
+
+    private void requireSameSession(
+            KioskSessionPrincipal expected,
+            KioskSessionPrincipal validated,
+            KioskResolvedDefinition definition) {
+        if (validated == null
+                || !expected.sessionId().equals(validated.sessionId())
+                || expected.kioskDefinitionId() != definition.id()
+                || expected.companyId() != definition.companyId()
+                || expected.identityId() != validated.identityId()
+                || !expected.identityType().equals(validated.identityType())) {
+            throw new SecurityException("Kiosk session context does not match the request channel.");
+        }
     }
 
     private boolean isIdentityEstablishment(KioskActionRequest request) {
@@ -363,10 +400,10 @@ public class KioskActionDispatcher {
                     idempotencyKey, requestFingerprint, true);
             }
             if (!requestFingerprint.equals(row.requestFingerprint())) {
-                throw new IllegalArgumentException("Idempotency-Key was already used with another request.");
+                throw KioskIdempotencyConflictException.requestMismatch();
             }
             if (!"COMPLETED".equals(row.status()) || row.responseJson() == null) {
-                throw new IllegalStateException("An action with this Idempotency-Key is already processing.");
+                throw KioskIdempotencyConflictException.inProgress();
             }
             return fromJson(row.responseJson());
         }
@@ -411,13 +448,12 @@ public class KioskActionDispatcher {
     }
 
     private String fingerprint(KioskActionRequest request) {
-        Map<String, Object> fingerprintPayload = request.payload();
+        var fingerprintPayload = new LinkedHashMap<>(request.payload());
+        IDEMPOTENCY_TRANSPORT_FIELDS.forEach(fingerprintPayload::remove);
         if (request.capabilityKey().endsWith(".attachment.register")
                 && request.payload().containsKey("logical_file_id")) {
-            var logicalPayload = new LinkedHashMap<>(request.payload());
-            logicalPayload.remove("object_key");
-            logicalPayload.remove("objectKey");
-            fingerprintPayload = logicalPayload;
+            fingerprintPayload.remove("object_key");
+            fingerprintPayload.remove("objectKey");
         }
         return sha256(request.versionedCapabilityKey() + "\n" + request.resourceId()
             + "\n" + toJson(fingerprintPayload));

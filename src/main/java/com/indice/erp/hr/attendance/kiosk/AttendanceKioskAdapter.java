@@ -5,31 +5,42 @@ import com.indice.erp.kiosk.engine.KioskActionRequest;
 import com.indice.erp.kiosk.engine.KioskAuthorization;
 import com.indice.erp.kiosk.engine.KioskCapabilityDescriptor;
 import com.indice.erp.kiosk.engine.KioskExecutionContext;
+import com.indice.erp.kiosk.engine.KioskExecutionChannels;
+import com.indice.erp.kiosk.engine.KioskEmployeeToolCatalogService;
 import com.indice.erp.kiosk.engine.KioskModuleAdapter;
+import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
 import com.indice.erp.kiosk.engine.KioskSessionService;
 import com.indice.erp.kiosk.engine.KioskValidationResult;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 @Component
 public class AttendanceKioskAdapter implements KioskModuleAdapter {
 
+    private static final Set<String> EMPLOYEE_TAB_PERMISSIONS = Set.of(
+        "human_resources.attendance", "human_resources.control");
+
     private final HrAttendanceService attendance;
     private final AttendanceKioskEngineIdentityService identities;
     private final AttendanceKioskModuleAuditService moduleAudit;
     private final KioskSessionService sessions;
+    private final AttendanceEmployeeKioskService employeeCenter;
 
     public AttendanceKioskAdapter(
             HrAttendanceService attendance,
             AttendanceKioskEngineIdentityService identities,
             AttendanceKioskModuleAuditService moduleAudit,
-            KioskSessionService sessions) {
+            KioskSessionService sessions,
+            AttendanceEmployeeKioskService employeeCenter) {
         this.attendance = attendance;
         this.identities = identities;
         this.moduleAudit = moduleAudit;
         this.sessions = sessions;
+        this.employeeCenter = employeeCenter;
     }
 
     @Override
@@ -43,9 +54,56 @@ public class AttendanceKioskAdapter implements KioskModuleAdapter {
     }
 
     @Override
+    public Set<KioskCapabilityDescriptor> capabilities(KioskResolvedDefinition definition) {
+        if (!isNativeAttendanceTool(definition)) {
+            return capabilities();
+        }
+        return capabilities().stream()
+            .filter(capability -> Set.of(
+                AttendanceKioskCapabilities.PHOTO_PRESIGN,
+                AttendanceKioskCapabilities.PUNCH_CREATE
+            ).contains(capability.key()))
+            .collect(Collectors.toUnmodifiableSet());
+    }
+
+    @Override
     public Map<String, Object> bootstrap(KioskExecutionContext context) {
         requireContext(context);
         return attendance.publicKioskBootstrap(context.accessReference());
+    }
+
+    @Override
+    public boolean supportsEmployeeCenter(KioskResolvedDefinition definition) {
+        return isNativeAttendanceTool(definition) || employeeCenter.supports(definition);
+    }
+
+    @Override
+    public Set<String> employeeCenterTabPermissionKeys(KioskResolvedDefinition definition) {
+        return EMPLOYEE_TAB_PERMISSIONS;
+    }
+
+    @Override
+    public Set<String> employeeCapabilityTabPermissionKeys(
+            KioskResolvedDefinition definition,
+            KioskCapabilityDescriptor capability) {
+        return AttendanceKioskCapabilities.IDENTITY_VERIFY.equals(capability.key())
+            ? Set.of()
+            : EMPLOYEE_TAB_PERMISSIONS;
+    }
+
+    @Override
+    public Map<String, Object> employeeBootstrap(KioskExecutionContext context) {
+        requireEmployeeContext(context);
+        if (isNativeAttendanceTool(context.definition())) {
+            var dashboard = attendance.selfDashboard(
+                context.definition().companyId(), context.session().identityId(), LocalDate.now());
+            var result = nativeToolWorkspace(context.definition(), dashboard);
+            result.put("authentication", "ENGINE_PIN_SESSION");
+            result.put("tool_key", KioskEmployeeToolCatalogService.ATTENDANCE_TOOL_KEY);
+            result.put("identity_evidence_required", true);
+            return java.util.Collections.unmodifiableMap(result);
+        }
+        return employeeCenter.bootstrap(context.definition(), context.session().identityId());
     }
 
     @Override
@@ -58,7 +116,7 @@ public class AttendanceKioskAdapter implements KioskModuleAdapter {
                 && context.session() == null) {
             return KioskAuthorization.deny("Attendance kiosk authentication is required.");
         }
-        if (context.session() != null && !"EMPLOYEE".equals(context.session().identityType())) {
+        if (context.session() != null && !validIdentityForChannel(context)) {
             return KioskAuthorization.deny("Attendance kiosk requires an employee identity.");
         }
         return KioskAuthorization.allow();
@@ -92,21 +150,61 @@ public class AttendanceKioskAdapter implements KioskModuleAdapter {
         requireContext(context);
         AttendanceKioskCapabilities.require(request.capabilityKey());
         var payload = legacySessionPayload(request.payload());
+        return executeWithAccessReference(context, request, context.accessReference(), payload);
+    }
+
+    @Override
+    public Map<String, Object> executeEmployee(
+            KioskExecutionContext context,
+            KioskActionRequest request) {
+        requireEmployeeContext(context);
+        if (isNativeAttendanceTool(context.definition())) {
+            AttendanceKioskCapabilities.require(request.capabilityKey());
+            var response = switch (request.capabilityKey()) {
+                case AttendanceKioskCapabilities.PHOTO_PRESIGN ->
+                    attendance.createSelfPhotoUpload(
+                        context.definition().companyId(), context.session().identityId(), request.payload());
+                case AttendanceKioskCapabilities.PUNCH_CREATE -> {
+                    requireNativeToolPhotoEvidence(request.payload());
+                    var recorded = new LinkedHashMap<>(attendance.recordSelfKioskEvent(
+                        context.definition().companyId(), context.session().identityId(), request.payload()));
+                    var refreshed = attendance.selfDashboard(
+                        context.definition().companyId(), context.session().identityId(), LocalDate.now());
+                    recorded.put("today_activity", nativeTodayActivity(refreshed));
+                    yield recorded;
+                }
+                default -> throw new SecurityException(
+                    "Attendance capability is not available for this employee tool.");
+            };
+            afterExecute(context, request, response);
+            return response;
+        }
+        var response = employeeCenter.execute(
+            context.definition(), context.session().identityId(), request);
+        afterExecute(context, request, response);
+        return response;
+    }
+
+    private Map<String, Object> executeWithAccessReference(
+            KioskExecutionContext context,
+            KioskActionRequest request,
+            String accessReference,
+            Map<String, Object> payload) {
         var response = switch (request.capabilityKey()) {
             case AttendanceKioskCapabilities.IDENTITY_VERIFY ->
-                attendance.publicKioskIdentify(context.accessReference(), payload);
+                attendance.publicKioskIdentify(accessReference, payload);
             case AttendanceKioskCapabilities.PHOTO_PRESIGN ->
-                attendance.createPublicKioskPhotoUpload(context.accessReference(), payload);
+                attendance.createPublicKioskPhotoUpload(accessReference, payload);
             case AttendanceKioskCapabilities.FACE_VERIFICATION_BEGIN ->
-                attendance.createPublicKioskFaceVerificationSession(context.accessReference(), payload);
+                attendance.createPublicKioskFaceVerificationSession(accessReference, payload);
             case AttendanceKioskCapabilities.FACE_VERIFICATION_CAPTURE_PRESIGN ->
                 attendance.createPublicKioskFaceVerificationCaptureUpload(
-                    context.accessReference(), request.resourceId(), payload);
+                    accessReference, request.resourceId(), payload);
             case AttendanceKioskCapabilities.FACE_VERIFICATION_COMPLETE ->
                 attendance.completePublicKioskFaceVerificationSession(
-                    context.accessReference(), request.resourceId(), payload);
+                    accessReference, request.resourceId(), payload);
             case AttendanceKioskCapabilities.PUNCH_CREATE ->
-                attendance.publicKioskPunch(context.accessReference(), payload);
+                attendance.publicKioskPunch(accessReference, payload);
             default -> throw new IllegalArgumentException("Unsupported attendance kiosk capability.");
         };
         afterExecute(context, request, response);
@@ -169,6 +267,84 @@ public class AttendanceKioskAdapter implements KioskModuleAdapter {
 
     private boolean blank(Object value) {
         return value == null || String.valueOf(value).isBlank();
+    }
+
+    private boolean isNativeAttendanceTool(KioskResolvedDefinition definition) {
+        return definition != null
+            && AttendanceKioskCapabilities.OWNER_MODULE.equals(definition.ownerModule())
+            && KioskEmployeeToolCatalogService.ATTENDANCE_KIOSK_TYPE.equals(definition.kioskType())
+            && KioskEmployeeToolCatalogService.ATTENDANCE_RESERVED_CODE.equals(definition.code())
+            && definition.legacyReferenceId() == null;
+    }
+
+    private void requireNativeToolPhotoEvidence(Map<String, Object> payload) {
+        if (payload == null || blank(payload.get("photo_url"))) {
+            throw new IllegalArgumentException(
+                "A stored attendance photo is required for an employee tool punch.");
+        }
+    }
+
+    private LinkedHashMap<String, Object> nativeToolWorkspace(
+            KioskResolvedDefinition definition,
+            Map<String, Object> dashboard) {
+        var result = new LinkedHashMap<String, Object>();
+        result.put("kiosk_device", Map.of(
+            "id", definition.id(),
+            "code", definition.code(),
+            "name", definition.name()));
+        result.put("kiosk_type", definition.kioskType());
+        result.put("scope_label", "Asistencia de la compañía");
+        result.put("inactivity_timeout_seconds", 1_800);
+        result.put("user", firstMap(dashboard.get("users")));
+        result.put("today_activity", nativeTodayActivity(dashboard));
+        result.put("locations", dashboard.getOrDefault("locations", java.util.List.of()));
+        result.put("summary", dashboard.getOrDefault("summary", Map.of()));
+        return result;
+    }
+
+    private Map<String, Object> nativeTodayActivity(Map<String, Object> dashboard) {
+        var source = firstMap(dashboard.get("items"));
+        var activity = new LinkedHashMap<String, Object>();
+        activity.put("attendance_date", dashboard.getOrDefault(
+            "date", source.getOrDefault("attendance_date", LocalDate.now().toString())));
+        for (var key : java.util.List.of(
+                "status", "corrected_status", "first_check_in_at", "last_check_out_at",
+                "first_location", "last_location", "minutes_late")) {
+            activity.put(key, source.get(key));
+        }
+        activity.put("has_check_in", source.get("first_check_in_at") != null);
+        activity.put("has_check_out", source.get("last_check_out_at") != null);
+        activity.put("has_active_check_in",
+            source.get("first_check_in_at") != null && source.get("last_check_out_at") == null);
+        return java.util.Collections.unmodifiableMap(activity);
+    }
+
+    private Map<String, Object> firstMap(Object value) {
+        if (value instanceof java.util.List<?> values && !values.isEmpty()
+                && values.getFirst() instanceof Map<?, ?> raw) {
+            var result = new LinkedHashMap<String, Object>();
+            raw.forEach((key, item) -> result.put(String.valueOf(key), item));
+            return java.util.Collections.unmodifiableMap(result);
+        }
+        return Map.of();
+    }
+
+    private void requireEmployeeContext(KioskExecutionContext context) {
+        requireContext(context);
+        if (!KioskExecutionChannels.isEmployeeChannel(context.channel())
+                || context.definition() == null || context.session() == null
+                || !"USER".equals(context.session().identityType())
+                || context.session().identityId() <= 0
+                || context.session().companyId() != context.definition().companyId()
+                || context.session().kioskDefinitionId() != context.definition().id()) {
+            throw new SecurityException("Authenticated employee attendance session is required.");
+        }
+    }
+
+    private boolean validIdentityForChannel(KioskExecutionContext context) {
+        return KioskExecutionChannels.isEmployeeChannel(context.channel())
+            ? "USER".equals(context.session().identityType())
+            : "EMPLOYEE".equals(context.session().identityType());
     }
 
     private void requireContext(KioskExecutionContext context) {

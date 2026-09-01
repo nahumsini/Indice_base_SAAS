@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { languages, useLanguage } from '../../shared/context';
 
 const accessibilityStorageKey = 'indice-kiosk-accessibility-mode';
+const kioskLanguageStorageKey = 'indice-kiosk-language';
 
 interface AccessibilityPreferences {
   highContrast: boolean;
@@ -77,20 +78,77 @@ const spanishUtilityCopy: UtilityCopy = {
   reset: 'Restablecer ajustes',
 };
 
+const frenchUtilityCopy: UtilityCopy = {
+  accessibility: 'Accessibilité',
+  accessibilityDescription: 'Ajustez ce kiosque pour le rendre plus simple et confortable à utiliser.',
+  close: 'Fermer les réglages d’accessibilité',
+  highContrast: 'Contraste élevé',
+  highContrastHint: 'Distingue plus facilement les contrôles, les bordures et les messages.',
+  language: 'Langue',
+  largeText: 'Texte agrandi',
+  largeTextHint: 'Augmente la taille du texte et des contrôles dans tout le kiosque.',
+  reduceMotion: 'Réduire les animations',
+  reduceMotionHint: 'Réduit les animations et les transitions visuelles.',
+  reset: 'Rétablir les réglages',
+};
+
+const portugueseUtilityCopy: UtilityCopy = {
+  accessibility: 'Acessibilidade',
+  accessibilityDescription: 'Ajuste este quiosque para usá-lo com mais facilidade e conforto.',
+  close: 'Fechar configurações de acessibilidade',
+  highContrast: 'Alto contraste',
+  highContrastHint: 'Facilita a distinção de controles, bordas e mensagens.',
+  language: 'Idioma',
+  largeText: 'Texto grande',
+  largeTextHint: 'Aumenta o tamanho do texto e dos controles em todo o quiosque.',
+  reduceMotion: 'Reduzir movimento',
+  reduceMotionHint: 'Reduz animações e transições visuais.',
+  reset: 'Restaurar configurações',
+};
+
+const koreanUtilityCopy: UtilityCopy = {
+  accessibility: '접근성',
+  accessibilityDescription: '키오스크를 더 쉽고 편안하게 사용할 수 있도록 조정하세요.',
+  close: '접근성 설정 닫기',
+  highContrast: '고대비',
+  highContrastHint: '컨트롤, 테두리 및 메시지를 더 쉽게 구분합니다.',
+  language: '언어',
+  largeText: '큰 텍스트',
+  largeTextHint: '키오스크 전체의 텍스트와 컨트롤 크기를 늘립니다.',
+  reduceMotion: '동작 줄이기',
+  reduceMotionHint: '애니메이션과 화면 전환을 최소화합니다.',
+  reset: '설정 초기화',
+};
+
+const chineseUtilityCopy: UtilityCopy = {
+  accessibility: '无障碍',
+  accessibilityDescription: '调整此自助终端，使其更易于舒适使用。',
+  close: '关闭无障碍设置',
+  highContrast: '高对比度',
+  highContrastHint: '使控件、边框和消息更容易区分。',
+  language: '语言',
+  largeText: '大号文字',
+  largeTextHint: '增大整个自助终端中的文字和控件。',
+  reduceMotion: '减少动态效果',
+  reduceMotionHint: '尽量减少动画和视觉过渡。',
+  reset: '恢复默认设置',
+};
+
 const utilityCopy: Record<string, UtilityCopy> = {
   'es-MX': spanishUtilityCopy,
   'es-CO': spanishUtilityCopy,
   'en-US': englishUtilityCopy,
   'en-CA': englishUtilityCopy,
-  'fr-CA': englishUtilityCopy,
-  'pt-BR': englishUtilityCopy,
-  'ko-CA': englishUtilityCopy,
-  'zh-CA': englishUtilityCopy,
+  'fr-CA': frenchUtilityCopy,
+  'pt-BR': portugueseUtilityCopy,
+  'ko-CA': koreanUtilityCopy,
+  'zh-CA': chineseUtilityCopy,
 };
 
 interface KioskPublicShellProps {
   banners?: ReactNode;
   children: ReactNode;
+  defaultLocale?: string | null;
   errorMessage?: string | null;
   header: ReactNode;
   immersive?: boolean;
@@ -107,6 +165,7 @@ interface KioskPublicShellProps {
 export function KioskPublicShell({
   banners,
   children,
+  defaultLocale,
   errorMessage,
   header,
   immersive = false,
@@ -123,7 +182,19 @@ export function KioskPublicShell({
   const [accessibilityPreferences, setAccessibilityPreferences] = useState(readAccessibilityPreference);
   const accessibilityButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const appliedDefaultLocaleRef = useRef<string | null>(null);
   const copy = utilityCopy[currentLanguage.code] ?? utilityCopy['en-CA'];
+
+  useEffect(() => {
+    if (!defaultLocale || appliedDefaultLocaleRef.current === defaultLocale) return;
+    let explicitLocale = '';
+    try { explicitLocale = window.localStorage.getItem(kioskLanguageStorageKey) ?? ''; } catch { /* no-op */ }
+    const nextLanguage = languages.find(language => language.code === explicitLocale)
+      ?? languages.find(language => language.code === defaultLocale)
+      ?? languages.find(language => language.code === 'en-CA');
+    appliedDefaultLocaleRef.current = defaultLocale;
+    if (nextLanguage && nextLanguage.code !== currentLanguage.code) setCurrentLanguage(nextLanguage);
+  }, [currentLanguage.code, defaultLocale, setCurrentLanguage]);
 
   useEffect(() => {
     try {
@@ -158,6 +229,7 @@ export function KioskPublicShell({
       data-kiosk-accessibility={accessibilityEnabled ? 'enhanced' : 'standard'}
       data-kiosk-reduce-motion={accessibilityPreferences.reduceMotion}
       data-module={moduleScope}
+      lang={currentLanguage.code}
     >
       {loadingOverlay}
       <main
@@ -174,7 +246,10 @@ export function KioskPublicShell({
               value={currentLanguage.code}
               onChange={(event) => {
                 const language = languages.find(item => item.code === event.target.value);
-                if (language) setCurrentLanguage(language);
+                if (language) {
+                  try { window.localStorage.setItem(kioskLanguageStorageKey, language.code); } catch { /* no-op */ }
+                  setCurrentLanguage(language);
+                }
               }}
               className="h-11 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-orange-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white sm:max-w-[190px]"
             >

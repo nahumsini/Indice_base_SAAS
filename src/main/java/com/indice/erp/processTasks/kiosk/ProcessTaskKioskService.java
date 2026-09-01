@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.hr.attendance.kiosk.AttendanceKioskTokenService;
 import com.indice.erp.kiosk.engine.KioskDefinitionStatus;
+import com.indice.erp.kiosk.engine.KioskEmployeeToolCatalogService;
 import com.indice.erp.kiosk.engine.KioskRegistryService;
 import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
 import java.security.SecureRandom;
@@ -235,7 +236,12 @@ public class ProcessTaskKioskService {
         body.put("scope_label", views.scopeLabel(context.kiosk()));
         body.put("user", views.employee(context.employee()));
         body.put("tasks", queries.listTasks(context.kiosk(), context.employee()));
-        body.put("assignment_options", queries.assignmentOptions(context.kiosk(), context.employee().userId()));
+        if (!isNativeEmployeeTasksTool(definition)) {
+            body.put("assignment_options", queries.assignmentOptions(
+                context.kiosk(), context.employee().userId()));
+        } else {
+            body.put("tool_key", KioskEmployeeToolCatalogService.MY_TASKS_TOOL_KEY);
+        }
         body.put("inactivity_timeout_seconds", inactivityTimeoutSeconds);
         body.put("authentication", "INDEX_SESSION");
         return body;
@@ -348,14 +354,38 @@ public class ProcessTaskKioskService {
             KioskResolvedDefinition definition,
             long userId) {
         if (definition == null
-                || !ProcessTaskKioskCapabilities.OWNER_MODULE.equals(definition.ownerModule())
-                || definition.legacyReferenceId() == null) {
+                || !ProcessTaskKioskCapabilities.OWNER_MODULE.equals(definition.ownerModule())) {
             throw new NoSuchElementException("Task kiosk not found.");
         }
-        var kiosk = getKiosk(definition.companyId(), definition.legacyReferenceId());
-        var employee = identityService.loadEmployeeByUserId(definition.companyId(), userId);
+        ProcessTaskKioskRow kiosk;
+        if (isNativeEmployeeTasksTool(definition)) {
+            kiosk = syntheticCompanyTool(definition);
+        } else {
+            if (definition.legacyReferenceId() == null) {
+                throw new NoSuchElementException("Task kiosk not found.");
+            }
+            kiosk = getKiosk(definition.companyId(), definition.legacyReferenceId());
+        }
+        var employee = isNativeEmployeeTasksTool(definition)
+            ? identityService.loadActiveMembershipByUserId(definition.companyId(), userId)
+            : identityService.loadEmployeeByUserId(definition.companyId(), userId);
         identityService.requireScope(kiosk, employee);
         return new ProcessTaskPublicKioskContext(kiosk, employee);
+    }
+
+    private boolean isNativeEmployeeTasksTool(KioskResolvedDefinition definition) {
+        return definition != null
+            && ProcessTaskKioskCapabilities.OWNER_MODULE.equals(definition.ownerModule())
+            && KioskEmployeeToolCatalogService.MY_TASKS_KIOSK_TYPE.equals(definition.kioskType())
+            && KioskEmployeeToolCatalogService.MY_TASKS_RESERVED_CODE.equals(definition.code())
+            && definition.legacyReferenceId() == null;
+    }
+
+    private ProcessTaskKioskRow syntheticCompanyTool(KioskResolvedDefinition definition) {
+        return new ProcessTaskKioskRow(
+            definition.id(), definition.companyId(), null, "", null, "",
+            definition.code(), definition.name(), "active", "ACTIVE", null, "", "",
+            false, "{\"tool_key\":\"employee.my-tasks@1\"}", "", "");
     }
 
     private List<ProcessTaskKioskRow> loadKiosks(long companyId) {

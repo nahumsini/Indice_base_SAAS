@@ -348,7 +348,7 @@ function AuditTimeline({
   );
 }
 
-export default function KioskCenterPage() {
+export default function KioskCenterPage({ embedded = false }: { embedded?: boolean }) {
   const navigate = useNavigate();
   const routeParams = useParams();
   const { currentLanguage } = useLanguage();
@@ -560,7 +560,7 @@ export default function KioskCenterPage() {
   const lifecycleIsRevoke = pendingLifecycle?.action === 'revoke';
 
   return (
-    <main className="mx-auto max-w-[1600px] px-4 pb-12 sm:px-6 lg:px-8">
+    <main className={cn(embedded ? 'pb-12' : 'mx-auto max-w-[1600px] px-4 pb-12 sm:px-6 lg:px-8')}>
       <LoadingBarOverlay isVisible={isLoading && items.length === 0 && !loadError} title={copy.loadingTitle} description={copy.loadingDescription} />
       <SuccessToast isVisible={Boolean(successMessage)} message={successMessage} onClose={() => setSuccessMessage('')} />
       <FailureToast isVisible={Boolean(failureMessage)} message={failureMessage} onClose={() => setFailureMessage('')} />

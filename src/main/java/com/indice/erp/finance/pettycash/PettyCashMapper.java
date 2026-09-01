@@ -262,7 +262,7 @@ public class PettyCashMapper {
     PettyCashSettlementLineCommand toCommand(FinanceContext context, CreatePettyCashSettlementLineRequest request) {
         var taxAmount = request.taxAmount() == null ? BigDecimal.ZERO : request.taxAmount();
         var subtotalAmount = request.subtotalAmount() == null
-            ? request.totalAmount().subtract(taxAmount).max(BigDecimal.ZERO)
+            ? request.totalAmount().subtract(taxAmount)
             : request.subtotalAmount();
         return new PettyCashSettlementLineCommand(
             request.pettyCashStatementId(), request.expenseId(), request.providerId(),

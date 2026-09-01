@@ -149,6 +149,51 @@ class ProcessTaskKioskIdentityService {
         return loadEmployee(companyId, userCompanyIds.getFirst());
     }
 
+    /**
+     * Native employee tools authenticate a company membership, not an optional legacy HR row.
+     * The LEFT JOIN enriches the card when HR data exists without making that row authoritative.
+     */
+    ProcessTaskKioskEmployee loadActiveMembershipByUserId(long companyId, long userId) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT membership.id AS user_company_id, membership.user_id,
+                       COALESCE(hr_user.user_code, '') AS user_code,
+                       COALESCE(
+                           NULLIF(TRIM(CONCAT_WS(' ', COALESCE(hr_user.first_name, ''),
+                                                     COALESCE(hr_user.last_name, ''))), ''),
+                           NULLIF(TRIM(user.full_name), ''), user.email) AS full_name,
+                       COALESCE(hr_user.position, '') AS position_title,
+                       COALESCE(hr_user.department, '') AS department,
+                       COALESCE(LOWER(hr_user.status), 'active') AS status
+                FROM user_companies membership
+                INNER JOIN users user ON user.id = membership.user_id
+                LEFT JOIN hr_users hr_user
+                  ON hr_user.id = membership.id
+                 AND hr_user.company_id = membership.company_id
+                WHERE membership.company_id = ? AND membership.user_id = ?
+                  AND LOWER(COALESCE(membership.status, 'active')) IN ('active', 'activo')
+                ORDER BY membership.id DESC
+                LIMIT 1
+                """,
+            (rs, rowNum) -> new ProcessTaskKioskEmployee(
+                rs.getLong("user_company_id"), rs.getLong("user_id"),
+                fallback(rs.getString("user_code"), ""),
+                fallback(rs.getString("full_name"), "User " + rs.getLong("user_company_id")),
+                fallback(rs.getString("position_title"), ""),
+                fallback(rs.getString("department"), ""),
+                fallback(rs.getString("status"), "active")),
+            companyId, userId
+        );
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException("Active employee membership not found.");
+        }
+        var employee = rows.getFirst();
+        if ("terminated".equals(employee.status())) {
+            throw new IllegalArgumentException("This user is terminated.");
+        }
+        return employee;
+    }
+
     void requireScope(ProcessTaskKioskRow kiosk, ProcessTaskKioskEmployee employee) {
         assignmentScopeService.requireKioskScopeAccess(
             kiosk.companyId(), employee.userId(), kiosk.unitId(), kiosk.businessId());

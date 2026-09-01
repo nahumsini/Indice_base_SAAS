@@ -189,6 +189,87 @@ class KioskSessionServiceTest {
 
     @Test
     @SuppressWarnings({"rawtypes", "unchecked"})
+    void mobileSessionTokenCanBeRevalidatedAfterParentAuthorityWasChecked() throws Exception {
+        var service = new KioskSessionService(jdbcTemplate, new ObjectMapper());
+        var rs = sessionRow("[\"process-tasks.tasks.read@1\"]", 60 * 60);
+        lenient().when(rs.getString("identity_type")).thenReturn("USER");
+        lenient().when(rs.getLong("identity_id")).thenReturn(9L);
+        given(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
+            .willAnswer(invocation -> {
+                var mapper = (RowMapper) invocation.getArgument(1);
+                return List.of(mapper.mapRow(rs, 0));
+        });
+        var expectedSession = new KioskSessionPrincipal(
+            "session-1", 17L, 7L, "USER", 9L, Set.of(),
+            Instant.now().plusSeconds(600));
+        var session = service.requirePrevalidatedMobileSession(
+            definition(), capability(), Map.of("kiosk_session_token", "mobile-child-token"),
+            "browser-17", expectedSession);
+
+        assertThat(session.identityType()).isEqualTo("USER");
+        assertThat(session.identityId()).isEqualTo(9L);
+        verify(jdbcTemplate, never()).queryForObject(
+            contains("FROM kiosk_grants"), org.mockito.ArgumentMatchers.eq(Integer.class),
+            any(Object[].class));
+        var sessionQuery = org.mockito.Mockito.mockingDetails(jdbcTemplate).getInvocations().stream()
+            .filter(invocation -> "query".equals(invocation.getMethod().getName()))
+            .filter(invocation -> String.valueOf((Object) invocation.getArgument(0))
+                .contains("AND channel = ?"))
+            .findFirst()
+            .orElseThrow();
+        assertThat(List.of(sessionQuery.getArguments()))
+            .contains(KioskExecutionChannels.MOBILE_MULTI_KIOSK);
+        verify(jdbcTemplate).update(
+            contains("last_activity_at = CURRENT_TIMESTAMP"), any(Object[].class));
+    }
+
+    @Test
+    void sessionChannelsKeepPublicAndEmployeeAuthoritySeparated() {
+        assertThat(KioskExecutionChannels.persistedSessionChannel(
+            KioskExecutionChannels.LEGACY_PUBLIC_LINK))
+            .isEqualTo(KioskExecutionChannels.PUBLIC_LINK);
+        assertThat(KioskExecutionChannels.persistedSessionChannel(
+            KioskExecutionChannels.AUTHENTICATED_WEB))
+            .isEqualTo(KioskExecutionChannels.AUTHENTICATED_WEB);
+        assertThat(KioskExecutionChannels.persistedSessionChannel(
+            KioskExecutionChannels.MOBILE_MULTI_KIOSK))
+            .isEqualTo(KioskExecutionChannels.MOBILE_MULTI_KIOSK);
+        assertThatThrownBy(() -> KioskExecutionChannels.persistedSessionChannel("FORGED_CHANNEL"))
+            .isInstanceOf(SecurityException.class)
+            .hasMessage("Unsupported kiosk execution channel.");
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void authenticatedWebSessionDoesNotTreatMultiKioskCompositionAsAGrant() throws Exception {
+        var service = new KioskSessionService(jdbcTemplate, new ObjectMapper());
+        var rs = sessionRow("[\"process-tasks.tasks.read@1\"]", 60 * 60);
+        lenient().when(rs.getString("identity_type")).thenReturn("USER");
+        lenient().when(rs.getLong("identity_id")).thenReturn(9L);
+        given(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
+            .willAnswer(invocation -> {
+                var mapper = (RowMapper) invocation.getArgument(1);
+                return List.of(mapper.mapRow(rs, 0));
+        });
+        given(jdbcTemplate.queryForObject(
+            contains("FROM kiosk_grants"), org.mockito.ArgumentMatchers.eq(Integer.class),
+            any(Object[].class))).willReturn(0);
+
+        assertThatThrownBy(() -> service.requireSession(
+            definition(), capability(), Map.of("kiosk_session_token", "mobile-child-token"),
+            "browser-17", KioskExecutionChannels.AUTHENTICATED_WEB))
+            .isInstanceOf(SecurityException.class)
+            .hasMessage("Kiosk grant is not active.");
+
+        assertThat(explicitGrantQuerySql())
+            .contains("FROM kiosk_grants")
+            .doesNotContain("multi_kiosk_items", "multi_kiosk_assignments");
+        verify(jdbcTemplate, never()).update(
+            contains("last_activity_at = CURRENT_TIMESTAMP"), any(Object[].class));
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
     void pettyCashKeepsAnActiveWorkSessionForFifteenMinutes() throws Exception {
         var service = new KioskSessionService(jdbcTemplate, new ObjectMapper());
         var rs = sessionRow("[\"process-tasks.tasks.read@1\"]", 60 * 60);
@@ -269,6 +350,46 @@ class KioskSessionServiceTest {
         assertThat(invocation.getArguments()[5]).isEqualTo(44L);
     }
 
+    @Test
+    void createsAChildSessionForTheExactActiveCompanyMembershipWithoutAssignmentOrParentScope() {
+        var service = new KioskSessionService(jdbcTemplate, new ObjectMapper());
+        given(jdbcTemplate.queryForObject(
+            contains("FROM multi_kiosk_items"), org.mockito.ArgumentMatchers.eq(Integer.class),
+            any(Object[].class))).willReturn(1);
+
+        var launch = service.createMobileMultiKioskSession(
+            definition(), 44L, 81L, 91L, "browser-17",
+            Set.of("process-tasks.tasks.read@1"));
+
+        assertThat(launch.session().identityId()).isEqualTo(81L);
+        assertThat(wasUpdateCalled("INSERT INTO kiosk_sessions")).isTrue();
+        assertCompanyMembershipCompositionQuery(44L, 7L, 91L, 81L, 17L);
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void refusesToUseAChildSessionWhenCompanyMembershipOrCompositionNoLongerMatches() throws Exception {
+        var service = new KioskSessionService(jdbcTemplate, new ObjectMapper());
+        var rs = sessionRow("[\"process-tasks.tasks.read@1\"]", 300);
+        given(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
+            .willAnswer(invocation -> {
+                var mapper = (RowMapper) invocation.getArgument(1);
+                return List.of(mapper.mapRow(rs, 0));
+            });
+        given(jdbcTemplate.queryForObject(
+            contains("FROM multi_kiosk_items"), org.mockito.ArgumentMatchers.eq(Integer.class),
+            any(Object[].class))).willReturn(0);
+
+        assertThatThrownBy(() -> service.requireMobileMultiKioskSession(
+            definition(), 44L, "mobile-child-token", "browser-17", 81L, 91L))
+            .isInstanceOf(SecurityException.class)
+            .hasMessage("Mobile kiosk authentication is required.");
+
+        assertCompanyMembershipCompositionQuery(44L, 7L, 91L, 81L, 17L);
+        verify(jdbcTemplate, never()).update(
+            contains("last_activity_at = CURRENT_TIMESTAMP"), any(Object[].class));
+    }
+
     private ResultSet sessionRow(String capabilities, long expiresInSeconds) throws Exception {
         var rs = mock(ResultSet.class);
         lenient().when(rs.getString("session_id")).thenReturn("session-1");
@@ -339,5 +460,48 @@ class KioskSessionServiceTest {
             .filter(invocation -> "query".equals(invocation.getMethod().getName()))
             .map(invocation -> String.valueOf((Object) invocation.getArgument(0)))
             .anyMatch(sql -> sql.contains(sqlFragment));
+    }
+
+    private String explicitGrantQuerySql() {
+        return org.mockito.Mockito.mockingDetails(jdbcTemplate).getInvocations().stream()
+            .filter(invocation -> "queryForObject".equals(invocation.getMethod().getName()))
+            .map(invocation -> String.valueOf((Object) invocation.getArgument(0)))
+            .filter(sql -> sql.contains("FROM kiosk_grants"))
+            .findFirst()
+            .orElseThrow();
+    }
+
+    private void assertCompanyMembershipCompositionQuery(
+            long multiKioskId,
+            long companyId,
+            long userCompanyId,
+            long userId,
+            long kioskDefinitionId) {
+        var invocation = org.mockito.Mockito.mockingDetails(jdbcTemplate).getInvocations().stream()
+            .filter(candidate -> "queryForObject".equals(candidate.getMethod().getName()))
+            .filter(candidate -> String.valueOf((Object) candidate.getArgument(0))
+                .contains("FROM multi_kiosk_items"))
+            .findFirst()
+            .orElseThrow();
+        var sql = String.valueOf((Object) invocation.getArgument(0));
+        assertThat(sql)
+            .contains(
+                "parent.id = ?",
+                "parent.company_id = ?",
+                "parent.status = 'ACTIVE'",
+                "parent.expires_at IS NULL OR parent.expires_at > CURRENT_TIMESTAMP",
+                "membership.id = ?",
+                "membership.company_id = parent.company_id",
+                "membership.user_id = ?",
+                "membership.status, 'active'",
+                "item.kiosk_definition_id = ?")
+            .doesNotContain(
+                "multi_kiosk_assignments",
+                "user_work_profiles",
+                "parent.unit_id",
+                "parent.business_id");
+        assertThat(List.of(invocation.getArguments()))
+            .containsSubsequence(
+                multiKioskId, companyId, userCompanyId, userId, kioskDefinitionId);
     }
 }

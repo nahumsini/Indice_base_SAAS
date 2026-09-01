@@ -4,14 +4,20 @@ import com.indice.erp.kiosk.engine.KioskActionRequest;
 import com.indice.erp.kiosk.engine.KioskCapabilityDescriptor;
 import com.indice.erp.kiosk.engine.KioskAuthorization;
 import com.indice.erp.kiosk.engine.KioskExecutionContext;
+import com.indice.erp.kiosk.engine.KioskExecutionChannels;
+import com.indice.erp.kiosk.engine.KioskEmployeeToolCatalogService;
 import com.indice.erp.kiosk.engine.KioskModuleAdapter;
+import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
 import com.indice.erp.kiosk.engine.KioskValidationResult;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 @Component
 public class ProcessTaskKioskAdapter implements KioskModuleAdapter {
+
+    private static final Set<String> EMPLOYEE_TAB_PERMISSIONS = Set.of("processes.calendar");
 
     private final ProcessTaskKioskService kioskService;
 
@@ -30,14 +36,44 @@ public class ProcessTaskKioskAdapter implements KioskModuleAdapter {
     }
 
     @Override
+    public Set<KioskCapabilityDescriptor> capabilities(KioskResolvedDefinition definition) {
+        if (!isNativeEmployeeTasksTool(definition)) {
+            return capabilities();
+        }
+        return capabilities().stream()
+            .filter(capability -> Set.of(
+                ProcessTaskKioskCapabilities.TASKS_READ,
+                ProcessTaskKioskCapabilities.TASK_COMPLETE
+            ).contains(capability.key()))
+            .collect(Collectors.toUnmodifiableSet());
+    }
+
+    @Override
     public Map<String, Object> bootstrap(KioskExecutionContext context) {
         requireContext(context);
         return kioskService.publicBootstrap(context.accessReference());
     }
 
     @Override
-    public boolean supportsEmployeeCenter(com.indice.erp.kiosk.engine.KioskResolvedDefinition definition) {
-        return true;
+    public boolean supportsEmployeeCenter(KioskResolvedDefinition definition) {
+        return isNativeEmployeeTasksTool(definition)
+            || (definition != null && definition.legacyReferenceId() != null
+                && definition.legacyReferenceId() > 0);
+    }
+
+    @Override
+    public Set<String> employeeCenterTabPermissionKeys(
+            KioskResolvedDefinition definition) {
+        return EMPLOYEE_TAB_PERMISSIONS;
+    }
+
+    @Override
+    public Set<String> employeeCapabilityTabPermissionKeys(
+            KioskResolvedDefinition definition,
+            KioskCapabilityDescriptor capability) {
+        return ProcessTaskKioskCapabilities.IDENTITY_VERIFY.equals(capability.key())
+            ? Set.of()
+            : EMPLOYEE_TAB_PERMISSIONS;
     }
 
     @Override
@@ -101,6 +137,14 @@ public class ProcessTaskKioskAdapter implements KioskModuleAdapter {
             KioskActionRequest request) {
         requireEmployeeContext(context);
         ProcessTaskKioskCapabilities.require(request.capabilityKey());
+        if (isNativeEmployeeTasksTool(context.definition())
+                && !Set.of(
+                    ProcessTaskKioskCapabilities.TASKS_READ,
+                    ProcessTaskKioskCapabilities.TASK_COMPLETE
+                ).contains(request.capabilityKey())) {
+            throw new SecurityException(
+                "Process capability is not available for this employee tool.");
+        }
         var userId = context.session().identityId();
         return switch (request.capabilityKey()) {
             case ProcessTaskKioskCapabilities.TASKS_READ -> Map.of(
@@ -126,11 +170,19 @@ public class ProcessTaskKioskAdapter implements KioskModuleAdapter {
 
     private void requireEmployeeContext(KioskExecutionContext context) {
         requireContext(context);
-        if (!"AUTHENTICATED_WEB".equals(context.channel())
+        if (!KioskExecutionChannels.isEmployeeChannel(context.channel())
                 || context.definition() == null || context.session() == null
                 || !"USER".equals(context.session().identityType())) {
             throw new SecurityException("Authenticated employee kiosk session is required.");
         }
+    }
+
+    private boolean isNativeEmployeeTasksTool(KioskResolvedDefinition definition) {
+        return definition != null
+            && ProcessTaskKioskCapabilities.OWNER_MODULE.equals(definition.ownerModule())
+            && KioskEmployeeToolCatalogService.MY_TASKS_KIOSK_TYPE.equals(definition.kioskType())
+            && KioskEmployeeToolCatalogService.MY_TASKS_RESERVED_CODE.equals(definition.code())
+            && definition.legacyReferenceId() == null;
     }
 
     private void requireContext(KioskExecutionContext context) {

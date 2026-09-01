@@ -53,8 +53,12 @@ export function completeKioskIdempotentOperation(operation: string) {
 }
 
 export function isKioskIdempotencyRequestMismatch(error: unknown) {
-  return error instanceof Error
-    && /idempotency-key was already used with another request/i.test(error.message);
+  const code = typeof error === 'object' && error !== null && 'code' in error
+    ? (error as { code?: unknown }).code
+    : undefined;
+  return code === 'KIOSK_IDEMPOTENCY_MISMATCH'
+    || (error instanceof Error
+      && /idempotency-key was already used with another request/i.test(error.message));
 }
 
 /**

@@ -3,6 +3,7 @@ import { createBrowserRouter, redirect, useLocation, useNavigate, useRouteError 
 import { InviteAcceptPage, LoginPage, PublicDemoPage, PublicPlansPage, ResetPasswordPage, SignupCompletePage, SignupPage } from './Auth';
 import { authApi } from './api/auth';
 import { subscribeToAuthenticationExpired } from './api/authSessionStore';
+import { BusinessCurrencyProvider } from './BasicModules/shared/BusinessCurrencyContext';
 import { LoadingBarOverlay } from './components/LoadingBarOverlay';
 
 const App = lazy(() => import('./App'));
@@ -330,17 +331,19 @@ function PrivateAppRoute() {
 
   return (
     <WorkspaceRenderErrorBoundary>
-      <Suspense
-        fallback={(
-          <LoadingBarOverlay
-            isVisible
-            title="Loading workspace"
-            description="Preparing your dashboard."
-          />
-        )}
-      >
-        <App />
-      </Suspense>
+      <BusinessCurrencyProvider>
+        <Suspense
+          fallback={(
+            <LoadingBarOverlay
+              isVisible
+              title="Loading workspace"
+              description="Preparing your dashboard."
+            />
+          )}
+        >
+          <App />
+        </Suspense>
+      </BusinessCurrencyProvider>
     </WorkspaceRenderErrorBoundary>
   );
 }

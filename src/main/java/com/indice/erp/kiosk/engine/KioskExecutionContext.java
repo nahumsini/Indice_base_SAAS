@@ -33,7 +33,7 @@ public record KioskExecutionContext(
     }
 
     public static KioskExecutionContext publicLink(String ownerModule, String accessReference) {
-        return new KioskExecutionContext(ownerModule, "PUBLIC_LINK", accessReference);
+        return new KioskExecutionContext(ownerModule, KioskExecutionChannels.PUBLIC_LINK, accessReference);
     }
 
     public static KioskExecutionContext publicLink(
@@ -42,7 +42,8 @@ public record KioskExecutionContext(
             String networkSignal,
             String browserSessionReference) {
         return new KioskExecutionContext(
-            ownerModule, "PUBLIC_LINK", accessReference, networkSignal, browserSessionReference, null, null);
+            ownerModule, KioskExecutionChannels.PUBLIC_LINK, accessReference,
+            networkSignal, browserSessionReference, null, null);
     }
 
     public KioskExecutionContext resolved(

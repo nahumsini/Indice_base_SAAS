@@ -4,7 +4,9 @@ import com.indice.erp.kiosk.engine.KioskActionRequest;
 import com.indice.erp.kiosk.engine.KioskCapabilityDescriptor;
 import com.indice.erp.kiosk.engine.KioskAuthorization;
 import com.indice.erp.kiosk.engine.KioskExecutionContext;
+import com.indice.erp.kiosk.engine.KioskExecutionChannels;
 import com.indice.erp.kiosk.engine.KioskModuleAdapter;
+import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
 import com.indice.erp.kiosk.engine.KioskValidationResult;
 import com.indice.erp.finance.kiosk.FinanceKioskModuleAuditService;
 import java.util.Map;
@@ -14,14 +16,19 @@ import org.springframework.stereotype.Component;
 @Component
 public class PettyCashKioskAdapter implements KioskModuleAdapter {
 
+    private static final Set<String> EMPLOYEE_TAB_PERMISSIONS = Set.of("petty_cash.cash");
+
     private final PettyCashPublicKioskService kioskService;
     private final FinanceKioskModuleAuditService moduleAudit;
+    private final PettyCashEmployeeKioskService employeeCenter;
 
     public PettyCashKioskAdapter(
             PettyCashPublicKioskService kioskService,
-            FinanceKioskModuleAuditService moduleAudit) {
+            FinanceKioskModuleAuditService moduleAudit,
+            PettyCashEmployeeKioskService employeeCenter) {
         this.kioskService = kioskService;
         this.moduleAudit = moduleAudit;
+        this.employeeCenter = employeeCenter;
     }
 
     @Override
@@ -41,6 +48,31 @@ public class PettyCashKioskAdapter implements KioskModuleAdapter {
     }
 
     @Override
+    public boolean supportsEmployeeCenter(KioskResolvedDefinition definition) {
+        return employeeCenter.supports(definition);
+    }
+
+    @Override
+    public Set<String> employeeCenterTabPermissionKeys(KioskResolvedDefinition definition) {
+        return EMPLOYEE_TAB_PERMISSIONS;
+    }
+
+    @Override
+    public Set<String> employeeCapabilityTabPermissionKeys(
+            KioskResolvedDefinition definition,
+            KioskCapabilityDescriptor capability) {
+        return PettyCashKioskCapabilities.IDENTITY_VERIFY.equals(capability.key())
+            ? Set.of()
+            : EMPLOYEE_TAB_PERMISSIONS;
+    }
+
+    @Override
+    public Map<String, Object> employeeBootstrap(KioskExecutionContext context) {
+        requireEmployeeContext(context);
+        return employeeCenter.bootstrap(context.definition(), context.session().identityId());
+    }
+
+    @Override
     public KioskAuthorization authorize(KioskExecutionContext context, KioskActionRequest request) {
         requireContext(context);
         if (context.definition() == null) {
@@ -48,6 +80,9 @@ public class PettyCashKioskAdapter implements KioskModuleAdapter {
         }
         if (!request.capabilityKey().endsWith(".identity.verify") && context.session() == null) {
             return KioskAuthorization.deny("Kiosk authentication is required.");
+        }
+        if (context.session() != null && !validIdentityForChannel(context)) {
+            return KioskAuthorization.deny("Petty cash kiosk requires an employee identity.");
         }
         return KioskAuthorization.allow();
     }
@@ -86,6 +121,17 @@ public class PettyCashKioskAdapter implements KioskModuleAdapter {
                     context.accessReference(), resourceId(request), request.payload());
             default -> throw new IllegalArgumentException("Unsupported petty cash kiosk capability.");
         };
+        auditMutation(context, request, response);
+        return response;
+    }
+
+    @Override
+    public Map<String, Object> executeEmployee(
+            KioskExecutionContext context,
+            KioskActionRequest request) {
+        requireEmployeeContext(context);
+        var response = employeeCenter.execute(
+            context.definition(), context.session().identityId(), request);
         auditMutation(context, request, response);
         return response;
     }
@@ -137,6 +183,24 @@ public class PettyCashKioskAdapter implements KioskModuleAdapter {
         if (!ownerModule().equals(context.ownerModule())) {
             throw new IllegalArgumentException("Kiosk context does not belong to Petty Cash.");
         }
+    }
+
+    private void requireEmployeeContext(KioskExecutionContext context) {
+        requireContext(context);
+        if (!KioskExecutionChannels.isEmployeeChannel(context.channel())
+                || context.definition() == null || context.session() == null
+                || !"USER".equals(context.session().identityType())
+                || context.session().identityId() <= 0
+                || context.session().companyId() != context.definition().companyId()
+                || context.session().kioskDefinitionId() != context.definition().id()) {
+            throw new SecurityException("Authenticated employee petty cash session is required.");
+        }
+    }
+
+    private boolean validIdentityForChannel(KioskExecutionContext context) {
+        return KioskExecutionChannels.isEmployeeChannel(context.channel())
+            ? "USER".equals(context.session().identityType())
+            : "EMPLOYEE".equals(context.session().identityType());
     }
 
     private boolean blank(Object value) {

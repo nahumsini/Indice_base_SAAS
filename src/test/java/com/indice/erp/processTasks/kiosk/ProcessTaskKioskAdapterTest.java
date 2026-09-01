@@ -3,8 +3,15 @@ package com.indice.erp.processTasks.kiosk;
 import com.indice.erp.kiosk.engine.KioskActionRequest;
 import com.indice.erp.kiosk.engine.KioskAccessLevel;
 import com.indice.erp.kiosk.engine.KioskExecutionContext;
+import com.indice.erp.kiosk.engine.KioskExecutionChannels;
+import com.indice.erp.kiosk.engine.KioskEmployeeToolCatalogService;
+import com.indice.erp.kiosk.engine.KioskDefinitionStatus;
 import com.indice.erp.kiosk.engine.KioskOperationPolicy;
+import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
+import com.indice.erp.kiosk.engine.KioskSessionPrincipal;
+import java.time.Instant;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,6 +51,40 @@ class ProcessTaskKioskAdapterTest {
             });
         assertThat(ProcessTaskKioskCapabilities.require(ProcessTaskKioskCapabilities.TASKS_READ).operationPolicy())
             .isEqualTo(KioskOperationPolicy.INFORMATION_ONLY);
+    }
+
+    @Test
+    void declaresTheEmployeeTabScopeAndExcludesPublicIdentityFromEmployeeCapabilities() {
+        var definition = employeeDefinition();
+        var identity = ProcessTaskKioskCapabilities.require(
+            ProcessTaskKioskCapabilities.IDENTITY_VERIFY);
+        var tasksRead = ProcessTaskKioskCapabilities.require(
+            ProcessTaskKioskCapabilities.TASKS_READ);
+
+        assertThat(adapter.employeeCenterTabPermissionKeys(definition))
+            .containsExactly("processes.calendar");
+        assertThat(adapter.employeeCapabilityTabPermissionKeys(definition, identity)).isEmpty();
+        assertThat(adapter.employeeCapabilityTabPermissionKeys(definition, tasksRead))
+            .containsExactly("processes.calendar");
+    }
+
+    @Test
+    void nativeTaskToolIsSignedAndLimitedToReadAndComplete() {
+        var nativeTool = nativeToolDefinition();
+        var unsignedDefinition = new KioskResolvedDefinition(
+            18L, 7L, ProcessTaskKioskCapabilities.OWNER_MODULE,
+            KioskEmployeeToolCatalogService.MY_TASKS_KIOSK_TYPE, null,
+            "USER-CREATED", "Unsafe", KioskDefinitionStatus.ACTIVE,
+            null, null, null, KioskAccessLevel.CONTROLLED,
+            null, "hint", false, 1, 1);
+
+        assertThat(adapter.supportsEmployeeCenter(nativeTool)).isTrue();
+        assertThat(adapter.supportsEmployeeCenter(unsignedDefinition)).isFalse();
+        assertThat(adapter.capabilities(nativeTool))
+            .extracting(capability -> capability.key())
+            .containsExactlyInAnyOrder(
+                ProcessTaskKioskCapabilities.TASKS_READ,
+                ProcessTaskKioskCapabilities.TASK_COMPLETE);
     }
 
     @Test
@@ -109,5 +150,68 @@ class ProcessTaskKioskAdapterTest {
         ))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("resourceId");
+    }
+
+    @Test
+    void acceptsAuthenticatedWebAndMobileMultiKioskEmployeeWorkspaces() {
+        var bootstrap = Map.<String, Object>of("tasks", java.util.List.of());
+        given(kioskService.employeeBootstrap(employeeDefinition(), 9L)).willReturn(bootstrap);
+
+        assertThat(adapter.employeeBootstrap(employeeContext(
+            KioskExecutionChannels.AUTHENTICATED_WEB))).isSameAs(bootstrap);
+        assertThat(adapter.employeeBootstrap(employeeContext(
+            KioskExecutionChannels.MOBILE_MULTI_KIOSK))).isSameAs(bootstrap);
+
+        then(kioskService).should(org.mockito.Mockito.times(2))
+            .employeeBootstrap(employeeDefinition(), 9L);
+    }
+
+    @Test
+    void mobileMultiKioskActionUsesTheEmployeeServiceAndPublicLinkCannotUseIt() {
+        var payload = Map.<String, Object>of("title", "Inspect equipment");
+        var response = Map.<String, Object>of("id", 42L);
+        given(kioskService.employeeCreateTask(employeeDefinition(), 9L, payload))
+            .willReturn(response);
+
+        assertThat(adapter.executeEmployee(
+            employeeContext(KioskExecutionChannels.MOBILE_MULTI_KIOSK),
+            KioskActionRequest.of(ProcessTaskKioskCapabilities.TASK_CREATE, payload)))
+            .isSameAs(response);
+        then(kioskService).should().employeeCreateTask(employeeDefinition(), 9L, payload);
+        then(kioskService).shouldHaveNoMoreInteractions();
+
+        assertThatThrownBy(() -> adapter.executeEmployee(
+            context,
+            KioskActionRequest.of(ProcessTaskKioskCapabilities.TASK_CREATE, payload)))
+            .isInstanceOf(SecurityException.class)
+            .hasMessageContaining("employee kiosk session");
+    }
+
+    private KioskResolvedDefinition employeeDefinition() {
+        return new KioskResolvedDefinition(
+            17L, 7L, ProcessTaskKioskCapabilities.OWNER_MODULE, "task_access", 31L,
+            "TASKS", "Tasks", KioskDefinitionStatus.ACTIVE, 2L, 3L, null,
+            KioskAccessLevel.CONTROLLED, null, "tokenhint", false, 1, 1);
+    }
+
+    private KioskResolvedDefinition nativeToolDefinition() {
+        return new KioskResolvedDefinition(
+            17L, 7L, ProcessTaskKioskCapabilities.OWNER_MODULE,
+            KioskEmployeeToolCatalogService.MY_TASKS_KIOSK_TYPE, null,
+            KioskEmployeeToolCatalogService.MY_TASKS_RESERVED_CODE,
+            "Mis tareas", KioskDefinitionStatus.ACTIVE,
+            null, null, null, KioskAccessLevel.CONTROLLED,
+            null, "internal", false, 1, 1);
+    }
+
+    private KioskExecutionContext employeeContext(String channel) {
+        var definition = employeeDefinition();
+        var session = new KioskSessionPrincipal(
+            "session-1", definition.id(), definition.companyId(), "USER", 9L,
+            Set.of(ProcessTaskKioskCapabilities.TASKS_READ + "@1"),
+            Instant.now().plusSeconds(600));
+        return new KioskExecutionContext(
+            definition.ownerModule(), channel, "definition:" + definition.id(),
+            "internal", "employee-browser", definition, session);
     }
 }

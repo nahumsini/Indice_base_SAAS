@@ -3,6 +3,19 @@ import type {
   PublicTaskKioskAssignmentOption,
   PublicTaskKioskTask,
 } from '../BasicModules/ProcessesTasks/Kiosk/processTaskKioskApi';
+import type {
+  PublicPettyCashFund,
+  PublicPettyCashHistory,
+  PublicPettyCashReceipt,
+} from '../BasicModules/PettyCash/Kiosk/pettyCashKioskApi';
+import type {
+  PublicKioskBootstrapResponse as PublicAttendanceKioskBootstrap,
+  PublicKioskDayActivity,
+} from './humanResources';
+import {
+  completeKioskIdempotentOperation,
+  executeKioskMutationWithMismatchRecovery,
+} from '../components/kiosk-engine/kioskIdempotency';
 
 interface Envelope<T> {
   data: T;
@@ -28,6 +41,9 @@ export interface MultiKioskSummary {
   access_path?: string;
   configuration_version: number;
   kiosk_count: number;
+  /** Native employee tools published by the company launcher. */
+  tool_count?: number;
+  /** Legacy response field retained for wire compatibility; company Multi-kiosks do not assign people. */
   employee_count: number;
   updated_at: string;
 }
@@ -43,6 +59,25 @@ export interface MultiKioskCatalogKiosk {
   business_id?: number;
   business_name?: string;
   access_level: string;
+  /** Optional policy metadata. The backend remains authoritative when omitted. */
+  required_tab_scope?: string;
+  required_tab_scopes?: string[];
+  employee_center_supported?: boolean;
+}
+
+export interface MultiKioskCatalogTool {
+  key: string;
+  /** Transitional wire alias; API adapters normalize it into `key`. */
+  tool_key?: string;
+  name: string;
+  description: string;
+  owner_module: string;
+  module_slug: string;
+  kiosk_type: string;
+  workspace_kind: string;
+  audience_policy: string;
+  readiness: string;
+  required_tab_scopes: string[];
 }
 
 export interface MultiKioskCatalogEmployee {
@@ -57,11 +92,19 @@ export interface MultiKioskCatalogEmployee {
   business_name?: string;
   module_slugs: string[];
   pin_ready: boolean;
+  /** Safe readiness metadata used only to explain access in the admin UI. */
+  tab_scopes?: string[];
+  tab_scopes_unrestricted?: boolean;
+  access_issues?: string[];
+  effective_access?: boolean;
 }
 
 export interface MultiKioskDetail extends MultiKioskSummary {
-  kiosks: Array<MultiKioskCatalogKiosk & { sort_order: number }>;
-  employees: Array<Pick<MultiKioskCatalogEmployee, 'user_company_id' | 'user_id' | 'name' | 'email'>>;
+  tools?: Array<MultiKioskCatalogTool & { sort_order: number }>;
+  tool_keys?: string[];
+  legacy_kiosk_definition_ids?: number[];
+  /** Legacy compositions remain readable while they are migrated to native tools. */
+  kiosks?: Array<MultiKioskCatalogKiosk & { sort_order: number }>;
 }
 
 export interface MultiKioskPayload {
@@ -72,60 +115,91 @@ export interface MultiKioskPayload {
   unit_id: number | null;
   business_id: number | null;
   expires_at: string | null;
-  kiosk_definition_ids: number[];
-  employee_ids: number[];
+  tool_keys: string[];
+  legacy_kiosk_definition_ids?: number[];
 }
 
 const adminBase = '/api/v2/kiosk-center/multi-kiosks';
 
+type MultiKioskCatalogToolWire = Omit<MultiKioskCatalogTool, 'key'> & { key?: string };
+
+const normalizeSummary = <T extends MultiKioskSummary>(item: T): T => ({
+  ...item,
+  tool_count: item.tool_count ?? item.kiosk_count ?? 0,
+});
+
+const normalizeCatalogTool = (tool: MultiKioskCatalogToolWire): MultiKioskCatalogTool | null => {
+  const key = (tool.key ?? tool.tool_key ?? '').trim();
+  return key ? { ...tool, key } : null;
+};
+
+const normalizeDetail = (detail: MultiKioskDetail): MultiKioskDetail => ({
+  ...normalizeSummary(detail),
+  tools: detail.tools
+    ?.map(tool => {
+      const normalized = normalizeCatalogTool(tool);
+      return normalized ? { ...normalized, sort_order: tool.sort_order } : null;
+    })
+    .filter((tool): tool is MultiKioskCatalogTool & { sort_order: number } => tool !== null),
+});
+
 export const multiKioskAdminApi = {
   async list(signal?: AbortSignal) {
     const response = await apiClient<Envelope<{ items: MultiKioskSummary[] }>>(adminBase, { signal });
-    return response.data.items;
+    return response.data.items.map(normalizeSummary);
   },
   async catalog(signal?: AbortSignal) {
     const response = await apiClient<Envelope<{
-      kiosks: MultiKioskCatalogKiosk[];
+      tools?: MultiKioskCatalogToolWire[];
+      kiosks?: MultiKioskCatalogKiosk[];
       employees: MultiKioskCatalogEmployee[];
     }>>(`${adminBase}/catalog`, { signal });
-    return response.data;
+    return {
+      employees: response.data.employees,
+      tools: (response.data.tools ?? [])
+        .map(normalizeCatalogTool)
+        .filter((tool): tool is MultiKioskCatalogTool => tool !== null),
+    };
   },
   async detail(id: number, signal?: AbortSignal) {
     const response = await apiClient<Envelope<MultiKioskDetail>>(`${adminBase}/${id}`, { signal });
-    return response.data;
+    return normalizeDetail(response.data);
   },
   async create(payload: MultiKioskPayload) {
     const response = await apiClient<Envelope<MultiKioskDetail>>(adminBase, {
       method: 'POST', body: JSON.stringify(payload),
     });
-    return response.data;
+    return normalizeDetail(response.data);
   },
   async update(id: number, payload: MultiKioskPayload) {
     const response = await apiClient<Envelope<MultiKioskDetail>>(`${adminBase}/${id}`, {
       method: 'PUT', body: JSON.stringify(payload),
     });
-    return response.data;
+    return normalizeDetail(response.data);
   },
   async rotateLink(id: number) {
     const response = await apiClient<Envelope<MultiKioskDetail>>(`${adminBase}/${id}/rotate-link`, {
       method: 'POST', body: JSON.stringify({}),
     });
-    return response.data;
+    return normalizeDetail(response.data);
   },
   async transition(id: number, action: 'enable' | 'disable' | 'revoke') {
     const response = await apiClient<Envelope<MultiKioskDetail>>(`${adminBase}/${id}/${action}`, {
       method: 'POST', body: JSON.stringify({}),
     });
-    return response.data;
+    return normalizeDetail(response.data);
   },
 };
 
 export interface MultiKioskCard {
   id: number;
+  /** Stable native tool identity; numeric id remains the opaque launch handle. */
+  tool_key?: string;
   name: string;
   module: string;
   module_slug: string;
   kiosk_type: string;
+  workspace_kind?: string;
   purpose: string;
   availability: 'AVAILABLE' | 'VERIFICATION_REQUIRED';
   primary_action: 'OPEN';
@@ -159,25 +233,44 @@ export interface MultiKioskChildLaunch {
   workspace: { owner_module: string; kiosk_definition_id: number; channel: string };
 }
 
+export interface MultiKioskEmployeeIdentity {
+  id: number;
+  user_id?: number;
+  user_code?: string;
+  full_name: string;
+  position_title?: string;
+  department?: string;
+}
+
+export interface MultiKioskEmployeeWorkspaceBootstrap extends Partial<PublicPettyCashHistory> {
+  kiosk?: { id: number; code: string; name: string };
+  kiosk_device?: PublicAttendanceKioskBootstrap['kiosk_device'];
+  kiosk_type?: PublicAttendanceKioskBootstrap['kiosk_type'];
+  location?: PublicAttendanceKioskBootstrap['location'];
+  scope_label?: string;
+  user?: MultiKioskEmployeeIdentity;
+  tasks?: PublicTaskKioskTask[];
+  assignment_options?: PublicTaskKioskAssignmentOption;
+  today_activity?: PublicKioskDayActivity;
+  identity_evidence_required?: boolean;
+  fund?: PublicPettyCashFund;
+  recent_receipts?: PublicPettyCashReceipt[];
+  inactivity_timeout_seconds?: number;
+  authentication?: 'ENGINE_PIN_SESSION' | string;
+}
+
 export interface MultiKioskChildWorkspace {
   kiosk: MultiKioskCard;
   session: { id: string; expires_at: string; capabilities: string[] };
   experience_status: 'READY' | 'SPECIALIZED_VERIFICATION_REQUIRED';
   message?: string;
-  bootstrap?: {
-    kiosk?: { id: number; code: string; name: string };
-    scope_label?: string;
-    user?: { id: number; user_id: number; full_name: string };
-    tasks?: PublicTaskKioskTask[];
-    assignment_options?: PublicTaskKioskAssignmentOption;
-    inactivity_timeout_seconds?: number;
-    authentication?: string;
-  };
+  bootstrap?: MultiKioskEmployeeWorkspaceBootstrap;
 }
 
 const publicBase = (token: string) => `/api/v2/multi-kiosks/public/${encodeURIComponent(token)}`;
 const multiSessionKey = (token: string) => `indice.multi-kiosk.${token}.session`;
 const childSessionKey = (token: string, kioskId: number) => `indice.multi-kiosk.${token}.child.${kioskId}`;
+const childSessionPrefix = (token: string) => `indice.multi-kiosk.${token}.child.`;
 
 const readStored = (key: string) => {
   try { return sessionStorage.getItem(key) ?? ''; } catch { return ''; }
@@ -187,6 +280,16 @@ const writeStored = (key: string, value: string) => {
 };
 const removeStored = (key: string) => {
   try { sessionStorage.removeItem(key); } catch { /* no-op */ }
+};
+
+const removeStoredByPrefix = (prefix: string) => {
+  try {
+    const keys = Array.from({ length: sessionStorage.length }, (_, index) => sessionStorage.key(index))
+      .filter((key): key is string => Boolean(key?.startsWith(prefix)));
+    keys.forEach(key => sessionStorage.removeItem(key));
+  } catch {
+    // A hardened browser can deny storage enumeration. Component state is still reset by the caller.
+  }
 };
 
 async function publicRequest<T>(path: string, init: RequestInit = {}) {
@@ -211,7 +314,15 @@ export const multiKioskMobileSession = {
   childGet: (token: string, kioskId: number) => readStored(childSessionKey(token, kioskId)),
   childSet: (token: string, kioskId: number, value: string) => writeStored(childSessionKey(token, kioskId), value),
   childClear: (token: string, kioskId: number) => removeStored(childSessionKey(token, kioskId)),
+  clearAuthority: (token: string) => {
+    removeStored(multiSessionKey(token));
+    removeStoredByPrefix(childSessionPrefix(token));
+  },
 };
+
+export const isMultiKioskAuthorizationFailure = (error: unknown) => (
+  error instanceof ApiClientError && (error.status === 401 || error.status === 403)
+);
 
 export const multiKioskPublicApi = {
   bootstrap: (token: string, signal?: AbortSignal) => publicRequest<MultiKioskBootstrap>(publicBase(token), { signal }),
@@ -225,6 +336,13 @@ export const multiKioskPublicApi = {
   session: (token: string, signal?: AbortSignal) => publicRequest<MultiKioskMobileSession>(
     `${publicBase(token)}/session`,
     { headers: { 'X-Multi-Kiosk-Session-Token': multiKioskMobileSession.get(token) }, signal },
+  ),
+  signOut: (token: string, csrfToken: string) => publicRequest<{ signed_out: boolean }>(
+    `${publicBase(token)}/session`,
+    { method: 'DELETE', headers: {
+      'X-CSRF-Token': csrfToken,
+      'X-Multi-Kiosk-Session-Token': multiKioskMobileSession.get(token),
+    } },
   ),
   async launch(token: string, kioskId: number, csrfToken: string) {
     const data = await publicRequest<MultiKioskChildLaunch>(`${publicBase(token)}/kiosks/${kioskId}/sessions`, {
@@ -242,13 +360,23 @@ export const multiKioskPublicApi = {
       'X-Kiosk-Session-Token': multiKioskMobileSession.childGet(token, kioskId),
     }, signal },
   ),
-  action: <T>(token: string, kioskId: number, capability: string, payload: Record<string, unknown>, csrfToken: string) => publicRequest<T>(
-    `${publicBase(token)}/kiosks/${kioskId}/actions/${encodeURIComponent(capability)}`,
-    { method: 'POST', headers: {
-      'X-CSRF-Token': csrfToken,
-      'X-Multi-Kiosk-Session-Token': multiKioskMobileSession.get(token),
-      'X-Kiosk-Session-Token': multiKioskMobileSession.childGet(token, kioskId),
-      'Idempotency-Key': crypto.randomUUID(),
-    }, body: JSON.stringify(payload) },
-  ),
+  async action<T>(token: string, kioskId: number, capability: string, payload: Record<string, unknown>, csrfToken: string) {
+    // The operation namespace contains no public/session token or payload data.
+    const operation = `multi-kiosk:child:${kioskId}:action:${capability}`;
+    const result = await executeKioskMutationWithMismatchRecovery({
+      operation,
+      payload,
+      request: (idempotencyKey) => publicRequest<T>(
+      `${publicBase(token)}/kiosks/${kioskId}/actions/${encodeURIComponent(capability)}`,
+      { method: 'POST', headers: {
+        'X-CSRF-Token': csrfToken,
+        'X-Multi-Kiosk-Session-Token': multiKioskMobileSession.get(token),
+        'X-Kiosk-Session-Token': multiKioskMobileSession.childGet(token, kioskId),
+        'Idempotency-Key': idempotencyKey,
+      }, body: JSON.stringify(payload) },
+      ),
+    });
+    completeKioskIdempotentOperation(operation);
+    return result;
+  },
 };

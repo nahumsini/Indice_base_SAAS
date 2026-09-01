@@ -12,6 +12,7 @@ const accessibleCatalogSource = readFileSync(
   'utf8',
 );
 const appSource = readFileSync(resolve(root, 'src/app/App.tsx'), 'utf8');
+const routesSource = readFileSync(resolve(root, 'src/app/routes.tsx'), 'utf8');
 const apiClientSource = readFileSync(resolve(root, 'src/app/lib/apiClient.ts'), 'utf8');
 const platformAdminApiSource = readFileSync(resolve(root, 'src/app/api/platformAdmin.ts'), 'utf8');
 const businessProfileApiSource = readFileSync(
@@ -301,6 +302,11 @@ test('el dashboard usa el contrato ejecutivo y nunca inventa tendencias', () => 
   assert.match(kpiCardSource, /trend\?: 'up' \| 'down' \| 'flat'/);
   assert.match(kpiCardSource, /resolvedTrend === 'up'/);
   assert.match(kpiCardSource, /resolvedTone/);
+});
+
+test('la ruta privada monta el contexto monetario antes que App y el dashboard', () => {
+  assert.match(routesSource, /<BusinessCurrencyProvider>[\s\S]*<App \/>[\s\S]*<\/BusinessCurrencyProvider>/);
+  assert.doesNotMatch(appSource, /<BusinessCurrencyProvider>/);
 });
 
 test('la seleccion inicial prioriza resultados, obligaciones y riesgos operativos', () => {

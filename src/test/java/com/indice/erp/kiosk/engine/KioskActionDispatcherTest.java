@@ -28,6 +28,7 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.doThrow;
 
 @ExtendWith(MockitoExtension.class)
@@ -62,6 +63,8 @@ class KioskActionDispatcherTest {
 
     private KioskActionDispatcher dispatcher;
     private KioskExecutionContext context;
+    private KioskResolvedDefinition definition;
+    private KioskSessionPrincipal employeePrincipal;
 
     @BeforeEach
     void setUp() {
@@ -76,19 +79,24 @@ class KioskActionDispatcherTest {
         given(featureFlags.sessionsEnabled()).willReturn(true);
         given(featureFlags.auditEnabled()).willReturn(true);
         lenient().when(featureFlags.adapterEnabled("PROCESS_TASKS")).thenReturn(true);
-        var definition = new KioskResolvedDefinition(
+        definition = new KioskResolvedDefinition(
             17L, 7L, "PROCESS_TASKS", "task_access", 31L, "TASKS", "Tasks",
             KioskDefinitionStatus.ACTIVE, 2L, 3L, null, KioskAccessLevel.CONTROLLED,
             null, "tokenhint", false, 1, 1);
         lenient().when(definitionRegistry.resolvePublic("PROCESS_TASKS", "secret-device-token"))
             .thenReturn(definition);
+        lenient().when(definitionRegistry.requireById(7L, 17L)).thenReturn(definition);
         lenient().when(definitionRegistry.capabilityEnabled(
             org.mockito.ArgumentMatchers.eq(17L), any()))
             .thenReturn(true);
-        lenient().when(sessionService.requireSession(any(), any(), any(), anyString()))
-            .thenReturn(new KioskSessionPrincipal(
-                "session-1", 17L, 7L, "EMPLOYEE", 9L, java.util.Set.of(),
-                java.time.Instant.now().plusSeconds(600)));
+        employeePrincipal = new KioskSessionPrincipal(
+            "session-1", 17L, 7L, "USER", 9L, java.util.Set.of(),
+            java.time.Instant.now().plusSeconds(600));
+        lenient().when(sessionService.requireSession(any(), any(), any(), anyString(), anyString()))
+            .thenReturn(employeePrincipal);
+        lenient().when(sessionService.requirePrevalidatedMobileSession(
+            any(), any(), any(), anyString(), any()))
+            .thenAnswer(invocation -> invocation.getArgument(4));
         lenient().when(adapter.authorize(any(), any())).thenReturn(KioskAuthorization.allow());
         lenient().when(adapter.validate(any(), any())).thenReturn(KioskValidationResult.success());
         lenient().when(auditService.beginAction(any(), any(), any(), any())).thenReturn("action-1");
@@ -105,9 +113,88 @@ class KioskActionDispatcherTest {
         assertThat(dispatcher.dispatch(context, request, null)).isSameAs(response);
 
         then(jdbcTemplate).should(never()).update(anyString(), any(Object[].class));
+        then(adapter).should(never()).executeEmployee(any(), any());
         then(auditService).should().recordSuccess(
             anyString(), any(), any(), any(), any(), org.mockito.ArgumentMatchers.same(response),
             org.mockito.ArgumentMatchers.eq(false));
+    }
+
+    @Test
+    void routesAuthenticatedWebAndMobileMultiKioskThroughEmployeeExecution() {
+        var capability = capability("tasks.read", false);
+        var request = KioskActionRequest.of(
+            "tasks.read", Map.of("kiosk_session_token", "employee-session-token"));
+        var response = Map.<String, Object>of("items", java.util.List.of());
+        given(registry.requireCapability("tasks.read@1")).willReturn(capability);
+        given(adapter.executeEmployee(any(), org.mockito.ArgumentMatchers.same(request)))
+            .willReturn(response);
+
+        for (var channel : java.util.List.of(
+                KioskExecutionChannels.AUTHENTICATED_WEB,
+                KioskExecutionChannels.MOBILE_MULTI_KIOSK)) {
+            var employeeContext = new KioskExecutionContext(
+                "PROCESS_TASKS", channel, "definition:17", "internal",
+                "employee-browser", definition, employeePrincipal);
+
+            assertThat(dispatcher.dispatch(employeeContext, request, null)).isSameAs(response);
+        }
+
+        then(adapter).should(times(2)).executeEmployee(
+            org.mockito.ArgumentMatchers.argThat(candidate ->
+                KioskExecutionChannels.isEmployeeChannel(candidate.channel())),
+            org.mockito.ArgumentMatchers.same(request));
+        then(adapter).should(never()).execute(any(), any());
+    }
+
+    @Test
+    void mobileMultiKioskDispatchFailsClosedWithoutPrevalidatedParentAuthority() {
+        var capability = capability("tasks.read", false);
+        var request = KioskActionRequest.of(
+            "tasks.read", Map.of("kiosk_session_token", "employee-session-token"));
+        given(registry.requireCapability("tasks.read@1")).willReturn(capability);
+
+        var untrustedMobileContext = new KioskExecutionContext(
+            "PROCESS_TASKS", KioskExecutionChannels.MOBILE_MULTI_KIOSK,
+            "definition:17", "mobile", "employee-browser", definition, null);
+
+        assertThatThrownBy(() -> dispatcher.dispatch(untrustedMobileContext, request, null))
+            .isInstanceOf(SecurityException.class)
+            .hasMessage("Mobile Multi-kiosk authority is required.");
+
+        then(sessionService).should(never())
+            .requireSession(any(), any(), any(), anyString(), anyString());
+        then(sessionService).should(never())
+            .requirePrevalidatedMobileSession(any(), any(), any(), anyString(), any());
+        then(adapter).should(never()).executeEmployee(any(), any());
+    }
+
+    @Test
+    void scopesMobileRateLimitsWithEachPrevalidatedEmployeeIdentity() {
+        var capability = capability("tasks.read", false);
+        var request = KioskActionRequest.of(
+            "tasks.read", Map.of("kiosk_session_token", "employee-session-token"));
+        var secondPrincipal = new KioskSessionPrincipal(
+            "session-2", 17L, 7L, "USER", 10L, java.util.Set.of(),
+            java.time.Instant.now().plusSeconds(600));
+        given(registry.requireCapability("tasks.read@1")).willReturn(capability);
+        given(adapter.executeEmployee(any(), org.mockito.ArgumentMatchers.same(request)))
+            .willReturn(Map.of("items", java.util.List.of()));
+        dispatcher.dispatch(new KioskExecutionContext(
+            "PROCESS_TASKS", KioskExecutionChannels.MOBILE_MULTI_KIOSK,
+            "definition:17", "mobile", "shared-browser", definition, employeePrincipal),
+            request, null);
+        dispatcher.dispatch(new KioskExecutionContext(
+            "PROCESS_TASKS", KioskExecutionChannels.MOBILE_MULTI_KIOSK,
+            "definition:17", "mobile", "shared-browser", definition, secondPrincipal),
+            request, null);
+
+        var rateContexts = ArgumentCaptor.forClass(KioskExecutionContext.class);
+        then(rateLimitService).should(times(2)).requireAllowed(
+            eq(KioskRateLimitType.QUERY), rateContexts.capture(),
+            org.mockito.ArgumentMatchers.same(request.payload()));
+        assertThat(rateContexts.getAllValues())
+            .extracting(candidate -> candidate.session().identityId())
+            .containsExactly(9L, 10L);
     }
 
     @Test
@@ -191,6 +278,78 @@ class KioskActionDispatcherTest {
     }
 
     @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void replaysAcrossSessionTokenRotationButStillRejectsChangedBusinessPayload() throws Exception {
+        var capability = capability("task.create", true);
+        var replayRequest = KioskActionRequest.of("task.create", Map.of(
+            "title", "Inspect",
+            "kiosk_session_token", "renewed-session-token",
+            "identification_token", "renewed-identification-token",
+            "identificationToken", "renewed-camel-token"));
+        var changedRequest = KioskActionRequest.of("task.create", Map.of(
+            "title", "Changed",
+            "kiosk_session_token", "another-session-token"));
+        var storedResponse = "{\"task\":{\"id\":41}}";
+        var logicalFingerprint = sha256("task.create@1\nnull\n{\"title\":\"Inspect\"}");
+        var rs = org.mockito.Mockito.mock(java.sql.ResultSet.class);
+        given(rs.getString("request_fingerprint")).willReturn(logicalFingerprint);
+        given(rs.getString("status")).willReturn("COMPLETED");
+        given(rs.getString("response_json")).willReturn(storedResponse);
+        given(rs.getTimestamp("expires_at"))
+            .willReturn(Timestamp.from(Instant.now().plusSeconds(600)));
+        given(registry.requireCapability("task.create@1")).willReturn(capability);
+        given(jdbcTemplate.update(
+            org.mockito.ArgumentMatchers.contains("INSERT INTO kiosk_engine_idempotency"),
+            any(Object[].class))).willThrow(new DuplicateKeyException("duplicate"));
+        given(jdbcTemplate.query(
+            org.mockito.ArgumentMatchers.contains("SELECT request_fingerprint"),
+            any(RowMapper.class), any(Object[].class))).willAnswer(invocation -> {
+                var mapper = (RowMapper) invocation.getArgument(1);
+                return java.util.List.of(mapper.mapRow(rs, 0));
+            });
+
+        assertThat(dispatcher.dispatch(context, replayRequest, "action-rotated-token"))
+            .isEqualTo(Map.of("task", Map.of("id", 41)));
+        assertThatThrownBy(() -> dispatcher.dispatch(context, changedRequest, "action-rotated-token"))
+            .isInstanceOf(KioskIdempotencyConflictException.class)
+            .extracting(failure -> ((KioskIdempotencyConflictException) failure).reason())
+            .isEqualTo(KioskIdempotencyConflictException.Reason.REQUEST_MISMATCH);
+
+        then(adapter).should(never()).execute(any(), any());
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void reportsAnInProgressIdempotentMutationWithoutExecutingItAgain() throws Exception {
+        var capability = capability("task.create", true);
+        var request = KioskActionRequest.of("task.create", Map.of("title", "Inspect"));
+        var fingerprint = sha256("task.create@1\nnull\n{\"title\":\"Inspect\"}");
+        var rs = org.mockito.Mockito.mock(java.sql.ResultSet.class);
+        given(rs.getString("request_fingerprint")).willReturn(fingerprint);
+        given(rs.getString("status")).willReturn("PENDING");
+        given(rs.getString("response_json")).willReturn(null);
+        given(rs.getTimestamp("expires_at"))
+            .willReturn(Timestamp.from(Instant.now().plusSeconds(600)));
+        given(registry.requireCapability("task.create@1")).willReturn(capability);
+        given(jdbcTemplate.update(
+            org.mockito.ArgumentMatchers.contains("INSERT INTO kiosk_engine_idempotency"),
+            any(Object[].class))).willThrow(new DuplicateKeyException("duplicate"));
+        given(jdbcTemplate.query(
+            org.mockito.ArgumentMatchers.contains("SELECT request_fingerprint"),
+            any(RowMapper.class), any(Object[].class))).willAnswer(invocation -> {
+                var mapper = (RowMapper) invocation.getArgument(1);
+                return java.util.List.of(mapper.mapRow(rs, 0));
+            });
+
+        assertThatThrownBy(() -> dispatcher.dispatch(context, request, "action-pending"))
+            .isInstanceOf(KioskIdempotencyConflictException.class)
+            .extracting(failure -> ((KioskIdempotencyConflictException) failure).reason())
+            .isEqualTo(KioskIdempotencyConflictException.Reason.IN_PROGRESS);
+
+        then(adapter).should(never()).execute(any(), any());
+    }
+
+    @Test
     void rejectsMutationWithoutIdempotencyKey() {
         var capability = capability("task.create", true);
         var request = KioskActionRequest.of("task.create", Map.of("title", "Inspect"));
@@ -266,7 +425,7 @@ class KioskActionDispatcherTest {
 
         assertThat(dispatcher.dispatch(context, request, null)).isSameAs(response);
 
-        then(sessionService).should(never()).requireSession(any(), any(), any(), anyString());
+        then(sessionService).should(never()).requireSession(any(), any(), any(), anyString(), anyString());
         then(adapter).should().authorize(
             org.mockito.ArgumentMatchers.argThat(candidate -> candidate.session() == null),
             org.mockito.ArgumentMatchers.same(request));

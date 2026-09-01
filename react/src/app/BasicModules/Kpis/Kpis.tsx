@@ -1,5 +1,4 @@
-import { lazy, Suspense, useRef, type ComponentType } from 'react';
-import { BellRing, FileSpreadsheet, LayoutDashboard, type LucideIcon } from 'lucide-react';
+import { lazy, Suspense, useRef, type ComponentType, type ReactNode } from 'react';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { IndiceModuleShell } from '../../components/frontend-os';
 import { useKpisTranslations } from '../../hooks/useKpisTranslations';
@@ -37,9 +36,8 @@ type KpiTabId = (typeof kpiTabIds)[number];
 type KpiTab = {
   id: KpiTabId;
   label: string;
-  icon: LucideIcon;
-  iconClassName: string;
-  component: ComponentType;
+  icon: ReactNode;
+  component: ComponentType<{ onNavigate?: (page?: string) => void }>;
 };
 
 const legacyKpiTabAliases: Partial<Record<string, KpiTabId>> = {
@@ -61,22 +59,19 @@ export default function Kpis({ learningModeActive = false, onNavigate }: KpisPro
     {
       id: 'kpis',
       label: t.tabs.kpis,
-      icon: LayoutDashboard,
-      iconClassName: 'text-blue-700 bg-blue-50 border-blue-200',
+      icon: '🧩',
       component: KPIs,
     },
     {
       id: 'accounting-reports',
       label: t.tabs.informesContables,
-      icon: FileSpreadsheet,
-      iconClassName: 'text-blue-700 bg-blue-50 border-blue-200',
+      icon: '📑',
       component: InformesContables,
     },
     {
       id: 'automated-reports',
       label: t.tabs.informesAutomatizados,
-      icon: BellRing,
-      iconClassName: 'text-blue-700 bg-blue-50 border-blue-200',
+      icon: '⚙️',
       component: InformesAutomatizados,
     },
   ];
@@ -109,10 +104,7 @@ export default function Kpis({ learningModeActive = false, onNavigate }: KpisPro
         onNavigate={onNavigate}
         onTabChange={setActiveTab}
         subtitle={t.subtitle}
-        tabs={tabs.map((tab) => {
-          const Icon = tab.icon;
-          return { id: tab.id, label: tab.label, icon: <Icon className="h-4 w-4" /> };
-        })}
+        tabs={tabs.map((tab) => ({ id: tab.id, label: tab.label, icon: tab.icon }))}
         title={t.title}
         tone="blue"
       >
@@ -125,7 +117,7 @@ export default function Kpis({ learningModeActive = false, onNavigate }: KpisPro
             />
           )}
         >
-          <ActiveComponent />
+          <ActiveComponent onNavigate={onNavigate} />
         </Suspense>
       </IndiceModuleShell>
     </LearningModeHeaderActionsProvider>

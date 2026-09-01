@@ -4,10 +4,12 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -17,9 +19,28 @@ import org.springframework.transaction.annotation.Transactional;
 public class KioskRateLimitService {
 
     private final JdbcTemplate jdbcTemplate;
+    private final int multiKioskAggregateMaximumAttempts;
+    private final Duration multiKioskAggregateWindow;
 
-    public KioskRateLimitService(JdbcTemplate jdbcTemplate) {
+    public KioskRateLimitService(
+            JdbcTemplate jdbcTemplate,
+            @Value("${kiosk.engine.multi-kiosk.pin.aggregate.maximum-attempts:30}")
+            int multiKioskAggregateMaximumAttempts,
+            @Value("${kiosk.engine.multi-kiosk.pin.aggregate.window-seconds:1800}")
+            long multiKioskAggregateWindowSeconds) {
+        if (multiKioskAggregateMaximumAttempts
+                <= KioskRateLimitType.PIN_VERIFICATION.maximumRequests()) {
+            throw new IllegalStateException(
+                "The aggregate Multi-kiosk PIN limit must exceed the per-network limit.");
+        }
+        if (multiKioskAggregateWindowSeconds
+                <= KioskRateLimitType.PIN_VERIFICATION.window().getSeconds()) {
+            throw new IllegalStateException(
+                "The aggregate Multi-kiosk PIN window must exceed the per-network window.");
+        }
         this.jdbcTemplate = jdbcTemplate;
+        this.multiKioskAggregateMaximumAttempts = multiKioskAggregateMaximumAttempts;
+        this.multiKioskAggregateWindow = Duration.ofSeconds(multiKioskAggregateWindowSeconds);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -122,8 +143,9 @@ public class KioskRateLimitService {
     }
 
     /**
-     * Stable PIN bucket for a multi-kiosk link. The guessed PIN and browser cookie are
-     * deliberately excluded, so changing either cannot reset the attempt budget.
+     * Two-layer PIN defense for a Multi-kiosk link. The low per-network budget limits one
+     * origin, while the larger aggregate budget also limits distributed attempts that rotate
+     * networks. Neither scope contains the guessed PIN, browser state or personal data.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void requireMultiKioskPinAllowed(
@@ -135,17 +157,77 @@ public class KioskRateLimitService {
         }
         consume(
             KioskRateLimitType.PIN_VERIFICATION,
-            sha256(String.join("\n",
-                String.valueOf(companyId),
-                String.valueOf(multiKioskId),
-                networkSignal == null || networkSignal.isBlank() ? "unknown" : networkSignal.trim(),
-                "multi-kiosk-pin-challenge")),
+            multiKioskPinScopeHash(companyId, multiKioskId, networkSignal),
             KioskRateLimitType.PIN_VERIFICATION.maximumRequests());
+        consume(
+            KioskRateLimitType.PIN_VERIFICATION,
+            multiKioskAggregatePinScopeHash(companyId, multiKioskId),
+            multiKioskAggregateMaximumAttempts,
+            multiKioskAggregateWindow);
+    }
+
+    /**
+     * Removes only the attempt consumed by a successful multi-kiosk authentication from both
+     * layers. Existing failures remain, so normal employee sign-ins do not exhaust the shared
+     * aggregate budget or reset an attacker's failure history.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void releaseSuccessfulMultiKioskPinAttempt(
+            long companyId,
+            long multiKioskId,
+            String networkSignal) {
+        if (companyId <= 0 || multiKioskId <= 0) {
+            throw new IllegalArgumentException("A resolved multi-kiosk is required for PIN throttling.");
+        }
+        for (var scopeHash : java.util.List.of(
+                multiKioskPinScopeHash(companyId, multiKioskId, networkSignal),
+                multiKioskAggregatePinScopeHash(companyId, multiKioskId))) {
+            jdbcTemplate.update(
+                """
+                    UPDATE kiosk_engine_rate_limit_buckets
+                    SET request_count = GREATEST(request_count - 1, 0),
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE limit_type = ? AND scope_hash = ?
+                    """,
+                KioskRateLimitType.PIN_VERIFICATION.name(), scopeHash);
+            jdbcTemplate.update(
+                """
+                    DELETE FROM kiosk_engine_rate_limit_buckets
+                    WHERE limit_type = ? AND scope_hash = ? AND request_count <= 0
+                    """,
+                KioskRateLimitType.PIN_VERIFICATION.name(), scopeHash);
+        }
+    }
+
+    String multiKioskPinScopeHash(long companyId, long multiKioskId, String networkSignal) {
+        return sha256(String.join("\n",
+            String.valueOf(companyId),
+            String.valueOf(multiKioskId),
+            networkSignal == null || networkSignal.isBlank() ? "unknown" : networkSignal.trim(),
+            "multi-kiosk-pin-challenge"));
+    }
+
+    String multiKioskAggregatePinScopeHash(long companyId, long multiKioskId) {
+        if (companyId <= 0 || multiKioskId <= 0) {
+            throw new IllegalArgumentException("A resolved multi-kiosk is required for PIN throttling.");
+        }
+        return sha256(String.join("\n",
+            String.valueOf(companyId),
+            String.valueOf(multiKioskId),
+            "multi-kiosk-pin-aggregate-challenge"));
     }
 
     private void consume(KioskRateLimitType type, String scopeHash, int maximumRequests) {
+        consume(type, scopeHash, maximumRequests, type.window());
+    }
+
+    private void consume(
+            KioskRateLimitType type,
+            String scopeHash,
+            int maximumRequests,
+            Duration window) {
         var now = Instant.now();
-        var resetBefore = now.minus(type.window());
+        var resetBefore = now.minus(window);
 
         jdbcTemplate.update(
             """
@@ -179,7 +261,7 @@ public class KioskRateLimitService {
             scopeHash
         );
         if (bucket != null && bucket.requestCount() > maximumRequests) {
-            var retryAt = bucket.windowStartedAt().plus(type.window());
+            var retryAt = bucket.windowStartedAt().plus(window);
             throw new KioskRateLimitExceededException(retryAt.getEpochSecond() - now.getEpochSecond());
         }
     }
