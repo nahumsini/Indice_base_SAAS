@@ -41,6 +41,11 @@ INDICE_MCP_RESOURCE=https://apptest.indiceapp.com/api/v1/ai/mcp
 INDICE_OAUTH_RESOURCE_METADATA_URL=https://apptest.indiceapp.com/.well-known/oauth-protected-resource
 INDICE_HTTP_TIMEOUT_MS=5000
 INDICE_PREFERRED_CURRENCY=MXN
+
+# Sólo cuando el correo de APPTEST está deshabilitado: limita el bypass de MFA
+# a la empresa demo controlada. Nunca uses * ni copies esta excepción a producción.
+APP_AUTH_MFA_TEMPORARY_BYPASS_ENABLED=true
+APP_AUTH_MFA_TEMPORARY_BYPASS_COMPANY_NAMES=EMPRESA_DEMO_CERTIFICADA
 ```
 
 Reemplaza `git-REPLACE_ME` por la etiqueta inmutable real. No agregues tokens,
@@ -95,6 +100,12 @@ Valida, en este orden:
 - Revocar la conexión en Índice bloquea la siguiente consulta.
 
 El puerto `3010` no debe publicarse en firewall, proxy web, balanceador ni DNS.
+
+Si cPanel/Apache excluye todo `/.well-known/` para ACME, conserva esa exclusión
+general pero agrega antes dos `ProxyPass` exactos hacia el frontend de APPTEST:
+`/.well-known/oauth-protected-resource` y
+`/.well-known/oauth-authorization-server`. Ejecuta `apachectl configtest` antes
+de recargar Apache; los retos ACME deben continuar fuera del proxy.
 
 ## Rollback
 
