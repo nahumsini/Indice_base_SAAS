@@ -15,6 +15,8 @@ const actionScopes = new Set([
 ]);
 
 const scopeLabels: Record<string, string> = {
+  openid: 'Confirmar la identidad de tu cuenta',
+  email: 'Correo de acceso verificado',
   'sales.today:read': 'Ventas de hoy',
   'business.snapshot:read': 'Resumen del negocio',
   'hr.people:read': 'Colaboradores',

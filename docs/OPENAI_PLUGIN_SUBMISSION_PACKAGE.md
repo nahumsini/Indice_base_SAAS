@@ -36,6 +36,10 @@ Pendiente de **APROBACIÓN DEL TITULAR**:
 - Tipo de URL: `Universal`.
 - Transporte: Streamable HTTP.
 - Autenticación: OAuth 2.1, Authorization Code + PKCE S256, registro dinámico y refresh tokens rotatorios.
+- Identidad para OpenAI: el servidor anuncia `openid`, `email` y
+  `https://app.indiceapp.com/api/v1/ai/oauth/userinfo`. UserInfo entrega un
+  identificador opaco, el correo de acceso y su estado real de verificación;
+  no entrega datos empresariales ni marca actividad de consulta.
 - Recurso: debe coincidir exactamente con la URL MCP del entorno.
 - Alcance multiempresa: el token resuelve persona, empresa, membresía activa y permisos en cada llamada.
 - UI embebida: ninguna en V1.
@@ -146,7 +150,8 @@ Decisión pendiente. La arquitectura no fija países en el MCP; la disponibilida
 - [ ] Scan Tools descubre todas las herramientas y no reporta anotaciones incorrectas.
 - [ ] OAuth completo funciona con PKCE, refresh y revocación.
 - [ ] Aislamiento multiempresa pasa P1–P5 y N1–N3.
-- [ ] Endpoint UserInfo y scopes `openid email` aprobados por privacidad e implementados.
+- [x] Endpoint UserInfo y scopes `openid email` implementados y probados en la rama de preparación.
+- [ ] UserInfo desplegado y validado con una cuenta revisora cuyo correo esté verificado.
 - [ ] Token de dominio instalado y validado.
 - [ ] Privacidad y términos publicados con aprobación legal.
 - [ ] Cuenta revisora aislada y probada.

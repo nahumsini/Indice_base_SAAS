@@ -34,6 +34,8 @@ public class AiAccessTokenService {
     public static final String EXPENSES_CREATE = "expenses.create";
     public static final String PETTY_CASH_EXPENSE_CREATE = "petty_cash.expense:create";
     public static final String PETTY_CASH_DEPOSIT_CREATE = "petty_cash.deposit:create";
+    public static final String OPENID = "openid";
+    public static final String EMAIL = "email";
 
     private static final Set<String> DEFAULT_SCOPES = Set.of(
         SALES_TODAY_READ,
@@ -52,6 +54,7 @@ public class AiAccessTokenService {
         PETTY_CASH_EXPENSE_CREATE,
         PETTY_CASH_DEPOSIT_CREATE
     );
+    private static final Set<String> OAUTH_IDENTITY_SCOPES = Set.of(OPENID, EMAIL);
 
     private static final String PROVIDER = "generic_mcp";
     private static final String TOKEN_PREFIX = "idx_ai_";
@@ -81,6 +84,26 @@ public class AiAccessTokenService {
         Integer expiresInDays,
         Set<String> requestedScopes
     ) {
+        return issue(owner, label, expiresInDays, requestedScopes, false);
+    }
+
+    @Transactional
+    public IssuedConnection issueOAuth(
+        AuthSessionUser owner,
+        String label,
+        Integer expiresInDays,
+        Set<String> requestedScopes
+    ) {
+        return issue(owner, label, expiresInDays, requestedScopes, true);
+    }
+
+    private IssuedConnection issue(
+        AuthSessionUser owner,
+        String label,
+        Integer expiresInDays,
+        Set<String> requestedScopes,
+        boolean allowIdentityScopes
+    ) {
         requireDirectMembership(owner);
         var normalizedLabel = normalizeLabel(label);
         var days = expiresInDays == null ? DEFAULT_EXPIRY_DAYS : expiresInDays;
@@ -96,7 +119,7 @@ public class AiAccessTokenService {
         var rawToken = generateToken();
         var expiresAt = now.plus(Duration.ofDays(days));
         var visiblePrefix = rawToken.substring(0, Math.min(18, rawToken.length()));
-        var scopes = normalizeScopes(requestedScopes);
+        var scopes = normalizeScopes(requestedScopes, allowIdentityScopes);
         var id = repository.insert(
             owner,
             PROVIDER,
@@ -111,6 +134,12 @@ public class AiAccessTokenService {
 
     public Set<String> supportedScopes() {
         return DEFAULT_SCOPES;
+    }
+
+    public Set<String> supportedOAuthScopes() {
+        var scopes = new java.util.HashSet<>(DEFAULT_SCOPES);
+        scopes.addAll(OAUTH_IDENTITY_SCOPES);
+        return Set.copyOf(scopes);
     }
 
     @Transactional(readOnly = true)
@@ -132,12 +161,32 @@ public class AiAccessTokenService {
         Integer expiresInDays,
         Set<String> requestedScopes
     ) {
+        return rotate(owner, connectionId, expiresInDays, requestedScopes, false);
+    }
+
+    @Transactional
+    public IssuedConnection rotateOAuth(
+        AuthSessionUser owner,
+        long connectionId,
+        Integer expiresInDays,
+        Set<String> requestedScopes
+    ) {
+        return rotate(owner, connectionId, expiresInDays, requestedScopes, true);
+    }
+
+    private IssuedConnection rotate(
+        AuthSessionUser owner,
+        long connectionId,
+        Integer expiresInDays,
+        Set<String> requestedScopes,
+        boolean allowIdentityScopes
+    ) {
         requireDirectMembership(owner);
         var days = expiresInDays == null ? DEFAULT_EXPIRY_DAYS : expiresInDays;
         if (days < 1 || days > MAX_EXPIRY_DAYS) {
             throw new IllegalArgumentException("expiresInDays must be between 1 and 90.");
         }
-        var scopes = normalizeScopes(requestedScopes);
+        var scopes = normalizeScopes(requestedScopes, allowIdentityScopes);
         var now = clock.instant();
         var rawToken = generateToken();
         var expiresAt = now.plus(Duration.ofDays(days));
@@ -169,17 +218,23 @@ public class AiAccessTokenService {
         String authorizationHeader,
         String requiredScope
     ) {
-        return authenticateStoredToken(authorizationHeader, requiredScope);
+        return authenticateStoredToken(authorizationHeader, requiredScope, true);
     }
 
     @Transactional
     public Optional<AiAccessTokenRepository.StoredToken> authenticate(String authorizationHeader) {
-        return authenticateStoredToken(authorizationHeader, null);
+        return authenticateStoredToken(authorizationHeader, null, true);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<AiAccessTokenRepository.StoredToken> authenticateReadOnly(String authorizationHeader) {
+        return authenticateStoredToken(authorizationHeader, null, false);
     }
 
     private Optional<AiAccessTokenRepository.StoredToken> authenticateStoredToken(
         String authorizationHeader,
-        String requiredScope
+        String requiredScope,
+        boolean markUsage
     ) {
         var rawToken = bearerToken(authorizationHeader);
         if (rawToken.isEmpty()) {
@@ -188,7 +243,7 @@ public class AiAccessTokenService {
         var now = clock.instant();
         var stored = repository.findActiveByHash(sha256Hex(rawToken.get()), now)
             .filter(token -> requiredScope == null || token.scopes().contains(requiredScope));
-        stored.ifPresent(token -> repository.markUsed(token.id(), now));
+        if (markUsage) stored.ifPresent(token -> repository.markUsed(token.id(), now));
         return stored;
     }
 
@@ -209,7 +264,7 @@ public class AiAccessTokenService {
         return normalized;
     }
 
-    private Set<String> normalizeScopes(Set<String> requestedScopes) {
+    private Set<String> normalizeScopes(Set<String> requestedScopes, boolean allowIdentityScopes) {
         if (requestedScopes == null) {
             return DEFAULT_SCOPES;
         }
@@ -221,7 +276,12 @@ public class AiAccessTokenService {
         if (normalized.isEmpty()) {
             throw new IllegalArgumentException("At least one AI permission is required.");
         }
-        if (!DEFAULT_SCOPES.containsAll(normalized)) {
+        if (allowIdentityScopes
+            && normalized.contains(OPENID) != normalized.contains(EMAIL)) {
+            throw new IllegalArgumentException("OAuth identity permissions openid and email must be granted together.");
+        }
+        var supported = allowIdentityScopes ? supportedOAuthScopes() : DEFAULT_SCOPES;
+        if (!supported.containsAll(normalized)) {
             throw new IllegalArgumentException("One or more AI permissions are not supported.");
         }
         return normalized;

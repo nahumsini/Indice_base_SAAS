@@ -83,13 +83,24 @@ class AiOAuthServiceTest {
     void validatesTenantConsentWithoutCreatingAConnection() {
         var client = client();
         when(repository.findActiveClient("client-1")).thenReturn(Optional.of(client));
-        when(accessTokenService.supportedScopes()).thenReturn(Set.of("sales.read", "tasks.create"));
+        when(accessTokenService.supportedOAuthScopes()).thenReturn(Set.of(
+            "openid", "email", "sales.read", "tasks.create"
+        ));
 
-        var context = service.consentContext(user, authorizationRequest("sales.read sales.read tasks.create"));
+        var context = service.consentContext(user, authorizationRequest("openid email sales.read sales.read tasks.create"));
 
         assertThat(context.clientName()).isEqualTo("ChatGPT");
-        assertThat(context.scopes()).containsExactlyInAnyOrder("sales.read", "tasks.create");
+        assertThat(context.scopes()).containsExactlyInAnyOrder("openid", "email", "sales.read", "tasks.create");
         assertThat(context.expiresInDays()).isEqualTo(30);
+    }
+
+    @Test
+    void rejectsAnAuthorizationRequestWithOnlyOneIdentityScope() {
+        when(repository.findActiveClient("client-1")).thenReturn(Optional.of(client()));
+
+        assertThatThrownBy(() -> service.consentContext(user, authorizationRequest("email sales.read")))
+            .isInstanceOf(AiOAuthException.class)
+            .hasMessageContaining("permissions");
     }
 
     @Test
@@ -107,7 +118,7 @@ class AiOAuthServiceTest {
         );
         when(repository.findForUpdate(any())).thenReturn(Optional.of(stored));
         when(repository.findActiveClient("client-1")).thenReturn(Optional.of(client()));
-        when(accessTokenService.issue(eq(user), eq("ChatGPT · ChatGPT"), eq(30), eq(Set.of("sales.read"))))
+        when(accessTokenService.issueOAuth(eq(user), eq("ChatGPT · ChatGPT"), eq(30), eq(Set.of("sales.read"))))
             .thenReturn(new AiAccessTokenService.IssuedConnection(
                 7L, "generic_mcp", "ChatGPT", "idx_ai_visible", Set.of("sales.read"),
                 NOW.plusSeconds(3600), NOW, "idx_ai_secret"
@@ -137,7 +148,7 @@ class AiOAuthServiceTest {
             user
         );
         when(repository.findRefreshForUpdate(any())).thenReturn(Optional.of(stored));
-        when(accessTokenService.rotate(eq(user), eq(7L), eq(30), eq(Set.of("sales.read"))))
+        when(accessTokenService.rotateOAuth(eq(user), eq(7L), eq(30), eq(Set.of("sales.read"))))
             .thenReturn(new AiAccessTokenService.IssuedConnection(
                 7L, "generic_mcp", "ChatGPT", "idx_ai_rotated", Set.of("sales.read"),
                 NOW.plusSeconds(3600), NOW, "idx_ai_new_secret"

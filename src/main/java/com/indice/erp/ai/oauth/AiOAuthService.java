@@ -147,7 +147,7 @@ public class AiOAuthService {
             throw invalidGrant();
         }
         repository.markAuthorizationCodeUsed(stored.id(), now);
-        var issued = accessTokenService.issue(
+        var issued = accessTokenService.issueOAuth(
             stored.user(),
             "ChatGPT · " + repository.findActiveClient(stored.clientId())
                 .map(AiOAuthRepository.RegisteredClient::clientName)
@@ -182,7 +182,7 @@ public class AiOAuthService {
         }
         var scopes = refreshScopes(request.scope(), stored.scopes());
         repository.markRefreshUsed(stored.id(), now);
-        var issued = accessTokenService.rotate(
+        var issued = accessTokenService.rotateOAuth(
             stored.user(), stored.accessTokenId(), properties.getAccessTokenDays(), scopes
         );
         var rotatedRefreshToken = issueRefreshToken(
@@ -220,7 +220,7 @@ public class AiOAuthService {
     private Set<String> refreshScopes(String requested, Set<String> granted) {
         if (requested == null || requested.isBlank()) return granted;
         var scopes = parseScopes(requested);
-        if (scopes.isEmpty() || !granted.containsAll(scopes)) {
+        if (scopes.isEmpty() || !identityScopesArePaired(scopes) || !granted.containsAll(scopes)) {
             throw new AiOAuthException("invalid_scope", "Refresh cannot add permissions to this connection.");
         }
         return scopes;
@@ -246,10 +246,16 @@ public class AiOAuthService {
             throw new AiOAuthException("invalid_request", "Redirect URL is not registered for this client.");
         }
         var scopes = parseScopes(request.scope());
-        if (scopes.isEmpty() || !accessTokenService.supportedScopes().containsAll(scopes)) {
+        if (scopes.isEmpty()
+            || !identityScopesArePaired(scopes)
+            || !accessTokenService.supportedOAuthScopes().containsAll(scopes)) {
             throw new AiOAuthException("invalid_scope", "One or more requested permissions are not supported.");
         }
         return new ValidatedAuthorization(client, scopes);
+    }
+
+    private boolean identityScopesArePaired(Set<String> scopes) {
+        return scopes.contains(AiAccessTokenService.OPENID) == scopes.contains(AiAccessTokenService.EMAIL);
     }
 
     private Set<String> parseScopes(String value) {

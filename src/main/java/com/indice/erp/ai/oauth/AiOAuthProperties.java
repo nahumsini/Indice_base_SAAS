@@ -93,6 +93,10 @@ public class AiOAuthProperties {
         return getIssuerUrl() + "/api/v1/ai/oauth/register";
     }
 
+    public String userInfoEndpoint() {
+        return getIssuerUrl() + "/api/v1/ai/oauth/userinfo";
+    }
+
     public String protectedResourceMetadataUrl() {
         return getIssuerUrl() + "/.well-known/oauth-protected-resource";
     }

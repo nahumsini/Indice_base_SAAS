@@ -116,6 +116,33 @@ class AiAccessTokenServiceTest {
     void rejectsEmptyOrUnknownPermissionSelections() {
         assertThrows(IllegalArgumentException.class, () -> service.issue(OWNER, "Sin permisos", 30, Set.of()));
         assertThrows(IllegalArgumentException.class, () -> service.issue(OWNER, "Permiso falso", 30, Set.of("database.admin")));
+        assertThrows(IllegalArgumentException.class, () -> service.issue(OWNER, "Identidad fuera de OAuth", 30, Set.of("email")));
+        verify(repository, never()).insert(any(), anyString(), anyString(), anyString(), anyString(), any(), any());
+    }
+
+    @Test
+    void issuesIdentityScopesOnlyThroughOAuth() {
+        when(repository.countActive(3L, 23L, NOW)).thenReturn(0);
+        when(repository.insert(any(), anyString(), anyString(), anyString(), anyString(), any(), any()))
+            .thenReturn(93L);
+        var scopes = Set.of(
+            AiAccessTokenService.OPENID,
+            AiAccessTokenService.EMAIL,
+            AiAccessTokenService.SALES_READ
+        );
+
+        var issued = service.issueOAuth(OWNER, "ChatGPT", 30, scopes);
+
+        assertEquals(scopes, issued.scopes());
+        assertTrue(service.supportedOAuthScopes().containsAll(scopes));
+        assertFalse(service.supportedScopes().contains(AiAccessTokenService.EMAIL));
+    }
+
+    @Test
+    void rejectsIncompleteOAuthIdentityPermissions() {
+        assertThrows(IllegalArgumentException.class, () -> service.issueOAuth(
+            OWNER, "Identidad incompleta", 30, Set.of(AiAccessTokenService.EMAIL)
+        ));
         verify(repository, never()).insert(any(), anyString(), anyString(), anyString(), anyString(), any(), any());
     }
 
@@ -149,6 +176,19 @@ class AiAccessTokenServiceTest {
 
         assertTrue(service.authenticate("Bearer idx_ai_abcdefghijklmnopqrstuvwxyz1234567890").isPresent());
         verify(repository).markUsed(91L, NOW);
+    }
+
+    @Test
+    void readOnlyAuthenticationDoesNotChangeConnectionActivity() {
+        var stored = new AiAccessTokenRepository.StoredToken(
+            91L,
+            OWNER,
+            Set.of(AiAccessTokenService.OPENID, AiAccessTokenService.EMAIL)
+        );
+        when(repository.findActiveByHash(anyString(), eq(NOW))).thenReturn(Optional.of(stored));
+
+        assertTrue(service.authenticateReadOnly("Bearer idx_ai_abcdefghijklmnopqrstuvwxyz1234567890").isPresent());
+        verify(repository, never()).markUsed(anyLong(), any());
     }
 
     @Test
