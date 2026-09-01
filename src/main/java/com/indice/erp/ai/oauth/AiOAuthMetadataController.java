@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 import org.springframework.http.CacheControl;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,7 +33,6 @@ public class AiOAuthMetadataController {
     public ResponseEntity<?> protectedResource() {
         return ResponseEntity.ok()
             .cacheControl(CacheControl.noStore())
-            .header(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://chatgpt.com")
             .body(Map.of(
                 "resource", properties.getResourceUrl(),
                 "authorization_servers", List.of(properties.getIssuerUrl()),
@@ -58,7 +56,6 @@ public class AiOAuthMetadataController {
         metadata.put("resource_parameter_supported", true);
         return ResponseEntity.ok()
             .cacheControl(CacheControl.noStore())
-            .header(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://chatgpt.com")
             .body(metadata);
     }
 }
