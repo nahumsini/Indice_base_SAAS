@@ -14,6 +14,7 @@ export const MODULE_TAB_SCOPE_CATALOG: Partial<Record<PageId, TabScopeDefinition
       'business-structure': 'business-structure',
       'business-profile': 'business-profile',
       consulting: 'consulting',
+      integrations: 'integrations',
       users: 'users',
     },
   },

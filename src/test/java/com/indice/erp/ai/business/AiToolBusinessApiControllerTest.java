@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.indice.erp.ai.access.AiAccessTokenRepository;
 import com.indice.erp.ai.access.AiAccessTokenService;
 import com.indice.erp.ai.access.AiToolAuthorizationService;
+import com.indice.erp.ai.access.AiToolUsageAuditService;
 import com.indice.erp.auth.AuthSessionUser;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -27,6 +28,7 @@ class AiToolBusinessApiControllerTest {
     private AiAccessTokenService tokenService;
     private AiToolAuthorizationService authorizationService;
     private AiBusinessSnapshotService snapshotService;
+    private AiToolUsageAuditService auditService;
     private AiToolBusinessApiController controller;
 
     @BeforeEach
@@ -34,7 +36,8 @@ class AiToolBusinessApiControllerTest {
         tokenService = mock(AiAccessTokenService.class);
         authorizationService = mock(AiToolAuthorizationService.class);
         snapshotService = mock(AiBusinessSnapshotService.class);
-        controller = new AiToolBusinessApiController(tokenService, authorizationService, snapshotService);
+        auditService = mock(AiToolUsageAuditService.class);
+        controller = new AiToolBusinessApiController(tokenService, authorizationService, snapshotService, auditService);
     }
 
     @Test
@@ -50,6 +53,12 @@ class AiToolBusinessApiControllerTest {
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getBody()).isSameAs(snapshot);
         verify(snapshotService).get(23L, 3L, params);
+        verify(auditService).recordRead(
+            org.mockito.ArgumentMatchers.any(),
+            org.mockito.ArgumentMatchers.eq("get_business_snapshot"),
+            org.mockito.ArgumentMatchers.eq("SUCCESS"),
+            org.mockito.ArgumentMatchers.eq(200)
+        );
     }
 
     @Test

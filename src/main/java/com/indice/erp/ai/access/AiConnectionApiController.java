@@ -4,6 +4,7 @@ import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.auth.SessionCsrfService;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -22,15 +23,18 @@ public class AiConnectionApiController {
     private final SessionAuthService sessionAuthService;
     private final SessionCsrfService csrfService;
     private final AiAccessTokenService tokenService;
+    private final AiConnectionActivityService activityService;
 
     public AiConnectionApiController(
         SessionAuthService sessionAuthService,
         SessionCsrfService csrfService,
-        AiAccessTokenService tokenService
+        AiAccessTokenService tokenService,
+        AiConnectionActivityService activityService
     ) {
         this.sessionAuthService = sessionAuthService;
         this.csrfService = csrfService;
         this.tokenService = tokenService;
+        this.activityService = activityService;
     }
 
     @GetMapping
@@ -58,14 +62,33 @@ public class AiConnectionApiController {
         }
         try {
             csrfService.requireCsrf(session, csrfToken);
-            var safeRequest = request == null ? new CreateConnectionRequest(null, null) : request;
+            var safeRequest = request == null ? new CreateConnectionRequest(null, null, null) : request;
             return ResponseEntity.status(HttpStatus.CREATED).body(
-                tokenService.issue(user.get(), safeRequest.label(), safeRequest.expiresInDays())
+                tokenService.issue(user.get(), safeRequest.label(), safeRequest.expiresInDays(), safeRequest.scopes())
             );
         } catch (IllegalArgumentException exception) {
             return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
         } catch (IllegalStateException exception) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", exception.getMessage()));
+        }
+    }
+
+    @GetMapping("/{connectionId}/activity")
+    public ResponseEntity<?> activity(
+        HttpSession session,
+        @PathVariable long connectionId,
+        @org.springframework.web.bind.annotation.RequestParam(defaultValue = "25") int limit
+    ) {
+        var user = sessionAuthService.currentUser(session);
+        if (user.isEmpty() || sessionAuthService.isPublicDemoSession(session)) {
+            return unauthorized();
+        }
+        try {
+            return ResponseEntity.ok(Map.of("events", activityService.list(user.get(), connectionId, limit)));
+        } catch (java.util.NoSuchElementException exception) {
+            return ResponseEntity.notFound().build();
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
         }
     }
 
@@ -93,6 +116,6 @@ public class AiConnectionApiController {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
     }
 
-    public record CreateConnectionRequest(String label, Integer expiresInDays) {
+    public record CreateConnectionRequest(String label, Integer expiresInDays, Set<String> scopes) {
     }
 }

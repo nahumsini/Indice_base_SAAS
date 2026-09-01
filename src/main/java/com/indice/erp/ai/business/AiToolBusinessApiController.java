@@ -2,6 +2,7 @@ package com.indice.erp.ai.business;
 
 import com.indice.erp.ai.access.AiAccessTokenService;
 import com.indice.erp.ai.access.AiToolAuthorizationService;
+import com.indice.erp.ai.access.AiToolUsageAuditService;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.http.HttpHeaders;
@@ -22,15 +23,18 @@ public class AiToolBusinessApiController {
     private final AiAccessTokenService tokenService;
     private final AiToolAuthorizationService authorizationService;
     private final AiBusinessSnapshotService snapshotService;
+    private final AiToolUsageAuditService auditService;
 
     public AiToolBusinessApiController(
         AiAccessTokenService tokenService,
         AiToolAuthorizationService authorizationService,
-        AiBusinessSnapshotService snapshotService
+        AiBusinessSnapshotService snapshotService,
+        AiToolUsageAuditService auditService
     ) {
         this.tokenService = tokenService;
         this.authorizationService = authorizationService;
         this.snapshotService = snapshotService;
+        this.auditService = auditService;
     }
 
     @GetMapping("/snapshot")
@@ -47,8 +51,10 @@ public class AiToolBusinessApiController {
                 .header(HttpHeaders.WWW_AUTHENTICATE, BEARER_CHALLENGE)
                 .body(Map.of("message", "Invalid or expired access token."));
         }
-        var user = token.get().user();
+        var storedToken = token.get();
+        var user = storedToken.user();
         if (!authorizationService.canReadBusinessSnapshot(user)) {
+            auditService.recordRead(storedToken, "get_business_snapshot", "FAILURE", HttpStatus.FORBIDDEN.value());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
                 "message", "The current Indice permissions do not allow this tool.",
                 "code", "ai_tool_permission_required"
@@ -61,8 +67,11 @@ public class AiToolBusinessApiController {
             putIfPresent(params, "from", from);
             putIfPresent(params, "to", to);
             putIfPresent(params, "preferredCurrency", preferredCurrency);
-            return ResponseEntity.ok(snapshotService.get(user.companyId(), user.userId(), params));
+            var response = snapshotService.get(user.companyId(), user.userId(), params);
+            auditService.recordRead(storedToken, "get_business_snapshot", "SUCCESS", HttpStatus.OK.value());
+            return ResponseEntity.ok(response);
         } catch (IllegalArgumentException exception) {
+            auditService.recordRead(storedToken, "get_business_snapshot", "FAILURE", HttpStatus.BAD_REQUEST.value());
             return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
         }
     }

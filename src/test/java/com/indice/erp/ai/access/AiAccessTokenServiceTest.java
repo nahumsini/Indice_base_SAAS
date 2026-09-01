@@ -93,6 +93,32 @@ class AiAccessTokenServiceTest {
     }
 
     @Test
+    void issuesOnlyTheExplicitPermissionsSelectedByTheOwner() {
+        when(repository.countActive(3L, 23L, NOW)).thenReturn(0);
+        when(repository.insert(any(), anyString(), anyString(), anyString(), anyString(), any(), any()))
+            .thenReturn(92L);
+        var selectedScopes = Set.of(
+            AiAccessTokenService.INVENTORY_READ,
+            AiAccessTokenService.EXPENSES_READ
+        );
+
+        var issued = service.issue(OWNER, "Lectura segura", 30, selectedScopes);
+
+        assertEquals(selectedScopes, issued.scopes());
+        verify(repository).insert(
+            eq(OWNER), eq("generic_mcp"), eq("Lectura segura"), eq(issued.tokenPrefix()),
+            anyString(), eq(issued.expiresAt()), eq(selectedScopes)
+        );
+    }
+
+    @Test
+    void rejectsEmptyOrUnknownPermissionSelections() {
+        assertThrows(IllegalArgumentException.class, () -> service.issue(OWNER, "Sin permisos", 30, Set.of()));
+        assertThrows(IllegalArgumentException.class, () -> service.issue(OWNER, "Permiso falso", 30, Set.of("database.admin")));
+        verify(repository, never()).insert(any(), anyString(), anyString(), anyString(), anyString(), any(), any());
+    }
+
+    @Test
     void authenticatesOnlyBearerTokenWithRequiredScope() {
         var stored = new AiAccessTokenRepository.StoredToken(
             91L,

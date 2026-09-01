@@ -30,6 +30,7 @@ public final class ConfigCenterTabPermissionCatalog {
         tab(CONFIG_CENTER_MODULE, "business-structure", "Business Structure", "Estructura empresarial"),
         tab(CONFIG_CENTER_MODULE, "business-profile", "Business Profile", "Perfil empresarial"),
         tab(CONFIG_CENTER_MODULE, "consulting", "Consulting", "Consultoría"),
+        tab(CONFIG_CENTER_MODULE, "integrations", "Integrations", "Integraciones"),
         tab(CONFIG_CENTER_MODULE, "users", "Users", "Usuarios"),
         protectedTab(CONFIG_CENTER_MODULE, "plan", "Plan", "Plan"),
 
@@ -293,6 +294,7 @@ public final class ConfigCenterTabPermissionCatalog {
             case "config_center.business-structure" -> description("Organize corporate office, units, businesses and their locations.", "Organizar oficina corporativa, unidades, negocios y sus ubicaciones.");
             case "config_center.business-profile" -> description("Complete the company diagnosis and turn its results into an improvement plan.", "Completar el diagnóstico de la empresa y convertir sus resultados en un plan de mejora.");
             case "config_center.consulting" -> description("Request and track consulting sessions with the Indice team.", "Solicitar y dar seguimiento a sesiones de consultoría con el equipo de Índice.");
+            case "config_center.integrations" -> description("Create, audit and revoke secure AI connections for the company.", "Crear, auditar y revocar conexiones seguras de IA para la empresa.");
             case "config_center.users" -> description("Invite users and manage their role, scope, modules, tabs and kiosks.", "Invitar usuarios y administrar su rol, alcance, módulos, pestañas y kioscos.");
             case "config_center.plan" -> description("Manage the company subscription, limits and protected billing settings.", "Administrar la suscripción, límites y configuración protegida de facturación.");
             case "human_resources.collaborators" -> description("Manage employee records, assignments, schedules and employment context.", "Administrar expedientes, asignaciones, horarios y contexto laboral.");

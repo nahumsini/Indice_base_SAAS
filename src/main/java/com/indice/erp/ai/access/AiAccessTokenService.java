@@ -71,6 +71,16 @@ public class AiAccessTokenService {
 
     @Transactional
     public IssuedConnection issue(AuthSessionUser owner, String label, Integer expiresInDays) {
+        return issue(owner, label, expiresInDays, null);
+    }
+
+    @Transactional
+    public IssuedConnection issue(
+        AuthSessionUser owner,
+        String label,
+        Integer expiresInDays,
+        Set<String> requestedScopes
+    ) {
         requireDirectMembership(owner);
         var normalizedLabel = normalizeLabel(label);
         var days = expiresInDays == null ? DEFAULT_EXPIRY_DAYS : expiresInDays;
@@ -86,7 +96,7 @@ public class AiAccessTokenService {
         var rawToken = generateToken();
         var expiresAt = now.plus(Duration.ofDays(days));
         var visiblePrefix = rawToken.substring(0, Math.min(18, rawToken.length()));
-        var scopes = DEFAULT_SCOPES;
+        var scopes = normalizeScopes(requestedScopes);
         var id = repository.insert(
             owner,
             PROVIDER,
@@ -97,6 +107,10 @@ public class AiAccessTokenService {
             scopes
         );
         return new IssuedConnection(id, PROVIDER, normalizedLabel, visiblePrefix, scopes, expiresAt, now, rawToken);
+    }
+
+    public Set<String> supportedScopes() {
+        return DEFAULT_SCOPES;
     }
 
     @Transactional(readOnly = true)
@@ -152,6 +166,24 @@ public class AiAccessTokenService {
         }
         if (normalized.length() > 120) {
             throw new IllegalArgumentException("label must not exceed 120 characters.");
+        }
+        return normalized;
+    }
+
+    private Set<String> normalizeScopes(Set<String> requestedScopes) {
+        if (requestedScopes == null) {
+            return DEFAULT_SCOPES;
+        }
+        var normalized = requestedScopes.stream()
+            .filter(java.util.Objects::nonNull)
+            .map(String::trim)
+            .filter(scope -> !scope.isBlank())
+            .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        if (normalized.isEmpty()) {
+            throw new IllegalArgumentException("At least one AI permission is required.");
+        }
+        if (!DEFAULT_SCOPES.containsAll(normalized)) {
+            throw new IllegalArgumentException("One or more AI permissions are not supported.");
         }
         return normalized;
     }

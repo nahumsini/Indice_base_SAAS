@@ -1,6 +1,7 @@
 package com.indice.erp.ai.query;
 
 import com.indice.erp.ai.access.AiAccessTokenService;
+import com.indice.erp.ai.access.AiToolUsageAuditService;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import org.springframework.http.HttpHeaders;
@@ -21,10 +22,16 @@ public class AiToolQueryApiController {
 
     private final AiAccessTokenService tokenService;
     private final AiBusinessQueryService queryService;
+    private final AiToolUsageAuditService auditService;
 
-    public AiToolQueryApiController(AiAccessTokenService tokenService, AiBusinessQueryService queryService) {
+    public AiToolQueryApiController(
+        AiAccessTokenService tokenService,
+        AiBusinessQueryService queryService,
+        AiToolUsageAuditService auditService
+    ) {
         this.tokenService = tokenService;
         this.queryService = queryService;
+        this.auditService = auditService;
     }
 
     @PostMapping("/{tool}")
@@ -43,14 +50,20 @@ public class AiToolQueryApiController {
                 .header(HttpHeaders.WWW_AUTHENTICATE, BEARER_CHALLENGE)
                 .body(error("invalid_token", "Invalid, expired, or insufficiently scoped access token."));
         }
+        var storedToken = token.get();
         try {
-            return ResponseEntity.ok(queryService.execute(token.get().user(), tool, args));
+            var response = queryService.execute(storedToken.user(), tool, args);
+            auditService.recordRead(storedToken, tool, "SUCCESS", HttpStatus.OK.value());
+            return ResponseEntity.ok(response);
         } catch (SecurityException exception) {
+            auditService.recordRead(storedToken, tool, "FAILURE", HttpStatus.FORBIDDEN.value());
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(error("ai_tool_permission_required", exception.getMessage()));
         } catch (NoSuchElementException exception) {
+            auditService.recordRead(storedToken, tool, "FAILURE", HttpStatus.NOT_FOUND.value());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error("not_found", exception.getMessage()));
         } catch (IllegalArgumentException exception) {
+            auditService.recordRead(storedToken, tool, "FAILURE", HttpStatus.BAD_REQUEST.value());
             return ResponseEntity.badRequest().body(error("invalid_request", exception.getMessage()));
         }
     }

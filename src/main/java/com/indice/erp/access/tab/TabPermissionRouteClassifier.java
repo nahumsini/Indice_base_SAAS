@@ -13,6 +13,7 @@ public class TabPermissionRouteClassifier {
         "config_center.business-structure",
         "config_center.business-profile",
         "config_center.consulting",
+        "config_center.integrations",
         "config_center.personal-performance",
         "config_center.users"
     };
@@ -60,6 +61,9 @@ public class TabPermissionRouteClassifier {
         }
         if (path.startsWith("/api/v1/config-center/users")) {
             return one("config_center.users");
+        }
+        if (path.startsWith("/api/v1/ai/connections")) {
+            return one("config_center.integrations");
         }
         if (path.startsWith("/api/v1/config-center/business-structure")
             || path.startsWith("/api/v1/config-center/locations")) {

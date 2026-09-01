@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, Building2, Check, CreditCard, Globe, GraduationCap, LoaderCircle, User, Sun, Moon, Sunrise, Settings, ShieldCheck, MonitorSmartphone, Search } from 'lucide-react';
+import { BriefcaseBusiness, Building2, Bot, Check, CreditCard, Globe, GraduationCap, LoaderCircle, User, Sun, Moon, Sunrise, Settings, ShieldCheck, MonitorSmartphone, Search } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
 import {
@@ -24,7 +24,7 @@ import { isAdminAccessRole, normalizeAccessRole } from '../access/accessRules';
 import { managedCompanyApi, type ManagedCompanyContext } from '../api/managedCompanies';
 import { getCachedAuthSession } from '../api/authSessionStore';
 import { useAuthorizationRevision } from '../hooks/useAuthorizationRevision';
-import { canAccessKioskCenter } from '../access/tabScopeCatalog';
+import { canAccessKioskCenter, canAccessModuleTab } from '../access/tabScopeCatalog';
 
 interface HeaderProps {
   learningModeActive: boolean;
@@ -649,6 +649,14 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
                   )}
                   {isAdminAccessRole(effectiveAuthSession?.user.role) && !isPublicDemoSession ? (
                     <>
+                      {canAccessModuleTab('home-panel', 'integrations', effectiveAuthSession) ? (
+                        <DropdownMenuItem onClick={() => navigate('/home-panel/integrations')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
+                          <Bot className="h-4 w-4 mr-3 text-[#177D66]" />
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">
+                            {currentLanguage.code.startsWith('es') ? 'Conectar IA' : 'Connect AI'}
+                          </span>
+                        </DropdownMenuItem>
+                      ) : null}
                       {canAccessKioskCenter(effectiveAuthSession) ? (
                         <DropdownMenuItem onClick={() => navigate('/kiosk-center')} className="cursor-pointer px-4 py-3 hover:bg-[#E7F3F2]/65 focus:bg-[#E7F3F2]/65 dark:hover:bg-[#59C3A5]/10 dark:focus:bg-[#59C3A5]/10">
                           <MonitorSmartphone className="h-4 w-4 mr-3 text-gray-600 dark:text-gray-300" />

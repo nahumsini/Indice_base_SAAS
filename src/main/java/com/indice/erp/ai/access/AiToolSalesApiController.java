@@ -20,15 +20,18 @@ public class AiToolSalesApiController {
     private final AiAccessTokenService tokenService;
     private final AiToolAuthorizationService authorizationService;
     private final SalesKpiTodayService salesKpiTodayService;
+    private final AiToolUsageAuditService auditService;
 
     public AiToolSalesApiController(
         AiAccessTokenService tokenService,
         AiToolAuthorizationService authorizationService,
-        SalesKpiTodayService salesKpiTodayService
+        SalesKpiTodayService salesKpiTodayService,
+        AiToolUsageAuditService auditService
     ) {
         this.tokenService = tokenService;
         this.authorizationService = authorizationService;
         this.salesKpiTodayService = salesKpiTodayService;
+        this.auditService = auditService;
     }
 
     @GetMapping("/today")
@@ -42,7 +45,9 @@ public class AiToolSalesApiController {
                 .header(HttpHeaders.WWW_AUTHENTICATE, BEARER_CHALLENGE)
                 .body(Map.of("message", "Invalid or expired access token."));
         }
-        if (!authorizationService.canReadSalesToday(token.get().user())) {
+        var storedToken = token.get();
+        if (!authorizationService.canReadSalesToday(storedToken.user())) {
+            auditService.recordRead(storedToken, "get_sales_today", "FAILURE", HttpStatus.FORBIDDEN.value());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
                 "message", "The current Indice permissions do not allow this tool.",
                 "code", "ai_tool_permission_required"
@@ -50,8 +55,11 @@ public class AiToolSalesApiController {
         }
 
         try {
-            return ResponseEntity.ok(salesKpiTodayService.today(token.get().user().companyId(), preferredCurrency));
+            var response = salesKpiTodayService.today(storedToken.user().companyId(), preferredCurrency);
+            auditService.recordRead(storedToken, "get_sales_today", "SUCCESS", HttpStatus.OK.value());
+            return ResponseEntity.ok(response);
         } catch (IllegalArgumentException exception) {
+            auditService.recordRead(storedToken, "get_sales_today", "FAILURE", HttpStatus.BAD_REQUEST.value());
             return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
         }
     }
