@@ -1,12 +1,14 @@
 import type { PanelInicialShellTranslations } from './types';
 
 export const koCA: PanelInicialShellTranslations = {
+  integrationsLabel: 'AI 연결',
   subtitle: '프로필, 회사 구조, 사용자 및 운영 환경설정을 구성합니다.',
   tabDescriptions: {
     profile: '개인 정보 및 보안',
     businessStructure: '영역, 직책 및 조직',
     businessProfile: '기업 정체성 및 진단',
     consulting: '컨설팅 일정 및 진행 확인',
+    integrations: '비즈니스 정보로 더 나은 결정을 내리도록 AI 도우미를 연결합니다',
     personalPerformance: '개인 목표 및 성과',
     users: '접근 권한, 역할 및 권한',
   },

@@ -20,6 +20,7 @@ const Profile = lazy(() => import('./Profile'));
 const BusinessStructure = lazy(() => import('./BusinessStructure'));
 const BusinessProfile = lazy(() => import('./BusinessProfile'));
 const Consulting = lazy(() => import('./Consulting'));
+const Integrations = lazy(() => import('./Integrations'));
 const Users = lazy(() => import('./Users'));
 
 interface PanelInicialProps {
@@ -27,21 +28,23 @@ interface PanelInicialProps {
   onNavigate: (page?: string) => void;
 }
 
-type PanelInicialTabId = PanelInicialGuidanceTabId;
+type PanelInicialTabId = PanelInicialGuidanceTabId | 'integrations';
 
 const subTabIds = [
   'profile',
   'business-structure',
   'business-profile',
   'consulting',
+  'integrations',
   'users',
 ] as const;
 
-const legacySubTabAliases: Partial<Record<string, PanelInicialGuidanceTabId>> = {
+const legacySubTabAliases: Partial<Record<string, PanelInicialTabId>> = {
   perfil: 'profile',
   estructuraEmpresarial: 'business-structure',
   perfilEmpresarial: 'business-profile',
   consultoria: 'consulting',
+  integraciones: 'integrations',
   'personal-performance': 'business-profile',
   usuarios: 'users',
 };
@@ -75,8 +78,15 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
     { id: 'business-structure', label: t.panelInicial.tabs.businessStructure, helper: shellCopy.tabDescriptions.businessStructure, emoji: '🏢', component: BusinessStructure },
     { id: 'business-profile', label: t.panelInicial.tabs.businessProfile, helper: shellCopy.tabDescriptions.businessProfile, emoji: '📊', component: BusinessProfile },
     { id: 'consulting', label: t.panelInicial.tabs.consulting, helper: shellCopy.tabDescriptions.consulting, emoji: '🤝', component: Consulting },
+    {
+      id: 'integrations',
+      label: shellCopy.integrationsLabel,
+      helper: shellCopy.tabDescriptions.integrations,
+      emoji: '🤖',
+      component: Integrations,
+    },
     { id: 'users', label: t.panelInicial.tabs.users, helper: shellCopy.tabDescriptions.users, emoji: '👥', component: Users },
-  ], [shellCopy.tabDescriptions, t.panelInicial.tabs]);
+  ], [shellCopy.integrationsLabel, shellCopy.tabDescriptions, t.panelInicial.tabs]);
   const visibleSubTabs = sessionAccess.loaded
     ? subTabs.filter((tab) => (
         canAccessHomePanelTab(
@@ -153,7 +163,7 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
   };
 
   return (
-    <LearningModeHeaderActionsProvider active={learningModeActive}>
+    <LearningModeHeaderActionsProvider active={learningModeActive && activeSubTab !== 'integrations'}>
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--indice-background)] dark:bg-slate-950">
       <LoadingBarOverlay
         isVisible={isTabLoading || !sessionAccess.loaded}
@@ -172,12 +182,12 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-      {learningModeActive ? (
+      {learningModeActive && activeSubTab !== 'integrations' ? (
         <div className="border-b border-[var(--indice-border)] bg-white px-3 pb-4 dark:bg-slate-800 sm:px-8 sm:pb-6">
           <div className="mx-auto max-w-[1600px]">
               <OperationalModuleGuide
                 copy={guidanceCopy}
-                activeTabId={activeSubTab}
+                activeTabId={activeSubTab as PanelInicialGuidanceTabId}
                 onPrimaryAction={handleGuidePrimaryAction}
               />
           </div>

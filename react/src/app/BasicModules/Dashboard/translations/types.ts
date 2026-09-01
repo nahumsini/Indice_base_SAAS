@@ -9,6 +9,7 @@ export type PanelInicialLocale =
   | 'zh-CA';
 
 export interface PanelInicialShellTranslations {
+  integrationsLabel: string;
   subtitle: string;
   tabDescriptions: {
     profile: string;
@@ -16,6 +17,7 @@ export interface PanelInicialShellTranslations {
     businessProfile: string;
     personalPerformance: string;
     consulting: string;
+    integrations: string;
     users: string;
   };
   loadingTabTitle: string;

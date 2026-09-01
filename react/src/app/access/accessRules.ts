@@ -5,6 +5,7 @@ export type HomePanelTabId =
   | 'business-structure'
   | 'business-profile'
   | 'consulting'
+  | 'integrations'
   | 'users';
 
 export type HumanResourcesTabId =

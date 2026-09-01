@@ -1,0 +1,285 @@
+package com.indice.erp.ai.task;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.indice.erp.ai.access.AiAccessTokenRepository;
+import com.indice.erp.ai.task.AiTaskActionContracts.TaskDraft;
+import com.indice.erp.ai.task.AiTaskActionContracts.TaskResult;
+import java.sql.Date;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.Optional;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public class AiTaskActionRepository {
+
+    private final JdbcTemplate jdbcTemplate;
+    private final ObjectMapper objectMapper;
+
+    public AiTaskActionRepository(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
+        this.jdbcTemplate = jdbcTemplate;
+        this.objectMapper = objectMapper;
+    }
+
+    public long insertConfirmation(
+        AiAccessTokenRepository.StoredToken token,
+        String confirmationHash,
+        String fingerprint,
+        TaskDraft draft,
+        Instant expiresAt
+    ) {
+        var keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            var statement = connection.prepareStatement(
+                """
+                    INSERT INTO ai_action_confirmations
+                    (access_token_id, company_id, user_id, user_company_id, tool_name,
+                     confirmation_hash, request_fingerprint, normalized_args_json,
+                     task_title, task_description, task_priority, task_due_date, expires_at)
+                    VALUES (?, ?, ?, ?, 'create_task', ?, ?, CAST(? AS JSON), ?, ?, ?, ?, ?)
+                    """,
+                new String[] {"id"}
+            );
+            statement.setLong(1, token.id());
+            statement.setLong(2, token.user().companyId());
+            statement.setLong(3, token.user().userId());
+            statement.setLong(4, token.user().userCompanyId());
+            statement.setString(5, confirmationHash);
+            statement.setString(6, fingerprint);
+            statement.setString(7, json(draft));
+            statement.setString(8, draft.title());
+            statement.setString(9, draft.description());
+            statement.setString(10, draft.priority());
+            statement.setDate(11, draft.dueDate() == null ? null : Date.valueOf(draft.dueDate()));
+            statement.setTimestamp(12, Timestamp.from(expiresAt));
+            return statement;
+        }, keyHolder);
+        var key = keyHolder.getKey();
+        if (key == null) {
+            throw new IllegalStateException("Task confirmation could not be created.");
+        }
+        return key.longValue();
+    }
+
+    public Optional<Confirmation> findConfirmation(String confirmationHash) {
+        return jdbcTemplate.query(
+            """
+                SELECT id, access_token_id, company_id, user_id, user_company_id,
+                       request_fingerprint, normalized_args_json, task_title,
+                       task_description, task_priority, task_due_date, expires_at, consumed_at
+                FROM ai_action_confirmations
+                WHERE confirmation_hash = ? AND tool_name = 'create_task'
+                LIMIT 1
+                """,
+            (rs, rowNum) -> new Confirmation(
+                rs.getLong("id"),
+                rs.getLong("access_token_id"),
+                rs.getLong("company_id"),
+                rs.getLong("user_id"),
+                rs.getLong("user_company_id"),
+                rs.getString("request_fingerprint"),
+                rs.getString("normalized_args_json"),
+                new TaskDraft(
+                    rs.getString("task_title"),
+                    rs.getString("task_description"),
+                    rs.getString("task_priority"),
+                    localDate(rs.getDate("task_due_date")),
+                    "Usuario conectado"
+                ),
+                rs.getTimestamp("expires_at").toInstant(),
+                instant(rs.getTimestamp("consumed_at"))
+            ),
+            confirmationHash
+        ).stream().findFirst();
+    }
+
+    public int consumeConfirmation(long confirmationId, Instant now) {
+        return jdbcTemplate.update(
+            """
+                UPDATE ai_action_confirmations
+                SET consumed_at = ?
+                WHERE id = ? AND consumed_at IS NULL AND expires_at > ?
+                """,
+            Timestamp.from(now),
+            confirmationId,
+            Timestamp.from(now)
+        );
+    }
+
+    public long insertPendingExecution(
+        AiAccessTokenRepository.StoredToken token,
+        Confirmation confirmation,
+        String idempotencyHash,
+        String correlationId
+    ) {
+        var keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            var statement = connection.prepareStatement(
+                """
+                    INSERT INTO ai_action_executions
+                    (confirmation_id, access_token_id, company_id, user_id, user_company_id,
+                     tool_name, idempotency_key_hash, request_fingerprint, correlation_id,
+                     risk_level, status)
+                    VALUES (?, ?, ?, ?, ?, 'create_task', ?, ?, ?, 1, 'PENDING')
+                    """,
+                new String[] {"id"}
+            );
+            statement.setLong(1, confirmation.id());
+            statement.setLong(2, token.id());
+            statement.setLong(3, token.user().companyId());
+            statement.setLong(4, token.user().userId());
+            statement.setLong(5, token.user().userCompanyId());
+            statement.setString(6, idempotencyHash);
+            statement.setString(7, confirmation.fingerprint());
+            statement.setString(8, correlationId);
+            return statement;
+        }, keyHolder);
+        var key = keyHolder.getKey();
+        if (key == null) {
+            throw new IllegalStateException("Task execution could not be reserved.");
+        }
+        return key.longValue();
+    }
+
+    public Optional<Execution> findExecution(long companyId, long userId, String idempotencyHash) {
+        return jdbcTemplate.query(
+            """
+                SELECT id, confirmation_id, request_fingerprint, correlation_id, status,
+                       result_task_id, result_folio, result_title, result_status, result_due_date
+                FROM ai_action_executions
+                WHERE company_id = ? AND user_id = ?
+                  AND tool_name = 'create_task' AND idempotency_key_hash = ?
+                LIMIT 1
+                """,
+            (rs, rowNum) -> new Execution(
+                rs.getLong("id"),
+                rs.getLong("confirmation_id"),
+                rs.getString("request_fingerprint"),
+                rs.getString("correlation_id"),
+                rs.getString("status"),
+                rs.getObject("result_task_id", Long.class),
+                rs.getString("result_folio"),
+                rs.getString("result_title"),
+                rs.getString("result_status"),
+                localDate(rs.getDate("result_due_date"))
+            ),
+            companyId,
+            userId,
+            idempotencyHash
+        ).stream().findFirst();
+    }
+
+    public int completeExecution(long executionId, TaskResult result, Instant now) {
+        return jdbcTemplate.update(
+            """
+                UPDATE ai_action_executions
+                SET status = 'COMPLETED', result_task_id = ?, result_folio = ?,
+                    result_title = ?, result_status = ?, result_due_date = ?, completed_at = ?
+                WHERE id = ? AND status = 'PENDING'
+                """,
+            result.id(),
+            result.folio(),
+            result.title(),
+            result.status(),
+            result.dueDate() == null ? null : Date.valueOf(result.dueDate()),
+            Timestamp.from(now),
+            executionId
+        );
+    }
+
+    public void insertAudit(
+        AiAccessTokenRepository.StoredToken token,
+        Long confirmationId,
+        String eventType,
+        String outcome,
+        String correlationId,
+        String idempotencyHash,
+        Object normalizedArgs,
+        Object result,
+        String errorCode,
+        String errorMessage
+    ) {
+        jdbcTemplate.update(
+            """
+                INSERT INTO ai_action_audit_events
+                (confirmation_id, access_token_id, company_id, user_id, user_company_id,
+                 tool_name, event_type, outcome, risk_level, correlation_id,
+                 idempotency_key_hash, normalized_args_json, result_json,
+                 error_code, error_message_safe)
+                VALUES (?, ?, ?, ?, ?, 'create_task', ?, ?, 1, ?, ?,
+                        CAST(? AS JSON), CAST(? AS JSON), ?, ?)
+                """,
+            confirmationId,
+            token.id(),
+            token.user().companyId(),
+            token.user().userId(),
+            token.user().userCompanyId(),
+            eventType,
+            outcome,
+            correlationId,
+            idempotencyHash,
+            normalizedArgs == null ? null : json(normalizedArgs),
+            result == null ? null : json(result),
+            errorCode,
+            truncate(errorMessage, 255)
+        );
+    }
+
+    private String json(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("AI action audit serialization failed.", exception);
+        }
+    }
+
+    private static Instant instant(Timestamp value) {
+        return value == null ? null : value.toInstant();
+    }
+
+    private static LocalDate localDate(Date value) {
+        return value == null ? null : value.toLocalDate();
+    }
+
+    private static String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
+    }
+
+    public record Confirmation(
+        long id,
+        long accessTokenId,
+        long companyId,
+        long userId,
+        long userCompanyId,
+        String fingerprint,
+        String normalizedArgsJson,
+        TaskDraft draft,
+        Instant expiresAt,
+        Instant consumedAt
+    ) {
+    }
+
+    public record Execution(
+        long id,
+        long confirmationId,
+        String fingerprint,
+        String correlationId,
+        String status,
+        Long taskId,
+        String folio,
+        String title,
+        String taskStatus,
+        LocalDate dueDate
+    ) {
+        public TaskResult result() {
+            return new TaskResult(taskId == null ? 0 : taskId, folio, title, taskStatus, dueDate);
+        }
+    }
+}

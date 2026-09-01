@@ -1,12 +1,14 @@
 import type { PanelInicialShellTranslations } from './types';
 
 export const esMX: PanelInicialShellTranslations = {
+  integrationsLabel: 'Conectar IA',
   subtitle: 'Configura tu perfil, estructura empresarial, usuarios y preferencias operativas.',
   tabDescriptions: {
     profile: 'Datos personales y seguridad',
     businessStructure: 'Áreas, puestos y organización',
     businessProfile: 'Identidad y diagnóstico del negocio',
     consulting: 'Agenda y seguimiento de consultoría',
+    integrations: 'Conecta asistentes para decidir con la información de tu negocio',
     personalPerformance: 'Objetivos y desempeño personal',
     users: 'Accesos, roles y permisos',
   },
