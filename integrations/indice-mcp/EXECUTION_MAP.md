@@ -4,43 +4,53 @@
 
 Entregar un asistente confiable para dueños de PYMEs: consulta el negocio y ejecuta acciones pequeñas solo con permisos, confirmación, idempotencia y auditoría.
 
-## Fase 1: paquete vendible de lectura
+## V1: paquete vendible de lectura
 
 | Prioridad | Herramienta | Preguntas que resuelve | Fuente existente | Estado |
 | --- | --- | --- | --- | --- |
 | P0 | `get_sales_today` | ¿Cuánto vendí hoy? ¿Cuántas ventas hice? | `SalesKpiTodayService` | Funcional |
 | P0 | `get_business_snapshot` | ¿Cómo va el negocio? ¿Cuánto gasté? ¿Cuánto me deben? ¿Qué está vencido? | `ExecutiveKpiService` | Implementada |
 | P0 | `get_attention_items` | ¿Qué requiere mi atención? ¿Qué debo resolver primero? | `ExecutiveKpiService` | Implementada |
-| P1 | `get_sales_breakdown` | ¿Qué producto, canal o vendedor vendió más? | Ventas, tickets y KPI ejecutivo | Siguiente |
-| P1 | `get_cash_status` | ¿Cuánto hay en caja? ¿Hay diferencias o cierres pendientes? | POS, caja y arqueos | Pendiente |
-| P1 | `get_inventory_alerts` | ¿Qué productos tienen poco inventario o riesgo de agotarse? | Inventario y productos | Pendiente |
-| P1 | `get_receivables_due` | ¿Quién me debe y qué cobros están vencidos? | Finanzas y cuentas por cobrar | Pendiente |
-| P2 | `get_tasks_attention` | ¿Qué tareas están vencidas y quién es responsable? | Procesos y tareas | Pendiente |
-| P2 | `get_attendance_exceptions` | ¿Quién faltó o llegó tarde? | Recursos Humanos y asistencia | Pendiente |
+| P0 | `search_employees`, `get_employee_overview`, `get_attendance_exceptions` | ¿Cómo está este empleado? ¿Qué tareas tiene? ¿Quién faltó? | RH, asistencia y tareas | Implementada |
+| P0 | `list_tasks`, `get_task_detail` | ¿Qué está vencido? ¿Qué delegué? ¿Qué tiene el equipo? | Procesos y tareas | Implementada |
+| P0 | `get_sales_summary`, `list_sales`, `get_sale_detail` | ¿Cuánto vendí? ¿Qué contiene esta venta? | Ventas y tickets POS deduplicados | Implementada |
+| P0 | `get_cash_status` | ¿Cuánto hay en caja? ¿Hay diferencias o cierres pendientes? | POS, cajas y turnos | Implementada |
+| P0 | `search_products`, `get_product_detail`, `get_inventory_summary` | ¿Cuál es el precio, costo, existencia y valor de inventario? | Productos y saldos por almacén | Implementada |
+| P0 | `get_expense_summary`, `list_expenses`, `get_expense_detail` | ¿Cuánto gasté? ¿Qué está pagado, por pagar o vencido? | Gastos y pagos | Implementada |
+| P0 | `get_funds_status` | ¿Cuánto queda y cuánto se ha usado por fondo? | Caja chica | Implementada |
+| P0 | `get_receivables_status` | ¿Quién me debe y qué cobros están vencidos? | Cuentas por cobrar | Implementada |
 
 Regla: cada herramienta expone una pregunta de negocio, no tablas ni CRUD genérico. `companyId`, usuario y alcance siempre salen del token de Índice.
 
-## Fase 2: primera acción segura
+## V1: cuatro acciones seguras
 
-La primera acción es `create_task`, no registrar pagos ni modificar inventario.
+Acciones habilitadas:
+
+1. Crear tarea.
+2. Crear gasto general en `DRAFT`.
+3. Registrar una salida en fondo/caja chica.
+4. Ingresar dinero a un fondo como `ADDITIONAL_DEPOSIT` desde una cuenta fuente exacta.
 
 Implementado:
 
-- alcance `tasks.create` separado;
-- suscripción, entitlement y acceso vigente al módulo `processes`;
-- `preview_create_task` sin creación y confirmación con vigencia de 5 minutos;
-- `create_task` sin campos mutables: solo confirmación e idempotencia;
+- alcances de lectura y escritura separados por dominio;
+- suscripción, entitlement y acceso vigente al módulo correspondiente (`processes`, `expenses` o `petty_cash`);
+- vista previa sin ejecutar y confirmación con vigencia de 5 minutos;
+- commit sin campos mutables: solo confirmación e idempotencia;
 - asignación limitada al usuario conectado;
 - clave de idempotencia para impedir duplicados;
 - auditoría con usuario, empresa, conexión, argumentos normalizados, resultado, fecha y correlación;
-- respuesta con identificador y folio de la tarea creada.
+- confirmación ligada al nombre exacto de la herramienta para impedir uso cruzado;
+- gasto general forzado a borrador, sin pago ni aprobación;
+- salida de fondo separada de la autorización como gasto global;
+- depósito de fondo con impacto en la cuenta fuente validado por el servicio financiero real.
 
 ## Acciones posteriores por riesgo
 
 | Riesgo | Acciones | Decisión |
 | --- | --- | --- |
-| Bajo | Crear tarea, agregar seguimiento, crear borrador de cliente u oportunidad | Después de `create_task` |
-| Medio | Registrar gasto en borrador, completar tarea, crear cotización en borrador | Requiere permisos específicos y confirmación reforzada |
+| Bajo | Crear tarea | Habilitada con confirmación |
+| Medio | Gasto en borrador, salida o depósito de fondo | Habilitadas con permiso específico y confirmación |
 | Alto | Registrar pago, aprobar gasto, ajustar inventario, cancelar venta | Bloqueadas hasta OAuth, auditoría completa y pruebas de recuperación |
 | Crítico | Nómina, permisos de usuarios, eliminaciones, movimientos irreversibles | Fuera del MVP |
 

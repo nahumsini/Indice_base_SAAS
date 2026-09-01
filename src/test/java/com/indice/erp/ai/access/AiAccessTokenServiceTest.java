@@ -52,7 +52,19 @@ class AiAccessTokenServiceTest {
         var expectedScopes = Set.of(
             AiAccessTokenService.SALES_TODAY_READ,
             AiAccessTokenService.BUSINESS_SNAPSHOT_READ,
-            AiAccessTokenService.TASKS_CREATE
+            AiAccessTokenService.HR_PEOPLE_READ,
+            AiAccessTokenService.HR_ATTENDANCE_READ,
+            AiAccessTokenService.TASKS_READ,
+            AiAccessTokenService.SALES_READ,
+            AiAccessTokenService.POS_READ,
+            AiAccessTokenService.INVENTORY_READ,
+            AiAccessTokenService.EXPENSES_READ,
+            AiAccessTokenService.PETTY_CASH_READ,
+            AiAccessTokenService.RECEIVABLES_READ,
+            AiAccessTokenService.TASKS_CREATE,
+            AiAccessTokenService.EXPENSES_CREATE,
+            AiAccessTokenService.PETTY_CASH_EXPENSE_CREATE,
+            AiAccessTokenService.PETTY_CASH_DEPOSIT_CREATE
         );
         assertEquals(expectedScopes, issued.scopes());
         assertEquals(NOW.plusSeconds(7L * 24 * 60 * 60), issued.expiresAt());

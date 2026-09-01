@@ -164,3 +164,46 @@ export type TaskPreviewRequest = z.infer<typeof taskPreviewRequestSchema>;
 export type TaskPreviewResponse = z.infer<typeof taskPreviewResponseSchema>;
 export type TaskCommitRequest = z.infer<typeof taskCommitRequestSchema>;
 export type TaskCommitResponse = z.infer<typeof taskCommitResponseSchema>;
+
+export const businessQueryResultSchema = z.object({
+  tool: z.string().min(1),
+  generatedAt: z.iso.datetime(),
+  scope: z.string().min(1),
+  count: z.number().int().nonnegative(),
+  summary: z.record(z.string(), z.unknown()),
+  items: z.array(z.record(z.string(), z.unknown())),
+  detail: z.unknown().optional()
+});
+
+export type BusinessQueryResult = z.infer<typeof businessQueryResultSchema>;
+
+export const financeActionNameSchema = z.enum([
+  "create_expense_draft",
+  "register_fund_expense",
+  "add_money_to_fund"
+]);
+
+export const financeActionPreviewResponseSchema = z.object({
+  confirmationToken: z.string().startsWith("idx_confirm_"),
+  expiresAt: z.iso.datetime(),
+  requiresConfirmation: z.literal(true),
+  action: financeActionNameSchema,
+  preview: z.record(z.string(), z.unknown())
+});
+
+export const financeActionCommitRequestSchema = z.object({
+  confirmationToken: z.string().startsWith("idx_confirm_"),
+  idempotencyKey: z.string().min(8).max(128)
+});
+
+export const financeActionCommitResponseSchema = z.object({
+  replayed: z.boolean(),
+  correlationId: z.uuid(),
+  action: financeActionNameSchema,
+  result: z.record(z.string(), z.unknown())
+});
+
+export type FinanceActionName = z.infer<typeof financeActionNameSchema>;
+export type FinanceActionPreviewResponse = z.infer<typeof financeActionPreviewResponseSchema>;
+export type FinanceActionCommitRequest = z.infer<typeof financeActionCommitRequestSchema>;
+export type FinanceActionCommitResponse = z.infer<typeof financeActionCommitResponseSchema>;

@@ -82,6 +82,20 @@ public class AiToolAuthorizationService {
             && processTasksAccessService.canAccess(user);
     }
 
+    public boolean canReadTasks(AuthSessionUser user) {
+        return canCreateTask(user);
+    }
+
+    public boolean canUseCapability(AuthSessionUser user, String capability) {
+        if (!subscriptionStatusProvider.currentStatus(user.companyId()).accessAllowed()) {
+            return false;
+        }
+        var entitlement = companyEntitlementService.resolve(user.companyId(), capability);
+        return entitlement.policy_mode() != EntitlementPolicyMode.ENFORCE
+            || entitlement.allowed()
+            || PRIVILEGED_ROLES.contains(normalizeRole(user.role()));
+    }
+
     private String normalizeRole(String role) {
         var normalized = role == null ? "" : role.trim().toLowerCase(Locale.ROOT);
         return "super admin".equals(normalized) ? "superadmin" : normalized;

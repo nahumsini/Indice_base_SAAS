@@ -21,12 +21,36 @@ public class AiAccessTokenService {
 
     public static final String SALES_TODAY_READ = "sales.today:read";
     public static final String BUSINESS_SNAPSHOT_READ = "business.snapshot:read";
+    public static final String HR_PEOPLE_READ = "hr.people:read";
+    public static final String HR_ATTENDANCE_READ = "hr.attendance:read";
+    public static final String TASKS_READ = "tasks.read";
+    public static final String SALES_READ = "sales.read";
+    public static final String POS_READ = "pos.read";
+    public static final String INVENTORY_READ = "inventory.read";
+    public static final String EXPENSES_READ = "expenses.read";
+    public static final String PETTY_CASH_READ = "petty_cash.read";
+    public static final String RECEIVABLES_READ = "receivables.read";
     public static final String TASKS_CREATE = "tasks.create";
+    public static final String EXPENSES_CREATE = "expenses.create";
+    public static final String PETTY_CASH_EXPENSE_CREATE = "petty_cash.expense:create";
+    public static final String PETTY_CASH_DEPOSIT_CREATE = "petty_cash.deposit:create";
 
     private static final Set<String> DEFAULT_SCOPES = Set.of(
         SALES_TODAY_READ,
         BUSINESS_SNAPSHOT_READ,
-        TASKS_CREATE
+        HR_PEOPLE_READ,
+        HR_ATTENDANCE_READ,
+        TASKS_READ,
+        SALES_READ,
+        POS_READ,
+        INVENTORY_READ,
+        EXPENSES_READ,
+        PETTY_CASH_READ,
+        RECEIVABLES_READ,
+        TASKS_CREATE,
+        EXPENSES_CREATE,
+        PETTY_CASH_EXPENSE_CREATE,
+        PETTY_CASH_DEPOSIT_CREATE
     );
 
     private static final String PROVIDER = "generic_mcp";

@@ -27,13 +27,18 @@ test("lists and executes get_sales_today through MCP", async () => {
   await client.connect(clientTransport);
   try {
     const tools = await client.listTools();
-    assert.deepEqual(tools.tools.map(tool => tool.name), [
-      "get_sales_today",
-      "get_business_snapshot",
-      "get_attention_items",
-      "preview_create_task",
-      "create_task"
-    ]);
+    const names = tools.tools.map(tool => tool.name);
+    for (const expected of [
+      "get_sales_today", "get_business_snapshot", "get_attention_items",
+      "search_employees", "list_tasks", "get_sales_summary", "search_products",
+      "get_inventory_summary", "get_expense_summary", "get_funds_status",
+      "get_receivables_status", "preview_create_task", "create_task",
+      "preview_create_expense_draft", "create_expense_draft",
+      "preview_register_fund_expense", "register_fund_expense",
+      "preview_add_money_to_fund", "add_money_to_fund"
+    ]) {
+      assert.ok(names.includes(expected), `${expected} should be registered`);
+    }
     assert.equal(tools.tools[0]?.annotations?.readOnlyHint, true);
 
     const result = await client.callTool({
@@ -209,6 +214,119 @@ test("requires preview and passes only the confirmed token to task creation", as
       idempotencyKey: "550e8400-e29b-41d4-a716-446655440000"
     });
     assert.match(firstText(created.content), /Tarea creada/);
+  } finally {
+    await client.close();
+    await server.close();
+  }
+});
+
+test("maps product filters to the delegated business query without tenant identifiers", async () => {
+  let received: unknown;
+  const server = createIndiceMcpServer({
+    async getSalesToday() { return summary(); },
+    async getBusinessSnapshot() { return businessSnapshot(); },
+    async previewCreateTask() { return taskPreview(); },
+    async createTask() { return createdTask(); },
+    async queryBusiness(tool, args) {
+      received = { tool, args };
+      return {
+        tool,
+        generatedAt: "2026-08-31T18:00:00Z",
+        scope: "Catálogo e inventario autorizados",
+        count: 1,
+        summary: { matches: 1 },
+        items: [{ id: 7, sku: "SKU-7", name: "Café", price: 95 }]
+      };
+    }
+  });
+  const client = new Client({ name: "indice-mcp-test", version: "0.1.0" });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await server.connect(serverTransport);
+  await client.connect(clientTransport);
+  try {
+    const result = await client.callTool({
+      name: "search_products",
+      arguments: { query: "café", limit: 10 }
+    });
+    assert.equal(result.isError, undefined);
+    assert.deepEqual(received, { tool: "search_products", args: { query: "café", limit: 10 } });
+    assert.match(firstText(result.content), /1 registros/);
+  } finally {
+    await client.close();
+    await server.close();
+  }
+});
+
+test("previews and commits an immutable draft expense action", async () => {
+  let previewRequest: unknown;
+  let commitRequest: unknown;
+  const confirmationToken = "idx_confirm_abcdefghijklmnopqrstuvwxyz1234567890FINANCE";
+  const server = createIndiceMcpServer({
+    async getSalesToday() { return summary(); },
+    async getBusinessSnapshot() { return businessSnapshot(); },
+    async previewCreateTask() { return taskPreview(); },
+    async createTask() { return createdTask(); },
+    async previewFinanceAction(action, request) {
+      previewRequest = { action, request };
+      return {
+        confirmationToken,
+        expiresAt: "2026-08-31T18:05:00Z",
+        requiresConfirmation: true,
+        action,
+        preview: { ...request, mode: "DRAFT_ONLY" }
+      };
+    },
+    async commitFinanceAction(action, request) {
+      commitRequest = { action, request };
+      return {
+        replayed: false,
+        correlationId: "550e8400-e29b-41d4-a716-446655440000",
+        action,
+        result: { id: 88, folio: "EXP-88", status: "DRAFT" }
+      };
+    }
+  });
+  const client = new Client({ name: "indice-mcp-test", version: "0.1.0" });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await server.connect(serverTransport);
+  await client.connect(clientTransport);
+  try {
+    const preview = await client.callTool({
+      name: "preview_create_expense_draft",
+      arguments: {
+        concept: "Internet oficina",
+        total_amount: 120,
+        currency_code: "MXN",
+        expense_date: "2026-08-31"
+      }
+    });
+    assert.equal(preview.isError, undefined);
+    assert.deepEqual(previewRequest, {
+      action: "create_expense_draft",
+      request: {
+        concept: "Internet oficina",
+        totalAmount: 120,
+        currencyCode: "MXN",
+        expenseDate: "2026-08-31"
+      }
+    });
+    assert.match(firstText(preview.content), /Confirma explícitamente/);
+
+    const committed = await client.callTool({
+      name: "create_expense_draft",
+      arguments: {
+        confirmation_token: confirmationToken,
+        idempotency_key: "550e8400-e29b-41d4-a716-446655440000"
+      }
+    });
+    assert.equal(committed.isError, undefined);
+    assert.deepEqual(commitRequest, {
+      action: "create_expense_draft",
+      request: {
+        confirmationToken,
+        idempotencyKey: "550e8400-e29b-41d4-a716-446655440000"
+      }
+    });
   } finally {
     await client.close();
     await server.close();

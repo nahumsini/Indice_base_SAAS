@@ -2,6 +2,10 @@ import type { IndiceMcpConfig } from "./config.js";
 import {
   businessSnapshotQuerySchema,
   businessSnapshotSchema,
+  businessQueryResultSchema,
+  financeActionCommitRequestSchema,
+  financeActionCommitResponseSchema,
+  financeActionPreviewResponseSchema,
   salesTodaySummarySchema,
   taskCommitRequestSchema,
   taskCommitResponseSchema,
@@ -9,6 +13,11 @@ import {
   taskPreviewResponseSchema,
   type BusinessSnapshot,
   type BusinessSnapshotQuery,
+  type BusinessQueryResult,
+  type FinanceActionCommitRequest,
+  type FinanceActionCommitResponse,
+  type FinanceActionName,
+  type FinanceActionPreviewResponse,
   type SalesTodaySummary,
   type TaskCommitRequest,
   type TaskCommitResponse,
@@ -141,6 +150,93 @@ export class IndiceClient {
     const parsed = taskCommitResponseSchema.safeParse(payload);
     if (!parsed.success) {
       throw new IndiceApiError("Indice returned an invalid created task contract.");
+    }
+    return parsed.data;
+  }
+
+  async queryBusiness(tool: string, args: Record<string, unknown> = {}): Promise<BusinessQueryResult> {
+    const delegatedToken = this.requireDelegatedToken();
+    const response = await this.request(`/api/v1/ai/tools/query/${encodeURIComponent(tool)}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${delegatedToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(args)
+    });
+    if (!response.ok) {
+      throw await this.apiError(response, response.status === 403
+        ? "Your current Indice permissions do not allow this business query."
+        : "Indice could not load the requested business information.");
+    }
+    const payload: unknown = await response.json();
+    const parsed = businessQueryResultSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new IndiceApiError("Indice returned an invalid business query contract.");
+    }
+    return parsed.data;
+  }
+
+  async previewFinanceAction(
+    action: FinanceActionName,
+    request: Record<string, unknown>
+  ): Promise<FinanceActionPreviewResponse> {
+    const delegatedToken = this.requireDelegatedToken();
+    const response = await this.request(
+      `/api/v1/ai/tools/finance/actions/${encodeURIComponent(action)}/preview`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${delegatedToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(request)
+      }
+    );
+    if (!response.ok) {
+      throw await this.apiError(response, response.status === 403
+        ? "Your current Indice permissions do not allow this finance action."
+        : "Indice could not prepare the finance action.");
+    }
+    const payload: unknown = await response.json();
+    const parsed = financeActionPreviewResponseSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new IndiceApiError("Indice returned an invalid finance action preview contract.");
+    }
+    return parsed.data;
+  }
+
+  async commitFinanceAction(
+    action: FinanceActionName,
+    request: FinanceActionCommitRequest
+  ): Promise<FinanceActionCommitResponse> {
+    const delegatedToken = this.requireDelegatedToken();
+    const normalized = financeActionCommitRequestSchema.safeParse(request);
+    if (!normalized.success) {
+      throw new IndiceApiError(normalized.error.issues[0]?.message ?? "Invalid finance action confirmation.");
+    }
+    const response = await this.request(
+      `/api/v1/ai/tools/finance/actions/${encodeURIComponent(action)}/commit`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${delegatedToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(normalized.data)
+      }
+    );
+    if (!response.ok) {
+      throw await this.apiError(response, response.status === 403
+        ? "Your current Indice permissions do not allow this finance action."
+        : response.status === 409
+          ? "The confirmation expired, was already used, or conflicts with another request. Prepare it again."
+          : "Indice could not execute the confirmed finance action.");
+    }
+    const payload: unknown = await response.json();
+    const parsed = financeActionCommitResponseSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new IndiceApiError("Indice returned an invalid finance action result contract.");
     }
     return parsed.data;
   }

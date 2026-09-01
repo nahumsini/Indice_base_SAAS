@@ -72,7 +72,7 @@ public class AiTaskActionRepository {
                        request_fingerprint, normalized_args_json, task_title,
                        task_description, task_priority, task_due_date, expires_at, consumed_at
                 FROM ai_action_confirmations
-                WHERE confirmation_hash = ?
+                WHERE confirmation_hash = ? AND tool_name = 'create_task'
                 LIMIT 1
                 """,
             (rs, rowNum) -> new Confirmation(

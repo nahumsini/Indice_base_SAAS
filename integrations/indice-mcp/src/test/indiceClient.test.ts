@@ -232,6 +232,52 @@ test("previews and commits a task through delegated endpoints without mutable co
     "Bearer idx_ai_delegated-token-value-1234567890");
 });
 
+test("uses delegated query and immutable finance action endpoints", async () => {
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  const confirmationToken = "idx_confirm_abcdefghijklmnopqrstuvwxyz1234567890FINANCE";
+  const responses = [
+    jsonResponse({
+      tool: "list_expenses", generatedAt: "2026-08-31T18:00:00Z", scope: "Gastos autorizados",
+      count: 1, summary: { matches: 1 }, items: [{ id: 9, status: "DRAFT" }]
+    }, 200),
+    jsonResponse({
+      confirmationToken, expiresAt: "2026-08-31T18:05:00Z", requiresConfirmation: true,
+      action: "create_expense_draft", preview: { concept: "Internet", totalAmount: 120, mode: "DRAFT_ONLY" }
+    }, 200),
+    jsonResponse({
+      replayed: false, correlationId: "550e8400-e29b-41d4-a716-446655440000",
+      action: "create_expense_draft", result: { id: 9, status: "DRAFT" }
+    }, 201)
+  ];
+  const fakeFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    requests.push({ url: input.toString(), ...(init ? { init } : {}) });
+    return responses.shift() as Response;
+  }) as typeof fetch;
+  const delegatedConfig: IndiceMcpConfig = {
+    backendUrl: new URL("http://127.0.0.1:8082"), authMode: "delegated", preferredCurrency: "MXN",
+    timeoutMs: 5000, transport: "http", host: "127.0.0.1", port: 3010
+  };
+  const client = new IndiceClient(delegatedConfig, fakeFetch, "idx_ai_delegated-token-value-1234567890");
+
+  await client.queryBusiness("list_expenses", { status: "DRAFT" });
+  const preview = await client.previewFinanceAction("create_expense_draft", {
+    concept: "Internet", totalAmount: 120, currencyCode: "MXN", expenseDate: "2026-08-31"
+  });
+  await client.commitFinanceAction("create_expense_draft", {
+    confirmationToken: preview.confirmationToken,
+    idempotencyKey: "550e8400-e29b-41d4-a716-446655440000"
+  });
+
+  assert.match(requests[0]?.url ?? "", /\/api\/v1\/ai\/tools\/query\/list_expenses$/);
+  assert.deepEqual(JSON.parse(String(requests[0]?.init?.body)), { status: "DRAFT" });
+  assert.match(requests[1]?.url ?? "", /\/finance\/actions\/create_expense_draft\/preview$/);
+  assert.match(requests[2]?.url ?? "", /\/finance\/actions\/create_expense_draft\/commit$/);
+  assert.deepEqual(JSON.parse(String(requests[2]?.init?.body)), {
+    confirmationToken,
+    idempotencyKey: "550e8400-e29b-41d4-a716-446655440000"
+  });
+});
+
 function jsonResponse(body: unknown, status: number, setCookie?: string): Response {
   const headers = new Headers({ "Content-Type": "application/json" });
   if (setCookie) {

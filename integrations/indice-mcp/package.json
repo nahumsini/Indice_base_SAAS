@@ -11,7 +11,8 @@
     "start": "node dist/server.js",
     "test": "npm run build && node --test dist/test/*.test.js",
     "test:contract": "npm run build && node dist/test/contract-runner.js",
-    "test:http-contract": "npm run build && node dist/test/http-contract-runner.js"
+    "test:http-contract": "npm run build && node dist/test/http-contract-runner.js",
+    "test:v1-e2e": "INDICE_E2E_COMMIT_ACTIONS=true npm run test:http-contract"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
