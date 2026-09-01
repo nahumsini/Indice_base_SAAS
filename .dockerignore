@@ -15,6 +15,9 @@ postman
 react/node_modules
 react/dist
 react/figmaDoc
+integrations/indice-mcp/node_modules
+integrations/indice-mcp/dist
+integrations/indice-mcp/.env
 deployment/env/.env
 deployment/env/*.local
 deployment/env/*.secret

@@ -70,6 +70,42 @@ resolve_protected_value() {
   printf '%s' "${direct_value}"
 }
 
+validate_mcp_configuration() {
+  local enabled image transport auth_mode host
+  enabled="$(read_env_value MCP_ENABLED)"
+  enabled="${enabled:-false}"
+  if [[ "${enabled}" != "true" && "${enabled}" != "false" ]]; then
+    echo "MCP_ENABLED must be true or false." >&2
+    return 1
+  fi
+  [[ "${enabled}" == "true" ]] || return 0
+
+  require_env_value MCP_IMAGE
+  image="$(read_env_value MCP_IMAGE)"
+  if [[ "${image}" == "latest" || "${image}" == *:latest ]]; then
+    echo "MCP_IMAGE must use an immutable release tag or digest, not ${image}." >&2
+    return 1
+  fi
+
+  transport="$(read_env_value INDICE_MCP_TRANSPORT)"
+  auth_mode="$(read_env_value INDICE_MCP_AUTH_MODE)"
+  host="$(read_env_value INDICE_MCP_HOST)"
+  [[ "${transport}" == "http" ]] || {
+    echo "APPTEST MCP requires INDICE_MCP_TRANSPORT=http." >&2
+    return 1
+  }
+  [[ "${auth_mode}" == "delegated" ]] || {
+    echo "APPTEST MCP requires INDICE_MCP_AUTH_MODE=delegated." >&2
+    return 1
+  }
+  [[ "${host}" == "127.0.0.1" ]] || {
+    echo "APPTEST MCP must bind to INDICE_MCP_HOST=127.0.0.1." >&2
+    return 1
+  }
+}
+
+validate_mcp_configuration
+
 if [[ "${USE_EXAMPLE}" == "false" ]]; then
   required_keys=(
     WEB_IMAGE
@@ -270,6 +306,13 @@ echo "Latest Flyway migration in this release: V${latest_migration}"
 echo "Checking repository diff..."
 git -C "${ROOT_DIR}" diff --check
 
+echo "Validating the Indice MCP service..."
+(
+  cd "${ROOT_DIR}/integrations/indice-mcp"
+  npm ci --no-audit --no-fund
+  npm test
+)
+
 echo "Validating and building frontend..."
 (
   cd "${ROOT_DIR}/react"
@@ -292,6 +335,10 @@ if [[ "${SKIP_DOCKER_BUILD:-false}" != "true" ]]; then
   docker build \
     -f "${DEPLOY_DIR}/docker/web/Dockerfile" \
     -t indice-erp-web:release-check \
+    "${ROOT_DIR}"
+  docker build \
+    -f "${DEPLOY_DIR}/docker/mcp/Dockerfile" \
+    -t indice-erp-mcp:release-check \
     "${ROOT_DIR}"
 fi
 

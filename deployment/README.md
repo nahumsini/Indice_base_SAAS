@@ -8,6 +8,7 @@ This repo now ships a dedicated Docker deployment layout under `deployment/`.
 - `compose/docker-compose.dev.yml`: local admin/debug port overrides
 - `docker/backend/Dockerfile`: Spring Boot image build
 - `docker/web/Dockerfile`: React build plus Nginx runtime
+- `docker/mcp/Dockerfile`: MCP privado para consultas y acciones de negocio
 - `docker/web/nginx.conf`: SPA hosting and `/api` reverse proxy
 - `docker/minio/init-minio.sh`: bucket bootstrap
 - `env/.env.example`: deployment environment template
@@ -20,6 +21,7 @@ This repo now ships a dedicated Docker deployment layout under `deployment/`.
 - `mysql`: application database
 - `minio`: S3-compatible object storage for attendance media
 - `minio-init`: idempotent bootstrap job that creates the bucket
+- `mcp`: servicio opcional de APPTEST, disponible sólo por loopback y túnel seguro
 
 ## First Run
 
@@ -96,7 +98,7 @@ Antes de publicar, ejecuta la validación completa con el archivo de entorno rea
 ```
 
 El preflight valida la configuración de producción, scripts, Compose, frontend,
-backend y la construcción de ambas imágenes Docker. No muestra los valores de
+backend, MCP y la construcción de las tres imágenes Docker. No muestra los valores de
 las credenciales. Para comprobar solamente el repositorio con la plantilla:
 
 ```bash
@@ -313,6 +315,7 @@ Before running the command, build or pull images tagged with the exact Git commi
 RELEASE_SHA="$(git rev-parse --short=12 HEAD)"
 docker build -f deployment/docker/backend/Dockerfile -t "indice-erp-backend:${RELEASE_SHA}" .
 docker build -f deployment/docker/web/Dockerfile -t "indice-erp-web:${RELEASE_SHA}" .
+docker build -f deployment/docker/mcp/Dockerfile -t "indice-erp-mcp:${RELEASE_SHA}" .
 ```
 
 Production (`app.indiceapp.com`) must use its production checkout, environment,
@@ -327,8 +330,13 @@ PUBLIC_URL=https://app.indiceapp.com \
 HOST_BACKEND_PORT=8083 \
 DEPLOY_WEB_IMAGE="indice-erp-web:${RELEASE_SHA}" \
 DEPLOY_BACKEND_IMAGE="indice-erp-backend:${RELEASE_SHA}" \
+DEPLOY_MCP_ENABLED=false \
 ./deployment/scripts/up-host-network.sh
 ```
+
+El MCP se habilita primero sólo en APPTEST. Sigue el procedimiento completo de
+[MCP_APPTEST_RUNBOOK.md](MCP_APPTEST_RUNBOOK.md); no publiques su puerto ni pases
+esta bandera a producción antes de cerrar el gate de autorización pública.
 
 APPTEST must use a separate environment file and its own ports. Never point this command at the production `.env`:
 
@@ -340,6 +348,8 @@ PUBLIC_URL=https://apptest.indiceapp.com \
 HOST_BACKEND_PORT=8082 \
 DEPLOY_WEB_IMAGE="indice-erp-web:${RELEASE_SHA}" \
 DEPLOY_BACKEND_IMAGE="indice-erp-backend:${RELEASE_SHA}" \
+DEPLOY_MCP_ENABLED=true \
+DEPLOY_MCP_IMAGE="indice-erp-mcp:${RELEASE_SHA}" \
 ./deployment/scripts/up-host-network.sh
 ```
 
@@ -407,6 +417,9 @@ CONFIRM_ROLLBACK=true \
 HOST_BACKEND_PORT=8083 \
 ./deployment/scripts/rollback-host-network.sh
 ```
+
+Cuando el conjunto de APPTEST incluya MCP, agrega `MCP_ENABLED=true` y
+`MCP_HOST_PORT=3010` al rollback, como se documenta en el runbook de MCP.
 
 After a successful rollback, the version that was just replaced becomes the new stopped `-rollback` set, so the operation can be reversed. The script never removes the database or MinIO data volume. If a release introduced an incompatible migration, restore the verified database backup under the separate database recovery procedure before starting the previous backend.
 
