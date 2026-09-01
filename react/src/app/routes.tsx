@@ -1,6 +1,6 @@
 import { Component, lazy, Suspense, useEffect, type ErrorInfo, type ReactNode } from 'react';
 import { createBrowserRouter, redirect, useLocation, useNavigate, useRouteError } from 'react-router';
-import { InviteAcceptPage, LoginPage, PublicDemoPage, PublicPlansPage, ResetPasswordPage, SignupCompletePage, SignupPage } from './Auth';
+import { AiOAuthAuthorizePage, InviteAcceptPage, LoginPage, PublicDemoPage, PublicPlansPage, ResetPasswordPage, SignupCompletePage, SignupPage } from './Auth';
 import { authApi } from './api/auth';
 import { subscribeToAuthenticationExpired } from './api/authSessionStore';
 import { BusinessCurrencyProvider } from './BasicModules/shared/BusinessCurrencyContext';
@@ -458,6 +458,10 @@ export const router = createBrowserRouter([
     path: '/login',
     element: <LoginPage />,
     loader: redirectIfAuthenticated,
+  },
+  {
+    path: '/oauth/authorize',
+    element: <AiOAuthAuthorizePage />,
   },
   {
     path: '/demo',

@@ -3,6 +3,12 @@ import test from "node:test";
 import type { IndiceMcpConfig } from "../config.js";
 import { IndiceClient } from "../indiceClient.js";
 
+const oauthConfig = {
+  oauthIssuer: new URL("http://localhost:8080"),
+  oauthResourceMetadataUrl: new URL("http://localhost:8080/.well-known/oauth-protected-resource"),
+  resourceUrl: new URL("http://localhost:3010/mcp")
+};
+
 test("creates a session and requests the tenant-scoped business endpoint", async () => {
   const requests: Array<{ url: string; init?: RequestInit }> = [];
   const responses = [
@@ -65,6 +71,7 @@ test("does not expose backend error bodies", async () => {
 
 function config(): IndiceMcpConfig {
   return {
+    ...oauthConfig,
     backendUrl: new URL("http://127.0.0.1:8082"),
     authMode: "session",
     companyName: "Demo Company",
@@ -85,6 +92,7 @@ test("uses the delegated business endpoint without a password or cookie", async 
     return jsonResponse(summary(), 200);
   }) as typeof fetch;
   const delegatedConfig: IndiceMcpConfig = {
+    ...oauthConfig,
     backendUrl: new URL("http://127.0.0.1:8082"),
     authMode: "delegated",
     preferredCurrency: "MXN",
@@ -114,6 +122,7 @@ test("verifies delegated access without exposing token details", async () => {
     return new Response(null, { status: 204 });
   }) as typeof fetch;
   const delegatedConfig: IndiceMcpConfig = {
+    ...oauthConfig,
     backendUrl: new URL("http://127.0.0.1:8082"),
     authMode: "delegated",
     preferredCurrency: "MXN",
@@ -140,6 +149,7 @@ test("loads a delegated business snapshot without accepting tenant identifiers",
     return jsonResponse(businessSnapshot(), 200);
   }) as typeof fetch;
   const delegatedConfig: IndiceMcpConfig = {
+    ...oauthConfig,
     backendUrl: new URL("http://127.0.0.1:8082"),
     authMode: "delegated",
     preferredCurrency: "MXN",
@@ -171,6 +181,7 @@ test("rejects custom snapshot filters without both dates before calling Indice",
     return jsonResponse(businessSnapshot(), 200);
   }) as typeof fetch;
   const delegatedConfig: IndiceMcpConfig = {
+    ...oauthConfig,
     backendUrl: new URL("http://127.0.0.1:8082"),
     authMode: "delegated",
     preferredCurrency: "MXN",
@@ -196,6 +207,7 @@ test("previews and commits a task through delegated endpoints without mutable co
     return responses.shift() as Response;
   }) as typeof fetch;
   const delegatedConfig: IndiceMcpConfig = {
+    ...oauthConfig,
     backendUrl: new URL("http://127.0.0.1:8082"),
     authMode: "delegated",
     preferredCurrency: "MXN",
@@ -254,6 +266,7 @@ test("uses delegated query and immutable finance action endpoints", async () => 
     return responses.shift() as Response;
   }) as typeof fetch;
   const delegatedConfig: IndiceMcpConfig = {
+    ...oauthConfig,
     backendUrl: new URL("http://127.0.0.1:8082"), authMode: "delegated", preferredCurrency: "MXN",
     timeoutMs: 5000, transport: "http", host: "127.0.0.1", port: 3010
   };

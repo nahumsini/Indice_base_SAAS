@@ -1,0 +1,52 @@
+package com.indice.erp.ai.oauth;
+
+import com.indice.erp.ai.access.AiAccessTokenService;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeSet;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class AiOAuthMetadataController {
+
+    private final AiOAuthProperties properties;
+    private final AiAccessTokenService accessTokenService;
+
+    public AiOAuthMetadataController(AiOAuthProperties properties, AiAccessTokenService accessTokenService) {
+        this.properties = properties;
+        this.accessTokenService = accessTokenService;
+    }
+
+    @GetMapping("/.well-known/oauth-protected-resource")
+    public ResponseEntity<?> protectedResource() {
+        return ResponseEntity.ok()
+            .cacheControl(CacheControl.noStore())
+            .body(Map.of(
+                "resource", properties.getResourceUrl(),
+                "authorization_servers", List.of(properties.getIssuerUrl()),
+                "scopes_supported", new TreeSet<>(accessTokenService.supportedScopes()),
+                "resource_documentation", properties.getIssuerUrl() + "/home-panel/integrations"
+            ));
+    }
+
+    @GetMapping("/.well-known/oauth-authorization-server")
+    public ResponseEntity<?> authorizationServer() {
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("issuer", properties.getIssuerUrl());
+        metadata.put("authorization_endpoint", properties.authorizationEndpoint());
+        metadata.put("token_endpoint", properties.tokenEndpoint());
+        metadata.put("registration_endpoint", properties.registrationEndpoint());
+        metadata.put("grant_types_supported", List.of("authorization_code"));
+        metadata.put("response_types_supported", List.of("code"));
+        metadata.put("token_endpoint_auth_methods_supported", List.of("none"));
+        metadata.put("code_challenge_methods_supported", List.of("S256"));
+        metadata.put("scopes_supported", new ArrayList<>(new TreeSet<>(accessTokenService.supportedScopes())));
+        metadata.put("resource_parameter_supported", true);
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(metadata);
+    }
+}

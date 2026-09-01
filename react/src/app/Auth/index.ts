@@ -5,3 +5,4 @@ export { default as ResetPasswordPage } from './ResetPasswordPage';
 export { default as SignupPage } from './SignupPage';
 export { default as SignupCompletePage } from './SignupCompletePage';
 export { PublicPlansPage } from './PublicPlans';
+export { default as AiOAuthAuthorizePage } from './AiOAuthAuthorizePage';

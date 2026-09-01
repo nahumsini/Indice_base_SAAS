@@ -17,6 +17,8 @@ test("loads a loopback-only local configuration", () => {
   assert.equal(config.authMode, "session");
   assert.equal(config.transport, "stdio");
   assert.equal(config.host, "127.0.0.1");
+  assert.equal(config.oauthIssuer.toString(), "http://localhost:8080/");
+  assert.equal(config.resourceUrl.toString(), "http://localhost:3010/mcp");
 });
 
 test("defaults HTTP transport to delegated authorization without local credentials", () => {
@@ -28,6 +30,20 @@ test("defaults HTTP transport to delegated authorization without local credentia
   assert.equal(config.authMode, "delegated");
   assert.equal(config.companyName, undefined);
   assert.equal(config.password, undefined);
+});
+
+test("loads the production OAuth resource identity independently from the private listener", () => {
+  const config = loadConfig({
+    INDICE_BACKEND_URL: "http://127.0.0.1:8083",
+    INDICE_MCP_TRANSPORT: "http",
+    INDICE_OAUTH_ISSUER: "https://app.indiceapp.com",
+    INDICE_OAUTH_RESOURCE_METADATA_URL: "https://app.indiceapp.com/.well-known/oauth-protected-resource",
+    INDICE_MCP_RESOURCE: "https://app.indiceapp.com/api/v1/ai/mcp"
+  });
+
+  assert.equal(config.oauthIssuer.toString(), "https://app.indiceapp.com/");
+  assert.equal(config.oauthResourceMetadataUrl.toString(), "https://app.indiceapp.com/.well-known/oauth-protected-resource");
+  assert.equal(config.resourceUrl.toString(), "https://app.indiceapp.com/api/v1/ai/mcp");
 });
 
 test("rejects shared password sessions over HTTP", () => {

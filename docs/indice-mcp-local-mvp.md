@@ -73,11 +73,13 @@ Resultado actual:
 - repetición idempotente del gasto devuelve el mismo resultado sin crear otro registro;
 - conexión temporal de la prueba revocada al finalizar.
 
-## Siguiente frontera: producción
+## Autorización para APPTEST y producción
 
-Secure MCP Tunnel permite probar ChatGPT contra el servidor local sin publicarlo. Para un endpoint público se necesita HTTPS y OAuth 2.1 con PKCE, metadata de recurso protegido, consentimiento de alcances y descubrimiento del servidor de autorización.
+Secure MCP Tunnel mantiene privado el servidor MCP. Índice publica únicamente el inicio de sesión y el consentimiento OAuth 2.1 con PKCE sobre el mismo HTTPS de la aplicación.
 
-La futura pantalla **Conectar IA** consumirá los endpoints ya creados, mostrará el token una sola vez durante desarrollo y después iniciará el consentimiento OAuth sin exponer detalles técnicos al usuario.
+El flujo productivo publica metadatos de recurso protegido y del servidor de autorización, registra únicamente clientes con retorno HTTPS de ChatGPT, exige PKCE S256 y emite códigos de un solo uso durante cinco minutos. El token final conserva usuario, empresa, membresía y alcances de Índice; se guarda solo como hash y puede revocarse desde **Conectar IA**.
+
+La pantalla de consentimiento usa lenguaje de negocio y separa claramente consultas de acciones. Nunca solicita ni comparte la contraseña de Índice.
 
 ## Criterio de salida del MVP local
 

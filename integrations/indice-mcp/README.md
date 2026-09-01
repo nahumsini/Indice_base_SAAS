@@ -43,6 +43,14 @@ El transporte `stdio` conserva un modo de desarrollo con sesión. En ese caso ta
 
 El transporte HTTP exige `INDICE_MCP_AUTH_MODE=delegated`. Cada cliente debe enviar su propio token `idx_ai_...` en `Authorization: Bearer`; el servidor MCP no guarda una contraseña compartida. `INDICE_ACCESS_TOKEN` se usa únicamente por el cliente local de prueba.
 
+En APPTEST o producción también configura:
+
+- `INDICE_OAUTH_ISSUER`: URL pública HTTPS de Índice.
+- `INDICE_MCP_RESOURCE`: identificador HTTPS canónico del MCP.
+- `INDICE_OAUTH_RESOURCE_METADATA_URL`: metadata pública que ChatGPT descubre al recibir `401`.
+
+ChatGPT obtiene el token mediante OAuth 2.1 con PKCE; ningún usuario debe copiar una clave manualmente.
+
 ## Verificación
 
 ```bash
@@ -94,6 +102,6 @@ El endpoint local será `http://127.0.0.1:3010/mcp`. Esta versión rechaza backe
 - Cookies, contraseñas y tokens no se registran.
 - Timeout obligatorio y validación estricta de la respuesta backend.
 
-## Límite antes de producción pública
+## Límite de publicación
 
-El token delegado y Secure MCP Tunnel cierran la prueba local sin publicar el servidor. Un despliegue público todavía requiere HTTPS, consentimiento de alcances y OAuth 2.1 con PKCE y metadata de recurso protegido.
+Secure MCP Tunnel mantiene el MCP en loopback y permite conexiones privadas de desarrollo. Esta arquitectura no equivale a publicar el complemento en el catálogo público; para distribución pública se necesita además un endpoint MCP HTTPS estable y el proceso de revisión de OpenAI.

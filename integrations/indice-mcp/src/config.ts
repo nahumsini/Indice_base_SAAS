@@ -13,6 +13,9 @@ export interface IndiceMcpConfig {
   transport: McpTransport;
   host: string;
   port: number;
+  oauthIssuer: URL;
+  oauthResourceMetadataUrl: URL;
+  resourceUrl: URL;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): IndiceMcpConfig {
@@ -45,8 +48,22 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): IndiceMcpConfi
     timeoutMs: positiveInteger(optional(env, "INDICE_HTTP_TIMEOUT_MS", "5000"), "INDICE_HTTP_TIMEOUT_MS"),
     transport,
     host,
-    port: positiveInteger(optional(env, "INDICE_MCP_PORT", "3010"), "INDICE_MCP_PORT")
+    port: positiveInteger(optional(env, "INDICE_MCP_PORT", "3010"), "INDICE_MCP_PORT"),
+    oauthIssuer: absoluteHttpUrl(optional(env, "INDICE_OAUTH_ISSUER", "http://localhost:8080"), "INDICE_OAUTH_ISSUER"),
+    oauthResourceMetadataUrl: absoluteHttpUrl(
+      optional(env, "INDICE_OAUTH_RESOURCE_METADATA_URL", "http://localhost:8080/.well-known/oauth-protected-resource"),
+      "INDICE_OAUTH_RESOURCE_METADATA_URL"
+    ),
+    resourceUrl: absoluteHttpUrl(optional(env, "INDICE_MCP_RESOURCE", "http://localhost:3010/mcp"), "INDICE_MCP_RESOURCE")
   };
+}
+
+function absoluteHttpUrl(value: string, key: string): URL {
+  const url = new URL(value);
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error(`${key} must use http or https.`);
+  }
+  return url;
 }
 
 function localMcpHost(value: string): string {

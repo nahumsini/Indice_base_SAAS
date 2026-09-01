@@ -34,6 +34,11 @@ MCP_HOST_PORT=3010
 INDICE_MCP_TRANSPORT=http
 INDICE_MCP_AUTH_MODE=delegated
 INDICE_MCP_HOST=127.0.0.1
+APP_AI_OAUTH_ISSUER_URL=https://apptest.indiceapp.com
+APP_AI_OAUTH_RESOURCE_URL=https://apptest.indiceapp.com/api/v1/ai/mcp
+INDICE_OAUTH_ISSUER=https://apptest.indiceapp.com
+INDICE_MCP_RESOURCE=https://apptest.indiceapp.com/api/v1/ai/mcp
+INDICE_OAUTH_RESOURCE_METADATA_URL=https://apptest.indiceapp.com/.well-known/oauth-protected-resource
 INDICE_HTTP_TIMEOUT_MS=5000
 INDICE_PREFERRED_CURRENCY=MXN
 ```
@@ -81,6 +86,9 @@ Valida, en este orden:
 
 - `GET http://127.0.0.1:3010/mcp` devuelve `405`; demuestra que el MCP está vivo.
 - Una solicitud sin `Bearer` devuelve `401`.
+- El `401` anuncia la metadata OAuth pública de APPTEST.
+- Los dos documentos `/.well-known/` responden por HTTPS y anuncian APPTEST, no producción.
+- ChatGPT muestra el consentimiento de Índice y vuelve con un token mediante PKCE.
 - Un acceso revocado o vencido devuelve `401`.
 - Desde ChatGPT, “¿cuánto vendí hoy?” coincide con Índice.
 - Una acción de escritura exige confirmación y deja auditoría.
@@ -107,9 +115,9 @@ APP_IMAGE_TAG="ETIQUETA_ANTERIOR" docker compose \
   up -d backend web
 ```
 
-## Bloqueo de producción
+## Puerta de producción
 
-Completar APPTEST no autoriza producción. El acceso público directo queda
-bloqueado hasta implementar y certificar OAuth 2.1 con PKCE, metadatos de
-recurso protegido, consentimiento, rotación/revocación y el gate público de
-seguridad. Hasta entonces, el MCP sólo opera por túnel seguro y loopback.
+Completar APPTEST no autoriza producción por sí solo. Antes de promover la misma
+versión deben pasar OAuth 2.1 con PKCE, aislamiento multiempresa, revocación,
+consulta real, acción confirmada y rollback. El MCP continúa sólo en loopback;
+el túnel es el único transporte aceptado para esta conexión privada.

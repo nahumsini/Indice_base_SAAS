@@ -140,6 +140,8 @@ services:
       APP_BILLING_STORAGE_ENFORCEMENT_ENABLED: ${APP_BILLING_STORAGE_ENFORCEMENT_ENABLED:-true}
       APP_BILLING_STORAGE_INCLUDED_BYTES: 107374182400
       APP_BILLING_STORAGE_BLOCK_BYTES: 107374182400
+      APP_AI_OAUTH_ISSUER_URL: ${APP_AI_OAUTH_ISSUER_URL:-https://apptest.indiceapp.com}
+      APP_AI_OAUTH_RESOURCE_URL: ${APP_AI_OAUTH_RESOURCE_URL:-https://apptest.indiceapp.com/api/v1/ai/mcp}
       JAVA_OPTS: ${BACKEND_JAVA_OPTS:--Xms256m -Xmx768m}
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8182/api/v1/health || exit 1"]
@@ -162,6 +164,9 @@ services:
       INDICE_MCP_AUTH_MODE: delegated
       INDICE_MCP_HOST: 127.0.0.1
       INDICE_MCP_PORT: 3010
+      INDICE_OAUTH_ISSUER: ${APP_AI_OAUTH_ISSUER_URL:-https://apptest.indiceapp.com}
+      INDICE_MCP_RESOURCE: ${APP_AI_OAUTH_RESOURCE_URL:-https://apptest.indiceapp.com/api/v1/ai/mcp}
+      INDICE_OAUTH_RESOURCE_METADATA_URL: ${APP_AI_OAUTH_ISSUER_URL:-https://apptest.indiceapp.com}/.well-known/oauth-protected-resource
       INDICE_HTTP_TIMEOUT_MS: ${INDICE_HTTP_TIMEOUT_MS:-5000}
       INDICE_PREFERRED_CURRENCY: ${INDICE_PREFERRED_CURRENCY:-MXN}
     healthcheck:

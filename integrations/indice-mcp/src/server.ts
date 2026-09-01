@@ -18,12 +18,35 @@ async function main(): Promise<void> {
   }
 
   const app = createMcpExpressApp({ host: config.host });
+  const supportedScopes = [
+    "sales.today:read", "business.snapshot:read", "hr.people:read", "hr.attendance:read",
+    "tasks.read", "sales.read", "pos.read", "inventory.read", "expenses.read",
+    "petty_cash.read", "receivables.read", "tasks.create", "expenses.create",
+    "petty_cash.expense:create", "petty_cash.deposit:create"
+  ];
+  const bearerChallenge = (error?: string) => `Bearer ${[
+    `resource_metadata=\"${config.oauthResourceMetadataUrl.toString()}\"`,
+    `scope=\"${supportedScopes.join(" ")}\"`,
+    ...(error ? [`error=\"${error}\"`] : [])
+  ].join(", ")}`;
+
+  app.get("/.well-known/oauth-protected-resource", (_request, response) => {
+    response
+      .status(200)
+      .header("Cache-Control", "no-store")
+      .json({
+        resource: config.resourceUrl.toString(),
+        authorization_servers: [config.oauthIssuer.toString().replace(/\/$/, "")],
+        scopes_supported: supportedScopes,
+        resource_documentation: `${config.oauthIssuer.toString().replace(/\/$/, "")}/home-panel/integrations`
+      });
+  });
   app.post("/mcp", async (request, response) => {
     const authorization = request.header("authorization");
     if (!authorization?.toLowerCase().startsWith("bearer ")) {
       response
         .status(401)
-        .header("WWW-Authenticate", "Bearer realm=\"indice-mcp\"")
+        .header("WWW-Authenticate", bearerChallenge())
         .json({
           jsonrpc: "2.0",
           error: { code: -32001, message: "Authorization required" },
@@ -37,7 +60,7 @@ async function main(): Promise<void> {
       if (!await indiceClient.hasValidDelegatedAccess()) {
         response
           .status(401)
-          .header("WWW-Authenticate", "Bearer realm=\"indice-mcp\", error=\"invalid_token\"")
+          .header("WWW-Authenticate", bearerChallenge("invalid_token"))
           .json({
             jsonrpc: "2.0",
             error: { code: -32001, message: "Invalid or expired authorization" },
