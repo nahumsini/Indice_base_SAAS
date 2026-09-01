@@ -2,8 +2,9 @@
 
 Esta es la primera frontera de despliegue del conector de IA. El MCP se ejecuta
 en el mismo servidor que el backend de APPTEST, escucha únicamente en
-`127.0.0.1` y conserva la autorización delegada de Índice. El túnel seguro es el
-único canal entre ChatGPT y ese puerto local.
+`127.0.0.1` y conserva la autorización delegada de Índice. Para pruebas privadas
+puede usarse el túnel seguro. Para preparar una publicación pública, Nginx expone
+únicamente `/api/v1/ai/mcp` y lo reenvía al proceso local protegido por OAuth.
 
 ## Antes de desplegar
 
@@ -36,6 +37,8 @@ INDICE_MCP_AUTH_MODE=delegated
 INDICE_MCP_HOST=127.0.0.1
 APP_AI_OAUTH_ISSUER_URL=https://apptest.indiceapp.com
 APP_AI_OAUTH_RESOURCE_URL=https://apptest.indiceapp.com/api/v1/ai/mcp
+# Déjalo vacío hasta que OpenAI entregue el reto de verificación del dominio.
+APP_AI_PUBLICATION_DOMAIN_CHALLENGE_TOKEN=
 INDICE_OAUTH_ISSUER=https://apptest.indiceapp.com
 INDICE_MCP_RESOURCE=https://apptest.indiceapp.com/api/v1/ai/mcp
 INDICE_OAUTH_RESOURCE_METADATA_URL=https://apptest.indiceapp.com/.well-known/oauth-protected-resource
@@ -83,9 +86,13 @@ ese procedimiento administra nombres y puertos de otro conjunto.
 
 ## Túnel y prueba funcional
 
-Configura el cliente oficial del túnel en el host para apuntar a
-`http://127.0.0.1:3010/mcp`. Guarda su clave de ejecución en un secreto protegido
-del host; nunca en Git, en la imagen ni en variables del frontend.
+Para pruebas privadas configura el cliente oficial del túnel en el host para
+apuntar a `http://127.0.0.1:3010/mcp`. Guarda su clave de ejecución en un secreto
+protegido del host; nunca en Git, en la imagen ni en variables del frontend.
+
+Para la futura publicación pública no uses el túnel como URL de envío. Valida
+`https://apptest.indiceapp.com/api/v1/ai/mcp`; sin `Bearer` debe responder `401`
+y anunciar la metadata OAuth de APPTEST. El puerto `3010` sigue cerrado al exterior.
 
 Valida, en este orden:
 
@@ -98,7 +105,24 @@ Valida, en este orden:
 - Una acción de escritura exige confirmación y deja auditoría.
 - Revocar la conexión en Índice bloquea la siguiente consulta.
 
-El puerto `3010` no debe publicarse en firewall, proxy web, balanceador ni DNS.
+La comprobación pública base puede automatizarse sin credenciales:
+
+```bash
+PUBLIC_URL=https://apptest.indiceapp.com \
+./deployment/scripts/smoke-mcp-public.sh
+```
+
+Cuando OpenAI entregue el reto del dominio, configura
+`APP_AI_PUBLICATION_DOMAIN_CHALLENGE_TOKEN` y valida también su valor exacto:
+
+```bash
+PUBLIC_URL=https://apptest.indiceapp.com \
+OPENAI_DOMAIN_CHALLENGE_TOKEN='valor-entregado-por-openai' \
+./deployment/scripts/smoke-mcp-public.sh
+```
+
+El puerto `3010` no debe publicarse en firewall, balanceador ni DNS. El proxy web
+solo puede publicar la ruta MCP exacta y debe conservar el encabezado `Authorization`.
 
 Si cPanel/Apache excluye todo `/.well-known/` para ACME, conserva esa exclusión
 general pero agrega antes dos `ProxyPass` exactos hacia el frontend de APPTEST:
@@ -129,5 +153,6 @@ APP_IMAGE_TAG="ETIQUETA_ANTERIOR" docker compose \
 
 Completar APPTEST no autoriza producción por sí solo. Antes de promover la misma
 versión deben pasar OAuth 2.1 con PKCE, aislamiento multiempresa, revocación,
-consulta real, acción confirmada y rollback. El MCP continúa sólo en loopback;
-el túnel es el único transporte aceptado para esta conexión privada.
+consulta real, acción confirmada y rollback. El MCP continúa sólo en loopback.
+El túnel sigue siendo el transporte para conexiones privadas; una publicación en
+el directorio utiliza exclusivamente la ruta HTTPS pública y protegida.

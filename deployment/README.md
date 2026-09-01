@@ -8,7 +8,7 @@ This repo now ships a dedicated Docker deployment layout under `deployment/`.
 - `compose/docker-compose.dev.yml`: local admin/debug port overrides
 - `docker/backend/Dockerfile`: Spring Boot image build
 - `docker/web/Dockerfile`: React build plus Nginx runtime
-- `docker/mcp/Dockerfile`: MCP privado para consultas y acciones de negocio
+- `docker/mcp/Dockerfile`: MCP de negocio aislado; sólo se publica su ruta HTTPS exacta cuando OAuth está habilitado
 - `docker/web/nginx.conf`: SPA hosting and `/api` reverse proxy
 - `docker/minio/init-minio.sh`: bucket bootstrap
 - `env/.env.example`: deployment environment template
@@ -21,7 +21,7 @@ This repo now ships a dedicated Docker deployment layout under `deployment/`.
 - `mysql`: application database
 - `minio`: S3-compatible object storage for attendance media
 - `minio-init`: idempotent bootstrap job that creates the bucket
-- `mcp`: servicio opcional de APPTEST, disponible sólo por loopback y túnel seguro
+- `mcp`: servicio opcional, disponible por loopback; admite túnel privado o la ruta HTTPS exacta protegida por OAuth
 
 ## First Run
 
@@ -335,8 +335,9 @@ DEPLOY_MCP_ENABLED=false \
 ```
 
 El MCP se habilita primero sólo en APPTEST. Sigue el procedimiento completo de
-[MCP_APPTEST_RUNBOOK.md](MCP_APPTEST_RUNBOOK.md); no publiques su puerto ni pases
-esta bandera a producción antes de cerrar el gate de autorización pública.
+[MCP_APPTEST_RUNBOOK.md](MCP_APPTEST_RUNBOOK.md). El puerto permanece privado;
+para la publicación de OpenAI sólo se expone `/api/v1/ai/mcp`, protegida por
+OAuth y con los permisos de Índice.
 
 APPTEST must use a separate environment file and its own ports. Never point this command at the production `.env`:
 
@@ -354,6 +355,13 @@ DEPLOY_MCP_IMAGE="indice-erp-mcp:${RELEASE_SHA}" \
 ```
 
 The script performs all file, image, free-space and configuration checks before stopping a container. It preserves the datasource from the `.env`, honors `BACKEND_HOST_PORT` when `HOST_BACKEND_PORT` is omitted, keeps MinIO data mounted, prepares `nginx.host.conf`, and validates local health plus the complete public web/MinIO/CSRF/login route. A synthetic login intentionally expects `401`; it proves the request reaches the backend without using a real account.
+
+Después de desplegar APPTEST, valida la frontera pública sin usar cuentas reales:
+
+```bash
+PUBLIC_URL=https://apptest.indiceapp.com \
+./deployment/scripts/smoke-mcp-public.sh
+```
 
 If any replacement or smoke check fails, the containers that were active before the command are restored automatically. After success, that previous set remains stopped with the `-rollback` suffix. This application rollback does not reverse Flyway migrations, so a verified database backup and migration compatibility review remain mandatory.
 

@@ -144,6 +144,7 @@ services:
       APP_BILLING_STORAGE_BLOCK_BYTES: 107374182400
       APP_AI_OAUTH_ISSUER_URL: ${APP_AI_OAUTH_ISSUER_URL:-https://apptest.indiceapp.com}
       APP_AI_OAUTH_RESOURCE_URL: ${APP_AI_OAUTH_RESOURCE_URL:-https://apptest.indiceapp.com/api/v1/ai/mcp}
+      APP_AI_PUBLICATION_DOMAIN_CHALLENGE_TOKEN: ${APP_AI_PUBLICATION_DOMAIN_CHALLENGE_TOKEN:-}
       JAVA_OPTS: ${BACKEND_JAVA_OPTS:--Xms256m -Xmx768m}
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8182/api/v1/health || exit 1"]

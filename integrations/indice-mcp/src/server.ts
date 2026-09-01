@@ -40,7 +40,7 @@ async function main(): Promise<void> {
         resource: config.resourceUrl.toString(),
         authorization_servers: [config.oauthIssuer.toString().replace(/\/$/, "")],
         scopes_supported: supportedScopes,
-        resource_documentation: `${config.oauthIssuer.toString().replace(/\/$/, "")}/home-panel/integrations`
+        resource_documentation: `${config.oauthIssuer.toString().replace(/\/$/, "")}/support`
       });
   };
   app.get("/.well-known/oauth-protected-resource", protectedResourceMetadata);

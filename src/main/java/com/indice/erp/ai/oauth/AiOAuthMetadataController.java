@@ -40,7 +40,7 @@ public class AiOAuthMetadataController {
                 "resource", properties.getResourceUrl(),
                 "authorization_servers", List.of(properties.getIssuerUrl()),
                 "scopes_supported", new TreeSet<>(accessTokenService.supportedScopes()),
-                "resource_documentation", properties.getIssuerUrl() + "/home-panel/integrations"
+                "resource_documentation", properties.getIssuerUrl() + "/support"
             ));
     }
 
