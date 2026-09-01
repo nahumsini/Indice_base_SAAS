@@ -61,11 +61,6 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/.well-known/**")
-            .allowedOrigins("https://chatgpt.com")
-            .allowedMethods("GET", "OPTIONS")
-            .allowCredentials(false)
-            .allowedHeaders("Accept", "Content-Type");
         registry.addMapping("/**")
             .allowedOrigins(appWebProperties.getAllowedOrigins().toArray(String[]::new))
             .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
