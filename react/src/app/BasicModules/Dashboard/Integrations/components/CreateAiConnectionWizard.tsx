@@ -113,13 +113,13 @@ export function CreateAiConnectionWizard({ copy, onCreate, onOpenChange, onShowG
       onOpenChange={(nextOpen) => { if (!nextOpen) close(); }}
       open={open}
       title={issuedConnection ? copy.wizard.successTitle : copy.wizard.title}
-      tone="aqua"
+      tone="blue"
     >
       {issuedConnection ? (
         <SuccessContent connection={issuedConnection} copy={copy} copied={copied} duration={expiresInDays} onCopied={() => setCopied(true)} />
       ) : (
         <div className="space-y-5">
-          <IndiceModalWizardStepper accent="aqua" activeStepId={activeStep} progressLabel={copy.wizard.progressLabel} steps={steps} />
+          <IndiceModalWizardStepper accent="blue" activeStepId={activeStep} progressLabel={copy.wizard.progressLabel} steps={steps} />
           {activeStep === 'information' ? (
             <WizardSection icon={<Eye />} title={copy.wizard.informationTitle} description={copy.wizard.informationDescription}>
               <ConnectionPermissionChoices copy={copy} mode="information" onChange={setSelectedScopes} selectedScopes={selectedScopes} />
@@ -153,7 +153,7 @@ function WizardSection({ children, description, icon, title }: { children: React
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
       <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#59C3A5]/15 text-[#177D66] dark:text-[#8FE0CA] [&>svg]:h-5 [&>svg]:w-5">{icon}</span>
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#2563EB]/10 text-[#2563EB] dark:text-[#93C5FD] [&>svg]:h-5 [&>svg]:w-5">{icon}</span>
         <div><h3 className="text-base font-medium text-slate-950 dark:text-white">{title}</h3><p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{description}</p></div>
       </div>
       <div className="mt-5">{children}</div>
@@ -170,7 +170,7 @@ function ReviewStep({ copy, expiresInDays, label, onDurationChange, onLabelChang
     <WizardSection icon={<ShieldCheck />} title={copy.wizard.reviewTitle} description={copy.wizard.reviewDescription}>
       <div className="grid gap-4 sm:grid-cols-[1fr_220px]">
         <label className="text-sm text-slate-900 dark:text-white">{copy.wizard.nameLabel}
-          <input value={label} onChange={(event) => onLabelChange(event.target.value)} maxLength={120} className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none focus:border-[#177D66] focus:ring-2 focus:ring-[#59C3A5]/30 dark:border-slate-700 dark:bg-slate-950" placeholder={copy.wizard.namePlaceholder} />
+          <input value={label} onChange={(event) => onLabelChange(event.target.value)} maxLength={120} className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/25 dark:border-slate-700 dark:bg-slate-950" placeholder={copy.wizard.namePlaceholder} />
         </label>
         <label className="text-sm text-slate-900 dark:text-white">{copy.wizard.durationLabel}
           <select value={expiresInDays} onChange={(event) => onDurationChange(Number(event.target.value) as 7 | 30 | 60 | 90)} className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950">
@@ -198,7 +198,7 @@ function SuccessContent({ connection, copied, copy, duration, onCopied }: { conn
         <p className="mt-1 text-xs leading-5 text-slate-500">{copy.wizard.keyDescription}</p>
         <div className="mt-2 flex flex-col gap-2 sm:flex-row">
           <code className="min-w-0 flex-1 overflow-x-auto rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-xs text-emerald-300">{connection.accessToken}</code>
-          <Button type="button" onClick={() => void copyText(connection.accessToken).then(onCopied)} className="h-11 rounded-xl bg-[#177D66] text-white hover:bg-[#126553]">
+          <Button type="button" onClick={() => void copyText(connection.accessToken).then(onCopied)} className="h-11 rounded-xl bg-[#2563EB] text-white hover:bg-[#1D4ED8]">
             {copied ? <Check className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}{copied ? copy.wizard.keyCopied : copy.wizard.copyKey}
           </Button>
         </div>

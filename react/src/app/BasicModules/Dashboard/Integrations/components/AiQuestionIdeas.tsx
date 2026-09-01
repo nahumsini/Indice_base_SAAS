@@ -25,7 +25,7 @@ export function AiQuestionIdeas({ copy }: { copy: IntegrationsTranslations }) {
           {categories.map((category) => (
             <section key={category} className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
               <h4 className="flex items-center gap-2 text-base font-medium text-slate-950 dark:text-white">
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#59C3A5]/15 text-[#177D66] dark:text-[#8FE0CA]"><Lightbulb className="h-4 w-4" /></span>
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2563EB]/10 text-[#2563EB] dark:text-[#93C5FD]"><Lightbulb className="h-4 w-4" /></span>
                 {copy.ideas.categoryLabels[category]}
               </h4>
               <div className="mt-3 space-y-3">
@@ -39,7 +39,7 @@ export function AiQuestionIdeas({ copy }: { copy: IntegrationsTranslations }) {
                       <button
                         type="button"
                         onClick={() => void copyQuestion(idea.id)}
-                        className="mt-3 inline-flex h-9 items-center gap-2 rounded-xl px-3 text-xs font-medium text-[#177D66] hover:bg-[#59C3A5]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#177D66] dark:text-[#8FE0CA]"
+                        className="mt-3 inline-flex h-9 items-center gap-2 rounded-xl px-3 text-xs font-medium text-[#2563EB] hover:bg-[#2563EB]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] dark:text-[#93C5FD]"
                       >
                         {copied ? <Check className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
                         {copied ? copy.ideas.copied : copy.ideas.copy}

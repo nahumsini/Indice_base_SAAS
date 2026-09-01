@@ -51,7 +51,7 @@ export function ConnectionPermissionChoices({ copy, mode, onChange, selectedScop
   return (
     <div>
       <div className="mb-3 flex justify-end gap-3">
-        <button type="button" onClick={() => onChange([...new Set([...selectedScopes, ...READ_SCOPE_CODES])])} className="text-xs font-medium text-[#177D66] hover:text-[#126553]">
+        <button type="button" onClick={() => onChange([...new Set([...selectedScopes, ...READ_SCOPE_CODES])])} className="text-xs font-medium text-[#2563EB] hover:text-[#1D4ED8]">
           {copy.wizard.selectAll}
         </button>
         {allReadSelected ? (
@@ -66,15 +66,15 @@ export function ConnectionPermissionChoices({ copy, mode, onChange, selectedScop
           const groupCopy = copy.scopeGroups[group.id];
           const scopeNames = group.scopeCodes.map((scope) => copy.scopes[scope].label).join(' · ');
           return (
-            <label key={group.id} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${selected ? 'border-[#59C3A5] bg-[#59C3A5]/10' : 'border-slate-200 bg-white hover:border-[#59C3A5]/60 dark:border-slate-700 dark:bg-slate-900'}`}>
+            <label key={group.id} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${selected ? 'border-[#2563EB]/60 bg-[#2563EB]/5 dark:bg-[#2563EB]/10' : 'border-slate-200 bg-white hover:border-[#2563EB]/40 dark:border-slate-700 dark:bg-slate-900'}`}>
               <input type="checkbox" checked={selected} onChange={() => toggleScopes(group.scopeCodes)} className="sr-only" />
-              <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${selected ? 'bg-[#177D66] text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300'}`}>
+              <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${selected ? 'bg-[#2563EB] text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300'}`}>
                 {selected ? <Check className="h-5 w-5" /> : <ShieldCheck className="h-5 w-5" />}
               </span>
               <span>
                 <span className="block text-sm font-medium text-slate-950 dark:text-white">{groupCopy.label}</span>
                 <span className="mt-1 block text-xs leading-5 text-slate-500 dark:text-slate-400">{groupCopy.description}</span>
-                <span className="mt-2 block text-xs leading-5 text-[#177D66] dark:text-[#8FE0CA]">{scopeNames}</span>
+                <span className="mt-2 block text-xs leading-5 text-[#2563EB] dark:text-[#93C5FD]">{scopeNames}</span>
               </span>
             </label>
           );

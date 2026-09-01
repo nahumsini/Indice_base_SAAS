@@ -34,7 +34,7 @@ export function ConnectionList({
         <button
           type="button"
           onClick={onRefresh}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#177D66] dark:hover:bg-slate-800"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] dark:hover:bg-slate-800"
           aria-label={copy.connections.refresh}
           title={copy.connections.refresh}
         >
@@ -47,10 +47,10 @@ export function ConnectionList({
           <div className="flex items-center justify-center py-12 text-slate-500"><LoaderCircle className="h-5 w-5 animate-spin" /></div>
         ) : connections.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-300 px-4 py-10 text-center dark:border-slate-700">
-            <Bot className="mx-auto h-8 w-8 text-[#177D66]" />
+            <Bot className="mx-auto h-8 w-8 text-[#2563EB]" />
             <p className="mt-3 text-sm font-medium text-slate-900 dark:text-white">{copy.connections.emptyTitle}</p>
             <p className="mt-1 text-xs leading-5 text-slate-500">{copy.connections.emptyDescription}</p>
-            <button type="button" onClick={onCreate} className="mt-4 text-sm font-medium text-[#177D66] hover:text-[#126553]">
+            <button type="button" onClick={onCreate} className="mt-4 text-sm font-medium text-[#2563EB] hover:text-[#1D4ED8]">
               {copy.connections.emptyAction}
             </button>
           </div>
@@ -62,7 +62,7 @@ export function ConnectionList({
               type="button"
               key={connection.id}
               onClick={() => onSelect(connection.id)}
-              className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#177D66] ${selected ? 'border-[#59C3A5] bg-[#59C3A5]/10' : 'border-transparent bg-slate-50 hover:border-slate-200 dark:bg-slate-800/60 dark:hover:border-slate-700'}`}
+              className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] ${selected ? 'border-[#2563EB]/45 bg-[#2563EB]/5 dark:bg-[#2563EB]/10' : 'border-transparent bg-slate-50 hover:border-slate-200 dark:bg-slate-800/60 dark:hover:border-slate-700'}`}
             >
               <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${status === 'active' ? 'bg-emerald-500' : status === 'expired' ? 'bg-amber-500' : 'bg-slate-400'}`} />
               <span className="min-w-0 flex-1">

@@ -24,9 +24,9 @@ export function AiSetupGuide({ copy, hasActiveConnection, onStart }: AiSetupGuid
             const Icon = stepIcons[index] ?? CheckCircle2;
             return (
               <li key={step.label} className="flex items-start gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
-                <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#59C3A5]/15 text-[#177D66] dark:text-[#8FE0CA]">
+                <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#2563EB]/10 text-[#2563EB] dark:text-[#93C5FD]">
                   <Icon className="h-5 w-5" />
-                  <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#177D66] text-xs font-medium text-white">{index + 1}</span>
+                  <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#2563EB] text-xs font-medium text-white">{index + 1}</span>
                 </span>
                 <span>
                   <span className="block text-base font-medium text-slate-950 dark:text-white">{step.label}</span>
@@ -39,8 +39,8 @@ export function AiSetupGuide({ copy, hasActiveConnection, onStart }: AiSetupGuid
       </section>
 
       <aside className="space-y-4">
-        <div className={`rounded-xl border p-5 ${hasActiveConnection ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/30' : 'border-[#59C3A5]/40 bg-[#59C3A5]/10 dark:border-[#59C3A5]/30'}`}>
-          <CheckCircle2 className={`h-7 w-7 ${hasActiveConnection ? 'text-emerald-700 dark:text-emerald-300' : 'text-[#177D66] dark:text-[#8FE0CA]'}`} />
+        <div className={`rounded-xl border p-5 ${hasActiveConnection ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/30' : 'border-[#2563EB]/30 bg-[#2563EB]/5 dark:border-[#2563EB]/35 dark:bg-[#2563EB]/10'}`}>
+          <CheckCircle2 className={`h-7 w-7 ${hasActiveConnection ? 'text-emerald-700 dark:text-emerald-300' : 'text-[#2563EB] dark:text-[#93C5FD]'}`} />
           <h3 className="mt-3 text-base font-medium text-slate-950 dark:text-white">
             {hasActiveConnection ? copy.guide.readyTitle : copy.guide.pendingTitle}
           </h3>
@@ -48,7 +48,7 @@ export function AiSetupGuide({ copy, hasActiveConnection, onStart }: AiSetupGuid
             {hasActiveConnection ? copy.guide.readyDescription : copy.guide.pendingDescription}
           </p>
           {!hasActiveConnection ? (
-            <Button type="button" onClick={onStart} className="mt-4 h-11 w-full rounded-xl bg-[#177D66] text-white hover:bg-[#126553]">
+            <Button type="button" onClick={onStart} className="mt-4 h-11 w-full rounded-xl bg-[#2563EB] text-white hover:bg-[#1D4ED8]">
               {copy.guide.startAction}
             </Button>
           ) : null}

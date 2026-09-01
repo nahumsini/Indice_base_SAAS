@@ -28,7 +28,7 @@ export function ConnectionDetail({
   if (!connection) {
     return (
       <div className="flex min-h-[440px] flex-col items-center justify-center rounded-xl border border-slate-200 bg-white px-6 text-center dark:border-slate-700 dark:bg-slate-900">
-        <Bot className="h-10 w-10 text-[#59C3A5]" />
+        <Bot className="h-10 w-10 text-[#2563EB]" />
         <h3 className="mt-4 text-base font-medium text-slate-900 dark:text-white">{copy.connections.emptyTitle}</h3>
         <p className="mt-1 max-w-sm text-sm leading-6 text-slate-500">{copy.connections.emptyDescription}</p>
       </div>
@@ -72,8 +72,8 @@ export function ConnectionDetail({
           {actionScopes.length ? (
             <PermissionGroup icon={<CheckCircle2 />} title={copy.detail.actions} scopes={actionScopes} copy={copy} tone="action" />
           ) : (
-            <div className="flex items-start gap-3 rounded-xl border border-[#59C3A5]/35 bg-[#59C3A5]/10 p-4">
-              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#177D66]" />
+            <div className="flex items-start gap-3 rounded-xl border border-[#2563EB]/25 bg-[#2563EB]/5 p-4 dark:border-[#2563EB]/35 dark:bg-[#2563EB]/10">
+              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#2563EB] dark:text-[#93C5FD]" />
               <p className="text-sm leading-6 text-slate-700 dark:text-slate-200">{copy.detail.noActions}</p>
             </div>
           )}
@@ -94,7 +94,7 @@ export function ConnectionDetail({
             <div className="divide-y divide-slate-200 dark:divide-slate-700">
               {activity.map((event) => (
                 <div key={event.id} className="flex items-center gap-3 px-4 py-3">
-                  <span className={`flex h-8 w-8 items-center justify-center rounded-xl ${event.kind === 'READ' ? 'bg-[#59C3A5]/15 text-[#177D66]' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-200'}`}>
+                  <span className={`flex h-8 w-8 items-center justify-center rounded-xl ${event.kind === 'READ' ? 'bg-[#2563EB]/10 text-[#2563EB] dark:text-[#93C5FD]' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-200'}`}>
                     {event.kind === 'READ' ? <Activity className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                   </span>
                   <span className="min-w-0 flex-1">
@@ -130,12 +130,12 @@ function PermissionGroup({
   return (
     <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
       <h5 className="flex items-center gap-2 text-sm font-medium text-slate-900 dark:text-white">
-        <span className={tone === 'read' ? 'text-[#177D66] [&>svg]:h-4 [&>svg]:w-4' : 'text-amber-700 [&>svg]:h-4 [&>svg]:w-4'}>{icon}</span>
+        <span className={tone === 'read' ? 'text-[#2563EB] [&>svg]:h-4 [&>svg]:w-4' : 'text-amber-700 [&>svg]:h-4 [&>svg]:w-4'}>{icon}</span>
         {title}
       </h5>
       <div className="mt-3 flex flex-wrap gap-2">
         {scopes.map((scopeCode) => (
-          <span key={scopeCode} className={`rounded-full border px-2.5 py-1 text-xs font-medium ${tone === 'read' ? 'border-[#59C3A5]/40 bg-[#59C3A5]/10 text-[#126553] dark:text-[#8FE0CA]' : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200'}`}>
+          <span key={scopeCode} className={`rounded-full border px-2.5 py-1 text-xs font-medium ${tone === 'read' ? 'border-[#2563EB]/30 bg-[#2563EB]/5 text-[#1D4ED8] dark:border-[#2563EB]/40 dark:bg-[#2563EB]/10 dark:text-[#93C5FD]' : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200'}`}>
             {copy.scopes[scopeCode as AiScopeCode].label}
           </span>
         ))}

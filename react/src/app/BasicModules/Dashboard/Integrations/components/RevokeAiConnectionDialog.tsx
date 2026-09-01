@@ -23,7 +23,7 @@ export function RevokeAiConnectionDialog({ busy, connection, copy, onCancel, onC
       onConfirm={onConfirm}
       open={Boolean(connection)}
       title={copy.revoke.title}
-      tone="aqua"
+      tone="blue"
     >
       <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">{copy.revoke.consequence}</p>
     </IndiceConfirmationDialog>

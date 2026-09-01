@@ -12,13 +12,25 @@ const wizardSource = read('components/CreateAiConnectionWizard.tsx');
 const revokeSource = read('components/RevokeAiConnectionDialog.tsx');
 const constantsSource = read('constants.ts');
 const spanishSource = read('translations/es-MX.ts');
+const visualSource = [
+  pageSource,
+  read('components/AiQuestionIdeas.tsx'),
+  read('components/AiSetupGuide.tsx'),
+  read('components/ConnectionDetail.tsx'),
+  read('components/ConnectionList.tsx'),
+  read('components/ConnectionPermissionChoices.tsx'),
+  read('components/ConnectionTrustStrip.tsx'),
+  wizardSource,
+  revokeSource,
+].join('\n');
 
 test('Conectar IA usa los patrones canónicos del Frontend Engine', () => {
   assert.match(pageSource, /<IndiceTitleBar/);
-  assert.match(pageSource, /tone="aqua"/);
+  assert.match(pageSource, /tone="blue"/);
   assert.match(pageSource, /<IndiceWorkspaceNavigation<WorkspaceSection>/);
   assert.match(pageSource, /connections' \| 'guide' \| 'ideas'/);
   assert.match(pageSource, /getIntegrationsTranslations/);
+  assert.doesNotMatch(visualSource, /tone="aqua"|#59C3A5|#177D66|#126553/);
 });
 
 test('la conexión es un wizard guiado y las acciones inician apagadas', () => {

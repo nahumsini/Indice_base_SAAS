@@ -36,7 +36,7 @@ export default function Integrations() {
   return (
     <section className="space-y-5">
       <IndiceTitleBar
-        tone="aqua"
+        tone="blue"
         icon={<Bot className="h-6 w-6" />}
         title={copy.title}
         subtitle={copy.subtitle}
@@ -44,7 +44,7 @@ export default function Integrations() {
           <Button
             type="button"
             onClick={startConnection}
-            className="h-11 rounded-xl bg-[#177D66] px-5 text-white hover:bg-[#126553]"
+            className="h-11 rounded-xl bg-[#2563EB] px-5 text-white hover:bg-[#1D4ED8]"
           >
             <Plus className="h-4 w-4" />
             {copy.connectButton}
@@ -56,7 +56,7 @@ export default function Integrations() {
         ariaLabel={copy.navigation.ariaLabel}
         items={navigationItems}
         onValueChange={setActiveSection}
-        tone="aqua"
+        tone="blue"
         value={activeSection}
       />
 
