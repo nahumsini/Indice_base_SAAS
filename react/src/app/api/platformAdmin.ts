@@ -225,7 +225,7 @@ export interface PlatformCompanyProduct {
   code: string;
   name: string;
   type: string;
-  commercial_kind?: 'CORE' | 'MODULE' | 'PACKAGE' | 'SEAT' | string;
+  commercial_kind?: 'CORE' | 'MODULE' | 'PACKAGE' | 'SEAT' | 'VOLUME' | 'STORAGE' | string;
   source: string;
   sort_order: number;
   monthly_price_cents?: number | null;
@@ -586,7 +586,7 @@ export interface PlatformCatalogProductPayload {
   sort_order: number;
   active: boolean;
   capabilities: string[];
-  commercial_kind?: 'MODULE' | 'PACKAGE' | 'SEAT';
+  commercial_kind?: 'MODULE' | 'PACKAGE' | 'SEAT' | 'VOLUME' | 'STORAGE';
   description?: string | null;
   included_product_codes?: string[];
 }
@@ -982,12 +982,12 @@ export const platformAdminApi = {
     `${companyPath(companyId)}/users/${userId}/platform-access`,
     { method: 'PATCH', body: JSON.stringify({ platform_role: platformRole }) },
   ),
-  extendCompanyTrial: (companyId: number, days: 7 | 15 | 30) => apiClient<PlatformTrialExtensionResult>(
+  extendCompanyTrial: (companyId: number, days: 15) => apiClient<PlatformTrialExtensionResult>(
     `${companyPath(companyId)}/trial-extension`,
     {
       method: 'PATCH',
       headers: { 'Idempotency-Key': crypto.randomUUID() },
-      body: JSON.stringify({ days }),
+      body: JSON.stringify({ days, consultation_confirmed: true }),
     },
   ),
   getBilling: () => apiClient<PlatformBilling>(`${endpoints.platformAdmin.billing}?limit=200`),

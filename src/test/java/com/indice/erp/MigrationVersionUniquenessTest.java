@@ -1,6 +1,7 @@
 package com.indice.erp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -33,6 +34,16 @@ class MigrationVersionUniquenessTest {
         }
 
         assertEquals(Map.of(), duplicates, () -> "Duplicate Flyway migration versions: " + duplicates);
+    }
+
+    @Test
+    void alreadyReleasedMigrationVersionsRemainPinned() throws IOException, URISyntaxException {
+        Path migrationDir = Path.of(getClass().getClassLoader().getResource("db/migration").toURI());
+
+        assertTrue(Files.exists(migrationDir.resolve("V230__internal_development_registry.sql")));
+        assertTrue(Files.exists(migrationDir.resolve("V231__product_usage_analytics.sql")));
+        assertTrue(Files.exists(migrationDir.resolve("V232__sales_meta_lead_import_audit.sql")));
+        assertTrue(Files.exists(migrationDir.resolve("V233__billing_selection_change_schedule.sql")));
     }
 
     private static void recordDuplicateVersion(

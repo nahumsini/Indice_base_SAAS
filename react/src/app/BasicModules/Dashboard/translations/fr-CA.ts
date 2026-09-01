@@ -1,12 +1,14 @@
 import type { PanelInicialShellTranslations } from './types';
 
 export const frCA: PanelInicialShellTranslations = {
+  integrationsLabel: "Connecter l’IA",
   subtitle: "Configurez votre profil, la structure de l'entreprise, les utilisateurs et les préférences opérationnelles.",
   tabDescriptions: {
     profile: 'Données personnelles et sécurité',
     businessStructure: 'Secteurs, postes et organisation',
     businessProfile: "Identité et diagnostic de l'entreprise",
     consulting: 'Planification et suivi des séances de conseil',
+    integrations: "Connectez des assistants pour décider avec les données de votre entreprise",
     personalPerformance: 'Objectifs et rendement personnel',
     users: 'Accès, rôles et autorisations',
   },

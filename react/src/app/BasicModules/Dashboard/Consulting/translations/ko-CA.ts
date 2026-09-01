@@ -3,7 +3,7 @@ import type { ConsultingTranslations } from './types';
 export const koCA: ConsultingTranslations = {
   title: '컨설팅', subtitle: 'Indice 팀과의 상담을 예약하고 진행 상황을 확인하세요.',
   loading: '컨설팅 일정을 준비하는 중…', errorDescription: '상담 일정과 가능한 시간을 불러오려면 다시 시도하세요.', requestError: '요청을 보내지 못했습니다. 입력한 내용은 화면에 그대로 있으니 다시 시도하세요.', retry: '다시 시도',
-  benefitIncluded: '첫 번째 온라인 상담이 포함되어 있습니다', benefitAdditional: '추가 상담', duration: '50분', pendingNotice: '편한 날짜와 시간을 선택하세요. Indice 컨설턴트가 필요한 지원을 확인하고 상담을 확정하기 위해 연락드립니다.',
+  benefitIncluded: '매월 온라인 상담 1회가 포함되며 이월되지 않습니다', benefitAdditional: '추가 상담', duration: '60분', pendingNotice: '편한 날짜와 시간을 선택하세요. Indice 컨설턴트가 필요한 지원을 확인하고 상담을 확정하기 위해 연락드립니다.',
   brandPromiseTitle: '회사가 성장하는 동안 언제나 함께합니다', brandPromiseDescription: 'Indice는 회사 성장의 모든 단계에서 함께합니다. 도움이 필요할 때 사업 상황을 같이 분석하고, 의사결정을 지원하며, Indice를 가장 효율적으로 도입하도록 돕겠습니다.', consultantChangeNote: '편안하고 신뢰할 수 있는 상담을 원합니다. 필요하면 다음 상담을 위해 다른 컨설턴트를 요청할 수 있습니다.',
   scheduleTitle: '상담 요청', scheduleDescription: '먼저 가능한 시간을 알려 주세요. 그다음 가장 적합한 지원 방법을 함께 정합니다.', stepSession: '3 · 방식', stepTime: '1 · 날짜 및 시간', stepConsultant: '2 · 컨설턴트', stepContext: '4 · 주제 및 연락처', includedBadge: '계정에 포함됨', additionalBadge: '별도 결제 필요',
   preferredDate: '희망 날짜', preferredTime: '희망 시간', alternativeTitle: '두 번째 시간', addAlternative: '대체 시간 추가', removeAlternative: '대체 시간 삭제', timezone: '시간대',

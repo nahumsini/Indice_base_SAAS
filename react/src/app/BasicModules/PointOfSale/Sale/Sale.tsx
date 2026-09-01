@@ -24,6 +24,7 @@ import { SaleTicketPanel } from './components/SaleTicketPanel';
 import { ShiftBar } from './components/ShiftBar';
 import { ShiftSummaryWorkspace } from './components/ShiftSummaryWorkspace';
 import { SmartAlertsStrip } from './components/SmartAlertsStrip';
+import { SquareTerminalRecoveryPanel } from './components/SquareTerminalRecoveryPanel';
 import { useSaleActivityFeed } from './hooks/useSaleActivityFeed';
 import { useSaleCatalog } from './hooks/useSaleCatalog';
 import { useSaleCart } from './hooks/useSaleCart';
@@ -304,6 +305,7 @@ export default function Sale() {
     removePayment,
     completeSale,
     handleExactPayment,
+    recoverSquareTerminalIntent,
   } = useSaleCheckout({
     cart,
     products: saleProducts,
@@ -715,6 +717,14 @@ export default function Sale() {
                 {discountRulesError && <OperationalNotice message={discountRulesError} onDismiss={() => setDiscountRulesError('')} />}
               </div>
             )}
+
+            <SquareTerminalRecoveryPanel
+              cashRegisterId={currentShift.cashRegisterId}
+              shiftId={currentShift.id}
+              disabled={isCompletingSale}
+              formatCurrency={formatSaleCurrency}
+              onRecover={recoverSquareTerminalIntent}
+            />
 
             <div
               data-pos-workspace-grid

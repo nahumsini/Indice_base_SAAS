@@ -137,9 +137,9 @@ services:
       APP_BILLING_LIFECYCLE_GRACE_DAYS: 14
       APP_BILLING_LIFECYCLE_READ_ONLY_DAYS: 14
       APP_BILLING_LIFECYCLE_RETENTION_DAYS: 90
-      APP_BILLING_STORAGE_ENFORCEMENT_ENABLED: ${APP_BILLING_STORAGE_ENFORCEMENT_ENABLED:-false}
-      APP_BILLING_STORAGE_INCLUDED_BYTES: 5368709120
-      APP_BILLING_STORAGE_BLOCK_BYTES: 5368709120
+      APP_BILLING_STORAGE_ENFORCEMENT_ENABLED: ${APP_BILLING_STORAGE_ENFORCEMENT_ENABLED:-true}
+      APP_BILLING_STORAGE_INCLUDED_BYTES: 107374182400
+      APP_BILLING_STORAGE_BLOCK_BYTES: 107374182400
       JAVA_OPTS: ${BACKEND_JAVA_OPTS:--Xms256m -Xmx768m}
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8182/api/v1/health || exit 1"]
@@ -148,8 +148,43 @@ services:
       retries: 12
       start_period: 45s
 
+  mcp:
+    profiles: ["ai"]
+    image: indice-erp-mcp:${APP_IMAGE_TAG:?APP_IMAGE_TAG is required}
+    network_mode: host
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      INDICE_BACKEND_URL: http://127.0.0.1:8182
+      INDICE_MCP_TRANSPORT: http
+      INDICE_MCP_AUTH_MODE: delegated
+      INDICE_MCP_HOST: 127.0.0.1
+      INDICE_MCP_PORT: 3010
+      INDICE_HTTP_TIMEOUT_MS: ${INDICE_HTTP_TIMEOUT_MS:-5000}
+      INDICE_PREFERRED_CURRENCY: ${INDICE_PREFERRED_CURRENCY:-MXN}
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3010/mcp').then(response=>process.exit(response.status===405?0:1)).catch(()=>process.exit(1))
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 10s
+
   web:
     image: indice-erp-web:${APP_IMAGE_TAG:?APP_IMAGE_TAG is required}
+    build:
+      context: ../..
+      dockerfile: deployment/docker/web/Dockerfile
+      args:
+        WEB_NGINX_CONFIG: deployment/docker/web/nginx.host.conf
+        WEB_NGINX_LISTEN_PORT: "8180"
+        WEB_NGINX_BACKEND_PORT: "8182"
+        WEB_NGINX_MINIO_PORT: "8900"
     network_mode: host
     restart: unless-stopped
     depends_on:

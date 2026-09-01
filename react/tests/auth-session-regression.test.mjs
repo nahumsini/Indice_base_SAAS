@@ -275,6 +275,8 @@ test('published module prices flow exactly into public and signup estimates', ()
       { billableCode: 'module_process', priceType: 'PRODUCT', billingInterval: 'YEAR', currency: 'USD', unitAmountCents: 76800, includedQuantity: 1, status: 'ACTIVE' },
       { billableCode: 'package_control', priceType: 'PACKAGE', billingInterval: 'MONTH', currency: 'USD', unitAmountCents: 15000, includedQuantity: 1, status: 'ACTIVE' },
       { billableCode: 'package_control', priceType: 'PACKAGE', billingInterval: 'YEAR', currency: 'USD', unitAmountCents: 144000, includedQuantity: 1, status: 'ACTIVE' },
+      { billableCode: 'module_additional_unit', priceType: 'PRODUCT', billingInterval: 'MONTH', currency: 'USD', unitAmountCents: 4900, includedQuantity: 1, status: 'ACTIVE' },
+      { billableCode: 'module_additional_unit', priceType: 'PRODUCT', billingInterval: 'YEAR', currency: 'USD', unitAmountCents: 47040, includedQuantity: 1, status: 'ACTIVE' },
       { billableCode: 'extra_user', priceType: 'SEAT', billingInterval: 'MONTH', currency: 'USD', unitAmountCents: 1000, includedQuantity: 1, status: 'ACTIVE' },
       { billableCode: 'extra_user', priceType: 'SEAT', billingInterval: 'YEAR', currency: 'USD', unitAmountCents: 9600, includedQuantity: 1, status: 'ACTIVE' },
     ],
@@ -283,9 +285,13 @@ test('published module prices flow exactly into public and signup estimates', ()
   const modules = calculatePublicPlanPricing(config, ['module_people', 'module_process'], 2, 'MONTH');
   assert.equal(modules.pricingMode, 'DIRECT_PRODUCTS');
   assert.equal(modules.offerCode, 'custom_offer');
-  assert.equal(modules.baseAmountCents, 18000);
+  assert.equal(modules.baseAmountCents, 9800);
   assert.equal(modules.extraSeatsAmountCents, 2000);
-  assert.equal(modules.estimatedAmountCents, 20000);
+  assert.equal(modules.estimatedAmountCents, 11800);
+
+  const singleModule = calculatePublicPlanPricing(config, ['module_people'], 0, 'MONTH');
+  assert.equal(singleModule.offerCode, 'module_people');
+  assert.equal(singleModule.estimatedAmountCents, 10000);
 
   const changedPriceConfig = {
     ...config,
@@ -295,7 +301,7 @@ test('published module prices flow exactly into public and signup estimates', ()
   };
   assert.equal(
     calculatePublicPlanPricing(changedPriceConfig, ['module_people', 'module_process'], 2, 'MONTH').estimatedAmountCents,
-    21500,
+    11800,
   );
 
   const packageOnly = calculatePublicPlanPricing(config, ['package_control'], 2, 'MONTH');
@@ -331,11 +337,14 @@ test('draft or ready module prices never leak into a public estimate', () => {
 });
 
 test('public plans route remains a read-only configurator and hands validated choices to signup', async () => {
-  const [page, pricing, signupPage, routes] = await Promise.all([
+  const [page, pricing, signupPage, routes, builder, productCard, hero] = await Promise.all([
     readFile(new URL('../src/app/Auth/PublicPlans/PublicPlansPage.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/Auth/PublicPlans/publicPlansPricing.ts', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/Auth/SignupPage.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/routes.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/Auth/PublicPlans/PublicPlansBuilder.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/Auth/PublicPlans/PublicPlansProductCard.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/Auth/PublicPlans/PublicPlansHero.tsx', import.meta.url), 'utf8'),
   ]);
 
   assert.match(routes, /path:\s*'\/planes'/);
@@ -347,5 +356,11 @@ test('public plans route remains a read-only configurator and hands validated ch
   assert.match(signupPage, /calculatePublicPlanPricing/);
   assert.match(signupPage, /billingInterval:\s*plansHandoff\?\.billingInterval/);
   assert.match(pricing, /config\.prices\.find/);
+  assert.match(hero, /href="#configura-tu-plan"/);
+  assert.match(builder, /role="progressbar"/);
+  assert.match(builder, /aria-live="polite"/);
+  assert.match(builder, /type="number"/);
+  assert.match(productCard, /aria-pressed=\{selected\}/);
+  assert.match(productCard, /motion-reduce:transition-none/);
   assert.doesNotMatch(`${page}\n${pricing}\n${signupPage}`, /\b(6900|10900|14900|19900)\b/);
 });

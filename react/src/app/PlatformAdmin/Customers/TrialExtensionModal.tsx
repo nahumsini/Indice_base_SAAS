@@ -5,15 +5,13 @@ import {
   IndiceModalValidation,
 } from "../../components/indice-modal";
 
-export type TrialExtensionDays = 7 | 15 | 30;
+export type TrialExtensionDays = 15;
 
 export interface TrialExtensionCompany {
   name: string;
   trial_ends_at?: string | null;
   trial_days_remaining?: number;
 }
-
-const options: TrialExtensionDays[] = [7, 15, 30];
 
 export function TrialExtensionModal({
   company,
@@ -30,7 +28,8 @@ export function TrialExtensionModal({
   onClose: () => void;
   onConfirm: (days: TrialExtensionDays) => Promise<void>;
 }) {
-  const [days, setDays] = useState<TrialExtensionDays>(7);
+  const [days] = useState<TrialExtensionDays>(15);
+  const [consultationConfirmed, setConsultationConfirmed] = useState(false);
   const remainingDays = Math.max(0, company.trial_days_remaining ?? 0);
 
   const submit = (event: FormEvent) => {
@@ -63,7 +62,7 @@ export function TrialExtensionModal({
           <button
             type="submit"
             form="trial-extension-form"
-            disabled={saving}
+            disabled={saving || !consultationConfirmed}
             className="inline-flex items-center justify-center gap-2"
           >
             {saving ? (
@@ -113,39 +112,22 @@ export function TrialExtensionModal({
             </span>
           </div>
 
-          <fieldset className="mt-4">
-            <legend className="text-sm font-medium text-slate-800 dark:text-slate-200">
-              {english ? "Days to add" : "Días por agregar"}
-            </legend>
-            <div className="mt-3 grid grid-cols-3 gap-3">
-              {options.map((option) => {
-                const selected = days === option;
-                return (
-                  <label
-                    key={option}
-                    className={`cursor-pointer rounded-2xl border px-3 py-4 text-center transition focus-within:ring-2 focus-within:ring-[#59C3A5]/25 ${
-                      selected
-                        ? "border-[#59C3A5] bg-[#59C3A5]/12 text-[#176B5B] shadow-sm"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-[#59C3A5] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="trial-extension-days"
-                      value={option}
-                      checked={selected}
-                      onChange={() => setDays(option)}
-                      className="sr-only"
-                    />
-                    <span className="block text-2xl font-medium tabular-nums">+{option}</span>
-                    <span className="mt-1 block text-xs font-medium">
-                      {english ? "days" : "días"}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </fieldset>
+          <div className="mt-4 rounded-2xl border border-[#59C3A5] bg-[#59C3A5]/12 px-4 py-4 text-[#176B5B]">
+            <span className="block text-2xl font-medium tabular-nums">+15</span>
+            <span className="mt-1 block text-xs font-medium">
+              {english ? "days, once only; maximum 30 total" : "días, una sola vez; máximo 30 en total"}
+            </span>
+          </div>
+
+          <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+            <input
+              type="checkbox"
+              checked={consultationConfirmed}
+              onChange={(event) => setConsultationConfirmed(event.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#177D66] focus:ring-[#59C3A5]"
+            />
+            <span>{english ? "I confirm the consultation session was completed." : "Confirmo que la sesión de consultoría se realizó."}</span>
+          </label>
         </section>
 
         <div className="flex gap-3 rounded-xl border border-[#59C3A5]/30 bg-[#59C3A5]/10 px-4 py-3 text-sm leading-6 text-[#176B5B] dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/10 dark:text-[#8FE0CA]">

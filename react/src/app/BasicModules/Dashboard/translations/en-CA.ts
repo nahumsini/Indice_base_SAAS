@@ -1,12 +1,14 @@
 import type { PanelInicialShellTranslations } from './types';
 
 export const enCA: PanelInicialShellTranslations = {
+  integrationsLabel: 'Connect AI',
   subtitle: 'Configure your profile, company structure, users, and operating preferences.',
   tabDescriptions: {
     profile: 'Personal details and security',
     businessStructure: 'Areas, roles, and organization',
     businessProfile: 'Business identity and diagnosis',
     consulting: 'Schedule and track consulting sessions',
+    integrations: 'Connect assistants to make decisions with your business information',
     personalPerformance: 'Personal goals and performance',
     users: 'Access, roles, and permissions',
   },

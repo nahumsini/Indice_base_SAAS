@@ -70,6 +70,42 @@ resolve_protected_value() {
   printf '%s' "${direct_value}"
 }
 
+validate_mcp_configuration() {
+  local enabled image transport auth_mode host
+  enabled="$(read_env_value MCP_ENABLED)"
+  enabled="${enabled:-false}"
+  if [[ "${enabled}" != "true" && "${enabled}" != "false" ]]; then
+    echo "MCP_ENABLED must be true or false." >&2
+    return 1
+  fi
+  [[ "${enabled}" == "true" ]] || return 0
+
+  require_env_value MCP_IMAGE
+  image="$(read_env_value MCP_IMAGE)"
+  if [[ "${image}" == "latest" || "${image}" == *:latest ]]; then
+    echo "MCP_IMAGE must use an immutable release tag or digest, not ${image}." >&2
+    return 1
+  fi
+
+  transport="$(read_env_value INDICE_MCP_TRANSPORT)"
+  auth_mode="$(read_env_value INDICE_MCP_AUTH_MODE)"
+  host="$(read_env_value INDICE_MCP_HOST)"
+  [[ "${transport}" == "http" ]] || {
+    echo "APPTEST MCP requires INDICE_MCP_TRANSPORT=http." >&2
+    return 1
+  }
+  [[ "${auth_mode}" == "delegated" ]] || {
+    echo "APPTEST MCP requires INDICE_MCP_AUTH_MODE=delegated." >&2
+    return 1
+  }
+  [[ "${host}" == "127.0.0.1" ]] || {
+    echo "APPTEST MCP must bind to INDICE_MCP_HOST=127.0.0.1." >&2
+    return 1
+  }
+}
+
+validate_mcp_configuration
+
 if [[ "${USE_EXAMPLE}" == "false" ]]; then
   required_keys=(
     WEB_IMAGE
@@ -145,12 +181,12 @@ if [[ "${USE_EXAMPLE}" == "false" ]]; then
     exit 1
   fi
 
-  if [[ "$(read_env_value APP_BILLING_STORAGE_INCLUDED_BYTES)" != "5368709120" ]]; then
-    echo "APP_BILLING_STORAGE_INCLUDED_BYTES must preserve the approved 5 GiB included quota." >&2
+  if [[ "$(read_env_value APP_BILLING_STORAGE_INCLUDED_BYTES)" != "107374182400" ]]; then
+    echo "APP_BILLING_STORAGE_INCLUDED_BYTES must preserve the approved 100 GiB included quota." >&2
     exit 1
   fi
-  if [[ "$(read_env_value APP_BILLING_STORAGE_BLOCK_BYTES)" != "5368709120" ]]; then
-    echo "APP_BILLING_STORAGE_BLOCK_BYTES must preserve the approved 5 GiB commercial block." >&2
+  if [[ "$(read_env_value APP_BILLING_STORAGE_BLOCK_BYTES)" != "107374182400" ]]; then
+    echo "APP_BILLING_STORAGE_BLOCK_BYTES must preserve the approved 100 GiB commercial block." >&2
     exit 1
   fi
 
@@ -200,27 +236,9 @@ if [[ "${USE_EXAMPLE}" == "false" ]]; then
       APP_BILLING_STRIPE_SUCCESS_URL
       APP_BILLING_STRIPE_CANCEL_URL
       APP_BILLING_STRIPE_PORTAL_RETURN_URL
-      APP_BILLING_STRIPE_PRICE_BASIC_1_MONTHLY
-      APP_BILLING_STRIPE_PRICE_BASIC_1_ANNUAL
-      APP_BILLING_STRIPE_PRICE_BASIC_2_MONTHLY
-      APP_BILLING_STRIPE_PRICE_BASIC_2_ANNUAL
-      APP_BILLING_STRIPE_PRICE_BASIC_3_MONTHLY
-      APP_BILLING_STRIPE_PRICE_BASIC_3_ANNUAL
-      APP_BILLING_STRIPE_PRICE_BASIC_ALL_MONTHLY
-      APP_BILLING_STRIPE_PRICE_BASIC_ALL_ANNUAL
-      APP_BILLING_STRIPE_PRICE_EXTRA_SEAT_MONTHLY
-      APP_BILLING_STRIPE_PRICE_EXTRA_SEAT_ANNUAL
-      APP_BILLING_STRIPE_PRICE_STORAGE_BLOCK_MONTHLY
-      APP_BILLING_STRIPE_PRICE_STORAGE_BLOCK_ANNUAL
     )
     for key in "${stripe_required_keys[@]}"; do
       require_env_value "${key}"
-    done
-    for key in "${stripe_required_keys[@]:3}"; do
-      [[ "$(read_env_value "${key}")" == price_* ]] || {
-        echo "${key} must contain a Stripe price_ ID." >&2
-        exit 1
-      }
     done
 
     if [[ "${stripe_mode}" == "live" ]]; then
@@ -273,6 +291,18 @@ docker compose \
   --env-file "${ENV_FILE}" \
   -f "${DEPLOY_DIR}/compose/docker-compose.yml" \
   config --quiet
+docker compose \
+  --env-file "${ENV_FILE}" \
+  -f "${DEPLOY_DIR}/compose/docker-compose.staging.yml" \
+  --profile ai \
+  config --no-interpolate --quiet
+if [[ "${USE_EXAMPLE}" == "false" ]]; then
+  APP_IMAGE_TAG=release-check docker compose \
+    --env-file "${ENV_FILE}" \
+    -f "${DEPLOY_DIR}/compose/docker-compose.staging.yml" \
+    --profile ai \
+    config --quiet
+fi
 
 latest_migration=0
 for migration in "${ROOT_DIR}"/src/main/resources/db/migration/V*__*.sql; do
@@ -287,6 +317,13 @@ echo "Latest Flyway migration in this release: V${latest_migration}"
 
 echo "Checking repository diff..."
 git -C "${ROOT_DIR}" diff --check
+
+echo "Validating the Indice MCP service..."
+(
+  cd "${ROOT_DIR}/integrations/indice-mcp"
+  npm ci --no-audit --no-fund
+  npm test
+)
 
 echo "Validating and building frontend..."
 (
@@ -310,6 +347,10 @@ if [[ "${SKIP_DOCKER_BUILD:-false}" != "true" ]]; then
   docker build \
     -f "${DEPLOY_DIR}/docker/web/Dockerfile" \
     -t indice-erp-web:release-check \
+    "${ROOT_DIR}"
+  docker build \
+    -f "${DEPLOY_DIR}/docker/mcp/Dockerfile" \
+    -t indice-erp-mcp:release-check \
     "${ROOT_DIR}"
 fi
 

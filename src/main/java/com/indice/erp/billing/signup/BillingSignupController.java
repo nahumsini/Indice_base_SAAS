@@ -1,9 +1,11 @@
 package com.indice.erp.billing.signup;
 
 import com.indice.erp.auth.SessionCsrfService;
+import com.indice.erp.auth.SignupTrialTerms;
 import com.indice.erp.billing.catalog.CommercialOfferSelectionService;
 import com.indice.erp.billing.stripe.BillingSignupCheckoutReconciliationService;
 import com.indice.erp.billing.stripe.StripePhaseTwoProperties;
+import com.indice.erp.support.SupportedCountryCodes;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -56,13 +58,20 @@ public class BillingSignupController {
             Map.entry("checkoutEnabled", properties.isEnabled()),
             Map.entry("courtesyEnabled", service.provisioningEnabled()),
             Map.entry("provisioningEnabled", service.provisioningEnabled()),
-            Map.entry("trialDays", 30),
+            Map.entry("trialDays", SignupTrialTerms.TRIAL_DAYS),
             Map.entry("cardRequired", true),
             Map.entry("automaticCharge", true),
             Map.entry("includedSeats", 5),
+            Map.entry("annualDiscountPercent", 20),
+            Map.entry("includedConsultationsPerMonth", 1),
+            Map.entry("consultationMinutes", 60),
+            Map.entry("includedStorageGiB", 100),
+            Map.entry("storageBlockGiB", 100),
+            Map.entry("storageBlockMonthlyAmountCents", 1_500),
+            Map.entry("paymentGraceDays", 14),
             Map.entry("currency", "USD"),
             Map.entry("emailVerificationRequired", emailVerificationProperties.isEnabled()),
-            Map.entry("launchCountries", java.util.List.of("MX", "CA", "US", "CO", "BR")),
+            Map.entry("launchCountries", SupportedCountryCodes.all()),
             Map.entry("products", offers.activeProducts("MONTH")),
             Map.entry("prices", offers.activePrices())
         );

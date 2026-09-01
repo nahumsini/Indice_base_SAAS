@@ -38,7 +38,7 @@ public class StorageQuotaService {
             """
                 INSERT INTO company_storage_states (company_id, included_bytes)
                 VALUES (?, ?)
-                ON DUPLICATE KEY UPDATE included_bytes = included_bytes
+                ON DUPLICATE KEY UPDATE included_bytes = GREATEST(included_bytes, VALUES(included_bytes))
                 """,
             companyId,
             properties.getIncludedBytes()
@@ -67,13 +67,7 @@ public class StorageQuotaService {
         }
 
         var snapshot = snapshotLocked(companyId);
-        if (properties.isEnforcementEnabled()
-                && saturatingAdd(snapshot.usedAndReservedBytes(), declaredBytes) > snapshot.limitBytes()) {
-            throw new StorageQuotaExceededException(
-                "The company storage limit has been reached. Add another storage block before uploading this file.",
-                snapshot
-            );
-        }
+        ensureAutomaticCapacity(companyId, snapshot, saturatingAdd(snapshot.usedAndReservedBytes(), declaredBytes));
         var hash = BillingHashing.sha256("storage:" + companyId + ":" + objectKey);
         jdbcTemplate.update(
             """
@@ -149,10 +143,7 @@ public class StorageQuotaService {
         var snapshot = snapshotLocked(companyId);
         var projected = saturatingAdd(
             Math.max(0, snapshot.usedAndReservedBytes() - object.declaredBytes()), actualBytes);
-        if (properties.isEnforcementEnabled() && projected > snapshot.limitBytes()) {
-            throw new StorageQuotaExceededException(
-                "The uploaded file would exceed the company storage limit.", snapshot);
-        }
+        ensureAutomaticCapacity(companyId, snapshot, projected);
         jdbcTemplate.update(
             """
                 UPDATE company_storage_objects
@@ -302,6 +293,59 @@ public class StorageQuotaService {
         );
     }
 
+    private void ensureAutomaticCapacity(long companyId, StorageSnapshot snapshot, long projectedBytes) {
+        if (!properties.isEnforcementEnabled() || projectedBytes <= snapshot.limitBytes()) return;
+        var benefitCapacity = saturatingMultiply(snapshot.blockBytes(), snapshot.benefitBlocks());
+        var includedAndBenefits = saturatingAdd(snapshot.includedBytes(), benefitCapacity);
+        var billableBytes = Math.max(0, projectedBytes - includedAndBenefits);
+        var requiredBlocks = ceilingDivision(billableBytes, snapshot.blockBytes());
+        if (requiredBlocks > 100_000) {
+            throw new IllegalStateException("The storage request exceeds the supported automatic billing range.");
+        }
+        var targetBlocks = (int) Math.max(snapshot.purchasedBlocks(), requiredBlocks);
+        if (targetBlocks <= snapshot.purchasedBlocks()) return;
+        jdbcTemplate.update(
+            "UPDATE company_storage_states SET purchased_blocks = ?, version = version + 1 WHERE company_id = ?",
+            targetBlocks,
+            companyId
+        );
+        jdbcTemplate.update(
+            """
+                INSERT INTO company_storage_overage_syncs (
+                    company_id, public_reference, target_blocks, synced_blocks, status, next_attempt_at
+                ) VALUES (?, ?, ?, 0, 'PENDING', CURRENT_TIMESTAMP(6))
+                ON DUPLICATE KEY UPDATE
+                    target_blocks = GREATEST(target_blocks, VALUES(target_blocks)),
+                    status = CASE
+                        WHEN synced_blocks >= GREATEST(target_blocks, VALUES(target_blocks)) THEN 'SYNCED'
+                        ELSE 'PENDING'
+                    END,
+                    next_attempt_at = CURRENT_TIMESTAMP(6),
+                    last_error_code = NULL,
+                    last_error_message = NULL
+                """,
+            companyId,
+            UUID.randomUUID().toString().replace("-", ""),
+            targetBlocks
+        );
+        event(companyId, null, "AUTOMATIC_BLOCKS_ADDED", 0, Map.of(
+            "prior_blocks", snapshot.purchasedBlocks(),
+            "target_blocks", targetBlocks,
+            "block_bytes", snapshot.blockBytes(),
+            "billing_timing", "NEXT_INVOICE"
+        ));
+    }
+
+    private long ceilingDivision(long numerator, long denominator) {
+        if (numerator <= 0) return 0;
+        return 1 + ((numerator - 1) / denominator);
+    }
+
+    private long saturatingMultiply(long value, long multiplier) {
+        try { return Math.multiplyExact(value, multiplier); }
+        catch (ArithmeticException ignored) { return Long.MAX_VALUE; }
+    }
+
     private void event(long companyId, Long objectId, String type, long delta, Map<String, ?> detail) {
         jdbcTemplate.update(
             """
@@ -370,7 +414,7 @@ public class StorageQuotaService {
         }
         public long availableBytes() { return metered ? Math.max(0, limitBytes() - usedAndReservedBytes()) : Long.MAX_VALUE; }
         static StorageSnapshot unmetered(long companyId) {
-            return new StorageSnapshot(companyId, false, false, 0, StorageQuotaProperties.FIVE_GIB, 0, 0, 0, 0);
+            return new StorageSnapshot(companyId, false, false, 0, StorageQuotaProperties.ONE_HUNDRED_GIB, 0, 0, 0, 0);
         }
     }
 }

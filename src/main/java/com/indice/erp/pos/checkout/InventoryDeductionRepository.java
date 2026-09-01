@@ -30,6 +30,19 @@ public class InventoryDeductionRepository {
         return updated > 0;
     }
 
+    public boolean hasAvailable(PosContext context, long warehouseId, long productId, java.math.BigDecimal quantity) {
+        var count = jdbcTemplate.queryForObject("""
+            SELECT COUNT(*) FROM sales_inventory_balances
+            WHERE company_id = ?
+              AND product_id = ?
+              AND warehouse_id = ?
+              AND deleted_at IS NULL
+              AND uses_inventory = 1
+              AND available_quantity >= ?
+            """, Long.class, context.companyId(), productId, warehouseId, quantity);
+        return count != null && count > 0;
+    }
+
     public String warehouseName(PosContext context, long warehouseId) {
         return jdbcTemplate.query("""
             SELECT name

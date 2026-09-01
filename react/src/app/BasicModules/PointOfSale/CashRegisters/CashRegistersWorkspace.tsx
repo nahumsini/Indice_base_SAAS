@@ -13,6 +13,7 @@ import { CreateCashRegisterModal } from '../Sale/components/CreateCashRegisterMo
 import { PosModalFrame, posModalModuleFooterClassName, posModalPrimaryActionClassName, posModalSecondaryActionClassName } from '../Sale/components/PosModalFrame';
 import { posBackendApi, type PosCashRegisterCreatePayload, type PosCashRegisterResponse, type PosContextResponse, type PosDailySalesSummaryResponse, type PosShiftClosingSummaryResponse, type PosShiftResponse, type PosWarehouseSummary } from '../Sale/services/posBackendApi';
 import { useCashRegistersCopy, type CashRegistersCopy } from './cashRegistersTranslations';
+import { SquareTerminalSetupPanel } from './SquareTerminalSetupPanel';
 
 type Row = {
   warehouse: PosWarehouseSummary;
@@ -432,6 +433,8 @@ export default function CashRegistersWorkspace() {
         value={!currentTodaySalesAggregate ? '—' : formatMoney(todayAccumulated, preferredCurrency, locale)}
       />
     </div>
+
+    {canManageCashRegisters ? <SquareTerminalSetupPanel registers={registers} canManage={canManageCashRegisters} /> : null}
 
     <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="overflow-x-auto">

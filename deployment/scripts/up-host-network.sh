@@ -49,16 +49,19 @@ HOST_BACKEND_PORT="${HOST_BACKEND_PORT:-${BACKEND_HOST_PORT:-8082}}"
 HOST_MINIO_API_PORT="${HOST_MINIO_API_PORT:-${MINIO_API_HOST_PORT:-9000}}"
 HOST_MINIO_CONSOLE_PORT="${HOST_MINIO_CONSOLE_PORT:-${MINIO_CONSOLE_HOST_PORT:-9001}}"
 HOST_FACE_SERVICE_PORT="${HOST_FACE_SERVICE_PORT:-${FACE_SERVICE_HOST_PORT:-8091}}"
+HOST_MCP_PORT="${HOST_MCP_PORT:-${MCP_HOST_PORT:-3010}}"
 
 WEB_CONTAINER="${WEB_CONTAINER:-indice-erp-web-1}"
 BACKEND_CONTAINER="${BACKEND_CONTAINER:-indice-erp-backend-1}"
 MINIO_CONTAINER="${MINIO_CONTAINER:-indice-erp-minio-1}"
+MCP_CONTAINER="${MCP_CONTAINER:-indice-erp-mcp-1}"
 
 # Release commands may select immutable application images without mutating the
 # durable environment file. The DEPLOY_* names are intentionally distinct from
 # the runtime keys loaded above so the file cannot overwrite the release choice.
 WEB_IMAGE="${DEPLOY_WEB_IMAGE:-${WEB_IMAGE:-indice-erp-web:latest}}"
 BACKEND_IMAGE="${DEPLOY_BACKEND_IMAGE:-${BACKEND_IMAGE:-indice-erp-backend:latest}}"
+MCP_IMAGE="${DEPLOY_MCP_IMAGE:-${MCP_IMAGE:-indice-erp-mcp:latest}}"
 MINIO_IMAGE="${MINIO_IMAGE:-minio/minio:latest}"
 MINIO_DATA_VOLUME="${MINIO_DATA_VOLUME:-indice-erp_minio-data}"
 WEB_NGINX_HOST_CONFIG="${WEB_NGINX_HOST_CONFIG:-$(dirname "${ENV_FILE}")/../runtime/nginx-host.conf}"
@@ -66,6 +69,7 @@ PUBLISH_LOCAL_FRONTEND_DIST="${PUBLISH_LOCAL_FRONTEND_DIST:-false}"
 ALLOW_MUTABLE_APP_IMAGES="${ALLOW_MUTABLE_APP_IMAGES:-false}"
 DEPLOY_MIN_FREE_MB="${DEPLOY_MIN_FREE_MB:-10240}"
 DEPLOY_DRY_RUN="${DEPLOY_DRY_RUN:-false}"
+MCP_ENABLED="${DEPLOY_MCP_ENABLED:-${MCP_ENABLED:-false}}"
 DEPLOY_BACKUP_SUFFIX="rollback"
 DEPLOY_CANDIDATE_SUFFIX="candidate-$(date +%Y%m%d%H%M%S)-$$"
 
@@ -134,6 +138,17 @@ validate_inputs() {
   fi
   require_immutable_image WEB_IMAGE
   require_immutable_image BACKEND_IMAGE
+  if [[ "${MCP_ENABLED}" != "true" && "${MCP_ENABLED}" != "false" ]]; then
+    echo "MCP_ENABLED must be true or false." >&2
+    exit 1
+  fi
+  if [[ "${MCP_ENABLED}" == "true" ]]; then
+    [[ "${HOST_MCP_PORT}" =~ ^[0-9]+$ ]] && (( HOST_MCP_PORT > 0 && HOST_MCP_PORT <= 65535 )) || {
+      echo "HOST_MCP_PORT must be a valid TCP port." >&2
+      exit 1
+    }
+    require_immutable_image MCP_IMAGE
+  fi
   docker image inspect "${MINIO_IMAGE}" >/dev/null 2>&1 || {
     echo "Required Docker image is not available locally: ${MINIO_IMAGE}" >&2
     exit 1
@@ -265,6 +280,11 @@ if [[ "${DEPLOY_DRY_RUN}" == "true" ]]; then
   echo "Backend image: ${BACKEND_IMAGE}"
   echo "Web image: ${WEB_IMAGE}"
   echo "Backend port: ${HOST_BACKEND_PORT}"
+  echo "MCP enabled: ${MCP_ENABLED}"
+  if [[ "${MCP_ENABLED}" == "true" ]]; then
+    echo "MCP image: ${MCP_IMAGE}"
+    echo "MCP loopback port: ${HOST_MCP_PORT}"
+  fi
   exit 0
 fi
 trap restore_previous_containers ERR INT TERM
@@ -274,7 +294,7 @@ echo "Using public URL: ${PUBLIC_URL}"
 echo "Using backend image: ${BACKEND_IMAGE}"
 echo "Using web image: ${WEB_IMAGE}"
 echo "Free-space safety threshold: ${DEPLOY_MIN_FREE_MB} MiB"
-echo "Starting host-network MinIO, backend, and web containers."
+echo "Starting host-network MinIO, backend, optional MCP, and web containers."
 
 MINIO_DATA_MOUNT="$(resolve_minio_data_mount)"
 preserve_current_container "${MINIO_CONTAINER}"
@@ -335,6 +355,30 @@ docker run -d \
 
 sleep "${BACKEND_STARTUP_WAIT_SECONDS:-45}"
 curl --fail --silent --show-error "http://127.0.0.1:${HOST_BACKEND_PORT}/api/v1/health" >/dev/null
+
+if [[ "${MCP_ENABLED}" == "true" ]]; then
+  preserve_current_container "${MCP_CONTAINER}"
+  docker run -d \
+    --name "${MCP_CONTAINER}" \
+    --restart unless-stopped \
+    --network host \
+    -e INDICE_BACKEND_URL="http://127.0.0.1:${HOST_BACKEND_PORT}" \
+    -e INDICE_MCP_TRANSPORT=http \
+    -e INDICE_MCP_AUTH_MODE=delegated \
+    -e INDICE_MCP_HOST=127.0.0.1 \
+    -e INDICE_MCP_PORT="${HOST_MCP_PORT}" \
+    -e INDICE_HTTP_TIMEOUT_MS="${INDICE_HTTP_TIMEOUT_MS:-5000}" \
+    -e INDICE_PREFERRED_CURRENCY="${INDICE_PREFERRED_CURRENCY:-MXN}" \
+    "${MCP_IMAGE}" >/dev/null
+
+  sleep "${MCP_STARTUP_WAIT_SECONDS:-5}"
+  MCP_HTTP_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+    "http://127.0.0.1:${HOST_MCP_PORT}/mcp")"
+  if [[ "${MCP_HTTP_STATUS}" != "405" ]]; then
+    echo "MCP readiness check failed: expected HTTP 405 from GET /mcp, received ${MCP_HTTP_STATUS}." >&2
+    exit 1
+  fi
+fi
 
 prepare_nginx_host_config
 

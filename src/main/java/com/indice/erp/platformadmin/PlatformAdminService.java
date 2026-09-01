@@ -169,6 +169,12 @@ public class PlatformAdminService {
                              AND benefit.status = 'ACTIVE'
                              AND benefit.ends_at IS NULL
                        ) AS permanent_demo,
+                       EXISTS (
+                           SELECT 1
+                           FROM platform_trial_extensions extension
+                           WHERE extension.company_id = company.id
+                             AND extension.status = 'COMPLETED'
+                       ) AS trial_extension_used,
                        subscription.current_period_ends_at,
                        subscription.last_payment_status,
                        COALESCE(seats.included_seats, 0) AS included_seats,
@@ -417,7 +423,7 @@ public class PlatformAdminService {
                 row.put("trial_ends_at", effectiveTrialEndsAt);
                 row.put("trial_source", trialSource);
                 row.put("trial_days_remaining", remainingDays(effectiveTrialEndsAt));
-                row.put("trial_extendable", trialSource != null);
+                row.put("trial_extendable", trialSource != null && !rs.getBoolean("trial_extension_used"));
                 row.put("trial_permanent", rs.getBoolean("permanent_demo"));
                 row.put("current_period_ends_at", instant(rs.getTimestamp("current_period_ends_at")));
                 row.put("last_payment_status", nullable(rs.getString("last_payment_status")));

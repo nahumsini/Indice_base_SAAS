@@ -346,9 +346,12 @@ public class BillingProductSelectionService {
     private Map<String, String> allCommercialPriceIds() {
         var rows = jdbcTemplate.query(
             """
-                SELECT external_price_id, billable_code FROM billing_catalog_prices
-                WHERE price_type IN ('BASE', 'ADDON', 'PRODUCT', 'PACKAGE', 'SEAT')
-                  AND external_price_id IS NOT NULL
+                SELECT price.external_price_id, price.billable_code
+                FROM billing_catalog_prices price
+                LEFT JOIN billing_catalog_products product ON product.id = price.catalog_product_id
+                WHERE price.price_type IN ('BASE', 'ADDON', 'PRODUCT', 'PACKAGE', 'SEAT', 'VOLUME')
+                  AND COALESCE(product.commercial_kind, '') <> 'STORAGE'
+                  AND price.external_price_id IS NOT NULL
                   AND (? = 0 OR (stripe_mode = ? AND stripe_verified_at IS NOT NULL
                        AND stripe_sync_status = 'READY'))
                 """,

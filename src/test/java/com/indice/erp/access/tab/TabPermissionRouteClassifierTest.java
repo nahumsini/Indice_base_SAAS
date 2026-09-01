@@ -15,6 +15,8 @@ class TabPermissionRouteClassifierTest {
     @Test
     void classifiesRepresentativeRoutesAcrossEveryModule() {
         assertRequirement("GET", "/api/v1/config-center/users", "config_center.users");
+        assertRequirement("GET", "/api/v1/ai/connections", "config_center.integrations");
+        assertRequirement("DELETE", "/api/v1/ai/connections/12", "config_center.integrations");
         assertAnyOf("GET", "/api/v1/billing/subscription", "config_center.plan", "config_center.users");
         assertRequirement("POST", "/api/v1/billing/subscription/cancel", "config_center.plan");
         assertRequirement("GET", "/api/v1/dashboard/business-profile", "config_center.business-profile");
@@ -35,6 +37,7 @@ class TabPermissionRouteClassifierTest {
         assertRequirement("PUT", "/api/v1/sales/opportunity-flow", "crm.leads");
         assertRequirement("POST", "/api/v1/sales/meta-leads/import", "crm.contacts");
         assertRequirement("GET", "/api/v1/sales/kpis", "crm.kpis");
+        assertRequirement("GET", "/api/v1/sales/kpis/today", "crm.kpis");
         assertRequirement("GET", "/api/v1/pos/discounts", "pos.descuentos");
         assertRequirement("GET", "/api/v1/pos/self-service-kiosks", "pos.kiosks");
         assertRequirement("POST", "/api/v1/sales/products", "inventory.products");
@@ -98,7 +101,7 @@ class TabPermissionRouteClassifierTest {
     @Test
     void everyClassifiedRequirementUsesCanonicalCatalogKeys() {
         var routes = List.of(
-            "/api/v1/config-center/users", "/api/v1/billing/subscription", "/api/v1/hr/users",
+            "/api/v1/config-center/users", "/api/v1/ai/connections", "/api/v1/billing/subscription", "/api/v1/hr/users",
             "/api/v1/process-tasks", "/api/v1/finance", "/api/v1/finance/petty-cash",
             "/api/v1/finance/receivables/workspace", "/api/v1/pos/context", "/api/v1/sales/context",
             "/api/v1/kpis/executive-panel", "/api/v2/kiosk-center/kiosks"

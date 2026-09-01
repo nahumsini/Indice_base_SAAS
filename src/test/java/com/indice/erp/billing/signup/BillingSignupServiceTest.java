@@ -148,6 +148,36 @@ class BillingSignupServiceTest {
     }
 
     @Test
+    void acceptsSignupFromAnyIsoCountry() {
+        var request = new BillingSignupRequest(
+            "Global Owner", "owner@example.com", "owner@example.com", "very-secure-password", "Global Company",
+            "JP", null, null, null, "MONTH", 0, List.of("basic_hr"), null, "e".repeat(64)
+        );
+        when(emailVerificationService.requireVerified(anyString(), anyString()))
+            .thenThrow(new BillingSignupEmailVerificationException(
+                org.springframework.http.HttpStatus.BAD_REQUEST,
+                "EMAIL_NOT_VERIFIED",
+                "verification reached"
+            ));
+
+        assertThatThrownBy(() -> service.createCheckout(request, "idempotency-key-global-country"))
+            .isInstanceOf(BillingSignupEmailVerificationException.class)
+            .hasMessageContaining("verification reached");
+    }
+
+    @Test
+    void rejectsUnknownCountryCodes() {
+        var request = new BillingSignupRequest(
+            "Global Owner", "owner@example.com", "owner@example.com", "very-secure-password", "Global Company",
+            "XX", null, null, null, "MONTH", 0, List.of("basic_hr"), null, "e".repeat(64)
+        );
+
+        assertThatThrownBy(() -> service.createCheckout(request, "idempotency-key-invalid-country"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("ISO 3166-1");
+    }
+
+    @Test
     void storesNormalizedPhoneWhenCreatingCheckoutIntent() {
         var product = new CommercialOfferSelection.Product(7L, "basic_hr", "Recursos Humanos");
         var selection = new CommercialOfferSelection(

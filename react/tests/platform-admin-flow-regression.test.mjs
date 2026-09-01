@@ -443,12 +443,13 @@ test("clientes prioriza riesgos responsables y siguiente accion", () => {
   assert.match(customerTableUtils, /company\.user_type === "SUPER_ADMIN"/);
 });
 
-test("la prueba sólo permite periodos controlados de 7 15 o 30 días", () => {
+test("la prueba pública sólo se extiende 15 días después de confirmar la consultoría", () => {
   assert.match(accountAccessStep, /trialDayOptions/);
-  assert.match(
-    trialExtension,
-    /const options: TrialExtensionDays\[\] = \[7, 15, 30\]/,
-  );
+  assert.match(trialExtension, /export type TrialExtensionDays = 15/);
+  assert.match(trialExtension, /useState<TrialExtensionDays>\(15\)/);
+  assert.match(trialExtension, /consultationConfirmed/);
+  assert.match(trialExtension, /disabled=\{saving \|\| !consultationConfirmed\}/);
+  assert.match(trialExtension, /máximo 30 en total/);
   assert.doesNotMatch(trialExtension, /type=["']number["']/);
   assert.match(customerRow, /trial_days_remaining/);
   assert.match(customerRow, /onExtendTrial/);

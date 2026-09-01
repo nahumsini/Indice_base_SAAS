@@ -1,0 +1,115 @@
+# MCP de Índice en APPTEST
+
+Esta es la primera frontera de despliegue del conector de IA. El MCP se ejecuta
+en el mismo servidor que el backend de APPTEST, escucha únicamente en
+`127.0.0.1` y conserva la autorización delegada de Índice. El túnel seguro es el
+único canal entre ChatGPT y ese puerto local.
+
+## Antes de desplegar
+
+1. Ejecuta `./deployment/scripts/preflight.sh` con el entorno protegido de
+   APPTEST y una base exclusiva para pruebas.
+2. Verifica respaldo de la base y compatibilidad de las migraciones.
+3. Construye las tres imágenes con el mismo commit:
+
+```bash
+RELEASE_SHA="$(git rev-parse --short=12 HEAD)"
+docker build -f deployment/docker/backend/Dockerfile -t "indice-erp-backend:${RELEASE_SHA}" .
+docker build \
+  --build-arg WEB_NGINX_CONFIG=deployment/docker/web/nginx.host.conf \
+  --build-arg WEB_NGINX_LISTEN_PORT=8180 \
+  --build-arg WEB_NGINX_BACKEND_PORT=8182 \
+  --build-arg WEB_NGINX_MINIO_PORT=8900 \
+  -f deployment/docker/web/Dockerfile \
+  -t "indice-erp-web:${RELEASE_SHA}" .
+docker build -f deployment/docker/mcp/Dockerfile -t "indice-erp-mcp:${RELEASE_SHA}" .
+```
+
+En el `.env` protegido de APPTEST configura:
+
+```dotenv
+MCP_ENABLED=true
+MCP_IMAGE=indice-erp-mcp:git-REPLACE_ME
+MCP_HOST_PORT=3010
+INDICE_MCP_TRANSPORT=http
+INDICE_MCP_AUTH_MODE=delegated
+INDICE_MCP_HOST=127.0.0.1
+INDICE_HTTP_TIMEOUT_MS=5000
+INDICE_PREFERRED_CURRENCY=MXN
+```
+
+Reemplaza `git-REPLACE_ME` por la etiqueta inmutable real. No agregues tokens,
+contraseñas de usuarios ni la clave de ejecución del túnel a ese archivo.
+
+## Despliegue controlado con el stack APPTEST
+
+En el VPS, APPTEST usa el proyecto Compose `indice-apptest`, los puertos locales
+`8180`/`8182` y su archivo protegido `/root/indice-apptest/staging.env`. Valida la
+resolución completa sin cambiar contenedores:
+
+```bash
+RELEASE_SHA="$(git rev-parse --short=12 HEAD)"
+APP_IMAGE_TAG="${RELEASE_SHA}" docker compose \
+  --project-name indice-apptest \
+  --env-file /root/indice-apptest/staging.env \
+  -f deployment/compose/docker-compose.staging.yml \
+  --profile ai config --quiet
+```
+
+Si pasa y existe un respaldo verificado de MySQL, reemplaza únicamente los
+servicios de aplicación. `--no-deps` evita reiniciar MySQL o MinIO:
+
+```bash
+APP_IMAGE_TAG="${RELEASE_SHA}" docker compose \
+  --project-name indice-apptest \
+  --env-file /root/indice-apptest/staging.env \
+  -f deployment/compose/docker-compose.staging.yml \
+  --profile ai up -d --no-deps backend mcp web
+```
+
+Conserva las imágenes anteriores hasta terminar el smoke test y la prueba real
+desde ChatGPT. No ejecutes el script legado `/home/corazon/scripts/deploy-apptest.sh`:
+ese procedimiento administra nombres y puertos de otro conjunto.
+
+## Túnel y prueba funcional
+
+Configura el cliente oficial del túnel en el host para apuntar a
+`http://127.0.0.1:3010/mcp`. Guarda su clave de ejecución en un secreto protegido
+del host; nunca en Git, en la imagen ni en variables del frontend.
+
+Valida, en este orden:
+
+- `GET http://127.0.0.1:3010/mcp` devuelve `405`; demuestra que el MCP está vivo.
+- Una solicitud sin `Bearer` devuelve `401`.
+- Un acceso revocado o vencido devuelve `401`.
+- Desde ChatGPT, “¿cuánto vendí hoy?” coincide con Índice.
+- Una acción de escritura exige confirmación y deja auditoría.
+- Revocar la conexión en Índice bloquea la siguiente consulta.
+
+El puerto `3010` no debe publicarse en firewall, proxy web, balanceador ni DNS.
+
+## Rollback
+
+Sólo si las migraciones son compatibles con la versión anterior, detén primero
+el MCP y vuelve a levantar backend/web con la etiqueta anterior conservada:
+
+```bash
+docker compose \
+  --project-name indice-apptest \
+  --env-file /root/indice-apptest/staging.env \
+  -f deployment/compose/docker-compose.staging.yml \
+  --profile ai stop mcp
+
+APP_IMAGE_TAG="ETIQUETA_ANTERIOR" docker compose \
+  --project-name indice-apptest \
+  --env-file /root/indice-apptest/staging.env \
+  -f deployment/compose/docker-compose.staging.yml \
+  up -d backend web
+```
+
+## Bloqueo de producción
+
+Completar APPTEST no autoriza producción. El acceso público directo queda
+bloqueado hasta implementar y certificar OAuth 2.1 con PKCE, metadatos de
+recurso protegido, consentimiento, rotación/revocación y el gate público de
+seguridad. Hasta entonces, el MCP sólo opera por túnel seguro y loopback.

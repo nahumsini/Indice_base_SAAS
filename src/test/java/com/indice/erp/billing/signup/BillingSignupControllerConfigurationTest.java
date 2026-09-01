@@ -44,6 +44,10 @@ class BillingSignupControllerConfigurationTest {
 
         var config = controller.config(session);
 
+        assertThat(config).containsEntry("trialDays", 15);
         assertThat(config).containsEntry("emailVerificationRequired", false);
+        assertThat((List<String>) config.get("launchCountries"))
+            .contains("MX", "CA", "US", "CO", "BR", "JP", "ZA", "DE")
+            .doesNotContain("XX");
     }
 }

@@ -34,6 +34,13 @@ export type BillingSignupConfig = {
   cardRequired: boolean;
   automaticCharge: boolean;
   includedSeats: number;
+  annualDiscountPercent?: number;
+  includedConsultationsPerMonth?: number;
+  consultationMinutes?: number;
+  includedStorageGiB?: number;
+  storageBlockGiB?: number;
+  storageBlockMonthlyAmountCents?: number;
+  paymentGraceDays?: number;
   currency: string;
   launchCountries: string[];
   products: BillingSignupProduct[];
