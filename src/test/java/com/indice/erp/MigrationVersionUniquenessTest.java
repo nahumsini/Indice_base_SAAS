@@ -40,9 +40,10 @@ class MigrationVersionUniquenessTest {
     void alreadyReleasedMigrationVersionsRemainPinned() throws IOException, URISyntaxException {
         Path migrationDir = Path.of(getClass().getClassLoader().getResource("db/migration").toURI());
 
-        assertTrue(Files.exists(migrationDir.resolve("V230__billing_selection_change_schedule.sql")));
-        assertTrue(Files.exists(migrationDir.resolve("V231__internal_development_registry.sql")));
-        assertTrue(Files.exists(migrationDir.resolve("V232__product_usage_analytics.sql")));
+        assertTrue(Files.exists(migrationDir.resolve("V230__internal_development_registry.sql")));
+        assertTrue(Files.exists(migrationDir.resolve("V231__product_usage_analytics.sql")));
+        assertTrue(Files.exists(migrationDir.resolve("V232__sales_meta_lead_import_audit.sql")));
+        assertTrue(Files.exists(migrationDir.resolve("V233__billing_selection_change_schedule.sql")));
     }
 
     private static void recordDuplicateVersion(
