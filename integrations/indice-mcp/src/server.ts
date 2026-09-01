@@ -3,6 +3,7 @@
 import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import type { Request, Response } from "express";
 import { loadConfig } from "./config.js";
 import { IndiceClient } from "./indiceClient.js";
 import { createIndiceMcpServer } from "./mcpServer.js";
@@ -95,16 +96,27 @@ async function main(): Promise<void> {
       }
     }
   });
-  app.get("/mcp", (_request, response) => response.status(405).json({
-    jsonrpc: "2.0",
-    error: { code: -32000, message: "Method not allowed" },
-    id: null
-  }));
-  app.delete("/mcp", (_request, response) => response.status(405).json({
-    jsonrpc: "2.0",
-    error: { code: -32000, message: "Method not allowed" },
-    id: null
-  }));
+  const rejectUnsupportedMcpMethod = (request: Request, response: Response) => {
+    const authorization = request.header("authorization");
+    if (!authorization?.toLowerCase().startsWith("bearer ")) {
+      response
+        .status(401)
+        .header("WWW-Authenticate", bearerChallenge())
+        .json({
+          jsonrpc: "2.0",
+          error: { code: -32001, message: "Authorization required" },
+          id: null
+        });
+      return;
+    }
+    response.status(405).json({
+      jsonrpc: "2.0",
+      error: { code: -32000, message: "Method not allowed" },
+      id: null
+    });
+  };
+  app.get("/mcp", rejectUnsupportedMcpMethod);
+  app.delete("/mcp", rejectUnsupportedMcpMethod);
 
   const httpServer = app.listen(config.port, config.host, () => {
     console.error(`Indice MCP is ready at http://${config.host}:${config.port}/mcp.`);
