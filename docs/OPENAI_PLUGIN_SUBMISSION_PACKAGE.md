@@ -168,7 +168,8 @@ Decisión pendiente. La arquitectura no fija países en el MCP; la disponibilida
   `codex/openai-ai-disclosures`, commit `2e61637`, ya informa el correo OAuth y
   su estado de verificación en los diez idiomas; todavía no está publicada.
 - [ ] Cuenta revisora aislada y probada.
-- [ ] Identidad empresarial verificada en la organización correcta de OpenAI.
+- [x] Identidad empresarial verificada en la organización correcta de OpenAI;
+  el panel muestra `Business — Approved`.
 - [x] Permiso Apps Management: Write confirmado; el portal muestra
   `Create plugin` y no contiene borradores duplicados.
 - [ ] Titular aprueba países, ficha, declaraciones y envío.
