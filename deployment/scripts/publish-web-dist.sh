@@ -11,7 +11,10 @@ DEFAULT_WEB_NGINX_CONFIG="${APP_DIR}/deployment/docker/web/nginx.conf"
 WEB_NGINX_CONFIG_PROVIDED="${WEB_NGINX_CONFIG+x}"
 WEB_NGINX_CONFIG="${WEB_NGINX_CONFIG:-${DEFAULT_WEB_NGINX_CONFIG}}"
 WEB_NGINX_CONFIG_TARGET="${WEB_NGINX_CONFIG_TARGET:-/etc/nginx/conf.d/default.conf}"
+WEB_NGINX_LISTEN_PORT="${WEB_NGINX_LISTEN_PORT:-}"
 WEB_NGINX_BACKEND_PORT="${WEB_NGINX_BACKEND_PORT:-}"
+WEB_NGINX_MCP_PORT="${WEB_NGINX_MCP_PORT:-}"
+WEB_NGINX_MINIO_PORT="${WEB_NGINX_MINIO_PORT:-}"
 SYNC_WEB_NGINX_CONFIG="${SYNC_WEB_NGINX_CONFIG:-true}"
 PUBLIC_URL="${PUBLIC_URL:-}"
 VALIDATE_PUBLIC="${VALIDATE_PUBLIC:-true}"
@@ -26,8 +29,12 @@ trap cleanup EXIT
 
 prepare_nginx_config() {
   local source_config="$1"
+  local -a sed_args=()
 
-  if [[ -z "${WEB_NGINX_BACKEND_PORT}" ]]; then
+  if [[ -z "${WEB_NGINX_LISTEN_PORT}" \
+    && -z "${WEB_NGINX_BACKEND_PORT}" \
+    && -z "${WEB_NGINX_MCP_PORT}" \
+    && -z "${WEB_NGINX_MINIO_PORT}" ]]; then
     printf '%s\n' "${source_config}"
     return 0
   fi
@@ -36,8 +43,16 @@ prepare_nginx_config() {
     rm -f "${PREPARED_WEB_NGINX_CONFIG}"
   fi
   PREPARED_WEB_NGINX_CONFIG="$(mktemp)"
-  sed "s#127\\.0\\.0\\.1:8082#127.0.0.1:${WEB_NGINX_BACKEND_PORT}#g" \
-    "${source_config}" >"${PREPARED_WEB_NGINX_CONFIG}"
+  [[ -n "${WEB_NGINX_LISTEN_PORT}" ]] \
+    && sed_args+=(-e "s#listen 8080;#listen ${WEB_NGINX_LISTEN_PORT};#g")
+  [[ -n "${WEB_NGINX_BACKEND_PORT}" ]] \
+    && sed_args+=(-e "s#127\\.0\\.0\\.1:8082#127.0.0.1:${WEB_NGINX_BACKEND_PORT}#g")
+  [[ -n "${WEB_NGINX_MCP_PORT}" ]] \
+    && sed_args+=(-e "s#127\\.0\\.0\\.1:3010#127.0.0.1:${WEB_NGINX_MCP_PORT}#g")
+  [[ -n "${WEB_NGINX_MINIO_PORT}" ]] \
+    && sed_args+=(-e "s#127\\.0\\.0\\.1:9000#127.0.0.1:${WEB_NGINX_MINIO_PORT}#g")
+  sed "${sed_args[@]}" "${source_config}" >"${PREPARED_WEB_NGINX_CONFIG}"
+  chmod 0644 "${PREPARED_WEB_NGINX_CONFIG}"
   printf '%s\n' "${PREPARED_WEB_NGINX_CONFIG}"
 }
 
@@ -47,6 +62,17 @@ publish_nginx_config() {
   local prepared_config
   local host_config_candidate="${APP_DIR}/deployment/docker/web/nginx.host.conf"
   local web_network_mode
+
+  web_network_mode="$(
+    docker inspect "${WEB_CONTAINER}" --format '{{.HostConfig.NetworkMode}}' 2>/dev/null || true
+  )"
+
+  if [[ -z "${WEB_NGINX_CONFIG_PROVIDED}" \
+    && "${web_network_mode}" == "host" \
+    && -f "${host_config_candidate}" ]]; then
+    source_config="${host_config_candidate}"
+    echo "Web container uses host networking; using ${source_config}"
+  fi
 
   prepared_config="$(prepare_nginx_config "${source_config}")"
   if docker cp "${prepared_config}" "${WEB_CONTAINER}:${WEB_NGINX_CONFIG_TARGET}"; then
@@ -66,18 +92,6 @@ publish_nginx_config() {
   fi
 
   echo "Detected nginx config bind mount: ${host_config_path}"
-
-  web_network_mode="$(
-    docker inspect "${WEB_CONTAINER}" --format '{{.HostConfig.NetworkMode}}' 2>/dev/null || true
-  )"
-
-  if [[ -z "${WEB_NGINX_CONFIG_PROVIDED}" \
-    && "${web_network_mode}" == "host" \
-    && -f "${host_config_candidate}" ]]; then
-    source_config="${host_config_candidate}"
-    prepared_config="$(prepare_nginx_config "${source_config}")"
-    echo "Web container uses host networking; using ${source_config}"
-  fi
 
   if [[ ! -w "${host_config_path}" ]]; then
     echo "The bind-mounted nginx config is not writable by this user." >&2
