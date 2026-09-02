@@ -44,7 +44,13 @@ public class AiOAuthMetadataController {
             ));
     }
 
-    @GetMapping(value = "/.well-known/oauth-authorization-server", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(
+        value = {
+            "/.well-known/oauth-authorization-server",
+            "/.well-known/openid-configuration"
+        },
+        produces = MediaType.APPLICATION_JSON_VALUE
+    )
     public ResponseEntity<?> authorizationServer() {
         var metadata = new LinkedHashMap<String, Object>();
         metadata.put("issuer", properties.getIssuerUrl());
@@ -54,9 +60,11 @@ public class AiOAuthMetadataController {
         metadata.put("userinfo_endpoint", properties.userInfoEndpoint());
         metadata.put("grant_types_supported", List.of("authorization_code", "refresh_token"));
         metadata.put("response_types_supported", List.of("code"));
+        metadata.put("subject_types_supported", List.of("public"));
         metadata.put("token_endpoint_auth_methods_supported", List.of("none"));
         metadata.put("code_challenge_methods_supported", List.of("S256"));
         metadata.put("scopes_supported", new ArrayList<>(new TreeSet<>(accessTokenService.supportedOAuthScopes())));
+        metadata.put("claims_supported", List.of("sub", "email", "email_verified"));
         metadata.put("resource_parameter_supported", true);
         return ResponseEntity.ok()
             .cacheControl(CacheControl.noStore())

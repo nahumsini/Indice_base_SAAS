@@ -57,6 +57,20 @@ class AiOAuthMetadataControllerTest {
     }
 
     @Test
+    void chatGptCanDiscoverVerifiedIdentityMetadataThroughOidc() throws Exception {
+        mockMvc.perform(get("/.well-known/openid-configuration")
+                .header(HttpHeaders.ORIGIN, "https://chatgpt.com"))
+            .andExpect(status().isOk())
+            .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://chatgpt.com"))
+            .andExpect(jsonPath("$.issuer").value("https://app.indiceapp.com"))
+            .andExpect(jsonPath("$.userinfo_endpoint")
+                .value("https://app.indiceapp.com/api/v1/ai/oauth/userinfo"))
+            .andExpect(jsonPath("$.scopes_supported[?(@ == 'openid')]").exists())
+            .andExpect(jsonPath("$.scopes_supported[?(@ == 'email')]").exists())
+            .andExpect(jsonPath("$.claims_supported[?(@ == 'email_verified')]").exists());
+    }
+
+    @Test
     void unrelatedOriginsCannotReadAuthorizationMetadataCrossOrigin() throws Exception {
         mockMvc.perform(get("/.well-known/oauth-authorization-server")
                 .header(HttpHeaders.ORIGIN, "https://example.com"))
