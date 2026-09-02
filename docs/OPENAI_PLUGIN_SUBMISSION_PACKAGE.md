@@ -12,7 +12,9 @@ Fuente de requisitos: documentación oficial de OpenAI para publicación de plug
 - URL de validación previa: `https://apptest.indiceapp.com/api/v1/ai/mcp`
 - Sitio: `https://indiceapp.com`
 - Soporte: `https://app.indiceapp.com/support`
-- Logo: `react/src/assets/indice-logo.png`
+- Logo: usar el símbolo oficial independiente `imgs/logo-mark.svg` del
+  repositorio de marca `indice_web_nahumsini`. No recortar ni deformar el
+  wordmark horizontal de `react/src/assets/indice-logo.png`.
 - Categoría propuesta: Business / Productivity, según las opciones vigentes del portal.
 
 Descripción corta:
@@ -51,7 +53,8 @@ La URL pública termina en el proxy web, que reenvía únicamente `/api/v1/ai/mc
 
 ## 3. Herramientas y comportamiento
 
-Todas las herramientas declaran `readOnlyHint`, `openWorldHint` y `destructiveHint`.
+Todas las herramientas declaran `readOnlyHint`, `openWorldHint`,
+`destructiveHint` e `idempotentHint`.
 
 Consultas principales:
 
@@ -71,6 +74,11 @@ Acciones V1:
 - registrar entrada de dinero a un fondo.
 
 Cada acción usa vista previa, confirmación de corta duración, idempotencia y auditoría. No se incluyen pagos, aprobaciones, eliminaciones ni cambios de permisos.
+
+`register_fund_expense` y `add_money_to_fund` declaran
+`destructiveHint: true` porque modifican saldos financieros aunque la operación
+requiera confirmación. `create_expense_draft` conserva
+`destructiveHint: false` porque sólo prepara un borrador.
 
 ## 4. Prompts iniciales
 
@@ -146,15 +154,21 @@ Decisión pendiente. La arquitectura no fija países en el MCP; la disponibilida
 
 ## 10. Puertas antes de enviar
 
-- [ ] AppTest devuelve 401 desde la URL MCP pública sin token.
+- [x] AppTest devuelve 401 desde la URL MCP pública sin token.
 - [ ] Scan Tools descubre todas las herramientas y no reporta anotaciones incorrectas.
-- [ ] OAuth completo funciona con PKCE, refresh y revocación.
+- [ ] OAuth completo funciona desde ChatGPT con PKCE, refresh y revocación.
 - [ ] Aislamiento multiempresa pasa P1–P5 y N1–N3.
 - [x] Endpoint UserInfo y scopes `openid email` implementados y probados en la rama de preparación.
-- [ ] UserInfo desplegado y validado con una cuenta revisora cuyo correo esté verificado.
+- [x] UserInfo, `openid`, `email` y PKCE S256 están desplegados y validados en
+  AppTest; UserInfo sin token devuelve 401.
+- [ ] Validar UserInfo mediante el flujo completo de ChatGPT con una cuenta
+  revisora cuyo correo esté verificado.
 - [ ] Token de dominio instalado y validado.
-- [ ] Privacidad y términos publicados con aprobación legal.
+- [ ] Privacidad y términos publicados con aprobación legal. La rama local
+  `codex/openai-ai-disclosures`, commit `2e61637`, ya informa el correo OAuth y
+  su estado de verificación en los diez idiomas; todavía no está publicada.
 - [ ] Cuenta revisora aislada y probada.
 - [ ] Identidad empresarial verificada en la organización correcta de OpenAI.
-- [ ] Permiso Apps Management: Write confirmado.
+- [x] Permiso Apps Management: Write confirmado; el portal muestra
+  `Create plugin` y no contiene borradores duplicados.
 - [ ] Titular aprueba países, ficha, declaraciones y envío.
