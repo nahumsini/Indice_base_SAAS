@@ -728,8 +728,15 @@ La base técnica de Fase 4 quedó implementada con activación reversible por co
 - La habilitación comercial de la empresa se intersecta con los permisos vigentes del usuario.
   Comprar un módulo nunca asigna ese módulo automáticamente a todas las personas.
 - La clasificación usa primero `@RequiresCapability` y después un mapa conservador de rutas
-  autenticadas. Las superficies públicas de kioskos, catálogos, signup y Stripe quedan fuera del
-  interceptor porque resuelven tenant e identidad mediante sus motores públicos propios.
+  autenticadas. Un controlador que atienda capabilities distintas puede habilitar explícitamente
+  `allowRouteOverride`; únicamente en ese caso el mapa exacto y sensible al método HTTP sustituye
+  la anotación de clase con una capability o con un conjunto `any-of` acotado. Las lecturas de
+  productos y almacenes bajo Ventas aceptan `inventory` o `sales` porque ambos módulos consumen ese
+  catálogo; sus mutaciones y las rutas de imágenes de producto requieren exclusivamente
+  `inventory`. Cada candidato evaluado conserva log y auditoría. Las anotaciones de método mantienen
+  prioridad absoluta y la capability declarada en la clase permanece como fallback restrictivo.
+  Las superficies públicas de kioskos, catálogos, signup y Stripe quedan fuera del interceptor
+  porque resuelven tenant e identidad mediante sus motores públicos propios.
 - Las diferencias se guardan en `entitlement_decision_events` por 90 días. Las coincidencias no
   generan filas y permanecen disponibles en el log estructurado para no inflar la base.
 - El enforcement necesita dos condiciones simultáneas: el flag global

@@ -86,4 +86,14 @@ class SalesServiceQuoteDeletionTest {
 
         verify(salesRepository, never()).softDelete(7L, SalesDefinitions.definitions().get("sales"), 52L);
     }
+
+    @Test
+    void softDeletesAProductWithoutDestroyingItsHistoricalReferences() {
+        service.delete(7L, "products", 63L);
+
+        verify(salesRepository).softDelete(7L, SalesDefinitions.definitions().get("products"), 63L);
+        verify(salesRepository).removeProductFromPublicCatalogs(7L, 63L);
+        verify(salesRepository, never()).lockQuoteForDeletion(7L, 63L);
+        verify(salesRepository, never()).lockSaleForDeletion(7L, 63L);
+    }
 }

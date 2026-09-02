@@ -38,6 +38,10 @@ public class SalesService {
             "image/jpeg",
             "image/png",
             "image/webp");
+    private static final Set<String> PRODUCT_SALES_VISIBILITIES = Set.of(
+            "commercial",
+            "pos_ready",
+            "quote_only");
 
     private final SalesRepository salesRepository;
     private final SalesReferenceService referenceService;
@@ -89,6 +93,7 @@ public class SalesService {
             items.forEach(item -> {
                 revealProductAvailability(item);
                 enrichProductImages(companyId, item);
+                enrichProductSalesReadiness(item);
             });
         }
         if ("quotes".equals(collection)) {
@@ -107,6 +112,7 @@ public class SalesService {
         if ("products".equals(collection)) {
             revealProductAvailability(item);
             enrichProductImages(companyId, item);
+            enrichProductSalesReadiness(item);
         }
         if ("quotes".equals(collection)) {
             item.put("items", salesRepository.listQuoteItems(companyId, id));
@@ -307,6 +313,9 @@ public class SalesService {
             }
         }
         salesRepository.softDelete(companyId, definition(collection), id);
+        if ("products".equals(collection)) {
+            salesRepository.removeProductFromPublicCatalogs(companyId, id);
+        }
     }
 
     public Map<String, Object> kpis(long companyId, String preferredCurrency) {
@@ -646,6 +655,7 @@ public class SalesService {
             hydratePostSaleFromRelations(companyId, normalized);
         }
         if ("products".equals(collection)) {
+            removeClientProductSalesReadiness(normalized);
             removeEmbeddedProductImages(companyId, normalized);
             normalizeProductAvailability(normalized);
         }
@@ -671,6 +681,70 @@ public class SalesService {
         var protectedUrl = SalesPayloadSupport.stringValue(item, "availabilityIcalUrl");
         if (protectedUrl == null || protectedUrl.isBlank()) return;
         item.put("availabilityIcalUrl", availabilityLinkCodec.reveal(protectedUrl));
+    }
+
+    private static void removeClientProductSalesReadiness(Map<String, Object> payload) {
+        List.of(
+                "readyForSales", "ready_for_sales",
+                "salesReadiness", "sales_readiness",
+                "salesReadinessReasons", "sales_readiness_reasons")
+                .forEach(payload::remove);
+    }
+
+    private static void enrichProductSalesReadiness(Map<String, Object> item) {
+        var reasons = new ArrayList<String>();
+        var status = canonicalProductToken(item.get("status"));
+        var visibility = canonicalProductToken(item.get("visibility"));
+        var type = canonicalProductToken(item.get("type"));
+
+        if ("draft".equals(status)) {
+            reasons.add("DRAFT");
+        } else if (!"active".equals(status)) {
+            reasons.add("INACTIVE");
+        }
+        if (!PRODUCT_SALES_VISIBILITIES.contains(visibility)) {
+            reasons.add("INTERNAL");
+        }
+        if ("operational_item".equals(type)) {
+            reasons.add("OPERATIONAL_ITEM");
+        }
+        if (!hasPositiveProductPrice(item.get("price"))) {
+            reasons.add("MISSING_PRICE");
+        }
+
+        var readiness = reasons.isEmpty()
+                ? "READY"
+                : reasons.size() == 1 && "MISSING_PRICE".equals(reasons.getFirst())
+                        ? "REQUIRES_REVIEW"
+                        : "NOT_READY";
+        item.put("readyForSales", "READY".equals(readiness));
+        item.put("salesReadiness", readiness);
+        item.put("salesReadinessReasons", List.copyOf(reasons));
+    }
+
+    private static String canonicalProductToken(Object value) {
+        if (value == null) {
+            return "";
+        }
+        return String.valueOf(value)
+                .trim()
+                .toLowerCase(Locale.ROOT)
+                .replace('-', '_')
+                .replace(' ', '_');
+    }
+
+    private static boolean hasPositiveProductPrice(Object value) {
+        if (value == null) {
+            return false;
+        }
+        try {
+            var price = value instanceof BigDecimal decimal
+                    ? decimal
+                    : new BigDecimal(String.valueOf(value).trim());
+            return price.compareTo(BigDecimal.ZERO) > 0;
+        } catch (NumberFormatException exception) {
+            return false;
+        }
     }
 
     private boolean booleanValue(Object value) {

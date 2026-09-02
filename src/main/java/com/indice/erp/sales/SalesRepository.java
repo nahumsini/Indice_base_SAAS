@@ -195,6 +195,13 @@ class SalesRepository {
                 id);
     }
 
+    void removeProductFromPublicCatalogs(long companyId, long productId) {
+        jdbcTemplate.update(
+                "DELETE FROM sales_public_catalog_products WHERE company_id = ? AND product_id = ?",
+                companyId,
+                productId);
+    }
+
     void lockQuoteForDeletion(long companyId, long quoteId) {
         var ids = jdbcTemplate.query(
                 """

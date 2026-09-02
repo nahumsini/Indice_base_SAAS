@@ -21,8 +21,10 @@ import { createAutomaticSku } from '../components/product-modal/productModalUtil
 import type { ProductBulkDraft, ProductBulkEditDraft } from '../components/ProductBulkIntegrationModal';
 import { sortProducts } from '../utils/productFormatters';
 import { getProductAvailability } from '../utils/productOperationalStatus';
+import { getProductSalesReadiness } from '../../utils/productSalesReadiness';
 
 type FilterValue = 'all' | string;
+export type ProductReadinessFilter = 'all' | 'READY' | 'REQUIRES_REVIEW' | 'NOT_READY';
 const productCategoriesStorageKey = 'indice.sales.products.categoryDirectory';
 const uncategorizedCategoryFilter = '__uncategorized__';
 
@@ -61,6 +63,7 @@ export function useProductsCatalog(t: ProductsTranslations) {
     updateProduct,
     createProductRecord,
     updateProductRecord,
+    deleteProductRecord,
     reloadProducts,
   } = useSalesCrm();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -69,13 +72,16 @@ export function useProductsCatalog(t: ProductsTranslations) {
   const [isColumnsOpen, setIsColumnsOpen] = useState(false);
   const [isBulkIntegrationOpen, setIsBulkIntegrationOpen] = useState(false);
   const [managedCategories, setManagedCategoriesState] = useState<ProductCategoryConfig[]>(readStoredProductCategories);
-  const [deletedProductIds, setDeletedProductIds] = useState<string[]>([]);
+  const [productPendingDeletion, setProductPendingDeletion] = useState<SalesCatalogItem | null>(null);
+  const [isDeletingProduct, setIsDeletingProduct] = useState(false);
+  const [productDeleteError, setProductDeleteError] = useState<string | null>(null);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [carouselProduct, setCarouselProduct] = useState<SalesCatalogItem | null>(null);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<FilterValue>('all');
   const [typeFilter, setTypeFilter] = useState<FilterValue>('all');
   const [statusFilter, setStatusFilter] = useState<FilterValue>('all');
+  const [readinessFilter, setReadinessFilter] = useState<ProductReadinessFilter>('all');
   const [activeView, setActiveView] = useState<ProductView>('table');
   const [sortState, setSortState] = useState<ProductSortState>({ columnId: 'name', direction: 'asc' });
   const [visibleColumns, setVisibleColumns] = useState<ProductTableColumnId[]>(defaultProductTableVisibleColumns);
@@ -84,10 +90,7 @@ export function useProductsCatalog(t: ProductsTranslations) {
   const [isSavingBulkProducts, setIsSavingBulkProducts] = useState(false);
   const [productSaveError, setProductSaveError] = useState<string | null>(null);
 
-  const availableProducts = useMemo(
-    () => products.filter((product) => !deletedProductIds.includes(product.id)),
-    [deletedProductIds, products],
-  );
+  const availableProducts = products;
 
   const filteredProducts = useMemo(() => availableProducts.filter((product) => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -106,13 +109,15 @@ export function useProductsCatalog(t: ProductsTranslations) {
         : product.category === categoryFilter);
     const matchesType = typeFilter === 'all' || product.type === typeFilter;
     const matchesStatus = statusFilter === 'all' || product.status === statusFilter;
+    const matchesReadiness = readinessFilter === 'all'
+      || getProductSalesReadiness(product).status === readinessFilter;
 
-    return matchesSearch && matchesCategory && matchesType && matchesStatus;
-  }), [availableProducts, categoryFilter, search, statusFilter, typeFilter]);
+    return matchesSearch && matchesCategory && matchesType && matchesStatus && matchesReadiness;
+  }), [availableProducts, categoryFilter, readinessFilter, search, statusFilter, typeFilter]);
 
   const sortedProducts = useMemo(() => sortProducts(filteredProducts, sortState), [filteredProducts, sortState]);
   const activeCount = filteredProducts.filter((product) => product.status === 'Active').length;
-  const readyForSalesCount = filteredProducts.filter((product) => getProductAvailability(product).includes('sales')).length;
+  const readyForSalesCount = filteredProducts.filter((product) => getProductSalesReadiness(product).status === 'READY').length;
   const posReadyCount = filteredProducts.filter((product) => getProductAvailability(product).includes('pos')).length;
   const publicCatalogCount = filteredProducts.filter((product) => (
     getProductAvailability(product).includes('sales') && getProductGalleryImages(product).length > 0
@@ -221,9 +226,28 @@ export function useProductsCatalog(t: ProductsTranslations) {
   };
 
   const handleDeleteProduct = (product: SalesCatalogItem) => {
-    setDeletedProductIds((current) => Array.from(new Set([...current, product.id])));
-    if (carouselProduct?.id === product.id) {
-      setCarouselProduct(null);
+    setProductDeleteError(null);
+    setProductPendingDeletion(product);
+  };
+
+  const handleCancelDeleteProduct = () => {
+    if (isDeletingProduct) return;
+    setProductPendingDeletion(null);
+    setProductDeleteError(null);
+  };
+
+  const handleConfirmDeleteProduct = async () => {
+    if (!productPendingDeletion || isDeletingProduct) return;
+    setIsDeletingProduct(true);
+    setProductDeleteError(null);
+    try {
+      await deleteProductRecord(productPendingDeletion.id);
+      if (carouselProduct?.id === productPendingDeletion.id) setCarouselProduct(null);
+      setProductPendingDeletion(null);
+    } catch {
+      setProductDeleteError(t.deleteDialog.error);
+    } finally {
+      setIsDeletingProduct(false);
     }
   };
 
@@ -470,12 +494,16 @@ export function useProductsCatalog(t: ProductsTranslations) {
     isSavingProduct,
     isSavingBulkProducts,
     isPublicCatalogOpen,
+    isDeletingProduct,
     managedCategories,
     posReadyCount,
     products,
     productSaveError,
+    productDeleteError,
+    productPendingDeletion,
     publicCatalogCount,
     readyForSalesCount,
+    readinessFilter,
     search,
     sortedProducts,
     sortState,
@@ -486,6 +514,8 @@ export function useProductsCatalog(t: ProductsTranslations) {
     typeOptions,
     visibleColumns,
     handleDeleteProduct,
+    handleCancelDeleteProduct,
+    handleConfirmDeleteProduct,
     handleDuplicateProduct,
     handleEditProduct,
     handleOpenCreateProduct,
@@ -513,6 +543,7 @@ export function useProductsCatalog(t: ProductsTranslations) {
     setForm: handleProductFormChange,
     setSearch,
     setStatusFilter,
+    setReadinessFilter,
     setTypeFilter,
     setVisibleColumns,
   };

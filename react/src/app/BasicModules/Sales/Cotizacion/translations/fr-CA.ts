@@ -148,9 +148,11 @@ export const frCA = {
     summary: 'Résumé',
   },
   catalog: {
+    readinessFilters: { all: 'Tous les produits', READY: 'Prêt pour les ventes', REQUIRES_REVIEW: 'À réviser', NOT_READY: 'Non prêt pour les ventes' },
+    readinessReasons: { DRAFT: 'Brouillon', INACTIVE: 'Inactif', INTERNAL: 'Usage interne', OPERATIONAL_ITEM: 'Article opérationnel', MISSING_PRICE: 'Prix final manquant' },
     description: 'Les articles réutilisables prêts pour les devis apparaissent par défaut.',
     showNotReady: 'Afficher les articles non prêts pour la vente',
-    empty: 'Aucun article prêt pour la vente avec le filtre actuel.',
+    empty: 'Aucun produit ne correspond aux filtres actuels.',
     usesInventory: 'Utilise l inventaire',
     noInventory: 'Sans inventaire',
     searchPlaceholder: 'Rechercher par nom, SKU, code ou catégorie',

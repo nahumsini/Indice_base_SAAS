@@ -148,9 +148,11 @@ export const koCA = {
     summary: '요약',
   },
   catalog: {
+    readinessFilters: { all: '모든 제품', READY: '판매 준비됨', REQUIRES_REVIEW: '검토 필요', NOT_READY: '판매 준비 안 됨' },
+    readinessReasons: { DRAFT: '초안', INACTIVE: '비활성', INTERNAL: '내부 사용', OPERATIONAL_ITEM: '운영 항목', MISSING_PRICE: '최종 가격 없음' },
     description: '견적 준비가 된 재사용 항목이 기본으로 표시됩니다.',
     showNotReady: '판매 준비되지 않은 항목 표시',
-    empty: '현재 필터에 판매 준비된 항목이 없습니다.',
+    empty: '현재 필터와 일치하는 제품이 없습니다.',
     usesInventory: '재고 사용',
     noInventory: '재고 없음',
     searchPlaceholder: '이름, SKU, 코드 또는 카테고리 검색',

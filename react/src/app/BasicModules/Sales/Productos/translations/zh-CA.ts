@@ -31,7 +31,11 @@ export const zhCA = {
     uncategorized: '未分类',
     allTypes: '所有类型',
     allStatuses: '所有状态',
+    readiness: '销售准备状态',
+    allReadiness: '所有准备状态',
+    readinessOptions: { READY: '可用于销售', REQUIRES_REVIEW: '需要审核', NOT_READY: '尚不可销售' },
   },
+  deleteDialog: { title: '删除目录项目？', description: '该项目将从共享目录中移除，现有文档仍保留历史快照。', confirm: '删除项目', deleting: '正在删除...', error: '无法删除该项目。它可能正在使用中，或您没有权限。' },
   metrics: {
     activeItems: '个启用项目',
     inventoryValue: '库存价值',

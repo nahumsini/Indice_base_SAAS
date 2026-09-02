@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -92,6 +93,17 @@ class SalesApiControllerCsrfTest {
             .andExpect(jsonPath("$.name").value("Demo Product"));
 
         then(sessionCsrfService).should().requireCsrf(any(), eq("csrf-token"));
+    }
+
+    @Test
+    void genericProductDeleteAllowsValidCsrfToken() throws Exception {
+        mockMvc.perform(delete("/api/v1/sales/products/22")
+                .header("X-CSRF-Token", "csrf-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        then(sessionCsrfService).should().requireCsrf(any(), eq("csrf-token"));
+        then(salesService).should().delete(7L, "products", 22L);
     }
 
     @Test

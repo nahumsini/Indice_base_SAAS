@@ -5,6 +5,8 @@ import com.indice.erp.tenant.TenantContextResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -50,7 +52,7 @@ public class EntitlementShadowInterceptor implements HandlerInterceptor {
         if ((!shadowEnabled && !enforcementEnabled) || !(handler instanceof HandlerMethod handlerMethod)) {
             return true;
         }
-        var requirement = findRequirement(handlerMethod, request.getRequestURI());
+        var requirement = findRequirement(handlerMethod, request.getMethod(), request.getRequestURI());
         if (requirement == null) {
             return true;
         }
@@ -74,65 +76,68 @@ public class EntitlementShadowInterceptor implements HandlerInterceptor {
         }
         var tenant = contextResolver.resolve(session.get());
         var operation = resolveOperation(requirement.operation(), request.getMethod());
-        CapabilityShadowDecision decision;
-        try {
-            decision = shadowDecisionService.evaluate(
-                tenant,
-                session.get(),
-                requirement.capability(),
-                operation
-            );
-        } catch (RuntimeException exception) {
-            // Phase 4 is deliberately fail-open: a catalog, projection, or telemetry
-            // incident must not interrupt the permission model that already protects
-            // production traffic.
-            LOGGER.error(
-                "entitlement_shadow_evaluation_failed companyId={} userId={} capability={} method={} path={}",
-                tenant.company_id(),
-                tenant.user_id(),
-                requirement.capability(),
-                request.getMethod(),
-                request.getRequestURI(),
-                exception
-            );
-            return true;
-        }
-        var enforceDecision = enforcementEnabled
-            && decision.policy_mode() == EntitlementPolicyMode.ENFORCE
-            && !decision.shadow_allowed();
-        var entitlementAudit = auditService.getIfAvailable();
-        if (entitlementAudit != null) {
+        var decisions = new ArrayList<CapabilityShadowDecision>(requirement.capabilities().size());
+        for (var capability : requirement.capabilities()) {
             try {
-                entitlementAudit.record(tenant, decision, request, enforceDecision);
+                decisions.add(shadowDecisionService.evaluate(
+                    tenant,
+                    session.get(),
+                    capability,
+                    operation
+                ));
             } catch (RuntimeException exception) {
+                // Phase 4 is deliberately fail-open: a catalog, projection, or telemetry
+                // incident must not interrupt the permission model that already protects
+                // production traffic.
                 LOGGER.error(
-                    "entitlement_shadow_audit_failed companyId={} userId={} capability={} method={} path={}",
+                    "entitlement_shadow_evaluation_failed companyId={} userId={} capability={} method={} path={}",
                     tenant.company_id(),
                     tenant.user_id(),
-                    decision.capability(),
+                    capability,
                     request.getMethod(),
                     request.getRequestURI(),
                     exception
                 );
+                return true;
             }
         }
-        LOGGER.info(
-            "entitlement_shadow companyId={} userId={} scope={} policyMode={} capability={} operation={} legacyAllowed={} companyAllowed={} shadowAllowed={} matched={} enforced={} source={} method={} path={}",
-            tenant.company_id(),
-            tenant.user_id(),
-            tenant.scope().type(),
-            decision.policy_mode(),
-            decision.capability(),
-            decision.operation(),
-            decision.legacy_allowed(),
-            decision.company_allowed(),
-            decision.shadow_allowed(),
-            decision.matched(),
-            enforceDecision,
-            decision.source(),
-            request.getMethod(),
-            request.getRequestURI()
-        );
+        var enforceDecision = enforcementEnabled && decisions.stream().allMatch(this::isEnforcedDenial);
+        var entitlementAudit = auditService.getIfAvailable();
+        for (var decision : decisions) {
+            var candidateEnforced = enforceDecision && isEnforcedDenial(decision);
+            if (entitlementAudit != null) {
+                try {
+                    entitlementAudit.record(tenant, decision, request, candidateEnforced);
+                } catch (RuntimeException exception) {
+                    LOGGER.error(
+                        "entitlement_shadow_audit_failed companyId={} userId={} capability={} method={} path={}",
+                        tenant.company_id(),
+                        tenant.user_id(),
+                        decision.capability(),
+                        request.getMethod(),
+                        request.getRequestURI(),
+                        exception
+                    );
+                }
+            }
+            LOGGER.info(
+                "entitlement_shadow companyId={} userId={} scope={} policyMode={} capability={} operation={} legacyAllowed={} companyAllowed={} shadowAllowed={} matched={} enforced={} source={} method={} path={}",
+                tenant.company_id(),
+                tenant.user_id(),
+                tenant.scope().type(),
+                decision.policy_mode(),
+                decision.capability(),
+                decision.operation(),
+                decision.legacy_allowed(),
+                decision.company_allowed(),
+                decision.shadow_allowed(),
+                decision.matched(),
+                candidateEnforced,
+                decision.source(),
+                request.getMethod(),
+                request.getRequestURI()
+            );
+        }
         if (!enforceDecision) {
             return true;
         }
@@ -140,28 +145,49 @@ public class EntitlementShadowInterceptor implements HandlerInterceptor {
         return false;
     }
 
-    private CapabilityRequirement findRequirement(HandlerMethod handlerMethod, String requestPath) {
+    private CapabilityRequirement findRequirement(
+        HandlerMethod handlerMethod,
+        String requestMethod,
+        String requestPath
+    ) {
         var methodRequirement = AnnotatedElementUtils.findMergedAnnotation(
             handlerMethod.getMethod(),
             RequiresCapability.class
         );
         if (methodRequirement != null) {
-            return new CapabilityRequirement(methodRequirement.value(), methodRequirement.operation());
+            return new CapabilityRequirement(List.of(methodRequirement.value()), methodRequirement.operation());
         }
         var typeRequirement = AnnotatedElementUtils.findMergedAnnotation(
             handlerMethod.getBeanType(),
             RequiresCapability.class
         );
         if (typeRequirement != null) {
-            return new CapabilityRequirement(typeRequirement.value(), typeRequirement.operation());
+            if (typeRequirement.allowRouteOverride()) {
+                var classifier = routeClassifier.getIfAvailable();
+                if (classifier != null) {
+                    var routeRequirement = classifier.classify(requestMethod, requestPath);
+                    if (routeRequirement.isPresent()) {
+                        return new CapabilityRequirement(
+                            routeRequirement.get().candidates(),
+                            typeRequirement.operation()
+                        );
+                    }
+                }
+            }
+            return new CapabilityRequirement(List.of(typeRequirement.value()), typeRequirement.operation());
         }
         var classifier = routeClassifier.getIfAvailable();
         if (classifier == null) {
             return null;
         }
-        return classifier.classify(requestPath)
-            .map(capability -> new CapabilityRequirement(capability, CapabilityOperation.AUTO))
+        return classifier.classify(requestMethod, requestPath)
+            .map(route -> new CapabilityRequirement(route.candidates(), CapabilityOperation.AUTO))
             .orElse(null);
+    }
+
+    private boolean isEnforcedDenial(CapabilityShadowDecision decision) {
+        return decision.policy_mode() == EntitlementPolicyMode.ENFORCE
+            && !decision.shadow_allowed();
     }
 
     private CapabilityOperation resolveOperation(CapabilityOperation configured, String method) {
@@ -186,6 +212,13 @@ public class EntitlementShadowInterceptor implements HandlerInterceptor {
         }
     }
 
-    private record CapabilityRequirement(String capability, CapabilityOperation operation) {
+    private record CapabilityRequirement(List<String> capabilities, CapabilityOperation operation) {
+
+        private CapabilityRequirement {
+            capabilities = List.copyOf(capabilities);
+            if (capabilities.isEmpty()) {
+                throw new IllegalArgumentException("At least one capability candidate is required.");
+            }
+        }
     }
 }

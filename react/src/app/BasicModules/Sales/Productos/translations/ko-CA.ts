@@ -31,7 +31,11 @@ export const koCA = {
     uncategorized: '미분류',
     allTypes: '모든 유형',
     allStatuses: '모든 상태',
+    readiness: '판매 준비 상태',
+    allReadiness: '모든 준비 상태',
+    readinessOptions: { READY: '판매 준비됨', REQUIRES_REVIEW: '검토 필요', NOT_READY: '판매 준비 안 됨' },
   },
+  deleteDialog: { title: '카탈로그 항목을 삭제할까요?', description: '공유 카탈로그에서 제거됩니다. 기존 문서의 기록은 유지됩니다.', confirm: '항목 삭제', deleting: '삭제 중...', error: '항목을 삭제하지 못했습니다. 사용 중이거나 권한이 없을 수 있습니다.' },
   metrics: {
     activeItems: '활성 항목',
     inventoryValue: '재고 가치',

@@ -31,7 +31,11 @@ export const ptBR = {
     uncategorized: 'Sem categoria',
     allTypes: 'Todos os tipos',
     allStatuses: 'Todos os status',
+    readiness: 'Preparação comercial',
+    allReadiness: 'Todos os estados',
+    readinessOptions: { READY: 'Pronto para vendas', REQUIRES_REVIEW: 'Requer revisão', NOT_READY: 'Não pronto para vendas' },
   },
+  deleteDialog: { title: 'Excluir item do catálogo?', description: 'O item será removido do catálogo compartilhado. Documentos existentes preservam o histórico.', confirm: 'Excluir item', deleting: 'Excluindo...', error: 'Não foi possível excluir o item. Ele pode estar em uso ou você pode não ter permissão.' },
   metrics: {
     activeItems: 'itens ativos',
     inventoryValue: 'valor em estoque',

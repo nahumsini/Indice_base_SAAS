@@ -148,9 +148,11 @@ export const zhCA = {
     summary: '摘要',
   },
   catalog: {
+    readinessFilters: { all: '所有产品', READY: '可用于销售', REQUIRES_REVIEW: '需要审核', NOT_READY: '尚不可销售' },
+    readinessReasons: { DRAFT: '草稿', INACTIVE: '未启用', INTERNAL: '内部使用', OPERATIONAL_ITEM: '运营项目', MISSING_PRICE: '缺少最终价格' },
     description: '默认显示已准备好用于报价的可复用目录项目。',
     showNotReady: '显示未准备好销售的项目',
-    empty: '当前筛选条件下没有可用于销售的项目。',
+    empty: '没有符合当前筛选条件的产品。',
     usesInventory: '使用库存',
     noInventory: '无库存',
     searchPlaceholder: '按名称、SKU、代码或类别搜索',
