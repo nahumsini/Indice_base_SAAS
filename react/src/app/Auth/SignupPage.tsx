@@ -1493,7 +1493,7 @@ export default function SignupPage() {
     && accountDetailsComplete
     && emailVerified
     && validSelection
-    && estimatedAmount !== null
+    && (courtesyRequested || estimatedAmount !== null)
     && !submitting;
   const knownIndustry = !form.industry
     || industryValues.includes(form.industry as (typeof industryValues)[number]);

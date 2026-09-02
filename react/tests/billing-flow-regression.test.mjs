@@ -22,6 +22,7 @@ const hook = read("src/app/Billing/hooks/useBillingManagement.ts");
 const api = read("src/app/api/billing.ts");
 const endpoints = read("src/app/api/endpoints.ts");
 const header = read("src/app/components/Header.tsx");
+const signup = read("src/app/Auth/SignupPage.tsx");
 
 test("billing es una pantalla real del ERP y no una ruta paralela", () => {
   assert.match(app, /currentPage === ['"]billing['"]/);
@@ -65,6 +66,11 @@ test("una cortesía se conecta a Stripe conservando el periodo restante", () => 
   assert.match(hook, /billingApi\.activate/);
   assert.match(hook, /window\.location\.assign\(response\.checkout_url\)/);
   assert.match(api, /remaining_trial_days/);
+});
+
+test("el alta por cortesía no depende de precios publicados", () => {
+  assert.match(signup, /const courtesyRequested = form\.courtesyCode\.trim\(\)\.length > 0/);
+  assert.match(signup, /&& \(courtesyRequested \|\| estimatedAmount !== null\)/);
 });
 
 test("los cambios respetan capacidad y se cobran en el corte correspondiente", () => {
