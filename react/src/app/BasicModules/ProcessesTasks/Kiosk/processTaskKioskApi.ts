@@ -110,9 +110,21 @@ export interface PublicTaskKioskTask {
   attachments: number;
   is_overdue: boolean;
   can_complete: boolean;
+  current_assignment_role?: 'lead' | 'collaborator' | null;
+  current_contribution_status?: 'pending' | 'working' | 'ready' | null;
+  assignment_mode?: 'individual' | 'team' | null;
+  team_size?: number;
+  completion_action?: 'TASK_COMPLETE' | 'CONTRIBUTION_READY';
   is_assigned_to_current_user: boolean;
   is_created_by_current_user: boolean;
   is_completed_by_current_user: boolean;
+}
+
+export interface PublicTaskKioskCompleteResponse {
+  action_outcome?: 'TASK_COMPLETED' | 'CONTRIBUTION_READY';
+  current_contribution_status?: 'pending' | 'working' | 'ready' | null;
+  task: PublicTaskKioskTask;
+  items: PublicTaskKioskTask[];
 }
 
 export interface PublicTaskKioskAssignmentOption {
@@ -322,7 +334,7 @@ export const processTaskKioskApi = {
     },
     idempotencyKey: string,
   ) {
-    return apiClient<{ task: PublicTaskKioskTask; items: PublicTaskKioskTask[] }>(
+    return apiClient<PublicTaskKioskCompleteResponse>(
       `${publicBasePath}/${deviceToken}/tasks/${taskId}/complete`,
       {
         method: 'POST',

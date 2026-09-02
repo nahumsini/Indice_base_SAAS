@@ -6,6 +6,7 @@ import com.indice.erp.kiosk.engine.KioskRegistryService;
 import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import org.springframework.stereotype.Service;
 
 /** Employee-center bridge that keeps the attendance public token inside its owner module. */
@@ -14,20 +15,42 @@ public class AttendanceEmployeeKioskService {
 
     private final HrAttendanceService attendance;
     private final KioskRegistryService registry;
+    private final AttendanceKioskDeviceRepository devices;
 
     public AttendanceEmployeeKioskService(
             HrAttendanceService attendance,
-            KioskRegistryService registry) {
+            KioskRegistryService registry,
+            AttendanceKioskDeviceRepository devices) {
         this.attendance = attendance;
         this.registry = registry;
+        this.devices = devices;
     }
 
     public boolean supports(KioskResolvedDefinition definition) {
-        return definition != null
-            && AttendanceKioskCapabilities.OWNER_MODULE.equals(definition.ownerModule())
-            && definition.legacyReferenceId() != null
-            && definition.legacyReferenceId() > 0
-            && registry.publicTokenRecoverable(definition.companyId(), definition.id());
+        if (definition == null
+                || !AttendanceKioskCapabilities.OWNER_MODULE.equals(definition.ownerModule())
+                || definition.legacyReferenceId() == null
+                || definition.legacyReferenceId() <= 0) {
+            return false;
+        }
+        try {
+            var device = devices.get(definition.companyId(), definition.legacyReferenceId());
+            if (!"active".equalsIgnoreCase(device.status())
+                    || device.publicAccessToken() == null
+                    || device.publicAccessToken().isBlank()) {
+                return false;
+            }
+            if (registry.publicTokenRecoverable(definition.companyId(), definition.id())) {
+                return true;
+            }
+            return registry.repairLegacyPublicTokenRecoveryMaterial(
+                definition.companyId(), definition.id(), definition.ownerModule(),
+                definition.kioskType(), definition.legacyReferenceId(),
+                device.publicAccessToken());
+        } catch (NoSuchElementException | IllegalArgumentException
+                | IllegalStateException | SecurityException unavailable) {
+            return false;
+        }
     }
 
     public Map<String, Object> bootstrap(KioskResolvedDefinition definition, long userId) {

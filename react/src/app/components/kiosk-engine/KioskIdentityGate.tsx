@@ -42,7 +42,10 @@ export function KioskIdentityGate({
   const inputRef = useRef<HTMLInputElement>(null);
   const canSubmit = !disabled && !isSubmitting && pinValue.length === pinLength;
   const theme = MODULE_COLORS[tone];
-  const usesDarkActionText = tone === 'aqua' || tone === 'gold' || tone === 'yellow';
+  const usesDarkActionText = tone === 'aqua'
+    || tone === 'coral'
+    || tone === 'gold'
+    || tone === 'yellow';
   const themeVariables = {
     '--kiosk-accent': theme.primary,
     '--kiosk-accent-hover': theme.primaryHover,

@@ -1,6 +1,7 @@
 package com.indice.erp.kiosk.engine;
 
 import com.indice.erp.access.module.ModuleAccessService;
+import com.indice.erp.processTasks.kiosk.ProcessTaskKioskCapabilities;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,11 +58,21 @@ class KioskEmployeeToolCatalogServiceTest {
         given(featureFlags.adapterEnabled("HUMAN_RESOURCES")).willReturn(true);
         given(featureFlags.adapterEnabled("PROCESS_TASKS")).willReturn(true);
 
-        assertThat(catalog.availableTools(1L))
+        var tools = catalog.availableTools(1L);
+
+        assertThat(tools)
             .extracting(tool -> tool.get("key"))
             .containsExactly(
                 KioskEmployeeToolCatalogService.ATTENDANCE_TOOL_KEY,
                 KioskEmployeeToolCatalogService.MY_TASKS_TOOL_KEY);
+        var taskTool = tools.stream()
+            .filter(tool -> KioskEmployeeToolCatalogService.MY_TASKS_TOOL_KEY.equals(tool.get("key")))
+            .findFirst()
+            .orElseThrow();
+        assertThat(taskTool.get("capabilities")).isEqualTo(List.of(
+            ProcessTaskKioskCapabilities.TASK_COMPLETE + "@1",
+            ProcessTaskKioskCapabilities.TASK_CREATE + "@1",
+            ProcessTaskKioskCapabilities.TASKS_READ + "@1"));
 
         // Catalog discovery must not depend on any previously created kiosk definition.
         verifyNoInteractions(jdbcTemplate);

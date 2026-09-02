@@ -105,6 +105,9 @@ export const enUS = {
     priorityLow: 'Low',
     priorityMedium: 'Medium',
     priorityHigh: 'High',
+    selfDescription: 'Capture a quick task for yourself. Indice applies your current operating scope automatically.',
+    selfAssignment: (employeeName: string, scopeLabel: string) => `Assigned to ${employeeName} · ${scopeLabel}`,
+    submitting: 'Creating task...',
     submit: 'Create task',
   },
   responsible: {
@@ -118,6 +121,11 @@ export const enUS = {
     updating: 'Updating responsible...',
   },
   selectedTask: {
+    markContributionReady: 'Mark my part ready',
+    contributionDescription: 'This is a team task. Your update sends your part to the lead for review; it does not close the whole task.',
+    contributionNotes: 'Note for the team',
+    contributionNotesPlaceholder: 'Summarize what you finished or any remaining issue.',
+    contributionReadyStatus: 'Your part is ready for review.',
     eyebrow: 'Selected task',
     closeModal: 'Close task modal',
     completion: 'Completion',
@@ -141,6 +149,7 @@ export const enUS = {
     encouragementBody: 'Close only the work you actually completed. Your update will sync back to Indice.',
   },
   success: {
+    contributionReady: (taskTitle: string) => `${taskTitle}: your part is ready for review.`,
     completed: (taskTitle: string) => `${taskTitle} was completed.`,
     created: (taskTitle: string) => `${taskTitle} was created.`,
     responsibleUpdated: (taskTitle: string) => `${taskTitle} was reassigned.`,

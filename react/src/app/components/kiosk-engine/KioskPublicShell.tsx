@@ -225,8 +225,9 @@ export function KioskPublicShell({
 
   return (
     <div
-      className={`min-h-dvh bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-white [&_button]:min-h-11 [&_button]:min-w-11 ${immersive ? 'p-0' : 'sm:px-4 sm:py-4'} ${accessibilityPreferences.largeText ? '[&_button]:!min-h-12 [&_button]:!text-[1.05rem] [&_h1]:!text-[1.75rem] [&_h2]:!text-[1.625rem] [&_h3]:!text-[1.375rem] [&_input]:!min-h-12 [&_input]:!text-[1.05rem] [&_label]:!text-base [&_p]:!text-base [&_select]:!min-h-12 [&_select]:!text-base [&_textarea]:!text-[1.05rem]' : ''} ${accessibilityPreferences.highContrast ? 'contrast-125 [&_button]:focus-visible:ring-4 [&_a]:focus-visible:ring-4 [&_input]:focus-visible:ring-4 [&_select]:focus-visible:ring-4 [&_textarea]:focus-visible:ring-4' : ''} ${accessibilityPreferences.reduceMotion ? '[&_*]:!animate-none [&_*]:!scroll-auto [&_*]:!transition-none' : ''}`}
+      className={`min-h-dvh bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-white [&_button]:min-h-11 [&_button]:min-w-11 ${immersive ? 'p-0' : 'sm:px-4 sm:py-4'} ${accessibilityPreferences.largeText ? '[&_button]:!min-h-12 [&_button]:!text-[1.05rem] [&_h1]:!text-[1.75rem] [&_h2]:!text-[1.625rem] [&_h3]:!text-[1.375rem] [&_input]:!min-h-12 [&_input]:!text-[1.05rem] [&_label]:!text-base [&_p]:!text-base [&_select]:!min-h-12 [&_select]:!text-base [&_textarea]:!text-[1.05rem] [&_[data-kiosk-tool-action]]:!text-base [&_[data-kiosk-tool-description]]:!block [&_[data-kiosk-tool-description]]:!text-base [&_[data-kiosk-tool-grid]]:!grid-cols-1 [&_[data-kiosk-tool-module]]:!text-sm [&_[data-kiosk-tool-name]]:!text-lg [&_[data-kiosk-tool-status]]:!text-base md:[&_[data-kiosk-tool-grid]]:!grid-cols-2 xl:[&_[data-kiosk-tool-grid]]:!grid-cols-3' : ''} ${accessibilityPreferences.highContrast ? 'contrast-125 [&_button]:focus-visible:ring-4 [&_a]:focus-visible:ring-4 [&_input]:focus-visible:ring-4 [&_select]:focus-visible:ring-4 [&_textarea]:focus-visible:ring-4' : ''} ${accessibilityPreferences.reduceMotion ? '[&_*]:!animate-none [&_*]:!scroll-auto [&_*]:!transition-none' : ''}`}
       data-kiosk-accessibility={accessibilityEnabled ? 'enhanced' : 'standard'}
+      data-kiosk-large-text={accessibilityPreferences.largeText}
       data-kiosk-reduce-motion={accessibilityPreferences.reduceMotion}
       data-module={moduleScope}
       lang={currentLanguage.code}
@@ -237,7 +238,7 @@ export function KioskPublicShell({
         className={`mx-auto flex min-h-dvh w-full ${immersive ? 'h-dvh max-w-none min-h-0 rounded-none border-0' : `${maxWidthClassName} sm:min-h-[calc(100vh-2rem)] sm:rounded-lg sm:border sm:border-slate-200 sm:shadow-sm sm:dark:border-slate-800`} flex-col overflow-hidden bg-white dark:bg-slate-950 ${lockDesktopViewport && !immersive ? 'xl:h-[calc(100dvh-2rem)] xl:min-h-0' : ''}`}
         inert={accessibilityPanelOpen || undefined}
       >
-        <div className={immersive ? 'hidden' : 'grid min-h-14 grid-cols-[minmax(0,1fr)_2.75rem] items-center gap-2 border-b border-slate-200 bg-white px-3 py-2 dark:border-slate-800 dark:bg-slate-950 sm:flex sm:justify-end sm:px-4'}>
+        <div className={immersive ? 'hidden' : 'grid min-h-14 grid-cols-[minmax(0,1fr)_2.75rem] items-center gap-2 border-b border-slate-200 bg-white px-3 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top))] dark:border-slate-800 dark:bg-slate-950 sm:flex sm:justify-end sm:px-4'}>
           <label className="flex min-w-0 items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-300">
             <Languages aria-hidden="true" className="h-4 w-4 shrink-0" />
             <span className="sr-only sm:not-sr-only">{copy.language}</span>
@@ -263,6 +264,7 @@ export function KioskPublicShell({
           <button
             ref={accessibilityButtonRef}
             type="button"
+            aria-label={copy.accessibility}
             aria-expanded={accessibilityPanelOpen}
             title={copy.accessibility}
             onClick={() => setAccessibilityPanelOpen(true)}

@@ -51,6 +51,59 @@ test('Procesos y Tareas conserva el shell, los modales y el Kiosk Engine compart
   assert.match(managerSource, /<KioskModalFrame/);
 });
 
+test('Mis tareas integra un workspace propio y limitado por capacidades en Multikiosco', () => {
+  const workspaceSource = readFileSync(
+    resolve(moduleRoot, 'Kiosk/EmployeeTaskMultiKioskWorkspace.tsx'),
+    'utf8',
+  );
+  const workspaceHookSource = readFileSync(
+    resolve(moduleRoot, 'Kiosk/hooks/useEmployeeTaskMultiKioskWorkspace.ts'),
+    'utf8',
+  );
+  const taskDialogSource = readFileSync(
+    resolve(moduleRoot, 'Kiosk/components/EmployeeTaskMultiKioskTaskDialog.tsx'),
+    'utf8',
+  );
+  const createDialogSource = readFileSync(
+    resolve(moduleRoot, 'Kiosk/components/EmployeeTaskMultiKioskCreateDialog.tsx'),
+    'utf8',
+  );
+  const apiSource = readFileSync(resolve(moduleRoot, 'Kiosk/processTaskKioskApi.ts'), 'utf8');
+  const publicPageSource = readFileSync(resolve(moduleRoot, 'Kiosk/PublicTaskKioskPage.tsx'), 'utf8');
+  const nativeWorkspaceSource = `${workspaceSource}\n${workspaceHookSource}\n${taskDialogSource}\n${createDialogSource}`;
+
+  assert.match(workspaceSource, /export function EmployeeTaskMultiKioskWorkspace/);
+  assert.match(workspaceSource, /export function EmployeeTaskMultiKioskWorkspaceView/);
+  assert.match(workspaceSource, /type MultiKioskWorkspaceCard = MultiKioskChildWorkspace\['kiosk'\]/);
+  assert.match(workspaceSource, /<KioskWorkspaceTabs/);
+  assert.match(workspaceSource, /<PublicTaskKioskSummaryStrip/);
+  assert.match(workspaceSource, /<PublicTaskKioskTaskCard/);
+  assert.match(workspaceSource, /multiKioskPublicApi\.action/);
+  assert.match(workspaceHookSource, /process-tasks\.tasks\.read@1/);
+  assert.match(workspaceHookSource, /process-tasks\.task\.create@1/);
+  assert.match(workspaceHookSource, /process-tasks\.task\.complete@1/);
+  assert.match(workspaceHookSource, /const createRequestInFlightRef = useRef\(false\)/);
+  assert.match(workspaceHookSource, /if \(!canCreate \|\| busy \|\| createRequestInFlightRef\.current\) return/);
+  assert.match(workspaceHookSource, /if \(receivedUpdatedItems\) setTasks\(result\.items\)/);
+  assert.match(workspaceHookSource, /resource_id: selectedTask\.id/);
+  assert.match(workspaceHookSource, /action_outcome === 'CONTRIBUTION_READY'/);
+  assert.match(workspaceHookSource, /contributionFlow \? \{\} : \{ completion_percent: completionPercent \}/);
+  assert.match(taskDialogSource, /<KioskModalFrame/);
+  assert.match(taskDialogSource, /<ProgressSlider/);
+  assert.match(taskDialogSource, /contributionFlow\s*\? copy\.selectedTask\.markContributionReady/);
+  assert.match(taskDialogSource, /copy\.selectedTask\.contributionDescription/);
+  assert.match(createDialogSource, /<KioskModalFrame/);
+  assert.match(createDialogSource, /copy\.create\.selfAssignment\(employeeName, scopeLabel\)/);
+  assert.match(createDialogSource, /maxLength=\{220\}/);
+  assert.match(apiSource, /current_contribution_status\?:/);
+  assert.match(apiSource, /assignment_mode\?: 'individual' \| 'team' \| null/);
+  assert.match(apiSource, /team_size\?: number/);
+  assert.match(apiSource, /completion_action\?: 'TASK_COMPLETE' \| 'CONTRIBUTION_READY'/);
+  assert.match(apiSource, /action_outcome\?: 'TASK_COMPLETED' \| 'CONTRIBUTION_READY'/);
+  assert.match(publicPageSource, /response\.action_outcome === 'CONTRIBUTION_READY'/);
+  assert.doesNotMatch(nativeWorkspaceSource, /process-tasks\.task\.(?:responsible|attachment)/);
+});
+
 test('los catálogos de asignación pertenecen a Procesos y no requieren acceso a Colaboradores de RH', () => {
   const assignmentCatalogSource = readFileSync(resolve(moduleRoot, 'shared/assignmentCatalogApi.ts'), 'utf8');
   const consumers = [

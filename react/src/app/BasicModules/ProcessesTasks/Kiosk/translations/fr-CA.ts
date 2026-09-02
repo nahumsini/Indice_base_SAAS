@@ -104,6 +104,9 @@ export const frCA = {
     priorityLow: 'Basse',
     priorityMedium: 'Moyenne',
     priorityHigh: 'Haute',
+    selfDescription: 'Créez une tâche rapide pour vous-même. Indice applique automatiquement votre périmètre opérationnel actuel.',
+    selfAssignment: (employeeName: string, scopeLabel: string) => `Attribuée à ${employeeName} · ${scopeLabel}`,
+    submitting: 'Création de la tâche...',
     submit: 'Créer la tâche',
   },
   responsible: {
@@ -117,6 +120,11 @@ export const frCA = {
     updating: 'Mise à jour du responsable...',
   },
   selectedTask: {
+    markContributionReady: 'Marquer ma partie prête',
+    contributionDescription: 'Il s’agit d’une tâche d’équipe. Votre mise à jour transmet votre partie au responsable pour révision; elle ne ferme pas toute la tâche.',
+    contributionNotes: 'Note pour l’équipe',
+    contributionNotesPlaceholder: 'Résumez ce que vous avez terminé ou tout élément en suspens.',
+    contributionReadyStatus: 'Votre partie est prête pour révision.',
     eyebrow: 'Tâche sélectionnée',
     closeModal: 'Fermer le modal de tâche',
     completion: 'Progression',
@@ -140,6 +148,7 @@ export const frCA = {
     encouragementBody: 'Fermez seulement le travail réellement terminé. Votre mise à jour sera synchronisée avec Indice.',
   },
   success: {
+    contributionReady: (taskTitle: string) => `${taskTitle} : votre partie est prête pour révision.`,
     completed: (taskTitle: string) => `${taskTitle} est terminée.`,
     created: (taskTitle: string) => `${taskTitle} a été créée.`,
     responsibleUpdated: (taskTitle: string) => `${taskTitle} a été réassignée.`,

@@ -31,14 +31,15 @@ class ProcessTaskKioskQueryService {
             ProcessTaskKioskRow kiosk,
             ProcessTaskKioskEmployee employee) {
         var params = new ArrayList<Object>();
-        params.add(kiosk.companyId());
         params.add(employee.userCompanyId());
+        params.add(kiosk.companyId());
+        params.add(kiosk.companyId());
         params.add(employee.userId());
         params.add(employee.userCompanyId());
         appendScopeParams(params, kiosk);
         return jdbcTemplate.query(
             taskSql(
-                "(EXISTS (SELECT 1 FROM process_task_assignees visible_assignment WHERE visible_assignment.company_id = task.company_id AND visible_assignment.task_id = task.id AND visible_assignment.user_company_id = ? AND visible_assignment.removed_at IS NULL) OR task.created_by = ? OR task.completed_by_user_company_id = ?)",
+                "(current_assignment.id IS NOT NULL OR task.created_by = ? OR task.completed_by_user_company_id = ?)",
                 "AND task.status IN ('pending', 'in_progress', 'paused', 'completed')",
                 scopeSql(kiosk)
             ) + " ORDER BY CASE WHEN task.status = 'completed' THEN 1 ELSE 0 END,"
@@ -53,15 +54,16 @@ class ProcessTaskKioskQueryService {
             ProcessTaskKioskEmployee employee,
             long taskId) {
         var params = new ArrayList<Object>();
-        params.add(kiosk.companyId());
         params.add(employee.userCompanyId());
+        params.add(kiosk.companyId());
+        params.add(kiosk.companyId());
         params.add(employee.userId());
         params.add(employee.userCompanyId());
         params.add(taskId);
         appendScopeParams(params, kiosk);
         var rows = jdbcTemplate.query(
             taskSql(
-                "(EXISTS (SELECT 1 FROM process_task_assignees visible_assignment WHERE visible_assignment.company_id = task.company_id AND visible_assignment.task_id = task.id AND visible_assignment.user_company_id = ? AND visible_assignment.removed_at IS NULL) OR task.created_by = ? OR task.completed_by_user_company_id = ?)",
+                "(current_assignment.id IS NOT NULL OR task.created_by = ? OR task.completed_by_user_company_id = ?)",
                 "AND task.status IN ('pending', 'in_progress', 'paused', 'completed')",
                 "AND task.id = ?\n" + scopeSql(kiosk)
             ),
@@ -79,13 +81,14 @@ class ProcessTaskKioskQueryService {
             ProcessTaskKioskEmployee employee,
             long taskId) {
         var params = new ArrayList<Object>();
-        params.add(kiosk.companyId());
         params.add(employee.userCompanyId());
+        params.add(kiosk.companyId());
+        params.add(kiosk.companyId());
         params.add(taskId);
         appendScopeParams(params, kiosk);
         var rows = jdbcTemplate.query(
             taskSql(
-                "EXISTS (SELECT 1 FROM process_task_assignees visible_assignment WHERE visible_assignment.company_id = task.company_id AND visible_assignment.task_id = task.id AND visible_assignment.user_company_id = ? AND visible_assignment.removed_at IS NULL)",
+                "current_assignment.id IS NOT NULL",
                 "AND task.status IN ('pending', 'in_progress', 'paused')",
                 "AND task.id = ?\n" + scopeSql(kiosk)
             ) + " FOR UPDATE",
@@ -139,6 +142,11 @@ class ProcessTaskKioskQueryService {
                    COALESCE(NULLIF(TRIM(created_user.full_name), ''),
                             NULLIF(TRIM(created_user.email), ''), NULL) AS created_by_name,
                    task.completed_by_user_company_id, task.created_at,
+                   current_assignment.id AS current_assignment_id,
+                   current_assignment.assignment_role AS current_assignment_role,
+                   current_assignment.contribution_status AS current_contribution_status,
+                   CASE WHEN current_assignment.id IS NULL THEN 0
+                        ELSE COALESCE(assignment_team.team_size, 0) END AS current_team_size,
                    (SELECT COUNT(*) FROM process_task_attachments attachment
                      WHERE attachment.company_id = task.company_id
                        AND attachment.task_id = task.id AND attachment.deleted_at IS NULL) AS attachments
@@ -156,6 +164,30 @@ class ProcessTaskKioskQueryService {
              AND process.company_id = task.company_id
             LEFT JOIN projects project ON project.id = task.project_id
              AND project.company_id = task.company_id
+            LEFT JOIN process_task_assignees current_assignment
+              ON current_assignment.company_id = task.company_id
+             AND current_assignment.task_id = task.id
+             AND current_assignment.user_company_id = ?
+             AND current_assignment.removed_at IS NULL
+             AND NOT EXISTS (
+                 SELECT 1
+                 FROM process_task_assignees earlier_current_assignment
+                 WHERE earlier_current_assignment.company_id = current_assignment.company_id
+                   AND earlier_current_assignment.task_id = current_assignment.task_id
+                   AND earlier_current_assignment.user_company_id = current_assignment.user_company_id
+                   AND earlier_current_assignment.removed_at IS NULL
+                   AND earlier_current_assignment.id < current_assignment.id
+             )
+            LEFT JOIN (
+                SELECT team_assignment.company_id, team_assignment.task_id,
+                       COUNT(*) AS team_size
+                FROM process_task_assignees team_assignment
+                WHERE team_assignment.company_id = ?
+                  AND team_assignment.removed_at IS NULL
+                GROUP BY team_assignment.company_id, team_assignment.task_id
+            ) assignment_team
+              ON assignment_team.company_id = task.company_id
+             AND assignment_team.task_id = task.id
             WHERE task.company_id = ? AND %s AND task.deleted_at IS NULL %s
             %s
             """.formatted(visibilityCondition, statusCondition, extraWhere);
@@ -182,13 +214,25 @@ class ProcessTaskKioskQueryService {
         }
     }
 
-    private Map<String, Object> mapTask(ResultSet rs, ProcessTaskKioskEmployee employee) throws SQLException {
+    private Map<String, Object> mapTask(
+            ResultSet rs,
+            ProcessTaskKioskEmployee employee) throws SQLException {
         var due = rs.getDate("due_date");
         var dueDate = due == null ? null : due.toLocalDate();
         var assignedId = rs.getObject("assigned_user_company_id", Long.class);
         var createdBy = rs.getObject("created_by", Long.class);
         var completedBy = rs.getObject("completed_by_user_company_id", Long.class);
-        var assignedToCurrent = isActiveAssignee(rs.getLong("id"), employee.userCompanyId());
+        var assignedToCurrent = rs.getObject("current_assignment_id", Long.class) != null;
+        var currentAssignmentRole = assignedToCurrent ? rs.getString("current_assignment_role") : null;
+        var currentContributionStatus = assignedToCurrent
+            ? rs.getString("current_contribution_status") : null;
+        var currentTeamSize = assignedToCurrent ? rs.getInt("current_team_size") : 0;
+        var contributionAction = assignedToCurrent
+            && currentTeamSize > 1
+            && !"lead".equalsIgnoreCase(currentAssignmentRole);
+        var contributionReady = contributionAction
+            && "ready".equalsIgnoreCase(currentContributionStatus);
+        var taskStatus = rs.getString("status");
         var row = new LinkedHashMap<String, Object>();
         row.put("id", rs.getLong("id"));
         row.put("task_id", rs.getLong("id"));
@@ -196,7 +240,7 @@ class ProcessTaskKioskQueryService {
         row.put("folio", rs.getString("folio"));
         row.put("title", rs.getString("title"));
         row.put("description", rs.getString("description"));
-        row.put("status", rs.getString("status"));
+        row.put("status", taskStatus);
         row.put("priority", fallback(rs.getString("priority"), "medium"));
         row.put("start_date", date(rs, "start_date"));
         row.put("due_date", dueDate == null ? null : dueDate.toString());
@@ -219,24 +263,17 @@ class ProcessTaskKioskQueryService {
         row.put("created_at", dateTime(rs, "created_at"));
         row.put("attachments", rs.getInt("attachments"));
         row.put("is_overdue", dueDate != null && dueDate.isBefore(LocalDate.now()));
-        row.put("can_complete", assignedToCurrent && !"completed".equals(rs.getString("status")));
+        row.put("current_assignment_role", currentAssignmentRole);
+        row.put("current_contribution_status", currentContributionStatus);
+        row.put("assignment_mode", assignedToCurrent
+            ? currentTeamSize > 1 ? "team" : "individual" : null);
+        row.put("team_size", currentTeamSize);
+        row.put("completion_action", contributionAction ? "CONTRIBUTION_READY" : "TASK_COMPLETE");
+        row.put("can_complete", assignedToCurrent && !"completed".equals(taskStatus) && !contributionReady);
         row.put("is_assigned_to_current_user", assignedToCurrent);
         row.put("is_created_by_current_user", Objects.equals(createdBy, employee.userId()));
         row.put("is_completed_by_current_user", Objects.equals(completedBy, employee.userCompanyId()));
         return row;
-    }
-
-    private boolean isActiveAssignee(long taskId, long userCompanyId) {
-        var count = jdbcTemplate.queryForObject(
-                """
-                    SELECT COUNT(*)
-                    FROM process_task_assignees
-                    WHERE task_id = ? AND user_company_id = ? AND removed_at IS NULL
-                    """,
-                Integer.class,
-                taskId,
-                userCompanyId);
-        return count != null && count > 0;
     }
 
     private List<Map<String, Object>> loadUnits(

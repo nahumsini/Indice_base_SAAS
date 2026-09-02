@@ -151,6 +151,7 @@ export function PublicTaskKioskDialogs(props: Props) {
         ? 'task'
         : null;
   const dialogBusy = isSubmitting || isAssigningResponsible || isUploadingEvidence;
+  const selectedTaskContributionFlow = selectedTask?.completion_action === 'CONTRIBUTION_READY';
 
   useEffect(() => {
     if (!activeDialog || !dialogRef.current) return undefined;
@@ -630,14 +631,20 @@ export function PublicTaskKioskDialogs(props: Props) {
 
               {selectedTask.can_complete && openTaskStatuses.has(selectedTask.status) ? (
                 <>
-                  <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-                    <ProgressSlider
-                      value={Number(completionPercent || 100)}
-                      label={copy.selectedTask.completion}
-                      disabled={isSubmitting}
-                      onChange={(value) => setCompletionPercent(String(value))}
-                    />
-                  </div>
+                  {selectedTaskContributionFlow ? (
+                    <p className="mt-5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm leading-5 text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-200">
+                      {copy.selectedTask.contributionDescription}
+                    </p>
+                  ) : (
+                    <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+                      <ProgressSlider
+                        value={Number(completionPercent || 100)}
+                        label={copy.selectedTask.completion}
+                        disabled={isSubmitting}
+                        onChange={(value) => setCompletionPercent(String(value))}
+                      />
+                    </div>
+                  )}
 
                   <div className="mt-5">
                     <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.selectedTask.evidence}</label>
@@ -670,11 +677,15 @@ export function PublicTaskKioskDialogs(props: Props) {
                   </div>
 
                   <div className="mt-5">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.selectedTask.notes}</label>
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                      {selectedTaskContributionFlow ? copy.selectedTask.contributionNotes : copy.selectedTask.notes}
+                    </label>
                     <Textarea
                       value={completionNotes}
                       rows={4}
-                      placeholder={copy.selectedTask.notesPlaceholder}
+                      placeholder={selectedTaskContributionFlow
+                        ? copy.selectedTask.contributionNotesPlaceholder
+                        : copy.selectedTask.notesPlaceholder}
                       className="mt-2 rounded-xl"
                       disabled={isSubmitting}
                       onChange={(event) => setCompletionNotes(event.target.value)}
@@ -683,7 +694,11 @@ export function PublicTaskKioskDialogs(props: Props) {
                 </>
               ) : (
                 <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">
-                  {copy.task.resolved}
+                  {selectedTask.status === 'completed'
+                    ? copy.task.resolved
+                    : selectedTask.current_contribution_status === 'ready'
+                      ? copy.selectedTask.contributionReadyStatus
+                      : copy.identity.fallbackStatus}
                 </div>
               )}
             </div>
@@ -706,7 +721,11 @@ export function PublicTaskKioskDialogs(props: Props) {
                   onClick={() => void handleCompleteTask()}
                 >
                   <ClipboardCheck className="mr-2 h-5 w-5" />
-                  {isUploadingEvidence ? copy.selectedTask.uploadingEvidence : copy.selectedTask.complete}
+                  {isUploadingEvidence
+                    ? copy.selectedTask.uploadingEvidence
+                    : selectedTaskContributionFlow
+                      ? copy.selectedTask.markContributionReady
+                      : copy.selectedTask.complete}
                 </Button>
               ) : (
                 <Button

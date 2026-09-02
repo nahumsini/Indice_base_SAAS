@@ -138,6 +138,74 @@ class MultiKioskServiceScopeTest {
 
     @Test
     @SuppressWarnings({"rawtypes", "unchecked"})
+    void childOperationsDelegateEffectiveAuthorizationOnlyOnceToDashboard() throws Exception {
+        given(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
+            .willAnswer(invocation -> {
+                var sql = String.valueOf((Object) invocation.getArgument(0));
+                var mapper = (RowMapper) invocation.getArgument(1);
+                if (sql.contains("FROM multi_kiosk_definitions")) {
+                    return List.of(mapper.mapRow(definitionRow(null, null), 0));
+                }
+                if (sql.contains("FROM multi_kiosk_sessions session")) {
+                    return List.of(mapper.mapRow(sessionRow(), 0));
+                }
+                return List.of();
+            });
+        var launch = Map.<String, Object>of("kiosk_session_id", "child-session");
+        var workspace = Map.<String, Object>of("experience_status", "READY");
+        var action = new KioskDispatchResult(
+            Map.of("result_status", "success"), "child-session", "attendance.punch.create@1");
+        given(dashboard.createMobileSession(
+            any(AuthSessionUser.class), org.mockito.ArgumentMatchers.eq(44L),
+            org.mockito.ArgumentMatchers.eq(17L), org.mockito.ArgumentMatchers.eq("browser-session")))
+            .willReturn(launch);
+        given(dashboard.mobileWorkspace(
+            any(AuthSessionUser.class), org.mockito.ArgumentMatchers.eq(44L),
+            org.mockito.ArgumentMatchers.eq(17L), org.mockito.ArgumentMatchers.eq("child-token"),
+            org.mockito.ArgumentMatchers.eq("browser-session")))
+            .willReturn(workspace);
+        given(dashboard.executeMobileAction(
+            any(AuthSessionUser.class), org.mockito.ArgumentMatchers.eq(44L),
+            org.mockito.ArgumentMatchers.eq(17L),
+            org.mockito.ArgumentMatchers.eq("attendance.punch.create@1"),
+            org.mockito.ArgumentMatchers.eq("child-token"),
+            org.mockito.ArgumentMatchers.eq("browser-session"),
+            org.mockito.ArgumentMatchers.eq(Map.of("event_type", "check_in")),
+            org.mockito.ArgumentMatchers.eq("idempotency-key")))
+            .willReturn(action);
+
+        assertThat(service.launchChild(
+            "public-token", "parent-session", 17L, "browser-session")).isSameAs(launch);
+        assertThat(service.childWorkspace(
+            "public-token", "parent-session", "child-token", 17L, "browser-session"))
+            .isSameAs(workspace);
+        assertThat(service.childAction(
+            "public-token", "parent-session", "child-token", 17L,
+            "attendance.punch.create@1", "browser-session",
+            Map.of("event_type", "check_in"), "idempotency-key"))
+            .isSameAs(action);
+
+        verify(dashboard, never()).listForMultiKiosk(
+            any(AuthSessionUser.class), org.mockito.ArgumentMatchers.anyLong());
+        verify(dashboard).createMobileSession(
+            any(AuthSessionUser.class), org.mockito.ArgumentMatchers.eq(44L),
+            org.mockito.ArgumentMatchers.eq(17L), org.mockito.ArgumentMatchers.eq("browser-session"));
+        verify(dashboard).mobileWorkspace(
+            any(AuthSessionUser.class), org.mockito.ArgumentMatchers.eq(44L),
+            org.mockito.ArgumentMatchers.eq(17L), org.mockito.ArgumentMatchers.eq("child-token"),
+            org.mockito.ArgumentMatchers.eq("browser-session"));
+        verify(dashboard).executeMobileAction(
+            any(AuthSessionUser.class), org.mockito.ArgumentMatchers.eq(44L),
+            org.mockito.ArgumentMatchers.eq(17L),
+            org.mockito.ArgumentMatchers.eq("attendance.punch.create@1"),
+            org.mockito.ArgumentMatchers.eq("child-token"),
+            org.mockito.ArgumentMatchers.eq("browser-session"),
+            org.mockito.ArgumentMatchers.eq(Map.of("event_type", "check_in")),
+            org.mockito.ArgumentMatchers.eq("idempotency-key"));
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
     void createIgnoresLegacyParentScopeAndReportsCompanyPinPopulation() throws Exception {
         given(employeeAccess.catalog(7L)).willReturn(List.of(Map.of(
             "id", 17L,

@@ -69,7 +69,7 @@ class ProcessTaskKioskAdapterTest {
     }
 
     @Test
-    void nativeTaskToolIsSignedAndLimitedToReadAndComplete() {
+    void nativeTaskToolIsSignedAndLimitedToReadCreateAndComplete() {
         var nativeTool = nativeToolDefinition();
         var unsignedDefinition = new KioskResolvedDefinition(
             18L, 7L, ProcessTaskKioskCapabilities.OWNER_MODULE,
@@ -84,6 +84,7 @@ class ProcessTaskKioskAdapterTest {
             .extracting(capability -> capability.key())
             .containsExactlyInAnyOrder(
                 ProcessTaskKioskCapabilities.TASKS_READ,
+                ProcessTaskKioskCapabilities.TASK_CREATE,
                 ProcessTaskKioskCapabilities.TASK_COMPLETE);
     }
 
@@ -167,24 +168,80 @@ class ProcessTaskKioskAdapterTest {
     }
 
     @Test
-    void mobileMultiKioskActionUsesTheEmployeeServiceAndPublicLinkCannotUseIt() {
+    void employeeBootstrapRequiresTheVersionedReadCapability() {
+        var contextWithoutRead = employeeContext(
+            KioskExecutionChannels.MOBILE_MULTI_KIOSK,
+            Set.of(ProcessTaskKioskCapabilities.TASK_COMPLETE + "@1"));
+
+        assertThatThrownBy(() -> adapter.employeeBootstrap(contextWithoutRead))
+            .isInstanceOf(SecurityException.class)
+            .hasMessageContaining(ProcessTaskKioskCapabilities.TASKS_READ + "@1");
+
+        then(kioskService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void nativeMobileMultiKioskCanCreateOnlyWithItsGrantedCapability() {
         var payload = Map.<String, Object>of("title", "Inspect equipment");
         var response = Map.<String, Object>of("id", 42L);
-        given(kioskService.employeeCreateTask(employeeDefinition(), 9L, payload))
+        var nativeDefinition = nativeToolDefinition();
+        var nativeContext = employeeContext(
+            nativeDefinition,
+            KioskExecutionChannels.MOBILE_MULTI_KIOSK,
+            Set.of(
+                ProcessTaskKioskCapabilities.TASKS_READ + "@1",
+                ProcessTaskKioskCapabilities.TASK_CREATE + "@1"));
+        given(kioskService.employeeCreateTask(nativeDefinition, 9L, payload))
             .willReturn(response);
 
         assertThat(adapter.executeEmployee(
-            employeeContext(KioskExecutionChannels.MOBILE_MULTI_KIOSK),
+            nativeContext,
             KioskActionRequest.of(ProcessTaskKioskCapabilities.TASK_CREATE, payload)))
             .isSameAs(response);
-        then(kioskService).should().employeeCreateTask(employeeDefinition(), 9L, payload);
+        then(kioskService).should().employeeCreateTask(nativeDefinition, 9L, payload);
         then(kioskService).shouldHaveNoMoreInteractions();
+
+        var missingCreateGrant = employeeContext(
+            nativeDefinition,
+            KioskExecutionChannels.MOBILE_MULTI_KIOSK,
+            Set.of(ProcessTaskKioskCapabilities.TASKS_READ + "@1"));
+        assertThatThrownBy(() -> adapter.executeEmployee(
+            missingCreateGrant,
+            KioskActionRequest.of(ProcessTaskKioskCapabilities.TASK_CREATE, payload)))
+            .isInstanceOf(SecurityException.class)
+            .hasMessageContaining(ProcessTaskKioskCapabilities.TASK_CREATE + "@1");
 
         assertThatThrownBy(() -> adapter.executeEmployee(
             context,
             KioskActionRequest.of(ProcessTaskKioskCapabilities.TASK_CREATE, payload)))
             .isInstanceOf(SecurityException.class)
             .hasMessageContaining("employee kiosk session");
+    }
+
+    @Test
+    void nativeTaskToolNeverExposesResponsibleOrEvidenceMutations() {
+        var nativeDefinition = nativeToolDefinition();
+        var maliciousContext = employeeContext(
+            nativeDefinition,
+            KioskExecutionChannels.MOBILE_MULTI_KIOSK,
+            Set.of(
+                ProcessTaskKioskCapabilities.TASK_RESPONSIBLE_ASSIGN + "@1",
+                ProcessTaskKioskCapabilities.TASK_ATTACHMENT_REGISTER + "@1"));
+
+        assertThatThrownBy(() -> adapter.executeEmployee(
+            maliciousContext,
+            KioskActionRequest.forResource(
+                ProcessTaskKioskCapabilities.TASK_RESPONSIBLE_ASSIGN, 42L, Map.of())))
+            .isInstanceOf(SecurityException.class)
+            .hasMessageContaining("not available");
+        assertThatThrownBy(() -> adapter.executeEmployee(
+            maliciousContext,
+            KioskActionRequest.forResource(
+                ProcessTaskKioskCapabilities.TASK_ATTACHMENT_REGISTER, 42L, Map.of())))
+            .isInstanceOf(SecurityException.class)
+            .hasMessageContaining("not available");
+
+        then(kioskService).shouldHaveNoInteractions();
     }
 
     private KioskResolvedDefinition employeeDefinition() {
@@ -205,10 +262,22 @@ class ProcessTaskKioskAdapterTest {
     }
 
     private KioskExecutionContext employeeContext(String channel) {
-        var definition = employeeDefinition();
+        return employeeContext(
+            channel,
+            Set.of(ProcessTaskKioskCapabilities.TASKS_READ + "@1"));
+    }
+
+    private KioskExecutionContext employeeContext(String channel, Set<String> grantedCapabilities) {
+        return employeeContext(employeeDefinition(), channel, grantedCapabilities);
+    }
+
+    private KioskExecutionContext employeeContext(
+            KioskResolvedDefinition definition,
+            String channel,
+            Set<String> grantedCapabilities) {
         var session = new KioskSessionPrincipal(
             "session-1", definition.id(), definition.companyId(), "USER", 9L,
-            Set.of(ProcessTaskKioskCapabilities.TASKS_READ + "@1"),
+            grantedCapabilities,
             Instant.now().plusSeconds(600));
         return new KioskExecutionContext(
             definition.ownerModule(), channel, "definition:" + definition.id(),

@@ -43,6 +43,7 @@ public class ProcessTaskKioskAdapter implements KioskModuleAdapter {
         return capabilities().stream()
             .filter(capability -> Set.of(
                 ProcessTaskKioskCapabilities.TASKS_READ,
+                ProcessTaskKioskCapabilities.TASK_CREATE,
                 ProcessTaskKioskCapabilities.TASK_COMPLETE
             ).contains(capability.key()))
             .collect(Collectors.toUnmodifiableSet());
@@ -79,6 +80,7 @@ public class ProcessTaskKioskAdapter implements KioskModuleAdapter {
     @Override
     public Map<String, Object> employeeBootstrap(KioskExecutionContext context) {
         requireEmployeeContext(context);
+        requireGrantedEmployeeCapability(context, ProcessTaskKioskCapabilities.TASKS_READ);
         return kioskService.employeeBootstrap(context.definition(), context.session().identityId());
     }
 
@@ -140,11 +142,13 @@ public class ProcessTaskKioskAdapter implements KioskModuleAdapter {
         if (isNativeEmployeeTasksTool(context.definition())
                 && !Set.of(
                     ProcessTaskKioskCapabilities.TASKS_READ,
+                    ProcessTaskKioskCapabilities.TASK_CREATE,
                     ProcessTaskKioskCapabilities.TASK_COMPLETE
                 ).contains(request.capabilityKey())) {
             throw new SecurityException(
                 "Process capability is not available for this employee tool.");
         }
+        requireGrantedEmployeeCapability(context, request.capabilityKey());
         var userId = context.session().identityId();
         return switch (request.capabilityKey()) {
             case ProcessTaskKioskCapabilities.TASKS_READ -> Map.of(
@@ -183,6 +187,14 @@ public class ProcessTaskKioskAdapter implements KioskModuleAdapter {
             && KioskEmployeeToolCatalogService.MY_TASKS_KIOSK_TYPE.equals(definition.kioskType())
             && KioskEmployeeToolCatalogService.MY_TASKS_RESERVED_CODE.equals(definition.code())
             && definition.legacyReferenceId() == null;
+    }
+
+    private void requireGrantedEmployeeCapability(KioskExecutionContext context, String capabilityKey) {
+        var versionedCapability = ProcessTaskKioskCapabilities.require(capabilityKey).versionedKey();
+        var grantedCapabilities = context.session().grantedCapabilities();
+        if (grantedCapabilities == null || !grantedCapabilities.contains(versionedCapability)) {
+            throw new SecurityException("Kiosk capability is not granted: " + versionedCapability + ".");
+        }
     }
 
     private void requireContext(KioskExecutionContext context) {

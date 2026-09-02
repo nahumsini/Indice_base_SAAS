@@ -17,18 +17,25 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class AttendanceEmployeeKioskServiceTest {
 
     @Mock private HrAttendanceService attendance;
     @Mock private KioskRegistryService registry;
+    @Mock private AttendanceKioskDeviceRepository devices;
 
     private AttendanceEmployeeKioskService service;
 
     @BeforeEach
     void setUp() {
-        service = new AttendanceEmployeeKioskService(attendance, registry);
+        service = new AttendanceEmployeeKioskService(attendance, registry, devices);
+        org.mockito.Mockito.lenient().when(devices.get(7L, 31L)).thenReturn(activeDevice());
+        org.mockito.Mockito.lenient().when(registry.publicTokenRecoverable(7L, 17L))
+            .thenReturn(true);
     }
 
     @Test
@@ -37,7 +44,6 @@ class AttendanceEmployeeKioskServiceTest {
         var response = Map.<String, Object>of(
             "authentication", "ENGINE_PIN_SESSION",
             "identity_evidence_required", true);
-        given(registry.publicTokenRecoverable(7L, 17L)).willReturn(true);
         given(registry.recoverPublicToken(7L, "HUMAN_RESOURCES", "business_unit", 31L))
             .willReturn("private-attendance-token");
         given(attendance.employeeKioskBootstrap("private-attendance-token", 7L, 501L))
@@ -62,7 +68,6 @@ class AttendanceEmployeeKioskServiceTest {
         var response = Map.<String, Object>of(
             "event_id", 901L,
             "identity_evidence", "face_verified");
-        given(registry.publicTokenRecoverable(7L, 17L)).willReturn(true);
         given(registry.recoverPublicToken(7L, "HUMAN_RESOURCES", "business_unit", 31L))
             .willReturn("private-attendance-token");
         given(attendance.employeeKioskIdentificationToken(
@@ -83,8 +88,6 @@ class AttendanceEmployeeKioskServiceTest {
 
     @Test
     void rejectsEmployeePunchWhenOnlyClientMetadataClaimsAPhotoWasCaptured() {
-        given(registry.publicTokenRecoverable(7L, 17L)).willReturn(true);
-
         assertThatThrownBy(() -> service.execute(
             definition(), 501L,
             KioskActionRequest.of(
@@ -102,8 +105,6 @@ class AttendanceEmployeeKioskServiceTest {
 
     @Test
     void rejectsIdentityVerificationBecauseTheParentPinAlreadyIdentifiedTheEmployee() {
-        given(registry.publicTokenRecoverable(7L, 17L)).willReturn(true);
-
         assertThatThrownBy(() -> service.execute(
             definition(), 501L,
             KioskActionRequest.of(
@@ -114,10 +115,74 @@ class AttendanceEmployeeKioskServiceTest {
 
     }
 
+    @Test
+    void repairsTheTenantScopedActiveAttendanceDeviceBeforeDeclaringSupport() {
+        given(registry.publicTokenRecoverable(7L, 17L)).willReturn(false);
+        given(registry.repairLegacyPublicTokenRecoveryMaterial(
+            7L, 17L, "HUMAN_RESOURCES", "business_unit", 31L,
+            "private-attendance-token")).willReturn(true);
+
+        assertThat(service.supports(definition())).isTrue();
+
+        then(devices).should().get(7L, 31L);
+        then(registry).should(times(1)).publicTokenRecoverable(7L, 17L);
+        then(registry).should(times(1)).repairLegacyPublicTokenRecoveryMaterial(
+            7L, 17L, "HUMAN_RESOURCES", "business_unit", 31L,
+            "private-attendance-token");
+    }
+
+    @Test
+    void existingRecoveryMaterialUsesTheNonBlockingFastPathWithoutRepair() {
+        given(registry.publicTokenRecoverable(7L, 17L)).willReturn(true);
+
+        assertThat(service.supports(definition())).isTrue();
+
+        then(devices).should().get(7L, 31L);
+        then(registry).should(times(1)).publicTokenRecoverable(7L, 17L);
+        then(registry).should(never()).repairLegacyPublicTokenRecoveryMaterial(
+            org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong(),
+            org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void inactiveAttendanceDeviceIsNotSupportedAndNeverRepairsRecoveryMaterial() {
+        given(devices.get(7L, 31L)).willReturn(device("inactive"));
+
+        assertThat(service.supports(definition())).isFalse();
+
+        then(registry).should(never()).publicTokenRecoverable(
+            org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong());
+        then(registry).should(never()).repairLegacyPublicTokenRecoveryMaterial(
+            org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong(),
+            org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void mismatchedLegacyRecoveryMaterialFailsClosed() {
+        given(registry.publicTokenRecoverable(7L, 17L)).willReturn(false);
+        given(registry.repairLegacyPublicTokenRecoveryMaterial(
+            7L, 17L, "HUMAN_RESOURCES", "business_unit", 31L,
+            "private-attendance-token")).willReturn(false);
+
+        assertThat(service.supports(definition())).isFalse();
+    }
+
     private KioskResolvedDefinition definition() {
         return new KioskResolvedDefinition(
             17L, 7L, AttendanceKioskCapabilities.OWNER_MODULE, "business_unit", 31L,
             "RH-01", "Acceso principal", KioskDefinitionStatus.ACTIVE,
             2L, 3L, 4L, KioskAccessLevel.CONTROLLED, null, "tokenhint", true, 1, 1);
+    }
+
+    private KioskDeviceRow activeDevice() {
+        return device("active");
+    }
+
+    private KioskDeviceRow device(String status) {
+        return new KioskDeviceRow(
+            31L, 7L, 2L, "Unit", 3L, "Business", 4L, "Location",
+            "RH-01", "Acceso principal", status, "private-attendance-token", "{}");
     }
 }

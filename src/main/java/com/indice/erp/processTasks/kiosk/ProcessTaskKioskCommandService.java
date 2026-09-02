@@ -49,6 +49,49 @@ class ProcessTaskKioskCommandService {
         return Map.of("task", task, "items", queries.listTasks(context.kiosk(), context.employee()));
     }
 
+    /**
+     * Native employee capture accepts only task content. Assignment and organization scope are
+     * derived from the authenticated membership so client payloads cannot delegate or widen it.
+     */
+    @Transactional
+    Map<String, Object> createForSelf(
+            ProcessTaskPublicKioskContext context,
+            Map<String, Object> payload) {
+        var normalized = payload == null ? Map.<String, Object>of() : payload;
+        var title = text(normalized, "title");
+        if (title.isBlank()) {
+            throw new IllegalArgumentException("title is required.");
+        }
+        if (title.length() > 220) {
+            throw new IllegalArgumentException("title must contain 220 characters or fewer.");
+        }
+        var description = nullable(normalized, "description");
+        if (description != null && description.length() > 2000) {
+            throw new IllegalArgumentException("description must contain 2000 characters or fewer.");
+        }
+
+        var safePayload = new LinkedHashMap<String, Object>();
+        safePayload.put("title", title);
+        safePayload.put("description", description);
+        var priority = fallback(text(normalized, "priority"), "medium")
+            .toLowerCase(java.util.Locale.ROOT);
+        if (!List.of("low", "medium", "high").contains(priority)) {
+            throw new IllegalArgumentException("priority is invalid.");
+        }
+        safePayload.put("priority", priority);
+        var dueDateValue = nullable(normalized, "dueDate", "due_date");
+        if (dueDateValue != null) {
+            try {
+                safePayload.put("dueDate", LocalDate.parse(dueDateValue).toString());
+            } catch (java.time.format.DateTimeParseException invalidDate) {
+                throw new IllegalArgumentException("due_date must be an ISO date.", invalidDate);
+            }
+        }
+        safePayload.put("assignedUserCompanyId", context.employee().userCompanyId());
+        safePayload.put("assignedName", context.employee().fullName());
+        return create(context, safePayload);
+    }
+
     @Transactional
     Map<String, Object> assignResponsible(
             ProcessTaskPublicKioskContext context,
@@ -109,8 +152,15 @@ class ProcessTaskKioskCommandService {
         var percent = integer(normalized, "completion_percent", "completionPercent", "completion");
         percent = percent == null ? 100 : Math.max(0, Math.min(100, percent));
         var sharedTask = processTasksService.getTask(context.kiosk().companyId(), taskId);
+        var currentAssignment = currentAssignment(sharedTask, context.employee().userCompanyId());
+        if ("team".equals(sharedTask.get("assignmentMode")) && currentAssignment == null) {
+            throw new IllegalStateException("The current team assignment could not be resolved.");
+        }
         if ("team".equals(sharedTask.get("assignmentMode"))
-                && !"lead".equals(currentAssignmentRole(sharedTask, context.employee().userCompanyId()))) {
+                && !"lead".equals(currentAssignment.role())) {
+            if ("ready".equals(currentAssignment.contributionStatus())) {
+                throw new IllegalStateException("This contribution is already ready for review.");
+            }
             processTasksService.updateCurrentUserContribution(
                 context.kiosk().companyId(),
                 context.employee().userId(),
@@ -121,6 +171,8 @@ class ProcessTaskKioskCommandService {
                 "has_completion_notes", !notes.isBlank()
             ));
             return Map.of(
+                "action_outcome", "CONTRIBUTION_READY",
+                "current_contribution_status", "ready",
                 "task", queries.visibleTask(context.kiosk(), context.employee(), taskId),
                 "items", queries.listTasks(context.kiosk(), context.employee())
             );
@@ -142,10 +194,14 @@ class ProcessTaskKioskCommandService {
         completed.put("status", "completed");
         completed.put("completion_percent", percent);
         completed.put("completion_notes", notes.isBlank() ? null : notes);
-        return Map.of("task", completed, "items", queries.listTasks(context.kiosk(), context.employee()));
+        return Map.of(
+            "action_outcome", "TASK_COMPLETED",
+            "task", completed,
+            "items", queries.listTasks(context.kiosk(), context.employee())
+        );
     }
 
-    private String currentAssignmentRole(Map<String, Object> task, long userCompanyId) {
+    private CurrentAssignment currentAssignment(Map<String, Object> task, long userCompanyId) {
         var assignees = task.get("assignees");
         if (!(assignees instanceof Iterable<?> values)) {
             return null;
@@ -155,10 +211,20 @@ class ProcessTaskKioskCommandService {
                 continue;
             }
             if (Objects.equals(number(member.get("userCompanyId")), userCompanyId)) {
-                return String.valueOf(member.get("role"));
+                return new CurrentAssignment(
+                    normalizedMemberValue(member.get("role")),
+                    normalizedMemberValue(member.get("contributionStatus"))
+                );
             }
         }
         return null;
+    }
+
+    private String normalizedMemberValue(Object value) {
+        return value == null ? null : String.valueOf(value).trim().toLowerCase();
+    }
+
+    private record CurrentAssignment(String role, String contributionStatus) {
     }
 
     private Map<String, Object> createPayload(

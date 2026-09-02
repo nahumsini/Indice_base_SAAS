@@ -67,12 +67,13 @@ public class KioskEmployeeToolCatalogService {
             MY_TASKS_KIOSK_TYPE,
             MY_TASKS_RESERVED_CODE,
             "Mis tareas",
-            "Consulta y completa únicamente tareas visibles para el colaborador.",
+            "Consulta, registra y completa únicamente tareas propias del colaborador.",
             "MY_TASKS",
             "process-tasks",
             Set.of("processes.calendar"),
             Set.of(
                 ProcessTaskKioskCapabilities.TASKS_READ + "@1",
+                ProcessTaskKioskCapabilities.TASK_CREATE + "@1",
                 ProcessTaskKioskCapabilities.TASK_COMPLETE + "@1")
         )
     );

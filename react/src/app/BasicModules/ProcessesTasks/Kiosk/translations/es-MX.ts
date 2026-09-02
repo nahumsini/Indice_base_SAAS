@@ -104,6 +104,9 @@ export const esMX = {
     priorityLow: 'Baja',
     priorityMedium: 'Media',
     priorityHigh: 'Alta',
+    selfDescription: 'Captura una tarea rápida para ti. Índice aplica automáticamente tu alcance operativo vigente.',
+    selfAssignment: (employeeName: string, scopeLabel: string) => `Asignada a ${employeeName} · ${scopeLabel}`,
+    submitting: 'Creando tarea...',
     submit: 'Crear tarea',
   },
   responsible: {
@@ -117,6 +120,11 @@ export const esMX = {
     updating: 'Actualizando responsable...',
   },
   selectedTask: {
+    markContributionReady: 'Marcar mi parte como lista',
+    contributionDescription: 'Esta tarea es colaborativa. Tu actualización entrega tu parte al líder para revisión; no cierra la tarea completa.',
+    contributionNotes: 'Nota para el equipo',
+    contributionNotesPlaceholder: 'Resume lo que terminaste o cualquier pendiente.',
+    contributionReadyStatus: 'Tu parte ya está lista para revisión.',
     eyebrow: 'Tarea seleccionada',
     closeModal: 'Cerrar modal de tarea',
     completion: 'Avance',
@@ -140,6 +148,7 @@ export const esMX = {
     encouragementBody: 'Cierra solo el trabajo que realmente terminaste. Tu actualización se sincroniza con Indice.',
   },
   success: {
+    contributionReady: (taskTitle: string) => `${taskTitle}: tu parte quedó lista para revisión.`,
     completed: (taskTitle: string) => `${taskTitle} quedó cerrada.`,
     created: (taskTitle: string) => `${taskTitle} fue creada.`,
     responsibleUpdated: (taskTitle: string) => `${taskTitle} fue reasignada.`,
