@@ -106,6 +106,7 @@ echo "Expected public asset: ${expected_asset}"
 echo "App directory: ${APP_DIR}"
 
 docker cp "${FRONTEND_DIST}/." "${WEB_CONTAINER}:${WEB_HTML_DIR}/"
+docker exec --user 0 "${WEB_CONTAINER}" chmod -R a+rX "${WEB_HTML_DIR}"
 
 if [[ "${SYNC_WEB_NGINX_CONFIG}" == "true" && -f "${WEB_NGINX_CONFIG}" ]]; then
   echo "Publishing web nginx config to ${WEB_CONTAINER}:${WEB_NGINX_CONFIG_TARGET}"
@@ -123,6 +124,11 @@ if [[ "${container_asset}" != "${expected_asset}" ]]; then
   echo "Container asset mismatch." >&2
   echo "Expected: ${expected_asset}" >&2
   echo "Actual:   ${container_asset:-<empty>}" >&2
+  exit 1
+fi
+
+if ! docker exec "${WEB_CONTAINER}" test -r "${WEB_HTML_DIR}${expected_asset}"; then
+  echo "The web runtime user cannot read ${WEB_HTML_DIR}${expected_asset}." >&2
   exit 1
 fi
 
