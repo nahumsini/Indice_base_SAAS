@@ -31,7 +31,11 @@ export const frCA = {
     uncategorized: 'Sans categorie',
     allTypes: 'Tous les types',
     allStatuses: 'Tous les statuts',
+    readiness: 'Préparation commerciale',
+    allReadiness: 'Tous les états',
+    readinessOptions: { READY: 'Prêt pour les ventes', REQUIRES_REVIEW: 'À réviser', NOT_READY: 'Non prêt pour les ventes' },
   },
+  deleteDialog: { title: 'Supprimer cet article?', description: 'Il sera retiré du catalogue partagé. Les documents existants conservent leur historique.', confirm: 'Supprimer', deleting: 'Suppression...', error: "L'article n'a pas pu être supprimé. Il est peut-être utilisé ou vous n'avez pas la permission." },
   metrics: {
     activeItems: 'articles actifs',
     inventoryValue: 'valeur d inventaire',

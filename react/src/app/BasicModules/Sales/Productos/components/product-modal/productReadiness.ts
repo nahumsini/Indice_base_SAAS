@@ -1,4 +1,5 @@
 import type { ProductFormState } from '../../types/productosTypes';
+import { deriveProductSalesReadiness } from '../../../utils/productSalesReadiness';
 
 export type ProductUsageKey = 'sales' | 'pos' | 'inventory';
 export type ProductReadinessKey = 'quoteReady' | 'posReady' | 'inventoryControlled' | 'requiresReview';
@@ -11,25 +12,34 @@ export function isReadyForPos(form: ProductFormState) {
   return form.visibility === 'POS ready';
 }
 
+function getFormSalesReadiness(form: ProductFormState) {
+  return deriveProductSalesReadiness({
+    status: form.status,
+    visibility: form.visibility,
+    type: form.type,
+    price: Number(form.price),
+  });
+}
+
 export function getUsageReadiness(form: ProductFormState): Record<ProductUsageKey, boolean> {
+  const salesReadiness = getFormSalesReadiness(form);
   return {
-    sales: isReadyForSales(form),
-    pos: isReadyForPos(form),
+    sales: salesReadiness.readyForSales,
+    pos: salesReadiness.readyForSales && isReadyForPos(form),
     inventory: form.usesInventory,
   };
 }
 
 export function getReadinessStates(form: ProductFormState): Record<ProductReadinessKey, boolean> {
   const hasName = Boolean(form.name.trim());
-  const hasFinalPrice = Number(form.price) > 0;
-  const isActive = form.status === 'Active';
-  const readyForSales = isReadyForSales(form);
+  const salesReadiness = getFormSalesReadiness(form);
+  const salesChannelEnabled = isReadyForSales(form);
   const readyForPos = isReadyForPos(form);
 
   return {
-    quoteReady: hasName && hasFinalPrice && isActive && readyForSales,
-    posReady: hasName && hasFinalPrice && isActive && readyForPos,
+    quoteReady: hasName && salesReadiness.readyForSales,
+    posReady: hasName && salesReadiness.readyForSales && readyForPos,
     inventoryControlled: form.usesInventory,
-    requiresReview: !hasName || (readyForSales && !hasFinalPrice) || (readyForPos && !hasFinalPrice),
+    requiresReview: !hasName || (salesChannelEnabled && !salesReadiness.readyForSales),
   };
 }

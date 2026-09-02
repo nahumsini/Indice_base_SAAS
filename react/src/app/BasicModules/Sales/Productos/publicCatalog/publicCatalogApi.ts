@@ -2,6 +2,8 @@ import { apiClient } from '../../../../lib/apiClient';
 import type { PublicCatalogAvailability, PublicCatalogConfig, PublicCatalogItem, PublicCatalogContactMethod } from './types/publicCatalogTypes';
 import type { DiscountRuleWire } from '../../../PointOfSale/shared/commercial/discounts/services/discountRulesApi';
 import { resolveSalesStorageUrl } from '../../utils/salesStorageUrls';
+import type { SalesCatalogItem } from '../../types';
+import { getProductSalesReadiness } from '../../utils/productSalesReadiness';
 
 type AdminCatalog = {
   id: number;
@@ -183,7 +185,7 @@ export const toPublicCatalogConfig = (catalog: AdminCatalog): PublicCatalogConfi
   updatedAt: catalog.updatedAt,
 });
 
-const payload = (config: PublicCatalogConfig, products: Array<{ id: string; backendId?: number }>) => ({
+const payload = (config: PublicCatalogConfig, products: SalesCatalogItem[]) => ({
   unitId: config.unitId,
   businessId: config.businessId,
   name: config.title,
@@ -202,10 +204,12 @@ const payload = (config: PublicCatalogConfig, products: Array<{ id: string; back
   allowCart: config.allowCart,
   allowPurchaseRequest: config.allowPurchaseRequest,
   allowImageDownloads: config.allowImageDownloads,
-  productIds: config.selectedProductIds.map((id) => {
+  productIds: config.selectedProductIds.flatMap((id) => {
     const product = products.find((candidate) => candidate.id === id);
-    return product?.backendId ?? Number(id);
-  }).filter((id) => Number.isFinite(id) && id > 0),
+    if (!product || !getProductSalesReadiness(product).readyForSales) return [];
+    const backendId = product.backendId ?? Number(id);
+    return Number.isFinite(backendId) && backendId > 0 ? [backendId] : [];
+  }),
   version: config.version,
 });
 
@@ -215,7 +219,7 @@ export const publicCatalogApi = {
     return response.map(toPublicCatalogConfig);
   },
 
-  async createAdmin(config: PublicCatalogConfig, products: Array<{ id: string; backendId?: number }>) {
+  async createAdmin(config: PublicCatalogConfig, products: SalesCatalogItem[]) {
     const response = await apiClient<AdminCatalog>(adminPath, {
       method: 'POST',
       body: JSON.stringify(payload(config, products)),
@@ -223,7 +227,7 @@ export const publicCatalogApi = {
     return toPublicCatalogConfig(response);
   },
 
-  async updateAdmin(config: PublicCatalogConfig, products: Array<{ id: string; backendId?: number }>) {
+  async updateAdmin(config: PublicCatalogConfig, products: SalesCatalogItem[]) {
     const response = await apiClient<AdminCatalog>(`${adminPath}/${config.backendId}`, {
       method: 'PUT',
       body: JSON.stringify(payload(config, products)),

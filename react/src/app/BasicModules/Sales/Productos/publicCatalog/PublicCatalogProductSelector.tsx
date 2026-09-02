@@ -1,13 +1,21 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '../../../../components/ui/button';
 import { Checkbox } from '../../../../components/ui/checkbox';
 import { Input } from '../../../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select';
-import type { SalesCatalogItem } from '../../types';
+import type { SalesCatalogItem, SalesReadinessReason } from '../../types';
 import { productStatuses, productTypes } from '../../types';
+import { getProductSalesReadiness } from '../../utils/productSalesReadiness';
 import type { ProductsTranslations } from '../translations';
 import { getCategoryLabel } from '../utils/productCategories';
-import { isProductReadyForPublicCatalog } from './utils/publicCatalogAdapters';
+
+function readinessReasonLabel(reason: SalesReadinessReason, t: ProductsTranslations) {
+  if (reason === 'DRAFT') return t.statusLabels.Draft;
+  if (reason === 'INACTIVE') return t.statusLabels.Inactive;
+  if (reason === 'INTERNAL') return t.visibilityLabels.Internal;
+  if (reason === 'OPERATIONAL_ITEM') return t.typeLabels['Operational item'];
+  return t.healthWarnings.missingPrice;
+}
 
 export function PublicCatalogProductSelector({
   products,
@@ -29,7 +37,17 @@ export function PublicCatalogProductSelector({
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const categories = useMemo(() => Array.from(new Set(products.map((product) => product.category))), [products]);
-  const readyProducts = useMemo(() => products.filter(isProductReadyForPublicCatalog), [products]);
+  const readyProducts = useMemo(
+    () => products.filter((product) => getProductSalesReadiness(product).readyForSales),
+    [products],
+  );
+  const readyProductIds = useMemo(() => new Set(readyProducts.map((product) => product.id)), [readyProducts]);
+  useEffect(() => {
+    const sanitizedIds = selectedProductIds.filter((id) => readyProductIds.has(id));
+    if (sanitizedIds.length !== selectedProductIds.length) {
+      onSelectedProductIdsChange(sanitizedIds);
+    }
+  }, [onSelectedProductIdsChange, readyProductIds, selectedProductIds]);
   const visibleProducts = useMemo(() => {
     const normalizedSearch = productSearch.trim().toLowerCase();
 
@@ -45,6 +63,7 @@ export function PublicCatalogProductSelector({
   }, [categoryFilter, productSearch, products, statusFilter, typeFilter]);
 
   const toggleProduct = (productId: string) => {
+    if (!readyProductIds.has(productId)) return;
     onSelectedProductIdsChange(
       selectedProductIds.includes(productId)
         ? selectedProductIds.filter((id) => id !== productId)
@@ -119,15 +138,27 @@ export function PublicCatalogProductSelector({
       </div>
 
       <div className="mt-4 max-h-72 space-y-2 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-3">
-        {visibleProducts.map((product) => (
-          <label key={product.id} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3">
-            <Checkbox checked={selectedProductIds.includes(product.id)} onCheckedChange={() => toggleProduct(product.id)} />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate font-medium text-slate-950">{product.name}</span>
-              <span className="block text-xs font-medium text-slate-500">{product.sku} - {t.typeLabels[product.type]}</span>
-            </span>
-          </label>
-        ))}
+        {visibleProducts.map((product) => {
+          const readiness = getProductSalesReadiness(product);
+          return (
+            <label key={product.id} className={`flex items-center gap-3 rounded-lg border bg-white p-3 ${readiness.readyForSales ? 'border-slate-200' : 'cursor-not-allowed border-amber-200 bg-amber-50/50'}`}>
+              <Checkbox
+                checked={readiness.readyForSales && selectedProductIds.includes(product.id)}
+                disabled={!readiness.readyForSales}
+                onCheckedChange={() => toggleProduct(product.id)}
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium text-slate-950">{product.name}</span>
+                <span className="block text-xs font-medium text-slate-500">{product.sku} - {t.typeLabels[product.type]}</span>
+                {!readiness.readyForSales ? (
+                  <span className="mt-1 block text-xs font-medium text-amber-800">
+                    {t.filters.readinessOptions[readiness.status]}: {readiness.reasons.map((reason) => readinessReasonLabel(reason, t)).join(' · ')}
+                  </span>
+                ) : null}
+              </span>
+            </label>
+          );
+        })}
       </div>
     </section>
   );

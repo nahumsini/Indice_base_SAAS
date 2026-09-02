@@ -56,6 +56,7 @@ export type SalesCrmContextValue = {
   updateProduct: (productId: string, patch: UpdateProductInput) => void;
   createProductRecord: (product: CreateProductInput) => Promise<SalesCatalogItem>;
   updateProductRecord: (productId: string, patch: UpdateProductInput) => Promise<SalesCatalogItem>;
+  deleteProductRecord: (productId: string) => Promise<void>;
   reloadProducts: () => Promise<void>;
   reloadSalesRecords: () => Promise<void>;
   reloadAll: () => Promise<void>;

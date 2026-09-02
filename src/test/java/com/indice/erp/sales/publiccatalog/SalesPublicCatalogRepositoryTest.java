@@ -50,8 +50,50 @@ class SalesPublicCatalogRepositoryTest {
             .contains("JOIN sales_inventory_warehouses warehouse")
             .contains("warehouse.deleted_at IS NULL")
             .contains("TRIM(warehouse.business_unit_id) = CAST(? AS CHAR)")
-            .contains("TRIM(warehouse.business_id) = CAST(? AS CHAR)");
+            .contains("TRIM(warehouse.business_id) = CAST(? AS CHAR)")
+            .contains("IN ('commercial', 'pos_ready', 'quote_only')")
+            .contains("<> 'operational_item'")
+            .contains("product.price IS NOT NULL AND product.price > 0");
         assertThat(arguments.getValue()).containsExactly(11L, 12L, 7L, 17L, 7L);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    void validatesSelectedProductsWithTheSameCommercialReadinessContract() {
+        var jdbcTemplate = mock(JdbcTemplate.class);
+        var repository = new SalesPublicCatalogRepository(jdbcTemplate);
+        when(jdbcTemplate.queryForObject(any(String.class), any(Class.class), any(Object[].class)))
+            .thenReturn(1L);
+
+        assertThat(repository.productsArePublishable(7L, List.of(91L))).isTrue();
+
+        var sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).queryForObject(sql.capture(), any(Class.class), any(Object[].class));
+        assertThat(sql.getValue())
+            .contains("LOWER(TRIM(status)) = 'active'")
+            .contains("IN ('commercial', 'pos_ready', 'quote_only')")
+            .contains("<> 'operational_item'")
+            .contains("price IS NOT NULL AND price > 0");
+    }
+
+    @Test
+    void adminSelectionDropsDeletedOrNoLongerPublishableProducts() {
+        var jdbcTemplate = mock(JdbcTemplate.class);
+        var repository = new SalesPublicCatalogRepository(jdbcTemplate);
+        when(jdbcTemplate.queryForList(any(String.class), any(Class.class), any(Object[].class)))
+            .thenReturn(List.of(91L));
+
+        assertThat(repository.productIds(7L, 17L)).containsExactly(91L);
+
+        var sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).queryForList(sql.capture(), any(Class.class), any(Object[].class));
+        assertThat(sql.getValue())
+            .contains("JOIN sales_products product")
+            .contains("product.deleted_at IS NULL")
+            .contains("LOWER(TRIM(product.status)) = 'active'")
+            .contains("IN ('commercial', 'pos_ready', 'quote_only')")
+            .contains("<> 'operational_item'")
+            .contains("product.price IS NOT NULL AND product.price > 0");
     }
 
     private SalesPublicCatalogRepository.CatalogRecord catalog() {

@@ -27,7 +27,11 @@ export const enCA = {
     uncategorized: 'Uncategorized',
     allTypes: 'All types',
     allStatuses: 'All statuses',
+    readiness: 'Sales readiness',
+    allReadiness: 'All readiness states',
+    readinessOptions: { READY: 'Ready for Sales', REQUIRES_REVIEW: 'Requires review', NOT_READY: 'Not ready for Sales' },
   },
+  deleteDialog: { title: 'Delete catalog item?', description: 'This removes the item from the shared catalog. Existing documents keep their historical snapshot.', confirm: 'Delete item', deleting: 'Deleting...', error: 'The item could not be deleted. It may be in use or you may not have permission.' },
   metrics: {
     activeItems: 'active items',
     inventoryValue: 'inventory value',

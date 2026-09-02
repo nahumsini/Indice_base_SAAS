@@ -209,9 +209,11 @@ export const enCA = {
     summary: 'Final review',
   },
   catalog: {
+    readinessFilters: { all: 'All products', READY: 'Ready for Sales', REQUIRES_REVIEW: 'Requires review', NOT_READY: 'Not ready for Sales' },
+    readinessReasons: { DRAFT: 'Draft', INACTIVE: 'Inactive', INTERNAL: 'Internal use', OPERATIONAL_ITEM: 'Operational item', MISSING_PRICE: 'Missing final price' },
     description: 'Reusable catalog items that are ready for quotes appear by default.',
     showNotReady: 'Show items not ready for sales',
-    empty: 'No catalog items are ready for sales with the current filter.',
+    empty: 'No products match the current filters.',
     usesInventory: 'Uses inventory',
     noInventory: 'No inventory',
     searchPlaceholder: 'Search by name, SKU, code, or category',

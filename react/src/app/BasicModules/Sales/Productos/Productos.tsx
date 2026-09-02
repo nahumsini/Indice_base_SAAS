@@ -8,6 +8,8 @@ import { ProductsHeader } from './components/ProductsHeader';
 import { ProductsInsightBar } from './components/ProductsInsightBar';
 import { ProductsKpiStrip } from './components/ProductsKpiStrip';
 import { ProductsViewTabs } from './components/ProductsViewTabs';
+import { IndiceConfirmationDialog } from '../../../components/indice-modal';
+import { AlertTriangle } from 'lucide-react';
 import { useProductsCatalog } from './hooks/useProductsCatalog';
 import { PublicCatalogConfigModal } from './publicCatalog/PublicCatalogConfigModal';
 import { ProductsCatalogTable } from './table/ProductsCatalogTable';
@@ -55,6 +57,7 @@ export default function Productos() {
         categoryFilter={catalog.categoryFilter}
         typeFilter={catalog.typeFilter}
         statusFilter={catalog.statusFilter}
+        readinessFilter={catalog.readinessFilter}
         categoryOptions={catalog.categoryOptions}
         typeOptions={catalog.typeOptions}
         statusOptions={catalog.statusOptions}
@@ -62,6 +65,7 @@ export default function Productos() {
         onCategoryFilterChange={catalog.setCategoryFilter}
         onTypeFilterChange={catalog.setTypeFilter}
         onStatusFilterChange={catalog.setStatusFilter}
+        onReadinessFilterChange={(value) => catalog.setReadinessFilter(value as typeof catalog.readinessFilter)}
       />
 
       <ProductsKpiStrip
@@ -130,6 +134,22 @@ export default function Productos() {
         onSubmit={catalog.handleSaveProduct}
         onQuickCreateCategory={catalog.handleQuickCreateCategory}
       />
+      <IndiceConfirmationDialog
+        open={Boolean(catalog.productPendingDeletion)}
+        busy={catalog.isDeletingProduct}
+        title={t.deleteDialog.title}
+        description={t.deleteDialog.description}
+        itemName={catalog.productPendingDeletion?.name}
+        cancelLabel={t.common.cancel}
+        confirmLabel={catalog.isDeletingProduct ? t.deleteDialog.deleting : t.deleteDialog.confirm}
+        destructive
+        tone="coral"
+        icon={<AlertTriangle className="h-5 w-5" />}
+        onCancel={catalog.handleCancelDeleteProduct}
+        onConfirm={() => void catalog.handleConfirmDeleteProduct()}
+      >
+        {catalog.productDeleteError ? <p className="text-sm font-medium text-red-600">{catalog.productDeleteError}</p> : null}
+      </IndiceConfirmationDialog>
 
       <ProductBulkIntegrationModal
         open={catalog.isBulkIntegrationOpen}

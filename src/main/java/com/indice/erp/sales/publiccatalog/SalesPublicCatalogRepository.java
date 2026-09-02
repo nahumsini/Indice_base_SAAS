@@ -178,9 +178,11 @@ public class SalesPublicCatalogRepository {
         var count = jdbcTemplate.queryForObject("""
             SELECT COUNT(DISTINCT id) FROM sales_products
             WHERE company_id = ? AND deleted_at IS NULL
-              AND LOWER(status) = 'active'
-              AND LOWER(COALESCE(visibility, 'public')) <> 'internal'
-              AND price IS NOT NULL AND price >= 0
+              AND LOWER(TRIM(status)) = 'active'
+              AND REPLACE(REPLACE(LOWER(TRIM(visibility)), '-', '_'), ' ', '_')
+                  IN ('commercial', 'pos_ready', 'quote_only')
+              AND REPLACE(REPLACE(LOWER(TRIM(type)), '-', '_'), ' ', '_') <> 'operational_item'
+              AND price IS NOT NULL AND price > 0
               AND currency IS NOT NULL AND CHAR_LENGTH(TRIM(currency)) = 3
               AND id IN (""" + placeholders + ")",
             Long.class, params.toArray());
@@ -217,8 +219,20 @@ public class SalesPublicCatalogRepository {
 
     public List<Long> productIds(long companyId, long catalogId) {
         return jdbcTemplate.queryForList("""
-            SELECT product_id FROM sales_public_catalog_products
-            WHERE company_id = ? AND catalog_id = ? ORDER BY sort_order, product_id
+            SELECT selected.product_id
+            FROM sales_public_catalog_products selected
+            JOIN sales_products product
+              ON product.id = selected.product_id
+             AND product.company_id = selected.company_id
+            WHERE selected.company_id = ? AND selected.catalog_id = ?
+              AND product.deleted_at IS NULL
+              AND LOWER(TRIM(product.status)) = 'active'
+              AND REPLACE(REPLACE(LOWER(TRIM(product.visibility)), '-', '_'), ' ', '_')
+                  IN ('commercial', 'pos_ready', 'quote_only')
+              AND REPLACE(REPLACE(LOWER(TRIM(product.type)), '-', '_'), ' ', '_') <> 'operational_item'
+              AND product.price IS NOT NULL AND product.price > 0
+              AND product.currency IS NOT NULL AND CHAR_LENGTH(TRIM(product.currency)) = 3
+            ORDER BY selected.sort_order, selected.product_id
             """, Long.class, companyId, catalogId);
     }
 
@@ -250,8 +264,10 @@ public class SalesPublicCatalogRepository {
             WHERE selected.company_id = ? AND selected.catalog_id = ?
               AND product.company_id = ? AND product.deleted_at IS NULL
               AND LOWER(product.status) = 'active'
-              AND LOWER(COALESCE(product.visibility, 'public')) <> 'internal'
-              AND product.price IS NOT NULL AND product.price >= 0
+              AND REPLACE(REPLACE(LOWER(TRIM(product.visibility)), '-', '_'), ' ', '_')
+                  IN ('commercial', 'pos_ready', 'quote_only')
+              AND REPLACE(REPLACE(LOWER(TRIM(product.type)), '-', '_'), ' ', '_') <> 'operational_item'
+              AND product.price IS NOT NULL AND product.price > 0
               AND product.currency IS NOT NULL AND CHAR_LENGTH(TRIM(product.currency)) = 3
             ORDER BY selected.sort_order, product.name
             """, this::mapPublicItem, catalog.unitId(), catalog.businessId(),
@@ -268,8 +284,12 @@ public class SalesPublicCatalogRepository {
              AND product.company_id = selected.company_id
             WHERE selected.company_id = ? AND selected.catalog_id = ?
               AND selected.product_id = ? AND product.company_id = ?
-              AND product.deleted_at IS NULL AND LOWER(product.status) = 'active'
-              AND LOWER(COALESCE(product.visibility, 'public')) <> 'internal'
+              AND product.deleted_at IS NULL AND LOWER(TRIM(product.status)) = 'active'
+              AND REPLACE(REPLACE(LOWER(TRIM(product.visibility)), '-', '_'), ' ', '_')
+                  IN ('commercial', 'pos_ready', 'quote_only')
+              AND REPLACE(REPLACE(LOWER(TRIM(product.type)), '-', '_'), ' ', '_') <> 'operational_item'
+              AND product.price IS NOT NULL AND product.price > 0
+              AND product.currency IS NOT NULL AND CHAR_LENGTH(TRIM(product.currency)) = 3
               AND product.reservable = 1
               AND product.availability_ical_url_protected IS NOT NULL
             LIMIT 1

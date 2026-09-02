@@ -6,6 +6,7 @@ import { ProductThumbnail } from '../../../Productos/components/ProductThumbnail
 import type { SalesCatalogItem } from '../../../types';
 import type { QuotesTranslations } from '../../translations';
 import { getProductCatalogReadiness, getProductMargin, productUsesInventory } from '../../utils/quoteCatalogAdapters';
+import { getProductSalesReadiness } from '../../../utils/productSalesReadiness';
 
 const readinessClasses = {
   readyForSales: 'border-[#59C3A5]/25 bg-[#59C3A5]/10 text-[#177d66]',
@@ -27,6 +28,7 @@ export function QuoteCatalogCard({
   const readiness = getProductCatalogReadiness(product);
   const margin = getProductMargin(product);
   const usesInventory = productUsesInventory(product);
+  const salesReadiness = getProductSalesReadiness(product);
 
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
@@ -38,11 +40,16 @@ export function QuoteCatalogCard({
               <p className="truncate text-sm font-medium text-slate-950">{product.name}</p>
               <p className="mt-1 text-xs font-medium text-slate-500">{product.sku}</p>
             </div>
-            <Button size="sm" className="h-8 rounded-lg bg-[#FF6B5E] px-3 text-[#222831] shadow-sm shadow-[#FF6B5E]/20 hover:bg-[#E85C50]" onClick={onAdd}>
+            <Button size="sm" disabled={!salesReadiness.readyForSales} className="h-8 rounded-lg bg-[#FF6B5E] px-3 text-[#222831] shadow-sm shadow-[#FF6B5E]/20 hover:bg-[#E85C50] disabled:cursor-not-allowed disabled:opacity-50" onClick={onAdd}>
               <PackagePlus className="h-3.5 w-3.5" />
               {t.builder.addProduct}
             </Button>
           </div>
+          {salesReadiness.reasons.length > 0 ? (
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+              {salesReadiness.reasons.map((reason) => t.catalog.readinessReasons[reason]).join(' · ')}
+            </p>
+          ) : null}
 
           <div className="mt-3 flex flex-wrap gap-2">
             <Badge className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600">

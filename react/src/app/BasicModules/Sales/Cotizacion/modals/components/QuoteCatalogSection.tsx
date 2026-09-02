@@ -3,10 +3,9 @@ import { ChevronLeft, ChevronRight, PackagePlus, Search } from 'lucide-react';
 import { Button } from '../../../../../components/ui/button';
 import { Input } from '../../../../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../../components/ui/select';
-import { Switch } from '../../../../../components/ui/switch';
 import type { SalesCatalogItem } from '../../../types';
 import type { QuotesTranslations } from '../../translations';
-import { isProductReadyForQuote } from '../../utils/quoteCatalogAdapters';
+import { getProductSalesReadiness } from '../../../utils/productSalesReadiness';
 import { QuoteCatalogCard } from './QuoteCatalogCard';
 
 export function QuoteCatalogSection({
@@ -20,7 +19,7 @@ export function QuoteCatalogSection({
   formatCurrency: (value: number, currency?: string | null) => string;
   onAddProduct: (product: SalesCatalogItem) => void;
 }) {
-  const [showNotReady, setShowNotReady] = useState(false);
+  const [readinessFilter, setReadinessFilter] = useState('READY');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
   const [page, setPage] = useState(1);
@@ -29,16 +28,16 @@ export function QuoteCatalogSection({
   const visibleProducts = useMemo(
     () => products.filter((product) => {
       const searchable = `${product.name} ${product.sku} ${product.productCode ?? ''} ${product.category}`.toLowerCase();
-      return (showNotReady || isProductReadyForQuote(product))
+      return (readinessFilter === 'all' || getProductSalesReadiness(product).status === readinessFilter)
         && (category === 'all' || product.category === category)
         && searchable.includes(query.trim().toLowerCase());
     }),
-    [category, products, query, showNotReady],
+    [category, products, query, readinessFilter],
   );
   const pageCount = Math.max(1, Math.ceil(visibleProducts.length / pageSize));
   const safePage = Math.min(page, pageCount);
   const pagedProducts = visibleProducts.slice((safePage - 1) * pageSize, safePage * pageSize);
-  useEffect(() => setPage(1), [category, query, showNotReady]);
+  useEffect(() => setPage(1), [category, query, readinessFilter]);
 
   return (
     <section className="space-y-4">
@@ -50,14 +49,15 @@ export function QuoteCatalogSection({
           </h3>
           <p className="mt-1 text-sm font-normal leading-6 text-slate-500">{t.catalog.description}</p>
         </div>
-        <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
-          <Switch
-            checked={showNotReady}
-            className="data-[state=checked]:bg-[#FF6B5E]"
-            onCheckedChange={setShowNotReady}
-          />
-          {t.catalog.showNotReady}
-        </label>
+        <Select value={readinessFilter} onValueChange={setReadinessFilter}>
+          <SelectTrigger className="min-h-10 w-full bg-white md:w-56"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t.catalog.readinessFilters.all}</SelectItem>
+            <SelectItem value="READY">{t.catalog.readinessFilters.READY}</SelectItem>
+            <SelectItem value="REQUIRES_REVIEW">{t.catalog.readinessFilters.REQUIRES_REVIEW}</SelectItem>
+            <SelectItem value="NOT_READY">{t.catalog.readinessFilters.NOT_READY}</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 md:grid-cols-[minmax(0,1fr)_240px]">

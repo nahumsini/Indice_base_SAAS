@@ -5,6 +5,7 @@ import { Input } from '../../../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select';
 import type { SalesCatalogItem } from '../../types';
 import { ProductThumbnail } from '../../Productos/components/ProductThumbnail';
+import { getProductSalesReadiness } from '../../utils/productSalesReadiness';
 import type { SalesRecordsTranslations } from '../translations';
 import type { SaleLine, SaleRecordDraft } from '../types/salesTypes';
 import { formatSalesCurrency } from '../utils/salesFormatters';
@@ -51,7 +52,10 @@ export function SalesLineItemsEditor({
   t: SalesRecordsTranslations;
   onFormChange: (patch: Partial<SaleRecordDraft>) => void;
 }) {
-  const selectableProducts = useMemo(() => products.filter((product) => product.status === 'Active'), [products]);
+  const selectableProducts = useMemo(
+    () => products.filter((product) => getProductSalesReadiness(product).readyForSales),
+    [products],
+  );
   const categories = useMemo(() => Array.from(new Set(selectableProducts.map((product) => product.category))).sort(), [selectableProducts]);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');

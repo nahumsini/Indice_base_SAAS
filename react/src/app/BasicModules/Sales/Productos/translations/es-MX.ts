@@ -29,7 +29,11 @@ export const esMX: ProductsTranslations = {
     uncategorized: 'Sin categoría',
     allTypes: 'Todos los tipos',
     allStatuses: 'Todos los estados',
+    readiness: 'Preparación comercial',
+    allReadiness: 'Todas las preparaciones',
+    readinessOptions: { READY: 'Listos para ventas', REQUIRES_REVIEW: 'Requieren revisión', NOT_READY: 'No listos para ventas' },
   },
+  deleteDialog: { title: '¿Eliminar item del catálogo?', description: 'Se retirará del catálogo compartido. Los documentos existentes conservan su historial.', confirm: 'Eliminar item', deleting: 'Eliminando...', error: 'No se pudo eliminar el item. Puede estar en uso o no cuentas con permiso.' },
   metrics: {
     activeItems: 'items activos',
     inventoryValue: 'valor inventario',

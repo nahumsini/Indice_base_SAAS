@@ -31,6 +31,8 @@ export type SalesProductCategory =
 export type SalesProductTaxCategory = 'Standard VAT' | 'Reduced VAT' | 'Zero rated' | 'Exempt' | 'Service tax';
 export type SalesProductStatus = 'Active' | 'Inactive' | 'Draft';
 export type SalesProductVisibility = 'Internal' | 'Commercial' | 'POS ready' | 'Quote only';
+export type SalesReadiness = 'READY' | 'REQUIRES_REVIEW' | 'NOT_READY';
+export type SalesReadinessReason = 'DRAFT' | 'INACTIVE' | 'INTERNAL' | 'OPERATIONAL_ITEM' | 'MISSING_PRICE';
 export type SalesProductBaseUnit = 'Piece' | 'Kilogram' | 'Liter' | 'Meter' | 'Hour' | 'Service' | 'Set';
 export type SalesProductSaleUnit = 'Unit' | 'Box' | 'Package' | 'Lot' | 'Kit' | 'Pallet';
 export type SalesProductPricingMode = 'Per base unit' | 'Per sale unit' | 'Per lot';
@@ -83,6 +85,9 @@ export type SalesCatalogItem = {
   taxCategory: SalesProductTaxCategory;
   status: SalesProductStatus;
   visibility: SalesProductVisibility;
+  readyForSales?: boolean;
+  salesReadiness?: SalesReadiness;
+  salesReadinessReasons?: SalesReadinessReason[];
   barcode?: string;
   generatedLabels?: string[];
   imageUrl?: string;

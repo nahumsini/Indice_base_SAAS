@@ -41,6 +41,7 @@ class TabPermissionRouteClassifierTest {
         assertRequirement("GET", "/api/v1/pos/discounts", "pos.descuentos");
         assertRequirement("GET", "/api/v1/pos/self-service-kiosks", "pos.kiosks");
         assertRequirement("POST", "/api/v1/sales/products", "inventory.products");
+        assertRequirement("DELETE", "/api/v1/sales/products/22", "inventory.products");
         assertRequirement("GET", "/api/v1/pos/purchase-orders", "inventory.purchase-orders");
         assertRequirement("POST", "/api/v1/finance/receivables/payments", "receivables.payments");
         assertRequirement("POST", "/api/v1/finance/receivables/credit-policies", "receivables.credit-customers");

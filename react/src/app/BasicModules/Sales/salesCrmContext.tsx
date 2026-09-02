@@ -497,6 +497,21 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
+    deleteProductRecord: async (productId) => {
+      const currentProduct = products.find((product) => product.id === productId);
+      if (!currentProduct) throw new Error('Product not found.');
+      const backendId = backendIdFrom(currentProduct);
+      if (backendId === undefined) throw new Error('Missing backend identifier.');
+
+      try {
+        await salesApi.delete('products', backendId);
+        setProducts((current) => current.filter((product) => product.id !== productId));
+        setSyncIssue(null);
+      } catch (error) {
+        handleSyncFailure('delete product', error);
+        throw error;
+      }
+    },
     addQuote: (quote) => {
       const nextIndex = quotes.length + 1;
       const createdQuote = {

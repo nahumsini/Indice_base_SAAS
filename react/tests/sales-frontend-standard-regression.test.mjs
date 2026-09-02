@@ -213,6 +213,49 @@ test('Productos expone el control de inventario desde el primer paso y lo reflej
   assert.match(catalogHookSource, /t\.inventoryTracking\.filterSuffix/);
 });
 
+test('Productos elimina en backend con confirmación y comparte una sola preparación comercial con Cotizaciones', () => {
+  const contextSource = readFileSync(resolve(salesRoot, 'salesCrmContext.tsx'), 'utf8');
+  const adaptersSource = readFileSync(resolve(salesRoot, 'adapters/salesApiAdapters.ts'), 'utf8');
+  const catalogHookSource = readFileSync(resolve(salesRoot, 'Productos/hooks/useProductsCatalog.ts'), 'utf8');
+  const pageSource = readFileSync(resolve(salesRoot, 'Productos/Productos.tsx'), 'utf8');
+  const filtersSource = readFileSync(resolve(salesRoot, 'Productos/components/ProductsFilters.tsx'), 'utf8');
+  const readinessSource = readFileSync(resolve(salesRoot, 'utils/productSalesReadiness.ts'), 'utf8');
+  const modalReadinessSource = readFileSync(resolve(salesRoot, 'Productos/components/product-modal/productReadiness.ts'), 'utf8');
+  const publicCatalogSource = readFileSync(resolve(salesRoot, 'Productos/publicCatalog/utils/publicCatalogAdapters.ts'), 'utf8');
+  const publicCatalogSelectorSource = readFileSync(resolve(salesRoot, 'Productos/publicCatalog/PublicCatalogProductSelector.tsx'), 'utf8');
+  const publicCatalogApiSource = readFileSync(resolve(salesRoot, 'Productos/publicCatalog/publicCatalogApi.ts'), 'utf8');
+  const quoteCatalogSource = readFileSync(resolve(salesRoot, 'Cotizacion/modals/components/QuoteCatalogSection.tsx'), 'utf8');
+  const quoteCardSource = readFileSync(resolve(salesRoot, 'Cotizacion/modals/components/QuoteCatalogCard.tsx'), 'utf8');
+  const salesLineItemsSource = readFileSync(resolve(salesRoot, 'Sales/components/SalesLineItemsEditor.tsx'), 'utf8');
+
+  assert.match(contextSource, /deleteProductRecord: async/);
+  assert.match(contextSource, /await salesApi\.delete\('products', backendId\)/);
+  assert.match(contextSource, /setProducts\(\(current\) => current\.filter/);
+  assert.match(adaptersSource, /commercial: 'Commercial'/);
+  assert.match(adaptersSource, /inactive: 'Inactive'/);
+  assert.match(adaptersSource, /package: 'Package'/);
+  assert.doesNotMatch(catalogHookSource, /deletedProductIds/);
+  assert.match(catalogHookSource, /await deleteProductRecord\(productPendingDeletion\.id\)/);
+  assert.match(pageSource, /<IndiceConfirmationDialog/);
+  assert.match(filtersSource, /IndiceFilterDisclosureActions/);
+  assert.match(filtersSource, /readinessOptions\.REQUIRES_REVIEW/);
+  assert.match(readinessSource, /hasBlockingReason/);
+  assert.match(readinessSource, /reasons\.includes\('MISSING_PRICE'\)/);
+  assert.match(modalReadinessSource, /deriveProductSalesReadiness/);
+  assert.match(modalReadinessSource, /salesReadiness\.readyForSales/);
+  assert.match(publicCatalogSource, /getProductSalesReadiness\(product\)\.readyForSales/);
+  assert.match(publicCatalogSelectorSource, /selectedProductIds\.filter\(\(id\) => readyProductIds\.has\(id\)\)/);
+  assert.match(publicCatalogSelectorSource, /disabled=\{!readiness\.readyForSales\}/);
+  assert.match(publicCatalogSelectorSource, /readinessReasonLabel\(reason, t\)/);
+  assert.match(publicCatalogApiSource, /!getProductSalesReadiness\(product\)\.readyForSales/);
+  assert.doesNotMatch(publicCatalogApiSource, /product\?\.backendId \?\? Number\(id\)/);
+  assert.match(quoteCatalogSource, /readinessFilter === 'all'/);
+  assert.doesNotMatch(quoteCatalogSource, /showNotReady|<Switch/);
+  assert.match(quoteCardSource, /disabled=\{!salesReadiness\.readyForSales\}/);
+  assert.match(quoteCardSource, /readinessReasons\[reason\]/);
+  assert.match(salesLineItemsSource, /getProductSalesReadiness\(product\)\.readyForSales/);
+});
+
 test('el wizard de Productos hace visible la publicación en POS y advierte inventario no publicado', () => {
   const modalSource = readFileSync(resolve(salesRoot, 'Productos/components/ProductCreateModal.tsx'), 'utf8');
   const tabsSource = readFileSync(resolve(salesRoot, 'Productos/components/product-modal/ProductModalTabs.tsx'), 'utf8');

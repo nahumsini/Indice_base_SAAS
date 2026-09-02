@@ -51,9 +51,18 @@ La conversión de `past_due` a solo lectura se incorpora en Fase 6.
 
 ## 4. Cobertura de rutas
 
-La clasificación explícita mediante `@RequiresCapability` tiene prioridad. Como red de cobertura,
-el interceptor clasifica rutas autenticadas de RH, Tareas y Procesos, Expenses, Caja Chica, POS,
-Ventas, Cartera, KPIs y Configuración.
+La clasificación explícita mediante `@RequiresCapability` tiene prioridad. Solo un controlador
+mixto que declare `allowRouteOverride` puede delegar su anotación de clase al mapa exacto de rutas;
+una anotación de método nunca se sustituye y, si no existe mapping específico, se conserva la
+capability de clase como fallback restrictivo. Como red de cobertura, el interceptor clasifica
+rutas autenticadas de RH, Tareas y Procesos, Expenses, Caja Chica, POS, Ventas, Cartera, KPIs y
+Configuración.
+
+El mapa puede declarar un requisito `any-of` únicamente para compatibilidades de lectura conocidas.
+Actualmente `GET /api/v1/sales/products[/{id}]` y las lecturas de
+`/api/v1/sales/inventory-warehouses` aceptan `inventory` o `sales`. `POST`, `PUT`, `DELETE` y las
+rutas de imágenes de producto conservan `inventory` como requisito único. Cada capability candidata
+se evalúa y audita; la solicitud se niega en enforcement cuando ninguna candidata autoriza el acceso.
 
 Se excluyen deliberadamente:
 

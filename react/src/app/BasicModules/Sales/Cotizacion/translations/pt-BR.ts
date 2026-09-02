@@ -148,9 +148,11 @@ export const ptBR = {
     summary: 'Resumo',
   },
   catalog: {
+    readinessFilters: { all: 'Todos os produtos', READY: 'Pronto para vendas', REQUIRES_REVIEW: 'Requer revisão', NOT_READY: 'Não pronto para vendas' },
+    readinessReasons: { DRAFT: 'Rascunho', INACTIVE: 'Inativo', INTERNAL: 'Uso interno', OPERATIONAL_ITEM: 'Item operacional', MISSING_PRICE: 'Preço final ausente' },
     description: 'Itens reutilizaveis prontos para cotacao aparecem por padrao.',
     showNotReady: 'Mostrar itens nao prontos para vendas',
-    empty: 'Nenhum item pronto para vendas com o filtro atual.',
+    empty: 'Nenhum produto corresponde aos filtros atuais.',
     usesInventory: 'Usa estoque',
     noInventory: 'Sem estoque',
     searchPlaceholder: 'Buscar por nome, SKU, código ou categoria',

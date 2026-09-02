@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/sales")
-@RequiresCapability("sales")
+@RequiresCapability(value = "sales", allowRouteOverride = true)
 public class SalesApiController {
 
     private final SessionAuthService sessionAuthService;

@@ -211,9 +211,11 @@ export const esMX: QuotesTranslations = {
     summary: 'Revisión final',
   },
   catalog: {
+    readinessFilters: { all: 'Todos los productos', READY: 'Listos para ventas', REQUIRES_REVIEW: 'Requieren revisión', NOT_READY: 'No listos para ventas' },
+    readinessReasons: { DRAFT: 'Borrador', INACTIVE: 'Inactivo', INTERNAL: 'Uso interno', OPERATIONAL_ITEM: 'Item operativo', MISSING_PRICE: 'Falta precio final' },
     description: 'Los items reutilizables listos para cotizar aparecen por defecto.',
     showNotReady: 'Mostrar items no listos para ventas',
-    empty: 'No hay items listos para ventas con el filtro actual.',
+    empty: 'No hay productos que coincidan con los filtros actuales.',
     usesInventory: 'Usa inventario',
     noInventory: 'Sin inventario',
     searchPlaceholder: 'Buscar por nombre, SKU, clave o categoría',

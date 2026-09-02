@@ -1,4 +1,5 @@
 import type { SalesCatalogItem } from '../../../types';
+import { getProductSalesReadiness } from '../../../utils/productSalesReadiness';
 import { getProductGalleryImages } from '../../utils/productImages';
 import type {
   PublicCatalogConfig,
@@ -7,9 +8,7 @@ import type {
 } from '../types/publicCatalogTypes';
 
 export function isProductReadyForPublicCatalog(product: SalesCatalogItem) {
-  return product.status === 'Active'
-    && product.visibility !== 'Internal'
-    && product.price > 0;
+  return getProductSalesReadiness(product).readyForSales;
 }
 
 export function getPublicInventoryStatus(product: SalesCatalogItem): PublicInventoryStatus {
