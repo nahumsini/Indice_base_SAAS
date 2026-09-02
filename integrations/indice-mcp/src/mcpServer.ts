@@ -495,7 +495,7 @@ function registerFinanceActionTools(server: McpServer, reader: IndiceBusinessRea
       budget_line_id: "budgetLineId", accounting_account_id: "accountingAccountId", payment_account_id: "paymentAccountId"
     }));
   registerFinanceCommit(server, reader, "create_expense_draft", "Crear gasto confirmado en borrador", "create_expense_draft",
-    "Crea únicamente el gasto DRAFT de una vista previa vigente; nunca lo paga ni lo aprueba.");
+    "Crea únicamente el gasto DRAFT de una vista previa vigente; nunca lo paga ni lo aprueba.", false);
 
   registerFinancePreview(server, reader, "preview_register_fund_expense", "Preparar gasto de fondo",
     "Prepara una salida de caja chica como línea del fondo. Reduce el saldo al confirmar, pero no crea ni autoriza un gasto global.",
@@ -513,7 +513,7 @@ function registerFinanceActionTools(server: McpServer, reader: IndiceBusinessRea
       accounting_account_id: "accountingAccountId"
     }));
   registerFinanceCommit(server, reader, "register_fund_expense", "Registrar gasto confirmado en fondo", "register_fund_expense",
-    "Registra únicamente la salida exacta confirmada en el fondo seleccionado.");
+    "Registra únicamente la salida exacta confirmada en el fondo seleccionado.", true);
 
   registerFinancePreview(server, reader, "preview_add_money_to_fund", "Preparar ingreso a fondo",
     "Prepara un depósito adicional a caja chica desde una cuenta fuente exacta. Muestra origen, fondo, monto y fecha antes de confirmar.",
@@ -527,7 +527,7 @@ function registerFinanceActionTools(server: McpServer, reader: IndiceBusinessRea
       currency_code: "currencyCode", movement_date: "movementDate"
     }));
   registerFinanceCommit(server, reader, "add_money_to_fund", "Ingresar dinero confirmado al fondo", "add_money_to_fund",
-    "Registra únicamente el depósito adicional exacto confirmado y afecta la cuenta fuente indicada.");
+    "Registra únicamente el depósito adicional exacto confirmado y afecta la cuenta fuente indicada.", true);
 }
 
 function registerFinancePreview(
@@ -567,7 +567,8 @@ function registerFinanceCommit(
   toolName: string,
   title: string,
   action: FinanceActionName,
-  description: string
+  description: string,
+  destructiveHint: boolean
 ): void {
   server.registerTool(toolName, {
     title,
@@ -581,7 +582,7 @@ function registerFinanceCommit(
       action: z.enum(["create_expense_draft", "register_fund_expense", "add_money_to_fund"]),
       result: z.record(z.string(), z.unknown())
     },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+    annotations: { readOnlyHint: false, destructiveHint, idempotentHint: true, openWorldHint: false }
   }, async ({ confirmation_token, idempotency_key }) => {
     try {
       if (!reader.commitFinanceAction) throw new Error("Finance actions are not configured.");

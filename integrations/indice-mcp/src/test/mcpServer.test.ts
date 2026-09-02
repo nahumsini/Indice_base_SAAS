@@ -45,8 +45,14 @@ test("lists and executes get_sales_today through MCP", async () => {
       assert.ok(tool.outputSchema, `${tool.name} should have an output schema`);
       assert.equal(typeof tool.annotations?.readOnlyHint, "boolean", `${tool.name} should declare readOnlyHint`);
       assert.equal(typeof tool.annotations?.destructiveHint, "boolean", `${tool.name} should declare destructiveHint`);
+      assert.equal(typeof tool.annotations?.idempotentHint, "boolean", `${tool.name} should declare idempotentHint`);
       assert.equal(typeof tool.annotations?.openWorldHint, "boolean", `${tool.name} should declare openWorldHint`);
     }
+
+    const toolByName = new Map(tools.tools.map(tool => [tool.name, tool]));
+    assert.equal(toolByName.get("create_expense_draft")?.annotations?.destructiveHint, false);
+    assert.equal(toolByName.get("register_fund_expense")?.annotations?.destructiveHint, true);
+    assert.equal(toolByName.get("add_money_to_fund")?.annotations?.destructiveHint, true);
 
     const result = await client.callTool({
       name: "get_sales_today",
