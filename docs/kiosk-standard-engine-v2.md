@@ -1349,6 +1349,12 @@ Enlace especial o QR del Multikiosco
 El enlace representa al Multikiosco, no al empleado. La identificación personal ocurre con PIN;
 rostro se conserva como segundo factor especializado cuando el módulo propietario lo exige.
 
+El launcher puede aprovechar un lienzo amplio para presentar su catálogo como tablero de iconos,
+pero cada Full Workspace operativo conserva un ancho de lectura y captura móvil, aproximadamente
+`31rem` para Asistencia. En celular, los controles principales miden al menos `48px`, respetan las
+safe areas y mantienen visible la acción para regresar. La interfaz sólo presenta los métodos de
+verificación concedidos por la sesión hija y nunca muestra mensajes técnicos crudos.
+
 ### 24.4 Catálogo efectivo
 
 Una card aparece únicamente por la intersección de:
@@ -1382,6 +1388,17 @@ Los contratos antiguos con `kiosk_definition_ids` pueden conservarse temporalmen
 editar Multikioscos existentes, sin incorporar esas definiciones al catálogo nuevo. Una actualización
 nunca elimina en silencio una composición heredada: el cliente la preserva explícitamente hasta que
 una migración controlada la sustituya por `tool_keys`.
+
+Como compatibilidad puntual, una definición legacy de Asistencia que conserve su token en el módulo
+propietario pero carezca de `protected_public_token` puede completar ese material una sola vez. La
+reparación exige coincidencia exacta de compañía, definición, owner, tipo, referencia legacy y hash
+SHA-256; cifra el token con el secreto estable de despliegue y no rota el enlace, no revoca sesiones
+ni reemplaza material protegido existente. El camino normal sólo comprueba presencia sin locks; el
+`SELECT ... FOR UPDATE` se reserva para la reparación ausente y corre en una transacción independiente.
+Si el dispositivo está inactivo, falta el token, el hash no coincide o el cifrado no supera la
+validación de integridad, la herramienta se omite del launcher móvil y falla cerrada. La compatibilidad
+web autenticada puede conservar su tarjeta informativa, pero nunca omite fotografía, rostro,
+ubicación, permisos o las reglas autoritativas de fichaje de Recursos Humanos.
 
 La sesión contextual `MOBILE_MULTI_KIOSK` valida la compañía, el Multikiosco activo y vigente, la
 herramienta incluida y la membresía activa exacta. No consulta `multi_kiosk_assignments` ni el alcance
@@ -1418,6 +1435,9 @@ entitlement, el módulo, la propiedad o alcance funcional ni las capacidades de 
 - Rotar el enlace, deshabilitar o revocar el Multikiosco cierra sus sesiones relacionadas. Desactivar
   la membresía o rotar o revocar el PIN invalida las sesiones de esa persona dentro de la misma
   compañía; la continuidad vuelve a comprobar membresía y credencial en cada solicitud.
+- Si una herramienta deja de pertenecer al catálogo efectivo y la sesión hija responde
+  `KIOSK_NOT_AVAILABLE`, el cliente elimina inmediatamente su token y datos de workspace y vuelve al
+  launcher. La sesión padre se conserva únicamente si sigue siendo válida para otras herramientas.
 - En una estación compartida se debe usar siempre `Cerrar sesión / Cambiar colaborador`. Un timeout
   más corto se define por política explícita de ambiente; nunca se deduce del viewport o User-Agent.
 
@@ -1484,6 +1504,20 @@ Separar el servicio y página grandes en:
 - file policy;
 - view model;
 - workspace sections.
+
+Para la herramienta nativa `employee.my-tasks@1`, el bootstrap exige explícitamente
+`process-tasks.tasks.read@1` y las acciones disponibles se limitan a las capacidades concedidas por
+su sesión. La sesión nativa puede conceder `process-tasks.task.create@1` únicamente para una
+captura rápida propia: el backend fija al colaborador autenticado como responsable, deriva unidad y
+negocio de su membresía vigente e ignora cualquier autoridad, responsable, proceso, proyecto o
+evidencia enviados por el cliente. La respuesta devuelve la tarea creada y la colección `items`
+autoritativa para actualizar el workspace sin una lectura redundante.
+
+Completar una tarea individual o actuar como líder devuelve
+`action_outcome=TASK_COMPLETED`. En una tarea de equipo, un colaborador que no es líder sólo marca
+su aportación como lista y recibe `action_outcome=CONTRIBUTION_READY`; la tarea continúa abierta, el
+workspace no presenta porcentaje de cierre y una aportación ya lista publica `can_complete=false`
+para impedir envíos repetidos.
 
 ### 25.3 Caja Chica
 

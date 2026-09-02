@@ -104,6 +104,9 @@ export const ptBR = {
     priorityLow: 'Baixa',
     priorityMedium: 'Média',
     priorityHigh: 'Alta',
+    selfDescription: 'Registre uma tarefa rápida para você. O Indice aplica automaticamente seu escopo operacional atual.',
+    selfAssignment: (employeeName: string, scopeLabel: string) => `Atribuída a ${employeeName} · ${scopeLabel}`,
+    submitting: 'Criando tarefa...',
     submit: 'Criar tarefa',
   },
   responsible: {
@@ -117,6 +120,11 @@ export const ptBR = {
     updating: 'Atualizando responsável...',
   },
   selectedTask: {
+    markContributionReady: 'Marcar minha parte como pronta',
+    contributionDescription: 'Esta é uma tarefa de equipe. Sua atualização envia sua parte ao líder para revisão; ela não encerra a tarefa inteira.',
+    contributionNotes: 'Nota para a equipe',
+    contributionNotesPlaceholder: 'Resuma o que você concluiu ou qualquer pendência.',
+    contributionReadyStatus: 'Sua parte está pronta para revisão.',
     eyebrow: 'Tarefa selecionada',
     closeModal: 'Fechar modal da tarefa',
     completion: 'Progresso',
@@ -140,6 +148,7 @@ export const ptBR = {
     encouragementBody: 'Finalize apenas o trabalho realmente concluído. Sua atualização será sincronizada com o Indice.',
   },
   success: {
+    contributionReady: (taskTitle: string) => `${taskTitle}: sua parte está pronta para revisão.`,
     completed: (taskTitle: string) => `${taskTitle} foi concluída.`,
     created: (taskTitle: string) => `${taskTitle} foi criada.`,
     responsibleUpdated: (taskTitle: string) => `${taskTitle} foi reatribuída.`,

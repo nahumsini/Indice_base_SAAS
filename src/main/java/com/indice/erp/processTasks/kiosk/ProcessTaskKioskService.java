@@ -250,7 +250,10 @@ public class ProcessTaskKioskService {
     @Transactional
     public Map<String, Object> employeeCreateTask(
             KioskResolvedDefinition definition, long userId, Map<String, Object> payload) {
-        return commands.create(requireEmployeeContext(definition, userId), payload);
+        var context = requireEmployeeContext(definition, userId);
+        return isNativeEmployeeTasksTool(definition)
+            ? commands.createForSelf(context, payload)
+            : commands.create(context, payload);
     }
 
     @Transactional

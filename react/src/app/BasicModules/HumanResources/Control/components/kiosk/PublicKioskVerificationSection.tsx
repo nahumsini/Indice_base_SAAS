@@ -13,6 +13,7 @@ import type {
 } from './publicKioskTypes';
 
 interface PublicKioskVerificationSectionProps {
+  canUseFace: boolean;
   copy: KioskTranslations;
   evidenceMode: EvidenceMode;
   faceErrorMessage: string;
@@ -29,6 +30,7 @@ interface PublicKioskVerificationSectionProps {
 }
 
 export function PublicKioskVerificationSection({
+  canUseFace,
   copy,
   evidenceMode,
   faceErrorMessage,
@@ -58,7 +60,7 @@ export function PublicKioskVerificationSection({
 
         <nav
           aria-label={copy.verificationMethod}
-          className="mt-4 grid grid-cols-2 gap-1.5 rounded-xl border border-slate-200 bg-slate-100/80 p-1.5 dark:border-slate-700 dark:bg-slate-900"
+          className={`mt-4 grid gap-1.5 rounded-xl border border-slate-200 bg-slate-100/80 p-1.5 dark:border-slate-700 dark:bg-slate-900 ${canUseFace ? 'grid-cols-2' : 'grid-cols-1'}`}
           role="tablist"
         >
           <button
@@ -71,16 +73,18 @@ export function PublicKioskVerificationSection({
             <Camera aria-hidden="true" className="h-4 w-4" />
             {copy.photoVerification}
           </button>
-          <button
-            aria-selected={evidenceMode === 'face'}
-            className={`flex min-h-12 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#177D66]/20 ${evidenceMode === 'face' ? 'bg-[#177D66] text-white shadow-sm' : 'bg-white text-slate-600 hover:text-[#177D66] dark:bg-slate-950 dark:text-slate-300'}`}
-            onClick={() => onEvidenceModeChange('face')}
-            role="tab"
-            type="button"
-          >
-            <ScanFace aria-hidden="true" className="h-4 w-4" />
-            Face ID
-          </button>
+          {canUseFace ? (
+            <button
+              aria-selected={evidenceMode === 'face'}
+              className={`flex min-h-12 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#177D66]/20 ${evidenceMode === 'face' ? 'bg-[#177D66] text-white shadow-sm' : 'bg-white text-slate-600 hover:text-[#177D66] dark:bg-slate-950 dark:text-slate-300'}`}
+              onClick={() => onEvidenceModeChange('face')}
+              role="tab"
+              type="button"
+            >
+              <ScanFace aria-hidden="true" className="h-4 w-4" />
+              Face ID
+            </button>
+          ) : null}
         </nav>
       </div>
 

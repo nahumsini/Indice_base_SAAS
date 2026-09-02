@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { LoaderCircle } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LiveFaceChallengeCapture } from '../components/LiveFaceChallenge';
 import type {
   AttendanceMediaPresignResponse,
@@ -39,6 +40,8 @@ const capabilities = {
   punchCreate: 'attendance.punch.create@1',
 } as const;
 
+const attendanceEvidenceUploadTimeoutMs = 15_000;
+
 interface AttendanceMultiKioskWorkspaceProps {
   token: string;
   kioskId: number;
@@ -49,10 +52,8 @@ interface AttendanceMultiKioskWorkspaceProps {
 }
 
 function safeError(error: unknown, fallback: string) {
-  if (!(error instanceof Error) || !error.message.trim()) return fallback;
-  return /internal server|status\s*500|unexpected server|kiosk unavailable/i.test(error.message)
-    ? fallback
-    : error.message;
+  void error;
+  return fallback;
 }
 
 function csrfFor(token: string) {
@@ -69,7 +70,6 @@ export function AttendanceMultiKioskWorkspace({
   workspace,
   locale,
   onAuthorizationFailure,
-  onRefresh,
 }: AttendanceMultiKioskWorkspaceProps) {
   const selectedLocale = resolveKioskLocale(locale);
   const copy = getKioskTranslations(selectedLocale);
@@ -84,6 +84,7 @@ export function AttendanceMultiKioskWorkspace({
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [busyState, setBusyState] = useState<PublicKioskBusyState>('idle');
+  const punchInFlightRef = useRef(false);
 
   useEffect(() => {
     setTodayActivity(bootstrap?.today_activity ?? null);
@@ -200,7 +201,12 @@ export function AttendanceMultiKioskWorkspace({
           step: capture.step,
           content_type: capture.photo.contentType,
         });
-        await uploadPresignedKioskFile(upload, capture.photo.file, capture.photo.contentType);
+        await uploadPresignedKioskFile(
+          upload,
+          capture.photo.file,
+          capture.photo.contentType,
+          { timeoutMs: attendanceEvidenceUploadTimeoutMs },
+        );
       }
       const result = await action<FaceVerificationResultResponse>(capabilities.faceComplete, {
         resource_id: verification.session_id,
@@ -269,11 +275,17 @@ export function AttendanceMultiKioskWorkspace({
       event_timestamp: eventTimestamp,
       content_type: photo.contentType,
     });
-    await uploadPresignedKioskFile(upload as KioskPresignedUpload, photo.file, photo.contentType);
+    await uploadPresignedKioskFile(
+      upload as KioskPresignedUpload,
+      photo.file,
+      photo.contentType,
+      { timeoutMs: attendanceEvidenceUploadTimeoutMs },
+    );
     return upload.object_key;
   };
 
   const handlePunch = async (eventType: 'check_in' | 'check_out') => {
+    if (punchInFlightRef.current) return;
     if (!canCreatePunch || !hasIdentityEvidence) {
       setErrorMessage(copy.errors.evidenceRequired);
       return;
@@ -282,6 +294,7 @@ export function AttendanceMultiKioskWorkspace({
       setErrorMessage(copy.errors.locationRequired);
       return;
     }
+    punchInFlightRef.current = true;
     setBusyState('recording');
     setErrorMessage('');
     setSuccessMessage('');
@@ -308,22 +321,17 @@ export function AttendanceMultiKioskWorkspace({
           photo_storage: evidenceMode === 'photo' ? 'object_storage' : undefined,
         },
       });
-      setTodayActivity(result.today_activity ?? todayActivity);
+      setTodayActivity((current) => result.today_activity ?? current);
       setSuccessMessage(eventType === 'check_in' ? copy.success.checkIn : copy.success.checkOut);
       setLocationState(null);
       setFaceVerificationSessionId(null);
       setFaceStatus('idle');
       setFaceErrorMessage('');
       fallbackPhotoUpload.clearPhoto();
-      try {
-        await onRefresh();
-      } catch (error) {
-        if (onAuthorizationFailure(error)) return;
-        // The successful punch remains authoritative; the next workspace load reconciles the view.
-      }
     } catch (error) {
       setErrorMessage(safeError(error, copy.invalidDevice));
     } finally {
+      punchInFlightRef.current = false;
       setBusyState('idle');
     }
   };
@@ -337,7 +345,20 @@ export function AttendanceMultiKioskWorkspace({
   }
 
   return (
-    <div className="space-y-3">
+    <div
+      aria-busy={busyState === 'recording' || undefined}
+      className="mx-auto w-full max-w-[31rem] space-y-3"
+    >
+      {busyState === 'recording' ? (
+        <p
+          role="status"
+          aria-live="polite"
+          className="flex items-center justify-center gap-2 rounded-xl border border-[#59C3A5]/30 bg-[#59C3A5]/10 px-4 py-3 text-sm font-medium text-[#177D66] dark:border-[#8FE0CA]/25 dark:bg-[#8FE0CA]/10 dark:text-[#8FE0CA]"
+        >
+          <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" />
+          {copy.recording}
+        </p>
+      ) : null}
       {successMessage ? (
         <p aria-live="polite" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
           {successMessage}
@@ -350,6 +371,7 @@ export function AttendanceMultiKioskWorkspace({
         busyState={busyState}
         canCheckIn={viewModel.canCheckIn && canCreatePunch}
         canCheckOut={viewModel.canCheckOut && canCreatePunch}
+        canUseFace={canUseFace}
         copy={copy}
         credentialPlaceholder={copy.pinPlaceholder}
         credentialValue=""

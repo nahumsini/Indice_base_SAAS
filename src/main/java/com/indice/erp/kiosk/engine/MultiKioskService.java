@@ -492,7 +492,6 @@ public class MultiKioskService {
             String publicToken, String multiSessionToken, long kioskId, String browserReference) {
         var definition = resolve(publicToken, true);
         var session = requireSession(definition, multiSessionToken, browserReference);
-        requireChild(definition.id(), session.asUser(), kioskId);
         return dashboard.createMobileSession(
             session.asUser(), definition.id(), kioskId, browserReference);
     }
@@ -502,7 +501,6 @@ public class MultiKioskService {
             long kioskId, String browserReference) {
         var definition = resolve(publicToken, true);
         var session = requireSession(definition, multiSessionToken, browserReference);
-        requireChild(definition.id(), session.asUser(), kioskId);
         return dashboard.mobileWorkspace(
             session.asUser(), definition.id(), kioskId, childSessionToken, browserReference);
     }
@@ -513,7 +511,6 @@ public class MultiKioskService {
             Map<String, Object> payload, String idempotencyKey) {
         var definition = resolve(publicToken, true);
         var session = requireSession(definition, multiSessionToken, browserReference);
-        requireChild(definition.id(), session.asUser(), kioskId);
         return dashboard.executeMobileAction(
             session.asUser(), definition.id(), kioskId, capability, childSessionToken,
             browserReference, payload, idempotencyKey);
@@ -838,12 +835,6 @@ public class MultiKioskService {
 
     private List<Map<String, Object>> effectiveCards(long multiKioskId, AuthSessionUser user) {
         return dashboard.listForMultiKiosk(user, multiKioskId);
-    }
-
-    private void requireChild(long multiKioskId, AuthSessionUser user, long kioskId) {
-        var available = effectiveCards(multiKioskId, user).stream()
-            .anyMatch(card -> ((Number) card.get("id")).longValue() == kioskId);
-        if (!available) throw new KioskUnavailableException();
     }
 
     private void revokeSessions(long multiKioskId) {

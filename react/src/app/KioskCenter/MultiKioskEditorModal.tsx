@@ -3,13 +3,9 @@ import {
   ArrowDown,
   ArrowUp,
   Check,
-  Clock3,
   Grid2X2,
-  ListChecks,
   LoaderCircle,
   Search,
-  Smartphone,
-  WalletCards,
 } from 'lucide-react';
 import {
   multiKioskAdminApi,
@@ -26,6 +22,10 @@ import {
   getMultiKioskAdminCopy,
   type MultiKioskAdminCopy,
 } from './multiKioskAdminTranslations';
+import {
+  getMultiKioskToolPresentation,
+  MultiKioskToolGlyph,
+} from './multi-kiosk/toolPresentation';
 
 export type MultiKioskCatalog = {
   employees: MultiKioskCatalogEmployee[];
@@ -84,23 +84,17 @@ const moduleLabel = (value: string, copy: MultiKioskAdminCopy) => (
   copy.moduleNames[value] ?? value.replace(/_/g, ' ')
 );
 
-const workspaceKind = (tool: MultiKioskCatalogTool) => {
-  const declared = normalizedCode(tool.workspace_kind);
-  if (declared) return declared;
-  return ({
-    PROCESS_TASKS: 'MY_TASKS',
-    HUMAN_RESOURCES: 'ATTENDANCE',
-    PETTY_CASH: 'PETTY_CASH',
-  }[normalizedCode(tool.owner_module)] ?? normalizedCode(tool.kiosk_type));
+const toolName = (tool: MultiKioskCatalogTool, copy: MultiKioskAdminCopy) => {
+  const presentation = getMultiKioskToolPresentation(tool);
+  return copy.toolNames[presentation.workspaceKind] ?? presentation.name;
 };
 
-const toolName = (tool: MultiKioskCatalogTool, copy: MultiKioskAdminCopy) => (
-  copy.toolNames[workspaceKind(tool)] ?? tool.name
-);
-
-const toolDescription = (tool: MultiKioskCatalogTool, copy: MultiKioskAdminCopy) => (
-  copy.toolDescriptions[workspaceKind(tool)] ?? tool.description ?? moduleLabel(tool.owner_module, copy)
-);
+const toolDescription = (tool: MultiKioskCatalogTool, copy: MultiKioskAdminCopy) => {
+  const presentation = getMultiKioskToolPresentation(tool);
+  return copy.toolDescriptions[presentation.workspaceKind]
+    ?? presentation.description
+    ?? moduleLabel(presentation.ownerModule, copy);
+};
 
 const toolIsSelectable = (tool: MultiKioskCatalogTool) => (
   ['AVAILABLE', 'READY'].includes(normalizedCode(tool.readiness))
@@ -118,14 +112,6 @@ const audienceLabel = (tool: MultiKioskCatalogTool, copy: MultiKioskAdminCopy) =
   return ['COMPANY_MEMBERS', 'ALL_EMPLOYEES', 'COMPANY'].includes(audience)
     ? copy.editor.companyAudience
     : copy.editor.authorizedAudience;
-};
-
-const toolIcon = (tool: MultiKioskCatalogTool) => {
-  const kind = workspaceKind(tool);
-  if (kind === 'ATTENDANCE') return Clock3;
-  if (kind === 'MY_TASKS' || kind === 'TASKS') return ListChecks;
-  if (kind === 'PETTY_CASH') return WalletCards;
-  return Smartphone;
 };
 
 const payloadFrom = (editor: MultiKioskEditorState): MultiKioskPayload => ({
@@ -159,6 +145,10 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
   const visibleTools = catalog.tools.filter(tool => !normalizedSearch
     || [toolName(tool, copy), toolDescription(tool, copy), moduleLabel(tool.owner_module, copy)]
       .some(value => value.toLocaleLowerCase().includes(normalizedSearch)));
+  const selectedTools = form.toolKeys
+    .map(key => catalog.tools.find(tool => tool.key === key))
+    .filter((tool): tool is MultiKioskCatalogTool => Boolean(tool));
+  const selectableToolCount = catalog.tools.filter(toolIsSelectable).length;
   const hasComposition = form.toolKeys.length > 0 || (
     form.id !== undefined && form.legacyKioskDefinitionIds.length > 0
   );
@@ -208,7 +198,7 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
       footerSummary={copy.editor.footerSummary(
         step,
         form.toolKeys.length,
-        catalog.tools.length,
+        selectableToolCount,
         form.legacyKioskDefinitionIds.length,
       )}
       footer={<>
@@ -265,28 +255,81 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
               {copy.editor.legacyNotice(form.legacyKioskDefinitionIds.length)}
             </p>
           ) : null}
-          <div className="relative mb-4"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder={copy.editor.searchPlaceholder} className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-blue-500" /></div>
+          <section aria-labelledby="multi-kiosk-preview-title" className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/80">
+            <div className="flex items-start gap-3 border-b border-slate-200 bg-white px-4 py-3">
+              <span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-700">
+                <Grid2X2 className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <h3 id="multi-kiosk-preview-title" className="text-sm font-semibold text-slate-900">{copy.editor.previewTitle}</h3>
+                <p className="mt-0.5 text-xs leading-5 text-slate-500">{copy.editor.previewDescription}</p>
+              </div>
+            </div>
+            <div aria-live="polite" className="p-3">
+              {selectedTools.length > 0 ? (
+                <ol aria-label={copy.editor.previewTitle} className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:grid-cols-3">
+                  {selectedTools.map((tool, index) => {
+                    const presentation = getMultiKioskToolPresentation(tool);
+                    return (
+                      <li key={tool.key} className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+                        <span aria-hidden="true" className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-slate-900 text-[10px] font-semibold text-white">
+                          {index + 1}
+                        </span>
+                        <MultiKioskToolGlyph source={tool} className="h-9 w-9 rounded-lg [&_svg]:h-4 [&_svg]:w-4" />
+                        <span className="min-w-0">
+                          <span className="block truncate text-xs font-semibold text-slate-900">{toolName(tool, copy)}</span>
+                          <span className={cn('mt-0.5 block truncate text-[10px] font-medium', presentation.toneClasses.module)}>
+                            {moduleLabel(presentation.ownerModule, copy)}
+                          </span>
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ol>
+              ) : (
+                <p className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-5 text-center text-xs text-slate-500">
+                  {copy.editor.previewEmpty}
+                </p>
+              )}
+            </div>
+          </section>
+          <div className="relative mb-4"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input aria-label={copy.editor.searchPlaceholder} value={search} onChange={event => setSearch(event.target.value)} placeholder={copy.editor.searchPlaceholder} className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-blue-500" /></div>
           <div className="grid gap-3 sm:grid-cols-2">
             {visibleTools.map(tool => {
               const displayName = toolName(tool, copy);
               const selected = form.toolKeys.includes(tool.key);
               const selectable = toolIsSelectable(tool);
               const order = form.toolKeys.indexOf(tool.key);
-              const Icon = toolIcon(tool);
+              const presentation = getMultiKioskToolPresentation(tool);
               return (
-                <div key={tool.key} className={cn('flex items-center gap-3 rounded-2xl border bg-white p-3', selected ? 'border-blue-300 ring-2 ring-blue-500/10' : 'border-slate-200', !selectable && 'bg-slate-50 opacity-75')}>
-                  <button type="button" aria-label={selected ? copy.editor.removeTool(displayName) : copy.editor.addTool(displayName)} disabled={!selectable} onClick={() => toggleTool(tool.key)} className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl border', selected ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 text-slate-400')}>
-                    {selected ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
-                  </button>
-                  <button type="button" disabled={!selectable} onClick={() => toggleTool(tool.key)} className="min-w-0 flex-1 text-left">
-                    <span className="block truncate text-sm font-medium text-slate-900">{displayName}</span>
-                    <span className="mt-1 block line-clamp-2 text-xs leading-5 text-slate-500">{toolDescription(tool, copy)}</span>
-                    <span className="mt-2 flex flex-wrap gap-1.5">
-                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] text-slate-600">{audienceLabel(tool, copy)}</span>
-                      <span className={cn('rounded-full border px-2 py-0.5 text-[10px]', selectable ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-800')}>{readinessLabel(tool, copy)}</span>
+                <div key={tool.key} className={cn(
+                  'flex items-center gap-2 rounded-2xl border bg-white p-2 transition-colors',
+                  selected ? presentation.toneClasses.tileSelected : 'border-slate-200',
+                  selectable && presentation.toneClasses.tileHover,
+                  !selectable && 'bg-slate-50 opacity-75',
+                )}>
+                  <button
+                    type="button"
+                    aria-label={selected ? copy.editor.removeTool(displayName) : copy.editor.addTool(displayName)}
+                    aria-pressed={selected}
+                    disabled={!selectable}
+                    onClick={() => toggleTool(tool.key)}
+                    className="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-1 text-left outline-none focus-visible:ring-4 focus-visible:ring-blue-500/20"
+                  >
+                    <MultiKioskToolGlyph source={tool} selected={selected} className="h-11 w-11 rounded-xl [&_svg]:h-5 [&_svg]:w-5" />
+                    <span className="min-w-0 flex-1">
+                      <span className={cn('mb-1 block truncate text-[10px] font-semibold uppercase tracking-wide', presentation.toneClasses.module)}>
+                        {moduleLabel(presentation.ownerModule, copy)}
+                      </span>
+                      <span className="block truncate text-sm font-semibold text-slate-900">{displayName}</span>
+                      <span className="mt-1 block line-clamp-2 text-xs leading-5 text-slate-500">{toolDescription(tool, copy)}</span>
+                      <span className="mt-2 flex flex-wrap gap-1.5">
+                        <span className={cn('rounded-full border px-2 py-0.5 text-[10px]', presentation.toneClasses.badge)}>{audienceLabel(tool, copy)}</span>
+                        <span className={cn('rounded-full border px-2 py-0.5 text-[10px]', selectable ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-800')}>{readinessLabel(tool, copy)}</span>
+                      </span>
                     </span>
                   </button>
-                  {selected ? <span className="flex gap-1"><button type="button" aria-label={copy.editor.moveUp} disabled={order === 0} onClick={() => moveTool(tool.key, -1)} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 disabled:opacity-30"><ArrowUp className="h-3.5 w-3.5" /></button><button type="button" aria-label={copy.editor.moveDown} disabled={order === form.toolKeys.length - 1} onClick={() => moveTool(tool.key, 1)} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 disabled:opacity-30"><ArrowDown className="h-3.5 w-3.5" /></button></span> : null}
+                  {selected ? <span className="flex flex-col gap-1"><button type="button" aria-label={copy.editor.moveUp(displayName)} disabled={order === 0} onClick={() => moveTool(tool.key, -1)} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-blue-500/20 disabled:opacity-30"><ArrowUp className="h-3.5 w-3.5" /></button><button type="button" aria-label={copy.editor.moveDown(displayName)} disabled={order === form.toolKeys.length - 1} onClick={() => moveTool(tool.key, 1)} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-blue-500/20 disabled:opacity-30"><ArrowDown className="h-3.5 w-3.5" /></button></span> : null}
                 </div>
               );
             })}

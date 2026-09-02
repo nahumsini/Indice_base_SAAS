@@ -104,6 +104,9 @@ export const zhCA = {
     priorityLow: '低',
     priorityMedium: '中',
     priorityHigh: '高',
+    selfDescription: '为自己快速登记任务。Indice 会自动应用你当前的运营范围。',
+    selfAssignment: (employeeName: string, scopeLabel: string) => `负责人：${employeeName} · ${scopeLabel}`,
+    submitting: '正在创建任务...',
     submit: '创建任务',
   },
   responsible: {
@@ -117,6 +120,11 @@ export const zhCA = {
     updating: '正在更新负责人...',
   },
   selectedTask: {
+    markContributionReady: '将我的部分标记为就绪',
+    contributionDescription: '这是团队任务。您的更新会将负责部分提交给负责人审核，不会关闭整个任务。',
+    contributionNotes: '团队说明',
+    contributionNotesPlaceholder: '概述已完成的内容或任何待处理事项。',
+    contributionReadyStatus: '您负责的部分已准备好接受审核。',
     eyebrow: '已选任务',
     closeModal: '关闭任务弹窗',
     completion: '进度',
@@ -140,6 +148,7 @@ export const zhCA = {
     encouragementBody: '只关闭确实已完成的工作。更新会同步回 Indice。',
   },
   success: {
+    contributionReady: (taskTitle: string) => `${taskTitle}：您负责的部分已准备好接受审核。`,
     completed: (taskTitle: string) => `${taskTitle} 已完成。`,
     created: (taskTitle: string) => `${taskTitle} 已创建。`,
     responsibleUpdated: (taskTitle: string) => `${taskTitle} 已重新分配。`,

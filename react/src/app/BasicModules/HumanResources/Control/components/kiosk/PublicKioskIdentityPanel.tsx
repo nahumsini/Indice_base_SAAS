@@ -30,6 +30,7 @@ interface PublicKioskIdentityPanelProps {
   busyState: 'idle' | 'identifying' | 'recording' | 'locating' | 'verifyingFace';
   canCheckIn: boolean;
   canCheckOut: boolean;
+  canUseFace?: boolean;
   copy: KioskTranslations;
   credentialPlaceholder: string;
   credentialValue: string;
@@ -68,6 +69,7 @@ export function PublicKioskIdentityPanel({
   busyState,
   canCheckIn,
   canCheckOut,
+  canUseFace = true,
   copy,
   credentialPlaceholder,
   credentialValue,
@@ -199,6 +201,7 @@ export function PublicKioskIdentityPanel({
 
         {!hasIdentityEvidence || verificationExpanded ? (
           <PublicKioskVerificationSection
+            canUseFace={canUseFace}
             copy={copy}
             evidenceMode={evidenceMode}
             faceErrorMessage={faceErrorMessage}

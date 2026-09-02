@@ -28,6 +28,7 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class KioskMultiDashboardServiceTest {
@@ -81,6 +82,7 @@ class KioskMultiDashboardServiceTest {
         given(featureFlags.adapterEnabled("PROCESS_TASKS")).willReturn(true);
         given(moduleAccess.canAccess(user, "processes")).willReturn(true);
         lenient().when(adapterRegistry.requireAdapter("PROCESS_TASKS")).thenReturn(adapter);
+        lenient().when(registry.requireById(7L, 17L)).thenReturn(definition);
         lenient().when(adapter.employeeCenterTabPermissionKeys(definition))
             .thenReturn(Set.of("processes.calendar"));
     }
@@ -152,6 +154,27 @@ class KioskMultiDashboardServiceTest {
     }
 
     @Test
+    void mobileMultiKioskHidesUnsupportedLegacyWorkspaceButAuthenticatedWebRemainsCompatible()
+            throws Exception {
+        given(tabPermissions.canAccess(eq(user), any(TabPermissionRequirement.class)))
+            .willReturn(true);
+        given(adapter.capabilities(definition)).willReturn(Set.of(tasksRead));
+        given(registry.capabilityEnabled(17L, tasksRead)).willReturn(true);
+        given(adapter.supportsEmployeeCenter(definition)).willReturn(false);
+        given(jdbcTemplate.queryForObject(
+            contains("FROM kiosk_grants"), eq(Integer.class), any(Object[].class)))
+            .willReturn(1);
+        composeInMultiKiosk(17L);
+
+        assertThat(service.listForMultiKiosk(user, 23L)).isEmpty();
+        assertThat(service.list(user))
+            .singleElement()
+            .satisfies(card -> assertThat(card).containsEntry("id", 17L));
+
+        then(sessions).shouldHaveNoInteractions();
+    }
+
+    @Test
     void cardRequiresTabPermissionGrantAndEnabledScopedCapability() {
         allowEmployeeCapability();
         given(tabPermissions.canAccess(eq(user), any(TabPermissionRequirement.class)))
@@ -168,6 +191,20 @@ class KioskMultiDashboardServiceTest {
 
         then(registry).should().synchronizeCapabilities(definition, Set.of(tasksRead));
         then(registry).should().capabilityEnabled(17L, tasksRead);
+    }
+
+    @Test
+    void catalogComputesEmployeeWorkspaceReadinessOnlyOncePerCandidate() {
+        allowEmployeeCapability();
+        given(tabPermissions.canAccess(eq(user), any(TabPermissionRequirement.class)))
+            .willReturn(true);
+        given(jdbcTemplate.queryForObject(
+            contains("FROM kiosk_grants"), eq(Integer.class), any(Object[].class)))
+            .willReturn(1);
+
+        assertThat(service.list(user)).hasSize(1);
+
+        then(adapter).should(times(1)).supportsEmployeeCenter(definition);
     }
 
     @Test

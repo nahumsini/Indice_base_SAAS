@@ -1,9 +1,11 @@
 export interface MultiKioskMobileCopy {
   moduleNames: Record<string, string>;
+  loading: string;
   errors: {
     rateLimit: string;
     authorization: string;
     unavailable: string;
+    toolUnavailable: string;
     generic: string;
     sessionExpired: string;
   };
@@ -22,9 +24,14 @@ export interface MultiKioskMobileCopy {
   };
   launcher: {
     activeSession: string;
+    changeEmployee: string;
     signOut: string;
     searchPlaceholder: string;
     available: string;
+    intro: string;
+    open: string;
+    accessCount: (count: number) => string;
+    accessNote: string;
     verificationRequired: string;
     noAccess: string;
     noMatches: string;
@@ -51,12 +58,14 @@ export interface MultiKioskMobileCopy {
 const esMX: MultiKioskMobileCopy = {
   moduleNames: {
     PROCESS_TASKS: 'Procesos y tareas', HUMAN_RESOURCES: 'Recursos Humanos', EXPENSES: 'Gastos',
-    PETTY_CASH: 'Caja chica', SALES: 'Ventas', POINT_OF_SALE: 'Punto de venta',
+    PETTY_CASH: 'Caja chica', SALES: 'Ventas', POINT_OF_SALE: 'Punto de venta', INVENTORY: 'Inventarios',
   },
+  loading: 'Cargando experiencia de trabajo',
   errors: {
     rateLimit: 'Se alcanzó el límite de intentos. Espera un momento antes de volver a intentar.',
     authorization: 'El PIN no es válido o tu acceso ya no está activo.',
     unavailable: 'Este Multikiosco ya no está disponible.',
+    toolUnavailable: 'Esta herramienta ya no está disponible para tu acceso actual.',
     generic: 'No fue posible completar la operación. Intenta nuevamente.',
     sessionExpired: 'Tu sesión terminó o tu acceso cambió. Ingresa de nuevo con tu PIN.',
   },
@@ -72,10 +81,12 @@ const esMX: MultiKioskMobileCopy = {
     submit: 'Entrar a mis kioscos', title: 'Identifícate para continuar',
   },
   launcher: {
-    activeSession: 'Sesión activa en este dispositivo', signOut: 'Cerrar sesión / Cambiar colaborador',
-    searchPlaceholder: 'Buscar una actividad', available: 'Accesos disponibles',
+    activeSession: 'Sesión protegida en este dispositivo', changeEmployee: 'Cambiar', signOut: 'Cerrar sesión / Cambiar colaborador',
+    searchPlaceholder: 'Buscar una herramienta', available: 'Mis herramientas', intro: 'Elige una herramienta para comenzar.',
+    open: 'Abrir', accessCount: count => `${count} ${count === 1 ? 'acceso' : 'accesos'}`,
+    accessNote: 'Tus herramientas se actualizan automáticamente según tus permisos vigentes.',
     verificationRequired: 'Solicitará verificación al abrir',
-    noAccess: 'Tu PIN fue reconocido, pero tus permisos actuales no habilitan ningún kiosco de esta compañía. Solicita acceso al módulo o scope correspondiente.',
+    noAccess: 'Tu PIN fue reconocido, pero tus permisos actuales no habilitan ningún kiosco de esta compañía. Solicita el permiso correspondiente.',
     noMatches: 'No hay accesos que coincidan con tu búsqueda.',
   },
   tasks: {
@@ -84,8 +95,8 @@ const esMX: MultiKioskMobileCopy = {
     searchPlaceholder: 'Buscar en mis tareas', complete: 'Completar', empty: 'No hay tareas para mostrar.',
   },
   workspace: {
-    back: 'Todos mis kioscos', verificationTitle: 'Verificación especializada requerida',
-    verificationDescription: 'Este kiosco requiere que el módulo complete su paso seguro de identidad antes de permitir operaciones.',
+    back: 'Volver a mis herramientas', verificationTitle: 'Esta herramienta necesita actualización',
+    verificationDescription: 'No puede abrirse de forma segura con la configuración actual. Vuelve a tus herramientas; tu sesión sigue activa.',
     connected: 'El kiosco está conectado y listo para que su módulo publique esta experiencia de trabajo.',
   },
 };
@@ -93,12 +104,14 @@ const esMX: MultiKioskMobileCopy = {
 const enCA: MultiKioskMobileCopy = {
   moduleNames: {
     PROCESS_TASKS: 'Processes and tasks', HUMAN_RESOURCES: 'Human Resources', EXPENSES: 'Expenses',
-    PETTY_CASH: 'Petty cash', SALES: 'Sales', POINT_OF_SALE: 'Point of sale',
+    PETTY_CASH: 'Petty cash', SALES: 'Sales', POINT_OF_SALE: 'Point of sale', INVENTORY: 'Inventory',
   },
+  loading: 'Loading work experience',
   errors: {
     rateLimit: 'The attempt limit was reached. Wait a moment before trying again.',
     authorization: 'The PIN is not valid or your access is no longer active.',
     unavailable: 'This Multi-kiosk is no longer available.',
+    toolUnavailable: 'This tool is no longer available with your current access.',
     generic: 'The operation could not be completed. Try again.',
     sessionExpired: 'Your session ended or your access changed. Enter your PIN again.',
   },
@@ -114,10 +127,12 @@ const enCA: MultiKioskMobileCopy = {
     submit: 'Open my kiosks', title: 'Identify yourself to continue',
   },
   launcher: {
-    activeSession: 'Active session on this device', signOut: 'Sign out / Change employee',
-    searchPlaceholder: 'Search for an activity', available: 'Available access',
+    activeSession: 'Protected session on this device', changeEmployee: 'Change', signOut: 'Sign out / Change employee',
+    searchPlaceholder: 'Search tools', available: 'My tools', intro: 'Choose a tool to get started.',
+    open: 'Open', accessCount: count => `${count} ${count === 1 ? 'access' : 'accesses'}`,
+    accessNote: 'Your tools update automatically according to your current permissions.',
     verificationRequired: 'Verification will be required when opened',
-    noAccess: 'Your PIN was recognized, but your current permissions do not enable any company kiosk. Request the corresponding module or tab scope.',
+    noAccess: 'Your PIN was recognized, but your current permissions do not enable any company kiosk. Request the corresponding permission.',
     noMatches: 'No access matches your search.',
   },
   tasks: {
@@ -126,8 +141,8 @@ const enCA: MultiKioskMobileCopy = {
     searchPlaceholder: 'Search my tasks', complete: 'Complete', empty: 'There are no tasks to display.',
   },
   workspace: {
-    back: 'All my kiosks', verificationTitle: 'Specialized verification required',
-    verificationDescription: 'This kiosk requires the module to complete its secure identity step before operations are allowed.',
+    back: 'Back to my tools', verificationTitle: 'This tool needs an update',
+    verificationDescription: 'It cannot open safely with its current configuration. Return to your tools; your session remains active.',
     connected: 'The kiosk is connected and ready for its module to publish this work experience.',
   },
 };
@@ -135,12 +150,14 @@ const enCA: MultiKioskMobileCopy = {
 const frCA: MultiKioskMobileCopy = {
   moduleNames: {
     PROCESS_TASKS: 'Processus et tâches', HUMAN_RESOURCES: 'Ressources humaines', EXPENSES: 'Dépenses',
-    PETTY_CASH: 'Petite caisse', SALES: 'Ventes', POINT_OF_SALE: 'Point de vente',
+    PETTY_CASH: 'Petite caisse', SALES: 'Ventes', POINT_OF_SALE: 'Point de vente', INVENTORY: 'Inventaire',
   },
+  loading: 'Chargement de l\u2019espace de travail',
   errors: {
     rateLimit: 'La limite de tentatives a été atteinte. Attendez un moment avant de réessayer.',
     authorization: 'Le NIP est invalide ou votre accès n’est plus actif.',
     unavailable: 'Ce multikiosque n’est plus disponible.',
+    toolUnavailable: 'Cet outil n’est plus disponible avec votre accès actuel.',
     generic: 'L’opération n’a pas pu être terminée. Réessayez.',
     sessionExpired: 'Votre session est terminée ou votre accès a changé. Entrez de nouveau votre NIP.',
   },
@@ -156,8 +173,10 @@ const frCA: MultiKioskMobileCopy = {
     submit: 'Ouvrir mes kiosques', title: 'Identifiez-vous pour continuer',
   },
   launcher: {
-    activeSession: 'Session active sur cet appareil', signOut: 'Fermer la session / Changer d’employé',
-    searchPlaceholder: 'Rechercher une activité', available: 'Accès disponibles',
+    activeSession: 'Session protégée sur cet appareil', changeEmployee: 'Changer', signOut: 'Fermer la session / Changer d’employé',
+    searchPlaceholder: 'Rechercher un outil', available: 'Mes outils', intro: 'Choisissez un outil pour commencer.',
+    open: 'Ouvrir', accessCount: count => `${count} ${count === 1 ? 'accès' : 'accès'}`,
+    accessNote: 'Vos outils se mettent à jour automatiquement selon vos autorisations actuelles.',
     verificationRequired: 'Une vérification sera demandée à l’ouverture',
     noAccess: 'Votre NIP a été reconnu, mais vos autorisations actuelles ne donnent accès à aucun kiosque de l’entreprise. Demandez le module ou la portée requis.',
     noMatches: 'Aucun accès ne correspond à votre recherche.',
@@ -168,8 +187,8 @@ const frCA: MultiKioskMobileCopy = {
     searchPlaceholder: 'Rechercher dans mes tâches', complete: 'Terminer', empty: 'Aucune tâche à afficher.',
   },
   workspace: {
-    back: 'Tous mes kiosques', verificationTitle: 'Vérification spécialisée requise',
-    verificationDescription: 'Ce kiosque exige que le module termine son étape sécurisée d’identité avant d’autoriser les opérations.',
+    back: 'Retour à mes outils', verificationTitle: 'Cet outil doit être mis à jour',
+    verificationDescription: 'Il ne peut pas s’ouvrir de façon sécurisée avec sa configuration actuelle. Revenez à vos outils; votre session reste active.',
     connected: 'Le kiosque est connecté et prêt à recevoir l’expérience de travail de son module.',
   },
 };
@@ -177,12 +196,14 @@ const frCA: MultiKioskMobileCopy = {
 const ptBR: MultiKioskMobileCopy = {
   moduleNames: {
     PROCESS_TASKS: 'Processos e tarefas', HUMAN_RESOURCES: 'Recursos Humanos', EXPENSES: 'Despesas',
-    PETTY_CASH: 'Caixa pequeno', SALES: 'Vendas', POINT_OF_SALE: 'Ponto de venda',
+    PETTY_CASH: 'Caixa pequeno', SALES: 'Vendas', POINT_OF_SALE: 'Ponto de venda', INVENTORY: 'Estoque',
   },
+  loading: 'Carregando ambiente de trabalho',
   errors: {
     rateLimit: 'O limite de tentativas foi atingido. Aguarde um momento antes de tentar novamente.',
     authorization: 'O PIN não é válido ou seu acesso não está mais ativo.',
     unavailable: 'Este Multiquiosque não está mais disponível.',
+    toolUnavailable: 'Esta ferramenta não está mais disponível com seu acesso atual.',
     generic: 'Não foi possível concluir a operação. Tente novamente.',
     sessionExpired: 'Sua sessão terminou ou seu acesso mudou. Digite seu PIN novamente.',
   },
@@ -198,8 +219,10 @@ const ptBR: MultiKioskMobileCopy = {
     submit: 'Abrir meus quiosques', title: 'Identifique-se para continuar',
   },
   launcher: {
-    activeSession: 'Sessão ativa neste dispositivo', signOut: 'Encerrar sessão / Trocar colaborador',
-    searchPlaceholder: 'Buscar uma atividade', available: 'Acessos disponíveis',
+    activeSession: 'Sessão protegida neste dispositivo', changeEmployee: 'Trocar', signOut: 'Encerrar sessão / Trocar colaborador',
+    searchPlaceholder: 'Buscar ferramentas', available: 'Minhas ferramentas', intro: 'Escolha uma ferramenta para começar.',
+    open: 'Abrir', accessCount: count => `${count} ${count === 1 ? 'acesso' : 'acessos'}`,
+    accessNote: 'Suas ferramentas são atualizadas automaticamente conforme suas permissões atuais.',
     verificationRequired: 'Será solicitada uma verificação ao abrir',
     noAccess: 'Seu PIN foi reconhecido, mas suas permissões atuais não habilitam nenhum quiosque da empresa. Solicite o módulo ou escopo correspondente.',
     noMatches: 'Nenhum acesso corresponde à sua busca.',
@@ -210,8 +233,8 @@ const ptBR: MultiKioskMobileCopy = {
     searchPlaceholder: 'Buscar nas minhas tarefas', complete: 'Concluir', empty: 'Não há tarefas para exibir.',
   },
   workspace: {
-    back: 'Todos os meus quiosques', verificationTitle: 'Verificação especializada necessária',
-    verificationDescription: 'Este quiosque exige que o módulo conclua a etapa segura de identidade antes de permitir operações.',
+    back: 'Voltar às minhas ferramentas', verificationTitle: 'Esta ferramenta precisa de atualização',
+    verificationDescription: 'Ela não pode ser aberta com segurança na configuração atual. Volte às suas ferramentas; sua sessão continua ativa.',
     connected: 'O quiosque está conectado e pronto para que seu módulo publique esta experiência de trabalho.',
   },
 };
@@ -219,12 +242,14 @@ const ptBR: MultiKioskMobileCopy = {
 const koCA: MultiKioskMobileCopy = {
   moduleNames: {
     PROCESS_TASKS: '프로세스 및 작업', HUMAN_RESOURCES: '인사 관리', EXPENSES: '비용',
-    PETTY_CASH: '소액 현금', SALES: '영업', POINT_OF_SALE: '판매 시점',
+    PETTY_CASH: '소액 현금', SALES: '영업', POINT_OF_SALE: '판매 시점', INVENTORY: '재고',
   },
+  loading: '\uc791\uc5c5 \ud658\uacbd \ub85c\ub4dc \uc911',
   errors: {
     rateLimit: '시도 횟수 한도에 도달했습니다. 잠시 후 다시 시도하세요.',
     authorization: 'PIN이 올바르지 않거나 접근 권한이 더 이상 유효하지 않습니다.',
     unavailable: '이 멀티 키오스크는 더 이상 사용할 수 없습니다.',
+    toolUnavailable: '현재 접근 권한으로는 이 도구를 더 이상 사용할 수 없습니다.',
     generic: '작업을 완료할 수 없습니다. 다시 시도하세요.',
     sessionExpired: '세션이 종료되었거나 접근 권한이 변경되었습니다. PIN을 다시 입력하세요.',
   },
@@ -240,8 +265,10 @@ const koCA: MultiKioskMobileCopy = {
     submit: '내 키오스크 열기', title: '계속하려면 본인 확인을 하세요',
   },
   launcher: {
-    activeSession: '이 기기에서 세션 활성화됨', signOut: '로그아웃 / 직원 변경',
-    searchPlaceholder: '활동 검색', available: '사용 가능한 접근',
+    activeSession: '이 기기에서 보호된 세션', changeEmployee: '직원 변경', signOut: '로그아웃 / 직원 변경',
+    searchPlaceholder: '도구 검색', available: '내 도구', intro: '시작할 도구를 선택하세요.',
+    open: '열기', accessCount: count => `${count}개 접근 권한`,
+    accessNote: '현재 권한에 따라 도구가 자동으로 업데이트됩니다.',
     verificationRequired: '열 때 추가 확인이 필요합니다',
     noAccess: 'PIN은 확인되었지만 현재 권한으로 사용할 수 있는 회사 키오스크가 없습니다. 필요한 모듈이나 탭 범위를 요청하세요.',
     noMatches: '검색과 일치하는 접근이 없습니다.',
@@ -252,8 +279,8 @@ const koCA: MultiKioskMobileCopy = {
     searchPlaceholder: '내 작업 검색', complete: '완료', empty: '표시할 작업이 없습니다.',
   },
   workspace: {
-    back: '내 모든 키오스크', verificationTitle: '전문 확인 필요',
-    verificationDescription: '이 키오스크는 작업을 허용하기 전에 해당 모듈의 보안 본인 확인 단계를 완료해야 합니다.',
+    back: '내 도구로 돌아가기', verificationTitle: '이 도구는 업데이트가 필요합니다',
+    verificationDescription: '현재 구성으로는 안전하게 열 수 없습니다. 도구 목록으로 돌아가세요. 세션은 계속 유지됩니다.',
     connected: '키오스크가 연결되었으며 모듈의 업무 환경을 제공할 준비가 되었습니다.',
   },
 };
@@ -261,12 +288,14 @@ const koCA: MultiKioskMobileCopy = {
 const zhCA: MultiKioskMobileCopy = {
   moduleNames: {
     PROCESS_TASKS: '流程和任务', HUMAN_RESOURCES: '人力资源', EXPENSES: '费用',
-    PETTY_CASH: '备用金', SALES: '销售', POINT_OF_SALE: '销售点',
+    PETTY_CASH: '备用金', SALES: '销售', POINT_OF_SALE: '销售点', INVENTORY: '库存',
   },
+  loading: '\u6b63\u5728\u52a0\u8f7d\u5de5\u4f5c\u533a',
   errors: {
     rateLimit: '已达到尝试次数上限。请稍后再试。',
     authorization: 'PIN 无效或您的访问权限已失效。',
     unavailable: '此多功能自助终端已不可用。',
+    toolUnavailable: '您当前的访问权限已无法使用此工具。',
     generic: '无法完成操作。请重试。',
     sessionExpired: '您的会话已结束或访问权限已更改。请重新输入 PIN。',
   },
@@ -282,8 +311,10 @@ const zhCA: MultiKioskMobileCopy = {
     submit: '打开我的自助终端', title: '请先验证身份',
   },
   launcher: {
-    activeSession: '此设备上的会话处于活动状态', signOut: '退出登录 / 更换员工',
-    searchPlaceholder: '搜索活动', available: '可用访问',
+    activeSession: '此设备上的受保护会话', changeEmployee: '更换员工', signOut: '退出登录 / 更换员工',
+    searchPlaceholder: '搜索工具', available: '我的工具', intro: '选择一个工具开始工作。',
+    open: '打开', accessCount: count => `${count} 个访问权限`,
+    accessNote: '您的工具会根据当前权限自动更新。',
     verificationRequired: '打开时需要进一步验证',
     noAccess: 'PIN 已确认，但您当前的权限未启用任何公司自助终端。请申请相应的模块或页面权限。',
     noMatches: '没有与搜索匹配的访问。',
@@ -294,8 +325,8 @@ const zhCA: MultiKioskMobileCopy = {
     searchPlaceholder: '搜索我的任务', complete: '完成', empty: '没有可显示的任务。',
   },
   workspace: {
-    back: '我的所有自助终端', verificationTitle: '需要专项验证',
-    verificationDescription: '此自助终端要求所属模块先完成安全身份验证，然后才能执行操作。',
+    back: '返回我的工具', verificationTitle: '此工具需要更新',
+    verificationDescription: '当前配置无法安全打开此工具。请返回工具列表；你的会话仍然有效。',
     connected: '自助终端已连接，可由所属模块提供此工作体验。',
   },
 };

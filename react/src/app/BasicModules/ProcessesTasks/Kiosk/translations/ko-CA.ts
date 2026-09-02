@@ -104,6 +104,9 @@ export const koCA = {
     priorityLow: '낮음',
     priorityMedium: '중간',
     priorityHigh: '높음',
+    selfDescription: '본인에게 할당할 빠른 작업을 등록하세요. Indice가 현재 운영 범위를 자동으로 적용합니다.',
+    selfAssignment: (employeeName: string, scopeLabel: string) => `담당자: ${employeeName} · ${scopeLabel}`,
+    submitting: '작업 만드는 중...',
     submit: '작업 만들기',
   },
   responsible: {
@@ -117,6 +120,11 @@ export const koCA = {
     updating: '담당자 업데이트 중...',
   },
   selectedTask: {
+    markContributionReady: '내 담당 부분 준비 완료',
+    contributionDescription: '팀 작업입니다. 업데이트하면 담당 부분이 검토를 위해 리더에게 전달되며 전체 작업이 종료되지는 않습니다.',
+    contributionNotes: '팀 메모',
+    contributionNotesPlaceholder: '완료한 내용이나 남은 문제를 요약하세요.',
+    contributionReadyStatus: '담당 부분이 검토 준비되었습니다.',
     eyebrow: '선택한 작업',
     closeModal: '작업 모달 닫기',
     completion: '진행률',
@@ -140,6 +148,7 @@ export const koCA = {
     encouragementBody: '실제로 완료한 작업만 종료하세요. 업데이트는 Indice와 동기화됩니다.',
   },
   success: {
+    contributionReady: (taskTitle: string) => `${taskTitle}: 담당 부분이 검토 준비되었습니다.`,
     completed: (taskTitle: string) => `${taskTitle} 작업이 완료되었습니다.`,
     created: (taskTitle: string) => `${taskTitle} 작업이 생성되었습니다.`,
     responsibleUpdated: (taskTitle: string) => `${taskTitle} 작업이 재배정되었습니다.`,

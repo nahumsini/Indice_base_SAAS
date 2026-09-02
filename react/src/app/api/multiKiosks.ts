@@ -268,6 +268,7 @@ export interface MultiKioskChildWorkspace {
 }
 
 const publicBase = (token: string) => `/api/v2/multi-kiosks/public/${encodeURIComponent(token)}`;
+const publicRequestTimeoutMs = 15_000;
 const multiSessionKey = (token: string) => `indice.multi-kiosk.${token}.session`;
 const childSessionKey = (token: string, kioskId: number) => `indice.multi-kiosk.${token}.child.${kioskId}`;
 const childSessionPrefix = (token: string) => `indice.multi-kiosk.${token}.child.`;
@@ -293,18 +294,39 @@ const removeStoredByPrefix = (prefix: string) => {
 };
 
 async function publicRequest<T>(path: string, init: RequestInit = {}) {
-  const response = await fetch(buildApiUrl(path), {
-    credentials: 'include',
-    cache: init.method && init.method !== 'GET' ? undefined : 'no-store',
-    ...init,
-    headers: { Accept: 'application/json', ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...init.headers },
-  });
-  const payload = await response.json().catch(() => null) as Envelope<T> | { error?: { code?: string; message?: string } } | null;
-  if (!response.ok) {
-    const error = payload && 'error' in payload ? payload.error : undefined;
-    throw new ApiClientError(error?.message || response.statusText || 'Request failed', response.status, error?.code, payload);
+  const controller = new AbortController();
+  let timedOut = false;
+  const abortFromCaller = () => controller.abort(init.signal?.reason);
+  if (init.signal?.aborted) abortFromCaller();
+  else init.signal?.addEventListener('abort', abortFromCaller, { once: true });
+  const timeoutId = window.setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, publicRequestTimeoutMs);
+
+  try {
+    const response = await fetch(buildApiUrl(path), {
+      credentials: 'include',
+      cache: init.method && init.method !== 'GET' ? undefined : 'no-store',
+      ...init,
+      signal: controller.signal,
+      headers: { Accept: 'application/json', ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...init.headers },
+    });
+    const payload = await response.json().catch(() => null) as Envelope<T> | { error?: { code?: string; message?: string } } | null;
+    if (!response.ok) {
+      const error = payload && 'error' in payload ? payload.error : undefined;
+      throw new ApiClientError(error?.message || response.statusText || 'Request failed', response.status, error?.code, payload);
+    }
+    return (payload as Envelope<T>).data;
+  } catch (error) {
+    if (timedOut) {
+      throw new ApiClientError('The request timed out.', 408, 'REQUEST_TIMEOUT');
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+    init.signal?.removeEventListener('abort', abortFromCaller);
   }
-  return (payload as Envelope<T>).data;
 }
 
 export const multiKioskMobileSession = {
@@ -322,6 +344,18 @@ export const multiKioskMobileSession = {
 
 export const isMultiKioskAuthorizationFailure = (error: unknown) => (
   error instanceof ApiClientError && (error.status === 401 || error.status === 403)
+);
+
+/**
+ * A child kiosk can disappear from the employee's effective catalogue while the
+ * parent Multi-kiosk session remains valid (for example after a permission or
+ * composition change). Treat that as child authority loss, not as a reason to
+ * discard the employee's shared-device session.
+ */
+export const isMultiKioskChildAuthorityLoss = (error: unknown) => (
+  error instanceof ApiClientError
+  && error.status === 404
+  && error.code === 'KIOSK_NOT_AVAILABLE'
 );
 
 export const multiKioskPublicApi = {
@@ -344,11 +378,12 @@ export const multiKioskPublicApi = {
       'X-Multi-Kiosk-Session-Token': multiKioskMobileSession.get(token),
     } },
   ),
-  async launch(token: string, kioskId: number, csrfToken: string) {
+  async launch(token: string, kioskId: number, csrfToken: string, signal?: AbortSignal) {
     const data = await publicRequest<MultiKioskChildLaunch>(`${publicBase(token)}/kiosks/${kioskId}/sessions`, {
       method: 'POST',
       headers: { 'X-CSRF-Token': csrfToken, 'X-Multi-Kiosk-Session-Token': multiKioskMobileSession.get(token) },
       body: JSON.stringify({}),
+      signal,
     });
     multiKioskMobileSession.childSet(token, kioskId, data.kiosk_session_token);
     return data;

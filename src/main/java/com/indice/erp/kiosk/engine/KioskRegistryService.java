@@ -17,6 +17,7 @@ import java.util.NoSuchElementException;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -342,6 +343,13 @@ public class KioskRegistryService {
                     kiosk_type = VALUES(kiosk_type), code = VALUES(code), name = VALUES(name),
                     status = VALUES(status), unit_id = VALUES(unit_id), business_id = VALUES(business_id)%s,
                     access_level = VALUES(access_level), expires_at = VALUES(expires_at),
+                    protected_public_token = CASE
+                        WHEN (protected_public_token IS NULL OR protected_public_token = '')
+                         AND legacy_token_recoverable = 1
+                         AND public_token_hash = VALUES(public_token_hash)
+                        THEN VALUES(protected_public_token)
+                        ELSE protected_public_token
+                    END,
                     theme_key = VALUES(theme_key), default_locale = VALUES(default_locale),
                     updated_by = VALUES(updated_by),
                     configuration_version = configuration_version + 1
@@ -425,18 +433,122 @@ public class KioskRegistryService {
             companyId, ownerModule, kioskType, legacyReferenceId);
         var values = jdbcTemplate.query(
             """
-                SELECT protected_public_token
+                SELECT public_token_hash, protected_public_token, legacy_token_recoverable
                 FROM kiosk_definitions
                 WHERE id = ? AND company_id = ? AND owner_module = ?
                 LIMIT 1
                 """,
-            (rs, rowNum) -> rs.getString("protected_public_token"),
+            (rs, rowNum) -> new LegacyRecoveryMaterial(
+                rs.getString("public_token_hash"),
+                rs.getString("protected_public_token"),
+                rs.getBoolean("legacy_token_recoverable")),
             definition.id(), companyId, ownerModule);
-        if (values.isEmpty() || values.getFirst() == null || values.getFirst().isBlank()) {
+        if (values.isEmpty()) {
             throw new IllegalStateException(
                 "The current kiosk link is not recoverable. Regenerate access to issue a new link.");
         }
-        return payloadProtection.reveal(values.getFirst());
+        return revealValidatedRecoveryMaterial(values.getFirst());
+    }
+
+    /**
+     * Seals a legacy module-owned token for compatibility without rotating its public link.
+     * Existing protected material is validated and never replaced.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean repairLegacyPublicTokenRecoveryMaterial(
+            long companyId,
+            long kioskDefinitionId,
+            String ownerModule,
+            String kioskType,
+            long legacyReferenceId,
+            String legacyPublicToken) {
+        if (companyId <= 0 || kioskDefinitionId <= 0 || legacyReferenceId <= 0
+                || ownerModule == null || ownerModule.isBlank()
+                || kioskType == null || kioskType.isBlank()
+                || legacyPublicToken == null || legacyPublicToken.isBlank()) {
+            return false;
+        }
+
+        var normalizedOwner = ownerModule.trim();
+        var normalizedType = kioskType.trim();
+        KioskResolvedDefinition definition;
+        try {
+            definition = requireByLegacyReference(
+                companyId, normalizedOwner, normalizedType, legacyReferenceId);
+        } catch (NoSuchElementException unavailable) {
+            return false;
+        }
+        if (definition.id() != kioskDefinitionId
+                || definition.companyId() != companyId
+                || !normalizedOwner.equals(definition.ownerModule())
+                || !normalizedType.equals(definition.kioskType())
+                || definition.legacyReferenceId() == null
+                || definition.legacyReferenceId() != legacyReferenceId) {
+            return false;
+        }
+
+        var rows = jdbcTemplate.query(
+            """
+                SELECT public_token_hash, protected_public_token, legacy_token_recoverable
+                FROM kiosk_definitions
+                WHERE id = ? AND company_id = ? AND owner_module = ?
+                  AND kiosk_type = ? AND legacy_reference_id = ?
+                LIMIT 1
+                FOR UPDATE
+                """,
+            (rs, rowNum) -> new LegacyRecoveryMaterial(
+                rs.getString("public_token_hash"),
+                rs.getString("protected_public_token"),
+                rs.getBoolean("legacy_token_recoverable")),
+            kioskDefinitionId, companyId, normalizedOwner, normalizedType, legacyReferenceId);
+        if (rows.isEmpty()) {
+            return false;
+        }
+
+        var material = rows.getFirst();
+        var suppliedHash = sha256(legacyPublicToken);
+        if (!constantTimeEquals(material.publicTokenHash(), suppliedHash)) {
+            return false;
+        }
+        if (material.protectedPublicToken() != null
+                && !material.protectedPublicToken().isBlank()) {
+            try {
+                var currentToken = revealValidatedRecoveryMaterial(material);
+                return constantTimeEquals(currentToken, legacyPublicToken);
+            } catch (IllegalArgumentException | IllegalStateException | SecurityException invalid) {
+                return false;
+            }
+        }
+        if (!material.legacyTokenRecoverable()) {
+            return false;
+        }
+
+        String protectedToken;
+        try {
+            protectedToken = payloadProtection.protect(legacyPublicToken);
+        } catch (IllegalArgumentException | IllegalStateException protectionFailure) {
+            return false;
+        }
+        if (protectedToken == null || protectedToken.isBlank()) {
+            return false;
+        }
+        var repaired = jdbcTemplate.update(
+            """
+                UPDATE kiosk_definitions
+                SET protected_public_token = ?
+                WHERE id = ? AND company_id = ? AND owner_module = ?
+                  AND kiosk_type = ? AND legacy_reference_id = ?
+                  AND public_token_hash = ? AND legacy_token_recoverable = 1
+                  AND (protected_public_token IS NULL OR protected_public_token = '')
+                """,
+            protectedToken, kioskDefinitionId, companyId, normalizedOwner, normalizedType,
+            legacyReferenceId, suppliedHash);
+        if (repaired != 1) {
+            return false;
+        }
+        auditLifecycle(definition, "KIOSK_TOKEN_RECOVERY_MATERIAL_REPAIRED", "SUCCEEDED", 0L,
+            "Legacy owner token matched the registered public hash");
+        return true;
     }
 
     public boolean publicTokenRecoverable(long companyId, long kioskDefinitionId) {
@@ -786,11 +898,37 @@ public class KioskRegistryService {
         }
     }
 
+    private String revealValidatedRecoveryMaterial(LegacyRecoveryMaterial material) {
+        if (material == null || material.protectedPublicToken() == null
+                || material.protectedPublicToken().isBlank()) {
+            throw new IllegalStateException(
+                "The current kiosk link is not recoverable. Regenerate access to issue a new link.");
+        }
+        var revealed = payloadProtection.reveal(material.protectedPublicToken());
+        if (revealed == null || revealed.isBlank()
+                || !constantTimeEquals(material.publicTokenHash(), sha256(revealed))) {
+            throw new SecurityException("Protected kiosk recovery material failed integrity validation.");
+        }
+        return revealed;
+    }
+
+    private boolean constantTimeEquals(String left, String right) {
+        if (left == null || right == null) return false;
+        return MessageDigest.isEqual(
+            left.getBytes(StandardCharsets.UTF_8), right.getBytes(StandardCharsets.UTF_8));
+    }
+
     private String json(Object value) {
         try {
             return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Kiosk audit snapshot is not serializable.", ex);
         }
+    }
+
+    private record LegacyRecoveryMaterial(
+            String publicTokenHash,
+            String protectedPublicToken,
+            boolean legacyTokenRecoverable) {
     }
 }

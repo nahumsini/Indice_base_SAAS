@@ -52,7 +52,7 @@ public class KioskMultiDashboardService {
     }
 
     public List<Map<String, Object>> list(AuthSessionUser user) {
-        return eligibleCards(user, true);
+        return eligibleCards(user, true, false);
     }
 
     /**
@@ -84,7 +84,7 @@ public class KioskMultiDashboardService {
         if (orderedIds.isEmpty()) return List.of();
 
         var eligibleById = new LinkedHashMap<Long, Map<String, Object>>();
-        eligibleCards(user, false).forEach(card ->
+        eligibleCards(user, false, true).forEach(card ->
             eligibleById.put(((Number) card.get("id")).longValue(), card));
         return orderedIds.stream()
             .map(eligibleById::get)
@@ -94,7 +94,8 @@ public class KioskMultiDashboardService {
 
     private List<Map<String, Object>> eligibleCards(
             AuthSessionUser user,
-            boolean requireExplicitGrant) {
+            boolean requireExplicitGrant,
+            boolean requireEmployeeCenterReady) {
         return registry.list(user.companyId()).stream()
             .filter(definition -> definition.effectiveStatus(java.time.Instant.now()).operational())
             .filter(definition -> !requireExplicitGrant
@@ -106,7 +107,10 @@ public class KioskMultiDashboardService {
             .filter(definition -> tabPermissionAllows(user, definition))
             .filter(definition -> !requireExplicitGrant || hasExplicitGrant(user, definition))
             .filter(definition -> organizationScopeAllows(user, definition))
-            .filter(definition -> hasEnabledCapability(user, definition))
+            .map(this::employeeCenterCandidate)
+            .filter(candidate -> !requireEmployeeCenterReady
+                || candidate.employeeCenterReady())
+            .filter(candidate -> hasEnabledCapability(user, candidate))
             .map(this::card)
             .toList();
     }
@@ -123,10 +127,12 @@ public class KioskMultiDashboardService {
         }
         var definition = registry.requireById(user.companyId(), kioskDefinitionId);
         var adapter = adapterRegistry.requireAdapter(definition.ownerModule());
+        var employeeCenterReady = adapter.supportsEmployeeCenter(definition);
         var definitionCapabilities = adapter.capabilities(definition);
         registry.synchronizeCapabilities(definition, definitionCapabilities);
         var capabilities = definitionCapabilities.stream()
-            .filter(descriptor -> employeeCapabilityAllowed(user, definition, adapter, descriptor))
+            .filter(descriptor -> employeeCapabilityAllowed(
+                user, definition, adapter, descriptor, employeeCenterReady))
             .map(KioskCapabilityDescriptor::versionedKey)
             .collect(Collectors.toUnmodifiableSet());
         if (capabilities.isEmpty()) throw new KioskUnavailableException();
@@ -137,7 +143,7 @@ public class KioskMultiDashboardService {
         data.put("kiosk_session_token", launch.accessToken());
         data.put("expires_at", launch.session().expiresAt().toString());
         data.put("granted_capabilities", launch.session().grantedCapabilities());
-        data.put("experience_status", adapter.supportsEmployeeCenter(definition)
+        data.put("experience_status", employeeCenterReady
             ? "READY" : "SPECIALIZED_VERIFICATION_REQUIRED");
         data.put("workspace", Map.of(
             "channel", "AUTHENTICATED_WEB",
@@ -160,10 +166,12 @@ public class KioskMultiDashboardService {
         if (user.userCompanyId() == null) throw new KioskUnavailableException();
         var definition = registry.requireById(user.companyId(), kioskDefinitionId);
         var adapter = adapterRegistry.requireAdapter(definition.ownerModule());
+        var employeeCenterReady = adapter.supportsEmployeeCenter(definition);
         var definitionCapabilities = adapter.capabilities(definition);
         registry.synchronizeCapabilities(definition, definitionCapabilities);
         var capabilities = definitionCapabilities.stream()
-            .filter(descriptor -> employeeCapabilityAllowed(user, definition, adapter, descriptor))
+            .filter(descriptor -> employeeCapabilityAllowed(
+                user, definition, adapter, descriptor, employeeCenterReady))
             .map(KioskCapabilityDescriptor::versionedKey)
             .collect(Collectors.toUnmodifiableSet());
         if (capabilities.isEmpty()) throw new KioskUnavailableException();
@@ -175,7 +183,7 @@ public class KioskMultiDashboardService {
         data.put("kiosk_session_token", launch.accessToken());
         data.put("expires_at", launch.session().expiresAt().toString());
         data.put("granted_capabilities", launch.session().grantedCapabilities());
-        data.put("experience_status", adapter.supportsEmployeeCenter(definition)
+        data.put("experience_status", employeeCenterReady
             ? "READY" : "SPECIALIZED_VERIFICATION_REQUIRED");
         data.put("workspace", Map.of(
             "channel", "MOBILE_MULTI_KIOSK",
@@ -197,14 +205,15 @@ public class KioskMultiDashboardService {
         var principal = sessions.requireAuthenticatedIndexSession(
             definition, accessToken, browserSessionReference, user.userId());
         var adapter = adapterRegistry.requireAdapter(definition.ownerModule());
+        var employeeCenterReady = adapter.supportsEmployeeCenter(definition);
         var result = new LinkedHashMap<String, Object>();
-        result.put("kiosk", card(definition));
+        result.put("kiosk", card(definition, employeeCenterReady));
         result.put("session", Map.of(
             "id", principal.sessionId(),
             "expires_at", principal.expiresAt().toString(),
             "capabilities", principal.grantedCapabilities()
         ));
-        if (!adapter.supportsEmployeeCenter(definition)) {
+        if (!employeeCenterReady) {
             result.put("experience_status", "SPECIALIZED_VERIFICATION_REQUIRED");
             result.put("message", "This kiosk requires its module-specific verification step.");
             return result;
@@ -229,14 +238,15 @@ public class KioskMultiDashboardService {
             definition, multiKioskId, accessToken, browserSessionReference,
             user.userId(), user.userCompanyId());
         var adapter = adapterRegistry.requireAdapter(definition.ownerModule());
+        var employeeCenterReady = adapter.supportsEmployeeCenter(definition);
         var result = new LinkedHashMap<String, Object>();
-        result.put("kiosk", card(definition));
+        result.put("kiosk", card(definition, employeeCenterReady));
         result.put("session", Map.of(
             "id", principal.sessionId(),
             "expires_at", principal.expiresAt().toString(),
             "capabilities", principal.grantedCapabilities()
         ));
-        if (!adapter.supportsEmployeeCenter(definition)) {
+        if (!employeeCenterReady) {
             result.put("experience_status", "SPECIALIZED_VERIFICATION_REQUIRED");
             result.put("message", "Este kiosco requiere su verificación especializada antes de operar.");
             return Map.copyOf(result);
@@ -259,14 +269,16 @@ public class KioskMultiDashboardService {
         requireAllowed(user, kioskDefinitionId);
         var definition = registry.requireById(user.companyId(), kioskDefinitionId);
         var adapter = adapterRegistry.requireAdapter(definition.ownerModule());
-        if (!adapter.supportsEmployeeCenter(definition)) {
+        var employeeCenterReady = adapter.supportsEmployeeCenter(definition);
+        if (!employeeCenterReady) {
             throw new UnsupportedOperationException(
                 "This kiosk requires its module-specific verification step.");
         }
         var principal = sessions.requireAuthenticatedIndexSession(
             definition, accessToken, browserSessionReference, user.userId());
         var parsed = parseCapability(versionedCapability);
-        requireEmployeeCapabilityAllowed(user, definition, adapter, parsed.versionedKey());
+        requireEmployeeCapabilityAllowed(
+            user, definition, adapter, parsed.versionedKey(), employeeCenterReady);
         var normalized = new LinkedHashMap<String, Object>(payload == null ? Map.of() : payload);
         normalized.put("kiosk_session_token", accessToken);
         var resourceId = number(normalized.get("resource_id"));
@@ -291,7 +303,8 @@ public class KioskMultiDashboardService {
         if (user.userCompanyId() == null) throw new KioskUnavailableException();
         var definition = registry.requireById(user.companyId(), kioskDefinitionId);
         var adapter = adapterRegistry.requireAdapter(definition.ownerModule());
-        if (!adapter.supportsEmployeeCenter(definition)) {
+        var employeeCenterReady = adapter.supportsEmployeeCenter(definition);
+        if (!employeeCenterReady) {
             throw new UnsupportedOperationException(
                 "Este kiosco requiere su verificación especializada antes de operar.");
         }
@@ -299,7 +312,8 @@ public class KioskMultiDashboardService {
             definition, multiKioskId, accessToken, browserSessionReference,
             user.userId(), user.userCompanyId());
         var parsed = parseCapability(versionedCapability);
-        requireEmployeeCapabilityAllowed(user, definition, adapter, parsed.versionedKey());
+        requireEmployeeCapabilityAllowed(
+            user, definition, adapter, parsed.versionedKey(), employeeCenterReady);
         if (!principal.grantedCapabilities().contains(parsed.versionedKey())) {
             throw new SecurityException("Kiosk capability is not granted.");
         }
@@ -378,12 +392,22 @@ public class KioskMultiDashboardService {
         }
     }
 
-    private boolean hasEnabledCapability(AuthSessionUser user, KioskResolvedDefinition definition) {
-        var adapter = adapterRegistry.requireAdapter(definition.ownerModule());
+    private boolean hasEnabledCapability(
+            AuthSessionUser user,
+            EmployeeCenterCandidate candidate) {
+        var definition = candidate.definition();
+        var adapter = candidate.adapter();
         var definitionCapabilities = adapter.capabilities(definition);
         registry.synchronizeCapabilities(definition, definitionCapabilities);
         return definitionCapabilities.stream()
-            .anyMatch(capability -> employeeCapabilityAllowed(user, definition, adapter, capability));
+            .anyMatch(capability -> employeeCapabilityAllowed(
+                user, definition, adapter, capability, candidate.employeeCenterReady()));
+    }
+
+    private EmployeeCenterCandidate employeeCenterCandidate(KioskResolvedDefinition definition) {
+        var adapter = adapterRegistry.requireAdapter(definition.ownerModule());
+        return new EmployeeCenterCandidate(
+            definition, adapter, adapter.supportsEmployeeCenter(definition));
     }
 
     Set<String> requiredTabPermissionKeys(long companyId, long kioskDefinitionId) {
@@ -406,11 +430,12 @@ public class KioskMultiDashboardService {
             AuthSessionUser user,
             KioskResolvedDefinition definition,
             KioskModuleAdapter adapter,
-            KioskCapabilityDescriptor capability) {
+            KioskCapabilityDescriptor capability,
+            boolean employeeCenterReady) {
         if (!registry.capabilityEnabled(definition.id(), capability)) {
             return false;
         }
-        if (!adapter.supportsEmployeeCenter(definition)) {
+        if (!employeeCenterReady) {
             return true;
         }
         return hasAnyTabPermission(
@@ -421,12 +446,14 @@ public class KioskMultiDashboardService {
             AuthSessionUser user,
             KioskResolvedDefinition definition,
             KioskModuleAdapter adapter,
-            String versionedCapability) {
+            String versionedCapability,
+            boolean employeeCenterReady) {
         var capability = adapter.capabilities(definition).stream()
             .filter(candidate -> candidate.versionedKey().equals(versionedCapability))
             .findFirst()
             .orElseThrow(KioskUnavailableException::new);
-        if (!employeeCapabilityAllowed(user, definition, adapter, capability)) {
+        if (!employeeCapabilityAllowed(
+                user, definition, adapter, capability, employeeCenterReady)) {
             throw new KioskUnavailableException();
         }
     }
@@ -483,7 +510,13 @@ public class KioskMultiDashboardService {
         return count != null && count > 0;
     }
 
-    private Map<String, Object> card(KioskResolvedDefinition definition) {
+    private Map<String, Object> card(EmployeeCenterCandidate candidate) {
+        return card(candidate.definition(), candidate.employeeCenterReady());
+    }
+
+    private Map<String, Object> card(
+            KioskResolvedDefinition definition,
+            boolean employeeCenterReady) {
         var card = new LinkedHashMap<String, Object>();
         card.put("id", definition.id());
         card.put("name", definition.name());
@@ -502,8 +535,7 @@ public class KioskMultiDashboardService {
             "unit_id", definition.unitId() == null ? "" : definition.unitId(),
             "business_id", definition.businessId() == null ? "" : definition.businessId()
         ));
-        var adapter = adapterRegistry.requireAdapter(definition.ownerModule());
-        card.put("availability", adapter.supportsEmployeeCenter(definition)
+        card.put("availability", employeeCenterReady
             ? "AVAILABLE" : "VERIFICATION_REQUIRED");
         card.put("primary_action", "OPEN");
         return Map.copyOf(card);
@@ -524,5 +556,11 @@ public class KioskMultiDashboardService {
     }
 
     private record OrganizationScope(Long unitId, Long businessId) {
+    }
+
+    private record EmployeeCenterCandidate(
+            KioskResolvedDefinition definition,
+            KioskModuleAdapter adapter,
+            boolean employeeCenterReady) {
     }
 }

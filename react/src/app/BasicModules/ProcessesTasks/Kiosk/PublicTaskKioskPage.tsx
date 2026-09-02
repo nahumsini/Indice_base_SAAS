@@ -544,8 +544,10 @@ export default function PublicTaskKioskPage() {
     if (!deviceToken || !identity?.identification_token || !selectedTask) {
       return;
     }
+    const contributionFlow = selectedTask.completion_action === 'CONTRIBUTION_READY';
     const parsedCompletion = Number(completionPercent || 100);
-    if (!Number.isInteger(parsedCompletion) || parsedCompletion < 0 || parsedCompletion > 100) {
+    if (!contributionFlow
+        && (!Number.isInteger(parsedCompletion) || parsedCompletion < 0 || parsedCompletion > 100)) {
       setError(copy.errors.progressInvalid);
       return;
     }
@@ -557,7 +559,7 @@ export default function PublicTaskKioskPage() {
       const completionPayload = {
         identification_token: identity.identification_token,
         completion_notes: completionNotes,
-        completion_percent: parsedCompletion,
+        ...(contributionFlow ? {} : { completion_percent: parsedCompletion }),
       };
       const operation = `process-tasks:complete:${selectedTask.id}`;
       const completionResult = await runTaskCompletionWithBestEffortEvidence({
@@ -586,7 +588,9 @@ export default function PublicTaskKioskPage() {
       setCompletionNotes('');
       setCompletionPercent('100');
       setEvidenceFiles([]);
-      setSuccessMessage(copy.success.completed(selectedTask.title));
+      setSuccessMessage(response.action_outcome === 'CONTRIBUTION_READY'
+        ? copy.success.contributionReady(selectedTask.title)
+        : copy.success.completed(selectedTask.title));
       setError(evidenceWarning);
     } catch (completeError) {
       setError(publicTaskKioskErrorMessage(completeError, copy.errors.completeFailure));

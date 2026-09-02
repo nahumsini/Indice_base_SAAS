@@ -297,6 +297,21 @@ const moduleMetaBySlug: Record<
   },
 };
 
+const moduleEmojiSlugAliases: Readonly<Record<string, string>> = {
+  humanresources: 'human_resources',
+  processes_tasks: 'processes',
+  process_tasks: 'processes',
+  point_of_sale: 'pos',
+};
+
+/** Canonical module emoji for compact launchers and other presentation-only surfaces. */
+export function getModuleEmojiBySlug(slug?: string | null): string | null {
+  const normalizedSlug = (slug ?? '').trim().toLocaleLowerCase().replace(/[\s-]+/g, '_');
+  if (!normalizedSlug) return null;
+
+  return moduleMetaBySlug[moduleEmojiSlugAliases[normalizedSlug] ?? normalizedSlug]?.emoji ?? null;
+}
+
 export function buildDefaultModuleCatalog(t: Translator): DashboardModuleCard[] {
   const modules = new Map<string, DashboardModuleCard>();
 
