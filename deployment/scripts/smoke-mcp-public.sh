@@ -70,6 +70,26 @@ node -e '
   }
 ' "${authorization_file}" "${issuer}"
 
+oidc_file="${tmp_dir}/openid-configuration.json"
+oidc_status="$(curl -sS -o "${oidc_file}" -w '%{http_code}' "${issuer}/.well-known/openid-configuration")"
+if [[ "${oidc_status}" != "200" ]]; then
+  echo "OpenID Connect discovery metadata returned ${oidc_status}." >&2
+  exit 1
+fi
+
+node -e '
+  const fs = require("node:fs");
+  const data = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+  const issuer = process.argv[2];
+  if (data.issuer !== issuer) throw new Error(`Unexpected OIDC issuer: ${data.issuer}`);
+  if (typeof data.userinfo_endpoint !== "string" || !data.userinfo_endpoint.startsWith(`${issuer}/`)) {
+    throw new Error("OIDC metadata must advertise the Indice UserInfo endpoint.");
+  }
+  if (!Array.isArray(data.scopes_supported) || !data.scopes_supported.includes("openid") || !data.scopes_supported.includes("email")) {
+    throw new Error("OIDC metadata must advertise openid and email scopes.");
+  }
+' "${oidc_file}" "${issuer}"
+
 support_status="$(curl -sS -o /dev/null -w '%{http_code}' "${PUBLIC_URL}/support")"
 if [[ "${support_status}" != "200" ]]; then
   echo "Public support page returned ${support_status}." >&2
