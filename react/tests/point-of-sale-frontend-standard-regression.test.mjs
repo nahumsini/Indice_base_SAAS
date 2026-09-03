@@ -220,7 +220,11 @@ test('Square Terminal mantiene cobro verificado por backend y recuperable', () =
   const checkout = readFileSync(resolve(pointOfSaleRoot, 'Sale/hooks/useSaleCheckout.ts'), 'utf8');
   const sale = readFileSync(resolve(pointOfSaleRoot, 'Sale/Sale.tsx'), 'utf8');
   const recovery = readFileSync(resolve(pointOfSaleRoot, 'Sale/components/SquareTerminalRecoveryPanel.tsx'), 'utf8');
-  const setup = readFileSync(resolve(pointOfSaleRoot, 'CashRegisters/SquareTerminalSetupPanel.tsx'), 'utf8');
+  const setupModal = readFileSync(resolve(pointOfSaleRoot, 'CashRegisters/SquareTerminalSetupModal.tsx'), 'utf8');
+  const setupState = readFileSync(resolve(pointOfSaleRoot, 'CashRegisters/useSquareTerminalSetupState.ts'), 'utf8');
+  const setup = `${setupModal}\n${setupState}`;
+  const setupSteps = readFileSync(resolve(pointOfSaleRoot, 'CashRegisters/SquareTerminalSetupStep.tsx'), 'utf8');
+  const registersWorkspace = readFileSync(resolve(pointOfSaleRoot, 'CashRegisters/CashRegistersWorkspace.tsx'), 'utf8');
 
   assert.match(api, /listRecoverableSquareTerminalPayments/);
   assert.match(api, /unassignSquareTerminal[\s\S]*method: 'DELETE'/);
@@ -237,6 +241,15 @@ test('Square Terminal mantiene cobro verificado por backend y recuperable', () =
   assert.match(setup, /assignSquareTerminal/);
   assert.match(setup, /unassignSquareTerminal/);
   assert.match(setup, /disableSquareTerminal/);
+  assert.match(setupModal, /IndiceModalFrame/);
+  assert.match(setupModal, /modalType="wizard"/);
+  assert.match(setupModal, /IndiceModalWizardStepper/);
+  assert.match(setupModal, /copy\.providers\.mercadoPagoName/);
+  assert.match(setupModal, /disabled[\s\S]*MercadoPagoBrandMark/);
+  assert.match(setupSteps, /PaymentProviderCard/);
+  assert.match(registersWorkspace, /setConfiguringPaymentTerminal\(true\)/);
+  assert.match(registersWorkspace, /SquareTerminalSetupModal/);
+  assert.doesNotMatch(registersWorkspace, /SquareTerminalSetupPanel/);
 });
 
 test('Devoluciones y movimientos operan dentro del workspace izquierdo', () => {
@@ -505,7 +518,8 @@ test('Cajas concentra la operación en vivo y los cortes cerrados del día', () 
   assert.match(cashRegisters, /copy\.session\.difference/);
   assert.match(cashRegisters, /<SuccessToast[\s\S]*isVisible=\{Boolean\(successMessage\)\}/);
   assert.match(cashRegisters, /icon=\{<span className="text-xl leading-none">🏪<\/span>\}/);
-  assert.doesNotMatch(cashRegisters, /copy\.header\.eyebrow|copy\.header\.refresh|pointOfSaleTitleBarSecondaryActionClassName/);
+  assert.doesNotMatch(cashRegisters, /copy\.header\.eyebrow|copy\.header\.refresh/);
+  assert.match(cashRegisters, /pointOfSaleTitleBarSecondaryActionClassName/);
   assert.doesNotMatch(cashRegisterTranslations, /Administración operativa|Operational administration|refresh: 'Refresh'|refresh: 'Actualizar'/);
   assert.doesNotMatch(cashRegisters, /error \|\| notice/);
   assert.doesNotMatch(cashRegisters, /border-emerald-200 bg-emerald-50 text-emerald-700/);

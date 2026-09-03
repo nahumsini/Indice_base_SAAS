@@ -1,19 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, ChevronDown, ChevronRight, CircleDollarSign, Loader2, Monitor, Pencil, Plus, ReceiptText, Trash2, Warehouse } from 'lucide-react';
+import { Activity, ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, ChevronDown, ChevronRight, CircleDollarSign, CreditCard, Loader2, Monitor, Pencil, Plus, ReceiptText, Trash2, Warehouse } from 'lucide-react';
 import { configCenterApi } from '../../../api/configCenter';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { IndiceFilterBar, IndiceFilterSearch, IndiceFilterSelect } from '../../../components/frontend-os';
 import { IndiceConfirmationDialog } from '../../../components/indice-modal';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../../../components/ui/tooltip';
 import { useTablePagination } from '../../../hooks/useTablePagination';
-import { PointOfSaleTitleBar, pointOfSaleTitleBarPrimaryActionClassName } from '../shared/components/PointOfSaleTitleBar';
+import { PointOfSaleTitleBar, pointOfSaleTitleBarPrimaryActionClassName, pointOfSaleTitleBarSecondaryActionClassName } from '../shared/components/PointOfSaleTitleBar';
 import { PointOfSaleTablePagination } from '../shared/components/PointOfSaleTablePagination';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import { CreateCashRegisterModal } from '../Sale/components/CreateCashRegisterModal';
 import { PosModalFrame, posModalModuleFooterClassName, posModalPrimaryActionClassName, posModalSecondaryActionClassName } from '../Sale/components/PosModalFrame';
 import { posBackendApi, type PosCashRegisterCreatePayload, type PosCashRegisterResponse, type PosContextResponse, type PosDailySalesSummaryResponse, type PosShiftClosingSummaryResponse, type PosShiftResponse, type PosWarehouseSummary } from '../Sale/services/posBackendApi';
 import { useCashRegistersCopy, type CashRegistersCopy } from './cashRegistersTranslations';
-import { SquareTerminalSetupPanel } from './SquareTerminalSetupPanel';
+import { SquareTerminalSetupModal } from './SquareTerminalSetupModal';
+import { useSquareTerminalSetupCopy } from './squareTerminalSetupTranslations';
 
 type Row = {
   warehouse: PosWarehouseSummary;
@@ -83,6 +84,7 @@ function resizeCashRegisterColumnBoundary(
 
 export default function CashRegistersWorkspace() {
   const { copy, locale } = useCashRegistersCopy();
+  const { copy: terminalCopy } = useSquareTerminalSetupCopy();
   const { preferredCurrency } = usePreferredBusinessCurrency();
   const [context, setContext] = useState<PosContextResponse | null>(null);
   const [registers, setRegisters] = useState<PosCashRegisterResponse[]>([]);
@@ -103,6 +105,7 @@ export default function CashRegistersWorkspace() {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [creating, setCreating] = useState(false);
+  const [configuringPaymentTerminal, setConfiguringPaymentTerminal] = useState(false);
   const [editing, setEditing] = useState<PosCashRegisterResponse | null>(null);
   const [registerPendingDeletion, setRegisterPendingDeletion] = useState<PosCashRegisterResponse | null>(null);
   const canManageCashRegisters = context?.canManageCashRegisters === true;
@@ -379,7 +382,16 @@ export default function CashRegistersWorkspace() {
       icon={<span className="text-xl leading-none">🏪</span>}
       title={copy.header.title}
       subtitle={copy.header.subtitle}
-      actions={canManageCashRegisters ? <button type="button" onClick={() => setCreating(true)} className={pointOfSaleTitleBarPrimaryActionClassName}><Plus className="h-4 w-4" />{copy.header.newRegister}</button> : undefined}
+      actions={canManageCashRegisters ? (
+        <>
+          <button type="button" onClick={() => setConfiguringPaymentTerminal(true)} className={pointOfSaleTitleBarSecondaryActionClassName}>
+            <CreditCard className="h-4 w-4" />{terminalCopy.trigger}
+          </button>
+          <button type="button" onClick={() => setCreating(true)} className={pointOfSaleTitleBarPrimaryActionClassName}>
+            <Plus className="h-4 w-4" />{copy.header.newRegister}
+          </button>
+        </>
+      ) : undefined}
     />
 
     {error ? <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
@@ -433,8 +445,6 @@ export default function CashRegistersWorkspace() {
         value={!currentTodaySalesAggregate ? '—' : formatMoney(todayAccumulated, preferredCurrency, locale)}
       />
     </div>
-
-    {canManageCashRegisters ? <SquareTerminalSetupPanel registers={registers} canManage={canManageCashRegisters} /> : null}
 
     <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="overflow-x-auto">
@@ -561,6 +571,14 @@ export default function CashRegistersWorkspace() {
     </section>
 
     {canManageCashRegisters ? <CreateCashRegisterModal isOpen={creating} warehouses={context?.warehouses ?? []} isSubmitting={saving} onClose={() => setCreating(false)} onConfirm={create} /> : null}
+    {canManageCashRegisters ? (
+      <SquareTerminalSetupModal
+        canManage={canManageCashRegisters}
+        onClose={() => setConfiguringPaymentTerminal(false)}
+        open={configuringPaymentTerminal}
+        registers={registers}
+      />
+    ) : null}
     {canManageCashRegisters && editing ? <EditRegisterModal copy={copy} register={editing} warehouses={context?.warehouses ?? []} saving={saving} onClose={() => setEditing(null)} onSave={update} /> : null}
     <IndiceConfirmationDialog
       open={Boolean(registerPendingDeletion)}
