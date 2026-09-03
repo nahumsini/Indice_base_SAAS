@@ -309,7 +309,9 @@ docker run -d \
   -e "MINIO_API_CORS_ALLOW_ORIGIN=${MINIO_CORS_ALLOWED_ORIGINS:-${PUBLIC_URL}}" \
   -v "${MINIO_DATA_MOUNT}:/data" \
   "${MINIO_IMAGE}" \
-  server /data --console-address ":${HOST_MINIO_CONSOLE_PORT}" >/dev/null
+  server /data \
+  --address "127.0.0.1:${HOST_MINIO_API_PORT}" \
+  --console-address "127.0.0.1:${HOST_MINIO_CONSOLE_PORT}" >/dev/null
 
 sleep 8
 curl --fail --silent --show-error "http://127.0.0.1:${HOST_MINIO_API_PORT}/minio/health/live" >/dev/null
