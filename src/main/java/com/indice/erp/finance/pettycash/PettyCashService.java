@@ -649,6 +649,7 @@ public class PettyCashService {
             fund.unitId(), fund.businessId(), null, fund.kioskPublicToken(), true,
             KioskAccessLevel.CONTROLLED, "petty-cash", "es-MX", actorId);
         kioskRegistry.synchronizeCapabilities(definition, PettyCashKioskCapabilities.descriptors());
+        kioskRegistry.synchronizeEmployeeCenter(definition, true, "SCOPE");
     }
 
     private PettyCashFundRecord requireFund(FinanceContext context, long fundId) {

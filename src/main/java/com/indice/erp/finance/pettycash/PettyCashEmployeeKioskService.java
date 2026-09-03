@@ -6,6 +6,7 @@ import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 /** Employee-center bridge that keeps the petty-cash public token inside its owner module. */
@@ -14,12 +15,15 @@ public class PettyCashEmployeeKioskService {
 
     private final PettyCashPublicKioskService kioskService;
     private final KioskRegistryService registry;
+    private final JdbcTemplate jdbcTemplate;
 
     public PettyCashEmployeeKioskService(
             PettyCashPublicKioskService kioskService,
-            KioskRegistryService registry) {
+            KioskRegistryService registry,
+            JdbcTemplate jdbcTemplate) {
         this.kioskService = kioskService;
         this.registry = registry;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     public boolean supports(KioskResolvedDefinition definition) {
@@ -29,6 +33,42 @@ public class PettyCashEmployeeKioskService {
             && definition.legacyReferenceId() != null
             && definition.legacyReferenceId() > 0
             && registry.publicTokenRecoverable(definition.companyId(), definition.id());
+    }
+
+    /**
+     * A named fund owner is an exact object assignment and may operate that fund even when the
+     * employee's primary work profile belongs to another unit. Unassigned funds continue to use
+     * the normal organizational scope; assigning the fund to someone else always fails closed.
+     */
+    public boolean accessAllows(
+            KioskResolvedDefinition definition,
+            long userId,
+            boolean organizationScopeAllows) {
+        if (definition == null
+                || userId <= 0
+                || !PettyCashKioskCapabilities.OWNER_MODULE.equals(definition.ownerModule())
+                || !PettyCashKioskCapabilities.KIOSK_TYPE.equals(definition.kioskType())
+                || definition.legacyReferenceId() == null
+                || definition.legacyReferenceId() <= 0) {
+            return false;
+        }
+        var responsibleUsers = jdbcTemplate.query(
+            """
+                SELECT responsible_user_id
+                FROM finance_petty_cash_funds
+                WHERE id = ? AND company_id = ?
+                  AND deleted_at IS NULL
+                  AND kiosk_enabled = TRUE
+                  AND status <> 'CLOSED'
+                """,
+            (rs, rowNum) -> rs.getObject("responsible_user_id", Long.class),
+            definition.legacyReferenceId(), definition.companyId()
+        );
+        if (responsibleUsers.isEmpty()) return false;
+        var responsibleUserId = responsibleUsers.getFirst();
+        return responsibleUserId == null
+            ? organizationScopeAllows
+            : responsibleUserId == userId;
     }
 
     public Map<String, Object> bootstrap(KioskResolvedDefinition definition, long userId) {

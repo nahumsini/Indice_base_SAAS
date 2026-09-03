@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, Minus, Plus, Search, ShoppingBag, UserRound, X } from 'lucide-react';
-import {
-  PosModalFrame,
-  posModalPrimaryActionClassName,
-} from '../Sale/components/PosModalFrame';
+import { KioskModalFrame } from '../../../components/kiosk-engine/KioskModalFrame';
 import type { RestaurantCatalogItem, RestaurantOrder } from './restaurantKioskApi';
 import type { RestaurantWorkspaceMutation } from './WaiterStationWorkspace';
 
@@ -77,25 +74,26 @@ export function RestaurantProductModal({
   };
 
   return (
-    <PosModalFrame
+    <KioskModalFrame
+      open
+      onOpenChange={open => { if (!open) onClose(); }}
+      busy={addingProductId != null}
+      surface="public"
+      size="workspace"
       bodyClassName="overflow-hidden p-0 sm:p-0"
       closeLabel="Cerrar catálogo"
-      contentClassName="h-[94vh]"
+      contentClassName="sm:!h-[92dvh]"
       eyebrow="Estación de mesero"
       footer={(
-        <button className={posModalPrimaryActionClassName} onClick={onClose} type="button">
+        <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-medium text-[#B63B32] shadow-sm" onClick={onClose} type="button">
           <Check aria-hidden="true" className="h-5 w-5" />Terminar captura
         </button>
       )}
       footerSummary={`Comensal ${guestNumber} · cantidad ${quantity} · ${filteredProducts.length} productos disponibles`}
       icon={<ShoppingBag className="h-6 w-6" />}
-      isCloseDisabled={addingProductId != null}
-      modalType="operational-workspace"
-      onClose={onClose}
-      subtitle="Elige al comensal y toca un producto para agregarlo directamente a su comanda."
+      description="Elige al comensal y toca un producto para agregarlo directamente a su comanda."
       title={`Agregar productos · ${order.tableName}`}
       tone="coral"
-      zIndexClassName="z-[180]"
     >
       <div className="flex h-full min-h-0 flex-col bg-[#F7F8FA] dark:bg-slate-900">
         <div className="shrink-0 border-b border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950 sm:p-4">
@@ -202,7 +200,7 @@ export function RestaurantProductModal({
           )}
         </div>
       </div>
-    </PosModalFrame>
+    </KioskModalFrame>
   );
 }
 

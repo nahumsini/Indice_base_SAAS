@@ -67,6 +67,15 @@ public class PettyCashKioskAdapter implements KioskModuleAdapter {
     }
 
     @Override
+    public boolean employeeCenterAccessAllows(
+            KioskResolvedDefinition definition,
+            long userId,
+            Long userCompanyId,
+            boolean organizationScopeAllows) {
+        return employeeCenter.accessAllows(definition, userId, organizationScopeAllows);
+    }
+
+    @Override
     public Map<String, Object> employeeBootstrap(KioskExecutionContext context) {
         requireEmployeeContext(context);
         return employeeCenter.bootstrap(context.definition(), context.session().identityId());

@@ -45,6 +45,19 @@ public interface KioskModuleAdapter {
         return employeeCenterTabPermissionKeys(definition);
     }
 
+    /**
+     * Lets the owner module apply its final employee/object scope policy after the Engine computes
+     * the employee profile scope. A direct module-owned assignment may satisfy scope only for the
+     * exact definition it owns; the default preserves the Engine's organizational decision.
+     */
+    default boolean employeeCenterAccessAllows(
+            KioskResolvedDefinition definition,
+            long userId,
+            Long userCompanyId,
+            boolean organizationScopeAllows) {
+        return organizationScopeAllows;
+    }
+
     default Map<String, Object> employeeBootstrap(KioskExecutionContext context) {
         throw new UnsupportedOperationException("This kiosk does not expose an employee workspace.");
     }

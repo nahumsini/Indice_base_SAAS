@@ -4,6 +4,8 @@ import { EmployeeTaskMultiKioskWorkspace } from '../../BasicModules/ProcessesTas
 import { LegacyTaskMultiKioskWorkspace } from '../../BasicModules/ProcessesTasks/Kiosk/LegacyTaskMultiKioskWorkspace';
 import { AttendanceMultiKioskWorkspace } from '../AttendanceMultiKioskWorkspace';
 import { PettyCashMultiKioskWorkspace } from '../PettyCashMultiKioskWorkspace';
+import { PayablesMultiKioskWorkspace } from '../PayablesMultiKioskWorkspace';
+import { PointOfSaleMultiKioskWorkspace } from '../PointOfSaleMultiKioskWorkspace';
 import type { MultiKioskMobileCopy } from '../multiKioskMobileTranslations';
 import { getMultiKioskToolPresentation } from './toolPresentation';
 
@@ -80,6 +82,33 @@ export function MultiKioskToolHost({
   if (workspaceKind === 'PETTY_CASH' || (!toolKey && ownerModule === 'PETTY_CASH')) {
     return (
       <PettyCashMultiKioskWorkspace
+        token={token}
+        kioskId={kioskId}
+        workspace={workspace}
+        locale={locale}
+        onAuthorizationFailure={onAuthorizationFailure}
+        onRefresh={onRefresh}
+      />
+    );
+  }
+
+  if (workspaceKind === 'PAYABLES'
+      || workspaceKind === 'ACCOUNTS_PAYABLE'
+      || (!toolKey && ownerModule === 'EXPENSES')) {
+    return (
+      <PayablesMultiKioskWorkspace
+        token={token}
+        kioskId={kioskId}
+        workspace={workspace}
+        onAuthorizationFailure={onAuthorizationFailure}
+        onRefresh={onRefresh}
+      />
+    );
+  }
+
+  if (ownerModule === 'POINT_OF_SALE' || workspaceKind.startsWith('POS_')) {
+    return (
+      <PointOfSaleMultiKioskWorkspace
         token={token}
         kioskId={kioskId}
         workspace={workspace}

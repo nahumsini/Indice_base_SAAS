@@ -20,6 +20,7 @@ import org.springframework.jdbc.core.RowMapper;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
@@ -77,14 +78,17 @@ class KioskMultiDashboardServiceTest {
             KioskOperationPolicy.INFORMATION_ONLY, KioskAccessLevel.CONTROLLED,
             false, false);
 
-        given(registry.list(7L)).willReturn(List.of(definition));
-        given(employeeAccess.isEmployeeEligible(7L, 17L)).willReturn(true);
-        given(featureFlags.adapterEnabled("PROCESS_TASKS")).willReturn(true);
-        given(moduleAccess.canAccess(user, "processes")).willReturn(true);
+        lenient().when(registry.list(7L)).thenReturn(List.of(definition));
+        lenient().when(employeeAccess.isEmployeeEligible(7L, 17L)).thenReturn(true);
+        lenient().when(featureFlags.adapterEnabled("PROCESS_TASKS")).thenReturn(true);
+        lenient().when(moduleAccess.canAccess(user, "processes")).thenReturn(true);
         lenient().when(adapterRegistry.requireAdapter("PROCESS_TASKS")).thenReturn(adapter);
         lenient().when(registry.requireById(7L, 17L)).thenReturn(definition);
         lenient().when(adapter.employeeCenterTabPermissionKeys(definition))
             .thenReturn(Set.of("processes.calendar"));
+        lenient().when(adapter.employeeCenterAccessAllows(
+            any(KioskResolvedDefinition.class), anyLong(), any(), anyBoolean()))
+            .thenAnswer(invocation -> invocation.getArgument(3));
     }
 
     @Test
@@ -154,6 +158,83 @@ class KioskMultiDashboardServiceTest {
     }
 
     @Test
+    void moduleOwnedExactAssignmentCanSatisfyScopeForOnlyItsDefinition()
+            throws Exception {
+        var pettyDefinition = new KioskResolvedDefinition(
+            27L, 7L, "PETTY_CASH", "receipt_capture", 41L,
+            "PETTY-41", "Caja asignada", KioskDefinitionStatus.ACTIVE,
+            24L, 5L, null, KioskAccessLevel.CONTROLLED,
+            null, "tokenhint", true, 1, 1);
+        var receiptCreate = new KioskCapabilityDescriptor(
+            "petty-cash.receipt.create", 1, "PETTY_CASH",
+            KioskOperationPolicy.DIRECT, KioskAccessLevel.CONTROLLED,
+            true, true);
+        given(registry.list(7L)).willReturn(List.of(pettyDefinition));
+        given(employeeAccess.isEmployeeEligible(7L, 27L)).willReturn(true);
+        given(featureFlags.adapterEnabled("PETTY_CASH")).willReturn(true);
+        given(moduleAccess.canAccess(user, "petty_cash")).willReturn(true);
+        given(adapterRegistry.requireAdapter("PETTY_CASH")).willReturn(adapter);
+        given(adapter.employeeCenterTabPermissionKeys(pettyDefinition))
+            .willReturn(Set.of("petty_cash.cash"));
+        given(adapter.employeeCenterAccessAllows(pettyDefinition, 9L, 19L, false))
+            .willReturn(true);
+        given(adapter.supportsEmployeeCenter(pettyDefinition)).willReturn(true);
+        given(adapter.capabilities(pettyDefinition)).willReturn(Set.of(receiptCreate));
+        given(adapter.employeeCapabilityTabPermissionKeys(pettyDefinition, receiptCreate))
+            .willReturn(Set.of("petty_cash.cash"));
+        given(registry.capabilityEnabled(27L, receiptCreate)).willReturn(true);
+        given(tabPermissions.canAccess(eq(user), any(TabPermissionRequirement.class)))
+            .willReturn(true);
+        composeInMultiKiosk(27L);
+
+        assertThat(service.listForMultiKiosk(user, 23L))
+            .singleElement()
+            .satisfies(card -> assertThat(card)
+                .containsEntry("id", 27L)
+                .containsEntry("module", "PETTY_CASH"));
+    }
+
+    @Test
+    void companyWideRoleCanOpenScopedPosFromItsWarehouseAndRegister()
+            throws Exception {
+        var superadmin = new AuthSessionUser(9L, 7L, 19L, "Owner", "superadmin");
+        var posDefinition = new KioskResolvedDefinition(
+            28L, 7L, "POINT_OF_SALE", "self_service", 42L,
+            "POS-42", "Pre-ticket sucursal", KioskDefinitionStatus.ACTIVE,
+            24L, 29L, 11L, KioskAccessLevel.CONTROLLED,
+            null, "tokenhint", true, 1, 1);
+        var catalogRead = new KioskCapabilityDescriptor(
+            "pos.self-service.catalog.read", 1, "POINT_OF_SALE",
+            KioskOperationPolicy.INFORMATION_ONLY, KioskAccessLevel.CONTROLLED,
+            false, false);
+        given(registry.list(7L)).willReturn(List.of(posDefinition));
+        given(employeeAccess.isEmployeeEligible(7L, 28L)).willReturn(true);
+        given(featureFlags.adapterEnabled("POINT_OF_SALE")).willReturn(true);
+        given(moduleAccess.canAccess(superadmin, "pos")).willReturn(true);
+        given(adapterRegistry.requireAdapter("POINT_OF_SALE")).willReturn(adapter);
+        given(adapter.employeeCenterTabPermissionKeys(posDefinition))
+            .willReturn(Set.of("pos.sale"));
+        given(adapter.supportsEmployeeCenter(posDefinition)).willReturn(true);
+        given(adapter.capabilities(posDefinition)).willReturn(Set.of(catalogRead));
+        given(adapter.employeeCapabilityTabPermissionKeys(posDefinition, catalogRead))
+            .willReturn(Set.of("pos.sale"));
+        given(registry.capabilityEnabled(28L, catalogRead)).willReturn(true);
+        given(tabPermissions.canAccess(eq(superadmin), any(TabPermissionRequirement.class)))
+            .willReturn(true);
+        composeInMultiKiosk(28L);
+
+        assertThat(service.listForMultiKiosk(superadmin, 23L))
+            .singleElement()
+            .satisfies(card -> assertThat(card)
+                .containsEntry("id", 28L)
+                .containsEntry("module", "POINT_OF_SALE"));
+
+        then(jdbcTemplate).should(never()).query(
+            contains("FROM user_work_profiles"),
+            any(RowMapper.class), any(Object[].class));
+    }
+
+    @Test
     void mobileMultiKioskHidesUnsupportedLegacyWorkspaceButAuthenticatedWebRemainsCompatible()
             throws Exception {
         given(tabPermissions.canAccess(eq(user), any(TabPermissionRequirement.class)))
@@ -205,6 +286,66 @@ class KioskMultiDashboardServiceTest {
         assertThat(service.list(user)).hasSize(1);
 
         then(adapter).should(times(1)).supportsEmployeeCenter(definition);
+    }
+
+    @Test
+    void contextualCatalogPublishesOnlyReadyScopedDefinitionsWithoutWritingOnRead() {
+        var pettyDefinition = new KioskResolvedDefinition(
+            27L, 7L, "PETTY_CASH", "receipt_capture", 41L,
+            "PETTY-01", "Caja principal", KioskDefinitionStatus.ACTIVE,
+            2L, 3L, null, KioskAccessLevel.CONTROLLED,
+            null, "tokenhint", true, 1, 1);
+        var receiptCreate = new KioskCapabilityDescriptor(
+            "petty-cash.receipt.create", 1, "PETTY_CASH",
+            KioskOperationPolicy.DIRECT, KioskAccessLevel.CONTROLLED,
+            true, true);
+        given(employeeAccess.catalog(7L)).willReturn(List.of(Map.of(
+            "id", 27L,
+            "name", "Caja principal",
+            "owner_module", "PETTY_CASH",
+            "kiosk_type", "receipt_capture",
+            "unit_name", "Unidad Norte",
+            "business_name", "Negocio Centro")));
+        given(registry.requireById(7L, 27L)).willReturn(pettyDefinition);
+        given(featureFlags.adapterEnabled("PETTY_CASH")).willReturn(true);
+        given(moduleAccess.companyCanAccess(7L, "petty_cash")).willReturn(true);
+        given(adapterRegistry.requireAdapter("PETTY_CASH")).willReturn(adapter);
+        given(adapter.supportsEmployeeCenter(pettyDefinition)).willReturn(true);
+        given(adapter.employeeCenterTabPermissionKeys(pettyDefinition))
+            .willReturn(Set.of("petty_cash.cash"));
+        given(adapter.employeeCapabilityTabPermissionKeys(pettyDefinition, receiptCreate))
+            .willReturn(Set.of("petty_cash.cash"));
+        given(adapter.capabilities(pettyDefinition)).willReturn(Set.of(receiptCreate));
+        given(registry.capabilityEnabled(27L, receiptCreate)).willReturn(true);
+
+        assertThat(service.contextualCatalog(7L))
+            .singleElement()
+            .satisfies(item -> assertThat(item)
+                .containsEntry("id", 27L)
+                .containsEntry("employee_center_supported", true)
+                .containsEntry("audience_policy", "SCOPED_COMPANY_MEMBERS")
+                .containsEntry("readiness", "AVAILABLE"));
+
+        then(registry).should(never()).synchronizeCapabilities(any(), any());
+    }
+
+    @Test
+    void contextualCatalogRejectsPosTypesOutsideWaiterAndPreticket() {
+        var selfCheckout = new KioskResolvedDefinition(
+            28L, 7L, "POINT_OF_SALE", "self_checkout", 42L,
+            "CHECKOUT-01", "Autocobro", KioskDefinitionStatus.ACTIVE,
+            2L, 3L, 11L, KioskAccessLevel.PUBLIC,
+            null, "tokenhint", true, 1, 1);
+        given(employeeAccess.catalog(7L)).willReturn(List.of(Map.of(
+            "id", 28L,
+            "name", "Autocobro",
+            "owner_module", "POINT_OF_SALE",
+            "kiosk_type", "self_checkout")));
+        given(registry.requireById(7L, 28L)).willReturn(selfCheckout);
+
+        assertThat(service.contextualCatalog(7L)).isEmpty();
+
+        then(adapterRegistry).should(never()).requireAdapter("POINT_OF_SALE");
     }
 
     @Test

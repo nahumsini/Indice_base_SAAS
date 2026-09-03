@@ -46,6 +46,9 @@ export type MultiKioskAdminCopy = {
     expiry: string;
     catalogTitle: string;
     catalogDescription: string;
+    operationalCatalogTitle: string;
+    operationalCatalogDescription: string;
+    emptyOperationalKiosks: string;
     previewTitle: string;
     previewDescription: string;
     previewEmpty: string;
@@ -77,12 +80,15 @@ const sharedModuleNames = {
 const enCA: MultiKioskAdminCopy = {
   locale: 'en-CA',
   moduleNames: sharedModuleNames,
-  toolNames: { ATTENDANCE: 'Record attendance', MY_TASKS: 'My tasks', TASKS: 'My tasks', PETTY_CASH: 'Petty cash' },
+  toolNames: { ATTENDANCE: 'Record attendance', MY_TASKS: 'My tasks', TASKS: 'My tasks', PETTY_CASH: 'Petty cash', PAYABLES: 'Accounts payable', POS_SELF_SERVICE: 'Pre-ticket', POS_WAITER_STATION: 'Waiter station' },
   toolDescriptions: {
     ATTENDANCE: 'Clock in, clock out, and review today’s activity.',
     MY_TASKS: 'Review and complete work assigned to you.',
     TASKS: 'Review and complete work assigned to you.',
     PETTY_CASH: 'Capture receipts and work with authorized funds.',
+    PAYABLES: 'Register supplier payables and attach supporting evidence.',
+    POS_SELF_SERVICE: 'Create sales pre-tickets for this warehouse and cash register.',
+    POS_WAITER_STATION: 'Manage tables and orders in the assigned restaurant.',
   },
   center: {
     title: 'Kiosk centre',
@@ -112,6 +118,9 @@ const enCA: MultiKioskAdminCopy = {
     initialLanguage: 'Initial language', initialLanguageHelp: 'Used only when the device has not selected another language.',
     expiry: 'Optional expiry', catalogTitle: 'Native module catalogue',
     catalogDescription: 'Choose the company work tools. They do not depend on created kiosks; after the PIN, the server applies each collaborator’s current permissions.',
+    operationalCatalogTitle: 'Kiosks by location',
+    operationalCatalogDescription: 'Add payable, petty cash, waiter-station, or pre-ticket kiosks. Opening and charging a cash register remain in the POS app.',
+    emptyOperationalKiosks: 'No operational kiosks match this search.',
     previewTitle: 'How collaborators will see it',
     previewDescription: 'Published tools keep this order. Permissions may hide any tool a collaborator cannot use.',
     previewEmpty: 'Choose at least one tool to preview the launcher.',
@@ -130,12 +139,15 @@ const esMX: MultiKioskAdminCopy = {
     PROCESS_TASKS: 'Procesos y tareas', HUMAN_RESOURCES: 'Recursos Humanos', EXPENSES: 'Gastos',
     PETTY_CASH: 'Caja chica', SALES: 'Ventas', POINT_OF_SALE: 'Punto de venta', INVENTORY: 'Inventarios',
   },
-  toolNames: { ATTENDANCE: 'Registrar asistencia', MY_TASKS: 'Mis tareas', TASKS: 'Mis tareas', PETTY_CASH: 'Caja chica' },
+  toolNames: { ATTENDANCE: 'Registrar asistencia', MY_TASKS: 'Mis tareas', TASKS: 'Mis tareas', PETTY_CASH: 'Caja chica', PAYABLES: 'Cuentas por pagar', POS_SELF_SERVICE: 'Pre-ticket', POS_WAITER_STATION: 'Estación de meseros' },
   toolDescriptions: {
     ATTENDANCE: 'Registra entrada, salida y consulta la actividad de hoy.',
     MY_TASKS: 'Consulta y completa el trabajo que tienes asignado.',
     TASKS: 'Consulta y completa el trabajo que tienes asignado.',
     PETTY_CASH: 'Captura comprobantes y opera fondos autorizados.',
+    PAYABLES: 'Registra cuentas por pagar de proveedores y adjunta sus comprobantes.',
+    POS_SELF_SERVICE: 'Crea preventas para el almacén y la caja asignados.',
+    POS_WAITER_STATION: 'Opera mesas y comandas del restaurante asignado.',
   },
   center: {
     title: 'Centro de kioscos',
@@ -161,6 +173,9 @@ const esMX: MultiKioskAdminCopy = {
     initialLanguage: 'Idioma inicial', initialLanguageHelp: 'Se aplica solo si el dispositivo no eligió otro idioma.',
     expiry: 'Vigencia opcional', catalogTitle: 'Catálogo nativo de módulos',
     catalogDescription: 'Selecciona las herramientas de trabajo de la compañía. No dependen de kioscos creados; después del PIN, el servidor aplica los permisos vigentes de cada colaborador.',
+    operationalCatalogTitle: 'Kioscos por ubicación',
+    operationalCatalogDescription: 'Agrega cuentas por pagar, caja chica, estaciones de meseros o pre-ticket. Abrir y cobrar una caja permanece exclusivamente en la app POS.',
+    emptyOperationalKiosks: 'No hay kioscos operativos que coincidan con esta búsqueda.',
     previewTitle: 'Así lo verá el colaborador',
     previewDescription: 'Las herramientas publicadas conservarán este orden. Los permisos ocultarán lo que cada persona no pueda utilizar.',
     previewEmpty: 'Selecciona al menos una herramienta para previsualizar el panel.',

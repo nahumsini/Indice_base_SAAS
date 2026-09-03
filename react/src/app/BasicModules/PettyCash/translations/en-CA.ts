@@ -577,6 +577,7 @@ export const enCA = {
       currency: (currency: string) => `Currency ${currency}`,
       attach: 'Attach receipt',
       clear: 'Clear',
+      retryEvidence: 'Retry evidence',
       submit: 'Register receipt',
     },
     side: {

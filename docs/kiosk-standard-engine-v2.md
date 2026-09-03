@@ -1306,16 +1306,24 @@ Multikiosco, se ordenan sus herramientas y se administra el enlace o QR. No exis
 de personas por Multikiosco: su audiencia es la membresía activa de la compañía. El trabajo
 operativo nunca se realiza dentro de la aplicación normal de Índice.
 
-El constructor tiene dos pasos: `Datos` y `Herramientas`. El contrato administrativo nuevo recibe
-la composición en `tool_keys`; `employee_ids` no forma parte de la autoridad ni es requisito para
-crear o actualizar un Multikiosco. Una `tool_key` es un identificador estable y versionado de una
-capacidad para colaboradores, no el identificador de un kiosco creado por un administrador.
+El constructor tiene dos pasos: `Datos` y `Herramientas`. La composición admite dos clases explícitas:
+`tool_keys` para herramientas nativas de compañía y `legacy_kiosk_definition_ids` para instancias
+operativas contextuales. El segundo nombre se conserva en el wire contract por compatibilidad, pero
+sus valores nuevos representan Kiosk Definitions reales elegibles, no autoridad legacy. `employee_ids`
+no forma parte de la autoridad ni es requisito para crear o actualizar un Multikiosco.
 
-El catálogo del constructor nace del manifiesto de adapters, del entitlement y de la configuración
-vigente de la compañía. No consulta el inventario de kioscos creados y un `GET` de catálogo nunca
-provisiona datos. Las herramientas iniciales disponibles son `employee.attendance@1` y
-`employee.my-tasks@1`. Recursos condicionados, como fondos de Caja chica, solo pueden publicarse
-como herramienta cuando su adapter resuelva y revalide la autorización funcional de la persona.
+El catálogo del constructor combina el manifiesto de adapters con las definiciones contextuales
+activas, el entitlement y la configuración vigente de la compañía. Un `GET` de catálogo nunca
+provisiona ni concede datos. Las herramientas nativas iniciales son `employee.attendance@1` y
+`employee.my-tasks@1`. El catálogo contextual puede publicar Cuentas por Pagar con acceso de empleado,
+fondos de Caja chica, estaciones de meseros POS y kioscos de pre-ticket. Cada instancia conserva su Business Unit, Business,
+almacén y caja cuando apliquen; su adapter debe resolver y revalidar la autorización funcional de la
+persona en cada apertura y acción.
+
+Para bases heredadas anteriores a la materialización de `employee_center_enabled`, el catálogo y la
+autorización efectiva pueden reconocer en modo de solo lectura esas cuatro familias desde la
+definición y el registro propietario. Esta compatibilidad no escribe durante el `GET`, no sustituye
+el adapter, no crea grants y no amplía el allowlist de tipos POS.
 
 El launcher padre tampoco selecciona ni impone `unit_id` o `business_id`. Esas columnas históricas
 del Multikiosco no participan en composición ni autorización y las escrituras nuevas las normalizan
@@ -1330,8 +1338,14 @@ aparece en Inventario, no expone enlace hijo y nunca concede autoridad por sí m
   identificarse en el launcher.
 - Solo herramientas declaradas para colaboradores por un adapter habilitado y por un módulo con
   entitlement vigente.
-- Proveedores, clientes, público anónimo, citas y experiencias POS continúan por sus enlaces
-  específicos y no aparecen en un Multikiosco de empleados.
+- Proveedores, clientes, público anónimo y citas continúan por sus enlaces específicos. El canal
+  público de una definición es independiente de su canal interno de empleado.
+- Se permiten en Multikiosco únicamente `accounts_payable`, `receipt_capture`, `self_service` para
+  crear pre-tickets y `waiter_station` para operar la Estación de meseros creada en Kioscos de POS.
+- `self_checkout`, `table_order_center`, `kitchen_display` y `customer_display` mantienen sus canales
+  propietarios y quedan excluidos del Multikiosco móvil.
+- Abrir turno, abrir caja, cobrar, facturar y cerrar caja pertenecen a la aplicación POS autenticada;
+  nunca se incorporan indirectamente por tener acceso a un Multikiosco.
 
 ### 24.3 Experiencia
 
@@ -1353,7 +1367,33 @@ El launcher puede aprovechar un lienzo amplio para presentar su catálogo como t
 pero cada Full Workspace operativo conserva un ancho de lectura y captura móvil, aproximadamente
 `31rem` para Asistencia. En celular, los controles principales miden al menos `48px`, respetan las
 safe areas y mantienen visible la acción para regresar. La interfaz sólo presenta los métodos de
-verificación concedidos por la sesión hija y nunca muestra mensajes técnicos crudos.
+verificación concedidos por la sesión hija y nunca muestra mensajes técnicos crudos. Los workspaces
+de captura financiera mantienen una columna legible; pre-ticket y Estación de meseros pueden ampliar el lienzo en tablet o
+escritorio para catálogo, carrito y plano de mesas sin degradar la operación de una mano en
+celular.
+
+#### 24.3.1 App shell móvil operativo
+
+Después de identificar al colaborador, el Multikiosco utiliza una sola app bar compacta y estable.
+En el launcher presenta la identidad del Multikiosco, la sesión protegida y la acción para cambiar
+de colaborador; al abrir una herramienta, la misma barra cambia a navegación de regreso, identidad
+del módulo y contexto seguro. No se apilan una tarjeta de sesión, un botón de regreso y una segunda
+tarjeta de título dentro del contenido.
+
+El launcher mantiene el orden administrativo y usa un tablero táctil de dos columnas desde `360px`;
+a `320px` y con texto grande vuelve a una columna. Cada card completa es el objetivo táctil y muestra
+icono, módulo, nombre y propósito breve. A partir de seis herramientas el buscador permanece
+disponible durante el desplazamiento.
+
+Los workspaces financieros conservan su canvas móvil. En POS, el catálogo de pre-ticket usa una
+barra inferior segura con cantidad, total y acceso a revisión; la revisión es una tarea temporal en
+`KioskModalFrame`, y el resultado sustituye el contenido con el código de entrega y una acción para
+iniciar otro pre-ticket. La Estación de meseros conserva vistas móviles separadas de `Mesas` y
+`Comanda`; la edición visual del salón se reserva para tablet o escritorio aunque su permiso siga
+siendo validado por el módulo.
+
+Todos los modales de kiosko ocupan el viewport seguro en teléfono, mantienen header y footer
+visibles, dejan únicamente el body con scroll y respetan teclado y `safe-area-inset-bottom`.
 
 ### 24.4 Catálogo efectivo
 
@@ -1363,11 +1403,12 @@ Una card aparece únicamente por la intersección de:
 Multikiosco ACTIVE y no expirado
 + membresía ACTIVE de la persona en la compañía del Multikiosco
 + PIN personal ACTIVE de esa membresía
-+ tool_key incluida en la composición
-+ manifiesto y adapter de la herramienta habilitados
++ tool_key o Kiosk Definition contextual incluida en la composición
++ manifiesto o definición y adapter de la herramienta habilitados
 + entitlement empresarial y módulo de la persona habilitados
 + permiso de pestaña requerido por el adapter del módulo
-+ propiedad o alcance funcional compatible
++ alcance Business Unit/Business compatible
++ almacén, caja, turno, fondo o proveedor compatibles cuando el dominio los requiera
 + capacidades de sesión habilitadas
 ```
 
@@ -1377,6 +1418,16 @@ card sin módulo, permiso de pestaña, propiedad o alcance compatible. Si la int
 sesión del launcher y muestra un estado educativo sin inventar acceso. Abrir una card por identificador
 directo vuelve a ejecutar la misma autorización y falla cerrado.
 
+Una asignación directa mantenida por el módulo propietario puede satisfacer el alcance únicamente para
+esa instancia concreta. En Caja chica, `responsible_user_id` permite al responsable operar ese fondo aunque
+su perfil de trabajo principal pertenezca a otra unidad; no concede acceso a la unidad, al negocio, a otros
+fondos ni a otros kioscos. Un fondo asignado a otra persona se omite aun cuando coincida el alcance
+organizacional, y un fondo sin responsable conserva la evaluación normal de Business Unit/Business.
+
+Los roles corporativos `root` y `superadmin`, resueltos desde la membresía autenticada por el servidor,
+satisfacen el alcance organizacional de las definiciones de la compañía. Esta regla no omite entitlement,
+permiso de pestaña, composición, capacidades ni las validaciones funcionales del módulo propietario.
+
 La composición del Multikiosco habilita una herramienta en el launcher, pero no es una fuente de
 grant ni una elevación. La tabla histórica
 `multi_kiosk_assignments` puede conservarse por compatibilidad y auditoría, pero no participa en la
@@ -1384,13 +1435,15 @@ autenticación, en la continuidad de sesión ni en el catálogo efectivo, y el c
 no crea nuevas filas en ella. Si cualquiera de las condiciones efectivas deja de cumplirse, la card
 desaparece y sus sesiones contextuales dejan de ser válidas.
 
-Los contratos antiguos con `kiosk_definition_ids` pueden conservarse temporalmente para leer y
-editar Multikioscos existentes, sin incorporar esas definiciones al catálogo nuevo. Una actualización
-nunca elimina en silencio una composición heredada: el cliente la preserva explícitamente hasta que
-una migración controlada la sustituya por `tool_keys`.
+El alias antiguo `kiosk_definition_ids` puede leerse temporalmente, pero las escrituras nuevas usan
+`legacy_kiosk_definition_ids`. Una definición ya compuesta que deje de ser elegible puede preservarse
+durante una edición ajena para no destruir configuración en silencio; no se muestra al colaborador y
+no autoriza sesiones. Solo las definiciones presentes en el catálogo contextual efectivo pueden
+agregarse por primera vez.
 
-Como compatibilidad puntual, una definición legacy de Asistencia que conserve su token en el módulo
-propietario pero carezca de `protected_public_token` puede completar ese material una sola vez. La
+Como compatibilidad puntual, una definición legacy de Asistencia o Cuentas por pagar que conserve su
+token en el módulo propietario pero carezca de `protected_public_token` puede completar ese material
+una sola vez. La
 reparación exige coincidencia exacta de compañía, definición, owner, tipo, referencia legacy y hash
 SHA-256; cifra el token con el secreto estable de despliegue y no rota el enlace, no revoca sesiones
 ni reemplaza material protegido existente. El camino normal sólo comprueba presencia sin locks; el
@@ -1529,7 +1582,10 @@ Conservar como referencia visual:
 - evidencias;
 - contexto del fondo.
 
-El token actualmente asociado al fondo se presenta al Registry mediante un Legacy Adapter hasta decidir si el fondo adopta una Kiosk Definition independiente.
+El token actualmente asociado al fondo se presenta al Registry mediante su adapter compatible. La
+definición `PETTY_CASH/receipt_capture` puede componerse en Multikiosco y ejecuta exclusivamente el
+contrato de empleado. El backend revalida membresía, permiso `petty_cash.cash`, alcance del fondo y
+capacidades antes de leer o capturar comprobantes; la composición no crea un grant.
 
 ### 25.4 Cuentas por Pagar
 
@@ -1542,7 +1598,12 @@ Conservar:
 - evidencias;
 - revisión financiera.
 
-Migrar el PIN del kiosko/proveedor al modelo de credencial personal y grants sin cambiar el flujo visible.
+El enlace de proveedor conserva su PIN, registro, rostro opcional y capacidades públicas. De forma
+independiente, una definición `EXPENSES/accounts_payable` con `access_type` `EMPLOYEE` o `MIXED` puede
+componerse en Multikiosco. El PIN del Multikiosco identifica al usuario interno; el servidor lo enlaza
+con su membresía activa, exige `expenses.expenses`, revalida Unit/Business y expone solo captura de
+cuenta y evidencias. El token público protegido se recupera únicamente dentro del backend y nunca se
+entrega al navegador.
 
 ### 25.5 Portal de Proveedores de Compras
 
@@ -1632,6 +1693,22 @@ Nuevo kiosko público aprobado:
 - eliminación física posterior a revocación/expiración sin destruir pre-tickets ni auditoría;
 - administración `/api/v1/pos/self-service-kiosks` y contrato común `/api/v2/point-of-sale/kiosks`;
 - experiencia pública mobile-first con estados en línea, error, vacío, envío y resultado.
+
+### 25.9 POS dentro del Multikiosco de empleados
+
+El canal interno puede reutilizar los use cases propietarios de POS sin convertir el enlace público
+en credencial de empleado ni exponer la caja completa:
+
+- `self_service` presenta catálogo, carrito y creación de pre-ticket; no abre turno, cobra ni finaliza venta;
+- `waiter_station` reutiliza exclusivamente el workspace de Estación de meseros creado en Kioscos de POS;
+- `self_checkout`, `table_order_center`, `kitchen_display` y `customer_display` nunca aparecen en el
+  Multikiosco móvil;
+- la definición hereda Unit, Business y almacén de su ecosistema o caja;
+- el backend exige módulo `pos`, permiso `pos.sale` y, para editar el plano, `pos.kiosks`;
+- cada operación revalida membresía, alcance organizacional, almacén, caja operativa, turno y
+  capacidades específicas del tipo;
+- cambiar una caja, cerrar el turno, revocar la definición o retirar permisos oculta la card y hace
+  fallar cerrada cualquier sesión hija existente.
 
 ---
 

@@ -6,7 +6,9 @@ import {
   ListChecks,
   LoaderCircle,
   MonitorSmartphone,
+  ReceiptText,
   ShoppingBag,
+  UtensilsCrossed,
   UserRoundCheck,
   WalletCards,
 } from 'lucide-react';
@@ -104,6 +106,12 @@ export const MULTI_KIOSK_WORKSPACE_KIND_REGISTRY: Readonly<Record<string, MultiK
   MY_TASKS: { Icon: ListChecks, tone: 'yellow' },
   TASKS: { Icon: ListChecks, tone: 'yellow' },
   PETTY_CASH: { Icon: WalletCards, tone: 'green' },
+  PAYABLES: { Icon: ReceiptText, tone: 'green' },
+  ACCOUNTS_PAYABLE: { Icon: ReceiptText, tone: 'green' },
+  POS_SELF_SERVICE: { Icon: ShoppingBag, tone: 'coral' },
+  POS_WAITER_STATION: { Icon: UtensilsCrossed, tone: 'coral' },
+  SELF_SERVICE: { Icon: ShoppingBag, tone: 'coral' },
+  WAITER_STATION: { Icon: UtensilsCrossed, tone: 'coral' },
 };
 
 const ownerModuleRegistry: Readonly<Record<string, MultiKioskToolVisualDefinition>> = {
@@ -126,6 +134,12 @@ const workspaceModuleSlugRegistry: Readonly<Record<string, string>> = {
   MY_TASKS: 'processes',
   TASKS: 'processes',
   PETTY_CASH: 'petty_cash',
+  PAYABLES: 'expenses',
+  ACCOUNTS_PAYABLE: 'expenses',
+  POS_SELF_SERVICE: 'pos',
+  POS_WAITER_STATION: 'pos',
+  SELF_SERVICE: 'pos',
+  WAITER_STATION: 'pos',
 };
 
 const ownerModuleSlugRegistry: Readonly<Record<string, string>> = {

@@ -150,7 +150,7 @@ interface KioskPublicShellProps {
   children: ReactNode;
   defaultLocale?: string | null;
   errorMessage?: string | null;
-  header: ReactNode;
+  header: ReactNode | ((utilities: ReactNode) => ReactNode);
   immersive?: boolean;
   loadingOverlay?: ReactNode;
   lockDesktopViewport?: boolean;
@@ -223,6 +223,54 @@ export function KioskPublicShell({
     window.setTimeout(() => accessibilityButtonRef.current?.focus(), 0);
   };
 
+  const selectLanguage = (code: string) => {
+    const language = languages.find(item => item.code === code);
+    if (!language) return;
+    try { window.localStorage.setItem(kioskLanguageStorageKey, language.code); } catch { /* no-op */ }
+    setCurrentLanguage(language);
+  };
+
+  const embeddedUtilities = (
+    <div
+      className="flex shrink-0 items-center gap-2"
+      data-kiosk-utility-bar
+      data-kiosk-utility-mode="embedded"
+    >
+      <label
+        className="relative inline-flex h-11 min-w-11 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 text-xs font-medium uppercase text-slate-700 outline-none transition hover:bg-slate-50 focus-within:ring-2 focus-within:ring-orange-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
+        title={`${copy.language}: ${currentLanguage.name}`}
+      >
+        <Languages aria-hidden="true" className="h-4 w-4 shrink-0" />
+        <span aria-hidden="true">{currentLanguage.code.split('-')[0]}</span>
+        <select
+          aria-label={`${copy.language}: ${currentLanguage.name}`}
+          value={currentLanguage.code}
+          onChange={(event) => selectLanguage(event.target.value)}
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        >
+          {languages.map(language => (
+            <option key={language.code} value={language.code}>
+              {language.flag} {language.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button
+        ref={accessibilityButtonRef}
+        type="button"
+        aria-label={copy.accessibility}
+        aria-expanded={accessibilityPanelOpen}
+        title={copy.accessibility}
+        onClick={() => setAccessibilityPanelOpen(true)}
+        className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border bg-white p-0 text-slate-700 outline-none transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-orange-400 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900 ${accessibilityEnabled ? 'border-[#147514]/35 text-[#147514] dark:border-emerald-400/40 dark:text-emerald-300' : 'border-slate-200 dark:border-slate-700'}`}
+      >
+        <Accessibility aria-hidden="true" className="h-4 w-4" />
+      </button>
+    </div>
+  );
+
+  const headerUsesEmbeddedUtilities = typeof header === 'function';
+
   return (
     <div
       className={`min-h-dvh bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-white [&_button]:min-h-11 [&_button]:min-w-11 ${immersive ? 'p-0' : 'sm:px-4 sm:py-4'} ${accessibilityPreferences.largeText ? '[&_button]:!min-h-12 [&_button]:!text-[1.05rem] [&_h1]:!text-[1.75rem] [&_h2]:!text-[1.625rem] [&_h3]:!text-[1.375rem] [&_input]:!min-h-12 [&_input]:!text-[1.05rem] [&_label]:!text-base [&_p]:!text-base [&_select]:!min-h-12 [&_select]:!text-base [&_textarea]:!text-[1.05rem] [&_[data-kiosk-tool-action]]:!text-base [&_[data-kiosk-tool-description]]:!block [&_[data-kiosk-tool-description]]:!text-base [&_[data-kiosk-tool-grid]]:!grid-cols-1 [&_[data-kiosk-tool-module]]:!text-sm [&_[data-kiosk-tool-name]]:!text-lg [&_[data-kiosk-tool-status]]:!text-base md:[&_[data-kiosk-tool-grid]]:!grid-cols-2 xl:[&_[data-kiosk-tool-grid]]:!grid-cols-3' : ''} ${accessibilityPreferences.highContrast ? 'contrast-125 [&_button]:focus-visible:ring-4 [&_a]:focus-visible:ring-4 [&_input]:focus-visible:ring-4 [&_select]:focus-visible:ring-4 [&_textarea]:focus-visible:ring-4' : ''} ${accessibilityPreferences.reduceMotion ? '[&_*]:!animate-none [&_*]:!scroll-auto [&_*]:!transition-none' : ''}`}
@@ -238,44 +286,40 @@ export function KioskPublicShell({
         className={`mx-auto flex min-h-dvh w-full ${immersive ? 'h-dvh max-w-none min-h-0 rounded-none border-0' : `${maxWidthClassName} sm:min-h-[calc(100vh-2rem)] sm:rounded-lg sm:border sm:border-slate-200 sm:shadow-sm sm:dark:border-slate-800`} flex-col overflow-hidden bg-white dark:bg-slate-950 ${lockDesktopViewport && !immersive ? 'xl:h-[calc(100dvh-2rem)] xl:min-h-0' : ''}`}
         inert={accessibilityPanelOpen || undefined}
       >
-        <div className={immersive ? 'hidden' : 'grid min-h-14 grid-cols-[minmax(0,1fr)_2.75rem] items-center gap-2 border-b border-slate-200 bg-white px-3 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top))] dark:border-slate-800 dark:bg-slate-950 sm:flex sm:justify-end sm:px-4'}>
-          <label className="flex min-w-0 items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-300">
-            <Languages aria-hidden="true" className="h-4 w-4 shrink-0" />
-            <span className="sr-only sm:not-sr-only">{copy.language}</span>
-            <select
-              aria-label={copy.language}
-              value={currentLanguage.code}
-              onChange={(event) => {
-                const language = languages.find(item => item.code === event.target.value);
-                if (language) {
-                  try { window.localStorage.setItem(kioskLanguageStorageKey, language.code); } catch { /* no-op */ }
-                  setCurrentLanguage(language);
-                }
-              }}
-              className="h-11 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-orange-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white sm:max-w-[190px]"
+        {!headerUsesEmbeddedUtilities ? (
+          <div className={immersive ? 'hidden' : 'grid min-h-14 grid-cols-[minmax(0,1fr)_2.75rem] items-center gap-2 border-b border-slate-200 bg-white px-3 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top))] dark:border-slate-800 dark:bg-slate-950 sm:flex sm:justify-end sm:px-4'}>
+            <label className="flex min-w-0 items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-300">
+              <Languages aria-hidden="true" className="h-4 w-4 shrink-0" />
+              <span className="sr-only sm:not-sr-only">{copy.language}</span>
+              <select
+                aria-label={copy.language}
+                value={currentLanguage.code}
+                onChange={(event) => selectLanguage(event.target.value)}
+                className="h-11 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-orange-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white sm:max-w-[190px]"
+              >
+                {languages.map(language => (
+                  <option key={language.code} value={language.code}>
+                    {language.flag} {language.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              ref={accessibilityButtonRef}
+              type="button"
+              aria-label={copy.accessibility}
+              aria-expanded={accessibilityPanelOpen}
+              title={copy.accessibility}
+              onClick={() => setAccessibilityPanelOpen(true)}
+              className={`inline-flex h-11 w-11 items-center justify-center gap-2 rounded-lg border bg-white px-0 text-xs font-medium text-slate-700 outline-none transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-orange-400 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 sm:w-auto sm:px-3 ${accessibilityEnabled ? 'border-[#147514]/35 text-[#147514] dark:border-emerald-400/40 dark:text-emerald-300' : 'border-slate-200 dark:border-slate-700'}`}
             >
-              {languages.map(language => (
-                <option key={language.code} value={language.code}>
-                  {language.flag} {language.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            ref={accessibilityButtonRef}
-            type="button"
-            aria-label={copy.accessibility}
-            aria-expanded={accessibilityPanelOpen}
-            title={copy.accessibility}
-            onClick={() => setAccessibilityPanelOpen(true)}
-            className={`inline-flex h-11 w-11 items-center justify-center gap-2 rounded-lg border bg-white px-0 text-xs font-medium text-slate-700 outline-none transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-orange-400 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 sm:w-auto sm:px-3 ${accessibilityEnabled ? 'border-[#147514]/35 text-[#147514] dark:border-emerald-400/40 dark:text-emerald-300' : 'border-slate-200 dark:border-slate-700'}`}
-          >
-            <Accessibility aria-hidden="true" className="h-4 w-4" />
-            <span className="hidden sm:inline">{copy.accessibility}</span>
-          </button>
-        </div>
+              <Accessibility aria-hidden="true" className="h-4 w-4" />
+              <span className="hidden sm:inline">{copy.accessibility}</span>
+            </button>
+          </div>
+        ) : null}
         {banners}
-        {header}
+        {headerUsesEmbeddedUtilities ? header(embeddedUtilities) : header}
         <section className="flex min-h-0 flex-1 bg-slate-50/80 px-3 py-3 pb-[calc(1rem+env(safe-area-inset-bottom))] dark:bg-slate-900/55 sm:px-5 sm:py-5">
           <div className={minimalContent
             ? `flex min-h-0 flex-1 flex-col bg-transparent ${immersive ? 'overflow-hidden' : `overflow-y-auto ${lockDesktopViewport ? 'xl:overflow-hidden' : ''}`}`

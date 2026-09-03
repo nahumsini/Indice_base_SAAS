@@ -613,8 +613,8 @@ test('administrative kiosk managers share replacement views without portaled act
   assert.match(expensesSource, /Compartir y administrar liga/);
 });
 
-test('kiosk center composes native company tools while the public multi-kiosk works across browser sizes', async () => {
-  const [appSource, navigationSource, centerSource, editorSource, lifecycleSource, accessSource, activitySource, mobileSource, launcherSource, hostSource, taskWorkspaceSource, legacyTaskWorkspaceSource, mobileTranslations, apiSource, workspaceCopySource, adminTranslations] = await Promise.all([
+test('kiosk center composes native and scoped operational tools while the public multi-kiosk works across browser sizes', async () => {
+  const [appSource, navigationSource, centerSource, editorSource, lifecycleSource, accessSource, activitySource, mobileSource, launcherSource, hostSource, payablesWorkspaceSource, posWorkspaceSource, taskWorkspaceSource, legacyTaskWorkspaceSource, mobileTranslations, apiSource, workspaceCopySource, adminTranslations] = await Promise.all([
     readFile(new URL('../src/app/App.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/config/navigation.ts', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/KioskCenter/MultiKioskCenterPage.tsx', import.meta.url), 'utf8'),
@@ -625,6 +625,8 @@ test('kiosk center composes native company tools while the public multi-kiosk wo
     readFile(new URL('../src/app/KioskCenter/MultiKioskMobilePage.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/KioskCenter/multi-kiosk/MultiKioskLauncherDashboard.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/KioskCenter/multi-kiosk/MultiKioskToolHost.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/PayablesMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/PointOfSaleMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/BasicModules/ProcessesTasks/Kiosk/EmployeeTaskMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/BasicModules/ProcessesTasks/Kiosk/LegacyTaskMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/KioskCenter/multiKioskMobileTranslations.ts', import.meta.url), 'utf8'),
@@ -638,7 +640,7 @@ test('kiosk center composes native company tools while the public multi-kiosk wo
   assert.match(appSource, /currentPage === 'kiosk-management'/);
   assert.match(navigationSource, /'kiosk-management'/);
   assert.match(centerSource, /getMultiKioskAdminCopy/);
-  assert.match(centerSource, /tools: \[\], employees: \[\]/);
+  assert.match(centerSource, /tools: \[\], kiosks: \[\], employees: \[\]/);
   assert.match(centerSource, /IndiceWorkspaceNavigation/);
   for (const view of ['multi-kiosks', 'inventory', 'people', 'activity']) {
     assert.match(centerSource, new RegExp(`['"]${view}['"]`));
@@ -656,6 +658,9 @@ test('kiosk center composes native company tools while the public multi-kiosk wo
   assert.match(editorSource, /copy\.editor\.companyAccessDescription/);
   assert.match(editorSource, /copy\.editor\.catalogTitle/);
   assert.match(editorSource, /copy\.editor\.catalogDescription/);
+  assert.match(editorSource, /copy\.editor\.operationalCatalogTitle/);
+  assert.match(editorSource, /catalog\.kiosks/);
+  assert.match(editorSource, /kioskScope/);
   assert.match(editorSource, /getMultiKioskToolPresentation/);
   assert.match(editorSource, /MultiKioskToolGlyph/);
   assert.match(editorSource, /copy\.editor\.previewTitle/);
@@ -674,7 +679,8 @@ test('kiosk center composes native company tools while the public multi-kiosk wo
   assert.doesNotMatch(centerSource, /Empleados asignados|employee_count\} empleados|asígnalo a los colaboradores/);
   assert.match(centerSource, /adminCopy\.center\.toolsPublished/);
   assert.match(centerSource, /item\.tool_count/);
-  assert.doesNotMatch(centerSource, /catalog\.kiosks|item\.kiosk_count/);
+  assert.match(centerSource, /catalog/);
+  assert.doesNotMatch(centerSource, /item\.kiosk_count/);
   assert.match(apiSource, /interface MultiKioskCatalogTool/);
   assert.match(apiSource, /tool_key\?: string/);
   assert.match(apiSource, /tool_keys\?: string\[\]/);
@@ -695,13 +701,32 @@ test('kiosk center composes native company tools while the public multi-kiosk wo
   assert.doesNotMatch(mobileSource, /useDesktopViewport|bootstrap && desktop|copy\.desktop/);
   assert.doesNotMatch(mobileTranslations, /mobileOnly|únicamente en móvil|only on mobile/);
   assert.match(mobileSource, /MultiKioskLauncherDashboard/);
-  assert.match(mobileSource, /shellWidth = !session \? 'max-w-\[31rem\]' : workspace \? 'max-w-3xl' : 'max-w-6xl'/);
+  assert.match(mobileSource, /const posWorkspace = workspace\?\.kiosk\.module === 'POINT_OF_SALE'/);
+  assert.match(mobileSource, /posWorkspace \? 'max-w-\[96rem\]' : 'max-w-3xl'/);
   assert.match(launcherSource, /cards\.length === 0 \? copy\.noAccess : copy\.noMatches/);
-  assert.match(launcherSource, /grid-cols-2[\s\S]*md:grid-cols-3[\s\S]*xl:grid-cols-4/);
+  assert.match(launcherSource, /grid-cols-1[\s\S]*min-\[360px\]:grid-cols-2[\s\S]*md:grid-cols-3[\s\S]*xl:grid-cols-4/);
   assert.match(hostSource, /toolKey === 'employee\.my-tasks@1'/);
   assert.match(hostSource, /!toolKey && workspaceKind === 'MY_TASKS'/);
   assert.match(hostSource, /!toolKey && \(workspaceKind === 'TASKS' \|\| ownerModule === 'PROCESS_TASKS'\)/);
   assert.match(hostSource, /<LegacyTaskMultiKioskWorkspace/);
+  assert.match(hostSource, /<PayablesMultiKioskWorkspace/);
+  assert.match(hostSource, /<PointOfSaleMultiKioskWorkspace/);
+  assert.match(payablesWorkspaceSource, /payables\.submission\.create@1/);
+  assert.match(payablesWorkspaceSource, /payables\.attachment\.presign@1/);
+  assert.match(payablesWorkspaceSource, /data-multi-kiosk-payables/);
+  assert.match(posWorkspaceSource, /pos\.self-service\.preticket\.create@1/);
+  assert.match(posWorkspaceSource, /WaiterStationWorkspace/);
+  assert.match(posWorkspaceSource, /kioskType === 'self_service'/);
+  assert.match(posWorkspaceSource, /kioskType === 'waiter_station'/);
+  assert.doesNotMatch(posWorkspaceSource, /OrderCenterWorkspace|KitchenWorkspace|self_checkout/);
+  assert.match(adminTranslations, /Abrir y cobrar una caja permanece exclusivamente en la app POS/);
+  assert.match(posWorkspaceSource, /data-multi-kiosk-pos/);
+  assert.match(posWorkspaceSource, /data-preticket-cart-bar/);
+  assert.match(posWorkspaceSource, /data-preticket-result/);
+  assert.match(posWorkspaceSource, /<KioskModalFrame/);
+  assert.match(posWorkspaceSource, /surface="public"/);
+  assert.match(posWorkspaceSource, /grid h-11 w-11/);
+  assert.doesNotMatch(posWorkspaceSource, /absolute inset-0 z-50 grid place-items-center/);
   assert.match(legacyTaskWorkspaceSource, /process-tasks\.task\.create@1/);
   assert.match(legacyTaskWorkspaceSource, /process-tasks\.task\.complete@1/);
   assert.match(legacyTaskWorkspaceSource, /canCreateTask/);
@@ -716,7 +741,7 @@ test('kiosk center composes native company tools while the public multi-kiosk wo
 });
 
 test('multi-kiosk launcher and editor preserve accessible status, ordering and narrow layouts', async () => {
-  const [identityGate, tile, launcher, editor, adminTranslations, mobileTranslations, taskDialog] = await Promise.all([
+  const [identityGate, tile, launcher, editor, adminTranslations, mobileTranslations, taskDialog, kioskModalFrame] = await Promise.all([
     readFile(new URL('../src/app/components/kiosk-engine/KioskIdentityGate.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/KioskCenter/multi-kiosk/MultiKioskToolTile.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/KioskCenter/multi-kiosk/MultiKioskLauncherDashboard.tsx', import.meta.url), 'utf8'),
@@ -724,6 +749,7 @@ test('multi-kiosk launcher and editor preserve accessible status, ordering and n
     readFile(new URL('../src/app/KioskCenter/multiKioskAdminTranslations.ts', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/KioskCenter/multiKioskMobileTranslations.ts', import.meta.url), 'utf8'),
     readFile(new URL('../src/app/BasicModules/ProcessesTasks/Kiosk/components/EmployeeTaskMultiKioskTaskDialog.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/components/kiosk-engine/KioskModalFrame.tsx', import.meta.url), 'utf8'),
   ]);
 
   assert.match(identityGate, /tone === 'aqua'[\s\S]*tone === 'coral'[\s\S]*tone === 'yellow'/);
@@ -733,6 +759,9 @@ test('multi-kiosk launcher and editor preserve accessible status, ordering and n
   assert.match(editor, /selectableToolCount = catalog\.tools\.filter\(toolIsSelectable\)\.length/);
   assert.match(editor, /footerSummary\([\s\S]*selectableToolCount/);
   assert.match(editor, /copy\.editor\.moveUp\(displayName\)/);
+  assert.match(editor, /IndiceModalWizardStepper/);
+  assert.match(editor, /grid h-11 w-11/);
+  assert.doesNotMatch(editor, /font-semibold uppercase tracking-wide/);
   assert.match(editor, /grid-cols-1[\s\S]*min-\[360px\]:grid-cols-2[\s\S]*sm:grid-cols-3/);
   assert.match(adminTranslations, /moveUp: \(name: string\) => string/);
   assert.match(mobileTranslations, /INVENTORY: 'Inventarios'/);
@@ -740,6 +769,8 @@ test('multi-kiosk launcher and editor preserve accessible status, ordering and n
   assert.doesNotMatch(mobileTranslations, /módulo o scope correspondiente|module or tab scope/);
   assert.match(taskDialog, /grid-cols-1[\s\S]*sm:grid-cols-2/);
   assert.doesNotMatch(taskDialog, /className="truncate">\{copy\.task\.(?:start|due)\}/);
+  assert.match(kioskModalFrame, /!h-dvh !max-h-dvh !w-full !max-w-none !rounded-none/);
+  assert.match(kioskModalFrame, /safe-area-inset-bottom/);
 });
 
 test('POS kiosk administration keeps one canonical table with direct actions and printable QR posters', async () => {
@@ -955,11 +986,13 @@ test('restaurant kiosks share one traced order from waiter to kitchen and POS ch
   assert.match(workspace, /Ingresa tu PIN nuevamente/);
   assert.match(waiterWorkspace, /data-waiter-workspace/);
   assert.match(waiterWorkspace, /data-mobile-waiter-navigation/);
+  assert.match(waiterWorkspace, /sticky top-0 z-20 grid grid-cols-2/);
   assert.match(waiterWorkspace, /lg:grid-cols-2/);
   assert.match(waiterWorkspace, /mobilePane/);
   assert.match(waiterWorkspace, /responsibleWaiterName/);
   assert.match(waiterWorkspace, /pos\.restaurant\.floor-plan\.update/);
   assert.match(waiterWorkspace, /Editar salón/);
+  assert.match(waiterWorkspace, /hidden h-11[\s\S]*lg:inline-flex/);
   assert.match(waiterWorkspace, /Acomodar automáticamente/);
   assert.match(waiterWorkspace, /Guardar acomodo/);
   assert.match(waiterWorkspace, /layoutShape === 'ROUND'/);
@@ -971,10 +1004,14 @@ test('restaurant kiosks share one traced order from waiter to kitchen and POS ch
   assert.match(waiterWorkspace, /Orden del salón/);
   assert.doesNotMatch(waiterWorkspace, /role="tablist"/);
   assert.match(waiterWorkspace, /Comanda por comensal/);
+  assert.match(waiterWorkspace, /sticky bottom-0 z-20[\s\S]*safe-area-inset-bottom/);
   assert.match(waiterWorkspace, /item\.guestNumber \|\| 1/);
   assert.match(waiterWorkspace, /RestaurantProductModal/);
   assert.match(waiterWorkspace, /Agregar productos/);
-  assert.match(productModal, /modalType="operational-workspace"/);
+  assert.match(productModal, /<KioskModalFrame/);
+  assert.match(productModal, /surface="public"/);
+  assert.match(productModal, /size="workspace"/);
+  assert.doesNotMatch(productModal, /PosModalFrame/);
   assert.match(productModal, /guestNumber,/);
   assert.match(productModal, /Comensal \{guest\}/);
   assert.match(productModal, /min-h-14/);
@@ -1098,11 +1135,13 @@ test('multi-kiosk attendance presents a compact capability-aware mobile flow wit
   assert.match(identityPanel, /canUseFace=\{canUseFace\}/);
   assert.match(verificationSection, /\{canUseFace \? \([\s\S]*Face ID/);
   assert.match(verificationSection, /canUseFace \? 'grid-cols-2' : 'grid-cols-1'/);
-  assert.match(page, /workspace \? 'max-w-3xl'/);
+  assert.match(page, /posWorkspace \? 'max-w-\[96rem\]' : 'max-w-3xl'/);
   assert.match(page, /compact=\{Boolean\(session\)\}/);
-  assert.match(page, /\{!compact \? \([\s\S]*?<p[\s\S]*?copy\.header\.employeeGreeting\(employee\)[\s\S]*?\) : null\}/);
+  assert.match(page, /data-multi-kiosk-app-bar/);
+  assert.match(page, /employee=\{session\?\.employee\.name\}/);
+  assert.match(page, /onBack=\{workspace \? returnToLauncher : undefined\}/);
   assert.match(page, /workspace\.experience_status !== 'READY'[\s\S]*onClick=\{returnToLauncher\}/);
-  assert.match(page, /sticky top-0[\s\S]*min-h-12/);
+  assert.match(page, /aria-label=\{copy\.workspace\.back\}[\s\S]*?<ArrowLeft/);
   assert.match(shell, /env\(safe-area-inset-top\)/);
   assert.match(index, /viewport-fit=cover/);
 });
@@ -1123,10 +1162,11 @@ test('multi-kiosk launcher preserves its localized responsive and accessible int
   assert.match(translations, /open: 'Open'/);
   assert.match(tile, /aria-busy=\{busy \|\| undefined\}/);
   assert.match(tile, /data-multi-kiosk-id=\{'id' in source \? source\.id : undefined\}/);
-  assert.match(tile, /motion-reduce:hover:translate-y-0/);
+  assert.match(tile, /motion-reduce:transition-none/);
   assert.match(page, /lastOpenedKioskIdRef\.current = card\.id/);
   assert.ok(page.includes('querySelector<HTMLButtonElement>(`[data-multi-kiosk-id="${lastOpenedKioskId}"]`)'));
-  assert.match(page, /\(lastOpenedTool \?\? launcherFocusRef\.current\)\?\.focus\(\)/);
+  assert.match(page, /if \(lastOpenedTool\) lastOpenedTool\.focus\(\)/);
+  assert.match(page, /launcherFocusRef\.current\?\.focus\(\{ preventScroll: true \}\)/);
 
   assert.match(launcher, /searchThreshold = 6/);
   assert.match(launcher, /const shouldSearch = cards\.length >= Math\.max\(6, searchThreshold\)/);
@@ -1134,13 +1174,24 @@ test('multi-kiosk launcher preserves its localized responsive and accessible int
   assert.match(launcher, /copy\.accessCount\(visibleCards\.length\)/);
   assert.match(launcher, /aria-describedby="multi-kiosk-access-note"/);
   assert.match(launcher, /id="multi-kiosk-access-note"[\s\S]*?\{copy\.accessNote\}/);
-  assert.match(launcher, /grid-cols-2[\s\S]*?md:grid-cols-3[\s\S]*?xl:grid-cols-4/);
+  assert.match(launcher, /grid-cols-1[\s\S]*?min-\[360px\]:grid-cols-2[\s\S]*?md:grid-cols-3[\s\S]*?xl:grid-cols-4/);
 
-  assert.match(page, /className="inline-flex min-h-12[\s\S]*?aria-label=\{copy\.launcher\.signOut\}/);
+  assert.match(page, /data-multi-kiosk-app-bar[\s\S]*?aria-label=\{copy\.launcher\.signOut\}/);
+  assert.match(page, /header=\{bootstrap \? \(\(utilities\) => \(/);
+  assert.match(page, /utilities=\{utilities\}/);
+  assert.match(page, /sessionLabel=\{session\.employee\.name\}/);
+  assert.match(shell, /data-kiosk-utility-mode="embedded"/);
+  assert.match(shell, /headerUsesEmbeddedUtilities \? header\(embeddedUtilities\) : header/);
   assert.match(launcher, /type="search"[\s\S]*?className="min-h-12/);
-  assert.match(tile, /min-h-\[9\.75rem\]/);
+  assert.match(launcher, /sticky top-0[\s\S]*?role="search"/);
+  assert.match(launcher, /sessionStatusLabel/);
+  assert.match(tile, /min-h-\[12rem\]/);
   assert.match(tile, /MultiKioskToolEmoji/);
-  assert.match(tile, /className="mt-1\.5 hidden[^\"]*sm:block"[\s\S]*?data-kiosk-tool-description/);
+  assert.match(tile, /source=\{source\}/);
+  assert.match(tile, /flex w-full min-w-0 flex-1 flex-col items-center/);
+  assert.match(tile, /text-center[\s\S]*data-kiosk-tool-action/);
+  assert.match(tile, /className="mt-1 block[^\"]*"[\s\S]*?data-kiosk-tool-description/);
+  assert.doesNotMatch(tile, /hidden[^\"]*data-kiosk-tool-description/);
   assert.match(shell, /data-kiosk-large-text=\{accessibilityPreferences\.largeText\}/);
   assert.match(shell, /\[&_\[data-kiosk-tool-description\]\]:!block/);
   assert.match(shell, /accessibility: 'Accesibilidad'/);
@@ -1198,7 +1249,7 @@ test('multi-kiosk launcher lets a shared device return safely to employee PIN id
   assert.match(page, /setWorkspace\(null\)/);
   assert.match(page, /setActiveKioskId\(null\)/);
   assert.match(page, /setSession\(null\)/);
-  assert.match(page, /<Launcher[\s\S]*onSignOut=\{signOut\}/);
+  assert.match(page, /onSignOut=\{session \? \(\) => \{ void signOut\(\); \} : undefined\}/);
   assert.match(page, /useSearchParams\(\)/);
   assert.match(page, /requestedToolIdentity = searchParams\.get\('tool'\)/);
   assert.match(page, /getMultiKioskToolIdentity\(card\)/);
@@ -1271,4 +1322,28 @@ test('multi-kiosk applies its configured locale without replacing an explicit ki
   assert.match(shell, /'pt-BR': portugueseUtilityCopy/);
   assert.match(shell, /'ko-CA': koreanUtilityCopy/);
   assert.match(shell, /'zh-CA': chineseUtilityCopy/);
+});
+
+test('multi-kiosk financial and POS writes prevent double submit and retry evidence on the original record', async () => {
+  const [payables, pettyCash, pointOfSale] = await Promise.all([
+    readFile(new URL('../src/app/KioskCenter/PayablesMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/PettyCashMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/PointOfSaleMultiKioskWorkspace.tsx', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(payables, /const submitLock = useRef\(false\)/);
+  assert.match(payables, /pendingExpenseId/);
+  assert.match(payables, /let expenseId = pendingExpenseId/);
+  assert.match(payables, /setAttachments\(failedFiles\)/);
+  assert.match(payables, /retryingEvidence \? copy\.retryEvidence : copy\.submitPayable/);
+
+  assert.match(pettyCash, /const receiptInFlightRef = useRef\(false\)/);
+  assert.match(pettyCash, /pendingReceiptId/);
+  assert.match(pettyCash, /let receiptId = pendingReceiptId/);
+  assert.match(pettyCash, /setAttachments\(failedFiles\)/);
+  assert.match(pettyCash, /retryingEvidence \? copy\.publicKiosk\.receipt\.retryEvidence/);
+
+  assert.match(pointOfSale, /const createInFlightRef = useRef\(false\)/);
+  assert.match(pointOfSale, /if \(!canCreate \|\| createInFlightRef\.current\) return/);
+  assert.match(pointOfSale, /createInFlightRef\.current = false/);
 });

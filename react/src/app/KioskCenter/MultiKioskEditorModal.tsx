@@ -5,16 +5,20 @@ import {
   Check,
   Grid2X2,
   LoaderCircle,
+  MapPin,
   Search,
+  Store,
 } from 'lucide-react';
 import {
   multiKioskAdminApi,
   type MultiKioskCatalogEmployee,
+  type MultiKioskCatalogKiosk,
   type MultiKioskCatalogTool,
   type MultiKioskDetail,
   type MultiKioskPayload,
 } from '../api/multiKiosks';
 import { KioskModalFrame } from '../components/kiosk-engine/KioskModalFrame';
+import { IndiceModalWizardStepper } from '../components/indice-modal';
 import { Button } from '../components/ui/button';
 import { cn } from '../components/ui/utils';
 import { languages, useLanguage } from '../shared/context';
@@ -29,6 +33,7 @@ import {
 
 export type MultiKioskCatalog = {
   employees: MultiKioskCatalogEmployee[];
+  kiosks: MultiKioskCatalogKiosk[];
   tools: MultiKioskCatalogTool[];
 };
 
@@ -100,6 +105,30 @@ const toolIsSelectable = (tool: MultiKioskCatalogTool) => (
   ['AVAILABLE', 'READY'].includes(normalizedCode(tool.readiness))
 );
 
+const kioskIsSelectable = (kiosk: MultiKioskCatalogKiosk) => (
+  kiosk.employee_center_supported === true
+  && ['AVAILABLE', 'READY'].includes(normalizedCode(kiosk.readiness ?? kiosk.availability ?? ''))
+);
+
+const kioskScope = (kiosk: MultiKioskCatalogKiosk) => (
+  [kiosk.unit_name, kiosk.business_name, kiosk.location_name, kiosk.cash_register_name]
+    .filter((value, index, values): value is string => Boolean(value) && values.indexOf(value) === index)
+    .join(' · ')
+);
+
+const kioskAsTool = (kiosk: MultiKioskCatalogKiosk): MultiKioskCatalogTool => ({
+  key: `operational:${kiosk.id}`,
+  name: kiosk.name,
+  description: kioskScope(kiosk),
+  owner_module: kiosk.owner_module,
+  module_slug: kiosk.module_slug,
+  kiosk_type: kiosk.kiosk_type,
+  workspace_kind: kiosk.workspace_kind ?? kiosk.kiosk_type,
+  audience_policy: kiosk.audience_policy ?? 'SCOPED_COMPANY_MEMBERS',
+  readiness: kiosk.readiness ?? kiosk.availability ?? 'UNAVAILABLE',
+  required_tab_scopes: kiosk.required_tab_scopes ?? [],
+});
+
 const readinessLabel = (tool: MultiKioskCatalogTool, copy: MultiKioskAdminCopy) => {
   const readiness = normalizedCode(tool.readiness);
   if (readiness === 'AVAILABLE' || readiness === 'READY') return copy.editor.available;
@@ -123,9 +152,7 @@ const payloadFrom = (editor: MultiKioskEditorState): MultiKioskPayload => ({
   business_id: null,
   expires_at: editor.expires_at ? new Date(editor.expires_at).toISOString() : null,
   tool_keys: editor.toolKeys,
-  legacy_kiosk_definition_ids: editor.legacyKioskDefinitionIds.length > 0
-    ? editor.legacyKioskDefinitionIds
-    : undefined,
+  legacy_kiosk_definition_ids: editor.legacyKioskDefinitionIds,
 });
 
 export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
@@ -145,13 +172,23 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
   const visibleTools = catalog.tools.filter(tool => !normalizedSearch
     || [toolName(tool, copy), toolDescription(tool, copy), moduleLabel(tool.owner_module, copy)]
       .some(value => value.toLocaleLowerCase().includes(normalizedSearch)));
+  const visibleKiosks = catalog.kiosks.filter(kiosk => !normalizedSearch
+    || [kiosk.name, moduleLabel(kiosk.owner_module, copy), kioskScope(kiosk)]
+      .some(value => value.toLocaleLowerCase().includes(normalizedSearch)));
   const selectedTools = form.toolKeys
     .map(key => catalog.tools.find(tool => tool.key === key))
     .filter((tool): tool is MultiKioskCatalogTool => Boolean(tool));
-  const selectableToolCount = catalog.tools.filter(toolIsSelectable).length;
-  const hasComposition = form.toolKeys.length > 0 || (
-    form.id !== undefined && form.legacyKioskDefinitionIds.length > 0
-  );
+  const selectedKiosks = form.legacyKioskDefinitionIds
+    .map(id => catalog.kiosks.find(kiosk => kiosk.id === id))
+    .filter((kiosk): kiosk is MultiKioskCatalogKiosk => Boolean(kiosk));
+  const missingSavedKioskCount = form.legacyKioskDefinitionIds.length - selectedKiosks.length;
+  const previewItems = [
+    ...selectedTools,
+    ...selectedKiosks.map(kioskAsTool),
+  ];
+  const selectableToolCount = catalog.tools.filter(toolIsSelectable).length
+    + catalog.kiosks.filter(kioskIsSelectable).length;
+  const hasComposition = form.toolKeys.length > 0 || form.legacyKioskDefinitionIds.length > 0;
   const canContinue = step === 1 ? form.name.trim().length >= 3 : hasComposition;
 
   const save = async () => {
@@ -184,6 +221,22 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
     return { ...current, toolKeys: keys };
   });
 
+  const toggleKiosk = (id: number) => setForm(current => ({
+    ...current,
+    legacyKioskDefinitionIds: current.legacyKioskDefinitionIds.includes(id)
+      ? current.legacyKioskDefinitionIds.filter(value => value !== id)
+      : [...current.legacyKioskDefinitionIds, id],
+  }));
+
+  const moveKiosk = (id: number, direction: -1 | 1) => setForm(current => {
+    const ids = [...current.legacyKioskDefinitionIds];
+    const index = ids.indexOf(id);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= ids.length) return current;
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+    return { ...current, legacyKioskDefinitionIds: ids };
+  });
+
   return (
     <KioskModalFrame
       open
@@ -197,9 +250,9 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
       description={copy.editor.description}
       footerSummary={copy.editor.footerSummary(
         step,
-        form.toolKeys.length,
+        form.toolKeys.length + form.legacyKioskDefinitionIds.length,
         selectableToolCount,
-        form.legacyKioskDefinitionIds.length,
+        missingSavedKioskCount,
       )}
       footer={<>
         <Button variant="outline" type="button" onClick={step === 1 ? onClose : () => setStep(1)} disabled={busy}>
@@ -217,20 +270,21 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
         )}
       </>}
     >
-      <div className="mb-5 grid grid-cols-2 gap-2">
-        {([copy.editor.stepData, copy.editor.stepTools] as const).map((label, index) => (
-          <div key={label} className={cn(
-            'rounded-xl border px-3 py-2 text-center text-xs font-medium',
-            step === index + 1
-              ? 'border-blue-600 bg-blue-50 text-blue-700'
-              : step > index + 1
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                : 'border-slate-200 bg-white text-slate-400',
-          )}>
-            {step > index + 1 ? '✓ ' : ''}{label}
-          </div>
-        ))}
-      </div>
+      <IndiceModalWizardStepper
+        accent="blue"
+        activeStepId={step === 1 ? 'details' : 'tools'}
+        className="mb-5"
+        progressLabel={copy.editor.footerSummary(
+          step,
+          form.toolKeys.length + form.legacyKioskDefinitionIds.length,
+          selectableToolCount,
+          missingSavedKioskCount,
+        )}
+        steps={[
+          { id: 'details', label: copy.editor.stepData },
+          { id: 'tools', label: copy.editor.stepTools },
+        ]}
+      />
       {error ? <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
       {step === 1 ? (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -250,9 +304,9 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
             <p className="font-medium">{copy.editor.catalogTitle}</p>
             <p className="mt-1 leading-5 text-emerald-800">{copy.editor.catalogDescription}</p>
           </div>
-          {form.legacyKioskDefinitionIds.length > 0 ? (
+          {missingSavedKioskCount > 0 ? (
             <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
-              {copy.editor.legacyNotice(form.legacyKioskDefinitionIds.length)}
+              {copy.editor.legacyNotice(missingSavedKioskCount)}
             </p>
           ) : null}
           <section aria-labelledby="multi-kiosk-preview-title" className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/80">
@@ -261,23 +315,23 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
                 <Grid2X2 className="h-4 w-4" />
               </span>
               <div className="min-w-0">
-                <h3 id="multi-kiosk-preview-title" className="text-sm font-semibold text-slate-900">{copy.editor.previewTitle}</h3>
+                <h3 id="multi-kiosk-preview-title" className="text-sm font-medium text-slate-900">{copy.editor.previewTitle}</h3>
                 <p className="mt-0.5 text-xs leading-5 text-slate-500">{copy.editor.previewDescription}</p>
               </div>
             </div>
             <div aria-live="polite" className="p-3">
-              {selectedTools.length > 0 ? (
+              {previewItems.length > 0 ? (
                 <ol aria-label={copy.editor.previewTitle} className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:grid-cols-3">
-                  {selectedTools.map((tool, index) => {
+                  {previewItems.map((tool, index) => {
                     const presentation = getMultiKioskToolPresentation(tool);
                     return (
                       <li key={tool.key} className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-                        <span aria-hidden="true" className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-slate-900 text-[10px] font-semibold text-white">
+                        <span aria-hidden="true" className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-slate-900 text-[10px] font-medium text-white">
                           {index + 1}
                         </span>
                         <MultiKioskToolGlyph source={tool} className="h-9 w-9 rounded-lg [&_svg]:h-4 [&_svg]:w-4" />
                         <span className="min-w-0">
-                          <span className="block truncate text-xs font-semibold text-slate-900">{toolName(tool, copy)}</span>
+                          <span className="block truncate text-xs font-medium text-slate-900">{toolName(tool, copy)}</span>
                           <span className={cn('mt-0.5 block truncate text-[10px] font-medium', presentation.toneClasses.module)}>
                             {moduleLabel(presentation.ownerModule, copy)}
                           </span>
@@ -293,7 +347,7 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
               )}
             </div>
           </section>
-          <div className="relative mb-4"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input aria-label={copy.editor.searchPlaceholder} value={search} onChange={event => setSearch(event.target.value)} placeholder={copy.editor.searchPlaceholder} className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-blue-500" /></div>
+          <div className="sticky top-0 z-20 -mx-1 mb-4 bg-[#F7F8FA]/95 px-1 py-1 backdrop-blur dark:bg-slate-900/95"><Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input aria-label={copy.editor.searchPlaceholder} value={search} onChange={event => setSearch(event.target.value)} placeholder={copy.editor.searchPlaceholder} className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-950" /></div>
           <div className="grid gap-3 sm:grid-cols-2">
             {visibleTools.map(tool => {
               const displayName = toolName(tool, copy);
@@ -318,10 +372,10 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
                   >
                     <MultiKioskToolGlyph source={tool} selected={selected} className="h-11 w-11 rounded-xl [&_svg]:h-5 [&_svg]:w-5" />
                     <span className="min-w-0 flex-1">
-                      <span className={cn('mb-1 block truncate text-[10px] font-semibold uppercase tracking-wide', presentation.toneClasses.module)}>
+                      <span className={cn('mb-1 block truncate text-[11px] font-medium', presentation.toneClasses.module)}>
                         {moduleLabel(presentation.ownerModule, copy)}
                       </span>
-                      <span className="block truncate text-sm font-semibold text-slate-900">{displayName}</span>
+                      <span className="block truncate text-sm font-medium text-slate-900">{displayName}</span>
                       <span className="mt-1 block line-clamp-2 text-xs leading-5 text-slate-500">{toolDescription(tool, copy)}</span>
                       <span className="mt-2 flex flex-wrap gap-1.5">
                         <span className={cn('rounded-full border px-2 py-0.5 text-[10px]', presentation.toneClasses.badge)}>{audienceLabel(tool, copy)}</span>
@@ -329,7 +383,7 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
                       </span>
                     </span>
                   </button>
-                  {selected ? <span className="flex flex-col gap-1"><button type="button" aria-label={copy.editor.moveUp(displayName)} disabled={order === 0} onClick={() => moveTool(tool.key, -1)} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-blue-500/20 disabled:opacity-30"><ArrowUp className="h-3.5 w-3.5" /></button><button type="button" aria-label={copy.editor.moveDown(displayName)} disabled={order === form.toolKeys.length - 1} onClick={() => moveTool(tool.key, 1)} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-blue-500/20 disabled:opacity-30"><ArrowDown className="h-3.5 w-3.5" /></button></span> : null}
+                  {selected ? <span className="flex flex-col gap-1"><button type="button" aria-label={copy.editor.moveUp(displayName)} disabled={order === 0} onClick={() => moveTool(tool.key, -1)} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-blue-500/20 disabled:opacity-30"><ArrowUp className="h-4 w-4" /></button><button type="button" aria-label={copy.editor.moveDown(displayName)} disabled={order === form.toolKeys.length - 1} onClick={() => moveTool(tool.key, 1)} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-blue-500/20 disabled:opacity-30"><ArrowDown className="h-4 w-4" /></button></span> : null}
                 </div>
               );
             })}
@@ -337,6 +391,68 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
           {visibleTools.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 px-5 py-10 text-center text-sm text-slate-500">{copy.editor.emptyTools}</div>
           ) : null}
+          <section aria-labelledby="multi-kiosk-operational-catalog-title" className="mt-6">
+            <div className="mb-3 flex items-start gap-3">
+              <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-rose-50 text-rose-700">
+                <Store className="h-5 w-5" />
+              </span>
+              <div>
+                <h3 id="multi-kiosk-operational-catalog-title" className="text-sm font-medium text-slate-900">
+                  {copy.editor.operationalCatalogTitle}
+                </h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  {copy.editor.operationalCatalogDescription}
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {visibleKiosks.map(kiosk => {
+                const source = kioskAsTool(kiosk);
+                const presentation = getMultiKioskToolPresentation(source);
+                const selected = form.legacyKioskDefinitionIds.includes(kiosk.id);
+                const selectable = kioskIsSelectable(kiosk);
+                const order = form.legacyKioskDefinitionIds.indexOf(kiosk.id);
+                const scope = kioskScope(kiosk);
+                return (
+                  <div key={kiosk.id} className={cn(
+                    'flex items-center gap-2 rounded-2xl border bg-white p-2 transition-colors',
+                    selected ? presentation.toneClasses.tileSelected : 'border-slate-200',
+                    selectable && presentation.toneClasses.tileHover,
+                    !selectable && 'bg-slate-50 opacity-75',
+                  )}>
+                    <button
+                      type="button"
+                      aria-label={selected ? copy.editor.removeTool(kiosk.name) : copy.editor.addTool(kiosk.name)}
+                      aria-pressed={selected}
+                      disabled={!selectable}
+                      onClick={() => toggleKiosk(kiosk.id)}
+                      className="flex min-h-20 min-w-0 flex-1 items-center gap-3 rounded-xl p-1 text-left outline-none focus-visible:ring-4 focus-visible:ring-blue-500/20"
+                    >
+                      <MultiKioskToolGlyph source={source} selected={selected} className="h-11 w-11 rounded-xl [&_svg]:h-5 [&_svg]:w-5" />
+                      <span className="min-w-0 flex-1">
+                        <span className={cn('mb-1 block truncate text-[11px] font-medium', presentation.toneClasses.module)}>
+                          {moduleLabel(kiosk.owner_module, copy)}
+                        </span>
+                        <span className="block truncate text-sm font-medium text-slate-900">{kiosk.name}</span>
+                        <span className="mt-1 flex items-start gap-1 text-xs leading-5 text-slate-500">
+                          <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                          <span className="line-clamp-2">{scope || copy.editor.companyAudience}</span>
+                        </span>
+                        <span className="mt-2 flex flex-wrap gap-1.5">
+                          <span className={cn('rounded-full border px-2 py-0.5 text-[10px]', presentation.toneClasses.badge)}>{copy.editor.authorizedAudience}</span>
+                          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] text-emerald-700">{readinessLabel(source, copy)}</span>
+                        </span>
+                      </span>
+                    </button>
+                    {selected ? <span className="flex flex-col gap-1"><button type="button" aria-label={copy.editor.moveUp(kiosk.name)} disabled={order === 0} onClick={() => moveKiosk(kiosk.id, -1)} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-blue-500/20 disabled:opacity-30"><ArrowUp className="h-4 w-4" /></button><button type="button" aria-label={copy.editor.moveDown(kiosk.name)} disabled={order === form.legacyKioskDefinitionIds.length - 1} onClick={() => moveKiosk(kiosk.id, 1)} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-blue-500/20 disabled:opacity-30"><ArrowDown className="h-4 w-4" /></button></span> : null}
+                  </div>
+                );
+              })}
+            </div>
+            {visibleKiosks.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-300 px-5 py-8 text-center text-sm text-slate-500">{copy.editor.emptyOperationalKiosks}</div>
+            ) : null}
+          </section>
         </div>
       )}
     </KioskModalFrame>

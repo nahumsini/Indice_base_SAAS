@@ -204,6 +204,7 @@ public class SelfServiceKioskService {
         }
         registry.synchronizeCapabilities(
             definition, PointOfSaleKioskCapabilities.selfServiceDescriptors());
+        registry.synchronizeEmployeeCenter(definition, true, "SCOPE");
         audit(context.companyId(), id, null, "SELF_SERVICE_KIOSK_CREATED", context.userId(),
             Map.of("code", code, "cash_register_id", register.id()));
         return admin(require(context, id), token);
@@ -226,12 +227,13 @@ public class SelfServiceKioskService {
         var definition = definition(context.companyId(), kioskId);
         var selfCheckout = PointOfSaleKioskCapabilities.SELF_CHECKOUT_TYPE.equals(
             definition.kioskType());
-        registry.registerLegacyDefinitionWithLocation(
+        var updatedDefinition = registry.registerLegacyDefinitionWithLocation(
             context.companyId(), OWNER_MODULE, definition.kioskType(), kioskId,
             current.code(), request.name().trim(),
             current.status(), current.unitId(), current.businessId(), current.warehouseId(),
             request.expiresAt(), "registry-managed", false, KioskAccessLevel.PUBLIC,
             selfCheckout ? "pos-self-checkout" : "pos-self-service", "es-MX", context.userId());
+        registry.synchronizeEmployeeCenter(updatedDefinition, true, "SCOPE");
         audit(context.companyId(), kioskId, null, "SELF_SERVICE_KIOSK_UPDATED", context.userId(),
             Map.of("configuration_version", request.version() + 1));
         return admin(require(context, kioskId), null);

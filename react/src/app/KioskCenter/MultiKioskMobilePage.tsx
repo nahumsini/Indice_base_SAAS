@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ArrowLeft,
   Grid2X2,
   LoaderCircle,
   LockKeyhole,
   LogOut,
-  ShieldCheck,
 } from 'lucide-react';
 import { useParams, useSearchParams } from 'react-router';
 import {
@@ -59,32 +58,120 @@ const friendlyError = (error: unknown, copy: MultiKioskMobileCopy) => {
   return copy.errors.generic;
 };
 
-function MultiKioskHeader({ bootstrap, employee, accent, copy, compact = false }: {
+function MultiKioskHeader({
+  bootstrap,
+  employee,
+  accent,
+  copy,
+  compact = false,
+  busy = false,
+  onBack,
+  onSignOut,
+  utilities,
+  workspace,
+}: {
   bootstrap: MultiKioskBootstrap;
   employee?: string;
   accent: { color: string; soft: string; textClassName: string };
   copy: MultiKioskMobileCopy;
   compact?: boolean;
+  busy?: boolean;
+  onBack?: () => void;
+  onSignOut?: () => void;
+  utilities?: ReactNode;
+  workspace?: MultiKioskChildWorkspace | null;
 }) {
-  return (
-    <header className={`border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-950 sm:px-6 ${compact ? 'py-3' : 'py-5'}`}>
-      <div className="flex items-start gap-3">
-        <span
-          aria-hidden="true"
-          className={`grid shrink-0 place-items-center rounded-2xl ${compact ? 'h-10 w-10 sm:h-12 sm:w-12' : 'h-12 w-12'}`}
-          style={{ color: accent.color, backgroundColor: accent.soft }}
-        >
-          <Grid2X2 className="h-5 w-5" />
-        </span>
-        <div className="min-w-0">
-          <p className={`text-xs font-medium ${accent.textClassName}`}>{bootstrap.company_name}</p>
-          <h1 className={`mt-1 font-medium tracking-tight text-slate-950 dark:text-white ${compact ? 'text-lg sm:text-xl' : 'text-xl'}`}>{bootstrap.name}</h1>
-          {!compact ? (
-            <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-              {employee ? copy.header.employeeGreeting(employee) : bootstrap.description || copy.header.defaultDescription}
-            </p>
-          ) : null}
+  if (compact && employee) {
+    return (
+      <header
+        className="border-b border-slate-200 bg-white px-3 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top))] dark:border-slate-800 dark:bg-slate-950 sm:px-4"
+        data-multi-kiosk-app-bar
+      >
+        <div className="grid min-h-12 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 max-[479px]:grid-cols-1 sm:gap-3">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            {workspace && onBack ? (
+              <button
+                type="button"
+                onClick={onBack}
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-700 outline-none transition hover:bg-slate-50 focus-visible:ring-4 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
+                style={{ '--tw-ring-color': `${accent.color}25` } as React.CSSProperties}
+                aria-label={copy.workspace.back}
+              >
+                <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+              </button>
+            ) : (
+              <span
+                aria-hidden="true"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-xl"
+                style={{ color: accent.color, backgroundColor: accent.soft }}
+              >
+                <Grid2X2 className="h-5 w-5" />
+              </span>
+            )}
+            {workspace ? (
+              <MultiKioskToolGlyph source={workspace.kiosk} className="h-10 w-10 shrink-0 rounded-xl max-[359px]:hidden" />
+            ) : null}
+
+            <div className="min-w-0 flex-1">
+              <p className={`truncate text-[11px] font-medium leading-4 ${workspace ? 'text-slate-500 dark:text-slate-400' : accent.textClassName}`}>
+                {workspace ? moduleName(workspace.kiosk.module, copy) : bootstrap.company_name}
+              </p>
+              <h1
+                className="truncate text-base font-medium leading-5 text-slate-950 dark:text-white sm:text-lg"
+                id={workspace ? 'multi-kiosk-workspace-title' : undefined}
+              >
+                {workspace ? workspace.kiosk.name : bootstrap.name}
+              </h1>
+              {workspace ? (
+                <p className="truncate text-[11px] leading-4 text-slate-500 dark:text-slate-400">
+                  {workspace.bootstrap?.scope_label ?? workspace.kiosk.purpose} · {employee}
+                </p>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="flex shrink-0 items-center justify-end gap-2">
+            {utilities}
+            {onSignOut ? (
+              <button
+                type="button"
+                onClick={onSignOut}
+                disabled={busy}
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-0 text-sm font-medium text-slate-700 outline-none transition hover:bg-slate-50 focus-visible:ring-4 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900 sm:w-auto sm:px-3"
+                style={{ '--tw-ring-color': `${accent.color}25` } as React.CSSProperties}
+                aria-label={copy.launcher.signOut}
+                title={copy.launcher.signOut}
+              >
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+                <span className="hidden sm:inline">{copy.launcher.changeEmployee}</span>
+              </button>
+            ) : null}
+          </div>
         </div>
+      </header>
+    );
+  }
+
+  return (
+    <header className="border-b border-slate-200 bg-white px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] dark:border-slate-800 dark:bg-slate-950 sm:px-6">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 max-[479px]:grid-cols-1">
+        <div className="flex min-w-0 items-start gap-3">
+          <span
+            aria-hidden="true"
+            className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl"
+            style={{ color: accent.color, backgroundColor: accent.soft }}
+          >
+            <Grid2X2 className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <p className={`text-xs font-medium ${accent.textClassName}`}>{bootstrap.company_name}</p>
+            <h1 className="mt-1 text-xl font-medium tracking-tight text-slate-950 dark:text-white">{bootstrap.name}</h1>
+            <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+              {bootstrap.description || copy.header.defaultDescription}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-end">{utilities}</div>
       </div>
     </header>
   );
@@ -129,7 +216,7 @@ function PinGate({ busy, copy, error, onClearError, onSubmit, tone }: {
   );
 }
 
-function Launcher({ session, accent, busy, busyId, copy, error, onOpen, onSignOut }: {
+function Launcher({ session, accent, busy, busyId, copy, error, onOpen }: {
   session: MultiKioskMobileSession;
   accent: { color: string; soft: string; textClassName: string };
   busy: boolean;
@@ -137,48 +224,9 @@ function Launcher({ session, accent, busy, busyId, copy, error, onOpen, onSignOu
   copy: MultiKioskMobileCopy;
   error: string;
   onOpen: (card: MultiKioskCard) => Promise<void>;
-  onSignOut: () => Promise<void>;
 }) {
   return (
-    <div aria-busy={busy || busyId !== null} className="mx-auto w-full max-w-6xl space-y-4 sm:space-y-5">
-      <section
-        aria-label={copy.launcher.activeSession}
-        className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 pl-5 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:p-5 sm:pl-6"
-      >
-        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: accent.color }} />
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <span
-              aria-hidden="true"
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-slate-200 dark:border-slate-700"
-              style={{ color: accent.color, backgroundColor: accent.soft }}
-            >
-              <Grid2X2 className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                <ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                <span className="truncate">{copy.launcher.activeSession}</span>
-              </p>
-              <h2 className="mt-1 line-clamp-2 text-lg font-medium leading-6 text-slate-950 dark:text-white sm:text-xl">
-                {copy.header.employeeGreeting(session.employee.name)}
-              </h2>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => void onSignOut()}
-            disabled={busy || busyId !== null}
-            className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none transition hover:bg-slate-50 focus-visible:ring-4 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
-            style={{ '--tw-ring-color': `${accent.color}25` } as React.CSSProperties}
-            aria-label={copy.launcher.signOut}
-            title={copy.launcher.signOut}
-          >
-            <LogOut className="h-4 w-4" aria-hidden="true" />
-            <span className="hidden min-[360px]:inline">{copy.launcher.changeEmployee}</span>
-          </button>
-        </div>
-      </section>
+    <div aria-busy={busy || busyId !== null} className="mx-auto w-full max-w-6xl space-y-4 sm:space-y-5" data-multi-kiosk-launcher>
       {error ? <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
       {busyId !== null ? (
         <p
@@ -196,6 +244,8 @@ function Launcher({ session, accent, busy, busyId, copy, error, onOpen, onSignOu
         copy={copy.launcher}
         moduleLabel={ownerModule => moduleName(ownerModule, copy)}
         onOpen={onOpen}
+        sessionLabel={session.employee.name}
+        sessionStatusLabel={copy.launcher.activeSession}
       />
     </div>
   );
@@ -445,7 +495,8 @@ export default function MultiKioskMobilePage() {
         const lastOpenedTool = lastOpenedKioskId === null
           ? null
           : launcherFocusRef.current?.querySelector<HTMLButtonElement>(`[data-multi-kiosk-id="${lastOpenedKioskId}"]`);
-        (lastOpenedTool ?? launcherFocusRef.current)?.focus();
+        if (lastOpenedTool) lastOpenedTool.focus();
+        else launcherFocusRef.current?.focus({ preventScroll: true });
       }
     });
     return () => window.cancelAnimationFrame(frame);
@@ -455,7 +506,12 @@ export default function MultiKioskMobilePage() {
     return <main className="grid min-h-dvh place-items-center bg-slate-100 p-6 text-center text-sm text-slate-600">{error || copy.errors.unavailable}</main>;
   }
 
-  const shellWidth = !session ? 'max-w-[31rem]' : workspace ? 'max-w-3xl' : 'max-w-6xl';
+  const posWorkspace = workspace?.kiosk.module === 'POINT_OF_SALE';
+  const shellWidth = !session
+    ? 'max-w-[31rem]'
+    : workspace
+      ? posWorkspace ? 'max-w-[96rem]' : 'max-w-3xl'
+      : 'max-w-6xl';
 
   return (
     <KioskPublicShell
@@ -473,14 +529,20 @@ export default function MultiKioskMobilePage() {
           <LoaderCircle className="h-7 w-7 animate-spin" style={{ color: accent.color }} />
         </div>
       ) : null}
-      header={bootstrap ? (
+      header={bootstrap ? ((utilities) => (
         <MultiKioskHeader
           bootstrap={bootstrap}
           accent={accent}
           copy={copy}
           compact={Boolean(session)}
+          employee={session?.employee.name}
+          busy={loading || busyId !== null}
+          onBack={workspace ? returnToLauncher : undefined}
+          onSignOut={session ? () => { void signOut(); } : undefined}
+          utilities={utilities}
+          workspace={workspace}
         />
-      ) : <div />}
+      )) : <div />}
     >
       {bootstrap && !session ? (
         <PinGate busy={loading} copy={copy} error={error} onClearError={() => setError('')} onSubmit={authenticate} tone={identityTone} />
@@ -489,26 +551,8 @@ export default function MultiKioskMobilePage() {
           ref={workspaceFocusRef}
           aria-labelledby="multi-kiosk-workspace-title"
           tabIndex={-1}
-          className="mx-auto w-full max-w-3xl space-y-3 outline-none sm:space-y-4"
+          className={`mx-auto w-full outline-none ${posWorkspace ? 'max-w-[96rem]' : 'max-w-3xl'}`}
         >
-          <button
-            type="button"
-            onClick={returnToLauncher}
-            className="sticky top-0 z-30 -mx-1 inline-flex min-h-12 items-center gap-2 rounded-xl bg-slate-50/95 px-3 text-sm font-medium text-slate-600 outline-none backdrop-blur transition hover:text-slate-950 focus-visible:ring-4 focus-visible:ring-blue-500/20 dark:bg-slate-900/95 dark:text-slate-300 dark:hover:text-white sm:static sm:mx-0 sm:bg-transparent sm:px-2 sm:backdrop-blur-none sm:dark:bg-transparent"
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            {copy.workspace.back}
-          </button>
-          <section className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-950 sm:p-4">
-            <MultiKioskToolGlyph source={workspace.kiosk} className="h-10 w-10 sm:h-12 sm:w-12" />
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{moduleName(workspace.kiosk.module, copy)}</p>
-              <h2 id="multi-kiosk-workspace-title" className="mt-1 text-lg font-medium text-slate-950 dark:text-white sm:text-xl">{workspace.kiosk.name}</h2>
-              <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                {workspace.bootstrap?.scope_label ?? workspace.kiosk.purpose}
-              </p>
-            </div>
-          </section>
           {workspace.experience_status !== 'READY' ? (
             <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center text-amber-900 dark:border-amber-800 dark:bg-amber-950/35 dark:text-amber-100">
               <LockKeyhole className="mx-auto h-7 w-7" aria-hidden="true" />
@@ -538,7 +582,7 @@ export default function MultiKioskMobilePage() {
         </div>
       ) : session ? (
         <div ref={launcherFocusRef} aria-labelledby="multi-kiosk-tool-dashboard-title" tabIndex={-1} className="outline-none">
-          <Launcher session={session} accent={accent} busy={loading} busyId={busyId} copy={copy} error={error} onOpen={openTool} onSignOut={signOut} />
+          <Launcher session={session} accent={accent} busy={loading} busyId={busyId} copy={copy} error={error} onOpen={openTool} />
         </div>
       ) : null}
     </KioskPublicShell>

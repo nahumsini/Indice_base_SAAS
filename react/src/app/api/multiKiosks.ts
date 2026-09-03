@@ -9,6 +9,12 @@ import type {
   PublicPettyCashReceipt,
 } from '../BasicModules/PettyCash/Kiosk/pettyCashKioskApi';
 import type {
+  SelfServiceBootstrap,
+} from '../BasicModules/PointOfSale/SelfServiceKiosk/selfServiceKioskApi';
+import type {
+  RestaurantWorkspace,
+} from '../BasicModules/PointOfSale/RestaurantKiosk/restaurantKioskApi';
+import type {
   PublicKioskBootstrapResponse as PublicAttendanceKioskBootstrap,
   PublicKioskDayActivity,
 } from './humanResources';
@@ -58,11 +64,19 @@ export interface MultiKioskCatalogKiosk {
   unit_name?: string;
   business_id?: number;
   business_name?: string;
+  location_id?: number;
+  location_name?: string;
+  cash_register_id?: number;
+  cash_register_name?: string;
   access_level: string;
   /** Optional policy metadata. The backend remains authoritative when omitted. */
   required_tab_scope?: string;
   required_tab_scopes?: string[];
   employee_center_supported?: boolean;
+  workspace_kind?: string;
+  audience_policy?: string;
+  readiness?: string;
+  availability?: string;
 }
 
 export interface MultiKioskCatalogTool {
@@ -159,6 +173,7 @@ export const multiKioskAdminApi = {
       tools: (response.data.tools ?? [])
         .map(normalizeCatalogTool)
         .filter((tool): tool is MultiKioskCatalogTool => tool !== null),
+      kiosks: response.data.kiosks ?? [],
     };
   },
   async detail(id: number, signal?: AbortSignal) {
@@ -203,6 +218,7 @@ export interface MultiKioskCard {
   purpose: string;
   availability: 'AVAILABLE' | 'VERIFICATION_REQUIRED';
   primary_action: 'OPEN';
+  scope?: { unit_id?: number | string; business_id?: number | string; location_id?: number | string };
 }
 
 export interface MultiKioskBootstrap {
@@ -238,12 +254,20 @@ export interface MultiKioskEmployeeIdentity {
   user_id?: number;
   user_code?: string;
   full_name: string;
+  name?: string;
   position_title?: string;
   department?: string;
 }
 
 export interface MultiKioskEmployeeWorkspaceBootstrap extends Partial<PublicPettyCashHistory> {
-  kiosk?: { id: number; code: string; name: string };
+  kiosk?: {
+    id?: number;
+    code?: string;
+    name?: string;
+    currencyCode?: string;
+    accessType?: string;
+    status?: string;
+  };
   kiosk_device?: PublicAttendanceKioskBootstrap['kiosk_device'];
   kiosk_type?: PublicAttendanceKioskBootstrap['kiosk_type'];
   location?: PublicAttendanceKioskBootstrap['location'];
@@ -257,6 +281,35 @@ export interface MultiKioskEmployeeWorkspaceBootstrap extends Partial<PublicPett
   recent_receipts?: PublicPettyCashReceipt[];
   inactivity_timeout_seconds?: number;
   authentication?: 'ENGINE_PIN_SESSION' | string;
+  providers?: Array<{ id: number; name: string }>;
+  code?: string;
+  name?: string;
+  companyName?: string;
+  unitName?: string;
+  businessName?: string;
+  warehouseName?: string;
+  cashRegisterName?: string;
+  currencyCode?: string;
+  showStock?: boolean;
+  customerNameRequired?: boolean;
+  maxItemsPerTicket?: number;
+  preticketTtlMinutes?: number;
+  fulfillmentPolicy?: SelfServiceBootstrap['fulfillmentPolicy'];
+  items?: SelfServiceBootstrap['items'];
+  kioskType?: SelfServiceBootstrap['kioskType'] | RestaurantWorkspace['kioskType'];
+  availabilityState?: SelfServiceBootstrap['availabilityState'];
+  sourceRegisterOpen?: boolean;
+  discountRules?: SelfServiceBootstrap['discountRules'];
+  kioskId?: number;
+  ecosystemName?: string;
+  areaName?: string;
+  status?: string;
+  userCompanyId?: number;
+  canEditFloorPlan?: boolean;
+  tables?: RestaurantWorkspace['tables'];
+  orders?: RestaurantWorkspace['orders'];
+  catalog?: RestaurantWorkspace['catalog'];
+  kitchenItems?: RestaurantWorkspace['kitchenItems'];
 }
 
 export interface MultiKioskChildWorkspace {

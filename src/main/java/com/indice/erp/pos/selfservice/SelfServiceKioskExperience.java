@@ -6,6 +6,7 @@ import com.indice.erp.kiosk.engine.KioskActionRequest;
 import com.indice.erp.kiosk.engine.KioskAuthorization;
 import com.indice.erp.kiosk.engine.KioskCapabilityDescriptor;
 import com.indice.erp.kiosk.engine.KioskExecutionContext;
+import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
 import com.indice.erp.kiosk.engine.KioskValidationResult;
 import com.indice.erp.pos.kiosk.PointOfSaleKioskCapabilities;
 import com.indice.erp.pos.kiosk.PointOfSaleKioskExperience;
@@ -48,6 +49,42 @@ public class SelfServiceKioskExperience implements PointOfSaleKioskExperience {
     @Override
     public Map<String, Object> bootstrap(KioskExecutionContext context) {
         return map(service.bootstrap(definition(context)));
+    }
+
+    @Override
+    public boolean supportsEmployeeCenter(KioskResolvedDefinition definition) {
+        return definition != null
+            && definition.legacyReferenceId() != null
+            && definition.legacyReferenceId() > 0
+            && SelfServiceKioskService.OWNER_MODULE.equals(definition.ownerModule())
+            && SelfServiceKioskService.KIOSK_TYPE.equals(definition.kioskType());
+    }
+
+    @Override
+    public Set<String> employeeCenterTabPermissionKeys(KioskResolvedDefinition definition) {
+        return Set.of("pos.sale");
+    }
+
+    @Override
+    public Map<String, Object> employeeBootstrap(KioskExecutionContext context) {
+        return bootstrap(context);
+    }
+
+    @Override
+    public KioskAuthorization authorizeEmployee(
+            KioskExecutionContext context,
+            KioskActionRequest request) {
+        if (context.session() == null || !"USER".equals(context.session().identityType())) {
+            return KioskAuthorization.deny("Authenticated employee POS session is required.");
+        }
+        return authorize(context, request);
+    }
+
+    @Override
+    public Map<String, Object> executeEmployee(
+            KioskExecutionContext context,
+            KioskActionRequest request) {
+        return execute(context, request);
     }
 
     @Override

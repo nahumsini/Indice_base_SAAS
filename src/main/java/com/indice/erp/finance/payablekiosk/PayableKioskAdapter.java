@@ -11,8 +11,10 @@ import com.indice.erp.kiosk.engine.KioskActionRequest;
 import com.indice.erp.kiosk.engine.KioskAuthorization;
 import com.indice.erp.kiosk.engine.KioskCapabilityDescriptor;
 import com.indice.erp.kiosk.engine.KioskExecutionContext;
+import com.indice.erp.kiosk.engine.KioskExecutionChannels;
 import com.indice.erp.kiosk.engine.KioskModuleAdapter;
 import com.indice.erp.kiosk.engine.KioskIdentityBiometricService;
+import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
 import com.indice.erp.kiosk.engine.KioskValidationResult;
 import java.util.Map;
 import java.util.Set;
@@ -23,7 +25,13 @@ import org.springframework.stereotype.Component;
 public class PayableKioskAdapter implements KioskModuleAdapter {
 
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
+    private static final Set<String> EMPLOYEE_TAB_PERMISSIONS = Set.of("expenses.expenses");
+    private static final Set<String> EMPLOYEE_CAPABILITIES = Set.of(
+        PayableKioskCapabilities.PAYABLE_CREATE,
+        PayableKioskCapabilities.ATTACHMENT_PRESIGN,
+        PayableKioskCapabilities.ATTACHMENT_REGISTER);
     private final PayableKioskService service;
+    private final PayableEmployeeKioskService employeeCenter;
     private final ObjectMapper objectMapper;
     private final FinanceKioskModuleAuditService moduleAudit;
     private final Validator validator;
@@ -34,12 +42,14 @@ public class PayableKioskAdapter implements KioskModuleAdapter {
             ObjectMapper objectMapper,
             FinanceKioskModuleAuditService moduleAudit,
             Validator validator,
-            KioskIdentityBiometricService biometrics) {
+            KioskIdentityBiometricService biometrics,
+            PayableEmployeeKioskService employeeCenter) {
         this.service = service;
         this.objectMapper = objectMapper;
         this.moduleAudit = moduleAudit;
         this.validator = validator;
         this.biometrics = biometrics;
+        this.employeeCenter = employeeCenter;
     }
 
     @Override
@@ -59,8 +69,39 @@ public class PayableKioskAdapter implements KioskModuleAdapter {
     }
 
     @Override
+    public boolean supportsEmployeeCenter(KioskResolvedDefinition definition) {
+        return employeeCenter.supports(definition);
+    }
+
+    @Override
+    public Set<String> employeeCenterTabPermissionKeys(KioskResolvedDefinition definition) {
+        return EMPLOYEE_TAB_PERMISSIONS;
+    }
+
+    @Override
+    public Set<String> employeeCapabilityTabPermissionKeys(
+            KioskResolvedDefinition definition,
+            KioskCapabilityDescriptor capability) {
+        return EMPLOYEE_CAPABILITIES.contains(capability.key())
+            ? EMPLOYEE_TAB_PERMISSIONS : Set.of();
+    }
+
+    @Override
+    public Map<String, Object> employeeBootstrap(KioskExecutionContext context) {
+        requireEmployeeContext(context);
+        return employeeCenter.bootstrap(context.definition(), context.session().identityId());
+    }
+
+    @Override
     public KioskAuthorization authorize(KioskExecutionContext context, KioskActionRequest request) {
         requireContext(context);
+        if (KioskExecutionChannels.isEmployeeChannel(context.channel())) {
+            return context.session() != null
+                    && "USER".equals(context.session().identityType())
+                    && EMPLOYEE_CAPABILITIES.contains(request.capabilityKey())
+                ? KioskAuthorization.allow()
+                : KioskAuthorization.deny("Authenticated employee payable session is required.");
+        }
         if (PayableKioskCapabilities.IDENTITY_VERIFY.equals(request.capabilityKey())
                 || PayableKioskCapabilities.PROVIDER_REGISTER.equals(request.capabilityKey())) {
             return KioskAuthorization.allow();
@@ -122,6 +163,17 @@ public class PayableKioskAdapter implements KioskModuleAdapter {
                 biometrics.completeVerification(context, request.payload());
             default -> throw new IllegalArgumentException("Unsupported payable kiosk capability.");
         };
+        auditMutation(context, request, response);
+        return response;
+    }
+
+    @Override
+    public Map<String, Object> executeEmployee(
+            KioskExecutionContext context,
+            KioskActionRequest request) {
+        requireEmployeeContext(context);
+        var response = employeeCenter.execute(
+            context.definition(), context.session().identityId(), request);
         auditMutation(context, request, response);
         return response;
     }
@@ -212,6 +264,18 @@ public class PayableKioskAdapter implements KioskModuleAdapter {
     private void requireContext(KioskExecutionContext context) {
         if (!ownerModule().equals(context.ownerModule())) {
             throw new IllegalArgumentException("Kiosk context does not belong to Expenses.");
+        }
+    }
+
+    private void requireEmployeeContext(KioskExecutionContext context) {
+        requireContext(context);
+        if (!KioskExecutionChannels.isEmployeeChannel(context.channel())
+                || context.definition() == null || context.session() == null
+                || !"USER".equals(context.session().identityType())
+                || context.session().identityId() <= 0
+                || context.session().companyId() != context.definition().companyId()
+                || context.session().kioskDefinitionId() != context.definition().id()) {
+            throw new SecurityException("Authenticated employee payable session is required.");
         }
     }
 }

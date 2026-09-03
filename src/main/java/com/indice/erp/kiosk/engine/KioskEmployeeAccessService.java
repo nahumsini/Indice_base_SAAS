@@ -61,7 +61,6 @@ public class KioskEmployeeAccessService {
                 INNER JOIN kiosk_definitions definition
                     ON definition.id = grant_row.kiosk_definition_id
                 WHERE definition.company_id = ?
-                  AND definition.audience = 'EMPLOYEE'
                   AND definition.employee_center_enabled = 1
                   AND definition.code NOT LIKE 'INDICE-EMPLOYEE-TOOL-%'
                   AND grant_row.identity_type = 'USER'
@@ -99,13 +98,57 @@ public class KioskEmployeeAccessService {
                        COALESCE(unit_ref.name, '') AS unit_name,
                        definition.business_id,
                        COALESCE(business_ref.name, '') AS business_name,
+                       definition.location_id,
+                       COALESCE(location_ref.name, '') AS location_name,
+                       COALESCE(pos_self.cash_register_id, ecosystem.settlement_cash_register_id) AS cash_register_id,
+                       COALESCE(register_ref.name, '') AS cash_register_name,
                        definition.access_level
                 FROM kiosk_definitions definition
                 LEFT JOIN units unit_ref ON unit_ref.id = definition.unit_id
                 LEFT JOIN businesses business_ref ON business_ref.id = definition.business_id
+                LEFT JOIN sales_inventory_warehouses location_ref
+                  ON location_ref.id = definition.location_id
+                 AND location_ref.company_id = definition.company_id
+                LEFT JOIN pos_self_service_kiosks pos_self
+                  ON definition.owner_module = 'POINT_OF_SALE'
+                 AND definition.kiosk_type IN ('self_service', 'self_checkout')
+                 AND pos_self.id = definition.legacy_reference_id
+                 AND pos_self.company_id = definition.company_id
+                LEFT JOIN pos_restaurant_kiosks restaurant_kiosk
+                  ON definition.owner_module = 'POINT_OF_SALE'
+                 AND definition.kiosk_type IN ('waiter_station', 'table_order_center', 'kitchen_display')
+                 AND restaurant_kiosk.id = definition.legacy_reference_id
+                 AND restaurant_kiosk.company_id = definition.company_id
+                LEFT JOIN pos_restaurant_ecosystems ecosystem
+                  ON ecosystem.id = restaurant_kiosk.ecosystem_id
+                 AND ecosystem.company_id = definition.company_id
+                LEFT JOIN pos_cash_registers register_ref
+                  ON register_ref.id = COALESCE(
+                    pos_self.cash_register_id, ecosystem.settlement_cash_register_id)
+                 AND register_ref.company_id = definition.company_id
                 WHERE definition.company_id = ?
-                  AND definition.audience = 'EMPLOYEE'
-                  AND definition.employee_center_enabled = 1
+                  AND (
+                    definition.employee_center_enabled = 1
+                    OR (
+                      definition.owner_module = 'PETTY_CASH'
+                      AND definition.kiosk_type = 'receipt_capture'
+                    )
+                    OR (
+                      definition.owner_module = 'POINT_OF_SALE'
+                      AND definition.kiosk_type IN ('self_service', 'waiter_station')
+                    )
+                    OR (
+                      definition.owner_module = 'EXPENSES'
+                      AND definition.kiosk_type = 'accounts_payable'
+                      AND EXISTS (
+                        SELECT 1
+                        FROM finance_payable_kiosks payable_kiosk
+                        WHERE payable_kiosk.id = definition.legacy_reference_id
+                          AND payable_kiosk.company_id = definition.company_id
+                          AND UPPER(TRIM(payable_kiosk.access_type)) IN ('MIXED', 'EMPLOYEE')
+                      )
+                    )
+                  )
                   AND definition.code NOT LIKE 'INDICE-EMPLOYEE-TOOL-%'
                   AND definition.status = 'ACTIVE'
                   AND (definition.expires_at IS NULL OR definition.expires_at > CURRENT_TIMESTAMP)
@@ -208,7 +251,6 @@ public class KioskEmployeeAccessService {
                     SELECT definition.id, 'USER', ?, '*', 'ACTIVE', 'INVITATION', ?, NULL
                     FROM kiosk_definitions definition
                     WHERE definition.id = ? AND definition.company_id = ?
-                      AND definition.audience = 'EMPLOYEE'
                       AND definition.employee_center_enabled = 1
                       AND definition.code NOT LIKE 'INDICE-EMPLOYEE-TOOL-%'
                     ON DUPLICATE KEY UPDATE
@@ -240,10 +282,32 @@ public class KioskEmployeeAccessService {
     public boolean isEmployeeEligible(long companyId, long definitionId) {
         var count = jdbcTemplate.queryForObject(
             """
-                SELECT COUNT(*) FROM kiosk_definitions
-                WHERE id = ? AND company_id = ? AND audience = 'EMPLOYEE'
-                  AND employee_center_enabled = 1 AND status = 'ACTIVE'
-                  AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+                SELECT COUNT(*) FROM kiosk_definitions definition
+                WHERE definition.id = ? AND definition.company_id = ?
+                  AND (
+                    definition.employee_center_enabled = 1
+                    OR (
+                      definition.owner_module = 'PETTY_CASH'
+                      AND definition.kiosk_type = 'receipt_capture'
+                    )
+                    OR (
+                      definition.owner_module = 'POINT_OF_SALE'
+                      AND definition.kiosk_type IN ('self_service', 'waiter_station')
+                    )
+                    OR (
+                      definition.owner_module = 'EXPENSES'
+                      AND definition.kiosk_type = 'accounts_payable'
+                      AND EXISTS (
+                        SELECT 1
+                        FROM finance_payable_kiosks payable_kiosk
+                        WHERE payable_kiosk.id = definition.legacy_reference_id
+                          AND payable_kiosk.company_id = definition.company_id
+                          AND UPPER(TRIM(payable_kiosk.access_type)) IN ('MIXED', 'EMPLOYEE')
+                      )
+                    )
+                  )
+                  AND definition.status = 'ACTIVE'
+                  AND (definition.expires_at IS NULL OR definition.expires_at > CURRENT_TIMESTAMP)
                 """,
             Integer.class, definitionId, companyId
         );
@@ -265,7 +329,7 @@ public class KioskEmployeeAccessService {
                 """
                     SELECT id, owner_module, unit_id, business_id
                     FROM kiosk_definitions
-                    WHERE id = ? AND company_id = ? AND audience = 'EMPLOYEE'
+                    WHERE id = ? AND company_id = ?
                       AND employee_center_enabled = 1 AND status = 'ACTIVE'
                       AND code NOT LIKE 'INDICE-EMPLOYEE-TOOL-%'
                       AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
@@ -395,6 +459,10 @@ public class KioskEmployeeAccessService {
         row.put("unit_name", rs.getString("unit_name"));
         row.put("business_id", rs.getObject("business_id", Long.class));
         row.put("business_name", rs.getString("business_name"));
+        row.put("location_id", rs.getObject("location_id", Long.class));
+        row.put("location_name", rs.getString("location_name"));
+        row.put("cash_register_id", rs.getObject("cash_register_id", Long.class));
+        row.put("cash_register_name", rs.getString("cash_register_name"));
         row.put("access_level", rs.getString("access_level"));
         return row;
     }
@@ -405,6 +473,7 @@ public class KioskEmployeeAccessService {
             case "PETTY_CASH" -> "petty_cash";
             case "HUMAN_RESOURCES" -> "human_resources";
             case "EXPENSES" -> "expenses";
+            case "POINT_OF_SALE" -> "pos";
             default -> ModuleSlugNormalizer.normalize(ownerModule);
         };
     }

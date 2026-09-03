@@ -337,6 +337,7 @@ export const koCA = {
       currency: (currency: string) => `통화 ${currency}`,
       attach: '영수증 첨부',
       clear: '지우기',
+      retryEvidence: '증빙 다시 업로드',
       submit: '영수증 등록',
     },
     side: {

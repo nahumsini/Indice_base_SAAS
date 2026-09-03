@@ -207,7 +207,7 @@ class MultiKioskServiceScopeTest {
     @Test
     @SuppressWarnings({"rawtypes", "unchecked"})
     void createIgnoresLegacyParentScopeAndReportsCompanyPinPopulation() throws Exception {
-        given(employeeAccess.catalog(7L)).willReturn(List.of(Map.of(
+        given(dashboard.contextualCatalog(7L)).willReturn(List.of(Map.of(
             "id", 17L,
             "unit_id", 24L,
             "business_id", 29L)));

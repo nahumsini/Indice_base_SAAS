@@ -8,6 +8,7 @@ import com.indice.erp.kiosk.engine.KioskAccessLevel;
 import com.indice.erp.kiosk.engine.KioskActionRequest;
 import com.indice.erp.kiosk.engine.KioskDefinitionStatus;
 import com.indice.erp.kiosk.engine.KioskExecutionContext;
+import com.indice.erp.kiosk.engine.KioskExecutionChannels;
 import com.indice.erp.kiosk.engine.KioskIdentityBiometricService;
 import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
 import com.indice.erp.kiosk.engine.KioskSessionPrincipal;
@@ -42,12 +43,16 @@ class PayableKioskAdapterTest {
     @Mock
     private KioskIdentityBiometricService biometrics;
 
+    @Mock
+    private PayableEmployeeKioskService employeeCenter;
+
     private PayableKioskAdapter adapter;
 
     @BeforeEach
     void setUp() {
         var validator = Validation.buildDefaultValidatorFactory().getValidator();
-        adapter = new PayableKioskAdapter(service, new ObjectMapper(), moduleAudit, validator, biometrics);
+        adapter = new PayableKioskAdapter(
+            service, new ObjectMapper(), moduleAudit, validator, biometrics, employeeCenter);
     }
 
     @Test
@@ -110,6 +115,39 @@ class PayableKioskAdapterTest {
     }
 
     @Test
+    void mobileEmployeeChannelUsesTheInternalBridgeAndExcludesProviderOnlyCapabilities() {
+        var definition = definition();
+        var context = mobileEmployeeContext(definition);
+        var request = KioskActionRequest.of(
+            PayableKioskCapabilities.PAYABLE_CREATE,
+            Map.of("providerId", 222L, "concept", "Servicio"));
+        given(employeeCenter.supports(definition)).willReturn(true);
+        given(employeeCenter.bootstrap(definition, 9L))
+            .willReturn(Map.of("scope_label", "Unidad Norte · Negocio Centro"));
+        given(employeeCenter.execute(definition, 9L, request))
+            .willReturn(Map.of("expenseId", 902L, "status", "DRAFT"));
+
+        assertThat(adapter.supportsEmployeeCenter(definition)).isTrue();
+        assertThat(adapter.employeeCenterTabPermissionKeys(definition))
+            .containsExactly("expenses.expenses");
+        assertThat(adapter.employeeCapabilityTabPermissionKeys(
+            definition, capability(PayableKioskCapabilities.PAYABLE_CREATE)))
+            .containsExactly("expenses.expenses");
+        assertThat(adapter.employeeCapabilityTabPermissionKeys(
+            definition, capability(PayableKioskCapabilities.PROVIDER_REGISTER)))
+            .isEmpty();
+        assertThat(adapter.employeeBootstrap(context))
+            .containsEntry("scope_label", "Unidad Norte · Negocio Centro");
+        assertThat(adapter.authorize(context, request).allowed()).isTrue();
+        assertThat(adapter.executeEmployee(context, request))
+            .containsEntry("expenseId", 902L);
+
+        then(employeeCenter).should().bootstrap(definition, 9L);
+        then(employeeCenter).should().execute(definition, 9L, request);
+        then(service).shouldHaveNoInteractions();
+    }
+
+    @Test
     void rejectsInvalidRegistrationBeforeCallingTheModule() {
         var request = KioskActionRequest.of(
             PayableKioskCapabilities.PROVIDER_REGISTER,
@@ -160,6 +198,25 @@ class PayableKioskAdapterTest {
             Instant.now().plusSeconds(600));
         return KioskExecutionContext.publicLink(PayableKioskCapabilities.OWNER_MODULE, "payable-token")
             .resolved(definition(), session);
+    }
+
+    private KioskExecutionContext mobileEmployeeContext(KioskResolvedDefinition definition) {
+        var session = new KioskSessionPrincipal(
+            "mobile-employee", definition.id(), definition.companyId(), "USER", 9L,
+            Set.of(PayableKioskCapabilities.PAYABLE_CREATE + "@1"),
+            Instant.now().plusSeconds(600));
+        return new KioskExecutionContext(
+            PayableKioskCapabilities.OWNER_MODULE,
+            KioskExecutionChannels.MOBILE_MULTI_KIOSK,
+            "definition:" + definition.id(), "internal", "browser")
+            .resolved(definition, session);
+    }
+
+    private com.indice.erp.kiosk.engine.KioskCapabilityDescriptor capability(String key) {
+        return PayableKioskCapabilities.descriptors().stream()
+            .filter(candidate -> candidate.key().equals(key))
+            .findFirst()
+            .orElseThrow();
     }
 
     private KioskResolvedDefinition definition() {

@@ -2,10 +2,13 @@ services:
   backend:
     environment:
       APP_KIOSK_SECRET_PROTECTION_ENABLED: "false"
+      KIOSK_ENGINE_ADAPTER_PETTY_CASH_ENABLED: "true"
+      KIOSK_ENGINE_ADAPTER_PAYABLES_ENABLED: "true"
+      KIOSK_ENGINE_ADAPTER_POINT_OF_SALE_ENABLED: "true"
       KIOSK_GLOBAL_CENTER_ENABLED: "true"
       KIOSK_MULTI_DASHBOARD_ENABLED: "true"
       KIOSK_EMPLOYEE_CENTER_ENABLED: "false"
-      # This local volume predates the V156/V157 merge collision. The missing
-      # migrations are applied explicitly during local verification so Flyway
-      # must not reinterpret the historical version numbers on startup.
+      # This local volume contains historical version-number collisions,
+      # including V156/V157 and V234, so it cannot reinterpret that lineage.
+      # Clean and deployable environments still validate and apply Flyway.
       SPRING_FLYWAY_ENABLED: "false"

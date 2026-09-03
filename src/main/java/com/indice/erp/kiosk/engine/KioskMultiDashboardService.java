@@ -4,6 +4,7 @@ import com.indice.erp.access.module.ModuleAccessService;
 import com.indice.erp.access.tab.TabPermissionAccessService;
 import com.indice.erp.access.tab.TabPermissionRequirement;
 import com.indice.erp.auth.AuthSessionUser;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,6 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 /** Effective, safe launcher catalog for authenticated internal users. */
 @Service
 public class KioskMultiDashboardService {
+
+    private static final Set<String> COMPANY_WIDE_SCOPE_ROLES = Set.of("root", "superadmin");
 
     private final JdbcTemplate jdbcTemplate;
     private final KioskRegistryService registry;
@@ -53,6 +56,14 @@ public class KioskMultiDashboardService {
 
     public List<Map<String, Object>> list(AuthSessionUser user) {
         return eligibleCards(user, true, false);
+    }
+
+    /** Company catalog for composing location-scoped operational kiosks into a Multi-kiosk. */
+    public List<Map<String, Object>> contextualCatalog(long companyId) {
+        return employeeAccess.catalog(companyId).stream()
+            .map(row -> contextualCatalogItem(companyId, row))
+            .filter(java.util.Objects::nonNull)
+            .toList();
     }
 
     /**
@@ -106,7 +117,7 @@ public class KioskMultiDashboardService {
                 user, KioskEmployeeAccessService.moduleSlug(definition.ownerModule())))
             .filter(definition -> tabPermissionAllows(user, definition))
             .filter(definition -> !requireExplicitGrant || hasExplicitGrant(user, definition))
-            .filter(definition -> organizationScopeAllows(user, definition))
+            .filter(definition -> employeeCenterAccessAllows(user, definition))
             .map(this::employeeCenterCandidate)
             .filter(candidate -> !requireEmployeeCenterReady
                 || candidate.employeeCenterReady())
@@ -470,6 +481,9 @@ public class KioskMultiDashboardService {
         if (definition.unitId() == null && definition.businessId() == null) {
             return true;
         }
+        if (COMPANY_WIDE_SCOPE_ROLES.contains(normalizeRole(user.role()))) {
+            return true;
+        }
         if (user.userCompanyId() == null) {
             return false;
         }
@@ -492,6 +506,23 @@ public class KioskMultiDashboardService {
         if (definition.unitId() != null && !definition.unitId().equals(scope.unitId())) return false;
         return scope.businessId() == null || definition.businessId() == null
             || definition.businessId().equals(scope.businessId());
+    }
+
+    private String normalizeRole(String role) {
+        var normalized = role == null ? "" : role.trim().toLowerCase(java.util.Locale.ROOT);
+        return "super admin".equals(normalized) ? "superadmin" : normalized;
+    }
+
+    private boolean employeeCenterAccessAllows(
+            AuthSessionUser user,
+            KioskResolvedDefinition definition) {
+        var organizationScopeAllows = organizationScopeAllows(user, definition);
+        return adapterRegistry.requireAdapter(definition.ownerModule())
+            .employeeCenterAccessAllows(
+                definition,
+                user.userId(),
+                user.userCompanyId(),
+                organizationScopeAllows);
     }
 
     private boolean hasExplicitGrant(AuthSessionUser user, KioskResolvedDefinition definition) {
@@ -530,10 +561,16 @@ public class KioskMultiDashboardService {
             card.put("audience_policy", "COMPANY_MEMBERS");
             card.put("readiness", "AVAILABLE");
         });
+        if (!card.containsKey("workspace_kind")) {
+            card.put("workspace_kind", workspaceKind(definition));
+            card.put("audience_policy", "SCOPED_COMPANY_MEMBERS");
+            card.put("readiness", employeeCenterReady ? "AVAILABLE" : "UNAVAILABLE");
+        }
         card.put("purpose", purpose(definition.ownerModule()));
         card.put("scope", Map.of(
             "unit_id", definition.unitId() == null ? "" : definition.unitId(),
-            "business_id", definition.businessId() == null ? "" : definition.businessId()
+            "business_id", definition.businessId() == null ? "" : definition.businessId(),
+            "location_id", definition.locationId() == null ? "" : definition.locationId()
         ));
         card.put("availability", employeeCenterReady
             ? "AVAILABLE" : "VERIFICATION_REQUIRED");
@@ -545,7 +582,72 @@ public class KioskMultiDashboardService {
         return switch (ownerModule) {
             case "PROCESS_TASKS" -> "Consultar y actualizar tareas autorizadas";
             case "PETTY_CASH" -> "Consultar y registrar movimientos autorizados";
+            case "EXPENSES" -> "Registrar cuentas por pagar y su evidencia";
+            case "POINT_OF_SALE" -> "Operar el punto de venta asignado";
             default -> "Abrir experiencia autorizada";
+        };
+    }
+
+    private Map<String, Object> contextualCatalogItem(
+            long companyId,
+            Map<String, Object> source) {
+        try {
+            var definitionId = ((Number) source.get("id")).longValue();
+            var definition = registry.requireById(companyId, definitionId);
+            if (employeeTools.manifestFor(definition).isPresent()
+                    || !isMultiKioskOperationalType(definition)
+                    || !definition.effectiveStatus(java.time.Instant.now()).operational()
+                    || !featureFlags.adapterEnabled(definition.ownerModule())
+                    || !moduleAccess.companyCanAccess(
+                        companyId, KioskEmployeeAccessService.moduleSlug(definition.ownerModule()))) {
+                return null;
+            }
+            var adapter = adapterRegistry.requireAdapter(definition.ownerModule());
+            if (!adapter.supportsEmployeeCenter(definition)
+                    || adapter.employeeCenterTabPermissionKeys(definition).isEmpty()) {
+                return null;
+            }
+            var capabilities = adapter.capabilities(definition);
+            var requiredTabs = capabilities.stream()
+                .filter(capability -> registry.capabilityEnabled(definition.id(), capability))
+                .flatMap(capability -> adapter.employeeCapabilityTabPermissionKeys(
+                    definition, capability).stream())
+                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+            if (requiredTabs.isEmpty()) return null;
+
+            var item = new LinkedHashMap<String, Object>(source);
+            item.put("required_tab_scopes", List.copyOf(requiredTabs));
+            item.put("employee_center_supported", true);
+            item.put("workspace_kind", workspaceKind(definition));
+            item.put("audience_policy", "SCOPED_COMPANY_MEMBERS");
+            item.put("readiness", "AVAILABLE");
+            item.put("availability", "AVAILABLE");
+            return Collections.unmodifiableMap(item);
+        } catch (RuntimeException unavailable) {
+            return null;
+        }
+    }
+
+    private String workspaceKind(KioskResolvedDefinition definition) {
+        return switch (definition.ownerModule()) {
+            case "EXPENSES" -> "PAYABLES";
+            case "PETTY_CASH" -> "PETTY_CASH";
+            case "POINT_OF_SALE" -> switch (definition.kioskType()) {
+                case "self_service" -> "POS_SELF_SERVICE";
+                case "waiter_station" -> "POS_WAITER_STATION";
+                default -> "KIOSK";
+            };
+            default -> "KIOSK";
+        };
+    }
+
+    private boolean isMultiKioskOperationalType(KioskResolvedDefinition definition) {
+        return switch (definition.ownerModule()) {
+            case "EXPENSES" -> "accounts_payable".equals(definition.kioskType());
+            case "PETTY_CASH" -> "receipt_capture".equals(definition.kioskType());
+            case "POINT_OF_SALE" -> Set.of("self_service", "waiter_station")
+                .contains(definition.kioskType());
+            default -> false;
         };
     }
 
