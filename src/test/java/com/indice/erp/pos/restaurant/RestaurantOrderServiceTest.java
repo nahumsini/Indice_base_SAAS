@@ -107,6 +107,27 @@ class RestaurantOrderServiceTest {
     }
 
     @Test
+    void multiKioskResolvesAnActiveCompanyMembershipWithoutStationScope() {
+        var scope = new LinkedHashMap<String, Object>();
+        scope.put("userCompanyId", 91L);
+        scope.put("role", "user");
+        scope.put("unitId", 8L);
+        scope.put("businessId", 11L);
+        when(repository.employeeScopeForUser(7L, 900L)).thenReturn(Optional.of(scope));
+
+        assertThat(service.requireCompanyEmployeeMembership(definition(), 900L)).isEqualTo(91L);
+    }
+
+    @Test
+    void multiKioskRejectsAUserWithoutAnActiveCompanyMembership() {
+        when(repository.employeeScopeForUser(7L, 900L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.requireCompanyEmployeeMembership(definition(), 900L))
+            .isInstanceOf(SecurityException.class)
+            .hasMessage("Employee is not active in the restaurant kiosk company.");
+    }
+
+    @Test
     void ordinaryWaiterCannotEditTheFloorPlan() {
         when(repository.employeeScope(7L, 91L)).thenReturn(Optional.of(scope("employee")));
 

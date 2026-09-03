@@ -432,6 +432,9 @@ public class KioskMultiDashboardService {
     }
 
     private boolean tabPermissionAllows(AuthSessionUser user, KioskResolvedDefinition definition) {
+        if (moduleAccessIsSufficient(definition)) {
+            return true;
+        }
         var keys = adapterRegistry.requireAdapter(definition.ownerModule())
             .employeeCenterTabPermissionKeys(definition);
         return hasAnyTabPermission(user, keys);
@@ -449,8 +452,13 @@ public class KioskMultiDashboardService {
         if (!employeeCenterReady) {
             return true;
         }
-        return hasAnyTabPermission(
-            user, adapter.employeeCapabilityTabPermissionKeys(definition, capability));
+        var capabilityPermissionKeys = adapter.employeeCapabilityTabPermissionKeys(
+            definition, capability);
+        if (moduleAccessIsSufficient(definition)
+                && !capabilityPermissionKeys.contains("pos.kiosks")) {
+            return true;
+        }
+        return hasAnyTabPermission(user, capabilityPermissionKeys);
     }
 
     private void requireEmployeeCapabilityAllowed(
@@ -516,6 +524,12 @@ public class KioskMultiDashboardService {
     private boolean employeeCenterAccessAllows(
             AuthSessionUser user,
             KioskResolvedDefinition definition) {
+        if (COMPANY_WIDE_SCOPE_ROLES.contains(normalizeRole(user.role()))) {
+            return true;
+        }
+        if (moduleAccessIsSufficient(definition)) {
+            return true;
+        }
         var organizationScopeAllows = organizationScopeAllows(user, definition);
         return adapterRegistry.requireAdapter(definition.ownerModule())
             .employeeCenterAccessAllows(
@@ -523,6 +537,11 @@ public class KioskMultiDashboardService {
                 user.userId(),
                 user.userCompanyId(),
                 organizationScopeAllows);
+    }
+
+    /** Expenses and POS are authorized by their module assignment; petty cash stays object-assigned. */
+    private boolean moduleAccessIsSufficient(KioskResolvedDefinition definition) {
+        return Set.of("EXPENSES", "POINT_OF_SALE").contains(definition.ownerModule());
     }
 
     private boolean hasExplicitGrant(AuthSessionUser user, KioskResolvedDefinition definition) {

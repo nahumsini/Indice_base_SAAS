@@ -212,15 +212,9 @@ class KioskMultiDashboardServiceTest {
         given(featureFlags.adapterEnabled("POINT_OF_SALE")).willReturn(true);
         given(moduleAccess.canAccess(superadmin, "pos")).willReturn(true);
         given(adapterRegistry.requireAdapter("POINT_OF_SALE")).willReturn(adapter);
-        given(adapter.employeeCenterTabPermissionKeys(posDefinition))
-            .willReturn(Set.of("pos.sale"));
         given(adapter.supportsEmployeeCenter(posDefinition)).willReturn(true);
         given(adapter.capabilities(posDefinition)).willReturn(Set.of(catalogRead));
-        given(adapter.employeeCapabilityTabPermissionKeys(posDefinition, catalogRead))
-            .willReturn(Set.of("pos.sale"));
         given(registry.capabilityEnabled(28L, catalogRead)).willReturn(true);
-        given(tabPermissions.canAccess(eq(superadmin), any(TabPermissionRequirement.class)))
-            .willReturn(true);
         composeInMultiKiosk(28L);
 
         assertThat(service.listForMultiKiosk(superadmin, 23L))
@@ -232,6 +226,37 @@ class KioskMultiDashboardServiceTest {
         then(jdbcTemplate).should(never()).query(
             contains("FROM user_work_profiles"),
             any(RowMapper.class), any(Object[].class));
+        then(tabPermissions).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void posModuleAssignmentIsSufficientForARegularMultiKioskUser() throws Exception {
+        var posDefinition = new KioskResolvedDefinition(
+            28L, 7L, "POINT_OF_SALE", "self_service", 42L,
+            "POS-42", "Pre-ticket sucursal", KioskDefinitionStatus.ACTIVE,
+            24L, 29L, 11L, KioskAccessLevel.CONTROLLED,
+            null, "tokenhint", true, 1, 1);
+        var catalogRead = new KioskCapabilityDescriptor(
+            "pos.self-service.catalog.read", 1, "POINT_OF_SALE",
+            KioskOperationPolicy.INFORMATION_ONLY, KioskAccessLevel.CONTROLLED,
+            false, false);
+        given(registry.list(7L)).willReturn(List.of(posDefinition));
+        given(employeeAccess.isEmployeeEligible(7L, 28L)).willReturn(true);
+        given(featureFlags.adapterEnabled("POINT_OF_SALE")).willReturn(true);
+        given(moduleAccess.canAccess(user, "pos")).willReturn(true);
+        given(adapterRegistry.requireAdapter("POINT_OF_SALE")).willReturn(adapter);
+        given(adapter.supportsEmployeeCenter(posDefinition)).willReturn(true);
+        given(adapter.capabilities(posDefinition)).willReturn(Set.of(catalogRead));
+        given(registry.capabilityEnabled(28L, catalogRead)).willReturn(true);
+        composeInMultiKiosk(28L);
+
+        assertThat(service.listForMultiKiosk(user, 23L))
+            .singleElement()
+            .satisfies(card -> assertThat(card).containsEntry("module", "POINT_OF_SALE"));
+
+        then(tabPermissions).shouldHaveNoInteractions();
+        then(adapter).should(never()).employeeCenterAccessAllows(
+            any(), anyLong(), any(), anyBoolean());
     }
 
     @Test

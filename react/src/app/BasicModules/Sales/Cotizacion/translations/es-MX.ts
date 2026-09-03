@@ -111,7 +111,7 @@ export const esMX: QuotesTranslations = {
     tableDescription: 'Las cotizaciones se mantienen independientes, pero pueden conectarse a una o varias oportunidades en el tiempo.',
     builderTitle: 'Constructor de cotización',
     builderDescription: 'Selecciona cliente, inserta items reutilizables, ajusta precios y prepara la cotización para el flujo comercial.',
-    catalogTitle: 'Catálogo reutilizable',
+    catalogTitle: 'Productos y servicios',
     totalsTitle: 'Totales de cotización',
   },
   table: {
@@ -215,12 +215,12 @@ export const esMX: QuotesTranslations = {
   catalog: {
     readinessFilters: { all: 'Todos los productos', READY: 'Listos para ventas', REQUIRES_REVIEW: 'Requieren revisión', NOT_READY: 'No listos para ventas' },
     readinessReasons: { DRAFT: 'Borrador', INACTIVE: 'Inactivo', INTERNAL: 'Uso interno', OPERATIONAL_ITEM: 'Item operativo', MISSING_PRICE: 'Falta precio final' },
-    description: 'Los items reutilizables listos para cotizar aparecen por defecto.',
+    description: 'Elige qué agregar a la cotización. El almacén solo se usa para comprobar existencias de productos con inventario.',
     showNotReady: 'Mostrar items no listos para ventas',
     empty: 'No hay productos que coincidan con los filtros actuales.',
     usesInventory: 'Usa inventario',
     noInventory: 'No controla inventario',
-    selectWarehouse: 'Seleccionar almacén',
+    selectWarehouse: 'Almacén para comprobar disponibilidad',
     availableStock: (quantity: number) => `Disponible: ${quantity}`,
     noStockInWarehouse: 'Sin existencia en este almacén',
     searchPlaceholder: 'Buscar por nombre, SKU, clave o categoría',

@@ -84,7 +84,8 @@ public class RestaurantKioskExperience implements PointOfSaleKioskExperience {
     public Map<String, Object> employeeBootstrap(KioskExecutionContext context) {
         var definition = definition(context);
         return service.workspace(
-            definition, service.requireEmployeeMembership(definition, context.session().identityId()));
+            definition, service.requireCompanyEmployeeMembership(
+                definition, context.session().identityId()));
     }
 
     @Override
@@ -112,7 +113,7 @@ public class RestaurantKioskExperience implements PointOfSaleKioskExperience {
         }
         try {
             var definition = definition(context);
-            var membershipId = service.requireEmployeeMembership(
+            var membershipId = service.requireCompanyEmployeeMembership(
                 definition, context.session().identityId());
             if (RestaurantKioskCapabilities.FLOOR_PLAN_UPDATE.equals(request.capabilityKey())
                     && !service.canEditFloorPlan(definition, membershipId)) {
@@ -151,7 +152,7 @@ public class RestaurantKioskExperience implements PointOfSaleKioskExperience {
             KioskExecutionContext context,
             KioskActionRequest request) {
         var definition = definition(context);
-        var userCompanyId = service.requireEmployeeMembership(
+        var userCompanyId = service.requireCompanyEmployeeMembership(
             definition, context.session().identityId());
         return executeForMembership(definition, userCompanyId, request, false);
     }

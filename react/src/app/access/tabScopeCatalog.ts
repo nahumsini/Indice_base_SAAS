@@ -119,16 +119,6 @@ const USER_SELF_SERVICE_SCOPES = new Set([
   'human_resources.assets',
   'human_resources.permissions',
 ]);
-const KIOSK_CENTER_PERMISSION_KEYS = new Set([
-  'human_resources.control',
-  'processes.calendar',
-  'petty_cash.cash',
-  'expenses.providers',
-  'inventory.products',
-  'inventory.providers',
-  'pos.kiosks',
-]);
-
 export function normalizeTabScopeRole(role: string | null | undefined) {
   const normalized = (role ?? '').trim().toLowerCase();
   return normalized === 'super admin' ? 'superadmin' : normalized;
@@ -178,17 +168,7 @@ export function canAccessKioskCenter(
   session: AuthSessionResponse | null | undefined,
 ) {
   const role = normalizeTabScopeRole(session?.user.role);
-  if (UNRESTRICTED_ROLES.has(role)) {
-    return true;
-  }
-  if (!ADMIN_ROLES.has(role) || !session?.user.tab_permissions_configured) {
-    return false;
-  }
-  const assignedModules = new Set(session.user.module_slugs ?? []);
-  return (session.user.tab_permission_keys ?? []).some((permissionKey) => (
-    KIOSK_CENTER_PERMISSION_KEYS.has(permissionKey)
-    && assignedModules.has(permissionKey.slice(0, permissionKey.indexOf('.')))
-  ));
+  return UNRESTRICTED_ROLES.has(role);
 }
 
 export function isTabScopeAssignableToRole(permissionKey: string, role: string | null | undefined) {

@@ -48,7 +48,7 @@ export const koCA = {
     tableDescription: '견적은 독립적으로 관리되며 시간이 지나며 하나 이상의 기회 흐름에 연결될 수 있습니다.',
     builderTitle: '견적 빌더',
     builderDescription: '고객을 선택하고 재사용 가능한 항목을 추가하며 가격을 조정해 상업 흐름에 맞게 견적을 준비합니다.',
-    catalogTitle: '재사용 카탈로그',
+    catalogTitle: '제품 및 서비스',
     totalsTitle: '견적 합계',
   },
   table: {
@@ -157,7 +157,7 @@ export const koCA = {
     empty: '현재 필터와 일치하는 제품이 없습니다.',
     usesInventory: '재고 사용',
     noInventory: '재고 추적 안 함',
-    selectWarehouse: '창고 선택',
+    selectWarehouse: '재고 확인 창고',
     availableStock: (quantity: number) => `사용 가능: ${quantity}`,
     noStockInWarehouse: '이 창고에 재고 없음',
     searchPlaceholder: '이름, SKU, 코드 또는 카테고리 검색',

@@ -1130,7 +1130,8 @@ test('multi-kiosk attendance presents a compact capability-aware mobile flow wit
 
   assert.match(attendance, /max-w-\[31rem\]/);
   assert.match(attendance, /canUseFace=\{canUseFace\}/);
-  assert.match(attendance, /function safeError\(error: unknown, fallback: string\)[\s\S]*return fallback/);
+  assert.match(attendance, /function safeError\(error: unknown, fallback: string\)[\s\S]*error\.message/);
+  assert.doesNotMatch(attendance, /function safeError\(error: unknown, fallback: string\) \{\s*void error;\s*return fallback;/);
   assert.match(identityPanel, /canUseFace\?: boolean/);
   assert.match(identityPanel, /canUseFace=\{canUseFace\}/);
   assert.match(verificationSection, /\{canUseFace \? \([\s\S]*Face ID/);

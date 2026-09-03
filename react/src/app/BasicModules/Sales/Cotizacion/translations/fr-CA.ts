@@ -48,7 +48,7 @@ export const frCA = {
     tableDescription: 'Les devis restent indépendants et peuvent être reliés à un ou plusieurs cycles d occasion au fil du temps.',
     builderTitle: 'Constructeur de devis',
     builderDescription: 'Sélectionnez un client, ajoutez des articles réutilisables, ajustez le prix et préparez le devis pour le flux commercial.',
-    catalogTitle: 'Catalogue réutilisable',
+    catalogTitle: 'Produits et services',
     totalsTitle: 'Totaux du devis',
   },
   table: {
@@ -157,7 +157,7 @@ export const frCA = {
     empty: 'Aucun produit ne correspond aux filtres actuels.',
     usesInventory: 'Utilise l inventaire',
     noInventory: 'Inventaire non suivi',
-    selectWarehouse: 'Sélectionner un entrepôt',
+    selectWarehouse: 'Entrepôt pour vérifier la disponibilité',
     availableStock: (quantity: number) => `Disponible : ${quantity}`,
     noStockInWarehouse: 'Aucun stock dans cet entrepôt',
     searchPlaceholder: 'Rechercher par nom, SKU, code ou catégorie',

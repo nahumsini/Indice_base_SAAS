@@ -197,6 +197,28 @@ class PayableKioskPublicRepository {
             .stream().findFirst();
     }
 
+    Optional<EmployeeIdentity> activeCompanyEmployeeForUser(long companyId, long userId) {
+        return jdbcTemplate.query(
+                """
+                SELECT membership.id AS user_company_id, membership.user_id,
+                       TRIM(COALESCE(NULLIF(profile.full_name, ''), NULLIF(user.full_name, ''), user.email)) AS employee_name
+                FROM user_companies membership
+                JOIN users user ON user.id = membership.user_id
+                LEFT JOIN user_profiles profile ON profile.user_id = user.id
+                JOIN hr_users employee
+                  ON employee.id = membership.id AND employee.company_id = membership.company_id
+                WHERE membership.company_id = ? AND membership.user_id = ?
+                  AND LOWER(COALESCE(membership.status, 'active')) IN ('active', 'activo')
+                  AND LOWER(COALESCE(employee.status, 'active')) <> 'terminated'
+                ORDER BY membership.id DESC
+                LIMIT 1
+                """,
+                (rs, rowNum) -> new EmployeeIdentity(
+                    rs.getLong("user_company_id"), rs.getLong("user_id"), rs.getString("employee_name")),
+                companyId, userId)
+            .stream().findFirst();
+    }
+
     String scopeLabel(PayableKioskRow kiosk) {
         return jdbcTemplate.query(
                 """

@@ -109,7 +109,7 @@ export const enCA = {
     tableDescription: 'Quotes stay independent but can be connected to one or many opportunity cycles over time.',
     builderTitle: 'Quote builder',
     builderDescription: 'Select a client, insert reusable catalog items, tune pricing and prepare the quote for the commercial flow.',
-    catalogTitle: 'Reusable catalog',
+    catalogTitle: 'Products and services',
     totalsTitle: 'Quote totals',
   },
   table: {
@@ -213,12 +213,12 @@ export const enCA = {
   catalog: {
     readinessFilters: { all: 'All products', READY: 'Ready for Sales', REQUIRES_REVIEW: 'Requires review', NOT_READY: 'Not ready for Sales' },
     readinessReasons: { DRAFT: 'Draft', INACTIVE: 'Inactive', INTERNAL: 'Internal use', OPERATIONAL_ITEM: 'Operational item', MISSING_PRICE: 'Missing final price' },
-    description: 'Reusable catalog items that are ready for quotes appear by default.',
+    description: 'Choose what to add to the quote. The warehouse is used only to check stock for inventory-tracked products.',
     showNotReady: 'Show items not ready for sales',
     empty: 'No products match the current filters.',
     usesInventory: 'Uses inventory',
     noInventory: 'Inventory not tracked',
-    selectWarehouse: 'Select warehouse',
+    selectWarehouse: 'Warehouse for availability check',
     availableStock: (quantity: number) => `Available: ${quantity}`,
     noStockInWarehouse: 'No stock in this warehouse',
     searchPlaceholder: 'Search by name, SKU, code, or category',

@@ -535,9 +535,9 @@ public class PayableKioskService {
         if (kiosk.companyId() != companyId || !allowsEmployee(kiosk)) {
             throw new SecurityException("Payable kiosk is not available to employees.");
         }
-        var employee = publicRepository.activeEmployeeForUser(kiosk, userId)
+        var employee = publicRepository.activeCompanyEmployeeForUser(companyId, userId)
             .orElseThrow(() -> new SecurityException(
-                "Employee is outside the payable kiosk scope."));
+                "Employee is not active in the payable kiosk company."));
         return new EmployeeContext(kiosk, employee);
     }
 

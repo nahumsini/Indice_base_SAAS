@@ -29,23 +29,28 @@ export function QuoteCatalogSection({
   onWarehouseChange: (warehouseId: string) => void;
 }) {
   const [query, setQuery] = useState('');
-  const [category, setCategory] = useState('all');
   const [page, setPage] = useState(1);
   const pageSize = 8;
-  const categories = useMemo(() => Array.from(new Set(products.map((product) => product.category))).sort(), [products]);
   const visibleProducts = useMemo(
     () => products.filter((product) => {
       const searchable = `${product.name} ${product.sku} ${product.productCode ?? ''} ${product.category}`.toLowerCase();
+      const usesInventory = product.stockPrepared;
+      const warehouseDistribution = usesInventory && selectedWarehouseId
+        ? stockRows.find((row) => row.productId === product.id)?.distributions
+          .find((item) => item.warehouseId === selectedWarehouseId)
+        : undefined;
+      const availableForSelectedWarehouse = !usesInventory
+        || Boolean(selectedWarehouseId && warehouseDistribution && warehouseDistribution.available > 0);
       return getProductSalesReadiness(product).reasons.every((reason) => reason === 'MISSING_PRICE')
-        && (category === 'all' || product.category === category)
+        && availableForSelectedWarehouse
         && searchable.includes(query.trim().toLowerCase());
     }),
-    [category, products, query],
+    [products, query, selectedWarehouseId, stockRows],
   );
   const pageCount = Math.max(1, Math.ceil(visibleProducts.length / pageSize));
   const safePage = Math.min(page, pageCount);
   const pagedProducts = visibleProducts.slice((safePage - 1) * pageSize, safePage * pageSize);
-  useEffect(() => setPage(1), [category, query]);
+  useEffect(() => setPage(1), [query, selectedWarehouseId]);
 
   return (
     <section className="space-y-4">
@@ -57,17 +62,19 @@ export function QuoteCatalogSection({
           </h3>
           <p className="mt-1 text-sm font-normal leading-6 text-slate-500">{t.catalog.description}</p>
         </div>
-        <Select value={selectedWarehouseId || undefined} onValueChange={onWarehouseChange}>
-          <SelectTrigger className="min-h-10 w-full bg-white md:w-56"><SelectValue placeholder={t.catalog.selectWarehouse} /></SelectTrigger>
-          <SelectContent>
-            {warehouses.filter((warehouse) => warehouse.status === 'active').map((warehouse) => <SelectItem key={warehouse.id} value={warehouse.id}>{warehouse.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div className="w-full md:w-72">
+          <p className="mb-1.5 text-xs font-medium text-slate-600">{t.catalog.selectWarehouse}</p>
+          <Select value={selectedWarehouseId || undefined} onValueChange={onWarehouseChange}>
+            <SelectTrigger className="min-h-10 w-full bg-white"><SelectValue placeholder={t.catalog.selectWarehouse} /></SelectTrigger>
+            <SelectContent>
+              {warehouses.filter((warehouse) => warehouse.status === 'active').map((warehouse) => <SelectItem key={warehouse.id} value={warehouse.id}>{warehouse.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      <div className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 md:grid-cols-[minmax(0,1fr)_240px]">
+      <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
         <div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={query} onChange={(event) => setQuery(event.target.value)} className="min-h-11 bg-white pl-9" placeholder={t.catalog.searchPlaceholder} /></div>
-        <Select value={category} onValueChange={setCategory}><SelectTrigger className="min-h-11 bg-white"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">{t.catalog.allCategories}</SelectItem>{categories.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select>
       </div>
 
       {visibleProducts.length === 0 ? (

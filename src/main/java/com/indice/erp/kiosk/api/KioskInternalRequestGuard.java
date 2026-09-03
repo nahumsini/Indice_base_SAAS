@@ -11,8 +11,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class KioskInternalRequestGuard {
 
-    private static final Set<String> CENTER_ROLES = Set.of(
-        "root", "superadmin", "admin", "owner", "dueno");
+    private static final Set<String> CENTER_ROLES = Set.of("root", "superadmin");
     private final SessionAuthService sessionAuthService;
     private final SessionCsrfService csrfService;
 

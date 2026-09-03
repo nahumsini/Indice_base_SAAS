@@ -34,7 +34,8 @@ export function QuoteCatalogCard({
   const margin = getProductMargin(product);
   const usesInventory = productUsesInventory(product);
   const salesReadiness = getProductSalesReadiness(product);
-  const canAdd = canAddProductToQuote(product) && (!usesInventory || Boolean(selectedWarehouseId));
+  const canAdd = canAddProductToQuote(product)
+    && (!usesInventory || Boolean(selectedWarehouseId && distribution && distribution.available > 0));
 
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">

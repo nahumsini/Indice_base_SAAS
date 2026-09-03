@@ -426,7 +426,7 @@ public class KioskSessionService {
                     Instant.now().plusSeconds(rs.getLong("expires_in_seconds")));
             },
             definition.id(), sha256(accessToken.trim()), expectedUserId, expectedMultiKioskId,
-            -inactivityTimeout(definition).getSeconds()
+            -employeeCenterInactivityTimeout.getSeconds()
         );
         if (rows.isEmpty()
                 || !hasMobileMultiKioskGrant(

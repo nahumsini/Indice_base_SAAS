@@ -29,6 +29,16 @@ El Engine estandariza:
 
 El Engine no se convierte en propietario de la lógica ni de los datos de los módulos.
 
+### 1.1 Política del Multikiosco interno
+
+- Sólo `root` y `superadmin` administran y componen Multikioscos, también dentro de una cuenta distribuidora propia.
+- El catálogo administrativo muestra todos los recursos operativos de la compañía cuyos módulos estén activos.
+- Un colaborador ve Asistencia y Mis tareas según sus módulos y permisos vigentes.
+- Caja Chica exige acceso al módulo y asignación exacta al fondo, salvo `root` y `superadmin`, que pueden ver todos los fondos de su compañía.
+- Cuentas por Pagar y los kioscos POS requieren acceso al módulo propietario; no requieren una asignación adicional de pestaña o alcance para aparecer en el Multikiosco.
+- Las capacidades administrativas internas de POS, como editar el plano de mesas, conservan sus permisos específicos aunque el acceso operativo al kiosco dependa del módulo.
+- El PIN identifica a la persona y el backend vuelve a comprobar compañía, módulo, estado, capacidades y la asignación exacta que aplique antes de ejecutar una acción.
+
 ---
 
 ## 2. Regla principal
@@ -463,6 +473,10 @@ La inactividad se mide desde la última actividad aceptada por el servidor. La v
 | Procesos y Tareas | 30 minutos | 8 horas | `APP_PROCESS_TASKS_KIOSK_INACTIVITY_TIMEOUT_SECONDS` y `APP_PROCESS_TASKS_KIOSK_SESSION_TTL_SECONDS` |
 
 El frontend, el adaptador del módulo, la validación de `KioskSessionService` y el mantenimiento de sesiones deben consumir la misma política. Ningún job de limpieza puede conservar un timeout global más corto que el declarado para la familia.
+
+Las sesiones hijas abiertas desde un Multikiosco usan la ventana de inactividad del Centro de
+empleados, porque permanecen subordinadas a la sesión padre identificada por PIN. Los límites de
+los enlaces públicos de cada módulo no deben invalidar a mitad de flujo una herramienta interna.
 
 ### 11.8 Kiosk Action
 

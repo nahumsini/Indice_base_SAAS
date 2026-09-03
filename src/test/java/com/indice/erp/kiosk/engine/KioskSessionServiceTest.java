@@ -348,6 +348,7 @@ class KioskSessionServiceTest {
         assertThat(String.valueOf((Object) invocation.getArgument(0)))
             .contains("$.multi_kiosk_id");
         assertThat(invocation.getArguments()[5]).isEqualTo(44L);
+        assertThat(invocation.getArguments()[6]).isEqualTo(-28800L);
     }
 
     @Test

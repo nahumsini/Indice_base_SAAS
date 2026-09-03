@@ -255,6 +255,22 @@ public class RestaurantOrderService {
                 "Employee is outside the restaurant kiosk scope."));
     }
 
+    /**
+     * Resolves an active company membership for the authenticated Multi-kiosk flow.
+     * Module authorization is enforced by the Kiosk Engine before this boundary;
+     * the public PIN flow continues to use the narrower station scope above.
+     */
+    public long requireCompanyEmployeeMembership(KioskResolvedDefinition definition, long userId) {
+        if (userId <= 0) {
+            throw new SecurityException("Authenticated employee identity is required.");
+        }
+        return repository.employeeScopeForUser(definition.companyId(), userId)
+            .map(scope -> number(scope.get("userCompanyId")))
+            .filter(id -> id > 0)
+            .orElseThrow(() -> new SecurityException(
+                "Employee is not active in the restaurant kiosk company."));
+    }
+
     public boolean canEditFloorPlan(KioskResolvedDefinition definition, long userCompanyId) {
         if (userCompanyId <= 0 || !FLOOR_PLAN_EDITOR_KIOSK_TYPES.contains(definition.kioskType())) return false;
         try {

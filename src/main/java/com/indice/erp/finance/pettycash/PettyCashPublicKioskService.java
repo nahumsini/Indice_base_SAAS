@@ -398,7 +398,9 @@ public class PettyCashPublicKioskService {
             throw new SecurityException("Petty cash kiosk does not belong to the authenticated company.");
         }
         var employee = loadEmployeeByUserId(companyId, userId);
-        validateEmployeeAccess(fund, employee);
+        if (!hasCompanyWidePettyCashAccess(companyId, userId)) {
+            validateEmployeeAccess(fund, employee);
+        }
         var financeContext = new FinanceContext(
             employee.userId(),
             fund.companyId(),
@@ -408,6 +410,25 @@ public class PettyCashPublicKioskService {
             scopeForFund(fund)
         );
         return new PublicPettyCashKioskContext(fund, employee, financeContext);
+    }
+
+    private boolean hasCompanyWidePettyCashAccess(long companyId, long userId) {
+        var roles = jdbcTemplate.query(
+            """
+                SELECT LOWER(REPLACE(COALESCE(role, ''), ' ', '')) AS role
+                FROM user_companies
+                WHERE company_id = ? AND user_id = ?
+                  AND LOWER(COALESCE(status, 'active')) IN ('active', 'activo')
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+            (rs, rowNum) -> rs.getString("role"),
+            companyId,
+            userId
+        );
+        return roles.stream().findFirst()
+            .map(role -> "root".equals(role) || "superadmin".equals(role))
+            .orElse(false);
     }
 
     private PettyCashFundRecord getActiveKioskFund(String fundToken) {

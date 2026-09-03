@@ -250,9 +250,13 @@ test('Productos elimina en backend con confirmación y comparte una sola prepara
   assert.match(publicCatalogApiSource, /!getProductSalesReadiness\(product\)\.readyForSales/);
   assert.doesNotMatch(publicCatalogApiSource, /product\?\.backendId \?\? Number\(id\)/);
   assert.doesNotMatch(quoteCatalogSource, /readinessFilter|showNotReady|<Switch/);
+  assert.doesNotMatch(quoteCatalogSource, /useState\('all'\)|setCategory|product\.category === category/);
   assert.match(quoteCatalogSource, /selectedWarehouseId/);
   assert.match(quoteCatalogSource, /distribution.*warehouseId === selectedWarehouseId/);
+  assert.match(quoteCatalogSource, /availableForSelectedWarehouse/);
+  assert.match(quoteCatalogSource, /warehouseDistribution\.available > 0/);
   assert.match(quoteCardSource, /disabled=\{!canAdd\}/);
+  assert.match(quoteCardSource, /distribution\.available > 0/);
   assert.match(quoteCardSource, /availableStock\(distribution\.available\)/);
   assert.match(quoteCardSource, /readinessReasons\[reason\]/);
   assert.match(salesLineItemsSource, /getProductSalesReadiness\(product\)\.readyForSales/);

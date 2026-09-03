@@ -48,7 +48,7 @@ export const zhCA = {
     tableDescription: '报价保持独立，并可随着时间连接到一个或多个机会周期。',
     builderTitle: '报价构建器',
     builderDescription: '选择客户，插入可复用目录项目，调整价格，并为商业流程准备报价。',
-    catalogTitle: '可复用目录',
+    catalogTitle: '产品和服务',
     totalsTitle: '报价合计',
   },
   table: {
@@ -157,7 +157,7 @@ export const zhCA = {
     empty: '没有符合当前筛选条件的产品。',
     usesInventory: '使用库存',
     noInventory: '不跟踪库存',
-    selectWarehouse: '选择仓库',
+    selectWarehouse: '用于检查库存的仓库',
     availableStock: (quantity: number) => `可用：${quantity}`,
     noStockInWarehouse: '此仓库无库存',
     searchPlaceholder: '按名称、SKU、代码或类别搜索',

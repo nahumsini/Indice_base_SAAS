@@ -52,8 +52,10 @@ interface AttendanceMultiKioskWorkspaceProps {
 }
 
 function safeError(error: unknown, fallback: string) {
-  void error;
-  return fallback;
+  if (!(error instanceof Error) || !error.message.trim()) return fallback;
+  return /internal server|status\s*500|unexpected server|object storage|idempotency-key|upload failed/i.test(error.message)
+    ? fallback
+    : error.message;
 }
 
 function csrfFor(token: string) {

@@ -48,7 +48,7 @@ export const ptBR = {
     tableDescription: 'Cotacoes permanecem independentes e podem ser conectadas a um ou mais ciclos de oportunidade ao longo do tempo.',
     builderTitle: 'Construtor de cotacao',
     builderDescription: 'Selecione um cliente, insira itens reutilizaveis, ajuste precos e prepare a cotacao para o fluxo comercial.',
-    catalogTitle: 'Catalogo reutilizavel',
+    catalogTitle: 'Produtos e serviços',
     totalsTitle: 'Totais da cotacao',
   },
   table: {
@@ -157,7 +157,7 @@ export const ptBR = {
     empty: 'Nenhum produto corresponde aos filtros atuais.',
     usesInventory: 'Usa estoque',
     noInventory: 'Estoque nao controlado',
-    selectWarehouse: 'Selecionar depósito',
+    selectWarehouse: 'Depósito para verificar disponibilidade',
     availableStock: (quantity: number) => `Disponível: ${quantity}`,
     noStockInWarehouse: 'Sem estoque neste depósito',
     searchPlaceholder: 'Buscar por nome, SKU, código ou categoria',

@@ -148,26 +148,21 @@ test('a role or grant revocation publishes one authorization revision without re
   unsubscribe();
 });
 
-test('kiosk center requires a current admin role plus a matching assigned module and tab grant', () => {
+test('kiosk center administration is restricted to root and superadmin', () => {
   assert.equal(canAccessKioskCenter(sessionWithAccess({
-    role: 'admin',
-    modules: ['pos'],
-    tabs: ['pos.kiosks'],
+    role: 'root',
+    modules: [],
+    tabs: [],
   })), true);
   assert.equal(canAccessKioskCenter(sessionWithAccess({
-    role: 'user',
-    modules: ['pos'],
-    tabs: ['pos.kiosks'],
-  })), false);
-  assert.equal(canAccessKioskCenter(sessionWithAccess({
-    role: 'admin',
+    role: 'superadmin',
     modules: [],
-    tabs: ['pos.kiosks'],
-  })), false);
+    tabs: [],
+  })), true);
   assert.equal(canAccessKioskCenter(sessionWithAccess({
     role: 'admin',
     modules: ['pos'],
-    tabs: [],
+    tabs: ['pos.kiosks'],
   })), false);
 });
 

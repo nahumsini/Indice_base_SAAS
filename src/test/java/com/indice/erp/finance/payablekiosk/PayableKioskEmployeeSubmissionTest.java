@@ -60,7 +60,7 @@ class PayableKioskEmployeeSubmissionTest {
             new BigDecimal("100.00"), new BigDecimal("16.00"),
             new BigDecimal("116.00"), "mxn", LocalDate.of(2026, 9, 15), "INV-100");
         given(repository.getByToken("token")).willReturn(kiosk);
-        given(publicRepository.activeEmployeeForUser(kiosk, 9L)).willReturn(Optional.of(employee));
+        given(publicRepository.activeCompanyEmployeeForUser(7L, 9L)).willReturn(Optional.of(employee));
         given(publicRepository.providerAvailable(kiosk, 222L)).willReturn(true);
         given(publicRepository.insertPayable(
             eq(kiosk), eq(222L), eq(9L),
