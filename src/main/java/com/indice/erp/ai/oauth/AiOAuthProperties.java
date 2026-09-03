@@ -3,12 +3,18 @@ package com.indice.erp.ai.oauth;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Set;
+import java.util.regex.Pattern;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 @Component
 @ConfigurationProperties(prefix = "app.ai.oauth")
 public class AiOAuthProperties {
+
+    private static final String OPENAI_TUNNEL_RESOURCE_HOST =
+        "tunnel-service.gateway.unified-0.internal.api.openai.org";
+    private static final Pattern OPENAI_TUNNEL_RESOURCE_PATH =
+        Pattern.compile("^/v1/mcp/tunnel_[A-Za-z0-9_-]{16,128}$");
 
     private String issuerUrl = "http://localhost:8080";
     private String resourceUrl = "http://localhost:3010/mcp";
@@ -111,6 +117,23 @@ public class AiOAuthProperties {
                 return false;
             }
             return allowedRedirectHosts.stream().anyMatch(allowed -> host.equals(allowed) || host.endsWith("." + allowed));
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
+    }
+
+    public boolean isSupportedResource(String value) {
+        var normalized = withoutTrailingSlash(value);
+        if (getResourceUrl().equals(normalized)) return true;
+        try {
+            var uri = URI.create(normalized);
+            return "https".equalsIgnoreCase(uri.getScheme())
+                && OPENAI_TUNNEL_RESOURCE_HOST.equalsIgnoreCase(uri.getHost())
+                && uri.getPort() == -1
+                && uri.getUserInfo() == null
+                && uri.getQuery() == null
+                && uri.getFragment() == null
+                && OPENAI_TUNNEL_RESOURCE_PATH.matcher(uri.getPath()).matches();
         } catch (IllegalArgumentException exception) {
             return false;
         }
