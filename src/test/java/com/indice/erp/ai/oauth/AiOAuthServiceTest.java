@@ -26,6 +26,9 @@ class AiOAuthServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-09-01T04:00:00Z");
     private static final String RESOURCE = "https://app.indiceapp.com/api/v1/ai/mcp";
+    private static final String OPENAI_TUNNEL_RESOURCE =
+        "https://tunnel-service.gateway.unified-0.internal.api.openai.org/v1/mcp/"
+            + "tunnel_6a9659a73c9c8191bf66f176c8bf6550";
     private static final String REDIRECT = "https://chatgpt.com/connector/oauth/callback";
     private static final String VERIFIER = "indice-verifier-abcdefghijklmnopqrstuvwxyz-0123456789";
 
@@ -95,6 +98,40 @@ class AiOAuthServiceTest {
     }
 
     @Test
+    void acceptsOpenAiHostedTunnelResourceForChatGptConnection() {
+        when(repository.findActiveClient("client-1")).thenReturn(Optional.of(client()));
+        when(accessTokenService.supportedOAuthScopes()).thenReturn(Set.of("sales.read"));
+
+        var context = service.consentContext(user, authorizationRequest("sales.read", OPENAI_TUNNEL_RESOURCE));
+
+        assertThat(context.scopes()).containsExactly("sales.read");
+    }
+
+    @Test
+    void rejectsLookalikeAndMalformedOpenAiTunnelResources() {
+        assertThatThrownBy(() -> service.consentContext(
+            user,
+            authorizationRequest(
+                "sales.read",
+                "https://tunnel-service.gateway.unified-0.internal.api.openai.org.attacker.example/"
+                    + "v1/mcp/tunnel_6a9659a73c9c8191bf66f176c8bf6550"
+            )
+        ))
+            .isInstanceOf(AiOAuthException.class)
+            .hasMessageContaining("resource");
+
+        assertThatThrownBy(() -> service.consentContext(
+            user,
+            authorizationRequest(
+                "sales.read",
+                "https://tunnel-service.gateway.unified-0.internal.api.openai.org/v1/mcp/not-a-tunnel"
+            )
+        ))
+            .isInstanceOf(AiOAuthException.class)
+            .hasMessageContaining("resource");
+    }
+
+    @Test
     void rejectsAnAuthorizationRequestWithOnlyOneIdentityScope() {
         when(repository.findActiveClient("client-1")).thenReturn(Optional.of(client()));
 
@@ -136,6 +173,37 @@ class AiOAuthServiceTest {
     }
 
     @Test
+    void exchangesOneTimePkceCodeBoundToOpenAiTunnelResource() {
+        var stored = new AiOAuthRepository.StoredAuthorizationCode(
+            99L,
+            "client-1",
+            REDIRECT,
+            OPENAI_TUNNEL_RESOURCE,
+            Set.of("sales.read"),
+            challenge(VERIFIER),
+            NOW.plusSeconds(120),
+            null,
+            user
+        );
+        when(repository.findForUpdate(any())).thenReturn(Optional.of(stored));
+        when(repository.findActiveClient("client-1")).thenReturn(Optional.of(client()));
+        when(accessTokenService.issueOAuth(eq(user), eq("ChatGPT · ChatGPT"), eq(30), eq(Set.of("sales.read"))))
+            .thenReturn(new AiAccessTokenService.IssuedConnection(
+                7L, "generic_mcp", "ChatGPT", "idx_ai_visible", Set.of("sales.read"),
+                NOW.plusSeconds(3600), NOW, "idx_ai_secret"
+            ));
+
+        var result = service.exchange(new AiOAuthService.TokenRequest(
+            "authorization_code", "one-time-code", REDIRECT, "client-1", VERIFIER,
+            OPENAI_TUNNEL_RESOURCE, null, null
+        ));
+
+        assertThat(result.accessToken()).isEqualTo("idx_ai_secret");
+        assertThat(result.refreshToken()).startsWith("idx_oauth_refresh_");
+        verify(repository).markAuthorizationCodeUsed(99L, NOW);
+    }
+
+    @Test
     void rotatesRefreshAndAccessTokensWithoutExpandingPermissions() {
         var stored = new AiOAuthRepository.StoredRefreshToken(
             88L,
@@ -167,6 +235,34 @@ class AiOAuthServiceTest {
     }
 
     @Test
+    void rotatesRefreshTokenBoundToOpenAiTunnelResource() {
+        var stored = new AiOAuthRepository.StoredRefreshToken(
+            88L,
+            "client-1",
+            7L,
+            OPENAI_TUNNEL_RESOURCE,
+            Set.of("sales.read"),
+            NOW.plusSeconds(3600),
+            null,
+            user
+        );
+        when(repository.findRefreshForUpdate(any())).thenReturn(Optional.of(stored));
+        when(accessTokenService.rotateOAuth(eq(user), eq(7L), eq(30), eq(Set.of("sales.read"))))
+            .thenReturn(new AiAccessTokenService.IssuedConnection(
+                7L, "generic_mcp", "ChatGPT", "idx_ai_rotated", Set.of("sales.read"),
+                NOW.plusSeconds(3600), NOW, "idx_ai_new_secret"
+            ));
+
+        var result = service.exchange(new AiOAuthService.TokenRequest(
+            "refresh_token", null, null, "client-1", null, OPENAI_TUNNEL_RESOURCE,
+            "idx_oauth_refresh_old", null
+        ));
+
+        assertThat(result.accessToken()).isEqualTo("idx_ai_new_secret");
+        verify(repository).markRefreshUsed(88L, NOW);
+    }
+
+    @Test
     void rejectsTokenExchangeForAnotherResource() {
         assertThatThrownBy(() -> service.exchange(new AiOAuthService.TokenRequest(
             "authorization_code", "code", REDIRECT, "client-1", VERIFIER,
@@ -176,9 +272,38 @@ class AiOAuthServiceTest {
             .hasMessageContaining("resource");
     }
 
+    @Test
+    void rejectsTokenExchangeWhenResourceDiffersFromAuthorizedTunnel() {
+        var stored = new AiOAuthRepository.StoredAuthorizationCode(
+            99L,
+            "client-1",
+            REDIRECT,
+            OPENAI_TUNNEL_RESOURCE,
+            Set.of("sales.read"),
+            challenge(VERIFIER),
+            NOW.plusSeconds(120),
+            null,
+            user
+        );
+        when(repository.findForUpdate(any())).thenReturn(Optional.of(stored));
+
+        assertThatThrownBy(() -> service.exchange(new AiOAuthService.TokenRequest(
+            "authorization_code", "one-time-code", REDIRECT, "client-1", VERIFIER,
+            "https://tunnel-service.gateway.unified-0.internal.api.openai.org/v1/mcp/"
+                + "tunnel_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            null, null
+        )))
+            .isInstanceOf(AiOAuthException.class)
+            .hasMessageContaining("invalid");
+    }
+
     private AiOAuthService.AuthorizationRequest authorizationRequest(String scopes) {
+        return authorizationRequest(scopes, RESOURCE);
+    }
+
+    private AiOAuthService.AuthorizationRequest authorizationRequest(String scopes, String resource) {
         return new AiOAuthService.AuthorizationRequest(
-            "code", "client-1", REDIRECT, scopes, "state-1", challenge(VERIFIER), "S256", RESOURCE
+            "code", "client-1", REDIRECT, scopes, "state-1", challenge(VERIFIER), "S256", resource
         );
     }
 

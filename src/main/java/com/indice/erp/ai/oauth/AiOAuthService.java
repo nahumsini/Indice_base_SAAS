@@ -133,7 +133,8 @@ public class AiOAuthService {
         if (!PKCE_VERIFIER.matcher(text(request.codeVerifier())).matches()) {
             throw invalidGrant();
         }
-        if (!properties.getResourceUrl().equals(text(request.resource()))) {
+        var requestedResource = text(request.resource());
+        if (!properties.isSupportedResource(requestedResource)) {
             throw new AiOAuthException("invalid_target", "The requested resource is not supported.");
         }
         var code = text(request.code());
@@ -142,7 +143,8 @@ public class AiOAuthService {
         if (stored.usedAt() != null || !stored.expiresAt().isAfter(now)
             || !stored.clientId().equals(text(request.clientId()))
             || !stored.redirectUri().equals(text(request.redirectUri()))
-            || !stored.resource().equals(properties.getResourceUrl())
+            || !stored.resource().equals(requestedResource)
+            || !properties.isSupportedResource(stored.resource())
             || !constantTimeEquals(stored.codeChallenge(), s256(request.codeVerifier()))) {
             throw invalidGrant();
         }
@@ -177,7 +179,7 @@ public class AiOAuthService {
             || !stored.expiresAt().isAfter(now)
             || !stored.clientId().equals(text(request.clientId()))
             || (!requestedResource.isBlank() && !stored.resource().equals(requestedResource))
-            || !properties.getResourceUrl().equals(stored.resource())) {
+            || !properties.isSupportedResource(stored.resource())) {
             throw invalidGrant();
         }
         var scopes = refreshScopes(request.scope(), stored.scopes());
@@ -237,7 +239,7 @@ public class AiOAuthService {
         if (text(request.state()).isBlank() || request.state().length() > 1024) {
             throw new AiOAuthException("invalid_request", "A valid state value is required.");
         }
-        if (!properties.getResourceUrl().equals(text(request.resource()))) {
+        if (!properties.isSupportedResource(text(request.resource()))) {
             throw new AiOAuthException("invalid_target", "The requested resource is not supported.");
         }
         var client = repository.findActiveClient(text(request.clientId()))
