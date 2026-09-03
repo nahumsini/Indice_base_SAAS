@@ -122,6 +122,19 @@ validate_disk_space() {
   fi
 }
 
+require_stable_container() {
+  local container="$1"
+  local state running restarting restart_count
+
+  state="$(docker inspect --format '{{.State.Running}} {{.State.Restarting}} {{.RestartCount}}' "${container}")"
+  read -r running restarting restart_count <<<"${state}"
+  if [[ "${running}" != "true" || "${restarting}" != "false" || "${restart_count}" != "0" ]]; then
+    echo "Container ${container} is not a stable deployment candidate " \
+      "(running=${running}, restarting=${restarting}, restartCount=${restart_count})." >&2
+    exit 1
+  fi
+}
+
 validate_inputs() {
   local source_config="${APP_DIR}/deployment/docker/web/nginx.host.conf"
 
@@ -314,7 +327,9 @@ docker run -d \
   --console-address "127.0.0.1:${HOST_MINIO_CONSOLE_PORT}" >/dev/null
 
 sleep 8
+require_stable_container "${MINIO_CONTAINER}"
 curl --fail --silent --show-error "http://127.0.0.1:${HOST_MINIO_API_PORT}/minio/health/live" >/dev/null
+require_stable_container "${MINIO_CONTAINER}"
 
 BACKEND_SECRET_MOUNTS=()
 prepare_backend_secret_mount() {
@@ -359,7 +374,9 @@ docker run -d \
   "${BACKEND_IMAGE}" >/dev/null
 
 sleep "${BACKEND_STARTUP_WAIT_SECONDS:-45}"
+require_stable_container "${BACKEND_CONTAINER}"
 curl --fail --silent --show-error "http://127.0.0.1:${HOST_BACKEND_PORT}/api/v1/health" >/dev/null
+require_stable_container "${BACKEND_CONTAINER}"
 
 if [[ "${MCP_ENABLED}" == "true" ]]; then
   preserve_current_container "${MCP_CONTAINER}"
@@ -380,12 +397,14 @@ if [[ "${MCP_ENABLED}" == "true" ]]; then
     "${MCP_IMAGE}" >/dev/null
 
   sleep "${MCP_STARTUP_WAIT_SECONDS:-5}"
+  require_stable_container "${MCP_CONTAINER}"
   MCP_HTTP_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' \
     "http://127.0.0.1:${HOST_MCP_PORT}/mcp")"
   if [[ "${MCP_HTTP_STATUS}" != "401" ]]; then
     echo "MCP readiness check failed: expected protected HTTP 401 from GET /mcp, received ${MCP_HTTP_STATUS}." >&2
     exit 1
   fi
+  require_stable_container "${MCP_CONTAINER}"
 fi
 
 prepare_nginx_host_config
@@ -404,13 +423,16 @@ if [[ "${PUBLISH_LOCAL_FRONTEND_DIST}" == "true" ]]; then
 fi
 
 sleep 8
+require_stable_container "${WEB_CONTAINER}"
 docker exec "${WEB_CONTAINER}" nginx -t >/dev/null
 curl --fail --silent --show-error "http://127.0.0.1:${HOST_WEB_PORT}/api/v1/health" >/dev/null
+require_stable_container "${WEB_CONTAINER}"
 
 if [[ -n "${PUBLIC_URL}" ]]; then
   curl --fail --silent --show-error "${PUBLIC_URL}/api/v1/health" >/dev/null
   DEPLOY_ENV_FILE="${ENV_FILE}" \
   WEB_PUBLIC_URL="${PUBLIC_URL}" \
+  MINIO_PUBLIC_ENDPOINT="http://127.0.0.1:${HOST_MINIO_API_PORT}" \
   "${APP_DIR}/deployment/scripts/smoke-test.sh"
 fi
 

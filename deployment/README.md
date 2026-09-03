@@ -367,6 +367,7 @@ APP_DIR=/home/corazon/apptest.indiceapp.com \
 DEPLOY_ENV_FILE=/home/corazon/apps/indice-erp-docker/apptest/deployment/env/.env \
 PUBLIC_URL=https://apptest.indiceapp.com \
 HOST_BACKEND_PORT=8082 \
+MCP_HOST_PORT=3010 \
 DEPLOY_WEB_IMAGE="indice-erp-web:${RELEASE_SHA}" \
 DEPLOY_BACKEND_IMAGE="indice-erp-backend:${RELEASE_SHA}" \
 DEPLOY_MCP_ENABLED=true \
@@ -374,7 +375,7 @@ DEPLOY_MCP_IMAGE="indice-erp-mcp:${RELEASE_SHA}" \
 ./deployment/scripts/up-host-network.sh
 ```
 
-The script performs all file, image, free-space and configuration checks before stopping a container. It preserves the datasource from the `.env`, honors `BACKEND_HOST_PORT` when `HOST_BACKEND_PORT` is omitted, keeps MinIO data mounted, prepares `nginx.host.conf`, and validates local health plus the complete public web/MinIO/CSRF/login route. A synthetic login intentionally expects `401`; it proves the request reaches the backend without using a real account.
+The script performs all file, image, free-space and configuration checks before stopping a container. It preserves the datasource from the `.env`, honors `BACKEND_HOST_PORT` when `HOST_BACKEND_PORT` is omitted, keeps MinIO data mounted, prepares `nginx.host.conf`, and validates local health plus the complete public web/MinIO/CSRF/login route. APPTEST and production must use different host ports for every host-network service, including MCP (`3010` for APPTEST and `3011` for production in the examples above). Each new container must remain running with a zero restart count before and after its readiness probe, preventing another process on the same port from producing a false-positive health check. A synthetic login intentionally expects `401`; it proves the request reaches the backend without using a real account.
 
 Después de desplegar APPTEST, valida la frontera pública sin usar cuentas reales:
 
