@@ -188,7 +188,7 @@ export const enCA: FinanceTranslations = {
         providerRegistrationDescription: 'Your information will remain pending review before access is enabled.', providerRegistrationTitle: 'Provider registration',
         registrationSubmitted: 'Registration submitted. The company will review it and share your personal PIN.',
         sessionExpired: 'Your session expired due to inactivity. Enter your PIN again to continue.', sessionExpiring: 'Your session will expire in less than one minute.',
-        submitPayable: 'Submit account payable', submitProvider: 'Submit registration', submissionSuccess: 'Account payable submitted for financial review.',
+        retryEvidence: 'Retry evidence', submitPayable: 'Submit account payable', submitProvider: 'Submit registration', submissionSuccess: 'Account payable submitted for financial review.',
         subtitle: 'Submit accounts payable and provider information for financial review.', taxAmount: 'Taxes', totalAmount: 'Total',
         uploadPartial: count => `The payable was saved, but ${count} evidence file${count === 1 ? '' : 's'} could not be uploaded.`,
         face: {

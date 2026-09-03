@@ -187,7 +187,7 @@ export const esMX = mergeFinanceTranslations('es-MX', {
         providerRegistrationDescription: 'Tus datos quedarán pendientes de revisión antes de habilitar el acceso.', providerRegistrationTitle: 'Registro de proveedor',
         registrationSubmitted: 'Registro enviado. La empresa lo revisará y compartirá tu PIN personal.',
         sessionExpired: 'Tu sesión venció por inactividad. Ingresa de nuevo tu PIN para continuar.', sessionExpiring: 'Tu sesión vencerá en menos de un minuto.',
-        submitPayable: 'Enviar cuenta por pagar', submitProvider: 'Enviar registro', submissionSuccess: 'Cuenta por pagar enviada para revisión financiera.',
+        retryEvidence: 'Reintentar evidencia', submitPayable: 'Enviar cuenta por pagar', submitProvider: 'Enviar registro', submissionSuccess: 'Cuenta por pagar enviada para revisión financiera.',
         subtitle: 'Captura cuentas por pagar y datos de proveedor para revisión financiera.', taxAmount: 'Impuestos', totalAmount: 'Total',
         uploadPartial: count => `La cuenta se guardó, pero no se pudieron cargar ${count} archivo${count === 1 ? '' : 's'} de evidencia.`,
         face: {

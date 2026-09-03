@@ -165,6 +165,59 @@ public class PayableKioskService {
         );
     }
 
+    public boolean supportsEmployeeAccess(String token, long companyId) {
+        try {
+            var kiosk = activeByToken(token);
+            return kiosk.companyId() == companyId && allowsEmployee(kiosk);
+        } catch (RuntimeException unavailable) {
+            return false;
+        }
+    }
+
+    public Map<String, Object> employeeBootstrap(String token, long companyId, long userId) {
+        var context = requireEmployeeContext(token, companyId, userId);
+        var providers = publicRepository.availableProviders(context.kiosk()).stream()
+            .map(provider -> Map.<String, Object>of("id", provider.id(), "name", provider.name()))
+            .toList();
+        var result = new LinkedHashMap<String, Object>();
+        result.put("kiosk", PayableKioskMapper.toPublicMap(context.kiosk()));
+        result.put("scope_label", publicRepository.scopeLabel(context.kiosk()));
+        result.put("user", Map.of(
+            "id", context.employee().userCompanyId(),
+            "user_id", context.employee().userId(),
+            "full_name", context.employee().name(),
+            "name", context.employee().name()));
+        result.put("providers", providers);
+        result.put("inactivity_timeout_seconds", inactivityTimeoutSeconds);
+        return Map.copyOf(result);
+    }
+
+    @Transactional
+    public Map<String, Object> createPayableForEmployee(
+            String token, long companyId, long userId, PublicPayableRequest request) {
+        var context = requireEmployeeContext(token, companyId, userId);
+        return createPayableForIdentity(
+            token, "EMPLOYEE", context.employee().userCompanyId(),
+            context.employee().userId(), request);
+    }
+
+    public Object presignPayableAttachmentForEmployee(
+            String token, long companyId, long userId, long expenseId,
+            ExpenseAttachmentUploadRequest request) {
+        var context = requireEmployeeContext(token, companyId, userId);
+        return presignPayableAttachmentForIdentity(
+            token, "EMPLOYEE", context.employee().userCompanyId(), expenseId, request);
+    }
+
+    @Transactional
+    public Object registerPayableAttachmentForEmployee(
+            String token, long companyId, long userId, long expenseId,
+            RegisterExpenseAttachmentRequest request) {
+        var context = requireEmployeeContext(token, companyId, userId);
+        return registerPayableAttachmentForIdentity(
+            token, "EMPLOYEE", context.employee().userCompanyId(), expenseId, request);
+    }
+
     public Map<String, Object> publicAuthenticate(HttpSession session, String token, PayableKioskPinRequest request) {
         publicSession.requireAttemptAllowed(session);
         try {
@@ -250,11 +303,23 @@ public class PayableKioskService {
     @Transactional
     public Map<String, Object> createPayableForIdentity(
             String token, String identityType, long identityId, PublicPayableRequest request) {
+        return createPayableForIdentity(token, identityType, identityId, null, request);
+    }
+
+    private Map<String, Object> createPayableForIdentity(
+            String token,
+            String identityType,
+            long identityId,
+            Long requestedByUserId,
+            PublicPayableRequest request) {
         var kiosk = activeByToken(token);
         var normalizedIdentityType = normalizeIdentityType(identityType);
-        var providerId = resolveTargetProvider(kiosk, normalizedIdentityType, identityId, request.providerId());
+        var normalizedRequest = PayableKioskSubmissionValidator.validateAndNormalize(kiosk, request);
+        var providerId = resolveTargetProvider(
+            kiosk, normalizedIdentityType, identityId, normalizedRequest.providerId());
         var expenseId = publicRepository.insertPayable(
-            kiosk, providerId, request, payableCustomJson(request),
+            kiosk, providerId, requestedByUserId, normalizedRequest,
+            payableCustomJson(normalizedRequest),
             payableMetadataJson(kiosk, normalizedIdentityType, identityId));
         return Map.of("expenseId", expenseId, "status", "DRAFT", "reviewRequired", true);
     }
@@ -461,7 +526,19 @@ public class PayableKioskService {
             null, kiosk.publicAccessToken(), true, KioskAccessLevel.CONTROLLED,
             "expenses", "es-MX", actorId);
         kioskRegistry.synchronizeCapabilities(definition, PayableKioskCapabilities.descriptors());
+        kioskRegistry.synchronizeEmployeeCenter(definition, allowsEmployee(kiosk), "SCOPE");
         return definition;
+    }
+
+    private EmployeeContext requireEmployeeContext(String token, long companyId, long userId) {
+        var kiosk = activeByToken(token);
+        if (kiosk.companyId() != companyId || !allowsEmployee(kiosk)) {
+            throw new SecurityException("Payable kiosk is not available to employees.");
+        }
+        var employee = publicRepository.activeEmployeeForUser(kiosk, userId)
+            .orElseThrow(() -> new SecurityException(
+                "Employee is outside the payable kiosk scope."));
+        return new EmployeeContext(kiosk, employee);
     }
 
     private void requireProviderPayable(PayableKioskRow kiosk, long providerId, long expenseId) {
@@ -677,5 +754,10 @@ public class PayableKioskService {
             PayableKioskProviderAccessRow providerAccess,
             String sessionToken,
             Map<String, Object> response) {
+    }
+
+    private record EmployeeContext(
+            PayableKioskRow kiosk,
+            PayableKioskPublicRepository.EmployeeIdentity employee) {
     }
 }

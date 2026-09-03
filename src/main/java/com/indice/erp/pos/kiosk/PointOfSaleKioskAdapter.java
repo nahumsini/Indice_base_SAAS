@@ -4,6 +4,7 @@ import com.indice.erp.kiosk.engine.KioskActionRequest;
 import com.indice.erp.kiosk.engine.KioskAuthorization;
 import com.indice.erp.kiosk.engine.KioskCapabilityDescriptor;
 import com.indice.erp.kiosk.engine.KioskExecutionContext;
+import com.indice.erp.kiosk.engine.KioskExecutionChannels;
 import com.indice.erp.kiosk.engine.KioskModuleAdapter;
 import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
 import com.indice.erp.kiosk.engine.KioskValidationResult;
@@ -79,18 +80,67 @@ public class PointOfSaleKioskAdapter implements KioskModuleAdapter {
     }
 
     @Override
+    public boolean supportsEmployeeCenter(KioskResolvedDefinition definition) {
+        var experience = definition == null ? null : experiencesByType.get(definition.kioskType());
+        return experience != null && experience.supportsEmployeeCenter(definition);
+    }
+
+    @Override
+    public Set<String> employeeCenterTabPermissionKeys(KioskResolvedDefinition definition) {
+        var experience = definition == null ? null : experiencesByType.get(definition.kioskType());
+        return experience == null ? Set.of() : experience.employeeCenterTabPermissionKeys(definition);
+    }
+
+    @Override
+    public Set<String> employeeCapabilityTabPermissionKeys(
+            KioskResolvedDefinition definition,
+            KioskCapabilityDescriptor capability) {
+        var experience = definition == null ? null : experiencesByType.get(definition.kioskType());
+        return experience == null
+            ? Set.of()
+            : experience.employeeCapabilityTabPermissionKeys(definition, capability);
+    }
+
+    @Override
+    public Map<String, Object> employeeBootstrap(KioskExecutionContext context) {
+        requireEmployeeContext(context);
+        return requireEmployeeExperience(context).employeeBootstrap(context);
+    }
+
+    @Override
     public KioskAuthorization authorize(KioskExecutionContext context, KioskActionRequest request) {
-        return requireExperience(context, request).authorize(context, request);
+        var experience = requireExperience(context, request);
+        if (!KioskExecutionChannels.isEmployeeChannel(context.channel())) {
+            return experience.authorize(context, request);
+        }
+        if (!isEmployeeContext(context)) {
+            return KioskAuthorization.deny("Authenticated employee POS session is required.");
+        }
+        if (!experience.supportsEmployeeCenter(context.definition())) {
+            return KioskAuthorization.deny("Point of Sale kiosk is not available in the employee Multi-kiosk.");
+        }
+        return experience.authorizeEmployee(context, request);
     }
 
     @Override
     public KioskValidationResult validate(KioskExecutionContext context, KioskActionRequest request) {
-        return requireExperience(context, request).validate(context, request);
+        var experience = requireExperience(context, request);
+        return KioskExecutionChannels.isEmployeeChannel(context.channel())
+            ? requireEmployeeExperience(context, request).validateEmployee(context, request)
+            : experience.validate(context, request);
     }
 
     @Override
     public Map<String, Object> execute(KioskExecutionContext context, KioskActionRequest request) {
         return requireExperience(context, request).execute(context, request);
+    }
+
+    @Override
+    public Map<String, Object> executeEmployee(
+            KioskExecutionContext context,
+            KioskActionRequest request) {
+        requireEmployeeContext(context);
+        return requireEmployeeExperience(context, request).executeEmployee(context, request);
     }
 
     private PointOfSaleKioskExperience requireExperience(KioskExecutionContext context) {
@@ -113,5 +163,40 @@ public class PointOfSaleKioskAdapter implements KioskModuleAdapter {
             throw new SecurityException("Kiosk capability is not available for this Point of Sale kiosk.");
         }
         return experience;
+    }
+
+    private PointOfSaleKioskExperience requireEmployeeExperience(KioskExecutionContext context) {
+        var experience = requireExperience(context);
+        if (!experience.supportsEmployeeCenter(context.definition())) {
+            throw new SecurityException(
+                "Point of Sale kiosk is not available in the employee Multi-kiosk.");
+        }
+        return experience;
+    }
+
+    private PointOfSaleKioskExperience requireEmployeeExperience(
+            KioskExecutionContext context,
+            KioskActionRequest request) {
+        var experience = requireExperience(context, request);
+        if (!experience.supportsEmployeeCenter(context.definition())) {
+            throw new SecurityException(
+                "Point of Sale kiosk is not available in the employee Multi-kiosk.");
+        }
+        return experience;
+    }
+
+    private void requireEmployeeContext(KioskExecutionContext context) {
+        if (!isEmployeeContext(context)) {
+            throw new SecurityException("Authenticated employee POS session is required.");
+        }
+    }
+
+    private boolean isEmployeeContext(KioskExecutionContext context) {
+        return KioskExecutionChannels.isEmployeeChannel(context.channel())
+            && context.definition() != null && context.session() != null
+            && "USER".equals(context.session().identityType())
+            && context.session().identityId() > 0
+            && context.session().companyId() == context.definition().companyId()
+            && context.session().kioskDefinitionId() == context.definition().id();
     }
 }

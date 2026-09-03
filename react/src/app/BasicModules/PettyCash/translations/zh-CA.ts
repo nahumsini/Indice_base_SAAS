@@ -337,6 +337,7 @@ export const zhCA = {
       currency: (currency: string) => `货币 ${currency}`,
       attach: '附加收据',
       clear: '清除',
+      retryEvidence: '重试上传凭证',
       submit: '登记收据',
     },
     side: {

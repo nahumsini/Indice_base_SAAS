@@ -119,6 +119,8 @@ public class RestaurantOrderService {
             number(ecosystem.get("unitId")), number(ecosystem.get("businessId")),
             number(ecosystem.get("warehouseId")), request.expiresAt(), token, false,
             KioskAccessLevel.CONTROLLED, "pos-restaurant", "es-MX", context.userId());
+        registry.synchronizeCapabilities(definition, RestaurantKioskCapabilities.descriptors());
+        registry.synchronizeEmployeeCenter(definition, true, "SCOPE");
         repository.event(context.companyId(), ecosystemId, null, null, definition.id(), null,
             context.userId(), "RESTAURANT_KIOSK_CREATED", null, "ACTIVE", null);
         return detail(context, definition);
@@ -137,12 +139,13 @@ public class RestaurantOrderService {
         var token = registry.recoverPublicToken(
             context.companyId(), PointOfSaleKioskCapabilities.OWNER_MODULE,
             definition.kioskType(), definition.legacyReferenceId());
-        registry.registerLegacyDefinitionWithLocation(
+        var updatedDefinition = registry.registerLegacyDefinitionWithLocation(
             context.companyId(), PointOfSaleKioskCapabilities.OWNER_MODULE, definition.kioskType(),
             definition.legacyReferenceId(), String.valueOf(kiosk.get("code")), request.name().trim(),
             String.valueOf(kiosk.get("status")), number(kiosk.get("unitId")), number(kiosk.get("businessId")),
             number(kiosk.get("warehouseId")), request.expiresAt(), token, false,
             KioskAccessLevel.CONTROLLED, "pos-restaurant", "es-MX", context.userId());
+        registry.synchronizeEmployeeCenter(updatedDefinition, true, "SCOPE");
         return detail(context, registry.requireById(context.companyId(), definition.id()));
     }
 
@@ -162,12 +165,13 @@ public class RestaurantOrderService {
         var token = registry.recoverPublicToken(
             context.companyId(), PointOfSaleKioskCapabilities.OWNER_MODULE,
             definition.kioskType(), definition.legacyReferenceId());
-        registry.registerLegacyDefinitionWithLocation(
+        var updatedDefinition = registry.registerLegacyDefinitionWithLocation(
             context.companyId(), PointOfSaleKioskCapabilities.OWNER_MODULE, definition.kioskType(),
             definition.legacyReferenceId(), String.valueOf(kiosk.get("code")), String.valueOf(kiosk.get("name")),
             normalized, number(kiosk.get("unitId")), number(kiosk.get("businessId")),
             number(kiosk.get("warehouseId")), parseInstant(kiosk.get("expiresAt")), token, false,
             KioskAccessLevel.CONTROLLED, "pos-restaurant", "es-MX", context.userId());
+        registry.synchronizeEmployeeCenter(updatedDefinition, true, "SCOPE");
         repository.event(context.companyId(), number(kiosk.get("ecosystemId")), null, null,
             definition.id(), null, context.userId(), "RESTAURANT_KIOSK_" + normalized,
             definition.status().name(), normalized, reason);
@@ -236,6 +240,19 @@ public class RestaurantOrderService {
         } catch (RuntimeException failure) {
             return false;
         }
+    }
+
+    public long requireEmployeeMembership(KioskResolvedDefinition definition, long userId) {
+        if (userId <= 0) {
+            throw new SecurityException("Authenticated employee identity is required.");
+        }
+        var kiosk = kiosk(definition);
+        return repository.employeeScopeForUser(definition.companyId(), userId)
+            .filter(scope -> canAccessScope(scope, kiosk))
+            .map(scope -> number(scope.get("userCompanyId")))
+            .filter(id -> id > 0)
+            .orElseThrow(() -> new SecurityException(
+                "Employee is outside the restaurant kiosk scope."));
     }
 
     public boolean canEditFloorPlan(KioskResolvedDefinition definition, long userCompanyId) {

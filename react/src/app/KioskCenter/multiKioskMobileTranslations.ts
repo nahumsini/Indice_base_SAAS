@@ -81,7 +81,7 @@ const esMX: MultiKioskMobileCopy = {
     submit: 'Entrar a mis kioscos', title: 'Identifícate para continuar',
   },
   launcher: {
-    activeSession: 'Sesión protegida en este dispositivo', changeEmployee: 'Cambiar', signOut: 'Cerrar sesión / Cambiar colaborador',
+    activeSession: 'Sesión protegida', changeEmployee: 'Cambiar', signOut: 'Cerrar sesión / Cambiar colaborador',
     searchPlaceholder: 'Buscar una herramienta', available: 'Mis herramientas', intro: 'Elige una herramienta para comenzar.',
     open: 'Abrir', accessCount: count => `${count} ${count === 1 ? 'acceso' : 'accesos'}`,
     accessNote: 'Tus herramientas se actualizan automáticamente según tus permisos vigentes.',
@@ -127,7 +127,7 @@ const enCA: MultiKioskMobileCopy = {
     submit: 'Open my kiosks', title: 'Identify yourself to continue',
   },
   launcher: {
-    activeSession: 'Protected session on this device', changeEmployee: 'Change', signOut: 'Sign out / Change employee',
+    activeSession: 'Protected session', changeEmployee: 'Change', signOut: 'Sign out / Change employee',
     searchPlaceholder: 'Search tools', available: 'My tools', intro: 'Choose a tool to get started.',
     open: 'Open', accessCount: count => `${count} ${count === 1 ? 'access' : 'accesses'}`,
     accessNote: 'Your tools update automatically according to your current permissions.',
@@ -173,7 +173,7 @@ const frCA: MultiKioskMobileCopy = {
     submit: 'Ouvrir mes kiosques', title: 'Identifiez-vous pour continuer',
   },
   launcher: {
-    activeSession: 'Session protégée sur cet appareil', changeEmployee: 'Changer', signOut: 'Fermer la session / Changer d’employé',
+    activeSession: 'Session protégée', changeEmployee: 'Changer', signOut: 'Fermer la session / Changer d’employé',
     searchPlaceholder: 'Rechercher un outil', available: 'Mes outils', intro: 'Choisissez un outil pour commencer.',
     open: 'Ouvrir', accessCount: count => `${count} ${count === 1 ? 'accès' : 'accès'}`,
     accessNote: 'Vos outils se mettent à jour automatiquement selon vos autorisations actuelles.',
@@ -219,7 +219,7 @@ const ptBR: MultiKioskMobileCopy = {
     submit: 'Abrir meus quiosques', title: 'Identifique-se para continuar',
   },
   launcher: {
-    activeSession: 'Sessão protegida neste dispositivo', changeEmployee: 'Trocar', signOut: 'Encerrar sessão / Trocar colaborador',
+    activeSession: 'Sessão protegida', changeEmployee: 'Trocar', signOut: 'Encerrar sessão / Trocar colaborador',
     searchPlaceholder: 'Buscar ferramentas', available: 'Minhas ferramentas', intro: 'Escolha uma ferramenta para começar.',
     open: 'Abrir', accessCount: count => `${count} ${count === 1 ? 'acesso' : 'acessos'}`,
     accessNote: 'Suas ferramentas são atualizadas automaticamente conforme suas permissões atuais.',
@@ -265,7 +265,7 @@ const koCA: MultiKioskMobileCopy = {
     submit: '내 키오스크 열기', title: '계속하려면 본인 확인을 하세요',
   },
   launcher: {
-    activeSession: '이 기기에서 보호된 세션', changeEmployee: '직원 변경', signOut: '로그아웃 / 직원 변경',
+    activeSession: '보호된 세션', changeEmployee: '직원 변경', signOut: '로그아웃 / 직원 변경',
     searchPlaceholder: '도구 검색', available: '내 도구', intro: '시작할 도구를 선택하세요.',
     open: '열기', accessCount: count => `${count}개 접근 권한`,
     accessNote: '현재 권한에 따라 도구가 자동으로 업데이트됩니다.',
@@ -311,7 +311,7 @@ const zhCA: MultiKioskMobileCopy = {
     submit: '打开我的自助终端', title: '请先验证身份',
   },
   launcher: {
-    activeSession: '此设备上的受保护会话', changeEmployee: '更换员工', signOut: '退出登录 / 更换员工',
+    activeSession: '受保护会话', changeEmployee: '更换员工', signOut: '退出登录 / 更换员工',
     searchPlaceholder: '搜索工具', available: '我的工具', intro: '选择一个工具开始工作。',
     open: '打开', accessCount: count => `${count} 个访问权限`,
     accessNote: '您的工具会根据当前权限自动更新。',

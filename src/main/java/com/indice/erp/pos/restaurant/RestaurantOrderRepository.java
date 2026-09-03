@@ -408,6 +408,30 @@ public class RestaurantOrderRepository {
             .stream().findFirst();
     }
 
+    public Optional<Map<String, Object>> employeeScopeForUser(long companyId, long userId) {
+        return jdbcTemplate.query("""
+            SELECT membership.id AS user_company_id,
+                   LOWER(COALESCE(membership.role, '')) AS membership_role,
+                   work_profile.unit_id, work_profile.business_id
+            FROM user_companies membership
+            LEFT JOIN user_work_profiles work_profile
+              ON work_profile.user_company_id = membership.id
+             AND work_profile.company_id = membership.company_id
+            JOIN hr_users employee
+              ON employee.id = membership.id AND employee.company_id = membership.company_id
+            WHERE membership.company_id = ? AND membership.user_id = ?
+              AND LOWER(COALESCE(membership.status, 'active')) IN ('active', 'activo')
+              AND LOWER(COALESCE(employee.status, 'active')) <> 'terminated'
+            ORDER BY membership.id DESC
+            LIMIT 1
+            """, (rs, rowNum) -> map(
+                "userCompanyId", rs.getLong("user_company_id"),
+                "role", rs.getString("membership_role"),
+                "unitId", rs.getObject("unit_id", Long.class),
+                "businessId", rs.getObject("business_id", Long.class)), companyId, userId)
+            .stream().findFirst();
+    }
+
     public long openOrder(
             long companyId, long ecosystemId, long tableId, long openedByUserCompanyId,
             Long responsibleUserCompanyId, long kioskId,

@@ -430,6 +430,7 @@ export const esMX = {
       currency: (currency: string) => `Moneda ${currency}`,
       attach: 'Adjuntar comprobante',
       clear: 'Limpiar',
+      retryEvidence: 'Reintentar evidencia',
       submit: 'Registrar comprobante',
     },
     side: {

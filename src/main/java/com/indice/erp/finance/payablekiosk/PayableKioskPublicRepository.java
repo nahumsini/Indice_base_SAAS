@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.sql.Statement;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
@@ -17,6 +18,9 @@ class PayableKioskPublicRepository {
     }
 
     record PublicProvider(long id, String name) {
+    }
+
+    record EmployeeIdentity(long userCompanyId, long userId, String name) {
     }
 
     private final JdbcTemplate jdbcTemplate;
@@ -73,7 +77,13 @@ class PayableKioskPublicRepository {
         return count != null && count > 0;
     }
 
-    long insertPayable(PayableKioskRow kiosk, Long providerId, PublicPayableRequest request, String customJson, String metadataJson) {
+    long insertPayable(
+            PayableKioskRow kiosk,
+            Long providerId,
+            Long requestedByUserId,
+            PublicPayableRequest request,
+            String customJson,
+            String metadataJson) {
         var keyHolder = new GeneratedKeyHolder();
         var folio = "CXP-" + LocalDate.now().getYear() + "-" + Long.toString(System.currentTimeMillis()).substring(7);
         jdbcTemplate.update(connection -> {
@@ -85,7 +95,7 @@ class PayableKioskPublicRepository {
                       balance_amount, currency_code, expense_date, due_date, requested_by_user_id,
                       status, payment_status, attachment_count, custom_fields_json, metadata_json
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'VARIABLE', ?, ?, ?, 0, ?, ?, ?, ?, NULL,
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'VARIABLE', ?, ?, ?, 0, ?, ?, ?, ?, ?,
                       'DRAFT', ?, 0, ?, ?)
                     """,
                     Statement.RETURN_GENERATED_KEYS);
@@ -103,9 +113,10 @@ class PayableKioskPublicRepository {
             statement.setString(12, kiosk.currencyCode());
             statement.setObject(13, LocalDate.now());
             statement.setObject(14, request.dueDate());
-            statement.setString(15, paymentStatusFor(request.dueDate()));
-            statement.setString(16, customJson);
-            statement.setString(17, metadataJson);
+            PayableKioskRepository.setLong(statement, 15, requestedByUserId);
+            statement.setString(16, paymentStatusFor(request.dueDate()));
+            statement.setString(17, customJson);
+            statement.setString(18, metadataJson);
             return statement;
         }, keyHolder);
         return keyHolder.getKey() == null ? 0L : keyHolder.getKey().longValue();
@@ -148,6 +159,57 @@ class PayableKioskPublicRepository {
                 kiosk.companyId(),
                 kiosk.unitId(), kiosk.unitId(),
                 kiosk.businessId(), kiosk.businessId());
+    }
+
+    Optional<EmployeeIdentity> activeEmployeeForUser(PayableKioskRow kiosk, long userId) {
+        return jdbcTemplate.query(
+                """
+                SELECT membership.id AS user_company_id, membership.user_id,
+                       TRIM(COALESCE(NULLIF(profile.full_name, ''), NULLIF(user.full_name, ''), user.email)) AS employee_name
+                FROM user_companies membership
+                JOIN users user ON user.id = membership.user_id
+                LEFT JOIN user_profiles profile ON profile.user_id = user.id
+                JOIN hr_users employee
+                  ON employee.id = membership.id AND employee.company_id = membership.company_id
+                LEFT JOIN user_work_profiles work_profile
+                  ON work_profile.user_company_id = membership.id
+                 AND work_profile.company_id = membership.company_id
+                WHERE membership.company_id = ? AND membership.user_id = ?
+                  AND LOWER(COALESCE(membership.status, 'active')) IN ('active', 'activo')
+                  AND LOWER(COALESCE(employee.status, 'active')) <> 'terminated'
+                  AND (
+                    (? IS NULL AND ? IS NULL)
+                    OR (work_profile.unit_id IS NULL AND work_profile.business_id IS NULL)
+                    OR (? IS NOT NULL AND work_profile.business_id = ?)
+                    OR (? IS NOT NULL AND work_profile.business_id IS NULL AND work_profile.unit_id = ?)
+                    OR (? IS NULL AND ? IS NOT NULL AND work_profile.unit_id = ?)
+                  )
+                ORDER BY membership.id DESC
+                LIMIT 1
+                """,
+                (rs, rowNum) -> new EmployeeIdentity(
+                    rs.getLong("user_company_id"), rs.getLong("user_id"), rs.getString("employee_name")),
+                kiosk.companyId(), userId,
+                kiosk.unitId(), kiosk.businessId(),
+                kiosk.businessId(), kiosk.businessId(),
+                kiosk.unitId(), kiosk.unitId(),
+                kiosk.businessId(), kiosk.unitId(), kiosk.unitId())
+            .stream().findFirst();
+    }
+
+    String scopeLabel(PayableKioskRow kiosk) {
+        return jdbcTemplate.query(
+                """
+                SELECT TRIM(CONCAT_WS(' · ', NULLIF(unit_ref.name, ''), NULLIF(business_ref.name, ''))) AS scope_label
+                FROM finance_payable_kiosks payable_kiosk
+                LEFT JOIN units unit_ref ON unit_ref.id = payable_kiosk.unit_id
+                LEFT JOIN businesses business_ref ON business_ref.id = payable_kiosk.business_id
+                WHERE payable_kiosk.company_id = ? AND payable_kiosk.id = ?
+                LIMIT 1
+                """,
+                (rs, rowNum) -> rs.getString("scope_label"), kiosk.companyId(), kiosk.id())
+            .stream().findFirst().filter(value -> value != null && !value.isBlank())
+            .orElse("Toda la compañía");
     }
 
     List<EmployeePinCandidate> activeEmployeesForKiosk(PayableKioskRow kiosk) {

@@ -75,7 +75,7 @@ export default function MultiKioskCenterPage() {
     ? requestedView
     : 'multi-kiosks';
   const [items, setItems] = useState<MultiKioskSummary[]>([]);
-  const [catalog, setCatalog] = useState<MultiKioskCatalog>({ tools: [], employees: [] });
+  const [catalog, setCatalog] = useState<MultiKioskCatalog>({ tools: [], kiosks: [], employees: [] });
   const [editor, setEditor] = useState<MultiKioskEditorState | null>(null);
   const [qrItem, setQrItem] = useState<MultiKioskSummary | null>(null);
   const [loading, setLoading] = useState(true);

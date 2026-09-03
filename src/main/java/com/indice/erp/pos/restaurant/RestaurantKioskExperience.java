@@ -7,6 +7,7 @@ import com.indice.erp.kiosk.engine.KioskCapabilityDescriptor;
 import com.indice.erp.kiosk.engine.KioskExecutionContext;
 import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
 import com.indice.erp.kiosk.engine.KioskValidationResult;
+import com.indice.erp.pos.kiosk.PointOfSaleKioskCapabilities;
 import com.indice.erp.pos.kiosk.PointOfSaleKioskExperience;
 import com.indice.erp.pos.restaurant.RestaurantOrderDtos.AddItemRequest;
 import com.indice.erp.pos.restaurant.RestaurantOrderDtos.ItemStatusRequest;
@@ -18,6 +19,8 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class RestaurantKioskExperience implements PointOfSaleKioskExperience {
+
+    private static final Set<String> EMPLOYEE_TABS = Set.of("pos.sale", "pos.kiosks");
 
     private final RestaurantOrderService service;
     private final ObjectMapper objectMapper;
@@ -51,6 +54,40 @@ public class RestaurantKioskExperience implements PointOfSaleKioskExperience {
     }
 
     @Override
+    public boolean supportsEmployeeCenter(KioskResolvedDefinition definition) {
+        return definition != null
+            && definition.legacyReferenceId() != null
+            && definition.legacyReferenceId() > 0
+            && PointOfSaleKioskCapabilities.OWNER_MODULE.equals(definition.ownerModule())
+            && RestaurantKioskCapabilities.WAITER_TYPE.equals(definition.kioskType());
+    }
+
+    @Override
+    public Set<String> employeeCenterTabPermissionKeys(KioskResolvedDefinition definition) {
+        return EMPLOYEE_TABS;
+    }
+
+    @Override
+    public Set<String> employeeCapabilityTabPermissionKeys(
+            KioskResolvedDefinition definition,
+            KioskCapabilityDescriptor capability) {
+        if (RestaurantKioskCapabilities.IDENTITY_VERIFY.equals(capability.key())) {
+            return Set.of();
+        }
+        if (RestaurantKioskCapabilities.FLOOR_PLAN_UPDATE.equals(capability.key())) {
+            return Set.of("pos.kiosks");
+        }
+        return Set.of("pos.sale");
+    }
+
+    @Override
+    public Map<String, Object> employeeBootstrap(KioskExecutionContext context) {
+        var definition = definition(context);
+        return service.workspace(
+            definition, service.requireEmployeeMembership(definition, context.session().identityId()));
+    }
+
+    @Override
     public KioskAuthorization authorize(KioskExecutionContext context, KioskActionRequest request) {
         if (!RestaurantKioskCapabilities.IDENTITY_VERIFY.equals(request.capabilityKey())
                 && (context.session() == null
@@ -63,6 +100,30 @@ public class RestaurantKioskExperience implements PointOfSaleKioskExperience {
         }
         return supports(request.capabilityKey())
             ? KioskAuthorization.allow() : KioskAuthorization.deny("Restaurant kiosk capability is unavailable.");
+    }
+
+    @Override
+    public KioskAuthorization authorizeEmployee(
+            KioskExecutionContext context,
+            KioskActionRequest request) {
+        if (context.session() == null || !"USER".equals(context.session().identityType())
+                || RestaurantKioskCapabilities.IDENTITY_VERIFY.equals(request.capabilityKey())) {
+            return KioskAuthorization.deny("Authenticated employee restaurant session is required.");
+        }
+        try {
+            var definition = definition(context);
+            var membershipId = service.requireEmployeeMembership(
+                definition, context.session().identityId());
+            if (RestaurantKioskCapabilities.FLOOR_PLAN_UPDATE.equals(request.capabilityKey())
+                    && !service.canEditFloorPlan(definition, membershipId)) {
+                return KioskAuthorization.deny("Restaurant floor-plan editing is not allowed.");
+            }
+            return supports(request.capabilityKey())
+                ? KioskAuthorization.allow()
+                : KioskAuthorization.deny("Restaurant kiosk capability is unavailable.");
+        } catch (RuntimeException failure) {
+            return KioskAuthorization.deny("Restaurant kiosk authentication or scope is invalid.");
+        }
     }
 
     @Override
@@ -82,9 +143,29 @@ public class RestaurantKioskExperience implements PointOfSaleKioskExperience {
     public Map<String, Object> execute(KioskExecutionContext context, KioskActionRequest request) {
         var definition = definition(context);
         var userCompanyId = context.session() == null ? 0 : context.session().identityId();
+        return executeForMembership(definition, userCompanyId, request, true);
+    }
+
+    @Override
+    public Map<String, Object> executeEmployee(
+            KioskExecutionContext context,
+            KioskActionRequest request) {
+        var definition = definition(context);
+        var userCompanyId = service.requireEmployeeMembership(
+            definition, context.session().identityId());
+        return executeForMembership(definition, userCompanyId, request, false);
+    }
+
+    private Map<String, Object> executeForMembership(
+            KioskResolvedDefinition definition,
+            long userCompanyId,
+            KioskActionRequest request,
+            boolean allowIdentityVerification) {
         return switch (request.capabilityKey()) {
             case RestaurantKioskCapabilities.IDENTITY_VERIFY -> service.identify(
-                definition, text(request.payload(), "credential_payload", "pin"));
+                definition, allowIdentityVerification
+                    ? text(request.payload(), "credential_payload", "pin")
+                    : "");
             case RestaurantKioskCapabilities.WORKSPACE_READ -> service.workspace(definition, userCompanyId);
             case RestaurantKioskCapabilities.ORDER_OPEN -> service.openOrder(
                 definition, userCompanyId, convert(request.payload(), OpenOrderRequest.class));

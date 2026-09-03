@@ -235,8 +235,7 @@ public class MultiKioskService {
         );
         var result = new LinkedHashMap<String, Object>();
         result.put("tools", employeeTools.availableTools(companyId));
-        // Compatibility shape only. Native-tool catalog authority never queries definitions.
-        result.put("kiosks", List.of());
+        result.put("kiosks", dashboard.contextualCatalog(companyId));
         result.put("employees", employees);
         result.put("access_population", "COMPANY_PIN");
         return Map.copyOf(result);
@@ -543,7 +542,6 @@ public class MultiKioskService {
         var legacyIds = legacySpecified
             ? idList(payload.get(legacyField), legacyField, 24)
             : List.<Long>of();
-        validateChildren(companyId, legacyIds);
         if (!toolKeysSpecified && !legacySpecified) {
             throw new IllegalArgumentException("tool_keys is required.");
         }
@@ -576,6 +574,13 @@ public class MultiKioskService {
             return existingIds;
         }
         var existing = compositionMetadata(companyId, existingIds);
+        var existingContextualIds = existing.stream()
+            .filter(item -> !item.employeeTool())
+            .map(CompositionItem::id)
+            .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        if (input.legacyIdsSpecified()) {
+            validateChildren(companyId, input.legacyIds(), existingContextualIds);
+        }
         var toolIds = input.toolKeysSpecified()
             ? employeeTools.provisionDefinitions(companyId, actorUserId, input.toolKeys())
             : existing.stream().filter(CompositionItem::employeeTool).map(CompositionItem::id).toList();
@@ -594,12 +599,17 @@ public class MultiKioskService {
         return List.copyOf(merged);
     }
 
-    private void validateChildren(long companyId, List<Long> kioskIds) {
-        var catalog = employeeAccess.catalog(companyId);
+    private void validateChildren(
+            long companyId,
+            List<Long> kioskIds,
+            Set<Long> existingContextualIds) {
+        var catalog = dashboard.contextualCatalog(companyId);
         var byId = new LinkedHashMap<Long, Map<String, Object>>();
         catalog.forEach(row -> byId.put(((Number) row.get("id")).longValue(), row));
         for (var id : kioskIds) {
-            if (!byId.containsKey(id)) {
+            // Existing unavailable children may be preserved during an unrelated edit, but an
+            // administrator can never add an unavailable definition to a composition.
+            if (!byId.containsKey(id) && !existingContextualIds.contains(id)) {
                 throw new IllegalArgumentException("One or more kiosks are unavailable.");
             }
         }

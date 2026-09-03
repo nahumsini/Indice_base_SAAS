@@ -116,7 +116,7 @@ export function WaiterStationWorkspace({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3" data-waiter-workspace>
-      <nav className="grid grid-cols-2 gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-700 dark:bg-slate-950 lg:hidden" data-mobile-waiter-navigation aria-label="Navegación de la estación de mesero">
+      <nav className="sticky top-0 z-20 grid grid-cols-2 gap-2 border-y border-slate-200 bg-white/95 p-2 backdrop-blur dark:border-slate-700 dark:bg-slate-950/95 sm:rounded-xl sm:border sm:shadow-sm lg:hidden" data-mobile-waiter-navigation aria-label="Navegación de la estación de mesero">
         <button aria-pressed={mobilePane === 'tables'} className={`min-h-12 rounded-xl px-3 text-sm font-medium ${mobilePane === 'tables' ? 'bg-[#222831] text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-200'}`} onClick={() => setMobilePane('tables')} type="button">
           Mesas · {workspace.tables.length}
         </button>
@@ -271,7 +271,7 @@ function TableMapPanel({
   };
 
   return (
-    <section className="flex min-h-[28rem] w-full min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#222831]/10 bg-white dark:border-slate-700 dark:bg-slate-950 lg:min-h-0">
+    <section className="flex min-h-[28rem] w-full min-w-0 flex-1 flex-col overflow-hidden bg-white dark:bg-slate-950 sm:rounded-xl sm:border sm:border-[#222831]/10 sm:dark:border-slate-700 lg:min-h-0">
       <div className="border-b border-slate-200 px-4 py-4 dark:border-slate-800">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -309,7 +309,7 @@ function TableMapPanel({
             ) : null}
             {canEditFloorPlan && !isEditing ? (
               <button
-                className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#222831] px-3 text-xs font-medium text-white transition hover:bg-slate-700"
+                className="hidden h-11 items-center gap-2 rounded-xl bg-[#222831] px-3 text-xs font-medium text-white transition hover:bg-slate-700 lg:inline-flex"
                 onClick={beginEditing}
                 type="button"
               >
@@ -669,7 +669,7 @@ function SelectedTablePanel({
   }, [order]);
 
   return (
-    <section className="flex min-h-[calc(100dvh-13rem)] w-full min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#222831]/10 bg-white dark:border-slate-700 dark:bg-slate-950 lg:min-h-0">
+    <section className="flex min-h-[calc(100dvh-13rem)] w-full min-w-0 flex-1 flex-col overflow-hidden bg-white dark:bg-slate-950 sm:rounded-xl sm:border sm:border-[#222831]/10 sm:dark:border-slate-700 lg:min-h-0">
       <SelectedTableHeader order={order} table={selectedTable} />
 
       {!selectedTable ? (
@@ -830,7 +830,7 @@ function CommandToolbar({
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{order.guestCount} personas · cada partida conserva a quién pertenece</p>
       </div>
       <button
-        className="inline-flex min-h-14 items-center justify-center gap-2 rounded-xl bg-[#FF6B5E] px-5 text-sm font-medium text-[#222831] shadow-sm transition hover:bg-[#ff5a4c] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+        className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#FF6B5E] px-5 text-sm font-medium text-[#222831] shadow-sm transition hover:bg-[#ff5a4c] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
         disabled={!sourceRegisterOpen || ['READY_FOR_CHECKOUT', 'CLAIMED_FOR_CHECKOUT'].includes(order.status)}
         onClick={onAddProducts}
         type="button"
@@ -929,7 +929,7 @@ function OrderActionBar({
   const canRequestCheck = drafts === 0 && order.items.length > 0 && !['READY_FOR_CHECKOUT', 'CLAIMED_FOR_CHECKOUT'].includes(order.status);
 
   return (
-    <footer className="border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950 sm:p-4">
+    <footer className="sticky bottom-0 z-20 border-t border-slate-200 bg-white p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] dark:border-slate-800 dark:bg-slate-950 sm:p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
           <p className="text-xs text-slate-500 dark:text-slate-400">Comanda actual</p>

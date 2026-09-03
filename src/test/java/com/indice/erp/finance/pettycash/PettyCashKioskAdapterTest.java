@@ -97,6 +97,16 @@ class PettyCashKioskAdapterTest {
     }
 
     @Test
+    void delegatesTheExactFundAssignmentScopeDecisionToPettyCash() {
+        given(employeeCenter.accessAllows(definition(), 501L, false)).willReturn(true);
+
+        assertThat(adapter.employeeCenterAccessAllows(
+            definition(), 501L, 81L, false)).isTrue();
+
+        then(employeeCenter).should().accessAllows(definition(), 501L, false);
+    }
+
+    @Test
     void delegatesMobileEmployeeReceiptAndKeepsModuleAudit() {
         var context = engineEmployeeContext();
         var request = KioskActionRequest.of(

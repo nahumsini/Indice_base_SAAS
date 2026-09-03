@@ -5,7 +5,9 @@ import com.indice.erp.kiosk.engine.KioskAccessLevel;
 import com.indice.erp.kiosk.engine.KioskActionRequest;
 import com.indice.erp.kiosk.engine.KioskDefinitionStatus;
 import com.indice.erp.kiosk.engine.KioskExecutionContext;
+import com.indice.erp.kiosk.engine.KioskExecutionChannels;
 import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
+import com.indice.erp.kiosk.engine.KioskSessionPrincipal;
 import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.BootstrapResponse;
 import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.PreticketCreateRequest;
 import com.indice.erp.pos.selfservice.SelfServiceKioskDtos.PreticketReceiptResponse;
@@ -14,6 +16,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -113,6 +116,43 @@ class SelfServiceKioskExperienceTest {
 
         assertThat(experience.bootstrap(context)).containsEntry("name", "Autocobro");
         verify(service).bootstrap(definition);
+    }
+
+    @Test
+    void employeeCenterRequiresAnAuthenticatedUserAndKeepsThePosSalePermission() {
+        var service = mock(SelfServiceKioskService.class);
+        var experience = new SelfServiceKioskExperience(
+            service, new ObjectMapper().findAndRegisterModules(), mock(Validator.class));
+        var definition = definition(SelfServiceKioskService.OWNER_MODULE, 7L, 2L, 3L, 11L);
+        var request = KioskActionRequest.of(SelfServiceKioskExperience.CATALOG_READ, Map.of());
+        var user = new KioskSessionPrincipal(
+            "mobile", definition.id(), definition.companyId(), "USER", 9L,
+            Set.of(SelfServiceKioskExperience.CATALOG_READ + "@1"),
+            Instant.now().plusSeconds(600));
+        var employeeContext = new KioskExecutionContext(
+            SelfServiceKioskService.OWNER_MODULE,
+            KioskExecutionChannels.MOBILE_MULTI_KIOSK,
+            "definition:" + definition.id(), "internal", "browser")
+            .resolved(definition, user);
+        var anonymousContext = new KioskExecutionContext(
+            SelfServiceKioskService.OWNER_MODULE,
+            KioskExecutionChannels.MOBILE_MULTI_KIOSK,
+            "definition:" + definition.id(), "internal", "browser")
+            .resolved(definition, null);
+
+        assertThat(experience.supportsEmployeeCenter(definition)).isTrue();
+        var selfCheckout = new KioskResolvedDefinition(
+            definition.id(), definition.companyId(), definition.ownerModule(),
+            "self_checkout", definition.legacyReferenceId(), definition.code(), definition.name(),
+            definition.status(), definition.unitId(), definition.businessId(), definition.locationId(),
+            definition.accessLevel(), definition.expiresAt(), definition.publicTokenHint(),
+            definition.legacyTokenRecoverable(), definition.configurationVersion(),
+            definition.adapterVersion());
+        assertThat(experience.supportsEmployeeCenter(selfCheckout)).isFalse();
+        assertThat(experience.employeeCenterTabPermissionKeys(definition))
+            .containsExactly("pos.sale");
+        assertThat(experience.authorizeEmployee(employeeContext, request).allowed()).isTrue();
+        assertThat(experience.authorizeEmployee(anonymousContext, request).allowed()).isFalse();
     }
 
     private KioskResolvedDefinition definition(

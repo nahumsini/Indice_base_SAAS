@@ -14,6 +14,7 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -356,8 +357,9 @@ public class KioskRegistryService {
                 """.formatted(locationUpdate),
             companyId, ownerModule, kioskType, legacyReferenceId, code, name, status.name(),
             unitId, businessId, locationId, accessLevel.name(),
-            employeeCenterDefault(ownerModule, kioskType) ? "EMPLOYEE" : "EXTERNAL",
-            employeeCenterDefault(ownerModule, kioskType), "EXPLICIT", timestamp(expiresAt),
+            defaultAudience(ownerModule, kioskType),
+            employeeCenterDefault(ownerModule, kioskType),
+            employeeAssignmentPolicyDefault(ownerModule, kioskType), timestamp(expiresAt),
             sha256(publicToken), tokenHint(publicToken), payloadProtection.protect(publicToken),
             legacyTokenRecoverable, themeKey, defaultLocale, actorId, actorId
         );
@@ -562,6 +564,27 @@ public class KioskRegistryService {
                 """,
             Integer.class, kioskDefinitionId, companyId);
         return available != null && available > 0;
+    }
+
+    /** Keeps the internal employee channel independent from the public-link audience. */
+    @Transactional
+    public void synchronizeEmployeeCenter(
+            KioskResolvedDefinition definition,
+            boolean enabled,
+            String assignmentPolicy) {
+        if (definition == null) {
+            throw new IllegalArgumentException("Kiosk definition is required.");
+        }
+        var policy = assignmentPolicy == null || assignmentPolicy.isBlank()
+            ? "EXPLICIT" : assignmentPolicy.trim().toUpperCase();
+        jdbcTemplate.update(
+            """
+                UPDATE kiosk_definitions
+                SET employee_center_enabled = ?, employee_assignment_policy = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND company_id = ?
+                """,
+            enabled, policy, definition.id(), definition.companyId());
     }
 
     public void touchPresence(long kioskDefinitionId) {
@@ -872,7 +895,29 @@ public class KioskRegistryService {
     private boolean employeeCenterDefault(String ownerModule, String kioskType) {
         return switch (ownerModule == null ? "" : ownerModule) {
             case "PROCESS_TASKS", "HUMAN_RESOURCES", "PETTY_CASH" -> true;
+            case "EXPENSES" -> "accounts_payable".equals(kioskType);
+            case "POINT_OF_SALE" -> Set.of("self_service", "waiter_station").contains(kioskType);
             default -> false;
+        };
+    }
+
+    private String employeeAssignmentPolicyDefault(String ownerModule, String kioskType) {
+        return switch (ownerModule == null ? "" : ownerModule) {
+            case "PETTY_CASH" -> "SCOPE";
+            case "EXPENSES" -> "accounts_payable".equals(kioskType) ? "SCOPE" : "EXPLICIT";
+            case "POINT_OF_SALE" -> employeeCenterDefault(ownerModule, kioskType)
+                ? "SCOPE" : "EXPLICIT";
+            default -> "EXPLICIT";
+        };
+    }
+
+    private String defaultAudience(String ownerModule, String kioskType) {
+        return switch (ownerModule == null ? "" : ownerModule) {
+            case "PROCESS_TASKS", "HUMAN_RESOURCES", "PETTY_CASH" -> "EMPLOYEE";
+            case "PROCUREMENT" -> "PROVIDER";
+            case "EXPENSES" -> "accounts_payable".equals(kioskType) ? "PROVIDER" : "EXTERNAL";
+            case "POINT_OF_SALE", "SALES" -> "CUSTOMER";
+            default -> "EXTERNAL";
         };
     }
 

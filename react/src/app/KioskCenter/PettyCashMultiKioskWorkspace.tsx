@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import {
   Banknote,
   Camera,
@@ -218,6 +218,7 @@ export function PettyCashMultiKioskWorkspace({
   const [activeTab, setActiveTab] = useState<PettyCashTab>('capture');
   const [form, setForm] = useState<ReceiptDraft>(() => emptyDraft(currencyCode));
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [pendingReceiptId, setPendingReceiptId] = useState<number | null>(null);
   const [selectedPeriodKey, setSelectedPeriodKey] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -226,6 +227,7 @@ export function PettyCashMultiKioskWorkspace({
   const [receiptAttachments, setReceiptAttachments] = useState<PublicPettyCashAttachment[]>([]);
   const [isLoadingAttachments, setIsLoadingAttachments] = useState(false);
   const [attachmentsError, setAttachmentsError] = useState('');
+  const receiptInFlightRef = useRef(false);
 
   const expenses = useMemo(() => (bootstrap?.expenses ?? []).map(receipt => ({
     ...receipt,
@@ -253,6 +255,7 @@ export function PettyCashMultiKioskWorkspace({
     setActiveTab('capture');
     setForm(emptyDraft(currencyCode));
     setAttachments([]);
+    setPendingReceiptId(null);
     setErrorMessage('');
     setSuccessMessage('');
     setAttachmentReceipt(null);
@@ -275,10 +278,15 @@ export function PettyCashMultiKioskWorkspace({
   const periodIncome = filteredIncome.reduce((total, movement) => total + Number(movement.amount ?? 0), 0);
   const granted = workspace.session.capabilities;
   const hasCapability = (capability: string) => granted.includes(capability);
-  const canCreate = hasCapability(capabilities.receiptCreate)
-    && form.description.trim().length > 0
-    && totals.totalAmount > 0
-    && !isSaving;
+  const canAttach = hasCapability(capabilities.attachmentPresign)
+    && hasCapability(capabilities.attachmentRegister);
+  const retryingEvidence = pendingReceiptId !== null;
+  const canCreate = retryingEvidence
+    ? canAttach && attachments.length > 0 && !isSaving
+    : hasCapability(capabilities.receiptCreate)
+      && form.description.trim().length > 0
+      && totals.totalAmount > 0
+      && !isSaving;
 
   const action = async <T,>(capability: string, payload: Record<string, unknown>) => {
     try {
@@ -290,6 +298,11 @@ export function PettyCashMultiKioskWorkspace({
   };
 
   const handleAttachmentChange = (event: ChangeEvent<HTMLInputElement>) => {
+    if (!canAttach) {
+      setErrorMessage(copy.publicKiosk.errors.invalidFiles);
+      event.target.value = '';
+      return;
+    }
     const selected = Array.from(event.target.files ?? []);
     const available = Math.max(0, maxAttachments - attachments.length);
     const valid = selected.filter(file => file.size > 0
@@ -300,9 +313,9 @@ export function PettyCashMultiKioskWorkspace({
     event.target.value = '';
   };
 
-  const uploadAttachments = async (receiptId: number) => {
-    let failedCount = 0;
-    for (const file of attachments) {
+  const uploadAttachments = async (receiptId: number, files: File[]) => {
+    const failedFiles: File[] = [];
+    for (const file of files) {
       try {
         const contentType = inferContentType(file);
         const logicalFileId = `${file.name}:${file.size}:${file.lastModified}`;
@@ -326,39 +339,49 @@ export function PettyCashMultiKioskWorkspace({
         });
       } catch (error) {
         if (onAuthorizationFailure(error)) throw error;
-        failedCount += 1;
+        failedFiles.push(file);
       }
     }
-    return failedCount;
+    return failedFiles;
   };
 
   const handleCreateReceipt = async () => {
-    if (!canCreate) return;
+    if (!canCreate || receiptInFlightRef.current) return;
+    receiptInFlightRef.current = true;
     setIsSaving(true);
     setErrorMessage('');
     setSuccessMessage('');
     try {
-      const response = await action<PublicPettyCashReceiptResponse>(capabilities.receiptCreate, {
-        attachment_count: 0,
-        currency_code: currencyCode,
-        description: form.description.trim(),
-        expense_date: form.expenseDate || null,
-        receipt_reference: form.receiptReference.trim() || null,
-        subtotal_amount: totals.subtotalAmount,
-        tax_amount: totals.taxAmount,
-        total_amount: totals.totalAmount,
-      });
-      const receiptId = settlementLineId(response);
+      let receiptId = pendingReceiptId;
+      if (receiptId === null) {
+        const response = await action<PublicPettyCashReceiptResponse>(capabilities.receiptCreate, {
+          attachment_count: 0,
+          currency_code: currencyCode,
+          description: form.description.trim(),
+          expense_date: form.expenseDate || null,
+          receipt_reference: form.receiptReference.trim() || null,
+          subtotal_amount: totals.subtotalAmount,
+          tax_amount: totals.taxAmount,
+          total_amount: totals.totalAmount,
+        });
+        receiptId = settlementLineId(response);
+      }
       if (receiptId <= 0) throw new Error(copy.publicKiosk.errors.receipt);
-      const failedCount = attachments.length > 0
-        ? await uploadAttachments(receiptId)
-        : 0;
+      const failedFiles = attachments.length > 0
+        ? await uploadAttachments(receiptId, attachments)
+        : [];
+      if (failedFiles.length > 0) {
+        setPendingReceiptId(receiptId);
+        setAttachments(failedFiles);
+        setSuccessMessage(copy.publicKiosk.success.receiptPartial(failedFiles.length));
+        await onRefresh().catch(() => undefined);
+        return;
+      }
+      setPendingReceiptId(null);
       setForm(emptyDraft(currencyCode));
       setAttachments([]);
       setActiveTab('expenses');
-      setSuccessMessage(failedCount > 0
-        ? copy.publicKiosk.success.receiptPartial(failedCount)
-        : copy.publicKiosk.success.receipt);
+      setSuccessMessage(copy.publicKiosk.success.receipt);
       try {
         await onRefresh();
       } catch (error) {
@@ -368,6 +391,7 @@ export function PettyCashMultiKioskWorkspace({
     } catch (error) {
       setErrorMessage(safeError(error, copy.publicKiosk.errors.receipt));
     } finally {
+      receiptInFlightRef.current = false;
       setIsSaving(false);
     }
   };
@@ -491,17 +515,17 @@ export function PettyCashMultiKioskWorkspace({
           <section className="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm dark:border-emerald-500/20 dark:bg-slate-950">
             <div className="flex items-start gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#147514] text-white"><Camera className="h-5 w-5" /></span><div><h3 className="text-sm font-medium text-slate-950 dark:text-white">{copy.publicKiosk.workspace.evidenceTitle}</h3><p className="mt-1 text-xs leading-5 text-slate-500">{copy.publicKiosk.workspace.evidenceDescription}</p></div></div>
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <label className="flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-3 text-center text-sm font-medium text-[#147514]"><Camera className="h-5 w-5" />{copy.publicKiosk.workspace.takePhoto}<input type="file" className="sr-only" accept="image/*" capture="environment" disabled={isSaving} onChange={handleAttachmentChange} /></label>
-              <label className="flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-center text-sm font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"><FileUp className="h-5 w-5" />{copy.publicKiosk.workspace.chooseFile}<input type="file" className="sr-only" multiple accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" disabled={isSaving} onChange={handleAttachmentChange} /></label>
+              <label className="flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-3 text-center text-sm font-medium text-[#147514]"><Camera className="h-5 w-5" />{copy.publicKiosk.workspace.takePhoto}<input type="file" className="sr-only" accept="image/*" capture="environment" disabled={!canAttach || isSaving} onChange={handleAttachmentChange} /></label>
+              <label className="flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-center text-sm font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"><FileUp className="h-5 w-5" />{copy.publicKiosk.workspace.chooseFile}<input type="file" className="sr-only" multiple accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" disabled={!canAttach || isSaving} onChange={handleAttachmentChange} /></label>
             </div>
             <p className="mt-2 text-center text-xs text-slate-500">{copy.publicKiosk.workspace.evidenceHint}</p>
-            {attachments.length > 0 ? <div className="mt-3 grid gap-2">{attachments.map((file, index) => <div key={`${file.name}-${file.lastModified}-${index}`} className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2"><Paperclip className="h-4 w-4 shrink-0 text-[#147514]" /><span className="min-w-0 flex-1 truncate text-sm text-slate-700 dark:text-slate-200">{file.name}</span><button type="button" aria-label={copy.common.deleteAttachment} disabled={isSaving} onClick={() => setAttachments(current => current.filter((_, fileIndex) => fileIndex !== index))} className="grid h-9 w-9 place-items-center rounded-lg text-rose-600 hover:bg-rose-50"><X className="h-4 w-4" /></button></div>)}</div> : null}
+            {attachments.length > 0 ? <div className="mt-3 grid gap-2">{attachments.map((file, index) => <div key={`${file.name}-${file.lastModified}-${index}`} className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2"><Paperclip className="h-4 w-4 shrink-0 text-[#147514]" /><span className="min-w-0 flex-1 truncate text-sm text-slate-700 dark:text-slate-200">{file.name}</span><button type="button" aria-label={copy.common.deleteAttachment} disabled={isSaving || (retryingEvidence && attachments.length === 1)} onClick={() => setAttachments(current => current.filter((_, fileIndex) => fileIndex !== index))} className="grid h-9 w-9 place-items-center rounded-lg text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"><X className="h-4 w-4" /></button></div>)}</div> : null}
           </section>
 
           <div className="sticky bottom-0 z-20 -mx-3 border-t border-slate-200 bg-white/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
             <Button type="button" disabled={!canCreate} onClick={() => void handleCreateReceipt()} className="h-14 w-full gap-2 rounded-xl bg-[#147514] text-base font-medium text-white hover:bg-[#0f5f0f] disabled:opacity-45">
               {isSaving ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" />}
-              {copy.publicKiosk.receipt.submit}
+              {retryingEvidence ? copy.publicKiosk.receipt.retryEvidence : copy.publicKiosk.receipt.submit}
             </Button>
           </div>
         </section>

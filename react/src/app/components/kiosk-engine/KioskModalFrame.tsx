@@ -64,9 +64,10 @@ export function KioskModalFrame({
   return (
     <IndiceModalFrame
       {...props}
-      bodyClassName={cn('!px-4 !py-4 sm:!px-6 sm:!py-5', bodyClassName)}
+      bodyClassName={cn('overscroll-contain !px-4 !py-4 sm:!px-6 sm:!py-5', bodyClassName)}
       contentClassName={cn(
-        '!w-[calc(100vw-1rem)] !max-w-[calc(100vw-1rem)] !rounded-[24px] sm:!rounded-[28px]',
+        '!h-dvh !max-h-dvh !w-full !max-w-none !rounded-none sm:!h-auto sm:!max-h-[92dvh] sm:!rounded-[28px]',
+        '[&_[data-slot=dialog-header]]:!pt-[calc(1rem+env(safe-area-inset-top))] sm:[&_[data-slot=dialog-header]]:!pt-4',
         widthClassName,
         tone === 'yellow' && [
           '[&_[data-slot=dialog-header]]:!text-[#222831]',
@@ -78,7 +79,7 @@ export function KioskModalFrame({
         ],
         contentClassName,
       )}
-      footerClassName={cn('!px-4 sm:!px-6', footerClassName)}
+      footerClassName={cn('!px-4 !pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:!px-6 sm:!pb-4', footerClassName)}
       modalType={modalTypeBySize[size]}
       tone={tone}
     >

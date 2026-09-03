@@ -1,4 +1,4 @@
-import { ArrowRight, ShieldCheck } from 'lucide-react';
+import { ChevronRight, ShieldCheck } from 'lucide-react';
 import { cn } from '../../components/ui/utils';
 import {
   getMultiKioskToolPresentation,
@@ -49,7 +49,7 @@ export function MultiKioskToolTile({
       disabled={disabled || busy}
       onClick={onClick}
       className={cn(
-        'group relative flex h-full min-h-[9.75rem] w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 focus-visible:outline-none focus-visible:ring-4 disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0 disabled:hover:shadow-sm motion-reduce:hover:translate-y-0 motion-reduce:transition-none dark:border-slate-700 dark:bg-slate-950 sm:min-h-48 sm:p-4',
+        'group relative flex h-full min-h-[12rem] w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 text-center shadow-sm transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0 disabled:hover:shadow-sm motion-reduce:transition-none dark:border-slate-700 dark:bg-slate-950 sm:min-h-[12.5rem] sm:p-4',
         presentation.toneClasses.tileHover,
         selected && presentation.toneClasses.tileSelected,
         className,
@@ -58,57 +58,56 @@ export function MultiKioskToolTile({
       <span aria-live="polite" className="sr-only">
         {busy ? `${actionLabel}: ${presentation.name}` : ''}
       </span>
-      <span className="flex w-full items-start justify-between gap-2">
-        <MultiKioskToolEmoji source={source} selected={selected} busy={busy} />
-        <span
-          aria-hidden="true"
-          className={cn(
-            'grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 transition-colors group-hover:border-current group-hover:bg-white group-focus-visible:border-current dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:group-hover:bg-slate-950',
-            presentation.toneClasses.module,
-          )}
-        >
-          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-focus-visible:translate-x-0.5" />
-        </span>
-      </span>
+      <span className="flex w-full min-w-0 flex-1 flex-col items-center">
+        <MultiKioskToolEmoji
+          source={source}
+          selected={selected}
+          busy={busy}
+          className="h-11 w-11 rounded-xl sm:h-12 sm:w-12"
+        />
+        <span className="flex min-w-0 w-full flex-1 flex-col items-center">
+          <span
+            className={cn('mt-3 block text-[11px] font-medium leading-4', presentation.toneClasses.module)}
+            data-kiosk-tool-module
+          >
+            {resolvedModuleLabel}
+          </span>
+          <span
+            className="mt-0.5 block line-clamp-2 text-[15px] font-medium leading-5 text-slate-950 dark:text-white sm:text-base"
+            data-kiosk-tool-name
+          >
+            {presentation.name}
+          </span>
+          <span
+            className="mt-1 block line-clamp-2 text-xs leading-[1.125rem] text-slate-500 dark:text-slate-400"
+            data-kiosk-tool-description
+          >
+            {presentation.description}
+          </span>
 
-      <span className="mt-3 min-w-0">
-        <span
-          className={cn('block truncate text-[11px] font-medium leading-4 sm:text-xs', presentation.toneClasses.module)}
-          data-kiosk-tool-module
-        >
-          {resolvedModuleLabel}
-        </span>
-        <span
-          className="mt-1 block line-clamp-3 text-[15px] font-medium leading-5 text-slate-950 dark:text-white sm:line-clamp-2 sm:text-base"
-          data-kiosk-tool-name
-        >
-          {presentation.name}
-        </span>
-        <span
-          className="mt-1.5 hidden line-clamp-2 text-xs leading-5 text-slate-500 dark:text-slate-400 sm:block"
-          data-kiosk-tool-description
-        >
-          {presentation.description}
-        </span>
-      </span>
+          {statusLabel ? (
+            <span className={cn(
+              'mt-2 inline-flex max-w-full items-start justify-center gap-1 rounded-lg border px-2 py-1 text-center text-[11px] font-medium leading-4 sm:gap-1.5 sm:px-2.5',
+              statusTone === 'attention'
+                ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/45 dark:text-amber-200'
+                : presentation.toneClasses.badge,
+            )}>
+              <ShieldCheck aria-hidden="true" className="mt-px h-3.5 w-3.5 shrink-0" />
+              <span className="min-w-0 break-words" data-kiosk-tool-status>{statusLabel}</span>
+            </span>
+          ) : null}
 
-      {statusLabel ? (
-        <span className={cn(
-          'mt-2 inline-flex max-w-full items-start gap-1 self-start rounded-lg border px-2 py-1.5 text-left text-xs font-medium leading-4 sm:mt-3 sm:gap-1.5 sm:rounded-xl sm:px-2.5 sm:py-2',
-          statusTone === 'attention'
-            ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/45 dark:text-amber-200'
-            : presentation.toneClasses.badge,
-        )}>
-          <ShieldCheck aria-hidden="true" className="mt-px h-3.5 w-3.5 shrink-0" />
-          <span className="min-w-0 break-words" data-kiosk-tool-status>{statusLabel}</span>
+          <span
+            className={cn(
+              'mt-auto inline-flex items-center gap-1 pt-3 text-xs font-medium sm:text-sm',
+              presentation.toneClasses.module,
+            )}
+            data-kiosk-tool-action
+          >
+            {actionLabel}
+            <ChevronRight aria-hidden="true" className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-focus-visible:translate-x-0.5" />
+          </span>
         </span>
-      ) : null}
-
-      <span className={cn(
-        'mt-auto hidden w-full border-t border-slate-100 pt-3 text-sm font-medium dark:border-slate-800 sm:block',
-        presentation.toneClasses.module,
-      )} data-kiosk-tool-action>
-        {actionLabel}
       </span>
     </button>
   );

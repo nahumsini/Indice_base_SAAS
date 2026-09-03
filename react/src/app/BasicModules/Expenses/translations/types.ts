@@ -228,6 +228,7 @@ export type FinanceTranslations = {
         registrationSubmitted: string;
         sessionExpired: string;
         sessionExpiring: string;
+        retryEvidence: string;
         submitPayable: string;
         submitProvider: string;
         submissionSuccess: string;

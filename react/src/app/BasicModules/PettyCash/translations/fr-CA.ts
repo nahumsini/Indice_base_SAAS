@@ -337,6 +337,7 @@ export const frCA = {
       currency: (currency: string) => `Devise ${currency}`,
       attach: 'Joindre recu',
       clear: 'Effacer',
+      retryEvidence: 'Reessayer les justificatifs',
       submit: 'Enregistrer recu',
     },
     side: {

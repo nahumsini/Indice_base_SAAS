@@ -5,16 +5,23 @@ import com.indice.erp.kiosk.engine.KioskActionRequest;
 import com.indice.erp.kiosk.engine.KioskDefinitionStatus;
 import com.indice.erp.kiosk.engine.KioskRegistryService;
 import com.indice.erp.kiosk.engine.KioskResolvedDefinition;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
@@ -24,12 +31,45 @@ class PettyCashEmployeeKioskServiceTest {
 
     @Mock private PettyCashPublicKioskService kioskService;
     @Mock private KioskRegistryService registry;
+    @Mock private JdbcTemplate jdbcTemplate;
 
     private PettyCashEmployeeKioskService service;
 
     @BeforeEach
     void setUp() {
-        service = new PettyCashEmployeeKioskService(kioskService, registry);
+        service = new PettyCashEmployeeKioskService(kioskService, registry, jdbcTemplate);
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void responsibleEmployeeCanAccessTheExactFundAcrossPrimaryProfileScope() {
+        given(jdbcTemplate.query(
+            contains("FROM finance_petty_cash_funds"),
+            any(RowMapper.class), any(Object[].class)))
+            .willReturn(List.of(501L));
+
+        assertThat(service.accessAllows(definition(), 501L, false)).isTrue();
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void fundAssignedToAnotherEmployeeFailsClosedEvenInsideProfileScope() {
+        given(jdbcTemplate.query(
+            anyString(), any(RowMapper.class), any(Object[].class)))
+            .willReturn(List.of(502L));
+
+        assertThat(service.accessAllows(definition(), 501L, true)).isFalse();
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void unassignedFundKeepsTheNormalOrganizationScopeDecision() {
+        given(jdbcTemplate.query(
+            anyString(), any(RowMapper.class), any(Object[].class)))
+            .willReturn(Collections.singletonList(null));
+
+        assertThat(service.accessAllows(definition(), 501L, true)).isTrue();
+        assertThat(service.accessAllows(definition(), 501L, false)).isFalse();
     }
 
     @Test
