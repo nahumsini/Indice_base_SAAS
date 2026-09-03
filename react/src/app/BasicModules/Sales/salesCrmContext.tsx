@@ -512,25 +512,30 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
-    addQuote: (quote) => {
-      const nextIndex = quotes.length + 1;
-      const createdQuote = {
-        ...quote,
-        id: createSequentialId('QTE', nextIndex),
-        quoteNumber: quote.quoteNumber ?? `Q-2026-${String(nextIndex).padStart(3, '0')}`,
-        lastUpdated: quote.lastUpdated ?? getTodayIsoDate(),
-      };
-
-      setQuotes((current) => [createdQuote, ...current]);
-      void salesApi.create('quotes', toBackendQuote(createdQuote, contacts, opportunities, products))
-        .then((savedQuote) => {
-          const persistedQuote = toFrontendQuote(savedQuote as Record<string, unknown>);
-          setQuotes((current) => current.map((item) => (
-            item.id === createdQuote.id ? persistedQuote : item
-          )));
-        })
-        .catch((error) => handleSyncFailure('create quote', error));
-      return createdQuote;
+    createQuoteRecord: async (quote) => {
+      try {
+        const savedQuote = await salesApi.create(
+          'quotes',
+          toBackendQuote({
+            ...quote,
+            quoteNumber: quote.quoteNumber?.trim() ?? '',
+            lastUpdated: quote.lastUpdated ?? getTodayIsoDate(),
+          }, contacts, opportunities, products),
+        );
+        const persistedQuote = toFrontendQuote(savedQuote as Record<string, unknown>);
+        if (!Number.isSafeInteger(persistedQuote.backendId) || !persistedQuote.quoteNumber.trim()) {
+          throw new Error('El servidor no confirmó el folio de la cotización.');
+        }
+        setQuotes((current) => [
+          persistedQuote,
+          ...current.filter((item) => item.backendId !== persistedQuote.backendId),
+        ]);
+        setSyncIssue(null);
+        return persistedQuote;
+      } catch (error) {
+        handleSyncFailure('create quote', error);
+        throw error;
+      }
     },
     updateQuote: (quoteId, patch) => {
       const currentQuote = quotes.find((quote) => quote.id === quoteId);

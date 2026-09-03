@@ -185,7 +185,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
     products,
     quotes,
     salesRecords,
-    addQuote,
+    createQuoteRecord,
     updateQuote,
     deleteQuote,
     addOpportunity,
@@ -205,6 +205,8 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
   const [quotePendingDeletion, setQuotePendingDeletion] = useState<SalesQuote | null>(null);
   const [isDeletingQuote, setIsDeletingQuote] = useState(false);
   const [quoteDeletionError, setQuoteDeletionError] = useState('');
+  const [isSavingQuote, setIsSavingQuote] = useState(false);
+  const [quoteSaveError, setQuoteSaveError] = useState('');
   const [pendingAssignmentQuote, setPendingAssignmentQuote] = useState<SalesQuote | null>(null);
   const [selectedOpportunityId, setSelectedOpportunityId] = useState('none');
   const [newOpportunityName, setNewOpportunityName] = useState('');
@@ -689,6 +691,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
 
   const openCreateQuoteBuilder = () => {
     setEditingQuote(null);
+    setQuoteSaveError('');
     resetBuilder();
     setIsBuilderOpen(true);
   };
@@ -711,6 +714,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
     const sellerValue = getQuoteSellerSelectValue(quote, ownerOptions);
 
     setEditingQuote(quote);
+    setQuoteSaveError('');
     setForm({
       clientMode: 'contact',
       clientId: contact?.id ?? '',
@@ -751,7 +755,11 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
     }
   };
 
-  const handleSaveQuote = ({ printAfterSave = false }: { printAfterSave?: boolean } = {}) => {
+  const handleSaveQuote = async ({ printAfterSave = false }: { printAfterSave?: boolean } = {}) => {
+    if (isSavingQuote) {
+      return;
+    }
+
     const clientName = selectedContact?.company;
     const contactPerson = selectedContact?.contactPerson;
 
@@ -803,10 +811,20 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
       return;
     }
 
-    const createdQuote = addQuote({
-      ...quotePayload,
-      files: [],
-    });
+    setIsSavingQuote(true);
+    setQuoteSaveError('');
+    let createdQuote: SalesQuote;
+    try {
+      createdQuote = await createQuoteRecord({
+        ...quotePayload,
+        files: [],
+      });
+    } catch {
+      setQuoteSaveError(t.builder.saveError);
+      return;
+    } finally {
+      setIsSavingQuote(false);
+    }
 
     const requiresAssignment = opportunityLinkedQuoteStatuses.includes(createdQuote.status);
     if (requiresAssignment) {
@@ -1186,6 +1204,8 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
         opportunityOptions={opportunityOptions}
         sellerOptions={formSellerOptions}
         formatCurrency={(value, currency) => formatCurrency(value, currency ?? form.currency)}
+        isSaving={isSavingQuote}
+        submitError={quoteSaveError}
         onOpenChange={setIsBuilderOpen}
         onClose={closeQuoteBuilder}
         onFormChange={setForm}
@@ -1202,8 +1222,8 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
         onAddProduct={addProductToQuote}
         onUpdateItem={updateItem}
         onRemoveItem={removeItem}
-        onSubmit={handleSaveQuote}
-        onSubmitAndPrint={() => handleSaveQuote({ printAfterSave: true })}
+        onSubmit={() => { void handleSaveQuote(); }}
+        onSubmitAndPrint={() => { void handleSaveQuote({ printAfterSave: true }); }}
       />
 
       <QuotePreviewModal

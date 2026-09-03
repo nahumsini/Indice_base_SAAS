@@ -129,6 +129,8 @@ export const ptBR = {
     submit: 'Criar cotacao',
     submitAndPrint: 'Criar e imprimir',
     saveAndPrint: 'Salvar e imprimir',
+    saving: 'Salvando…',
+    saveError: 'Não foi possível salvar a cotação. Revise as informações e tente novamente.',
     clientPlaceholder: 'Selecionar contato',
     temporaryClientPlaceholder: 'Cliente ou conta',
     contactPlaceholder: 'Pessoa de contato',

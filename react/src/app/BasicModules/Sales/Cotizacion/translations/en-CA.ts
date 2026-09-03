@@ -190,6 +190,8 @@ export const enCA = {
     submit: 'Create quote',
     submitAndPrint: 'Create & print',
     saveAndPrint: 'Save & print',
+    saving: 'Saving…',
+    saveError: 'The quote could not be saved. Review the information and try again.',
     clientPlaceholder: 'Select contact',
     temporaryClientPlaceholder: 'Client or account name',
     contactPlaceholder: 'Contact person',

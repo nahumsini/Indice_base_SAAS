@@ -192,6 +192,8 @@ export const esMX: QuotesTranslations = {
     submit: 'Crear cotización',
     submitAndPrint: 'Crear e imprimir',
     saveAndPrint: 'Guardar e imprimir',
+    saving: 'Guardando…',
+    saveError: 'No se pudo guardar la cotización. Revisa la información e inténtalo de nuevo.',
     clientPlaceholder: 'Seleccionar contacto',
     temporaryClientPlaceholder: 'Cliente o cuenta',
     contactPlaceholder: 'Persona de contacto',

@@ -129,6 +129,8 @@ export const frCA = {
     submit: 'Créer le devis',
     submitAndPrint: 'Créer et imprimer',
     saveAndPrint: 'Enregistrer et imprimer',
+    saving: 'Enregistrement…',
+    saveError: 'Le devis n\'a pas pu être enregistré. Vérifiez les informations et réessayez.',
     clientPlaceholder: 'Sélectionner un contact',
     temporaryClientPlaceholder: 'Client ou compte',
     contactPlaceholder: 'Personne contact',

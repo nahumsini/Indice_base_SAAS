@@ -129,6 +129,8 @@ export const zhCA = {
     submit: '创建报价',
     submitAndPrint: '创建并打印',
     saveAndPrint: '保存并打印',
+    saving: '正在保存…',
+    saveError: '无法保存报价。请检查信息后重试。',
     clientPlaceholder: '选择联系人',
     temporaryClientPlaceholder: '客户或账户名称',
     contactPlaceholder: '联系人姓名',

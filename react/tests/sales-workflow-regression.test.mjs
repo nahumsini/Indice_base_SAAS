@@ -182,6 +182,21 @@ test('el folio de una venta nueva lo genera el backend y un rechazo revierte la 
   assert.match(boundary, /\$\{copy\.syncErrorDescription\} \$\{syncIssue\.message\}/);
 });
 
+test('el folio de una cotización nueva lo genera el backend y el wizard espera su confirmación', () => {
+  const page = read('src/app/BasicModules/Sales/Cotizacion/Cotizacion.tsx');
+  const modal = read('src/app/BasicModules/Sales/Cotizacion/modals/QuoteBuilderModal.tsx');
+  const context = read('src/app/BasicModules/Sales/salesCrmContext.tsx');
+
+  assert.doesNotMatch(context, /Q-2026-\$\{String\(nextIndex\)/);
+  assert.match(context, /createQuoteRecord: async \(quote\)/);
+  assert.match(context, /quoteNumber: quote\.quoteNumber\?\.trim\(\) \?\? ''/);
+  assert.match(context, /!Number\.isSafeInteger\(persistedQuote\.backendId\)/);
+  assert.match(page, /createdQuote = await createQuoteRecord/);
+  assert.match(page, /setQuoteSaveError\(t\.builder\.saveError\)/);
+  assert.match(modal, /busy=\{isSaving\}/);
+  assert.match(modal, /disabled=\{isSaving\}/);
+});
+
 test('ventas reutiliza las cuentas de pago de Expenses con permiso compartido', () => {
   const field = read('src/app/BasicModules/Sales/Sales/components/SalesPaymentAccountField.tsx');
   const module = read('src/app/BasicModules/Sales/Ventas.tsx');

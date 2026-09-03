@@ -129,6 +129,8 @@ export const koCA = {
     submit: '견적 생성',
     submitAndPrint: '생성 후 인쇄',
     saveAndPrint: '저장 후 인쇄',
+    saving: '저장 중…',
+    saveError: '견적을 저장할 수 없습니다. 정보를 확인하고 다시 시도하세요.',
     clientPlaceholder: '연락처 선택',
     temporaryClientPlaceholder: '고객 또는 계정명',
     contactPlaceholder: '담당 연락처',
