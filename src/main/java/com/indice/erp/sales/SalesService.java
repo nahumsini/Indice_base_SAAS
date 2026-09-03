@@ -298,6 +298,14 @@ public class SalesService {
 
     @Transactional
     public void delete(long companyId, String collection, long id) {
+        if ("inventory-warehouses".equals(collection)) {
+            salesRepository.lockWarehouseForDeletion(companyId, id);
+            if (salesRepository.countCashRegistersForWarehouse(companyId, id) > 0) {
+                throw new IllegalArgumentException(
+                        "Warehouse cannot be deleted because it is assigned to one or more POS registers. "
+                                + "Reassign or delete the registers first.");
+            }
+        }
         if ("quotes".equals(collection)) {
             salesRepository.lockQuoteForDeletion(companyId, id);
             if (salesRepository.countActiveQuoteDependents(companyId, id) > 0) {

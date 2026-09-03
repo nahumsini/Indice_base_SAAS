@@ -47,7 +47,7 @@ class CashRegisterServiceTest {
     void ensuringAnExistingRegisterSynchronizesItsScopeFromTheWarehouse() {
         var stale = register(null, null, 1L);
         var synchronizedRegister = register(WAREHOUSE.unitId(), WAREHOUSE.businessId(), 2L);
-        given(repository.findWarehouse(CONTEXT, WAREHOUSE.id())).willReturn(Optional.of(WAREHOUSE));
+        given(repository.findWarehouseForMutation(CONTEXT, WAREHOUSE.id())).willReturn(Optional.of(WAREHOUSE));
         given(repository.findFirstActiveByWarehouse(CONTEXT, WAREHOUSE.id()))
             .willReturn(Optional.of(stale), Optional.of(synchronizedRegister));
         given(repository.synchronizeScopeFromWarehouse(CONTEXT, stale.id(), WAREHOUSE))
@@ -64,7 +64,7 @@ class CashRegisterServiceTest {
     @Test
     void ensuringAnAlignedRegisterDoesNotRewriteItsScope() {
         var aligned = register(WAREHOUSE.unitId(), WAREHOUSE.businessId(), 1L);
-        given(repository.findWarehouse(CONTEXT, WAREHOUSE.id())).willReturn(Optional.of(WAREHOUSE));
+        given(repository.findWarehouseForMutation(CONTEXT, WAREHOUSE.id())).willReturn(Optional.of(WAREHOUSE));
         given(repository.findFirstActiveByWarehouse(CONTEXT, WAREHOUSE.id()))
             .willReturn(Optional.of(aligned));
 
@@ -78,7 +78,7 @@ class CashRegisterServiceTest {
 
     @Test
     void creatingWithoutACodeAllocatesTheNextCompanySequenceUnderLock() {
-        given(repository.findWarehouse(CONTEXT, WAREHOUSE.id())).willReturn(Optional.of(WAREHOUSE));
+        given(repository.findWarehouseForMutation(CONTEXT, WAREHOUSE.id())).willReturn(Optional.of(WAREHOUSE));
         given(repository.existsByCode(CONTEXT, "WH01-01", null)).willReturn(true);
         given(repository.existsByCode(CONTEXT, "WH01-02", null)).willReturn(false);
         given(repository.insert(any(), any())).willReturn(register(WAREHOUSE.unitId(), WAREHOUSE.businessId(), 1L));

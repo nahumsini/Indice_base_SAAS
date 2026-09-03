@@ -227,6 +227,39 @@ class SalesRepository {
         if (ids.isEmpty()) throw new NoSuchElementException("Sale not found.");
     }
 
+    void lockWarehouseForDeletion(long companyId, long warehouseId) {
+        var ids = jdbcTemplate.query(
+                """
+                        SELECT id
+                        FROM sales_inventory_warehouses
+                        WHERE company_id = ?
+                          AND id = ?
+                          AND deleted_at IS NULL
+                        FOR UPDATE
+                        """,
+                (rs, rowNum) -> rs.getLong("id"),
+                companyId,
+                warehouseId);
+        if (ids.isEmpty()) {
+            throw new NoSuchElementException("Inventory warehouse not found.");
+        }
+    }
+
+    int countCashRegistersForWarehouse(long companyId, long warehouseId) {
+        var count = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM pos_cash_registers
+                        WHERE company_id = ?
+                          AND warehouse_id = ?
+                          AND deleted_at IS NULL
+                        """,
+                Integer.class,
+                companyId,
+                warehouseId);
+        return count == null ? 0 : count;
+    }
+
     int countActiveSaleDependents(long companyId, long saleId) {
         return jdbcTemplate.queryForObject(
                 """

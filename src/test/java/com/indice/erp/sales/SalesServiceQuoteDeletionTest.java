@@ -88,6 +88,30 @@ class SalesServiceQuoteDeletionTest {
     }
 
     @Test
+    void softDeletesWarehouseWithoutCashRegisters() {
+        when(salesRepository.countCashRegistersForWarehouse(7L, 74L)).thenReturn(0);
+
+        service.delete(7L, "inventory-warehouses", 74L);
+
+        verify(salesRepository).lockWarehouseForDeletion(7L, 74L);
+        verify(salesRepository).softDelete(
+                7L, SalesDefinitions.definitions().get("inventory-warehouses"), 74L);
+    }
+
+    @Test
+    void refusesToDeleteWarehouseAssignedToCashRegisters() {
+        when(salesRepository.countCashRegistersForWarehouse(7L, 74L)).thenReturn(1);
+
+        assertThatThrownBy(() -> service.delete(7L, "inventory-warehouses", 74L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("assigned to one or more POS registers");
+
+        verify(salesRepository).lockWarehouseForDeletion(7L, 74L);
+        verify(salesRepository, never()).softDelete(
+                7L, SalesDefinitions.definitions().get("inventory-warehouses"), 74L);
+    }
+
+    @Test
     void softDeletesAProductWithoutDestroyingItsHistoricalReferences() {
         service.delete(7L, "products", 63L);
 

@@ -59,7 +59,7 @@ public class CashRegisterService {
 
     @Transactional
     public CashRegisterResponse create(PosContext context, CashRegisterCreateRequest request) {
-        var warehouse = repository.findWarehouse(context, request.warehouseId())
+        var warehouse = repository.findWarehouseForMutation(context, request.warehouseId())
             .orElseThrow(() -> new NoSuchElementException("Warehouse not found."));
         validator.requireWarehouseScope(warehouse);
         var requestedCode = request.code() == null ? "" : request.code().trim();
@@ -85,7 +85,7 @@ public class CashRegisterService {
 
     @Transactional
     public CashRegisterResponse ensureForWarehouse(PosContext context, long warehouseId) {
-        var warehouse = repository.findWarehouse(context, warehouseId)
+        var warehouse = repository.findWarehouseForMutation(context, warehouseId)
             .orElseThrow(() -> new NoSuchElementException("Warehouse not found."));
         validator.requireWarehouseScope(warehouse);
         repository.lockCodeAllocation(context.companyId());
@@ -139,7 +139,7 @@ public class CashRegisterService {
     @Transactional
     public CashRegisterResponse update(PosContext context, long registerId, CashRegisterUpdateRequest request) {
         requireRegister(context, registerId);
-        var warehouse = repository.findWarehouse(context, request.warehouseId())
+        var warehouse = repository.findWarehouseForMutation(context, request.warehouseId())
             .orElseThrow(() -> new NoSuchElementException("Warehouse not found."));
         validator.requireWarehouseScope(warehouse);
         var command = mapper.toUpdateCommand(context, request, warehouse);

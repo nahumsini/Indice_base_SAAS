@@ -74,12 +74,23 @@ public class CashRegisterRepository {
     }
 
     public Optional<WarehouseSummary> findWarehouse(PosContext context, long warehouseId) {
+        return findWarehouse(context, warehouseId, false);
+    }
+
+    public Optional<WarehouseSummary> findWarehouseForMutation(PosContext context, long warehouseId) {
+        return findWarehouse(context, warehouseId, true);
+    }
+
+    private Optional<WarehouseSummary> findWarehouse(
+            PosContext context,
+            long warehouseId,
+            boolean lockForMutation) {
         var params = scopedParams(context);
         params.add(1, warehouseId);
         return jdbcTemplate.query(warehouseSelect() + """
             WHERE warehouse.company_id = ? AND warehouse.id = ? AND warehouse.deleted_at IS NULL
               AND LOWER(COALESCE(warehouse.status, 'active')) = 'active'
-              AND """ + warehouseScopePredicate(context),
+              AND """ + warehouseScopePredicate(context) + (lockForMutation ? " FOR UPDATE" : ""),
             this::mapWarehouse, params.toArray()).stream().findFirst();
     }
 
