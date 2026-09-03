@@ -237,7 +237,7 @@ export function KioskPublicShell({
       data-kiosk-utility-mode="embedded"
     >
       <label
-        className="relative inline-flex h-11 min-w-11 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 text-xs font-medium uppercase text-slate-700 outline-none transition hover:bg-slate-50 focus-within:ring-2 focus-within:ring-orange-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
+        className="relative inline-flex h-11 min-w-11 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 outline-none transition hover:bg-slate-50 focus-within:ring-2 focus-within:ring-orange-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
         title={`${copy.language}: ${currentLanguage.name}`}
       >
         <Languages aria-hidden="true" className="h-4 w-4 shrink-0" />
