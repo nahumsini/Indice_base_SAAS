@@ -26,9 +26,11 @@ import type {
   SalesOpportunity,
   SalesPostSaleCase,
   SalesQuote,
+  QuoteConnectionInput,
 } from './types';
 import { createSequentialId, getTodayIsoDate } from './utils/salesCrmUtils';
 import { salesApi } from './salesApi';
+import { ApiClientError } from '../../lib/apiClient';
 
 export type {
   CreateContactInput,
@@ -101,6 +103,7 @@ export {
   productTypes,
   productVisibilities,
   quoteStatuses,
+  toVisibleQuoteStatus,
   salesOwners,
 } from './types';
 
@@ -137,6 +140,7 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
   const [hasPartialData, setHasPartialData] = useState(false);
   const [syncIssue, setSyncIssue] = useState<SalesCrmContextValue['syncIssue']>(null);
   const loadRequestId = useRef(0);
+  const deletedQuoteBackendIds = useRef(new Set<number>());
 
   const beginSync = useCallback(() => {
     setPendingSyncs((current) => current + 1);
@@ -186,7 +190,13 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
     applyResult(results[0], 'contacts', (items) => setContacts(items.map(toFrontendContact)));
     applyResult(results[1], 'opportunities', (items) => setOpportunities(items.map(toFrontendOpportunity)));
     applyResult(results[2], 'products', (items) => setProducts(items.map(toFrontendProduct)));
-    applyResult(results[3], 'quotes', (items) => setQuotes(items.map(toFrontendQuote)));
+    applyResult(results[3], 'quotes', (items) => setQuotes(
+      items
+        .map(toFrontendQuote)
+        .filter((quote) => (
+          quote.backendId === undefined || !deletedQuoteBackendIds.current.has(quote.backendId)
+        )),
+    ));
     applyResult(results[4], 'sales', (items) => setSalesRecords(items.map(toFrontendSaleRecord)));
     applyResult(results[5], 'post-sales', (items) => setPostSaleCases(items.map(toFrontendPostSaleCase)));
     applyResult(results[6], 'contracts', (items) => setContracts(items.map(toFrontendContract)));
@@ -558,6 +568,29 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
         handleSyncFailure('update quote', new Error('Missing backend identifier.'));
       }
     },
+    updateQuoteRecord: async (quoteId, patch) => {
+      const currentQuote = quotes.find((quote) => quote.id === quoteId);
+      if (!currentQuote) throw new Error('Quote not found.');
+      const backendId = backendIdFrom(currentQuote);
+      if (backendId === undefined) throw new Error('Missing backend identifier.');
+
+      try {
+        const savedQuote = await salesApi.update(
+          'quotes',
+          backendId,
+          toBackendQuote({ ...currentQuote, ...patch, lastUpdated: getTodayIsoDate() }, contacts, opportunities, products),
+        );
+        const persistedQuote = toFrontendQuote(savedQuote as Record<string, unknown>);
+        setQuotes((current) => current.map((quote) => (
+          quote.id === quoteId || quote.backendId === backendId ? persistedQuote : quote
+        )));
+        setSyncIssue(null);
+        return persistedQuote;
+      } catch (error) {
+        handleSyncFailure('update quote', error);
+        throw error;
+      }
+    },
     deleteQuote: async (quoteId) => {
       const currentQuote = quotes.find((quote) => quote.id === quoteId);
       if (!currentQuote) {
@@ -573,10 +606,20 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
 
       try {
         await salesApi.delete('quotes', backendId);
+        deletedQuoteBackendIds.current.add(backendId);
         setQuotes((current) => current.filter((quote) => (
           quote.id !== quoteId && quote.backendId !== backendId
         )));
+        setSyncIssue(null);
       } catch (error) {
+        if (error instanceof ApiClientError && error.status === 404) {
+          deletedQuoteBackendIds.current.add(backendId);
+          setQuotes((current) => current.filter((quote) => (
+            quote.id !== quoteId && quote.backendId !== backendId
+          )));
+          setSyncIssue(null);
+          return;
+        }
         handleSyncFailure('delete quote', error);
         throw error;
       }
@@ -739,6 +782,45 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
           .catch((error) => handleSyncFailure('connect quote to opportunity', error));
       } else if (currentQuote) {
         handleSyncFailure('connect quote to opportunity', new Error('Missing backend identifier.'));
+      }
+    },
+    connectQuoteRecord: async (quoteId, connection: QuoteConnectionInput) => {
+      const currentQuote = quotes.find((quote) => quote.id === quoteId);
+      if (!currentQuote) throw new Error('Quote not found.');
+      const quoteBackendId = backendIdFrom(currentQuote);
+      if (quoteBackendId === undefined) throw new Error('Missing backend identifier.');
+
+      let payload: Parameters<typeof salesApi.connectQuote>[1];
+      if (connection.mode === 'existing_opportunity') {
+        const opportunity = opportunities.find((item) => item.id === connection.opportunityId);
+        const opportunityBackendId = backendIdFrom(opportunity);
+        if (opportunityBackendId === undefined) throw new Error('Missing opportunity backend identifier.');
+        payload = { mode: connection.mode, opportunityId: opportunityBackendId };
+      } else {
+        payload = connection;
+      }
+
+      try {
+        const savedQuote = await salesApi.connectQuote(quoteBackendId, payload);
+        const persistedQuote = toFrontendQuote(savedQuote as Record<string, unknown>);
+        setQuotes((current) => current.map((quote) => (
+          quote.id === quoteId || quote.backendId === quoteBackendId ? persistedQuote : quote
+        )));
+        let opportunityRefreshFailed = false;
+        if (connection.mode === 'create_opportunity') {
+          try {
+            const response = await salesApi.list('opportunities');
+            setOpportunities(response.items.map(toFrontendOpportunity));
+          } catch (error) {
+            opportunityRefreshFailed = true;
+            handleSyncFailure('reload opportunities after quote connection', error);
+          }
+        }
+        if (!opportunityRefreshFailed) setSyncIssue(null);
+        return persistedQuote;
+      } catch (error) {
+        handleSyncFailure('connect quote to opportunity', error);
+        throw error;
       }
     },
     updatePostSaleCaseStatus: (caseId, status) => {

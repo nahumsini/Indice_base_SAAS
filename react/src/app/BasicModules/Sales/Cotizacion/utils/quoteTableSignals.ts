@@ -68,6 +68,7 @@ function buildHealthForm(quote: SalesQuote, contact?: SalesContact | null): Quot
     customJurisdictionName: '',
     customTaxLabel: '',
     customTaxRate: '0',
+    warehouseId: quote.items.find((item) => item.warehouseId)?.warehouseId ?? '',
     notes: quote.notes,
     terms: quote.terms,
   };

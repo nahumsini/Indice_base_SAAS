@@ -1062,39 +1062,6 @@ export default function BusinessStructure() {
     }
   };
 
-  const applyDeleteUnidad = (unidadId: string, replacementCorporateUnitId?: string) => {
-    setUnidades((prevUnidades) => {
-      const deletedUnidad = prevUnidades.find((unidad) => unidad.id === unidadId);
-      const remainingUnidades = prevUnidades.filter((unidad) => unidad.id !== unidadId);
-
-      if (deletedUnidad?.isCorporateOffice && replacementCorporateUnitId) {
-        return remainingUnidades.map((unidad) => ({
-          ...unidad,
-          isCorporateOffice: unidad.id === replacementCorporateUnitId,
-        }));
-      }
-
-      if (deletedUnidad?.isCorporateOffice) {
-        return normalizeCorporateOfficeUnits(remainingUnidades);
-      }
-
-      return normalizeCorporateOfficeUnits(remainingUnidades);
-    });
-  };
-
-  const applyDeleteNegocio = (unidadId: string, negocioId: string) => {
-    setUnidades((prevUnidades) =>
-      prevUnidades.map((unidad) =>
-        unidad.id === unidadId
-          ? {
-              ...unidad,
-              negocios: unidad.negocios.filter((negocio) => negocio.id !== negocioId),
-            }
-          : unidad,
-      ),
-    );
-  };
-
   const handleRequestDeleteUnidad = (unidadId: string) => {
     if (!canEditStructure) {
       return;
@@ -1136,18 +1103,36 @@ export default function BusinessStructure() {
     setPendingDeleteTarget(null);
   };
 
-  const handleConfirmDelete = () => {
-    if (!canEditStructure || !pendingDeleteTarget) {
+  const handleConfirmDelete = async () => {
+    if (!canEditStructure || !pendingDeleteTarget || isSaving) {
       return;
     }
 
-    if (pendingDeleteTarget.type === 'unit') {
-      applyDeleteUnidad(pendingDeleteTarget.unidadId);
-    } else {
-      applyDeleteNegocio(pendingDeleteTarget.unidadId, pendingDeleteTarget.negocioId);
-    }
+    const nextUnidades = pendingDeleteTarget.type === 'unit'
+      ? normalizeCorporateOfficeUnits(unidades.filter((unidad) => unidad.id !== pendingDeleteTarget.unidadId))
+      : unidades.map((unidad) => unidad.id === pendingDeleteTarget.unidadId
+        ? {
+            ...unidad,
+            negocios: unidad.negocios.filter((negocio) => negocio.id !== pendingDeleteTarget.negocioId),
+          }
+        : unidad);
 
-    setPendingDeleteTarget(null);
+    setIsSaving(true);
+    setLoadError('');
+    try {
+      const { response, normalizedUnidades } = await persistStructureConfig(estructuraType, nextUnidades);
+      const savedUnidades = mapConfigUnitsToState(response.map);
+      const committedUnidades = savedUnidades.length > 0 ? savedUnidades : normalizedUnidades;
+      setUnidades(committedUnidades);
+      syncSavedStructure(estructuraType, committedUnidades);
+      setPendingDeleteTarget(null);
+      failedAutoSaveKeyRef.current = '';
+      showSuccessToast(structure.messages.saveSuccess);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : structure.messages.saveError);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSaveUnidad = (event: FormEvent<HTMLFormElement>) => {
@@ -2119,6 +2104,7 @@ export default function BusinessStructure() {
         itemName={pendingDeleteTarget?.name}
         confirmLabel={structure.modal.delete}
         cancelLabel={structure.modal.cancel}
+        confirmDisabled={isSaving}
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
       />

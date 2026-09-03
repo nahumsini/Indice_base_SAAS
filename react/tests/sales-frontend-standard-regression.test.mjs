@@ -249,9 +249,11 @@ test('Productos elimina en backend con confirmación y comparte una sola prepara
   assert.match(publicCatalogSelectorSource, /readinessReasonLabel\(reason, t\)/);
   assert.match(publicCatalogApiSource, /!getProductSalesReadiness\(product\)\.readyForSales/);
   assert.doesNotMatch(publicCatalogApiSource, /product\?\.backendId \?\? Number\(id\)/);
-  assert.match(quoteCatalogSource, /readinessFilter === 'all'/);
-  assert.doesNotMatch(quoteCatalogSource, /showNotReady|<Switch/);
-  assert.match(quoteCardSource, /disabled=\{!salesReadiness\.readyForSales\}/);
+  assert.doesNotMatch(quoteCatalogSource, /readinessFilter|showNotReady|<Switch/);
+  assert.match(quoteCatalogSource, /selectedWarehouseId/);
+  assert.match(quoteCatalogSource, /distribution.*warehouseId === selectedWarehouseId/);
+  assert.match(quoteCardSource, /disabled=\{!canAdd\}/);
+  assert.match(quoteCardSource, /availableStock\(distribution\.available\)/);
   assert.match(quoteCardSource, /readinessReasons\[reason\]/);
   assert.match(salesLineItemsSource, /getProductSalesReadiness\(product\)\.readyForSales/);
 });
@@ -472,7 +474,12 @@ test('Cotizaciones elimina de forma confirmada y actualiza el pipeline derivado'
   assert.match(pageSource, /await deleteQuote\(quotePendingDeletion\.id\)/);
   assert.match(pageSource, /AlertDialogTitle/);
   assert.match(contextSource, /await salesApi\.delete\('quotes', backendId\)/);
+  assert.match(contextSource, /deletedQuoteBackendIds\.current\.add\(backendId\)/);
+  assert.match(contextSource, /!deletedQuoteBackendIds\.current\.has\(quote\.backendId\)/);
+  assert.match(contextSource, /error instanceof ApiClientError && error\.status === 404/);
   assert.match(contextSource, /setQuotes\(\(current\) => current\.filter/);
+  assert.match(pageSource, /error instanceof ApiClientError && error\.status === 400/);
+  assert.match(pageSource, /t\.deleteDialog\.inUseError/);
 });
 
 test('los KPI de Ventas consolidan oportunidades con las mismas cotizaciones ligadas', () => {

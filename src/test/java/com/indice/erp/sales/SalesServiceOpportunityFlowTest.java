@@ -13,6 +13,7 @@ import com.indice.erp.exchange.BusinessExchangeRateService;
 import com.indice.erp.kpis.currency.KpiCurrencyAggregationService;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -77,5 +78,38 @@ class SalesServiceOpportunityFlowTest {
 
         verify(repository, never()).create(
                 eq(7L), eq(5L), any(SalesEntityDefinition.class), any());
+    }
+
+    @Test
+    void linksApprovedQuoteWithoutClosingTheOpportunity() {
+        var quote = new LinkedHashMap<String, Object>(Map.of(
+                "id", 44L, "status", "approved", "amount", 1250, "currency", "MXN"));
+        when(repository.get(eq(7L), any(SalesEntityDefinition.class), eq(44L))).thenReturn(quote);
+
+        service.connectQuote(7L, 5L, 44L, Map.of(
+                "mode", "existing_opportunity", "opportunityId", 91L));
+
+        verify(repository).linkQuoteToOpportunity(7L, 44L, 91L, "assigned_to_existing_opportunity");
+        verify(opportunityFlowService, never()).closeOpportunityAsWon(7L, 5L, 91L);
+    }
+
+    @Test
+    void closesExistingOpportunityWhenLinkedQuoteIsWon() {
+        var quote = new LinkedHashMap<String, Object>(Map.of(
+                "id", 44L, "status", "closed_won", "amount", 1250, "currency", "MXN"));
+        when(repository.get(eq(7L), any(SalesEntityDefinition.class), eq(44L))).thenReturn(quote);
+        when(opportunityFlowService.closeOpportunityAsWon(7L, 5L, 91L))
+                .thenReturn(new OpportunityFlowService.MoveResult("won", "WON", 100));
+
+        service.connectQuote(7L, 5L, 44L, Map.of(
+                "mode", "existing_opportunity", "opportunityId", 91L));
+
+        verify(repository).linkQuoteToOpportunity(7L, 44L, 91L, "assigned_to_existing_opportunity");
+        verify(repository).update(eq(7L), eq(5L), any(SalesEntityDefinition.class), eq(91L), eq(Map.of(
+                "stage", "won",
+                "lifecycleStatus", "WON",
+                "probabilityPercent", 100,
+                "estimatedValue", 1250,
+                "currency", "MXN")));
     }
 }

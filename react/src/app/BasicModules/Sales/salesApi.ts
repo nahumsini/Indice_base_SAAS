@@ -110,6 +110,11 @@ export type MetaLeadImportResponse = {
   }>;
 };
 
+export type QuoteConnectionRequest =
+  | { mode: 'existing_opportunity'; opportunityId: number }
+  | { mode: 'create_opportunity'; opportunityName: string }
+  | { mode: 'quote_only' };
+
 const buildCollectionPath = (collection: SalesApiCollection, id?: number | string) => (
   `${endpoints.sales.base}/${collection}${id === undefined ? '' : `/${id}`}`
 );
@@ -189,6 +194,12 @@ export const salesApi = {
   ) {
     return apiClient<TItem>(buildCollectionPath(collection, id), {
       method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+  connectQuote<TItem = Record<string, unknown>>(quoteId: number | string, payload: QuoteConnectionRequest) {
+    return apiClient<TItem>(`${buildCollectionPath('quotes', quoteId)}/connection`, {
+      method: 'POST',
       body: JSON.stringify(payload),
     });
   },

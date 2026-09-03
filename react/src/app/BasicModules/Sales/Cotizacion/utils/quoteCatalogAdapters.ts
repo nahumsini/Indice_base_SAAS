@@ -15,7 +15,11 @@ export function getProductCatalogReadiness(product: SalesCatalogItem): QuoteCata
 }
 
 export function productUsesInventory(product: SalesCatalogItem) {
-  return Boolean(product.stockPrepared || product.warehousePrepared);
+  return product.stockPrepared;
+}
+
+export function canAddProductToQuote(product: SalesCatalogItem) {
+  return getProductSalesReadiness(product).reasons.every((reason) => reason === 'MISSING_PRICE');
 }
 
 export function getProductMargin(product: SalesCatalogItem) {

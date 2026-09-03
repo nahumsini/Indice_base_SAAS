@@ -252,6 +252,11 @@ Retention strategy depends on the record class:
 
 Hard deletion is a lifecycle decision, not a generic CRUD endpoint.
 
+Business Structure units and businesses use an inactive lifecycle when removed from the active
+structure. Inactive organizational records are excluded from new-assignment selectors but retain
+their identifiers and labels for related historical records and historical filters. Saving the
+structure, its active map, and lifecycle changes is one transaction.
+
 ## 10. Transactions, Concurrency, And Idempotency
 
 Services/use cases own transaction boundaries. A single transaction must cover the invariant being

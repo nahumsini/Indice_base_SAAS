@@ -354,7 +354,11 @@ public abstract class ConfigCenterBusinessStructureUseCases extends ConfigCenter
                     continue;
                 }
                 deactivateBusinessStructureAttendanceLocation(companyId, business.id());
-                jdbcTemplate.update("DELETE FROM businesses WHERE id = ? AND company_id = ?", business.id(), companyId);
+                jdbcTemplate.update(
+                    "UPDATE businesses SET status = 'inactive' WHERE id = ? AND company_id = ?",
+                    business.id(),
+                    companyId
+                );
             }
         }
 
@@ -363,7 +367,11 @@ public abstract class ConfigCenterBusinessStructureUseCases extends ConfigCenter
                 if (isHeadquartersName(unit.name())) {
                     continue;
                 }
-                jdbcTemplate.update("DELETE FROM units WHERE id = ? AND company_id = ?", unit.id(), companyId);
+                jdbcTemplate.update(
+                    "UPDATE units SET status = 'inactive' WHERE id = ? AND company_id = ?",
+                    unit.id(),
+                    companyId
+                );
             }
         }
     }

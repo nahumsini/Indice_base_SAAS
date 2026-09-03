@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
+  clearBrowserLocalStorage,
   expireCachedAuthSession,
   getAuthorizationRevision,
   getCachedAuthSession,
@@ -54,6 +55,8 @@ test('an expired authenticated session clears all cached credentials and notifie
     configurable: true,
     value: {
       localStorage: {
+        getItem: () => null,
+        setItem: () => undefined,
         clear: () => {
           localStorageClears += 1;
         },
@@ -84,6 +87,33 @@ test('an expired authenticated session clears all cached credentials and notifie
         value: previousWindow,
       });
     }
+  }
+});
+
+test('session cleanup preserves the global language preference while removing tenant data', () => {
+  const previousWindow = globalThis.window;
+  const values = new Map([
+    ['frontend-indice-language', 'es-MX'],
+    ['tenant-sensitive-cache', 'private'],
+  ]);
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: {
+      localStorage: {
+        getItem: (key) => values.get(key) ?? null,
+        setItem: (key, value) => values.set(key, value),
+        clear: () => values.clear(),
+      },
+    },
+  });
+
+  try {
+    clearBrowserLocalStorage();
+    assert.equal(values.get('frontend-indice-language'), 'es-MX');
+    assert.equal(values.has('tenant-sensitive-cache'), false);
+  } finally {
+    if (previousWindow === undefined) delete globalThis.window;
+    else Object.defineProperty(globalThis, 'window', { configurable: true, value: previousWindow });
   }
 });
 

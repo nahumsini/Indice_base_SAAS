@@ -6,5 +6,6 @@ export type { Module } from './FavoritesContext';
 export { 
   LanguageProvider, 
   useLanguage, 
-  languages 
+  languages,
+  getStoredLanguagePreference,
 } from '../../context/LanguageContext';

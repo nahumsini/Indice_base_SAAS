@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { CreateContactInput, SalesCatalogItem, SalesContact, SalesOpportunity, SalesQuoteItem } from '../../../types';
 import type { SalesRecordsTranslations } from '../../../Sales/translations';
 import type { QuotesTranslations } from '../../translations';
+import type { InventoryStockRow, InventoryWarehouse } from '../../../Inventory/types/inventoryTypes';
 import type { QuoteFormState, QuoteHealthState, QuoteTotals } from '../../types/quoteBuilderTypes';
 import { QuoteCatalogSection } from './QuoteCatalogSection';
 import { QuoteConditionsSection } from './QuoteConditionsSection';
@@ -35,6 +36,8 @@ export function QuoteBuilderTabs({
   onAddProduct,
   onUpdateItem,
   onRemoveItem,
+  warehouses,
+  stockRows,
 }: {
   activeStep: QuoteBuilderStepId;
   form: QuoteFormState;
@@ -57,6 +60,8 @@ export function QuoteBuilderTabs({
   onAddProduct: (product: SalesCatalogItem) => void;
   onUpdateItem: (itemId: string, patch: Partial<SalesQuoteItem>) => void;
   onRemoveItem: (itemId: string) => void;
+  warehouses: InventoryWarehouse[];
+  stockRows: InventoryStockRow[];
 }) {
   return (
     <div className="min-h-0">
@@ -83,6 +88,10 @@ export function QuoteBuilderTabs({
           t={t}
           formatCurrency={formatCurrency}
           onAddProduct={onAddProduct}
+          warehouses={warehouses}
+          stockRows={stockRows}
+          selectedWarehouseId={form.warehouseId}
+          onWarehouseChange={(warehouseId) => onFormChange((current) => ({ ...current, warehouseId }))}
         />
         <div className="mt-4">
           <QuoteLineItemsSection

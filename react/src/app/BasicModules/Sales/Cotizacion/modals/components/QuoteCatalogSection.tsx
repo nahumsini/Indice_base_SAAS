@@ -4,6 +4,7 @@ import { Button } from '../../../../../components/ui/button';
 import { Input } from '../../../../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../../components/ui/select';
 import type { SalesCatalogItem } from '../../../types';
+import type { InventoryStockRow, InventoryWarehouse } from '../../../Inventory/types/inventoryTypes';
 import type { QuotesTranslations } from '../../translations';
 import { getProductSalesReadiness } from '../../../utils/productSalesReadiness';
 import { QuoteCatalogCard } from './QuoteCatalogCard';
@@ -13,13 +14,20 @@ export function QuoteCatalogSection({
   t,
   formatCurrency,
   onAddProduct,
+  warehouses,
+  stockRows,
+  selectedWarehouseId,
+  onWarehouseChange,
 }: {
   products: SalesCatalogItem[];
   t: QuotesTranslations;
   formatCurrency: (value: number, currency?: string | null) => string;
   onAddProduct: (product: SalesCatalogItem) => void;
+  warehouses: InventoryWarehouse[];
+  stockRows: InventoryStockRow[];
+  selectedWarehouseId: string;
+  onWarehouseChange: (warehouseId: string) => void;
 }) {
-  const [readinessFilter, setReadinessFilter] = useState('READY');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
   const [page, setPage] = useState(1);
@@ -28,16 +36,16 @@ export function QuoteCatalogSection({
   const visibleProducts = useMemo(
     () => products.filter((product) => {
       const searchable = `${product.name} ${product.sku} ${product.productCode ?? ''} ${product.category}`.toLowerCase();
-      return (readinessFilter === 'all' || getProductSalesReadiness(product).status === readinessFilter)
+      return getProductSalesReadiness(product).reasons.every((reason) => reason === 'MISSING_PRICE')
         && (category === 'all' || product.category === category)
         && searchable.includes(query.trim().toLowerCase());
     }),
-    [category, products, query, readinessFilter],
+    [category, products, query],
   );
   const pageCount = Math.max(1, Math.ceil(visibleProducts.length / pageSize));
   const safePage = Math.min(page, pageCount);
   const pagedProducts = visibleProducts.slice((safePage - 1) * pageSize, safePage * pageSize);
-  useEffect(() => setPage(1), [category, query, readinessFilter]);
+  useEffect(() => setPage(1), [category, query]);
 
   return (
     <section className="space-y-4">
@@ -49,13 +57,10 @@ export function QuoteCatalogSection({
           </h3>
           <p className="mt-1 text-sm font-normal leading-6 text-slate-500">{t.catalog.description}</p>
         </div>
-        <Select value={readinessFilter} onValueChange={setReadinessFilter}>
-          <SelectTrigger className="min-h-10 w-full bg-white md:w-56"><SelectValue /></SelectTrigger>
+        <Select value={selectedWarehouseId || undefined} onValueChange={onWarehouseChange}>
+          <SelectTrigger className="min-h-10 w-full bg-white md:w-56"><SelectValue placeholder={t.catalog.selectWarehouse} /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">{t.catalog.readinessFilters.all}</SelectItem>
-            <SelectItem value="READY">{t.catalog.readinessFilters.READY}</SelectItem>
-            <SelectItem value="REQUIRES_REVIEW">{t.catalog.readinessFilters.REQUIRES_REVIEW}</SelectItem>
-            <SelectItem value="NOT_READY">{t.catalog.readinessFilters.NOT_READY}</SelectItem>
+            {warehouses.filter((warehouse) => warehouse.status === 'active').map((warehouse) => <SelectItem key={warehouse.id} value={warehouse.id}>{warehouse.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -78,6 +83,8 @@ export function QuoteCatalogSection({
               t={t}
               formatCurrency={formatCurrency}
               onAdd={() => onAddProduct(product)}
+              selectedWarehouseId={selectedWarehouseId}
+              distribution={stockRows.find((row) => row.productId === product.id)?.distributions.find((item) => item.warehouseId === selectedWarehouseId)}
             />
           ))}
         </div>

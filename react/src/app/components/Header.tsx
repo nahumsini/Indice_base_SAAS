@@ -8,9 +8,9 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from './ui/dropdown-menu';
-import { useLanguage, languages } from '../shared/context';
+import { getStoredLanguagePreference, useLanguage, languages } from '../shared/context';
 import { NotificationCenter } from './NotificationCenter';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { authApi, type PublicDemoCompany } from '../api/auth';
 import type { AuthSessionResponse } from '../api/auth.types';
 import { platformAdminApi } from '../api/platformAdmin';
@@ -70,6 +70,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
   const effectiveAuthSession = cachedAuthorizationSession === undefined
     ? authSession
     : cachedAuthorizationSession;
+  const shouldRestoreLanguageFromProfile = useRef(!getStoredLanguagePreference());
 
   useEffect(() => {
     let active = true;
@@ -77,6 +78,14 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
       setCurrentUserName(getProfileDisplayName(user));
       setCurrentUserEmail(user.email || '');
       setCurrentUserAvatarUrl(user.avatar_url || '');
+      if (shouldRestoreLanguageFromProfile.current && !getStoredLanguagePreference()) {
+        const preferredLanguage = languages.find((language) => (
+          language.code === user.preferred_language
+          || (user.preferred_language === 'es-419' && language.code === 'es-MX')
+        ));
+        shouldRestoreLanguageFromProfile.current = false;
+        if (preferredLanguage) setCurrentLanguage(preferredLanguage);
+      }
     };
 
     const handleProfileUpdate = (event: Event) => {
@@ -153,7 +162,7 @@ export function Header({ learningModeActive, onToggleLearningMode, darkMode, onT
       active = false;
       window.removeEventListener(USER_PROFILE_UPDATED_EVENT, handleProfileUpdate);
     };
-  }, []);
+  }, [setCurrentLanguage]);
   
   const getGreeting = () => {
     if (currentHour >= 6 && currentHour < 12) {

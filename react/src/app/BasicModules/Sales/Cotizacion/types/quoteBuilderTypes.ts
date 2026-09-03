@@ -19,6 +19,7 @@ export type QuoteFormState = {
   customJurisdictionName: string;
   customTaxLabel: string;
   customTaxRate: string;
+  warehouseId: string;
   notes: string;
   terms: string;
 };

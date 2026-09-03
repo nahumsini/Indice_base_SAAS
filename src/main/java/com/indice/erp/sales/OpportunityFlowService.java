@@ -192,6 +192,17 @@ class OpportunityFlowService {
     }
 
     @Transactional
+    MoveResult closeOpportunityAsWon(long companyId, long userId, long opportunityId) {
+        ensureFactory(companyId);
+        var flows = repository.listFlows(companyId);
+        var activeFlowId = defaultFlowId(flows);
+        repository.ensurePositionsForFlow(companyId, activeFlowId, userId);
+        var activeWonStage = terminalStage(repository.listActiveStages(companyId, activeFlowId), "WON")
+                .orElseThrow(() -> new IllegalStateException("The active opportunity flow does not contain a won stage."));
+        return moveOpportunity(companyId, userId, opportunityId, activeFlowId, activeWonStage.key());
+    }
+
+    @Transactional
     String requireActiveStage(long companyId, long flowId, String rawStage) {
         ensureFactory(companyId);
         repository.requireFlow(companyId, flowId);

@@ -618,17 +618,35 @@ public class SalesService {
             }
             referenceService.validateEntityPayload(companyId, "quotes", Map.of("opportunityId", opportunityId));
             salesRepository.linkQuoteToOpportunity(companyId, quoteId, opportunityId, "assigned_to_existing_opportunity");
+            closeLinkedOpportunityWhenQuoteWon(companyId, userId, opportunityId, quote);
             return get(companyId, "quotes", quoteId);
         }
         if ("create_opportunity".equals(mode) || "createOpportunity".equals(mode)) {
             var opportunityPayload = opportunityPayloadFromQuote(quote, payload);
             var opportunity = create(companyId, userId, "opportunities", opportunityPayload);
-            salesRepository.linkQuoteToOpportunity(companyId, quoteId, longId(opportunity), "created_opportunity");
+            var opportunityId = longId(opportunity);
+            salesRepository.linkQuoteToOpportunity(companyId, quoteId, opportunityId, "created_opportunity");
+            closeLinkedOpportunityWhenQuoteWon(companyId, userId, opportunityId, quote);
             return get(companyId, "quotes", quoteId);
         }
 
         salesRepository.linkQuoteToOpportunity(companyId, quoteId, null, "commercial_quote");
         return get(companyId, "quotes", quoteId);
+    }
+
+    private void closeLinkedOpportunityWhenQuoteWon(
+            long companyId, long userId, long opportunityId, Map<String, Object> quote) {
+        var quoteStatus = canonicalProductToken(quote.get("status"));
+        if (!"closed_won".equals(quoteStatus)) {
+            return;
+        }
+        var position = opportunityFlowService.closeOpportunityAsWon(companyId, userId, opportunityId);
+        salesRepository.update(companyId, userId, definition("opportunities"), opportunityId, Map.of(
+                "stage", position.stageKey(),
+                "lifecycleStatus", position.lifecycleStatus(),
+                "probabilityPercent", position.probabilityPercent(),
+                "estimatedValue", quote.get("amount"),
+                "currency", quote.get("currency")));
     }
 
     private SalesEntityDefinition definition(String collection) {

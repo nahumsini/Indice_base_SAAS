@@ -4,8 +4,9 @@ import { Button } from '../../../../../components/ui/button';
 import { cn } from '../../../../../components/ui/utils';
 import { ProductThumbnail } from '../../../Productos/components/ProductThumbnail';
 import type { SalesCatalogItem } from '../../../types';
+import type { InventoryWarehouseDistribution } from '../../../Inventory/types/inventoryTypes';
 import type { QuotesTranslations } from '../../translations';
-import { getProductCatalogReadiness, getProductMargin, productUsesInventory } from '../../utils/quoteCatalogAdapters';
+import { canAddProductToQuote, getProductCatalogReadiness, getProductMargin, productUsesInventory } from '../../utils/quoteCatalogAdapters';
 import { getProductSalesReadiness } from '../../../utils/productSalesReadiness';
 
 const readinessClasses = {
@@ -19,16 +20,21 @@ export function QuoteCatalogCard({
   t,
   formatCurrency,
   onAdd,
+  selectedWarehouseId,
+  distribution,
 }: {
   product: SalesCatalogItem;
   t: QuotesTranslations;
   formatCurrency: (value: number, currency?: string | null) => string;
   onAdd: () => void;
+  selectedWarehouseId: string;
+  distribution?: InventoryWarehouseDistribution;
 }) {
   const readiness = getProductCatalogReadiness(product);
   const margin = getProductMargin(product);
   const usesInventory = productUsesInventory(product);
   const salesReadiness = getProductSalesReadiness(product);
+  const canAdd = canAddProductToQuote(product) && (!usesInventory || Boolean(selectedWarehouseId));
 
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
@@ -40,7 +46,7 @@ export function QuoteCatalogCard({
               <p className="truncate text-sm font-medium text-slate-950">{product.name}</p>
               <p className="mt-1 text-xs font-medium text-slate-500">{product.sku}</p>
             </div>
-            <Button size="sm" disabled={!salesReadiness.readyForSales} className="h-8 rounded-lg bg-[#FF6B5E] px-3 text-[#222831] shadow-sm shadow-[#FF6B5E]/20 hover:bg-[#E85C50] disabled:cursor-not-allowed disabled:opacity-50" onClick={onAdd}>
+            <Button size="sm" disabled={!canAdd} className="h-8 rounded-lg bg-[#FF6B5E] px-3 text-[#222831] shadow-sm shadow-[#FF6B5E]/20 hover:bg-[#E85C50] disabled:cursor-not-allowed disabled:opacity-50" onClick={onAdd}>
               <PackagePlus className="h-3.5 w-3.5" />
               {t.builder.addProduct}
             </Button>
@@ -61,6 +67,9 @@ export function QuoteCatalogCard({
             <Badge className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600">
               {usesInventory ? t.catalog.usesInventory : t.catalog.noInventory}
             </Badge>
+            {usesInventory && selectedWarehouseId ? <Badge className={cn('rounded-full border px-2 py-1 text-xs font-medium', distribution && distribution.available > 0 ? readinessClasses.readyForSales : readinessClasses.requiresReview)}>
+              {distribution ? t.catalog.availableStock(distribution.available) : t.catalog.noStockInWarehouse}
+            </Badge> : null}
           </div>
 
           <div className="mt-3 grid grid-cols-2 gap-2 text-sm">

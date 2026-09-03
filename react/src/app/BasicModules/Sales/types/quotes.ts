@@ -1,6 +1,7 @@
 import type { SalesAvailabilityStatus } from './salesWorkflow';
 
 export type QuoteStatus = 'Draft' | 'Sent' | 'Viewed' | 'Negotiation' | 'Approved' | 'Rejected' | 'Expired' | 'Closed Won';
+export type VisibleQuoteStatus = 'Draft' | 'Sent' | 'Approved' | 'Rejected' | 'Expired';
 
 export type SalesQuoteItem = {
   id: string;
@@ -66,5 +67,11 @@ export type SalesQuote = {
   filesCount?: number;
 };
 
-export const quoteStatuses: QuoteStatus[] = ['Draft', 'Sent', 'Viewed', 'Negotiation', 'Approved', 'Rejected', 'Expired', 'Closed Won'];
+export const quoteStatuses: VisibleQuoteStatus[] = ['Draft', 'Sent', 'Approved', 'Rejected', 'Expired'];
 export const opportunityLinkedQuoteStatuses: QuoteStatus[] = ['Approved', 'Closed Won'];
+
+export function toVisibleQuoteStatus(status: QuoteStatus): VisibleQuoteStatus {
+  if (status === 'Viewed' || status === 'Negotiation') return 'Sent';
+  if (status === 'Closed Won') return 'Approved';
+  return status;
+}

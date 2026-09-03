@@ -24,6 +24,10 @@ export type CreateQuoteInput = Omit<SalesQuote, 'id' | 'quoteNumber' | 'lastUpda
   lastUpdated?: string;
 };
 export type UpdateQuoteInput = Partial<Omit<SalesQuote, 'id' | 'quoteNumber'>>;
+export type QuoteConnectionInput =
+  | { mode: 'existing_opportunity'; opportunityId: string }
+  | { mode: 'create_opportunity'; opportunityName: string }
+  | { mode: 'quote_only' };
 export type CreatePostSaleCaseInput = Omit<SalesPostSaleCase, 'id' | 'lastUpdated'> & { lastUpdated?: string };
 
 export type SalesCrmSyncIssue = {
@@ -63,6 +67,7 @@ export type SalesCrmContextValue = {
   clearSyncIssue: () => void;
   createQuoteRecord: (quote: CreateQuoteInput) => Promise<SalesQuote>;
   updateQuote: (quoteId: string, patch: UpdateQuoteInput) => void;
+  updateQuoteRecord: (quoteId: string, patch: UpdateQuoteInput) => Promise<SalesQuote>;
   deleteQuote: (quoteId: string) => Promise<void>;
   addSaleRecord: (saleRecord: SaleRecord) => Promise<SaleRecord>;
   updateSaleRecord: (saleId: string, patch: Partial<SaleRecord>) => void;
@@ -72,6 +77,7 @@ export type SalesCrmContextValue = {
   updateContract: (contractId: string, patch: UpdateDigitalContractInput) => void;
   updateQuoteStatus: (quoteId: string, status: QuoteStatus) => void;
   connectQuoteToOpportunity: (quoteId: string, opportunityId?: string) => void;
+  connectQuoteRecord: (quoteId: string, connection: QuoteConnectionInput) => Promise<SalesQuote>;
   updatePostSaleCaseStatus: (caseId: string, status: PostSaleStatus) => void;
   updateContractStatus: (contractId: string, status: DigitalContractStatus) => void;
   updateContractSignatureStatus: (contractId: string, signatureStatus: DigitalSignatureStatus) => void;

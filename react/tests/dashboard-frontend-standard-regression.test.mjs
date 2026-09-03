@@ -285,6 +285,14 @@ test('Panel Inicial usa apiClient para todas las APIs protegidas por CSRF', () =
   assert.doesNotMatch(personalPerformanceApiSource, /\bfetch\(/);
 });
 
+test('Estructura Empresarial espera confirmación antes de ocultar unidades o negocios', () => {
+  assert.match(businessStructureSource, /const handleConfirmDelete = async \(\) =>/);
+  assert.match(businessStructureSource, /await persistStructureConfig\(estructuraType, nextUnidades\)/);
+  assert.match(businessStructureSource, /setUnidades\(committedUnidades\)/);
+  assert.match(businessStructureSource, /confirmDisabled=\{isSaving\}/);
+  assert.doesNotMatch(businessStructureSource, /const applyDeleteUnidad/);
+});
+
 test('el dashboard usa el contrato ejecutivo y nunca inventa tendencias', () => {
   assert.match(dashboardLiveKpisSource, /executivePanelApi\.get/);
   assert.match(dashboardLiveKpisSource, /response\.domains\.items/);

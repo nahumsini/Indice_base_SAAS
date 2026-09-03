@@ -273,7 +273,7 @@ const areProfileFormValuesEqual = (
 );
 
 export default function Profile() {
-  const { currentLanguage } = useLanguage();
+  const { currentLanguage, setCurrentLanguage } = useLanguage();
   const profileCopy = useProfileTranslations();
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const avatarPreviewRef = useRef('');
@@ -652,6 +652,8 @@ export default function Profile() {
         replaceAvatarPreview('');
       }
       setSaveMessage(profileCopy.messages.saveSuccess);
+      const savedLanguage = languages.find((language) => language.code === nextValues.preferredLanguage);
+      if (savedLanguage) setCurrentLanguage(savedLanguage);
       window.dispatchEvent(new CustomEvent(USER_PROFILE_UPDATED_EVENT, { detail: { user: response } }));
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : profileCopy.messages.saveError);

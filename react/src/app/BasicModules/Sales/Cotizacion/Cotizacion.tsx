@@ -9,6 +9,7 @@ import {
   Eye,
   FileText,
   Link2,
+  Loader2,
   Paperclip,
   PencilLine,
   Plus,
@@ -66,9 +67,11 @@ import {
 } from '../components/SalesTitleBar';
 import { SalesModalFrame } from '../components/SalesModalFrame';
 import { salesApi } from '../salesApi';
+import { ApiClientError } from '../../../lib/apiClient';
 import {
   opportunityLinkedQuoteStatuses,
   quoteStatuses,
+  toVisibleQuoteStatus,
   salesOwners,
   type QuoteStatus,
   type SalesCatalogItem,
@@ -135,6 +138,9 @@ import {
 } from './utils/quotePageUtils';
 import { getQuoteTableSignals } from './utils/quoteTableSignals';
 import { getDefaultTaxPresetForJurisdiction } from './utils/quoteTaxCatalog';
+import { inventoryApi } from '../Inventory/services/inventoryApi';
+import type { InventoryStockRow, InventoryWarehouse } from '../Inventory/types/inventoryTypes';
+import { productUsesInventory } from './utils/quoteCatalogAdapters';
 
 type QuoteOperationalColumnId =
   | 'number'
@@ -187,11 +193,9 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
     salesRecords,
     createQuoteRecord,
     updateQuote,
+    updateQuoteRecord,
     deleteQuote,
-    addOpportunity,
-    updateOpportunity,
-    updateQuoteStatus,
-    connectQuoteToOpportunity,
+    connectQuoteRecord,
     createContactRecord,
   } = useSalesCrm();
   const salesT = useSalesTranslations();
@@ -210,6 +214,8 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
   const [pendingAssignmentQuote, setPendingAssignmentQuote] = useState<SalesQuote | null>(null);
   const [selectedOpportunityId, setSelectedOpportunityId] = useState('none');
   const [newOpportunityName, setNewOpportunityName] = useState('');
+  const [isSavingAssignment, setIsSavingAssignment] = useState(false);
+  const [assignmentSaveError, setAssignmentSaveError] = useState('');
   const [ownerOptions, setOwnerOptions] = useState<SalesOwnerOption[]>([]);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [contextCurrentUserCompanyId, setContextCurrentUserCompanyId] = useState<number | null>(null);
@@ -250,13 +256,33 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
     customJurisdictionName: '',
     customTaxLabel: '',
     customTaxRate: '0',
+    warehouseId: '',
     notes: '',
     terms: '',
   }));
   const shouldReturnToOpportunities = searchParams.get('returnTo') === 'opportunities';
   const [items, setItems] = useState<SalesQuoteItem[]>([]);
+  const [quoteWarehouses, setQuoteWarehouses] = useState<InventoryWarehouse[]>([]);
+  const [quoteStockRows, setQuoteStockRows] = useState<InventoryStockRow[]>([]);
 
   const quoteTotals = useMemo(() => calculateQuoteBuilderTotals(items, products), [items, products]);
+
+  useEffect(() => {
+    if (!isBuilderOpen) return;
+    let active = true;
+    void inventoryApi.loadWorkspace(products).then((workspace) => {
+      if (!active) return;
+      const activeWarehouses = workspace.warehouses.filter((warehouse) => warehouse.status === 'active');
+      setQuoteWarehouses(activeWarehouses);
+      setQuoteStockRows(workspace.stockRows);
+      setForm((current) => ({ ...current, warehouseId: current.warehouseId || activeWarehouses[0]?.id || '' }));
+    }).catch(() => {
+      if (!active) return;
+      setQuoteWarehouses([]);
+      setQuoteStockRows([]);
+    });
+    return () => { active = false; };
+  }, [isBuilderOpen, products]);
 
   useEffect(() => {
     let isMounted = true;
@@ -354,7 +380,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
       case 'opportunity':
         return quote.opportunityId ? opportunityNameById.get(quote.opportunityId) ?? '' : '';
       case 'status':
-        return t.statusLabels[quote.status] ?? quote.status;
+        return t.statusLabels[toVisibleQuoteStatus(quote.status)] ?? toVisibleQuoteStatus(quote.status);
       case 'amount':
         return quote.total;
       case 'margin':
@@ -481,7 +507,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
     : 0;
   const statusCounts = quoteStatuses.map((status) => ({
     status,
-    count: filteredQuotes.filter((quote) => quote.status === status).length,
+    count: filteredQuotes.filter((quote) => toVisibleQuoteStatus(quote.status) === status).length,
   }));
   const quoteMetrics: OperationalKpiMetric[] = [
     {
@@ -638,6 +664,10 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
       taxJurisdiction: form.taxJurisdiction,
       taxIsCustom: defaultTaxPreset.rateEditable,
       notes: '',
+      warehouseId: productUsesInventory(product) ? form.warehouseId : undefined,
+      availabilityStatus: productUsesInventory(product)
+        ? ((quoteStockRows.find((row) => row.productId === product.id)?.distributions.find((distribution) => distribution.warehouseId === form.warehouseId)?.available ?? 0) >= 1 ? 'available' : 'unavailable')
+        : 'not_required',
     }, products, quoteCurrency, exchangeRateDate);
 
     setItems((current) => [
@@ -657,10 +687,27 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
   };
 
   const updateItem = (itemId: string, patch: Partial<SalesQuoteItem>) => {
-    setItems((current) => current.map((item) => (
-      item.id === itemId ? { ...item, ...patch } : item
-    )));
+    setItems((current) => current.map((item) => {
+      if (item.id !== itemId) return item;
+      const updated = { ...item, ...patch };
+      const product = products.find((candidate) => candidate.id === updated.productId);
+      if (!product || !productUsesInventory(product)) return { ...updated, warehouseId: undefined, availabilityStatus: 'not_required' };
+      const available = quoteStockRows.find((row) => row.productId === product.id)
+        ?.distributions.find((distribution) => distribution.warehouseId === form.warehouseId)?.available ?? 0;
+      return { ...updated, warehouseId: form.warehouseId, availabilityStatus: available >= updated.quantity ? 'available' : 'unavailable' };
+    }));
   };
+
+  useEffect(() => {
+    if (!form.warehouseId) return;
+    setItems((current) => current.map((item) => {
+      const product = products.find((candidate) => candidate.id === item.productId);
+      if (!product || !productUsesInventory(product)) return item;
+      const available = quoteStockRows.find((row) => row.productId === product.id)
+        ?.distributions.find((distribution) => distribution.warehouseId === form.warehouseId)?.available ?? 0;
+      return { ...item, warehouseId: form.warehouseId, availabilityStatus: available >= item.quantity ? 'available' : 'unavailable' };
+    }));
+  }, [form.warehouseId, products, quoteStockRows]);
 
   const removeItem = (itemId: string) => {
     setItems((current) => current.filter((item) => item.id !== itemId));
@@ -683,6 +730,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
       customJurisdictionName: '',
       customTaxLabel: '',
       customTaxRate: '0',
+      warehouseId: '',
       notes: '',
       terms: '',
     });
@@ -721,7 +769,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
       temporaryClient: '',
       contactPerson: '',
       opportunityId: quote.opportunityId ?? 'none',
-      status: quote.status,
+      status: toVisibleQuoteStatus(quote.status),
       createdDate: quote.createdDate,
       expirationDate: quote.expirationDate,
       assignedSellerValue: sellerValue,
@@ -731,6 +779,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
       customJurisdictionName: '',
       customTaxLabel: '',
       customTaxRate: '0',
+      warehouseId: quote.items.find((item) => item.warehouseId)?.warehouseId ?? '',
       notes: quote.notes,
       terms: quote.terms,
     });
@@ -789,11 +838,17 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
     };
 
     if (editingQuote) {
-      updateQuote(editingQuote.id, quotePayload);
-      const updatedQuote = {
-        ...editingQuote,
-        ...quotePayload,
-      };
+      setIsSavingQuote(true);
+      setQuoteSaveError('');
+      let updatedQuote: SalesQuote;
+      try {
+        updatedQuote = await updateQuoteRecord(editingQuote.id, quotePayload);
+      } catch {
+        setQuoteSaveError(t.builder.saveError);
+        return;
+      } finally {
+        setIsSavingQuote(false);
+      }
 
       const requiresAssignment = opportunityLinkedQuoteStatuses.includes(updatedQuote.status);
       if (requiresAssignment) {
@@ -841,15 +896,19 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
     closeQuoteBuilder({ returnToOrigin: !requiresAssignment });
   };
 
-  const handleStatusChange = (quote: SalesQuote, status: QuoteStatus) => {
-    updateQuoteStatus(quote.id, status);
-    const updatedQuote = { ...quote, status };
+  const handleStatusChange = async (quote: SalesQuote, status: QuoteStatus) => {
+    let updatedQuote: SalesQuote;
+    try {
+      updatedQuote = await updateQuoteRecord(quote.id, { status });
+    } catch {
+      return;
+    }
 
     if (opportunityLinkedQuoteStatuses.includes(status)) {
       const matchingOpportunities = getAssignmentOpportunities(updatedQuote);
       setPendingAssignmentQuote(updatedQuote);
-      setSelectedOpportunityId(quote.opportunityId ?? matchingOpportunities[0]?.id ?? 'none');
-      setNewOpportunityName(`${quote.clientName} - ${quote.quoteNumber}`);
+      setSelectedOpportunityId(updatedQuote.opportunityId ?? matchingOpportunities[0]?.id ?? 'none');
+      setNewOpportunityName(`${updatedQuote.clientName} - ${updatedQuote.quoteNumber}`);
     }
   };
 
@@ -863,8 +922,14 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
     try {
       await deleteQuote(quotePendingDeletion.id);
       setQuotePendingDeletion(null);
-    } catch {
-      setQuoteDeletionError(t.deleteDialog.error);
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 400) {
+        setQuoteDeletionError(t.deleteDialog.inUseError);
+      } else if (error instanceof ApiClientError && error.status === 403) {
+        setQuoteDeletionError(t.deleteDialog.permissionError);
+      } else {
+        setQuoteDeletionError(t.deleteDialog.error);
+      }
     } finally {
       setIsDeletingQuote(false);
     }
@@ -874,69 +939,65 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
     setPendingAssignmentQuote(null);
     setSelectedOpportunityId('none');
     setNewOpportunityName('');
+    setAssignmentSaveError('');
     returnToOriginIfNeeded();
   };
 
-  const assignExistingOpportunity = () => {
+  const assignExistingOpportunity = async () => {
     if (!pendingAssignmentQuote || selectedOpportunityId === 'none') {
       return;
     }
 
-    connectQuoteToOpportunity(pendingAssignmentQuote.id, selectedOpportunityId);
-    if (pendingAssignmentQuote.status === 'Closed Won') {
-      updateOpportunity(selectedOpportunityId, {
-        stage: 'Won',
-        status: 'Closed',
-        probability: '100%',
-        estimatedValue: String(pendingAssignmentQuote.total),
-        currency: pendingAssignmentQuote.currency,
-        lastContact: getTodayIsoDate(),
+    setIsSavingAssignment(true);
+    setAssignmentSaveError('');
+    try {
+      await connectQuoteRecord(pendingAssignmentQuote.id, {
+        mode: 'existing_opportunity',
+        opportunityId: selectedOpportunityId,
       });
+      setIsSavingAssignment(false);
+      closeAssignmentModal();
+    } catch {
+      setAssignmentSaveError(t.assignmentModal.saveError);
+      setIsSavingAssignment(false);
     }
-    closeAssignmentModal();
   };
 
-  const createOpportunityFromQuote = () => {
+  const createOpportunityFromQuote = async () => {
     if (!pendingAssignmentQuote || !newOpportunityName.trim()) {
       return;
     }
 
-    const contact = contacts.find((item) => item.id === pendingAssignmentQuote.clientId);
-    const createdOpportunity = addOpportunity({
-      opportunityName: newOpportunityName.trim(),
-      contactId: contact?.id ?? '',
-      company: pendingAssignmentQuote.clientName,
-      contactPerson: pendingAssignmentQuote.contactPerson,
-      phone: contact?.phone ?? '',
-      email: contact?.email ?? '',
-      source: contact?.source ?? 'Manual',
-      stage: 'Won',
-      temperature: 'Hot',
-      ownerUserCompanyId: pendingAssignmentQuote.assignedSellerUserCompanyId ?? null,
-      owner: pendingAssignmentQuote.assignedSeller,
-      estimatedValue: String(pendingAssignmentQuote.total),
-      currency: pendingAssignmentQuote.currency,
-      probability: '100%',
-      expectedCloseDate: pendingAssignmentQuote.expirationDate,
-      nextAction: 'Close deal',
-      nextActionDate: pendingAssignmentQuote.expirationDate,
-      lastContact: getTodayIsoDate(),
-      files: pendingAssignmentQuote.files,
-      status: 'Closed',
-      notes: pendingAssignmentQuote.notes,
-    });
-
-    connectQuoteToOpportunity(pendingAssignmentQuote.id, createdOpportunity.id);
-    closeAssignmentModal();
+    setIsSavingAssignment(true);
+    setAssignmentSaveError('');
+    try {
+      await connectQuoteRecord(pendingAssignmentQuote.id, {
+        mode: 'create_opportunity',
+        opportunityName: newOpportunityName.trim(),
+      });
+      setIsSavingAssignment(false);
+      closeAssignmentModal();
+    } catch {
+      setAssignmentSaveError(t.assignmentModal.saveError);
+      setIsSavingAssignment(false);
+    }
   };
 
-  const keepCommercialQuoteOnly = () => {
+  const keepCommercialQuoteOnly = async () => {
     if (!pendingAssignmentQuote) {
       return;
     }
 
-    connectQuoteToOpportunity(pendingAssignmentQuote.id, undefined);
-    closeAssignmentModal();
+    setIsSavingAssignment(true);
+    setAssignmentSaveError('');
+    try {
+      await connectQuoteRecord(pendingAssignmentQuote.id, { mode: 'quote_only' });
+      setIsSavingAssignment(false);
+      closeAssignmentModal();
+    } catch {
+      setAssignmentSaveError(t.assignmentModal.saveError);
+      setIsSavingAssignment(false);
+    }
   };
 
   const quoteTableColumns: Array<IndiceTableColumnDefinition<QuoteOperationalColumnId>> = quoteTableColumnIds.map((columnId) => ({
@@ -1070,8 +1131,8 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
                       />
                     </TableCell>
                     <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
-                      <Select value={quote.status} onValueChange={(value) => handleStatusChange(quote, value as QuoteStatus)}>
-                          <SelectTrigger className={cn('h-10 w-full min-w-0 max-w-full rounded-full border px-3 text-sm font-medium shadow-none focus-visible:border-[#FF6B5E] focus-visible:ring-[#FF6B5E]/20 [&>span]:truncate', statusClasses[quote.status])}>
+                      <Select value={toVisibleQuoteStatus(quote.status)} onValueChange={(value) => handleStatusChange(quote, value as QuoteStatus)}>
+                          <SelectTrigger className={cn('h-10 w-full min-w-0 max-w-full rounded-full border px-3 text-sm font-medium shadow-none focus-visible:border-[#FF6B5E] focus-visible:ring-[#FF6B5E]/20 [&>span]:truncate', statusClasses[toVisibleQuoteStatus(quote.status)])}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -1224,6 +1285,8 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
         onRemoveItem={removeItem}
         onSubmit={() => { void handleSaveQuote(); }}
         onSubmitAndPrint={() => { void handleSaveQuote({ printAfterSave: true }); }}
+        warehouses={quoteWarehouses}
+        stockRows={quoteStockRows}
       />
 
       <QuotePreviewModal
@@ -1314,7 +1377,7 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
 
       <SalesModalFrame
         open={Boolean(pendingAssignmentQuote)}
-        onOpenChange={(open) => !open && closeAssignmentModal()}
+        onOpenChange={(open) => !open && !isSavingAssignment && closeAssignmentModal()}
         closeLabel={t.common.cancel}
         title={t.assignmentModal.title}
         description={t.assignmentModal.description}
@@ -1326,6 +1389,11 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
           <Button variant="outline" className={quoteModalActionClassNames.secondary} onClick={closeAssignmentModal}>{t.common.cancel}</Button>
         )}
       >
+            {assignmentSaveError ? (
+              <div className="lg:col-span-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700" role="alert">
+                {assignmentSaveError}
+              </div>
+            ) : null}
             <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
               <h3 className="font-medium text-slate-950">{t.assignmentModal.existingTitle}</h3>
               <p className="mt-2 min-h-[56px] text-sm font-medium leading-6 text-slate-500">{t.assignmentModal.existingDescription}</p>
@@ -1341,8 +1409,8 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
                   ]}
                 />
               </div>
-              <Button className="mt-4 h-11 w-full rounded-lg bg-[#FF6B5E] font-medium text-[#222831] hover:bg-[#E85C50]" onClick={assignExistingOpportunity}>
-                <Link2 className="h-4 w-4" />
+              <Button disabled={isSavingAssignment || selectedOpportunityId === 'none'} className="mt-4 h-11 w-full rounded-lg bg-[#FF6B5E] font-medium text-[#222831] hover:bg-[#E85C50]" onClick={assignExistingOpportunity}>
+                {isSavingAssignment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
                 {t.assignmentModal.assign}
               </Button>
             </div>
@@ -1354,8 +1422,8 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
                 <label className="text-sm font-medium text-slate-700">{t.assignmentModal.opportunityName}</label>
                 <Input className={cn('h-11 rounded-lg px-4 font-medium', coralFieldClassName)} value={newOpportunityName} onChange={(event) => setNewOpportunityName(event.target.value)} placeholder={t.assignmentModal.opportunityNamePlaceholder} />
               </div>
-              <Button className="mt-4 h-11 w-full rounded-lg bg-[#FF6B5E] font-medium text-[#222831] hover:bg-[#E8564B]" onClick={createOpportunityFromQuote}>
-                <Plus className="h-4 w-4" />
+              <Button disabled={isSavingAssignment || !newOpportunityName.trim()} className="mt-4 h-11 w-full rounded-lg bg-[#FF6B5E] font-medium text-[#222831] hover:bg-[#E8564B]" onClick={createOpportunityFromQuote}>
+                {isSavingAssignment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 {t.assignmentModal.createOpportunity}
               </Button>
             </div>
@@ -1363,8 +1431,8 @@ export default function Cotizacion({ learningModeActive = false }: CotizacionPro
             <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
               <h3 className="font-medium text-slate-950">{t.assignmentModal.keepTitle}</h3>
               <p className="mt-2 min-h-[56px] text-sm font-medium leading-6 text-slate-500">{t.assignmentModal.keepDescription}</p>
-              <Button variant="outline" className="mt-4 h-11 w-full rounded-lg border-slate-200 bg-white font-medium text-slate-800 hover:bg-slate-50" onClick={keepCommercialQuoteOnly}>
-                <FileText className="h-4 w-4" />
+              <Button disabled={isSavingAssignment} variant="outline" className="mt-4 h-11 w-full rounded-lg border-slate-200 bg-white font-medium text-slate-800 hover:bg-slate-50" onClick={keepCommercialQuoteOnly}>
+                {isSavingAssignment ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                 {t.assignmentModal.keepQuote}
               </Button>
             </div>

@@ -12,6 +12,7 @@ import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ConfigCenterService extends ConfigCenterBusinessStructureUseCases {
@@ -45,6 +46,7 @@ public class ConfigCenterService extends ConfigCenterBusinessStructureUseCases {
         return config;
     }
 
+    @Transactional
     public Map<String, Object> saveStructure(AuthSessionUser currentUser, Map<String, Object> payload) {
         var scope = scopeAccess.resolve(currentUser);
         if (!scope.isCorporateOffice()) {

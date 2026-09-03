@@ -72,7 +72,11 @@ export const clearBrowserLocalStorage = () => {
   }
 
   try {
+    const preservedPreferences = ['frontend-indice-language']
+      .map((key) => [key, window.localStorage.getItem(key)] as const)
+      .filter((entry): entry is readonly [string, string] => entry[1] !== null);
     window.localStorage.clear();
+    preservedPreferences.forEach(([key, value]) => window.localStorage.setItem(key, value));
   } catch {
     // Storage can be unavailable in private browsing or restricted webviews.
   }

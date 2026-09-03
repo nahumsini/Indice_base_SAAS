@@ -9,9 +9,11 @@ import { SalesModalFrame } from '../../components/SalesModalFrame';
 import { getSalesModalActionClassNames } from '../../salesModalStyles';
 import type { QuotesTranslations } from '../translations';
 import type { QuoteFormState, QuoteTotals } from '../types/quoteBuilderTypes';
+import type { InventoryStockRow, InventoryWarehouse } from '../../Inventory/types/inventoryTypes';
 import { getQuoteHealthState } from '../utils/quoteReadiness';
 import { SalesDocumentWizard } from '../../components/SalesDocumentWizard';
 import { QuoteBuilderTabs, quoteBuilderStepIds, type QuoteBuilderStepId } from './components/QuoteBuilderTabs';
+import { productUsesInventory } from '../utils/quoteCatalogAdapters';
 
 const quoteBuilderActionClassNames = getSalesModalActionClassNames('coral');
 
@@ -43,6 +45,8 @@ export function QuoteBuilderModal({
   onRemoveItem,
   onSubmit,
   onSubmitAndPrint,
+  warehouses,
+  stockRows,
 }: {
   open: boolean;
   isEditMode: boolean;
@@ -71,6 +75,8 @@ export function QuoteBuilderModal({
   onRemoveItem: (itemId: string) => void;
   onSubmit: () => void;
   onSubmitAndPrint: () => void;
+  warehouses: InventoryWarehouse[];
+  stockRows: InventoryStockRow[];
 }) {
   const [activeStep, setActiveStep] = useState<QuoteBuilderStepId>('customer');
   const [stepError, setStepError] = useState('');
@@ -108,6 +114,13 @@ export function QuoteBuilderModal({
     }
     if (activeStep === 'items' && items.length === 0) {
       setStepError(t.health.labels.missingItems);
+      return;
+    }
+    if (activeStep === 'items' && !form.warehouseId && items.some((item) => {
+      const product = products.find((candidate) => candidate.id === item.productId);
+      return product ? productUsesInventory(product) : false;
+    })) {
+      setStepError(t.catalog.selectWarehouse);
       return;
     }
     if (activeStep === 'conditions' && !form.expirationDate) {
@@ -189,6 +202,8 @@ export function QuoteBuilderModal({
               onAddProduct={onAddProduct}
               onUpdateItem={onUpdateItem}
               onRemoveItem={onRemoveItem}
+              warehouses={warehouses}
+              stockRows={stockRows}
             />
         </SalesDocumentWizard>
     </SalesModalFrame>

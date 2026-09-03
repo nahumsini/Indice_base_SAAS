@@ -14,6 +14,8 @@ import static org.mockito.Mockito.when;
 
 import com.indice.erp.auth.AuthSessionUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.indice.erp.configcenter.support.ExistingBusiness;
+import com.indice.erp.configcenter.support.ExistingUnit;
 import com.indice.erp.storage.DisabledObjectStorageService;
 import com.indice.erp.storage.ObjectStorageProperties;
 import java.sql.ResultSet;
@@ -445,6 +447,59 @@ class ConfigCenterServiceTest {
         var serializedSettings = settingsCaptor.getValue();
         org.junit.jupiter.api.Assertions.assertTrue(serializedSettings.contains("\"estructura\":\"multi\""));
         org.junit.jupiter.api.Assertions.assertTrue(serializedSettings.contains("\"map\":[]"));
+    }
+
+    @Test
+    void saveStructureDeactivatesRemovedOrganizationWithoutBreakingHistory() {
+        var service = newService();
+
+        when(jdbcTemplate.query(
+            eq("""
+                SELECT id, name
+                FROM units
+                WHERE company_id = ?
+                ORDER BY id ASC
+                """),
+            org.mockito.ArgumentMatchers.<RowMapper<ExistingUnit>>any(),
+            eq(1L)
+        )).thenReturn(List.of(new ExistingUnit(10L, "Example unit")));
+        when(jdbcTemplate.query(
+            eq("""
+                SELECT id,
+                       unit_id,
+                       name,
+                       latitude,
+                       longitude,
+                       radius_meters,
+                       coordinate_source,
+                       google_maps_url
+                FROM businesses
+                WHERE company_id = ?
+                ORDER BY id ASC
+                """),
+            org.mockito.ArgumentMatchers.<RowMapper<ExistingBusiness>>any(),
+            eq(1L)
+        )).thenReturn(List.of(new ExistingBusiness(20L, 10L, "Example business", null, null, null, "", "")));
+        when(jdbcTemplate.query(
+            eq("SELECT settings_json FROM company_settings WHERE company_id = ? LIMIT 1"),
+            org.mockito.ArgumentMatchers.<RowMapper<String>>any(),
+            eq(1L)
+        )).thenReturn(List.of("{}"));
+        when(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM hr_users WHERE company_id = ?", Integer.class, 1L))
+            .thenReturn(0);
+
+        service.saveStructure(1L, 1L, Map.of("estructura", "multi", "map", List.of()));
+
+        verify(jdbcTemplate).update(
+            "UPDATE businesses SET status = 'inactive' WHERE id = ? AND company_id = ?",
+            20L,
+            1L
+        );
+        verify(jdbcTemplate).update(
+            "UPDATE units SET status = 'inactive' WHERE id = ? AND company_id = ?",
+            10L,
+            1L
+        );
     }
 
     @Test

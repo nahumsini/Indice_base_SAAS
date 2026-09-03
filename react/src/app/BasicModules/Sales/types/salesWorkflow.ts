@@ -1,4 +1,4 @@
-export type SalesAvailabilityStatus = 'available' | 'partial' | 'unavailable' | 'pending_validation';
+export type SalesAvailabilityStatus = 'available' | 'partial' | 'unavailable' | 'pending_validation' | 'not_required';
 
 export type SalesWorkflowQuoteLine = {
   productId: string;

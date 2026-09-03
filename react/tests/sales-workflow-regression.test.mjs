@@ -197,6 +197,32 @@ test('el folio de una cotización nueva lo genera el backend y el wizard espera 
   assert.match(modal, /disabled=\{isSaving\}/);
 });
 
+test('la relación cotización-oportunidad usa el contrato transaccional y espera confirmación', () => {
+  const api = read('src/app/BasicModules/Sales/salesApi.ts');
+  const context = read('src/app/BasicModules/Sales/salesCrmContext.tsx');
+  const page = read('src/app/BasicModules/Sales/Cotizacion/Cotizacion.tsx');
+
+  assert.match(api, /connectQuote<TItem[\s\S]*\/connection/);
+  assert.match(context, /connectQuoteRecord: async/);
+  assert.match(page, /await connectQuoteRecord\(pendingAssignmentQuote\.id/);
+  assert.match(page, /updatedQuote = await updateQuoteRecord\(quote\.id, \{ status \}\)/);
+  assert.match(page, /mode: 'existing_opportunity'/);
+  assert.match(page, /mode: 'create_opportunity'/);
+  assert.match(page, /mode: 'quote_only'/);
+  assert.doesNotMatch(page, /const createdOpportunity = addOpportunity/);
+  assert.match(page, /disabled=\{isSavingAssignment/);
+});
+
+test('la cotización expone un flujo corto y conserva compatibilidad con estados históricos', () => {
+  const statuses = read('src/app/BasicModules/Sales/types/quotes.ts');
+  const visibleStatuses = statuses.match(/quoteStatuses:[^=]*= \[([^\]]+)\]/)?.[1] ?? '';
+
+  assert.match(visibleStatuses, /'Draft'.*'Sent'.*'Approved'.*'Rejected'.*'Expired'/);
+  assert.doesNotMatch(visibleStatuses, /'Viewed'|'Negotiation'|'Closed Won'/);
+  assert.match(statuses, /status === 'Viewed' \|\| status === 'Negotiation'\) return 'Sent'/);
+  assert.match(statuses, /status === 'Closed Won'\) return 'Approved'/);
+});
+
 test('ventas reutiliza las cuentas de pago de Expenses con permiso compartido', () => {
   const field = read('src/app/BasicModules/Sales/Sales/components/SalesPaymentAccountField.tsx');
   const module = read('src/app/BasicModules/Sales/Ventas.tsx');

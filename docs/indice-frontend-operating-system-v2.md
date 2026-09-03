@@ -237,6 +237,34 @@ Expenses owns:
 
 Do not duplicate product, inventory, provider, or purchase-order interfaces inside Sales or POS if Inventory owns them.
 
+### Quote inventory context
+
+The Sales quote builder keeps inventory context inside its existing `Modal Wizard Índice`; it does
+not introduce a nested inventory modal or a separate readiness workflow. In the item-selection
+step:
+
+- commercially usable products are shown without an abstract `requires review` filter;
+- an active warehouse can be selected as the availability context;
+- products configured without inventory tracking remain selectable without stock restrictions;
+- inventory-tracked products display availability for the selected warehouse and keep that
+  warehouse snapshot on the quote line;
+- a quote does not deduct or reserve stock; availability is revalidated by the sale workflow before
+  inventory is committed;
+- missing price and blocking product states use actionable copy instead of implying an unowned
+  approval queue.
+
+### Quote-to-opportunity relationship
+
+- Linking a quote to an existing opportunity, creating an opportunity from a quote, or keeping the
+  quote without an opportunity must use the quote connection API and wait for server confirmation.
+- The relationship dialog remains open and disables duplicate actions while the mutation is in
+  progress; a failed mutation is visible and retryable.
+- Approved commercial quotes create or link an open opportunity. A `closed_won` quote closes the
+  linked opportunity as won in the same backend transaction and synchronizes its terminal flow.
+- The editable quote lifecycle is intentionally short: Draft, Sent, Approved, Rejected, and
+  Expired. Historical Viewed and Negotiation records render as Sent; historical Closed Won records
+  render as Approved. Winning remains an opportunity/sale outcome, not an extra quote decision.
+
 Do not duplicate accounts receivable logic inside Expenses if Receivables owns it.
 
 ---

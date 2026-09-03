@@ -8820,14 +8820,21 @@ const languageStorageKey = 'frontend-indice-language';
 const getLanguageByCode = (code?: string) =>
   languages.find((language) => language.code === code);
 
+export const getStoredLanguagePreference = () => {
+  if (typeof window === 'undefined') return undefined;
+  try {
+    return getLanguageByCode(window.localStorage.getItem(languageStorageKey) ?? undefined);
+  } catch {
+    return undefined;
+  }
+};
+
 const getInitialLanguage = () => {
   if (typeof window !== 'undefined') {
-    const storedLanguageCode = window.localStorage.getItem(languageStorageKey);
-    const storedLanguage = getLanguageByCode(storedLanguageCode ?? undefined);
-
-    if (storedLanguage) {
-      return storedLanguage;
-    }
+    try {
+      const storedLanguage = getStoredLanguagePreference();
+      if (storedLanguage) return storedLanguage;
+    } catch { /* Storage can be unavailable in restricted browser contexts. */ }
   }
 
   return getLanguageByCode(defaultLanguageCode) ?? languages[0];
@@ -8836,15 +8843,22 @@ const getInitialLanguage = () => {
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [currentLanguage, setCurrentLanguage] = useState<Language>(getInitialLanguage);
 
-  React.useEffect(() => {
+  const selectLanguage = React.useCallback((language: Language) => {
+    setCurrentLanguage(language);
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(languageStorageKey, currentLanguage.code);
+      try {
+        window.localStorage.setItem(languageStorageKey, language.code);
+      } catch { /* Keep the in-memory preference when storage is unavailable. */ }
     }
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof document !== 'undefined') document.documentElement.lang = currentLanguage.code;
   }, [currentLanguage]);
 
   const value = {
     currentLanguage,
-    setCurrentLanguage,
+    setCurrentLanguage: selectLanguage,
     t: translations[currentLanguage.code],
   };
 
