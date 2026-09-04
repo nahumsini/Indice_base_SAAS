@@ -1,8 +1,10 @@
+import { useRef } from 'react';
 import { useLanguage } from '../shared/context';
 import { useFavorites } from '../shared/context';
 import { useAccessibleModuleCatalog } from '../hooks/useAccessibleModuleCatalog';
 import { resolvePageId } from '../config/navigation';
 import { Star } from 'lucide-react';
+import { IndiceHorizontalScrollControls } from './ui/horizontal-scroll-controls';
 
 interface FavoritesBarProps {
   onNavigate: (page: string) => void;
@@ -25,6 +27,7 @@ export function FavoritesBar({ onNavigate, currentModule, compact = false }: Fav
   const allModules = useAccessibleModuleCatalog(t);
   const visibleModules: FavoriteBarModule[] = getFavoriteModules(allModules);
   const activeModule = resolvePageId(currentModule) ?? currentModule;
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const handleModuleClick = (module: FavoriteBarModule) => {
     onNavigate(module.route);
@@ -72,46 +75,48 @@ export function FavoritesBar({ onNavigate, currentModule, compact = false }: Fav
 
   return (
     <div className={compact ? 'min-w-0' : 'mb-6'}>
-      <div className={compact ? 'overflow-x-auto py-1' : '-mx-4 overflow-x-auto px-4 py-2 sm:mx-0 sm:px-0'}>
-        <div className={`flex min-w-max items-center ${compact ? 'gap-1.5' : 'gap-2'} sm:min-w-0 sm:flex-wrap`}>
-          {/* Botón Dashboard - Siempre fijo */}
-          <button
-            onClick={() => onNavigate('dashboard')}
-            className={`inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 ${compact ? 'min-h-9 px-2.5 py-1 text-xs sm:text-sm' : 'px-3 py-1.5 text-sm'}`}
-          >
-            <span>🏠</span>
-            <span>Dashboard</span>
-          </button>
+      <div className="relative">
+        <div ref={scrollRef} className={compact ? 'overflow-x-auto py-1 [scrollbar-width:none]' : '-mx-4 overflow-x-auto px-4 py-2 sm:mx-0 sm:px-0'}>
+          <div className={`flex min-w-max items-center ${compact ? 'gap-1.5' : 'gap-2 sm:min-w-0 sm:flex-wrap'}`}>
+            {/* Botón Dashboard - Siempre fijo */}
+            <button
+              onClick={() => onNavigate('dashboard')}
+              className={`inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 ${compact ? 'min-h-9 px-2.5 py-1 text-xs sm:text-sm' : 'px-3 py-1.5 text-sm'}`}
+            >
+              <span>🏠</span>
+              <span>Dashboard</span>
+            </button>
 
-          {compact ? (
-            <div className="ml-0.5 inline-flex min-h-9 items-center gap-1.5 border-l border-slate-200 pl-2.5 text-xs font-medium text-slate-600 dark:border-slate-700 dark:text-slate-300">
-              <Star className="h-4 w-4 fill-amber-400 text-amber-500" aria-hidden="true" />
-              <span className="hidden xl:inline">{t.sections.favorites}</span>
-              <span className="sr-only xl:hidden">{t.sections.favorites}</span>
-            </div>
-          ) : null}
+            {compact ? (
+              <div className="ml-0.5 inline-flex min-h-9 items-center gap-1.5 border-l border-slate-200 pl-2.5 text-xs font-medium text-slate-600 dark:border-slate-700 dark:text-slate-300">
+                <Star className="h-4 w-4 fill-amber-400 text-amber-500" aria-hidden="true" />
+                <span className="hidden xl:inline">{t.sections.favorites}</span>
+                <span className="sr-only xl:hidden">{t.sections.favorites}</span>
+              </div>
+            ) : null}
 
-          {/* Módulos Favoritos */}
-          {visibleModules.map((module) => {
-            const route = resolvePageId(module.route) ?? module.route;
-            const moduleColor = getResolvedModuleColor(module);
-            const isActive = activeModule === route;
-            const baseClasses = getButtonColorClasses(moduleColor);
-            const activeClasses = isActive ? getActiveRingClasses(moduleColor) : '';
+            {/* Módulos Favoritos */}
+            {visibleModules.map((module) => {
+              const route = resolvePageId(module.route) ?? module.route;
+              const moduleColor = getResolvedModuleColor(module);
+              const isActive = activeModule === route;
+              const baseClasses = getButtonColorClasses(moduleColor);
+              const activeClasses = isActive ? getActiveRingClasses(moduleColor) : '';
 
-            return (
-              <button
-                key={module.id}
-                onClick={() => handleModuleClick(module)}
-                className={`inline-flex items-center gap-1.5 border font-medium rounded-lg transition-all ${compact ? 'min-h-9 px-2.5 py-1 text-xs sm:text-sm' : 'px-3 py-1.5 text-sm'} ${baseClasses} ${activeClasses}`}
-              >
-                <span>{module.emoji}</span>
-                <span>{module.title}</span>
-              </button>
-            );
-          })}
-
+              return (
+                <button
+                  key={module.id}
+                  onClick={() => handleModuleClick(module)}
+                  className={`inline-flex items-center gap-1.5 border font-medium rounded-lg transition-all ${compact ? 'min-h-9 px-2.5 py-1 text-xs sm:text-sm' : 'px-3 py-1.5 text-sm'} ${baseClasses} ${activeClasses}`}
+                >
+                  <span>{module.emoji}</span>
+                  <span>{module.title}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
+        <IndiceHorizontalScrollControls scrollRef={scrollRef} />
       </div>
     </div>
   );

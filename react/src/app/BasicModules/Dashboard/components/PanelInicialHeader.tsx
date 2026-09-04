@@ -1,4 +1,6 @@
+import { useRef } from 'react';
 import { FavoritesBar } from '../../../components/FavoritesBar';
+import { IndiceHorizontalScrollControls } from '../../../components/ui/horizontal-scroll-controls';
 
 export interface PanelInicialHeaderTab {
   emoji: string;
@@ -27,6 +29,7 @@ export function PanelInicialHeader({
   title,
 }: PanelInicialHeaderProps) {
   const activeTab = tabs.find((tab) => tab.id === activeTabId);
+  const tabsScrollRef = useRef<HTMLElement>(null);
 
   return (
     <header className="relative z-30 shrink-0 border-b border-[var(--indice-border)] bg-white px-3 py-2 shadow-sm dark:bg-slate-800 sm:px-8">
@@ -77,29 +80,32 @@ export function PanelInicialHeader({
           />
         </div>
 
-        <nav className="mt-1.5 overflow-x-auto" aria-label={navigationLabel}>
-          <div className="flex min-w-max items-center gap-1.5 pb-0.5">
-            {tabs.map((tab) => {
-              const isActive = activeTabId === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  aria-current={isActive ? 'page' : undefined}
-                  className={`flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--indice-blue)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800 sm:text-sm ${
-                    isActive
-                      ? 'border-[var(--indice-blue)] bg-[var(--indice-blue)] text-white shadow-sm'
-                      : 'border-transparent bg-slate-100 text-slate-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-800 dark:hover:bg-blue-900/20 dark:hover:text-blue-200'
-                  }`}
-                  onClick={() => onTabSelect(tab.id)}
-                >
-                  <span aria-hidden="true">{tab.emoji}</span>
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </nav>
+        <div className="relative">
+          <nav className="mt-1.5 overflow-x-auto" ref={tabsScrollRef} aria-label={navigationLabel}>
+            <div className="flex min-w-max items-center gap-1.5 pb-0.5">
+              {tabs.map((tab) => {
+                const isActive = activeTabId === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--indice-blue)] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-800 sm:text-sm ${
+                      isActive
+                        ? 'border-[var(--indice-blue)] bg-[var(--indice-blue)] text-white shadow-sm'
+                        : 'border-transparent bg-slate-100 text-slate-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-800 dark:hover:bg-blue-900/20 dark:hover:text-blue-200'
+                    }`}
+                    onClick={() => onTabSelect(tab.id)}
+                  >
+                    <span aria-hidden="true">{tab.emoji}</span>
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
+          <IndiceHorizontalScrollControls scrollRef={tabsScrollRef} />
+        </div>
       </div>
     </header>
   );

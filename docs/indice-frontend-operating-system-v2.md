@@ -2706,6 +2706,33 @@ Rules:
 - no overlapping controls
 - fixed-format UI elements must have stable dimensions
 
+### 30.1 Discoverable horizontal scrolling
+
+Horizontal overflow must remain usable with a standard mouse that has no
+horizontal wheel or trackpad gesture. Deliberately horizontal desktop surfaces
+must use the shared `IndiceHorizontalScrollControls` when their content can
+overflow, including:
+
+- Dashboard KPI and module carousels
+- compact favorites and module-tab navigation
+- the single viewport owned by the canonical table engine
+- another explicitly horizontal comparison strip that cannot wrap safely
+
+The controls:
+
+- appear only from the tablet/desktop breakpoint and only while content exists
+  beyond the corresponding edge
+- use translucent neutral circular buttons over the local scroll boundary
+- move a useful portion of the current viewport and respect reduced-motion
+  preferences
+- expose localized accessible labels and visible keyboard focus
+- update after scrolling, resizing, column resizing, and dynamic content changes
+- preserve touch, trackpad, Shift-plus-wheel, and native scrollbar behavior
+
+Do not add page-wide horizontal scrolling or controls when wrapping, a responsive
+grid, or a mobile record view communicates the content more clearly. Each arrow
+must control only its nearest horizontal viewport.
+
 ---
 
 ## 31. Dark Mode Standard

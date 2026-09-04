@@ -1,4 +1,4 @@
-import type { ReactNode, Ref } from 'react';
+import { useRef, type ReactNode, type Ref } from 'react';
 import { ChevronDown, MoreHorizontal } from 'lucide-react';
 import { FavoritesBar } from '../FavoritesBar';
 import {
@@ -12,6 +12,7 @@ import { getCachedAuthSession } from '../../api/authSessionStore';
 import { canAccessModuleTab } from '../../access/tabScopeCatalog';
 import { resolvePageId, type PageId } from '../../config/navigation';
 import { useAuthorizationRevision } from '../../hooks/useAuthorizationRevision';
+import { IndiceHorizontalScrollControls } from '../ui/horizontal-scroll-controls';
 
 const MODULE_EMOJI_BY_ROUTE: Record<string, string> = {
   'human-resources': '👥',
@@ -92,6 +93,7 @@ export function IndiceModuleShell<TabId extends string>({
   const activeTabData = [...visibleTabs, ...visibleMoreTabs].find((tab) => tab.id === activeTab);
   const isMoreActive = visibleMoreTabs.some((tab) => tab.id === activeTab);
   const moduleEmoji = MODULE_EMOJI_BY_ROUTE[resolvedPage ?? currentModule] ?? '◈';
+  const tabsScrollRef = useRef<HTMLElement>(null);
 
   return (
     <div
@@ -142,80 +144,83 @@ export function IndiceModuleShell<TabId extends string>({
             </div>
           ) : null}
 
-          <nav aria-label={title} className="mt-1.5 overflow-x-auto [scrollbar-width:none]">
-            <div className="flex min-w-max items-center gap-1.5 pb-0.5">
-              {visibleTabs.map(tab => {
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    aria-current={isActive ? 'page' : undefined}
-                    onClick={() => onTabChange(tab.id)}
-                    className={`flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 sm:text-sm ${
-                      isActive
-                        ? 'border-transparent shadow-md'
-                        : `border-transparent bg-slate-100 text-slate-600 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white ${theme.iconHover}`
-                    }`}
-                    style={isActive ? {
-                      backgroundColor: theme.primary,
-                      color: activeTextColor,
-                      boxShadow: `0 8px 18px -12px ${theme.primary}`,
-                    } : undefined}
-                  >
-                    <span aria-hidden="true" className="text-base leading-none">{tab.icon}</span>
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-              {visibleMoreTabs.length ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+          <div className="relative">
+            <nav ref={tabsScrollRef} aria-label={title} className="mt-1.5 overflow-x-auto [scrollbar-width:none]">
+              <div className="flex min-w-max items-center gap-1.5 pb-0.5">
+                {visibleTabs.map(tab => {
+                  const isActive = activeTab === tab.id;
+                  return (
                     <button
+                      key={tab.id}
                       type="button"
-                      aria-current={isMoreActive ? 'page' : undefined}
+                      aria-current={isActive ? 'page' : undefined}
+                      onClick={() => onTabChange(tab.id)}
                       className={`flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 sm:text-sm ${
-                        isMoreActive
+                        isActive
                           ? 'border-transparent shadow-md'
                           : `border-transparent bg-slate-100 text-slate-600 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white ${theme.iconHover}`
                       }`}
-                      style={isMoreActive ? {
+                      style={isActive ? {
                         backgroundColor: theme.primary,
                         color: activeTextColor,
                         boxShadow: `0 8px 18px -12px ${theme.primary}`,
                       } : undefined}
                     >
-                      <MoreHorizontal aria-hidden="true" className="h-4 w-4" />
-                      <span>{moreLabel}</span>
-                      <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
+                      <span aria-hidden="true" className="text-base leading-none">{tab.icon}</span>
+                      <span>{tab.label}</span>
                     </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-64 rounded-xl p-1.5">
-                    {visibleMoreTabs.map((tab) => {
-                      const isActive = activeTab === tab.id;
-                      return (
-                        <DropdownMenuItem
-                          key={tab.id}
-                          aria-current={isActive ? 'page' : undefined}
-                          className="min-h-10 gap-2.5 rounded-lg px-3"
-                          onSelect={() => onTabChange(tab.id)}
-                        >
-                          <span
-                            aria-hidden="true"
-                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-base"
-                            style={isActive ? { backgroundColor: theme.primary, color: activeTextColor } : undefined}
+                  );
+                })}
+                {visibleMoreTabs.length ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        aria-current={isMoreActive ? 'page' : undefined}
+                        className={`flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 sm:text-sm ${
+                          isMoreActive
+                            ? 'border-transparent shadow-md'
+                            : `border-transparent bg-slate-100 text-slate-600 hover:text-slate-950 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white ${theme.iconHover}`
+                        }`}
+                        style={isMoreActive ? {
+                          backgroundColor: theme.primary,
+                          color: activeTextColor,
+                          boxShadow: `0 8px 18px -12px ${theme.primary}`,
+                        } : undefined}
+                      >
+                        <MoreHorizontal aria-hidden="true" className="h-4 w-4" />
+                        <span>{moreLabel}</span>
+                        <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-64 rounded-xl p-1.5">
+                      {visibleMoreTabs.map((tab) => {
+                        const isActive = activeTab === tab.id;
+                        return (
+                          <DropdownMenuItem
+                            key={tab.id}
+                            aria-current={isActive ? 'page' : undefined}
+                            className="min-h-10 gap-2.5 rounded-lg px-3"
+                            onSelect={() => onTabChange(tab.id)}
                           >
-                            {tab.icon}
-                          </span>
-                          <span className={isActive ? `${theme.text} ${theme.darkText}` : undefined}>{tab.label}</span>
-                        </DropdownMenuItem>
-                      );
-                    })}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : null}
-            </div>
-          </nav>
+                            <span
+                              aria-hidden="true"
+                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-base"
+                              style={isActive ? { backgroundColor: theme.primary, color: activeTextColor } : undefined}
+                            >
+                              {tab.icon}
+                            </span>
+                            <span className={isActive ? `${theme.text} ${theme.darkText}` : undefined}>{tab.label}</span>
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : null}
+              </div>
+            </nav>
+            <IndiceHorizontalScrollControls scrollRef={tabsScrollRef} />
+          </div>
 
         </div>
       </header>

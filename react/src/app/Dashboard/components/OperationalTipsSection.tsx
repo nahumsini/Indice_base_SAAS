@@ -1,4 +1,6 @@
+import { useRef } from 'react';
 import { Card } from '../../components/ui/card';
+import { IndiceHorizontalScrollControls } from '../../components/ui/horizontal-scroll-controls';
 import type { OperationalTipDefinition } from '../operationalTips';
 import type { MainDashboardTranslations } from '../translations';
 import { OperationalTipCard } from './OperationalTipCard';
@@ -9,6 +11,8 @@ interface OperationalTipsSectionProps {
 }
 
 export function OperationalTipsSection({ copy, tips }: OperationalTipsSectionProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
   if (tips.length === 0) {
     return null;
   }
@@ -30,25 +34,28 @@ export function OperationalTipsSection({ copy, tips }: OperationalTipsSectionPro
           </p>
         </div>
 
-        <div className="-mx-1 overflow-x-auto px-1 pb-1 scrollbar-hide">
-          <div className="grid auto-cols-[82%] grid-flow-col gap-3 sm:auto-cols-[minmax(260px,46%)] lg:auto-cols-[minmax(270px,31%)]">
-            {tips.map((tip) => {
-              const item = copy.items[tip.id as keyof typeof copy.items];
+        <div className="relative -mx-1">
+          <div ref={scrollRef} className="overflow-x-auto px-1 pb-1 scrollbar-hide">
+            <div className="grid auto-cols-[82%] grid-flow-col gap-3 sm:auto-cols-[minmax(260px,46%)] lg:auto-cols-[minmax(270px,31%)]">
+              {tips.map((tip) => {
+                const item = copy.items[tip.id as keyof typeof copy.items];
 
-              if (!item) {
-                return null;
-              }
+                if (!item) {
+                  return null;
+                }
 
-              return (
-                <OperationalTipCard
-                  key={tip.id}
-                  tip={tip}
-                  item={item}
-                  categoryLabel={copy.categoryLabels[tip.category]}
-                />
-              );
-            })}
+                return (
+                  <OperationalTipCard
+                    key={tip.id}
+                    tip={tip}
+                    item={item}
+                    categoryLabel={copy.categoryLabels[tip.category]}
+                  />
+                );
+              })}
+            </div>
           </div>
+          <IndiceHorizontalScrollControls scrollRef={scrollRef} />
         </div>
       </Card>
     </section>

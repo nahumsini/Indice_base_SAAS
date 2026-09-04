@@ -1,4 +1,5 @@
-import { ReactNode } from 'react';
+import { ReactNode, useRef } from 'react';
+import { IndiceHorizontalScrollControls } from './ui/horizontal-scroll-controls';
 
 interface ModuleCarouselProps {
   children: ReactNode;
@@ -12,16 +13,20 @@ export function ModuleCarousel({
   singleRow = false,
 }: ModuleCarouselProps) {
   const fluidGap = 'gap-[clamp(1rem,1.7vw,1.75rem)]';
+  const singleRowScrollRef = useRef<HTMLDivElement>(null);
 
   // Single-row mode: horizontal carousel on every viewport.
   if (singleRow) {
     return (
-      <div className="-mx-1 overflow-x-auto px-1 pb-4 scrollbar-hide">
-        <div
-          className={`grid auto-cols-[140px] grid-flow-col justify-start ${fluidGap} snap-x snap-mandatory`}
-        >
-          {children}
+      <div className="relative -mx-1">
+        <div ref={singleRowScrollRef} className="overflow-x-auto px-1 pb-4 scrollbar-hide">
+          <div
+            className={`grid auto-cols-[140px] grid-flow-col justify-start ${fluidGap} snap-x snap-mandatory`}
+          >
+            {children}
+          </div>
         </div>
+        <IndiceHorizontalScrollControls scrollRef={singleRowScrollRef} />
       </div>
     );
   }
