@@ -627,8 +627,11 @@ public class KioskMultiDashboardService {
                 return null;
             }
             var capabilities = adapter.capabilities(definition);
+            // The adapter manifest is the catalog authority. Older operational kiosks may not
+            // have their capability projection materialized yet; that projection is repaired by
+            // the existing session/composition flow. Hiding those rows here made valid Petty
+            // Cash, Payables and POS kiosks disappear from the Multi-kiosk editor.
             var requiredTabs = capabilities.stream()
-                .filter(capability -> registry.capabilityEnabled(definition.id(), capability))
                 .flatMap(capability -> adapter.employeeCapabilityTabPermissionKeys(
                     definition, capability).stream())
                 .collect(Collectors.toCollection(java.util.LinkedHashSet::new));

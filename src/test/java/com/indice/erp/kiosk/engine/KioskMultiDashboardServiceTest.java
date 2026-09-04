@@ -341,14 +341,47 @@ class KioskMultiDashboardServiceTest {
         given(adapter.employeeCapabilityTabPermissionKeys(pettyDefinition, receiptCreate))
             .willReturn(Set.of("petty_cash.cash"));
         given(adapter.capabilities(pettyDefinition)).willReturn(Set.of(receiptCreate));
-        given(registry.capabilityEnabled(27L, receiptCreate)).willReturn(true);
-
         assertThat(service.contextualCatalog(7L))
             .singleElement()
             .satisfies(item -> assertThat(item)
                 .containsEntry("id", 27L)
                 .containsEntry("employee_center_supported", true)
                 .containsEntry("audience_policy", "SCOPED_COMPANY_MEMBERS")
+                .containsEntry("readiness", "AVAILABLE"));
+
+        then(registry).should(never()).synchronizeCapabilities(any(), any());
+    }
+
+    @Test
+    void contextualCatalogDoesNotHideLegacyKioskBeforeCapabilityProjectionIsMaterialized() {
+        var pettyDefinition = new KioskResolvedDefinition(
+            27L, 7L, "PETTY_CASH", "receipt_capture", 41L,
+            "PETTY-01", "Caja principal", KioskDefinitionStatus.ACTIVE,
+            2L, 3L, null, KioskAccessLevel.CONTROLLED,
+            null, "tokenhint", true, 1, 1);
+        var receiptCreate = new KioskCapabilityDescriptor(
+            "petty-cash.receipt.create", 1, "PETTY_CASH",
+            KioskOperationPolicy.DIRECT, KioskAccessLevel.CONTROLLED,
+            true, true);
+        given(employeeAccess.catalog(7L)).willReturn(List.of(Map.of(
+            "id", 27L,
+            "name", "Caja principal",
+            "owner_module", "PETTY_CASH",
+            "kiosk_type", "receipt_capture")));
+        given(registry.requireById(7L, 27L)).willReturn(pettyDefinition);
+        given(featureFlags.adapterEnabled("PETTY_CASH")).willReturn(true);
+        given(moduleAccess.companyCanAccess(7L, "petty_cash")).willReturn(true);
+        given(adapterRegistry.requireAdapter("PETTY_CASH")).willReturn(adapter);
+        given(adapter.supportsEmployeeCenter(pettyDefinition)).willReturn(true);
+        given(adapter.employeeCenterTabPermissionKeys(pettyDefinition))
+            .willReturn(Set.of("petty_cash.cash"));
+        given(adapter.employeeCapabilityTabPermissionKeys(pettyDefinition, receiptCreate))
+            .willReturn(Set.of("petty_cash.cash"));
+        given(adapter.capabilities(pettyDefinition)).willReturn(Set.of(receiptCreate));
+        assertThat(service.contextualCatalog(7L))
+            .singleElement()
+            .satisfies(item -> assertThat(item)
+                .containsEntry("id", 27L)
                 .containsEntry("readiness", "AVAILABLE"));
 
         then(registry).should(never()).synchronizeCapabilities(any(), any());
