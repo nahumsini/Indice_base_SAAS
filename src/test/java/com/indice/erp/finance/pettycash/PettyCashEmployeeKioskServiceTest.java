@@ -20,11 +20,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class PettyCashEmployeeKioskServiceTest {
@@ -222,6 +224,40 @@ class PettyCashEmployeeKioskServiceTest {
         assertThatThrownBy(() -> service.bootstrap(definition(), 501L))
             .isInstanceOf(SecurityException.class)
             .hasMessageContaining("not available");
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void repairsAnActiveLegacyFundTokenBeforePublishingItInTheCatalog() {
+        given(registry.publicTokenRecoverable(7L, 17L)).willReturn(false, true);
+        given(jdbcTemplate.query(
+            contains("SELECT kiosk_public_token"),
+            any(RowMapper.class), any(Object[].class)))
+            .willReturn(List.of("legacy-fund-token"));
+        given(registry.repairLegacyPublicTokenRecoveryMaterial(
+            7L, 17L, "PETTY_CASH", "receipt_capture", 31L, "legacy-fund-token"))
+            .willReturn(true);
+
+        assertThat(service.supports(definition())).isTrue();
+
+        then(registry).should().repairLegacyPublicTokenRecoveryMaterial(
+            7L, 17L, "PETTY_CASH", "receipt_capture", 31L, "legacy-fund-token");
+        then(registry).should(times(2)).publicTokenRecoverable(7L, 17L);
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void legacyRepairFailsClosedWhenTheOwnerFundIsNotActive() {
+        given(registry.publicTokenRecoverable(7L, 17L)).willReturn(false);
+        given(jdbcTemplate.query(
+            contains("SELECT kiosk_public_token"),
+            any(RowMapper.class), any(Object[].class)))
+            .willReturn(List.of());
+
+        assertThat(service.supports(definition())).isFalse();
+
+        then(registry).should(never()).repairLegacyPublicTokenRecoveryMaterial(
+            anyLong(), anyLong(), anyString(), anyString(), anyLong(), anyString());
     }
 
     private KioskResolvedDefinition definition() {

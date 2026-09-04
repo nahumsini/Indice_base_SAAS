@@ -27,12 +27,47 @@ public class PettyCashEmployeeKioskService {
     }
 
     public boolean supports(KioskResolvedDefinition definition) {
-        return definition != null
-            && PettyCashKioskCapabilities.OWNER_MODULE.equals(definition.ownerModule())
-            && PettyCashKioskCapabilities.KIOSK_TYPE.equals(definition.kioskType())
-            && definition.legacyReferenceId() != null
-            && definition.legacyReferenceId() > 0
+        if (definition == null
+                || !PettyCashKioskCapabilities.OWNER_MODULE.equals(definition.ownerModule())
+                || !PettyCashKioskCapabilities.KIOSK_TYPE.equals(definition.kioskType())
+                || definition.legacyReferenceId() == null
+                || definition.legacyReferenceId() <= 0) {
+            return false;
+        }
+        if (registry.publicTokenRecoverable(definition.companyId(), definition.id())) {
+            return true;
+        }
+        return repairLegacyRecoveryMaterial(definition)
             && registry.publicTokenRecoverable(definition.companyId(), definition.id());
+    }
+
+    /**
+     * Older petty-cash kiosks kept their token only in the owner table. Seal that exact token in
+     * the registry after the registry verifies its stored hash; never rotate or accept client
+     * material during catalog discovery.
+     */
+    private boolean repairLegacyRecoveryMaterial(KioskResolvedDefinition definition) {
+        var tokens = jdbcTemplate.query(
+            """
+                SELECT kiosk_public_token
+                FROM finance_petty_cash_funds
+                WHERE id = ? AND company_id = ?
+                  AND deleted_at IS NULL
+                  AND kiosk_enabled = TRUE
+                  AND status <> 'CLOSED'
+                  AND kiosk_public_token IS NOT NULL
+                  AND kiosk_public_token <> ''
+                LIMIT 1
+                """,
+            (rs, rowNum) -> rs.getString("kiosk_public_token"),
+            definition.legacyReferenceId(), definition.companyId()
+        );
+        if (tokens.isEmpty()) {
+            return false;
+        }
+        return registry.repairLegacyPublicTokenRecoveryMaterial(
+            definition.companyId(), definition.id(), definition.ownerModule(),
+            definition.kioskType(), definition.legacyReferenceId(), tokens.getFirst());
     }
 
     /**

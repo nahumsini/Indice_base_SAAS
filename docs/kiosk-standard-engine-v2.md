@@ -1455,7 +1455,7 @@ durante una edición ajena para no destruir configuración en silencio; no se mu
 no autoriza sesiones. Solo las definiciones presentes en el catálogo contextual efectivo pueden
 agregarse por primera vez.
 
-Como compatibilidad puntual, una definición legacy de Asistencia o Cuentas por pagar que conserve su
+Como compatibilidad puntual, una definición legacy de Asistencia, Cuentas por pagar o Caja chica que conserve su
 token en el módulo propietario pero carezca de `protected_public_token` puede completar ese material
 una sola vez. La
 reparación exige coincidencia exacta de compañía, definición, owner, tipo, referencia legacy y hash
