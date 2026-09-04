@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,7 @@ export type IndiceModalTone = IndiceModalFooterTone;
 
 export type IndiceModalFrameProps = {
   bodyClassName?: string;
+  bodyRef?: Ref<HTMLDivElement>;
   busy?: boolean;
   children: ReactNode;
   closeLabel?: string;
@@ -88,6 +89,7 @@ const widthStyles: Record<IndiceModalType, string> = {
 
 export function IndiceModalFrame({
   bodyClassName,
+  bodyRef,
   busy = false,
   children,
   closeLabel,
@@ -156,7 +158,7 @@ export function IndiceModalFrame({
           </div>
         </DialogHeader>
 
-        <div className={cn('min-h-0 flex-1 overflow-y-auto bg-slate-50/80 px-6 py-5 dark:bg-slate-950/70', bodyClassName)}>
+        <div ref={bodyRef} className={cn('min-h-0 flex-1 overflow-y-auto bg-slate-50/80 px-6 py-5 dark:bg-slate-950/70', bodyClassName)}>
           {children}
         </div>
 

@@ -23,6 +23,7 @@ import type {
 } from '../types';
 import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS, useTablePagination } from '../../../../hooks/useTablePagination';
 import { AgendaSortableTableHead, AgendaStaticTableHead } from './AgendaTablePrimitives';
+import { getTaskDisplayStatus } from '../utils/agendaTaskStatus';
 
 const agendaPageSizeOptions = DEFAULT_TABLE_PAGE_SIZE_OPTIONS;
 
@@ -130,6 +131,7 @@ export function AgendaTableView({
           <div className="divide-y divide-slate-100 dark:divide-slate-700">
             {paginatedTasks.map((task) => {
               const selected = rowSelection.isSelected(task.taskId);
+              const displayStatus = getTaskDisplayStatus(task);
 
               return (
                 <article
@@ -154,7 +156,7 @@ export function AgendaTableView({
                           <p className="mt-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">{task.folio}</p>
                         </div>
                         <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-200">
-                          {agendaCopy.statuses[task.status]}
+                          {agendaCopy.statuses[displayStatus]}
                         </span>
                       </div>
                       <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">

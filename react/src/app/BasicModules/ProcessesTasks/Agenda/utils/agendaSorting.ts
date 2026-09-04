@@ -39,6 +39,8 @@ export function getAgendaSortValue(
   switch (columnId) {
     case 'folio':
       return task.folio;
+    case 'reference':
+      return task.processReference ?? '';
     case 'type':
       return copy.taskTypes[task.taskType];
     case 'unit':

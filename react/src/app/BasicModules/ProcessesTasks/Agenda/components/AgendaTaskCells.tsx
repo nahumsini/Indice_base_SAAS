@@ -75,6 +75,8 @@ export function AgendaTaskCell({
   switch (columnId) {
     case 'folio':
       return <div className="w-full whitespace-normal break-words text-sm font-medium text-slate-900 [overflow-wrap:anywhere] dark:text-white">{task.folio}</div>;
+    case 'reference':
+      return <ReadonlyValue muted={!task.processReference}>{task.processReference || copy.common.noRecord}</ReadonlyValue>;
     case 'type':
       return (
         <Badge variant="outline" className="w-full rounded-full border-slate-200 bg-slate-50 px-3 py-1 text-center font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">

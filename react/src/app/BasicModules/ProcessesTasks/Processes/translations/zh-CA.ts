@@ -25,7 +25,7 @@ export const zhCA: ProcessesTranslations = {
   header: {
     emoji: '🔄',
     title: '流程',
-    subtitle: '创建周期性流程，为每位负责人生成真实日程任务。',
+    subtitle: '设计定期或临时流程，为个人或团队生成真实日程任务。',
     actions: {
       table: '表格',
       diagram: '图表',
@@ -103,8 +103,8 @@ export const zhCA: ProcessesTranslations = {
     optionalColumn: '可从表格中隐藏的可选列。',
   },
   table: {
-    loading: '正在加载周期性流程...',
-    empty: '没有符合当前筛选条件的周期性流程。',
+    loading: '正在加载流程...',
+    empty: '没有符合当前筛选条件的流程。',
     progress: '进度',
     status: '状态',
     graceDays: (days: number) => `宽限 ${days} 天`,
@@ -186,11 +186,11 @@ export const zhCA: ProcessesTranslations = {
   },
   form: {
     titles: {
-      create: '创建周期性流程',
-      edit: '编辑周期性流程',
+      create: '创建流程',
+      edit: '编辑流程',
     },
     descriptions: {
-      create: '创建周期性流程，在负责人日程中生成并分配任务。',
+      create: '设计个人或共享流程，并选择定时或按需启动。',
       edit: '更新配置、负责人和频率，不改变模块流程。',
     },
     labels: {
@@ -253,7 +253,7 @@ export const zhCA: ProcessesTranslations = {
   },
   confirmation: {
     deleteTitle: '删除流程',
-    deleteDescription: '这会将流程从活动目录中移除，并取消它生成的打开任务。已完成或已取消的任务会作为历史保留。',
+    deleteDescription: '这会将流程从活动目录中移除。已创建的执行和任务将作为历史保持不变。',
     deleteConfirm: '删除流程',
   },
   describeFrequency: (frequency: ProcessFrequency, recurrence: ProcessRecurrenceConfig) => {

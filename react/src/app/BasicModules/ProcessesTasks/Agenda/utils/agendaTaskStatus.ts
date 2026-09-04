@@ -216,6 +216,15 @@ export function getTaskDisplayStatus(
   referenceDate: string = todayDateKey(),
   range?: AgendaLoadRange,
 ): DisplayTaskStatus {
+  if (
+    task.processRunId != null
+    && task.status === 'pending'
+    && task.startDate
+    && task.startDate > referenceDate
+  ) {
+    return 'waiting';
+  }
+
   const agendaStatus = resolveTaskAgendaStatus(task, { referenceDate, range });
 
   if (agendaStatus) {

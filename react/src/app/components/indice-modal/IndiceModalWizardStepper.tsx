@@ -65,7 +65,7 @@ export function IndiceModalWizardStepper<StepId extends string>({
           const isActive = index === activeIndex;
           const content = (
             <>
-              <span className="flex min-w-0 items-center gap-2">
+              <span className="flex min-w-0 items-center justify-center gap-2 sm:justify-start">
                 <span
                   className={cn(
                     'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-medium transition-colors',
@@ -76,7 +76,7 @@ export function IndiceModalWizardStepper<StepId extends string>({
                 >
                   {isComplete ? <Check className="h-4 w-4" aria-hidden="true" /> : index + 1}
                 </span>
-                <span className={cn('truncate text-sm font-medium', isActive ? 'text-slate-950 dark:text-white' : 'text-slate-500 dark:text-slate-400')}>
+                <span className={cn('hidden truncate text-sm font-medium sm:block', isActive ? 'text-slate-950 dark:text-white' : 'text-slate-500 dark:text-slate-400')}>
                   {step.label}
                 </span>
               </span>

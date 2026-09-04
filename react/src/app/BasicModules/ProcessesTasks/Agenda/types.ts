@@ -3,7 +3,7 @@ import type { TaskStatus } from '../Tasks/tasksApi';
 export type PeriodFilter = 'all' | 'today' | 'tomorrow' | 'yesterday' | 'week' | 'month' | 'custom';
 export type AgendaFocusFilter = 'mine' | 'delegated' | 'team';
 export type AgendaStatus = 'pending' | 'in_progress' | 'paused' | 'completed' | 'overdue' | 'audited';
-export type DisplayTaskStatus = AgendaStatus | Extract<TaskStatus, 'cancelled'>;
+export type DisplayTaskStatus = AgendaStatus | Extract<TaskStatus, 'cancelled'> | 'waiting';
 export type CompoundStatusFilter = 'pending_overdue';
 export type StatusFilter = 'all' | AgendaStatus | CompoundStatusFilter;
 export type OptionFilter = 'all' | string;
@@ -17,6 +17,7 @@ export type AgendaLoadRange = {
 
 export type AgendaColumnId =
   | 'folio'
+  | 'reference'
   | 'type'
   | 'unit'
   | 'business'

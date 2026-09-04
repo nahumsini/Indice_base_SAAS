@@ -69,6 +69,7 @@ export const ptBR: AgendaTranslations = {
   statuses: {
     open: 'Abertas',
     pending: 'Pendente',
+    waiting: 'Em espera',
     pending_overdue: 'Pendentes e vencidas',
     in_progress: 'Em andamento',
     completed: 'Concluída',
@@ -95,6 +96,7 @@ export const ptBR: AgendaTranslations = {
   },
   columns: {
     folio: { label: 'Folio', description: 'Identificador operacional da tarefa.' },
+    reference: { label: 'Referência', description: 'Referência que distingue esta execução do processo.' },
     type: { label: 'Tipo', description: 'Tarefa, tarefa de projeto ou tarefa de processo.' },
     unit: { label: 'Unidade', description: 'Unidade de negócio relacionada.' },
     business: { label: 'Negócio', description: 'Negócio relacionado.' },

@@ -12,6 +12,7 @@ import {
   Copy,
   Eye,
   Gauge,
+  History,
   ListChecks,
   PauseCircle,
   Pencil,
@@ -67,8 +68,16 @@ import {
   normalizeRecurrenceConfig,
 } from './processesData';
 import { dashboardApi, type BackendBusiness, type BackendUnit } from '../../../api/dashboard';
-import { createProcess, deleteProcess, listProcesses, materializeProcess, updateProcess } from './processesApi';
+import {
+  createProcess,
+  deleteProcess,
+  listProcesses,
+  materializeProcess,
+  updateProcess,
+} from './processesApi';
+import { listProcessTaskAssignmentOptions } from '../shared/assignmentCatalogApi';
 import { ProcessFormDialog } from './components/ProcessFormDialog';
+import { ProcessRunsDialog } from './components/ProcessRunsDialog';
 import {
   InlineSelectField,
   InlineTextCell,
@@ -78,7 +87,6 @@ import {
 import { useProcessesTranslations, type ProcessesTranslations } from './translations';
 import { useRowSelection } from '../../shared/operational';
 import { collaboratorCanReceiveAssignment as canCollaboratorReceiveAssignment } from '../shared/assignmentScope';
-import { listProcessTaskAssignmentOptions } from '../shared/assignmentCatalogApi';
 import type {
   Option,
   ProcessBusinessOption,
@@ -478,6 +486,17 @@ function toProcessFormState(record: ProcessRecord): ProcessFormState {
     graceDays: String(record.graceDays ?? 0),
     generationWindowDays: String(record.generationWindowDays ?? 45),
     evidenceRequired: Boolean(record.evidenceRequired),
+    distributionMode: record.distributionMode,
+    activationMode: record.activationMode,
+    organizationMode: record.organizationMode,
+    includeWeekends: record.includeWeekends,
+    coordinatorUserCompanyId: record.coordinatorUserCompanyId ?? null,
+    coordinator: record.coordinator,
+    taskTemplates: record.taskTemplates.map((template) => ({
+      ...template,
+      assigneeUserCompanyIds: [...template.assigneeUserCompanyIds],
+      assignees: template.assignees ? [...template.assignees] : [],
+    })),
   };
 }
 
@@ -558,6 +577,28 @@ function createDefaultProcessFormFromCatalog(
     graceDays: '0',
     generationWindowDays: '45',
     evidenceRequired: false,
+    distributionMode: 'individual',
+    activationMode: 'recurring',
+    organizationMode: 'parallel',
+    includeWeekends: true,
+    coordinatorUserCompanyId: firstCollaborator?.userCompanyId ?? null,
+    coordinator: firstCollaborator?.name ?? fallbackCollaboratorNames[0] ?? '',
+    taskTemplates: [{
+      stage: 1,
+      title: '',
+      description: '',
+      notes: '',
+      priority: 'medium',
+      unitId: defaultUnitId,
+      unitName: firstUnit?.name ?? '',
+      businessId: defaultBusinessId,
+      businessName: firstBusiness?.name ?? '',
+      scheduledOffsetDays: 0,
+      deadlineOffsetDays: 0,
+      evidenceRequired: false,
+      assigneeUserCompanyIds: firstCollaborator ? [firstCollaborator.userCompanyId] : [],
+      assignees: firstCollaborator ? [{ userCompanyId: firstCollaborator.userCompanyId, name: firstCollaborator.name }] : [],
+    }],
   };
 }
 
@@ -635,6 +676,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [isColumnsDialogOpen, setIsColumnsDialogOpen] = useState(false);
   const [processEditorOpen, setProcessEditorOpen] = useState(false);
+  const [runsProcess, setRunsProcess] = useState<ProcessRecord | null>(null);
   const [editorMode, setEditorMode] = useState<'create' | 'edit'>('create');
   const [editingProcessId, setEditingProcessId] = useState<number | null>(null);
   const [confirmation, setConfirmation] = useState<ProcessConfirmation | null>(null);
@@ -1230,6 +1272,11 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
                 responsibleUserCompanyId: collaborator?.userCompanyId ?? null,
                 responsibleUserId: collaborator?.userId ?? null,
                 responsible: collaborator?.name ?? '',
+                taskTemplates: collaborator ? record.taskTemplates.map((task) => ({
+                  ...task,
+                  assigneeUserCompanyIds: [collaborator.userCompanyId],
+                  assignees: [{ userCompanyId: collaborator.userCompanyId, name: collaborator.name }],
+                })) : record.taskTemplates,
               }),
               isActive: record.isActive,
             }),
@@ -1313,6 +1360,21 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
       return;
     }
 
+    const taskTemplates = form.taskTemplates.map((template) => {
+      if (template.businessId == null) {
+        return template;
+      }
+
+      const selectedBusiness = catalogBusinesses.find((business) => business.id === template.businessId);
+      const effectiveUnitId = template.unitId ?? form.unitId ?? null;
+      const businessMatchesUnit = selectedBusiness
+        && (selectedBusiness.unitId == null || effectiveUnitId == null || selectedBusiness.unitId === effectiveUnitId);
+
+      return businessMatchesUnit
+        ? template
+        : { ...template, businessId: null, businessName: '' };
+    });
+
     const normalizedForm: ProcessFormState = {
       unitId: form.unitId ?? null,
       unit: form.unit,
@@ -1333,6 +1395,13 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
       graceDays: form.graceDays,
       generationWindowDays: form.generationWindowDays,
       evidenceRequired: form.evidenceRequired,
+      distributionMode: form.distributionMode,
+      activationMode: form.activationMode,
+      organizationMode: form.organizationMode,
+      includeWeekends: form.includeWeekends,
+      coordinatorUserCompanyId: form.coordinatorUserCompanyId ?? null,
+      coordinator: form.coordinator,
+      taskTemplates,
     };
 
     setIsSubmittingProcess(true);
@@ -1505,6 +1574,15 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
             >
               {record.isActive ? processCopy.statuses.active : processCopy.statuses.paused}
             </span>
+            <span className="ml-2 inline-flex rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-300">
+              {record.distributionMode === 'shared'
+                ? (locale.startsWith('es') ? 'Compartido' : 'Shared')
+                : (locale.startsWith('es') ? 'Individual' : 'Individual')}
+              {' · '}
+              {record.activationMode === 'occasional'
+                ? (locale.startsWith('es') ? 'Ocasional' : 'Occasional')
+                : (locale.startsWith('es') ? 'Regular' : 'Recurring')}
+            </span>
           </div>
         );
       case 'description':
@@ -1547,6 +1625,18 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
       case 'createdAt':
         return <span className="text-sm text-slate-700 dark:text-slate-200">{formatDate(record.createdAt, locale)}</span>;
       case 'frequency':
+        if (record.activationMode === 'occasional') {
+          return (
+            <div className="min-w-[220px] space-y-2">
+              <Badge variant="outline" className="rounded-full border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-300">
+                {locale.startsWith('es') ? 'Activación ocasional' : 'Occasional activation'}
+              </Badge>
+              <p className="px-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                {locale.startsWith('es') ? 'Se inicia desde Agenda.' : 'Started from Agenda.'}
+              </p>
+            </div>
+          );
+        }
         return (
           <div className="min-w-[220px] space-y-2">
             <InlineSelectField
@@ -1650,6 +1740,11 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
                 responsibleUserCompanyId: selectedCollaborator?.userCompanyId ?? null,
                 responsibleUserId: selectedCollaborator?.userId ?? null,
                 responsible: selectedCollaborator?.name ?? '',
+                taskTemplates: selectedCollaborator ? currentRecord.taskTemplates.map((task) => ({
+                  ...task,
+                  assigneeUserCompanyIds: [selectedCollaborator.userCompanyId],
+                  assignees: [{ userCompanyId: selectedCollaborator.userCompanyId, name: selectedCollaborator.name }],
+                })) : currentRecord.taskTemplates,
               }));
             }}
             renderValue={(value) => (
@@ -2186,18 +2281,24 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
                             <Badge variant="outline" className={cn('shrink-0 rounded-full px-2.5 py-1 text-xs font-medium', record.isActive ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300' : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-300')}>{record.isActive ? processCopy.statuses.active : processCopy.statuses.paused}</Badge>
                           </div>
                           <p className="mt-2 line-clamp-2 text-sm leading-5 text-slate-500 dark:text-slate-400">{record.description}</p>
+                          <p className="mt-2 text-xs font-medium text-blue-700 dark:text-blue-300">
+                            {record.distributionMode === 'shared' ? (locale.startsWith('es') ? 'Compartido' : 'Shared') : (locale.startsWith('es') ? 'Individual' : 'Individual')}
+                            {' · '}
+                            {record.activationMode === 'occasional' ? (locale.startsWith('es') ? 'Ocasional' : 'Occasional') : (locale.startsWith('es') ? 'Regular' : 'Recurring')}
+                          </p>
                         </div>
                       </div>
 
                       <div className="mt-4 grid grid-cols-2 gap-2">
-                        <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-medium text-slate-400">{processCopy.columns.frequency.label}</p><p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-200">{processCopy.frequencies[record.frequency]}</p></div>
+                        <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-medium text-slate-400">{processCopy.columns.frequency.label}</p><p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-200">{record.activationMode === 'occasional' ? (locale.startsWith('es') ? 'Ocasional' : 'Occasional') : processCopy.frequencies[record.frequency]}</p></div>
                         <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-medium text-slate-400">{processCopy.columns.responsible.label}</p><p className="mt-1 truncate text-sm font-medium text-slate-700 dark:text-slate-200">{record.responsible || processCopy.common.unassigned}</p></div>
                         <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-medium text-slate-400">{processCopy.columns.nextOccurrence.label}</p><p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-200">{record.nextOccurrenceDate ? formatDate(record.nextOccurrenceDate, locale) : processCopy.common.noDate}</p></div>
                         <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60"><p className="text-[10px] font-medium text-slate-400">{processCopy.columns.tasks.label}</p><p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-200">{record.completedTaskCount}/{record.taskCount} · {clampPercent(record.completionPercent)}%</p></div>
                       </div>
 
                       <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-700">
-                        <ProcessActionButton label={processCopy.actions.runEngine} onClick={() => { void handleMaterialize(record); }} disabled={isRecordPending(record.id)} className="border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" icon={<CalendarPlus className="h-4 w-4" />} />
+                        <ProcessActionButton label={locale.startsWith('es') ? 'Ver ejecuciones' : 'View runs'} onClick={() => setRunsProcess(record)} disabled={isRecordPending(record.id)} className="border-blue-200 bg-blue-50 text-blue-700" icon={<History className="h-4 w-4" />} />
+                        {record.activationMode === 'recurring' ? <ProcessActionButton label={processCopy.actions.runEngine} onClick={() => { void handleMaterialize(record); }} disabled={isRecordPending(record.id)} className="border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" icon={<CalendarPlus className="h-4 w-4" />} /> : null}
                         <ProcessActionButton label={record.isActive ? processCopy.actions.pause : processCopy.actions.activate} onClick={() => { void handleToggleActive(record.id); }} disabled={isRecordPending(record.id)} className={record.isActive ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'} icon={record.isActive ? <PauseCircle className="h-4 w-4" /> : <PlayCircle className="h-4 w-4" />} />
                         <ProcessActionButton label={processCopy.actions.edit} onClick={() => openEditDialog(record)} disabled={isRecordPending(record.id)} className="border-amber-200 bg-amber-50 text-amber-700" icon={<Pencil className="h-4 w-4" />} />
                         <ProcessActionButton label="Imprimir procedimiento / Print procedure" onClick={() => printProcessProcedure(record, processCopy, locale)} disabled={isRecordPending(record.id)} className="border-[#F4C84A]/40 bg-[#F4C84A]/10 text-[#9A6B05]" icon={<Printer className="h-4 w-4" />} />
@@ -2289,6 +2390,13 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
                 <TableCell className="px-4 py-3.5">
                   <div className="flex items-center gap-2">
                     <ProcessActionButton
+                      label={locale.startsWith('es') ? 'Ver ejecuciones' : 'View runs'}
+                      onClick={() => setRunsProcess(record)}
+                      disabled={isRecordPending(record.id)}
+                      className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-300"
+                      icon={<History className="h-4 w-4" />}
+                    />
+                    {record.activationMode === 'recurring' ? <ProcessActionButton
                       label={processCopy.actions.runEngine}
                       onClick={() => {
                         void handleMaterialize(record);
@@ -2296,7 +2404,7 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
                       disabled={isRecordPending(record.id)}
                       className="border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-white"
                       icon={<CalendarPlus className="h-4 w-4" />}
-                    />
+                    /> : null}
                     <ProcessActionButton
                       label={record.isActive ? processCopy.actions.pause : processCopy.actions.activate}
                       onClick={() => {
@@ -2474,6 +2582,13 @@ export default function Processes({ learningModeActive = false }: ProcessesProps
         unitOptions={catalogUnits}
         businessOptions={catalogBusinesses}
         collaboratorOptions={catalogCollaborators}
+      />
+
+      <ProcessRunsDialog
+        locale={locale}
+        open={Boolean(runsProcess)}
+        process={runsProcess}
+        onOpenChange={(open) => { if (!open) setRunsProcess(null); }}
       />
 
       <ColumnasConfigModal

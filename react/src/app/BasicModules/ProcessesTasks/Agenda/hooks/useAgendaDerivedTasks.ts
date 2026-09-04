@@ -137,6 +137,7 @@ function taskMatchesSearch(task: AgendaTaskItem, normalizedQuery: string) {
     task.project,
     task.processFolio,
     task.processTitle,
+    task.processReference,
     task.unitName,
     task.unit,
     task.businessName,

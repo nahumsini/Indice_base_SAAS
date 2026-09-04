@@ -24,7 +24,7 @@ export const ptBR: ProcessesTranslations = {
   header: {
     emoji: '🔄',
     title: 'Processos',
-    subtitle: 'Crie processos recorrentes que gerem tarefas reais na agenda de cada responsavel.',
+    subtitle: 'Crie processos recorrentes ou ocasionais que gerem tarefas reais para uma pessoa ou equipe.',
     actions: {
       table: 'Tabela',
       diagram: 'Diagrama',
@@ -147,8 +147,8 @@ export const ptBR: ProcessesTranslations = {
     optionalColumn: 'Coluna opcional que pode ser ocultada da tabela.',
   },
   table: {
-    loading: 'Carregando processos recorrentes...',
-    empty: 'Nenhum processo recorrente corresponde aos filtros atuais.',
+    loading: 'Carregando processos...',
+    empty: 'Nenhum processo corresponde aos filtros atuais.',
     progress: 'Progresso',
     status: 'Status',
     graceDays: (days: number) => `Carencia ${days} dias`,
@@ -231,11 +231,11 @@ export const ptBR: ProcessesTranslations = {
   },
   form: {
     titles: {
-      create: 'Criar processo recorrente',
-      edit: 'Editar processo recorrente',
+      create: 'Criar processo',
+      edit: 'Editar processo',
     },
     descriptions: {
-      create: 'Crie um processo recorrente para gerar tarefas e atribui-las na agenda do responsavel.',
+      create: 'Crie um processo individual ou compartilhado e escolha ativacao programada ou sob demanda.',
       edit: 'Atualize configuracao, responsavel e frequencia sem mudar o fluxo do modulo.',
     },
     labels: {
@@ -298,7 +298,7 @@ export const ptBR: ProcessesTranslations = {
   },
   confirmation: {
     deleteTitle: 'Excluir processo',
-    deleteDescription: 'Isso remove o processo do catalogo ativo e cancela as tarefas abertas que ele gerou. Tarefas concluidas ou ja canceladas permanecem no historico.',
+    deleteDescription: 'Isso remove o processo do catalogo ativo. Execucoes e tarefas ja criadas permanecem intactas no historico.',
     deleteConfirm: 'Excluir processo',
   },
   describeFrequency: (frequency: ProcessFrequency, recurrence: ProcessRecurrenceConfig) => {

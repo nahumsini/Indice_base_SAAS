@@ -74,7 +74,7 @@ export interface TaskRecord {
   assignees: TaskAssignee[];
   assigneeUserCompanyIds: number[];
   assignmentMode: 'individual' | 'team';
-  completionPolicy: 'all_assignees' | 'lead';
+  completionPolicy: 'all_assignees' | 'any_assignee' | 'lead';
   teamSize: number;
   teamReadyCount: number;
   teamAllReady: boolean;
@@ -301,7 +301,10 @@ export function normalizeTaskRecord(record: Partial<TaskRecord>): TaskRecord {
     assignees,
     assigneeUserCompanyIds,
     assignmentMode: record.assignmentMode === 'team' || assignees.length > 1 ? 'team' : 'individual',
-    completionPolicy: record.completionPolicy === 'all_assignees' ? 'all_assignees' : 'lead',
+    completionPolicy:
+      record.completionPolicy === 'all_assignees' || record.completionPolicy === 'any_assignee'
+        ? record.completionPolicy
+        : 'lead',
     teamSize: Number(record.teamSize ?? assignees.length),
     teamReadyCount: Number(
       record.teamReadyCount ?? assignees.filter((assignee) => assignee.contributionStatus === 'ready').length,

@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { useLocation } from 'react-router';
 import {
+  CalendarPlus,
   Columns3,
   MonitorSmartphone,
   Plus,
@@ -66,6 +67,8 @@ import { TaskAttachmentsDialog } from './components/TaskAttachmentsDialog';
 import { TaskFollowUpDialog } from './components/TaskFollowUpDialog';
 import { TaskTeamDialog } from './components/TaskTeamDialog';
 import { useAgendaTranslations, type AgendaTranslations } from './translations';
+import { useLanguage } from '../../../shared/context';
+import { OccasionalProcessDialog } from './components/OccasionalProcessDialog';
 import { TaskKioskManagementModal } from '../Kiosk/TaskKioskManagementModal';
 import { TaskKioskConfirmationDialog } from '../Kiosk/components/TaskKioskConfirmationDialog';
 import { useRowSelection } from '../../shared/operational';
@@ -109,6 +112,8 @@ const auditStatusClasses: Record<AgendaTaskItem['auditStatus'], string> = {
 const agendaDisplayStatusClasses: Record<DisplayTaskStatus, string> = {
   pending:
     'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200',
+  waiting:
+    'border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-900/60 dark:bg-cyan-950/60 dark:text-cyan-300',
   in_progress:
     'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-300',
   paused:
@@ -267,6 +272,8 @@ interface AgendaProps {
 
 export default function Agenda({ learningModeActive = false }: AgendaProps) {
   const location = useLocation();
+  const { currentLanguage } = useLanguage();
+  const locale = currentLanguage.code;
   const todayAgendaValue = useMemo(() => toDateInputValue(new Date()), []);
   const agendaCopy = useAgendaTranslations();
   const headerCopy = agendaCopy.header;
@@ -349,6 +356,7 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
   const [agendaError, setAgendaError] = useState<string | null>(null);
   const [agendaNotice, setAgendaNotice] = useState<string | null>(null);
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
+  const [isOccasionalProcessOpen, setIsOccasionalProcessOpen] = useState(false);
   const [draggingTaskId, setDraggingTaskId] = useState<number | null>(null);
   const {
     catalogBusinesses,
@@ -994,6 +1002,15 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
       <Button
         type="button"
         variant="outline"
+        className="h-10 w-full gap-2 rounded-xl border-[#F4C84A]/50 bg-[#F4C84A]/10 px-4 text-sm font-medium text-[#9A6B05] shadow-none hover:bg-[#F4C84A]/20 dark:text-[#FEF3C7] sm:w-auto"
+        onClick={() => setIsOccasionalProcessOpen(true)}
+      >
+        <CalendarPlus className="h-4 w-4" />
+        {locale.startsWith('es') ? 'Proceso ocasional' : 'Occasional process'}
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
         className="h-10 w-full gap-2 rounded-xl border-slate-200 bg-white px-4 text-sm font-medium text-[#9A6B05] shadow-none hover:bg-[#F4C84A] hover:text-slate-950 dark:border-slate-700 dark:bg-slate-800 dark:text-white sm:w-auto"
         onClick={() => setIsColumnsModalOpen(true)}
       >
@@ -1166,6 +1183,18 @@ export default function Agenda({ learningModeActive = false }: AgendaProps) {
         onOpen={handleOpenTaskKiosk}
         onRotate={handleRotateTaskKiosk}
         onTransition={handleTransitionTaskKiosk}
+      />
+
+      <OccasionalProcessDialog
+        locale={locale}
+        open={isOccasionalProcessOpen}
+        onOpenChange={setIsOccasionalProcessOpen}
+        onCreated={(run) => {
+          setAgendaNotice(locale.startsWith('es')
+            ? `Proceso ${run.folio} activado: ${run.totalTasks} tareas creadas.`
+            : `Process ${run.folio} started: ${run.totalTasks} tasks created.`);
+          void loadVisibleAgenda();
+        }}
       />
 
       <TaskKioskConfirmationDialog

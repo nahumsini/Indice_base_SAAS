@@ -69,6 +69,7 @@ export const frCA: AgendaTranslations = {
   statuses: {
     open: "Ouvertes",
     pending: "En attente",
+    waiting: "En attente planifiee",
     pending_overdue: "En attente et en retard",
     in_progress: "En cours",
     completed: "Terminee",
@@ -95,6 +96,7 @@ export const frCA: AgendaTranslations = {
   },
   columns: {
     folio: { label: "Folio", description: "Identifiant operationnel de la tache." },
+    reference: { label: "Référence", description: "Référence qui distingue cette exécution du processus." },
     type: { label: "Type", description: "Tache, tache de projet ou tache de processus." },
     unit: { label: "Unite", description: "Unite operationnelle liee." },
     business: { label: "Secteur", description: "Secteur lie." },

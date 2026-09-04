@@ -2,15 +2,16 @@ package com.indice.erp.processTasks.processes;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.indice.erp.processTasks.ProcessTaskDocumentSequenceService;
+import com.indice.erp.processTasks.processes.ProcessRunContracts.ProcessCollaborator;
+import com.indice.erp.processTasks.processes.ProcessRunContracts.ProcessCollaboratorsResponse;
 import com.indice.erp.processTasks.tasks.ProcessTaskAssignmentScopeService;
-import com.indice.erp.processTasks.tasks.ProcessTasksService;
 import com.indice.erp.processTasks.tasks.domain.UserCompanyReference;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.Year;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
@@ -34,8 +35,9 @@ public class ProcessesService {
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+    private final ProcessRunsService processRunsService;
     private final ProcessTaskAssignmentScopeService assignmentScopeService;
-    private final ProcessTasksService processTasksService;
+    private final ProcessTaskDocumentSequenceService documentSequenceService;
     private static final long PROCESS_ENGINE_USER_ID = 0L;
     private static final String PROCESS_SELECT_COLUMNS = """
             SELECT proc.id,
@@ -74,6 +76,26 @@ public class ProcessesService {
                    proc.grace_days,
                    proc.generation_window_days,
                    proc.evidence_required,
+                   proc.distribution_mode,
+                   proc.activation_mode,
+                   proc.organization_mode,
+                   proc.include_weekends,
+                   proc.coordinator_user_company_id,
+                   coordinator_user_company.user_id AS coordinator_user_id,
+                   COALESCE(
+                       NULLIF(TRIM(coordinator_user.full_name), ''),
+                       NULLIF(TRIM(coordinator_user.email), ''),
+                       NULL
+                   ) AS resolved_coordinator_name,
+                   proc.current_version,
+                   (SELECT COUNT(*)
+                    FROM process_task_templates definition_task
+                    JOIN process_versions definition_version
+                      ON definition_version.id = definition_task.process_version_id
+                     AND definition_version.company_id = definition_task.company_id
+                    WHERE definition_task.company_id = proc.company_id
+                      AND definition_task.process_id = proc.id
+                      AND definition_version.version_number = proc.current_version) AS definition_task_count,
                    proc.last_generated_for_date,
                    proc.next_occurrence_date,
                    proc.generated_until_date,
@@ -98,6 +120,9 @@ public class ProcessesService {
             LEFT JOIN user_companies responsible_user_company ON responsible_user_company.id = proc.responsible_user_company_id
                 AND responsible_user_company.company_id = proc.company_id
             LEFT JOIN users responsible_user ON responsible_user.id = responsible_user_company.user_id
+            LEFT JOIN user_companies coordinator_user_company ON coordinator_user_company.id = proc.coordinator_user_company_id
+                AND coordinator_user_company.company_id = proc.company_id
+            LEFT JOIN users coordinator_user ON coordinator_user.id = coordinator_user_company.user_id
             LEFT JOIN (
                 SELECT process_id,
                        COUNT(*) AS task_count,
@@ -122,36 +147,79 @@ public class ProcessesService {
     public ProcessesService(
             JdbcTemplate jdbcTemplate,
             ObjectMapper objectMapper,
+            ProcessRunsService processRunsService,
             ProcessTaskAssignmentScopeService assignmentScopeService,
-            ProcessTasksService processTasksService) {
+            ProcessTaskDocumentSequenceService documentSequenceService) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
+        this.processRunsService = processRunsService;
         this.assignmentScopeService = assignmentScopeService;
-        this.processTasksService = processTasksService;
+        this.documentSequenceService = documentSequenceService;
     }
 
     public Map<String, Object> listProcesses(long companyId, long userId) {
-        var visibility = assignmentScopeService.taskVisibilityFilter(companyId, userId, "proc", "business");
         var params = new ArrayList<Object>();
         params.add(companyId);
         params.add(companyId);
-        params.addAll(visibility.params());
 
         var rows = jdbcTemplate.query(
                 PROCESS_SELECT_COLUMNS +
                         """
                                 WHERE proc.company_id = ?
                                   AND proc.deleted_at IS NULL
-                                  AND %s
                                 ORDER BY proc.id DESC
-                                """.formatted(visibility.condition()),
+                                """,
                 (rs, rowNum) -> mapProcessRow(rs),
                 params.toArray());
+        rows.forEach(row -> row.put("taskTemplates", currentTaskTemplates(companyId, ((Number) row.get("id")).longValue())));
 
         var body = new LinkedHashMap<String, Object>();
         body.put("items", rows);
         body.put("count", rows.size());
         return body;
+    }
+
+    public ProcessCollaboratorsResponse listCollaborators(long companyId) {
+        var items = jdbcTemplate.query(
+                """
+                        SELECT user_company.id AS user_company_id,
+                               user_company.user_id,
+                               COALESCE(
+                                   NULLIF(TRIM(user_profile.full_name), ''),
+                                   NULLIF(TRIM(user_account.full_name), ''),
+                                   NULLIF(TRIM(user_account.email), ''),
+                                   CONCAT('User #', user_company.id)
+                               ) AS display_name,
+                               work_profile.unit_id,
+                               COALESCE(unit.name, '') AS unit_name,
+                               work_profile.business_id,
+                               COALESCE(business.name, '') AS business_name
+                        FROM user_companies user_company
+                        JOIN users user_account ON user_account.id = user_company.user_id
+                        LEFT JOIN user_profiles user_profile ON user_profile.user_id = user_account.id
+                        LEFT JOIN user_work_profiles work_profile
+                          ON work_profile.company_id = user_company.company_id
+                         AND work_profile.user_company_id = user_company.id
+                        LEFT JOIN units unit
+                          ON unit.id = work_profile.unit_id
+                         AND (unit.company_id = user_company.company_id OR unit.company_id IS NULL)
+                        LEFT JOIN businesses business
+                          ON business.id = work_profile.business_id
+                         AND (business.company_id = user_company.company_id OR business.company_id IS NULL)
+                        WHERE user_company.company_id = ?
+                          AND LOWER(COALESCE(user_company.status, 'active')) IN ('active', 'activo')
+                        ORDER BY display_name, user_company.id
+                        """,
+                (rs, rowNum) -> new ProcessCollaborator(
+                        rs.getLong("user_company_id"),
+                        rs.getLong("user_id"),
+                        rs.getString("display_name"),
+                        rs.getObject("unit_id", Long.class),
+                        rs.getString("unit_name"),
+                        rs.getObject("business_id", Long.class),
+                        rs.getString("business_name")),
+                companyId);
+        return new ProcessCollaboratorsResponse(items, items.size());
     }
 
     @Transactional
@@ -165,19 +233,14 @@ public class ProcessesService {
         var frequency = normalizedOrFallback(optionalString(payload, "frequency"), "weekly");
         var priority = normalizedOrFallback(optionalString(payload, "priority"), "medium");
         var relationCommand = resolveProcessRelations(companyId, userId, userName, payload);
-        assignmentScopeService.requireCanAssign(
-                companyId,
-                userId,
-                relationCommand.unitId(),
-                relationCommand.businessId(),
-                relationCommand.responsibleUserCompanyId());
         var isActive = booleanValue(payload, "isActive", true);
         var startDate = optionalDate(payload, "startDate", "start_date");
         var endDate = optionalDate(payload, "endDate", "end_date");
         var graceDays = boundedInteger(payload, "graceDays", 0, 0, 365);
         var generationWindowDays = boundedInteger(payload, "generationWindowDays", 45, 1, 365);
         var evidenceRequired = booleanValue(payload, "evidenceRequired", false);
-        var folio = nextProcessFolio(companyId);
+        var definition = processDefinitionCommand(companyId, payload, relationCommand, null);
+        var folio = documentSequenceService.nextProcessFolio(companyId);
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -224,14 +287,15 @@ public class ProcessesService {
         }, keyHolder);
 
         var processId = keyHolder.getKey() != null ? keyHolder.getKey().longValue() : 0L;
+        updateDefinitionFields(companyId, processId, definition, 1);
+        publishProcessVersion(companyId, processId, userId, definition, payload);
         materializeProcess(companyId, processId);
         return getProcess(companyId, processId);
     }
 
     @Transactional
     public Map<String, Object> updateProcess(long companyId, long userId, long processId, Map<String, Object> payload) {
-        requireProcess(companyId, processId);
-        var previousResponsible = processResponsible(companyId, processId);
+        var lockedCurrentVersion = currentVersionForUpdate(companyId, processId);
         var title = requiredString(payload, "title");
         var description = requiredString(payload, "description");
         var taskTitleTemplate = normalizedOrFallback(optionalString(payload, "taskTitleTemplate"), title);
@@ -240,18 +304,18 @@ public class ProcessesService {
         var frequency = normalizedOrFallback(optionalString(payload, "frequency"), "weekly");
         var priority = normalizedOrFallback(optionalString(payload, "priority"), "medium");
         var relationCommand = resolveProcessRelations(companyId, null, null, payload);
-        assignmentScopeService.requireCanAssign(
-                companyId,
-                userId,
-                relationCommand.unitId(),
-                relationCommand.businessId(),
-                relationCommand.responsibleUserCompanyId());
         var isActive = booleanValue(payload, "isActive", true);
         var startDate = optionalDate(payload, "startDate", "start_date");
         var endDate = optionalDate(payload, "endDate", "end_date");
         var graceDays = boundedInteger(payload, "graceDays", 0, 0, 365);
         var generationWindowDays = boundedInteger(payload, "generationWindowDays", 45, 1, 365);
         var evidenceRequired = booleanValue(payload, "evidenceRequired", false);
+        var definition = processDefinitionCommand(
+                companyId,
+                payload,
+                relationCommand,
+                currentDefinition(companyId, processId));
+        var nextVersion = lockedCurrentVersion + 1;
 
         jdbcTemplate.update(connection -> {
             var statement = connection.prepareStatement(
@@ -308,14 +372,8 @@ public class ProcessesService {
             return statement;
         });
 
-        if (responsibleChanged(previousResponsible, relationCommand)) {
-            reassignOpenGeneratedTasks(
-                    companyId,
-                    processId,
-                    relationCommand.responsibleUserCompanyId(),
-                    relationCommand.responsibleUserId(),
-                    relationCommand.responsibleName());
-        }
+        updateDefinitionFields(companyId, processId, definition, nextVersion);
+        publishProcessVersion(companyId, processId, userId, definition, payload);
 
         materializeProcess(companyId, processId);
         return getProcess(companyId, processId);
@@ -323,8 +381,7 @@ public class ProcessesService {
 
     @Transactional
     public void deleteProcess(long companyId, long userId, long processId) {
-        requireProcessManageAccess(companyId, userId, processId);
-        cancelOpenGeneratedTasks(companyId, processId);
+        requireProcess(companyId, processId);
 
         jdbcTemplate.update(
                 """
@@ -338,55 +395,8 @@ public class ProcessesService {
                 processId);
     }
 
-    private void cancelOpenGeneratedTasks(long companyId, long processId) {
-        jdbcTemplate.update(
-                """
-                        UPDATE process_tasks
-                        SET status = 'cancelled',
-                            cancelled_at = CURRENT_TIMESTAMP,
-                            completed_at = NULL,
-                            completed_by_user_id = NULL,
-                            completed_by_user_company_id = NULL,
-                            completion_notes = NULL
-                        WHERE company_id = ?
-                          AND process_id = ?
-                          AND deleted_at IS NULL
-                          AND status NOT IN ('completed', 'cancelled')
-                        """,
-                companyId,
-                processId);
-    }
-
-    private void reassignOpenGeneratedTasks(
-            long companyId,
-            long processId,
-            Long responsibleUserCompanyId,
-            Long responsibleUserId,
-            String responsibleName) {
-        jdbcTemplate.update(connection -> {
-            var statement = connection.prepareStatement(
-                    """
-                            UPDATE process_tasks
-                            SET assigned_user_company_id = ?,
-                                assigned_user_id = ?,
-                                assigned_name = ?
-                            WHERE company_id = ?
-                              AND process_id = ?
-                              AND deleted_at IS NULL
-                              AND status NOT IN ('completed', 'cancelled')
-                            """);
-
-            setNullableLong(statement, 1, responsibleUserCompanyId);
-            setNullableLong(statement, 2, responsibleUserId);
-            setNullableString(statement, 3, responsibleName);
-            statement.setLong(4, companyId);
-            statement.setLong(5, processId);
-            return statement;
-        });
-    }
-
     public Map<String, Object> materializeProcess(long companyId, long userId, long processId) {
-        requireProcessManageAccess(companyId, userId, processId);
+        requireProcess(companyId, processId);
         return materializeProcess(companyId, processId);
     }
 
@@ -407,7 +417,9 @@ public class ProcessesService {
             throw new NoSuchElementException("Process not found.");
         }
 
-        return rows.getFirst();
+        var row = rows.getFirst();
+        row.put("taskTemplates", currentTaskTemplates(companyId, processId));
+        return row;
     }
 
     private void requireProcess(long companyId, long processId) {
@@ -428,78 +440,371 @@ public class ProcessesService {
         }
     }
 
-    private void requireProcessManageAccess(long companyId, long userId, long processId) {
-        var scope = processScope(companyId, processId);
-        assignmentScopeService.requireCanAssign(companyId, userId, scope.unitId(), scope.businessId(), null);
+    private ProcessDefinitionCommand processDefinitionCommand(
+            long companyId,
+            Map<String, Object> payload,
+            ProcessRelationCommand relations,
+            ProcessDefinitionCommand existing) {
+        if (payload.containsKey("companyId") || payload.containsKey("company_id")) {
+            throw new IllegalArgumentException("companyId is derived from the authenticated session.");
+        }
+        var distributionMode = allowedValue(
+                payload,
+                "distributionMode",
+                Set.of("individual", "shared"),
+                existing == null ? "individual" : existing.distributionMode());
+        var activationMode = allowedValue(
+                payload,
+                "activationMode",
+                Set.of("recurring", "occasional"),
+                existing == null ? "recurring" : existing.activationMode());
+        var organizationMode = allowedValue(
+                payload,
+                "organizationMode",
+                Set.of("parallel", "sequential", "staged"),
+                existing == null ? "parallel" : existing.organizationMode());
+        var coordinatorUserCompanyId = optionalLong(payload, "coordinatorUserCompanyId", "coordinator_user_company_id");
+        if (coordinatorUserCompanyId != null) {
+            requireActiveUserCompany(companyId, coordinatorUserCompanyId, "Coordinator not found.");
+        } else if (existing != null) {
+            coordinatorUserCompanyId = existing.coordinatorUserCompanyId();
+        } else {
+            coordinatorUserCompanyId = relations.creatorUserCompanyId();
+            if (coordinatorUserCompanyId == null) {
+                coordinatorUserCompanyId = relations.responsibleUserCompanyId();
+            }
+            requireActiveUserCompany(companyId, coordinatorUserCompanyId, "Coordinator not found.");
+        }
+        return new ProcessDefinitionCommand(
+                distributionMode,
+                activationMode,
+                organizationMode,
+                booleanValue(payload, "includeWeekends", existing == null || existing.includeWeekends()),
+                coordinatorUserCompanyId);
     }
 
-    private ProcessResponsibleSnapshot processResponsible(long companyId, long processId) {
+    private ProcessDefinitionCommand currentDefinition(long companyId, long processId) {
         var rows = jdbcTemplate.query(
                 """
-                        SELECT responsible_user_company_id, responsible_name
+                        SELECT distribution_mode, activation_mode, organization_mode,
+                               include_weekends, coordinator_user_company_id
                         FROM processes
-                        WHERE company_id = ?
-                          AND id = ?
-                          AND deleted_at IS NULL
-                        LIMIT 1
+                        WHERE company_id = ? AND id = ? AND deleted_at IS NULL
                         """,
-                (rs, rowNum) -> new ProcessResponsibleSnapshot(
-                        rs.getObject("responsible_user_company_id", Long.class),
-                        normalizedOrFallback(rs.getString("responsible_name"), null)),
+                (rs, rowNum) -> new ProcessDefinitionCommand(
+                        rs.getString("distribution_mode"),
+                        rs.getString("activation_mode"),
+                        rs.getString("organization_mode"),
+                        rs.getBoolean("include_weekends"),
+                        rs.getObject("coordinator_user_company_id", Long.class)),
                 companyId,
                 processId);
-
         if (rows.isEmpty()) {
             throw new NoSuchElementException("Process not found.");
         }
-
         return rows.getFirst();
     }
 
-    private boolean responsibleChanged(ProcessResponsibleSnapshot previousResponsible, ProcessRelationCommand nextRelation) {
-        return !Objects.equals(previousResponsible.responsibleUserCompanyId(), nextRelation.responsibleUserCompanyId())
-                || !Objects.equals(previousResponsible.responsibleName(), nextRelation.responsibleName());
-    }
-
-    private ProcessScope processScope(long companyId, long processId) {
-        var rows = jdbcTemplate.query(
+    private void updateDefinitionFields(
+            long companyId,
+            long processId,
+            ProcessDefinitionCommand definition,
+            int version) {
+        jdbcTemplate.update(
                 """
-                        SELECT unit_id, business_id
-                        FROM processes
-                        WHERE company_id = ?
-                          AND id = ?
-                          AND deleted_at IS NULL
-                        LIMIT 1
-                        """,
-                (rs, rowNum) -> new ProcessScope(
-                        rs.getObject("unit_id", Long.class),
-                        rs.getObject("business_id", Long.class)),
+                    UPDATE processes
+                    SET distribution_mode = ?, activation_mode = ?, organization_mode = ?,
+                        include_weekends = ?, coordinator_user_company_id = ?, current_version = ?,
+                        last_generated_for_date = CASE WHEN ? = 'occasional' THEN NULL ELSE last_generated_for_date END,
+                        next_occurrence_date = CASE WHEN ? = 'occasional' THEN NULL ELSE next_occurrence_date END,
+                        generated_until_date = CASE WHEN ? = 'occasional' THEN NULL ELSE generated_until_date END
+                    WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+                    """,
+                definition.distributionMode(),
+                definition.activationMode(),
+                definition.organizationMode(),
+                definition.includeWeekends(),
+                definition.coordinatorUserCompanyId(),
+                version,
+                definition.activationMode(),
+                definition.activationMode(),
+                definition.activationMode(),
                 companyId,
                 processId);
-
-        if (rows.isEmpty()) {
-            throw new NoSuchElementException("Process not found.");
-        }
-
-        return rows.getFirst();
     }
 
-    private String nextProcessFolio(long companyId) {
-        var currentYear = Year.now().getValue();
-        Integer nextNumber = jdbcTemplate.queryForObject(
-                """
-                        SELECT COALESCE(MAX(CAST(SUBSTRING(folio, 9) AS UNSIGNED)), 0) + 1
+    private void publishProcessVersion(
+            long companyId,
+            long processId,
+            long actorUserId,
+            ProcessDefinitionCommand definition,
+            Map<String, Object> payload) {
+        var versionIdHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            var statement = connection.prepareStatement(
+                    """
+                        INSERT INTO process_versions
+                        (company_id, process_id, version_number, title, description, distribution_mode,
+                         activation_mode, organization_mode, include_weekends, default_priority,
+                         default_unit_id, default_business_id, coordinator_user_company_id, frequency,
+                         recurrence_json, start_date, end_date, published_by)
+                        SELECT company_id, id, current_version, title, description, distribution_mode,
+                               activation_mode, organization_mode, include_weekends, priority,
+                               unit_id, business_id, coordinator_user_company_id, frequency,
+                               recurrence_json, start_date, end_date, ?
                         FROM processes
-                        WHERE company_id = ?
-                          AND folio LIKE ?
-                          AND folio LIKE 'PR-%'
+                        WHERE company_id = ? AND id = ? AND deleted_at IS NULL
                         """,
+                    new String[] { "id" });
+            if (actorUserId <= 0) statement.setNull(1, Types.BIGINT);
+            else statement.setLong(1, actorUserId);
+            statement.setLong(2, companyId);
+            statement.setLong(3, processId);
+            return statement;
+        }, versionIdHolder);
+        if (versionIdHolder.getKey() == null) {
+            throw new NoSuchElementException("Process not found.");
+        }
+        var versionId = versionIdHolder.getKey().longValue();
+        var templates = parseTaskTemplates(companyId, payload);
+        validateDefinitionTemplateCount(definition.distributionMode(), templates.size());
+        for (int index = 0; index < templates.size(); index++) {
+            insertTaskTemplate(companyId, processId, versionId, index + 1, templates.get(index));
+        }
+    }
+
+    private List<ProcessTemplateCommand> parseTaskTemplates(long companyId, Map<String, Object> payload) {
+        var rawTemplates = payload.get("taskTemplates");
+        if (!(rawTemplates instanceof Iterable<?> iterable)) {
+            return List.of(legacyTemplateCommand(payload));
+        }
+        var templates = new ArrayList<ProcessTemplateCommand>();
+        for (var rawTemplate : iterable) {
+            if (!(rawTemplate instanceof Map<?, ?> rawMap)) {
+                throw new IllegalArgumentException("Each task template must be an object.");
+            }
+            var template = new LinkedHashMap<String, Object>();
+            rawMap.forEach((key, value) -> {
+                if (key != null) template.put(key.toString(), value);
+            });
+            var title = requiredString(template, "title");
+            var priority = allowedValue(template, "priority", Set.of("low", "medium", "high"),
+                    normalizedOrFallback(optionalString(payload, "priority"), "medium"));
+            var stage = boundedInteger(template, "stage", 1, 1, 20);
+            var scheduledOffsetDays = boundedInteger(template, "scheduledOffsetDays", 0, 0, 365);
+            var deadlineOffsetDays = boundedInteger(template, "deadlineOffsetDays", 0, 0, 365);
+            var unitId = optionalLong(template, "unitId");
+            if (unitId == null) unitId = optionalLong(payload, "unitId", "unit_id");
+            var businessId = optionalLong(template, "businessId");
+            if (businessId == null) {
+                var defaultBusinessId = optionalLong(payload, "businessId", "business_id");
+                if (defaultBusinessId != null && isBusinessAvailableForUnit(companyId, defaultBusinessId, unitId)) {
+                    businessId = defaultBusinessId;
+                }
+            }
+            if (unitId != null) requireUnit(companyId, unitId);
+            if (businessId != null) requireBusiness(companyId, businessId, unitId);
+            var assigneeIds = positiveLongList(template.get("assigneeUserCompanyIds"), 25, "assigneeUserCompanyIds");
+            if (assigneeIds.isEmpty()) {
+                var lead = optionalLong(template, "assignedUserCompanyId", "responsibleUserCompanyId");
+                if (lead != null) assigneeIds = List.of(lead);
+            }
+            for (var assigneeId : assigneeIds) {
+                requireUserCompany(companyId, assigneeId, "Task assignee not found.");
+                assignmentScopeService.requireCanReceive(companyId, unitId, businessId, assigneeId);
+            }
+            if (assigneeIds.isEmpty()) {
+                throw new IllegalArgumentException("Each task template requires at least one assignee.");
+            }
+            templates.add(new ProcessTemplateCommand(
+                    title,
+                    optionalString(template, "description"),
+                    optionalString(template, "notes"),
+                    priority,
+                    unitId,
+                    businessId,
+                    stage,
+                    scheduledOffsetDays,
+                    deadlineOffsetDays,
+                    booleanValue(template, "evidenceRequired", false),
+                    assigneeIds));
+        }
+        return templates;
+    }
+
+    private ProcessTemplateCommand legacyTemplateCommand(Map<String, Object> payload) {
+        var title = normalizedOrFallback(optionalString(payload, "taskTitleTemplate"), requiredString(payload, "title"));
+        var description = normalizedOrFallback(optionalString(payload, "taskDescriptionTemplate"), optionalString(payload, "description"));
+        var responsibleId = optionalLong(payload, "responsibleUserCompanyId", "responsible_user_company_id");
+        return new ProcessTemplateCommand(
+                title,
+                description,
+                optionalString(payload, "taskNotesTemplate"),
+                normalizedOrFallback(optionalString(payload, "priority"), "medium"),
+                optionalLong(payload, "unitId", "unit_id"),
+                optionalLong(payload, "businessId", "business_id"),
+                1,
+                0,
+                boundedInteger(payload, "graceDays", 0, 0, 365),
+                booleanValue(payload, "evidenceRequired", false),
+                responsibleId == null ? List.of() : List.of(responsibleId));
+    }
+
+    private void validateDefinitionTemplateCount(String distributionMode, int count) {
+        if (count == 0) throw new IllegalArgumentException("A process requires at least one task template.");
+        if (count > 50) throw new IllegalArgumentException("A process cannot contain more than 50 task templates.");
+        if ("individual".equals(distributionMode) && count != 1) {
+            throw new IllegalArgumentException("An individual process requires exactly one task template.");
+        }
+        if ("shared".equals(distributionMode) && count < 2) {
+            throw new IllegalArgumentException("A shared process requires at least two task templates.");
+        }
+    }
+
+    private void insertTaskTemplate(
+            long companyId,
+            long processId,
+            long versionId,
+            int position,
+            ProcessTemplateCommand template) {
+        var holder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            var statement = connection.prepareStatement(
+                    """
+                        INSERT INTO process_task_templates
+                        (company_id, process_id, process_version_id, position_number, stage_number,
+                         title, description, notes, priority, unit_id, business_id,
+                         scheduled_offset_days, deadline_offset_days, evidence_required)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                    new String[] { "id" });
+            statement.setLong(1, companyId);
+            statement.setLong(2, processId);
+            statement.setLong(3, versionId);
+            statement.setInt(4, position);
+            statement.setInt(5, template.stage());
+            statement.setString(6, template.title());
+            setNullableString(statement, 7, template.description());
+            setNullableString(statement, 8, template.notes());
+            statement.setString(9, template.priority());
+            setNullableLong(statement, 10, template.unitId());
+            setNullableLong(statement, 11, template.businessId());
+            statement.setInt(12, template.scheduledOffsetDays());
+            statement.setInt(13, template.deadlineOffsetDays());
+            statement.setBoolean(14, template.evidenceRequired());
+            return statement;
+        }, holder);
+        var templateId = Objects.requireNonNull(holder.getKey()).longValue();
+        for (int index = 0; index < template.assigneeUserCompanyIds().size(); index++) {
+            jdbcTemplate.update(
+                    """
+                        INSERT INTO process_task_template_assignees
+                        (company_id, template_id, user_company_id, position_number)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                    companyId,
+                    templateId,
+                    template.assigneeUserCompanyIds().get(index),
+                    index + 1);
+        }
+    }
+
+    private List<Map<String, Object>> currentTaskTemplates(long companyId, long processId) {
+        List<Map<String, Object>> templates = jdbcTemplate.query(
+                """
+                    SELECT template.id, template.position_number, template.stage_number, template.title,
+                           template.description, template.notes, template.priority, template.unit_id,
+                           unit.name AS unit_name, template.business_id, business.name AS business_name,
+                           template.scheduled_offset_days, template.deadline_offset_days, template.evidence_required
+                    FROM processes process
+                    JOIN process_versions version
+                      ON version.company_id = process.company_id AND version.process_id = process.id
+                     AND version.version_number = process.current_version
+                    JOIN process_task_templates template
+                      ON template.company_id = version.company_id AND template.process_version_id = version.id
+                    LEFT JOIN units unit ON unit.id = template.unit_id AND (unit.company_id = template.company_id OR unit.company_id IS NULL)
+                    LEFT JOIN businesses business ON business.id = template.business_id AND (business.company_id = template.company_id OR business.company_id IS NULL)
+                    WHERE process.company_id = ? AND process.id = ?
+                    ORDER BY template.position_number, template.id
+                    """,
+                (rs, rowNum) -> {
+                    var row = new LinkedHashMap<String, Object>();
+                    row.put("id", rs.getLong("id"));
+                    row.put("position", rs.getInt("position_number"));
+                    row.put("stage", rs.getInt("stage_number"));
+                    row.put("title", rs.getString("title"));
+                    row.put("description", normalizedOrFallback(rs.getString("description"), ""));
+                    row.put("notes", normalizedOrFallback(rs.getString("notes"), ""));
+                    row.put("priority", rs.getString("priority"));
+                    row.put("unitId", rs.getObject("unit_id", Long.class));
+                    row.put("unitName", normalizedOrFallback(rs.getString("unit_name"), ""));
+                    row.put("businessId", rs.getObject("business_id", Long.class));
+                    row.put("businessName", normalizedOrFallback(rs.getString("business_name"), ""));
+                    row.put("scheduledOffsetDays", rs.getInt("scheduled_offset_days"));
+                    row.put("deadlineOffsetDays", rs.getInt("deadline_offset_days"));
+                    row.put("evidenceRequired", rs.getBoolean("evidence_required"));
+                    return row;
+                },
+                companyId,
+                processId);
+        templates.forEach(template -> {
+            var templateId = ((Number) template.get("id")).longValue();
+            var assignees = jdbcTemplate.query(
+                    """
+                        SELECT assignment.user_company_id,
+                               COALESCE(NULLIF(TRIM(user_account.full_name), ''), NULLIF(TRIM(user_account.email), ''), CONCAT('User #', assignment.user_company_id)) AS display_name
+                        FROM process_task_template_assignees assignment
+                        JOIN user_companies user_company ON user_company.id = assignment.user_company_id AND user_company.company_id = assignment.company_id
+                        JOIN users user_account ON user_account.id = user_company.user_id
+                        WHERE assignment.company_id = ? AND assignment.template_id = ?
+                        ORDER BY assignment.position_number, assignment.id
+                        """,
+                    (rs, rowNum) -> Map.<String, Object>of(
+                            "userCompanyId", rs.getLong("user_company_id"),
+                            "name", rs.getString("display_name")),
+                    companyId,
+                    templateId);
+            template.put("assignees", assignees);
+            template.put("assigneeUserCompanyIds", assignees.stream().map(item -> item.get("userCompanyId")).toList());
+        });
+        return templates;
+    }
+
+    private String allowedValue(Map<String, Object> payload, String key, Set<String> allowed, String fallback) {
+        var value = normalizedOrFallback(optionalString(payload, key), fallback).toLowerCase();
+        if (!allowed.contains(value)) {
+            throw new IllegalArgumentException(key + " must be one of: " + String.join(", ", allowed) + ".");
+        }
+        return value;
+    }
+
+    private List<Long> positiveLongList(Object rawValue, int max, String fieldName) {
+        if (rawValue == null) return List.of();
+        if (!(rawValue instanceof Iterable<?> iterable)) {
+            throw new IllegalArgumentException(fieldName + " must be a list.");
+        }
+        var values = new LinkedHashSet<Long>();
+        for (var item : iterable) {
+            try {
+                var value = item instanceof Number number ? number.longValue() : Long.parseLong(item.toString());
+                if (value <= 0) throw new NumberFormatException();
+                values.add(value);
+            } catch (RuntimeException ex) {
+                throw new IllegalArgumentException(fieldName + " must contain positive integers.");
+            }
+        }
+        if (values.size() > max) throw new IllegalArgumentException(fieldName + " cannot contain more than " + max + " users.");
+        return List.copyOf(values);
+    }
+
+    private int currentVersionForUpdate(long companyId, long processId) {
+        var version = jdbcTemplate.queryForObject(
+                "SELECT current_version FROM processes WHERE company_id = ? AND id = ? AND deleted_at IS NULL FOR UPDATE",
                 Integer.class,
                 companyId,
-                "PR-" + currentYear + "-%");
-
-        int value = nextNumber != null ? nextNumber : 1;
-        return "PR-" + currentYear + "-" + String.format("%03d", value);
+                processId);
+        if (version == null) throw new NoSuchElementException("Process not found.");
+        return version;
     }
 
     private Map<String, Object> mapProcessRow(ResultSet rs) throws SQLException {
@@ -532,6 +837,15 @@ public class ProcessesService {
         row.put("graceDays", rs.getInt("grace_days"));
         row.put("generationWindowDays", rs.getInt("generation_window_days"));
         row.put("evidenceRequired", rs.getBoolean("evidence_required"));
+        row.put("distributionMode", rs.getString("distribution_mode"));
+        row.put("activationMode", rs.getString("activation_mode"));
+        row.put("organizationMode", rs.getString("organization_mode"));
+        row.put("includeWeekends", rs.getBoolean("include_weekends"));
+        row.put("coordinatorUserCompanyId", rs.getObject("coordinator_user_company_id", Long.class));
+        row.put("coordinatorUserId", rs.getObject("coordinator_user_id", Long.class));
+        row.put("coordinator", normalizedOrFallback(rs.getString("resolved_coordinator_name"), ""));
+        row.put("currentVersion", rs.getInt("current_version"));
+        row.put("definitionTaskCount", rs.getInt("definition_task_count"));
         row.put("lastGeneratedForDate", dateString(rs.getDate("last_generated_for_date")));
         row.put("nextOccurrenceDate", dateString(rs.getDate("next_occurrence_date")));
         row.put("generatedUntilDate", dateString(rs.getDate("generated_until_date")));
@@ -733,7 +1047,7 @@ public class ProcessesService {
         var responsibleUserCompanyId = optionalLong(payload, "responsibleUserCompanyId", "responsible_user_company_id");
         UserCompanyReference responsibleUserCompany = null;
         if (responsibleUserCompanyId != null) {
-            responsibleUserCompany = requireActiveUserCompany(
+            responsibleUserCompany = requireUserCompany(
                     companyId,
                     responsibleUserCompanyId,
                     "Responsible user not found.");
@@ -824,7 +1138,7 @@ public class ProcessesService {
                 companyId);
 
         if (count == null || count == 0) {
-            throw new NoSuchElementException("Unit not found.");
+            throw new IllegalArgumentException("The selected unit is not available.");
         }
 
         return unitId;
@@ -860,6 +1174,14 @@ public class ProcessesService {
     }
 
     private Long requireBusiness(long companyId, long businessId, Long unitId) {
+        if (!isBusinessAvailableForUnit(companyId, businessId, unitId)) {
+            throw new IllegalArgumentException("The selected business is not available for the selected unit.");
+        }
+
+        return businessId;
+    }
+
+    private boolean isBusinessAvailableForUnit(long companyId, long businessId, Long unitId) {
         Integer count = jdbcTemplate.queryForObject(
                 """
                         SELECT COUNT(*)
@@ -874,12 +1196,7 @@ public class ProcessesService {
                 companyId,
                 unitId,
                 unitId);
-
-        if (count == null || count == 0) {
-            throw new NoSuchElementException("Business not found.");
-        }
-
-        return businessId;
+        return count != null && count > 0;
     }
 
     private Long resolveBusinessUnitId(long companyId, long businessId) {
@@ -910,6 +1227,31 @@ public class ProcessesService {
                         WHERE company_id = ?
                           AND id = ?
                           AND LOWER(COALESCE(status, 'active')) IN ('active', 'activo')
+                        """,
+                (rs, rowNum) -> new UserCompanyReference(
+                        rs.getLong("id"),
+                        rs.getLong("user_id")),
+                companyId,
+                userCompanyId);
+
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException(message);
+        }
+
+        return rows.getFirst();
+    }
+
+    private UserCompanyReference requireUserCompany(long companyId, Long userCompanyId, String message) {
+        if (userCompanyId == null) {
+            return null;
+        }
+
+        var rows = jdbcTemplate.query(
+                """
+                        SELECT id, user_id
+                        FROM user_companies
+                        WHERE company_id = ?
+                          AND id = ?
                         """,
                 (rs, rowNum) -> new UserCompanyReference(
                         rs.getLong("id"),
@@ -1026,13 +1368,32 @@ public class ProcessesService {
 
     @Transactional
     public Map<String, Object> materializeProcess(long companyId, long processId) {
-        var process = loadProcessForMaterialization(companyId, processId);
-        materializeProcessTasks(process);
+        materializeProcessTasksOnly(companyId, processId);
+        clearMaterializationFailure(companyId, processId);
         return getProcess(companyId, processId);
     }
 
+    private void materializeProcessTasksOnly(long companyId, long processId) {
+        var process = loadProcessForMaterialization(companyId, processId);
+        materializeProcessTasks(process);
+    }
+
+    private void clearMaterializationFailure(long companyId, long processId) {
+        jdbcTemplate.update(
+                """
+                    UPDATE processes
+                    SET materialization_failure_count = 0,
+                        materialization_retry_at = NULL,
+                        materialization_last_failed_at = NULL,
+                        materialization_last_error = NULL
+                    WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+                    """,
+                companyId,
+                processId);
+    }
+
     private void materializeProcessTasks(ProcessMaterializationRecord process) {
-        if (!process.isActive() || process.processId() <= 0) {
+        if (!process.isActive() || process.processId() <= 0 || !"recurring".equals(process.activationMode())) {
             updateProcessGenerationState(process, null, null, null);
             return;
         }
@@ -1058,26 +1419,7 @@ public class ProcessesService {
 
         for (var occurrenceDate : occurrenceDates) {
             lastGeneratedForDate = occurrenceDate;
-            if (hasMaterializedTask(process.companyId(), process.processId(), occurrenceDate)) {
-                continue;
-            }
-
-            var taskPayload = new LinkedHashMap<String, Object>();
-            taskPayload.put("processId", process.processId());
-            taskPayload.put("title", normalizedOrFallback(process.taskTitleTemplate(), process.title()));
-            taskPayload.put("description", normalizedOrFallback(process.taskDescriptionTemplate(), process.description()));
-            taskPayload.put("assignedUserCompanyId", process.responsibleUserCompanyId());
-            taskPayload.put("assignedName", process.responsible());
-            taskPayload.put("status", "pending");
-            taskPayload.put("priority", process.priority());
-            taskPayload.put("startDate", occurrenceDate.toString());
-            taskPayload.put("dueDate", occurrenceDate.plusDays(process.graceDays()).toString());
-            taskPayload.put("notes", normalizedOrFallback(process.taskNotesTemplate(), "Generado por proceso recurrente."));
-            taskPayload.put("completionPercent", 0);
-            taskPayload.put("businessId", process.businessId());
-            taskPayload.put("unitId", process.unitId());
-
-            processTasksService.createTask(process.companyId(), actorUserId, taskPayload);
+            processRunsService.ensureRecurringRun(process.companyId(), process.processId(), occurrenceDate);
         }
 
         var nextOccurrence = nextOccurrenceDate(process, today);
@@ -1106,6 +1448,7 @@ public class ProcessesService {
                                end_date,
                                grace_days,
                                generation_window_days,
+                               activation_mode,
                                is_active
                         FROM processes
                         WHERE company_id = ?
@@ -1132,6 +1475,7 @@ public class ProcessesService {
                         toLocalDate(rs.getDate("end_date")),
                         Math.max(0, rs.getInt("grace_days")),
                         Math.max(1, rs.getInt("generation_window_days")),
+                        rs.getString("activation_mode"),
                         rs.getBoolean("is_active")),
                 companyId,
                 processId);
@@ -1181,24 +1525,6 @@ public class ProcessesService {
 
         var dates = occurrenceDates(process.frequency(), process.recurrence(), searchStart, searchEnd);
         return dates.isEmpty() ? null : dates.getFirst();
-    }
-
-    private boolean hasMaterializedTask(long companyId, long processId, LocalDate occurrenceDate) {
-        Integer count = jdbcTemplate.queryForObject(
-                """
-                        SELECT COUNT(*)
-                        FROM process_tasks
-                        WHERE company_id = ?
-                          AND process_id = ?
-                          AND (start_date = ? OR (start_date IS NULL AND due_date = ?))
-                        """,
-                Integer.class,
-                companyId,
-                processId,
-                occurrenceDate,
-                occurrenceDate);
-
-        return count != null && count > 0;
     }
 
     private List<LocalDate> occurrenceDates(
@@ -1434,6 +1760,7 @@ public class ProcessesService {
             LocalDate endDate,
             int graceDays,
             int generationWindowDays,
+            String activationMode,
             boolean isActive) {
     }
 
@@ -1449,13 +1776,25 @@ public class ProcessesService {
             String responsibleName) {
     }
 
-    private record ProcessResponsibleSnapshot(
-            Long responsibleUserCompanyId,
-            String responsibleName) {
+    private record ProcessDefinitionCommand(
+            String distributionMode,
+            String activationMode,
+            String organizationMode,
+            boolean includeWeekends,
+            Long coordinatorUserCompanyId) {
     }
 
-    private record ProcessScope(
+    private record ProcessTemplateCommand(
+            String title,
+            String description,
+            String notes,
+            String priority,
             Long unitId,
-            Long businessId) {
+            Long businessId,
+            int stage,
+            int scheduledOffsetDays,
+            int deadlineOffsetDays,
+            boolean evidenceRequired,
+            List<Long> assigneeUserCompanyIds) {
     }
 }

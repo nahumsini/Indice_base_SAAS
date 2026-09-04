@@ -69,6 +69,7 @@ export const koCA: AgendaTranslations = {
   statuses: {
     open: '열림',
     pending: '대기',
+    waiting: '예정 대기',
     pending_overdue: '대기 및 기한 초과',
     in_progress: '진행 중',
     completed: '완료',
@@ -95,6 +96,7 @@ export const koCA: AgendaTranslations = {
   },
   columns: {
     folio: { label: '폴리오', description: '운영 작업 식별자입니다.' },
+    reference: { label: '참조', description: '이 프로세스 실행을 구분하는 참조입니다.' },
     type: { label: '유형', description: '작업, 프로젝트 작업 또는 프로세스 작업입니다.' },
     unit: { label: '유닛', description: '연결된 비즈니스 유닛입니다.' },
     business: { label: '비즈니스', description: '연결된 비즈니스입니다.' },

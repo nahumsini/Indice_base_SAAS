@@ -69,6 +69,7 @@ export const zhCA: AgendaTranslations = {
   statuses: {
     open: '打开',
     pending: '待处理',
+    waiting: '等待计划日期',
     pending_overdue: '待处理和逾期',
     in_progress: '进行中',
     completed: '已完成',
@@ -95,6 +96,7 @@ export const zhCA: AgendaTranslations = {
   },
   columns: {
     folio: { label: '编号', description: '运营任务标识。' },
+    reference: { label: '参考', description: '用于区分本次流程执行的参考。' },
     type: { label: '类型', description: '任务、项目任务或流程任务。' },
     unit: { label: '单位', description: '关联的业务单位。' },
     business: { label: '业务', description: '关联的业务。' },

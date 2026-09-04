@@ -24,7 +24,7 @@ export const frCA: ProcessesTranslations = {
   header: {
     emoji: '🔄',
     title: 'Processus',
-    subtitle: "Creez des processus recurrents qui generent de vraies taches dans l'agenda de chaque responsable.",
+    subtitle: "Concevez des processus recurrents ou occasionnels qui generent de vraies taches pour une personne ou une equipe.",
     actions: {
       table: 'Tableau',
       diagram: 'Diagramme',
@@ -102,8 +102,8 @@ export const frCA: ProcessesTranslations = {
     optionalColumn: 'Colonne optionnelle pouvant etre masquee dans le tableau.',
   },
   table: {
-    loading: 'Chargement des processus recurrents...',
-    empty: 'Aucun processus recurrent ne correspond aux filtres actuels.',
+    loading: 'Chargement des processus...',
+    empty: 'Aucun processus ne correspond aux filtres actuels.',
     progress: 'Avancement',
     status: 'Etat',
     graceDays: (days: number) => `Grace ${days} jours`,
@@ -186,11 +186,11 @@ export const frCA: ProcessesTranslations = {
   },
   form: {
     titles: {
-      create: 'Creer un processus recurrent',
-      edit: 'Modifier le processus recurrent',
+      create: 'Creer un processus',
+      edit: 'Modifier le processus',
     },
     descriptions: {
-      create: 'Creez un processus recurrent pour generer des taches et les assigner dans l agenda du responsable.',
+      create: 'Concevez un processus individuel ou partage et choisissez une activation planifiee ou a la demande.',
       edit: 'Mettez a jour la configuration, le responsable et la frequence sans changer le flux du module.',
     },
     labels: {
@@ -253,7 +253,7 @@ export const frCA: ProcessesTranslations = {
   },
   confirmation: {
     deleteTitle: 'Supprimer le processus',
-    deleteDescription: 'Cela retire le processus du catalogue actif et annule les taches ouvertes qu il a generees. Les taches terminees ou deja annulees restent dans l historique.',
+    deleteDescription: 'Cela retire le processus du catalogue actif. Les executions et les taches deja creees restent intactes dans l historique.',
     deleteConfirm: 'Supprimer le processus',
   },
   describeFrequency: (frequency: ProcessFrequency, recurrence: ProcessRecurrenceConfig) => {

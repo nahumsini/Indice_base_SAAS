@@ -2,6 +2,8 @@ package com.indice.erp.processTasks.processes;
 
 import com.indice.erp.entitlement.RequiresCapability;
 import com.indice.erp.processTasks.ProcessTasksRequestGuard;
+import com.indice.erp.processTasks.processes.ProcessRunContracts.OccasionalPreviewRequest;
+import com.indice.erp.processTasks.processes.ProcessRunContracts.OccasionalRunRequest;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -24,12 +26,102 @@ public class ProcessesApiController {
 
     private final ProcessTasksRequestGuard guard;
     private final ProcessesService processesService;
+    private final ProcessRunsService processRunsService;
 
     public ProcessesApiController(
             ProcessTasksRequestGuard guard,
-            ProcessesService processesService) {
+            ProcessesService processesService,
+            ProcessRunsService processRunsService) {
         this.guard = guard;
         this.processesService = processesService;
+        this.processRunsService = processRunsService;
+    }
+
+    @GetMapping("/occasional")
+    public ResponseEntity<?> listOccasional(HttpSession session) {
+        var access = guard.requireRead(session);
+        if (access.denied()) {
+            return access.error();
+        }
+        return ResponseEntity.ok(processRunsService.listOccasionalProcesses(access.user().companyId()));
+    }
+
+    @GetMapping("/collaborators")
+    public ResponseEntity<?> listCollaborators(HttpSession session) {
+        var access = guard.requireRead(session);
+        if (access.denied()) {
+            return access.error();
+        }
+        return ResponseEntity.ok(processesService.listCollaborators(access.user().companyId()));
+    }
+
+    @PostMapping("/occasional/preview")
+    public ResponseEntity<?> previewOccasional(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestBody OccasionalPreviewRequest request) {
+        var access = guard.requireWrite(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
+        }
+        try {
+            return ResponseEntity.ok(processRunsService.previewOccasionalRun(access.user().companyId(), request));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/occasional/runs")
+    public ResponseEntity<?> createOccasionalRun(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+            @RequestBody OccasionalRunRequest request) {
+        var access = guard.requireWrite(session, csrfToken);
+        if (access.denied()) {
+            return access.error();
+        }
+        try {
+            return ResponseEntity.status(HttpStatus.CREATED).body(processRunsService.createOccasionalRun(
+                    access.user().companyId(), access.user().userId(), request, idempotencyKey));
+        } catch (DuplicateProcessReferenceException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                    "message", ex.getMessage(),
+                    "code", "duplicate_reference",
+                    "matchingRuns", ex.matchingRuns()));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/{processId}/runs")
+    public ResponseEntity<?> listRuns(HttpSession session, @PathVariable long processId) {
+        var access = guard.requireRead(session);
+        if (access.denied()) {
+            return access.error();
+        }
+        try {
+            return ResponseEntity.ok(processRunsService.listRuns(access.user().companyId(), processId));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/runs/{runId}")
+    public ResponseEntity<?> getRun(HttpSession session, @PathVariable long runId) {
+        var access = guard.requireRead(session);
+        if (access.denied()) {
+            return access.error();
+        }
+        try {
+            return ResponseEntity.ok(processRunsService.getRun(access.user().companyId(), runId));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        }
     }
 
     @GetMapping
@@ -60,6 +152,8 @@ public class ProcessesApiController {
                             access.user().userId(),
                             access.user().userName(),
                             payload));
+        } catch (NoSuchElementException ex) {
+            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }

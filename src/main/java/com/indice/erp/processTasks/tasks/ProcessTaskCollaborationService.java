@@ -241,7 +241,12 @@ public class ProcessTaskCollaborationService {
             task.put("assignees", members);
             task.put("assigneeUserCompanyIds", members.stream().map(member -> member.get("userCompanyId")).toList());
             task.put("assignmentMode", members.size() > 1 ? "team" : "individual");
-            task.put("completionPolicy", members.size() > 1 ? "all_assignees" : "lead");
+            var configuredPolicy = task.get("completionPolicy") != null
+                    ? task.get("completionPolicy").toString()
+                    : null;
+            task.put("completionPolicy", "any_assignee".equals(configuredPolicy)
+                    ? "any_assignee"
+                    : members.size() > 1 ? "all_assignees" : "lead");
             task.put("teamSize", members.size());
             task.put("teamReadyCount", readyCount);
             task.put("teamAllReady", !members.isEmpty() && readyCount == members.size());
@@ -310,6 +315,29 @@ public class ProcessTaskCollaborationService {
         }
 
         var actorUserCompanyId = userCompanyIdForUser(companyId, actorUserId);
+        var completionPolicy = jdbcTemplate.queryForObject(
+                "SELECT completion_policy FROM process_tasks WHERE company_id = ? AND id = ?",
+                String.class,
+                companyId,
+                taskId);
+        if ("any_assignee".equals(completionPolicy)) {
+            var assigned = actorUserCompanyId != null && assignments.stream()
+                    .anyMatch(assignment -> actorUserCompanyId.equals(assignment.userCompanyId()));
+            if (!assigned) {
+                throw new IllegalArgumentException("Only an assigned team member can complete this shared task.");
+            }
+            jdbcTemplate.update(
+                    """
+                        UPDATE process_task_assignees
+                        SET contribution_status = 'ready', ready_at = COALESCE(ready_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP
+                        WHERE company_id = ? AND task_id = ? AND user_company_id = ? AND removed_at IS NULL
+                        """,
+                    companyId,
+                    taskId,
+                    actorUserCompanyId);
+            return;
+        }
+
         var lead = assignments.stream().filter(assignment -> "lead".equals(assignment.role())).findFirst().orElse(null);
         if (lead == null || actorUserCompanyId == null || !actorUserCompanyId.equals(lead.userCompanyId())) {
             throw new IllegalArgumentException("Only the task coordinator can close a team task.");

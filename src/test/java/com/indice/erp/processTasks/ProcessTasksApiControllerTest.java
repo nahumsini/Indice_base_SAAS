@@ -10,6 +10,7 @@ import com.indice.erp.processTasks.kiosk.ProcessTaskKioskService;
 import com.indice.erp.processTasks.kpis.ProcessTaskKpisApiController;
 import com.indice.erp.processTasks.kpis.ProcessTaskKpisService;
 import com.indice.erp.processTasks.processes.ProcessesApiController;
+import com.indice.erp.processTasks.processes.ProcessRunsService;
 import com.indice.erp.processTasks.processes.ProcessesService;
 import com.indice.erp.processTasks.projects.ProjectsApiController;
 import com.indice.erp.processTasks.projects.ProjectsService;
@@ -68,6 +69,9 @@ class ProcessTasksApiControllerTest {
 
     @MockBean
     private ProcessesService processesService;
+
+    @MockBean
+    private ProcessRunsService processRunsService;
 
     @MockBean
     private ProcessTasksService processTasksService;

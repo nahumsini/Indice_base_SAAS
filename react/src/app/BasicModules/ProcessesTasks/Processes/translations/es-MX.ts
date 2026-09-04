@@ -22,7 +22,7 @@ export const esMX: ProcessesTranslations = {
   header: {
     emoji: '🔄',
     title: 'Procesos',
-    subtitle: 'Crea procesos recurrentes que generen tareas reales en la agenda de cada responsable.',
+    subtitle: 'Diseña procesos regulares u ocasionales que generen tareas reales para una persona o un equipo.',
     actions: {
       table: 'Tabla',
       diagram: 'Diagrama',
@@ -100,8 +100,8 @@ export const esMX: ProcessesTranslations = {
     optionalColumn: 'Columna opcional que puede ocultarse de la tabla.',
   },
   table: {
-    loading: 'Cargando procesos recurrentes...',
-    empty: 'No hay procesos recurrentes que coincidan con los filtros actuales.',
+    loading: 'Cargando procesos...',
+    empty: 'No hay procesos que coincidan con los filtros actuales.',
     progress: 'Avance',
     status: 'Estado',
     graceDays: (days: number) => `Gracia ${days} dias`,
@@ -184,11 +184,11 @@ export const esMX: ProcessesTranslations = {
   },
   form: {
     titles: {
-      create: 'Crear proceso recurrente',
-      edit: 'Editar proceso recurrente',
+      create: 'Crear proceso',
+      edit: 'Editar proceso',
     },
     descriptions: {
-      create: 'Crea un proceso recurrente para generar tareas y asignarlas en la agenda del responsable.',
+      create: 'Diseña un proceso individual o compartido y elige si se ejecuta por calendario o bajo demanda.',
       edit: 'Actualiza la configuracion, responsable y frecuencia del proceso sin cambiar el flujo del modulo.',
     },
     labels: {
@@ -251,7 +251,7 @@ export const esMX: ProcessesTranslations = {
   },
   confirmation: {
     deleteTitle: 'Eliminar proceso',
-    deleteDescription: 'Esto elimina el proceso del catalogo activo y cancela las tareas abiertas que genero. Las tareas completadas o ya canceladas permanecen como historial.',
+    deleteDescription: 'Esto elimina el proceso del catálogo activo. Las ejecuciones y tareas ya creadas permanecen intactas como historial.',
     deleteConfirm: 'Eliminar proceso',
   },
   describeFrequency: (frequency: ProcessFrequency, recurrence: ProcessRecurrenceConfig) => {

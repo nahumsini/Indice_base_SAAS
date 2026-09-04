@@ -1,6 +1,28 @@
 export type ProcessFrequency = 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'specific-dates';
 
 export type ProcessPriority = 'high' | 'medium' | 'low';
+export type ProcessDistributionMode = 'individual' | 'shared';
+export type ProcessActivationMode = 'recurring' | 'occasional';
+export type ProcessOrganizationMode = 'parallel' | 'sequential' | 'staged';
+
+export interface ProcessTaskTemplate {
+  id?: number;
+  position?: number;
+  stage: number;
+  title: string;
+  description: string;
+  notes: string;
+  priority: ProcessPriority;
+  unitId?: number | null;
+  unitName?: string;
+  businessId?: number | null;
+  businessName?: string;
+  scheduledOffsetDays: number;
+  deadlineOffsetDays: number;
+  evidenceRequired: boolean;
+  assigneeUserCompanyIds: number[];
+  assignees?: Array<{ userCompanyId: number; name: string }>;
+}
 
 export type Weekday =
   | 'monday'
@@ -49,6 +71,16 @@ export interface ProcessRecord {
   graceDays?: number;
   generationWindowDays?: number;
   evidenceRequired?: boolean;
+  distributionMode: ProcessDistributionMode;
+  activationMode: ProcessActivationMode;
+  organizationMode: ProcessOrganizationMode;
+  includeWeekends: boolean;
+  coordinatorUserCompanyId?: number | null;
+  coordinatorUserId?: number | null;
+  coordinator: string;
+  currentVersion: number;
+  definitionTaskCount: number;
+  taskTemplates: ProcessTaskTemplate[];
   lastGeneratedForDate?: string | null;
   nextOccurrenceDate?: string | null;
   generatedUntilDate?: string | null;
@@ -112,6 +144,13 @@ export interface ProcessFormState {
   graceDays: string;
   generationWindowDays: string;
   evidenceRequired: boolean;
+  distributionMode: ProcessDistributionMode;
+  activationMode: ProcessActivationMode;
+  organizationMode: ProcessOrganizationMode;
+  includeWeekends: boolean;
+  coordinatorUserCompanyId?: number | null;
+  coordinator: string;
+  taskTemplates: ProcessTaskTemplate[];
 }
 
 export interface ProcessUnitOption {

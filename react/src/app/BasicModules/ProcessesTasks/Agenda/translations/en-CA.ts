@@ -67,6 +67,7 @@ export const enCA = {
   statuses: {
     open: 'Open',
     pending: 'Pending',
+    waiting: 'Waiting',
     pending_overdue: 'Pending and overdue',
     in_progress: 'In progress',
     completed: 'Completed',
@@ -93,6 +94,7 @@ export const enCA = {
   },
   columns: {
     folio: { label: 'Folio', description: 'Operational task identifier.' },
+    reference: { label: 'Reference', description: 'Reference that distinguishes this process run.' },
     type: { label: 'Type', description: 'Task, project task, or process task.' },
     unit: { label: 'Unit', description: 'Related business unit.' },
     business: { label: 'Business', description: 'Related business.' },

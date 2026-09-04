@@ -9,6 +9,7 @@ const selectionColumnWidth = 64;
 
 const defaultAgendaColumnWidths: Record<AgendaTableColumnId, number> = {
   folio: 140,
+  reference: 220,
   type: 160,
   unit: 180,
   business: 200,
@@ -34,6 +35,7 @@ const defaultAgendaColumnWidths: Record<AgendaTableColumnId, number> = {
 
 const minimumAgendaColumnWidths: Record<AgendaTableColumnId, number> = {
   folio: 110,
+  reference: 180,
   type: 140,
   unit: 170,
   business: 180,
@@ -60,6 +62,7 @@ const minimumAgendaColumnWidths: Record<AgendaTableColumnId, number> = {
 function createDefaultAgendaColumns(copy: AgendaTranslations): ColumnConfig[] {
   return [
     { id: 'title', label: copy.columns.title.label, visible: true, description: copy.columns.title.description },
+    { id: 'reference', label: copy.columns.reference.label, visible: true, description: copy.columns.reference.description },
     { id: 'dueDate', label: copy.columns.dueDate.label, visible: true, description: copy.columns.dueDate.description },
     { id: 'status', label: copy.columns.status.label, visible: true, description: copy.columns.status.description },
     { id: 'responsible', label: copy.columns.responsible.label, visible: true, description: copy.columns.responsible.description },

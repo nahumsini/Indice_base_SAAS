@@ -168,7 +168,7 @@ export const defaultColumns: ProcessColumnConfig[] = [
   { id: 'creator', label: 'Creador', visible: false, description: 'Usuario que creo el proceso.' },
 ];
 
-export const processRecordsSeed: ProcessRecord[] = [
+export const processRecordsSeed: Array<Partial<ProcessRecord> & Pick<ProcessRecord, 'id' | 'folio'>> = [
   {
     id: 1,
     folio: 'PR-2026-001',
@@ -486,5 +486,24 @@ export function createDefaultProcessForm(
     graceDays: '0',
     generationWindowDays: '45',
     evidenceRequired: false,
+    distributionMode: 'individual',
+    activationMode: 'recurring',
+    organizationMode: 'parallel',
+    includeWeekends: true,
+    coordinatorUserCompanyId: null,
+    coordinator: collaboratorOptions[0] ?? '',
+    taskTemplates: [{
+      stage: 1,
+      title: '',
+      description: '',
+      notes: '',
+      priority: 'medium',
+      unitId: null,
+      businessId: null,
+      scheduledOffsetDays: 0,
+      deadlineOffsetDays: 0,
+      evidenceRequired: false,
+      assigneeUserCompanyIds: [],
+    }],
   };
 }

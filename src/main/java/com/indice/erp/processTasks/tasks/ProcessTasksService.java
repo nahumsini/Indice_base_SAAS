@@ -18,6 +18,7 @@ import static com.indice.erp.processTasks.tasks.support.ProcessTaskPresentation.
 import com.indice.erp.billing.storage.CompanyStorageMeter;
 import com.indice.erp.notifications.AppNotificationEvent;
 import com.indice.erp.notifications.AppNotificationService;
+import com.indice.erp.processTasks.ProcessTaskDocumentSequenceService;
 import com.indice.erp.processTasks.tasks.domain.TaskCommand;
 import com.indice.erp.processTasks.tasks.domain.TaskLifecycle;
 import com.indice.erp.processTasks.tasks.domain.TaskMutationRecord;
@@ -34,7 +35,6 @@ import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.Year;
 import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -92,10 +92,17 @@ public class ProcessTasksService {
     private final ObjectStorageProperties objectStorageProperties;
     private final AppNotificationService appNotificationService;
     private final CompanyStorageMeter storageMeter;
+    private final ProcessTaskDocumentSequenceService documentSequenceService;
     private static final String TASK_SELECT_COLUMNS = """
             SELECT pt.id,
                    pt.company_id,
                    pt.process_id,
+                   pt.process_run_id,
+                   process_run.reference AS process_reference,
+                   process_run.folio AS process_run_folio,
+                   pt.process_task_template_id,
+                   pt.evidence_required,
+                   pt.completion_policy,
                    pt.project_id,
                    process.folio AS process_folio,
                    process.title AS process_title,
@@ -185,6 +192,8 @@ public class ProcessTasksService {
             LEFT JOIN users created_user ON created_user.id = pt.created_by
             LEFT JOIN processes process ON process.id = pt.process_id
                 AND process.company_id = pt.company_id
+            LEFT JOIN process_runs process_run ON process_run.id = pt.process_run_id
+                AND process_run.company_id = pt.company_id
             LEFT JOIN projects project ON project.id = pt.project_id
                 AND project.company_id = pt.company_id
             LEFT JOIN businesses business ON business.id = pt.business_id
@@ -221,7 +230,8 @@ public class ProcessTasksService {
         ObjectStorageService objectStorageService,
         ObjectStorageProperties objectStorageProperties,
         AppNotificationService appNotificationService,
-        CompanyStorageMeter storageMeter
+        CompanyStorageMeter storageMeter,
+        ProcessTaskDocumentSequenceService documentSequenceService
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.assignmentScopeService = assignmentScopeService;
@@ -230,6 +240,7 @@ public class ProcessTasksService {
         this.objectStorageProperties = objectStorageProperties;
         this.appNotificationService = appNotificationService;
         this.storageMeter = storageMeter;
+        this.documentSequenceService = documentSequenceService;
     }
 
     public Map<String, Object> listTasks(long companyId, long userId) {
@@ -307,7 +318,7 @@ public class ProcessTasksService {
         var auditedAt = audited ? LocalDateTime.now() : null;
         var auditedByUserCompanyId = audited ? currentUserCompanyId : null;
         var completionPercent = completionPercentForCreate(command);
-        var folio = nextTaskFolio(companyId);
+        var folio = documentSequenceService.nextTaskFolio(companyId);
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -415,6 +426,11 @@ public class ProcessTasksService {
                 currentUserCompanyId,
                 payload);
 
+        if (!"completed".equals(existingTask.status()) && "completed".equals(command.status())) {
+            requireEvidenceForCompletion(companyId, taskId);
+            collaborationService.requireTeamReadyForCompletion(companyId, userId, taskId);
+        }
+
         jdbcTemplate.update(connection -> {
             PreparedStatement statement = connection.prepareStatement(
                     """
@@ -489,9 +505,6 @@ public class ProcessTasksService {
                 assigneeUserCompanyIds,
                 command.unitId(),
                 command.businessId());
-        if (!"completed".equals(existingTask.status()) && "completed".equals(command.status())) {
-            collaborationService.requireTeamReadyForCompletion(companyId, userId, taskId);
-        }
         if ("completed".equals(existingTask.status()) && !"completed".equals(command.status())) {
             collaborationService.resetContributions(companyId, taskId, currentUserCompanyId);
         }
@@ -502,6 +515,7 @@ public class ProcessTasksService {
                 currentUserCompanyId,
                 null,
                 command.title());
+        refreshLinkedProcessRun(companyId, taskId);
 
         var task = getTask(companyId, taskId);
         var nextAssignedUserCompanyId = numberValue(task.get("assignedUserCompanyId"));
@@ -717,6 +731,7 @@ public class ProcessTasksService {
                         """,
                 companyId,
                 taskId);
+        refreshLinkedProcessRun(companyId, taskId);
     }
 
     @Transactional
@@ -725,6 +740,7 @@ public class ProcessTasksService {
         var completionNotes = optionalString(payload, "completionNotes");
         var completionPercent = optionalInteger(payload, "completionPercent", "completion");
         var userCompanyId = currentUserCompanyId(companyId, userId);
+        requireEvidenceForCompletion(companyId, taskId);
         collaborationService.requireTeamReadyForCompletion(companyId, userId, taskId);
 
         jdbcTemplate.update(connection -> {
@@ -760,6 +776,7 @@ public class ProcessTasksService {
                 userCompanyId,
                 null,
                 completionNotes);
+        refreshLinkedProcessRun(companyId, taskId);
         var task = getTask(companyId, taskId);
         publishTaskPendingAudit(companyId, userId, task);
         return task;
@@ -845,6 +862,7 @@ public class ProcessTasksService {
                 currentUserCompanyId(companyId, userId),
                 null,
                 null);
+        refreshLinkedProcessRun(companyId, taskId);
         return getTask(companyId, taskId);
     }
 
@@ -1655,24 +1673,6 @@ public class ProcessTasksService {
                 completionNotes);
     }
 
-    private String nextTaskFolio(long companyId) {
-        var currentYear = Year.now().getValue();
-        Integer nextNumber = jdbcTemplate.queryForObject(
-                """
-                        SELECT COALESCE(MAX(CAST(SUBSTRING(folio, 8) AS UNSIGNED)), 0) + 1
-                        FROM process_tasks
-                        WHERE company_id = ?
-                          AND folio LIKE ?
-                          AND folio LIKE 'T-%'
-                        """,
-                Integer.class,
-                companyId,
-                "T-" + currentYear + "-%");
-
-        int value = nextNumber != null ? nextNumber : 1;
-        return "T-" + currentYear + "-" + String.format("%03d", value);
-    }
-
     private java.util.List<Map<String, Object>> loadAttachments(long companyId, long taskId) {
         return jdbcTemplate.query(
                 """
@@ -2129,6 +2129,12 @@ public class ProcessTasksService {
         row.put("id", rs.getLong("id"));
         row.put("companyId", rs.getLong("company_id"));
         row.put("processId", processId);
+        row.put("processRunId", rs.getObject("process_run_id", Long.class));
+        row.put("processReference", rs.getString("process_reference"));
+        row.put("processRunFolio", rs.getString("process_run_folio"));
+        row.put("processTaskTemplateId", rs.getObject("process_task_template_id", Long.class));
+        row.put("evidenceRequired", rs.getBoolean("evidence_required"));
+        row.put("completionPolicy", rs.getString("completion_policy"));
         row.put("projectId", projectId);
         row.put("processFolio", rs.getString("process_folio"));
         row.put("processTitle", rs.getString("process_title"));
@@ -2193,6 +2199,106 @@ public class ProcessTasksService {
         row.put("lastFollowUpAt", toDateTimeString(rs.getTimestamp("last_follow_up_at")));
         row.put("nextFollowUpDate", toDateString(rs.getDate("next_follow_up_date")));
         return row;
+    }
+
+    private void requireEvidenceForCompletion(long companyId, long taskId) {
+        var rows = jdbcTemplate.query(
+                """
+                    SELECT task.evidence_required,
+                           EXISTS(
+                             SELECT 1
+                             FROM process_task_attachments attachment
+                             WHERE attachment.company_id = task.company_id
+                               AND attachment.task_id = task.id
+                               AND attachment.deleted_at IS NULL
+                           ) AS has_evidence
+                    FROM process_tasks task
+                    WHERE task.company_id = ? AND task.id = ? AND task.deleted_at IS NULL
+                    """,
+                (rs, rowNum) -> new EvidenceRequirement(
+                        rs.getBoolean("evidence_required"),
+                        rs.getBoolean("has_evidence")),
+                companyId,
+                taskId);
+        if (rows.isEmpty()) {
+            throw new NoSuchElementException("Task not found.");
+        }
+        var requirement = rows.getFirst();
+        if (requirement.required() && !requirement.hasEvidence()) {
+            throw new IllegalArgumentException("This task requires at least one evidence attachment before completion.");
+        }
+    }
+
+    private void refreshLinkedProcessRun(long companyId, long taskId) {
+        var rows = jdbcTemplate.query(
+                """
+                    SELECT run.id, run.status, run.coordinator_user_company_id, run.reference,
+                           process.title AS process_title,
+                           COUNT(linked_task.id) AS total_tasks,
+                           SUM(CASE WHEN linked_task.status NOT IN ('completed', 'cancelled') THEN 1 ELSE 0 END) AS open_tasks,
+                           SUM(CASE WHEN linked_task.status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled_tasks,
+                           SUM(CASE WHEN linked_task.status IN ('in_progress', 'paused', 'completed', 'cancelled') THEN 1 ELSE 0 END) AS progressed_tasks,
+                           SUM(CASE WHEN linked_task.due_date < CURRENT_DATE AND linked_task.status NOT IN ('completed', 'cancelled') THEN 1 ELSE 0 END) AS delayed_tasks
+                    FROM process_tasks changed_task
+                    JOIN process_runs run
+                      ON run.company_id = changed_task.company_id AND run.id = changed_task.process_run_id
+                    JOIN processes process
+                      ON process.company_id = run.company_id AND process.id = run.process_id
+                    LEFT JOIN process_tasks linked_task
+                      ON linked_task.company_id = run.company_id AND linked_task.process_run_id = run.id
+                     AND linked_task.deleted_at IS NULL
+                    WHERE changed_task.company_id = ? AND changed_task.id = ?
+                    GROUP BY run.id, run.status, run.coordinator_user_company_id, run.reference, process.title
+                    """,
+                (rs, rowNum) -> new ProcessRunSummary(
+                        rs.getLong("id"),
+                        rs.getString("status"),
+                        rs.getObject("coordinator_user_company_id", Long.class),
+                        rs.getString("reference"),
+                        rs.getString("process_title"),
+                        rs.getInt("total_tasks"),
+                        rs.getInt("open_tasks"),
+                        rs.getInt("cancelled_tasks"),
+                        rs.getInt("progressed_tasks"),
+                        rs.getInt("delayed_tasks")),
+                companyId,
+                taskId);
+        if (rows.isEmpty()) return;
+
+        var run = rows.getFirst();
+        var nextStatus = run.totalTasks() == 0
+                ? "pending"
+                : run.openTasks() == 0
+                    ? run.cancelledTasks() > 0 ? "finalized_with_incidents" : "finalized"
+                    : run.progressedTasks() > 0 ? "in_progress" : "pending";
+        var finalized = nextStatus.startsWith("finalized");
+        jdbcTemplate.update(
+                """
+                    UPDATE process_runs
+                    SET status = ?, has_delays = ?,
+                        finalized_at = CASE WHEN ? THEN COALESCE(finalized_at, CURRENT_TIMESTAMP) ELSE NULL END
+                    WHERE company_id = ? AND id = ?
+                    """,
+                nextStatus,
+                run.delayedTasks() > 0,
+                finalized,
+                companyId,
+                run.id());
+
+        if (finalized && !run.previousStatus().startsWith("finalized") && run.coordinatorUserCompanyId() != null) {
+            var incident = "finalized_with_incidents".equals(nextStatus);
+            appNotificationService.publish(new AppNotificationEvent(
+                    companyId,
+                    run.coordinatorUserCompanyId(),
+                    "processes",
+                    "process_run",
+                    run.id(),
+                    nextStatus,
+                    "process-run-" + nextStatus + "-" + run.id(),
+                    incident ? "Process run finalized with incidents" : "Process run finalized",
+                    run.processTitle() + " · " + run.reference(),
+                    "/processes-tasks/processes"));
+        }
     }
 
     private String taskType(Long projectId, Long processId) {
@@ -2271,5 +2377,21 @@ public class ProcessTasksService {
     }
 
     private record DependencyTaskRef(long id, Long projectId) {
+    }
+
+    private record EvidenceRequirement(boolean required, boolean hasEvidence) {
+    }
+
+    private record ProcessRunSummary(
+            long id,
+            String previousStatus,
+            Long coordinatorUserCompanyId,
+            String reference,
+            String processTitle,
+            int totalTasks,
+            int openTasks,
+            int cancelledTasks,
+            int progressedTasks,
+            int delayedTasks) {
     }
 }

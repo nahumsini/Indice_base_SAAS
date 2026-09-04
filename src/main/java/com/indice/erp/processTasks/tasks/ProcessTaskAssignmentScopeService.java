@@ -159,6 +159,21 @@ public class ProcessTaskAssignmentScopeService {
         }
     }
 
+    public void requireCanReceive(
+            long companyId,
+            Long unitId,
+            Long businessId,
+            Long assignedUserCompanyId) {
+        if (assignedUserCompanyId == null) {
+            return;
+        }
+        var targetScope = targetScope(companyId, unitId, businessId);
+        var receiverScope = userCompanyScope(companyId, assignedUserCompanyId);
+        if (!canReceiveScope(receiverScope, targetScope)) {
+            throw new IllegalArgumentException("Assigned user cannot receive tasks for this scope.");
+        }
+    }
+
     public void requireTaskAccess(long companyId, long actorUserId, long taskId) {
         var filter = taskVisibilityFilter(companyId, actorUserId, "task", "business");
         var params = new ArrayList<Object>();

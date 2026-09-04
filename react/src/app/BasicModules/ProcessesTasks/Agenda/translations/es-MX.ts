@@ -69,6 +69,7 @@ export const esMX: AgendaTranslations = {
   statuses: {
     open: 'Abiertas',
     pending: 'Pendiente',
+    waiting: 'En espera',
     pending_overdue: 'Pendientes y vencidas',
     in_progress: 'En progreso',
     completed: 'Completada',
@@ -95,6 +96,7 @@ export const esMX: AgendaTranslations = {
   },
   columns: {
     folio: { label: 'Folio', description: 'Identificador operativo de la tarea.' },
+    reference: { label: 'Referencia', description: 'Referencia que distingue esta ejecución del proceso.' },
     type: { label: 'Tipo', description: 'Tarea, tarea de proyecto o tarea de proceso.' },
     unit: { label: 'Unidad', description: 'Unidad de negocio relacionada.' },
     business: { label: 'Negocio', description: 'Negocio relacionado.' },

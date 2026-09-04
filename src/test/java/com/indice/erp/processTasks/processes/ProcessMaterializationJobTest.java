@@ -26,13 +26,13 @@ class ProcessMaterializationJobTest {
 
     @BeforeEach
     void setUp() {
-        job = new ProcessMaterializationJob(jdbcTemplate, materializer);
+        job = new ProcessMaterializationJob(jdbcTemplate, materializer, 100);
     }
 
     @Test
     @SuppressWarnings({"rawtypes", "unchecked"})
     void oneInvalidProcessDoesNotBlockTheRemainingCandidates() {
-        given(jdbcTemplate.query(anyString(), any(RowMapper.class))).willReturn(List.of(
+        given(jdbcTemplate.query(anyString(), any(RowMapper.class), any())).willReturn(List.of(
             new ProcessMaterializationJob.ProcessMaterializationCandidate(20L, 142L),
             new ProcessMaterializationJob.ProcessMaterializationCandidate(21L, 143L)
         ));
@@ -48,7 +48,7 @@ class ProcessMaterializationJobTest {
     @Test
     @SuppressWarnings({"rawtypes", "unchecked"})
     void unexpectedFailureAlsoLeavesLaterCandidatesRunnable() {
-        given(jdbcTemplate.query(anyString(), any(RowMapper.class))).willReturn(List.of(
+        given(jdbcTemplate.query(anyString(), any(RowMapper.class), any())).willReturn(List.of(
             new ProcessMaterializationJob.ProcessMaterializationCandidate(20L, 142L),
             new ProcessMaterializationJob.ProcessMaterializationCandidate(21L, 143L)
         ));

@@ -4,8 +4,10 @@ import com.indice.erp.auth.AuthSessionUser;
 import com.indice.erp.auth.SessionAuthService;
 import com.indice.erp.auth.SessionCsrfService;
 import com.indice.erp.processTasks.processes.ProcessesApiController;
+import com.indice.erp.processTasks.processes.ProcessRunsService;
 import com.indice.erp.processTasks.processes.ProcessesService;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,6 +54,9 @@ class ProcessesApiControllerCsrfTest {
     @MockBean
     private ProcessesService processesService;
 
+    @MockBean
+    private ProcessRunsService processRunsService;
+
     @BeforeEach
     void allowProcessAccess() {
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(CURRENT_USER));
@@ -74,7 +79,7 @@ class ProcessesApiControllerCsrfTest {
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.message").value("Invalid CSRF token."));
 
-        verifyNoInteractions(processesService);
+        verifyNoInteractions(processesService, processRunsService);
     }
 
     @Test
@@ -99,6 +104,26 @@ class ProcessesApiControllerCsrfTest {
             .andExpect(jsonPath("$.title").value("Weekly Audit"));
     }
 
+    @Test
+    void createProcessReturnsBadRequestWhenAConfiguredCollaboratorIsNoLongerAvailable() throws Exception {
+        given(processesService.createProcess(eq(7L), eq(1L), eq("Usuario Demo"), any()))
+            .willThrow(new NoSuchElementException("Coordinator not found."));
+
+        mockMvc.perform(
+            post("/api/v1/processes")
+                .header("X-CSRF-Token", "csrf-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "title": "Weekly Audit",
+                      "coordinatorUserCompanyId": 999
+                    }
+                    """)
+        )
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("Coordinator not found."));
+    }
+
     private static Stream<Arguments> mutatingProcessRequests() {
         return Stream.of(
             Arguments.of(HttpMethod.POST, "/api/v1/processes", """
@@ -112,7 +137,20 @@ class ProcessesApiControllerCsrfTest {
                 }
                 """),
             Arguments.of(HttpMethod.DELETE, "/api/v1/processes/11", null),
-            Arguments.of(HttpMethod.POST, "/api/v1/processes/11/materialize", null)
+            Arguments.of(HttpMethod.POST, "/api/v1/processes/11/materialize", null),
+            Arguments.of(HttpMethod.POST, "/api/v1/processes/occasional/preview", """
+                {
+                  "processId": 11,
+                  "reference": "Depa 303"
+                }
+                """),
+            Arguments.of(HttpMethod.POST, "/api/v1/processes/occasional/runs", """
+                {
+                  "processId": 11,
+                  "reference": "Depa 303",
+                  "allowDuplicateReference": false
+                }
+                """)
         );
     }
 }

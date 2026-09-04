@@ -87,6 +87,12 @@ public class AgendaService {
                                    NULL
                                ) AS resolved_assigned_name,
                                task.process_id,
+                               task.process_run_id,
+                               process_run.folio AS process_run_folio,
+                               process_run.reference AS process_reference,
+                               process_run.status AS process_run_status,
+                               task.evidence_required,
+                               task.completion_policy,
                                process.folio AS process_folio,
                                process.title AS process_title,
                                task.project_id,
@@ -130,6 +136,8 @@ public class AgendaService {
                         FROM process_tasks task
                         LEFT JOIN processes process ON process.id = task.process_id
                             AND process.company_id = task.company_id
+                        LEFT JOIN process_runs process_run ON process_run.id = task.process_run_id
+                            AND process_run.company_id = task.company_id
                         LEFT JOIN projects project ON project.id = task.project_id
                             AND project.company_id = task.company_id
                         LEFT JOIN user_companies assigned_user_company ON assigned_user_company.id = task.assigned_user_company_id
@@ -251,6 +259,12 @@ public class AgendaService {
         row.put("assignedName", rs.getString("resolved_assigned_name"));
         row.put("responsible", rs.getString("resolved_assigned_name"));
         row.put("processId", processId);
+        row.put("processRunId", rs.getObject("process_run_id", Long.class));
+        row.put("processRunFolio", rs.getString("process_run_folio"));
+        row.put("processReference", rs.getString("process_reference"));
+        row.put("processRunStatus", rs.getString("process_run_status"));
+        row.put("evidenceRequired", rs.getBoolean("evidence_required"));
+        row.put("completionPolicy", rs.getString("completion_policy"));
         row.put("processFolio", rs.getString("process_folio"));
         row.put("processTitle", rs.getString("process_title"));
         row.put("projectId", projectId);

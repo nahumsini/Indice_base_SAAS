@@ -25,7 +25,7 @@ export const koCA: ProcessesTranslations = {
   header: {
     emoji: '🔄',
     title: '프로세스',
-    subtitle: '각 담당자의 일정에 실제 작업을 생성하는 반복 프로세스를 만듭니다.',
+    subtitle: '한 사람 또는 팀을 위한 실제 작업을 생성하는 반복/일회성 프로세스를 설계합니다.',
     actions: {
       table: '표',
       diagram: '다이어그램',
@@ -103,8 +103,8 @@ export const koCA: ProcessesTranslations = {
     optionalColumn: '표에서 숨길 수 있는 선택 열입니다.',
   },
   table: {
-    loading: '반복 프로세스를 불러오는 중...',
-    empty: '현재 필터와 일치하는 반복 프로세스가 없습니다.',
+    loading: '프로세스를 불러오는 중...',
+    empty: '현재 필터와 일치하는 프로세스가 없습니다.',
     progress: '진행률',
     status: '상태',
     graceDays: (days: number) => `유예 ${days}일`,
@@ -186,11 +186,11 @@ export const koCA: ProcessesTranslations = {
   },
   form: {
     titles: {
-      create: '반복 프로세스 만들기',
-      edit: '반복 프로세스 편집',
+      create: '프로세스 만들기',
+      edit: '프로세스 편집',
     },
     descriptions: {
-      create: '작업을 생성하고 담당자 일정에 배정하는 반복 프로세스를 만듭니다.',
+      create: '개인 또는 공유 프로세스와 예정/수동 활성화 방식을 설정합니다.',
       edit: '모듈 흐름을 바꾸지 않고 구성, 담당자, 빈도를 업데이트합니다.',
     },
     labels: {
@@ -253,7 +253,7 @@ export const koCA: ProcessesTranslations = {
   },
   confirmation: {
     deleteTitle: '프로세스 삭제',
-    deleteDescription: '프로세스를 활성 카탈로그에서 제거하고 이 프로세스가 생성한 열린 작업을 취소합니다. 완료되었거나 이미 취소된 작업은 기록으로 유지됩니다.',
+    deleteDescription: '프로세스를 활성 카탈로그에서 제거합니다. 이미 생성된 실행과 작업은 기록으로 그대로 유지됩니다.',
     deleteConfirm: '프로세스 삭제',
   },
   describeFrequency: (frequency: ProcessFrequency, recurrence: ProcessRecurrenceConfig) => {

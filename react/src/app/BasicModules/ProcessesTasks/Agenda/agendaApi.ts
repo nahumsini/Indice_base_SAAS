@@ -40,13 +40,18 @@ export interface AgendaTaskItem {
   assignees: TaskAssignee[];
   assigneeUserCompanyIds: number[];
   assignmentMode: 'individual' | 'team';
-  completionPolicy: 'all_assignees' | 'lead';
+  completionPolicy: 'all_assignees' | 'any_assignee' | 'lead';
   teamSize: number;
   teamReadyCount: number;
   teamAllReady: boolean;
   currentUserContributionStatus: TaskContributionStatus | null;
   isAssignedToCurrentUser: boolean;
   processId: number | null;
+  processRunId?: number | null;
+  processRunFolio?: string | null;
+  processReference?: string | null;
+  processRunStatus?: string | null;
+  evidenceRequired?: boolean;
   processFolio: string | null;
   processTitle: string | null;
   projectId: number | null;
@@ -137,7 +142,10 @@ export function normalizeAgendaTask(record: Partial<AgendaTaskItem>): AgendaTask
     assignees,
     assigneeUserCompanyIds,
     assignmentMode: record.assignmentMode === 'team' || assignees.length > 1 ? 'team' : 'individual',
-    completionPolicy: record.completionPolicy === 'all_assignees' ? 'all_assignees' : 'lead',
+    completionPolicy:
+      record.completionPolicy === 'all_assignees' || record.completionPolicy === 'any_assignee'
+        ? record.completionPolicy
+        : 'lead',
     teamSize: Number(record.teamSize ?? assignees.length),
     teamReadyCount: Number(
       record.teamReadyCount ?? assignees.filter((assignee) => assignee.contributionStatus === 'ready').length,
@@ -146,6 +154,11 @@ export function normalizeAgendaTask(record: Partial<AgendaTaskItem>): AgendaTask
     currentUserContributionStatus: record.currentUserContributionStatus ?? null,
     isAssignedToCurrentUser: Boolean(record.isAssignedToCurrentUser),
     processId: record.processId ?? null,
+    processRunId: record.processRunId ?? null,
+    processRunFolio: record.processRunFolio ?? null,
+    processReference: record.processReference ?? null,
+    processRunStatus: record.processRunStatus ?? null,
+    evidenceRequired: Boolean(record.evidenceRequired),
     processFolio: record.processFolio ?? null,
     processTitle: record.processTitle ?? null,
     projectId: record.projectId ?? null,

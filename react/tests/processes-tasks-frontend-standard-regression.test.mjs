@@ -317,6 +317,26 @@ test('el wizard de procesos oculta gracia y ventana sin alterar los valores téc
   assert.match(apiSource, /generationWindowDays: parseProcessInteger\(form\.generationWindowDays, 45\)/);
 });
 
+test('el wizard de procesos conserva contexto, escala tareas y protege cambios sin guardar', () => {
+  const dialogSource = readFileSync(resolve(moduleRoot, 'Processes/components/ProcessFormDialog.tsx'), 'utf8');
+  const frameSource = readFileSync(resolve(root, 'src/app/components/indice-modal/IndiceModalFrame.tsx'), 'utf8');
+  const processesSource = readFileSync(resolve(moduleRoot, 'Processes/Processes.tsx'), 'utf8');
+
+  assert.match(dialogSource, /type Step = 'identity' \| 'tasks' \| 'organization' \| 'schedule' \| 'review'/);
+  assert.match(dialogSource, /<DecisionCards/);
+  assert.match(dialogSource, /lg:grid-cols-\[15\.5rem_minmax\(0,1fr\)\]/);
+  assert.match(dialogSource, /filteredCollaborators/);
+  assert.match(dialogSource, /<TimelinePreview/);
+  assert.match(dialogSource, /<ReviewSection/);
+  assert.match(dialogSource, /discardPrompt/);
+  assert.match(dialogSource, /bodyRef=\{bodyRef\}/);
+  assert.match(dialogSource, /scrollTo\(\{ top: 0, behavior: 'auto' \}\)/);
+  assert.doesNotMatch(dialogSource, /window\.confirm/);
+  assert.match(frameSource, /bodyRef\?: Ref<HTMLDivElement>/);
+  assert.match(processesSource, /const businessMatchesUnit = selectedBusiness/);
+  assert.match(processesSource, /businessId: null, businessName: ''/);
+});
+
 test('procesos abre con seis columnas operativas y conserva personalizaciones del usuario', () => {
   const processesSource = readFileSync(resolve(moduleRoot, 'Processes/Processes.tsx'), 'utf8');
   const presetSource = processesSource.slice(
