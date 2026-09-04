@@ -15,7 +15,7 @@ export const esMX = {
   storage: {
     title: 'Almacenamiento de la cuenta',
     summary: (purchased: number, benefit: number) =>
-      `5 GB incluidos · ${purchased} comprados · ${benefit} de cortesía`,
+      `5 GiB incluidos · ${purchased} comprados · ${benefit} de cortesía`,
     usageLabel: 'Uso de almacenamiento',
     note: 'Incluye archivos guardados y cargas reservadas. La compra de bloques se habilitará cuando se apruebe el precio comercial.',
   },

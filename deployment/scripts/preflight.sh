@@ -186,12 +186,12 @@ if [[ "${USE_EXAMPLE}" == "false" ]]; then
     exit 1
   fi
 
-  if [[ "$(read_env_value APP_BILLING_STORAGE_INCLUDED_BYTES)" != "107374182400" ]]; then
-    echo "APP_BILLING_STORAGE_INCLUDED_BYTES must preserve the approved 100 GiB included quota." >&2
+  if [[ "$(read_env_value APP_BILLING_STORAGE_INCLUDED_BYTES)" != "5368709120" ]]; then
+    echo "APP_BILLING_STORAGE_INCLUDED_BYTES must preserve the approved 5 GiB included quota." >&2
     exit 1
   fi
-  if [[ "$(read_env_value APP_BILLING_STORAGE_BLOCK_BYTES)" != "107374182400" ]]; then
-    echo "APP_BILLING_STORAGE_BLOCK_BYTES must preserve the approved 100 GiB commercial block." >&2
+  if [[ "$(read_env_value APP_BILLING_STORAGE_BLOCK_BYTES)" != "5368709120" ]]; then
+    echo "APP_BILLING_STORAGE_BLOCK_BYTES must preserve the approved 5 GiB commercial block." >&2
     exit 1
   fi
 

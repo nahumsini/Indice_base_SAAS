@@ -414,7 +414,7 @@ public class StorageQuotaService {
         }
         public long availableBytes() { return metered ? Math.max(0, limitBytes() - usedAndReservedBytes()) : Long.MAX_VALUE; }
         static StorageSnapshot unmetered(long companyId) {
-            return new StorageSnapshot(companyId, false, false, 0, StorageQuotaProperties.ONE_HUNDRED_GIB, 0, 0, 0, 0);
+            return new StorageSnapshot(companyId, false, false, 0, StorageQuotaProperties.FIVE_GIB, 0, 0, 0, 0);
         }
     }
 }

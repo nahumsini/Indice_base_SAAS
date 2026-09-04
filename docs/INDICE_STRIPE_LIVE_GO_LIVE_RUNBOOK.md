@@ -27,7 +27,7 @@ webhooks, impuestos y secretos separados. Ningún secreto se guarda en Git.
 - Cada usuario adicional cuesta USD 12 al mes o USD 144 al año, sin descuento anual.
 - Una consultoría de 60 minutos al mes está incluida y no es acumulable; cada sesión adicional se
   compra por separado a USD 79.
-- Se incluyen 100 GiB; cada bloque adicional de 100 GiB cuesta USD 15 mensual o USD 180 anual.
+- Se incluyen 5 GiB; cada bloque adicional de 5 GiB cuesta USD 15 mensual o USD 180 anual.
 - Los precios son exclusivos de impuestos. Stripe Tax usa la dirección fiscal.
 
 Productos básicos: Recursos Humanos; Procesos y Tareas; Gastos + Caja Chica; Punto de Venta +
@@ -155,7 +155,7 @@ requiere.
 
 ## Compuerta del almacenamiento automático
 
-El runtime ya reserva automáticamente bloques de 100 GiB sin interrumpir la carga y sincroniza la
+El runtime ya reserva automáticamente bloques de 5 GiB sin interrumpir la carga y sincroniza la
 cantidad a Stripe sin prorrateo para la siguiente factura. LIVE permanece bloqueado hasta certificar
 en TEST consentimiento, cargas simultáneas, reintentos del outbox, factura y reconciliación
 Stripe/object storage.

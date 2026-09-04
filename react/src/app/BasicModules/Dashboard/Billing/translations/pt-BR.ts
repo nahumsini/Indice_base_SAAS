@@ -15,7 +15,7 @@ export const ptBR = {
   storage: {
     title: 'Armazenamento da conta',
     summary: (purchased: number, benefit: number) =>
-      `5 GB incluídos · ${purchased} comprados · ${benefit} de cortesia`,
+      `5 GiB incluídos · ${purchased} comprados · ${benefit} de cortesia`,
     usageLabel: 'Uso do armazenamento',
     note: 'Inclui arquivos salvos e envios reservados. A compra de blocos será habilitada após a aprovação do preço comercial.',
   },

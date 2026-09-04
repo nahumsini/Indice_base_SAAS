@@ -170,7 +170,7 @@ public class StorageBlockPurchaseService {
                 FROM billing_catalog_versions version
                 JOIN billing_catalog_products product
                   ON product.catalog_version_id = version.id
-                 AND product.product_code = 'storage_block_100_gib'
+                 AND product.product_code IN ('storage_block_5_gib', 'storage_block_100_gib')
                  AND product.active = 1
                 JOIN billing_catalog_prices price
                   ON price.catalog_product_id = product.id
@@ -178,7 +178,8 @@ public class StorageBlockPurchaseService {
                  AND price.status IN ('READY', 'ACTIVE')
                  AND price.external_price_id LIKE 'price_%'
                 WHERE version.status = 'ACTIVE'
-                ORDER BY version.effective_from DESC, version.id DESC
+                ORDER BY version.effective_from DESC, version.id DESC,
+                         CASE product.product_code WHEN 'storage_block_5_gib' THEN 0 ELSE 1 END
                 LIMIT 1
                 """,
             (rs, rowNum) -> rs.getString(1),

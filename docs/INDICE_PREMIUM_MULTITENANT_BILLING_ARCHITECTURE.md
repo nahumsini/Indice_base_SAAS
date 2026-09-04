@@ -208,8 +208,8 @@ asignaciones de módulos del usuario.
 
 ### 3.5 Almacenamiento
 
-- Cada `company_id` incluye 100 GiB de archivos de usuario.
-- Los bloques adicionales son de 100 GiB y cuestan USD 15 mensuales o USD 180 anuales, sin descuento.
+- Cada `company_id` incluye 5 GiB de archivos de usuario.
+- Los bloques adicionales son de 5 GiB y cuestan USD 15 mensuales o USD 180 anuales, sin descuento.
 - El precio debe almacenarse como versión de catálogo y no calcularse retroactivamente en cada
   factura.
 - La cuota cubre archivos cargados por usuarios. Base de datos, índices, logs técnicos, auditoría y
@@ -218,6 +218,10 @@ asignaciones de módulos del usuario.
   para la próxima factura; no corta el servicio ni elimina archivos.
 - La compra automática se informa en Billing y por correo conforme al consentimiento aceptado en
   Checkout. Reducir bloques sólo es posible cuando el uso real cabe en la nueva capacidad.
+
+La migración forward-only `V251` restablece este contrato de 5 GiB después de que `V234` hubiera
+elevado por error la cuota a 100 GiB. Sólo corrige el producto `2026.08-global-v1` mientras continúa
+en borrador; el runtime conserva lectura compatible de códigos históricos ya publicados.
 
 Antes de publicar el precio se debe fijar región AWS, clase de almacenamiento, moneda de referencia
 y redondeo comercial. La fórmula aprobada permanece aunque cambie la tarifa del proveedor.
@@ -324,7 +328,7 @@ Modelo de items aprobado para `2026.08-global-v1`:
 - Una línea `module_additional_unit` con cantidad para selecciones de dos o más módulos sueltos o
   para módulos agregados a un paquete.
 - Una línea `extra_user` con cantidad para usuarios adicionales.
-- Una línea `storage_block_100_gib` con cantidad para bloques adicionales de 100 GiB.
+- Una línea `storage_block_5_gib` con cantidad para bloques adicionales de 5 GiB.
 - Las consultorías adicionales se cobran por separado y no modifican la suscripción recurrente.
 
 La selección concreta de productos básicos se guarda localmente y en metadata de Stripe. Cambiar
@@ -794,7 +798,7 @@ Criterio de salida: simulación completa de pago fallido a purga, sin pérdida p
 ### Fase 7 — Almacenamiento y complementarios
 
 - Medición de object storage por `company_id` y categoría.
-- Bloques de 5 GB, alertas y enforcement de nuevas cargas.
+- Bloques de 5 GiB, alertas y enforcement de nuevas cargas.
 - Incorporar módulos complementarios uno por uno usando el contrato de la sección 8.
 
 Estado implementado: `V151` agrega ledger transaccional por objeto, reservas concurrentes,

@@ -16,7 +16,7 @@ Estado: implementación para `apptest.indiceapp.com`. Producción permanece fuer
 - Cada plan incluye 5 empleados. Cada empleado adicional cuesta USD 12 al mes; en anual cuesta USD 144 por año, sin descuento adicional.
 - La facturación anual aplica 20 % de descuento a módulos y paquetes; no a usuarios,
   almacenamiento o consultoría.
-- Se incluyen 100 GiB y cada bloque automático adicional de 100 GiB cuesta USD 15 al mes o USD 180
+- Se incluyen 5 GiB y cada bloque automático adicional de 5 GiB cuesta USD 15 al mes o USD 180
   al año. El servicio no se corta; la cantidad se incorpora a la siguiente factura.
 - Los precios de lanzamiento son tarifas de lealtad mientras la suscripción permanezca activa.
 
@@ -94,8 +94,8 @@ APP_BILLING_STRIPE_PROCESSOR_ENABLED=true
 APP_BILLING_PROVISIONING_ENABLED=true
 
 APP_BILLING_STRIPE_CATALOG_LIVE_SYNC_ENABLED=false
-APP_BILLING_STORAGE_INCLUDED_BYTES=107374182400
-APP_BILLING_STORAGE_BLOCK_BYTES=107374182400
+APP_BILLING_STORAGE_INCLUDED_BYTES=5368709120
+APP_BILLING_STORAGE_BLOCK_BYTES=5368709120
 ```
 
 La llave publicable y el account ID no son utilizados por el checkout actual: la sesión la crea el backend y el navegador es redirigido a Stripe Checkout.

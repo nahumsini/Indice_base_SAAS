@@ -7,10 +7,10 @@ import org.junit.jupiter.api.Test;
 class StorageQuotaPropertiesTest {
 
     @Test
-    void commercialDefaultsUseOneHundredGibForIncludedAndAdditionalBlocks() {
+    void commercialDefaultsUseFiveGibForIncludedAndAdditionalBlocks() {
         var properties = new StorageQuotaProperties();
 
-        assertThat(properties.getIncludedBytes()).isEqualTo(StorageQuotaProperties.ONE_HUNDRED_GIB);
-        assertThat(properties.getBlockBytes()).isEqualTo(StorageQuotaProperties.ONE_HUNDRED_GIB);
+        assertThat(properties.getIncludedBytes()).isEqualTo(StorageQuotaProperties.FIVE_GIB);
+        assertThat(properties.getBlockBytes()).isEqualTo(StorageQuotaProperties.FIVE_GIB);
     }
 }

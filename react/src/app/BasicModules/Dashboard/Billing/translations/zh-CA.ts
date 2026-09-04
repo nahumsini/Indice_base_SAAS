@@ -15,7 +15,7 @@ export const zhCA = {
   storage: {
     title: '帐户存储空间',
     summary: (purchased: number, benefit: number) =>
-      `包含 5 GB · 已购买 ${purchased} 个 · 赠送 ${benefit} 个`,
+      `包含 5 GiB · 已购买 ${purchased} 个 · 赠送 ${benefit} 个`,
     usageLabel: '存储空间使用量',
     note: '包括已保存的文件和预留上传。商业定价获批后即可购买存储空间块。',
   },

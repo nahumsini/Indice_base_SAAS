@@ -13,7 +13,7 @@ export const enCA = {
   storage: {
     title: 'Account storage',
     summary: (purchased: number, benefit: number) =>
-      `5 GB included · ${purchased} purchased · ${benefit} courtesy`,
+      `5 GiB included · ${purchased} purchased · ${benefit} courtesy`,
     usageLabel: 'Storage usage',
     note: 'Includes saved files and reserved uploads. Storage block purchases will be enabled once commercial pricing is approved.',
   },

@@ -238,7 +238,7 @@ class PlatformCatalogManagementServiceIntegrationTest {
 
     @Test
     void quantityAndStorageProductsKeepTheirCommercialKindWhenEdited() {
-        for (var productCode : List.of("module_additional_unit", "storage_block_100_gib")) {
+        for (var productCode : List.of("module_additional_unit", "storage_block_5_gib")) {
             var helperProduct = jdbc.queryForMap(
                 "SELECT id, display_name, sort_order, active, commercial_kind FROM billing_catalog_products WHERE catalog_version_id = ? AND product_code = ?",
                 versionId,
