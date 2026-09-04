@@ -1424,6 +1424,58 @@ public class PlatformAdminService {
         return result;
     }
 
+    /**
+     * Returns the customer-facing commercial offer without exposing draft or
+     * superseded catalog rows. Callers must authorize their audience first.
+     */
+    public Map<String, Object> activeCatalogAfterAuthorization() {
+        return activeCommercialCatalog(catalogAfterAuthorization());
+    }
+
+    static Map<String, Object> activeCommercialCatalog(Map<String, Object> catalog) {
+        var versions = catalogRows(catalog.get("versions"));
+        var activeVersion = versions.stream()
+            .filter(version -> "ACTIVE".equalsIgnoreCase(String.valueOf(version.get("status")).trim()))
+            .findFirst()
+            .orElseThrow(() -> new IllegalStateException("Active commercial catalog not found."));
+        var activeVersionId = numericId(activeVersion.get("id"));
+
+        var result = new LinkedHashMap<String, Object>(catalog);
+        result.put("versions", List.of(activeVersion));
+        result.put("products", catalogRows(catalog.get("products")).stream()
+            .filter(product -> belongsToCatalog(product, activeVersionId))
+            .filter(product -> Boolean.TRUE.equals(product.get("active")))
+            .filter(product -> !Boolean.FALSE.equals(product.get("commercially_available")))
+            .toList());
+        result.put("prices", catalogRows(catalog.get("prices")).stream()
+            .filter(price -> belongsToCatalog(price, activeVersionId))
+            .toList());
+        result.put("promotions", catalogRows(catalog.get("promotions")).stream()
+            .filter(promotion -> belongsToCatalog(promotion, activeVersionId))
+            .filter(promotion -> !Boolean.FALSE.equals(promotion.get("active")))
+            .toList());
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> catalogRows(Object value) {
+        if (!(value instanceof List<?> rows)) return List.of();
+        return rows.stream()
+            .filter(Map.class::isInstance)
+            .map(row -> (Map<String, Object>) row)
+            .toList();
+    }
+
+    private static long numericId(Object value) {
+        if (value instanceof Number number) return number.longValue();
+        throw new IllegalStateException("Active commercial catalog has an invalid identifier.");
+    }
+
+    private static boolean belongsToCatalog(Map<String, Object> row, long catalogVersionId) {
+        var value = row.get("catalog_version_id");
+        return value instanceof Number number && number.longValue() == catalogVersionId;
+    }
+
     public Map<String, Object> modules(long actorUserId) {
         accessService.require(actorUserId, "PLATFORM_VIEW");
         var modules = jdbcTemplate.query(

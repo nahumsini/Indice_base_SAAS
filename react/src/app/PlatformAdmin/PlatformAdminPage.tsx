@@ -126,6 +126,7 @@ import {
   revocationReasonOptions,
 } from "./flowOptions";
 import { hasAccountCreationDraft } from "./accountCreationDraft";
+import { selectActiveCatalogProducts } from "./selectActiveCatalogProducts";
 import {
   platformAdminApi,
   type BenefitPayload,
@@ -512,17 +513,7 @@ export default function PlatformAdminPage() {
   }, [sortedCompanies, page, pageSize]);
 
   const activeCatalogProducts = useMemo(() => {
-    const activeVersion =
-      catalog?.versions.find((version) => version.status === "ACTIVE") ||
-      catalog?.versions[0];
-    return (catalog?.products ?? [])
-      .filter(
-        (product) =>
-          product.active &&
-          product.commercially_available !== false &&
-          (!activeVersion || product.catalog_version_id === activeVersion.id),
-      )
-      .sort((left, right) => left.sort_order - right.sort_order);
+    return selectActiveCatalogProducts(catalog);
   }, [catalog]);
 
   useEffect(() => {

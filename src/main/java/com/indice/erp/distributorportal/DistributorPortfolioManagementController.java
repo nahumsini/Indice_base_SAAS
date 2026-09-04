@@ -86,7 +86,7 @@ public class DistributorPortfolioManagementController {
     public ResponseEntity<?> catalog(HttpSession session) {
         return withActor(session, actor -> {
             portfolioAccess.requireDistributor(actor);
-            return accounts.catalogAfterAuthorization();
+            return accounts.activeCatalogAfterAuthorization();
         });
     }
 

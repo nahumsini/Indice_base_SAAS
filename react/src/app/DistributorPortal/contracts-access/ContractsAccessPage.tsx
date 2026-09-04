@@ -13,6 +13,7 @@ import {
 } from '../../components/frontend-os';
 import AccountCreationModal from '../../PlatformAdmin/AccountCreationModal';
 import CompanyAccountDrawer from '../../PlatformAdmin/CompanyAccountDrawer';
+import { selectActiveCatalogProducts } from '../../PlatformAdmin/selectActiveCatalogProducts';
 import { TrialExtensionModal, type TrialExtensionDays } from '../../PlatformAdmin/Customers/TrialExtensionModal';
 import type { DistributorClient, DistributorStageFilter } from './types/contractsAccess';
 import type { DistributorPortalCopy } from './translations';
@@ -58,7 +59,7 @@ export function ContractsAccessPage({ copy, locale }: { copy: DistributorPortalC
     ...(['PROSPECT', 'DEMO', 'TRIAL', 'ACTIVE', 'ATTENTION', 'INACTIVE'] as const).map((value) => ({ value, label: copy.states[value] })),
   ];
   const catalogProducts = useMemo(
-    () => (portfolio.catalog?.products ?? []).filter((product) => product.active && product.commercially_available !== false),
+    () => selectActiveCatalogProducts(portfolio.catalog),
     [portfolio.catalog],
   );
   const existingOwnerEmails = useMemo(

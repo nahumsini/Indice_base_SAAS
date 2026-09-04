@@ -31,11 +31,28 @@ const customerControlCenter = read(
   "src/app/PlatformAdmin/Customers/CustomerControlCenter.tsx",
 );
 const account = read("src/app/PlatformAdmin/AccountCreationModal.tsx");
+const activeCatalogSelection = read(
+  "src/app/PlatformAdmin/selectActiveCatalogProducts.ts",
+);
+const distributorContracts = read(
+  "src/app/DistributorPortal/contracts-access/ContractsAccessPage.tsx",
+);
 
 test("la tabla tolera respuestas antiguas sin tipo de cuenta", () => {
   assert.match(customerRow, /normalizeAccountType\(company\.user_type\)/);
   assert.match(customerRow, /return "SUPER_ADMIN"/);
   assert.match(customerRow, /<UserTypeBadge type=\{accountType\}/);
+});
+
+test("distribuidores sólo pueden seleccionar productos de la versión comercial activa", () => {
+  assert.match(activeCatalogSelection, /status\.trim\(\)\.toUpperCase\(\) === 'ACTIVE'/);
+  assert.match(activeCatalogSelection, /product\.catalog_version_id === activeVersion\.id/);
+  assert.match(activeCatalogSelection, /product\.active/);
+  assert.match(activeCatalogSelection, /product\.commercially_available !== false/);
+  assert.match(distributorContracts, /selectActiveCatalogProducts\(portfolio\.catalog\)/);
+  assert.match(distributorContracts, /products=\{catalogProducts\}/);
+  assert.match(distributorContracts, /catalogProducts=\{catalogProducts\}/);
+  assert.match(page, /selectActiveCatalogProducts\(catalog\)/);
 });
 const accountFlow = read(
   "src/app/PlatformAdmin/AccountCreation/hooks/useAccountCreationFlow.ts",

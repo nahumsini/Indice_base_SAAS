@@ -367,6 +367,10 @@ reglas:
    hospedados por Stripe. Índice y `PLATFORM_ROOT` no reciben PAN, CVV ni fecha de expiración; Root
    sólo consulta el estado y administra el contrato o las cortesías mediante operaciones
    auditadas.
+9. Las superficies de contratación y administración delegada para distribuidores consumen sólo
+   la versión `ACTIVE` del catálogo. Una versión `DRAFT` o `SUPERSEDED` nunca aparece como opción
+   seleccionable ni se mezcla con códigos históricos; el backend filtra la respuesta y el frontend
+   repite la selección activa como defensa de presentación.
 
 ## 6. Ciclo de vida y cobranza
 
