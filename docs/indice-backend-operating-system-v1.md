@@ -153,6 +153,9 @@ Rules:
   they are not exceptions hidden inside a normal repository.
 - Cache keys, idempotency keys, object-storage paths, scheduled jobs, and audit records carry the
   same tenant boundary as the data they affect.
+- A scheduled batch that processes records from multiple tenants isolates each record in its own
+  transaction. One invalid record must be identified with tenant/object context and must not roll
+  back successful work for other tenants or stop the remaining candidates.
 
 Access roles do not replace object ownership checks. Entitlement, module assignment, tab permission,
 role/capability, organizational scope, and object ownership are separate gates and must all pass

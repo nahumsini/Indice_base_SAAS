@@ -26,7 +26,6 @@ import java.util.Set;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -1025,37 +1024,6 @@ public class ProcessesService {
         return rows.isEmpty() ? fallback : normalizedOrFallback(rows.getFirst(), fallback);
     }
 
-    @Scheduled(fixedDelayString = "${app.process-tasks.processes.materialization-delay-ms:900000}")
-    @Transactional
-    public void materializeDueProcesses() {
-        var candidates = jdbcTemplate.query(
-                """
-                        SELECT id, company_id
-                        FROM processes
-                        WHERE deleted_at IS NULL
-                          AND is_active = TRUE
-                          AND (end_date IS NULL OR end_date >= CURRENT_DATE)
-                          AND (
-                              generated_until_date IS NULL
-                              OR generated_until_date < CURRENT_DATE
-                              OR next_occurrence_date IS NULL
-                              OR next_occurrence_date <= DATE_ADD(CURRENT_DATE, INTERVAL generation_window_days DAY)
-                          )
-                        ORDER BY company_id, id
-                        """,
-                (rs, rowNum) -> new ProcessMaterializationKey(
-                        rs.getLong("company_id"),
-                        rs.getLong("id")));
-
-        for (var candidate : candidates) {
-            try {
-                materializeProcess(candidate.companyId(), candidate.processId());
-            } catch (NoSuchElementException ignored) {
-                // Process was deleted between candidate collection and row locking.
-            }
-        }
-    }
-
     @Transactional
     public Map<String, Object> materializeProcess(long companyId, long processId) {
         var process = loadProcessForMaterialization(companyId, processId);
@@ -1444,11 +1412,6 @@ public class ProcessesService {
     private String stringValue(Map<String, Object> map, String key) {
         var value = map.get(key);
         return value != null ? value.toString() : null;
-    }
-
-    private record ProcessMaterializationKey(
-            long companyId,
-            long processId) {
     }
 
     private record ProcessMaterializationRecord(
