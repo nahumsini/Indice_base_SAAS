@@ -15,7 +15,6 @@ export function deriveProductSalesReadiness(product: Pick<SalesCatalogItem, 'sta
   if (product.status === 'Draft') reasons.push('DRAFT');
   if (product.status === 'Inactive') reasons.push('INACTIVE');
   if (product.visibility === 'Internal') reasons.push('INTERNAL');
-  if (product.type === 'Operational item') reasons.push('OPERATIONAL_ITEM');
   if (!(product.price > 0)) reasons.push('MISSING_PRICE');
 
   const hasBlockingReason = reasons.some((reason) => reason !== 'MISSING_PRICE');

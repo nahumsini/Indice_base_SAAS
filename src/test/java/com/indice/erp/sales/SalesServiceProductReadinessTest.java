@@ -78,10 +78,23 @@ class SalesServiceProductReadinessTest {
                 .containsEntry("readyForSales", false)
                 .containsEntry("salesReadiness", "NOT_READY")
                 .containsEntry("salesReadinessReasons", List.of(
-                        "DRAFT", "INTERNAL", "OPERATIONAL_ITEM", "MISSING_PRICE"));
+                        "DRAFT", "INTERNAL", "MISSING_PRICE"));
         assertThat(items.get(2))
                 .containsEntry("salesReadiness", "NOT_READY")
                 .containsEntry("salesReadinessReasons", List.of("INACTIVE"));
+    }
+
+    @Test
+    void explicitCommercialVisibilityMakesAnOperationalItemSellable() {
+        when(repository.get(7L, products, 94L)).thenReturn(product(
+                94L, "active", "operational_item", "commercial", BigDecimal.TEN));
+
+        var result = service.get(7L, "products", 94L);
+
+        assertThat(result)
+                .containsEntry("readyForSales", true)
+                .containsEntry("salesReadiness", "READY")
+                .containsEntry("salesReadinessReasons", List.of());
     }
 
     @Test

@@ -52,7 +52,7 @@ class SalesPublicCatalogRepositoryTest {
             .contains("TRIM(warehouse.business_unit_id) = CAST(? AS CHAR)")
             .contains("TRIM(warehouse.business_id) = CAST(? AS CHAR)")
             .contains("IN ('commercial', 'pos_ready', 'quote_only')")
-            .contains("<> 'operational_item'")
+            .doesNotContain("<> 'operational_item'")
             .contains("product.price IS NOT NULL AND product.price > 0");
         assertThat(arguments.getValue()).containsExactly(11L, 12L, 7L, 17L, 7L);
     }
@@ -72,7 +72,7 @@ class SalesPublicCatalogRepositoryTest {
         assertThat(sql.getValue())
             .contains("LOWER(TRIM(status)) = 'active'")
             .contains("IN ('commercial', 'pos_ready', 'quote_only')")
-            .contains("<> 'operational_item'")
+            .doesNotContain("<> 'operational_item'")
             .contains("price IS NOT NULL AND price > 0");
     }
 
@@ -92,8 +92,26 @@ class SalesPublicCatalogRepositoryTest {
             .contains("product.deleted_at IS NULL")
             .contains("LOWER(TRIM(product.status)) = 'active'")
             .contains("IN ('commercial', 'pos_ready', 'quote_only')")
-            .contains("<> 'operational_item'")
+            .doesNotContain("<> 'operational_item'")
             .contains("product.price IS NOT NULL AND product.price > 0");
+    }
+
+    @Test
+    void preservesCustomCategoryLabelsAndFallsBackOnlyWhenTheyAreBlank() {
+        assertThat(SalesPublicCatalogRepository.publicCategory("  Alojamientos en Cancún  "))
+                .isEqualTo("Alojamientos en Cancún");
+        assertThat(SalesPublicCatalogRepository.publicCategory("CRM B2B"))
+                .isEqualTo("CRM B2B");
+        assertThat(SalesPublicCatalogRepository.publicCategory("  ")).isEqualTo("Other");
+        assertThat(SalesPublicCatalogRepository.publicCategory(null)).isEqualTo("Other");
+    }
+
+    @Test
+    void mapsDatabaseProductTypesToTheFrontendContract() {
+        assertThat(SalesPublicCatalogRepository.publicProductType("operational_item"))
+                .isEqualTo("Operational item");
+        assertThat(SalesPublicCatalogRepository.publicProductType("service")).isEqualTo("Service");
+        assertThat(SalesPublicCatalogRepository.publicProductType("unexpected")).isEqualTo("Product");
     }
 
     private SalesPublicCatalogRepository.CatalogRecord catalog() {

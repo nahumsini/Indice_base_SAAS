@@ -2,6 +2,7 @@ import { CalendarDays, Download, Loader2, MessageCircle, Plus, ShoppingCart } fr
 import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
 import type { ProductsTranslations } from '../translations';
+import { getCategoryLabel } from '../utils/productCategories';
 import { formatProductCurrency } from '../utils/productFormatters';
 import type { PublicCatalogConfig, PublicCatalogItem } from './types/publicCatalogTypes';
 import { PublicCatalogExpandableDescription } from './PublicCatalogExpandableDescription';
@@ -46,7 +47,7 @@ export function PublicCatalogMobileCard({
           <div className="min-w-0">
             <h2 className="line-clamp-2 text-base font-medium leading-5 text-slate-950 dark:text-white">{item.name}</h2>
             {config.showCategories && item.category ? (
-              <p className="mt-1 truncate text-xs font-medium text-slate-500 dark:text-slate-400">{t.categoryLabels[item.category]}</p>
+              <p className="mt-1 truncate text-xs font-medium text-slate-500 dark:text-slate-400">{getCategoryLabel(item.category, t)}</p>
             ) : null}
           </div>
 

@@ -213,6 +213,10 @@ legacy compatibility boundaries. Do not use it to avoid designing a stable prima
 API requirements:
 
 - validate shape, length, range, format, cardinality, and allowed transitions server-side;
+- derive Sales product commercial readiness from active status, an explicit commercial channel
+  (`commercial`, `pos_ready`, or `quote_only`), and a positive price. Product type describes the
+  item and must not silently override an explicit commercial channel; new operational items still
+  default to internal visibility;
 - allow-list writable fields; never bind client payloads directly to persistence models;
 - bound page size, bulk sizes, date ranges, and export volume;
 - return stable machine-readable error codes where clients need decisions;

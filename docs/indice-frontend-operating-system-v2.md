@@ -1977,6 +1977,10 @@ Modal selectors must scale from a small company to a large multi-unit company.
 - Preserve the active query, filters, and selection while the modal remains open.
 - When a user cannot find a permitted entity, provide a quick-create action when the workflow allows it. Return to the original modal and select the newly created entity automatically.
 - Apply dependent scope in this order: company, unit, business, then the available catalog.
+- Sales selectors and public catalogs use the same commercial-readiness contract: active status,
+  explicit commercial visibility, and a positive price. Type labels do not contradict an enabled
+  sales channel, and custom category labels fall back to the tenant-provided value when no
+  translation exists.
 
 ### 24.2 Capture-minimum and currency rules
 

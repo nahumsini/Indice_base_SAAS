@@ -19,6 +19,7 @@ import {
   publicCatalogDescriptionCanExpand,
   publicCatalogImages,
 } from '../src/app/BasicModules/Sales/Productos/publicCatalog/utils/publicCatalogPresentation.ts';
+import { deriveProductSalesReadiness } from '../src/app/BasicModules/Sales/utils/productSalesReadiness.ts';
 import {
   getProductImageTargetDimensions,
 } from '../src/app/BasicModules/Sales/Productos/utils/productImageOptimization.ts';
@@ -368,6 +369,43 @@ test('public catalog removes every forbidden price field before rendering', () =
   assert.equal(retailOnly.publicPrice, 125);
   assert.equal(retailOnly.wholesalePrice, undefined);
   assert.equal(retailOnly.wholesaleMinQuantity, undefined);
+});
+
+test('explicit commercial visibility publishes legacy operational items without exposing internal ones', () => {
+  assert.deepEqual(deriveProductSalesReadiness({
+    status: 'Active',
+    visibility: 'Commercial',
+    type: 'Operational item',
+    price: 1500,
+  }), {
+    readyForSales: true,
+    status: 'READY',
+    reasons: [],
+  });
+
+  assert.deepEqual(deriveProductSalesReadiness({
+    status: 'Active',
+    visibility: 'Internal',
+    type: 'Operational item',
+    price: 1500,
+  }), {
+    readyForSales: false,
+    status: 'NOT_READY',
+    reasons: ['INTERNAL'],
+  });
+});
+
+test('public catalog cards preserve custom category labels on desktop and mobile', async () => {
+  const root = new URL('../src/app/BasicModules/Sales/Productos/publicCatalog/', import.meta.url);
+  const [card, mobileCard] = await Promise.all([
+    readFile(new URL('PublicCatalogCard.tsx', root), 'utf8'),
+    readFile(new URL('PublicCatalogMobileCard.tsx', root), 'utf8'),
+  ]);
+
+  for (const source of [card, mobileCard]) {
+    assert.match(source, /getCategoryLabel\(item\.category, t\)/);
+    assert.doesNotMatch(source, /t\.categoryLabels\[item\.category\]/);
+  }
 });
 
 test('reservable public catalog items keep purchase actions and expose a private-source-safe calendar', async () => {

@@ -181,7 +181,6 @@ public class SalesPublicCatalogRepository {
               AND LOWER(TRIM(status)) = 'active'
               AND REPLACE(REPLACE(LOWER(TRIM(visibility)), '-', '_'), ' ', '_')
                   IN ('commercial', 'pos_ready', 'quote_only')
-              AND REPLACE(REPLACE(LOWER(TRIM(type)), '-', '_'), ' ', '_') <> 'operational_item'
               AND price IS NOT NULL AND price > 0
               AND currency IS NOT NULL AND CHAR_LENGTH(TRIM(currency)) = 3
               AND id IN (""" + placeholders + ")",
@@ -229,7 +228,6 @@ public class SalesPublicCatalogRepository {
               AND LOWER(TRIM(product.status)) = 'active'
               AND REPLACE(REPLACE(LOWER(TRIM(product.visibility)), '-', '_'), ' ', '_')
                   IN ('commercial', 'pos_ready', 'quote_only')
-              AND REPLACE(REPLACE(LOWER(TRIM(product.type)), '-', '_'), ' ', '_') <> 'operational_item'
               AND product.price IS NOT NULL AND product.price > 0
               AND product.currency IS NOT NULL AND CHAR_LENGTH(TRIM(product.currency)) = 3
             ORDER BY selected.sort_order, selected.product_id
@@ -266,7 +264,6 @@ public class SalesPublicCatalogRepository {
               AND LOWER(product.status) = 'active'
               AND REPLACE(REPLACE(LOWER(TRIM(product.visibility)), '-', '_'), ' ', '_')
                   IN ('commercial', 'pos_ready', 'quote_only')
-              AND REPLACE(REPLACE(LOWER(TRIM(product.type)), '-', '_'), ' ', '_') <> 'operational_item'
               AND product.price IS NOT NULL AND product.price > 0
               AND product.currency IS NOT NULL AND CHAR_LENGTH(TRIM(product.currency)) = 3
             ORDER BY selected.sort_order, product.name
@@ -287,7 +284,6 @@ public class SalesPublicCatalogRepository {
               AND product.deleted_at IS NULL AND LOWER(TRIM(product.status)) = 'active'
               AND REPLACE(REPLACE(LOWER(TRIM(product.visibility)), '-', '_'), ' ', '_')
                   IN ('commercial', 'pos_ready', 'quote_only')
-              AND REPLACE(REPLACE(LOWER(TRIM(product.type)), '-', '_'), ' ', '_') <> 'operational_item'
               AND product.price IS NOT NULL AND product.price > 0
               AND product.currency IS NOT NULL AND CHAR_LENGTH(TRIM(product.currency)) = 3
               AND product.reservable = 1
@@ -639,14 +635,14 @@ public class SalesPublicCatalogRepository {
     private PublicItem mapPublicItem(ResultSet rs, int rowNum) throws SQLException {
         var inventory = rs.getBoolean("inventory_ready");
         var available = rs.getBigDecimal("available_quantity");
-        var type = label(rs.getString("type"));
+        var type = publicProductType(rs.getString("type"));
         var status = !inventory ? "noInventoryTracking"
             : available.signum() > 0 ? "inStock" : "askAvailability";
         if ("Service".equals(type) || "Subscription".equals(type)) status = "serviceAvailability";
         if ("quote_only".equalsIgnoreCase(rs.getString("visibility"))) status = "madeToOrder";
         return new PublicItem(
             rs.getLong("id"), rs.getString("name"), rs.getString("sku"), type,
-            label(rs.getString("category")), rs.getString("description"), rs.getString("image_url"),
+            publicCategory(rs.getString("category")), rs.getString("description"), rs.getString("image_url"),
             rs.getString("image_alt"), List.of(), rs.getBigDecimal("price"), rs.getBigDecimal("wholesale_price"),
             rs.getBigDecimal("wholesale_min_quantity"), rs.getString("currency"), inventory,
             status, true, rs.getBoolean("reservable"));
@@ -680,13 +676,20 @@ public class SalesPublicCatalogRepository {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
-    private String label(String value) {
-        if (value == null || value.isBlank()) return "Other";
-        var words = value.trim().replace('-', '_').split("_");
-        return java.util.Arrays.stream(words)
-            .filter(word -> !word.isBlank())
-            .map(word -> Character.toUpperCase(word.charAt(0)) + word.substring(1).toLowerCase())
-            .collect(java.util.stream.Collectors.joining(" "));
+    static String publicCategory(String value) {
+        return value == null || value.isBlank() ? "Other" : value.trim();
+    }
+
+    static String publicProductType(String value) {
+        if (value == null || value.isBlank()) return "Product";
+        return switch (value.trim().toLowerCase().replace('-', '_')) {
+            case "product" -> "Product";
+            case "service" -> "Service";
+            case "package" -> "Package";
+            case "subscription" -> "Subscription";
+            case "operational_item" -> "Operational item";
+            default -> "Product";
+        };
     }
 
     public record CatalogRecord(

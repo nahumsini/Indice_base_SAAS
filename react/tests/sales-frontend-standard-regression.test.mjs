@@ -241,6 +241,7 @@ test('Productos elimina en backend con confirmación y comparte una sola prepara
   assert.match(filtersSource, /readinessOptions\.REQUIRES_REVIEW/);
   assert.match(readinessSource, /hasBlockingReason/);
   assert.match(readinessSource, /reasons\.includes\('MISSING_PRICE'\)/);
+  assert.doesNotMatch(readinessSource, /reasons\.push\('OPERATIONAL_ITEM'\)/);
   assert.match(modalReadinessSource, /deriveProductSalesReadiness/);
   assert.match(modalReadinessSource, /salesReadiness\.readyForSales/);
   assert.match(publicCatalogSource, /getProductSalesReadiness\(product\)\.readyForSales/);

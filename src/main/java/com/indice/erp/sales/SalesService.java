@@ -721,7 +721,6 @@ public class SalesService {
         var reasons = new ArrayList<String>();
         var status = canonicalProductToken(item.get("status"));
         var visibility = canonicalProductToken(item.get("visibility"));
-        var type = canonicalProductToken(item.get("type"));
 
         if ("draft".equals(status)) {
             reasons.add("DRAFT");
@@ -730,9 +729,6 @@ public class SalesService {
         }
         if (!PRODUCT_SALES_VISIBILITIES.contains(visibility)) {
             reasons.add("INTERNAL");
-        }
-        if ("operational_item".equals(type)) {
-            reasons.add("OPERATIONAL_ITEM");
         }
         if (!hasPositiveProductPrice(item.get("price"))) {
             reasons.add("MISSING_PRICE");
