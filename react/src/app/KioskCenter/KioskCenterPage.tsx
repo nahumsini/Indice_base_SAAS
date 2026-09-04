@@ -2,7 +2,6 @@ import {
   AlertTriangle,
   ArrowUpRight,
   Ban,
-  Building2,
   Clock3,
   Eye,
   History,
@@ -12,11 +11,8 @@ import {
   MonitorSmartphone,
   Power,
   RefreshCw,
-  Search,
   ShieldAlert,
   ShieldCheck,
-  SlidersHorizontal,
-  Tag,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -30,19 +26,51 @@ import { ApiClientError } from '../lib/apiClient';
 import { FailureToast } from '../components/FailureToast';
 import { LoadingBarOverlay } from '../components/LoadingBarOverlay';
 import { SuccessToast } from '../components/SuccessToast';
-import { IndiceModalFrame } from '../components/indice-modal';
+import {
+  IndiceFilterAdvancedSection,
+  IndiceFilterBar,
+  IndiceFilterDisclosureActions,
+  IndiceFilterSearch,
+  IndiceFilterSelect,
+  IndiceTitleBar,
+  useIndiceFilterDisclosureCopy,
+} from '../components/frontend-os';
+import { KioskAdminActionButton } from '../components/kiosk-engine/KioskAdminPrimitives';
+import { KioskModalFrame } from '../components/kiosk-engine/KioskModalFrame';
+import {
+  getIndiceTableMinimumWidth,
+  IndiceOperationalTable,
+  IndiceTableActionGroup,
+  IndiceTableColGroup,
+  IndiceTableHeaderRow,
+  IndiceTableShell,
+  type IndiceTableColumnDefinition,
+} from '../components/table/IndiceTableEngine';
+import { DataTablePagination } from '../components/table/DataTablePagination';
 import { Button } from '../components/ui/button';
+import { TableBody, TableCell, TableRow } from '../components/ui/table';
 import { cn } from '../components/ui/utils';
 import { useLanguage } from '../shared/context';
 import { getKioskCenterCopy, type KioskCenterCopy } from './kioskCenterTranslations';
+import { KioskStatusNavigator } from './components/KioskStatusNavigator';
 
 type DetailTab = 'overview' | 'audit';
+type InventoryOverviewFilter = 'ALL' | 'ACTIVE' | 'ATTENTION';
+type InventoryColumnId = 'kiosk' | 'module' | 'scope' | 'activity' | 'status';
 type PendingLifecycle = {
   action: KioskCenterLifecycleAction;
   kiosk: KioskCenterItem;
 };
 
-const inputClassName = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10 dark:border-slate-700 dark:bg-slate-950 dark:text-white';
+const inventoryColumnDefaults: Record<InventoryColumnId, number> = {
+  kiosk: 280,
+  module: 210,
+  scope: 220,
+  activity: 210,
+  status: 220,
+};
+const inventoryActionsWidth = 132;
+
 const safeSnapshotKeys = new Set([
   'name',
   'code',
@@ -162,7 +190,7 @@ const errorMessage = (error: unknown, copy: KioskCenterCopy, fallback: string) =
 
 function StatusBadge({ copy, status }: { copy: KioskCenterCopy; status: string }) {
   return (
-    <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold', statusStyles[status] ?? statusStyles.DISABLED)}>
+    <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium', statusStyles[status] ?? statusStyles.DISABLED)}>
       <span className={cn('h-1.5 w-1.5 rounded-full', status === 'ACTIVE' ? 'bg-emerald-500' : status === 'REVOKED' || status === 'DELETED' ? 'bg-red-500' : 'bg-current')} />
       {dictionaryLabel(copy.status, status)}
     </span>
@@ -176,7 +204,7 @@ function RiskBadges({ copy, risks }: { copy: KioskCenterCopy; risks: string[] })
   return (
     <div className="flex flex-wrap gap-1.5">
       {risks.map(risk => (
-        <span key={risk} className={cn('inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold', riskStyles[risk] ?? riskStyles.EXPIRING_SOON)}>
+        <span key={risk} className={cn('inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium', riskStyles[risk] ?? riskStyles.EXPIRING_SOON)}>
           {dictionaryLabel(copy.risks, risk)}
         </span>
       ))}
@@ -189,7 +217,7 @@ function ScopeSummary({ copy, kiosk }: { copy: KioskCenterCopy; kiosk: KioskCent
   const secondary = kiosk.business_name && kiosk.unit_name ? kiosk.unit_name : null;
   return (
     <div className="min-w-0">
-      <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{primary}</p>
+      <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">{primary}</p>
       <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
         {secondary ?? (kiosk.location_id ? `${copy.labels.location} #${kiosk.location_id}` : copy.labels.corporate)}
       </p>
@@ -200,7 +228,7 @@ function ScopeSummary({ copy, kiosk }: { copy: KioskCenterCopy; kiosk: KioskCent
 function AccessSummary({ copy, kiosk }: { copy: KioskCenterCopy; kiosk: KioskCenterItem }) {
   return (
     <div>
-      <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+      <p className="text-sm font-medium text-slate-800 dark:text-slate-100">
         {dictionaryLabel(copy.accessLevels, kiosk.access_level)}
       </p>
       <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
@@ -218,7 +246,7 @@ function ActivitySummary({ copy, kiosk }: { copy: KioskCenterCopy; kiosk: KioskC
   }
   return (
     <div>
-      <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+      <p className="text-sm font-medium text-slate-800 dark:text-slate-100">
         {formatRelativeDate(kiosk.last_activity_at, copy.locale)}
       </p>
       <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
@@ -232,38 +260,25 @@ function KioskActions({
   copy,
   kiosk,
   onDetail,
-  onLifecycle,
   onOpenAdmin,
 }: {
   copy: KioskCenterCopy;
   kiosk: KioskCenterItem;
   onDetail: (kiosk: KioskCenterItem) => void;
-  onLifecycle: (kiosk: KioskCenterItem, action: KioskCenterLifecycleAction) => void;
   onOpenAdmin: (kiosk: KioskCenterItem) => void;
 }) {
   const adminPath = adminPathFor(kiosk);
-  const canRevoke = !['REVOKED', 'DELETED'].includes(kiosk.status);
   return (
-    <div className="flex flex-wrap items-center justify-end gap-1.5">
-      <button type="button" onClick={() => onDetail(kiosk)} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-700 dark:hover:bg-blue-950/40" aria-label={copy.actions.inspect} title={copy.actions.inspect}>
+    <IndiceTableActionGroup>
+      <KioskAdminActionButton accent="aqua" onClick={() => onDetail(kiosk)} label={copy.actions.inspect}>
         <Eye className="h-4 w-4" />
-      </button>
+      </KioskAdminActionButton>
       {adminPath ? (
-        <button type="button" onClick={() => onOpenAdmin(kiosk)} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-teal-700 dark:hover:bg-teal-950/40" aria-label={copy.actions.openAdmin} title={copy.actions.openAdmin}>
+        <KioskAdminActionButton accent="aqua" onClick={() => onOpenAdmin(kiosk)} label={copy.actions.openAdmin}>
           <ArrowUpRight className="h-4 w-4" />
-        </button>
+        </KioskAdminActionButton>
       ) : null}
-      {kiosk.status === 'ACTIVE' ? (
-        <button type="button" onClick={() => onLifecycle(kiosk, 'disable')} className="grid h-9 w-9 place-items-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700 transition hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300" aria-label={copy.actions.disable} title={copy.actions.disable}>
-          <Power className="h-4 w-4" />
-        </button>
-      ) : null}
-      {canRevoke ? (
-        <button type="button" onClick={() => onLifecycle(kiosk, 'revoke')} className="grid h-9 w-9 place-items-center rounded-lg border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300" aria-label={copy.actions.revoke} title={copy.actions.revoke}>
-          <Ban className="h-4 w-4" />
-        </button>
-      ) : null}
-    </div>
+    </IndiceTableActionGroup>
   );
 }
 
@@ -290,7 +305,7 @@ function AuditTimeline({
   if (error) {
     return (
       <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-100">
-        <p className="text-sm font-semibold">{error}</p>
+        <p className="text-sm font-medium">{error}</p>
         <Button type="button" variant="outline" onClick={onRetry} className="mt-4">{copy.error.retry}</Button>
       </div>
     );
@@ -299,7 +314,7 @@ function AuditTimeline({
     return (
       <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
         <History className="mx-auto h-8 w-8 text-slate-400" />
-        <p className="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300">{copy.detail.auditEmpty}</p>
+        <p className="mt-3 text-sm font-medium text-slate-600 dark:text-slate-300">{copy.detail.auditEmpty}</p>
       </div>
     );
   }
@@ -315,31 +330,26 @@ function AuditTimeline({
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={cn('h-2.5 w-2.5 rounded-full', succeeded ? 'bg-emerald-500' : 'bg-amber-500')} />
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">{humanize(event.event_type)}</h4>
-                  <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold', succeeded ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300')}>{humanize(event.outcome)}</span>
+                  <h4 className="text-sm font-medium text-slate-900 dark:text-white">{dictionaryLabel(copy.auditLabels.events, event.event_type)}</h4>
+                  <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium', succeeded ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300')}>{dictionaryLabel(copy.auditLabels.outcomes, event.outcome)}</span>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
-                  {event.actor_type ? <span>{copy.labels.actor}: {humanize(event.actor_type)}{event.actor_id ? ` #${event.actor_id}` : ''}</span> : null}
-                  {event.capability ? <span>{copy.labels.capability}: {event.capability}</span> : null}
-                  {reference ? <span>{copy.labels.moduleReference}: {reference}</span> : null}
+                  {event.actor_type ? <span>{copy.labels.actor}: {dictionaryLabel(copy.auditLabels.actors, event.actor_type)}</span> : null}
                 </div>
               </div>
               <time className="shrink-0 text-xs font-medium text-slate-500 dark:text-slate-400" dateTime={event.created_at} title={formatDate(event.created_at, copy.locale)}>
                 {formatRelativeDate(event.created_at, copy.locale)}
               </time>
             </div>
-            {snapshot.length > 0 ? (
-              <div className="mt-4 rounded-xl bg-slate-50 p-3 dark:bg-slate-950/70">
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">{copy.labels.safeSnapshot}</p>
-                <dl className="mt-2 grid gap-2 sm:grid-cols-2">
-                  {snapshot.map(([label, value]) => (
-                    <div key={label} className="min-w-0 text-xs">
-                      <dt className="text-slate-500 dark:text-slate-400">{label}</dt>
-                      <dd className="truncate font-semibold text-slate-800 dark:text-slate-100">{value}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
+            {snapshot.length > 0 || event.capability || reference ? (
+              <details className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-xs dark:bg-slate-950/70">
+                <summary className="cursor-pointer font-medium text-[#177D66] dark:text-emerald-300">{copy.labels.technicalDetails}</summary>
+                <div className="mt-3 space-y-2">
+                  {event.capability ? <p className="break-all"><span className="text-slate-500">{copy.labels.capability}:</span> <span className="font-mono text-slate-800 dark:text-slate-100">{event.capability}</span></p> : null}
+                  {reference ? <p><span className="text-slate-500">{copy.labels.moduleReference}:</span> <span className="text-slate-800 dark:text-slate-100">{reference}</span></p> : null}
+                  {snapshot.length > 0 ? <dl className="grid gap-2 border-t border-slate-200 pt-2 dark:border-slate-800 sm:grid-cols-2">{snapshot.map(([label, value]) => <div key={label} className="min-w-0"><dt className="text-slate-500 dark:text-slate-400">{label}</dt><dd className="truncate text-slate-800 dark:text-slate-100">{value}</dd></div>)}</dl> : null}
+                </div>
+              </details>
             ) : null}
           </li>
         );
@@ -352,6 +362,7 @@ export default function KioskCenterPage({ embedded = false }: { embedded?: boole
   const navigate = useNavigate();
   const routeParams = useParams();
   const { currentLanguage } = useLanguage();
+  const disclosureCopy = useIndiceFilterDisclosureCopy();
   const copy = useMemo(() => getKioskCenterCopy(currentLanguage.code), [currentLanguage.code]);
   const [items, setItems] = useState<KioskCenterItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -361,6 +372,11 @@ export default function KioskCenterPage({ embedded = false }: { embedded?: boole
   const [moduleFilter, setModuleFilter] = useState('ALL');
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [riskFilter, setRiskFilter] = useState('ALL');
+  const [overviewFilter, setOverviewFilter] = useState<InventoryOverviewFilter>('ALL');
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [columnWidths, setColumnWidths] = useState(inventoryColumnDefaults);
   const [selected, setSelected] = useState<KioskCenterItem | null>(null);
   const [historicalKioskId, setHistoricalKioskId] = useState<number | null>(null);
   const [detail, setDetail] = useState<KioskCenterItem | null>(null);
@@ -488,6 +504,8 @@ export default function KioskCenterPage({ embedded = false }: { embedded?: boole
   const filteredItems = useMemo(() => {
     const normalized = normalizeSearch(search);
     return items.filter(item => {
+      if (overviewFilter === 'ACTIVE' && (item.status !== 'ACTIVE' || item.risk_signals.length > 0)) return false;
+      if (overviewFilter === 'ATTENTION' && item.status === 'ACTIVE' && item.risk_signals.length === 0) return false;
       if (statusFilter !== 'ALL' && item.status !== statusFilter) return false;
       if (moduleFilter !== 'ALL' && item.owner_module !== moduleFilter) return false;
       if (typeFilter !== 'ALL' && item.kiosk_type !== typeFilter) return false;
@@ -506,11 +524,29 @@ export default function KioskCenterPage({ embedded = false }: { embedded?: boole
       ].filter(Boolean).join(' ');
       return normalizeSearch(searchable).includes(normalized);
     });
-  }, [copy, items, moduleFilter, riskFilter, search, statusFilter, typeFilter]);
+  }, [copy, items, moduleFilter, overviewFilter, riskFilter, search, statusFilter, typeFilter]);
 
-  const hasFilters = Boolean(search.trim()) || [statusFilter, moduleFilter, typeFilter, riskFilter].some(value => value !== 'ALL');
+  const hasFilters = Boolean(search.trim()) || overviewFilter !== 'ALL' || [statusFilter, moduleFilter, typeFilter, riskFilter].some(value => value !== 'ALL');
+  const activeAdvancedCount = [statusFilter, typeFilter, riskFilter].filter(value => value !== 'ALL').length;
   const activeCount = items.filter(item => item.status === 'ACTIVE').length;
   const attentionCount = items.filter(item => item.status !== 'ACTIVE' || item.risk_signals.length > 0).length;
+  const columns = useMemo<Array<IndiceTableColumnDefinition<InventoryColumnId>>>(() => [
+    { id: 'kiosk', label: copy.table.kiosk, width: columnWidths.kiosk, defaultWidth: inventoryColumnDefaults.kiosk, contentMinimumWidth: 220, resizeLabel: copy.table.kiosk },
+    { id: 'module', label: copy.table.module, width: columnWidths.module, defaultWidth: inventoryColumnDefaults.module, contentMinimumWidth: 170, resizeLabel: copy.table.module },
+    { id: 'scope', label: copy.table.scope, width: columnWidths.scope, defaultWidth: inventoryColumnDefaults.scope, contentMinimumWidth: 170, resizeLabel: copy.table.scope },
+    { id: 'activity', label: copy.table.activity, width: columnWidths.activity, defaultWidth: inventoryColumnDefaults.activity, contentMinimumWidth: 170, resizeLabel: copy.table.activity },
+    { id: 'status', label: copy.table.status, width: columnWidths.status, defaultWidth: inventoryColumnDefaults.status, contentMinimumWidth: 170, resizeLabel: copy.table.status },
+  ], [columnWidths, copy]);
+  const tableMinimumWidth = getIndiceTableMinimumWidth({ columns, actionsWidth: inventoryActionsWidth });
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pageStart = filteredItems.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const pageEnd = Math.min(filteredItems.length, safePage * pageSize);
+  const visibleItems = filteredItems.slice(pageStart > 0 ? pageStart - 1 : 0, pageEnd);
+
+  useEffect(() => {
+    setPage(1);
+  }, [moduleFilter, overviewFilter, riskFilter, search, statusFilter, typeFilter]);
 
   const clearFilters = () => {
     setSearch('');
@@ -518,6 +554,7 @@ export default function KioskCenterPage({ embedded = false }: { embedded?: boole
     setModuleFilter('ALL');
     setTypeFilter('ALL');
     setRiskFilter('ALL');
+    setOverviewFilter('ALL');
   };
 
   const openAdmin = (kiosk: KioskCenterItem) => {
@@ -565,124 +602,112 @@ export default function KioskCenterPage({ embedded = false }: { embedded?: boole
       <SuccessToast isVisible={Boolean(successMessage)} message={successMessage} onClose={() => setSuccessMessage('')} />
       <FailureToast isVisible={Boolean(failureMessage)} message={failureMessage} onClose={() => setFailureMessage('')} />
 
-      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <div className="border-b border-slate-200 bg-gradient-to-br from-[#EAF2FF] via-white to-[#E7F7F2] px-5 py-6 dark:border-slate-800 dark:from-blue-950/35 dark:via-slate-950 dark:to-emerald-950/25 sm:px-7 sm:py-8">
-          <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-            <div className="min-w-0">
-              <div className="flex items-center gap-3">
-                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#2563EB] text-white shadow-lg shadow-blue-500/20">
-                  <MonitorSmartphone className="h-6 w-6" />
-                </span>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#2563EB] dark:text-blue-300">{copy.eyebrow}</p>
-                  <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-3xl">{copy.title}</h1>
-                </div>
-              </div>
-              <p className="mt-4 max-w-4xl text-sm font-medium leading-6 text-slate-600 dark:text-slate-300 sm:text-base">{copy.subtitle}</p>
-            </div>
-            <Button type="button" variant="outline" onClick={() => void loadInventory()} disabled={isLoading} className="h-11 shrink-0 gap-2 rounded-xl bg-white/80 dark:bg-slate-900/80">
-              <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
-              {copy.refresh}
-            </Button>
-          </div>
-        </div>
+      <div className="space-y-5">
+        <IndiceTitleBar
+          tone="aqua"
+          icon={<MonitorSmartphone className="h-5 w-5" />}
+          title={copy.title}
+          subtitle={copy.subtitle}
+          actions={<Button type="button" variant="outline" onClick={() => void loadInventory()} disabled={isLoading} className="h-11"><RefreshCw className={cn('mr-2 h-4 w-4', isLoading && 'animate-spin')} />{copy.refresh}</Button>}
+        />
 
         {loadError ? (
-          <div className="p-5 sm:p-8">
-            <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-900 dark:border-red-800 dark:bg-red-950/30 dark:text-red-100">
-              <div className="flex items-start gap-3">
-                <ShieldAlert className="mt-0.5 h-6 w-6 shrink-0" />
-                <div>
-                  <h2 className="text-lg font-bold">{copy.error.title}</h2>
-                  <p className="mt-2 text-sm leading-6">{loadError}</p>
-                  <Button type="button" variant="outline" onClick={() => void loadInventory()} className="mt-4 bg-white dark:bg-slate-900">{copy.error.retry}</Button>
-                </div>
-              </div>
-            </div>
+          <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-900 dark:border-red-800 dark:bg-red-950/30 dark:text-red-100">
+            <div className="flex items-start gap-3"><ShieldAlert className="mt-0.5 h-6 w-6 shrink-0" /><div><h2 className="text-lg font-medium">{copy.error.title}</h2><p className="mt-2 text-sm leading-6">{loadError}</p><Button type="button" variant="outline" onClick={() => void loadInventory()} className="mt-4 bg-white dark:bg-slate-900">{copy.error.retry}</Button></div></div>
           </div>
         ) : (
           <>
-            <div className="grid gap-3 border-b border-slate-200 p-5 dark:border-slate-800 sm:grid-cols-2 sm:p-7 xl:grid-cols-4">
-              {[
-                { label: copy.stats.total, value: items.length, icon: Layers3, color: 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300' },
-                { label: copy.stats.active, value: activeCount, icon: ShieldCheck, color: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300' },
-                { label: copy.stats.attention, value: attentionCount, icon: AlertTriangle, color: 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300' },
-                { label: copy.stats.modules, value: modules.length, icon: Building2, color: 'bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300' },
-              ].map(metric => (
-                <article key={metric.label} className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/60">
-                  <span className={cn('grid h-11 w-11 shrink-0 place-items-center rounded-xl', metric.color)}><metric.icon className="h-5 w-5" /></span>
-                  <div><p className="text-2xl font-black text-slate-950 dark:text-white">{metric.value}</p><p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{metric.label}</p></div>
-                </article>
-              ))}
-            </div>
+            <KioskStatusNavigator
+              ariaLabel={copy.title}
+              value={overviewFilter}
+              onValueChange={value => { setOverviewFilter(value); setStatusFilter('ALL'); setRiskFilter('ALL'); }}
+              items={[
+                { value: 'ALL', label: copy.stats.total, count: items.length, icon: Layers3, tone: 'aqua' },
+                { value: 'ACTIVE', label: copy.stats.active, count: activeCount, icon: ShieldCheck, tone: 'green' },
+                { value: 'ATTENTION', label: copy.stats.attention, count: attentionCount, icon: AlertTriangle, tone: 'amber' },
+              ]}
+            />
 
-            <div className="border-b border-slate-200 bg-slate-50/60 p-5 dark:border-slate-800 dark:bg-slate-900/30 sm:p-7">
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(260px,1.6fr)_repeat(4,minmax(140px,0.7fr))]">
-                <label className="relative block">
-                  <span className="sr-only">{copy.search.label}</span>
-                  <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
-                  <input value={search} onChange={event => setSearch(event.target.value)} className={cn(inputClassName, 'pl-10')} placeholder={copy.search.placeholder} type="search" />
-                </label>
-                <label><span className="sr-only">{copy.search.status}</span><select value={statusFilter} onChange={event => setStatusFilter(event.target.value)} className={inputClassName}><option value="ALL">{copy.search.status}: {copy.search.all}</option>{Object.keys(copy.status).map(status => <option key={status} value={status}>{dictionaryLabel(copy.status, status)}</option>)}</select></label>
-                <label><span className="sr-only">{copy.search.module}</span><select value={moduleFilter} onChange={event => setModuleFilter(event.target.value)} className={inputClassName}><option value="ALL">{copy.search.module}: {copy.search.all}</option>{modules.map(module => <option key={module} value={module}>{dictionaryLabel(copy.modules, module)}</option>)}</select></label>
-                <label><span className="sr-only">{copy.search.type}</span><select value={typeFilter} onChange={event => setTypeFilter(event.target.value)} className={inputClassName}><option value="ALL">{copy.search.type}: {copy.search.all}</option>{types.map(type => <option key={type} value={type}>{dictionaryLabel(copy.types, type)}</option>)}</select></label>
-                <label><span className="sr-only">{copy.search.risk}</span><select value={riskFilter} onChange={event => setRiskFilter(event.target.value)} className={inputClassName}><option value="ALL">{copy.search.risk}: {copy.search.all}</option><option value="RISK">{copy.search.withRisk}</option></select></label>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{copy.search.results(filteredItems.length, items.length)}</p>
-                {hasFilters ? <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:underline dark:text-blue-300"><SlidersHorizontal className="h-3.5 w-3.5" />{copy.search.clear}</button> : null}
-              </div>
-            </div>
+            <IndiceFilterBar
+              title={copy.filters.title}
+              subtitle={copy.filters.subtitle}
+              summary={(
+                <IndiceFilterDisclosureActions
+                  activeAdvancedCount={activeAdvancedCount}
+                  advancedLabel={advancedFiltersOpen ? disclosureCopy.hideFilters : disclosureCopy.moreFilters}
+                  clearLabel={disclosureCopy.clearFilters}
+                  hasActiveFilters={hasFilters}
+                  isAdvancedOpen={advancedFiltersOpen}
+                  onClear={clearFilters}
+                  onToggleAdvanced={() => setAdvancedFiltersOpen(current => !current)}
+                  resultSummary={copy.search.results(filteredItems.length, items.length)}
+                  tone="aqua"
+                />
+              )}
+              gridClassName="lg:grid-cols-[minmax(260px,1.5fr)_minmax(220px,0.7fr)]"
+            >
+              <IndiceFilterSearch label={copy.search.label} placeholder={copy.search.placeholder} tone="aqua" value={search} onValueChange={setSearch} onClear={() => setSearch('')} />
+              <IndiceFilterSelect label={copy.search.module} tone="aqua" value={moduleFilter} onValueChange={setModuleFilter} options={[{ value: 'ALL', label: copy.search.all }, ...modules.map(module => ({ value: module, label: dictionaryLabel(copy.modules, module) }))]} />
+              {advancedFiltersOpen ? (
+                <IndiceFilterAdvancedSection className="md:col-span-2" gridClassName="lg:grid-cols-3">
+                  <IndiceFilterSelect label={copy.search.status} tone="aqua" value={statusFilter} onValueChange={value => { setStatusFilter(value); setOverviewFilter('ALL'); }} options={[{ value: 'ALL', label: copy.search.all }, ...Object.keys(copy.status).map(status => ({ value: status, label: dictionaryLabel(copy.status, status) }))]} />
+                  <IndiceFilterSelect label={copy.search.type} tone="aqua" value={typeFilter} onValueChange={setTypeFilter} options={[{ value: 'ALL', label: copy.search.all }, ...types.map(type => ({ value: type, label: dictionaryLabel(copy.types, type) }))]} />
+                  <IndiceFilterSelect label={copy.search.risk} tone="aqua" value={riskFilter} onValueChange={setRiskFilter} options={[{ value: 'ALL', label: copy.search.all }, { value: 'RISK', label: copy.search.withRisk }]} />
+                </IndiceFilterAdvancedSection>
+              ) : null}
+            </IndiceFilterBar>
 
             {filteredItems.length === 0 ? (
-              <div className="px-5 py-16 text-center sm:px-8">
-                <MonitorSmartphone className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-700" />
-                <h2 className="mt-4 text-lg font-bold text-slate-900 dark:text-white">{hasFilters ? copy.empty.filteredTitle : copy.empty.title}</h2>
+              <div className="rounded-[24px] border border-dashed border-slate-300 bg-white px-5 py-16 text-center dark:border-slate-700 dark:bg-slate-900 sm:px-8">
+                <MonitorSmartphone className="mx-auto h-10 w-10 text-slate-300 dark:text-slate-600" />
+                <h2 className="mt-4 text-lg font-medium text-slate-900 dark:text-white">{hasFilters ? copy.empty.filteredTitle : copy.empty.title}</h2>
                 <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500 dark:text-slate-400">{hasFilters ? copy.empty.filteredDescription : copy.empty.description}</p>
                 {hasFilters ? <Button type="button" variant="outline" onClick={clearFilters} className="mt-5">{copy.search.clear}</Button> : null}
               </div>
             ) : (
-              <div className="p-4 sm:p-6">
-                <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 lg:block">
-                  <table className="w-full min-w-[1180px] border-collapse text-left">
-                    <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500 dark:bg-slate-900 dark:text-slate-400"><tr><th className="px-4 py-3">{copy.table.kiosk}</th><th className="px-4 py-3">{copy.table.scope}</th><th className="px-4 py-3">{copy.table.access}</th><th className="px-4 py-3">{copy.table.versions}</th><th className="px-4 py-3">{copy.table.activity}</th><th className="px-4 py-3">{copy.table.risks}</th><th className="px-4 py-3 text-right">{copy.table.actions}</th></tr></thead>
-                    <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-950">
-                      {filteredItems.map(kiosk => (
-                        <tr key={kiosk.id} className="transition hover:bg-blue-50/35 dark:hover:bg-blue-950/15">
-                          <td className="px-4 py-4"><div className="flex min-w-0 items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"><MonitorSmartphone className="h-5 w-5" /></span><div className="min-w-0"><button type="button" onClick={() => void openDetail(kiosk)} className="max-w-[260px] truncate text-left text-sm font-bold text-slate-950 hover:text-blue-700 dark:text-white dark:hover:text-blue-300">{kiosk.name}</button><div className="mt-1 flex flex-wrap items-center gap-2"><StatusBadge copy={copy} status={kiosk.status} /><span className="text-xs font-semibold text-slate-500">{kiosk.code}</span></div><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{dictionaryLabel(copy.modules, kiosk.owner_module)} · {dictionaryLabel(copy.types, kiosk.kiosk_type)}</p></div></div></td>
-                          <td className="px-4 py-4"><ScopeSummary copy={copy} kiosk={kiosk} /></td>
-                          <td className="px-4 py-4"><AccessSummary copy={copy} kiosk={kiosk} /></td>
-                          <td className="px-4 py-4"><p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{copy.labels.configVersion} v{kiosk.configuration_version}</p><p className="mt-1 text-xs text-slate-500">{copy.labels.adapterVersion} v{kiosk.adapter_version}</p></td>
-                          <td className="px-4 py-4"><ActivitySummary copy={copy} kiosk={kiosk} /></td>
-                          <td className="max-w-[210px] px-4 py-4"><RiskBadges copy={copy} risks={kiosk.risk_signals} /></td>
-                          <td className="px-4 py-4"><KioskActions copy={copy} kiosk={kiosk} onDetail={item => void openDetail(item)} onLifecycle={beginLifecycle} onOpenAdmin={openAdmin} /></td>
-                        </tr>
+              <IndiceTableShell
+                pagination={<DataTablePagination attached currentPage={safePage} itemLabel={copy.stats.total.toLocaleLowerCase()} onPageChange={setPage} onPageSizeChange={value => { setPageSize(value); setPage(1); }} pageEnd={pageEnd} pageSize={pageSize} pageSizeOptions={[10, 25, 50]} pageStart={pageStart} totalCount={filteredItems.length} totalPages={totalPages} />}
+              >
+                <div className="hidden lg:block">
+                  <IndiceOperationalTable minimumWidth={tableMinimumWidth}>
+                    <IndiceTableColGroup columns={columns} actionsWidth={inventoryActionsWidth} />
+                    <IndiceTableHeaderRow columns={columns} actions={{ label: copy.table.actions, width: inventoryActionsWidth }} onResize={(id, width) => setColumnWidths(current => ({ ...current, [id]: width }))} tone="aqua" />
+                    <TableBody>
+                      {visibleItems.map(kiosk => (
+                        <TableRow key={kiosk.id} className="border-slate-200 hover:bg-[#59C3A5]/5 dark:border-slate-700 dark:hover:bg-emerald-950/20">
+                          <TableCell className="whitespace-normal px-4 py-4"><div className="flex min-w-0 items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#59C3A5]/15 text-[#177D66] dark:bg-emerald-950/50 dark:text-emerald-300"><MonitorSmartphone className="h-5 w-5" /></span><div className="min-w-0"><button type="button" onClick={() => void openDetail(kiosk)} className="max-w-[220px] truncate text-left text-sm font-medium text-slate-950 hover:text-[#177D66] dark:text-white dark:hover:text-emerald-300">{kiosk.name}</button>{kiosk.description ? <p className="mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{kiosk.description}</p> : null}</div></div></TableCell>
+                          <TableCell className="whitespace-normal px-4 py-4"><p className="text-sm font-medium text-slate-800 dark:text-slate-100">{dictionaryLabel(copy.modules, kiosk.owner_module)}</p><p className="mt-1 text-xs text-slate-500">{dictionaryLabel(copy.types, kiosk.kiosk_type)}</p></TableCell>
+                          <TableCell className="px-4 py-4"><ScopeSummary copy={copy} kiosk={kiosk} /></TableCell>
+                          <TableCell className="px-4 py-4"><ActivitySummary copy={copy} kiosk={kiosk} /></TableCell>
+                          <TableCell className="whitespace-normal px-4 py-4"><div className="flex flex-wrap items-center gap-2"><StatusBadge copy={copy} status={kiosk.status} /><RiskBadges copy={copy} risks={kiosk.risk_signals} /></div></TableCell>
+                          <TableCell className="px-4 py-4"><KioskActions copy={copy} kiosk={kiosk} onDetail={item => void openDetail(item)} onOpenAdmin={openAdmin} /></TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </IndiceOperationalTable>
                 </div>
 
-                <div className="grid gap-3 lg:hidden sm:grid-cols-2">
-                  {filteredItems.map(kiosk => (
-                    <article key={kiosk.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-                      <div className="flex items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"><MonitorSmartphone className="h-5 w-5" /></span><div className="min-w-0 flex-1"><h3 className="truncate text-base font-bold text-slate-950 dark:text-white">{kiosk.name}</h3><p className="mt-0.5 truncate text-xs font-semibold text-slate-500">{kiosk.code}</p></div><StatusBadge copy={copy} status={kiosk.status} /></div>
-                      <p className="mt-3 text-xs font-semibold text-blue-700 dark:text-blue-300">{dictionaryLabel(copy.modules, kiosk.owner_module)} · {dictionaryLabel(copy.types, kiosk.kiosk_type)}</p>
-                      <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-900"><div><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{copy.table.scope}</p><div className="mt-1"><ScopeSummary copy={copy} kiosk={kiosk} /></div></div><div><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{copy.table.activity}</p><div className="mt-1"><ActivitySummary copy={copy} kiosk={kiosk} /></div></div></div>
-                      <div className="mt-3"><RiskBadges copy={copy} risks={kiosk.risk_signals} /></div>
-                      <div className="mt-4 border-t border-slate-200 pt-3 dark:border-slate-800"><KioskActions copy={copy} kiosk={kiosk} onDetail={item => void openDetail(item)} onLifecycle={beginLifecycle} onOpenAdmin={openAdmin} /></div>
+                <div className="grid gap-3 p-3 lg:hidden sm:grid-cols-2">
+                  {visibleItems.map(kiosk => (
+                    <article key={kiosk.id} className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                      <div className="flex items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#59C3A5]/15 text-[#177D66] dark:bg-emerald-950/50 dark:text-emerald-300"><MonitorSmartphone className="h-5 w-5" /></span><div className="min-w-0 flex-1"><h3 className="truncate text-base font-medium text-slate-950 dark:text-white">{kiosk.name}</h3><p className="mt-1 text-xs text-[#177D66] dark:text-emerald-300">{dictionaryLabel(copy.modules, kiosk.owner_module)} · {dictionaryLabel(copy.types, kiosk.kiosk_type)}</p></div><StatusBadge copy={copy} status={kiosk.status} /></div>
+                      <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><div><p className="text-xs text-slate-500">{copy.table.scope}</p><div className="mt-1"><ScopeSummary copy={copy} kiosk={kiosk} /></div></div><div><p className="text-xs text-slate-500">{copy.table.activity}</p><div className="mt-1"><ActivitySummary copy={copy} kiosk={kiosk} /></div></div></div>
+                      {kiosk.risk_signals.length > 0 ? <div className="mt-3"><RiskBadges copy={copy} risks={kiosk.risk_signals} /></div> : null}
+                      <div className="mt-4 border-t border-slate-200 pt-3 dark:border-slate-700"><KioskActions copy={copy} kiosk={kiosk} onDetail={item => void openDetail(item)} onOpenAdmin={openAdmin} /></div>
                     </article>
                   ))}
                 </div>
-              </div>
+              </IndiceTableShell>
             )}
           </>
         )}
-      </section>
+      </div>
 
-      <IndiceModalFrame
+      <KioskModalFrame
         open={Boolean(selected || historicalKioskId) && !pendingLifecycle}
         onOpenChange={open => { if (!open) { detailRequestRef.current += 1; setSelected(null); setHistoricalKioskId(null); setDetail(null); setAudit([]); } }}
-        modalType="operational-workspace"
+        size="workspace"
+        surface="administration"
         tone="aqua"
         icon={<MonitorSmartphone className="h-6 w-6" />}
         eyebrow={copy.detail.eyebrow}
@@ -699,28 +724,32 @@ export default function KioskCenterPage({ embedded = false }: { embedded?: boole
         {detailItem ? (
           <div className="space-y-5">
             <nav className="flex gap-2 rounded-xl bg-slate-200/70 p-1 dark:bg-slate-900" aria-label={copy.title}>
-              {(['overview', 'audit'] as const).map(tab => <button key={tab} type="button" onClick={() => setDetailTab(tab)} className={cn('flex-1 rounded-lg px-4 py-2 text-sm font-bold transition', detailTab === tab ? 'bg-white text-[#177D66] shadow-sm dark:bg-slate-800 dark:text-emerald-300' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white')}>{tab === 'overview' ? copy.detail.overview : copy.detail.audit}{tab === 'audit' && audit.length > 0 ? ` (${audit.length})` : ''}</button>)}
+              {(['overview', 'audit'] as const).map(tab => <button key={tab} type="button" onClick={() => setDetailTab(tab)} className={cn('flex-1 rounded-lg px-4 py-2 text-sm font-medium transition', detailTab === tab ? 'bg-white text-[#177D66] shadow-sm dark:bg-slate-800 dark:text-emerald-300' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white')}>{tab === 'overview' ? copy.detail.overview : copy.detail.audit}{tab === 'audit' && audit.length > 0 ? ` (${audit.length})` : ''}</button>)}
             </nav>
             {detailLoading ? <div className="grid gap-3 sm:grid-cols-2" aria-busy="true">{[0, 1, 2, 3].map(index => <div key={index} className="h-28 animate-pulse rounded-2xl bg-slate-200/70 dark:bg-slate-800" />)}</div> : null}
-            {detailError ? <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">{detailError}</div> : null}
+            {detailError ? <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">{detailError}</div> : null}
             {!detailLoading && detailTab === 'overview' ? (
               <>
                 <div className="flex flex-wrap items-center gap-2"><StatusBadge copy={copy} status={detailItem.status} /><RiskBadges copy={copy} risks={detailItem.risk_signals} /></div>
                 <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">{detailItem.description ?? copy.labels.noDescription}</p>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"><Tag className="h-5 w-5 text-blue-600 dark:text-blue-300" /><p className="mt-3 text-xs font-semibold text-slate-500">{copy.labels.identifier}</p><p className="mt-1 text-lg font-black text-slate-950 dark:text-white">#{detailItem.id}</p>{detailItem.legacy_reference_id ? <p className="mt-1 text-xs text-slate-500">{copy.labels.legacyIdentifier} #{detailItem.legacy_reference_id}</p> : null}</div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"><MapPin className="h-5 w-5 text-teal-600 dark:text-teal-300" /><p className="mt-3 text-xs font-semibold text-slate-500">{copy.table.scope}</p><div className="mt-1"><ScopeSummary copy={copy} kiosk={detailItem} /></div></div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"><KeyRound className="h-5 w-5 text-violet-600 dark:text-violet-300" /><p className="mt-3 text-xs font-semibold text-slate-500">{copy.table.access}</p><div className="mt-1"><AccessSummary copy={copy} kiosk={detailItem} /></div></div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"><Clock3 className="h-5 w-5 text-amber-600 dark:text-amber-300" /><p className="mt-3 text-xs font-semibold text-slate-500">{copy.table.activity}</p><div className="mt-1"><ActivitySummary copy={copy} kiosk={detailItem} /></div></div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"><MapPin className="h-5 w-5 text-[#177D66] dark:text-emerald-300" /><p className="mt-3 text-xs font-medium text-slate-500">{copy.table.scope}</p><div className="mt-1"><ScopeSummary copy={copy} kiosk={detailItem} /></div></div>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"><KeyRound className="h-5 w-5 text-[#177D66] dark:text-emerald-300" /><p className="mt-3 text-xs font-medium text-slate-500">{copy.table.access}</p><div className="mt-1"><AccessSummary copy={copy} kiosk={detailItem} /></div></div>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"><Clock3 className="h-5 w-5 text-amber-600 dark:text-amber-300" /><p className="mt-3 text-xs font-medium text-slate-500">{copy.table.activity}</p><div className="mt-1"><ActivitySummary copy={copy} kiosk={detailItem} /></div></div>
                 </div>
-                <dl className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 sm:grid-cols-2 xl:grid-cols-4">
-                  <div><dt className="text-xs font-semibold text-slate-500">{copy.search.module}</dt><dd className="mt-1 text-sm font-bold text-slate-900 dark:text-white">{dictionaryLabel(copy.modules, detailItem.owner_module)}</dd></div>
-                  <div><dt className="text-xs font-semibold text-slate-500">{copy.search.type}</dt><dd className="mt-1 text-sm font-bold text-slate-900 dark:text-white">{dictionaryLabel(copy.types, detailItem.kiosk_type)}</dd></div>
-                  <div><dt className="text-xs font-semibold text-slate-500">{copy.labels.configVersion}</dt><dd className="mt-1 text-sm font-bold text-slate-900 dark:text-white">v{detailItem.configuration_version}</dd></div>
-                  <div><dt className="text-xs font-semibold text-slate-500">{copy.labels.adapterVersion}</dt><dd className="mt-1 text-sm font-bold text-slate-900 dark:text-white">v{detailItem.adapter_version}</dd></div>
-                  <div className="sm:col-span-2"><dt className="text-xs font-semibold text-slate-500">{copy.labels.expires}</dt><dd className="mt-1 text-sm font-bold text-slate-900 dark:text-white">{detailItem.expires_at ? formatDate(detailItem.expires_at, copy.locale) : copy.labels.noExpiration}</dd></div>
-                  <div className="sm:col-span-2"><dt className="text-xs font-semibold text-slate-500">{copy.table.kiosk}</dt><dd className="mt-1 text-sm font-bold text-slate-900 dark:text-white">{detailItem.code}</dd></div>
-                </dl>
+                <details className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                  <summary className="cursor-pointer text-sm font-medium text-[#177D66] dark:text-emerald-300">{copy.labels.technicalDetails}</summary>
+                  <dl className="mt-4 grid gap-3 border-t border-slate-200 pt-4 dark:border-slate-700 sm:grid-cols-2 xl:grid-cols-4">
+                    <div><dt className="text-xs text-slate-500">{copy.search.module}</dt><dd className="mt-1 text-sm font-medium text-slate-900 dark:text-white">{dictionaryLabel(copy.modules, detailItem.owner_module)}</dd></div>
+                    <div><dt className="text-xs text-slate-500">{copy.search.type}</dt><dd className="mt-1 text-sm font-medium text-slate-900 dark:text-white">{dictionaryLabel(copy.types, detailItem.kiosk_type)}</dd></div>
+                    <div><dt className="text-xs text-slate-500">{copy.labels.configVersion}</dt><dd className="mt-1 text-sm font-medium text-slate-900 dark:text-white">v{detailItem.configuration_version}</dd></div>
+                    <div><dt className="text-xs text-slate-500">{copy.labels.adapterVersion}</dt><dd className="mt-1 text-sm font-medium text-slate-900 dark:text-white">v{detailItem.adapter_version}</dd></div>
+                    <div><dt className="text-xs text-slate-500">{copy.labels.identifier}</dt><dd className="mt-1 text-sm font-medium text-slate-900 dark:text-white">#{detailItem.id}</dd></div>
+                    {detailItem.legacy_reference_id ? <div><dt className="text-xs text-slate-500">{copy.labels.legacyIdentifier}</dt><dd className="mt-1 text-sm font-medium text-slate-900 dark:text-white">#{detailItem.legacy_reference_id}</dd></div> : null}
+                    <div><dt className="text-xs text-slate-500">{copy.labels.expires}</dt><dd className="mt-1 text-sm font-medium text-slate-900 dark:text-white">{detailItem.expires_at ? formatDate(detailItem.expires_at, copy.locale) : copy.labels.noExpiration}</dd></div>
+                    <div><dt className="text-xs text-slate-500">{copy.table.kiosk}</dt><dd className="mt-1 break-all text-sm font-medium text-slate-900 dark:text-white">{detailItem.code}</dd></div>
+                  </dl>
+                </details>
                 <div className="flex flex-wrap justify-end gap-2">
                   {detailItem.status === 'ACTIVE' ? <Button type="button" variant="outline" onClick={() => beginLifecycle(detailItem, 'disable')} className="border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-300"><Power className="mr-2 h-4 w-4" />{copy.actions.disable}</Button> : null}
                   {!['REVOKED', 'DELETED'].includes(detailItem.status) ? <Button type="button" variant="outline" onClick={() => beginLifecycle(detailItem, 'revoke')} className="border-red-300 text-red-700 dark:border-red-700 dark:text-red-300"><Ban className="mr-2 h-4 w-4" />{copy.actions.revoke}</Button> : null}
@@ -732,12 +761,13 @@ export default function KioskCenterPage({ embedded = false }: { embedded?: boole
         ) : historicalKioskId ? (
           <AuditTimeline audit={audit} copy={copy} error={auditError} loading={auditLoading} onRetry={() => void loadAudit(historicalKioskId)} />
         ) : null}
-      </IndiceModalFrame>
+      </KioskModalFrame>
 
-      <IndiceModalFrame
+      <KioskModalFrame
         open={Boolean(pendingLifecycle)}
         onOpenChange={open => { if (!open && !lifecycleBusy) { setPendingLifecycle(null); setLifecycleReason(''); } }}
-        modalType="confirmation"
+        size="compact"
+        surface="administration"
         tone={lifecycleIsRevoke ? 'coral' : 'yellow'}
         busy={lifecycleBusy}
         icon={lifecycleIsRevoke ? <ShieldAlert className="h-6 w-6" /> : <Power className="h-6 w-6" />}
@@ -753,11 +783,11 @@ export default function KioskCenterPage({ embedded = false }: { embedded?: boole
         footerSummary={pendingLifecycle?.kiosk.name}
       >
         <label className="block">
-          <span className="text-sm font-bold text-slate-800 dark:text-slate-100">{copy.lifecycle.reason}</span>
-          <textarea value={lifecycleReason} onChange={event => setLifecycleReason(event.target.value)} maxLength={500} rows={4} autoFocus className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10 dark:border-slate-700 dark:bg-slate-900 dark:text-white" placeholder={copy.lifecycle.reasonPlaceholder} />
+          <span className="text-sm font-medium text-slate-800 dark:text-slate-100">{copy.lifecycle.reason}</span>
+          <textarea value={lifecycleReason} onChange={event => setLifecycleReason(event.target.value)} maxLength={500} rows={4} autoFocus className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#59C3A5] focus:ring-4 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white" placeholder={copy.lifecycle.reasonPlaceholder} />
           <span className={cn('mt-2 block text-xs font-medium', lifecycleReason.length > 0 && lifecycleReason.trim().length < 8 ? 'text-amber-700 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400')}>{copy.lifecycle.reasonHelp} · {lifecycleReason.length}/500</span>
         </label>
-      </IndiceModalFrame>
+      </KioskModalFrame>
     </main>
   );
 }

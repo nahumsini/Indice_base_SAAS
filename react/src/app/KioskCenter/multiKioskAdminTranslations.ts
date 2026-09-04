@@ -44,6 +44,12 @@ export type MultiKioskAdminCopy = {
     initialLanguage: string;
     initialLanguageHelp: string;
     expiry: string;
+    presentationOptions: string;
+    presentationOptionsHelp: string;
+    discardTitle: string;
+    discardDescription: string;
+    keepEditing: string;
+    discard: string;
     catalogTitle: string;
     catalogDescription: string;
     operationalCatalogTitle: string;
@@ -116,8 +122,10 @@ const enCA: MultiKioskAdminCopy = {
     descriptionLabel: 'Short description', descriptionPlaceholder: 'What the collaborator will find when opening this access',
     colour: 'Colour', colourBlue: 'Indice blue', colourGreen: 'Green', colourYellow: 'Yellow', colourCoral: 'Coral',
     initialLanguage: 'Initial language', initialLanguageHelp: 'Used only when the device has not selected another language.',
-    expiry: 'Optional expiry', catalogTitle: 'Native module catalogue',
-    catalogDescription: 'Choose the company work tools. They do not depend on created kiosks; after the PIN, the server applies each collaborator’s current permissions.',
+    expiry: 'Optional expiry', presentationOptions: 'Presentation options', presentationOptionsHelp: 'Language, colour, and optional expiry.',
+    discardTitle: 'Discard changes?', discardDescription: 'The information entered in this Multi-kiosk has not been saved.', keepEditing: 'Continue editing', discard: 'Discard changes',
+    catalogTitle: 'Company tools',
+    catalogDescription: 'Choose the general tools to publish. After the PIN, each collaborator only sees what their current permissions allow.',
     operationalCatalogTitle: 'Kiosks by location',
     operationalCatalogDescription: 'Add payable, petty cash, waiter-station, or pre-ticket kiosks. Opening and charging a cash register remain in the POS app.',
     emptyOperationalKiosks: 'No operational kiosks match this search.',
@@ -171,8 +179,10 @@ const esMX: MultiKioskAdminCopy = {
     descriptionPlaceholder: 'Qué encontrará el colaborador al abrir este acceso',
     colour: 'Color', colourBlue: 'Azul Índice', colourGreen: 'Verde', colourYellow: 'Amarillo', colourCoral: 'Coral',
     initialLanguage: 'Idioma inicial', initialLanguageHelp: 'Se aplica solo si el dispositivo no eligió otro idioma.',
-    expiry: 'Vigencia opcional', catalogTitle: 'Catálogo nativo de módulos',
-    catalogDescription: 'Selecciona las herramientas de trabajo de la compañía. No dependen de kioscos creados; después del PIN, el servidor aplica los permisos vigentes de cada colaborador.',
+    expiry: 'Vigencia opcional', presentationOptions: 'Opciones de presentación', presentationOptionsHelp: 'Idioma, color y vigencia opcional.',
+    discardTitle: '¿Descartar cambios?', discardDescription: 'La información capturada en este Multikiosco todavía no se ha guardado.', keepEditing: 'Seguir editando', discard: 'Descartar cambios',
+    catalogTitle: 'Herramientas de la compañía',
+    catalogDescription: 'Elige las herramientas generales que se publicarán. Después del PIN, cada colaborador verá solo lo que permitan sus accesos vigentes.',
     operationalCatalogTitle: 'Kioscos por ubicación',
     operationalCatalogDescription: 'Agrega cuentas por pagar, caja chica, estaciones de meseros o pre-ticket. Abrir y cobrar una caja permanece exclusivamente en la app POS.',
     emptyOperationalKiosks: 'No hay kioscos operativos que coincidan con esta búsqueda.',

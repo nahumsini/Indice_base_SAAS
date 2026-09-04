@@ -113,7 +113,7 @@ export function KioskActivityView({ copy }: { copy: KioskCenterWorkspaceCopy }) 
   return (
     <div className="space-y-5">
       <IndiceTitleBar
-        tone="blue"
+        tone="aqua"
         icon={<History className="h-5 w-5" />}
         title={copy.activity.title}
         subtitle={copy.activity.subtitle}
@@ -125,8 +125,8 @@ export function KioskActivityView({ copy }: { copy: KioskCenterWorkspaceCopy }) 
         )}
       />
 
-      <aside className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-slate-700 dark:border-blue-800 dark:bg-blue-950/25 dark:text-slate-200">
-        <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-blue-700 dark:text-blue-300" /><div><h3 className="font-medium text-slate-900 dark:text-white">{copy.activity.guidanceTitle}</h3><p className="mt-1 leading-6">{copy.activity.guidance}</p></div></div>
+      <aside className="rounded-2xl border border-[#59C3A5]/40 bg-[#59C3A5]/10 p-4 text-sm text-slate-700 dark:border-emerald-800 dark:bg-emerald-950/25 dark:text-slate-200">
+        <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#177D66] dark:text-emerald-300" /><div><h3 className="font-medium text-slate-900 dark:text-white">{copy.activity.guidanceTitle}</h3><p className="mt-1 leading-6">{copy.activity.guidance}</p></div></div>
       </aside>
 
       <IndiceFilterBar
@@ -137,7 +137,7 @@ export function KioskActivityView({ copy }: { copy: KioskCenterWorkspaceCopy }) 
       >
         <IndiceFilterSelect
           label={copy.activity.kioskLabel}
-          tone="blue"
+          tone="aqua"
           value={selectedId}
           onValueChange={setSelectedId}
           options={kiosks.map(kiosk => ({
@@ -147,7 +147,7 @@ export function KioskActivityView({ copy }: { copy: KioskCenterWorkspaceCopy }) 
         />
         <IndiceFilterSelect
           label={copy.activity.searchLabel}
-          tone="blue"
+          tone="aqua"
           value={outcomeFilter}
           onValueChange={value => setOutcomeFilter(value as OutcomeFilter)}
           options={[
@@ -163,7 +163,7 @@ export function KioskActivityView({ copy }: { copy: KioskCenterWorkspaceCopy }) 
           <p>{inventoryError}</p><Button type="button" variant="outline" onClick={() => void loadInventory()} className="mt-4">{copy.activity.retry}</Button>
         </div>
       ) : loadingInventory && kiosks.length === 0 ? (
-        <div className="grid min-h-52 place-items-center rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900" aria-busy="true"><RefreshCw className="h-6 w-6 animate-spin text-blue-600" /></div>
+        <div className="grid min-h-52 place-items-center rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900" aria-busy="true"><RefreshCw className="h-6 w-6 animate-spin text-[#177D66]" /></div>
       ) : auditError ? (
         <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200">
           <p>{auditError}</p>{selectedId ? <Button type="button" variant="outline" onClick={() => void loadAudit(Number(selectedId))} className="mt-4">{copy.activity.retry}</Button> : null}
@@ -187,7 +187,19 @@ export function KioskActivityView({ copy }: { copy: KioskCenterWorkspaceCopy }) 
                     <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl', successful ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300')}>
                       {successful ? <CheckCircle2 className="h-4 w-4" /> : <TriangleAlert className="h-4 w-4" />}
                     </span>
-                    <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="text-sm font-medium text-slate-950 dark:text-white">{humanize(event.event_type)}</h3><span className={cn('rounded-full border px-2 py-0.5 text-xs font-medium', successful ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200')}>{humanize(event.outcome)}</span></div><div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">{event.actor_type ? <span>{copy.activity.actor}: {humanize(event.actor_type)}</span> : null}{event.capability ? <span>{copy.activity.capability}: {event.capability}</span> : null}</div></div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-medium text-slate-950 dark:text-white">{inventoryCopy.auditLabels.events[event.event_type] ?? humanize(event.event_type)}</h3>
+                        <span className={cn('rounded-full border px-2 py-0.5 text-xs font-medium', successful ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200')}>{inventoryCopy.auditLabels.outcomes[event.outcome] ?? humanize(event.outcome)}</span>
+                      </div>
+                      {event.actor_type ? <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{copy.activity.actor}: {inventoryCopy.auditLabels.actors[event.actor_type] ?? humanize(event.actor_type)}</p> : null}
+                      {event.capability ? (
+                        <details className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                          <summary className="cursor-pointer font-medium text-[#177D66] dark:text-emerald-300">{copy.activity.technicalDetails}</summary>
+                          <p className="mt-2 break-all rounded-lg bg-slate-50 p-2 font-mono dark:bg-slate-950">{copy.activity.capability}: {event.capability}</p>
+                        </details>
+                      ) : null}
+                    </div>
                   </div>
                   <time className="inline-flex shrink-0 items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400" dateTime={event.created_at}><Clock3 className="h-3.5 w-3.5" />{formatDate(event.created_at, copy.locale)}</time>
                 </div>

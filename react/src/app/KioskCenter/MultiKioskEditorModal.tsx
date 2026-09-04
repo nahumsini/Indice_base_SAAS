@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   ArrowDown,
   ArrowUp,
+  AlertTriangle,
   Check,
   Grid2X2,
   LoaderCircle,
@@ -168,6 +169,7 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [discardPromptOpen, setDiscardPromptOpen] = useState(false);
   const normalizedSearch = search.trim().toLocaleLowerCase();
   const visibleTools = catalog.tools.filter(tool => !normalizedSearch
     || [toolName(tool, copy), toolDescription(tool, copy), moduleLabel(tool.owner_module, copy)]
@@ -190,6 +192,16 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
     + catalog.kiosks.filter(kioskIsSelectable).length;
   const hasComposition = form.toolKeys.length > 0 || form.legacyKioskDefinitionIds.length > 0;
   const canContinue = step === 1 ? form.name.trim().length >= 3 : hasComposition;
+  const hasUnsavedChanges = JSON.stringify(form) !== JSON.stringify(editor);
+
+  const requestClose = () => {
+    if (busy) return;
+    if (hasUnsavedChanges) {
+      setDiscardPromptOpen(true);
+      return;
+    }
+    onClose();
+  };
 
   const save = async () => {
     setBusy(true);
@@ -238,65 +250,72 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
   });
 
   return (
-    <KioskModalFrame
-      open
-      onOpenChange={open => { if (!open) onClose(); }}
-      busy={busy}
-      size="wizard"
-      tone="blue"
-      icon={<Grid2X2 className="h-5 w-5" />}
-      eyebrow={form.id ? copy.editor.editEyebrow(form.name) : copy.editor.newEyebrow}
-      title={form.id ? copy.editor.editTitle : copy.editor.createTitle}
-      description={copy.editor.description}
-      footerSummary={copy.editor.footerSummary(
-        step,
-        form.toolKeys.length + form.legacyKioskDefinitionIds.length,
-        selectableToolCount,
-        missingSavedKioskCount,
-      )}
-      footer={<>
-        <Button variant="outline" type="button" onClick={step === 1 ? onClose : () => setStep(1)} disabled={busy}>
-          {step === 1 ? copy.editor.cancel : copy.editor.previous}
-        </Button>
-        {step === 1 ? (
-          <Button type="button" onClick={() => { setSearch(''); setStep(2); }} disabled={!canContinue || busy}>
-            {copy.editor.continue}
-          </Button>
-        ) : (
-          <Button type="button" onClick={() => void save()} disabled={!canContinue || busy}>
-            {busy ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
-            {form.id ? copy.editor.save : copy.editor.create}
-          </Button>
-        )}
-      </>}
-    >
-      <IndiceModalWizardStepper
-        accent="blue"
-        activeStepId={step === 1 ? 'details' : 'tools'}
-        className="mb-5"
-        progressLabel={copy.editor.footerSummary(
+    <>
+      <KioskModalFrame
+        open={!discardPromptOpen}
+        onOpenChange={open => { if (!open) requestClose(); }}
+        busy={busy}
+        size="wizard"
+        tone="aqua"
+        icon={<Grid2X2 className="h-5 w-5" />}
+        eyebrow={form.id ? copy.editor.editEyebrow(form.name) : copy.editor.newEyebrow}
+        title={form.id ? copy.editor.editTitle : copy.editor.createTitle}
+        description={copy.editor.description}
+        footerSummary={copy.editor.footerSummary(
           step,
           form.toolKeys.length + form.legacyKioskDefinitionIds.length,
           selectableToolCount,
           missingSavedKioskCount,
         )}
-        steps={[
-          { id: 'details', label: copy.editor.stepData },
-          { id: 'tools', label: copy.editor.stepTools },
-        ]}
-      />
+        footer={<>
+          <Button variant="outline" type="button" onClick={step === 1 ? requestClose : () => setStep(1)} disabled={busy}>
+            {step === 1 ? copy.editor.cancel : copy.editor.previous}
+          </Button>
+          {step === 1 ? (
+            <Button type="button" onClick={() => { setSearch(''); setStep(2); }} disabled={!canContinue || busy}>
+              {copy.editor.continue}
+            </Button>
+          ) : (
+            <Button type="button" onClick={() => void save()} disabled={!canContinue || busy}>
+              {busy ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+              {form.id ? copy.editor.save : copy.editor.create}
+            </Button>
+          )}
+        </>}
+      >
+        <IndiceModalWizardStepper
+          accent="aqua"
+          activeStepId={step === 1 ? 'details' : 'tools'}
+          className="mb-5"
+          progressLabel={copy.editor.footerSummary(
+            step,
+            form.toolKeys.length + form.legacyKioskDefinitionIds.length,
+            selectableToolCount,
+            missingSavedKioskCount,
+          )}
+          steps={[
+            { id: 'details', label: copy.editor.stepData },
+            { id: 'tools', label: copy.editor.stepTools },
+          ]}
+        />
       {error ? <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
       {step === 1 ? (
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 text-sm text-blue-900">
+          <div className="sm:col-span-2 rounded-2xl border border-[#59C3A5]/40 bg-[#59C3A5]/10 p-4 text-sm text-slate-800 dark:border-emerald-800 dark:bg-emerald-950/25 dark:text-slate-100">
             <p className="font-medium">{copy.editor.companyAccessTitle}</p>
-            <p className="mt-1 leading-5 text-blue-800">{copy.editor.companyAccessDescription}</p>
+            <p className="mt-1 leading-5 text-slate-600 dark:text-slate-300">{copy.editor.companyAccessDescription}</p>
           </div>
-          <label className="sm:col-span-2"><span className="text-sm font-medium text-slate-700">{copy.editor.name}</span><input autoFocus value={form.name} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} maxLength={140} placeholder={copy.editor.namePlaceholder} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10" /></label>
-          <label className="sm:col-span-2"><span className="text-sm font-medium text-slate-700">{copy.editor.descriptionLabel}</span><textarea value={form.description} onChange={event => setForm(current => ({ ...current, description: event.target.value }))} maxLength={500} rows={3} placeholder={copy.editor.descriptionPlaceholder} className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10" /></label>
-          <label><span className="text-sm font-medium text-slate-700">{copy.editor.colour}</span><select value={form.theme_key} onChange={event => setForm(current => ({ ...current, theme_key: event.target.value }))} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"><option value="indice-blue">{copy.editor.colourBlue}</option><option value="indice-green">{copy.editor.colourGreen}</option><option value="indice-yellow">{copy.editor.colourYellow}</option><option value="indice-coral">{copy.editor.colourCoral}</option></select></label>
-          <label><span className="text-sm font-medium text-slate-700">{copy.editor.initialLanguage}</span><select value={form.default_locale} onChange={event => setForm(current => ({ ...current, default_locale: event.target.value }))} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">{languages.map(language => <option key={language.code} value={language.code}>{language.flag} {language.name}</option>)}</select><span className="mt-1 block text-xs leading-5 text-slate-500">{copy.editor.initialLanguageHelp}</span></label>
-          <label><span className="text-sm font-medium text-slate-700">{copy.editor.expiry}</span><input type="datetime-local" value={form.expires_at} onChange={event => setForm(current => ({ ...current, expires_at: event.target.value }))} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm" /></label>
+          <label className="sm:col-span-2"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.editor.name}</span><input autoFocus value={form.name} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} maxLength={140} placeholder={copy.editor.namePlaceholder} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#59C3A5] focus:ring-4 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950" /></label>
+          <label className="sm:col-span-2"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.editor.descriptionLabel}</span><textarea value={form.description} onChange={event => setForm(current => ({ ...current, description: event.target.value }))} maxLength={500} rows={3} placeholder={copy.editor.descriptionPlaceholder} className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-[#59C3A5] focus:ring-4 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950" /></label>
+          <details className="sm:col-span-2 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+            <summary className="cursor-pointer text-sm font-medium text-[#177D66] dark:text-emerald-300">{copy.editor.presentationOptions}</summary>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{copy.editor.presentationOptionsHelp}</p>
+            <div className="mt-4 grid gap-4 border-t border-slate-200 pt-4 dark:border-slate-700 sm:grid-cols-2">
+              <label><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.editor.colour}</span><select value={form.theme_key} onChange={event => setForm(current => ({ ...current, theme_key: event.target.value }))} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#59C3A5] focus:ring-4 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950"><option value="indice-blue">{copy.editor.colourBlue}</option><option value="indice-green">{copy.editor.colourGreen}</option><option value="indice-yellow">{copy.editor.colourYellow}</option><option value="indice-coral">{copy.editor.colourCoral}</option></select></label>
+              <label><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.editor.initialLanguage}</span><select value={form.default_locale} onChange={event => setForm(current => ({ ...current, default_locale: event.target.value }))} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#59C3A5] focus:ring-4 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950">{languages.map(language => <option key={language.code} value={language.code}>{language.flag} {language.name}</option>)}</select><span className="mt-1 block text-xs leading-5 text-slate-500">{copy.editor.initialLanguageHelp}</span></label>
+              <label className="sm:col-span-2"><span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.editor.expiry}</span><input type="datetime-local" value={form.expires_at} onChange={event => setForm(current => ({ ...current, expires_at: event.target.value }))} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#59C3A5] focus:ring-4 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950" /></label>
+            </div>
+          </details>
         </div>
       ) : (
         <div>
@@ -311,7 +330,7 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
           ) : null}
           <section aria-labelledby="multi-kiosk-preview-title" className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/80">
             <div className="flex items-start gap-3 border-b border-slate-200 bg-white px-4 py-3">
-              <span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-700">
+              <span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#59C3A5]/15 text-[#177D66]">
                 <Grid2X2 className="h-4 w-4" />
               </span>
               <div className="min-w-0">
@@ -347,7 +366,7 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
               )}
             </div>
           </section>
-          <div className="sticky top-0 z-20 -mx-1 mb-4 bg-[#F7F8FA]/95 px-1 py-1 backdrop-blur dark:bg-slate-900/95"><Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input aria-label={copy.editor.searchPlaceholder} value={search} onChange={event => setSearch(event.target.value)} placeholder={copy.editor.searchPlaceholder} className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-950" /></div>
+          <div className="sticky top-0 z-20 -mx-1 mb-4 bg-[#F7F8FA]/95 px-1 py-1 backdrop-blur dark:bg-slate-900/95"><Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input aria-label={copy.editor.searchPlaceholder} value={search} onChange={event => setSearch(event.target.value)} placeholder={copy.editor.searchPlaceholder} className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-[#59C3A5] focus:ring-4 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-950" /></div>
           <div className="grid gap-3 sm:grid-cols-2">
             {visibleTools.map(tool => {
               const displayName = toolName(tool, copy);
@@ -368,7 +387,7 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
                     aria-pressed={selected}
                     disabled={!selectable}
                     onClick={() => toggleTool(tool.key)}
-                    className="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-1 text-left outline-none focus-visible:ring-4 focus-visible:ring-blue-500/20"
+                    className="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-1 text-left outline-none focus-visible:ring-4 focus-visible:ring-[#59C3A5]/25"
                   >
                     <MultiKioskToolGlyph source={tool} selected={selected} className="h-11 w-11 rounded-xl [&_svg]:h-5 [&_svg]:w-5" />
                     <span className="min-w-0 flex-1">
@@ -383,7 +402,7 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
                       </span>
                     </span>
                   </button>
-                  {selected ? <span className="flex flex-col gap-1"><button type="button" aria-label={copy.editor.moveUp(displayName)} disabled={order === 0} onClick={() => moveTool(tool.key, -1)} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-blue-500/20 disabled:opacity-30"><ArrowUp className="h-4 w-4" /></button><button type="button" aria-label={copy.editor.moveDown(displayName)} disabled={order === form.toolKeys.length - 1} onClick={() => moveTool(tool.key, 1)} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-blue-500/20 disabled:opacity-30"><ArrowDown className="h-4 w-4" /></button></span> : null}
+                  {selected ? <span className="flex flex-col gap-1"><button type="button" aria-label={copy.editor.moveUp(displayName)} disabled={order === 0} onClick={() => moveTool(tool.key, -1)} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-[#59C3A5]/25 disabled:opacity-30"><ArrowUp className="h-4 w-4" /></button><button type="button" aria-label={copy.editor.moveDown(displayName)} disabled={order === form.toolKeys.length - 1} onClick={() => moveTool(tool.key, 1)} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-[#59C3A5]/25 disabled:opacity-30"><ArrowDown className="h-4 w-4" /></button></span> : null}
                 </div>
               );
             })}
@@ -426,7 +445,7 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
                       aria-pressed={selected}
                       disabled={!selectable}
                       onClick={() => toggleKiosk(kiosk.id)}
-                      className="flex min-h-20 min-w-0 flex-1 items-center gap-3 rounded-xl p-1 text-left outline-none focus-visible:ring-4 focus-visible:ring-blue-500/20"
+                      className="flex min-h-20 min-w-0 flex-1 items-center gap-3 rounded-xl p-1 text-left outline-none focus-visible:ring-4 focus-visible:ring-[#59C3A5]/25"
                     >
                       <MultiKioskToolGlyph source={source} selected={selected} className="h-11 w-11 rounded-xl [&_svg]:h-5 [&_svg]:w-5" />
                       <span className="min-w-0 flex-1">
@@ -444,7 +463,7 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
                         </span>
                       </span>
                     </button>
-                    {selected ? <span className="flex flex-col gap-1"><button type="button" aria-label={copy.editor.moveUp(kiosk.name)} disabled={order === 0} onClick={() => moveKiosk(kiosk.id, -1)} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-blue-500/20 disabled:opacity-30"><ArrowUp className="h-4 w-4" /></button><button type="button" aria-label={copy.editor.moveDown(kiosk.name)} disabled={order === form.legacyKioskDefinitionIds.length - 1} onClick={() => moveKiosk(kiosk.id, 1)} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-blue-500/20 disabled:opacity-30"><ArrowDown className="h-4 w-4" /></button></span> : null}
+                    {selected ? <span className="flex flex-col gap-1"><button type="button" aria-label={copy.editor.moveUp(kiosk.name)} disabled={order === 0} onClick={() => moveKiosk(kiosk.id, -1)} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-[#59C3A5]/25 disabled:opacity-30"><ArrowUp className="h-4 w-4" /></button><button type="button" aria-label={copy.editor.moveDown(kiosk.name)} disabled={order === form.legacyKioskDefinitionIds.length - 1} onClick={() => moveKiosk(kiosk.id, 1)} className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 bg-white outline-none focus-visible:ring-4 focus-visible:ring-[#59C3A5]/25 disabled:opacity-30"><ArrowDown className="h-4 w-4" /></button></span> : null}
                   </div>
                 );
               })}
@@ -455,6 +474,25 @@ export function MultiKioskEditorModal({ catalog, editor, onClose, onSaved }: {
           </section>
         </div>
       )}
-    </KioskModalFrame>
+      </KioskModalFrame>
+      <KioskModalFrame
+        open={discardPromptOpen}
+        onOpenChange={open => { if (!open) setDiscardPromptOpen(false); }}
+        size="compact"
+        surface="administration"
+        tone="yellow"
+        icon={<AlertTriangle className="h-5 w-5" />}
+        title={copy.editor.discardTitle}
+        description={copy.editor.discardDescription}
+        footer={(
+          <>
+            <Button type="button" variant="outline" onClick={() => setDiscardPromptOpen(false)}>{copy.editor.keepEditing}</Button>
+            <Button type="button" onClick={onClose} data-modal-destructive>{copy.editor.discard}</Button>
+          </>
+        )}
+      >
+        {null}
+      </KioskModalFrame>
+    </>
   );
 }

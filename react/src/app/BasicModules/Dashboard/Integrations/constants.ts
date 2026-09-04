@@ -1,5 +1,7 @@
 export type AiScopeKind = 'read' | 'action';
 
+export const INDICE_MCP_SERVER_URL = 'https://app.indiceapp.com/api/v1/ai/mcp';
+
 export const AI_SCOPE_DEFINITIONS = [
   { code: 'sales.today:read', group: 'overview', kind: 'read' },
   { code: 'business.snapshot:read', group: 'overview', kind: 'read' },

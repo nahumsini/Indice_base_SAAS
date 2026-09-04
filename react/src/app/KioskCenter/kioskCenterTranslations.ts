@@ -12,6 +12,10 @@ export interface KioskCenterCopy {
     attention: string;
     modules: string;
   };
+  filters: {
+    title: string;
+    subtitle: string;
+  };
   search: {
     label: string;
     placeholder: string;
@@ -26,6 +30,8 @@ export interface KioskCenterCopy {
   };
   table: {
     kiosk: string;
+    module: string;
+    status: string;
     scope: string;
     access: string;
     versions: string;
@@ -73,6 +79,12 @@ export interface KioskCenterCopy {
     moduleReference: string;
     safeSnapshot: string;
     unknown: string;
+    technicalDetails: string;
+  };
+  auditLabels: {
+    events: Record<string, string>;
+    outcomes: Record<string, string>;
+    actors: Record<string, string>;
   };
   actions: {
     inspect: string;
@@ -113,51 +125,57 @@ export interface KioskCenterCopy {
 
 const es: KioskCenterCopy = {
   locale: 'es-MX',
-  eyebrow: 'Kiosk Engine V2 · Control transversal',
-  title: 'Centro global de kioskos',
-  subtitle: 'Inventario operativo de todos los kioskos de la empresa. Consulta alcance, salud, versiones y trazabilidad sin revelar credenciales públicas.',
+  eyebrow: 'Inventario operativo',
+  title: 'Kioscos operativos',
+  subtitle: 'Supervisa los kioscos de la empresa, detecta cuáles requieren atención y abre su módulo propietario para administrarlos.',
   refresh: 'Actualizar',
   loadingTitle: 'Cargando Centro de Kioskos',
   loadingDescription: 'Consolidando el inventario y las señales de operación.',
   stats: {
-    total: 'Kioskos registrados',
+    total: 'Todos los kioscos',
     active: 'Activos',
     attention: 'Requieren atención',
-    modules: 'Módulos representados',
+    modules: 'Módulos',
+  },
+  filters: {
+    title: 'Filtros',
+    subtitle: 'Encuentra un kiosco por nombre, módulo, alcance o estado.',
   },
   search: {
-    label: 'Buscar kioskos',
-    placeholder: 'Nombre, código, módulo o tipo',
+    label: 'Buscar kioscos',
+    placeholder: 'Nombre, módulo o ubicación',
     status: 'Estado',
     module: 'Módulo',
     type: 'Tipo',
     risk: 'Señales',
     all: 'Todos',
     withRisk: 'Con atención',
-    results: (shown, total) => `${shown} de ${total} kioskos`,
+    results: (shown, total) => `${shown} de ${total} kioscos`,
     clear: 'Limpiar filtros',
   },
   table: {
-    kiosk: 'Kiosko',
+    kiosk: 'Kiosco',
+    module: 'Módulo',
+    status: 'Estado y señales',
     scope: 'Alcance',
     access: 'Acceso',
-    versions: 'Versiones',
+    versions: 'Configuración',
     activity: 'Última actividad',
     risks: 'Señales',
     actions: 'Acciones',
   },
   empty: {
-    title: 'Todavía no hay kioskos en el motor',
-    description: 'Los kioskos aparecerán aquí cuando un módulo registre su definición en Kiosk Engine V2.',
+    title: 'Todavía no hay kioscos operativos',
+    description: 'Los kioscos aparecerán aquí cuando se creen desde sus módulos propietarios.',
     filteredTitle: 'No hay coincidencias',
     filteredDescription: 'Ajusta la búsqueda o limpia los filtros para volver a ver el inventario.',
   },
   error: {
-    title: 'No pudimos abrir el Centro de Kioskos',
-    load: 'No fue posible cargar el inventario transversal.',
-    unavailable: 'El Centro global aún no está habilitado para esta empresa.',
+    title: 'No pudimos cargar los kioscos',
+    load: 'No fue posible cargar el inventario de kioscos.',
+    unavailable: 'El Centro de kioscos aún no está habilitado para esta empresa.',
     forbidden: 'Tu perfil no tiene permiso para consultar esta superficie administrativa.',
-    detail: 'No fue posible cargar el detalle del kiosko.',
+    detail: 'No fue posible cargar el detalle del kiosco.',
     audit: 'No fue posible cargar su historial de auditoría.',
     lifecycle: 'No fue posible completar el cambio de estado.',
     retry: 'Reintentar',
@@ -220,7 +238,7 @@ const es: KioskCenterCopy = {
     noExpiration: 'Sin expiración programada',
     configVersion: 'Configuración',
     adapterVersion: 'Adaptador',
-    identifier: 'ID del Engine',
+    identifier: 'ID técnico',
     legacyIdentifier: 'ID funcional',
     noDescription: 'Sin descripción adicional.',
     actor: 'Actor',
@@ -228,6 +246,40 @@ const es: KioskCenterCopy = {
     moduleReference: 'Referencia del módulo',
     safeSnapshot: 'Datos seguros del evento',
     unknown: 'No disponible',
+    technicalDetails: 'Detalles técnicos',
+  },
+  auditLabels: {
+    events: {
+      KIOSK_GRANT_CREATED: 'Acceso creado',
+      KIOSK_CREATED: 'Kiosco creado',
+      KIOSK_UPDATED: 'Kiosco actualizado',
+      KIOSK_DISABLED: 'Kiosco deshabilitado',
+      KIOSK_REVOKED: 'Kiosco revocado',
+      KIOSK_ACTION_REQUESTED: 'Acción solicitada',
+      KIOSK_ACTION_REJECTED: 'Acción no autorizada',
+      KIOSK_ACTION_FAILED: 'La acción no pudo completarse',
+      KIOSK_SESSION_CREATED: 'Sesión iniciada',
+      KIOSK_SESSION_CLOSED: 'Sesión cerrada',
+      IDENTIFICATION_SUCCEEDED: 'Identificación correcta',
+      IDENTIFICATION_FAILED: 'Identificación rechazada',
+      ACCESS_GRANTED: 'Acceso concedido',
+      ACCESS_DENIED: 'Acceso rechazado',
+    },
+    outcomes: {
+      SUCCEEDED: 'Correcto',
+      SUCCESS: 'Correcto',
+      REQUESTED: 'Solicitado',
+      REJECTED: 'Rechazado',
+      FAILED: 'Fallido',
+      DENIED: 'Rechazado',
+    },
+    actors: {
+      USER: 'Usuario',
+      EMPLOYEE: 'Colaborador',
+      SYSTEM: 'Sistema',
+      ADMIN: 'Administrador',
+      ROOT: 'Root',
+    },
   },
   actions: {
     inspect: 'Ver detalle y auditoría',
@@ -237,21 +289,21 @@ const es: KioskCenterCopy = {
     close: 'Cerrar',
   },
   detail: {
-    eyebrow: 'Detalle transversal',
-    description: 'Información consolidada del Engine; las credenciales públicas nunca se muestran.',
+    eyebrow: 'Detalle del kiosco',
+    description: 'Consulta su estado, alcance e historial sin exponer credenciales de acceso.',
     overview: 'Resumen',
     audit: 'Auditoría',
     loading: 'Cargando detalle e historial…',
-    auditEmpty: 'Este kiosko todavía no tiene eventos de auditoría.',
-    historicalTitle: (id) => `Kiosko histórico #${id}`,
+    auditEmpty: 'Este kiosco todavía no tiene eventos de auditoría.',
+    historicalTitle: (id) => `Kiosco histórico #${id}`,
     historicalDescription: 'La definición funcional ya no está en el inventario, pero su trazabilidad retenida permanece disponible.',
   },
   lifecycle: {
     disableEyebrow: 'Pausa operativa',
-    disableTitle: 'Deshabilitar kiosko',
-    disableDescription: 'El kiosko dejará de aceptar sesiones y acciones hasta que se reactive desde su módulo propietario.',
+    disableTitle: 'Deshabilitar kiosco',
+    disableDescription: 'El kiosco dejará de aceptar sesiones y acciones hasta que se reactive desde su módulo propietario.',
     revokeEyebrow: 'Acción irreversible',
-    revokeTitle: 'Revocar kiosko',
+    revokeTitle: 'Revocar kiosco',
     revokeDescription: 'La revocación invalida su acceso y no puede revertirse. El historial permanecerá disponible para auditoría.',
     reason: 'Motivo administrativo',
     reasonPlaceholder: 'Describe por qué se realiza este cambio',
@@ -268,26 +320,27 @@ const es: KioskCenterCopy = {
 
 const en: KioskCenterCopy = {
   locale: 'en-US',
-  eyebrow: 'Kiosk Engine V2 · Cross-module control',
-  title: 'Global Kiosk Center',
-  subtitle: 'Operational inventory for every company kiosk. Review scope, health, versions, and traceability without exposing public credentials.',
+  eyebrow: 'Operational inventory',
+  title: 'Operational kiosks',
+  subtitle: 'Monitor company kiosks, identify those that need attention, and open their owning module to manage them.',
   refresh: 'Refresh',
   loadingTitle: 'Loading Kiosk Center',
   loadingDescription: 'Consolidating inventory and operational signals.',
-  stats: { total: 'Registered kiosks', active: 'Active', attention: 'Need attention', modules: 'Modules represented' },
+  stats: { total: 'All kiosks', active: 'Active', attention: 'Need attention', modules: 'Modules' },
+  filters: { title: 'Filters', subtitle: 'Find a kiosk by name, module, scope, or status.' },
   search: {
-    label: 'Search kiosks', placeholder: 'Name, code, module, or type', status: 'Status', module: 'Module', type: 'Type', risk: 'Signals', all: 'All', withRisk: 'Needs attention',
+    label: 'Search kiosks', placeholder: 'Name, module, or location', status: 'Status', module: 'Module', type: 'Type', risk: 'Signals', all: 'All', withRisk: 'Needs attention',
     results: (shown, total) => `${shown} of ${total} kiosks`, clear: 'Clear filters',
   },
-  table: { kiosk: 'Kiosk', scope: 'Scope', access: 'Access', versions: 'Versions', activity: 'Last activity', risks: 'Signals', actions: 'Actions' },
+  table: { kiosk: 'Kiosk', module: 'Module', status: 'Status and signals', scope: 'Scope', access: 'Access', versions: 'Configuration', activity: 'Last activity', risks: 'Signals', actions: 'Actions' },
   empty: {
-    title: 'There are no kiosks in the Engine yet',
-    description: 'Kiosks will appear here when a module registers its definition in Kiosk Engine V2.',
+    title: 'There are no operational kiosks yet',
+    description: 'Kiosks appear here after they are created in their owning modules.',
     filteredTitle: 'No matches found',
     filteredDescription: 'Adjust the search or clear filters to see the inventory again.',
   },
   error: {
-    title: 'Kiosk Center could not be opened', load: 'The cross-module inventory could not be loaded.', unavailable: 'The Global Center is not enabled for this company yet.', forbidden: 'Your profile cannot access this administrative surface.', detail: 'The kiosk details could not be loaded.', audit: 'Its audit history could not be loaded.', lifecycle: 'The status change could not be completed.', retry: 'Try again',
+    title: 'Kiosks could not be loaded', load: 'The kiosk inventory could not be loaded.', unavailable: 'Kiosk Center is not enabled for this company yet.', forbidden: 'Your profile cannot access this administrative surface.', detail: 'The kiosk details could not be loaded.', audit: 'Its audit history could not be loaded.', lifecycle: 'The status change could not be completed.', retry: 'Try again',
   },
   status: { ACTIVE: 'Active', DISABLED: 'Disabled', EXPIRED: 'Expired', REVOKED: 'Revoked', DELETED: 'Deleted' },
   modules: { PROCESS_TASKS: 'Processes & Tasks', EXPENSES: 'Expenses', PETTY_CASH: 'Petty Cash', HUMAN_RESOURCES: 'Human Resources', POINT_OF_SALE: 'Point of Sale', SALES: 'Sales', PROCUREMENT: 'Procurement' },
@@ -295,9 +348,18 @@ const en: KioskCenterCopy = {
   accessLevels: { PUBLIC: 'Public', IDENTIFIED: 'Identified', VERIFIED: 'Verified', CONTROLLED: 'Controlled' },
   accessMethods: { IDENTIFICATION: 'Identification', EMAIL_OTP: 'Email code', PIN: 'PIN', INDEX_SESSION: 'Indice session' },
   risks: { EXPIRED: 'Expired', EXPIRING_SOON: 'Expiring soon', REVOKED: 'Revoked', REPEATED_FAILURES: 'Repeated failures' },
-  labels: { corporate: 'Corporate', unit: 'Unit', business: 'Business', location: 'Location', never: 'No recorded activity', expires: 'Expires', noExpiration: 'No scheduled expiration', configVersion: 'Configuration', adapterVersion: 'Adapter', identifier: 'Engine ID', legacyIdentifier: 'Functional ID', noDescription: 'No additional description.', actor: 'Actor', capability: 'Capability', moduleReference: 'Module reference', safeSnapshot: 'Safe event data', unknown: 'Unavailable' },
+  labels: { corporate: 'Corporate', unit: 'Unit', business: 'Business', location: 'Location', never: 'No recorded activity', expires: 'Expires', noExpiration: 'No scheduled expiration', configVersion: 'Configuration', adapterVersion: 'Adapter', identifier: 'Technical ID', legacyIdentifier: 'Functional ID', noDescription: 'No additional description.', actor: 'Actor', capability: 'Capability', moduleReference: 'Module reference', safeSnapshot: 'Safe event data', unknown: 'Unavailable', technicalDetails: 'Technical details' },
+  auditLabels: {
+    events: {
+      KIOSK_GRANT_CREATED: 'Access created', KIOSK_CREATED: 'Kiosk created', KIOSK_UPDATED: 'Kiosk updated', KIOSK_DISABLED: 'Kiosk disabled', KIOSK_REVOKED: 'Kiosk revoked',
+      KIOSK_ACTION_REQUESTED: 'Action requested', KIOSK_ACTION_REJECTED: 'Action not authorized', KIOSK_ACTION_FAILED: 'Action could not be completed', KIOSK_SESSION_CREATED: 'Session started', KIOSK_SESSION_CLOSED: 'Session closed',
+      IDENTIFICATION_SUCCEEDED: 'Identification succeeded', IDENTIFICATION_FAILED: 'Identification rejected', ACCESS_GRANTED: 'Access granted', ACCESS_DENIED: 'Access denied',
+    },
+    outcomes: { SUCCEEDED: 'Successful', SUCCESS: 'Successful', REQUESTED: 'Requested', REJECTED: 'Rejected', FAILED: 'Failed', DENIED: 'Denied' },
+    actors: { USER: 'User', EMPLOYEE: 'Collaborator', SYSTEM: 'System', ADMIN: 'Administrator', ROOT: 'Root' },
+  },
   actions: { inspect: 'View details and audit', openAdmin: 'Open module administration', disable: 'Disable', revoke: 'Revoke access', close: 'Close' },
-  detail: { eyebrow: 'Cross-module detail', description: 'Consolidated Engine information; public credentials are never displayed.', overview: 'Overview', audit: 'Audit', loading: 'Loading details and history…', auditEmpty: 'This kiosk has no audit events yet.', historicalTitle: (id) => `Historical kiosk #${id}`, historicalDescription: 'The functional definition is no longer in the inventory, but its retained traceability remains available.' },
+  detail: { eyebrow: 'Cross-module detail', description: 'Review status, scope, and history without exposing access credentials.', overview: 'Overview', audit: 'Audit', loading: 'Loading details and history…', auditEmpty: 'This kiosk has no audit events yet.', historicalTitle: (id) => `Historical kiosk #${id}`, historicalDescription: 'The functional definition is no longer in the inventory, but its retained traceability remains available.' },
   lifecycle: {
     disableEyebrow: 'Operational pause', disableTitle: 'Disable kiosk', disableDescription: 'The kiosk will stop accepting sessions and actions until it is enabled from its owning module.', revokeEyebrow: 'Irreversible action', revokeTitle: 'Revoke kiosk', revokeDescription: 'Revocation invalidates its access and cannot be undone. History remains available for audit.', reason: 'Administrative reason', reasonPlaceholder: 'Describe why this change is required', reasonHelp: 'Enter at least 8 characters. The reason becomes part of the module traceability.', cancel: 'Cancel', disabling: 'Disabling…', revoking: 'Revoking…', confirmDisable: 'Confirm disable', confirmRevoke: 'Confirm revocation', successDisable: (name) => `${name} was disabled.`, successRevoke: (name) => `${name} was revoked.`,
   },

@@ -265,6 +265,21 @@ step:
   Expired. Historical Viewed and Negotiation records render as Sent; historical Closed Won records
   render as Approved. Winning remains an opportunity/sale outcome, not an extra quote decision.
 
+### Connect AI: interim ChatGPT setup
+
+Until the public Indice app is available in ChatGPT, the visible `Connect AI` experience starts on
+`How to connect` and presents ChatGPT as the only provider:
+
+- `My connections` remains implemented but outside public navigation until the published flow
+  needs it again;
+- the manual guide uses the production URL `https://app.indiceapp.com/api/v1/ai/mcp`, OAuth
+  authentication, and an explicit copy control;
+- each step includes a simplified visual reference within the Indice design system instead of a
+  screenshot that can become stale when the ChatGPT interface changes;
+- the guide states that option names and locations may vary by plan and workspace, and does not
+  promise availability when ChatGPT has not enabled developer mode;
+- passwords, tokens, and secrets are never requested, rendered, or stored on this screen.
+
 Do not duplicate accounts receivable logic inside Expenses if Receivables owns it.
 
 ---

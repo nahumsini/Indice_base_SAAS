@@ -665,8 +665,8 @@ test('kiosk center composes native and scoped operational tools while the public
   assert.match(editorSource, /MultiKioskToolGlyph/);
   assert.match(editorSource, /copy\.editor\.previewTitle/);
   assert.match(editorSource, /aria-pressed=\{selected\}/);
-  assert.match(adminTranslations, /Catálogo nativo de módulos/);
-  assert.match(adminTranslations, /No dependen de kioscos creados/);
+  assert.match(adminTranslations, /Herramientas de la compañía/);
+  assert.match(adminTranslations, /Después del PIN, cada colaborador verá solo/);
   assert.match(adminTranslations, /Así lo verá el colaborador/);
   for (const locale of ['en-CA', 'en-US', 'fr-CA', 'es-MX', 'es-CO', 'pt-BR', 'ko-CA', 'zh-CA']) {
     assert.match(adminTranslations, new RegExp(`['"]${locale}['"]`));
@@ -677,7 +677,8 @@ test('kiosk center composes native and scoped operational tools while the public
   assert.match(editorSource, /default_locale/);
   assert.match(editorSource, /languages\.map/);
   assert.doesNotMatch(centerSource, /Empleados asignados|employee_count\} empleados|asígnalo a los colaboradores/);
-  assert.match(centerSource, /adminCopy\.center\.toolsPublished/);
+  assert.match(centerSource, /KioskStatusNavigator/);
+  assert.match(centerSource, /IndiceFilterBar/);
   assert.match(centerSource, /item\.tool_count/);
   assert.match(centerSource, /catalog/);
   assert.doesNotMatch(centerSource, /item\.kiosk_count/);
@@ -688,7 +689,7 @@ test('kiosk center composes native and scoped operational tools while the public
   assert.match(accessSource, /copy\.access\.readinessNote/);
   assert.match(accessSource, /MultiKioskCatalogTool/);
   assert.doesNotMatch(accessSource, /MultiKioskCatalogKiosk|employeeMatchesKioskOrganizationScope/);
-  assert.match(workspaceCopySource, /Aquí no se asignan colaboradores al Multikiosco/);
+  assert.match(workspaceCopySource, /Los permisos se administran desde Usuarios/);
   assert.doesNotMatch(workspaceCopySource, /colaboradores asignados|Assigned collaborators/);
   assert.match(lifecycleSource, /KioskModalFrame/);
   assert.doesNotMatch(`${centerSource}\n${lifecycleSource}`, /window\.confirm/);
@@ -738,6 +739,53 @@ test('kiosk center composes native and scoped operational tools while the public
   assert.match(taskWorkspaceSource, /employeeTaskCapabilities\.complete/);
   assert.match(mobileTranslations, /noAccess:/);
   assert.match(mobileTranslations, /Esta herramienta necesita actualización/);
+});
+
+test('kiosk center uses the Indice operating system for navigation, filters, tables, and safe modal detail', async () => {
+  const [center, multi, access, activity, editor, lifecycle, navigator, translations, workspaceTranslations, makefile] = await Promise.all([
+    readFile(new URL('../src/app/KioskCenter/KioskCenterPage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/MultiKioskCenterPage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/KioskAccessView.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/KioskActivityView.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/MultiKioskEditorModal.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/MultiKioskLifecycleModals.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/components/KioskStatusNavigator.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/kioskCenterTranslations.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/KioskCenter/kioskCenterWorkspaceTranslations.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../../Makefile', import.meta.url), 'utf8'),
+  ]);
+
+  for (const source of [center, multi, access, activity]) {
+    assert.match(source, /IndiceTitleBar/);
+    assert.match(source, /tone="aqua"/);
+  }
+  assert.match(center, /IndiceFilterDisclosureActions/);
+  assert.match(center, /IndiceOperationalTable/);
+  assert.match(center, /IndiceTableHeaderRow/);
+  assert.match(center, /DataTablePagination/);
+  assert.match(center, /<KioskModalFrame/);
+  assert.match(center, /copy\.labels\.technicalDetails/);
+  assert.doesNotMatch(center, /<IndiceModalFrame/);
+  assert.doesNotMatch(center, /font-(?:bold|extrabold|black)/);
+  assert.match(access, /copy\.access\.reviewAccess/);
+  assert.match(access, /<IndiceTableShell/);
+  assert.match(activity, /auditLabels\.events/);
+  assert.match(activity, /technicalDetails/);
+  assert.match(editor, /open=\{!discardPromptOpen\}/);
+  assert.match(editor, /copy\.editor\.discardTitle/);
+  assert.match(editor, /copy\.editor\.presentationOptions/);
+  assert.match(editor, /accent="aqua"/);
+  assert.doesNotMatch(`${editor}\n${lifecycle}`, /tone="blue"/);
+  assert.match(navigator, /aria-pressed=\{active\}/);
+  assert.match(multi, /navigate\('\/dashboard'\)/);
+  assert.match(multi, /workspaceCopy\.backToDashboard/);
+  assert.match(workspaceTranslations, /Volver al dashboard/);
+  assert.match(makefile, /KIOSK_GLOBAL_CENTER_ENABLED="\$\(LOCAL_KIOSK_GLOBAL_CENTER_ENABLED\)"/);
+  assert.match(makefile, /KIOSK_MULTI_DASHBOARD_ENABLED="\$\(LOCAL_KIOSK_MULTI_DASHBOARD_ENABLED\)"/);
+  assert.match(makefile, /KIOSK_ENGINE_ADAPTER_PETTY_CASH_ENABLED="\$\(LOCAL_KIOSK_ADAPTER_PETTY_CASH_ENABLED\)"/);
+  assert.match(makefile, /KIOSK_ENGINE_ADAPTER_PAYABLES_ENABLED="\$\(LOCAL_KIOSK_ADAPTER_PAYABLES_ENABLED\)"/);
+  assert.match(translations, /Estado y señales/);
+  assert.doesNotMatch(translations, /Información consolidada del Engine/);
 });
 
 test('multi-kiosk launcher and editor preserve accessible status, ordering and narrow layouts', async () => {
