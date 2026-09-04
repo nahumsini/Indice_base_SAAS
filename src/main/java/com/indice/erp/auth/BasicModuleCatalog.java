@@ -1,6 +1,5 @@
 package com.indice.erp.auth;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -9,6 +8,12 @@ import java.util.Map;
 public final class BasicModuleCatalog {
 
     public static final String CORE_MODULE = "config_center";
+    public static final String KPI_MODULE = "kpis";
+
+    private static final List<String> CORE_MODULES = List.of(
+        CORE_MODULE,
+        KPI_MODULE
+    );
 
     private static final List<String> SELECTABLE_MODULES = List.of(
         "human_resources",
@@ -33,17 +38,17 @@ public final class BasicModuleCatalog {
     }
 
     public static List<String> launchOfferModules() {
-        var modules = new ArrayList<String>();
-        modules.add(CORE_MODULE);
-        modules.addAll(SELECTABLE_MODULES);
-        return List.copyOf(modules);
+        var modules = new LinkedHashMap<String, Boolean>();
+        CORE_MODULES.forEach(module -> modules.put(module, Boolean.TRUE));
+        SELECTABLE_MODULES.forEach(module -> modules.put(module, Boolean.TRUE));
+        return List.copyOf(modules.keySet());
     }
 
     public static List<String> paidEntitlementModules(Collection<String> selectedModules) {
-        var modules = new ArrayList<String>();
-        modules.add(CORE_MODULE);
-        modules.addAll(normalizeSelectedModules(selectedModules));
-        return List.copyOf(modules);
+        var modules = new LinkedHashMap<String, Boolean>();
+        CORE_MODULES.forEach(module -> modules.put(module, Boolean.TRUE));
+        normalizeSelectedModules(selectedModules).forEach(module -> modules.put(module, Boolean.TRUE));
+        return List.copyOf(modules.keySet());
     }
 
     public static List<String> defaultSelection(int count) {
