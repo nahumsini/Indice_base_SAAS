@@ -111,3 +111,32 @@ test('Saldos ofrece vista previa, descarga e impresión del estado de cuenta', (
   assert.match(pdfSource, /format: 'a4'/);
   assert.match(pdfSource, /openStandardPdfForPrint/);
 });
+
+test('Las compras contabilizadas se anulan con motivo y conservan auditoría', () => {
+  const reconciliationSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashReconciliationWorkspace.tsx'), 'utf8');
+  const publicKioskSource = readFileSync(resolve(pettyCashRoot, 'Kiosk/PublicPettyCashKioskPage.tsx'), 'utf8');
+  const adminApiSource = readFileSync(resolve(pettyCashRoot, 'services/petty-cash.service.ts'), 'utf8');
+  const kioskApiSource = readFileSync(resolve(pettyCashRoot, 'Kiosk/pettyCashKioskApi.ts'), 'utf8');
+  const spanishCopy = readFileSync(resolve(pettyCashRoot, 'translations/es-MX.ts'), 'utf8');
+
+  for (const source of [reconciliationSource, publicKioskSource]) {
+    assert.match(source, /cancellationReason\.trim\(\)\.length < 8/);
+    assert.match(source, /cancellationReasonRequired/);
+  }
+  assert.match(adminApiSource, /\?reason=\$\{encodeURIComponent\(reason\.trim\(\)\)\}/);
+  assert.match(kioskApiSource, /cancellation_reason: cancellationReason\.trim\(\)/);
+  assert.match(spanishCopy, /delete: 'Anular compra'/);
+  assert.match(spanishCopy, /permanecerán en el historial para auditoría/);
+});
+
+test('Los fondos distinguen fondeo interno de dinero externo sin inventar cuentas', () => {
+  const fundsSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashFundsWorkspace.tsx'), 'utf8');
+  const reconciliationSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashReconciliationWorkspace.tsx'), 'utf8');
+  const serviceSource = readFileSync(resolve(pettyCashRoot, 'services/petty-cash.service.ts'), 'utf8');
+
+  assert.match(fundsSource, /fundingSourceType: 'INTERNAL' \| 'EXTERNAL'/);
+  assert.match(fundsSource, /externalSourceName/);
+  assert.match(reconciliationSource, /sourceType: 'INTERNAL' \| 'EXTERNAL'/);
+  assert.match(reconciliationSource, /draft\.externalSourceName\.trim\(\)/);
+  assert.match(serviceSource, /externalSourceName: movement\.externalSourceName\?\.trim\(\) \|\| null/);
+});

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Edit2, ExternalLink, Power, PowerOff, Search, Trash2 } from 'lucide-react';
+import { Edit2, ExternalLink, LockKeyhole, Power, PowerOff, Search, Trash2 } from 'lucide-react';
 import type { FinanceReferenceOption } from '../../types/finance-reference.types';
 import { usePaymentAccountsResolvedLocale, usePaymentAccountsTranslations } from '../hooks/usePaymentAccountsTranslations';
 import type { FinanceTranslations } from '../../translations';
@@ -262,6 +262,12 @@ function PaymentAccountRow({
               {t.paymentAccounts.table.open}
             </button>
           </IndiceTableActionGroup>
+        ) : account.systemManaged ? (
+          <IndiceTableActionGroup>
+            <span className="inline-flex h-9 items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-medium text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200" title="Cuenta protegida por el motor de tesorería">
+              <LockKeyhole className="h-4 w-4" />Índice
+            </span>
+          </IndiceTableActionGroup>
         ) : (
           <IndiceTableActionGroup>
             <ActionButton title={t.common.edit} onClick={() => onEdit(account)}><Edit2 className="h-4 w-4" /></ActionButton>
@@ -293,7 +299,7 @@ function renderPaymentCell(
   if (columnKey === 'businessId') return <ReferencePill value={getReferenceLabel(businessOptions, account.businessId)} />;
   if (columnKey === 'bank') return account.source === 'petty_cash' ? <ReferencePill value={account.custodian ?? '-'} /> : <span>{account.bank || '-'}</span>;
   if (columnKey === 'accountNumber') return <span className="font-mono font-medium text-slate-900 dark:text-slate-100">{account.accountNumber || '-'}</span>;
-  if (columnKey === 'balance') return <span className="font-medium text-slate-900 dark:text-slate-100">{formatPaymentCurrency(account.balance, account.currency, locale)}</span>;
+  if (columnKey === 'balance') return <BalanceCell account={account} locale={locale} />;
   if (columnKey === 'currency') return <ReferencePill value={account.currency} />;
   if (columnKey === 'lastTransaction') return <span>{account.lastTransaction ? formatPaymentDate(account.lastTransaction, locale) : '-'}</span>;
   return <StatusBadge isActive={account.isActive} t={t} />;
@@ -305,10 +311,20 @@ function NameCell({ account, t, tone }: { account: PaymentAccount; t: FinanceTra
       <span className={`mt-0.5 ${tone === 'coral' ? 'text-[#E8564B]' : 'text-[#147514]'}`}>{getTypeIcon(account.type)}</span>
       <div className="min-w-0">
         <p className="truncate font-medium text-slate-900 dark:text-slate-100">{account.name}</p>
+        {account.systemManaged ? <p className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-blue-700 dark:text-blue-300"><LockKeyhole className="h-3 w-3" />Cuenta operativa del sistema</p> : null}
         {account.source === 'petty_cash' ? <p className="mt-1 text-xs font-medium text-[#147514]">{t.paymentAccounts.table.pettyCashDetail(account.custodian ?? t.paymentAccounts.table.noCustodian)}</p> : null}
       </div>
     </div>
   );
+}
+
+function BalanceCell({ account, locale }: { account: PaymentAccount; locale: ReturnType<typeof usePaymentAccountsResolvedLocale> }) {
+  const available = account.availableBalance ?? account.balance;
+  const pending = account.pendingBalance ?? 0;
+  return <div>
+    <span className="block font-medium text-slate-900 dark:text-slate-100">{formatPaymentCurrency(available, account.currency, locale)}</span>
+    {Math.abs(pending) >= 0.005 ? <span className="mt-1 block text-xs font-medium text-amber-700 dark:text-amber-300">+ {formatPaymentCurrency(pending, account.currency, locale)} pendiente</span> : null}
+  </div>;
 }
 
 function ActionButton({ children, onClick, title }: { children: ReactNode; onClick: () => void; title: string }) {

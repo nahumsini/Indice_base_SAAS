@@ -2,6 +2,7 @@ package com.indice.erp.finance.payablekiosk;
 
 import com.indice.erp.finance.payablekiosk.dto.PublicPayableRequest;
 import com.indice.erp.finance.payablekiosk.dto.PublicProviderRegistrationRequest;
+import com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver;
 import java.math.BigDecimal;
 import java.sql.Statement;
 import java.time.LocalDate;
@@ -24,9 +25,13 @@ class PayableKioskPublicRepository {
     }
 
     private final JdbcTemplate jdbcTemplate;
+    private final FinanceBusinessTimeZoneResolver timeZoneResolver;
 
-    PayableKioskPublicRepository(JdbcTemplate jdbcTemplate) {
+    PayableKioskPublicRepository(
+            JdbcTemplate jdbcTemplate,
+            FinanceBusinessTimeZoneResolver timeZoneResolver) {
         this.jdbcTemplate = jdbcTemplate;
+        this.timeZoneResolver = timeZoneResolver;
     }
 
     long insertProvider(PayableKioskRow kiosk, PublicProviderRegistrationRequest request, String metadataJson) {
@@ -85,7 +90,8 @@ class PayableKioskPublicRepository {
             String customJson,
             String metadataJson) {
         var keyHolder = new GeneratedKeyHolder();
-        var folio = "CXP-" + LocalDate.now().getYear() + "-" + Long.toString(System.currentTimeMillis()).substring(7);
+        var businessDate = LocalDate.now(timeZoneResolver.resolve(kiosk.companyId()));
+        var folio = "CXP-" + businessDate.getYear() + "-" + Long.toString(System.currentTimeMillis()).substring(7);
         jdbcTemplate.update(connection -> {
             var statement = connection.prepareStatement(
                     """
@@ -111,10 +117,10 @@ class PayableKioskPublicRepository {
             statement.setBigDecimal(10, request.totalAmount());
             statement.setBigDecimal(11, request.totalAmount().max(BigDecimal.ZERO));
             statement.setString(12, kiosk.currencyCode());
-            statement.setObject(13, LocalDate.now());
+            statement.setObject(13, businessDate);
             statement.setObject(14, request.dueDate());
             PayableKioskRepository.setLong(statement, 15, requestedByUserId);
-            statement.setString(16, paymentStatusFor(request.dueDate()));
+            statement.setString(16, paymentStatusFor(request.dueDate(), businessDate));
             statement.setString(17, customJson);
             statement.setString(18, metadataJson);
             return statement;
@@ -122,8 +128,8 @@ class PayableKioskPublicRepository {
         return keyHolder.getKey() == null ? 0L : keyHolder.getKey().longValue();
     }
 
-    private String paymentStatusFor(LocalDate dueDate) {
-        return dueDate != null && dueDate.isBefore(LocalDate.now()) ? "OVERDUE" : "UNPAID";
+    private String paymentStatusFor(LocalDate dueDate, LocalDate businessDate) {
+        return dueDate != null && dueDate.isBefore(businessDate) ? "OVERDUE" : "UNPAID";
     }
 
     boolean providerAvailable(PayableKioskRow kiosk, Long providerId) {

@@ -78,6 +78,7 @@ type PettyCashMovementApiDto = {
   pettyCashStatementId?: number | null;
   fromPaymentAccountId?: number | null;
   toPaymentAccountId?: number | null;
+  externalSourceName?: string | null;
   type: PettyCashMovementType;
   amount: number | string;
   currencyCode: string;
@@ -104,6 +105,9 @@ type PettyCashSettlementLineApiDto = {
   expenseDate: string;
   attachmentCount?: number | null;
   status?: PettyCashSettlementLineStatus | null;
+  cancellationReason?: string | null;
+  cancelledByUserId?: number | null;
+  cancelledAt?: string | null;
   customFields?: PettyCashJson;
   metadata?: PettyCashJson;
 };
@@ -232,6 +236,7 @@ type PettyCashMovementApiRequest = {
   pettyCashStatementId?: number | null;
   fromPaymentAccountId?: number | null;
   toPaymentAccountId?: number | null;
+  externalSourceName?: string | null;
   type?: PettyCashMovementType;
   amount: number;
   currencyCode: string;
@@ -381,8 +386,11 @@ const toMovement = (
     amount: asNumber(dto.amount),
     companyId: idString(dto.companyId),
     currencyCode: asCurrency(dto.currencyCode),
+    externalSourceName: dto.externalSourceName ?? customString(dto.customFields, 'externalSourceName'),
     fromPaymentAccountId: idString(dto.fromPaymentAccountId),
-    fromPaymentAccountName: customString(dto.customFields, 'fromPaymentAccountName') ?? labelWithId('Account', dto.fromPaymentAccountId),
+    fromPaymentAccountName: customString(dto.customFields, 'fromPaymentAccountName')
+      ?? customString(dto.customFields, 'externalSourceName')
+      ?? labelWithId('Account', dto.fromPaymentAccountId),
     movementDate: dto.movementDate,
     pettyCashFundId: idString(dto.pettyCashFundId),
     pettyCashStatementId: idString(dto.pettyCashStatementId),
@@ -409,6 +417,9 @@ const toSettlementLine = (dto: PettyCashSettlementLineApiDto): PettyCashSettleme
   providerName: customString(dto.customFields, 'providerName') ?? optionalLabelWithId('Provider', dto.providerId),
   receiptReference: dto.receiptReference ?? undefined,
   status: dto.status ?? 'DRAFT',
+  cancellationReason: dto.cancellationReason ?? undefined,
+  cancelledByUserId: idString(dto.cancelledByUserId) || undefined,
+  cancelledAt: dto.cancelledAt ?? undefined,
   subtotalAmount: asNumber(dto.subtotalAmount),
   taxAmount: asNumber(dto.taxAmount),
   totalAmount: asNumber(dto.totalAmount),
@@ -487,10 +498,12 @@ const toMovementRequest = (movement: PettyCashMovement): PettyCashMovementApiReq
   amount: movement.amount,
   currencyCode: movement.currencyCode,
   customFields: {
+    externalSourceName: movement.externalSourceName,
     fromPaymentAccountName: movement.fromPaymentAccountName,
     toPaymentAccountName: movement.toPaymentAccountName,
   },
   fromPaymentAccountId: numericId(movement.fromPaymentAccountId) ?? null,
+  externalSourceName: movement.externalSourceName?.trim() || null,
   metadata: { source: 'petty_cash_frontend' },
   movementDate: movement.movementDate,
   pettyCashStatementId: numericId(movement.pettyCashStatementId) ?? null,
@@ -629,9 +642,9 @@ export const pettyCashService = {
     };
   },
 
-  async deleteSettlementLine(fundId: string, settlementLineId: string): Promise<void> {
+  async deleteSettlementLine(fundId: string, settlementLineId: string, reason: string): Promise<void> {
     await apiClient(
-      `${pettyCashPath}/funds/${requireBackendId(fundId, 'Petty cash fund')}/settlement-lines/${requireBackendId(settlementLineId, 'Petty cash settlement line')}`,
+      `${pettyCashPath}/funds/${requireBackendId(fundId, 'Petty cash fund')}/settlement-lines/${requireBackendId(settlementLineId, 'Petty cash settlement line')}?reason=${encodeURIComponent(reason.trim())}`,
       { method: 'DELETE' },
     );
   },

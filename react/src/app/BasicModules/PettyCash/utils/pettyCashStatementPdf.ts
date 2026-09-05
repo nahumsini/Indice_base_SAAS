@@ -383,7 +383,7 @@ export function buildPettyCashStatementPdf({
   ], statementMovements.map(movement => [
     formatPettyCashIsoDate(movement.movementDate),
     copy.status.movement[movement.type],
-    movement.fromPaymentAccountName ?? copy.common.notAvailable,
+    movement.fromPaymentAccountName ?? movement.externalSourceName ?? copy.common.notAvailable,
     formatPettyCashCurrency(movement.amount, movement.currencyCode),
     movement.reference || copy.common.notAvailable,
   ]), y);

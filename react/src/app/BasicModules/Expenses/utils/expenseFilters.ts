@@ -14,12 +14,13 @@ export const getExpensePaidAmount = (expense: Expense) => Math.max(expense.amoun
 
 export const getExpenseBalance = (expense: Expense) => Math.max(expense.total - getExpensePaidAmount(expense), 0);
 
-export const canDeleteExpense = (expense: Expense) => (
+export const canEditExpense = (expense: Expense) => (
   expense.type === 'budget'
-  || expense.type === 'real'
   || !expense.backendStatus
   || expense.backendStatus.toUpperCase() === 'DRAFT'
 );
+
+export const canDeleteExpense = canEditExpense;
 
 export const isExpensePastDue = (expense: Expense, referenceDate = new Date()) => (
   Boolean(expense.dueDate)

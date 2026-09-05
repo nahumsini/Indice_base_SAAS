@@ -4,6 +4,7 @@ import com.indice.erp.finance.FinanceAccessService;
 import com.indice.erp.finance.FinanceApiException;
 import com.indice.erp.finance.shared.FinanceContext;
 import com.indice.erp.finance.shared.FinanceScope;
+import com.indice.erp.finance.treasury.TreasuryService;
 import java.math.BigDecimal;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -36,6 +37,9 @@ class PaymentAccountServiceTest {
     @Mock
     private PaymentAccountReferenceValidator referenceValidator;
 
+    @Mock
+    private TreasuryService treasuryService;
+
     @Test
     void getReturnsCompanyScopedAccountFromRepository() {
         var service = service();
@@ -52,7 +56,7 @@ class PaymentAccountServiceTest {
     }
 
     @Test
-    void createDerivesCurrentBalanceFromOpeningBalanceAndAuditActor() {
+    void createPostsOpeningBalanceThroughTreasuryAndKeepsPersistedBalanceDerived() {
         var service = service();
         var context = PaymentAccountTestData.context();
         var command = ArgumentCaptor.forClass(PaymentAccountCommand.class);
@@ -60,14 +64,18 @@ class PaymentAccountServiceTest {
         when(accessService.containsAssignment(context, null, null)).thenReturn(true);
         when(repository.insert(eq(context), command.capture()))
             .thenReturn(PaymentAccountTestData.record(10L, "Operating Cash", PaymentAccountStatus.ACTIVE));
+        when(repository.findById(context, 10L))
+            .thenReturn(Optional.of(PaymentAccountTestData.record(10L, "Operating Cash",
+                PaymentAccountStatus.ACTIVE)));
 
         var response = service.create(context, PaymentAccountTestData.createRequest(" Operating Cash ", openingBalance));
 
         assertEquals(10L, response.id());
         assertEquals(openingBalance, command.getValue().openingBalance());
-        assertEquals(openingBalance, command.getValue().currentBalance());
+        assertEquals(BigDecimal.ZERO, command.getValue().currentBalance());
         assertEquals("MXN", command.getValue().currencyCode());
         assertEquals(1L, command.getValue().createdByUserId());
+        verify(treasuryService).post(any());
     }
 
     @Test
@@ -172,7 +180,8 @@ class PaymentAccountServiceTest {
             repository,
             new PaymentAccountMapper(),
             new PaymentAccountValidator(accessService),
-            referenceValidator
+            referenceValidator,
+            treasuryService
         );
     }
 }

@@ -14,7 +14,9 @@ type ExpenseBulkActionsBarProps = {
   businessOptions: SelectOption[];
   isDisabled?: boolean;
   showDelete?: boolean;
+  showEditControls?: boolean;
   showMarkPaid?: boolean;
+  showStatusChange?: boolean;
   onAccountingAccountChange: (value: string) => void;
   onAuthorizerChange: (value: string) => void;
   onBusinessChange: (value: string) => void;
@@ -41,7 +43,9 @@ export function ExpenseBulkActionsBar({
   businessOptions,
   isDisabled = false,
   showDelete = true,
+  showEditControls = true,
   showMarkPaid = true,
+  showStatusChange = true,
   onAccountingAccountChange,
   onAuthorizerChange,
   onBusinessChange,
@@ -80,13 +84,19 @@ export function ExpenseBulkActionsBar({
         </div>
 
         <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
-          <BulkSelect disabled={isDisabled} label={t.filters.unit} onChange={onUnitChange} options={[{ value: '', label: t.common.unassigned }, ...unitOptions]} />
-          <BulkSelect disabled={isDisabled} label={t.filters.business} onChange={onBusinessChange} options={[{ value: '', label: t.common.unassigned }, ...businessOptions]} />
-          <BulkSelect disabled={isDisabled} label={t.filters.provider} onChange={onProviderChange} options={[{ value: '', label: t.common.unassigned }, ...providers.map(provider => ({ value: provider.id, label: provider.name }))]} />
-          <BulkSelect disabled={isDisabled} label={t.budgets.columns.accountingAccount.label} onChange={onAccountingAccountChange} options={accountingAccountOptions} />
-          <BulkSelect disabled={isDisabled} label={t.filters.status} onChange={(value) => onStatusChange(value as ExpenseStatus)} options={statusOptions} />
-          <BulkSelect disabled={isDisabled} label={t.budgets.columns.authorizer.label} onChange={onAuthorizerChange} options={userOptions} />
-          <BulkSelect disabled={isDisabled} label={t.budgets.columns.performer.label} onChange={onResponsibleChange} options={userOptions} />
+          {showEditControls ? (
+            <>
+              <BulkSelect disabled={isDisabled} label={t.filters.unit} onChange={onUnitChange} options={[{ value: '', label: t.common.unassigned }, ...unitOptions]} />
+              <BulkSelect disabled={isDisabled} label={t.filters.business} onChange={onBusinessChange} options={[{ value: '', label: t.common.unassigned }, ...businessOptions]} />
+              <BulkSelect disabled={isDisabled} label={t.filters.provider} onChange={onProviderChange} options={[{ value: '', label: t.common.unassigned }, ...providers.map(provider => ({ value: provider.id, label: provider.name }))]} />
+              <BulkSelect disabled={isDisabled} label={t.budgets.columns.accountingAccount.label} onChange={onAccountingAccountChange} options={accountingAccountOptions} />
+              {showStatusChange ? (
+                <BulkSelect disabled={isDisabled} label={t.filters.status} onChange={(value) => onStatusChange(value as ExpenseStatus)} options={statusOptions} />
+              ) : null}
+              <BulkSelect disabled={isDisabled} label={t.budgets.columns.authorizer.label} onChange={onAuthorizerChange} options={userOptions} />
+              <BulkSelect disabled={isDisabled} label={t.budgets.columns.performer.label} onChange={onResponsibleChange} options={userOptions} />
+            </>
+          ) : null}
 
           {showMarkPaid ? (
             <Button

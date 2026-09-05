@@ -5,6 +5,7 @@ import com.indice.erp.finance.FinanceApiException;
 import com.indice.erp.finance.pettycash.dto.CreatePettyCashSettlementLineRequest;
 import com.indice.erp.finance.shared.FinanceContext;
 import com.indice.erp.finance.shared.FinanceScope;
+import com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver;
 import com.indice.erp.hr.attendance.kiosk.AttendanceKioskTokenService;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -35,6 +36,7 @@ public class PettyCashPublicKioskService {
     private final PettyCashMapper mapper;
     private final PettyCashService pettyCashService;
     private final PettyCashAttachmentService attachmentService;
+    private final FinanceBusinessTimeZoneResolver timeZoneResolver;
     private final int inactivityTimeoutSeconds;
     private final int sessionTtlSeconds;
     private final ConcurrentHashMap<String, PinFailureWindow> pinFailures = new ConcurrentHashMap<>();
@@ -47,6 +49,7 @@ public class PettyCashPublicKioskService {
             PettyCashMapper mapper,
             PettyCashService pettyCashService,
             PettyCashAttachmentService attachmentService,
+            FinanceBusinessTimeZoneResolver timeZoneResolver,
             @Value("${app.petty-cash.kiosk.inactivity-timeout-seconds:900}") int inactivityTimeoutSeconds,
             @Value("${app.petty-cash.kiosk.session-ttl-seconds:14400}") int sessionTtlSeconds) {
         this.jdbcTemplate = jdbcTemplate;
@@ -56,6 +59,7 @@ public class PettyCashPublicKioskService {
         this.mapper = mapper;
         this.pettyCashService = pettyCashService;
         this.attachmentService = attachmentService;
+        this.timeZoneResolver = timeZoneResolver;
         this.inactivityTimeoutSeconds = Math.max(30, inactivityTimeoutSeconds);
         this.sessionTtlSeconds = Math.max(this.inactivityTimeoutSeconds, sessionTtlSeconds);
     }
@@ -209,7 +213,9 @@ public class PettyCashPublicKioskService {
             taxAmount,
             totalAmount,
             currencyCode,
-            expenseDate == null ? LocalDate.now() : expenseDate,
+            expenseDate == null
+                ? LocalDate.now(timeZoneResolver.resolve(context.fund().companyId()))
+                : expenseDate,
             attachmentCount == null ? 0 : attachmentCount,
             null,
             null,
@@ -287,7 +293,8 @@ public class PettyCashPublicKioskService {
         pettyCashService.deleteSettlementLine(
             context.financeContext(),
             context.fund().id(),
-            settlementLineId
+            settlementLineId,
+            payload == null ? null : String.valueOf(payload.getOrDefault("cancellation_reason", ""))
         );
 
         var refreshedFund = getActiveKioskFund(fundToken);

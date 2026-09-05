@@ -27,6 +27,8 @@ class PettyCashValidator {
         requireName(request.name());
         FinanceValidationSupport.requireCurrencyCode(request.currencyCode());
         requireNonNegative(request.limitAmount(), "limitAmount");
+        requirePaymentAccount(request.paymentAccountId());
+        requireFundingSource(request.fundingSourcePaymentAccountId(), request.fundingSourceName());
         var assignment = resolveAssignment(context, request.unitId(), request.businessId());
         referenceValidator.validateFundReferences(context, assignment, request.budgetId(), request.budgetLineId(),
             request.paymentAccountId(), request.fundingSourcePaymentAccountId(), request.responsibleUserId(), request.currencyCode());
@@ -37,6 +39,8 @@ class PettyCashValidator {
         requireName(request.name());
         FinanceValidationSupport.requireCurrencyCode(request.currencyCode());
         requireNonNegative(request.limitAmount(), "limitAmount");
+        requirePaymentAccount(request.paymentAccountId());
+        requireFundingSource(request.fundingSourcePaymentAccountId(), request.fundingSourceName());
         var assignment = resolveAssignment(context, request.unitId(), request.businessId());
         referenceValidator.validateFundReferences(context, assignment, request.budgetId(), request.budgetLineId(),
             request.paymentAccountId(), request.fundingSourcePaymentAccountId(), request.responsibleUserId(), request.currencyCode());
@@ -44,6 +48,9 @@ class PettyCashValidator {
     }
 
     void validateMovement(FinanceContext context, CreatePettyCashMovementRequest request) {
+        if (request.type() == null) {
+            throw FinanceApiException.badRequest("type is required.");
+        }
         FinanceValidationSupport.requireCurrencyCode(request.currencyCode());
         requirePositive(request.amount(), "amount");
         referenceValidator.validateMovementReferences(
@@ -123,6 +130,18 @@ class PettyCashValidator {
     private void requireNonNegative(BigDecimal amount, String fieldName) {
         if (amount == null || amount.signum() < 0) {
             throw FinanceApiException.badRequest(fieldName + " must be non-negative.");
+        }
+    }
+
+    private void requirePaymentAccount(Long paymentAccountId) {
+        if (paymentAccountId == null) {
+            throw FinanceApiException.badRequest("paymentAccountId is required for a fund that administers money.");
+        }
+    }
+
+    private void requireFundingSource(Long paymentAccountId, String externalSourceName) {
+        if (paymentAccountId == null && (externalSourceName == null || externalSourceName.isBlank())) {
+            throw FinanceApiException.badRequest("Choose a company source account or identify the external funding source.");
         }
     }
 }

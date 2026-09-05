@@ -96,6 +96,7 @@ public class PettyCashAttachmentService {
             long settlementLineId,
             Map<String, Object> payload) {
         var line = requireSettlementLine(context, fundId, settlementLineId);
+        requireMutableSettlementLine(line);
         if (!objectStorageService.isEnabled()) {
             throw new ObjectStorageDisabledException("Object storage is not enabled.");
         }
@@ -152,6 +153,7 @@ public class PettyCashAttachmentService {
     @Transactional
     public void deleteAttachment(FinanceContext context, long fundId, long settlementLineId, long attachmentId) {
         var line = requireSettlementLine(context, fundId, settlementLineId);
+        requireMutableSettlementLine(line);
         var rows = jdbcTemplate.query(
                 """
                 SELECT id,
@@ -211,6 +213,12 @@ public class PettyCashAttachmentService {
         return line;
     }
 
+    private void requireMutableSettlementLine(PettyCashSettlementLineRecord line) {
+        if (line.status() == PettyCashSettlementLineStatus.REVERSED) {
+            throw FinanceApiException.conflict("Attachments of a reversed petty cash purchase are immutable.");
+        }
+    }
+
     private void refreshAttachmentCounts(FinanceContext context, PettyCashSettlementLineRecord line) {
         var lineCount = countLineAttachments(context.companyId(), line.pettyCashFundId(), line.id());
         jdbcTemplate.update(
@@ -218,7 +226,7 @@ public class PettyCashAttachmentService {
             UPDATE finance_petty_cash_settlement_lines
             SET attachment_count = ?,
                 status = CASE
-                  WHEN status = 'EXPENSE_CREATED' THEN status
+                  WHEN status IN ('EXPENSE_CREATED', 'REVERSED') THEN status
                   WHEN status = 'VALIDATED' AND ? > 0 THEN status
                   WHEN ? > 0 THEN 'RECEIPT_ATTACHED'
                   ELSE 'DRAFT'

@@ -244,7 +244,7 @@ public class ExecutiveKpiDomainRepository {
                 FROM finance_petty_cash_settlement_lines line
                 JOIN finance_petty_cash_funds fund ON fund.id = line.petty_cash_fund_id
                     AND fund.company_id = line.company_id AND fund.deleted_at IS NULL
-                WHERE line.deleted_at IS NULL AND line.status <> 'REJECTED'
+                WHERE line.deleted_at IS NULL AND line.status NOT IN ('REJECTED', 'REVERSED')
                 """ + lineFilter.sql(), (rs, rowNum) -> new int[] {
                 integer(rs.getObject("settlement_count")),
                  integer(rs.getObject("pending_settlements")),

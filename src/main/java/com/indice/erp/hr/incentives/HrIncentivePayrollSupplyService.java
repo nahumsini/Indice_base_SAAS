@@ -58,6 +58,7 @@ public class HrIncentivePayrollSupplyService {
             // KPI incentives wait for the final KPI connector and are never
             // interpreted as fixed manual amounts.
             .filter(application -> "manual".equals(application.incentiveType()))
+            .filter(application -> !"petty_cash_shortage".equals(application.sourceType()))
             .map(this::toResolvedAdjustment)
             .flatMap(Optional::stream)
             .map(ResolvedAdjustment::adjustment)
@@ -93,6 +94,8 @@ public class HrIncentivePayrollSupplyService {
             body.put("name", application.name());
             body.put("description", application.description());
             body.put("incentive_type", application.incentiveType());
+            body.put("payroll_category", application.payrollCategory());
+            body.put("source_type", application.sourceType());
             body.put("amount", resolved.map(value -> value.adjustment().amount()).orElse(application.amount()));
             body.put("currency_code", application.currencyCode());
             body.put("application_status", application.status());
@@ -198,6 +201,7 @@ public class HrIncentivePayrollSupplyService {
                       WHERE i.id = a.incentive_id
                         AND i.company_id = a.company_id
                         AND i.incentive_type = 'manual'
+                        AND COALESCE(a.source_type, 'incentive') <> 'petty_cash_shortage'
                   )
                 """,
             payrollRunId,
@@ -250,6 +254,7 @@ public class HrIncentivePayrollSupplyService {
                        a.affects_social_security,
                        a.affects_employer_cost,
                        a.currency_code,
+                       a.source_type,
                        a.source_reference_type,
                        a.source_reference_id,
                        a.status,
@@ -296,6 +301,7 @@ public class HrIncentivePayrollSupplyService {
             rs.getBoolean("affects_social_security"),
             rs.getBoolean("affects_employer_cost"),
             blankTo(rs.getString("currency_code"), payrollCurrency),
+            blankTo(rs.getString("source_type"), "incentive"),
             rs.getString("source_reference_type"),
             rs.getString("source_reference_id"),
             rs.getString("status"),
@@ -326,6 +332,8 @@ public class HrIncentivePayrollSupplyService {
             evidenceReference = resolved.get().evidenceReference();
         }
 
+        var externalFundDeduction = "external_deduction".equals(application.incentiveType())
+            && "petty_cash_shortage".equals(application.sourceType());
         var adjustment = new PayrollCalculationContext.ManualAdjustment(
             "INCENTIVE_" + application.applicationId(),
             application.payrollCategory(),
@@ -335,7 +343,7 @@ public class HrIncentivePayrollSupplyService {
             application.taxable(),
             application.affectsSocialSecurity(),
             application.affectsEmployerCost(),
-            "Incentivo de nómina",
+            externalFundDeduction ? "Recuperación de faltante de fondo" : "Incentivo de nómina",
             application.currencyCode(),
             "incentive"
         );
@@ -384,6 +392,7 @@ public class HrIncentivePayrollSupplyService {
         boolean affectsSocialSecurity,
         boolean affectsEmployerCost,
         String currencyCode,
+        String sourceType,
         String sourceReferenceType,
         String sourceReferenceId,
         String status,

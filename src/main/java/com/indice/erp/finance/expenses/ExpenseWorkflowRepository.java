@@ -102,24 +102,6 @@ class ExpenseWorkflowRepository {
         return updated > 0;
     }
 
-    boolean adjustPaymentAccountBalance(FinanceContext context, long paymentAccountId, BigDecimal delta) {
-        var updated = jdbcTemplate.update(
-            """
-            UPDATE finance_payment_accounts account
-            SET current_balance = current_balance + ?,
-                updated_by_user_id = ?,
-                updated_at = CURRENT_TIMESTAMP,
-                version = version + 1
-            WHERE account.company_id = ?
-              AND account.id = ?
-              AND account.deleted_at IS NULL
-              AND account.status = 'ACTIVE'
-              AND """ + FinanceSqlSupport.scopePredicate("account", context.scope()),
-            paymentAccountParams(context, paymentAccountId, delta).toArray()
-        );
-        return updated > 0;
-    }
-
     boolean applyManualStatus(
             FinanceContext context,
             long expenseId,
@@ -252,16 +234,6 @@ class ExpenseWorkflowRepository {
             case UNIT_HEADQUARTERS -> params.add(scope.unitId());
             case BUSINESS_OFFICE -> params.add(scope.businessId());
         }
-    }
-
-    private ArrayList<Object> paymentAccountParams(FinanceContext context, long paymentAccountId, BigDecimal delta) {
-        var params = new ArrayList<Object>();
-        params.add(delta);
-        params.add(context.userId());
-        params.add(context.companyId());
-        params.add(paymentAccountId);
-        appendScopeParam(params, context.scope());
-        return params;
     }
 
     private void bindScopeParam(PreparedStatement statement, int index, FinanceScope scope) throws java.sql.SQLException {

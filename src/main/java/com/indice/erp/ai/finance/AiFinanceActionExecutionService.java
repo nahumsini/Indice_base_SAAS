@@ -134,7 +134,7 @@ public class AiFinanceActionExecutionService {
                 optionalLong(args, "statementId"), requiredLong(args, "sourcePaymentAccountId"),
                 fund.paymentAccountId(), PettyCashMovementType.ADDITIONAL_DEPOSIT,
                 decimal(args, "amount"), requiredText(args, "currencyCode"), date(args, "movementDate"),
-                text(args, "reference"), null, metadata
+                null, text(args, "reference"), null, metadata
             )
         );
         var result = new LinkedHashMap<String, Object>();

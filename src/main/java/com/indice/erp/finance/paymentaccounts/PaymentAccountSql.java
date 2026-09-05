@@ -12,8 +12,11 @@ final class PaymentAccountSql {
             account.currency_code,
             account.opening_balance,
             account.current_balance,
+            account.pending_balance,
             account.status,
             account.description,
+            account.system_key,
+            account.is_system_managed,
             account.created_by_user_id,
             account.updated_by_user_id,
             account.created_at,
@@ -27,8 +30,8 @@ final class PaymentAccountSql {
     static final String INSERT = """
             INSERT INTO finance_payment_accounts
             (company_id, unit_id, business_id, name, type, currency_code, opening_balance, current_balance,
-             status, description, created_by_user_id, custom_fields_json, metadata_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             pending_balance, status, description, created_by_user_id, custom_fields_json, metadata_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0.0000, ?, ?, ?, ?, ?)
             """;
 
     static final String UPDATE = """
@@ -47,6 +50,7 @@ final class PaymentAccountSql {
             WHERE company_id = ?
               AND id = ?
               AND deleted_at IS NULL
+              AND is_system_managed = FALSE
             """;
 
     private PaymentAccountSql() {

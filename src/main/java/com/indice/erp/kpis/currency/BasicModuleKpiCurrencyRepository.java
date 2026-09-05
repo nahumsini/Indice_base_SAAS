@@ -107,7 +107,7 @@ public class BasicModuleKpiCurrencyRepository {
             case PETTY_CASH_STATEMENT_PENDING -> pettyStatementDefinition("GREATEST(estimated_usage_amount - verified_expense_amount - returned_amount - shortage_amount, 0)");
             case PETTY_CASH_STATEMENT_SHORTAGE -> pettyStatementDefinition("shortage_amount");
             case PETTY_CASH_MOVEMENT_AMOUNT -> new MetricDefinition("finance_petty_cash_movements", "amount", "currency_code", "movement_date", " AND deleted_at IS NULL");
-            case PETTY_CASH_SETTLEMENT_AMOUNT -> new MetricDefinition("finance_petty_cash_settlement_lines", "total_amount", "currency_code", "expense_date", " AND deleted_at IS NULL AND status <> 'REJECTED'");
+            case PETTY_CASH_SETTLEMENT_AMOUNT -> new MetricDefinition("finance_petty_cash_settlement_lines", "total_amount", "currency_code", "expense_date", " AND deleted_at IS NULL AND status NOT IN ('REJECTED', 'REVERSED')");
             case PAYMENT_ACCOUNT_BALANCE -> new MetricDefinition("finance_payment_accounts", "current_balance", "currency_code", null, " AND deleted_at IS NULL AND status = 'ACTIVE'");
             case HR_ASSET_VALUE -> new MetricDefinition("user_assets", "value_amount", "value_currency", "created_at", " AND status <> 'inactive'");
             case HR_EMPLOYEE_MONTHLY_PAYROLL -> new MetricDefinition(

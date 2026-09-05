@@ -13,10 +13,11 @@ public record CreatePettyCashMovementRequest(
     Long pettyCashStatementId,
     Long fromPaymentAccountId,
     Long toPaymentAccountId,
-    PettyCashMovementType type,
+    @NotNull PettyCashMovementType type,
     @NotNull @DecimalMin("0.01") BigDecimal amount,
     @NotBlank @Size(min = 3, max = 3) String currencyCode,
     @NotNull LocalDate movementDate,
+    @Size(max = 180) String externalSourceName,
     @Size(max = 220) String reference,
     JsonNode customFields,
     JsonNode metadata

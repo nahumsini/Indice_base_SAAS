@@ -102,6 +102,7 @@ class PaymentAccountRepository {
             WHERE company_id = ?
               AND id = ?
               AND deleted_at IS NULL
+              AND is_system_managed = FALSE
             """,
             context.userId(),
             context.companyId(),

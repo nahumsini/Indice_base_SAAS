@@ -11,6 +11,7 @@ record PettyCashMovementCommand(
     BigDecimal amount,
     String currencyCode,
     LocalDate movementDate,
+    String externalSourceName,
     String reference,
     Long createdByUserId,
     String customFieldsJson,

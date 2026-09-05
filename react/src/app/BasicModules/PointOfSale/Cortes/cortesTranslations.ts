@@ -209,6 +209,30 @@ export const enCACortes = {
     noBusiness: 'No business registered',
     notes: 'Notes',
     noNotes: 'No notes',
+    settlement: {
+      title: 'Collection destinations',
+      description: 'Each method remains traceable. Pending deposits do not increase the available balance until confirmed.',
+      loadError: 'Settlement destinations could not be loaded.',
+      confirmError: 'The settlement could not be confirmed.',
+      loading: 'Loading destinations…',
+      empty: 'This closing generated no settlement movements.',
+      account: (id: number | string) => `Account #${id}`,
+      collected: 'Collected',
+      toTransfer: 'To transfer',
+      pending: 'Pending',
+      confirmed: 'Confirmed',
+      receivedAmount: 'Received amount',
+      confirmationNote: 'Deposit note',
+      confirmationNoteHint: 'Required when the amount differs',
+      confirm: 'Confirm deposit',
+      variance: 'Variance to reconcile',
+      methods: {
+        CASH: 'Cash', CARD: 'Card', TRANSFER: 'Transfer', WALLET: 'Digital wallet', CREDIT: 'Credit',
+      },
+      statuses: {
+        PENDING: 'Pending deposit', SETTLED: 'Settled', RECONCILIATION_REQUIRED: 'Reconciliation required', REVERSED: 'Reversed',
+      },
+    },
   },
 } as const;
 
@@ -430,6 +454,30 @@ export const esMXCortes: CortesCopy = {
     noBusiness: 'Sin negocio registrado',
     notes: 'Notas',
     noNotes: 'Sin notas',
+    settlement: {
+      title: 'Destino de los cobros',
+      description: 'Cada método conserva su trazabilidad. Los depósitos pendientes no aumentan el saldo disponible hasta que se confirman.',
+      loadError: 'No fue posible cargar los destinos.',
+      confirmError: 'No fue posible confirmar el depósito.',
+      loading: 'Cargando destinos…',
+      empty: 'Este corte no generó movimientos de liquidación.',
+      account: (id) => `Cuenta #${id}`,
+      collected: 'Cobrado',
+      toTransfer: 'A trasladar',
+      pending: 'Pendiente',
+      confirmed: 'Confirmado',
+      receivedAmount: 'Importe recibido',
+      confirmationNote: 'Nota del depósito',
+      confirmationNoteHint: 'Obligatoria cuando el importe es diferente',
+      confirm: 'Confirmar depósito',
+      variance: 'Diferencia por conciliar',
+      methods: {
+        CASH: 'Efectivo', CARD: 'Tarjeta', TRANSFER: 'Transferencia', WALLET: 'Billetera digital', CREDIT: 'Crédito',
+      },
+      statuses: {
+        PENDING: 'Pendiente de depósito', SETTLED: 'Depositado', RECONCILIATION_REQUIRED: 'Requiere conciliación', REVERSED: 'Revertido',
+      },
+    },
   },
 };
 

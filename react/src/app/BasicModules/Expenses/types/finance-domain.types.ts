@@ -13,7 +13,7 @@ export type FinanceLifecycleStatus = 'ACTIVE' | 'INACTIVE';
 export type FinanceExpenseType = 'FIXED' | 'VARIABLE' | 'CAPEX' | 'PETTY_CASH_SETTLEMENT';
 export type PaymentAccountType = 'CASH' | 'BANK' | 'CREDIT_CARD' | 'PETTY_CASH';
 export type FundMovementType = 'TRANSFER' | 'PETTY_CASH_ISSUANCE' | 'PETTY_CASH_RETURN';
-export type PettyCashSettlementLineStatus = 'DRAFT' | 'RECEIPT_ATTACHED' | 'EXPENSE_CREATED' | 'REJECTED';
+export type PettyCashSettlementLineStatus = 'DRAFT' | 'RECEIPT_ATTACHED' | 'VALIDATED' | 'EXPENSE_CREATED' | 'REJECTED' | 'REVERSED';
 
 export type FinanceRecordStatus =
   | ExpenseStatus

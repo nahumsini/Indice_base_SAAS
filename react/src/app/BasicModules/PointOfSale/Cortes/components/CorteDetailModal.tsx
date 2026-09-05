@@ -1,5 +1,5 @@
-import { AlertTriangle, Banknote, CreditCard, Download, Printer, ReceiptText, TrendingDown, TrendingUp } from 'lucide-react';
-import { useRef, type ReactNode } from 'react';
+import { AlertTriangle, Banknote, CheckCircle2, CreditCard, Download, Loader2, Printer, ReceiptText, TrendingDown, TrendingUp } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { escapeDocumentPrintHtml, printDocumentHtml } from '../../../shared/print/documentHtmlPrintEngine';
 import {
   documentPrintAttribution,
@@ -9,8 +9,9 @@ import {
 import type { PointOfSaleLocale } from '../../translations';
 import type { CortesCopy } from '../cortesTranslations';
 import { CortesModalFrame } from './CortesModalFrame';
-import type { PosCashClosingDetailResponse } from '../types/cashClosingHistory.types';
+import type { PosCashClosingDetailResponse, PosCashClosingSettlement } from '../types/cashClosingHistory.types';
 import { formatCurrency, formatDateTime, getPaymentTotal, toNumber } from '../utils/cortesUtils';
+import { cashClosingsApi } from '../services/cashClosingsApi';
 
 interface CorteDetailModalProps {
   copy: CortesCopy;
@@ -34,8 +35,56 @@ export function CorteDetailModal({
   onDownload,
 }: CorteDetailModalProps) {
   const documentRef = useRef<HTMLDivElement>(null);
+  const [settlements, setSettlements] = useState<PosCashClosingSettlement[]>([]);
+  const [settlementsLoading, setSettlementsLoading] = useState(false);
+  const [settlementError, setSettlementError] = useState('');
+  const [confirmingSettlementId, setConfirmingSettlementId] = useState<number | null>(null);
+  const [receivedAmounts, setReceivedAmounts] = useState<Record<number, number>>({});
+  const [settlementNotes, setSettlementNotes] = useState<Record<number, string>>({});
   const currencyCode = detail?.shift?.currencyCode ?? 'MXN';
   const difference = toNumber(detail?.overShortAmount);
+  const settlementCopy = copy.detail.settlement;
+
+  useEffect(() => {
+    if (!open || !detail) {
+      setSettlements([]);
+      setSettlementError('');
+      return;
+    }
+    let cancelled = false;
+    setSettlementsLoading(true);
+    setSettlementError('');
+    void cashClosingsApi.settlements(detail.id)
+      .then((items) => {
+        if (cancelled) return;
+        setSettlements(items);
+        setReceivedAmounts(Object.fromEntries(items.map((item) => [item.id, toNumber(item.pendingAmount)])));
+        setSettlementNotes({});
+      })
+      .catch((requestError) => {
+        if (!cancelled) setSettlementError(requestError instanceof Error ? requestError.message : settlementCopy.loadError);
+      })
+      .finally(() => { if (!cancelled) setSettlementsLoading(false); });
+    return () => { cancelled = true; };
+  }, [detail, open, settlementCopy.loadError]);
+
+  const confirmSettlement = async (settlement: PosCashClosingSettlement) => {
+    const receivedAmount = receivedAmounts[settlement.id];
+    if (!Number.isFinite(receivedAmount) || receivedAmount < 0) return;
+    setConfirmingSettlementId(settlement.id);
+    setSettlementError('');
+    try {
+      const updated = await cashClosingsApi.confirmSettlement(detail!.id, settlement.id, {
+        receivedAmount,
+        note: settlementNotes[settlement.id]?.trim() || undefined,
+      });
+      setSettlements((current) => current.map((item) => item.id === updated.id ? updated : item));
+    } catch (requestError) {
+      setSettlementError(requestError instanceof Error ? requestError.message : settlementCopy.confirmError);
+    } finally {
+      setConfirmingSettlementId(null);
+    }
+  };
   const handlePrint = () => {
     if (!detail || !documentRef.current) return;
     const folio = `COR-${detail.id}`;
@@ -62,6 +111,7 @@ export function CorteDetailModal({
         .print-meta strong { font-weight: 500; }
         .print-footer { border-top: 1px solid #d8dadd; color: #737b84; display: flex; font-size: 8pt; justify-content: space-between; margin-top: 8mm; padding-top: 3mm; }
         [class*="shadow"] { box-shadow: none !important; }
+        .no-print { display: none !important; }
         section, [class*="rounded"] { break-inside: avoid; }
       `,
       documentTitle: `cash-closing_${folio}`,
@@ -191,11 +241,60 @@ export function CorteDetailModal({
               <LineItem label={copy.detail.businessLabel} value={detail.businessId ? copy.detail.business(detail.businessId) : copy.detail.noBusiness} />
               <LineItem label={copy.detail.notes} value={detail.notes || copy.detail.noNotes} />
             </DetailSection>
+
+            <div className="lg:col-span-2">
+              <DetailSection icon={<LandmarkSettlementIcon />} title={settlementCopy.title}>
+                <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
+                  {settlementCopy.description}
+                </p>
+                {settlementsLoading ? <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-3 text-sm text-slate-500 dark:bg-slate-800"><Loader2 className="h-4 w-4 animate-spin" />{settlementCopy.loading}</div> : null}
+                {settlementError ? <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">{settlementError}</div> : null}
+                {!settlementsLoading && settlements.length === 0 ? <div className="rounded-lg border border-dashed border-slate-300 px-3 py-4 text-sm text-slate-500 dark:border-slate-700">{settlementCopy.empty}</div> : null}
+                {settlements.map((settlement) => {
+                  const pending = settlement.status === 'PENDING';
+                  const variance = toNumber(settlement.varianceAmount);
+                  return <div key={settlement.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/70">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <strong className="text-sm font-medium text-slate-950 dark:text-white">{settlementCopy.methods[settlement.paymentMethod]}</strong>
+                        <p className="mt-1 text-xs text-slate-500">{settlement.destinationPaymentAccountName ?? settlementCopy.account(settlement.destinationPaymentAccountId)}</p>
+                      </div>
+                      <span className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${pending ? 'bg-amber-100 text-amber-800' : variance === 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                        {pending ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                        {settlementCopy.statuses[settlement.status]}
+                      </span>
+                    </div>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                      <InfoTile label={settlementCopy.collected} value={formatCurrency(toNumber(settlement.grossAmount), settlement.currencyCode)} />
+                      <InfoTile label={settlementCopy.toTransfer} value={formatCurrency(toNumber(settlement.transferableAmount), settlement.currencyCode)} />
+                      <InfoTile label={pending ? settlementCopy.pending : settlementCopy.confirmed} value={formatCurrency(pending ? toNumber(settlement.pendingAmount) : toNumber(settlement.settledAmount), settlement.currencyCode)} />
+                    </div>
+                    {pending ? <div className="no-print mt-3 grid gap-2 sm:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)_auto] sm:items-end">
+                      <label className="text-xs font-medium text-slate-600 dark:text-slate-300">{settlementCopy.receivedAmount}
+                        <input type="number" min="0" step="0.01" value={receivedAmounts[settlement.id] ?? ''} onChange={(event) => setReceivedAmounts((current) => ({ ...current, [settlement.id]: Number(event.target.value) }))} className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-600 dark:bg-slate-950" />
+                      </label>
+                      <label className="text-xs font-medium text-slate-600 dark:text-slate-300">{settlementCopy.confirmationNote}
+                        <input type="text" maxLength={500} value={settlementNotes[settlement.id] ?? ''} onChange={(event) => setSettlementNotes((current) => ({ ...current, [settlement.id]: event.target.value }))} placeholder={settlementCopy.confirmationNoteHint} className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-600 dark:bg-slate-950" />
+                      </label>
+                      <button type="button" disabled={confirmingSettlementId === settlement.id} onClick={() => void confirmSettlement(settlement)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[#FF6B5E] px-4 text-sm font-medium text-white transition hover:bg-[#e65b50] disabled:opacity-60">
+                        {confirmingSettlementId === settlement.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                        {settlementCopy.confirm}
+                      </button>
+                    </div> : null}
+                    {!pending && variance !== 0 ? <p className="mt-3 text-xs font-medium text-red-600">{settlementCopy.variance}: {formatCurrency(variance, settlement.currencyCode)}</p> : null}
+                  </div>;
+                })}
+              </DetailSection>
+            </div>
           </section>
         </div>
       ) : null}
     </CortesModalFrame>
   );
+}
+
+function LandmarkSettlementIcon() {
+  return <Banknote className="h-5 w-5" />;
 }
 
 function InfoTile({ label, value }: { label: string; value: string }) {

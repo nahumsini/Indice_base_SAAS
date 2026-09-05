@@ -125,6 +125,7 @@ export const pettyCashSettlementLineStatusLabels: Record<PettyCashSettlementLine
   VALIDATED: 'Approved',
   EXPENSE_CREATED: 'Expense created',
   REJECTED: 'Rejected',
+  REVERSED: 'Reversed',
 };
 
 export const pettyCashFundStatusClasses: Record<PettyCashFundStatus, string> = {
@@ -152,6 +153,7 @@ export const pettyCashSettlementLineStatusClasses: Record<PettyCashSettlementLin
   VALIDATED: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200',
   EXPENSE_CREATED: 'border-green-200 bg-green-50 text-green-700 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-200',
   REJECTED: 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200',
+  REVERSED: 'border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200',
 };
 
 export function getPettyCashSummary(expenses: PettyCashExpense[]) {

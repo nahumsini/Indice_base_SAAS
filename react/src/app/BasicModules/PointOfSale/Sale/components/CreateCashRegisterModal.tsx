@@ -2,9 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle, Monitor, Warehouse } from 'lucide-react';
 import type {
   PosCashRegisterCreatePayload,
+  PosSettlementRulePayload,
   PosWarehouseSummary,
 } from '../services/posBackendApi';
 import { posBackendApi } from '../services/posBackendApi';
+import { usePreferredBusinessCurrency } from '../../../shared/BusinessCurrencyContext';
+import { CashRegisterSettlementFields } from './CashRegisterSettlementFields';
 import {
   PosModalFrame,
   posModalModuleFooterClassName,
@@ -34,12 +37,15 @@ export function CreateCashRegisterModal({
   onConfirm,
 }: CreateCashRegisterModalProps) {
   const { copy } = useCashRegistersCopy();
+  const { preferredCurrency } = usePreferredBusinessCurrency();
   const firstWarehouse = warehouses[0];
   const [warehouseId, setWarehouseId] = useState('');
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [codeCustomized, setCodeCustomized] = useState(false);
+  const [retainedCashAmount, setRetainedCashAmount] = useState(0);
+  const [settlementRules, setSettlementRules] = useState<PosSettlementRulePayload[]>([]);
 
   const selectedWarehouse = useMemo(
     () => warehouses.find((warehouse) => String(warehouse.id) === warehouseId),
@@ -56,6 +62,8 @@ export function CreateCashRegisterModal({
     setCode(buildDefaultCode(defaultWarehouse));
     setCodeCustomized(false);
     setName(defaultWarehouse ? copy.createModal.defaultName(defaultWarehouse.name) : copy.createModal.defaultFallbackName);
+    setRetainedCashAmount(0);
+    setSettlementRules([]);
     setError('');
   }, [copy, firstWarehouse, isOpen]);
 
@@ -80,6 +88,7 @@ export function CreateCashRegisterModal({
     setCodeCustomized(false);
     setCode(buildDefaultCode(nextWarehouse));
     setName(nextWarehouse ? copy.createModal.defaultName(nextWarehouse.name) : copy.createModal.defaultFallbackName);
+    setSettlementRules([]);
   };
 
   const handleSubmit = () => {
@@ -106,6 +115,14 @@ export function CreateCashRegisterModal({
       return;
     }
 
+    const incompleteRule = settlementRules.find((rule) => (
+      rule.enabled && rule.paymentMethod !== 'CREDIT' && !rule.destinationPaymentAccountId
+    ));
+    if (settlementRules.length < 5 || incompleteRule) {
+      setError(copy.settlement.incompleteError);
+      return;
+    }
+
     void onConfirm({
       warehouseId: nextWarehouseId,
       code: codeCustomized ? nextCode : '',
@@ -113,6 +130,9 @@ export function CreateCashRegisterModal({
       status: 'ACTIVE',
       active: true,
       notes: copy.createModal.notes,
+      retainedCashAmount,
+      settlementCurrencyCode: preferredCurrency,
+      settlementRules,
     });
   };
 
@@ -128,7 +148,7 @@ export function CreateCashRegisterModal({
       icon={<Monitor className="h-6 w-6" />}
       isCloseDisabled={isSubmitting}
       onClose={onClose}
-      size="md"
+      size="xl"
       subtitle={copy.createModal.subtitle}
       title={copy.createModal.title}
       tone="coral"
@@ -210,7 +230,7 @@ export function CreateCashRegisterModal({
               className="min-h-14 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-900 focus:border-transparent focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             />
             <p className="mt-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-              {codeCustomized ? 'Código personalizado.' : 'El backend reservará el siguiente consecutivo disponible al crear.'}
+              {codeCustomized ? copy.createModal.customCode : copy.createModal.automaticCode}
             </p>
           </div>
           <div>
@@ -227,6 +247,17 @@ export function CreateCashRegisterModal({
             />
           </div>
         </section>
+
+
+        <CashRegisterSettlementFields
+          currencyCode={preferredCurrency}
+          disabled={isSubmitting}
+          retainedCashAmount={retainedCashAmount}
+          rules={settlementRules}
+          warehouseId={selectedWarehouse?.id}
+          onRetainedCashAmountChange={setRetainedCashAmount}
+          onRulesChange={setSettlementRules}
+        />
       </div>
     </PosModalFrame>
   );

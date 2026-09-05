@@ -86,6 +86,17 @@ class PettyCashRepository {
     }
 
     Optional<PettyCashStatementRecord> findStatementById(FinanceContext context, long statementId) {
+        return findStatementById(context, statementId, false);
+    }
+
+    Optional<PettyCashStatementRecord> findStatementByIdForUpdate(FinanceContext context, long statementId) {
+        return findStatementById(context, statementId, true);
+    }
+
+    private Optional<PettyCashStatementRecord> findStatementById(
+            FinanceContext context,
+            long statementId,
+            boolean lock) {
         var params = scopedParams(context);
         params.add(1, statementId);
         var rows = jdbcTemplate.query(
@@ -99,7 +110,7 @@ class PettyCashRepository {
               AND statement.deleted_at IS NULL
               AND fund.deleted_at IS NULL
               AND """ + FinanceSqlSupport.scopePredicate("fund", context.scope()) + """
-            """,
+            """ + (lock ? " FOR UPDATE" : ""),
             mapper::mapStatement,
             params.toArray()
         );
@@ -116,7 +127,7 @@ class PettyCashRepository {
               AND settlement_line.petty_cash_statement_id = ?
               AND settlement_line.deleted_at IS NULL
               AND fund.deleted_at IS NULL
-              AND settlement_line.status NOT IN ('EXPENSE_CREATED', 'REJECTED')
+              AND settlement_line.status NOT IN ('EXPENSE_CREATED', 'REJECTED', 'REVERSED')
               AND """ + FinanceSqlSupport.scopePredicate("fund", context.scope()) + """
             """,
             Long.class,
@@ -398,6 +409,7 @@ class PettyCashRepository {
             statement.setObject(index++, command.pettyCashStatementId());
             statement.setObject(index++, command.fromPaymentAccountId());
             statement.setObject(index++, command.toPaymentAccountId());
+            statement.setString(index++, command.externalSourceName());
             statement.setString(index++, command.type().name());
             statement.setBigDecimal(index++, command.amount());
             statement.setString(index++, command.currencyCode());
@@ -479,35 +491,30 @@ class PettyCashRepository {
         return findSettlementLineById(context, lineId).orElseThrow();
     }
 
-    boolean softDeleteSettlementLine(FinanceContext context, PettyCashSettlementLineRecord line) {
-        var updated = jdbcTemplate.update(
+    boolean reverseSettlementLine(
+            FinanceContext context,
+            PettyCashSettlementLineRecord line,
+            String cancellationReason) {
+        return jdbcTemplate.update(
             """
             UPDATE finance_petty_cash_settlement_lines
-            SET deleted_at = CURRENT_TIMESTAMP,
+            SET status = 'REVERSED',
+                cancelled_at = CURRENT_TIMESTAMP,
+                cancellation_reason = ?,
+                cancelled_by_user_id = ?,
                 updated_by_user_id = ?,
                 version = version + 1
             WHERE company_id = ?
               AND id = ?
+              AND status <> 'REVERSED'
               AND deleted_at IS NULL
             """,
+            cancellationReason,
+            context.userId(),
             context.userId(),
             context.companyId(),
             line.id()
-        );
-        if (updated > 0) {
-            jdbcTemplate.update(
-                """
-                UPDATE finance_petty_cash_settlement_line_attachments
-                SET deleted_at = CURRENT_TIMESTAMP
-                WHERE company_id = ?
-                  AND settlement_line_id = ?
-                  AND deleted_at IS NULL
-                """,
-                context.companyId(),
-                line.id()
-            );
-        }
-        return updated > 0;
+        ) > 0;
     }
 
     boolean rejectSettlementLine(FinanceContext context, long settlementLineId) {
@@ -569,14 +576,31 @@ class PettyCashRepository {
         return updated > 0;
     }
 
-    boolean softDeleteGeneratedExpense(FinanceContext context, Long expenseId, long settlementLineId) {
+    boolean reverseGeneratedExpense(
+            FinanceContext context,
+            Long expenseId,
+            long settlementLineId,
+            String cancellationReason) {
         if (expenseId == null) {
             return false;
         }
         var updated = jdbcTemplate.update(
             """
             UPDATE finance_expenses
-            SET deleted_at = CURRENT_TIMESTAMP,
+            SET status = 'CANCELLED',
+                payment_status = 'UNPAID',
+                paid_amount = 0,
+                balance_amount = 0,
+                audit_status = 'PETTY_CASH_REVERSED',
+                metadata_json = JSON_SET(
+                    COALESCE(metadata_json, JSON_OBJECT()),
+                    '$.pettyCashReversal', JSON_OBJECT(
+                        'reason', ?,
+                        'settlementLineId', ?,
+                        'reversedByUserId', ?,
+                        'reversedAt', DATE_FORMAT(UTC_TIMESTAMP(), '%Y-%m-%dT%H:%i:%sZ')
+                    )
+                ),
                 updated_by_user_id = ?,
                 version = version + 1
             WHERE company_id = ?
@@ -584,36 +608,13 @@ class PettyCashRepository {
               AND deleted_at IS NULL
               AND audit_status = 'PETTY_CASH'
             """,
+            cancellationReason,
+            settlementLineId,
+            context.userId(),
             context.userId(),
             context.companyId(),
             expenseId
         );
-        if (updated > 0) {
-            jdbcTemplate.update(
-                """
-                UPDATE finance_expense_attachments
-                SET deleted_at = CURRENT_TIMESTAMP
-                WHERE company_id = ?
-                  AND expense_id = ?
-                  AND deleted_at IS NULL
-                """,
-                context.companyId(),
-                expenseId
-            );
-            jdbcTemplate.update(
-                """
-                UPDATE finance_petty_cash_settlement_line_attachments
-                SET expense_id = NULL
-                WHERE company_id = ?
-                  AND settlement_line_id = ?
-                  AND expense_id = ?
-                  AND deleted_at IS NULL
-                """,
-                context.companyId(),
-                settlementLineId,
-                expenseId
-            );
-        }
         return updated > 0;
     }
 
@@ -623,7 +624,6 @@ class PettyCashRepository {
             UPDATE finance_petty_cash_statements
             SET estimated_usage_amount = GREATEST(0, estimated_usage_amount - ?),
                 declared_closing_balance_amount = declared_closing_balance_amount + ?,
-                attachment_count = GREATEST(0, attachment_count - ?),
                 status = CASE
                   WHEN GREATEST(0, estimated_usage_amount - ?) = 0 THEN 'OPEN'
                   WHEN verified_expense_amount >= GREATEST(0, estimated_usage_amount - ?) THEN 'SETTLED'
@@ -638,7 +638,6 @@ class PettyCashRepository {
             """,
             line.totalAmount(),
             line.totalAmount(),
-            line.attachmentCount(),
             line.totalAmount(),
             line.totalAmount(),
             context.userId(),
@@ -800,27 +799,6 @@ class PettyCashRepository {
             context.userId(),
             context.companyId(),
             fundId
-        );
-    }
-
-    void adjustPaymentAccountBalance(FinanceContext context, Long paymentAccountId, BigDecimal delta) {
-        if (paymentAccountId == null || delta == null || delta.signum() == 0) {
-            return;
-        }
-        jdbcTemplate.update(
-            """
-            UPDATE finance_payment_accounts
-            SET current_balance = current_balance + ?,
-                updated_by_user_id = ?,
-                version = version + 1
-            WHERE company_id = ?
-              AND id = ?
-              AND deleted_at IS NULL
-            """,
-            delta,
-            context.userId(),
-            context.companyId(),
-            paymentAccountId
         );
     }
 

@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -218,12 +219,13 @@ public class FinancePettyCashController {
             HttpSession session,
             @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
             @PathVariable long fundId,
-            @PathVariable long settlementLineId) {
+            @PathVariable long settlementLineId,
+            @RequestParam String reason) {
         var access = guard.requireWriteAccess(session, csrfToken);
         if (access.denied()) {
             return access.error();
         }
-        service.deleteSettlementLine(access.context(), fundId, settlementLineId);
+        service.deleteSettlementLine(access.context(), fundId, settlementLineId, reason);
         return ResponseEntity.noContent().build();
     }
 

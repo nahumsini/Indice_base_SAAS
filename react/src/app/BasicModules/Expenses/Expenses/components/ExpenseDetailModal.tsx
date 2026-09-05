@@ -7,7 +7,7 @@ import { expenseAttachmentsService, type ExpenseAttachment } from '../../service
 import { expensesService } from '../../services/expenses.service';
 import { isBackendId } from '../../adapters/adapter.utils';
 import { formatCurrency } from '../../utils/expenses.utils';
-import { getEffectiveExpenseStatus, getExpenseBalance, getExpensePaidAmount } from '../../utils/expenseFilters';
+import { canEditExpense, getEffectiveExpenseStatus, getExpenseBalance, getExpensePaidAmount } from '../../utils/expenseFilters';
 import { useExpensesResolvedLocale, useExpensesTranslations } from '../hooks/useExpensesTranslations';
 import { getExpenseDetailCopy } from './expenseDetail.copy';
 import { ExpenseAttachmentLink } from './ExpenseAttachmentLink';
@@ -109,7 +109,7 @@ export function ExpenseDetailModal({ expense, onClose, onEdit, onOpenAttachments
             <DetailRow label={copy.paymentDate} value={expense.paymentDate ? formatDisplayDate(expense.paymentDate, locale) : '—'} />
           </DetailSection>
 
-          <button type="button" onClick={onEdit} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:border-[#147514]/30 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"><Pencil className="h-4 w-4" />{copy.edit}</button>
+          {canEditExpense(expense) ? <button type="button" onClick={onEdit} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:border-[#147514]/30 hover:text-[#147514] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"><Pencil className="h-4 w-4" />{copy.edit}</button> : null}
         </div>
 
         <div className="space-y-5">

@@ -80,3 +80,30 @@ export interface PosCashClosingListResponse {
   limit: number;
   offset: number;
 }
+
+export type PosCashClosingSettlementStatus = 'PENDING' | 'SETTLED' | 'RECONCILIATION_REQUIRED' | 'REVERSED';
+
+export interface PosCashClosingSettlement {
+  id: number;
+  companyId: number;
+  cashClosingId: number;
+  shiftId: number;
+  cashRegisterId: number;
+  unitId?: number | null;
+  businessId?: number | null;
+  paymentMethod: PosCashClosingPaymentMethod;
+  currencyCode: string;
+  grossAmount: number | string;
+  retainedCashAmount: number | string;
+  transferableAmount: number | string;
+  destinationPaymentAccountId: number;
+  destinationPaymentAccountName?: string | null;
+  settlementTiming: 'IMMEDIATE' | 'DEFERRED';
+  pendingAmount: number | string;
+  settledAmount: number | string;
+  varianceAmount: number | string;
+  status: PosCashClosingSettlementStatus;
+  settledAt?: string | null;
+  settledByUserId?: number | null;
+  version: number;
+}

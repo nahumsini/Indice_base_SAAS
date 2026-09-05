@@ -59,7 +59,7 @@ export const expensesService = {
       expensesPath,
       jsonMutation('POST', {
         ...request,
-        settleOnCreate: expense.type === 'real' && expense.status === 'paid',
+        settleOnCreate: expense.type === 'real' && expense.status === 'paid' && Boolean(expense.paymentAccountId),
       }),
     );
     return toExpense(response, providers);
@@ -108,6 +108,7 @@ export const expensesService = {
         amount,
         paymentAccountId: Number(paymentAccountId),
         paymentDate: paymentDate.toISOString().slice(0, 10),
+        idempotencyKey: crypto.randomUUID(),
       }),
     );
     return toExpense(response, providers);

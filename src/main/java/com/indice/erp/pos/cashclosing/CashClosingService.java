@@ -7,6 +7,9 @@ import com.indice.erp.pos.cashclosing.dto.ShiftClosingSummaryResponse;
 import com.indice.erp.pos.shift.ShiftRecord;
 import com.indice.erp.pos.shift.ShiftRepository;
 import com.indice.erp.pos.shift.ShiftValidator;
+import com.indice.erp.pos.cashregister.CashRegisterRepository;
+import com.indice.erp.pos.settlement.CashClosingSettlementService;
+import org.springframework.beans.factory.annotation.Autowired;
 import java.math.BigDecimal;
 import java.util.Map;
 import org.springframework.stereotype.Service;
@@ -18,14 +21,28 @@ public class CashClosingService {
     private final CashClosingRepository repository;
     private final ShiftRepository shiftRepository;
     private final ShiftValidator shiftValidator;
+    private final CashRegisterRepository cashRegisterRepository;
+    private final CashClosingSettlementService settlementService;
+
+    @Autowired
+    public CashClosingService(
+            CashClosingRepository repository,
+            ShiftRepository shiftRepository,
+            ShiftValidator shiftValidator,
+            CashRegisterRepository cashRegisterRepository,
+            CashClosingSettlementService settlementService) {
+        this.repository = repository;
+        this.shiftRepository = shiftRepository;
+        this.shiftValidator = shiftValidator;
+        this.cashRegisterRepository = cashRegisterRepository;
+        this.settlementService = settlementService;
+    }
 
     public CashClosingService(
             CashClosingRepository repository,
             ShiftRepository shiftRepository,
             ShiftValidator shiftValidator) {
-        this.repository = repository;
-        this.shiftRepository = shiftRepository;
-        this.shiftValidator = shiftValidator;
+        this(repository, shiftRepository, shiftValidator, null, null);
     }
 
     @Transactional(readOnly = true)
@@ -37,10 +54,16 @@ public class CashClosingService {
     @Transactional
     public ShiftClosingSummaryResponse close(PosContext context, ShiftRecord shift, BigDecimal countedCash,
             String note) {
-        shiftValidator.requireClosable(context, shift);
         if (repository.existsClosing(context, shift.id())) {
-            throw PosApiException.conflict("Shift already has a persisted cash closing.");
+            return toResponse(
+                shift,
+                repository.calculateAmounts(context, shift),
+                shift.countedCashAmount(),
+                shift.overShortAmount(),
+                shift.closingNote()
+            );
         }
+        shiftValidator.requireClosable(context, shift);
         if (countedCash == null || countedCash.compareTo(BigDecimal.ZERO) < 0) {
             throw PosApiException.badRequest("countedCashAmount must be zero or greater.");
         }
@@ -50,7 +73,12 @@ public class CashClosingService {
             countedCash, overShort, trimToNull(note), repository.paymentsSummaryJson(amounts),
             PosJsonSupport.toJson(Map.of("source", "POS_SHIFT_CLOSE"))
         );
-        repository.insertClosing(context, shift, amounts, command);
+        var closingId = repository.insertClosing(context, shift, amounts, command);
+        if (settlementService != null && cashRegisterRepository != null) {
+            var register = cashRegisterRepository.findById(context, shift.cashRegisterId())
+                .orElseThrow(() -> PosApiException.conflict("Cash register could not be loaded for settlement."));
+            settlementService.settleClose(context, closingId, shift, register, amounts, countedCash);
+        }
         if (!shiftRepository.closeWithSummary(context, shift.id(), amounts.expectedCashAmount(), countedCash,
                 overShort, command.notes())) {
             throw PosApiException.conflict("Open shift could not be closed.");

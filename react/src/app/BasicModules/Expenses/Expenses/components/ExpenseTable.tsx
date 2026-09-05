@@ -21,7 +21,7 @@ import { ExpenseTableHeaderRow } from '../../components/table/ExpenseTableHeader
 import { ExpensePaymentModal } from '../../components/modals/ExpensePaymentModal';
 import { useExpensesTranslations } from '../hooks/useExpensesTranslations';
 import { formatBusinessCurrencyBreakdown } from '../../../shared/businessCurrency';
-import { canDeleteExpense, getEffectiveExpenseStatus, getExpenseBalance, getExpensePaidAmount } from '../../utils/expenseFilters';
+import { canDeleteExpense, canEditExpense, getEffectiveExpenseStatus, getExpenseBalance, getExpensePaidAmount } from '../../utils/expenseFilters';
 import { DataTablePagination } from '../../../../components/table/DataTablePagination';
 import { DEFAULT_TABLE_PAGE_SIZE_OPTIONS } from '../../../../hooks/useTablePagination';
 import { useWorkspaceNavigationMemory } from '../../../../hooks/useWorkspaceNavigationMemory';
@@ -116,6 +116,7 @@ export function ExpenseTable({
   const t = useExpensesTranslations();
   const showAuditAction = actionVisibility?.showAudit ?? true;
   const showMarkPaidAction = actionVisibility?.showMarkPaid ?? true;
+  const showStatusChangeAction = actionVisibility?.showStatusChange ?? true;
   const showPaymentStatusOptions = showMarkPaidAction;
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(DEFAULT_EXPENSE_COLUMN_WIDTHS);
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
@@ -195,6 +196,10 @@ export function ExpenseTable({
     () => selectedExpenses.length > 0 && selectedExpenses.every(canDeleteExpense),
     [selectedExpenses],
   );
+  const canEditAllSelected = useMemo(
+    () => selectedExpenses.length > 0 && selectedExpenses.every(canEditExpense),
+    [selectedExpenses],
+  );
   const paymentExpense = useMemo(
     () => expenses.find(expense => expense.id === paymentExpenseId) ?? null,
     [expenses, paymentExpenseId],
@@ -258,6 +263,7 @@ export function ExpenseTable({
   const isColumnVisible = (key: string) => columns.find(item => item.key === key)?.visible ?? false;
   const updateExpense = (id: string, updates: Partial<Expense>) => {
     const currentExpense = expenses.find(expense => expense.id === id);
+    if (!currentExpense || !canEditExpense(currentExpense)) return;
     const nextExpense = currentExpense ? { ...currentExpense, ...updates, updatedAt: new Date() } : null;
     onExpensesChange(prev => prev.map(expense => (expense.id === id ? { ...expense, ...updates, updatedAt: nextExpense?.updatedAt ?? new Date() } : expense)));
     if (nextExpense) onPersistExpenseUpdate?.(nextExpense);
@@ -268,7 +274,7 @@ export function ExpenseTable({
     if (selectedIds.size === 0) return;
 
     const updatedExpenses = expenses
-      .filter(expense => selectedIds.has(expense.id))
+      .filter(expense => selectedIds.has(expense.id) && canEditExpense(expense))
       .map(expense => ({ ...expense, ...getUpdates(expense), updatedAt: new Date() }));
     const updatedExpenseMap = new Map(updatedExpenses.map(expense => [expense.id, expense]));
 
@@ -294,6 +300,7 @@ export function ExpenseTable({
   };
 
   const handleBulkStatusChange = (status: ExpenseStatus) => {
+    if (!showStatusChangeAction) return;
     rowSelection.selectedIdList.forEach(id => {
       void handleStatusChange(id, status);
     });
@@ -306,7 +313,7 @@ export function ExpenseTable({
     setWorkflowByExpenseId(prev => {
       const next = { ...prev };
       expenses
-        .filter(expense => selectedIds.has(expense.id))
+        .filter(expense => selectedIds.has(expense.id) && canEditExpense(expense))
         .forEach(expense => {
           next[expense.id] = {
             ...getDefaultExpenseWorkflow(expense),
@@ -400,6 +407,7 @@ export function ExpenseTable({
   };
 
   const handleStatusChange = async (id: string, status: ExpenseStatus) => {
+    if (!showStatusChangeAction) return;
     const expense = expenses.find(item => item.id === id);
     if (!expense) return;
     if (!showPaymentStatusOptions && (status === 'paid' || status === 'partial')) return;
@@ -424,6 +432,10 @@ export function ExpenseTable({
     const expense = expenses.find(item => item.id === id);
     if (!expense) return;
     if (expense.type === 'budget' || getExpenseBalance(expense) <= 0) return;
+    if (onRecordExpensePayment) {
+      setPaymentExpenseId(id);
+      return;
+    }
     if (onMarkExpensePaid) {
       const savedExpense = await onMarkExpensePaid(expense);
       if (savedExpense) replaceSavedExpense(savedExpense);
@@ -471,7 +483,9 @@ export function ExpenseTable({
           accountingAccountOptions={editableRowOptions.accountingAccounts}
           businessOptions={editableRowOptions.businesses}
           showDelete={canDeleteAllSelected}
+          showEditControls={canEditAllSelected}
           showMarkPaid={showMarkPaidAction}
+          showStatusChange={showStatusChangeAction}
           onAccountingAccountChange={handleBulkAccountingAccountChange}
           onAuthorizerChange={handleBulkAuthorizerChange}
           onBusinessChange={handleBulkBusinessChange}

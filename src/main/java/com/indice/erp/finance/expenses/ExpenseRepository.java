@@ -50,12 +50,20 @@ class ExpenseRepository {
     }
 
     Optional<ExpenseRecord> findById(FinanceContext context, long expenseId) {
+        return findById(context, expenseId, false);
+    }
+
+    Optional<ExpenseRecord> findByIdForUpdate(FinanceContext context, long expenseId) {
+        return findById(context, expenseId, true);
+    }
+
+    private Optional<ExpenseRecord> findById(FinanceContext context, long expenseId, boolean lockForUpdate) {
         var params = new ArrayList<Object>();
         params.add(context.companyId());
         params.add(expenseId);
         appendScopeParam(params, context.scope());
 
-        var rows = jdbcTemplate.query(
+        var sql =
             """
             SELECT
             """ + ExpenseSql.SELECT_COLUMNS + """
@@ -63,8 +71,10 @@ class ExpenseRepository {
             WHERE expense.company_id = ?
               AND expense.id = ?
               AND expense.deleted_at IS NULL
-              AND """ + FinanceSqlSupport.scopePredicate("expense", context.scope()) + """
-            """,
+              AND """ + FinanceSqlSupport.scopePredicate("expense", context.scope())
+                + (lockForUpdate ? " FOR UPDATE" : "");
+        var rows = jdbcTemplate.query(
+            sql,
             mapper::mapRow,
             params.toArray()
         );

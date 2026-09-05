@@ -110,6 +110,7 @@ public class PettyCashMapper {
             nullableLong(rs, "petty_cash_statement_id"),
             nullableLong(rs, "from_payment_account_id"),
             nullableLong(rs, "to_payment_account_id"),
+            rs.getString("external_source_name"),
             PettyCashMovementType.valueOf(rs.getString("type")),
             rs.getBigDecimal("amount"),
             rs.getString("currency_code"),
@@ -146,6 +147,9 @@ public class PettyCashMapper {
             PettyCashSettlementLineStatus.valueOf(rs.getString("status")),
             nullableLong(rs, "created_by_user_id"),
             nullableLong(rs, "updated_by_user_id"),
+            rs.getString("cancellation_reason"),
+            nullableLong(rs, "cancelled_by_user_id"),
+            instant(rs, "cancelled_at"),
             instant(rs, "created_at"),
             instant(rs, "updated_at"),
             instant(rs, "deleted_at"),
@@ -184,7 +188,7 @@ public class PettyCashMapper {
     public PettyCashMovementResponse toResponse(PettyCashMovementRecord record) {
         return new PettyCashMovementResponse(
             record.id(), record.companyId(), record.pettyCashFundId(), record.pettyCashStatementId(),
-            record.fromPaymentAccountId(), record.toPaymentAccountId(), record.type(), record.amount(),
+            record.fromPaymentAccountId(), record.toPaymentAccountId(), record.externalSourceName(), record.type(), record.amount(),
             record.currencyCode(), record.movementDate(), record.reference(), record.createdByUserId(),
             record.updatedByUserId(), record.createdAt(), record.updatedAt(), record.deletedAt(),
             record.version(), toJsonNode(record.customFieldsJson()), toJsonNode(record.metadataJson())
@@ -197,7 +201,8 @@ public class PettyCashMapper {
             record.expenseId(), record.providerId(), record.accountingAccountId(), record.description(),
             record.receiptReference(), record.subtotalAmount(), record.taxAmount(), record.totalAmount(),
             record.currencyCode(), record.expenseDate(), record.attachmentCount(), record.status(),
-            record.createdByUserId(), record.updatedByUserId(), record.createdAt(), record.updatedAt(),
+            record.createdByUserId(), record.updatedByUserId(), record.cancellationReason(),
+            record.cancelledByUserId(), record.cancelledAt(), record.createdAt(), record.updatedAt(),
             record.deletedAt(), record.version(), toJsonNode(record.customFieldsJson()), toJsonNode(record.metadataJson())
         );
     }
@@ -254,7 +259,7 @@ public class PettyCashMapper {
             request.pettyCashStatementId(), request.fromPaymentAccountId(), request.toPaymentAccountId(),
             request.type() == null ? PettyCashMovementType.ADDITIONAL_DEPOSIT : request.type(),
             request.amount(), normalizeCurrency(request.currencyCode()), request.movementDate(),
-            trimToNull(request.reference()), context.userId(), FinanceJsonSupport.toJson(request.customFields()),
+            trimToNull(request.externalSourceName()), trimToNull(request.reference()), context.userId(), FinanceJsonSupport.toJson(request.customFields()),
             FinanceJsonSupport.toJson(request.metadata())
         );
     }

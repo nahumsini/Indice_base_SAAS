@@ -12,6 +12,49 @@ export type PosCashRegisterResponse = {
   status: 'ACTIVE' | 'INACTIVE';
   active: boolean;
   notes?: string | null;
+  retainedCashAmount?: number | string | null;
+  settlementRules?: PosSettlementRule[];
+};
+
+export type PosSettlementTiming = 'IMMEDIATE' | 'DEFERRED';
+
+export type PosSettlementRule = {
+  id: number;
+  cashRegisterId: number;
+  paymentMethod: PosCheckoutPaymentMethod;
+  currencyCode: string;
+  destinationPaymentAccountId?: number | null;
+  destinationAccountName?: string | null;
+  destinationAccountType?: string | null;
+  destinationAvailableBalance?: number | string | null;
+  destinationPendingBalance?: number | string | null;
+  settlementTiming: PosSettlementTiming;
+  enabled: boolean;
+  reviewStatus: 'READY' | 'NEEDS_REVIEW' | string;
+  version: number;
+};
+
+export type PosSettlementRulePayload = {
+  paymentMethod: PosCheckoutPaymentMethod;
+  destinationPaymentAccountId?: number | null;
+  settlementTiming: PosSettlementTiming;
+  enabled: boolean;
+};
+
+export type PosTreasuryAccount = {
+  id: number;
+  companyId: number;
+  unitId?: number | null;
+  businessId?: number | null;
+  name: string;
+  type: 'CASH' | 'BANK' | 'CREDIT_CARD' | 'PETTY_CASH' | string;
+  currencyCode: string;
+  availableBalance: number | string;
+  pendingBalance: number | string;
+  totalBalance: number | string;
+  status: string;
+  systemKey?: string | null;
+  systemManaged: boolean;
 };
 
 export type PosCashRegisterCreatePayload = {
@@ -21,6 +64,9 @@ export type PosCashRegisterCreatePayload = {
   status?: 'ACTIVE' | 'INACTIVE';
   active?: boolean;
   notes?: string | null;
+  retainedCashAmount?: number;
+  settlementCurrencyCode?: string;
+  settlementRules?: PosSettlementRulePayload[];
 };
 
 export type PosCashRegisterUpdatePayload = PosCashRegisterCreatePayload;
@@ -349,6 +395,24 @@ export const posBackendApi = {
     return apiClient<{ success: boolean }>(`${posBasePath}/cash-registers/${registerId}`, {
       method: 'DELETE',
     });
+  },
+  getCashRegisterSettlementPolicy(registerId: number | string, currencyCode: string) {
+    return apiClient<PosSettlementRule[]>(
+      `${posBasePath}/cash-registers/${encodeURIComponent(String(registerId))}/settlement-policy/prepare?currencyCode=${encodeURIComponent(currencyCode)}`,
+      { method: 'POST' },
+    );
+  },
+  getCashRegisterSettlementAccounts(registerId: number | string, currencyCode: string) {
+    return apiClient<PosTreasuryAccount[]>(
+      `${posBasePath}/cash-registers/${encodeURIComponent(String(registerId))}/settlement-accounts/prepare?currencyCode=${encodeURIComponent(currencyCode)}`,
+      { method: 'POST' },
+    );
+  },
+  getWarehouseSettlementAccounts(warehouseId: number | string, currencyCode: string) {
+    return apiClient<PosTreasuryAccount[]>(
+      `${posBasePath}/cash-registers/settlement-accounts/prepare?warehouseId=${encodeURIComponent(String(warehouseId))}&currencyCode=${encodeURIComponent(currencyCode)}`,
+      { method: 'POST' },
+    );
   },
   shifts() {
     return apiClient<PosShiftResponse[]>(`${posBasePath}/shifts`);

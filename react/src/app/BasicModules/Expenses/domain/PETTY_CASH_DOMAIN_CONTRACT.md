@@ -33,7 +33,8 @@ Petty Cash must not create duplicate catalogs.
 It consumes the same Finance references used by Expenses:
 
 - Providers come from Finance Providers.
-- Funding source accounts come from Finance Payment Accounts.
+- Internal funding sources come from Finance Payment Accounts. External custody or third-party
+  money records an explicit source name and does not invent a company account.
 - Spending/payment methods are constrained by the fund configuration and payment account capabilities.
 - Receipt accounting classification comes from active Finance Accounting Accounts.
 - The optional budget relationship is a spending ceiling. It is never interpreted as money already deposited in the fund.
@@ -154,6 +155,7 @@ Fields:
 - paymentAccountId
 - responsibleUserId
 - fundingSourcePaymentAccountId
+- fundingSourceName
 - name
 - currencyCode
 - limitAmount
@@ -288,6 +290,11 @@ Carry-forward is not a primary status. It is a closing result stored in `carryFo
 - `FORGIVEN_SHORTAGE`
 - `EMPLOYEE_CHARGE`
 
+For `INITIAL_FUNDING`, `ADDITIONAL_DEPOSIT`, and `RETURN_TO_SOURCE`, the origin/destination is
+exclusive: either an internal Payment Account or an explicit external source name. Internal flows
+create a two-sided Treasury transfer; external flows create the corresponding one-sided Treasury
+entry on the fund account and retain the external source in the movement audit context.
+
 ### PettyCashSettlementLineStatus
 
 - `DRAFT`
@@ -295,6 +302,11 @@ Carry-forward is not a primary status. It is a closing result stored in `carryFo
 - `VALIDATED`
 - `EXPENSE_CREATED`
 - `REJECTED`
+- `REVERSED`
+
+`REVERSED` is terminal and auditable. Reversing a purchase restores the fund through an opposite
+Treasury movement, preserves its evidence and cancellation metadata, and cancels—without deleting—
+any Expense generated from that settlement line. A second reversal must be rejected.
 
 ## Money Rules
 
@@ -333,7 +345,7 @@ It owns:
 - creating user
 - unit and business scope
 - payment account with type `PETTY_CASH`
-- funding source payment account
+- funding source: a company payment account or an explicit external source name
 - allowed funding methods
 - allowed spending methods
 - operational limit

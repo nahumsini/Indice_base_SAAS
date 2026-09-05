@@ -36,7 +36,8 @@ export type PettyCashSettlementLineStatus =
   | 'RECEIPT_ATTACHED'
   | 'VALIDATED'
   | 'EXPENSE_CREATED'
-  | 'REJECTED';
+  | 'REJECTED'
+  | 'REVERSED';
 
 export interface PettyCashFund {
   id: string;
@@ -103,6 +104,7 @@ export interface PettyCashMovement {
   pettyCashStatementId?: string;
   fromPaymentAccountId?: string;
   fromPaymentAccountName?: string;
+  externalSourceName?: string;
   toPaymentAccountId?: string;
   toPaymentAccountName?: string;
   type: PettyCashMovementType;
@@ -131,6 +133,9 @@ export interface PettyCashSettlementLine {
   expenseDate: string;
   attachmentCount: number;
   status: PettyCashSettlementLineStatus;
+  cancellationReason?: string;
+  cancelledByUserId?: string;
+  cancelledAt?: string;
 }
 
 export interface PettyCashAttachment {

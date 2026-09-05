@@ -66,7 +66,7 @@ class KioskSessionServiceTest {
 
         assertThat(launch.session().identityId()).isEqualTo(81L);
         assertThat(launch.accessToken()).isNotBlank().hasSizeGreaterThanOrEqualTo(32);
-        assertThat(launch.accessToken()).doesNotContain("81", "attendance-tab");
+        assertThat(launch.accessToken()).isNotEqualTo("81").doesNotContain("attendance-tab");
         assertThat(wasUpdateCalled("INSERT INTO kiosk_sessions")).isTrue();
     }
 

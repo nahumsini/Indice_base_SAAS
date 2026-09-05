@@ -1,0 +1,113 @@
+package com.indice.erp.finance.shared;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.DateTimeException;
+import java.time.ZoneId;
+import java.util.LinkedHashSet;
+import java.util.Optional;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+
+/** Resolves the business date boundary used by finance workflows for a company. */
+@Service
+public class FinanceBusinessTimeZoneResolver {
+
+    private final JdbcTemplate jdbcTemplate;
+    private final ObjectMapper objectMapper;
+    private final ZoneId fallbackZone;
+
+    public FinanceBusinessTimeZoneResolver(
+            JdbcTemplate jdbcTemplate,
+            ObjectMapper objectMapper,
+            @Value("${app.finance.default-business-timezone:America/Toronto}") String fallbackTimezone) {
+        this.jdbcTemplate = jdbcTemplate;
+        this.objectMapper = objectMapper;
+        this.fallbackZone = parseRequired(fallbackTimezone, "app.finance.default-business-timezone");
+    }
+
+    public ZoneId resolve(long companyId) {
+        var configured = companySettingsJson(companyId).flatMap(this::configuredCompanyTimezone);
+        if (configured.isPresent()) {
+            return parseRequired(configured.get(), "company timezone");
+        }
+
+        var operationalZones = new LinkedHashSet<ZoneId>();
+        for (var value : operationalTimezones(companyId)) {
+            if (value != null && !value.isBlank()) {
+                operationalZones.add(parseRequired(value, "operational timezone"));
+            }
+        }
+        return operationalZones.size() == 1 ? operationalZones.iterator().next() : fallbackZone;
+    }
+
+    private Optional<String> companySettingsJson(long companyId) {
+        return jdbcTemplate.query(
+            "SELECT settings_json FROM company_settings WHERE company_id = ? LIMIT 1",
+            (rs, rowNum) -> rs.getString("settings_json"),
+            companyId
+        ).stream().filter(value -> value != null && !value.isBlank()).findFirst();
+    }
+
+    private java.util.List<String> operationalTimezones(long companyId) {
+        return jdbcTemplate.query(
+            """
+            SELECT timezone
+            FROM units
+            WHERE company_id = ? AND timezone IS NOT NULL AND TRIM(timezone) <> ''
+            UNION
+            SELECT timezone
+            FROM businesses
+            WHERE company_id = ? AND timezone IS NOT NULL AND TRIM(timezone) <> ''
+            """,
+            (rs, rowNum) -> rs.getString("timezone"),
+            companyId,
+            companyId
+        );
+    }
+
+    private Optional<String> configuredCompanyTimezone(String settingsJson) {
+        try {
+            var root = objectMapper.readTree(settingsJson);
+            var configCenter = root.path("config_center");
+            var template = configCenter.path("empresa_template");
+            var direct = firstText(template, "timezone", "zona_horaria");
+            if (direct.isPresent()) {
+                return direct;
+            }
+
+            var legacyZones = new LinkedHashSet<String>();
+            var map = configCenter.path("map");
+            if (map.isArray()) {
+                for (var node : map) {
+                    firstText(node, "timezone", "zona_horaria").ifPresent(legacyZones::add);
+                }
+            }
+            return legacyZones.size() == 1 ? Optional.of(legacyZones.iterator().next()) : Optional.empty();
+        } catch (Exception exception) {
+            throw new IllegalStateException("Company timezone settings are not valid JSON.", exception);
+        }
+    }
+
+    private Optional<String> firstText(JsonNode node, String... fieldNames) {
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return Optional.empty();
+        }
+        for (var fieldName : fieldNames) {
+            var value = node.path(fieldName);
+            if (value.isTextual() && !value.asText().isBlank()) {
+                return Optional.of(value.asText().trim());
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static ZoneId parseRequired(String value, String label) {
+        try {
+            return ZoneId.of(value == null ? "" : value.trim());
+        } catch (DateTimeException exception) {
+            throw new IllegalStateException(label + " is not a valid IANA timezone.", exception);
+        }
+    }
+}

@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indice.erp.hr.attendance.kiosk.AttendanceKioskTokenService;
+import com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.time.Instant;
@@ -32,6 +33,7 @@ class PettyCashEmployeeHistoryPrivacyTest {
     @Mock private PettyCashMapper mapper;
     @Mock private PettyCashService pettyCashService;
     @Mock private PettyCashAttachmentService attachmentService;
+    @Mock private FinanceBusinessTimeZoneResolver timeZoneResolver;
 
     private PettyCashPublicKioskService service;
 
@@ -39,7 +41,7 @@ class PettyCashEmployeeHistoryPrivacyTest {
     void setUp() {
         service = new PettyCashPublicKioskService(
             jdbcTemplate, new ObjectMapper(), tokenService, new BCryptPasswordEncoder(),
-            mapper, pettyCashService, attachmentService, 900, 14_400);
+            mapper, pettyCashService, attachmentService, timeZoneResolver, 900, 14_400);
     }
 
     @Test

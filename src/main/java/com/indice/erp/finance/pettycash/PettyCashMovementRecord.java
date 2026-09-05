@@ -11,6 +11,7 @@ record PettyCashMovementRecord(
     Long pettyCashStatementId,
     Long fromPaymentAccountId,
     Long toPaymentAccountId,
+    String externalSourceName,
     PettyCashMovementType type,
     BigDecimal amount,
     String currencyCode,

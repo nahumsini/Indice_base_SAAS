@@ -75,6 +75,7 @@ final class PettyCashSql {
             movement.petty_cash_statement_id,
             movement.from_payment_account_id,
             movement.to_payment_account_id,
+            movement.external_source_name,
             movement.type,
             movement.amount,
             movement.currency_code,
@@ -109,6 +110,9 @@ final class PettyCashSql {
             settlement_line.status,
             settlement_line.created_by_user_id,
             settlement_line.updated_by_user_id,
+            settlement_line.cancellation_reason,
+            settlement_line.cancelled_by_user_id,
+            settlement_line.cancelled_at,
             settlement_line.created_at,
             settlement_line.updated_at,
             settlement_line.deleted_at,
@@ -170,8 +174,9 @@ final class PettyCashSql {
     static final String INSERT_MOVEMENT = """
             INSERT INTO finance_petty_cash_movements
             (company_id, petty_cash_fund_id, petty_cash_statement_id, from_payment_account_id, to_payment_account_id,
-             type, amount, currency_code, movement_date, reference, created_by_user_id, custom_fields_json, metadata_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             external_source_name, type, amount, currency_code, movement_date, reference, created_by_user_id,
+             custom_fields_json, metadata_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
 
     static final String INSERT_SETTLEMENT_LINE = """
