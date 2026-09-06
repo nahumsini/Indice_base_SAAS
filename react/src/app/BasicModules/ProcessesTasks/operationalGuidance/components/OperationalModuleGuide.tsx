@@ -3,6 +3,7 @@ import {
   learningModeGuideThemes,
   ModuleLearningGuide,
   type LearningModeControl,
+  type LearningModeJourneyStep,
 } from '../../../../learningMode';
 import { useLanguage } from '../../../../shared/context';
 import { processesTasksCharacterExamples } from '../processesTasksCharacterExamples';
@@ -12,8 +13,23 @@ import type { ProcessesTasksGuidanceTranslations } from '../translations';
 interface OperationalModuleGuideProps {
   copy: ProcessesTasksGuidanceTranslations;
   activeTabId: ProcessesTasksGuidanceTabId;
+  onJourneyChange?: (journeyId: ProcessesTasksGuidanceTabId) => void;
   onPrimaryAction?: () => void;
 }
+
+const journeyOrder: readonly ProcessesTasksGuidanceTabId[] = [
+  'calendar',
+  'projects',
+  'processes',
+  'kpis',
+];
+
+const journeyEmoji: Record<ProcessesTasksGuidanceTabId, string> = {
+  calendar: '🗓️',
+  projects: '🎯',
+  processes: '🔁',
+  kpis: '📊',
+};
 
 const stepEmojis: Record<ProcessesTasksGuidanceTabId, readonly string[]> = {
   calendar: ['📝', '🗂️', '✅'],
@@ -25,6 +41,7 @@ const stepEmojis: Record<ProcessesTasksGuidanceTabId, readonly string[]> = {
 export function OperationalModuleGuide({
   copy,
   activeTabId,
+  onJourneyChange,
   onPrimaryAction,
 }: OperationalModuleGuideProps) {
   const { currentLanguage } = useLanguage();
@@ -63,14 +80,23 @@ export function OperationalModuleGuide({
           },
     }))
   ), [activeGuide, activeTabId, isSpanish]);
+  const journey = useMemo<readonly LearningModeJourneyStep[]>(() => journeyOrder.map((journeyId) => ({
+    emoji: journeyEmoji[journeyId],
+    id: journeyId,
+    label: copy.tabs[journeyId].label,
+  })), [copy]);
 
   return (
     <ModuleLearningGuide
       activeContextLabel={activeGuide.label}
+      activeJourneyId={activeTabId}
+      contextSignal={activeGuide.summary}
       controls={controls}
       ctaLabel={activeGuide.ctaLabel}
       eyebrow={copy.eyebrow}
       guideId="processes-tasks-guidance"
+      journey={journey}
+      onJourneyChange={(journeyId) => onJourneyChange?.(journeyId as ProcessesTasksGuidanceTabId)}
       onPrimaryAction={onPrimaryAction}
       scopeId={`processes-tasks-${activeTabId}`}
       stepIndicatorLabel={copy.stepIndicatorLabel}

@@ -24,6 +24,8 @@ export const enUS = {
   },
   operationalJourney: {
     eyebrow: "Learning mode",
+    sessionLabel: "Session",
+    goalLabel: "What you will achieve",
     title: "Your learning journey",
     subtitle: "Learn how to organize and grow your company step by step.",
     progressLabel: "Progress",

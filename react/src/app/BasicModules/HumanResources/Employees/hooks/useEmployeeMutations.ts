@@ -16,6 +16,7 @@ import {
 interface EmployeeMutationsParams {
   copy: EmployeesTranslations;
   editingEmployee: EmployeeViewModel | null;
+  onEmployeeSaved?: (employeeId: number) => void;
   refreshEmployees: () => Promise<void>;
   rememberCreatedEmployee: (employee: BackendHrUser) => void;
   replaceEditingEmployeeId: (employeeId: number) => void;
@@ -35,6 +36,7 @@ interface EmployeeMutationTask {
 export function useEmployeeMutations({
   copy,
   editingEmployee,
+  onEmployeeSaved,
   refreshEmployees,
   rememberCreatedEmployee,
   replaceEditingEmployeeId,
@@ -72,6 +74,7 @@ export function useEmployeeMutations({
   const handleSaveEmployee = useCallback(async (data: EmployeeFormData) => {
     const isEditing = Boolean(editingEmployee);
     const payload = buildEmployeeSavePayload(data, editingEmployee?.status ?? 'active');
+    let savedEmployeeId: number | null = null;
 
     try {
       let documentErrors: string[] = [];
@@ -84,6 +87,7 @@ export function useEmployeeMutations({
           const savedEmployee = editingEmployee
             ? await humanResourcesApi.updateHrUser(editingEmployee.id, payload)
             : await humanResourcesApi.createHrUser(payload);
+          savedEmployeeId = savedEmployee.id;
 
           if (!editingEmployee) {
             rememberCreatedEmployee(savedEmployee);
@@ -127,6 +131,9 @@ export function useEmployeeMutations({
         );
       }
 
+      if (savedEmployeeId !== null) {
+        onEmployeeSaved?.(savedEmployeeId);
+      }
       resetEmployeeModal();
     } catch (error) {
       setFailureToastMessage(normalizeErrorMessage(error, copy.errorMessages.save));
@@ -137,6 +144,7 @@ export function useEmployeeMutations({
     editingEmployee,
     refreshEmployees,
     rememberCreatedEmployee,
+    onEmployeeSaved,
     replaceEditingEmployeeId,
     resetEmployeeModal,
     runMutation,

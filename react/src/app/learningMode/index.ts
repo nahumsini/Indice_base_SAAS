@@ -19,4 +19,5 @@ export type {
   LearningCharacterId,
   LearningModeControl,
   LearningModeGuideTheme,
+  LearningModeJourneyStep,
 } from './types';

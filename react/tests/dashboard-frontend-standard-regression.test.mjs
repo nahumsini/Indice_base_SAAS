@@ -109,10 +109,12 @@ test('Panel Inicial respeta la escala tipográfica del Frontend Engine V2', () =
   assert.deepEqual(violations, [], `Tipografía fuera del estándar:\n${violations.map(({ file, token }) => `${file}: ${token}`).join('\n')}`);
 });
 
-test('Panel Inicial conserva navegación, permisos y Modo aprendiz', () => {
+test('Panel Inicial conserva navegación y permisos sin montar una guía interna', () => {
   assert.match(panelInicialSource, /useRoutedModuleTab/);
   assert.match(panelInicialSource, /canAccessHomePanelTab/);
-  assert.match(panelInicialSource, /<LearningModeHeaderActionsProvider/);
+  assert.doesNotMatch(panelInicialSource, /LearningModeHeaderActionsProvider/);
+  assert.doesNotMatch(panelInicialSource, /<OperationalModuleGuide/);
+  assert.doesNotMatch(panelInicialSource, /learningModeActive/);
   assert.match(panelInicialSource, /<PanelInicialHeader/);
   assert.doesNotMatch(panelInicialSource, /const PersonalPerformance = lazy/);
   assert.match(panelInicialSource, /'personal-performance': 'business-profile'/);

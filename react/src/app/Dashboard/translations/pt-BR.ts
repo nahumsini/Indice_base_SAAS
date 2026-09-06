@@ -24,6 +24,8 @@ export const ptBR = {
   },
   operationalJourney: {
     eyebrow: "Modo aprendiz",
+    sessionLabel: "Sessão",
+    goalLabel: "O que você vai alcançar",
     title: "Sua jornada de aprendizagem",
     subtitle: "Aprenda a organizar e fazer sua empresa crescer passo a passo.",
     progressLabel: "Progresso",

@@ -6,7 +6,6 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { createPortal } from 'react-dom';
 
 interface LearningModeHeaderActionsContextValue {
   active: boolean;
@@ -46,19 +45,13 @@ export function LearningModeHeaderActionHost() {
 }
 
 export function LearningModeTitleBarBridge({
-  actions,
+  actions: _actions,
   children,
 }: {
   actions?: ReactNode;
   children: ReactNode;
 }) {
-  const context = useContext(LearningModeHeaderActionsContext);
-
-  if (!context?.active) {
-    return children;
-  }
-
-  return actions && context.actionHost ? createPortal(actions, context.actionHost) : null;
+  return children;
 }
 
 export function useLearningModeHeaderActions() {

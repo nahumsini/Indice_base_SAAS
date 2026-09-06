@@ -1,15 +1,10 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useLanguage } from '../../shared/context';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
 import { authApi } from '../../api/auth';
 import { canAccessHomePanelTab, type HomePanelTabId } from '../../access/accessRules';
-import { LearningModeHeaderActionsProvider } from '../../learningMode';
-import {
-  OperationalModuleGuide,
-  usePanelInicialGuidanceTranslations,
-  type PanelInicialGuidanceTabId,
-} from './operationalGuidance';
+import type { PanelInicialGuidanceTabId } from './operationalGuidance';
 import { PanelInicialErrorBoundary } from './components/PanelInicialErrorBoundary';
 import { PanelInicialHeader } from './components/PanelInicialHeader';
 import { PanelInicialState } from './components/PanelInicialState';
@@ -24,7 +19,6 @@ const Integrations = lazy(() => import('./Integrations'));
 const Users = lazy(() => import('./Users'));
 
 interface PanelInicialProps {
-  learningModeActive?: boolean;
   onNavigate: (page?: string) => void;
 }
 
@@ -49,11 +43,9 @@ const legacySubTabAliases: Partial<Record<string, PanelInicialTabId>> = {
   usuarios: 'users',
 };
 
-export default function PanelInicial({ learningModeActive = false, onNavigate }: PanelInicialProps) {
+export default function PanelInicial({ onNavigate }: PanelInicialProps) {
   const { t } = useLanguage();
   const shellCopy = usePanelInicialTranslations();
-  const guidanceCopy = usePanelInicialGuidanceTranslations();
-  const mainContentRef = useRef<HTMLDivElement | null>(null);
   const authorizationRevision = useAuthorizationRevision();
   const [sessionAccess, setSessionAccess] = useState<{
     role: string | null;
@@ -155,15 +147,7 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
     setActiveSubTab(tabId);
   };
 
-  const handleGuidePrimaryAction = () => {
-    mainContentRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start',
-    });
-  };
-
   return (
-    <LearningModeHeaderActionsProvider active={learningModeActive && activeSubTab !== 'integrations'}>
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--indice-background)] dark:bg-slate-950">
       <LoadingBarOverlay
         isVisible={isTabLoading || !sessionAccess.loaded}
@@ -182,20 +166,8 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-      {learningModeActive && activeSubTab !== 'integrations' ? (
-        <div className="border-b border-[var(--indice-border)] bg-white px-3 pb-4 dark:bg-slate-800 sm:px-8 sm:pb-6">
-          <div className="mx-auto max-w-[1600px]">
-              <OperationalModuleGuide
-                copy={guidanceCopy}
-                activeTabId={activeSubTab as PanelInicialGuidanceTabId}
-                onPrimaryAction={handleGuidePrimaryAction}
-              />
-          </div>
-        </div>
-      ) : null}
-
       {/* Main content */}
-      <div ref={mainContentRef} className="mx-auto max-w-[1600px] scroll-mt-24 px-3 py-4 sm:px-8 sm:py-8">
+      <div className="mx-auto max-w-[1600px] px-3 py-4 sm:px-8 sm:py-8">
         <Suspense
           fallback={(
             <LoadingBarOverlay
@@ -230,6 +202,5 @@ export default function PanelInicial({ learningModeActive = false, onNavigate }:
       </div>
       </div>
     </div>
-    </LearningModeHeaderActionsProvider>
   );
 }

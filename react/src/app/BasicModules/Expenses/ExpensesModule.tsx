@@ -17,6 +17,7 @@ import {
   LearningModeHeaderActionsProvider,
   learningModeGuideThemes,
   SimpleModuleLearningGuide,
+  type LearningModeJourneyStep,
 } from '../../learningMode';
 import {
   expensesLearningControls,
@@ -45,6 +46,33 @@ const expenseTabIds = [
   'payment_accounts',
   'kpis',
 ] as const satisfies readonly TabId[];
+
+const expensesLearningJourneyOrder: readonly TabId[] = [
+  'accounting',
+  'providers',
+  'payment_accounts',
+  'budgets',
+  'expenses',
+  'kpis',
+];
+
+const expensesLearningJourneyEmoji: Record<TabId, string> = {
+  accounting: '📚',
+  providers: '🏢',
+  payment_accounts: '💳',
+  budgets: '📋',
+  expenses: '💸',
+  kpis: '📊',
+};
+
+const expensesLearningSignals: Record<TabId, string> = {
+  accounting: 'Define primero cómo clasificarás el dinero para que cada gasto llegue a la cuenta correcta.',
+  providers: 'Formaliza a quién pagas y conserva contacto, condiciones y datos fiscales en una sola ficha.',
+  payment_accounts: 'Configura de dónde sale el dinero para poder rastrear y conciliar cada pago.',
+  budgets: 'Pon un límite y una intención antes de gastar; después podrás comparar plan contra realidad.',
+  expenses: 'Registra qué se compró, quién lo autorizó, a quién se pagó y con qué evidencia.',
+  kpis: 'Lee desviaciones, concentración y tendencias para decidir dónde ajustar el gasto.',
+};
 
 const legacyExpenseTabAliases: Partial<Record<string, TabId>> = {
   gastos: 'expenses',
@@ -119,6 +147,11 @@ export default function ExpensesModule({ learningModeActive = false, onNavigate 
     { id: 'payment_accounts' as TabId, label: t.module.tabs.paymentAccounts, emoji: '💳' },
     { id: 'kpis' as TabId, label: t.module.tabs.kpis, emoji: '📊' },
   ];
+  const learningJourney: readonly LearningModeJourneyStep[] = expensesLearningJourneyOrder.map((journeyId) => ({
+    emoji: expensesLearningJourneyEmoji[journeyId],
+    id: journeyId,
+    label: tabs.find((tab) => tab.id === journeyId)?.label ?? journeyId,
+  }));
 
   useEffect(() => {
     let isMounted = true;
@@ -256,9 +289,13 @@ export default function ExpensesModule({ learningModeActive = false, onNavigate 
         guide={learningModeActive ? (
           <SimpleModuleLearningGuide
             activeContextLabel={expensesLearningLabels[activeTab]}
+            activeJourneyId={activeTab}
+            contextSignal={expensesLearningSignals[activeTab]}
             controls={expensesLearningControls[activeTab]}
             guideId="expenses-learning-guide"
+            journey={learningJourney}
             moduleTitle={t.module.title}
+            onJourneyChange={(journeyId) => setActiveTab(journeyId as TabId)}
             onPrimaryAction={handleGuidePrimaryAction}
             scopeId={`expenses-${activeTab}`}
             theme={learningModeGuideThemes.finance}

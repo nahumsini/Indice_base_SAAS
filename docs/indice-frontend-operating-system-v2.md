@@ -2698,6 +2698,22 @@ Use:
 - contextual labels
 - recommended next action
 
+### 28.1 Compact module learning companion
+
+The module standard validated in Human Resources uses a compact companion below the module tabs, with an inline `Aprender más` expansion. It supports a reactivatable first journey and ongoing contextual assistance, never blocks module work, and keeps learning progress private to the current user and company.
+
+The 2026-09-06 visual adjustment keeps the original tab title bar and its actions visible when Learning Mode is on. The companion does not replace that surface. When expanded, the logical journey uses one compact, sticky, horizontally scrollable step rail; the mission checklist, detailed instructions, and real case remain collapsed until requested so the active tool objective stays clear without consuming unnecessary vertical space.
+
+The collapsed companion still exposes the module's complete logical flow as one horizontally scrollable line. Learning concepts and areas use colorful emoji, while instructional copy stays approachable, action-oriented, and grounded in real business decisions and consequences.
+
+Every migrated module keeps its original title bar and actions visible. The collapsed companion exposes the full logical module flow; the expanded companion pins only the horizontal journey rail and presents one primary objective, optional instructions, and an optional real business case. Concepts use colorful emoji, and the copy teaches in direct language while retaining real operational consequences.
+
+Point of Sale does not render the companion inside its transactional `Sale` tab. Inventory must explicitly teach `Product → Warehouse → Inventory → Provider → Purchase order → Receipt/movement` and must not conflate catalog identity, physical location, and on-hand quantity.
+
+`Panel Inicial` remains part of the Dashboard learning journey but does not render an internal learning guide. The Dashboard keeps its approved six-section structure while its learning presentation follows the same compact, colorful, instructional language.
+
+The detailed state, content, exception, responsive, and migration rules live in `docs/learning-mode-frontend-engine-v2.md`, section 29. That specialized contract controls module learning within the repository-wide accessibility, localization, permission, and behavior-preservation rules in this document.
+
 ---
 
 ## 29. State System

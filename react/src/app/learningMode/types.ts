@@ -15,6 +15,12 @@ export interface LearningModeControl {
   storyByCharacter: Record<LearningCharacterId, string>;
 }
 
+export interface LearningModeJourneyStep {
+  emoji: string;
+  id: string;
+  label: string;
+}
+
 export interface LearningModeGuideTheme {
   activeDotClass: string;
   ctaClass: string;

@@ -1,16 +1,18 @@
-import { Activity, lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { Activity, lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { IndiceModuleShell } from '../../components/frontend-os';
 import { LoadingBarOverlay } from '../../components/LoadingBarOverlay';
 import { useRoutedModuleTab } from '../../hooks/useRoutedModuleTab';
-import { LearningModeHeaderActionsProvider } from '../../learningMode';
 import { HumanResourcesTabErrorBoundary } from './components/HumanResourcesTabErrorBoundary';
 import { useHumanResourcesAccess } from './hooks/useHumanResourcesAccess';
 import { useHumanResourcesTranslations } from './hooks/useHumanResourcesTranslations';
 import type { HumanResourcesTabId } from '../../access/accessRules';
 import {
+  emptyHumanResourcesLearningSignals,
   OperationalModuleGuide,
+  useHumanResourcesLearningProgress,
   useHumanResourcesGuidanceTranslations,
 } from './operationalGuidance';
+import type { EmployeeLearningActions } from './Employees/Employees';
 
 const Employees = lazy(() => import('./Employees'));
 const Attendance = lazy(() => import('./Attendance/Attendance'));
@@ -56,7 +58,10 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
   const t = useHumanResourcesTranslations();
   const guidanceCopy = useHumanResourcesGuidanceTranslations();
   const mainContentRef = useRef<HTMLDivElement | null>(null);
+  const employeeLearningActionsRef = useRef<EmployeeLearningActions | null>(null);
   const tabScrollPositionsRef = useRef(new Map<HumanResourcesTabId, number>());
+  const [learningSignals, setLearningSignals] = useState(emptyHumanResourcesLearningSignals);
+  const learningProgress = useHumanResourcesLearningProgress();
   const [visitedTabIds, setVisitedTabIds] = useState<Set<HumanResourcesTabId>>(
     () => new Set(['collaborators']),
   );
@@ -145,18 +150,67 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
     });
   };
 
+  const handleLearningActionsReady = useCallback((actions: EmployeeLearningActions | null) => {
+    employeeLearningActionsRef.current = actions;
+  }, []);
+
+  const handleLearningAreaNavigation = (areaId: HumanResourcesTabId) => {
+    learningProgress.selectArea(areaId);
+    if (areaId !== activeTab) {
+      handleTabClick(areaId);
+    }
+  };
+
+  const showCollaboratorTool = (action: 'create' | 'edit', employeeId?: number) => {
+    handleLearningAreaNavigation('collaborators');
+    window.requestAnimationFrame(() => {
+      if (action === 'create') {
+        employeeLearningActionsRef.current?.createEmployee();
+      } else if (employeeId !== undefined) {
+        employeeLearningActionsRef.current?.editEmployee(employeeId);
+      }
+    });
+  };
+
+  useEffect(() => {
+    if (!learningModeActive || learningProgress.progress.activeAreaId === activeTab) {
+      return;
+    }
+
+    learningProgress.selectArea(activeTab);
+  }, [activeTab, learningModeActive, learningProgress]);
+
   return (
-    <LearningModeHeaderActionsProvider active={learningModeActive}>
-      <IndiceModuleShell
+    <IndiceModuleShell
         activeTab={activeTab}
         backLabel={t.back}
         contentRef={mainContentRef}
         currentModule="human-resources"
-        guide={learningModeActive && activeTab !== 'collaborators' ? (
+        guide={learningModeActive ? (
           <OperationalModuleGuide
             copy={guidanceCopy}
             activeTabId={activeTab}
+            availableTabIds={tabs.map((tab) => tab.id)}
+            learningProgress={learningProgress.progress}
+            learningSignals={learningSignals}
+            onCreateEmployee={() => showCollaboratorTool('create')}
+            onEditEmployee={(employeeId) => showCollaboratorTool('edit', employeeId)}
+            onMarkUnderstood={learningProgress.markUnderstood}
+            onNavigateArea={handleLearningAreaNavigation}
             onPrimaryAction={handleGuidePrimaryAction}
+            onRemoveEmployeeException={learningProgress.removeEmployeeException}
+            onRestartJourney={(areaId) => {
+              learningProgress.restartJourneyView(areaId);
+              handleLearningAreaNavigation(areaId);
+            }}
+            onSelectEmployee={learningProgress.selectEmployee}
+            onSetEmployeeException={(employeeId, requirementId, reason) => {
+              learningProgress.setEmployeeException(employeeId, requirementId, {
+                reason,
+                updatedAt: new Date().toISOString(),
+              });
+            }}
+            onSetExpanded={learningProgress.setExpanded}
           />
         ) : undefined}
         onNavigate={onNavigate}
@@ -188,7 +242,12 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
                       )}
                     >
                       {tab.id === 'collaborators' ? (
-                        <Employees learningModeActive={learningModeActive} />
+                        <Employees
+                          learningModeActive={learningModeActive}
+                          onLearningActionsReady={handleLearningActionsReady}
+                          onLearningAreaApplied={learningProgress.markApplied}
+                          onLearningSignalsChange={setLearningSignals}
+                        />
                       ) : (
                         <TabComponent />
                       )}
@@ -208,7 +267,6 @@ export default function HumanResources({ learningModeActive = false, onNavigate 
             description={t.access.loadingDescription}
           />
         )}
-      </IndiceModuleShell>
-    </LearningModeHeaderActionsProvider>
+    </IndiceModuleShell>
   );
 }

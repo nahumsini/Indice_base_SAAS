@@ -68,6 +68,63 @@ test('Recursos Humanos conserva la navegación y el estado operativo entre pesta
   });
 });
 
+test('Modo Aprendiz de RH usa acompañamiento compacto, ruta lógica y progreso real', () => {
+  const moduleSource = readFileSync(resolve(moduleRoot, 'HumanResources.tsx'), 'utf8');
+  const employeesSource = readFileSync(resolve(moduleRoot, 'Employees/Employees.tsx'), 'utf8');
+  const companionSource = readFileSync(
+    resolve(moduleRoot, 'operationalGuidance/components/HumanResourcesLearningCompanion.tsx'),
+    'utf8',
+  );
+  const candidateMissionSource = readFileSync(
+    resolve(moduleRoot, 'operationalGuidance/components/HumanResourcesCandidateMission.tsx'),
+    'utf8',
+  );
+  const journeySource = readFileSync(
+    resolve(moduleRoot, 'operationalGuidance/components/HumanResourcesJourneyNav.tsx'),
+    'utf8',
+  );
+  const progressSource = readFileSync(
+    resolve(moduleRoot, 'operationalGuidance/useHumanResourcesLearningProgress.ts'),
+    'utf8',
+  );
+  const progressModelSource = readFileSync(
+    resolve(moduleRoot, 'operationalGuidance/humanResourcesLearningProgress.ts'),
+    'utf8',
+  );
+  const learningContentSource = readFileSync(
+    resolve(moduleRoot, 'operationalGuidance/humanResourcesLearningContent.ts'),
+    'utf8',
+  );
+
+  assert.match(moduleSource, /availableTabIds=\{tabs\.map/);
+  assert.match(moduleSource, /onLearningAreaApplied=\{learningProgress\.markApplied\}/);
+  assert.doesNotMatch(moduleSource, /LearningModeHeaderActionsProvider/);
+  assert.match(employeesSource, /buildHumanResourcesLearningSignals/);
+  assert.match(employeesSource, /onEmployeeSaved: \(\) => onLearningAreaApplied\?\.\('collaborators'\)/);
+  assert.match(companionSource, /Aprender más/);
+  assert.match(companionSource, /Tu flujo RH/);
+  assert.match(companionSource, /compact/);
+  assert.match(candidateMissionSource, /Primera misión/);
+  assert.match(companionSource, /Ya entendí/);
+  assert.match(candidateMissionSource, /No aplica/);
+  assert.match(companionSource, /Ver caso real/);
+  assert.match(companionSource, /motion-reduce:transition-none/);
+  assert.match(companionSource, /sticky top-0/);
+  assert.doesNotMatch(companionSource, /LearningModeHeaderActionHost/);
+  assert.match(journeySource, /IndiceHorizontalScrollControls/);
+  assert.match(journeySource, /overflow-x-auto/);
+  assert.match(journeySource, /humanResourcesLearningAreaEmoji/);
+  assert.match(learningContentSource, /collaborators: '👥'/);
+  assert.match(learningContentSource, /payroll: '💰'/);
+  assert.match(learningContentSource, /kpis: '📊'/);
+  assert.match(candidateMissionSource, /<details/);
+  assert.match(progressModelSource, /session\.company\.id/);
+  assert.match(progressModelSource, /session\.user\.id/);
+  assert.match(progressSource, /restartJourneyView/);
+  assert.doesNotMatch(progressSource, /restartJourneyView[\s\S]{0,240}understoodAreaIds:\s*\[\]/);
+  assert.doesNotMatch(progressSource, /restartJourneyView[\s\S]{0,240}appliedAreaIds:\s*\[\]/);
+});
+
 test('Colaboradores inicia con una vista operativa compacta y personalizable', () => {
   const constantsSource = readFileSync(resolve(moduleRoot, 'Employees/constants/employees.constants.ts'), 'utf8');
   const columnsHookSource = readFileSync(resolve(moduleRoot, 'Employees/hooks/useEmployeesColumns.ts'), 'utf8');

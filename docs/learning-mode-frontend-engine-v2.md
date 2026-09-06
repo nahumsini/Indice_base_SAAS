@@ -475,13 +475,14 @@ Con Modo aprendiz encendido:
 Encabezado general del módulo                 SE CONSERVA
 Navegación de pestañas                        SE CONSERVA
 Modo aprendiz, inmediatamente bajo pestañas   APARECE
-  ├─ centro: nombre de la guía y pestaña activa
-  ├─ derecha: acciones ORIGINALES trasladadas
-  └─ dos tarjetas sincronizadas
+  ├─ resumen: contexto real, avance y Aprender más
+  ├─ cerrado: flujo lógico completo en una línea
+  └─ expandido: riel fijo + objetivo + detalles bajo demanda
 Contenido de la pestaña
-  ├─ barra de título duplicada                 SE OCULTA
+  ├─ barra de título original                  SE CONSERVA
+  ├─ acciones originales                       SE CONSERVAN EN SU LUGAR
   ├─ filtros                                   SE CONSERVAN
-  ├─ resumen/KPIs local de la pestaña          SE OCULTA
+  ├─ resumen/KPIs local de la pestaña          PUEDE COMPACTARSE
   └─ operación real                            SE CONSERVA
 ```
 
@@ -496,24 +497,24 @@ No colocar la guía:
 - como panel flotante;
 - en una columna lateral que reduzca la operación.
 
-### 9.2 Qué significa “barra de título duplicada”
+### 9.2 Regla absoluta de la barra de título
 
-Es la barra propia de la pestaña que normalmente contiene:
+La barra propia de cada pestaña normalmente contiene:
 
 - emoji o icono;
 - título de la vista;
 - subtítulo;
 - acciones como `Columnas`, `Agregar`, `Exportar` o equivalentes.
 
-Al encender el modo se oculta la superficie, el icono, el título y el subtítulo de esa barra porque la guía ocupa su función contextual. Sus acciones reales no se eliminan: se trasladan.
+Al encender Modo Aprendiz esa superficie permanece visible, completa y en su posición original. La guía enseña; la barra de título identifica y permite operar. No son sustitutos.
 
 El encabezado general del módulo, por ejemplo `Recursos Humanos`, no es duplicado y permanece visible.
 
-### 9.3 Regla absoluta de traslado de acciones
+### 9.3 Regla absoluta de las acciones originales
 
-Modo aprendiz cambia **la colocación**, no el diseño ni la función de los botones existentes.
+Modo Aprendiz no cambia la colocación, el diseño ni la función de los botones existentes. Las acciones permanecen dentro de la barra de título, conservando sus permisos, estados, tooltips, handlers y analítica.
 
-Se debe trasladar el nodo React original mediante un host/portal compartido:
+El proveedor compartido puede seguir propagando el estado del modo para compactar elementos secundarios, pero el puente de compatibilidad siempre debe renderizar la barra original:
 
 ```tsx
 <LearningModeHeaderActionsProvider active={learningModeActive}>
@@ -523,22 +524,12 @@ Se debe trasladar el nodo React original mediante un host/portal compartido:
 
 ```tsx
 export function ModuleTitleBar({ actions, ...props }: Props) {
-  const originalActionLayout = actions ? (
-    <OriginalActionLayout>{actions}</OriginalActionLayout>
-  ) : undefined;
-
   return (
-    <LearningModeTitleBarBridge actions={originalActionLayout}>
-      <OriginalTitleBar actions={originalActionLayout} {...props} />
+    <LearningModeTitleBarBridge actions={actions}>
+      <OriginalTitleBar actions={actions} {...props} />
     </LearningModeTitleBarBridge>
   );
 }
-```
-
-```tsx
-<div className="flex justify-center sm:justify-end">
-  <LearningModeHeaderActionHost />
-</div>
 ```
 
 Está prohibido:
@@ -549,10 +540,9 @@ Está prohibido:
 - sustituir su emoji o icono;
 - renombrarlos;
 - hacer visibles acciones que un permiso oculta;
-- dejar simultáneamente el original y una copia;
+- trasladarlos a la guía;
+- ocultar su barra porque la guía está activa;
 - mover acciones propias de una fila, filtro o modal al encabezado.
-
-El portal preserva el nodo, sus handlers, permisos, estados `disabled/loading`, tooltips y analítica.
 
 Archivos canónicos compartidos:
 
@@ -562,7 +552,7 @@ Archivos canónicos compartidos:
 
 ### 9.4 Regla de la barra KPI
 
-Mientras Modo aprendiz está activo, se oculta la barra resumen/KPI local de la pestaña para recuperar espacio vertical. Cuando se apaga, reaparece sin perder estado.
+Mientras Modo Aprendiz está activo, una barra resumen/KPI local puede ocultarse o compactarse para recuperar espacio vertical cuando no sea indispensable para completar la tarea. Cuando se apaga, reaparece sin perder estado.
 
 Esto **no** autoriza a:
 
@@ -1475,3 +1465,94 @@ Cuando se apruebe una evolución:
 5. aplicar el cambio al resto de módulos de forma controlada.
 
 No convertir una excepción local en un nuevo estándar sin aprobación. Si un módulo no puede cumplir una regla por su arquitectura, documentar la excepción y preservar todos los demás invariantes.
+
+---
+
+## 29. Estándar modular aprobado, originado en Recursos Humanos (2026-09-05 a 2026-09-06)
+
+La experiencia validada primero en Recursos Humanos reemplaza como estándar general la geometría obligatoria de dos tarjetas y el carrusel descritos en las secciones anteriores. El ajuste visual del 2026-09-06 también reemplaza las reglas de ocultamiento y traslado de acciones de las secciones 9.2 y 9.3. Cada módulo conserva su operación y adapta el contenido, los emojis, las señales y el flujo a su dominio.
+
+### 29.1 Límites del piloto
+
+- La estructura de seis sesiones del Modo Aprendiz del Dashboard queda preservada. Este despliegue puede refinar su densidad, jerarquía, emojis y claridad didáctica sin eliminar, fusionar ni reordenar sesiones.
+- `Panel Inicial` continúa como etapa del Dashboard, pero no muestra una guía interna al abrir sus pestañas.
+- Recursos Humanos es la implementación de referencia para los módulos migrados.
+- El contenido nuevo se valida primero en español. La geometría compartida puede operar en los idiomas actuales reutilizando su contenido existente, pero ninguna traducción nueva se considera aprobada sin revisión posterior.
+- El progreso es privado para la combinación de usuario y empresa. Este piloto no crea consulta administrativa del aprendizaje ajeno.
+
+### 29.2 Dos formas de aprendizaje
+
+1. **Recorrido inicial reactivable.** Presenta el ciclo completo de Recursos Humanos en orden lógico y propone una primera misión real: agregar y configurar por completo un colaborador, o elegir uno existente y completar sus faltantes.
+2. **Acompañamiento continuo.** Permanece como una barra compacta debajo de las pestañas, muestra una señal basada en datos reales y permite abrir `Aprender más` sin modal ni cambio de contexto.
+
+El orden lógico aprobado es: Colaboradores, Centro de control, Asistencia, Permisos, Nómina, Comunicados, Activos, Actas, Incentivos e Indicadores RH. Las pestañas pueden conservar su orden visual actual. Los pasos son navegables y omitibles; nunca bloquean la operación.
+
+### 29.3 Estados y memoria
+
+Cada área utiliza tres estados:
+
+- `Por revisar`: aún no existe confirmación de aprendizaje;
+- `Entendido`: el usuario eligió `Ya entendí`;
+- `Aplicado`: una integración compatible detectó una acción real exitosa del usuario.
+
+Apagar Modo Aprendiz no borra la memoria. `Reiniciar vista` abre el recorrido desde el primer paso disponible, pero conserva `Entendido`, `Aplicado`, el colaborador elegido y las excepciones. Las acciones aplicadas nunca se degradan por reiniciar la presentación.
+
+### 29.4 Primera misión y excepciones
+
+La misión de colaborador comprueba, usando los datos que el módulo ya carga, identidad, contacto, organización, compensación, contrato, horario, ubicación, documentos y acceso. Horario, ubicación, documentos y acceso pueden marcarse `No aplica`, siempre con una razón obligatoria. Esta marca pertenece a la memoria privada de aprendizaje y no reemplaza un contrato laboral ni modifica el registro de negocio.
+
+La interfaz puede advertir riesgos directamente, por ejemplo colaboradores sin horario, documentos o acceso. Debe distinguir una señal observada de una conclusión legal o administrativa.
+
+### 29.5 Jerarquía visual y contenido
+
+- La vista cerrada es compacta y contiene contexto, señal, avance y `Aprender más`.
+- Aun cerrada, la barra muestra el flujo lógico completo del módulo en una sola línea horizontal navegable. El paso activo queda destacado y el desbordamiento nunca fuerza una segunda fila.
+- La expansión ocurre debajo de la barra, se adapta a móvil y no abre un modal.
+- La barra de título original de la pestaña permanece visible y funcional con Modo Aprendiz encendido. El acompañante no reemplaza su icono, título, subtítulo ni acciones y tampoco traslada esas acciones mediante un portal.
+- En la vista expandida, el recorrido de diez pasos ocupa un solo riel horizontal compacto. Únicamente ese riel permanece fijo mientras se revisa la guía; nunca se fija el acompañante completo.
+- El riel permite desplazamiento táctil en móvil, controles de desbordamiento visibles en pantallas mayores y centra el paso activo sin cambiar el orden lógico ni el orden visual de las pestañas.
+- La jerarquía expandida es: recorrido, primera misión compacta y objetivo de la herramienta activa. Los encabezados introductorios, explicaciones de estado y acciones repetidas no deben competir con ese objetivo.
+- La misión de colaborador muestra inmediatamente su selector, pero mantiene contraída la lista de nueve requisitos hasta que el usuario pida revisarla.
+- `Cómo usar esta parte` y `Ver caso real` son revelados secundarios, cerrados inicialmente, para no consumir espacio operativo antes de que el usuario los solicite.
+- La herramienta y su uso ocupan la jerarquía principal.
+- Los casos de Emily, Juanito o Camila viven en `Ver caso real` como apoyo secundario.
+- Las vistas indicativas son miniaturas esquemáticas fieles al lenguaje visual de Índice; no son ilustraciones protagonistas ni caricaturas.
+- Las superficies de aprendizaje usan emojis a color para representar conceptos, áreas y logros. Los iconos utilitarios estándar pueden permanecer cuando comunican una interacción conocida, como expandir o desplazarse.
+- El texto enseña hablando directamente con la persona: explica qué encontrará, cómo usarlo y qué decisión empresarial mejora. El tono es cercano y ligero, pero conserva riesgos, consecuencias y vocabulario real de negocio.
+- El estado se comunica con texto además de color, el movimiento respeta `prefers-reduced-motion` y todos los controles mantienen nombre accesible y foco visible.
+
+### 29.6 Implementación inicial
+
+- El guardado exitoso de un colaborador, una carga documental compatible o una configuración de acceso compatible pueden marcar el área correspondiente como `Aplicado`.
+- Las áreas sin un evento de mutación integrado permanecen `Por revisar` o `Entendido`; visitar una pestaña no cuenta como aplicarla.
+- La CTA desplaza a la herramienta real. Agregar o abrir un colaborador reutiliza los flujos existentes y no recrea formularios ni permisos dentro de la guía.
+- El estado local de aprendizaje no es fuente autoritativa de datos laborales, cumplimiento, autorización o finalización de configuración.
+
+### 29.7 Aplicación general por módulo
+
+Todo módulo migrado debe cumplir esta anatomía:
+
+1. Barra compacta con `Modo Aprendiz`, contexto activo, una explicación o señal breve, avance y `Aprender más`.
+2. Al estar cerrada, una línea horizontal muestra el flujo lógico completo del módulo con emojis a color. Los pasos son navegables, omitibles y mantienen el orden de negocio aunque las pestañas visuales usen otro orden.
+3. Al expandirse, el riel de pasos permanece fijo dentro del área desplazable. Debajo se muestra un solo objetivo principal, las herramientas de la etapa y la acción que lleva a la operación real.
+4. `Cómo usar esta parte` y `Ver caso real` permanecen cerrados inicialmente. Los ejemplos de personaje son secundarios frente a la herramienta.
+5. `Ya entendí` guarda avance privado por usuario y empresa. `Aplicado` solo aparece cuando existe una señal real compatible; abrir una pestaña no cuenta como aplicación.
+6. La barra de título, sus acciones, filtros, permisos y flujos operativos permanecen funcionales. La guía no recrea formularios ni decisiones del dominio.
+7. En escritorio se aprovecha el ancho antes de crecer verticalmente. En móvil se apila el contenido, el flujo se desplaza con el dedo y ningún texto o control obliga a una segunda fila horizontal insegura.
+
+El orden de adopción aprobado es: Tareas y Procesos, Ventas, Punto de Venta, Inventarios, Gastos, Caja Chica, Cartera e Indicadores. En Punto de Venta, la pestaña transaccional `Venta` no muestra Modo Aprendiz ni compacta su terminal; el acompañamiento comienza en las pestañas administrativas. En Inventarios, el recorrido debe enseñar explícitamente la relación `Producto → Almacén → Inventario → Proveedor → Orden de compra → Recepción/movimiento`, sin presentar catálogo, ubicación y existencia como conceptos intercambiables.
+
+Los recorridos lógicos iniciales son:
+
+- Tareas y Procesos: `Agenda → Proyectos → Procesos → KPIs`.
+- Ventas: `Contactos → Oportunidades → Cotizaciones → Ventas → Comisiones → Cuentas de pago → KPIs`.
+- Punto de Venta: `Cajas → Kioscos → Clientes → Cortes → KPIs`; `Venta` queda fuera del recorrido.
+- Inventarios: `Productos → Almacenes → Inventario y movimientos → Proveedores → Órdenes y recepción → Descuentos`.
+- Gastos: `Cuentas contables → Proveedores → Cuentas de pago → Presupuestos → Gastos → KPIs`.
+- Caja Chica: `Fondos → Control y comprobación → Estados de cuenta → KPIs`.
+- Cartera: `Clientes y política de crédito → Ventas a crédito → Cuentas por cobrar → Abonos`.
+- Indicadores: `KPIs → Informes contables → Informes automatizados`, limitado siempre por los permisos del usuario.
+
+### 29.8 Relación con el Dashboard
+
+El recorrido del Dashboard mantiene su estructura aprobada de seis secciones. La migración visual puede mejorar densidad, emojis, jerarquía y texto didáctico, pero no elimina, fusiona ni reordena esas seis secciones sin una nueva decisión de producto. El Dashboard explica el mapa general de Índice; los acompañantes de módulo enseñan la operación concreta.

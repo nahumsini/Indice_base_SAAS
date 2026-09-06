@@ -42,6 +42,7 @@ import {
   LearningModeHeaderActionsProvider,
   learningModeGuideThemes,
   SimpleModuleLearningGuide,
+  type LearningModeJourneyStep,
 } from '../../learningMode';
 import {
   receivablesLearningControls,
@@ -49,6 +50,27 @@ import {
 } from './operationalGuidance/receivablesLearningControls';
 
 const shouldUseLocalFallback = (error: unknown) => !(error instanceof ApiClientError);
+
+const receivablesLearningJourneyOrder: readonly ReceivablesTabId[] = [
+  'credit-customers',
+  'credit-sales',
+  'accounts-receivable',
+  'payments',
+];
+
+const receivablesLearningJourneyEmoji: Record<ReceivablesTabId, string> = {
+  'credit-customers': '👥',
+  'credit-sales': '💳',
+  'accounts-receivable': '🧾',
+  payments: '💸',
+};
+
+const receivablesLearningSignals: Record<ReceivablesTabId, string> = {
+  'credit-customers': 'Define quién puede comprar a crédito, cuánto y bajo qué condiciones antes de comprometer dinero.',
+  'credit-sales': 'Convierte una venta aprobada en un plan de cobro con fechas, saldo y responsable claros.',
+  'accounts-receivable': 'Vigila lo pendiente por cliente y vencimiento para priorizar la cobranza correcta.',
+  payments: 'Aplica cada abono a su cuenta y conserva referencia y comprobante para que el saldo sea explicable.',
+};
 
 const receivablesErrorMessage = (error: unknown, fallback: string) => (
   error instanceof Error && error.message ? error.message : fallback
@@ -136,6 +158,13 @@ function ReceivablesWorkspace({
   );
   const requestedCandidateSaleId = searchParams.get('candidateSaleId');
   const shouldOpenCreditSale = searchParams.get('openCreditSale') === '1' || Boolean(requestedCandidateSaleId);
+  const learningJourney = useMemo<readonly LearningModeJourneyStep[]>(() => (
+    receivablesLearningJourneyOrder.map((journeyId) => ({
+      emoji: receivablesLearningJourneyEmoji[journeyId],
+      id: journeyId,
+      label: copy.tabs[journeyId],
+    }))
+  ), [copy]);
 
   const applyWorkspace = useCallback((workspace: ReceivablesWorkspacePayload) => {
     setState({
@@ -359,9 +388,13 @@ function ReceivablesWorkspace({
         guide={learningModeActive ? (
           <SimpleModuleLearningGuide
             activeContextLabel={receivablesLearningLabels[activeTab]}
+            activeJourneyId={activeTab}
+            contextSignal={receivablesLearningSignals[activeTab]}
             controls={receivablesLearningControls[activeTab]}
             guideId="receivables-learning-guide"
+            journey={learningJourney}
             moduleTitle={copy.module.title}
+            onJourneyChange={(journeyId) => setActiveTab(journeyId as ReceivablesTabId)}
             onPrimaryAction={() => mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
             scopeId={`receivables-${activeTab}`}
             theme={learningModeGuideThemes.finance}

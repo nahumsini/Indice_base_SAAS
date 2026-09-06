@@ -10,6 +10,7 @@ import {
   LearningModeHeaderActionsProvider,
   learningModeGuideThemes,
   SimpleModuleLearningGuide,
+  type LearningModeJourneyStep,
 } from '../../learningMode';
 import {
   kpisLearningControls,
@@ -32,6 +33,18 @@ const kpiTabIds = [
 ] as const;
 
 type KpiTabId = (typeof kpiTabIds)[number];
+
+const kpisLearningJourneyEmoji: Record<KpiTabId, string> = {
+  kpis: '🧩',
+  'accounting-reports': '📑',
+  'automated-reports': '⚙️',
+};
+
+const kpisLearningSignals: Record<KpiTabId, string> = {
+  kpis: 'Elige indicadores que respondan una pregunta del negocio; medir todo no significa entender mejor.',
+  'accounting-reports': 'Convierte los registros contables en una lectura consistente de resultados, posición y movimientos.',
+  'automated-reports': 'Programa la entrega de una lectura ya validada para que llegue a la persona correcta en el momento correcto.',
+};
 
 type KpiTab = {
   id: KpiTabId;
@@ -82,6 +95,11 @@ export default function Kpis({ learningModeActive = false, onNavigate }: KpisPro
 
   const activeTabConfig = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];
   const ActiveComponent = activeTabConfig?.component ?? KPIs;
+  const learningJourney: readonly LearningModeJourneyStep[] = tabs.map((tab) => ({
+    emoji: kpisLearningJourneyEmoji[tab.id],
+    id: tab.id,
+    label: tab.label,
+  }));
 
   return (
     <LearningModeHeaderActionsProvider active={learningModeActive}>
@@ -92,9 +110,13 @@ export default function Kpis({ learningModeActive = false, onNavigate }: KpisPro
         guide={learningModeActive ? (
             <SimpleModuleLearningGuide
               activeContextLabel={kpisLearningLabels[activeTab]}
+              activeJourneyId={activeTab}
+              contextSignal={kpisLearningSignals[activeTab]}
               controls={kpisLearningControls[activeTab]}
               guideId="kpis-learning-guide"
+              journey={learningJourney}
               moduleTitle="Guía para convertir información en decisiones"
+              onJourneyChange={(journeyId) => setActiveTab(journeyId as KpiTabId)}
               onPrimaryAction={() => mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
               scopeId={`kpis-${activeTab}`}
               theme={learningModeGuideThemes.analytics}
