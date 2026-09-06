@@ -12,6 +12,7 @@ import {
   LearningModeHeaderActionsProvider,
   learningModeGuideThemes,
   SimpleModuleLearningGuide,
+  type LearningModeJourneyStep,
 } from '../../learningMode';
 import {
   pettyCashLearningControls,
@@ -31,6 +32,20 @@ const pettyCashTabIds = [
 ] as const;
 
 type PettyCashTabId = (typeof pettyCashTabIds)[number];
+
+const pettyCashLearningJourneyEmoji: Record<PettyCashTabId, string> = {
+  cash: '🗃️',
+  control: '🧾',
+  statements: '📋',
+  kpis: '📊',
+};
+
+const pettyCashLearningSignals: Record<PettyCashTabId, string> = {
+  cash: 'Crea el fondo, define responsable y límite; así el efectivo pequeño también tiene reglas claras.',
+  control: 'Registra entregas, comprobantes y devoluciones para explicar cuánto efectivo sigue disponible.',
+  statements: 'Cierra periodos con una declaración verificable y conserva la evidencia de cada movimiento.',
+  kpis: 'Detecta fondos sin comprobar, diferencias y hábitos de gasto antes de que se vuelvan recurrentes.',
+};
 
 const legacyPettyCashTabAliases: Partial<Record<string, PettyCashTabId>> = {
   caja: 'cash',
@@ -62,6 +77,11 @@ export default function CajaChica({ learningModeActive = false, onNavigate }: Ca
     { id: 'statements', label: copy.shell.tabs.statements, icon: <span aria-hidden="true">📋</span> },
     { id: 'kpis', label: copy.shell.tabs.kpis, icon: <span aria-hidden="true">📊</span> },
   ];
+  const learningJourney: readonly LearningModeJourneyStep[] = pettyCashTabIds.map((journeyId) => ({
+    emoji: pettyCashLearningJourneyEmoji[journeyId],
+    id: journeyId,
+    label: tabs.find((tab) => tab.id === journeyId)?.label ?? journeyId,
+  }));
 
   const renderActiveTab = () => {
     switch (activeTab) {
@@ -123,9 +143,13 @@ export default function CajaChica({ learningModeActive = false, onNavigate }: Ca
         guide={learningModeActive ? (
           <SimpleModuleLearningGuide
             activeContextLabel={pettyCashLearningLabels[activeTab]}
+            activeJourneyId={activeTab}
+            contextSignal={pettyCashLearningSignals[activeTab]}
             controls={pettyCashLearningControls[activeTab]}
             guideId="petty-cash-learning-guide"
+            journey={learningJourney}
             moduleTitle={copy.shell.title}
+            onJourneyChange={(journeyId) => setActiveTab(journeyId as PettyCashTabId)}
             onPrimaryAction={() => mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
             scopeId={`petty-cash-${activeTab}`}
             theme={learningModeGuideThemes.finance}

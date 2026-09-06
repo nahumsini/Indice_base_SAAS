@@ -226,9 +226,11 @@ export function IndiceModuleShell<TabId extends string>({
       </header>
 
       <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <div ref={contentRef} className="mx-auto max-w-[1600px] scroll-mt-24 px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
+        <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
           {guide ? <div className="mb-4">{guide}</div> : null}
-          {children}
+          <div ref={contentRef} className="scroll-mt-24">
+            {children}
+          </div>
         </div>
       </main>
     </div>

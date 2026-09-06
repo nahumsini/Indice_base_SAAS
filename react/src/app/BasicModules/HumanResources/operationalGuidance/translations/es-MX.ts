@@ -1,7 +1,7 @@
 export const esMX = {
   eyebrow: 'Modo Aprendiz',
-  title: 'Guía de operación del equipo',
-  subtitle: 'Usa Recursos Humanos para mantener colaboradores, asistencia, nómina y responsabilidades alineadas.',
+  title: 'Aprende RH con tu operación real',
+  subtitle: 'Recorre el ciclo del equipo con ejemplos claros y aplica cada herramienta cuando tu negocio la necesite.',
   controlLabel: 'Control del personal',
   functionsLabel: 'Funciones de la pestaña',
   guideProgressLabel: 'Progreso de guía',
@@ -12,9 +12,9 @@ export const esMX = {
   tabs: {
     collaborators: {
       label: 'Colaboradores',
-      ctaLabel: 'Revisar colaboradores',
-      title: 'Centraliza la base del personal',
-      summary: 'Mantén expedientes, roles, unidades y contexto laboral organizados desde una sola fuente operativa.',
+      ctaLabel: 'Ir a colaboradores',
+      title: 'Crea una base confiable para cada persona',
+      summary: 'Aquí reúnes identidad, contacto, puesto y condiciones laborales. Un expediente completo alimenta correctamente el resto de RH.',
       value: 'Una base confiable mejora responsabilidad, nómina, asistencia y visibilidad del equipo.',
       steps: [
         {
@@ -33,9 +33,9 @@ export const esMX = {
     },
     attendance: {
       label: 'Asistencia',
-      ctaLabel: 'Revisar asistencia',
-      title: 'Haz visible la presencia diaria',
-      summary: 'Controla entradas, salidas, jornadas y evidencia para que la operación diaria no dependa de memoria.',
+      ctaLabel: 'Ir a asistencia',
+      title: 'Entiende cada jornada sin adivinar',
+      summary: 'Aquí lees entradas, salidas e incidencias con su horario y ubicación. Así distingues una excepción de un problema operativo.',
       value: 'La visibilidad de asistencia ayuda a detectar ausencias, retardos, huecos de cobertura y riesgo operativo.',
       steps: [
         {
@@ -55,8 +55,8 @@ export const esMX = {
     control: {
       label: 'Centro de control',
       ctaLabel: 'Abrir centro de control',
-      title: 'Opera horarios y accesos con disciplina',
-      summary: 'Gestiona horarios, kioskos, configuraciones de asistencia y rutinas operativas del equipo.',
+      title: 'Prepara horarios y accesos antes de operar',
+      summary: 'Aquí defines cuándo, dónde y cómo registra asistencia el equipo. Esa configuración le da contexto a cada movimiento.',
       value: 'Una capa clara de control reduce improvisación y ayuda a supervisores a sostener la ejecución diaria.',
       steps: [
         {
@@ -75,9 +75,9 @@ export const esMX = {
     },
     payroll: {
       label: 'Nómina',
-      ctaLabel: 'Revisar nómina',
-      title: 'Prepara nómina con mejores insumos',
-      summary: 'Organiza salario, percepciones variables, deducciones y contexto antes de tomar decisiones de pago.',
+      ctaLabel: 'Ir a nómina',
+      title: 'Llega a nómina con la información lista',
+      summary: 'Aquí conectas salario, variables y deducciones antes de pagar. Revisa los insumos para detectar diferencias a tiempo.',
       value: 'Insumos limpios reducen retrabajo, aumentan confianza y ayudan a entender mejor el costo laboral.',
       steps: [
         {
@@ -96,9 +96,9 @@ export const esMX = {
     },
     announcements: {
       label: 'Comunicados',
-      ctaLabel: 'Revisar comunicados',
-      title: 'Comunica decisiones operativas',
-      summary: 'Mantén al equipo informado sobre políticas, recordatorios, cambios y avisos relevantes.',
+      ctaLabel: 'Ir a comunicados',
+      title: 'Convierte un aviso en una acción clara',
+      summary: 'Aquí explicas qué cambió, a quién afecta y qué debe ocurrir después. Un mensaje útil reduce dudas en la operación.',
       value: 'La comunicación estructurada reduce incertidumbre y ayuda a que todos operen con la misma información.',
       steps: [
         {
@@ -113,9 +113,9 @@ export const esMX = {
     },
     assets: {
       label: 'Activos',
-      ctaLabel: 'Revisar activos',
-      title: 'Controla activos asignados',
-      summary: 'Rastrea equipo, herramientas y recursos para conectar propiedad de la empresa con responsables.',
+      ctaLabel: 'Ir a activos',
+      title: 'Ubica qué tiene cada persona y en qué estado',
+      summary: 'Aquí asignas equipo y herramientas a responsables reales. El historial ayuda a recuperar, mantener o reemplazar cada activo.',
       value: 'La visibilidad de activos reduce pérdidas, mejora responsabilidad y aclara qué tiene cada colaborador.',
       steps: [
         {
@@ -130,9 +130,9 @@ export const esMX = {
     },
     records: {
       label: 'Actas',
-      ctaLabel: 'Revisar actas',
-      title: 'Documenta eventos importantes',
-      summary: 'Organiza acuerdos, incidentes, constancias y eventos formales de Recursos Humanos.',
+      ctaLabel: 'Ir a actas',
+      title: 'Deja acuerdos e incidentes con contexto',
+      summary: 'Aquí registras qué ocurrió, quién participó y cuál es el seguimiento. El objetivo es recordar con evidencia, no depender de versiones.',
       value: 'Buenas actas protegen a la empresa, sostienen decisiones justas y conservan contexto.',
       steps: [
         {
@@ -147,9 +147,9 @@ export const esMX = {
     },
     permissions: {
       label: 'Permisos',
-      ctaLabel: 'Revisar permisos',
-      title: 'Gestiona ausencias con control',
-      summary: 'Organiza permisos, ausencias, aprobaciones y contexto sin perder visibilidad operativa.',
+      ctaLabel: 'Ir a permisos',
+      title: 'Aprueba ausencias sin perder cobertura',
+      summary: 'Aquí revisas la solicitud, su impacto y la decisión. El equipo obtiene una respuesta clara y el negocio conserva visibilidad.',
       value: 'Un flujo controlado ayuda a planear cobertura y reduce sorpresas en la operación diaria.',
       steps: [
         {
@@ -164,9 +164,9 @@ export const esMX = {
     },
     incentives: {
       label: 'Incentivos',
-      ctaLabel: 'Revisar incentivos',
-      title: 'Conecta incentivos con ejecución',
-      summary: 'Refuerza hábitos, resultados y responsabilidades que mejoran la operación del equipo.',
+      ctaLabel: 'Ir a incentivos',
+      title: 'Premia lo que de verdad mueve el negocio',
+      summary: 'Aquí conectas una recompensa con una conducta o resultado observable. La regla debe ser clara antes de evaluar a las personas.',
       value: 'Incentivos claros alinean motivación con prioridades del negocio y no con premios aislados.',
       steps: [
         {
@@ -181,9 +181,9 @@ export const esMX = {
     },
     kpis: {
       label: 'Indicadores RH',
-      ctaLabel: 'Revisar KPIs de RH',
-      title: 'Mide la operación del personal',
-      summary: 'Lee señales de headcount, actividad, asistencia, nómina y comportamiento operativo del equipo.',
+      ctaLabel: 'Ir a indicadores RH',
+      title: 'Aprende a leer la salud del equipo',
+      summary: 'Aquí comparas tamaño, actividad, asistencia y costo laboral. Usa cada señal para formular una pregunta antes de tomar una decisión.',
       value: 'Los indicadores de personal ayudan a detectar problemas temprano y decidir dónde poner atención directiva.',
       steps: [
         {

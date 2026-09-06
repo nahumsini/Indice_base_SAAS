@@ -98,6 +98,7 @@ export default function ProcessesTasks({ learningModeActive = false, onNavigate 
           <OperationalModuleGuide
             copy={guidanceCopy}
             activeTabId={activeTab}
+            onJourneyChange={handleTabChange}
             onPrimaryAction={handleGuidePrimaryAction}
           />
         ) : undefined}

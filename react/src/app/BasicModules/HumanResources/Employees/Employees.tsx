@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Download, X } from 'lucide-react';
 import { EmployeesActionModals } from './components/EmployeesActionModals';
 import { EmployeeBulkAssignmentControls } from './components/EmployeeBulkAssignmentControls';
@@ -46,8 +46,9 @@ import type {
 } from './types/employees.types';
 import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 import {
-  OperationalModuleGuide,
-  useHumanResourcesGuidanceTranslations,
+  buildHumanResourcesLearningSignals,
+  type HumanResourcesGuidanceTabId,
+  type HumanResourcesLearningSignals,
 } from '../operationalGuidance';
 
 const toNullableNumber = (value: string) => {
@@ -58,6 +59,12 @@ const toNullableNumber = (value: string) => {
   const parsedValue = Number(value);
   return Number.isFinite(parsedValue) ? parsedValue : null;
 };
+
+const toLocalIsoDate = (date: Date) => [
+  date.getFullYear(),
+  String(date.getMonth() + 1).padStart(2, '0'),
+  String(date.getDate()).padStart(2, '0'),
+].join('-');
 
 type EmployeesWorkspaceState = {
   searchQuery: string;
@@ -95,13 +102,24 @@ const employeesWorkspaceUrlFields: Partial<Record<keyof EmployeesWorkspaceState,
 
 interface EmployeesProps {
   learningModeActive?: boolean;
+  onLearningActionsReady?: (actions: EmployeeLearningActions | null) => void;
+  onLearningAreaApplied?: (areaId: HumanResourcesGuidanceTabId) => void;
+  onLearningSignalsChange?: (signals: HumanResourcesLearningSignals) => void;
 }
 
-export default function Employees({ learningModeActive = false }: EmployeesProps) {
+export interface EmployeeLearningActions {
+  createEmployee: () => void;
+  editEmployee: (employeeId: number) => void;
+}
+
+export default function Employees({
+  learningModeActive = false,
+  onLearningActionsReady,
+  onLearningAreaApplied,
+  onLearningSignalsChange,
+}: EmployeesProps) {
   const { currentLanguage } = useLanguage();
   const copy = useEmployeesTranslations();
-  const guidanceCopy = useHumanResourcesGuidanceTranslations();
-  const employeesContentRef = useRef<HTMLDivElement | null>(null);
   const { preferredCurrency } = usePreferredBusinessCurrency();
 
   const {
@@ -139,6 +157,7 @@ export default function Employees({ learningModeActive = false }: EmployeesProps
   const [failureToastMessage, setFailureToastMessage] = useState('');
   const [uploadingDocumentKey, setUploadingDocumentKey] = useState<string | null>(null);
   const [accessProfiles, setAccessProfiles] = useState<AttendanceAccessProfile[]>([]);
+  const [learningAttendanceAssignments, setLearningAttendanceAssignments] = useState<AttendanceControlAssignment[]>([]);
   const {
     closeEmployeeModal,
     editingEmployee,
@@ -168,6 +187,7 @@ export default function Employees({ learningModeActive = false }: EmployeesProps
   } = useEmployeeMutations({
     copy,
     editingEmployee,
+    onEmployeeSaved: () => onLearningAreaApplied?.('collaborators'),
     refreshEmployees,
     rememberCreatedEmployee,
     replaceEditingEmployeeId,
@@ -354,6 +374,14 @@ export default function Employees({ learningModeActive = false }: EmployeesProps
     () => new Map(accessProfiles.map((profile) => [profile.user_company_id, profile])),
     [accessProfiles],
   );
+  const learningSignals = useMemo(
+    () => buildHumanResourcesLearningSignals(
+      employees,
+      accessProfiles,
+      learningAttendanceAssignments,
+    ),
+    [accessProfiles, employees, learningAttendanceAssignments],
+  );
   const toAttendanceAssignment = useCallback((employee: EmployeeViewModel): AttendanceControlAssignment => ({
     user_company_id: employee.id,
     user_code: employee.code,
@@ -387,20 +415,33 @@ export default function Employees({ learningModeActive = false }: EmployeesProps
       const result = await humanResourcesApi.createHrUsersBulk(items);
       await refreshEmployees();
       setSuccessToastMessage(`${result.count} colaboradores creados correctamente.`);
+      onLearningAreaApplied?.('collaborators');
     } catch (error) {
       const message = normalizeErrorMessage(error, 'No se pudo completar la integración masiva.');
       setFailureToastMessage(message);
       throw new Error(message);
     }
-  }, [refreshEmployees]);
+  }, [onLearningAreaApplied, refreshEmployees]);
   const loadEmployeeAccessProfiles = useCallback(async () => {
     try {
-      const response = await humanResourcesApi.listAttendanceAccessProfiles();
-      setAccessProfiles(response.items);
+      const learningOverviewRequest = learningModeActive
+        ? humanResourcesApi.getAttendanceControlOverview(toLocalIsoDate(new Date()))
+        : Promise.resolve(null);
+      const [accessResult, overviewResult] = await Promise.allSettled([
+        humanResourcesApi.listAttendanceAccessProfiles(),
+        learningOverviewRequest,
+      ]);
+      if (accessResult.status === 'rejected') {
+        throw accessResult.reason;
+      }
+      setAccessProfiles(accessResult.value.items);
+      if (overviewResult.status === 'fulfilled' && overviewResult.value) {
+        setLearningAttendanceAssignments(overviewResult.value.assignments);
+      }
     } catch (error) {
       setFailureToastMessage(normalizeErrorMessage(error, copy.errorMessages.load));
     }
-  }, [copy.errorMessages.load]);
+  }, [copy.errorMessages.load, learningModeActive]);
   const handleTableDocumentUpload = useCallback(async (
     employee: EmployeeViewModel,
     documentType: EmployeeDocumentType,
@@ -419,6 +460,7 @@ export default function Employees({ learningModeActive = false }: EmployeesProps
       });
       await hydrateEmployeeDetails([employee.id], { force: true });
       setSuccessToastMessage(copy.successMessages.updated);
+      onLearningAreaApplied?.('collaborators');
     } catch (error) {
       setFailureToastMessage(normalizeErrorMessage(error, copy.errorMessages.save));
     } finally {
@@ -427,6 +469,7 @@ export default function Employees({ learningModeActive = false }: EmployeesProps
   }, [
     copy,
     hydrateEmployeeDetails,
+    onLearningAreaApplied,
     setFailureToastMessage,
     setSuccessToastMessage,
   ]);
@@ -455,6 +498,28 @@ export default function Employees({ learningModeActive = false }: EmployeesProps
     void ensureAttendanceLocations();
   }, [ensureAttendanceLocations, isModalOpen]);
 
+  useEffect(() => {
+    onLearningSignalsChange?.(learningSignals);
+  }, [learningSignals, onLearningSignalsChange]);
+
+  useEffect(() => {
+    if (!onLearningActionsReady) {
+      return;
+    }
+
+    onLearningActionsReady({
+      createEmployee: openCreateEmployeeModal,
+      editEmployee: (employeeId) => {
+        const employee = employees.find((candidate) => candidate.id === employeeId);
+        if (employee) {
+          void openEditEmployeeModal(employee);
+        }
+      },
+    });
+
+    return () => onLearningActionsReady(null);
+  }, [employees, onLearningActionsReady, openCreateEmployeeModal, openEditEmployeeModal]);
+
   return (
     <>
       <EmployeesFeedbackLayer
@@ -470,19 +535,7 @@ export default function Employees({ learningModeActive = false }: EmployeesProps
         successMessage={successToastMessage}
       />
 
-      {learningModeActive ? (
-        <div className="mb-4">
-          <OperationalModuleGuide
-            copy={guidanceCopy}
-            activeTabId="collaborators"
-            onPrimaryAction={() => {
-              employeesContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }}
-          />
-        </div>
-      ) : null}
-
-      <div ref={employeesContentRef} className="scroll-mt-24">
+      <div>
       <EmployeesHeaderActions
         addEmployeeLabel={copy.addEmployee}
         bulkIntegrationLabel={copy.bulkIntegration}
@@ -617,7 +670,10 @@ export default function Employees({ learningModeActive = false }: EmployeesProps
                 await loadEmployeeAccessProfiles();
                 await hydrateEmployeeDetails([employee.id], { force: true });
               }}
-              onSuccess={setSuccessToastMessage}
+              onSuccess={(message) => {
+                setSuccessToastMessage(message);
+                onLearningAreaApplied?.('control');
+              }}
               pinLabelOverride="PIN"
               selectedAccessProfile={accessProfile}
               selectedEmployee={{

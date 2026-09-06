@@ -1,17 +1,4 @@
-import {
-  BarChart3,
-  Building2,
-  Check,
-  CheckCircle2,
-  Circle,
-  LockKeyhole,
-  ShoppingCart,
-  Users,
-  WalletCards,
-  Workflow,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { CheckCircle2, Circle, LockKeyhole, X, type LucideIcon } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import type {
@@ -38,13 +25,13 @@ interface OperationalJourneyProps {
   onDismiss?: () => void;
 }
 
-const stageIcons: Record<OperationalJourneyStageId, LucideIcon> = {
-  company_setup: Building2,
-  human_resources: Users,
-  operations: Workflow,
-  finance: WalletCards,
-  commercial: ShoppingCart,
-  analytics: BarChart3,
+const stageEmoji: Record<OperationalJourneyStageId, string> = {
+  company_setup: "🏢",
+  human_resources: "👥",
+  operations: "🔁",
+  finance: "💰",
+  commercial: "🛍️",
+  analytics: "📊",
 };
 
 const statusIcons: Record<OperationalJourneyStageStatus, LucideIcon> = {
@@ -211,16 +198,16 @@ export function OperationalJourney({
   return (
     <section aria-labelledby="operational-journey-title">
       <Card className="overflow-hidden rounded-xl border border-[#2563EB]/25 bg-white/90 shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:border-[#2563EB]/25 dark:bg-slate-950/85">
-        <div className="flex flex-col gap-5 p-5 lg:p-6">
+        <div className="flex flex-col gap-4 p-4 sm:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
-              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#2563EB]/25 bg-[#2563EB]/5 px-3 py-1 text-xs font-semibold text-[#2563EB] dark:border-[#2563EB]/30 dark:bg-[#2563EB]/10 dark:text-[#93C5FD]">
-                <Check className="h-3.5 w-3.5" />
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#2563EB]/25 bg-[#2563EB]/5 px-3 py-1 text-xs font-medium text-[#2563EB] dark:border-[#2563EB]/30 dark:bg-[#2563EB]/10 dark:text-[#93C5FD]">
+                <span aria-hidden="true">💡</span>
                 {copy.eyebrow}
               </div>
               <h2
                 id="operational-journey-title"
-                className="text-2xl font-semibold text-slate-950 dark:text-white"
+                className="text-xl font-medium text-slate-950 sm:text-2xl dark:text-white"
               >
                 {copy.title}
               </h2>
@@ -231,7 +218,7 @@ export function OperationalJourney({
 
             <div className="flex items-center gap-3">
               <div className="min-w-[220px]">
-                <div className="mb-1 flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
+                <div className="mb-1 flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
                   <span>{copy.progressLabel}</span>
                   <span>{progressPercent}%</span>
                 </div>
@@ -269,10 +256,9 @@ export function OperationalJourney({
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
             {stages.map((stage, stageIndex) => {
               const labels = copy.stages[stage.id];
-              const StageIcon = stageIcons[stage.id];
               const StatusIcon = statusIcons[stage.status];
               const isActive = activeStageId === stage.id;
               const modules = stageModules[stage.id] ?? [];
@@ -284,7 +270,7 @@ export function OperationalJourney({
               return (
                 <article
                   key={stage.id}
-                  className={`relative flex min-h-[228px] flex-col justify-between overflow-hidden rounded-xl border-2 px-4 pb-4 pt-5 text-left transition-all duration-300 hover:-translate-y-1 ${stageStyle.border} ${statusSurfaceClasses[stage.status]} ${isActive ? stageStyle.active : "shadow-sm hover:shadow-lg"}`}
+                  className={`relative flex min-h-[204px] flex-col justify-between overflow-hidden rounded-xl border px-3.5 pb-3.5 pt-4 text-left transition-all duration-300 hover:-translate-y-0.5 ${stageStyle.border} ${statusSurfaceClasses[stage.status]} ${isActive ? stageStyle.active : "shadow-sm hover:shadow-md"}`}
                 >
                   <span
                     aria-hidden="true"
@@ -297,41 +283,42 @@ export function OperationalJourney({
                   >
                     <span className="flex items-center justify-between gap-3">
                       <span
-                        className={`flex h-11 w-11 items-center justify-center rounded-xl border ${stageStyle.icon}`}
+                        className={`flex h-10 w-10 items-center justify-center rounded-xl border ${stageStyle.icon}`}
                       >
-                        <StageIcon className="h-5 w-5" />
+                        <span aria-hidden="true" className="text-xl leading-none">{stageEmoji[stage.id]}</span>
                       </span>
                       <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${badgeClass}`}
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium ${badgeClass}`}
                       >
                         <StatusIcon className="h-3.5 w-3.5" />
                         {copy.status[stage.status]}
                       </span>
                     </span>
 
-                    <span className="mt-4 block">
-                      <span
-                        className={`mb-1 block text-2xl font-black leading-none tracking-tight ${stageStyle.number}`}
-                      >
-                        {String(stageIndex + 1).padStart(2, "0")}
+                    <span className="mt-3 block">
+                      <span className={`block text-[10px] font-medium ${stageStyle.number}`}>
+                        {copy.sessionLabel} {stageIndex + 1}/{stages.length}
                       </span>
-                      <span className="mt-2 block text-[15px] font-semibold leading-snug text-slate-950 dark:text-white">
+                      <span className="mt-1 block text-[15px] font-medium leading-snug text-slate-950 dark:text-white">
                         {labels.title}
                       </span>
-                      <span className="mt-2 line-clamp-4 block text-xs leading-5 text-slate-600 dark:text-slate-300">
+                      <span className="mt-2 block text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                        <span aria-hidden="true">🎯 </span>{copy.goalLabel}
+                      </span>
+                      <span className="mt-0.5 line-clamp-3 block text-xs leading-5 text-slate-600 dark:text-slate-300">
                         {labels.description}
                       </span>
                     </span>
                   </button>
 
-                  <div className="mt-4 flex flex-wrap gap-2">
+                  <div className="mt-3 flex flex-wrap gap-1.5">
                     {modules.length > 0 ? (
                       modules.map((module) => (
                         <button
                           key={module.id}
                           type="button"
                           onClick={() => onModuleClick(module.route)}
-                          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${moduleButtonClasses[module.color]}`}
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${moduleButtonClasses[module.color]}`}
                         >
                           <span aria-hidden="true">{module.emoji}</span>
                           {module.title}
@@ -341,7 +328,7 @@ export function OperationalJourney({
                       <button
                         type="button"
                         onClick={() => onModuleClick(stage.primaryRoute)}
-                        className="inline-flex w-fit rounded-full border border-current/15 bg-white/70 px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-white dark:bg-white/5 dark:hover:bg-white/10"
+                        className="inline-flex w-fit rounded-full border border-current/15 bg-white/70 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white dark:bg-white/5 dark:hover:bg-white/10"
                       >
                         {labels.cta}
                       </button>

@@ -24,6 +24,8 @@ export const esCO = {
   },
   operationalJourney: {
     eyebrow: "Modo aprendiz · Metodología Índice",
+    sessionLabel: "Sesión",
+    goalLabel: "Lo que vas a lograr",
     title: "Haz tu operación más clara, inteligente y escalable",
     subtitle:
       "Avanza por seis etapas para conectar la estructura, las personas, los procesos, el dinero, los productos y la información de tu empresa.",

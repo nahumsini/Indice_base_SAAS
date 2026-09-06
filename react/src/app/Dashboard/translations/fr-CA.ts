@@ -24,6 +24,8 @@ export const frCA = {
   },
   operationalJourney: {
     eyebrow: "Mode apprentissage",
+    sessionLabel: "Séance",
+    goalLabel: "Ce que vous accomplirez",
     title: "Votre parcours d’apprentissage",
     subtitle:
       "Apprenez à organiser et à faire grandir votre entreprise étape par étape.",

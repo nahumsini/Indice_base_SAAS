@@ -134,6 +134,7 @@ function VentasContent({ learningModeActive = false, onNavigate }: VentasProps) 
           <OperationalModuleGuide
             activeTabId={activeTab}
             copy={guidanceCopy}
+            onJourneyChange={setActiveTab}
             onPrimaryAction={() => moduleContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
           />
         ) : undefined}

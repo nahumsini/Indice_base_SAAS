@@ -11,6 +11,7 @@ import {
   LearningModeHeaderActionsProvider,
   learningModeGuideThemes,
   SimpleModuleLearningGuide,
+  type LearningModeJourneyStep,
 } from '../../learningMode';
 import {
   pointOfSaleLearningControls,
@@ -39,6 +40,32 @@ const pointOfSaleTabIds = [
 ] as const;
 
 type PointOfSaleTabId = (typeof pointOfSaleTabIds)[number];
+
+const pointOfSaleLearningJourneyOrder: readonly PointOfSaleTabId[] = [
+  'cajas',
+  'kiosks',
+  'clientes',
+  'cortes',
+  'kpis',
+];
+
+const pointOfSaleLearningJourneyEmoji: Record<PointOfSaleTabId, string> = {
+  cajas: '🏪',
+  sale: '🧾',
+  cortes: '💵',
+  kiosks: '🖥️',
+  clientes: '👥',
+  kpis: '📊',
+};
+
+const pointOfSaleLearningSignals: Record<PointOfSaleTabId, string> = {
+  cajas: 'Prepara cajas y responsables antes de abrir turnos; una caja bien configurada hace que cada operación tenga dueño.',
+  sale: 'La terminal queda libre de guías para que cobrar sea rápido, claro y sin distracciones.',
+  kiosks: 'Conecta cada pantalla con la caja correcta y controla cuándo puede operar.',
+  clientes: 'Identifica a quién vendes para conservar historial, datos fiscales y continuidad comercial.',
+  cortes: 'Compara lo esperado con lo declarado y encuentra diferencias por caja, turno y responsable.',
+  kpis: 'Convierte ventas y cierres en señales para decidir qué corregir o repetir.',
+};
 
 const legacyPointOfSaleTabAliases: Partial<Record<string, PointOfSaleTabId>> = {
   venta: 'sale',
@@ -96,11 +123,9 @@ export default function PuntoDeVenta({ learningModeActive = false, onNavigate }:
   }
 
   return (
-    <LearningModeHeaderActionsProvider active={learningModeActive}>
     <SalesCrmProvider>
       <PuntoDeVentaContent learningModeActive={learningModeActive} onNavigate={onNavigate} />
     </SalesCrmProvider>
-    </LearningModeHeaderActionsProvider>
   );
 }
 
@@ -150,19 +175,32 @@ function PuntoDeVentaContent({ learningModeActive = false, onNavigate }: PuntoDe
   ], [t]);
 
   const ActiveComponent = tabs.find((tab) => tab.id === activeTab)?.component || Sale;
+  const learningJourney = useMemo<readonly LearningModeJourneyStep[]>(() => (
+    pointOfSaleLearningJourneyOrder.map((journeyId) => ({
+      emoji: pointOfSaleLearningJourneyEmoji[journeyId],
+      id: journeyId,
+      label: pointOfSaleLearningLabels[journeyId],
+    }))
+  ), []);
+  const showLearningGuide = learningModeActive && activeTab !== 'sale';
 
   return (
-    <IndiceModuleShell
+    <LearningModeHeaderActionsProvider active={showLearningGuide}>
+      <IndiceModuleShell
       activeTab={activeTab}
       backLabel={t.back}
       contentRef={mainContentRef}
       currentModule="point-of-sale"
-      guide={learningModeActive ? (
+      guide={showLearningGuide ? (
         <SimpleModuleLearningGuide
           activeContextLabel={pointOfSaleLearningLabels[activeTab]}
+          activeJourneyId={activeTab}
+          contextSignal={pointOfSaleLearningSignals[activeTab]}
           controls={pointOfSaleLearningControls[activeTab]}
           guideId="point-of-sale-learning-guide"
+          journey={learningJourney}
           moduleTitle={t.title}
+          onJourneyChange={(journeyId) => setActiveTab(journeyId as PointOfSaleTabId)}
           onPrimaryAction={() => mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
           scopeId={`point-of-sale-${activeTab}`}
           theme={learningModeGuideThemes.commercial}
@@ -191,6 +229,7 @@ function PuntoDeVentaContent({ learningModeActive = false, onNavigate }: PuntoDe
               : <ActiveComponent />}
           </Suspense>
         </PointOfSaleLegacyLocalizer>
-    </IndiceModuleShell>
+      </IndiceModuleShell>
+    </LearningModeHeaderActionsProvider>
   );
 }

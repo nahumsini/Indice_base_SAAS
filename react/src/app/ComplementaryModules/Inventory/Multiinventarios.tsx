@@ -9,6 +9,7 @@ import {
   LearningModeHeaderActionsProvider,
   learningModeGuideThemes,
   SimpleModuleLearningGuide,
+  type LearningModeJourneyStep,
 } from '../../learningMode';
 import {
   inventoryLearningControls,
@@ -31,6 +32,33 @@ const inventoryTabIds = [
 ] as const;
 
 type InventoryTabId = (typeof inventoryTabIds)[number];
+
+const inventoryLearningJourneyOrder: readonly InventoryTabId[] = [
+  'products',
+  'warehouses',
+  'inventory',
+  'providers',
+  'purchase-orders',
+  'discounts',
+];
+
+const inventoryLearningJourneyEmoji: Record<InventoryTabId, string> = {
+  products: '📦',
+  warehouses: '🏬',
+  inventory: '🧮',
+  providers: '🏢',
+  'purchase-orders': '📋',
+  discounts: '🏷️',
+};
+
+const inventoryLearningSignals: Record<InventoryTabId, string> = {
+  products: 'Empieza por la ficha: un producto define qué compras o vendes, pero todavía no representa existencia física.',
+  warehouses: 'Después define dónde vive el stock; cada almacén separa ubicación, responsable y disponibilidad real.',
+  inventory: 'Aquí se cruzan producto + almacén: recibir, transferir o ajustar explica cada cambio de existencias.',
+  providers: 'Relaciona el abastecimiento con un proveedor confiable antes de comprometer una compra.',
+  'purchase-orders': 'La orden solicita; la recepción confirma lo que llegó y solo entonces aumenta el inventario del almacén.',
+  discounts: 'Al final, publica reglas de descuento sobre productos ya controlados, con vigencia, canal y margen protegido.',
+};
 
 const legacyInventoryTabAliases: Partial<Record<string, InventoryTabId>> = {
   producto: 'products',
@@ -104,6 +132,13 @@ function InventoryWorkspace({ learningModeActive, onNavigate }: { learningModeAc
 
   const activeTabConfig = inventoryTabs.find((tab) => tab.id === activeTab) ?? inventoryTabs[0];
   const ActiveComponent = activeTabConfig.component;
+  const learningJourney = useMemo<readonly LearningModeJourneyStep[]>(() => (
+    inventoryLearningJourneyOrder.map((journeyId) => ({
+      emoji: inventoryLearningJourneyEmoji[journeyId],
+      id: journeyId,
+      label: inventoryTabs.find((tab) => tab.id === journeyId)?.label ?? journeyId,
+    }))
+  ), [inventoryTabs]);
 
   return (
     <IndiceModuleShell
@@ -113,9 +148,13 @@ function InventoryWorkspace({ learningModeActive, onNavigate }: { learningModeAc
       guide={learningModeActive ? (
         <SimpleModuleLearningGuide
           activeContextLabel={activeTabConfig.label}
+          activeJourneyId={activeTab}
+          contextSignal={inventoryLearningSignals[activeTab]}
           controls={inventoryLearningControls[activeTab]}
           guideId="inventory-learning-guide"
+          journey={learningJourney}
           moduleTitle={t.title}
+          onJourneyChange={(journeyId) => setActiveTab(journeyId as InventoryTabId)}
           onPrimaryAction={() => mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
           scopeId={`inventory-${activeTab}`}
           theme={learningModeGuideThemes.commercial}

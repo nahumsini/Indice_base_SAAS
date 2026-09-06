@@ -24,6 +24,8 @@ export const koCA = {
   },
   operationalJourney: {
     eyebrow: "학습 모드",
+    sessionLabel: "세션",
+    goalLabel: "달성할 목표",
     title: "나의 학습 여정",
     subtitle: "회사를 체계화하고 성장시키는 방법을 단계별로 배워 보세요.",
     progressLabel: "진행률",

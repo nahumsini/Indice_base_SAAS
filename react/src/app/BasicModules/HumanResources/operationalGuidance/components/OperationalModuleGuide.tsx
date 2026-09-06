@@ -7,13 +7,38 @@ import {
 } from '../../../../learningMode';
 import { collaboratorsLearningControls } from '../collaboratorsLearningControls';
 import { humanResourcesCharacterExamples } from '../humanResourcesCharacterExamples';
+import type {
+  EmployeeLearningExemptibleRequirementId,
+  HumanResourcesLearningSignals,
+} from '../humanResourcesLearningModel';
+import type { HumanResourcesLearningProgress } from '../humanResourcesLearningProgress';
 import type { HumanResourcesGuidanceTranslations } from '../translations';
 import type { HumanResourcesGuidanceTabId } from '../types';
+import { HumanResourcesLearningCompanion } from './HumanResourcesLearningCompanion';
 
 interface OperationalModuleGuideProps {
   copy: HumanResourcesGuidanceTranslations;
   activeTabId: HumanResourcesGuidanceTabId;
+  availableTabIds?: readonly HumanResourcesGuidanceTabId[];
+  learningProgress?: HumanResourcesLearningProgress;
+  learningSignals?: HumanResourcesLearningSignals;
+  onCreateEmployee?: () => void;
+  onEditEmployee?: (employeeId: number) => void;
+  onMarkUnderstood?: (areaId: HumanResourcesGuidanceTabId) => void;
+  onNavigateArea?: (areaId: HumanResourcesGuidanceTabId) => void;
   onPrimaryAction?: () => void;
+  onRemoveEmployeeException?: (
+    employeeId: number,
+    requirementId: EmployeeLearningExemptibleRequirementId,
+  ) => void;
+  onRestartJourney?: (areaId: HumanResourcesGuidanceTabId) => void;
+  onSelectEmployee?: (employeeId: number | null) => void;
+  onSetEmployeeException?: (
+    employeeId: number,
+    requirementId: EmployeeLearningExemptibleRequirementId,
+    reason: string,
+  ) => void;
+  onSetExpanded?: (expanded: boolean) => void;
 }
 
 const tabEmojiMap: Record<HumanResourcesGuidanceTabId, string> = {
@@ -32,7 +57,19 @@ const tabEmojiMap: Record<HumanResourcesGuidanceTabId, string> = {
 export function OperationalModuleGuide({
   copy,
   activeTabId,
+  availableTabIds,
+  learningProgress,
+  learningSignals,
+  onCreateEmployee,
+  onEditEmployee,
+  onMarkUnderstood,
+  onNavigateArea,
   onPrimaryAction,
+  onRemoveEmployeeException,
+  onRestartJourney,
+  onSelectEmployee,
+  onSetEmployeeException,
+  onSetExpanded,
 }: OperationalModuleGuideProps) {
   const { currentLanguage } = useLanguage();
   const activeGuide = copy.tabs[activeTabId];
@@ -68,6 +105,40 @@ export function OperationalModuleGuide({
           },
     }));
   }, [activeGuide, activeTabId, isSpanish]);
+
+  if (
+    isSpanish
+    && availableTabIds
+    && learningProgress
+    && learningSignals
+    && onMarkUnderstood
+    && onNavigateArea
+    && onRemoveEmployeeException
+    && onRestartJourney
+    && onSelectEmployee
+    && onSetEmployeeException
+    && onSetExpanded
+  ) {
+    return (
+      <HumanResourcesLearningCompanion
+        activeTabId={activeTabId}
+        availableTabIds={availableTabIds}
+        copy={copy}
+        onCreateEmployee={onCreateEmployee}
+        onEditEmployee={onEditEmployee}
+        onMarkUnderstood={onMarkUnderstood}
+        onNavigateArea={onNavigateArea}
+        onPrimaryAction={onPrimaryAction}
+        onRemoveEmployeeException={onRemoveEmployeeException}
+        onRestartJourney={onRestartJourney}
+        onSelectEmployee={onSelectEmployee}
+        onSetEmployeeException={onSetEmployeeException}
+        onSetExpanded={onSetExpanded}
+        progress={learningProgress}
+        signals={learningSignals}
+      />
+    );
+  }
 
   return (
     <ModuleLearningGuide

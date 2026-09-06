@@ -4,6 +4,7 @@ import {
   learningModeGuideThemes,
   ModuleLearningGuide,
   type LearningModeControl,
+  type LearningModeJourneyStep,
 } from '../../../../learningMode';
 import { salesLearningControls } from '../salesLearningControls';
 import type { SalesGuidanceTabId } from '../types';
@@ -12,8 +13,19 @@ import type { SalesGuidanceTranslations } from '../translations';
 interface OperationalModuleGuideProps {
   copy: SalesGuidanceTranslations;
   activeTabId: SalesGuidanceTabId;
+  onJourneyChange?: (journeyId: SalesGuidanceTabId) => void;
   onPrimaryAction?: () => void;
 }
+
+const journeyOrder: readonly SalesGuidanceTabId[] = [
+  'contacts',
+  'leads',
+  'quotes',
+  'sales',
+  'commissions',
+  'payment-accounts',
+  'kpis',
+];
 
 const tabEmojiMap: Record<SalesGuidanceTabId, string> = {
   leads: '🎯',
@@ -33,6 +45,7 @@ const tabEmojiMap: Record<SalesGuidanceTabId, string> = {
 export function OperationalModuleGuide({
   copy,
   activeTabId,
+  onJourneyChange,
   onPrimaryAction,
 }: OperationalModuleGuideProps) {
   const { currentLanguage } = useLanguage();
@@ -78,14 +91,23 @@ export function OperationalModuleGuide({
           },
     }));
   }, [activeGuide, activeTabId, isSpanish]);
+  const journey = useMemo<readonly LearningModeJourneyStep[]>(() => journeyOrder.map((journeyId) => ({
+    emoji: tabEmojiMap[journeyId],
+    id: journeyId,
+    label: copy.tabs[journeyId].label,
+  })), [copy]);
 
   return (
     <ModuleLearningGuide
       activeContextLabel={activeGuide.label}
+      activeJourneyId={activeTabId}
+      contextSignal={activeGuide.summary}
       controls={controls}
       ctaLabel={activeGuide.ctaLabel}
       eyebrow={copy.eyebrow}
       guideId="sales-guidance"
+      journey={journey}
+      onJourneyChange={(journeyId) => onJourneyChange?.(journeyId as SalesGuidanceTabId)}
       onPrimaryAction={onPrimaryAction}
       scopeId={`sales-${activeTabId}`}
       stepIndicatorLabel={copy.stepIndicatorLabel}

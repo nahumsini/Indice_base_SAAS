@@ -24,6 +24,8 @@ export const zhCA = {
   },
   operationalJourney: {
     eyebrow: "学习模式",
+    sessionLabel: "课程",
+    goalLabel: "你将实现",
     title: "你的学习旅程",
     subtitle: "逐步学习如何让企业更有条理并持续成长。",
     progressLabel: "进度",
