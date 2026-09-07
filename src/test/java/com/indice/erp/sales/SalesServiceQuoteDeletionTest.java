@@ -28,6 +28,7 @@ class SalesServiceQuoteDeletionTest {
     @Mock KpiCurrencyAggregationService kpiCurrencyAggregationService;
     @Mock SalesProductAvailabilityLinkCodec availabilityLinkCodec;
     @Mock OpportunityFlowService opportunityFlowService;
+    @Mock SalesCollectionService collectionService;
 
     private SalesService service;
 
@@ -42,7 +43,7 @@ class SalesServiceQuoteDeletionTest {
                 businessExchangeRateService,
                 kpiCurrencyAggregationService,
                 availabilityLinkCodec,
-                opportunityFlowService);
+                opportunityFlowService, collectionService, org.mockito.Mockito.mock(com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver.class, call -> java.time.ZoneOffset.UTC));
     }
 
     @Test

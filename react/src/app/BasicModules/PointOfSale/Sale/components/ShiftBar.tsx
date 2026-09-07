@@ -9,6 +9,7 @@ import {
   ReceiptText,
   RotateCcw,
   TrendingUp,
+  PackagePlus,
 } from 'lucide-react';
 import type { Shift } from '../types/shift.types';
 
@@ -18,6 +19,7 @@ interface ShiftBarProps {
   onOpenShiftSummary: () => void;
   onCloseShift: () => void;
   onOpenReturn?: () => void;
+  onOpenInventoryReceipt?: () => void;
   onToggleFullscreen?: () => void;
   fiscalSummary?: string;
   fiscalDetail?: string;
@@ -30,6 +32,7 @@ export function ShiftBar({
   onOpenShiftSummary,
   onCloseShift,
   onOpenReturn,
+  onOpenInventoryReceipt,
   onToggleFullscreen,
   fiscalSummary,
   fiscalDetail,
@@ -62,35 +65,39 @@ export function ShiftBar({
   return (
     <header className="relative z-20 rounded-lg border border-[#222831] bg-[#222831] px-3 py-2 text-white shadow-sm">
       <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-        <button
-          type="button"
-          className="min-w-0 rounded-lg px-1 py-1 text-left transition hover:bg-white/5"
-          title={`${shift.businessUnitName} · ${shift.businessName} · ${warehouseName} · ${shift.cashierName}`}
-        >
-          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-sm font-medium">{`Caja ${shift.cashRegisterCode}`}</span>
-            <span className="rounded-full bg-[#F4C84A]/20 px-2 py-0.5 text-xs font-medium text-[#F4C84A]">{shift.cashRegisterName}</span>
-            <span className="text-xs font-normal text-gray-300">{shift.businessUnitName}</span>
-            <span className="text-gray-500">·</span>
-            <span className="text-xs font-normal text-gray-300">{shift.businessName}</span>
-            <span className="text-gray-500">·</span>
-            <span className="text-xs font-normal text-gray-300">{warehouseName}</span>
-          </span>
-          <span className="mt-1 flex flex-wrap items-center gap-2 text-xs font-normal text-gray-400">
-            <span>{shift.cashierName}</span>
-            <span>·</span>
-            <span className="inline-flex items-center gap-1">
-              <Clock3 className="h-3.5 w-3.5" />{` Inicio ${shiftStartedAt} · ${elapsed}`}
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+          <div
+            className="min-w-0 rounded-lg px-1 py-1 text-left"
+            title={`${shift.businessUnitName} · ${shift.businessName} · ${warehouseName} · ${shift.cashierName}`}
+          >
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="text-sm font-medium">{`Caja ${shift.cashRegisterCode}`}</span>
+              <span className="rounded-full bg-[#F4C84A]/20 px-2 py-0.5 text-xs font-medium text-[#F4C84A]">{shift.cashRegisterName}</span>
+              <span className="text-xs font-normal text-gray-300">{shift.businessUnitName}</span>
+              <span className="text-gray-500">·</span>
+              <span className="text-xs font-normal text-gray-300">{shift.businessName}</span>
+              <span className="text-gray-500">·</span>
+              <span className="text-xs font-normal text-gray-300">{warehouseName}</span>
             </span>
-            <span>·</span>
-            <span>
-              {fiscalSummary ?? 'Fiscal'}
-              {fiscalDetail ? ` · ${fiscalDetail}` : ''}
+            <span className="mt-1 flex flex-wrap items-center gap-2 text-xs font-normal text-gray-400">
+              <span>{shift.cashierName}</span>
+              <span>·</span>
+              <span className="inline-flex items-center gap-1">
+                <Clock3 className="h-3.5 w-3.5" />{` Inicio ${shiftStartedAt} · ${elapsed}`}
+              </span>
+              <span>·</span>
+              <span>
+                {fiscalSummary ?? 'Fiscal'}
+                {fiscalDetail ? ` · ${fiscalDetail}` : ''}
+              </span>
             </span>
-          </span>
-        </button>
+          </div>
+        </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
+          {onOpenInventoryReceipt ? (
+            <CompactAction icon={<PackagePlus />} label="Recibir mercancía" onClick={onOpenInventoryReceipt} />
+          ) : null}
           {onOpenReturn ? <CompactAction icon={<RotateCcw />} label="Devolución" onClick={onOpenReturn} /> : null}
           <CompactAction icon={<TrendingUp />} label="Movimientos" onClick={onOpenCashMovement} />
           <CompactAction icon={<ClipboardList />} label="Resumen" onClick={onOpenShiftSummary} />

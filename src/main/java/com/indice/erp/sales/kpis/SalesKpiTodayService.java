@@ -31,10 +31,10 @@ public class SalesKpiTodayService {
         this.clock = clock;
     }
 
-    public SalesTodaySummaryResponse today(long companyId, String preferredCurrency) {
+    public SalesTodaySummaryResponse today(long companyId, String preferredCurrency, com.indice.erp.hr.HrOperationalScope scope) {
         var timezone = timeZoneResolver.resolve(companyId);
         var businessDate = LocalDate.now(clock.withZone(timezone));
-        var amounts = repository.salesAmounts(companyId, businessDate);
+        var amounts = repository.salesAmounts(companyId, businessDate, scope);
         var rates = exchangeRateService.loadDailyRates();
         var metadata = rates.metadata();
         var effectiveDate = parseRateDate(metadata == null ? null : metadata.sourceDate(), businessDate);
@@ -45,7 +45,7 @@ public class SalesKpiTodayService {
         var monetaryTotal = currencyAggregationService.aggregate(
             amounts,
             currency,
-            rates.ratesPerUsd(),
+            com.indice.erp.exchange.BusinessExchangeRateEvidence.verifiedRates(rates, businessDate, true),
             "daily",
             effectiveDate,
             source

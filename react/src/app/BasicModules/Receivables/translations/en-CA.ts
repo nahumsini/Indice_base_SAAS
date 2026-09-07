@@ -393,6 +393,9 @@ export const enCA: ReceivablesTranslations = {
       overLimit: 'The financed amount exceeds the selected customer available line.',
     },
     payment: {
+      destinationAccount: 'Destination account',
+      destinationPlaceholder: 'Select an account',
+      universalCash: 'Universal cash',
       title: 'Register payment',
       description: 'Apply a payment to an open account and update outstanding balances.',
       account: 'Account',

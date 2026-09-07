@@ -313,14 +313,19 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
   });
   const { sources } = overview;
   const displayMoney = (amount: number) => new Intl.NumberFormat(locale, { style: 'currency', currency: preferredCurrency }).format(amount);
+  const asLocalDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  const periodFrom = asLocalDate(overview.periodRange.start);
+  const periodTo = asLocalDate(overview.periodRange.end);
+  const paymentIds = overview.paymentExpenses.map((expense) => expense.id);
   const filteredIds = overview.filteredExpenses.map((expense) => expense.id);
   const comparisonIds = overview.comparisonExpenses.map((expense) => expense.id);
   const totalAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_TOTAL', preferredCurrency, ids: filteredIds });
-  const paidAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_PAID', preferredCurrency, ids: filteredIds });
+  const paidAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_PAID', preferredCurrency, ids: paymentIds, from: periodFrom, to: periodTo });
+  const cohortPaidAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_PAID_TO_DATE', preferredCurrency, ids: filteredIds });
   const balanceAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_BALANCE', preferredCurrency, ids: filteredIds });
   const overdueAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_OVERDUE_BALANCE', preferredCurrency, ids: filteredIds });
   const previousTotalAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_TOTAL', preferredCurrency, ids: comparisonIds });
-  const previousPaidAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_PAID', preferredCurrency, ids: comparisonIds });
+  const previousPaidAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_PAID', preferredCurrency, ids: paymentIds, from: asLocalDate(overview.comparisonRange.start), to: asLocalDate(overview.comparisonRange.end) });
   const previousBalanceAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_BALANCE', preferredCurrency, ids: comparisonIds });
   const previousOverdueAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_OVERDUE_BALANCE', preferredCurrency, ids: comparisonIds });
   const subtotalAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_SUBTOTAL', preferredCurrency, ids: filteredIds });
@@ -342,7 +347,7 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
   const committedBudget = committedBudgetAggregate.data?.preferredTotal ?? 0;
   const actualBudget = actualBudgetAggregate.data?.preferredTotal ?? 0;
   const availableBudget = availableBudgetAggregate.data?.preferredTotal ?? 0;
-  const paymentCompliance = totalManaged > 0 ? (totalPaid / totalManaged) * 100 : 0;
+  const paymentCompliance = totalManaged > 0 ? ((cohortPaidAggregate.data?.preferredTotal ?? 0) / totalManaged) * 100 : 0;
   const budgetConsumption = plannedBudget > 0 ? (actualBudget / plannedBudget) * 100 : 0;
   const overdueRisk = totalManaged > 0 ? (overdueAmount / totalManaged) * 100 : 0;
   const evidenceCount = overview.filteredExpenses.filter(expense => (expense.attachmentCount ?? expense.attachments.length) > 0).length;
@@ -414,7 +419,11 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
         }
       }
     });
-    const topDates = Array.from(byDate.keys()).sort().slice(-14);
+    const topDates: string[] = [];
+    const lastDay = new Date(Math.min(overview.periodRange.end.getTime(), today.getTime()));
+    for (let day = new Date(lastDay); day >= overview.periodRange.start && topDates.length < 14; day.setDate(day.getDate() - 1)) {
+      topDates.unshift(asLocalDate(day));
+    }
     const topUnits = Array.from(byUnit.entries()).sort((a, b) => b[1].length - a[1].length).slice(0, 8);
     const topUsers = Array.from(byRankingUser.entries()).sort((a, b) => b[1].length - a[1].length).slice(0, 8);
     return {
@@ -432,26 +441,26 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
       topUnits,
       topUsers,
     };
-  }, [overview.filteredExpenses, rankingRole]);
+  }, [overview.filteredExpenses, overview.periodRange, rankingRole]);
   const groupQueries = useMemo<KpiMonetaryBatchQuery[]>(() => {
     const queries: KpiMonetaryBatchQuery[] = [];
     monetaryGroups.byStatus.forEach((rows, status) => queries.push({ key: `status-${status}`, metric: 'EXPENSE_TOTAL', preferredCurrency, ids: rows.map((row) => row.id) }));
     monetaryGroups.topDates.forEach((date) => {
       const ids = (monetaryGroups.byDate.get(date) ?? []).map((row) => row.id);
       queries.push({ key: `date-total-${date}`, metric: 'EXPENSE_TOTAL', preferredCurrency, ids });
-      queries.push({ key: `date-paid-${date}`, metric: 'EXPENSE_PAID', preferredCurrency, ids });
+      queries.push({ key: `date-paid-${date}`, metric: 'EXPENSE_PAID', preferredCurrency, ids: paymentIds, from: date, to: date });
     });
     monetaryGroups.topUnits.forEach(([unit, rows]) => queries.push({ key: `unit-${unit}`, metric: 'EXPENSE_TOTAL', preferredCurrency, ids: rows.map((row) => row.id) }));
     monetaryGroups.topUsers.forEach(([user, rows]) => {
       const ids = rows.map((row) => row.id);
       queries.push({ key: `user-total-${user}`, metric: 'EXPENSE_TOTAL', preferredCurrency, ids });
-      queries.push({ key: `user-paid-${user}`, metric: 'EXPENSE_PAID', preferredCurrency, ids });
+      queries.push({ key: `user-paid-${user}`, metric: 'EXPENSE_PAID_TO_DATE', preferredCurrency, ids });
       queries.push({ key: `user-overdue-${user}`, metric: 'EXPENSE_OVERDUE_BALANCE', preferredCurrency, ids });
     });
     monetaryGroups.byAging.forEach((rows, bucket) => queries.push({ key: `aging-${bucket}`, metric: 'EXPENSE_BALANCE', preferredCurrency, ids: rows.map((row) => row.id) }));
     monetaryGroups.byForecast.forEach((rows, bucket) => queries.push({ key: `forecast-${bucket}`, metric: 'EXPENSE_BALANCE', preferredCurrency, ids: rows.map((row) => row.id) }));
     return queries.slice(0, 100);
-  }, [monetaryGroups, preferredCurrency]);
+  }, [monetaryGroups, preferredCurrency, paymentIds]);
   const groupAggregates = useKpiMonetaryAggregates(groupQueries);
 
   const driverGroups = useMemo(() => ({
@@ -650,6 +659,7 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
   const aggregateRequests = [
     totalAggregate,
     paidAggregate,
+    cohortPaidAggregate,
     balanceAggregate,
     overdueAggregate,
     previousTotalAggregate,
@@ -706,7 +716,7 @@ export default function GastosKPIPage({ expenses, providers, refreshKey = 0 }: G
 
   const metricCards = [
     { description: 'Valor total de los gastos dentro del alcance seleccionado.', helper: `${expenseCount} movimientos · ${percentageChange(totalManaged, previousManaged, locale)}`, icon: <CircleDollarSign className="h-5 w-5" />, title: 'Gasto gestionado', tone: totalAggregate.loading || totalAggregate.error ? 'review' : totalManaged > 0 ? 'healthy' : 'review', toneLabel: toneLabels[totalAggregate.loading || totalAggregate.error ? 'review' : totalManaged > 0 ? 'healthy' : 'review'], value: displayAggregateMoney(totalAggregate) },
-    { actionLabel: `${t.filters.status}: ${t.statuses.paid}`, description: 'Importe liquidado respecto del total gestionado.', helper: percentageChange(totalPaid, previousPaid, locale), icon: <CheckCircle2 className="h-5 w-5" />, onAction: () => setPaymentStatus('PAID'), progress: paymentCompliance, title: 'Pagado', tone: paidAggregate.loading || paidAggregate.error ? 'review' : paymentCompliance >= 80 ? 'healthy' : paymentCompliance >= 50 ? 'review' : 'critical', toneLabel: toneLabels[paidAggregate.loading || paidAggregate.error ? 'review' : paymentCompliance >= 80 ? 'healthy' : paymentCompliance >= 50 ? 'review' : 'critical'], value: displayAggregateMoney(paidAggregate) },
+    { actionLabel: `${t.filters.status}: ${t.statuses.paid}`, description: 'Pagos registrados en el período, incluidos gastos capturados antes.', helper: percentageChange(totalPaid, previousPaid, locale), icon: <CheckCircle2 className="h-5 w-5" />, onAction: () => setPaymentStatus('PAID'), progress: paymentCompliance, title: 'Pagado', tone: paidAggregate.loading || paidAggregate.error ? 'review' : paymentCompliance >= 80 ? 'healthy' : paymentCompliance >= 50 ? 'review' : 'critical', toneLabel: toneLabels[paidAggregate.loading || paidAggregate.error ? 'review' : paymentCompliance >= 80 ? 'healthy' : paymentCompliance >= 50 ? 'review' : 'critical'], value: displayAggregateMoney(paidAggregate) },
     { actionLabel: `${t.filters.status}: ${t.kpis.pending}`, description: 'Saldo abierto que aún requiere programación o pago.', helper: `${openExpenseCount} cuentas · ${percentageChange(pendingPayments, previousBalanceAggregate.data?.preferredTotal ?? 0, locale)}`, icon: <WalletCards className="h-5 w-5" />, onAction: () => setPaymentStatus('OPEN'), progress: totalManaged > 0 ? (pendingPayments / totalManaged) * 100 : 0, title: 'Pendiente por pagar', tone: balanceAggregate.loading || balanceAggregate.error ? 'review' : pendingPayments <= totalManaged * 0.2 ? 'healthy' : pendingPayments <= totalManaged * 0.5 ? 'review' : 'critical', toneLabel: toneLabels[balanceAggregate.loading || balanceAggregate.error ? 'review' : pendingPayments <= totalManaged * 0.2 ? 'healthy' : pendingPayments <= totalManaged * 0.5 ? 'review' : 'critical'], value: displayAggregateMoney(balanceAggregate) },
     { actionLabel: `${t.filters.status}: ${t.statuses.overdue}`, description: 'Cuentas fuera de fecha que requieren atención inmediata.', helper: `${overdueExpenseCount} cuentas · ${percentageChange(overdueAmount, previousOverdueAggregate.data?.preferredTotal ?? 0, locale)}`, icon: <AlertTriangle className="h-5 w-5" />, onAction: () => setPaymentStatus('OVERDUE'), progress: overdueRisk, title: 'Saldo vencido', tone: overdueAggregate.loading || overdueAggregate.error ? 'review' : overdueRisk === 0 ? 'healthy' : overdueRisk <= 15 ? 'review' : 'critical', toneLabel: toneLabels[overdueAggregate.loading || overdueAggregate.error ? 'review' : overdueRisk === 0 ? 'healthy' : overdueRisk <= 15 ? 'review' : 'critical'], value: displayAggregateMoney(overdueAggregate) },
     { description: 'Pagos completados antes o en su fecha de vencimiento.', helper: `${punctuality.onTime} de ${punctuality.count} pagos comparables`, icon: <ClipboardCheck className="h-5 w-5" />, progress: punctuality.percent, title: 'Puntualidad de pago', tone: punctuality.count === 0 ? 'review' : punctuality.percent >= 85 ? 'healthy' : punctuality.percent >= 60 ? 'review' : 'critical', toneLabel: toneLabels[punctuality.count === 0 ? 'review' : punctuality.percent >= 85 ? 'healthy' : punctuality.percent >= 60 ? 'review' : 'critical'], value: `${Math.round(punctuality.percent)}%` },

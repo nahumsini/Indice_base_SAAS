@@ -1,5 +1,6 @@
 package com.indice.erp.kpis.executive;
 
+import com.indice.erp.exchange.BusinessExchangeRateEvidence;
 import com.indice.erp.exchange.BusinessExchangeRateService;
 import com.indice.erp.exchange.BusinessExchangeRatesResponse;
 import com.indice.erp.kpis.currency.KpiCurrencyAggregationService;
@@ -73,6 +74,10 @@ public class ExecutiveKpiDomainService {
     public Snapshot buildSnapshot(ExecutiveKpiScope scope) {
         // Exchange-rate refresh may write its daily cache, so it must finish before the read-only KPI snapshot starts.
         var rates = exchangeRateService.loadDailyRates();
+        return buildSnapshot(scope, rates);
+    }
+
+    Snapshot buildSnapshot(ExecutiveKpiScope scope, BusinessExchangeRatesResponse rates) {
         var snapshot = readTransaction.execute(status -> {
             var domains = buildConsistent(scope, rates);
             var diagnosis = diagnosisService.build(scope, domains, repository.loadPeople(scope));
@@ -95,7 +100,7 @@ public class ExecutiveKpiDomainService {
         var previous = scope.previousPeriod();
         var metadata = rates.metadata();
         var parsedRateDate = parseDate(metadata == null ? null : metadata.sourceDate());
-        var rateDate = parsedRateDate == null ? LocalDate.now(BUSINESS_ZONE) : parsedRateDate;
+        var rateDate = parsedRateDate;
         var rateSource = metadata == null ? "" : metadata.sourceName();
         var partialCurrencies = new LinkedHashSet<String>();
         var convertedCurrencies = new LinkedHashSet<String>();
@@ -104,7 +109,7 @@ public class ExecutiveKpiDomainService {
             var result = currencyAggregationService.aggregate(
                     amounts,
                     scope.preferredCurrency(),
-                    rates.ratesPerUsd(),
+                    BusinessExchangeRateEvidence.verifiedRates(rates, scope.snapshotDate(), true),
                     "daily",
                     rateDate,
                     rateSource);
@@ -148,7 +153,7 @@ public class ExecutiveKpiDomainService {
                         "live-source-tables/repeatable-read",
                         Instant.now().toString(),
                         scope.snapshotDate().toString(),
-                        rateDate.toString(),
+                        rateDate == null ? "" : rateDate.toString(),
                         decisionReady
                                 ? "Cálculo íntegro y consistente; no se detectaron exclusiones ni anomalías estructurales."
                                 : "Revisión requerida: no use los indicadores afectados como cifra definitiva hasta corregir las observaciones."));
@@ -487,7 +492,7 @@ public class ExecutiveKpiDomainService {
             issues.add("La referencia cambiaria no contiene una fecha de corte válida.");
         }
         var snapshotDate = scope.snapshotDate() == null ? LocalDate.now(BUSINESS_ZONE) : scope.snapshotDate();
-        if (ChronoUnit.DAYS.between(rateDate, snapshotDate) > 7) {
+        if (rateDate != null && ChronoUnit.DAYS.between(rateDate, snapshotDate) > 7) {
             issues.add("La referencia cambiaria tiene más de siete días de antigüedad.");
         }
         return issues;

@@ -113,6 +113,11 @@ type BackendReceivableAccount = {
 };
 
 type BackendReceivablePayment = {
+  receiptUrl?: string | null;
+  receiptFileName?: string | null;
+  receiptMimeType?: string | null;
+  paymentAccountId?: number | null;
+  idempotencyKey?: string | null;
   id?: number | null;
   receivableId?: number | null;
   saleNumber?: string | null;
@@ -155,7 +160,7 @@ export type ReceivablesWorkspace = ReceivablesState & {
   candidateSales: CandidateSale[];
 };
 
-const jsonMutation = (method: 'POST' | 'PUT', body: unknown): RequestInit => ({
+const jsonMutation = (method: 'POST' | 'PUT' | 'DELETE', body: unknown): RequestInit => ({
   method,
   body: JSON.stringify(body),
 });
@@ -323,6 +328,12 @@ const toReceivableInstallment = (dto: BackendReceivableInstallment): ReceivableI
 });
 
 const toReceivablePayment = (dto: BackendReceivablePayment): ReceivablePayment => ({
+  paymentAccountId: dto.paymentAccountId == null ? undefined : String(dto.paymentAccountId),
+  idempotencyKey: dto.idempotencyKey ?? undefined,
+  receiptDataUrl: dto.receiptUrl ?? undefined,
+  receiptImageDataUrl: dto.receiptMimeType?.startsWith("image/") ? dto.receiptUrl ?? undefined : undefined,
+  receiptFileName: dto.receiptFileName ?? undefined,
+  receiptMimeType: dto.receiptMimeType ?? undefined,
   id: idString(dto.id, `payment-${dto.reference}`),
   receivableId: idString(dto.receivableId),
   saleNumber: cleanText(dto.saleNumber, 'SIN-FOLIO'),
@@ -353,6 +364,21 @@ const simulationPayload = (simulation: CreditSimulation) => ({
   totalPayable: simulation.totalPayable,
   totalInterest: simulation.totalInterest,
 });
+
+const creditPolicyPayload = (policy: Omit<CreditPolicy, 'id' | 'availableCredit'>) => ({
+        contactId: policy.contactId ?? numericId(policy.customerId),
+        unitId: policy.unitId ?? null,
+        businessId: policy.businessId ?? null,
+        customerId: policy.customerId,
+        customerName: policy.customerName,
+        currencyCode: policy.currency ?? 'MXN',
+        creditLine: policy.creditLine,
+        monthlyPurchaseLimit: policy.monthlyPurchaseLimit,
+        defaultTermMonths: policy.defaultTermMonths,
+        annualInterestRate: policy.annualInterestRate,
+        status: policy.status.toUpperCase(),
+        notes: policy.notes,
+      });
 
 export const receivablesApi = {
   async workspace(): Promise<ReceivablesWorkspace> {
@@ -392,38 +418,56 @@ export const receivablesApi = {
     return toWorkspace(response);
   },
 
+  async paymentAccounts(receivableId: string): Promise<Array<{ id: number; name: string; type: string; currencyCode: string }>> {
+    return apiClient(`${basePath}/payment-accounts?receivableId=${encodeURIComponent(String(numericId(receivableId)))}`);
+  },
+
   async registerPayment(payment: Omit<ReceivablePayment, 'id'>): Promise<ReceivablesWorkspace> {
+    let receipt: { objectKey: string; fileName: string; contentType: string; sizeBytes: number } | undefined;
+    const dataUrl = payment.receiptDataUrl ?? payment.receiptImageDataUrl;
+    if (dataUrl?.startsWith('data:')) {
+      const blob = await (await fetch(dataUrl)).blob();
+      const fileName = payment.receiptFileName || 'receipt';
+      const contentType = blob.type || payment.receiptMimeType || 'application/octet-stream';
+      const upload = await apiClient<{ objectKey: string; uploadUrl: string; uploadHeaders: Record<string, string> }>(
+        `${basePath}/payment-receipts/uploads`, jsonMutation('POST', {
+          receivableId: numericId(payment.receivableId), fileName, contentType, sizeBytes: blob.size,
+        }));
+      const uploaded = await fetch(upload.uploadUrl, { method: 'PUT', headers: upload.uploadHeaders, body: blob });
+      if (!uploaded.ok) throw new Error('No se pudo guardar el comprobante de pago.');
+      receipt = { objectKey: upload.objectKey, fileName, contentType, sizeBytes: blob.size };
+    }
     const response = await apiClient<BackendWorkspace>(
       `${basePath}/payments`,
       jsonMutation('POST', {
         receivableId: numericId(payment.receivableId),
+        paymentAccountId: payment.paymentAccountId ? numericId(payment.paymentAccountId) : null,
+        idempotencyKey: payment.idempotencyKey,
         paymentDate: payment.paymentDate,
         method: payment.method.toUpperCase(),
         amount: payment.amount,
         reference: payment.reference,
         registeredBy: payment.registeredBy,
+        receipt,
       }),
     );
     return toWorkspace(response);
   },
 
+  async updateCreditPolicy(id: string, policy: Omit<CreditPolicy, 'id' | 'availableCredit'>): Promise<ReceivablesWorkspace> {
+    return toWorkspace(await apiClient<BackendWorkspace>(`${basePath}/credit-policies/${numericId(id)}`,
+      jsonMutation('PUT', creditPolicyPayload(policy))));
+  },
+
+  async archiveCreditPolicy(id: string): Promise<ReceivablesWorkspace> {
+    return toWorkspace(await apiClient<BackendWorkspace>(`${basePath}/credit-policies/${numericId(id)}`,
+      jsonMutation('DELETE', {})));
+  },
+
   async createCreditPolicy(policy: Omit<CreditPolicy, 'id' | 'availableCredit'>): Promise<ReceivablesWorkspace> {
     const response = await apiClient<BackendWorkspace>(
       `${basePath}/credit-policies`,
-      jsonMutation('POST', {
-        contactId: policy.contactId ?? numericId(policy.customerId),
-        unitId: policy.unitId ?? null,
-        businessId: policy.businessId ?? null,
-        customerId: policy.customerId,
-        customerName: policy.customerName,
-        currencyCode: policy.currency ?? 'MXN',
-        creditLine: policy.creditLine,
-        monthlyPurchaseLimit: policy.monthlyPurchaseLimit,
-        defaultTermMonths: policy.defaultTermMonths,
-        annualInterestRate: policy.annualInterestRate,
-        status: policy.status.toUpperCase(),
-        notes: policy.notes,
-      }),
+      jsonMutation('POST', creditPolicyPayload(policy)),
     );
     return toWorkspace(response);
   },

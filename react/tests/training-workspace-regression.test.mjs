@@ -24,10 +24,10 @@ test('root y distribuidores reutilizan el mismo workspace con progreso persisten
 
 test('la inducción explica la metodología los mercados y los módulos básicos', () => {
   assert.match(training, /Inducción a Índice/);
-  assert.match(training, /Programa práctico/);
-  assert.match(induction, /Cuatro pilares para controlar una empresa/);
-  assert.match(induction, /Oportunidades por país/);
-  assert.match(induction, /Módulos básicos de Índice/);
+  assert.match(training, /programa práctico/i);
+  assert.match(induction, /aria-label="Pilares de Índice"/);
+  assert.match(induction, /aria-label="Mercados"/);
+  assert.match(induction, /aria-label="Módulos básicos"/);
   assert.match(induction, /México/);
   assert.match(induction, /Colombia/);
   assert.match(induction, /Canadá/);

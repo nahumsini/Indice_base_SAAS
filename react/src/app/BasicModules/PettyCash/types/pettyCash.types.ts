@@ -13,6 +13,7 @@ export type PettyCashPaymentMethod = 'cash' | 'debit_card' | 'transfer';
 export type PettyCashCurrency = 'CAD' | 'MXN' | 'COP' | 'USD' | 'BRL';
 
 export type PettyCashFundStatus = 'OPEN' | 'LOW_BALANCE' | 'NEEDS_RECONCILIATION' | 'CLOSED';
+export type PettyCashFundType = 'INTERNAL_COMPANY' | 'EXTERNAL_MANAGED';
 export type PettyCashStatementStatus =
   | 'OPEN'
   | 'CUT_PENDING'
@@ -51,6 +52,7 @@ export interface PettyCashFund {
   budgetLineName?: string;
   paymentAccountId: string;
   fundingSourcePaymentAccountId?: string;
+  fundType: PettyCashFundType;
   responsibleUserId: string;
   responsibleName: string;
   createdByUserId: string;
@@ -61,6 +63,16 @@ export interface PettyCashFund {
   currentBalanceAmount: number;
   cutOffDay: number;
   fundingSourceName: string;
+  externalOwnerType?: string;
+  externalOwnerName?: string;
+  externalOwnerRelationship?: string;
+  externalOwnerReference?: string;
+  statementRecipientEmail?: string;
+  managedAssetType?: string;
+  managedAssetName?: string;
+  managedAssetReference?: string;
+  externalIdentityPending?: boolean;
+  budgetLinkPending?: boolean;
   fundingMethods: string[];
   spendingMethods: string[];
   kioskEnabled: boolean;
@@ -75,6 +87,7 @@ export interface PettyCashStatement {
   id: string;
   companyId: string;
   pettyCashFundId: string;
+  fundTypeSnapshot: PettyCashFundType;
   folio: string;
   periodKey: string;
   periodStart: string;
@@ -93,6 +106,14 @@ export interface PettyCashStatement {
   status: PettyCashStatementStatus;
   responsibleUserId: string;
   responsibleName: string;
+  externalOwnerTypeSnapshot?: string;
+  externalOwnerNameSnapshot?: string;
+  externalOwnerRelationshipSnapshot?: string;
+  externalOwnerReferenceSnapshot?: string;
+  statementRecipientEmailSnapshot?: string;
+  managedAssetTypeSnapshot?: string;
+  managedAssetNameSnapshot?: string;
+  managedAssetReferenceSnapshot?: string;
   reviewedByName?: string;
   attachmentCount: number;
 }
@@ -105,6 +126,11 @@ export interface PettyCashMovement {
   fromPaymentAccountId?: string;
   fromPaymentAccountName?: string;
   externalSourceName?: string;
+  entryCategory?: string;
+  counterpartyName?: string;
+  statementDescription?: string;
+  fundingMethod?: string;
+  internalNote?: string;
   toPaymentAccountId?: string;
   toPaymentAccountName?: string;
   type: PettyCashMovementType;

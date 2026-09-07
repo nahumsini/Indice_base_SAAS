@@ -69,6 +69,9 @@ export function AccountingDocumentCanvas({ copy, data, report }: {
       <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs leading-5 text-blue-800">
         {data.readiness.message}
       </div>
+      {data.preparationNotes?.length ? <div className="mt-5 space-y-2 border-t border-slate-200 pt-4 text-xs leading-5 text-slate-600">
+        {data.preparationNotes.map(note => <p key={note}>{note}</p>)}
+      </div> : null}
     </article>
   );
 }

@@ -19,7 +19,7 @@ class SalesKpiTodayRepositoryTest {
         var repository = new SalesKpiTodayRepository(jdbc);
         var date = LocalDate.of(2026, 8, 31);
 
-        repository.salesAmounts(42L, date);
+        repository.salesAmounts(42L, date, com.indice.erp.hr.HrOperationalScope.corporateOffice());
 
         var sql = ArgumentCaptor.forClass(String.class);
         verify(jdbc).query(sql.capture(), any(RowMapper.class), eq(42L), eq(date));
@@ -28,6 +28,7 @@ class SalesKpiTodayRepositoryTest {
             .contains("company_id = ?")
             .contains("sale_date = ?")
             .contains("deleted_at IS NULL")
+            .contains("NOT IN ('cancelled', 'canceled', 'rejected', 'voided')")
             .doesNotContain("42")
             .doesNotContain("2026-08-31");
     }

@@ -15,7 +15,8 @@ public final class FinancialReportingContracts {
         List<FinancialStatement> statements,
         List<TrialBalanceRow> trialBalance,
         List<SourceCoverage> sourceCoverage,
-        List<QualityFinding> findings
+        List<QualityFinding> findings,
+        List<String> preparationNotes
     ) {
     }
 
@@ -39,6 +40,7 @@ public final class FinancialReportingContracts {
         LocalDate frameworkEffectiveDate,
         String functionalCurrency,
         String presentationCurrency,
+        String fiscalCountry,
         String periodKey,
         String periodStatus,
         Instant generatedAt

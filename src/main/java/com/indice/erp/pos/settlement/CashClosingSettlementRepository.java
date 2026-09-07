@@ -19,6 +19,27 @@ class CashClosingSettlementRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    int openShifts(long companyId) {
+        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM pos_shifts WHERE company_id = ? AND status IN ('OPEN', 'CLOSING') AND deleted_at IS NULL", Integer.class, companyId);
+    }
+
+    java.util.Map<String, java.math.BigDecimal> retainedCash(long companyId) {
+        var result = new java.util.LinkedHashMap<String, java.math.BigDecimal>();
+        jdbcTemplate.query("""
+            SELECT shift.currency_code, SUM(closing.counted_cash_amount + closing.safe_drop_amount - COALESCE((
+                SELECT SUM(settlement.transferable_amount) FROM pos_cash_closing_settlements settlement
+                WHERE settlement.company_id = closing.company_id AND settlement.cash_closing_id = closing.id
+                  AND settlement.payment_method = 'CASH'
+            ), 0)) amount
+            FROM pos_cash_closings closing JOIN pos_shifts shift ON shift.company_id = closing.company_id AND shift.id = closing.shift_id
+            WHERE closing.company_id = ? AND closing.deleted_at IS NULL AND NOT EXISTS (
+                SELECT 1 FROM pos_cash_closings newer WHERE newer.company_id = closing.company_id
+                  AND newer.cash_register_id = closing.cash_register_id AND newer.id > closing.id AND newer.deleted_at IS NULL)
+            GROUP BY shift.currency_code
+            """, (org.springframework.jdbc.core.RowCallbackHandler) rs -> result.put(rs.getString(1), rs.getBigDecimal(2)), companyId);
+        return result;
+    }
+
     CashClosingSettlement insert(
             PosContext context,
             long closingId,

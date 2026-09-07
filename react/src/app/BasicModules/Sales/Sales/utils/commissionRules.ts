@@ -1,9 +1,8 @@
-import { formatSalesCurrencyBreakdown } from '../../utils/salesCurrency';
 import type { SaleRecord } from '../types/salesTypes';
-import type { CommissionKpis, CommissionRecord, CommissionRule, CommissionStatus, CommissionType } from '../types/commissions';
+import type { CommissionRecord, CommissionRule, CommissionStatus, CommissionType } from '../types/commissions';
 
 function mapSaleCommissionStatus(sale: SaleRecord): CommissionStatus {
-  if (sale.commercialStatus === 'cancelled') return 'cancelled';
+  if (['cancelled', 'canceled', 'rejected', 'voided'].includes(sale.commercialStatus.toLowerCase())) return 'cancelled';
   if (sale.commissionStatus === 'paid') return 'paid';
   if (sale.commissionStatus === 'calculated') return 'approved';
   return 'pending';
@@ -41,6 +40,8 @@ export function calculateCommissionRecords(sales: SaleRecord[], _rules: Commissi
 
     return snapshots.map((snapshot, index) => ({
       id: `COM-${sale.id}-${String(index + 1).padStart(2, '0')}`,
+      saleBackendId: sale.backendId,
+      componentIndex: index,
       saleId: sale.id,
       saleCode: sale.saleNumber,
       customerId: sale.customerId ?? sale.contactId ?? '',
@@ -66,24 +67,4 @@ export function calculateCommissionRecords(sales: SaleRecord[], _rules: Commissi
       businessName: sale.businessName,
     }));
   });
-}
-
-export function calculateCommissionKpis(records: CommissionRecord[]): CommissionKpis {
-  const totalCommissions = records.reduce((total, record) => total + record.commissionAmount, 0);
-  const totalSaleAmount = records.reduce((total, record) => total + record.saleAmount, 0);
-  const pendingRecords = records.filter((record) => record.status === 'pending');
-  const approvedRecords = records.filter((record) => record.status === 'approved');
-  const paidRecords = records.filter((record) => record.status === 'paid');
-  return {
-    totalCommissions,
-    totalCommissionsLabel: formatSalesCurrencyBreakdown(records, (record) => record.commissionAmount, (record) => record.currency),
-    pendingCommissions: pendingRecords.reduce((total, record) => total + record.commissionAmount, 0),
-    pendingCommissionsLabel: formatSalesCurrencyBreakdown(pendingRecords, (record) => record.commissionAmount, (record) => record.currency),
-    approvedCommissions: approvedRecords.reduce((total, record) => total + record.commissionAmount, 0),
-    approvedCommissionsLabel: formatSalesCurrencyBreakdown(approvedRecords, (record) => record.commissionAmount, (record) => record.currency),
-    paidCommissions: paidRecords.reduce((total, record) => total + record.commissionAmount, 0),
-    paidCommissionsLabel: formatSalesCurrencyBreakdown(paidRecords, (record) => record.commissionAmount, (record) => record.currency),
-    commissionRate: totalSaleAmount > 0 ? (totalCommissions / totalSaleAmount) * 100 : 0,
-    commissionCount: records.length,
-  };
 }

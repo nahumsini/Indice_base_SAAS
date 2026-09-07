@@ -134,7 +134,9 @@ public class AiFinanceActionExecutionService {
                 optionalLong(args, "statementId"), requiredLong(args, "sourcePaymentAccountId"),
                 fund.paymentAccountId(), PettyCashMovementType.ADDITIONAL_DEPOSIT,
                 decimal(args, "amount"), requiredText(args, "currencyCode"), date(args, "movementDate"),
-                null, text(args, "reference"), null, metadata
+                null, "ADDITIONAL_FUNDING", null,
+                text(args, "reference") == null ? "Entrada de dinero registrada desde ChatGPT" : text(args, "reference"),
+                "INTERNAL_TRANSFER", "Registrado mediante MCP", text(args, "reference"), null, metadata
             )
         );
         var result = new LinkedHashMap<String, Object>();

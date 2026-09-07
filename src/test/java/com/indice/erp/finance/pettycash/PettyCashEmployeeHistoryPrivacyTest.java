@@ -105,8 +105,10 @@ class PettyCashEmployeeHistoryPrivacyTest {
         var now = Instant.now();
         return new PettyCashFundRecord(
             31L, 7L, null, null, null, null, null, null, null,
+            PettyCashFundType.EXTERNAL_MANAGED,
             "Shared fund", "MXN", new BigDecimal("1000.00"), new BigDecimal("750.00"),
-            25, "Cash", "[]", "[]", true, false,
+            25, "Cash", null, null, null, null, null, null, null, null, true,
+            "[]", "[]", true, false,
             null, "shared-fund-token", PettyCashFundStatus.OPEN,
             1L, 1L, now, now, null, 1L, "{}", "{}");
     }

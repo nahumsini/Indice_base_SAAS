@@ -117,7 +117,8 @@ function contactMatchesScope(
 
 export function filterSalesKpiSources(sources: SalesKpiDataSources, filters: SalesKpiFilters): SalesKpiDataSources {
   const filteredSales = sources.sales.filter((sale) => (
-    matchesValue(sale.businessUnitId, filters.businessUnit)
+    !['cancelled', 'canceled', 'rejected', 'voided'].includes(normalize(sale.commercialStatus))
+    && matchesValue(sale.businessUnitId, filters.businessUnit)
     && matchesValue(sale.businessId, filters.business)
     && (filters.seller === 'all' || sale.sellerName === filters.seller)
     && includesSearch([

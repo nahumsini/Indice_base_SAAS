@@ -83,17 +83,24 @@ const labelsFor = (locale: string) => {
       budgetLine: 'Linea presupuestal',
       closingBalance: 'Saldo declarado',
       documentTitle: 'Estado de cuenta de caja chica',
+      externalDocumentTitle: 'Estado de cuenta de fondo administrado',
       expenseDate: 'Fecha',
       generated: 'Generado',
       legalNote: 'Documento operativo para control interno. No sustituye comprobantes fiscales ni politicas de aprobacion.',
+      externalLegalNote: 'Este estado de cuenta informa dinero de terceros administrado por la empresa. No registra ingresos ni gastos propios de la empresa.',
+      managedAsset: 'Activo administrado',
       movementSource: 'Origen',
       period: 'Periodo',
+      owner: 'Propietario o cliente',
+      ownerReference: 'Referencia del cliente',
       provider: 'Proveedor',
       receipt: 'Comprobante',
       receiptsTitle: 'Comprobantes del corte',
       reference: 'Referencia',
-      source: 'Fuente: Modulo de caja chica',
+      relationship: 'Relacion',
+      source: 'Fuente: Modulo de fondos',
       statement: 'Corte',
+      statementRecipient: 'Destinatario',
       statementSummary: 'Resumen del corte',
       status: 'Estado',
       total: 'Total',
@@ -108,17 +115,24 @@ const labelsFor = (locale: string) => {
     budgetLine: 'Budget line',
     closingBalance: 'Declared balance',
     documentTitle: 'Petty Cash Statement',
+    externalDocumentTitle: 'Managed Fund Account Statement',
     expenseDate: 'Date',
     generated: 'Generated',
     legalNote: 'Operational document for internal control. It does not replace tax receipts or approval policies.',
+    externalLegalNote: 'This statement reports third-party money administered by the company. It does not record company income or expenses.',
+    managedAsset: 'Managed asset',
     movementSource: 'Source',
     period: 'Period',
+    owner: 'Owner or client',
+    ownerReference: 'Client reference',
     provider: 'Provider',
     receipt: 'Receipt',
     receiptsTitle: 'Statement receipts',
     reference: 'Reference',
-    source: 'Source: Petty cash module',
+    relationship: 'Relationship',
+    source: 'Source: Funds module',
     statement: 'Statement',
+    statementRecipient: 'Statement recipient',
     statementSummary: 'Statement summary',
     status: 'Status',
     total: 'Total',
@@ -302,15 +316,32 @@ const addIdentityBlocks = (
   const contentWidth = pageWidth - layout.left - layout.right;
   const columnWidth = (contentWidth - 6) / 2;
 
-  y = ensureSpace(doc, y, 42);
+  const isExternalFund = statement.fundTypeSnapshot === 'EXTERNAL_MANAGED';
+  const ownerName = statement.externalOwnerNameSnapshot ?? fund.externalOwnerName ?? copy.common.notAvailable;
+  const relationship = statement.externalOwnerRelationshipSnapshot ?? fund.externalOwnerRelationship ?? copy.common.notAvailable;
+  const statementRecipient = statement.statementRecipientEmailSnapshot ?? fund.statementRecipientEmail ?? copy.common.notAvailable;
+  const managedAsset = statement.managedAssetNameSnapshot ?? fund.managedAssetName;
+  const ownerReference = statement.externalOwnerReferenceSnapshot ?? fund.externalOwnerReference;
+  const fundRows = isExternalFund
+    ? [
+      [labels.owner, ownerName],
+      [labels.relationship, relationship.split('_').join(' ')],
+      [labels.statementRecipient, statementRecipient],
+      ...(managedAsset ? [[labels.managedAsset, managedAsset]] : []),
+      ...(ownerReference ? [[labels.ownerReference, ownerReference]] : []),
+    ]
+    : [
+      [copy.reconciliation.metrics.responsible, fund.responsibleName],
+      [copy.reconciliation.metrics.source, fund.fundingSourceName],
+      [labels.budgetLine, fund.budgetLineName ?? copy.common.notAvailable],
+    ];
+  const blockHeight = Math.max(38, 17 + fundRows.length * 6);
+  y = ensureSpace(doc, y, blockHeight + 10);
+
   [
     {
-      title: copy.reconciliation.filters.fund,
-      rows: [
-        [copy.reconciliation.metrics.responsible, fund.responsibleName],
-        [copy.reconciliation.metrics.source, fund.fundingSourceName],
-        [labels.budgetLine, fund.budgetLineName ?? copy.common.notAvailable],
-      ],
+      title: isExternalFund ? labels.owner : copy.reconciliation.filters.fund,
+      rows: fundRows,
       x: layout.left,
     },
     {
@@ -325,7 +356,7 @@ const addIdentityBlocks = (
   ].forEach((block) => {
     setFill(doc, brand.light);
     setDraw(doc, brand.border);
-    doc.roundedRect(block.x, y, columnWidth, 38, 3, 3, 'FD');
+    doc.roundedRect(block.x, y, columnWidth, blockHeight, 3, 3, 'FD');
     setText(doc, brand.text);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
@@ -338,7 +369,7 @@ const addIdentityBlocks = (
     });
   });
 
-  return y + 48;
+  return y + blockHeight + 10;
 };
 
 export function buildPettyCashStatementPdf({
@@ -350,7 +381,13 @@ export function buildPettyCashStatementPdf({
   statement,
 }: PettyCashStatementPdfContext) {
   const doc = new jsPDF({ format: 'a4', unit: 'mm' });
-  const labels = labelsFor(locale);
+  const baseLabels = labelsFor(locale);
+  const isExternalFund = statement.fundTypeSnapshot === 'EXTERNAL_MANAGED';
+  const labels = {
+    ...baseLabels,
+    documentTitle: isExternalFund ? baseLabels.externalDocumentTitle : baseLabels.documentTitle,
+    legalNote: isExternalFund ? baseLabels.externalLegalNote : baseLabels.legalNote,
+  };
   const exactStatementMovements = movements.filter(movement => movement.pettyCashStatementId === statement.id);
   const statementMovements = exactStatementMovements.length > 0
     ? exactStatementMovements
@@ -385,7 +422,7 @@ export function buildPettyCashStatementPdf({
     copy.status.movement[movement.type],
     movement.fromPaymentAccountName ?? movement.externalSourceName ?? copy.common.notAvailable,
     formatPettyCashCurrency(movement.amount, movement.currencyCode),
-    movement.reference || copy.common.notAvailable,
+    movement.statementDescription || movement.reference || copy.common.notAvailable,
   ]), y);
 
   y = addTable(doc, labels.receiptsTitle, [
@@ -399,7 +436,7 @@ export function buildPettyCashStatementPdf({
   ], settlementLines.map(line => [
     `${line.description}${line.receiptReference ? `\n${line.receiptReference}` : ''}`,
     line.providerName ?? copy.common.notAvailable,
-    line.accountingAccountName ?? copy.common.notAvailable,
+    isExternalFund ? copy.common.notAvailable : line.accountingAccountName ?? copy.common.notAvailable,
     formatPettyCashIsoDate(line.expenseDate),
     formatPettyCashCurrency(line.totalAmount, line.currencyCode),
     String(line.attachmentCount),

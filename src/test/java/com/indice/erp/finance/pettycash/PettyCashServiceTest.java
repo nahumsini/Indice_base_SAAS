@@ -1,6 +1,7 @@
 package com.indice.erp.finance.pettycash;
 
 import com.indice.erp.finance.FinanceApiException;
+import com.indice.erp.finance.expenses.ExpenseService;
 import com.indice.erp.finance.pettycash.dto.CreatePettyCashFundRequest;
 import com.indice.erp.finance.pettycash.dto.ClosePettyCashStatementRequest;
 import com.indice.erp.finance.pettycash.dto.CreatePettyCashMovementRequest;
@@ -61,6 +62,9 @@ class PettyCashServiceTest {
     @Mock
     private HrPayrollExternalDeductionService payrollExternalDeductionService;
 
+    @Mock
+    private ExpenseService expenseService;
+
     @Test
     void createFundGeneratesPublicKioskTokenWhenKioskIsEnabled() {
         var service = service();
@@ -92,7 +96,7 @@ class PettyCashServiceTest {
 
         when(repository.findFundById(context, 15L))
             .thenReturn(Optional.of(existing), Optional.of(record(15L, "existing-token-123")));
-        when(validator.validateUpdate(context, request)).thenReturn(new PettyCashScopedAssignment(10L, 20L));
+        when(validator.validateUpdate(context, request, existing)).thenReturn(new PettyCashScopedAssignment(10L, 20L));
         when(repository.updateFund(eq(context), eq(15L), command.capture())).thenReturn(true);
 
         var response = service.updateFund(context, 15L, request);
@@ -100,6 +104,30 @@ class PettyCashServiceTest {
         assertEquals("existing-token-123", command.getValue().kioskPublicToken());
         assertEquals("/petty-cash/kiosk/existing-token-123", command.getValue().kioskAccessUrl());
         assertEquals("existing-token-123", response.kioskPublicToken());
+    }
+
+    @Test
+    void updateFundRejectsCurrencyChangesAfterFinancialHistoryExists() {
+        var service = service();
+        var context = context();
+        var existing = record(15L, "existing-token-123");
+        var request = updateRequest(true, null, "USD");
+
+        when(repository.findFundById(context, 15L)).thenReturn(Optional.of(existing));
+        when(validator.validateUpdate(context, request, existing))
+            .thenReturn(new PettyCashScopedAssignment(10L, 20L));
+        when(repository.hasFinancialActivity(context, 15L)).thenReturn(true);
+
+        var error = assertThrows(
+            FinanceApiException.class,
+            () -> service.updateFund(context, 15L, request)
+        );
+
+        assertEquals(
+            "Fund type and currency cannot change after the fund has financial activity.",
+            error.getMessage()
+        );
+        verify(repository, never()).updateFund(any(), anyLong(), any());
     }
 
     @Test
@@ -130,7 +158,8 @@ class PettyCashServiceTest {
         var request = new CreatePettyCashMovementRequest(
             statement.id(), 80L, 70L, PettyCashMovementType.ADDITIONAL_DEPOSIT,
             new BigDecimal("500.00"), "MXN", LocalDate.of(2026, 6, 13),
-            null, "Funding", null, null
+            null, "BUDGET_FUNDING", null, "Funding", "INTERNAL_TRANSFER", null,
+            "Funding", null, null
         );
         var movement = movementRecord(401L, fund.id(), statement.id(), request);
 
@@ -157,7 +186,8 @@ class PettyCashServiceTest {
         var request = new CreatePettyCashMovementRequest(
             statement.id(), null, null, PettyCashMovementType.ADDITIONAL_DEPOSIT,
             new BigDecimal("500.00"), "MXN", LocalDate.of(2026, 6, 13),
-            null, "Funding", null, null
+            null, "BUDGET_FUNDING", null, "Funding", "INTERNAL_TRANSFER", null,
+            "Funding", null, null
         );
 
         when(repository.findFundById(context, fund.id())).thenReturn(Optional.of(fund));
@@ -178,12 +208,13 @@ class PettyCashServiceTest {
     void createMovementAcceptsExternalFundingWithoutInventingAnInternalSourceAccount() {
         var service = service();
         var context = context();
-        var fund = record(99L, createCommand("fund-token-123", 70L, 80L));
+        var fund = record(99L, createCommand("fund-token-123", 70L, null));
         var statement = statementRecord(501L, fund.id());
         var request = new CreatePettyCashMovementRequest(
             statement.id(), null, 70L, PettyCashMovementType.ADDITIONAL_DEPOSIT,
             new BigDecimal("500.00"), "MXN", LocalDate.of(2026, 6, 13),
-            "Aportacion del socio", "Capital operativo", null, null
+            "Aportacion del socio", "OWNER_CONTRIBUTION", "Socio", "Capital operativo",
+            "TRANSFER", null, "Capital operativo", null, null
         );
         var movement = movementRecord(403L, fund.id(), statement.id(), request);
         var treasuryMovement = ArgumentCaptor.forClass(TreasuryMovementCommand.class);
@@ -209,12 +240,13 @@ class PettyCashServiceTest {
     void createMovementRejectsExternalSourceOnANonFundingAdjustment() {
         var service = service();
         var context = context();
-        var fund = record(99L, createCommand("fund-token-123", 70L, 80L));
+        var fund = record(99L, createCommand("fund-token-123", 70L, null));
         var statement = statementRecord(501L, fund.id());
         var request = new CreatePettyCashMovementRequest(
             statement.id(), null, null, PettyCashMovementType.CARRY_FORWARD,
             new BigDecimal("500.00"), "MXN", LocalDate.of(2026, 6, 13),
-            "Not applicable", "Carry forward", null, null
+            "Not applicable", "OTHER", null, "Carry forward", null, null,
+            "Carry forward", null, null
         );
 
         when(repository.findFundById(context, fund.id())).thenReturn(Optional.of(fund));
@@ -304,8 +336,41 @@ class PettyCashServiceTest {
         assertEquals(701L, response.settlementLine().expenseId());
         assertEquals(PettyCashSettlementLineStatus.EXPENSE_CREATED, response.settlementLine().status());
         verify(repository).linkSettlementLineExpense(context, pendingLine.id(), 701L);
+        verify(expenseService).recordCustodySettlement(context, 701L, pendingLine.id());
+        verifyNoInteractions(treasuryService);
         verify(repository).applySettlementLineExpenseToStatement(context, statement.id(), pendingLine.totalAmount());
         verify(repository).applySettlementLineToBudgetLine(context, fund.budgetLineId(), pendingLine.totalAmount());
+    }
+
+    @Test
+    void validateExternalFundReceiptUpdatesStatementWithoutCreatingCompanyExpenseOrBudgetImpact() {
+        var service = service();
+        var context = context();
+        var fund = record(99L, createCommand("fund-token-123", 70L, null));
+        var statement = statementRecord(501L, fund.id());
+        var pendingLine = settlementLineRecord(
+            301L, fund.id(), statement.id(), null,
+            PettyCashSettlementLineStatus.RECEIPT_ATTACHED, 1);
+        var validatedLine = settlementLineRecord(
+            301L, fund.id(), statement.id(), null,
+            PettyCashSettlementLineStatus.VALIDATED, 1);
+
+        when(repository.findFundById(context, fund.id())).thenReturn(Optional.of(fund), Optional.of(fund));
+        when(repository.findSettlementLineById(context, pendingLine.id()))
+            .thenReturn(Optional.of(pendingLine), Optional.of(validatedLine));
+        when(repository.findStatementById(context, statement.id()))
+            .thenReturn(Optional.of(statement), Optional.of(statement));
+        when(repository.validateExternalSettlementLine(context, pendingLine.id())).thenReturn(true);
+
+        var response = service.createExpenseFromSettlementLine(context, fund.id(), pendingLine.id());
+
+        assertEquals(PettyCashSettlementLineStatus.VALIDATED, response.settlementLine().status());
+        assertEquals(null, response.settlementLine().expenseId());
+        verify(repository).validateExternalSettlementLine(context, pendingLine.id());
+        verify(repository).applySettlementLineExpenseToStatement(context, statement.id(), pendingLine.totalAmount());
+        verify(repository, never()).insertExpenseFromSettlementLine(any(), any(), any(), any());
+        verify(repository, never()).linkSettlementLineExpense(any(), anyLong(), anyLong());
+        verify(repository, never()).applySettlementLineToBudgetLine(any(), any(), any());
     }
 
     @Test
@@ -699,7 +764,7 @@ class PettyCashServiceTest {
         lenient().when(timeZoneResolver.resolve(anyLong())).thenReturn(ZoneId.of("America/Toronto"));
         return new PettyCashService(
             repository, new PettyCashMapper(), validator, kioskRegistry, treasuryService, timeZoneResolver,
-            payrollExternalDeductionService);
+            payrollExternalDeductionService, expenseService);
     }
 
     private void assertExpenseCreationRejectedForStatus(PettyCashSettlementLineStatus status) {
@@ -733,17 +798,28 @@ class PettyCashServiceTest {
 
     private CreatePettyCashFundRequest createRequest(boolean kioskEnabled, String kioskPublicToken) {
         return new CreatePettyCashFundRequest(
-            10L, 20L, null, null, null, null, 1L, "Maintenance cash", "MXN",
+            10L, 20L, 50L, 60L, 70L, 80L, 1L, PettyCashFundType.INTERNAL_COMPANY,
+            "Maintenance cash", "MXN",
             new BigDecimal("10000.00"), BigDecimal.ZERO, 30, "Bank account",
+            null, null, null, null, null, null, null, null,
             java.util.List.of("Transferencia interna"), java.util.List.of("Efectivo"),
             kioskEnabled, true, null, kioskPublicToken, PettyCashFundStatus.OPEN, null, null
         );
     }
 
     private UpdatePettyCashFundRequest updateRequest(boolean kioskEnabled, String kioskPublicToken) {
+        return updateRequest(kioskEnabled, kioskPublicToken, "MXN");
+    }
+
+    private UpdatePettyCashFundRequest updateRequest(
+            boolean kioskEnabled,
+            String kioskPublicToken,
+            String currencyCode) {
         return new UpdatePettyCashFundRequest(
-            10L, 20L, null, null, null, null, 1L, "Maintenance cash", "MXN",
+            10L, 20L, 50L, 60L, 70L, 80L, 1L, PettyCashFundType.INTERNAL_COMPANY,
+            "Maintenance cash", currencyCode,
             new BigDecimal("10000.00"), 30, "Bank account",
+            null, null, null, null, null, null, null, null,
             java.util.List.of("Transferencia interna"), java.util.List.of("Efectivo"),
             kioskEnabled, true, null, kioskPublicToken, PettyCashFundStatus.OPEN, null, null
         );
@@ -758,9 +834,16 @@ class PettyCashServiceTest {
     }
 
     private PettyCashFundCommand createCommand(String kioskPublicToken, Long paymentAccountId, Long fundingSourcePaymentAccountId) {
+        var external = fundingSourcePaymentAccountId == null;
         return new PettyCashFundCommand(
-            10L, 20L, null, 60L, paymentAccountId, fundingSourcePaymentAccountId, 1L, "Maintenance cash", "MXN",
+            10L, 20L, external ? null : 50L, external ? null : 60L,
+            paymentAccountId, fundingSourcePaymentAccountId, 1L,
+            external ? PettyCashFundType.EXTERNAL_MANAGED : PettyCashFundType.INTERNAL_COMPANY,
+            "Maintenance cash", "MXN",
             new BigDecimal("10000.00"), BigDecimal.ZERO, 30, "Bank account",
+            external ? "COMPANY" : null, external ? "Managed client" : null,
+            external ? "CLIENT" : null, null, external ? "client@example.com" : null,
+            null, null, null, false,
             "[]", "[]", true, true, "/petty-cash/kiosk/" + kioskPublicToken,
             kioskPublicToken, PettyCashFundStatus.OPEN, 1L, null, null, null
         );
@@ -770,8 +853,12 @@ class PettyCashServiceTest {
         return new PettyCashFundRecord(
             id, 7L, command.unitId(), command.businessId(), command.budgetId(), command.budgetLineId(),
             command.paymentAccountId(), command.fundingSourcePaymentAccountId(), command.responsibleUserId(),
+            command.fundType(),
             command.name(), command.currencyCode(), command.limitAmount(), command.currentBalanceAmount(),
-            command.cutOffDay(), command.fundingSourceName(), command.fundingMethodsJson(), command.spendingMethodsJson(),
+            command.cutOffDay(), command.fundingSourceName(), command.externalOwnerType(), command.externalOwnerName(),
+            command.externalOwnerRelationship(), command.externalOwnerReference(), command.statementRecipientEmail(),
+            command.managedAssetType(), command.managedAssetName(), command.managedAssetReference(),
+            command.externalIdentityPending(), command.fundingMethodsJson(), command.spendingMethodsJson(),
             command.kioskEnabled(), command.kioskUsesUniversalPin(), command.kioskAccessUrl(),
             command.kioskPublicToken(), command.status(), command.createdByUserId(), command.updatedByUserId(),
             Instant.parse("2026-06-13T00:00:00Z"), null, null, 0L, command.customFieldsJson(), command.metadataJson()
@@ -797,11 +884,12 @@ class PettyCashServiceTest {
             BigDecimal declaredClosingBalanceAmount,
             PettyCashStatementStatus status) {
         return new PettyCashStatementRecord(
-            id, 7L, fundId, "PC-ST-2026-06-99", "2026-06",
+            id, 7L, fundId, PettyCashFundType.INTERNAL_COMPANY, "PC-ST-2026-06-99", "2026-06",
             LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 30), LocalDate.of(2026, 6, 30),
             BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, declaredClosingBalanceAmount, BigDecimal.ZERO, BigDecimal.ZERO,
             BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, "MXN", status,
-            1L, null, 0, 1L, null, Instant.parse("2026-06-13T00:00:00Z"), null, null, 0L, null, null
+            1L, null, null, null, null, null, null, null, null,
+            null, 0, 1L, null, Instant.parse("2026-06-13T00:00:00Z"), null, null, 0L, null, null
         );
     }
 
@@ -836,7 +924,9 @@ class PettyCashServiceTest {
             CreatePettyCashMovementRequest request) {
         return new PettyCashMovementRecord(
             id, 7L, fundId, statementId, request.fromPaymentAccountId(), request.toPaymentAccountId(),
-            request.externalSourceName(), request.type(), request.amount(), request.currencyCode(), request.movementDate(), request.reference(),
+            request.externalSourceName(), request.entryCategory(), request.counterpartyName(), request.statementDescription(),
+            request.fundingMethod(), request.internalNote(), request.type(), request.amount(), request.currencyCode(),
+            request.movementDate(), request.reference(),
             1L, null, Instant.parse("2026-06-13T00:00:00Z"), null, null, 0L, null, null
         );
     }
@@ -848,7 +938,9 @@ class PettyCashServiceTest {
             PettyCashMovementCommand command) {
         return new PettyCashMovementRecord(
             id, 7L, fundId, statementId, command.fromPaymentAccountId(), command.toPaymentAccountId(),
-            command.externalSourceName(), command.type(), command.amount(), command.currencyCode(), command.movementDate(), command.reference(),
+            command.externalSourceName(), command.entryCategory(), command.counterpartyName(), command.statementDescription(),
+            command.fundingMethod(), command.internalNote(), command.type(), command.amount(), command.currencyCode(),
+            command.movementDate(), command.reference(),
             1L, null, Instant.parse("2026-06-13T00:00:00Z"), null, null, 0L,
             command.customFieldsJson(), command.metadataJson()
         );

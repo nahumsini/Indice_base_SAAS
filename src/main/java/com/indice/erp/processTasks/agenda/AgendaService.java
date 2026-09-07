@@ -81,9 +81,9 @@ public class AgendaService {
                                task.assigned_user_company_id,
                                assigned_user_company.user_id AS assigned_user_id,
                                COALESCE(
-                                   NULLIF(task.assigned_name, ''),
-                                   NULLIF(TRIM(assigned_user.full_name), ''),
-                                   NULLIF(TRIM(assigned_user.email), ''),
+
+                                   NULLIF(TRIM(assigned_user_display_profile.full_name), ''), NULLIF(TRIM(assigned_user.full_name), ''),
+                                   NULLIF(TRIM(assigned_user.email), ''), NULLIF(task.assigned_name, ''),
                                    NULL
                                ) AS resolved_assigned_name,
                                task.process_id,
@@ -143,6 +143,7 @@ public class AgendaService {
                         LEFT JOIN user_companies assigned_user_company ON assigned_user_company.id = task.assigned_user_company_id
                             AND assigned_user_company.company_id = task.company_id
                         LEFT JOIN users assigned_user ON assigned_user.id = assigned_user_company.user_id
+                        LEFT JOIN user_profiles assigned_user_display_profile ON assigned_user_display_profile.user_id = assigned_user.id
                         LEFT JOIN user_companies completed_user_company ON completed_user_company.id = task.completed_by_user_company_id
                             AND completed_user_company.company_id = task.company_id
                         LEFT JOIN users completed_user ON completed_user.id = COALESCE(completed_user_company.user_id, task.completed_by_user_id)

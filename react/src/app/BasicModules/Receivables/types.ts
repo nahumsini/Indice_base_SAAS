@@ -118,6 +118,8 @@ export type ReceivableInstallment = {
 };
 
 export type ReceivablePayment = {
+  paymentAccountId?: string;
+  idempotencyKey?: string;
   id: string;
   receivableId: string;
   saleNumber: string;

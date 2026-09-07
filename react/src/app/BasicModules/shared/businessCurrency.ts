@@ -343,6 +343,7 @@ export function formatBusinessCurrencyBreakdown<TItem>(
   items: TItem[],
   getAmount: (item: TItem) => number,
   getCurrency: (item: TItem) => string | null | undefined,
+  options: Intl.NumberFormatOptions = {},
 ) {
   const totalsByCurrency = items.reduce<Map<string, number>>((totals, item) => {
     const currency = normalizeBusinessCurrencyCode(getCurrency(item));
@@ -351,10 +352,10 @@ export function formatBusinessCurrencyBreakdown<TItem>(
   }, new Map());
 
   if (totalsByCurrency.size === 0) {
-    return formatBusinessCurrencyAmount(0);
+    return formatBusinessCurrencyAmount(0, undefined, options);
   }
 
   return Array.from(totalsByCurrency.entries())
-    .map(([currency, total]) => formatBusinessCurrencyAmount(total, currency))
+    .map(([currency, total]) => formatBusinessCurrencyAmount(total, currency, options))
     .join(' / ');
 }

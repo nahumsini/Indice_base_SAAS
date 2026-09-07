@@ -10,10 +10,21 @@ import com.indice.erp.finance.shared.FinanceContext;
 import com.indice.erp.finance.shared.FinanceScope;
 import com.indice.erp.finance.shared.FinanceValidationSupport;
 import java.math.BigDecimal;
+import java.util.Locale;
+import java.util.Set;
 import org.springframework.stereotype.Component;
 
 @Component
 class PettyCashValidator {
+
+    private static final Set<String> EXTERNAL_OWNER_TYPES = Set.of("PERSON", "COMPANY", "TRUST", "OTHER");
+    private static final Set<String> EXTERNAL_OWNER_RELATIONSHIPS = Set.of(
+        "CLIENT", "OWNER", "PARTNER", "BENEFICIARY", "OTHER"
+    );
+    private static final Set<String> MANAGED_ASSET_TYPES = Set.of(
+        "REAL_ESTATE", "VEHICLE", "VESSEL", "MACHINERY", "INVESTMENT_ACCOUNT",
+        "CURRENCY", "SECURITIES", "OTHER"
+    );
 
     private final FinanceAccessService accessService;
     private final PettyCashReferenceValidator referenceValidator;
@@ -28,26 +39,58 @@ class PettyCashValidator {
         FinanceValidationSupport.requireCurrencyCode(request.currencyCode());
         requireNonNegative(request.limitAmount(), "limitAmount");
         requirePaymentAccount(request.paymentAccountId());
-        requireFundingSource(request.fundingSourcePaymentAccountId(), request.fundingSourceName());
+        var fundType = resolveFundType(request.fundType(), request.fundingSourcePaymentAccountId());
+        validateFundClassification(
+            fundType, request.budgetId(), request.budgetLineId(), request.fundingSourcePaymentAccountId(),
+            request.fundingSourceName(), request.externalOwnerType(), request.externalOwnerName(),
+            request.externalOwnerRelationship(), request.statementRecipientEmail(), request.managedAssetType(),
+            request.managedAssetName(), false, false, false
+        );
         var assignment = resolveAssignment(context, request.unitId(), request.businessId());
         referenceValidator.validateFundReferences(context, assignment, request.budgetId(), request.budgetLineId(),
             request.paymentAccountId(), request.fundingSourcePaymentAccountId(), request.responsibleUserId(), request.currencyCode());
         return assignment;
     }
 
-    PettyCashScopedAssignment validateUpdate(FinanceContext context, UpdatePettyCashFundRequest request) {
+    PettyCashScopedAssignment validateUpdate(
+            FinanceContext context,
+            UpdatePettyCashFundRequest request,
+            PettyCashFundRecord existing) {
         requireName(request.name());
         FinanceValidationSupport.requireCurrencyCode(request.currencyCode());
         requireNonNegative(request.limitAmount(), "limitAmount");
+        var fundType = resolveFundType(request.fundType(), request.fundingSourcePaymentAccountId());
+        var preserveLegacyPendingIdentity = existing.fundType() == PettyCashFundType.EXTERNAL_MANAGED
+            && Boolean.TRUE.equals(existing.externalIdentityPending())
+            && fundType == PettyCashFundType.EXTERNAL_MANAGED;
+        var preserveLegacyMissingBudget = existing.fundType() == PettyCashFundType.INTERNAL_COMPANY
+            && existing.budgetId() == null
+            && existing.budgetLineId() == null
+            && fundType == PettyCashFundType.INTERNAL_COMPANY
+            && request.budgetId() == null
+            && request.budgetLineId() == null;
+        var preserveLegacyMissingSourceAccount = existing.fundType() == PettyCashFundType.INTERNAL_COMPANY
+            && existing.fundingSourcePaymentAccountId() == null
+            && fundType == PettyCashFundType.INTERNAL_COMPANY
+            && request.fundingSourcePaymentAccountId() == null;
         requirePaymentAccount(request.paymentAccountId());
-        requireFundingSource(request.fundingSourcePaymentAccountId(), request.fundingSourceName());
+        validateFundClassification(
+            fundType, request.budgetId(), request.budgetLineId(), request.fundingSourcePaymentAccountId(),
+            request.fundingSourceName(), request.externalOwnerType(), request.externalOwnerName(),
+            request.externalOwnerRelationship(), request.statementRecipientEmail(), request.managedAssetType(),
+            request.managedAssetName(), preserveLegacyPendingIdentity, preserveLegacyMissingBudget,
+            preserveLegacyMissingSourceAccount
+        );
         var assignment = resolveAssignment(context, request.unitId(), request.businessId());
         referenceValidator.validateFundReferences(context, assignment, request.budgetId(), request.budgetLineId(),
             request.paymentAccountId(), request.fundingSourcePaymentAccountId(), request.responsibleUserId(), request.currencyCode());
         return assignment;
     }
 
-    void validateMovement(FinanceContext context, CreatePettyCashMovementRequest request) {
+    void validateMovement(
+            FinanceContext context,
+            PettyCashFundRecord fund,
+            CreatePettyCashMovementRequest request) {
         if (request.type() == null) {
             throw FinanceApiException.badRequest("type is required.");
         }
@@ -59,6 +102,25 @@ class PettyCashValidator {
             request.toPaymentAccountId(),
             request.currencyCode()
         );
+        if (request.type() == PettyCashMovementType.INITIAL_FUNDING
+                || request.type() == PettyCashMovementType.ADDITIONAL_DEPOSIT
+                || request.type() == PettyCashMovementType.RETURN_TO_SOURCE) {
+            requireText(request.statementDescription(), "statementDescription");
+            if (fund.fundType() == PettyCashFundType.INTERNAL_COMPANY) {
+                if (request.externalSourceName() != null && !request.externalSourceName().isBlank()) {
+                    throw FinanceApiException.badRequest("Internal funds cannot use an external funding source.");
+                }
+            } else {
+                requireText(request.externalSourceName(), "externalSourceName");
+                if (request.type() == PettyCashMovementType.RETURN_TO_SOURCE) {
+                    if (request.toPaymentAccountId() != null) {
+                        throw FinanceApiException.badRequest("External fund returns cannot use a company destination account.");
+                    }
+                } else if (request.fromPaymentAccountId() != null) {
+                    throw FinanceApiException.badRequest("External fund entries cannot use a company source account.");
+                }
+            }
+        }
     }
 
     void validateSettlementLine(FinanceContext context, CreatePettyCashSettlementLineRequest request) {
@@ -139,9 +201,79 @@ class PettyCashValidator {
         }
     }
 
-    private void requireFundingSource(Long paymentAccountId, String externalSourceName) {
-        if (paymentAccountId == null && (externalSourceName == null || externalSourceName.isBlank())) {
-            throw FinanceApiException.badRequest("Choose a company source account or identify the external funding source.");
+    private void validateFundClassification(
+            PettyCashFundType fundType,
+            Long budgetId,
+            Long budgetLineId,
+            Long fundingSourcePaymentAccountId,
+            String fundingSourceName,
+            String externalOwnerType,
+            String externalOwnerName,
+            String externalOwnerRelationship,
+            String statementRecipientEmail,
+            String managedAssetType,
+            String managedAssetName,
+            boolean allowLegacyPendingIdentity,
+            boolean allowLegacyMissingBudget,
+            boolean allowLegacyMissingSourceAccount) {
+        if (fundType == PettyCashFundType.INTERNAL_COMPANY) {
+            if (!allowLegacyMissingBudget && (budgetId == null || budgetLineId == null)) {
+                throw FinanceApiException.badRequest("Internal funds require a budget and budget line.");
+            }
+            if (!allowLegacyMissingSourceAccount && fundingSourcePaymentAccountId == null) {
+                throw FinanceApiException.badRequest("Internal funds require a company source account.");
+            }
+            return;
+        }
+        if (budgetId != null || budgetLineId != null) {
+            throw FinanceApiException.badRequest("External managed funds cannot affect a company budget.");
+        }
+        if (fundingSourcePaymentAccountId != null) {
+            throw FinanceApiException.badRequest("External managed funds cannot use a company source account.");
+        }
+        if (!allowLegacyPendingIdentity) {
+            requireText(fundingSourceName, "fundingSourceName");
+        }
+        validateCode(externalOwnerType, EXTERNAL_OWNER_TYPES, "externalOwnerType", allowLegacyPendingIdentity);
+        validateCode(
+            externalOwnerRelationship, EXTERNAL_OWNER_RELATIONSHIPS,
+            "externalOwnerRelationship", allowLegacyPendingIdentity
+        );
+        if (!allowLegacyPendingIdentity) {
+            requireText(externalOwnerName, "externalOwnerName");
+            requireText(statementRecipientEmail, "statementRecipientEmail");
+        }
+        if (managedAssetType != null && !managedAssetType.isBlank()) {
+            validateCode(managedAssetType, MANAGED_ASSET_TYPES, "managedAssetType", false);
+            requireText(managedAssetName, "managedAssetName");
+        } else if (managedAssetName != null && !managedAssetName.isBlank()) {
+            throw FinanceApiException.badRequest("managedAssetType is required when a managed asset is identified.");
+        }
+    }
+
+    private PettyCashFundType resolveFundType(PettyCashFundType requested, Long sourceAccountId) {
+        if (requested != null) {
+            return requested;
+        }
+        return sourceAccountId == null ? PettyCashFundType.EXTERNAL_MANAGED : PettyCashFundType.INTERNAL_COMPANY;
+    }
+
+    private void validateCode(String value, Set<String> allowed, String fieldName, boolean optional) {
+        if (value == null || value.isBlank()) {
+            if (optional) {
+                return;
+            }
+            throw FinanceApiException.badRequest(fieldName + " is required.");
+        }
+        var normalized = value.trim().toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
+        if (!allowed.contains(normalized)) {
+            throw FinanceApiException.badRequest(fieldName + " is invalid.");
+        }
+    }
+
+    private void requireText(String value, String fieldName) {
+        if (value == null || value.trim().isBlank()) {
+            throw FinanceApiException.badRequest(fieldName + " is required.");
         }
     }
 }

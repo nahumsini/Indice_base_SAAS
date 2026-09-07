@@ -220,6 +220,20 @@ class SalesRepository {
         }
     }
 
+    void lockProductForMaintenance(long companyId, long productId) {
+        var rows = jdbcTemplate.query("SELECT id FROM sales_products WHERE company_id = ? AND id = ? AND deleted_at IS NULL FOR UPDATE",
+            (rs, row) -> rs.getLong(1), companyId, productId);
+        if (rows.isEmpty()) throw new NoSuchElementException("Product not found.");
+    }
+
+    boolean hasProductInventoryHistory(long companyId, long productId) {
+        return jdbcTemplate.queryForObject("""
+            SELECT EXISTS (SELECT 1 FROM sales_inventory_movements WHERE company_id = ? AND product_id = ?)
+              OR EXISTS (SELECT 1 FROM sales_inventory_balances WHERE company_id = ? AND product_id = ?
+                  AND (available_quantity <> 0 OR reserved_quantity <> 0))
+            """, Boolean.class, companyId, productId, companyId, productId);
+    }
+
     void lockSaleForDeletion(long companyId, long saleId) {
         var ids = jdbcTemplate.query(
                 "SELECT id FROM sales_records WHERE company_id = ? AND id = ? AND deleted_at IS NULL FOR UPDATE",
@@ -500,9 +514,40 @@ class SalesRepository {
                 saleId);
     }
 
+    boolean isServiceProduct(long companyId, long productId) {
+        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM sales_products WHERE company_id = ? AND id = ? AND UPPER(type) = 'SERVICE' AND deleted_at IS NULL", Integer.class, companyId, productId) == 1;
+    }
+
+    boolean hasSaleInventoryMovements(long companyId, long saleId) {
+        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM sales_inventory_movements WHERE company_id = ? AND group_id = ? AND movement_type = 'sale' AND status = 'completed'",
+            Integer.class, companyId, "SALE-" + saleId) > 0;
+    }
+
     void confirmSaleInventory(long companyId, long userId, long saleId, Map<String, Object> payload) {
+        lockSaleForDeletion(companyId, saleId);
+        if (java.util.Set.of("cancelled", "canceled").contains(java.util.Objects.toString(SalesPayloadSupport.stringValue(payload, "commercialStatus"), ""))) return;
+        if (hasSaleInventoryMovements(companyId, saleId)) return;
         var linesValue = SalesPayloadSupport.value(payload, "saleLines");
         if (!(linesValue instanceof List<?> lines) || lines.isEmpty()) {
+            return;
+        }
+
+        var serviceSnapshots = new ArrayList<Map<String, Object>>();
+        boolean onlyServices = true;
+        for (var item : lines) {
+            if (!(item instanceof Map<?, ?> raw)) throw new IllegalArgumentException("Each sale item must be valid.");
+            var line = toStringMap(raw);
+            var productId = safeLong(line.get("productId"));
+            if (productId == null) throw new IllegalArgumentException("Each sale item must reference a saved product.");
+            var product = requireSaleProduct(companyId, productId);
+            if (!"SERVICE".equalsIgnoreCase(String.valueOf(product.get("productType")))) { onlyServices = false; break; }
+            line.put("unitCost", BigDecimal.ZERO); line.put("costCurrency", product.get("currency"));
+            line.put("costSource", "NO_INVENTORY_CONSUMPTION"); line.put("stockTracked", false);
+            serviceSnapshots.add(line);
+        }
+        if (onlyServices) {
+            jdbcTemplate.update("UPDATE sales_records SET sale_lines_json = CAST(? AS JSON), inventory_status = 'not_required', inventory_movement_status = 'not_required' WHERE company_id = ? AND id = ?",
+                SalesPayloadSupport.jsonValue(objectMapper, serviceSnapshots), companyId, saleId);
             return;
         }
 
@@ -517,6 +562,8 @@ class SalesRepository {
         var saleDate = firstNonBlank(SalesPayloadSupport.stringValue(payload, "saleDate"), LocalDate.now().toString());
         var sellerName = firstNonBlank(SalesPayloadSupport.stringValue(payload, "sellerName"), "Indice user");
         var movementCount = 0;
+        var requiredByProduct = new LinkedHashMap<Long, BigDecimal>();
+        var costSnapshots = new ArrayList<Map<String, Object>>();
 
         // Validate the complete movement before changing balances. This keeps a sale
         // with several lines from producing a partial inventory discount when a later
@@ -531,9 +578,15 @@ class SalesRepository {
                 throw new IllegalArgumentException("Each sale item must reference a saved product.");
             }
             var product = requireSaleProduct(companyId, productId);
-            if (!Boolean.TRUE.equals(product.get("inventoryReady"))) {
+            if ("SERVICE".equalsIgnoreCase(String.valueOf(product.get("productType")))) {
+                line.put("unitCost", BigDecimal.ZERO);
+                line.put("costCurrency", product.get("currency"));
+                line.put("costSource", "NO_INVENTORY_CONSUMPTION");
+                line.put("stockTracked", false);
+                costSnapshots.add(line);
                 continue;
             }
+            if (!Boolean.TRUE.equals(product.get("inventoryReady"))) throw new IllegalArgumentException("The product must be enabled for inventory before confirming its stock movement.");
             var quantity = SalesPayloadSupport.decimalValue(line, "quantity");
             if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
                 throw new IllegalArgumentException("Sale item quantity must be greater than zero.");
@@ -543,9 +596,15 @@ class SalesRepository {
                 throw new IllegalArgumentException("The selected product is not enabled for inventory in this warehouse.");
             }
             var available = (BigDecimal) balance.get("availableQuantity");
-            if (available.compareTo(quantity) < 0) {
+            requiredByProduct.merge(productId, quantity, BigDecimal::add);
+            if (available.compareTo(requiredByProduct.get(productId)) < 0) {
                 throw new IllegalArgumentException("Insufficient inventory for " + product.get("name") + " in " + warehouse.get("name") + ".");
             }
+            line.put("unitCost", balance.get("unitCost"));
+            line.put("costCurrency", product.get("currency"));
+            line.put("costSource", "INVENTORY_BALANCE");
+            line.put("stockTracked", true);
+            costSnapshots.add(line);
         }
 
         for (var index = 0; index < lines.size(); index++) {
@@ -558,10 +617,11 @@ class SalesRepository {
                 throw new IllegalArgumentException("Each sale item must reference a saved product.");
             }
             var product = requireSaleProduct(companyId, productId);
-            if (!Boolean.TRUE.equals(product.get("inventoryReady"))) {
+            if ("SERVICE".equalsIgnoreCase(String.valueOf(product.get("productType")))) {
                 continue;
             }
 
+            if (!Boolean.TRUE.equals(product.get("inventoryReady"))) throw new IllegalArgumentException("The product must be enabled for inventory before confirming its stock movement.");
             var quantity = SalesPayloadSupport.decimalValue(line, "quantity");
             if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
                 throw new IllegalArgumentException("Sale item quantity must be greater than zero.");
@@ -614,7 +674,7 @@ class SalesRepository {
                     product.get("name"),
                     product.get("sku"),
                     quantity,
-                    firstDecimal(SalesPayloadSupport.decimalValue(line, "unitCost"), (BigDecimal) balance.get("unitCost")),
+                    balance.get("unitCost"),
                     warehouseId,
                     warehouse.get("name"),
                     stringValue(warehouse.get("businessUnitId")),
@@ -629,6 +689,9 @@ class SalesRepository {
                     userId);
             movementCount++;
         }
+
+        jdbcTemplate.update("UPDATE sales_records SET sale_lines_json = CAST(? AS JSON) WHERE company_id = ? AND id = ?",
+            SalesPayloadSupport.jsonValue(objectMapper, costSnapshots), companyId, saleId);
 
         if (movementCount > 0) {
             jdbcTemplate.update(
@@ -654,6 +717,41 @@ class SalesRepository {
                     userId,
                     companyId,
                     saleId);
+        }
+    }
+
+    void reverseSaleInventory(long companyId, long userId, long saleId, LocalDate date) {
+        var movements = jdbcTemplate.queryForList("""
+            SELECT * FROM sales_inventory_movements
+            WHERE company_id = ? AND group_id = ? AND movement_type = 'sale' AND status = 'completed'
+              AND deleted_at IS NULL
+            ORDER BY id FOR UPDATE
+            """, companyId, "SALE-" + saleId);
+        for (var movement : movements) {
+            String reference = "SALE-RETURN-" + movement.get("id");
+            Integer exists = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM sales_inventory_movements WHERE company_id = ? AND movement_number = ?",
+                Integer.class, companyId, reference);
+            if (exists != null && exists > 0) continue;
+            int updated = jdbcTemplate.update("""
+                UPDATE sales_inventory_balances
+                SET unit_cost = ((available_quantity * unit_cost) + (? * ?)) / (available_quantity + ?),
+                  available_quantity = available_quantity + ?, last_movement_at = ?, updated_by_user_id = ?
+                WHERE company_id = ? AND product_id = ? AND warehouse_id = ? AND deleted_at IS NULL
+                """, movement.get("quantity"), movement.get("unit_cost"), movement.get("quantity"), movement.get("quantity"), date, userId, companyId, movement.get("product_id"), movement.get("from_warehouse_id"));
+            if (updated != 1) throw new IllegalArgumentException("No se puede devolver la existencia al almacén original; revisa el saldo antes de cancelar.");
+            jdbcTemplate.update("""
+                INSERT INTO sales_inventory_movements
+                  (company_id, movement_number, group_id, product_id, product_name, product_sku, movement_type,
+                   quantity, unit_cost, to_warehouse_id, to_warehouse_name, business_unit_id, business_unit_name,
+                   business_id, business_name, reason, reference, movement_date, status, metadata_json,
+                   created_by_user_id, updated_by_user_id)
+                VALUES (?, ?, ?, ?, ?, ?, 'sale_return', ?, ?, ?, ?, ?, ?, ?, ?, 'Cancelled sale return', ?,
+                  ?, 'completed', CAST(? AS JSON), ?, ?)
+                """, companyId, reference, "SALE-RETURN-" + saleId, movement.get("product_id"), movement.get("product_name"),
+                movement.get("product_sku"), movement.get("quantity"), movement.get("unit_cost"), movement.get("from_warehouse_id"),
+                movement.get("from_warehouse_name"), movement.get("business_unit_id"), movement.get("business_unit_name"),
+                movement.get("business_id"), movement.get("business_name"), movement.get("reference"), date,
+                SalesPayloadSupport.jsonValue(objectMapper, Map.of("saleId", saleId, "reversalOfMovementId", movement.get("id"), "source", "SALES_CANCELLATION")), userId, userId);
         }
     }
 
@@ -739,9 +837,9 @@ class SalesRepository {
     private Map<String, Object> requireSaleProduct(long companyId, long productId) {
         return jdbcTemplate.query(
                 """
-                        SELECT id, name, sku, inventory_ready
+                        SELECT id, name, sku, inventory_ready, currency, type AS product_type
                         FROM sales_products
-                        WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+                        WHERE company_id = ? AND id = ? AND deleted_at IS NULL FOR UPDATE
                         """,
                 (rs, rowNum) -> {
                     var row = new LinkedHashMap<String, Object>();
@@ -749,6 +847,8 @@ class SalesRepository {
                     row.put("name", rs.getString("name"));
                     row.put("sku", rs.getString("sku"));
                     row.put("inventoryReady", rs.getBoolean("inventory_ready"));
+                    row.put("productType", rs.getString("product_type"));
+                    row.put("currency", rs.getString("currency"));
                     return row;
                 },
                 companyId,
@@ -960,77 +1060,82 @@ class SalesRepository {
                 warehouseId).stream().findFirst().orElse(null);
     }
 
-    Map<String, Object> kpis(long companyId) {
+    Map<String, Object> kpis(long companyId, java.time.LocalDate today, com.indice.erp.hr.HrOperationalScope scope) {
         var body = new LinkedHashMap<String, Object>();
-        body.put("contacts", count("sales_contacts", companyId));
-        body.put("opportunities", count("sales_opportunities", companyId));
-        body.put("activeOpportunities", countWhere(
-                "sales_opportunities",
-                companyId,
-                "LOWER(status) NOT IN ('closed') AND LOWER(stage) NOT IN ('won', 'lost')"));
-        body.put("quotes", count("sales_quotes", companyId));
-        body.put("approvedQuotes", countWhere("sales_quotes", companyId, "LOWER(status) IN ('approved', 'closed_won', 'closed won', 'accepted')"));
-        body.put("products", count("sales_products", companyId));
-        body.put("sales", count("sales_records", companyId));
-        body.put("postSales", count("sales_post_sale_cases", companyId));
-        body.put("contracts", count("sales_contracts", companyId));
-        body.put("pendingSignatures", countWhere("sales_contracts", companyId, "LOWER(signature_status) IN ('waiting', 'pending_signature', 'pending signature')"));
-        body.put("pipelineValue", sum("sales_opportunities", companyId, "estimated_value"));
-        body.put("quotedValue", sum("sales_quotes", companyId, "amount"));
-        body.put("salesValue", sum("sales_records", companyId, "total_amount"));
-        body.put("monthlySales", countWhere(
-                "sales_records",
-                companyId,
-                "sale_date >= DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01') AND sale_date < DATE_ADD(LAST_DAY(CURRENT_DATE()), INTERVAL 1 DAY)"));
-        body.put("monthlySalesValue", sumWhere(
-                "sales_records",
-                companyId,
-                "total_amount",
-                "sale_date >= DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01') AND sale_date < DATE_ADD(LAST_DAY(CURRENT_DATE()), INTERVAL 1 DAY)"));
-        body.put("weeklySales", countWhere(
-                "sales_records",
-                companyId,
-                "sale_date >= DATE_SUB(CURRENT_DATE(), INTERVAL WEEKDAY(CURRENT_DATE()) DAY) AND sale_date < DATE_ADD(DATE_SUB(CURRENT_DATE(), INTERVAL WEEKDAY(CURRENT_DATE()) DAY), INTERVAL 7 DAY)"));
-        body.put("weeklySalesValue", sumWhere(
-                "sales_records",
-                companyId,
-                "total_amount",
-                "sale_date >= DATE_SUB(CURRENT_DATE(), INTERVAL WEEKDAY(CURRENT_DATE()) DAY) AND sale_date < DATE_ADD(DATE_SUB(CURRENT_DATE(), INTERVAL WEEKDAY(CURRENT_DATE()) DAY), INTERVAL 7 DAY)"));
-        body.put("pendingFinanceSales", countWhere("sales_records", companyId, "LOWER(finance_status) IN ('pending', 'pending_validation')"));
-        body.put("pendingInventorySales", countWhere("sales_records", companyId, "LOWER(inventory_movement_status) IN ('not_generated', 'pending')"));
+        String activeSale = " AND LOWER(commercial_status) NOT IN ('cancelled', 'canceled', 'rejected', 'voided')";
+        body.put("contacts", scopedKpiCount("sales_contacts", companyId, "", List.of(), scope));
+        body.put("opportunities", scopedKpiCount("sales_opportunities", companyId, "", List.of(), scope));
+        body.put("activeOpportunities", scopedKpiCount("sales_opportunities", companyId, " AND LOWER(status) NOT IN ('closed') AND LOWER(stage) NOT IN ('won', 'lost')", List.of(), scope));
+        body.put("quotes", scopedKpiCount("sales_quotes", companyId, "", List.of(), scope));
+        body.put("approvedQuotes", scopedKpiCount("sales_quotes", companyId, " AND LOWER(status) IN ('approved', 'closed_won', 'closed won', 'accepted')", List.of(), scope));
+        body.put("products", scopedKpiCount("sales_products", companyId, "", List.of(), scope));
+        body.put("sales", scopedKpiCount("sales_records", companyId, activeSale, List.of(), scope));
+        body.put("postSales", scopedKpiCount("sales_post_sale_cases", companyId, "", List.of(), scope));
+        body.put("contracts", scopedKpiCount("sales_contracts", companyId, "", List.of(), scope));
+        body.put("pendingSignatures", scopedKpiCount("sales_contracts", companyId, " AND LOWER(signature_status) IN ('waiting', 'pending_signature', 'pending signature')", List.of(), scope));
+        var weekStart = today.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+        body.put("monthlySales", scopedKpiCount("sales_records", companyId, activeSale + " AND sale_date BETWEEN ? AND ?", List.of(today.withDayOfMonth(1), today), scope));
+        body.put("weeklySales", scopedKpiCount("sales_records", companyId, activeSale + " AND sale_date BETWEEN ? AND ?", List.of(weekStart, today), scope));
+        body.put("pendingFinanceSales", scopedKpiCount("sales_records", companyId, activeSale + " AND LOWER(finance_status) IN ('pending', 'pending_validation')", List.of(), scope));
+        body.put("pendingInventorySales", scopedKpiCount("sales_records", companyId, activeSale + " AND LOWER(inventory_movement_status) IN ('not_generated', 'pending')", List.of(), scope));
         return body;
     }
 
-    List<KpiMoneyAmount> opportunityKpiAmounts(long companyId) {
-        return moneyAmounts("sales_opportunities", "estimated_value", "currency", companyId, "");
+    private long scopedKpiCount(String table, long company, String filter, List<?> filters, com.indice.erp.hr.HrOperationalScope scope) {
+        var args = new java.util.ArrayList<Object>(); args.add(company); args.addAll(filters);
+        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + table + " WHERE company_id = ? AND deleted_at IS NULL" + filter + kpiScope(table, scope, args), Long.class, args.toArray());
     }
 
-    List<KpiMoneyAmount> quoteKpiAmounts(long companyId) {
-        return moneyAmounts("sales_quotes", "amount", "currency", companyId, "");
+    List<KpiMoneyAmount> opportunityKpiAmounts(long companyId, com.indice.erp.hr.HrOperationalScope scope) {
+        var args = new java.util.ArrayList<Object>(); args.add(companyId);
+        String filter = scope == null ? " AND 1 = 0" : scope.assignmentPredicate("o.unit_id", "o.business_id", "o.company_id");
+        if (scope != null) args.addAll(scope.assignmentParameters());
+        return jdbcTemplate.query("""
+            SELECT COALESCE(q.amount, 0) amount, q.currency FROM sales_quotes q
+            JOIN sales_opportunities o ON o.company_id = q.company_id AND o.id = q.opportunity_id
+            WHERE o.company_id = ? AND q.deleted_at IS NULL AND o.deleted_at IS NULL
+              AND LOWER(COALESCE(q.status, '')) IN ('draft', 'sent', 'viewed', 'negotiation', 'approved', 'closed_won')
+              AND LOWER(COALESCE(o.stage, '')) NOT IN ('won', 'lost')
+            """ + filter, (rs, row) -> new KpiMoneyAmount(rs.getBigDecimal("amount"), rs.getString("currency")), args.toArray());
     }
 
-    List<KpiMoneyAmount> salesKpiAmounts(long companyId, String period) {
-        var dateFilter = switch (period == null ? "all" : period) {
-            case "month" -> " AND sale_date >= DATE_FORMAT(CURRENT_DATE(), '%Y-%m-01') AND sale_date < DATE_ADD(LAST_DAY(CURRENT_DATE()), INTERVAL 1 DAY)";
-            case "week" -> " AND sale_date >= DATE_SUB(CURRENT_DATE(), INTERVAL WEEKDAY(CURRENT_DATE()) DAY) AND sale_date < DATE_ADD(DATE_SUB(CURRENT_DATE(), INTERVAL WEEKDAY(CURRENT_DATE()) DAY), INTERVAL 7 DAY)";
-            default -> "";
-        };
-        return moneyAmounts("sales_records", "total_amount", "currency", companyId, dateFilter);
+    List<KpiMoneyAmount> quoteKpiAmounts(long companyId, com.indice.erp.hr.HrOperationalScope scope) {
+        return moneyAmounts("sales_quotes", "amount", companyId, "", List.of(), scope);
     }
 
-    private List<KpiMoneyAmount> moneyAmounts(
-        String table,
-        String amountColumn,
-        String currencyColumn,
-        long companyId,
-        String trustedFilter
-    ) {
-        var sql = "SELECT " + amountColumn + " AS amount, " + currencyColumn + " AS currency FROM " + table
-            + " WHERE company_id = ? AND deleted_at IS NULL" + trustedFilter;
-        return jdbcTemplate.query(sql, (rs, rowNum) -> new KpiMoneyAmount(
-            rs.getBigDecimal("amount"),
-            rs.getString("currency")
-        ), companyId);
+    List<KpiMoneyAmount> salesKpiAmounts(long companyId, String period, java.time.LocalDate today, com.indice.erp.hr.HrOperationalScope scope) {
+        String filter = " AND LOWER(commercial_status) NOT IN ('cancelled', 'canceled', 'rejected', 'voided')";
+        var dates = new java.util.ArrayList<Object>();
+        if ("month".equals(period) || "week".equals(period)) {
+            dates.add("month".equals(period) ? today.withDayOfMonth(1) : today.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY)));
+            dates.add(today); filter += " AND sale_date BETWEEN ? AND ?";
+        }
+        return moneyAmounts("sales_records", "total_amount", companyId, filter, dates, scope);
+    }
+
+    private List<KpiMoneyAmount> moneyAmounts(String table, String amountColumn, long companyId, String filter, List<?> filters, com.indice.erp.hr.HrOperationalScope scope) {
+        var args = new java.util.ArrayList<Object>(); args.add(companyId); args.addAll(filters);
+        return jdbcTemplate.query("SELECT " + amountColumn + " AS amount, currency FROM " + table
+            + " WHERE company_id = ? AND deleted_at IS NULL" + filter + kpiScope(table, scope, args),
+            (rs, row) -> new KpiMoneyAmount(rs.getBigDecimal("amount"), rs.getString("currency")), args.toArray());
+    }
+
+    private String kpiScope(String table, com.indice.erp.hr.HrOperationalScope scope, List<Object> args) {
+        if (scope == null || scope.type() == com.indice.erp.hr.HrOperationalScope.Type.UNASSIGNED) return " AND 1 = 0";
+        if (scope.isCorporateOffice()) return "";
+        args.addAll(scope.assignmentParameters());
+        if (List.of("sales_contacts", "sales_opportunities", "sales_records").contains(table))
+            return scope.assignmentPredicate(table + ".unit_id", table + ".business_id", table + ".company_id");
+        if ("sales_products".equals(table)) return " AND EXISTS (SELECT 1 FROM sales_inventory_balances balance JOIN sales_inventory_warehouses owner"
+            + " ON owner.company_id = balance.company_id AND owner.id = balance.warehouse_id WHERE balance.company_id = sales_products.company_id"
+            + " AND balance.product_id = sales_products.id AND balance.deleted_at IS NULL"
+            + scope.assignmentPredicate("owner.business_unit_id", "owner.business_id", "owner.company_id") + ")";
+        // The linked opportunity owns commercial scope; contact is the fallback only for unlinked records.
+        args.addAll(scope.assignmentParameters());
+        return " AND (EXISTS (SELECT 1 FROM sales_opportunities owner WHERE owner.company_id = " + table + ".company_id AND owner.id = " + table + ".opportunity_id"
+            + scope.assignmentPredicate("owner.unit_id", "owner.business_id", "owner.company_id") + ") OR (" + table + ".opportunity_id IS NULL AND EXISTS"
+            + " (SELECT 1 FROM sales_contacts owner WHERE owner.company_id = " + table + ".company_id AND owner.id = " + table + ".contact_id"
+            + scope.assignmentPredicate("owner.unit_id", "owner.business_id", "owner.company_id") + ")))";
     }
 
     void updateQuoteAmount(long companyId, long quoteId, BigDecimal amount) {

@@ -24,6 +24,24 @@ class ExpensePaymentRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    boolean hasInternalSettlementEvidence(FinanceContext context, long expenseId, long lineId) {
+        return Boolean.TRUE.equals(jdbcTemplate.queryForObject("""
+            SELECT EXISTS (
+                SELECT 1 FROM finance_expenses expense
+                JOIN finance_petty_cash_settlement_lines receipt
+                  ON receipt.company_id = expense.company_id AND receipt.expense_id = expense.id
+                JOIN finance_petty_cash_funds fund
+                  ON fund.company_id = receipt.company_id AND fund.id = receipt.petty_cash_fund_id
+                WHERE expense.company_id = ? AND expense.id = ? AND receipt.id = ?
+                  AND expense.deleted_at IS NULL AND receipt.deleted_at IS NULL
+                  AND fund.fund_type = 'INTERNAL_COMPANY' AND receipt.status = 'EXPENSE_CREATED'
+                  AND receipt.total_amount = expense.total_amount
+                  AND receipt.currency_code = expense.currency_code
+                  AND receipt.expense_date = expense.payment_date
+            )
+            """, Boolean.class, context.companyId(), expenseId, lineId));
+    }
+
     boolean insert(
             FinanceContext context,
             long expenseId,

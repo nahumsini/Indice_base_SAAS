@@ -23,17 +23,34 @@ public class BasicModuleKpiCurrencyRepository {
         List<Long> ids,
         boolean restrictToIds
     ) {
+        return load(metric, companyId, from, to, ids, restrictToIds, LocalDate.now(java.time.ZoneOffset.UTC), java.time.ZoneOffset.UTC);
+    }
+
+    public List<KpiMoneyAmount> load(BasicModuleKpiMetric metric, long companyId, LocalDate from, LocalDate to,
+            List<Long> ids, boolean restrictToIds, LocalDate today, java.time.ZoneId zone) {
+        return load(metric, companyId, from, to, ids, restrictToIds, today, zone, com.indice.erp.hr.HrOperationalScope.corporateOffice());
+    }
+
+    public List<KpiMoneyAmount> load(BasicModuleKpiMetric metric, long companyId, LocalDate from, LocalDate to,
+            List<Long> ids, boolean restrictToIds, LocalDate today, java.time.ZoneId zone, com.indice.erp.hr.HrOperationalScope scope) {
+        if (metric == BasicModuleKpiMetric.SALES_COLLECTED)
+            return SalesCollectionAmounts.load(jdbcTemplate, companyId, from, to, ids, restrictToIds, zone, scope);
         var definition = definition(metric);
         var params = new ArrayList<Object>();
         params.add(companyId);
+        String baseFilter = definition.baseFilter();
+        int dateReferences = baseFilter.split("CURRENT_DATE\\(\\)", -1).length - 1;
+        baseFilter = baseFilter.replace("CURRENT_DATE()", "?");
+        for (int index = 0; index < dateReferences; index++) params.add(today);
+        boolean timestamp = definition.dateColumn() != null && definition.dateColumn().endsWith("_at");
         var dateClause = "";
         if (definition.dateColumn() != null && from != null) {
             dateClause += " AND " + definition.dateColumn() + " >= ?";
-            params.add(from);
+            params.add(timestamp ? java.sql.Timestamp.from(from.atStartOfDay(zone).toInstant()) : from);
         }
         if (definition.dateColumn() != null && to != null) {
-            dateClause += " AND " + definition.dateColumn() + " <= ?";
-            params.add(to);
+            dateClause += " AND " + definition.dateColumn() + " < ?";
+            params.add(timestamp ? java.sql.Timestamp.from(to.plusDays(1).atStartOfDay(zone).toInstant()) : to.plusDays(1));
         }
         var idClause = "";
         if (restrictToIds && (ids == null || ids.isEmpty())) {
@@ -42,9 +59,10 @@ public class BasicModuleKpiCurrencyRepository {
             idClause = " AND " + definition.idColumn() + " IN (" + String.join(",", java.util.Collections.nCopies(ids.size(), "?")) + ")";
             params.addAll(ids);
         }
+        var scopeSql = KpiMonetaryScopeSql.filter(metric, scope, definition.table(), params);
         var sql = "SELECT " + definition.amountColumn() + " AS amount, "
             + definition.currencyColumn() + " AS currency FROM " + definition.table()
-            + " WHERE " + definition.companyColumn() + " = ?" + definition.baseFilter() + dateClause + idClause;
+            + " WHERE " + definition.companyColumn() + " = ?" + baseFilter + dateClause + idClause + scopeSql;
 
         return jdbcTemplate.query(sql, (rs, rowNum) -> new KpiMoneyAmount(
             rs.getBigDecimal("amount"),
@@ -54,9 +72,14 @@ public class BasicModuleKpiCurrencyRepository {
 
     private MetricDefinition definition(BasicModuleKpiMetric metric) {
         return switch (metric) {
-            case SALES_TOTAL -> new MetricDefinition("sales_records", "total_amount", "currency", "sale_date", " AND deleted_at IS NULL");
-            case SALES_TAX -> new MetricDefinition("sales_records", "tax_total", "currency", "sale_date", " AND deleted_at IS NULL");
-            case SALES_COMMISSION -> new MetricDefinition("sales_records", "commission_amount", "currency", "sale_date", " AND deleted_at IS NULL");
+            case SALES_COLLECTED -> throw new IllegalArgumentException("Collections use payment owner evidence.");
+            case SALES_RECEIVABLE_BALANCE -> new MetricDefinition(
+                "finance_receivable_accounts a JOIN sales_records s ON s.company_id = a.company_id AND s.id = a.sales_record_id",
+                "a.balance_amount", "a.currency_code", "a.created_at",
+                " AND a.deleted_at IS NULL AND a.status <> 'CANCELLED'", "s.id", "a.company_id");
+            case SALES_TOTAL -> new MetricDefinition("sales_records", "total_amount", "currency", "sale_date", " AND deleted_at IS NULL AND LOWER(COALESCE(commercial_status, '')) NOT IN ('cancelled', 'canceled', 'rejected', 'voided')");
+            case SALES_TAX -> new MetricDefinition("sales_records", "tax_total", "currency", "sale_date", " AND deleted_at IS NULL AND LOWER(COALESCE(commercial_status, '')) NOT IN ('cancelled', 'canceled', 'rejected', 'voided')");
+            case SALES_COMMISSION -> new MetricDefinition("sales_records", "commission_amount", "currency", "sale_date", " AND deleted_at IS NULL AND LOWER(COALESCE(commercial_status, '')) NOT IN ('cancelled', 'canceled', 'rejected', 'voided')");
             case SALES_OPPORTUNITY_PIPELINE -> opportunityQuoteDefinition(
                 " AND LOWER(COALESCE(o.stage, '')) NOT IN ('won', 'lost')"
             );
@@ -67,7 +90,7 @@ public class BasicModuleKpiCurrencyRepository {
                 " AND LOWER(COALESCE(o.stage, '')) = 'lost'"
             );
             case PRODUCT_INVENTORY_VALUE -> inventoryBalanceDefinition("b.available_quantity * b.unit_cost", "b.product_id");
-            case PRODUCT_ESTIMATED_PROFIT -> inventoryBalanceDefinition("b.available_quantity * (COALESCE(p.price, 0) - COALESCE(p.cost, 0))", "b.product_id");
+            case PRODUCT_ESTIMATED_PROFIT -> inventoryBalanceDefinition("b.available_quantity * (COALESCE(p.price, 0) - COALESCE(b.unit_cost, 0))", "b.product_id");
             case INVENTORY_BALANCE_VALUE -> inventoryBalanceDefinition("b.available_quantity * b.unit_cost", "b.id");
             case INVENTORY_MOVEMENT_VALUE -> new MetricDefinition(
                 "sales_inventory_movements m JOIN sales_products p ON p.id = m.product_id AND p.company_id = m.company_id",
@@ -79,7 +102,14 @@ public class BasicModuleKpiCurrencyRepository {
                 "m.company_id"
             );
             case EXPENSE_TOTAL -> new MetricDefinition("finance_expenses", "total_amount", "currency_code", "expense_date", " AND deleted_at IS NULL AND status NOT IN ('CANCELLED', 'REJECTED')");
-            case EXPENSE_PAID -> new MetricDefinition("finance_expenses", "paid_amount", "currency_code", "expense_date", " AND deleted_at IS NULL AND status NOT IN ('CANCELLED', 'REJECTED')");
+            case EXPENSE_PAID_TO_DATE -> new MetricDefinition("finance_expenses", "paid_amount", "currency_code", "expense_date", " AND deleted_at IS NULL AND status NOT IN ('CANCELLED', 'REJECTED')");
+            case EXPENSE_ACTUAL -> new MetricDefinition("finance_expenses", "total_amount", "currency_code", "expense_date", " AND deleted_at IS NULL AND status IN ('APPROVED', 'PARTIALLY_PAID', 'PAID', 'CLOSED')");
+            case EXPENSE_PAID -> new MetricDefinition(
+                "finance_expense_payments payment JOIN finance_expenses expense"
+                    + " ON expense.id = payment.expense_id AND expense.company_id = payment.company_id",
+                "payment.amount", "payment.currency_code", "payment.payment_date",
+                " AND expense.deleted_at IS NULL", "expense.id", "payment.company_id"
+            );
             case EXPENSE_SUBTOTAL -> new MetricDefinition("finance_expenses", "subtotal_amount", "currency_code", "expense_date", " AND deleted_at IS NULL AND status NOT IN ('CANCELLED', 'REJECTED')");
             case EXPENSE_TAX -> new MetricDefinition("finance_expenses", "tax_amount", "currency_code", "expense_date", " AND deleted_at IS NULL AND status NOT IN ('CANCELLED', 'REJECTED')");
             case EXPENSE_BALANCE -> new MetricDefinition("finance_expenses", "balance_amount", "currency_code", "expense_date", " AND deleted_at IS NULL AND status NOT IN ('CANCELLED', 'REJECTED')");
@@ -97,8 +127,14 @@ public class BasicModuleKpiCurrencyRepository {
             case CREDIT_SALES_TOTAL_PAYABLE -> new MetricDefinition("finance_credit_sales", "total_payable_amount", "currency_code", "sale_date", " AND deleted_at IS NULL AND status NOT IN ('CANCELLED', 'REJECTED')");
             case CREDIT_SALES_MONTHLY_PAYMENT -> new MetricDefinition("finance_credit_sales", "monthly_payment_amount", "currency_code", "sale_date", " AND deleted_at IS NULL AND status NOT IN ('CANCELLED', 'REJECTED')");
             case CREDIT_SALES_INTEREST -> new MetricDefinition("finance_credit_sales", "total_interest_amount", "currency_code", "sale_date", " AND deleted_at IS NULL AND status NOT IN ('CANCELLED', 'REJECTED')");
-            case PETTY_CASH_BALANCE -> new MetricDefinition("finance_petty_cash_funds", "current_balance_amount", "currency_code", null, " AND deleted_at IS NULL AND status <> 'CLOSED'");
-            case PETTY_CASH_LIMIT -> new MetricDefinition("finance_petty_cash_funds", "limit_amount", "currency_code", null, " AND deleted_at IS NULL AND status <> 'CLOSED'");
+            case PETTY_CASH_BALANCE -> new MetricDefinition(
+                "finance_petty_cash_funds", "current_balance_amount", "currency_code", null,
+                " AND deleted_at IS NULL AND status <> 'CLOSED' AND fund_type = 'INTERNAL_COMPANY'"
+            );
+            case PETTY_CASH_LIMIT -> new MetricDefinition(
+                "finance_petty_cash_funds", "limit_amount", "currency_code", null,
+                " AND deleted_at IS NULL AND status <> 'CLOSED' AND fund_type = 'INTERNAL_COMPANY'"
+            );
             case PETTY_CASH_STATEMENT_OPENING -> pettyStatementDefinition("opening_balance_amount");
             case PETTY_CASH_STATEMENT_FUNDED -> pettyStatementDefinition("assigned_amount + additional_deposit_amount");
             case PETTY_CASH_STATEMENT_ESTIMATED -> pettyStatementDefinition("estimated_usage_amount");
@@ -106,9 +142,29 @@ public class BasicModuleKpiCurrencyRepository {
             case PETTY_CASH_STATEMENT_CLOSING -> pettyStatementDefinition("declared_closing_balance_amount");
             case PETTY_CASH_STATEMENT_PENDING -> pettyStatementDefinition("GREATEST(estimated_usage_amount - verified_expense_amount - returned_amount - shortage_amount, 0)");
             case PETTY_CASH_STATEMENT_SHORTAGE -> pettyStatementDefinition("shortage_amount");
-            case PETTY_CASH_MOVEMENT_AMOUNT -> new MetricDefinition("finance_petty_cash_movements", "amount", "currency_code", "movement_date", " AND deleted_at IS NULL");
-            case PETTY_CASH_SETTLEMENT_AMOUNT -> new MetricDefinition("finance_petty_cash_settlement_lines", "total_amount", "currency_code", "expense_date", " AND deleted_at IS NULL AND status NOT IN ('REJECTED', 'REVERSED')");
-            case PAYMENT_ACCOUNT_BALANCE -> new MetricDefinition("finance_payment_accounts", "current_balance", "currency_code", null, " AND deleted_at IS NULL AND status = 'ACTIVE'");
+            case PETTY_CASH_MOVEMENT_AMOUNT -> new MetricDefinition(
+                "finance_petty_cash_movements movement JOIN finance_petty_cash_statements statement_record"
+                    + " ON statement_record.id = movement.petty_cash_statement_id"
+                    + " AND statement_record.company_id = movement.company_id",
+                "movement.amount", "movement.currency_code", "movement.movement_date",
+                " AND movement.deleted_at IS NULL AND statement_record.deleted_at IS NULL"
+                    + " AND statement_record.fund_type_snapshot = 'INTERNAL_COMPANY'",
+                "movement.id", "movement.company_id"
+            );
+            case PETTY_CASH_SETTLEMENT_AMOUNT -> new MetricDefinition(
+                "finance_petty_cash_settlement_lines settlement_line JOIN finance_petty_cash_statements statement_record"
+                    + " ON statement_record.id = settlement_line.petty_cash_statement_id"
+                    + " AND statement_record.company_id = settlement_line.company_id",
+                "settlement_line.total_amount", "settlement_line.currency_code", "settlement_line.expense_date",
+                " AND settlement_line.deleted_at IS NULL AND statement_record.deleted_at IS NULL"
+                    + " AND settlement_line.status NOT IN ('REJECTED', 'REVERSED')"
+                    + " AND statement_record.fund_type_snapshot = 'INTERNAL_COMPANY'",
+                "settlement_line.id", "settlement_line.company_id"
+            );
+            case PAYMENT_ACCOUNT_BALANCE -> new MetricDefinition("finance_payment_accounts", "current_balance", "currency_code", null,
+                " AND deleted_at IS NULL AND status = 'ACTIVE' AND NOT EXISTS (SELECT 1 FROM finance_petty_cash_funds external_fund"
+                    + " WHERE external_fund.company_id = finance_payment_accounts.company_id AND external_fund.payment_account_id = finance_payment_accounts.id"
+                    + " AND external_fund.fund_type = 'EXTERNAL_MANAGED' AND external_fund.deleted_at IS NULL)");
             case HR_ASSET_VALUE -> new MetricDefinition("user_assets", "value_amount", "value_currency", "created_at", " AND status <> 'inactive'");
             case HR_EMPLOYEE_MONTHLY_PAYROLL -> new MetricDefinition(
                 "hr_users",
@@ -187,7 +243,8 @@ public class BasicModuleKpiCurrencyRepository {
 
     private MetricDefinition pettyStatementDefinition(String amountColumn) {
         return new MetricDefinition(
-            "finance_petty_cash_statements", amountColumn, "currency_code", "period_end", " AND deleted_at IS NULL"
+            "finance_petty_cash_statements", amountColumn, "currency_code", "period_end",
+            " AND deleted_at IS NULL AND fund_type_snapshot = 'INTERNAL_COMPANY'"
         );
     }
 

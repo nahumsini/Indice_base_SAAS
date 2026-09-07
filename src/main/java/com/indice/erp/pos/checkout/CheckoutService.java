@@ -531,7 +531,8 @@ public class CheckoutService {
             shift.unitId(), shift.businessId(), ticketNumber, customerName(customer), context.userName(),
             totals.totalAmount(), totals.subtotalAmount(), totals.discountAmount(), totals.taxAmount(),
             lines.getFirst().currencyCode(), paymentMethodSummary(payments), paymentReferenceSummary(payments),
-            PosJsonSupport.toJson(lines), trimToNull(notes), metadataJson(inventoryDeducted), inventoryDeducted
+            PosJsonSupport.toJson(inventoryDeductionService.salesLineSnapshots(context, shift, lines)),
+            trimToNull(notes), metadataJson(inventoryDeducted), inventoryDeducted
         );
     }
 

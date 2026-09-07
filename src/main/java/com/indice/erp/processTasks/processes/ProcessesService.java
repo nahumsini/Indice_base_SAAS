@@ -65,7 +65,7 @@ public class ProcessesService {
                    proc.responsible_user_company_id,
                    responsible_user_company.user_id AS responsible_user_id,
                    COALESCE(
-                       NULLIF(TRIM(responsible_user.full_name), ''),
+                       NULLIF(TRIM(responsible_user_display_profile.full_name), ''), NULLIF(TRIM(responsible_user.full_name), ''),
                        NULLIF(TRIM(responsible_user.email), ''),
                        NULLIF(proc.responsible_name, ''),
                        NULL
@@ -83,7 +83,7 @@ public class ProcessesService {
                    proc.coordinator_user_company_id,
                    coordinator_user_company.user_id AS coordinator_user_id,
                    COALESCE(
-                       NULLIF(TRIM(coordinator_user.full_name), ''),
+                       NULLIF(TRIM(coordinator_user_display_profile.full_name), ''), NULLIF(TRIM(coordinator_user.full_name), ''),
                        NULLIF(TRIM(coordinator_user.email), ''),
                        NULL
                    ) AS resolved_coordinator_name,
@@ -120,9 +120,11 @@ public class ProcessesService {
             LEFT JOIN user_companies responsible_user_company ON responsible_user_company.id = proc.responsible_user_company_id
                 AND responsible_user_company.company_id = proc.company_id
             LEFT JOIN users responsible_user ON responsible_user.id = responsible_user_company.user_id
+                        LEFT JOIN user_profiles responsible_user_display_profile ON responsible_user_display_profile.user_id = responsible_user.id
             LEFT JOIN user_companies coordinator_user_company ON coordinator_user_company.id = proc.coordinator_user_company_id
                 AND coordinator_user_company.company_id = proc.company_id
             LEFT JOIN users coordinator_user ON coordinator_user.id = coordinator_user_company.user_id
+                        LEFT JOIN user_profiles coordinator_user_display_profile ON coordinator_user_display_profile.user_id = coordinator_user.id
             LEFT JOIN (
                 SELECT process_id,
                        COUNT(*) AS task_count,
@@ -186,7 +188,7 @@ public class ProcessesService {
                                user_company.user_id,
                                COALESCE(
                                    NULLIF(TRIM(user_profile.full_name), ''),
-                                   NULLIF(TRIM(user_account.full_name), ''),
+                                   NULLIF(TRIM(user_account_display_profile.full_name), ''), NULLIF(TRIM(user_account.full_name), ''),
                                    NULLIF(TRIM(user_account.email), ''),
                                    CONCAT('User #', user_company.id)
                                ) AS display_name,
@@ -196,6 +198,7 @@ public class ProcessesService {
                                COALESCE(business.name, '') AS business_name
                         FROM user_companies user_company
                         JOIN users user_account ON user_account.id = user_company.user_id
+                        LEFT JOIN user_profiles user_account_display_profile ON user_account_display_profile.user_id = user_account.id
                         LEFT JOIN user_profiles user_profile ON user_profile.user_id = user_account.id
                         LEFT JOIN user_work_profiles work_profile
                           ON work_profile.company_id = user_company.company_id
@@ -752,10 +755,11 @@ public class ProcessesService {
             var assignees = jdbcTemplate.query(
                     """
                         SELECT assignment.user_company_id,
-                               COALESCE(NULLIF(TRIM(user_account.full_name), ''), NULLIF(TRIM(user_account.email), ''), CONCAT('User #', assignment.user_company_id)) AS display_name
+                               COALESCE(NULLIF(TRIM(user_account_display_profile.full_name), ''), NULLIF(TRIM(user_account.full_name), ''), NULLIF(TRIM(user_account.email), ''), CONCAT('User #', assignment.user_company_id)) AS display_name
                         FROM process_task_template_assignees assignment
                         JOIN user_companies user_company ON user_company.id = assignment.user_company_id AND user_company.company_id = assignment.company_id
                         JOIN users user_account ON user_account.id = user_company.user_id
+                        LEFT JOIN user_profiles user_account_display_profile ON user_account_display_profile.user_id = user_account.id
                         WHERE assignment.company_id = ? AND assignment.template_id = ?
                         ORDER BY assignment.position_number, assignment.id
                         """,
@@ -1276,14 +1280,15 @@ public class ProcessesService {
                         SELECT user_company.id, user_company.user_id
                         FROM user_companies user_company
                         INNER JOIN users user_record ON user_record.id = user_company.user_id
+                        LEFT JOIN user_profiles user_record_display_profile ON user_record_display_profile.user_id = user_record.id
                         WHERE user_company.company_id = ?
                           AND LOWER(COALESCE(user_company.status, 'active')) IN ('active', 'activo')
                           AND (
-                              LOWER(TRIM(user_record.full_name)) = LOWER(TRIM(?))
+                              LOWER(TRIM(COALESCE(NULLIF(TRIM(user_record_display_profile.full_name), ''), user_record.full_name))) = LOWER(TRIM(?))
                               OR LOWER(TRIM(user_record.email)) = LOWER(TRIM(?))
                           )
                         ORDER BY user_company.id DESC
-                        LIMIT 1
+                        LIMIT 2
                         """,
                 (rs, rowNum) -> new UserCompanyReference(
                         rs.getLong("id"),
@@ -1292,6 +1297,7 @@ public class ProcessesService {
                 label,
                 label);
 
+        if (rows.size() > 1) throw new IllegalArgumentException("Ambiguous responsible name. Select a collaborator by identifier.");
         return rows.isEmpty() ? null : rows.getFirst();
     }
 
@@ -1349,12 +1355,13 @@ public class ProcessesService {
         var rows = jdbcTemplate.query(
                 """
                         SELECT COALESCE(
-                            NULLIF(TRIM(user_record.full_name), ''),
+                            NULLIF(TRIM(user_record_display_profile.full_name), ''), NULLIF(TRIM(user_record.full_name), ''),
                             NULLIF(TRIM(user_record.email), ''),
                             NULL
                         ) AS display_name
                         FROM user_companies user_company
                         INNER JOIN users user_record ON user_record.id = user_company.user_id
+                        LEFT JOIN user_profiles user_record_display_profile ON user_record_display_profile.user_id = user_record.id
                         WHERE user_company.company_id = ?
                           AND user_company.id = ?
                         LIMIT 1

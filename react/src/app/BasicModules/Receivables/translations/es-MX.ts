@@ -393,6 +393,9 @@ export const esMX: ReceivablesTranslations = {
       overLimit: 'El monto financiado excede la linea disponible del cliente seleccionado.',
     },
     payment: {
+      destinationAccount: 'Cuenta destino',
+      destinationPlaceholder: 'Selecciona una cuenta',
+      universalCash: 'Efectivo universal',
       title: 'Registrar abono',
       description: 'Aplica un pago a una cuenta abierta y actualiza saldos pendientes.',
       account: 'Cuenta',

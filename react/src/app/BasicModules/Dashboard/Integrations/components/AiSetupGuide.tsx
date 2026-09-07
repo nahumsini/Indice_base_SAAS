@@ -39,14 +39,14 @@ export function AiSetupGuide({ copy }: AiSetupGuideProps) {
       <section className="overflow-hidden rounded-xl border border-blue-200 bg-white shadow-sm dark:border-blue-900/60 dark:bg-slate-900">
         <div className="border-b border-slate-200 bg-gradient-to-r from-blue-50 via-white to-cyan-50 p-5 dark:border-slate-700 dark:from-blue-950/40 dark:via-slate-900 dark:to-cyan-950/30">
           <div className="max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#2563EB] dark:text-blue-300">{copy.navigation.guide}</p>
-            <h3 className="mt-2 text-2xl font-semibold text-slate-950 dark:text-white">{copy.guide.title}</h3>
+            <p className="text-xs font-medium text-[#2563EB] dark:text-blue-300">{copy.navigation.guide}</p>
+            <h3 className="mt-2 text-2xl font-medium text-slate-950 dark:text-white">{copy.guide.title}</h3>
             <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{copy.guide.description}</p>
           </div>
         </div>
 
         <div className="p-5">
-          <p className="text-sm font-semibold text-slate-900 dark:text-white">{copy.guide.providerLabel}</p>
+          <p className="text-sm font-medium text-slate-900 dark:text-white">{copy.guide.providerLabel}</p>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{copy.guide.providerDescription}</p>
           <button
             type="button"
@@ -60,8 +60,8 @@ export function AiSetupGuide({ copy }: AiSetupGuideProps) {
               </span>
               <span className="min-w-0">
                 <span className="flex flex-wrap items-center gap-2">
-                  <span className="text-base font-semibold text-slate-950 dark:text-white">{copy.guide.providerLabel}</span>
-                  <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-[#2563EB] ring-1 ring-inset ring-blue-200 dark:bg-slate-900 dark:ring-blue-800">{copy.guide.providerBadge}</span>
+                  <span className="text-base font-medium text-slate-950 dark:text-white">{copy.guide.providerLabel}</span>
+                  <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-[#2563EB] ring-1 ring-inset ring-blue-200 dark:bg-slate-900 dark:ring-blue-800">{copy.guide.providerBadge}</span>
                 </span>
                 <span className="mt-1 block text-sm text-slate-600 dark:text-slate-300">
                   {expanded ? copy.guide.closeAction : copy.guide.providerAction}
@@ -77,11 +77,11 @@ export function AiSetupGuide({ copy }: AiSetupGuideProps) {
         <section className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-3xl">
-              <h3 className="text-xl font-semibold text-slate-950 dark:text-white">{copy.guide.setupTitle}</h3>
+              <h3 className="text-xl font-medium text-slate-950 dark:text-white">{copy.guide.setupTitle}</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{copy.guide.setupDescription}</p>
             </div>
             <div className="w-full rounded-xl border border-blue-200 bg-blue-50 p-3 lg:max-w-xl dark:border-blue-900/60 dark:bg-blue-950/30">
-              <p className="text-xs font-semibold text-blue-800 dark:text-blue-200">{copy.guide.endpointLabel}</p>
+              <p className="text-xs font-medium text-blue-800 dark:text-blue-200">{copy.guide.endpointLabel}</p>
               <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                 <code className="min-w-0 flex-1 select-all overflow-x-auto rounded-lg bg-white px-3 py-2.5 text-xs text-slate-800 ring-1 ring-inset ring-blue-100 dark:bg-slate-950 dark:text-slate-100 dark:ring-blue-900">{INDICE_MCP_SERVER_URL}</code>
                 <Button
@@ -101,7 +101,7 @@ export function AiSetupGuide({ copy }: AiSetupGuideProps) {
           <div className="mt-5 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/25">
             <Info className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" />
             <div>
-              <p className="text-sm font-semibold text-amber-950 dark:text-amber-100">{copy.guide.availabilityTitle}</p>
+              <p className="text-sm font-medium text-amber-950 dark:text-amber-100">{copy.guide.availabilityTitle}</p>
               <p className="mt-1 text-sm leading-6 text-amber-900/80 dark:text-amber-200/80">{copy.guide.availabilityDescription}</p>
             </div>
           </div>
@@ -114,10 +114,10 @@ export function AiSetupGuide({ copy }: AiSetupGuideProps) {
                   <div className="flex items-start gap-3">
                     <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#2563EB]/10 text-[#2563EB] dark:text-[#93C5FD]">
                       <Icon className="h-5 w-5" />
-                      <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#2563EB] text-xs font-semibold text-white">{index + 1}</span>
+                      <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#2563EB] text-xs font-medium text-white">{index + 1}</span>
                     </span>
                     <div>
-                      <span className="block text-base font-semibold text-slate-950 dark:text-white">{step.label}</span>
+                      <span className="block text-base font-medium text-slate-950 dark:text-white">{step.label}</span>
                       <span className="mt-1 block text-sm leading-6 text-slate-600 dark:text-slate-300">{step.description}</span>
                     </div>
                   </div>
@@ -128,8 +128,8 @@ export function AiSetupGuide({ copy }: AiSetupGuideProps) {
           </ol>
 
           <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/50 dark:bg-blue-950/30">
-            <p className="text-xs font-semibold text-blue-700 dark:text-blue-300">{copy.guide.exampleLabel}</p>
-            <blockquote className="mt-2 text-base font-semibold leading-7 text-slate-950 dark:text-white">“{copy.guide.examplePrompt}”</blockquote>
+            <p className="text-xs font-medium text-blue-700 dark:text-blue-300">{copy.guide.exampleLabel}</p>
+            <blockquote className="mt-2 text-base font-medium leading-7 text-slate-950 dark:text-white">“{copy.guide.examplePrompt}”</blockquote>
           </div>
         </section>
       ) : null}

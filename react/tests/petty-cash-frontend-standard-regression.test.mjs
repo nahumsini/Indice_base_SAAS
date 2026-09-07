@@ -129,14 +129,20 @@ test('Las compras contabilizadas se anulan con motivo y conservan auditoría', (
   assert.match(spanishCopy, /permanecerán en el historial para auditoría/);
 });
 
-test('Los fondos distinguen fondeo interno de dinero externo sin inventar cuentas', () => {
+test('Los fondos distinguen dinero de empresa y dinero administrado con identidad trazable', () => {
   const fundsSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashFundsWorkspace.tsx'), 'utf8');
   const reconciliationSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashReconciliationWorkspace.tsx'), 'utf8');
   const serviceSource = readFileSync(resolve(pettyCashRoot, 'services/petty-cash.service.ts'), 'utf8');
+  const typesSource = readFileSync(resolve(pettyCashRoot, 'types/pettyCash.types.ts'), 'utf8');
+  const statementSource = readFileSync(resolve(pettyCashRoot, 'components/statements/PettyCashStatementDetailModal.tsx'), 'utf8');
 
-  assert.match(fundsSource, /fundingSourceType: 'INTERNAL' \| 'EXTERNAL'/);
-  assert.match(fundsSource, /externalSourceName/);
-  assert.match(reconciliationSource, /sourceType: 'INTERNAL' \| 'EXTERNAL'/);
+  assert.match(typesSource, /PettyCashFundType = 'INTERNAL_COMPANY' \| 'EXTERNAL_MANAGED'/);
+  assert.match(fundsSource, /externalOwnerName/);
+  assert.match(fundsSource, /statementRecipientEmail/);
+  assert.match(fundsSource, /managedAssetName/);
+  assert.match(reconciliationSource, /selectedFund\?\.fundType === 'EXTERNAL_MANAGED'/);
   assert.match(reconciliationSource, /draft\.externalSourceName\.trim\(\)/);
   assert.match(serviceSource, /externalSourceName: movement\.externalSourceName\?\.trim\(\) \|\| null/);
+  assert.match(serviceSource, /externalOwnerNameSnapshot/);
+  assert.match(statementSource, /fundTypeSnapshot === 'EXTERNAL_MANAGED'/);
 });

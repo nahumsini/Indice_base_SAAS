@@ -18,6 +18,11 @@ public record CreatePettyCashMovementRequest(
     @NotBlank @Size(min = 3, max = 3) String currencyCode,
     @NotNull LocalDate movementDate,
     @Size(max = 180) String externalSourceName,
+    @Size(max = 48) String entryCategory,
+    @Size(max = 180) String counterpartyName,
+    @Size(max = 240) String statementDescription,
+    @Size(max = 80) String fundingMethod,
+    @Size(max = 500) String internalNote,
     @Size(max = 220) String reference,
     JsonNode customFields,
     JsonNode metadata

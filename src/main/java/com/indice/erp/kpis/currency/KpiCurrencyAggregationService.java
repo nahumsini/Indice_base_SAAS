@@ -27,6 +27,7 @@ public class KpiCurrencyAggregationService {
         var targetCurrency = normalizeCurrency(preferredCurrency);
         var normalizedRates = normalizeRates(ratesPerUsd);
         var nativeTotals = new LinkedHashMap<String, BigDecimal>();
+        var nativeCounts = new LinkedHashMap<String, Integer>();
         var convertedTotal = BigDecimal.ZERO;
         var excludedRecords = 0;
         var excludedCurrencies = new LinkedHashSet<String>();
@@ -41,13 +42,15 @@ public class KpiCurrencyAggregationService {
             }
             nativeTotals.merge(nativeCurrency, item.amount(), BigDecimal::add);
 
-            var converted = convert(item.amount(), nativeCurrency, targetCurrency, normalizedRates);
+            nativeCounts.merge(nativeCurrency, 1, Integer::sum);
+        }
+        // Net within each original currency before analytical conversion. A zero net needs no rate.
+        for (var entry : nativeTotals.entrySet()) {
+            var converted = convert(entry.getValue(), entry.getKey(), targetCurrency, normalizedRates);
             if (converted == null) {
-                excludedRecords++;
-                excludedCurrencies.add(nativeCurrency);
-            } else {
-                convertedTotal = convertedTotal.add(converted);
-            }
+                excludedRecords += nativeCounts.get(entry.getKey());
+                excludedCurrencies.add(entry.getKey());
+            } else convertedTotal = convertedTotal.add(converted);
         }
 
         var nativeBreakdown = nativeTotals.entrySet().stream()
@@ -71,7 +74,7 @@ public class KpiCurrencyAggregationService {
         String targetCurrency,
         Map<String, BigDecimal> ratesPerUsd
     ) {
-        if (sourceCurrency.equals(targetCurrency)) return amount;
+        if (amount.signum() == 0 || sourceCurrency.equals(targetCurrency)) return amount;
         var sourceRate = ratesPerUsd.get(sourceCurrency);
         var targetRate = ratesPerUsd.get(targetCurrency);
         if (!validRate(sourceRate) || !validRate(targetRate)) return null;

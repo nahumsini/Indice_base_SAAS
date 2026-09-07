@@ -64,6 +64,10 @@ export function AccountingReadiness({ copy, data, locale }: { copy: AccountingRe
           ))}
         </div>
       </div>
+      {data.preparationNotes?.length ? <details className="border-t border-slate-200 px-5 py-3 text-xs leading-5 text-slate-600 dark:border-slate-700 dark:text-slate-300">
+        <summary className="cursor-pointer font-medium">{copy.common.framework} · {data.context.fiscalCountry || '—'}</summary>
+        {data.preparationNotes.map(note => <p key={note} className="mt-2">{note}</p>)}
+      </details> : null}
     </section>
   );
 }

@@ -148,16 +148,14 @@ class PaymentAccountServiceTest {
     }
 
     @Test
-    void deleteSoftDeletesExistingAccount() {
+    void deletePreservesExistingAccountWithAnOpeningBalance() {
         var service = service();
         var context = PaymentAccountTestData.context();
         when(repository.findById(context, 12L))
             .thenReturn(Optional.of(PaymentAccountTestData.record(12L, "Operating Cash",
                 PaymentAccountStatus.ACTIVE)));
-        when(repository.softDelete(context, 12L)).thenReturn(true);
-
-        assertTrue(service.delete(context, 12L).success());
-        verify(repository).softDelete(context, 12L);
+        assertThrows(FinanceApiException.class, () -> service.delete(context, 12L));
+        verify(repository, never()).softDelete(context, 12L);
     }
 
     @Test

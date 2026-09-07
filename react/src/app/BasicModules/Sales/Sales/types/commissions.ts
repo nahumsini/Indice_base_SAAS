@@ -36,6 +36,8 @@ export type CommissionRule = {
 
 export type CommissionRecord = {
   id: string;
+  saleBackendId?: number;
+  componentIndex: number;
   saleId: string;
   saleCode: string;
   customerId: string;
@@ -62,15 +64,11 @@ export type CommissionRecord = {
 };
 
 export type CommissionKpis = {
-  totalCommissions: number;
   totalCommissionsLabel: string;
-  pendingCommissions: number;
   pendingCommissionsLabel: string;
-  approvedCommissions: number;
   approvedCommissionsLabel: string;
-  paidCommissions: number;
   paidCommissionsLabel: string;
-  commissionRate: number;
+  commissionRate: number | null;
   commissionCount: number;
 };
 

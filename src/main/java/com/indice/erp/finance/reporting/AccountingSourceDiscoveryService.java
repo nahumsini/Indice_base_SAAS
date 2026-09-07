@@ -24,10 +24,12 @@ class AccountingSourceDiscoveryService {
 
     private final AccountingSourceRepository sourceRepository;
     private final ObjectMapper objectMapper;
+    private final AccountingCurrencyConversion currencies;
 
-    AccountingSourceDiscoveryService(AccountingSourceRepository sourceRepository, ObjectMapper objectMapper) {
+    AccountingSourceDiscoveryService(AccountingSourceRepository sourceRepository, ObjectMapper objectMapper, AccountingCurrencyConversion currencies) {
         this.sourceRepository = sourceRepository;
         this.objectMapper = objectMapper;
+        this.currencies = currencies;
     }
 
     Discovery discover(long companyId, LocalDate from, LocalDate to, String functionalCurrency) {
@@ -36,12 +38,73 @@ class AccountingSourceDiscoveryService {
         var eligible = new LinkedHashMap<String, Integer>();
 
         discoverSales(companyId, from, to, functionalCurrency, candidates, issues, eligible);
+        discoverStandaloneCreditSales(companyId, from, to, candidates, issues, eligible);
         discoverExpenses(companyId, from, to, functionalCurrency, candidates, issues, eligible);
         discoverExpensePayments(companyId, from, to, functionalCurrency, candidates, issues, eligible);
         discoverReceivablePayments(companyId, from, to, functionalCurrency, candidates, issues, eligible);
         discoverPayroll(companyId, from, to, functionalCurrency, candidates, issues, eligible);
+        discoverInventoryReceipts(companyId, from, to, candidates, issues, eligible);
 
-        return new Discovery(List.copyOf(candidates), List.copyOf(issues), MapCopy.of(eligible));
+        var converted = new ArrayList<PostingCandidate>();
+        var rateCache = new java.util.HashMap<LocalDate, java.util.Optional<com.indice.erp.exchange.BusinessExchangeRatesResponse>>();
+        for (var candidate : candidates) {
+            try {
+                converted.add(currencies.convert(companyId, candidate, functionalCurrency, rateCache));
+            } catch (AccountingCurrencyConversion.MissingRate | AccountingCurrencyConversion.MissingRecognition error) {
+                issues.add(new DiscoveryIssue(error instanceof AccountingCurrencyConversion.MissingRate
+                    ? "MISSING_EXCHANGE_RATE" : "MISSING_SOURCE_RECOGNITION", "BLOCKING", candidate.sourceModule(),
+                    candidate.sourceType(), candidate.sourceId(), error.getMessage(),
+                    "Completa la evidencia del documento de origen y la tasa histórica antes de sincronizar."));
+            }
+        }
+        return new Discovery(List.copyOf(converted), List.copyOf(issues), MapCopy.of(eligible));
+    }
+
+    Discovery discover(long companyId, LocalDate from, LocalDate to, String functionalCurrency, Long unitId, Long businessId) {
+        return inScope(companyId, discover(companyId, from, to, functionalCurrency), unitId, businessId);
+    }
+
+    Discovery inScope(long companyId, Discovery all, Long unitId, Long businessId) {
+        if (unitId == null && businessId == null) return all;
+        var candidates = all.candidates().stream().filter(candidate -> candidate.lines().stream().anyMatch(line ->
+            (unitId == null || unitId.equals(line.unitId())) && (businessId == null || businessId.equals(line.businessId())))).toList();
+        var issues = all.issues().stream().filter(issue -> relevant(companyId, issue, unitId, businessId)).toList();
+        var eligible = new LinkedHashMap<String, Integer>();
+        candidates.forEach(candidate -> count(eligible, candidate.sourceModule()));
+        issues.stream().filter(issue -> "BLOCKING".equals(issue.severity())).forEach(issue -> count(eligible, issue.sourceModule()));
+        return new Discovery(candidates, issues, eligible);
+    }
+
+    boolean relevant(long companyId, DiscoveryIssue issue, Long unitId, Long businessId) {
+        return sourceRepository.sourceInScope(companyId, issue, unitId, businessId);
+    }
+
+    private void discoverInventoryReceipts(long companyId, LocalDate from, LocalDate to,
+            List<PostingCandidate> candidates, List<DiscoveryIssue> issues, LinkedHashMap<String, Integer> eligible) {
+        for (var receipt : sourceRepository.findInventoryReceipts(companyId, from, to)) {
+            count(eligible, "inventory");
+            if (!receipt.paymentVerified() || receipt.subtotal() == null || receipt.tax() == null
+                    || receipt.subtotal().signum() < 0 || receipt.tax().signum() < 0 || receipt.total().signum() <= 0
+                    || receipt.subtotal().add(receipt.tax()).compareTo(receipt.total()) != 0) {
+                issues.add(issue("UNVERIFIED_INVENTORY_RECEIPT", "BLOCKING", "inventory", "INVENTORY_RECEIPT", receipt.id(),
+                    "La entrada pagada requiere importes y salida de dinero coincidentes.", "Revisa la entrada original en POS."));
+                continue;
+            }
+            var lines = new ArrayList<PostingLine>();
+            if (receipt.subtotal().signum() > 0) lines.add(line("INVENTORY", null, receipt.unitId(), receipt.businessId(),
+                "Compra de inventario " + receipt.number(), receipt.subtotal(), ZERO, receipt.number()));
+            if (receipt.tax().signum() > 0) {
+                lines.add(line("PURCHASE_TAX_PENDING", null, receipt.unitId(), receipt.businessId(),
+                    "Impuestos de compra por clasificar " + receipt.number(), receipt.tax(), ZERO, receipt.number()));
+                issues.add(issue("PURCHASE_TAX_CLASSIFICATION", "WARNING", "inventory", "INVENTORY_RECEIPT", receipt.id(),
+                    "El impuesto de compra se presenta separado, pendiente de validar su recuperabilidad.",
+                    "Revisa la jurisdicción y la política fiscal antes de usar estos estados para cumplimiento."));
+            }
+            lines.add(line("CASH", null, receipt.unitId(), receipt.businessId(), "Pago de inventario " + receipt.number(),
+                ZERO, receipt.total(), receipt.number()));
+            candidates.add(candidate("inventory", "INVENTORY_RECEIPT", receipt.id(), "INVENTORY", receipt.date(),
+                "Entrada pagada " + receipt.number(), receipt.currency(), lines));
+        }
     }
 
     private void discoverSales(
@@ -55,10 +118,6 @@ class AccountingSourceDiscoveryService {
     ) {
         for (var sale : sourceRepository.findSales(companyId, from, to)) {
             count(eligible, "sales");
-            if (!sameCurrency(sale.currency(), currency)) {
-                issues.add(currencyIssue("sales", "SALE", sale.id(), sale.currency(), currency));
-                continue;
-            }
             if (sale.total().signum() <= 0 || sale.tax().signum() < 0 || sale.tax().compareTo(sale.total()) > 0) {
                 issues.add(issue("INVALID_SALE_TOTALS", "BLOCKING", "sales", "SALE", sale.id(),
                     "La venta no tiene importes válidos para una partida balanceada.",
@@ -66,7 +125,7 @@ class AccountingSourceDiscoveryService {
                 continue;
             }
 
-            var cost = costOfSale(sale.linesJson());
+            var cost = costOfSale(sale.linesJson(), sale.currency());
             if (cost == null) {
                 issues.add(issue("MISSING_PRODUCT_COST", "BLOCKING", "sales", "SALE", sale.id(),
                     "La venta " + sale.number() + " no conserva costo unitario verificable en todas sus líneas.",
@@ -76,9 +135,17 @@ class AccountingSourceDiscoveryService {
 
             var netRevenue = money(sale.total().subtract(sale.tax()));
             var lines = new ArrayList<PostingLine>();
-            lines.add(line(sale.onCredit() ? "ACCOUNTS_RECEIVABLE" : "CASH", null,
-                sale.unitId(), sale.businessId(), "Contrapartida venta " + sale.number(), sale.total(), ZERO,
-                sale.number()));
+            if (sale.creditAmount().signum() < 0 || sale.cashAmount().signum() < 0
+                    || sale.creditAmount().add(sale.cashAmount()).compareTo(sale.total()) != 0) {
+                issues.add(issue("INCOMPLETE_SALE_SETTLEMENT", "BLOCKING", "sales", "SALE", sale.id(),
+                    "El cobro confirmado más el principal a crédito no coincide con el total de la venta.",
+                    "Completa la evidencia de cobro y crédito en Ventas, POS o Cartera antes de contabilizar."));
+                continue;
+            }
+            if (sale.creditAmount().signum() > 0) lines.add(line("ACCOUNTS_RECEIVABLE", null,
+                sale.unitId(), sale.businessId(), "Contrapartida venta " + sale.number(), sale.creditAmount(), ZERO, sale.number()));
+            if (sale.cashAmount().signum() > 0) lines.add(line("CASH", null,
+                sale.unitId(), sale.businessId(), "Contrapartida venta " + sale.number(), sale.cashAmount(), ZERO, sale.number()));
             if (netRevenue.signum() > 0) {
                 lines.add(line("REVENUE", null, sale.unitId(), sale.businessId(),
                     "Ingreso venta " + sale.number(), ZERO, netRevenue, sale.number()));
@@ -87,14 +154,37 @@ class AccountingSourceDiscoveryService {
                 lines.add(line("TAXES_PAYABLE", null, sale.unitId(), sale.businessId(),
                     "Impuesto venta " + sale.number(), ZERO, sale.tax(), sale.number()));
             }
-            if (cost.signum() > 0) {
-                lines.add(line("COST_OF_SALES", null, sale.unitId(), sale.businessId(),
-                    "Costo venta " + sale.number(), cost, ZERO, sale.number()));
-                lines.add(line("INVENTORY", null, sale.unitId(), sale.businessId(),
-                    "Salida de inventario " + sale.number(), ZERO, cost, sale.number()));
+            for (var costEntry : cost.entrySet()) {
+                if (costEntry.getValue().signum() <= 0) continue;
+                for (var costLine : List.of(
+                    line("COST_OF_SALES", null, sale.unitId(), sale.businessId(),
+                        "Costo venta " + sale.number(), costEntry.getValue(), ZERO, sale.number()),
+                    line("INVENTORY", null, sale.unitId(), sale.businessId(),
+                        "Salida de inventario " + sale.number(), ZERO, costEntry.getValue(), sale.number()))) {
+                    lines.add(new PostingLine(costLine.systemAccountCode(), null, sale.unitId(), sale.businessId(),
+                        costLine.description(), costLine.debit(), costLine.credit(), sale.number(),
+                        costEntry.getValue(), costEntry.getKey(), BigDecimal.ONE));
+                }
             }
             candidates.add(candidate("sales", "SALE", sale.id(), "SALES", sale.date(),
-                "Venta " + sale.number(), currency, lines));
+                "Venta " + sale.number(), sale.currency(), lines));
+        }
+    }
+
+    private void discoverStandaloneCreditSales(long companyId, LocalDate from, LocalDate to,
+            List<PostingCandidate> candidates, List<DiscoveryIssue> issues, LinkedHashMap<String, Integer> eligible) {
+        for (var sale : sourceRepository.findStandaloneCreditSales(companyId, from, to)) {
+            count(eligible, "receivables");
+            if (sale.total().signum() <= 0 || sale.total().compareTo(sale.financedAmount()) != 0) {
+                issues.add(issue("INCOMPLETE_SALE_SETTLEMENT", "BLOCKING", "receivables", "CREDIT_SALE", sale.id(),
+                    "El crédito manual requiere evidencia del anticipo y de su venta completa.",
+                    "Vincula la venta de origen y su cobro; no se registrará efectivo supuesto."));
+                continue;
+            }
+            candidates.add(candidate("receivables", "CREDIT_SALE", sale.id(), "SALES", sale.date(), "Venta a crédito " + sale.number(),
+                sale.currency(), List.of(
+                    line("ACCOUNTS_RECEIVABLE", null, sale.unitId(), sale.businessId(), "Crédito " + sale.number(), sale.financedAmount(), ZERO, sale.number()),
+                    line("REVENUE", null, sale.unitId(), sale.businessId(), "Venta a crédito " + sale.number(), ZERO, sale.financedAmount(), sale.number()))));
         }
     }
 
@@ -109,10 +199,6 @@ class AccountingSourceDiscoveryService {
     ) {
         for (var expense : sourceRepository.findExpenses(companyId, from, to)) {
             count(eligible, "expenses");
-            if (!sameCurrency(expense.currency(), currency)) {
-                issues.add(currencyIssue("expenses", "EXPENSE", expense.id(), expense.currency(), currency));
-                continue;
-            }
             if (expense.total().signum() <= 0) {
                 issues.add(issue("INVALID_EXPENSE_TOTAL", "BLOCKING", "expenses", "EXPENSE", expense.id(),
                     "El gasto no tiene un importe positivo.", "Corrige el gasto antes de sincronizar."));
@@ -120,10 +206,10 @@ class AccountingSourceDiscoveryService {
             }
             Long explicitAccountId = expense.accountingAccountId();
             if (explicitAccountId != null && !sourceRepository.isActiveExpenseAccount(companyId, explicitAccountId)) {
-                explicitAccountId = null;
-                issues.add(issue("EXPENSE_ACCOUNT_FALLBACK", "WARNING", "expenses", "EXPENSE", expense.id(),
-                    "La cuenta asignada al gasto no es una cuenta de resultados activa; se usará Gastos operativos.",
-                    "Asigna una cuenta de gasto activa para mejorar la presentación."));
+                issues.add(issue("INVALID_EXPENSE_ACCOUNT", "BLOCKING", "expenses", "EXPENSE", expense.id(),
+                    "La cuenta asignada no es una cuenta activa de gasto o activo; no se cambiará su clasificación automáticamente.",
+                    "Asigna una cuenta postable de gasto o activo antes de sincronizar."));
+                continue;
             }
             var lines = List.of(
                 line(explicitAccountId == null ? "OPERATING_EXPENSES" : null, explicitAccountId,
@@ -132,7 +218,7 @@ class AccountingSourceDiscoveryService {
                     "Pasivo por " + expense.folio(), ZERO, expense.total(), expense.folio())
             );
             candidates.add(candidate("expenses", "EXPENSE", expense.id(), "EXPENSE", expense.date(),
-                "Gasto " + expense.folio(), currency, lines));
+                "Gasto " + expense.folio(), expense.currency(), lines));
         }
     }
 
@@ -147,10 +233,6 @@ class AccountingSourceDiscoveryService {
     ) {
         for (var payment : sourceRepository.findExpensePayments(companyId, from, to)) {
             count(eligible, "expenses");
-            if (!sameCurrency(payment.currency(), currency)) {
-                issues.add(currencyIssue("expenses", "EXPENSE_PAYMENT", payment.id(), payment.currency(), currency));
-                continue;
-            }
             var lines = List.of(
                 line("ACCOUNTS_PAYABLE", null, payment.unitId(), payment.businessId(),
                     "Pago de " + payment.folio(), payment.amount(), ZERO, payment.folio()),
@@ -158,7 +240,7 @@ class AccountingSourceDiscoveryService {
                     "Salida de efectivo " + payment.folio(), ZERO, payment.amount(), payment.folio())
             );
             candidates.add(candidate("expenses", "EXPENSE_PAYMENT", payment.id(), "CASH", payment.date(),
-                "Pago de gasto " + payment.folio(), currency, lines));
+                "Pago de gasto " + payment.folio(), payment.currency(), lines));
         }
     }
 
@@ -173,18 +255,22 @@ class AccountingSourceDiscoveryService {
     ) {
         for (var payment : sourceRepository.findReceivablePayments(companyId, from, to)) {
             count(eligible, "receivables");
-            if (!sameCurrency(payment.currency(), currency)) {
-                issues.add(currencyIssue("receivables", "RECEIVABLE_PAYMENT", payment.id(), payment.currency(), currency));
+            var principal = payment.principalAmount();
+            if (principal == null || principal.signum() < 0 || principal.compareTo(payment.amount()) > 0) {
+                issues.add(issue("INVALID_RECEIVABLE_PRINCIPAL", "BLOCKING", "receivables", "RECEIVABLE_PAYMENT", payment.id(),
+                    "El abono no tiene una separación válida de principal e intereses.", "Revisa el financiamiento y sus importes originales."));
                 continue;
             }
-            var lines = List.of(
-                line("CASH", null, payment.unitId(), payment.businessId(),
-                    "Cobro de " + payment.saleNumber(), payment.amount(), ZERO, payment.saleNumber()),
-                line("ACCOUNTS_RECEIVABLE", null, payment.unitId(), payment.businessId(),
-                    "Aplicación a cliente " + payment.saleNumber(), ZERO, payment.amount(), payment.saleNumber())
-            );
+            var lines = new ArrayList<PostingLine>();
+            lines.add(line("CASH", null, payment.unitId(), payment.businessId(),
+                "Cobro de " + payment.saleNumber(), payment.amount(), ZERO, payment.saleNumber()));
+            if (principal.signum() > 0) lines.add(line("ACCOUNTS_RECEIVABLE", null, payment.unitId(), payment.businessId(),
+                "Aplicación a cliente " + payment.saleNumber(), ZERO, principal, payment.saleNumber()));
+            var interest = payment.amount().subtract(principal);
+            if (interest.signum() > 0) lines.add(line("OTHER_INCOME", null, payment.unitId(), payment.businessId(),
+                "Intereses cobrados " + payment.saleNumber(), ZERO, interest, payment.saleNumber()));
             candidates.add(candidate("receivables", "RECEIVABLE_PAYMENT", payment.id(), "CASH", payment.date(),
-                "Cobro de cuenta por cobrar " + payment.saleNumber(), currency, lines));
+                "Cobro de cuenta por cobrar " + payment.saleNumber(), payment.currency(), lines));
         }
     }
 
@@ -198,50 +284,52 @@ class AccountingSourceDiscoveryService {
         LinkedHashMap<String, Integer> eligible
     ) {
         for (var payroll : sourceRepository.findPayrollRuns(companyId, from, to)) {
-            if (!payroll.periodEnd().isBefore(from) && !payroll.periodEnd().isAfter(to)) {
-                count(eligible, "payroll");
-                var debits = money(payroll.gross().add(payroll.employerContributions()));
-                var liabilities = money(payroll.deductions().add(payroll.employerContributions()).add(payroll.net()));
-                if (debits.compareTo(liabilities) != 0 || debits.signum() <= 0) {
-                    issues.add(issue("UNBALANCED_PAYROLL_SOURCE", "BLOCKING", "payroll", "PAYROLL_ACCRUAL", payroll.id(),
-                        "Los totales de nómina no forman una partida balanceada.",
-                        "Recalcula la nómina y confirma bruto, deducciones, cargas y neto."));
-                } else {
-                    var lines = new ArrayList<PostingLine>();
-                    if (payroll.gross().signum() > 0) {
-                        lines.add(line("PAYROLL_EXPENSE", null, null, null, "Nómina bruta", payroll.gross(), ZERO, "NOM-" + payroll.id()));
-                    }
-                    if (payroll.employerContributions().signum() > 0) {
-                        lines.add(line("EMPLOYER_CONTRIBUTIONS_EXPENSE", null, null, null,
-                            "Cargas patronales", payroll.employerContributions(), ZERO, "NOM-" + payroll.id()));
-                    }
-                    var withholdings = money(payroll.deductions().add(payroll.employerContributions()));
-                    if (withholdings.signum() > 0) {
-                        lines.add(line("PAYROLL_WITHHOLDINGS", null, null, null,
-                            "Retenciones y cargas", ZERO, withholdings, "NOM-" + payroll.id()));
-                    }
-                    if (payroll.net().signum() > 0) {
-                        lines.add(line("PAYROLL_PAYABLE", null, null, null,
-                            "Nómina neta por pagar", ZERO, payroll.net(), "NOM-" + payroll.id()));
-                    }
-                    candidates.add(candidate("payroll", "PAYROLL_ACCRUAL", payroll.id(), "PAYROLL", payroll.periodEnd(),
-                        "Devengo de nómina " + payroll.id(), currency, lines));
+            boolean accrualDue = !payroll.periodEnd().isBefore(from) && !payroll.periodEnd().isAfter(to);
+            boolean paymentDue = "paid".equals(payroll.status()) && payroll.paidDate() != null
+                && !payroll.paidDate().isBefore(from) && !payroll.paidDate().isAfter(to);
+            if (accrualDue) count(eligible, "payroll");
+            boolean valid = !payroll.lines().isEmpty() && payroll.lines().stream().allMatch(row ->
+                row.validPayable() && row.currency() != null && row.currency().matches("[A-Z]{3}") && row.gross().signum() >= 0
+                    && row.deductions().signum() >= 0 && row.employerContributions().signum() >= 0
+                    && row.net().signum() >= 0 && row.gross().subtract(row.deductions()).compareTo(row.net()) == 0);
+            if (!valid) {
+                issues.add(issue("UNBALANCED_PAYROLL_SOURCE", "BLOCKING", "payroll", "PAYROLL_ACCRUAL", payroll.id(),
+                    "La nómina necesita importes balanceados y moneda verificable por persona.",
+                    "Revisa las líneas de la nómina; el total general no puede mezclar monedas."));
+                continue;
+            }
+            var accrualLines = new ArrayList<PostingLine>();
+            var paymentLines = new ArrayList<PostingLine>();
+            for (var row : payroll.lines()) {
+                String reference = "NOM-" + payroll.id();
+                addPayrollLine(accrualLines, row, "PAYROLL_EXPENSE", "Nómina bruta", row.gross(), ZERO, reference);
+                addPayrollLine(accrualLines, row, "EMPLOYER_CONTRIBUTIONS_EXPENSE", "Cargas patronales", row.employerContributions(), ZERO, reference);
+                addPayrollLine(accrualLines, row, "PAYROLL_WITHHOLDINGS", "Retenciones y cargas", ZERO, row.deductions().add(row.employerContributions()), reference);
+                addPayrollLine(accrualLines, row, row.payableExpenseId() == null ? "PAYROLL_PAYABLE" : "ACCOUNTS_PAYABLE",
+                    "Nómina neta por pagar", ZERO, row.net(), reference);
+                if (row.payableExpenseId() == null) {
+                    addPayrollLine(paymentLines, row, "PAYROLL_PAYABLE", "Liquidación de nómina", row.net(), ZERO, reference);
+                    addPayrollLine(paymentLines, row, "CASH", "Pago de nómina", ZERO, row.net(), reference);
                 }
             }
-            if ("paid".equals(payroll.status()) && payroll.paidDate() != null
-                && !payroll.paidDate().isBefore(from) && !payroll.paidDate().isAfter(to)) {
+            if (accrualDue && !accrualLines.isEmpty()) candidates.add(candidate("payroll", "PAYROLL_ACCRUAL", payroll.id(),
+                "PAYROLL", payroll.periodEnd(), "Devengo de nómina " + payroll.id(), currency, accrualLines));
+            if (paymentDue && !paymentLines.isEmpty()) {
                 count(eligible, "payroll");
-                var lines = List.of(
-                    line("PAYROLL_PAYABLE", null, null, null, "Liquidación de nómina", payroll.net(), ZERO, "NOM-" + payroll.id()),
-                    line("CASH", null, null, null, "Pago de nómina", ZERO, payroll.net(), "NOM-" + payroll.id())
-                );
-                candidates.add(candidate("payroll", "PAYROLL_PAYMENT", payroll.id(), "CASH", payroll.paidDate(),
-                    "Pago de nómina " + payroll.id(), currency, lines));
+                candidates.add(candidate("payroll", "PAYROLL_PAYMENT", payroll.id(),
+                    "CASH", payroll.paidDate(), "Pago de nómina " + payroll.id(), currency, paymentLines));
             }
         }
     }
 
-    private BigDecimal costOfSale(String json) {
+    private static void addPayrollLine(List<PostingLine> lines, AccountingSourceRepository.PayrollLineSource row,
+                                       String account, String description, BigDecimal debit, BigDecimal credit, String reference) {
+        if (debit.signum() == 0 && credit.signum() == 0) return;
+        lines.add(new PostingLine(account, null, row.unitId(), row.businessId(), description, money(debit), money(credit),
+            reference, money(debit.signum() > 0 ? debit : credit), row.currency(), BigDecimal.ONE));
+    }
+
+    private java.util.Map<String, BigDecimal> costOfSale(String json, String saleCurrency) {
         if (json == null || json.isBlank()) {
             return null;
         }
@@ -250,7 +338,7 @@ class AccountingSourceDiscoveryService {
             if (!root.isArray() || root.isEmpty()) {
                 return null;
             }
-            BigDecimal cost = ZERO;
+            var cost = new LinkedHashMap<String, BigDecimal>();
             for (JsonNode line : root) {
                 if (!line.has("quantity") || !line.has("unitCost") || !line.path("quantity").isNumber()
                     || !line.path("unitCost").isNumber()) {
@@ -261,9 +349,11 @@ class AccountingSourceDiscoveryService {
                 if (quantity.signum() < 0 || unitCost.signum() < 0) {
                     return null;
                 }
-                cost = cost.add(quantity.multiply(unitCost));
+                String costCurrency = line.path("costCurrency").asText(saleCurrency).toUpperCase(java.util.Locale.ROOT);
+                if (!costCurrency.matches("[A-Z]{3}")) return null;
+                cost.merge(costCurrency, money(quantity.multiply(unitCost)), BigDecimal::add);
             }
-            return money(cost);
+            return cost;
         } catch (Exception ignored) {
             return null;
         }
@@ -280,7 +370,17 @@ class AccountingSourceDiscoveryService {
         List<PostingLine> lines
     ) {
         String key = module + ":" + type + ":" + id;
-        String canonical = key + "|" + date + "|" + currency + "|" + lines;
+        // Preserve fingerprints of already posted version-1 sources as model metadata evolves.
+        String stableLines = lines.stream().map(line -> "PostingLine[systemAccountCode=" + line.systemAccountCode()
+            + ", explicitAccountId=" + line.explicitAccountId() + ", unitId=" + line.unitId()
+            + ", businessId=" + line.businessId() + ", description=" + line.description()
+            + ", debit=" + line.debit() + ", credit=" + line.credit()
+            + ", documentReference=" + line.documentReference() + "]")
+            .collect(java.util.stream.Collectors.joining(", ", "[", "]"));
+        String canonical = key + "|" + date + "|" + currency + "|" + stableLines;
+        if (lines.stream().anyMatch(line -> line.transactionCurrency() != null && !line.transactionCurrency().equalsIgnoreCase(currency))) {
+            canonical += "|nativeCurrencies=" + lines.stream().map(PostingLine::transactionCurrency).toList();
+        }
         return new PostingCandidate(module, type, String.valueOf(id), key, sha256(canonical),
             journalType, date, description, currency, List.copyOf(lines));
     }

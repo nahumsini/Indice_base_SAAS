@@ -264,6 +264,10 @@ structure. Inactive organizational records are excluded from new-assignment sele
 their identifiers and labels for related historical records and historical filters. Saving the
 structure, its active map, and lifecycle changes is one transaction.
 
+The Sales commission reporting owner contract is documented in
+[`sales-commission-reporting-contract.md`](./sales-commission-reporting-contract.md). Its summary POST
+is a filter-only read and uses the central KPI conversion engine; it does not create financial entries.
+
 ## 10. Transactions, Concurrency, And Idempotency
 
 Services/use cases own transaction boundaries. A single transaction must cover the invariant being
@@ -358,8 +362,11 @@ availableAmount =
   plannedAmount
   - committedAmount
   - actualExpenseAmount
-  - (pettyCashIssuedAmount - pettyCashSettledAmount)
 ```
+
+Funding transfers custody and does not consume budget. Issued and settled fund amounts remain
+separate disclosures; an authorized receipt consumes actual expense once. This decision is adopted
+in `docs/kpi-financial-closeout-contract-v1.md`.
 
 The approved health state remains derived from the approved domain contract. Do not copy this
 formula into controllers or frontend components, and do not expand it to another financial domain

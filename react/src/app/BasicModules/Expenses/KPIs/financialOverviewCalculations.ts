@@ -48,7 +48,8 @@ const isClosed = (expense: FinanceExpense) => (
 );
 
 const isActualExpense = (expense: FinanceExpense) => (
-  expense.status === ExpenseStatus.PAID || expense.status === ExpenseStatus.CLOSED
+  expense.status === ExpenseStatus.APPROVED || expense.status === ExpenseStatus.PARTIALLY_PAID
+  || expense.status === ExpenseStatus.PAID || expense.status === ExpenseStatus.CLOSED
 );
 
 const isPaymentOpen = (expense: FinanceExpense) => (
@@ -63,8 +64,7 @@ const balanceOf = (expense: FinanceExpense) => {
 const availableFor = (line: FinanceBudgetLine) => {
   const formula = line.plannedAmount
     - line.committedAmount
-    - line.actualExpenseAmount
-    - Math.max(line.pettyCashIssuedAmount - line.pettyCashSettledAmount, 0);
+    - line.actualExpenseAmount;
 
   return line.availableAmount !== 0 || formula === 0 ? line.availableAmount : formula;
 };
@@ -201,11 +201,10 @@ export const buildFinancialOverviewData = ({
     const dueDate = parseDate(expense.dueDate);
     return isPaymentOpen(expense) && (expense.paymentStatus === PaymentStatus.OVERDUE || Boolean(dueDate && dueDate < today));
   };
-  const actualFromBudgetLines = sum(visibleBudgetLines, line => budgetAmount(line, line.actualExpenseAmount));
-  const actualFromPaidExpenses = sum(visibleExpenses.filter(isActualExpense), expense => expenseAmount(expense, expense.total));
+  const actualFromExpenses = sum(visibleExpenses.filter(isActualExpense), expense => expenseAmount(expense, expense.total));
   const metrics = {
-    actual: actualFromBudgetLines > 0 ? actualFromBudgetLines : actualFromPaidExpenses,
-    actualFallbackUsed: actualFromBudgetLines === 0 && actualFromPaidExpenses > 0,
+    actual: actualFromExpenses,
+    actualFallbackUsed: false,
     available: sum(visibleBudgetLines, line => budgetAmount(line, availableFor(line))),
     budgetLineCount: visibleBudgetLines.length,
     committed: sum(visibleBudgetLines, line => budgetAmount(line, line.committedAmount)),

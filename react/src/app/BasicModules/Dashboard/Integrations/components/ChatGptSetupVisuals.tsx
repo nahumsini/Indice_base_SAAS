@@ -48,7 +48,7 @@ function DeveloperModeVisual({ copy }: Pick<ChatGptSetupVisualsProps, 'copy'>) {
   return (
     <div className="grid gap-2 sm:grid-cols-[0.78fr_1.22fr]">
       <PreviewFrame ariaLabel={copy.guide.visualLabels.settings}>
-        <div className="flex items-center gap-2 border-b border-white/10 pb-2 text-[11px] font-semibold">
+        <div className="flex items-center gap-2 border-b border-white/10 pb-2 text-[11px] font-medium">
           <Settings className="h-3.5 w-3.5" />
           {ui.settings}
         </div>
@@ -65,14 +65,14 @@ function DeveloperModeVisual({ copy }: Pick<ChatGptSetupVisualsProps, 'copy'>) {
       </PreviewFrame>
 
       <PreviewFrame ariaLabel={copy.guide.visualLabels.developerMode}>
-        <div className="flex items-center gap-2 border-b border-white/10 pb-2 text-[11px] font-semibold">
+        <div className="flex items-center gap-2 border-b border-white/10 pb-2 text-[11px] font-medium">
           <ShieldAlert className="h-3.5 w-3.5 text-orange-400" />
           {ui.developerMode}
         </div>
         <div className="mt-2 space-y-2.5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-semibold">
+              <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-medium">
                 {ui.developerMode}
                 <span className="rounded-full bg-orange-500/20 px-1.5 py-0.5 text-[8px] text-orange-300">{ui.developerModeRisk}</span>
               </div>
@@ -83,7 +83,7 @@ function DeveloperModeVisual({ copy }: Pick<ChatGptSetupVisualsProps, 'copy'>) {
           <div className="h-px bg-white/10" />
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-[10px] font-semibold">{ui.developerModeCsp}</div>
+              <div className="text-[10px] font-medium">{ui.developerModeCsp}</div>
               <p className="mt-0.5 text-[9px] text-slate-400">{ui.developerModeCspDescription}</p>
             </div>
             <ToggleOn />
@@ -100,7 +100,7 @@ function AppsVisual({ copy }: Pick<ChatGptSetupVisualsProps, 'copy'>) {
     <PreviewFrame ariaLabel={copy.guide.visualLabels.apps}>
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold">{ui.apps}</p>
+          <p className="text-xs font-medium">{ui.apps}</p>
           <p className="mt-0.5 text-[9px] text-slate-400">ChatGPT</p>
         </div>
         <div className="flex items-center gap-1.5">
@@ -131,7 +131,7 @@ function FormVisual({ copy, endpoint }: Pick<ChatGptSetupVisualsProps, 'copy' | 
   const fieldClass = 'mt-1 rounded-md border border-white/15 bg-black/15 px-2 py-1.5 text-[9px] text-white';
   return (
     <PreviewFrame ariaLabel={copy.guide.visualLabels.form}>
-      <div className="flex items-center gap-2 border-b border-white/10 pb-2 text-xs font-semibold">
+      <div className="flex items-center gap-2 border-b border-white/10 pb-2 text-xs font-medium">
         <CirclePlus className="h-3.5 w-3.5" />
         {ui.newApp}
       </div>
@@ -158,7 +158,7 @@ function FormVisual({ copy, endpoint }: Pick<ChatGptSetupVisualsProps, 'copy' | 
       </div>
       <div className="mt-2.5 flex items-center justify-between gap-3 rounded-lg bg-orange-500/10 p-2 text-[9px] text-orange-200 ring-1 ring-inset ring-orange-400/20">
         <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5" />{ui.acknowledgement}</span>
-        <span className="rounded-full bg-white px-2.5 py-1 font-semibold text-slate-950">{ui.create}</span>
+        <span className="rounded-full bg-white px-2.5 py-1 font-medium text-slate-950">{ui.create}</span>
       </div>
     </PreviewFrame>
   );
@@ -171,18 +171,18 @@ function AuthorizationVisual({ copy }: Pick<ChatGptSetupVisualsProps, 'copy'>) {
       <div className="grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
         <div className="rounded-lg bg-white/[0.06] p-3 ring-1 ring-inset ring-white/10">
           <Sparkles className="h-5 w-5 text-blue-300" />
-          <p className="mt-2 text-[10px] font-semibold">ChatGPT</p>
+          <p className="mt-2 text-[10px] font-medium">ChatGPT</p>
           <p className="mt-0.5 text-[9px] text-slate-400">{ui.create}</p>
         </div>
         <ChevronRight className="hidden h-4 w-4 text-slate-500 sm:block" />
         <div className="rounded-lg bg-emerald-500/10 p-3 ring-1 ring-inset ring-emerald-400/25">
           <LockKeyhole className="h-5 w-5 text-emerald-300" />
-          <p className="mt-2 text-[10px] font-semibold">{ui.authorizationTitle}</p>
+          <p className="mt-2 text-[10px] font-medium">{ui.authorizationTitle}</p>
           <p className="mt-0.5 text-[9px] text-slate-300">{ui.authorizationDescription}</p>
-          <span className="mt-2 inline-flex rounded-full bg-emerald-400 px-2.5 py-1 text-[9px] font-semibold text-emerald-950">{ui.login}</span>
+          <span className="mt-2 inline-flex rounded-full bg-emerald-400 px-2.5 py-1 text-[9px] font-medium text-emerald-950">{ui.login}</span>
         </div>
       </div>
-      <div className="mt-2.5 flex items-center gap-1.5 text-[9px] font-semibold text-emerald-300">
+      <div className="mt-2.5 flex items-center gap-1.5 text-[9px] font-medium text-emerald-300">
         <Check className="h-3.5 w-3.5" />
         {ui.ready}
       </div>

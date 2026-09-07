@@ -19,6 +19,35 @@ public class InventoryDeductionService {
         this.repository = repository;
     }
 
+    public List<Map<String, Object>> salesLineSnapshots(PosContext context, ShiftRecord shift, List<CheckoutLine> lines) {
+        var snapshots = new java.util.ArrayList<Map<String, Object>>();
+        for (var line : lines) {
+            var snapshot = new java.util.LinkedHashMap<String, Object>();
+            snapshot.put("productId", line.productId());
+            snapshot.put("productNameSnapshot", line.productNameSnapshot());
+            snapshot.put("skuSnapshot", line.skuSnapshot());
+            snapshot.put("productTypeSnapshot", line.productTypeSnapshot());
+            snapshot.put("quantity", line.quantity());
+            snapshot.put("unitPrice", line.unitPrice());
+            snapshot.put("discountAmount", line.discountAmount());
+            snapshot.put("taxAmount", line.taxAmount());
+            snapshot.put("lineTotalAmount", line.lineTotalAmount());
+            snapshot.put("subtotal", line.lineTotalAmount().subtract(line.taxAmount()));
+            snapshot.put("currencyCode", line.currencyCode());
+            snapshot.put("stockTracked", line.stockTracked());
+            if (line.stockTracked() && line.productId() != null) {
+                snapshot.putAll(repository.costSnapshot(context, shift.warehouseId(), line.productId()));
+            } else {
+                // Services/manual lines do not consume inventory; payroll/expenses retain their own cost ownership.
+                snapshot.put("unitCost", java.math.BigDecimal.ZERO);
+                snapshot.put("costCurrency", line.currencyCode());
+                snapshot.put("costSource", "NO_INVENTORY_CONSUMPTION");
+            }
+            snapshots.add(snapshot);
+        }
+        return snapshots;
+    }
+
     public boolean deduct(
             PosContext context,
             ShiftRecord shift,

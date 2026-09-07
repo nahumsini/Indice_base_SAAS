@@ -80,6 +80,28 @@ public class ExpenseService {
         return mapper.toResponse(requireExpense(context, expenseId));
     }
 
+    /** Funds has already withdrawn this money; this records the expense's payment evidence only. */
+    @Transactional
+    public void recordCustodySettlement(FinanceContext context, long expenseId, long settlementLineId) {
+        var expense = requireExpenseForUpdate(context, expenseId);
+        if (expense.status() != ExpenseStatus.PAID || !"PETTY_CASH".equals(expense.auditStatus())
+                || expense.paymentDate() == null || expense.paidAmount().compareTo(expense.totalAmount()) != 0
+                || !paymentRepository.hasInternalSettlementEvidence(context, expenseId, settlementLineId)) {
+            throw FinanceApiException.conflict("Expense does not have matching internal fund settlement evidence.");
+        }
+        var key = "FUND_EXPENSE_PAYMENT:" + settlementLineId;
+        if (paymentRepository.findByIdempotencyKey(context, key).isPresent()) {
+            return;
+        }
+        if (!paymentRepository.findAll(context, expenseId).isEmpty()) {
+            throw FinanceApiException.conflict("Fund expense already has payment evidence.");
+        }
+        if (!paymentRepository.insert(context, expenseId, expense.paymentAccountId(), expense.totalAmount(),
+                expense.currencyCode(), expense.paymentDate(), ExpensePaymentRepository.SOURCE_SETTLED_ON_CREATE, key)) {
+            throw FinanceApiException.conflict("Fund expense payment evidence could not be recorded.");
+        }
+    }
+
     @Transactional
     public ExpenseResponse createDraft(FinanceContext context, CreateExpenseRequest request) {
         var assignment = validator.validateCreate(context, request);

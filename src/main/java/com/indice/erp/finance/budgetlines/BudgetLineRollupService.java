@@ -37,20 +37,17 @@ public class BudgetLineRollupService {
                 line.available_amount =
                     line.planned_amount
                     - line.committed_amount
-                    - COALESCE(expense_rollup.actual_total, 0)
-                    - (line.petty_cash_issued_amount - line.petty_cash_settled_amount),
+                    - COALESCE(expense_rollup.actual_total, 0),
                 line.health_status = CASE
                     WHEN (
                         line.planned_amount
                         - line.committed_amount
                         - COALESCE(expense_rollup.actual_total, 0)
-                        - (line.petty_cash_issued_amount - line.petty_cash_settled_amount)
                     ) < 0 THEN 'EXCEEDED'
                     WHEN (
                         line.planned_amount
                         - line.committed_amount
                         - COALESCE(expense_rollup.actual_total, 0)
-                        - (line.petty_cash_issued_amount - line.petty_cash_settled_amount)
                     ) <= (line.planned_amount * 0.20) THEN 'WARNING'
                     ELSE 'ON_TRACK'
                 END,

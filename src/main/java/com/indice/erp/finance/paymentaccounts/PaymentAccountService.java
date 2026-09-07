@@ -72,11 +72,17 @@ public class PaymentAccountService {
 
     @Transactional
     public PaymentAccountResponse update(FinanceContext context, long accountId, UpdatePaymentAccountRequest request) {
+        repository.lockForMaintenance(context, accountId);
         var existing = requireAccount(context, accountId);
         requireUserManaged(existing);
         var assignment = validator.validateUpdate(context, request);
         referenceValidator.validateAssignment(context, assignment);
         var command = mapper.toUpdateCommand(context, request, assignment);
+        if (hasFinancialEvidence(context, existing) && (!existing.currencyCode().equals(command.currencyCode())
+                || existing.type() != command.type() || !java.util.Objects.equals(existing.unitId(), command.unitId())
+                || !java.util.Objects.equals(existing.businessId(), command.businessId()))) {
+            throw FinanceApiException.conflict("La cuenta conserva moneda, tipo y alcance después de registrar saldos o movimientos. Crea otra cuenta para una configuración distinta.");
+        }
         requireUniqueName(context, command.name(), accountId);
         if (!repository.update(context, accountId, command)) {
             throw new NoSuchElementException("Payment account not found.");
@@ -86,12 +92,19 @@ public class PaymentAccountService {
 
     @Transactional
     public DeletePaymentAccountResponse delete(FinanceContext context, long accountId) {
+        repository.lockForMaintenance(context, accountId);
         var existing = requireAccount(context, accountId);
         requireUserManaged(existing);
+        if (hasFinancialEvidence(context, existing)) throw FinanceApiException.conflict("La cuenta tiene saldos o historial financiero. Puedes desactivarla conservando sus movimientos.");
         if (!repository.softDelete(context, accountId)) {
             throw new NoSuchElementException("Payment account not found.");
         }
         return new DeletePaymentAccountResponse(true);
+    }
+
+    private boolean hasFinancialEvidence(FinanceContext context, PaymentAccountRecord account) {
+        return account.openingBalance().signum() != 0 || account.currentBalance().signum() != 0 || account.pendingBalance().signum() != 0
+            || repository.hasFinancialHistory(context, account.id());
     }
 
     private void requireUniqueName(FinanceContext context, String name, Long excludedAccountId) {

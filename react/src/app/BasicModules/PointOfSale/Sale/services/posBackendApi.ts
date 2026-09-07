@@ -166,6 +166,93 @@ export type PosCashMovementResponse = {
   createdAt: string;
 };
 
+export type PosPaidInventoryReceiptPayload = {
+  idempotencyKey: string;
+  cashRegisterId: number;
+  shiftId: number;
+  providerId: number;
+  currencyCode: string;
+  paymentMethod: 'CASH' | 'TRANSFER';
+  paymentAccountId?: number | null;
+  paymentReference?: string | null;
+  notes?: string | null;
+  items: Array<{
+    product: {
+      productId?: number | null;
+      name?: string | null;
+      sku?: string | null;
+      category?: string | null;
+      inventoryUnit?: string | null;
+      salePrice?: number | null;
+    };
+    quantity: number;
+    unitCost: number;
+    taxRate: number;
+    taxIncluded: boolean;
+    taxProfileId?: string | null;
+    taxName?: string | null;
+  }>;
+};
+
+export type PosInventoryReceiptProduct = {
+  id: number;
+  name: string;
+  sku?: string | null;
+  category?: string | null;
+  currencyCode?: string | null;
+  inventoryUnit: 'Piece' | 'Kilogram' | 'Gram' | 'Liter' | 'Meter' | string;
+  unitCost: number | string;
+};
+
+export type PosInventoryReceiptProvider = {
+  id: number;
+  name: string;
+  email?: string | null;
+  taxId?: string | null;
+  paymentTermsDays?: number | null;
+};
+
+export type PosInventoryReceiptPaymentAccount = {
+  id: number;
+  name: string;
+  type: string;
+  currencyCode: string;
+  availableBalance: number | string;
+  pendingBalance: number | string;
+};
+
+export type PosReceiptAttachmentUpload = {
+  objectKey: string;
+  uploadUrl: string;
+  uploadHeaders?: Record<string, string>;
+  contentType: string;
+};
+
+const receiptEvidenceContentType = (file: File) => {
+  if (file.type) return file.type;
+  const name = file.name.toLowerCase();
+  if (name.endsWith('.pdf')) return 'application/pdf';
+  if (name.endsWith('.png')) return 'image/png';
+  if (name.endsWith('.webp')) return 'image/webp';
+  return 'image/jpeg';
+};
+
+export type PosPaidInventoryReceiptResponse = {
+  id: number;
+  receiptNumber: string;
+  warehouseId: number;
+  warehouseName: string;
+  providerId: number;
+  providerName: string;
+  paymentMethod: 'CASH' | 'TRANSFER';
+  subtotalAmount: number | string;
+  taxAmount: number | string;
+  totalAmount: number | string;
+  currencyCode: string;
+  status: 'POSTED' | 'REVERSED';
+  reversalReason?: string | null;
+};
+
 export type PosPaymentMethodSummary = {
   paymentMethod: PosCheckoutPaymentMethod;
   amount: number | string;
@@ -450,6 +537,65 @@ export const posBackendApi = {
     return apiClient<PosCheckoutResponse>(`${posBasePath}/sales/checkout`, {
       method: 'POST',
       body: JSON.stringify(payload),
+    });
+  },
+  createPaidInventoryReceipt(payload: PosPaidInventoryReceiptPayload) {
+    return apiClient<PosPaidInventoryReceiptResponse>(`${posBasePath}/inventory-receipts`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+  paidInventoryReceiptProducts(cashRegisterId: number | string, query = '') {
+    const params = new URLSearchParams({ cashRegisterId: String(cashRegisterId) });
+    if (query.trim()) params.set('query', query.trim());
+    return apiClient<PosInventoryReceiptProduct[]>(`${posBasePath}/inventory-receipts/products?${params.toString()}`);
+  },
+  paidInventoryReceiptProviders() {
+    return apiClient<PosInventoryReceiptProvider[]>(`${posBasePath}/inventory-receipts/providers`);
+  },
+  createPaidInventoryReceiptProvider(name: string) {
+    return apiClient<PosInventoryReceiptProvider>(`${posBasePath}/inventory-receipts/providers/quick`, {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+  },
+  paidInventoryReceiptPaymentAccounts(
+    cashRegisterId: number | string,
+    shiftId: number | string,
+    currencyCode: string,
+  ) {
+    const params = new URLSearchParams({
+      cashRegisterId: String(cashRegisterId),
+      shiftId: String(shiftId),
+      currencyCode,
+    });
+    return apiClient<PosInventoryReceiptPaymentAccount[]>(`${posBasePath}/inventory-receipts/payment-accounts?${params.toString()}`);
+  },
+  paidInventoryReceipts(shiftId: number | string) {
+    return apiClient<PosPaidInventoryReceiptResponse[]>(`${posBasePath}/inventory-receipts?shiftId=${encodeURIComponent(String(shiftId))}`);
+  },
+  reversePaidInventoryReceipt(receiptId: number | string, reason: string) {
+    return apiClient<PosPaidInventoryReceiptResponse>(`${posBasePath}/inventory-receipts/${receiptId}/reverse`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  },
+  preparePaidInventoryReceiptAttachment(receiptId: number | string, file: File) {
+    return apiClient<PosReceiptAttachmentUpload>(`${posBasePath}/inventory-receipts/${receiptId}/attachments/presign-upload`, {
+      method: 'POST',
+      body: JSON.stringify({ fileName: file.name, contentType: receiptEvidenceContentType(file), sizeBytes: file.size }),
+    });
+  },
+  async uploadPaidInventoryReceiptAttachment(upload: PosReceiptAttachmentUpload, file: File) {
+    const headers = new Headers(upload.uploadHeaders ?? {});
+    if (!headers.has('Content-Type')) headers.set('Content-Type', receiptEvidenceContentType(file));
+    const response = await fetch(upload.uploadUrl, { method: 'PUT', body: file, headers });
+    if (!response.ok) throw new Error('No se pudo cargar el comprobante.');
+  },
+  registerPaidInventoryReceiptAttachment(receiptId: number | string, upload: PosReceiptAttachmentUpload, file: File) {
+    return apiClient(`${posBasePath}/inventory-receipts/${receiptId}/attachments`, {
+      method: 'POST',
+      body: JSON.stringify({ objectKey: upload.objectKey, fileName: file.name, contentType: upload.contentType, sizeBytes: file.size }),
     });
   },
   squareStatus() {

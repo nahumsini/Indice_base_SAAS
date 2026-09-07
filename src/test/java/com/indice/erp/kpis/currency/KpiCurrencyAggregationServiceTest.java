@@ -72,4 +72,14 @@ class KpiCurrencyAggregationServiceTest {
         assertThat(result.excludedRecords()).isEqualTo(1);
         assertThat(result.excludedCurrencies()).containsExactly("MONEDA_INVALIDA:pesos");
     }
+    @Test void completedForeignRefundWithZeroNetDoesNotRequireAnExchangeRate() {
+        var result = service.aggregate(List.of(new KpiMoneyAmount(new BigDecimal("100"), "CAD"),
+            new KpiMoneyAmount(new BigDecimal("-100"), "CAD"), new KpiMoneyAmount(new BigDecimal("300"), "MXN")),
+            "MXN", Map.of(), "daily", LocalDate.of(2026, 9, 6), "No foreign evidence needed for zero net");
+        assertThat(result.preferredTotal()).isEqualByComparingTo("300");
+        assertThat(result.partial()).isFalse();
+        assertThat(result.excludedRecords()).isZero();
+        assertThat(result.nativeTotals()).hasSize(2);
+    }
+
 }

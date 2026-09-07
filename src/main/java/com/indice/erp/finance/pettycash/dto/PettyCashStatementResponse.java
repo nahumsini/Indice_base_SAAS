@@ -2,6 +2,7 @@ package com.indice.erp.finance.pettycash.dto;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.indice.erp.finance.pettycash.PettyCashStatementStatus;
+import com.indice.erp.finance.pettycash.PettyCashFundType;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -10,6 +11,7 @@ public record PettyCashStatementResponse(
     Long id,
     Long companyId,
     Long pettyCashFundId,
+    PettyCashFundType fundTypeSnapshot,
     String folio,
     String periodKey,
     LocalDate periodStart,
@@ -27,6 +29,14 @@ public record PettyCashStatementResponse(
     String currencyCode,
     PettyCashStatementStatus status,
     Long responsibleUserId,
+    String externalOwnerTypeSnapshot,
+    String externalOwnerNameSnapshot,
+    String externalOwnerRelationshipSnapshot,
+    String externalOwnerReferenceSnapshot,
+    String statementRecipientEmailSnapshot,
+    String managedAssetTypeSnapshot,
+    String managedAssetNameSnapshot,
+    String managedAssetReferenceSnapshot,
     Long reviewedByUserId,
     Integer attachmentCount,
     Long createdByUserId,

@@ -5,6 +5,7 @@ import type {
   PettyCashCurrency,
   PettyCashFund,
   PettyCashFundStatus,
+  PettyCashFundType,
   PettyCashMovement,
   PettyCashMovementType,
   PettyCashSettlementLine,
@@ -25,12 +26,23 @@ type PettyCashFundApiDto = {
   paymentAccountId?: number | null;
   fundingSourcePaymentAccountId?: number | null;
   responsibleUserId?: number | null;
+  fundType?: PettyCashFundType | null;
   name: string;
   currencyCode: string;
   limitAmount: number | string;
   currentBalanceAmount: number | string;
   cutOffDay?: number | null;
   fundingSourceName?: string | null;
+  externalOwnerType?: string | null;
+  externalOwnerName?: string | null;
+  externalOwnerRelationship?: string | null;
+  externalOwnerReference?: string | null;
+  statementRecipientEmail?: string | null;
+  managedAssetType?: string | null;
+  managedAssetName?: string | null;
+  managedAssetReference?: string | null;
+  externalIdentityPending?: boolean | null;
+  budgetLinkPending?: boolean | null;
   fundingMethods?: string[] | null;
   spendingMethods?: string[] | null;
   kioskEnabled?: boolean | null;
@@ -48,6 +60,7 @@ type PettyCashStatementApiDto = {
   id: number;
   companyId: number;
   pettyCashFundId: number;
+  fundTypeSnapshot?: PettyCashFundType | null;
   folio: string;
   periodKey: string;
   periodStart: string;
@@ -65,6 +78,14 @@ type PettyCashStatementApiDto = {
   currencyCode: string;
   status?: PettyCashStatementStatus | null;
   responsibleUserId?: number | null;
+  externalOwnerTypeSnapshot?: string | null;
+  externalOwnerNameSnapshot?: string | null;
+  externalOwnerRelationshipSnapshot?: string | null;
+  externalOwnerReferenceSnapshot?: string | null;
+  statementRecipientEmailSnapshot?: string | null;
+  managedAssetTypeSnapshot?: string | null;
+  managedAssetNameSnapshot?: string | null;
+  managedAssetReferenceSnapshot?: string | null;
   reviewedByUserId?: number | null;
   attachmentCount?: number | null;
   customFields?: PettyCashJson;
@@ -79,6 +100,11 @@ type PettyCashMovementApiDto = {
   fromPaymentAccountId?: number | null;
   toPaymentAccountId?: number | null;
   externalSourceName?: string | null;
+  entryCategory?: string | null;
+  counterpartyName?: string | null;
+  statementDescription?: string | null;
+  fundingMethod?: string | null;
+  internalNote?: string | null;
   type: PettyCashMovementType;
   amount: number | string;
   currencyCode: string;
@@ -215,12 +241,21 @@ type PettyCashFundApiRequest = {
   paymentAccountId?: number | null;
   fundingSourcePaymentAccountId?: number | null;
   responsibleUserId?: number | null;
+  fundType?: PettyCashFundType;
   name: string;
   currencyCode: string;
   limitAmount: number;
   currentBalanceAmount?: number;
   cutOffDay?: number;
   fundingSourceName?: string | null;
+  externalOwnerType?: string | null;
+  externalOwnerName?: string | null;
+  externalOwnerRelationship?: string | null;
+  externalOwnerReference?: string | null;
+  statementRecipientEmail?: string | null;
+  managedAssetType?: string | null;
+  managedAssetName?: string | null;
+  managedAssetReference?: string | null;
   fundingMethods?: string[];
   spendingMethods?: string[];
   kioskEnabled?: boolean;
@@ -237,6 +272,11 @@ type PettyCashMovementApiRequest = {
   fromPaymentAccountId?: number | null;
   toPaymentAccountId?: number | null;
   externalSourceName?: string | null;
+  entryCategory?: string | null;
+  counterpartyName?: string | null;
+  statementDescription?: string | null;
+  fundingMethod?: string | null;
+  internalNote?: string | null;
   type?: PettyCashMovementType;
   amount: number;
   currencyCode: string;
@@ -323,8 +363,19 @@ const toFund = (dto: PettyCashFundApiDto): PettyCashFund => ({
   currentBalanceAmount: asNumber(dto.currentBalanceAmount),
   cutOffDay: dto.cutOffDay ?? 30,
   fundingMethods: dto.fundingMethods ?? [],
+  fundType: dto.fundType ?? (dto.fundingSourcePaymentAccountId ? 'INTERNAL_COMPANY' : 'EXTERNAL_MANAGED'),
   fundingSourceName: dto.fundingSourceName ?? customString(dto.customFields, 'fundingSourceName') ?? 'Financial account',
   fundingSourcePaymentAccountId: idString(dto.fundingSourcePaymentAccountId),
+  externalOwnerType: dto.externalOwnerType ?? undefined,
+  externalOwnerName: dto.externalOwnerName ?? undefined,
+  externalOwnerRelationship: dto.externalOwnerRelationship ?? undefined,
+  externalOwnerReference: dto.externalOwnerReference ?? undefined,
+  statementRecipientEmail: dto.statementRecipientEmail ?? undefined,
+  managedAssetType: dto.managedAssetType ?? undefined,
+  managedAssetName: dto.managedAssetName ?? undefined,
+  managedAssetReference: dto.managedAssetReference ?? undefined,
+  externalIdentityPending: Boolean(dto.externalIdentityPending),
+  budgetLinkPending: Boolean(dto.budgetLinkPending),
   kioskAccessUrl: dto.kioskAccessUrl
     ?? customString(dto.customFields, 'kioskAccessUrl')
     ?? (dto.kioskPublicToken ? `/petty-cash/kiosk/${dto.kioskPublicToken}` : undefined),
@@ -365,8 +416,17 @@ const toStatement = (
     periodKey: dto.periodKey,
     periodStart: dto.periodStart,
     pettyCashFundId: idString(dto.pettyCashFundId),
+    fundTypeSnapshot: dto.fundTypeSnapshot ?? fund?.fundType ?? 'INTERNAL_COMPANY',
     responsibleName: customString(dto.customFields, 'responsibleName') ?? fund?.responsibleName ?? labelWithId('User', dto.responsibleUserId),
     responsibleUserId: idString(dto.responsibleUserId),
+    externalOwnerTypeSnapshot: dto.externalOwnerTypeSnapshot ?? undefined,
+    externalOwnerNameSnapshot: dto.externalOwnerNameSnapshot ?? undefined,
+    externalOwnerRelationshipSnapshot: dto.externalOwnerRelationshipSnapshot ?? undefined,
+    externalOwnerReferenceSnapshot: dto.externalOwnerReferenceSnapshot ?? undefined,
+    statementRecipientEmailSnapshot: dto.statementRecipientEmailSnapshot ?? undefined,
+    managedAssetTypeSnapshot: dto.managedAssetTypeSnapshot ?? undefined,
+    managedAssetNameSnapshot: dto.managedAssetNameSnapshot ?? undefined,
+    managedAssetReferenceSnapshot: dto.managedAssetReferenceSnapshot ?? undefined,
     returnedAmount: asNumber(dto.returnedAmount),
     reviewedByName: customString(dto.customFields, 'reviewedByName') ?? optionalLabelWithId('User', dto.reviewedByUserId),
     shortageAmount: asNumber(dto.shortageAmount),
@@ -387,6 +447,11 @@ const toMovement = (
     companyId: idString(dto.companyId),
     currencyCode: asCurrency(dto.currencyCode),
     externalSourceName: dto.externalSourceName ?? customString(dto.customFields, 'externalSourceName'),
+    entryCategory: dto.entryCategory ?? undefined,
+    counterpartyName: dto.counterpartyName ?? undefined,
+    statementDescription: dto.statementDescription ?? undefined,
+    fundingMethod: dto.fundingMethod ?? undefined,
+    internalNote: dto.internalNote ?? undefined,
     fromPaymentAccountId: idString(dto.fromPaymentAccountId),
     fromPaymentAccountName: customString(dto.customFields, 'fromPaymentAccountName')
       ?? customString(dto.customFields, 'externalSourceName')
@@ -470,8 +535,17 @@ const toFundCreateRequest = (fund: PettyCashFund): PettyCashFundApiRequest => ({
   customFields: fundCustomFields(fund),
   cutOffDay: fund.cutOffDay,
   fundingMethods: fund.fundingMethods,
+  fundType: fund.fundType,
   fundingSourceName: fund.fundingSourceName,
   fundingSourcePaymentAccountId: numericId(fund.fundingSourcePaymentAccountId) ?? null,
+  externalOwnerType: fund.externalOwnerType ?? null,
+  externalOwnerName: fund.externalOwnerName ?? null,
+  externalOwnerRelationship: fund.externalOwnerRelationship ?? null,
+  externalOwnerReference: fund.externalOwnerReference ?? null,
+  statementRecipientEmail: fund.statementRecipientEmail ?? null,
+  managedAssetType: fund.managedAssetType ?? null,
+  managedAssetName: fund.managedAssetName ?? null,
+  managedAssetReference: fund.managedAssetReference ?? null,
   kioskAccessUrl: fund.kioskAccessUrl ?? null,
   kioskEnabled: fund.kioskEnabled,
   kioskPublicToken: fund.kioskPublicToken ?? null,
@@ -504,6 +578,11 @@ const toMovementRequest = (movement: PettyCashMovement): PettyCashMovementApiReq
   },
   fromPaymentAccountId: numericId(movement.fromPaymentAccountId) ?? null,
   externalSourceName: movement.externalSourceName?.trim() || null,
+  entryCategory: movement.entryCategory?.trim() || null,
+  counterpartyName: movement.counterpartyName?.trim() || null,
+  statementDescription: movement.statementDescription?.trim() || null,
+  fundingMethod: movement.fundingMethod?.trim() || null,
+  internalNote: movement.internalNote?.trim() || null,
   metadata: { source: 'petty_cash_frontend' },
   movementDate: movement.movementDate,
   pettyCashStatementId: numericId(movement.pettyCashStatementId) ?? null,

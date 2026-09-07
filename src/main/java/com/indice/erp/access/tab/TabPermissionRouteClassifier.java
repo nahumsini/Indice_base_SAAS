@@ -138,6 +138,9 @@ public class TabPermissionRouteClassifier {
             return salesRequirement;
         }
 
+        if (path.startsWith("/api/v1/kpis/monetary-aggregate")) {
+            return any(com.indice.erp.kpis.KpiRequestAccessService.monetaryPermissions());
+        }
         if (path.startsWith("/api/v1/kpis/accounting-reports")) {
             return one("kpis.accounting-reports");
         }
@@ -272,10 +275,13 @@ public class TabPermissionRouteClassifier {
                 : one("petty_cash.cash");
         }
         if (path.startsWith("/api/v1/finance/receivables")) {
-            if (path.endsWith("/payments")) {
+            if (path.endsWith("/payment-accounts")) {
+                return any("receivables.payments", "receivables.accounts-receivable");
+            }
+            if (path.endsWith("/payments") || path.contains("/payments/") || path.contains("/payment-receipts/")) {
                 return one("receivables.payments");
             }
-            if (path.endsWith("/credit-policies")) {
+            if (path.endsWith("/credit-policies") || path.contains("/credit-policies/")) {
                 return one("receivables.credit-customers");
             }
             if (path.endsWith("/workspace")) {
@@ -324,6 +330,9 @@ public class TabPermissionRouteClassifier {
         }
         if (path.startsWith("/api/v1/pos/kpis")) {
             return one("pos.kpis");
+        }
+        if (path.startsWith("/api/v1/pos/inventory-receipts")) {
+            return one("pos.sale");
         }
         if (path.startsWith("/api/v1/pos/shifts")
             || path.startsWith("/api/v1/pos/cash-closings")
@@ -374,7 +383,7 @@ public class TabPermissionRouteClassifier {
             case "quotes" -> "GET".equals(method)
                 ? any("crm.quotes", "crm.sales", "crm.contracts")
                 : one("crm.quotes");
-            case "sales" -> one("crm.sales");
+            case "sales", "commission-summary" -> one("crm.sales");
             case "contracts", "post-sales" -> one("crm.contracts");
             case "products" -> "GET".equals(method)
                 ? any("inventory.products", "inventory.inventory", "inventory.purchase-orders", "crm.quotes", "crm.sales")

@@ -96,6 +96,7 @@ export const zhCA = {
       TRANSFER: '转账',
     },
     modal: {
+      ...enCA.funds.modal,
       title: '创建资金',
       subtitle: '配置负责人、付款账户、方式和资金预算。',
       editTitle: '编辑资金',
@@ -187,9 +188,10 @@ export const zhCA = {
     },
     filters: { result: (count: number) => `${count} 个收据`, subtitle: '选择资金以查看本期入款、支出和收据。', fund: '资金', statement: '结算单', status: '状态', evidence: '凭证', withEvidence: '有凭证', withoutEvidence: '无凭证', searchReceipt: '搜索收据', searchPlaceholder: '概念、供应商...', searchIncome: '搜索收入', incomeSearchPlaceholder: '参考、来源账户...' },
     metrics: { fundBalance: '资金余额', deposited: '已存入', receipts: '收据', pendingSettlement: '待结清', responsible: '负责人', source: '资金来源', receivesBy: '收款方式', spendsBy: '支出方式' },
-    operation: { openingBalance: '期初余额', captured: '已登记采购', authorized: '已授权费用', currentBalance: '当前余额', signal: (pendingCount: number, readyCount: number, amount: string) => `${pendingCount} 个凭证待处理 · ${readyCount} 个可授权 · ${amount} 待结算。`, fundContext: '资金信息', nextCut: '结算日期', viewStatements: '查看结算历史', recentActivity: '近期资金活动', noActivity: '本结算单暂无资金变动。' },
+    operation: { ...enCA.reconciliation.operation, openingBalance: '期初余额', captured: '已登记采购', authorized: '已授权费用', currentBalance: '当前余额', signal: (pendingCount: number, readyCount: number, amount: string) => `${pendingCount} 个凭证待处理 · ${readyCount} 个可授权 · ${amount} 待结算。`, fundContext: '资金信息', nextCut: '结算日期', viewStatements: '查看结算历史', recentActivity: '近期资金活动', noActivity: '本结算单暂无资金变动。' },
     movements: { title: '资金入款', subtitle: '入款和拨款。这些不是费用。', empty: '此资金还没有入款。', itemLabel: '入款', result: (count: number) => `${count} 个入款`, columns: { date: '日期', type: '类型', source: '来源', destination: '目标', amount: '金额', reference: '参考' } },
     receipts: {
+      ...enCA.reconciliation.receipts,
       title: '收据和支出',
       subtitle: '有凭证的支出。之后可转换为 Expenses。',
       empty: '此资金在所选结算单中没有收据。',
@@ -236,6 +238,7 @@ export const zhCA = {
       pendingWarning: '关闭此结算单前，请将待处理收据转换为费用。',
     },
     depositModal: {
+      ...enCA.reconciliation.depositModal,
       title: '向资金录入金额',
       subtitle: (fundName: string) => `${fundName} 的拨款。不会创建费用。`,
       action: '录入资金',
@@ -253,6 +256,7 @@ export const zhCA = {
       noSource: (currency: string) => `${currency} 中没有与现金账户不同的启用来源账户。`,
     },
     receiptModal: {
+      ...enCA.reconciliation.receiptModal,
       title: '上传收据',
       subtitle: (fundName: string) => `${fundName} 的运营支出。实际费用会在 Expenses 验证后创建。`,
       action: '保存收据',

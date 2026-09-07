@@ -36,6 +36,9 @@ class SalesApiControllerCsrfTest {
 
     private static final AuthSessionUser CURRENT_USER = new AuthSessionUser(1L, 7L, "Usuario Demo", "admin");
 
+    @MockBean
+    private com.indice.erp.kpis.KpiRequestAccessService kpiAccess;
+
     @Autowired
     private MockMvc mockMvc;
 

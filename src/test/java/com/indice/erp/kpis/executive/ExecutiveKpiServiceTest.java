@@ -5,6 +5,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Map;
+import java.time.ZoneId;
+import com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver;
+import com.indice.erp.exchange.BusinessExchangeRateService;
+import com.indice.erp.kpis.currency.KpiCurrencyAggregationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -16,10 +20,14 @@ class ExecutiveKpiServiceTest {
     @BeforeEach
     void setUp() {
         repository = mock(ExecutiveKpiRepository.class);
+        var timeZones = mock(FinanceBusinessTimeZoneResolver.class);
+        when(timeZones.resolve(org.mockito.ArgumentMatchers.anyLong())).thenReturn(ZoneId.of("America/Toronto"));
         service = new ExecutiveKpiService(
                 repository,
                 mock(ExecutiveKpiDomainService.class),
-                mock(ExecutiveDecisionMatrixService.class));
+                mock(ExecutiveDecisionMatrixService.class), mock(BusinessExchangeRateService.class),
+                new KpiCurrencyAggregationService(), timeZones, mock(org.springframework.transaction.PlatformTransactionManager.class),
+                mock(com.indice.erp.finance.reporting.FinancialPerformanceProjectionService.class));
     }
 
     @Test

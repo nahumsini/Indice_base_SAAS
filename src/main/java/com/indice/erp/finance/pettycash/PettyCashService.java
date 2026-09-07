@@ -1,6 +1,7 @@
 package com.indice.erp.finance.pettycash;
 
 import com.indice.erp.finance.FinanceApiException;
+import com.indice.erp.finance.expenses.ExpenseService;
 import com.indice.erp.finance.pettycash.dto.ClosePettyCashStatementRequest;
 import com.indice.erp.finance.pettycash.dto.CreatePettyCashFundRequest;
 import com.indice.erp.finance.pettycash.dto.CreatePettyCashMovementRequest;
@@ -41,6 +42,7 @@ public class PettyCashService {
     private final TreasuryService treasuryService;
     private final FinanceBusinessTimeZoneResolver timeZoneResolver;
     private final HrPayrollExternalDeductionService payrollExternalDeductionService;
+    private final ExpenseService expenseService;
 
     public PettyCashService(
             PettyCashRepository repository,
@@ -49,7 +51,8 @@ public class PettyCashService {
             KioskRegistryService kioskRegistry,
             TreasuryService treasuryService,
             FinanceBusinessTimeZoneResolver timeZoneResolver,
-            HrPayrollExternalDeductionService payrollExternalDeductionService) {
+            HrPayrollExternalDeductionService payrollExternalDeductionService,
+            ExpenseService expenseService) {
         this.repository = repository;
         this.mapper = mapper;
         this.validator = validator;
@@ -57,6 +60,7 @@ public class PettyCashService {
         this.treasuryService = treasuryService;
         this.timeZoneResolver = timeZoneResolver;
         this.payrollExternalDeductionService = payrollExternalDeductionService;
+        this.expenseService = expenseService;
     }
 
     @Transactional
@@ -102,7 +106,7 @@ public class PettyCashService {
     @Transactional
     public PettyCashFundResponse updateFund(FinanceContext context, long fundId, UpdatePettyCashFundRequest request) {
         var existing = requireFund(context, fundId);
-        var assignment = validator.validateUpdate(context, request);
+        var assignment = validator.validateUpdate(context, request, existing);
         var kioskPublicToken = resolveKioskPublicToken(
             request.kioskPublicToken(),
             existing.kioskPublicToken(),
@@ -110,6 +114,13 @@ public class PettyCashService {
             fundId
         );
         var command = mapper.toUpdateCommand(context, request, assignment, existing, kioskPublicToken);
+        if (repository.hasFinancialActivity(context, fundId)
+                && (command.fundType() != existing.fundType()
+                    || !command.currencyCode().equalsIgnoreCase(existing.currencyCode()))) {
+            throw FinanceApiException.conflict(
+                "Fund type and currency cannot change after the fund has financial activity."
+            );
+        }
         requireUniqueName(context, command.name(), fundId);
         if (!repository.updateFund(context, fundId, command)) {
             throw new NoSuchElementException("Petty cash fund not found.");
@@ -189,13 +200,15 @@ public class PettyCashService {
             long fundId,
             CreatePettyCashMovementRequest request) {
         var fund = requireFund(context, fundId);
-        validator.validateMovement(context, request);
+        validator.validateMovement(context, fund, request);
         requireCurrencyMatch(fund, request.currencyCode());
         var statement = ensureStatement(context, fund, request.pettyCashStatementId(), request.movementDate());
         var command = mapper.toCommand(context, request);
         command = new PettyCashMovementCommand(
             statement.id(), command.fromPaymentAccountId(), command.toPaymentAccountId(), command.type(),
-            command.amount(), command.currencyCode(), command.movementDate(), command.externalSourceName(), command.reference(),
+            command.amount(), command.currencyCode(), command.movementDate(), command.externalSourceName(),
+            command.entryCategory(), command.counterpartyName(), command.statementDescription(), command.fundingMethod(),
+            command.internalNote(), command.reference(),
             command.createdByUserId(), command.customFieldsJson(), command.metadataJson()
         );
         requireResolvedMovementAccounts(fund, command);
@@ -206,7 +219,9 @@ public class PettyCashService {
         }
         applyPaymentAccountImpact(context, fund, command, movement.id());
         repository.applyMovementToStatement(context, statement.id(), command.type(), command.amount(), balanceDelta);
-        repository.applyMovementToBudgetLine(context, fund.budgetLineId(), command.type(), command.amount());
+        if (fund.fundType() == PettyCashFundType.INTERNAL_COMPANY) {
+            repository.applyMovementToBudgetLine(context, fund.budgetLineId(), command.type(), command.amount());
+        }
         return new PettyCashMovementMutationResponse(
             mapper.toResponse(requireFund(context, fund.id())),
             mapper.toResponse(requireStatement(context, statement.id())),
@@ -219,6 +234,7 @@ public class PettyCashService {
             FinanceContext context,
             long fundId,
             CreatePettyCashSettlementLineRequest request) {
+        repository.lockFund(context, fundId);
         var fund = requireFund(context, fundId);
         validator.validateSettlementLine(context, request);
         requireCurrencyMatch(fund, request.currencyCode());
@@ -253,6 +269,7 @@ public class PettyCashService {
             FinanceContext context,
             long fundId,
             long settlementLineId) {
+        repository.lockFund(context, fundId);
         var fund = requireFund(context, fundId);
         var line = requireSettlementLine(context, settlementLineId);
         if (!line.pettyCashFundId().equals(fund.id())) {
@@ -269,8 +286,26 @@ public class PettyCashService {
             throw FinanceApiException.badRequest("Petty cash settlement line requires evidence before authorization.");
         }
         var statement = requireStatement(context, line.pettyCashStatementId());
+        if (fund.fundType() == PettyCashFundType.EXTERNAL_MANAGED) {
+            if (line.status() == PettyCashSettlementLineStatus.VALIDATED) {
+                throw FinanceApiException.conflict("External managed fund receipt is already validated.");
+            }
+            if (!repository.validateExternalSettlementLine(context, line.id())) {
+                throw FinanceApiException.conflict("External managed fund receipt could not be validated.");
+            }
+            repository.applySettlementLineExpenseToStatement(context, statement.id(), line.totalAmount());
+            return new PettyCashSettlementLineMutationResponse(
+                mapper.toResponse(requireFund(context, fund.id())),
+                mapper.toResponse(requireStatement(context, statement.id())),
+                mapper.toResponse(requireSettlementLine(context, line.id()))
+            );
+        }
+        if (line.accountingAccountId() == null) {
+            throw FinanceApiException.badRequest("Internal fund expenses require an accounting account.");
+        }
         var expenseId = repository.insertExpenseFromSettlementLine(context, fund, statement, line);
         repository.linkSettlementLineExpense(context, line.id(), expenseId);
+        expenseService.recordCustodySettlement(context, expenseId, line.id());
         repository.applySettlementLineExpenseToStatement(context, statement.id(), line.totalAmount());
         repository.applySettlementLineToBudgetLine(context, fund.budgetLineId(), line.totalAmount());
         return new PettyCashSettlementLineMutationResponse(
@@ -285,6 +320,7 @@ public class PettyCashService {
             FinanceContext context,
             long fundId,
             long settlementLineId) {
+        repository.lockFund(context, fundId);
         var fund = requireFund(context, fundId);
         var line = requireSettlementLine(context, settlementLineId);
         if (!line.pettyCashFundId().equals(fund.id())) {
@@ -327,6 +363,8 @@ public class PettyCashService {
             throw FinanceApiException.conflict("Petty cash settlement line is already reversed.");
         }
         var hasGeneratedExpense = line.status() == PettyCashSettlementLineStatus.EXPENSE_CREATED;
+        var hasValidatedExternalExpense = fund.fundType() == PettyCashFundType.EXTERNAL_MANAGED
+            && line.status() == PettyCashSettlementLineStatus.VALIDATED;
         if (hasGeneratedExpense && line.expenseId() == null) {
             throw FinanceApiException.conflict("Petty cash settlement line is marked as expense created but has no linked expense.");
         }
@@ -342,8 +380,10 @@ public class PettyCashService {
             "FUND_EXPENSE_REVERSAL", String.valueOf(line.id()), "FUND_EXPENSE_REVERSAL:" + line.id(),
             "Reversión de salida del fondo · " + reason
         );
-        if (hasGeneratedExpense) {
+        if (hasGeneratedExpense || hasValidatedExternalExpense) {
             repository.revertSettlementLineExpenseFromStatement(context, line.pettyCashStatementId(), line.totalAmount());
+        }
+        if (hasGeneratedExpense) {
             repository.revertSettlementLineFromBudgetLine(context, fund.budgetLineId(), line.totalAmount());
         }
         repository.revertSettlementLineFromStatement(context, line);
@@ -399,6 +439,10 @@ public class PettyCashService {
                     statement.id(), fund.paymentAccountId(), fund.fundingSourcePaymentAccountId(),
                     PettyCashMovementType.RETURN_TO_SOURCE, closingBalance, fund.currencyCode(), closeDate,
                     fund.fundingSourcePaymentAccountId() == null ? fund.fundingSourceName() : null,
+                    "RETURN", fund.externalOwnerName(),
+                    normalizeCloseReference(request.reference(), "Devolución del saldo al origen"),
+                    fund.fundType() == PettyCashFundType.INTERNAL_COMPANY ? "INTERNAL_TRANSFER" : "EXTERNAL_RETURN",
+                    null,
                     normalizeCloseReference(request.reference(), "Cierre de corte: devolucion a origen"),
                     context.userId(), null, null
                 );
@@ -406,7 +450,9 @@ public class PettyCashService {
                 var movement = repository.insertMovement(context, fund.id(), command);
                 repository.adjustFundBalance(context, fund.id(), closingBalance.negate());
                 applyPaymentAccountImpact(context, fund, command, movement.id());
-                repository.applyMovementToBudgetLine(context, fund.budgetLineId(), command.type(), command.amount());
+                if (fund.fundType() == PettyCashFundType.INTERNAL_COMPANY) {
+                    repository.applyMovementToBudgetLine(context, fund.budgetLineId(), command.type(), command.amount());
+                }
                 repository.closeStatement(
                     context, statement.id(), PettyCashStatementStatus.CLOSED,
                     closingBalance, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO
@@ -432,7 +478,9 @@ public class PettyCashService {
                     : PettyCashStatementStatus.CHARGED_TO_EMPLOYEE;
                 var command = new PettyCashMovementCommand(
                     statement.id(), null, null, movementType, shortageAmount, fund.currencyCode(), closeDate,
-                    null,
+                    null, "ADJUSTMENT", null,
+                    normalizeCloseReference(request.reference(), "Ajuste de faltante del corte"),
+                    null, null,
                     normalizeCloseReference(request.reference(), "Cierre de corte: faltante"),
                     context.userId(), null, null
                 );
@@ -561,7 +609,10 @@ public class PettyCashService {
         if (fund.paymentAccountId() == null) {
             throw FinanceApiException.badRequest("A fund with an opening balance requires a payment account.");
         }
-        if (fund.fundingSourcePaymentAccountId() != null) {
+        if (fund.fundType() == PettyCashFundType.INTERNAL_COMPANY) {
+            if (fund.fundingSourcePaymentAccountId() == null) {
+                throw FinanceApiException.badRequest("An internal fund requires a company source account.");
+            }
             treasuryService.transferAvailable(
                 context.companyId(), fund.fundingSourcePaymentAccountId(), fund.paymentAccountId(),
                 fund.unitId(), fund.businessId(), fund.currencyCode(), openingBalance,
@@ -570,6 +621,9 @@ public class PettyCashService {
                 "{\"fundId\":" + fund.id() + "}"
             );
             return;
+        }
+        if (fund.fundingSourcePaymentAccountId() != null) {
+            throw FinanceApiException.badRequest("An external managed fund cannot use a company source account.");
         }
         if (fund.fundingSourceName() == null || fund.fundingSourceName().isBlank()) {
             throw FinanceApiException.badRequest("An externally funded opening balance requires a funding source name.");
@@ -672,6 +726,16 @@ public class PettyCashService {
     }
 
     private void requireResolvedMovementAccounts(PettyCashFundRecord fund, PettyCashMovementCommand command) {
+        if (fund.fundType() == PettyCashFundType.INTERNAL_COMPANY && hasExternalSource(command)) {
+            throw FinanceApiException.badRequest("Internal fund movements cannot use an external source.");
+        }
+        if (fund.fundType() == PettyCashFundType.EXTERNAL_MANAGED
+                && (command.type() == PettyCashMovementType.INITIAL_FUNDING
+                    || command.type() == PettyCashMovementType.ADDITIONAL_DEPOSIT
+                    || command.type() == PettyCashMovementType.RETURN_TO_SOURCE)
+                && !hasExternalSource(command)) {
+            throw FinanceApiException.badRequest("External managed fund movements require an external source.");
+        }
         var accountPlan = resolveMovementAccountPlan(fund, command);
         if (accountPlan == null) {
             if (hasExternalSource(command)) {

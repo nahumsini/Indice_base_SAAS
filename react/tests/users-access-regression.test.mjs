@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import test from 'node:test';
+import ts from 'typescript';
 
 const root = resolve(import.meta.dirname, '..');
 const usersSource = readFileSync(
@@ -210,9 +211,25 @@ test('revocar rol o permisos refresca sesion catalogo rutas pestanas y cabecera'
   assert.doesNotMatch(accessibleCatalogSource, /localDevelopmentModules|import\.meta\.env\.DEV/);
   assert.doesNotMatch(appSource, /routes\.add\('material-warehouse'\)|routes\.add\('production'\)/);
   assert.match(tabScopeCatalogSource, /canAccessKioskCenter/);
-  assert.match(tabScopeCatalogSource, /KIOSK_CENTER_PERMISSION_KEYS/);
   assert.match(appSource, /canAccessKioskCenter\(session\)/);
   assert.match(headerSource, /canAccessKioskCenter\(effectiveAuthSession\)/);
   assert.match(headerSource, /effectiveAuthSession/);
   assert.match(kpisSource, /useAuthorizationRevision\(\)/);
+});
+
+test('el centro global de kioscos exige root incluso con permisos de kiosco individuales', async () => {
+  const source = ts.transpileModule(tabScopeCatalogSource, {
+    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const { canAccessKioskCenter } = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+  for (const role of ['root', 'superadmin', 'super admin']) {
+    assert.equal(canAccessKioskCenter({ user: { role } }), true, role);
+  }
+  for (const role of ['admin', 'owner', 'manager', 'user', '']) {
+    assert.equal(canAccessKioskCenter({ user: {
+      role, tab_permissions_configured: true,
+      tab_permission_keys: ['human_resources.kiosks', 'processes.kiosks', 'pos.kiosks'],
+    } }), false, role);
+  }
+  assert.equal(canAccessKioskCenter(null), false);
 });

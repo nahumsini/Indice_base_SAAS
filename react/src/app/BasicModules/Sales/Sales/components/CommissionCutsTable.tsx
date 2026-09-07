@@ -17,7 +17,7 @@ import { usePersistentColumnWidths } from '../../../../hooks/usePersistentColumn
 import { useTablePagination } from '../../../../hooks/useTablePagination';
 import type { SalesRecordsTranslations } from '../translations';
 import type { CommissionCut } from '../types/commissions';
-import { formatSalesCurrency } from '../utils/salesFormatters';
+import { formatCommissionMoney } from '../utils/salesFormatters';
 
 type CommissionCutColumnId = 'code' | 'period' | 'commissions' | 'employees' | 'total' | 'status';
 
@@ -164,7 +164,7 @@ export function CommissionCutsTable({
                 <TableCell className="px-5 py-4 text-right font-normal tabular-nums">{cut.employeeCount}</TableCell>
                 <TableCell className="px-5 py-4 text-right font-medium tabular-nums">
                   {Object.entries(cut.currencyTotals ?? {}).map(([currency, amount]) => (
-                    <span key={currency} className="block">{formatSalesCurrency(amount, currency)}</span>
+                    <span key={currency} className="block">{formatCommissionMoney(amount, currency)}</span>
                   ))}
                 </TableCell>
                 <TableCell className="px-5 py-4 text-center">

@@ -18,10 +18,12 @@ public class ExecutiveKpiController {
 
     private final SessionAuthService sessionAuthService;
     private final ExecutiveKpiService executiveKpiService;
+    private final com.indice.erp.kpis.KpiRequestAccessService access;
 
-    public ExecutiveKpiController(SessionAuthService sessionAuthService, ExecutiveKpiService executiveKpiService) {
+    public ExecutiveKpiController(SessionAuthService sessionAuthService, ExecutiveKpiService executiveKpiService, com.indice.erp.kpis.KpiRequestAccessService access) {
         this.sessionAuthService = sessionAuthService;
         this.executiveKpiService = executiveKpiService;
+        this.access = access;
     }
 
     @GetMapping("/executive-panel")
@@ -32,10 +34,11 @@ public class ExecutiveKpiController {
         }
 
         try {
+            var selection = access.central(user.get(), "kpis", scopeId(params.get("unitId")), scopeId(params.get("businessId")));
             return ResponseEntity.ok(executiveKpiService.getExecutivePanel(
                     user.get().companyId(),
                     user.get().userId(),
-                    params));
+                    selection.apply(params)));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
@@ -44,4 +47,5 @@ public class ExecutiveKpiController {
     private Optional<AuthSessionUser> currentUser(HttpSession session) {
         return sessionAuthService.currentUser(session);
     }
+    private static Long scopeId(String value) { return value == null || value.isBlank() ? null : Long.valueOf(value); }
 }

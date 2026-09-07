@@ -13,7 +13,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 @JdbcTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import(ExecutiveKpiRepository.class)
+@Import({ExecutiveKpiRepository.class, com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver.class, com.fasterxml.jackson.databind.ObjectMapper.class})
 class ExecutiveKpiRepositoryIntegrationTest {
 
     @Autowired

@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mock;
 import com.indice.erp.exchange.BusinessExchangeRateMetadataResponse;
 import com.indice.erp.exchange.BusinessExchangeRateService;
 import com.indice.erp.exchange.BusinessExchangeRatesResponse;
+import com.indice.erp.exchange.BusinessExchangeRateSourceResponse;
 import com.indice.erp.kpis.currency.KpiCurrencyAggregationService;
 import com.indice.erp.kpis.currency.KpiMoneyAmount;
 import java.math.BigDecimal;
@@ -31,7 +32,7 @@ class SalesKpiTodayServiceTest {
         var businessDate = LocalDate.of(2026, 8, 31);
 
         given(timeZoneResolver.resolve(9L)).willReturn(ZoneId.of("America/Mexico_City"));
-        given(repository.salesAmounts(9L, businessDate)).willReturn(List.of(
+        given(repository.salesAmounts(9L, businessDate, com.indice.erp.hr.HrOperationalScope.corporateOffice())).willReturn(List.of(
             new KpiMoneyAmount(new BigDecimal("100.00"), "MXN"),
             new KpiMoneyAmount(new BigDecimal("10.00"), "USD")
         ));
@@ -45,7 +46,7 @@ class SalesKpiTodayServiceTest {
             clock
         );
 
-        var result = service.today(9L, "MXN");
+        var result = service.today(9L, "MXN", com.indice.erp.hr.HrOperationalScope.corporateOffice());
 
         assertThat(result.date()).isEqualTo(businessDate);
         assertThat(result.timezone()).isEqualTo("America/Mexico_City");
@@ -64,7 +65,7 @@ class SalesKpiTodayServiceTest {
         var date = LocalDate.of(2026, 8, 31);
 
         given(timeZoneResolver.resolve(3L)).willReturn(ZoneId.of("America/Toronto"));
-        given(repository.salesAmounts(3L, date)).willReturn(List.of(
+        given(repository.salesAmounts(3L, date, com.indice.erp.hr.HrOperationalScope.corporateOffice())).willReturn(List.of(
             new KpiMoneyAmount(new BigDecimal("50.00"), "MXN"),
             new KpiMoneyAmount(new BigDecimal("20.00"), "XYZ")
         ));
@@ -78,7 +79,7 @@ class SalesKpiTodayServiceTest {
             Clock.fixed(Instant.parse("2026-08-31T16:00:00Z"), ZoneOffset.UTC)
         );
 
-        var result = service.today(3L, null);
+        var result = service.today(3L, null, com.indice.erp.hr.HrOperationalScope.corporateOffice());
 
         assertThat(result.saleCount()).isEqualTo(2);
         assertThat(result.monetaryTotal().preferredCurrency()).isEqualTo("MXN");
@@ -101,7 +102,8 @@ class SalesKpiTodayServiceTest {
                 "",
                 ""
             ),
-            List.of(),
+            List.of(new BusinessExchangeRateSourceResponse("MXN", new BigDecimal("20.00"), "2026-08-31",
+                "Banco de México", "daily", "https://www.banxico.org.mx/", "", "official", "")),
             List.of()
         );
     }

@@ -40,6 +40,7 @@ class TabPermissionRouteClassifierTest {
         assertRequirement("GET", "/api/v1/sales/kpis/today", "crm.kpis");
         assertRequirement("GET", "/api/v1/pos/discounts", "pos.descuentos");
         assertRequirement("GET", "/api/v1/pos/self-service-kiosks", "pos.kiosks");
+        assertRequirement("POST", "/api/v1/pos/inventory-receipts", "pos.sale");
         assertRequirement("POST", "/api/v1/sales/products", "inventory.products");
         assertRequirement("DELETE", "/api/v1/sales/products/22", "inventory.products");
         assertRequirement("GET", "/api/v1/pos/purchase-orders", "inventory.purchase-orders");
@@ -52,6 +53,7 @@ class TabPermissionRouteClassifierTest {
 
     @Test
     void sharedReadRoutesAcceptTheScopesThatConsumeTheirData() {
+        assertAnyOf("GET", "/api/v1/finance/receivables/payment-accounts", "receivables.payments", "receivables.accounts-receivable");
         assertAnyOf("GET", "/api/v1/hr/users", "human_resources.collaborators", "human_resources.kpis");
         assertAnyOf("GET", "/api/v1/process-tasks", "processes.calendar", "processes.projects", "processes.processes");
         assertAnyOf(

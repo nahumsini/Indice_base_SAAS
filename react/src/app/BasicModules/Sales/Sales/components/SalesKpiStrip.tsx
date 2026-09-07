@@ -17,32 +17,15 @@ import type {
   OperationalKpiMetric,
 } from '../../../shared/operational';
 import { OperationalKpiArea } from '../../../shared/operational';
-import {
-  formatBusinessCurrencyAmount,
-  formatBusinessCurrencyBreakdown,
-} from '../../../shared/businessCurrency';
 import { useKpiMonetaryAggregates } from '../../../shared/kpiMonetaryApi';
 import type { SalesRecordsTranslations } from '../translations';
 import type { SaleRecord, SalesMetrics } from '../types/salesTypes';
 import { formatSalesNumber } from '../utils/salesFormatters';
-import { isSalesCreditPaymentMethod } from '../utils/salesPaymentMethods';
-
-function hasNumericId(value: string | number | null | undefined) {
-  return Number.isSafeInteger(Number(value)) && Number(value) > 0;
-}
-
-function matchesVisibleSale(account: ReceivableAccount, records: SaleRecord[]) {
-  return records.some((record) => (
-    Boolean(record.backendId && account.salesRecordId === record.backendId)
-    || account.saleNumber.trim().toLocaleLowerCase() === record.saleNumber.trim().toLocaleLowerCase()
-  ));
-}
+import { buildSalesKpiAmounts } from '../utils/salesKpiAmounts';
 
 export function SalesKpiStrip({
   metrics,
   records,
-  receivableAccounts,
-  receivablePayments,
   totalCount,
   visibleCount,
   t,
@@ -56,61 +39,14 @@ export function SalesKpiStrip({
   t: SalesRecordsTranslations;
 }) {
   const saleIds = records.map((record) => record.backendId).filter((id): id is number => Boolean(id));
-  const directCollectedRecords = records.filter((record) => (
-    !isSalesCreditPaymentMethod(record.paymentMethod)
-    && record.financeStatus === 'approved'
-    && record.commercialStatus !== 'cancelled'
-    && record.commercialStatus !== 'rejected'
-  ));
-  const directCollectedIds = directCollectedRecords.map((record) => record.backendId).filter((id): id is number => Boolean(id));
-  const visibleAccounts = receivableAccounts.filter((account) => matchesVisibleSale(account, records));
-  const visibleAccountIds = new Set(visibleAccounts.map((account) => account.id));
-  const visibleSaleNumbers = new Set(records.map((record) => record.saleNumber.trim().toLocaleLowerCase()));
-  const visiblePayments = receivablePayments.filter((payment) => (
-    visibleAccountIds.has(payment.receivableId)
-    || visibleSaleNumbers.has(payment.saleNumber.trim().toLocaleLowerCase())
-  ));
-  const receivableIds = visibleAccounts.map((account) => account.id).filter(hasNumericId);
-  const paymentIds = visiblePayments.map((payment) => payment.id).filter(hasNumericId);
-
-  const queries = [
-    ...(saleIds.length ? [{ key: 'revenue', metric: 'SALES_TOTAL' as const, preferredCurrency: metrics.preferredCurrency, ids: saleIds }] : []),
-    ...(directCollectedIds.length ? [{ key: 'directCollected', metric: 'SALES_TOTAL' as const, preferredCurrency: metrics.preferredCurrency, ids: directCollectedIds }] : []),
-    ...(receivableIds.length ? [{ key: 'receivableBalance', metric: 'RECEIVABLE_BALANCE' as const, preferredCurrency: metrics.preferredCurrency, ids: receivableIds }] : []),
-    ...(paymentIds.length ? [{ key: 'creditPayments', metric: 'RECEIVABLE_PAYMENT_AMOUNT' as const, preferredCurrency: metrics.preferredCurrency, ids: paymentIds }] : []),
-  ];
+  const queries = saleIds.length ? [
+    { key: 'revenue', metric: 'SALES_TOTAL' as const, preferredCurrency: metrics.preferredCurrency, ids: saleIds },
+    { key: 'collected', metric: 'SALES_COLLECTED' as const, preferredCurrency: metrics.preferredCurrency, ids: saleIds },
+    { key: 'receivableBalance', metric: 'SALES_RECEIVABLE_BALANCE' as const, preferredCurrency: metrics.preferredCurrency, ids: saleIds },
+  ] : [];
   const { data: monetaryAggregates } = useKpiMonetaryAggregates(queries);
-  const preferredRevenue = monetaryAggregates.revenue?.preferredTotal;
-  const preferredDirectCollected = monetaryAggregates.directCollected?.preferredTotal;
-  const preferredCreditPayments = monetaryAggregates.creditPayments?.preferredTotal;
-  const preferredReceivableBalance = monetaryAggregates.receivableBalance?.preferredTotal;
-  const revenueLabel = preferredRevenue !== undefined
-    ? formatBusinessCurrencyAmount(preferredRevenue, metrics.preferredCurrency)
-    : formatBusinessCurrencyBreakdown(records, (record) => record.totalAmount, (record) => record.currency);
-  const collectedFallback = [
-    ...directCollectedRecords.map((record) => ({ amount: record.totalAmount, currency: record.currency })),
-    ...visiblePayments.map((payment) => ({ amount: payment.amount, currency: payment.currency ?? metrics.preferredCurrency })),
-  ];
-  const hasCompleteCollectedAggregate = (
-    (directCollectedIds.length === 0 || preferredDirectCollected !== undefined)
-    && (paymentIds.length === 0 || preferredCreditPayments !== undefined)
-  );
-  const collectedLabel = hasCompleteCollectedAggregate
-    ? formatBusinessCurrencyAmount((preferredDirectCollected ?? 0) + (preferredCreditPayments ?? 0), metrics.preferredCurrency)
-    : formatBusinessCurrencyBreakdown(collectedFallback, (item) => item.amount, (item) => item.currency);
-  const receivableBalanceLabel = preferredReceivableBalance !== undefined
-    ? formatBusinessCurrencyAmount(preferredReceivableBalance, metrics.preferredCurrency)
-    : formatBusinessCurrencyBreakdown(visibleAccounts, (account) => account.balance, (account) => account.currency);
-  const grossMarginLabel = formatBusinessCurrencyBreakdown(records, (record) => record.marginTotal, (record) => record.currency);
-  const visibleCurrencies = new Set(records.map((record) => record.currency.trim().toUpperCase()));
-  const averageTicketLabel = records.length === 0
-    ? formatBusinessCurrencyAmount(0, metrics.preferredCurrency)
-    : preferredRevenue !== undefined
-      ? formatBusinessCurrencyAmount(preferredRevenue / records.length, metrics.preferredCurrency)
-      : visibleCurrencies.size <= 1
-        ? formatBusinessCurrencyAmount(records.reduce((total, record) => total + record.totalAmount, 0) / records.length, records[0]?.currency)
-        : t.common.notAvailable;
-  const nativeRevenueLabel = formatBusinessCurrencyBreakdown(records, (record) => record.totalAmount, (record) => record.currency);
+  const { revenueLabel, collectedLabel, receivableBalanceLabel, grossMarginLabel, averageTicketLabel, nativeRevenueLabel }
+    = buildSalesKpiAmounts(records, metrics.preferredCurrency, monetaryAggregates, t.common.notAvailable);
 
   const metricItems: OperationalKpiMetric[] = [
     { id: 'revenue', icon: <CircleDollarSign className="h-4 w-4" />, label: t.kpis.totalSalesAmount, value: revenueLabel, iconClassName: 'text-[#B63B32]', valueClassName: 'text-[#FF6B5E]' },

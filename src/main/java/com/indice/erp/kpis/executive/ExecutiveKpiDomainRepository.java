@@ -214,7 +214,7 @@ public class ExecutiveKpiDomainRepository {
                              THEN 1 ELSE 0
                            END) AS invalid_currency_rows
                 FROM finance_petty_cash_funds fund
-                WHERE fund.deleted_at IS NULL AND fund.status <> 'CLOSED'
+                WHERE fund.deleted_at IS NULL AND fund.status <> 'CLOSED' AND fund.fund_type = 'INTERNAL_COMPANY'
                 """ + fundFilter.sql(), (rs, rowNum) -> new int[] {
                 integer(rs.getObject("fund_count")),
                 integer(rs.getObject("attention_funds")),
@@ -335,8 +335,8 @@ public class ExecutiveKpiDomainRepository {
                        COALESCE(product.sku, '') AS sku,
                        COALESCE(NULLIF(TRIM(product.category), ''), 'uncategorized') AS category,
                        UPPER(TRIM(sale.currency)) AS currency,
-                       SUM(line.subtotal_amount
-                           * (1 - LEAST(100, GREATEST(0, COALESCE(line.discount_percent, 0))) / 100)) AS revenue,
+                       UPPER(COALESCE(NULLIF(TRIM(line.cost_currency), ''), sale.currency)) AS cost_currency,
+                       SUM(COALESCE(line.subtotal_amount, line.pos_total - line.pos_tax)) AS revenue,
                        SUM(CASE
                            WHEN line.unit_cost IS NOT NULL AND line.unit_cost >= 0
                            THEN line.quantity * line.unit_cost
@@ -353,6 +353,9 @@ public class ExecutiveKpiDomainRepository {
                         product_id BIGINT PATH '$.productId' NULL ON EMPTY NULL ON ERROR,
                         quantity DECIMAL(19,4) PATH '$.quantity' NULL ON EMPTY NULL ON ERROR,
                         subtotal_amount DECIMAL(19,4) PATH '$.subtotal' NULL ON EMPTY NULL ON ERROR,
+                        pos_total DECIMAL(19,4) PATH '$.lineTotalAmount' NULL ON EMPTY NULL ON ERROR,
+                        pos_tax DECIMAL(19,4) PATH '$.taxAmount' NULL ON EMPTY NULL ON ERROR,
+                        cost_currency VARCHAR(3) PATH '$.costCurrency' NULL ON EMPTY NULL ON ERROR,
                         discount_percent DECIMAL(9,4) PATH '$.discountPercent' NULL ON EMPTY NULL ON ERROR,
                         unit_cost DECIMAL(19,4) PATH '$.unitCost' NULL ON EMPTY NULL ON ERROR
                     )
@@ -363,9 +366,9 @@ public class ExecutiveKpiDomainRepository {
                 WHERE sale.deleted_at IS NULL AND %s
                   AND line.product_id IS NOT NULL
                   AND line.quantity > 0
-                  AND line.subtotal_amount >= 0
+                  AND COALESCE(line.subtotal_amount, line.pos_total - line.pos_tax) >= 0
                 """.formatted(VALID_SALE_PREDICATE) + filter.sql()
-                + " GROUP BY product.id, product.name, product.sku, product.category, UPPER(TRIM(sale.currency))",
+                + " GROUP BY product.id, product.name, product.sku, product.category, UPPER(TRIM(sale.currency)), UPPER(COALESCE(NULLIF(TRIM(line.cost_currency), ''), sale.currency))",
                 (rs, rowNum) -> new ProductPortfolioSalesRow(
                 rs.getLong("product_id"),
                 rs.getString("product_name"),
@@ -376,7 +379,7 @@ public class ExecutiveKpiDomainRepository {
                 rs.getBigDecimal("cost"),
                 rs.getBigDecimal("units"),
                 integer(rs.getObject("sale_count")),
-                integer(rs.getObject("missing_cost_lines"))), filter.params().toArray());
+                integer(rs.getObject("missing_cost_lines")), rs.getString("cost_currency")), filter.params().toArray());
     }
 
     public ProductPortfolioSalesQuality loadProductPortfolioSalesQuality(ExecutiveKpiScope scope) {
@@ -388,12 +391,12 @@ public class ExecutiveKpiDomainRepository {
                        END) AS sales_without_lines,
                        COUNT(DISTINCT CASE
                            WHEN line.product_id IS NOT NULL AND line.quantity > 0
-                            AND line.subtotal_amount >= 0 AND product.id IS NOT NULL THEN sale.id
+                            AND COALESCE(line.subtotal_amount, line.pos_total - line.pos_tax) >= 0 AND product.id IS NOT NULL THEN sale.id
                        END) AS attributed_sales,
                        SUM(CASE
                            WHEN JSON_LENGTH(COALESCE(sale.sale_lines_json, JSON_ARRAY())) > 0
                             AND (line.product_id IS NULL OR line.quantity IS NULL OR line.quantity <= 0
-                                 OR line.subtotal_amount IS NULL OR line.subtotal_amount < 0
+                                 OR COALESCE(line.subtotal_amount, line.pos_total - line.pos_tax) IS NULL OR COALESCE(line.subtotal_amount, line.pos_total - line.pos_tax) < 0
                                  OR line.discount_percent < 0 OR line.discount_percent > 100)
                            THEN 1 ELSE 0
                        END) AS invalid_line_rows,
@@ -413,6 +416,9 @@ public class ExecutiveKpiDomainRepository {
                         product_id BIGINT PATH '$.productId' NULL ON EMPTY NULL ON ERROR,
                         quantity DECIMAL(19,4) PATH '$.quantity' NULL ON EMPTY NULL ON ERROR,
                         subtotal_amount DECIMAL(19,4) PATH '$.subtotal' NULL ON EMPTY NULL ON ERROR,
+                        pos_total DECIMAL(19,4) PATH '$.lineTotalAmount' NULL ON EMPTY NULL ON ERROR,
+                        pos_tax DECIMAL(19,4) PATH '$.taxAmount' NULL ON EMPTY NULL ON ERROR,
+                        cost_currency VARCHAR(3) PATH '$.costCurrency' NULL ON EMPTY NULL ON ERROR,
                         discount_percent DECIMAL(9,4) PATH '$.discountPercent' NULL ON EMPTY NULL ON ERROR
                     )
                 ) line ON TRUE
@@ -653,7 +659,7 @@ public class ExecutiveKpiDomainRepository {
         }
         var filter = numericScope(scope, "fund", null);
         return money("SELECT SUM(COALESCE(fund." + column + ", 0)) AS amount, fund.currency_code AS currency "
-                + "FROM finance_petty_cash_funds fund WHERE fund.deleted_at IS NULL AND fund.status <> 'CLOSED'"
+                + "FROM finance_petty_cash_funds fund WHERE fund.deleted_at IS NULL AND fund.status <> 'CLOSED' AND fund.fund_type = 'INTERNAL_COMPANY'"
                 + filter.sql() + " GROUP BY fund.currency_code", filter.params());
     }
 
@@ -743,7 +749,7 @@ public class ExecutiveKpiDomainRepository {
 
     private ScopeFilter pettyCashLineScope(ExecutiveKpiScope scope, String dateColumn) {
         var params = new ArrayList<Object>();
-        var sql = new StringBuilder(" AND line.company_id = ?");
+        var sql = new StringBuilder(" AND line.company_id = ? AND fund.fund_type = 'INTERNAL_COMPANY'");
         params.add(scope.companyId());
         appendDate(scope, dateColumn, sql, params);
         if (scope.unitId() != null) {
@@ -883,7 +889,12 @@ public class ExecutiveKpiDomainRepository {
             BigDecimal cost,
             BigDecimal units,
             int saleCount,
-            int missingCostLines) {
+            int missingCostLines,
+            String costCurrency) {
+        public ProductPortfolioSalesRow(long productId, String productName, String sku, String category, String currency,
+                                        BigDecimal revenue, BigDecimal cost, BigDecimal units, int saleCount, int missingCostLines) {
+            this(productId, productName, sku, category, currency, revenue, cost, units, saleCount, missingCostLines, currency);
+        }
     }
 
     public record ProductPortfolioSalesQuality(

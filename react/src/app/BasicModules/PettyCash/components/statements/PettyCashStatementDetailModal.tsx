@@ -37,6 +37,20 @@ export function PettyCashStatementDetailModal({
   if (!statement || !fund) return null;
 
   const labels = getPettyCashAccountStatementCopy(copy.locale);
+  const isExternalFund = statement.fundTypeSnapshot === 'EXTERNAL_MANAGED';
+  const documentTitle = isExternalFund ? labels.externalDocumentTitle : labels.documentTitle;
+  const documentLabel = isExternalFund ? labels.externalDocumentLabel : labels.documentLabel;
+  const documentSubtitle = isExternalFund ? labels.externalDocumentSubtitle : labels.documentSubtitle;
+  const externalOwnerName = statement.externalOwnerNameSnapshot ?? fund.externalOwnerName ?? copy.common.notAvailable;
+  const externalIdentityRows: Array<[string, string]> = [
+    [labels.owner, externalOwnerName],
+    [labels.relationship, (statement.externalOwnerRelationshipSnapshot ?? fund.externalOwnerRelationship ?? copy.common.notAvailable).split('_').join(' ')],
+    [labels.statementRecipient, statement.statementRecipientEmailSnapshot ?? fund.statementRecipientEmail ?? copy.common.notAvailable],
+  ];
+  const managedAssetName = statement.managedAssetNameSnapshot ?? fund.managedAssetName;
+  if (managedAssetName) externalIdentityRows.push([labels.managedAsset, managedAssetName]);
+  const ownerReference = statement.externalOwnerReferenceSnapshot ?? fund.externalOwnerReference;
+  if (ownerReference) externalIdentityRows.push([labels.ownerReference, ownerReference]);
   const fundedAmount = statement.assignedAmount + statement.additionalDepositAmount;
   const pendingAmount = getStatementSettlementBalance(statement);
   const generatedAt = new Intl.DateTimeFormat(copy.locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date());
@@ -69,12 +83,12 @@ export function PettyCashStatementDetailModal({
         <header className="border-b border-slate-200 pb-7">
           <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr] md:items-start">
             <div><p className="text-xs font-medium text-slate-500">{labels.statement}</p><p className="mt-1 text-lg font-medium">{statement.folio}</p></div>
-            <div className="text-left md:text-center"><p className="text-2xl font-medium">{labels.documentTitle}</p><p className="mt-1 text-xs font-medium text-slate-500">{labels.documentLabel}</p></div>
+            <div className="text-left md:text-center"><p className="text-2xl font-medium">{documentTitle}</p><p className="mt-1 text-xs font-medium text-slate-500">{documentLabel}</p></div>
             <div className="text-left text-sm text-slate-500 md:text-right"><p>{labels.period}: {statement.periodKey}</p><p className="mt-1">{labels.generated}: {generatedAt}</p></div>
           </div>
           <div className="mt-5 flex h-2 overflow-hidden rounded-full" aria-hidden="true"><span className="w-[34%] bg-[#FF6B5E]" /><span className="w-[22%] bg-[#F4C84A]" /><span className="w-[22%] bg-[#59C3A5]" /><span className="w-[22%] bg-[#2563EB]" /></div>
           <div className="mt-9 grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-end">
-            <div><p className="text-xs font-medium text-[#147514]">{fund.businessName || fund.name}</p><h1 className="mt-3 text-4xl font-medium leading-none sm:text-5xl">{fund.name}</h1><p className="mt-4 max-w-xl text-base leading-7 text-slate-600">{labels.documentSubtitle}</p></div>
+            <div><p className="text-xs font-medium text-[#147514]">{fund.businessName || fund.name}</p><h1 className="mt-3 text-4xl font-medium leading-none sm:text-5xl">{fund.name}</h1><p className="mt-4 max-w-xl text-base leading-7 text-slate-600">{documentSubtitle}</p></div>
             <div className="rounded-lg border border-[#147514]/25 bg-[#147514]/5 p-5 text-right"><p className="text-xs font-medium text-[#147514]">{labels.closing} · {statement.currencyCode}</p><p className="mt-2 text-3xl font-medium tabular-nums">{formatPettyCashCurrency(statement.declaredClosingBalanceAmount, statement.currencyCode)}</p></div>
           </div>
         </header>
@@ -87,13 +101,13 @@ export function PettyCashStatementDetailModal({
         </section>
 
         <section className="grid gap-4 border-b border-slate-200 py-7 md:grid-cols-2">
-          <StatementIdentity title={labels.fund} icon={<WalletCards className="h-4 w-4" />} rows={[[labels.fund, fund.name], [labels.responsible, statement.responsibleName], [labels.currentBalance, formatPettyCashCurrency(fund.currentBalanceAmount, fund.currencyCode)]]} />
+          <StatementIdentity title={isExternalFund ? labels.owner : labels.fund} icon={<WalletCards className="h-4 w-4" />} rows={isExternalFund ? externalIdentityRows : [[labels.fund, fund.name], [labels.responsible, statement.responsibleName], [labels.currentBalance, formatPettyCashCurrency(fund.currentBalanceAmount, fund.currencyCode)]]} />
           <StatementIdentity title={labels.statement} icon={<CalendarRange className="h-4 w-4" />} rows={[[labels.period, `${formatPettyCashIsoDate(statement.periodStart)} – ${formatPettyCashIsoDate(statement.periodEnd)}`], [labels.status, copy.status.statement[statement.status]], [labels.opening, originText]]} />
         </section>
 
         <StatementTableSection count={orderedMovements.length} icon={<ArrowDownToLine className="h-4 w-4" />} title={labels.movements} tone="blue">
           <table className="w-full min-w-[680px] border-collapse text-left text-xs"><thead className="bg-slate-100 text-slate-700"><tr><th className="px-3 py-3 font-medium">{copy.common.date}</th><th className="px-3 py-3 font-medium">{labels.type}</th><th className="px-3 py-3 font-medium">{labels.reference}</th><th className="px-3 py-3 font-medium">{labels.destination}</th><th className="px-3 py-3 text-right font-medium">{labels.total}</th></tr></thead><tbody>
-            {orderedMovements.length ? orderedMovements.map(movement => <tr className="border-t border-slate-200 odd:bg-white even:bg-slate-50" key={movement.id}><td className="px-3 py-3 text-slate-600">{formatPettyCashIsoDate(movement.movementDate)}</td><td className="px-3 py-3 font-medium text-slate-800">{copy.status.movement[movement.type]}</td><td className="px-3 py-3 text-slate-600">{movement.reference || copy.common.notAvailable}</td><td className="px-3 py-3 text-slate-600">{movement.toPaymentAccountName ?? fund.name}</td><td className="px-3 py-3 text-right font-medium tabular-nums text-sky-700">{formatPettyCashCurrency(movement.amount, movement.currencyCode)}</td></tr>) : <tr><td className="px-4 py-8 text-center text-sm text-slate-500" colSpan={5}>{labels.emptyMovements}</td></tr>}
+            {orderedMovements.length ? orderedMovements.map(movement => <tr className="border-t border-slate-200 odd:bg-white even:bg-slate-50" key={movement.id}><td className="px-3 py-3 text-slate-600">{formatPettyCashIsoDate(movement.movementDate)}</td><td className="px-3 py-3 font-medium text-slate-800">{copy.status.movement[movement.type]}</td><td className="px-3 py-3 text-slate-600">{movement.statementDescription || movement.reference || copy.common.notAvailable}</td><td className="px-3 py-3 text-slate-600">{movement.toPaymentAccountName ?? fund.name}</td><td className="px-3 py-3 text-right font-medium tabular-nums text-sky-700">{formatPettyCashCurrency(movement.amount, movement.currencyCode)}</td></tr>) : <tr><td className="px-4 py-8 text-center text-sm text-slate-500" colSpan={5}>{labels.emptyMovements}</td></tr>}
           </tbody></table>
         </StatementTableSection>
 
@@ -104,8 +118,8 @@ export function PettyCashStatementDetailModal({
         </StatementTableSection>
 
         <section className="grid gap-4 border-t border-slate-200 pt-7 md:grid-cols-[1fr_320px]">
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-5"><h3 className="text-sm font-medium text-slate-700">{labels.internalNote}</h3><p className="mt-3 text-sm leading-6 text-slate-600">{originText}</p></div>
-          <div className="rounded-lg border border-[#147514]/25 bg-[#147514]/5 p-5"><p className="mb-2 text-xs font-medium text-[#147514]">{labels.reconciliation}</p>{[[labels.funded, fundedAmount], [labels.captured, statement.estimatedUsageAmount], [labels.authorized, statement.verifiedExpenseAmount], [copy.reconciliation.metrics.pendingSettlement, pendingAmount], [labels.closing, statement.declaredClosingBalanceAmount]].map(([label, amount], index, rows) => <div className={`flex items-center justify-between py-2 text-sm ${index === rows.length - 1 ? 'mt-2 border-t border-[#147514]/20 pt-4 text-base' : ''}`} key={String(label)}><span className="font-medium text-slate-600">{label}</span><span className="font-medium tabular-nums">{formatPettyCashCurrency(Number(amount), statement.currencyCode)}</span></div>)}</div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-5"><h3 className="text-sm font-medium text-slate-700">{isExternalFund ? documentLabel : labels.internalNote}</h3><p className="mt-3 text-sm leading-6 text-slate-600">{isExternalFund ? labels.externalLegalNote : originText}</p></div>
+          <div className="rounded-lg border border-[#147514]/25 bg-[#147514]/5 p-5"><p className="mb-2 text-xs font-medium text-[#147514]">{labels.reconciliation}</p>{[[labels.funded, fundedAmount], [labels.captured, statement.estimatedUsageAmount], [isExternalFund ? labels.externalAuthorized : labels.authorized, statement.verifiedExpenseAmount], [copy.reconciliation.metrics.pendingSettlement, pendingAmount], [labels.closing, statement.declaredClosingBalanceAmount]].map(([label, amount], index, rows) => <div className={`flex items-center justify-between py-2 text-sm ${index === rows.length - 1 ? 'mt-2 border-t border-[#147514]/20 pt-4 text-base' : ''}`} key={String(label)}><span className="font-medium text-slate-600">{label}</span><span className="font-medium tabular-nums">{formatPettyCashCurrency(Number(amount), statement.currencyCode)}</span></div>)}</div>
         </section>
       </article>
     </IndiceModalFrame>

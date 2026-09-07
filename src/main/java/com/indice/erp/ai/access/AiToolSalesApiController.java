@@ -21,17 +21,20 @@ public class AiToolSalesApiController {
     private final AiToolAuthorizationService authorizationService;
     private final SalesKpiTodayService salesKpiTodayService;
     private final AiToolUsageAuditService auditService;
+    private final com.indice.erp.hr.HrOperationalScopeService scopes;
 
     public AiToolSalesApiController(
         AiAccessTokenService tokenService,
         AiToolAuthorizationService authorizationService,
         SalesKpiTodayService salesKpiTodayService,
-        AiToolUsageAuditService auditService
+        AiToolUsageAuditService auditService,
+        com.indice.erp.hr.HrOperationalScopeService scopes
     ) {
         this.tokenService = tokenService;
         this.authorizationService = authorizationService;
         this.salesKpiTodayService = salesKpiTodayService;
         this.auditService = auditService;
+        this.scopes = scopes;
     }
 
     @GetMapping("/today")
@@ -55,7 +58,7 @@ public class AiToolSalesApiController {
         }
 
         try {
-            var response = salesKpiTodayService.today(storedToken.user().companyId(), preferredCurrency);
+            var response = salesKpiTodayService.today(storedToken.user().companyId(), preferredCurrency, scopes.resolve(storedToken.user()));
             auditService.recordRead(storedToken, "get_sales_today", "SUCCESS", HttpStatus.OK.value());
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException exception) {

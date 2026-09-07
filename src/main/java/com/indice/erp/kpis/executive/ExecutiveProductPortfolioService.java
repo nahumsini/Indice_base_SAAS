@@ -1,5 +1,6 @@
 package com.indice.erp.kpis.executive;
 
+import com.indice.erp.exchange.BusinessExchangeRateEvidence;
 import com.indice.erp.exchange.BusinessExchangeRatesResponse;
 import com.indice.erp.kpis.currency.KpiCurrencyAggregationService;
 import com.indice.erp.kpis.currency.KpiMoneyAmount;
@@ -62,18 +63,20 @@ public class ExecutiveProductPortfolioService {
 
         var calculated = products.values().stream().map(product -> {
             product.currentAmounts.forEach(amount -> addCurrency(nativeCurrencies, amount.currency()));
+            product.currentCostAmounts.forEach(amount -> addCurrency(nativeCurrencies, amount.currency()));
             product.previousAmounts.forEach(amount -> addCurrency(nativeCurrencies, amount.currency()));
             var current = currencyAggregationService.aggregate(
-                    product.currentAmounts, scope.preferredCurrency(), rates.ratesPerUsd(),
+                    product.currentAmounts, scope.preferredCurrency(), BusinessExchangeRateEvidence.verifiedRates(rates, scope.snapshotDate(), true),
                     "daily", rateDate, sourceName);
             var prior = currencyAggregationService.aggregate(
-                    product.previousAmounts, scope.preferredCurrency(), rates.ratesPerUsd(),
+                    product.previousAmounts, scope.preferredCurrency(), BusinessExchangeRateEvidence.verifiedRates(rates, scope.snapshotDate(), true),
                     "daily", rateDate, sourceName);
             var cost = currencyAggregationService.aggregate(
-                    product.currentCostAmounts, scope.preferredCurrency(), rates.ratesPerUsd(),
+                    product.currentCostAmounts, scope.preferredCurrency(), BusinessExchangeRateEvidence.verifiedRates(rates, scope.snapshotDate(), true),
                     "daily", rateDate, sourceName);
             excludedCurrencies.addAll(current.excludedCurrencies());
             excludedCurrencies.addAll(prior.excludedCurrencies());
+            excludedCurrencies.addAll(cost.excludedCurrencies());
             return new CalculatedProduct(
                     product,
                     money(current.preferredTotal()),
@@ -406,7 +409,7 @@ public class ExecutiveProductPortfolioService {
 
         private void addCurrent(ExecutiveKpiDomainRepository.ProductPortfolioSalesRow row) {
             currentAmounts.add(new KpiMoneyAmount(row.revenue(), row.currency()));
-            currentCostAmounts.add(new KpiMoneyAmount(row.cost(), row.currency()));
+            currentCostAmounts.add(new KpiMoneyAmount(row.cost(), row.costCurrency()));
             currentUnits = currentUnits.add(row.units() == null ? BigDecimal.ZERO : row.units());
             currentSaleCount += row.saleCount();
             currentMissingCostLines += row.missingCostLines();

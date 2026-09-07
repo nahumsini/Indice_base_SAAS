@@ -90,6 +90,7 @@ export type SaleRecord = {
   discountTotal: number;
   taxTotal: number;
   marginTotal: number;
+  marginReady?: boolean;
   currency: string;
   paymentMethod: string;
   paymentReference: string;

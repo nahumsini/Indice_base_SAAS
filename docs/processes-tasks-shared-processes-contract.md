@@ -52,3 +52,16 @@ backend read and mutation remains scoped to the authenticated company.
 
 Evidence-required tasks cannot be completed through any authenticated or kiosk completion path until
 at least one active attachment exists. Existing task audit behavior is unchanged.
+
+## Assignment display and kiosk dates
+
+The membership identifier remains the authority for an assignment. Current collaborator labels in
+the process selector, templates, runs, Agenda and task kiosks use the profile name, then the account
+name, then their existing fallback. A stale task label cannot override a linked collaborator's
+identity. This changes read projections only; stored assignment identifiers and historical records
+are not rewritten. Legacy name-only assignment must resolve uniquely or require explicit selection.
+
+The public task kiosk applies the same reference date to period and status filters. All periods
+includes future assigned tasks and historical completions; Today, Tomorrow and Yesterday use their
+respective dates. Organization and assignment authorization still come from the backend. Cancelled
+tasks do not become pending when filtering. Definition edits retain the version rules above.

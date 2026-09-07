@@ -96,6 +96,7 @@ export const koCA = {
       TRANSFER: '이체',
     },
     modal: {
+      ...enCA.funds.modal,
       title: '자금 생성',
       subtitle: '담당자, 결제 계정, 방법, 예산을 설정합니다.',
       editTitle: '자금 편집',
@@ -187,9 +188,10 @@ export const koCA = {
     },
     filters: { result: (count: number) => `${count}개 영수증`, subtitle: '기간의 입금, 출금, 영수증을 검토할 자금을 선택하세요.', fund: '자금', statement: '명세', status: '상태', evidence: '증빙', withEvidence: '증빙 있음', withoutEvidence: '증빙 없음', searchReceipt: '영수증 검색', searchPlaceholder: '개념, 공급업체...', searchIncome: '입금 검색', incomeSearchPlaceholder: '참조, 출금 계좌...' },
     metrics: { fundBalance: '자금 잔액', deposited: '입금액', receipts: '영수증', pendingSettlement: '정산 대기', responsible: '담당자', source: '자금 원천', receivesBy: '수령 방법', spendsBy: '지출 방법' },
-    operation: { openingBalance: '기초 잔액', captured: '등록된 구매', authorized: '승인된 비용', currentBalance: '현재 잔액', signal: (pendingCount: number, readyCount: number, amount: string) => `대기 영수증 ${pendingCount}개 · 승인 준비 ${readyCount}개 · 정산 예정 ${amount}.`, fundContext: '자금 정보', nextCut: '마감일', viewStatements: '명세 이력 보기', recentActivity: '최근 자금 활동', noActivity: '이 명세에는 자금 이동이 없습니다.' },
+    operation: { ...enCA.reconciliation.operation, openingBalance: '기초 잔액', captured: '등록된 구매', authorized: '승인된 비용', currentBalance: '현재 잔액', signal: (pendingCount: number, readyCount: number, amount: string) => `대기 영수증 ${pendingCount}개 · 승인 준비 ${readyCount}개 · 정산 예정 ${amount}.`, fundContext: '자금 정보', nextCut: '마감일', viewStatements: '명세 이력 보기', recentActivity: '최근 자금 활동', noActivity: '이 명세에는 자금 이동이 없습니다.' },
     movements: { title: '자금 입금', subtitle: '입금 및 자금 조달입니다. 비용이 아닙니다.', empty: '이 자금에는 아직 입금이 없습니다.', itemLabel: '입금', result: (count: number) => `${count}개 입금`, columns: { date: '날짜', type: '유형', source: '원천', destination: '대상', amount: '금액', reference: '참조' } },
     receipts: {
+      ...enCA.reconciliation.receipts,
       title: '영수증 및 출금',
       subtitle: '증빙된 출금입니다. 나중에 Expenses가 될 수 있습니다.',
       empty: '선택한 명세에 이 자금의 영수증이 없습니다.',
@@ -236,6 +238,7 @@ export const koCA = {
       pendingWarning: '이 명세를 닫기 전에 대기 영수증을 비용으로 전환하세요.',
     },
     depositModal: {
+      ...enCA.reconciliation.depositModal,
       title: '자금에 입금',
       subtitle: (fundName: string) => `${fundName}에 대한 자금 조달입니다. 비용을 생성하지 않습니다.`,
       action: '입금',
@@ -253,6 +256,7 @@ export const koCA = {
       noSource: (currency: string) => `${currency} 통화에서 현금 계정과 다른 활성 원천 계정이 없습니다.`,
     },
     receiptModal: {
+      ...enCA.reconciliation.receiptModal,
       title: '영수증 업로드',
       subtitle: (fundName: string) => `${fundName}의 운영 출금입니다. 실제 비용은 Expenses에서 검증될 때 생성됩니다.`,
       action: '영수증 저장',

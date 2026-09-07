@@ -32,6 +32,43 @@ public class TreasuryService {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    /** Company cash control in original currencies, including collections awaiting settlement. */
+    @Transactional(readOnly = true)
+    public java.util.Map<String, BigDecimal> ownedCashBalances(long companyId) {
+        var balances = new java.util.LinkedHashMap<String, BigDecimal>();
+        jdbcTemplate.query("""
+            SELECT account.currency_code, SUM(account.current_balance + account.pending_balance) amount
+            FROM finance_payment_accounts account
+            WHERE account.company_id = ? AND account.deleted_at IS NULL
+              AND (account.type IN ('CASH', 'BANK', 'PETTY_CASH') OR account.system_key LIKE 'POS_UNASSIGNED_CARD:%')
+              AND NOT EXISTS (SELECT 1 FROM finance_petty_cash_funds fund
+                WHERE fund.company_id = account.company_id AND fund.payment_account_id = account.id
+                  AND fund.fund_type = 'EXTERNAL_MANAGED')
+            GROUP BY account.currency_code
+            """, (org.springframework.jdbc.core.RowCallbackHandler) rs -> balances.put(rs.getString(1), rs.getBigDecimal(2)), companyId);
+        return balances;
+    }
+
+    /** Electronic receipts are not verified cash until their owner settles the pending balance. */
+    @Transactional(readOnly = true)
+    public int unsettledCollectionAccounts(long companyId) {
+        return jdbcTemplate.queryForObject("""
+            SELECT COUNT(*) FROM finance_payment_accounts
+            WHERE company_id = ? AND deleted_at IS NULL AND pending_balance <> 0
+            """, Integer.class, companyId);
+    }
+
+    /** Corporate credit instruments need a documented debt/cash classification, not their credit limit. */
+    @Transactional(readOnly = true)
+    public int unclassifiedCreditAccounts(long companyId) {
+        return jdbcTemplate.queryForObject("""
+            SELECT COUNT(*) FROM finance_payment_accounts
+            WHERE company_id = ? AND deleted_at IS NULL AND type = 'CREDIT_CARD'
+              AND (system_key IS NULL OR system_key NOT LIKE 'POS_UNASSIGNED_CARD:%')
+              AND (current_balance <> 0 OR pending_balance <> 0)
+            """, Integer.class, companyId);
+    }
+
     @Transactional(readOnly = true)
     public List<TreasuryAccount> listEligibleAccounts(
             long companyId,

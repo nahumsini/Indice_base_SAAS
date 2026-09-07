@@ -81,12 +81,15 @@ type PettyCashReconciliationWorkspaceProps = {
 
 type DepositDraft = {
   amount: string;
+  counterpartyName: string;
+  entryCategory: string;
   externalSourceName: string;
   fundingMethod: string;
+  internalNote: string;
   movementDate: string;
   reference: string;
-  sourceType: 'INTERNAL' | 'EXTERNAL';
   sourcePaymentAccountId: string;
+  statementDescription: string;
 };
 
 type ReceiptDraft = TaxControlDraft & {
@@ -133,11 +136,13 @@ const getDepositSourceAccountOptions = (fund: PettyCashFund, paymentAccounts: Pa
 
 const createDepositDraft = (fund?: PettyCashFund, paymentAccounts: PaymentAccount[] = activePaymentAccountMocks): DepositDraft => ({
   amount: '',
-  externalSourceName: fund?.fundingSourcePaymentAccountId ? '' : fund?.fundingSourceName ?? '',
+  counterpartyName: fund?.fundType === 'EXTERNAL_MANAGED' ? fund.externalOwnerName ?? '' : '',
+  entryCategory: fund?.fundType === 'EXTERNAL_MANAGED' ? 'OWNER_CONTRIBUTION' : 'ADDITIONAL_FUNDING',
+  externalSourceName: fund?.fundType === 'EXTERNAL_MANAGED' ? fund.fundingSourceName : '',
   fundingMethod: fund?.fundingMethods[0] ?? PETTY_CASH_METHOD_KEYS.INTERNAL_TRANSFER,
+  internalNote: '',
   movementDate: todayIso(),
   reference: '',
-  sourceType: fund?.fundingSourcePaymentAccountId ? 'INTERNAL' : 'EXTERNAL',
   sourcePaymentAccountId: fund
     ? (
       getDepositSourceAccountOptions(fund, paymentAccounts).some(account => account.id === fund.fundingSourcePaymentAccountId)
@@ -145,6 +150,7 @@ const createDepositDraft = (fund?: PettyCashFund, paymentAccounts: PaymentAccoun
         : getDepositSourceAccountOptions(fund, paymentAccounts)[0]?.id ?? ''
     )
     : paymentAccounts.find(account => account.isActive)?.id ?? '',
+  statementDescription: '',
 });
 
 const createReceiptTaxDraft = (currencyCode = 'MXN'): TaxControlDraft => {
@@ -322,8 +328,17 @@ const buildStatementForFund = (fund: PettyCashFund): PettyCashStatement => {
     periodKey: `${year}-${month}`,
     periodStart,
     pettyCashFundId: fund.id,
+    fundTypeSnapshot: fund.fundType,
     responsibleName: fund.responsibleName,
     responsibleUserId: fund.responsibleUserId,
+    externalOwnerTypeSnapshot: fund.externalOwnerType,
+    externalOwnerNameSnapshot: fund.externalOwnerName,
+    externalOwnerRelationshipSnapshot: fund.externalOwnerRelationship,
+    externalOwnerReferenceSnapshot: fund.externalOwnerReference,
+    statementRecipientEmailSnapshot: fund.statementRecipientEmail,
+    managedAssetTypeSnapshot: fund.managedAssetType,
+    managedAssetNameSnapshot: fund.managedAssetName,
+    managedAssetReferenceSnapshot: fund.managedAssetReference,
     returnedAmount: 0,
     shortageAmount: 0,
     status: 'OPEN',
@@ -333,6 +348,12 @@ const buildStatementForFund = (fund: PettyCashFund): PettyCashStatement => {
 
 const canAuthorizeExpenseFromLine = (line: PettyCashSettlementLine) => (
   line.status === 'DRAFT' || line.status === 'RECEIPT_ATTACHED' || line.status === 'VALIDATED'
+);
+
+const canFinalizeSettlementLine = (line: PettyCashSettlementLine, isExternalFund: boolean) => (
+  isExternalFund
+    ? line.status === 'RECEIPT_ATTACHED'
+    : line.status === 'RECEIPT_ATTACHED' || line.status === 'VALIDATED'
 );
 
 const canRejectSettlementLine = (line: PettyCashSettlementLine) => canAuthorizeExpenseFromLine(line);
@@ -418,6 +439,8 @@ export function PettyCashReconciliationWorkspace({
   const [previewStatement, setPreviewStatement] = useState<PettyCashStatement | null>(null);
 
   const selectedFund = funds.find(fund => fund.id === selectedFundId);
+  const isExternalFund = selectedFund?.fundType === 'EXTERNAL_MANAGED';
+  const finalizedLineStatus: PettyCashSettlementLineStatus = isExternalFund ? 'VALIDATED' : 'EXPENSE_CREATED';
   const fundStatements = useMemo(() => (
     statements.filter(statement => statement.pettyCashFundId === selectedFundId)
   ), [selectedFundId, statements]);
@@ -434,7 +457,7 @@ export function PettyCashReconciliationWorkspace({
   ));
   const depositedAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_MOVEMENT_AMOUNT', preferredCurrency, ids: incomeMovements.map((movement) => movement.id) });
   const capturedAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_SETTLEMENT_AMOUNT', preferredCurrency, ids: selectedLines.map((line) => line.id) });
-  const authorizedAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_SETTLEMENT_AMOUNT', preferredCurrency, ids: selectedLines.filter((line) => line.status === 'EXPENSE_CREATED').map((line) => line.id) });
+  const authorizedAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_SETTLEMENT_AMOUNT', preferredCurrency, ids: selectedLines.filter((line) => line.status === finalizedLineStatus).map((line) => line.id) });
   const selectedFundAggregate = useKpiMonetaryAggregate({ metric: 'PETTY_CASH_BALANCE', preferredCurrency, ids: selectedFund ? [selectedFund.id] : [] });
   const depositedPreferred = depositedAggregate.data?.preferredTotal ?? 0;
   const capturedPreferred = capturedAggregate.data?.preferredTotal ?? 0;
@@ -670,15 +693,16 @@ export function PettyCashReconciliationWorkspace({
     if (!amount || amount <= 0) return;
     const statement = ensureStatement(selectedFund);
     const movementDate = draft.movementDate || todayIso();
-    const sourceAccount = draft.sourceType === 'INTERNAL'
+    const isExternalFund = selectedFund.fundType === 'EXTERNAL_MANAGED';
+    const sourceAccount = !isExternalFund
       ? getDepositSourceAccountOptions(selectedFund, activePaymentAccounts)
         .find(account => account.id === draft.sourcePaymentAccountId)
       : undefined;
-    if (draft.sourceType === 'INTERNAL' && !sourceAccount) {
+    if (!isExternalFund && !sourceAccount) {
       setReferenceError(copy.reconciliation.errors.sourceAccount);
       return;
     }
-    if (draft.sourceType === 'EXTERNAL' && !draft.externalSourceName.trim()) {
+    if (isExternalFund && !draft.externalSourceName.trim()) {
       setReferenceError(copy.reconciliation.errors.externalSource);
       return;
     }
@@ -686,14 +710,19 @@ export function PettyCashReconciliationWorkspace({
       id: `movement-${Date.now()}`,
       amount,
       companyId: selectedFund.companyId,
+      counterpartyName: draft.counterpartyName.trim() || undefined,
       currencyCode: selectedFund.currencyCode,
-      externalSourceName: draft.sourceType === 'EXTERNAL' ? draft.externalSourceName.trim() : undefined,
+      entryCategory: draft.entryCategory,
+      externalSourceName: isExternalFund ? draft.externalSourceName.trim() : undefined,
+      fundingMethod: draft.fundingMethod,
       fromPaymentAccountId: sourceAccount?.id,
       fromPaymentAccountName: sourceAccount?.name ?? draft.externalSourceName.trim(),
+      internalNote: draft.internalNote.trim() || undefined,
       movementDate,
       pettyCashFundId: selectedFund.id,
       pettyCashStatementId: statement.id,
       reference: draft.reference.trim() || draft.fundingMethod,
+      statementDescription: draft.statementDescription.trim(),
       toPaymentAccountId: selectedFund.paymentAccountId,
       toPaymentAccountName: selectedFund.name,
       type: 'ADDITIONAL_DEPOSIT',
@@ -871,8 +900,8 @@ export function PettyCashReconciliationWorkspace({
   };
 
   const handleCreateExpenseFromLine = async (line: PettyCashSettlementLine) => {
-    if (!selectedFund || line.status === 'EXPENSE_CREATED') return;
-    if (!canAuthorizeExpenseFromLine(line)) {
+    if (!selectedFund || line.status === finalizedLineStatus) return;
+    if (!canFinalizeSettlementLine(line, isExternalFund)) {
       setReferenceError(copy.reconciliation.errors.expenseNeedsReceipt);
       return;
     }
@@ -972,7 +1001,7 @@ export function PettyCashReconciliationWorkspace({
   const handleDeleteSettlementLine = async () => {
     if (!selectedFund || !deletingLine || cancellationReason.trim().length < 8) return;
     const line = deletingLine;
-    const wasExpenseCreated = line.status === 'EXPENSE_CREATED';
+    const wasFinalized = line.status === (selectedFund.fundType === 'EXTERNAL_MANAGED' ? 'VALIDATED' : 'EXPENSE_CREATED');
     setDeletingLineId(line.id);
     try {
       if (hasPettyCashBackendId(selectedFund.id) && hasPettyCashBackendId(line.id)) {
@@ -998,12 +1027,12 @@ export function PettyCashReconciliationWorkspace({
           ...statement,
           declaredClosingBalanceAmount: statement.declaredClosingBalanceAmount + line.totalAmount,
           estimatedUsageAmount: Math.max(0, statement.estimatedUsageAmount - line.totalAmount),
-          verifiedExpenseAmount: wasExpenseCreated
+          verifiedExpenseAmount: wasFinalized
             ? Math.max(0, statement.verifiedExpenseAmount - line.totalAmount)
             : statement.verifiedExpenseAmount,
           status: Math.max(0, statement.estimatedUsageAmount - line.totalAmount) === 0
             ? 'OPEN'
-            : wasExpenseCreated && Math.max(0, statement.verifiedExpenseAmount - line.totalAmount) > 0
+            : wasFinalized && Math.max(0, statement.verifiedExpenseAmount - line.totalAmount) > 0
               ? 'PARTIALLY_SETTLED'
               : statement.status,
         }
@@ -1192,7 +1221,7 @@ export function PettyCashReconciliationWorkspace({
             })),
           ]}
           insight={copy.reconciliation.operation.signal(
-            selectedLines.filter(line => !['EXPENSE_CREATED', 'REJECTED', 'REVERSED'].includes(line.status)).length,
+            selectedLines.filter(line => ![finalizedLineStatus, 'REJECTED', 'REVERSED'].includes(line.status)).length,
             selectedLines.filter(line => line.status === 'VALIDATED' || line.status === 'RECEIPT_ATTACHED').length,
             formatPettyCashCurrency(Math.max(0, capturedPreferred - authorizedPreferred), preferredCurrency),
           )}
@@ -1200,7 +1229,7 @@ export function PettyCashReconciliationWorkspace({
           metrics={[
             { id: 'deposited', icon: <Banknote className="h-4 w-4" />, label: copy.reconciliation.metrics.deposited, value: formatAggregate(depositedAggregate, depositedPreferred), valueClassName: 'text-sky-600' },
             { id: 'captured', icon: <ReceiptText className="h-4 w-4" />, label: copy.reconciliation.operation.captured, value: formatAggregate(capturedAggregate, capturedPreferred), valueClassName: 'text-amber-600' },
-            { id: 'authorized', icon: <CheckCircle2 className="h-4 w-4" />, label: copy.reconciliation.operation.authorized, value: formatAggregate(authorizedAggregate, authorizedPreferred), valueClassName: 'text-[#147514]', active: receiptStatusFilter === 'EXPENSE_CREATED', onClick: () => setReceiptStatusFilter(current => current === 'EXPENSE_CREATED' ? 'all' : 'EXPENSE_CREATED') },
+            { id: 'authorized', icon: <CheckCircle2 className="h-4 w-4" />, label: isExternalFund ? copy.reconciliation.operation.validated : copy.reconciliation.operation.authorized, value: formatAggregate(authorizedAggregate, authorizedPreferred), valueClassName: 'text-[#147514]', active: receiptStatusFilter === finalizedLineStatus, onClick: () => setReceiptStatusFilter(current => current === finalizedLineStatus ? 'all' : finalizedLineStatus) },
             { id: 'balance', icon: <WalletCards className="h-4 w-4" />, label: copy.reconciliation.operation.currentBalance, value: formatAggregate(selectedFundAggregate, balancePreferred), valueClassName: selectedFund.currentBalanceAmount < 0 ? 'text-rose-600' : 'text-[#147514]' },
           ]}
           currencyContext={{
@@ -1224,10 +1253,12 @@ export function PettyCashReconciliationWorkspace({
             <div className="space-y-3 p-3 md:hidden">
               {linePagination.paginatedRows.map(line => {
                 const isCaptured = line.status === 'DRAFT';
-                const canAuthorizeExpense = canAuthorizeExpenseFromLine(line) && (!isCaptured || canAuthorizeWithoutSupport);
+                const canAuthorizeExpense = canFinalizeSettlementLine(line, isExternalFund) && (!isCaptured || canAuthorizeWithoutSupport);
                 const canRejectLine = canRejectSettlementLine(line);
                 const isLineActionBusy = copyingLineId === line.id || deletingLineId === line.id || expenseCreationLineId === line.id || rejectingLineId === line.id;
-                const authorizeLabel = isCaptured ? copy.reconciliation.receipts.authorizeWithoutSupport : copy.reconciliation.receipts.authorize;
+                const authorizeLabel = isExternalFund
+                  ? copy.reconciliation.receipts.validateExternal
+                  : isCaptured ? copy.reconciliation.receipts.authorizeWithoutSupport : copy.reconciliation.receipts.authorize;
 
                 return (
                   <article key={line.id} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
@@ -1281,7 +1312,7 @@ export function PettyCashReconciliationWorkspace({
               <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                 {linePagination.paginatedRows.map(line => {
                   const isCaptured = line.status === 'DRAFT';
-                  const canAuthorizeExpense = canAuthorizeExpenseFromLine(line)
+                  const canAuthorizeExpense = canFinalizeSettlementLine(line, isExternalFund)
                     && (!isCaptured || canAuthorizeWithoutSupport);
                   const canRejectLine = canRejectSettlementLine(line);
                   const isLineActionBusy = copyingLineId === line.id
@@ -1289,9 +1320,11 @@ export function PettyCashReconciliationWorkspace({
                     || expenseCreationLineId === line.id
                     || rejectingLineId === line.id;
                   const canDeleteLine = line.status !== 'REVERSED' && deletingLineId !== line.id;
-                  const authorizeLabel = isCaptured
-                    ? copy.reconciliation.receipts.authorizeWithoutSupport
-                    : copy.reconciliation.receipts.authorize;
+                  const authorizeLabel = isExternalFund
+                    ? copy.reconciliation.receipts.validateExternal
+                    : isCaptured
+                      ? copy.reconciliation.receipts.authorizeWithoutSupport
+                      : copy.reconciliation.receipts.authorize;
 
                   return (
                     <tr key={line.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/50">
@@ -1613,18 +1646,23 @@ function DepositModal({
     [fund, paymentAccounts],
   );
   const selectedSourceAccount = sourceAccounts.find(account => account.id === draft.sourcePaymentAccountId);
-  const canSave = Number(draft.amount) > 0 && (
-    draft.sourceType === 'EXTERNAL'
-      ? draft.externalSourceName.trim().length > 0
+  const isExternalFund = fund.fundType === 'EXTERNAL_MANAGED';
+  const canSave = Number(draft.amount) > 0
+    && draft.entryCategory.length > 0
+    && draft.fundingMethod.length > 0
+    && draft.statementDescription.trim().length > 0
+    && (
+      isExternalFund
+      ? draft.externalSourceName.trim().length > 0 && draft.counterpartyName.trim().length > 0
       : Boolean(selectedSourceAccount)
-  );
+    );
 
   useEffect(() => {
-    if (draft.sourceType === 'EXTERNAL' || sourceAccounts.some(account => account.id === draft.sourcePaymentAccountId)) {
+    if (isExternalFund || sourceAccounts.some(account => account.id === draft.sourcePaymentAccountId)) {
       return;
     }
     setDraft(current => ({ ...current, sourcePaymentAccountId: sourceAccounts[0]?.id ?? '' }));
-  }, [draft.sourcePaymentAccountId, draft.sourceType, sourceAccounts]);
+  }, [draft.sourcePaymentAccountId, isExternalFund, sourceAccounts]);
 
   return (
     <PettyCashOperationModal
@@ -1636,6 +1674,10 @@ function DepositModal({
       subtitle={copy.reconciliation.depositModal.subtitle(fund.name)}
       title={copy.reconciliation.depositModal.title}
     >
+      <div className={`mb-4 rounded-lg border px-4 py-3 text-sm ${isExternalFund ? 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200' : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200'}`}>
+        <p className="font-medium">{isExternalFund ? copy.reconciliation.depositModal.externalFund : copy.reconciliation.depositModal.internalFund}</p>
+        <p className="mt-1 leading-5">{isExternalFund ? copy.reconciliation.depositModal.externalFundHint : copy.reconciliation.depositModal.internalFundHint}</p>
+      </div>
       <div className="grid gap-4 md:grid-cols-2">
         <PettyCashField label={copy.reconciliation.depositModal.amount}>
           <input
@@ -1655,17 +1697,15 @@ function DepositModal({
             value={draft.movementDate}
           />
         </PettyCashField>
-        <PettyCashField label={copy.reconciliation.depositModal.sourceType}>
-          <select
-            className={pettyCashInputClass}
-            onChange={(event) => setDraft(current => ({ ...current, sourceType: event.target.value as DepositDraft['sourceType'] }))}
-            value={draft.sourceType}
-          >
-            <option value="INTERNAL">{copy.reconciliation.depositModal.internalSource}</option>
-            <option value="EXTERNAL">{copy.reconciliation.depositModal.externalSource}</option>
+        <PettyCashField label={copy.reconciliation.depositModal.category}>
+          <select className={pettyCashInputClass} onChange={(event) => setDraft(current => ({ ...current, entryCategory: event.target.value }))} value={draft.entryCategory}>
+            {(isExternalFund
+              ? [['OWNER_CONTRIBUTION', copy.reconciliation.depositModal.ownerContribution], ['CLIENT_DEPOSIT', copy.reconciliation.depositModal.clientDeposit], ['REIMBURSEMENT', copy.reconciliation.depositModal.reimbursement], ['OTHER', copy.reconciliation.depositModal.otherCategory]]
+              : [['BUDGET_FUNDING', copy.reconciliation.depositModal.budgetFunding], ['ADDITIONAL_FUNDING', copy.reconciliation.depositModal.additionalFunding], ['REPLENISHMENT', copy.reconciliation.depositModal.replenishment], ['OTHER', copy.reconciliation.depositModal.otherCategory]]
+            ).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </PettyCashField>
-        {draft.sourceType === 'INTERNAL' ? (
+        {!isExternalFund ? (
           <PettyCashField label={copy.reconciliation.depositModal.sourceAccount}>
             <select
               className={pettyCashInputClass}
@@ -1678,15 +1718,7 @@ function DepositModal({
             </select>
           </PettyCashField>
         ) : (
-          <PettyCashField label={copy.reconciliation.depositModal.externalSourceName}>
-            <input
-              className={pettyCashInputClass}
-              maxLength={180}
-              onChange={(event) => setDraft(current => ({ ...current, externalSourceName: event.target.value }))}
-              placeholder={copy.reconciliation.depositModal.externalSourcePlaceholder}
-              value={draft.externalSourceName}
-            />
-          </PettyCashField>
+          <><PettyCashField label={copy.reconciliation.depositModal.externalSourceName}><input className={pettyCashInputClass} maxLength={180} onChange={(event) => setDraft(current => ({ ...current, externalSourceName: event.target.value }))} placeholder={copy.reconciliation.depositModal.externalSourcePlaceholder} value={draft.externalSourceName} /></PettyCashField><PettyCashField label={copy.reconciliation.depositModal.counterparty}><input className={pettyCashInputClass} maxLength={180} onChange={(event) => setDraft(current => ({ ...current, counterpartyName: event.target.value }))} placeholder={copy.reconciliation.depositModal.counterpartyPlaceholder} value={draft.counterpartyName} /></PettyCashField></>
         )}
         <PettyCashField label={copy.reconciliation.depositModal.method}>
           <select
@@ -1699,17 +1731,10 @@ function DepositModal({
             ))}
           </select>
         </PettyCashField>
-        <div className="md:col-span-2">
-          <PettyCashField label={copy.reconciliation.depositModal.reference}>
-            <input
-              className={pettyCashInputClass}
-              onChange={(event) => setDraft(current => ({ ...current, reference: event.target.value }))}
-              placeholder={copy.reconciliation.depositModal.referencePlaceholder}
-              value={draft.reference}
-            />
-          </PettyCashField>
-        </div>
-        {draft.sourceType === 'INTERNAL' && !selectedSourceAccount ? (
+        <div className="md:col-span-2"><PettyCashField label={copy.reconciliation.depositModal.statementDescription}><input className={pettyCashInputClass} maxLength={240} onChange={(event) => setDraft(current => ({ ...current, statementDescription: event.target.value }))} placeholder={copy.reconciliation.depositModal.statementDescriptionPlaceholder} value={draft.statementDescription} /></PettyCashField></div>
+        <PettyCashField label={copy.reconciliation.depositModal.reference}><input className={pettyCashInputClass} maxLength={220} onChange={(event) => setDraft(current => ({ ...current, reference: event.target.value }))} placeholder={copy.reconciliation.depositModal.referencePlaceholder} value={draft.reference} /></PettyCashField>
+        <PettyCashField label={copy.reconciliation.depositModal.internalNote}><input className={pettyCashInputClass} maxLength={500} onChange={(event) => setDraft(current => ({ ...current, internalNote: event.target.value }))} placeholder={copy.reconciliation.depositModal.internalNotePlaceholder} value={draft.internalNote} /></PettyCashField>
+        {!isExternalFund && !selectedSourceAccount ? (
           <div className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
             {copy.reconciliation.depositModal.noSource(fund.currencyCode)}
           </div>
@@ -1737,7 +1762,10 @@ function ReceiptModal({
   const copy = usePettyCashTranslations();
   const [draft, setDraft] = useState<ReceiptDraft>(() => createReceiptDraft(providers, accountingAccounts, fund.currencyCode));
   const taxBreakdown = getReceiptTaxBreakdown(draft);
-  const canSave = draft.description.trim().length > 0 && taxBreakdown.totalAmount > 0;
+  const isExternalFund = fund.fundType === 'EXTERNAL_MANAGED';
+  const canSave = draft.description.trim().length > 0
+    && taxBreakdown.totalAmount > 0
+    && (isExternalFund || Boolean(draft.accountingAccountId));
 
   return (
     <PettyCashOperationModal
@@ -1746,7 +1774,9 @@ function ReceiptModal({
       icon={<Upload className="h-5 w-5" />}
       onClose={onClose}
       onSave={() => onSave(draft)}
-      subtitle={copy.reconciliation.receiptModal.subtitle(fund.name)}
+      subtitle={isExternalFund
+        ? copy.reconciliation.receiptModal.externalSubtitle(fund.name)
+        : copy.reconciliation.receiptModal.subtitle(fund.name)}
       title={copy.reconciliation.receiptModal.title}
     >
       <div className="grid gap-4 md:grid-cols-2">
@@ -1800,7 +1830,7 @@ function ReceiptModal({
           providers={providers.map(toExpenseProvider)}
           value={draft.providerId}
         />
-        <PettyCashField label={copy.reconciliation.receiptModal.accountingAccount}>
+        {!isExternalFund ? <PettyCashField label={copy.reconciliation.receiptModal.accountingAccount}>
           <select
             className={pettyCashInputClass}
             onChange={(event) => setDraft(current => ({ ...current, accountingAccountId: event.target.value }))}
@@ -1810,7 +1840,11 @@ function ReceiptModal({
               <option key={account.id} value={account.id}>{formatAccountingAccountLabel(account)}</option>
             ))}
           </select>
-        </PettyCashField>
+        </PettyCashField> : (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
+            {copy.reconciliation.receiptModal.externalAccountingNote}
+          </div>
+        )}
         <PettyCashField label={copy.reconciliation.receiptModal.date}>
           <input
             className={pettyCashInputClass}

@@ -23,6 +23,13 @@ public class CashClosingSettlementService {
 
     private static final BigDecimal ZERO = new BigDecimal("0.0000");
 
+    public record CashControl(int openShifts, Map<String, BigDecimal> retainedByCurrency) {}
+
+    @Transactional(readOnly = true)
+    public CashControl cashControl(long companyId) {
+        return new CashControl(repository.openShifts(companyId), repository.retainedCash(companyId));
+    }
+
     private final CashClosingSettlementRepository repository;
     private final SettlementPolicyService policyService;
     private final TreasuryService treasuryService;

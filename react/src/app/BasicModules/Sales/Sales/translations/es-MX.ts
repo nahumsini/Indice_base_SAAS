@@ -176,7 +176,7 @@ export const esMX = {
       sendToFinance: 'Enviar a validación financiera',
       sendToCredit: 'Pasar a venta a credito',
       cancelSale: 'Cancelar venta',
-      cancelConfirmation: '¿Cancelar este registro de venta? Solo se actualizará el estado comercial local.',
+      cancelConfirmation: '¿Cancelar esta venta? Se revertirá en Tesorería el cobro registrado por Ventas y se conservará su historial. Los tickets se administran desde POS.',
       deleteSale: 'Eliminar venta',
       deleteConfirmation: 'La venta saldrá de las vistas activas, pero conservará su rastro de auditoría en la base de datos. No se puede eliminar si tiene crédito, ticket de punto de venta o comisión cerrada.',
       deleteError: 'No se pudo eliminar la venta.',

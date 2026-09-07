@@ -96,6 +96,7 @@ export const frCA = {
       TRANSFER: 'Virement',
     },
     modal: {
+      ...enCA.funds.modal,
       title: 'Creer un fonds',
       subtitle: 'Configurez responsable, comptes de paiement, methodes et budget du fonds.',
       editTitle: 'Modifier le fonds',
@@ -187,9 +188,10 @@ export const frCA = {
     },
     filters: { result: (count: number) => `${count} recus`, subtitle: 'Selectionnez un fonds pour revoir les entrees, sorties et recus de la periode.', fund: 'Fonds', statement: 'Releve', status: 'Statut', evidence: 'Justificatif', withEvidence: 'Avec justificatif', withoutEvidence: 'Sans justificatif', searchReceipt: 'Rechercher recu', searchPlaceholder: 'Concept, fournisseur...', searchIncome: 'Rechercher entree', incomeSearchPlaceholder: 'Reference, compte source...' },
     metrics: { fundBalance: 'Solde du fonds', deposited: 'Depose', receipts: 'Recus', pendingSettlement: 'A regler', responsible: 'Responsable', source: 'Finance par', receivesBy: 'Recoit argent par', spendsBy: 'Depense par' },
-    operation: { openingBalance: 'Solde initial', captured: 'Achats saisis', authorized: 'Depenses autorisees', currentBalance: 'Solde actuel', signal: (pendingCount: number, readyCount: number, amount: string) => `${pendingCount} recus en attente · ${readyCount} prets a autoriser · ${amount} a regler.`, fundContext: 'Contexte du fonds', nextCut: 'Date de cloture', viewStatements: 'Voir historique des releves', recentActivity: 'Activite recente', noActivity: 'Aucun mouvement de financement dans ce releve.' },
+    operation: { ...enCA.reconciliation.operation, openingBalance: 'Solde initial', captured: 'Achats saisis', authorized: 'Depenses autorisees', currentBalance: 'Solde actuel', signal: (pendingCount: number, readyCount: number, amount: string) => `${pendingCount} recus en attente · ${readyCount} prets a autoriser · ${amount} a regler.`, fundContext: 'Contexte du fonds', nextCut: 'Date de cloture', viewStatements: 'Voir historique des releves', recentActivity: 'Activite recente', noActivity: 'Aucun mouvement de financement dans ce releve.' },
     movements: { title: 'Entrees du fonds', subtitle: 'Entrees argent et financements. Ce ne sont pas des depenses.', empty: 'Ce fonds ne contient pas encore entree argent.', itemLabel: 'entrees', result: (count: number) => `${count} entrees`, columns: { date: 'Date', type: 'Type', source: 'Source', destination: 'Destination', amount: 'Montant', reference: 'Reference' } },
     receipts: {
+      ...enCA.reconciliation.receipts,
       title: 'Recus et sorties',
       subtitle: 'Sorties supportees. Elles peuvent devenir des Depenses plus tard.',
       empty: 'Ce fonds ne contient pas de recus pour le releve selectionne.',
@@ -236,6 +238,7 @@ export const frCA = {
       pendingWarning: 'Convertissez les recus en attente en depenses avant de fermer ce releve.',
     },
     depositModal: {
+      ...enCA.reconciliation.depositModal,
       title: 'Entrer argent dans le fonds',
       subtitle: (fundName: string) => `Financement pour ${fundName}. Cela ne cree pas de depense.`,
       action: 'Entrer argent',
@@ -253,6 +256,7 @@ export const frCA = {
       noSource: (currency: string) => `Aucun compte source actif en ${currency} different du compte caisse.`,
     },
     receiptModal: {
+      ...enCA.reconciliation.receiptModal,
       title: 'Televerser un recu',
       subtitle: (fundName: string) => `Sortie operationnelle de ${fundName}. La depense reelle est creee quand elle est validee dans Depenses.`,
       action: 'Enregistrer le recu',

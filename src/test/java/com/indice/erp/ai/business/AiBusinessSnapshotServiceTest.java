@@ -54,6 +54,7 @@ class AiBusinessSnapshotServiceTest {
         assertThat(result.context().currency()).isEqualTo("MXN");
         assertThat(result.summary().salesTotal()).isEqualTo(1250.0);
         assertThat(result.summary().operatingProfit()).isEqualTo(850.0);
+        assertThat(result.summary().profitReady()).isFalse();
         assertThat(result.alerts()).extracting(AiBusinessSnapshotResponse.Alert::title)
             .containsExactly("Cartera vencida");
         verify(executiveKpiService).getExecutivePanel(23L, 3L, params);

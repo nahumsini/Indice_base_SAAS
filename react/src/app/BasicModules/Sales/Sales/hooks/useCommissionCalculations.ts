@@ -1,7 +1,10 @@
 import { useMemo } from 'react';
 import type { SaleRecord } from '../types/salesTypes';
 import type { CommissionOption, CommissionRule } from '../types/commissions';
-import { calculateCommissionKpis, calculateCommissionRecords } from '../utils/commissionRules';
+import { calculateCommissionRecords } from '../utils/commissionRules';
+import { usePreferredBusinessCurrency } from '../../../shared/BusinessCurrencyContext';
+import { useCommissionSummary } from './useCommissionSummary';
+import { commissionSummaryKpis } from '../utils/commissionSummaryPresentation';
 import { useCommissionFilters } from './useCommissionFilters';
 
 function uniqueOptions(values: CommissionOption[]) {
@@ -20,7 +23,9 @@ export function useCommissionCalculations({
 }) {
   const records = useMemo(() => calculateCommissionRecords(sales, rules), [rules, sales]);
   const { filters, filteredRecords, setFilters } = useCommissionFilters(records);
-  const kpis = useMemo(() => calculateCommissionKpis(filteredRecords), [filteredRecords]);
+  const { preferredCurrency } = usePreferredBusinessCurrency();
+  const summary = useCommissionSummary(filteredRecords, preferredCurrency);
+  const kpis = commissionSummaryKpis(summary.data, filteredRecords.length);
 
   const units = useMemo(
     () => uniqueOptions(records.map((record) => ({ id: record.unitId ?? '', name: record.unitName ?? '' }))),
@@ -45,6 +50,7 @@ export function useCommissionCalculations({
     filters,
     setFilters,
     kpis,
+    summary,
     units,
     businesses,
     salesReps,

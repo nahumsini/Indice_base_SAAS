@@ -122,8 +122,8 @@ class ExecutiveKpiDomainRepositoryIntegrationTest {
         jdbc.update("""
                 INSERT INTO finance_petty_cash_funds
                     (company_id, unit_id, business_id, name, currency_code, limit_amount,
-                     current_balance_amount, cut_off_day, status)
-                VALUES (?, ?, ?, ?, 'MXN', 1000, 250, 15, 'LOW_BALANCE')
+                     current_balance_amount, cut_off_day, status, fund_type)
+                VALUES (?, ?, ?, ?, 'MXN', 1000, 250, 15, 'LOW_BALANCE', 'INTERNAL_COMPANY')
                 """, companyId, unitId, businessId, "Fund " + token);
         var fundId = jdbc.queryForObject(
                 "SELECT id FROM finance_petty_cash_funds WHERE company_id = ? AND name = ?",
@@ -131,8 +131,8 @@ class ExecutiveKpiDomainRepositoryIntegrationTest {
         jdbc.update("""
                 INSERT INTO finance_petty_cash_statements
                     (company_id, petty_cash_fund_id, folio, period_key, period_start, period_end,
-                     cut_off_date, currency_code, status)
-                VALUES (?, ?, ?, ?, '2026-07-01', '2026-07-31', '2026-07-31', 'MXN', 'OPEN')
+                     cut_off_date, currency_code, status, fund_type_snapshot)
+                VALUES (?, ?, ?, ?, '2026-07-01', '2026-07-31', '2026-07-31', 'MXN', 'OPEN', 'INTERNAL_COMPANY')
                 """, companyId, fundId, "PCS-" + token, "2026-07-" + token);
         var statementId = jdbc.queryForObject(
                 "SELECT id FROM finance_petty_cash_statements WHERE company_id = ? AND folio = ?",
@@ -156,6 +156,48 @@ class ExecutiveKpiDomainRepositoryIntegrationTest {
         assertThat(pettyCash.pendingSettlements()).isEqualTo(1);
         assertThat(pettyCash.missingReceipts()).isEqualTo(1);
         assertThat(total(repository.loadPettyCashSettlements(scope()))).isEqualByComparingTo("120.00");
+    }
+
+    @Test
+    void externallyManagedMoneyAndValidatedReceiptsStayOutOfCompanyKpis() {
+        jdbc.update("""
+            INSERT INTO finance_petty_cash_funds
+              (company_id, unit_id, business_id, name, currency_code, limit_amount,
+               current_balance_amount, cut_off_day, status, fund_type)
+            VALUES (?, ?, ?, ?, 'USD', 1000, 700, 15, 'OPEN', 'EXTERNAL_MANAGED')
+            """, companyId, unitId, businessId, "External " + token);
+        long fundId = jdbc.queryForObject(
+            "SELECT id FROM finance_petty_cash_funds WHERE company_id = ? AND name = ?",
+            Long.class, companyId, "External " + token);
+        jdbc.update("""
+            INSERT INTO finance_petty_cash_statements
+              (company_id, petty_cash_fund_id, folio, period_key, period_start, period_end,
+               cut_off_date, currency_code, status, fund_type_snapshot)
+            VALUES (?, ?, ?, '2026-08', '2026-08-01', '2026-08-31', '2026-08-31',
+                    'USD', 'OPEN', 'EXTERNAL_MANAGED')
+            """, companyId, fundId, "EXT-" + token);
+        long statementId = jdbc.queryForObject(
+            "SELECT id FROM finance_petty_cash_statements WHERE company_id = ? AND folio = ?",
+            Long.class, companyId, "EXT-" + token);
+        jdbc.update("""
+            INSERT INTO finance_petty_cash_settlement_lines
+              (company_id, petty_cash_fund_id, petty_cash_statement_id, description,
+               subtotal_amount, tax_amount, total_amount, currency_code, expense_date,
+               attachment_count, status)
+            VALUES (?, ?, ?, 'External receipt', 300, 0, 300, 'USD', '2026-08-05', 1, 'VALIDATED')
+            """, companyId, fundId, statementId);
+
+        var snapshot = repository.loadPettyCash(scope());
+        assertThat(snapshot.fundCount()).isZero();
+        assertThat(snapshot.pendingSettlements()).isZero();
+        assertThat(total(repository.loadPettyCashValue(scope(), "current_balance_amount"))).isZero();
+        assertThat(total(repository.loadPettyCashSettlements(scope()))).isZero();
+        var legacy = new ExecutiveKpiRepository(jdbc, new com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver(
+            jdbc, new com.fasterxml.jackson.databind.ObjectMapper(), "America/Toronto"));
+        assertThat(legacy.loadPettyCashByOrg(scope())).isEmpty();
+        assertThat(legacy.loadPettyCashSummary(scope())).isEmpty();
+        assertThat(jdbc.queryForObject("SELECT current_balance_amount FROM finance_petty_cash_funds WHERE id = ?",
+            BigDecimal.class, fundId)).isEqualByComparingTo("700");
     }
 
     @Test
@@ -212,7 +254,7 @@ class ExecutiveKpiDomainRepositoryIntegrationTest {
                 VALUES (?, ?, ?, ?, 'Portfolio customer', '2026-08-10', 90, 90, 'MXN', 'completed',
                         'captured', 'deducted', 'pending', 'pending', 'generated',
                         JSON_ARRAY(JSON_OBJECT('productId', CAST(? AS CHAR), 'quantity', 4,
-                            'subtotal', 100, 'discountPercent', 10)))
+                            'subtotal', 90, 'discountPercent', 10)))
                 """, companyId, unitId, businessId, "BCG-CURRENT-" + token, productId);
         jdbc.update("""
                 INSERT INTO sales_records

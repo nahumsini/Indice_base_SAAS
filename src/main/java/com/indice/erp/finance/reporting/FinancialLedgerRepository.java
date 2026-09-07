@@ -121,6 +121,32 @@ class FinancialLedgerRepository {
             ), companyId, sourceEventKey).stream().findFirst();
     }
 
+    List<AccountingPostingModels.DiscoveryIssue> missingPostedSources(
+            long companyId, LocalDate from, LocalDate to, AccountingPostingModels.Discovery discovery) {
+        var discoveredKeys = new java.util.HashSet<String>();
+        discovery.candidates().forEach(candidate -> discoveredKeys.add(candidate.sourceEventKey()));
+        discovery.issues().forEach(issue -> discoveredKeys.add(
+            issue.sourceModule() + ":" + issue.sourceType() + ":" + issue.sourceId()));
+        return jdbcTemplate.query("""
+            SELECT entry.source_event_key, entry.source_module, entry.source_type, entry.source_id
+            FROM finance_journal_entries entry
+            WHERE entry.company_id = ? AND entry.status = 'POSTED'
+              AND entry.entry_date BETWEEN ? AND ?
+              AND entry.source_type IN ('SALE', 'CREDIT_SALE', 'EXPENSE', 'EXPENSE_PAYMENT', 'RECEIVABLE_PAYMENT', 'INVENTORY_RECEIPT',
+                                        'PAYROLL_ACCRUAL', 'PAYROLL_PAYMENT')
+              AND NOT EXISTS (
+                SELECT 1 FROM finance_journal_entries reversal
+                WHERE reversal.company_id = entry.company_id AND reversal.reversal_of_entry_id = entry.id
+                  AND reversal.status = 'POSTED'
+              )
+            """, (rs, index) -> discoveredKeys.contains(rs.getString("source_event_key")) ? null
+                : new AccountingPostingModels.DiscoveryIssue("SOURCE_NO_LONGER_ELIGIBLE", "BLOCKING",
+                    rs.getString("source_module"), rs.getString("source_type"), rs.getString("source_id"),
+                    "Una operación contabilizada fue cancelada, retirada o cambió de período.",
+                    "Registra una reversión vinculada antes de usar el informe o cerrar el período."),
+                companyId, from, to).stream().filter(java.util.Objects::nonNull).toList();
+    }
+
     PostResult post(long companyId, long userId, AccountingSettings settings, PostingCandidate candidate) {
         BigDecimal debits = candidate.lines().stream()
             .map(AccountingPostingModels.PostingLine::debit)
@@ -144,9 +170,9 @@ class FinancialLedgerRepository {
                     INSERT INTO finance_journal_entries
                       (company_id, period_id, entry_number, entry_date, journal_type, status,
                        description, source_module, source_type, source_id, source_event_key,
-                       source_fingerprint, currency_code, exchange_rate,
+                       source_fingerprint, currency_code, exchange_rate, exchange_rate_evidence_json,
                        created_by_user_id, posted_by_user_id, posted_at)
-                    VALUES (?, ?, ?, ?, ?, 'POSTED', ?, ?, ?, ?, ?, ?, ?, 1.00000000, ?, ?, CURRENT_TIMESTAMP)
+                    VALUES (?, ?, ?, ?, ?, 'POSTED', ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?, ?, CURRENT_TIMESTAMP)
                     """, Statement.RETURN_GENERATED_KEYS);
                 int index = 1;
                 statement.setLong(index++, companyId);
@@ -161,6 +187,8 @@ class FinancialLedgerRepository {
                 statement.setString(index++, candidate.sourceEventKey());
                 statement.setString(index++, candidate.sourceFingerprint());
                 statement.setString(index++, candidate.currency());
+                statement.setBigDecimal(index++, candidate.exchangeRate());
+                statement.setString(index++, candidate.exchangeRateEvidenceJson());
                 statement.setLong(index++, userId);
                 statement.setLong(index, userId);
                 return statement;
@@ -182,10 +210,11 @@ class FinancialLedgerRepository {
                    description, debit_amount, credit_amount, transaction_amount,
                    transaction_currency, functional_amount, functional_currency, exchange_rate,
                    source_document_reference)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1.00000000, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, companyId, entryId, accountId, ++lineNumber, line.unitId(), line.businessId(),
-                line.description(), line.debit(), line.credit(), amount, candidate.currency(), amount,
-                settings.functionalCurrency(), line.documentReference());
+                line.description(), line.debit(), line.credit(), line.transactionAmount(),
+                line.transactionCurrency() == null ? candidate.currency() : line.transactionCurrency(), amount,
+                settings.functionalCurrency(), line.exchangeRate(), line.documentReference());
         }
         return PostResult.POSTED;
     }
@@ -325,6 +354,7 @@ class FinancialLedgerRepository {
         account("2000", "ACCOUNTS_PAYABLE", "Cuentas por pagar", "LIABILITY", "CREDIT", "CURRENT_LIABILITIES", "TRADE_PAYABLES", 200),
         account("2100", "PAYROLL_PAYABLE", "Nómina por pagar", "LIABILITY", "CREDIT", "CURRENT_LIABILITIES", "PAYROLL_PAYABLE", 210),
         account("2110", "PAYROLL_WITHHOLDINGS", "Retenciones y cargas de nómina", "LIABILITY", "CREDIT", "CURRENT_LIABILITIES", "PAYROLL_WITHHOLDINGS", 211),
+        account("1400", "PURCHASE_TAX_PENDING", "Impuestos de compras pendientes de clasificación", "ASSET", "DEBIT", "CURRENT_ASSETS", "PURCHASE_TAX_PENDING", 140),
         account("2200", "TAXES_PAYABLE", "Impuestos por pagar", "LIABILITY", "CREDIT", "CURRENT_LIABILITIES", "TAXES_PAYABLE", 220),
         account("2300", "LOANS_PAYABLE", "Deuda financiera", "LIABILITY", "CREDIT", "NON_CURRENT_LIABILITIES", "BORROWINGS", 230),
         account("3000", "CONTRIBUTED_CAPITAL", "Capital aportado", "EQUITY", "CREDIT", "EQUITY", "CONTRIBUTED_CAPITAL", 300),
@@ -337,6 +367,8 @@ class FinancialLedgerRepository {
         account("6200", "EMPLOYER_CONTRIBUTIONS_EXPENSE", "Cargas patronales", "EXPENSE", "DEBIT", "OPERATING", "EMPLOYER_CONTRIBUTIONS", 620),
         account("6300", "DEPRECIATION_EXPENSE", "Depreciación del periodo", "EXPENSE", "DEBIT", "OPERATING", "DEPRECIATION", 630),
         account("7000", "FINANCE_EXPENSE", "Costos financieros", "EXPENSE", "DEBIT", "FINANCING", "FINANCE_EXPENSE", 700),
+        account("7100", "REALIZED_EXCHANGE_LOSS", "Pérdida cambiaria realizada", "EXPENSE", "DEBIT", "FINANCING", "FINANCE_EXPENSE", 710),
+        account("4200", "REALIZED_EXCHANGE_GAIN", "Ganancia cambiaria realizada", "REVENUE", "CREDIT", "OTHER", "OTHER_INCOME", 420),
         account("8000", "INCOME_TAX_EXPENSE", "Impuesto a las ganancias", "EXPENSE", "DEBIT", "TAX", "INCOME_TAX_EXPENSE", 800),
         account("9000", "OCI_FOREIGN_EXCHANGE", "Conversión en otro resultado integral", "OCI", "CREDIT", "OCI", "FOREIGN_EXCHANGE_OCI", 900)
     );

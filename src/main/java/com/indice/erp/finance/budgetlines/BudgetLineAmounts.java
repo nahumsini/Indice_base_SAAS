@@ -18,8 +18,7 @@ final class BudgetLineAmounts {
             BigDecimal pettyCashSettledAmount) {
         return value(plannedAmount)
             .subtract(value(committedAmount))
-            .subtract(value(actualExpenseAmount))
-            .subtract(value(pettyCashIssuedAmount).subtract(value(pettyCashSettledAmount)));
+            .subtract(value(actualExpenseAmount));
     }
 
     static BudgetHealthStatus healthStatus(BigDecimal plannedAmount, BigDecimal availableAmount) {

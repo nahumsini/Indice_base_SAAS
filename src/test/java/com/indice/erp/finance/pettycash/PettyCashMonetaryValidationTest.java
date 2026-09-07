@@ -2,11 +2,13 @@ package com.indice.erp.finance.pettycash;
 
 import com.indice.erp.finance.FinanceAccessService;
 import com.indice.erp.finance.FinanceApiException;
+import com.indice.erp.finance.pettycash.dto.CreatePettyCashFundRequest;
 import com.indice.erp.finance.pettycash.dto.CreatePettyCashSettlementLineRequest;
 import com.indice.erp.finance.shared.FinanceContext;
 import com.indice.erp.finance.shared.FinanceScope;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.given;
 
 @ExtendWith(MockitoExtension.class)
 class PettyCashMonetaryValidationTest {
@@ -75,6 +78,41 @@ class PettyCashMonetaryValidationTest {
             "subtotalAmount must be non-negative.");
     }
 
+    @Test
+    void internalCompanyFundRequiresBudgetAndCompanySourceAccount() {
+        var request = fundRequest(
+            PettyCashFundType.INTERNAL_COMPANY, null, null, 80L,
+            "Company bank", null, null, null, null);
+
+        assertThatThrownBy(() -> validator.validateCreate(context(), request))
+            .isInstanceOfSatisfying(FinanceApiException.class, failure ->
+                assertThat(failure).hasMessage("Internal funds require a budget and budget line."));
+    }
+
+    @Test
+    void externalManagedFundRequiresStatementIdentity() {
+        var request = fundRequest(
+            PettyCashFundType.EXTERNAL_MANAGED, null, null, null,
+            "Client contribution", "COMPANY", null, "CLIENT", "client@example.com");
+
+        assertThatThrownBy(() -> validator.validateCreate(context(), request))
+            .isInstanceOfSatisfying(FinanceApiException.class, failure ->
+                assertThat(failure).hasMessage("externalOwnerName is required."));
+    }
+
+    @Test
+    void acceptsCompleteExternalManagedFundWithoutCompanyBudget() {
+        var request = fundRequest(
+            PettyCashFundType.EXTERNAL_MANAGED, null, null, null,
+            "Client contribution", "COMPANY", "Managed Client", "CLIENT", "client@example.com");
+        given(accessService.containsAssignment(context(), 10L, 20L)).willReturn(true);
+
+        validator.validateCreate(context(), request);
+
+        then(referenceValidator).should().validateFundReferences(
+            context(), new PettyCashScopedAssignment(10L, 20L), null, null, 70L, null, 1L, "MXN");
+    }
+
     private void assertBadRequest(
             CreatePettyCashSettlementLineRequest request,
             String expectedMessage) {
@@ -105,6 +143,25 @@ class PettyCashMonetaryValidationTest {
             null,
             null,
             null);
+    }
+
+    private CreatePettyCashFundRequest fundRequest(
+            PettyCashFundType fundType,
+            Long budgetId,
+            Long budgetLineId,
+            Long fundingSourcePaymentAccountId,
+            String fundingSourceName,
+            String externalOwnerType,
+            String externalOwnerName,
+            String externalOwnerRelationship,
+            String statementRecipientEmail) {
+        return new CreatePettyCashFundRequest(
+            10L, 20L, budgetId, budgetLineId, 70L, fundingSourcePaymentAccountId, 1L, fundType,
+            "Operations fund", "MXN", new BigDecimal("1000.00"), BigDecimal.ZERO, 30,
+            fundingSourceName, externalOwnerType, externalOwnerName, externalOwnerRelationship, null,
+            statementRecipientEmail, null, null, null,
+            List.of("TRANSFER"), List.of("CASH"), false, true, null, null,
+            PettyCashFundStatus.OPEN, null, null);
     }
 
     private BigDecimal decimal(String value) {

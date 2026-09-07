@@ -1,5 +1,6 @@
 package com.indice.erp.kpis.currency;
 
+import com.indice.erp.exchange.BusinessExchangeRateEvidence;
 import com.indice.erp.exchange.BusinessExchangeRateService;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -13,15 +14,18 @@ public class BasicModuleKpiCurrencyService {
     private final BasicModuleKpiCurrencyRepository repository;
     private final KpiCurrencyAggregationService aggregationService;
     private final BusinessExchangeRateService exchangeRateService;
+    private final com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver timezones;
 
     public BasicModuleKpiCurrencyService(
         BasicModuleKpiCurrencyRepository repository,
         KpiCurrencyAggregationService aggregationService,
-        BusinessExchangeRateService exchangeRateService
+        BusinessExchangeRateService exchangeRateService,
+        com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver timezones
     ) {
         this.repository = repository;
         this.aggregationService = aggregationService;
         this.exchangeRateService = exchangeRateService;
+        this.timezones = timezones;
     }
 
     public KpiMonetaryAggregate aggregate(
@@ -44,6 +48,12 @@ public class BasicModuleKpiCurrencyService {
         String idsValue,
         boolean restrictToIds
     ) {
+        return aggregate(companyId, metricValue, preferredCurrency, fromValue, toValue, idsValue, restrictToIds,
+            com.indice.erp.hr.HrOperationalScope.corporateOffice());
+    }
+
+    public KpiMonetaryAggregate aggregate(long companyId, String metricValue, String preferredCurrency, String fromValue,
+            String toValue, String idsValue, boolean restrictToIds, com.indice.erp.hr.HrOperationalScope scope) {
         var metric = BasicModuleKpiMetric.parse(metricValue);
         var from = parseDate(fromValue, "from");
         var to = parseDate(toValue, "to");
@@ -53,10 +63,12 @@ public class BasicModuleKpiCurrencyService {
         var rates = exchangeRateService.loadDailyRates();
         var metadata = rates.metadata();
         var effectiveDate = parseSourceDate(metadata == null ? null : metadata.sourceDate());
+        var zone = timezones.resolve(companyId);
+        var today = LocalDate.now(zone);
         return aggregationService.aggregate(
-            repository.load(metric, companyId, from, to, parseIds(idsValue), restrictToIds),
+            repository.load(metric, companyId, from, to, parseIds(idsValue), restrictToIds, today, zone, scope),
             preferredCurrency == null || preferredCurrency.isBlank() ? "MXN" : preferredCurrency,
-            rates.ratesPerUsd(),
+            BusinessExchangeRateEvidence.verifiedRates(rates, today, true),
             "daily",
             effectiveDate,
             metadata == null ? "" : metadata.sourceName()

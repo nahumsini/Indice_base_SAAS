@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.stereotype.Service;
+import com.indice.erp.finance.shared.FinanceCompanyCountryResolver;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -35,23 +36,38 @@ class FinancialReportingService {
         "MISSING_PRODUCT_COST",
         "UNBALANCED_PAYROLL_SOURCE",
         "UNPOSTED_SOURCE_EVENT",
-        "SOURCE_CHANGED_AFTER_POSTING"
+        "SOURCE_CHANGED_AFTER_POSTING",
+        "SOURCE_NO_LONGER_ELIGIBLE", "INVALID_EXPENSE_ACCOUNT", "MISSING_SOURCE_RECOGNITION", "INCOMPLETE_SALE_SETTLEMENT", "INVALID_RECEIVABLE_PRINCIPAL",
+        "UNVERIFIED_INVENTORY_RECEIPT", "INVALID_SALE_TOTALS", "INVALID_EXPENSE_TOTAL", "UNPOSTED_SOURCE_REVERSAL"
     );
 
     private final FinancialLedgerRepository ledgerRepository;
     private final FinancialReportRepository reportRepository;
     private final AccountingSourceDiscoveryService discoveryService;
+    private final FinanceCompanyCountryResolver countryResolver;
+    private final FinancialSubledgerReconciliation reconciliation;
+    private final AccountingSourceReversalService reversals;
+    private final com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver timezones;
 
     FinancialReportingService(
         FinancialLedgerRepository ledgerRepository,
         FinancialReportRepository reportRepository,
-        AccountingSourceDiscoveryService discoveryService
+        AccountingSourceDiscoveryService discoveryService,
+        FinanceCompanyCountryResolver countryResolver,
+        FinancialSubledgerReconciliation reconciliation,
+        AccountingSourceReversalService reversals,
+        com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver timezones
     ) {
         this.ledgerRepository = ledgerRepository;
         this.reportRepository = reportRepository;
         this.discoveryService = discoveryService;
+        this.countryResolver = countryResolver;
+        this.reconciliation = reconciliation;
+        this.reversals = reversals;
+        this.timezones = timezones;
     }
 
+    @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
     ReportResponse report(
         long companyId,
         LocalDate from,
@@ -76,9 +92,11 @@ class FinancialReportingService {
         var currentCash = reportRepository.cashChanges(companyId, from, to, unitId, businessId);
         var comparativeCash = reportRepository.cashChanges(companyId, comparativeFrom, comparativeTo, unitId, businessId);
 
-        var findings = qualityFindings(companyId, from, to, settings, currentClosing, unitId, businessId);
+        var allSources = discoveryService.discover(companyId, from, to, settings.functionalCurrency());
+        var scopedSources = discoveryService.inScope(companyId, allSources, unitId, businessId);
+        var findings = qualityFindings(companyId, from, to, settings, currentClosing, unitId, businessId, allSources, scopedSources);
         int postedEntries = reportRepository.countPostedEntries(companyId, from, to, unitId, businessId);
-        if (postedEntries == 0) {
+        if (postedEntries == 0 && currentClosing.isEmpty()) {
             findings.add(new QualityFinding("NO_ACCOUNTING_ACTIVITY", "BLOCKING", "Sin actividad contabilizada",
                 "No existen asientos publicados para el alcance y periodo seleccionados.",
                 "Sincroniza las operaciones o revisa los filtros.", "ledger", 0));
@@ -88,7 +106,7 @@ class FinancialReportingService {
             .map(row -> new TrialBalanceRow(row.accountId(), row.accountCode(), row.accountName(),
                 row.accountType(), row.debit(), row.credit(), row.balance(), row.journalCount()))
             .toList();
-        var coverage = sourceCoverage(companyId, from, to, settings, findings);
+        var coverage = sourceCoverage(companyId, scopedSources, findings);
         int pending = coverage.stream().mapToInt(SourceCoverage::blocked).sum();
         int blocking = (int) findings.stream().filter(item -> "BLOCKING".equals(item.severity())).count();
         int warnings = (int) findings.stream().filter(item -> "WARNING".equals(item.severity())).count();
@@ -106,24 +124,30 @@ class FinancialReportingService {
         var cash = cashMetrics(currentCash);
         var headline = new Headline(profit.revenue(), profit.grossProfit(), profit.operatingProfit(),
             profit.netProfit(), balance.assets(), balance.liabilities(), balance.equity(), cash.netChange());
+        var profile = new FinancialPresentationProfile(countryResolver.resolve(companyId), settings.reportingFramework());
         var statements = List.of(
             profitStatement(currentPeriod, comparativePeriod),
             financialPositionStatement(currentClosing, comparativeClosing),
-            cashFlowStatement(currentCash, comparativeCash),
-            equityStatement(openingClosing, currentClosing, comparativeClosing, currentPeriod, comparativePeriod)
-        );
+            cashFlowStatement(currentCash, comparativeCash, openingClosing, currentClosing,
+                reportRepository.closingTotals(companyId, comparativeFrom.minusDays(1), unitId, businessId), comparativeClosing),
+            equityStatement(openingClosing, currentClosing, comparativeClosing, currentPeriod, comparativePeriod,
+                reportRepository.closingTotals(companyId, comparativeFrom.minusDays(1), unitId, businessId))
+        ).stream().map(profile::present).toList();
         var context = new ReportContext(from, to, comparativeFrom, comparativeTo, unitId, businessId,
             settings.reportingFramework(), settings.frameworkEffectiveDate(), settings.functionalCurrency(),
-            settings.presentationCurrency(), periodKey, periodStatus, Instant.now());
+            settings.presentationCurrency(), profile.country(), periodKey, periodStatus, Instant.now());
         var readiness = new ReportReadiness(reportStatus, ready, blocking, warnings, postedEntries, pending,
             coveragePercent, readinessMessage(reportStatus, blocking, warnings));
-        return new ReportResponse(context, readiness, headline, reportRepository.organizationScope(companyId), statements, trialBalance, coverage,
-            List.copyOf(findings));
+        return new ReportResponse(context, readiness, headline, reportRepository.organizationScope(companyId, unitId, businessId), statements, trialBalance, coverage,
+            List.copyOf(findings), profile.notes());
     }
 
     @Transactional
     PeriodActionResponse closePeriod(long companyId, long userId, String periodKey) {
         YearMonth month = parsePeriodKey(periodKey);
+        if (!month.atEndOfMonth().isBefore(LocalDate.now(timezones.resolve(companyId)))) {
+            throw new IllegalArgumentException("El período debe haber terminado antes de cerrarlo.");
+        }
         ledgerRepository.lockOpenPeriodForClose(companyId, periodKey);
         var report = report(companyId, month.atDay(1), month.atEndOfMonth(), null, null);
         if (!report.readiness().decisionReady()) {
@@ -153,11 +177,16 @@ class FinancialReportingService {
         FinancialLedgerRepository.AccountingSettings settings,
         Map<String, BigDecimal> closing,
         Long unitId,
-        Long businessId
+        Long businessId,
+        AccountingPostingModels.Discovery allSources,
+        AccountingPostingModels.Discovery discovery
     ) {
         var result = new ArrayList<QualityFinding>();
-        var discovery = discoveryService.discover(companyId, from, to, settings.functionalCurrency());
+        reversals.pending(companyId, from, to, unitId, businessId).stream().map(FinancialSynchronizationService::toFinding).forEach(result::add);
         discovery.issues().stream().map(FinancialSynchronizationService::toFinding).forEach(result::add);
+        ledgerRepository.missingPostedSources(companyId, from, to, allSources).stream()
+            .filter(issue -> discoveryService.relevant(companyId, issue, unitId, businessId))
+            .map(FinancialSynchronizationService::toFinding).forEach(result::add);
         for (var candidate : discovery.candidates()) {
             var existing = ledgerRepository.findEntry(companyId, candidate.sourceEventKey());
             if (existing.isEmpty()) {
@@ -178,6 +207,13 @@ class FinancialReportingService {
         }
 
         var balance = balanceMetrics(closing);
+        for (var account : List.of("INVENTORY", "ACCOUNTS_RECEIVABLE", "ACCOUNTS_PAYABLE")) {
+            if (value(closing, account).compareTo(TOLERANCE.negate()) < 0) {
+                result.add(new QualityFinding("NEGATIVE_CONTROL_BALANCE", "BLOCKING", "Saldo de control negativo",
+                    "La cuenta " + account + " presenta un saldo que requiere conciliación.",
+                    "Revisa aperturas, pagos y movimientos faltantes antes de cerrar.", "ledger", 1));
+            }
+        }
         BigDecimal equationDifference = balance.assets().subtract(balance.liabilities()).subtract(balance.equity()).abs();
         if (equationDifference.compareTo(TOLERANCE) > 0) {
             result.add(new QualityFinding("ACCOUNTING_EQUATION_MISMATCH", "BLOCKING", "Ecuación contable sin conciliar",
@@ -185,30 +221,22 @@ class FinancialReportingService {
                 "Revisa saldos de apertura, clasificaciones y asientos de cierre.", "ledger", 1));
         }
 
-        if (unitId == null && businessId == null && !to.isBefore(LocalDate.now())) {
-            addReconciliation(result, "INVENTORY_RECONCILIATION", "Inventario contra mayor", "inventory",
-                reportRepository.operationalInventoryValue(companyId), value(closing, "INVENTORY"));
-            addReconciliation(result, "RECEIVABLE_RECONCILIATION", "Cuentas por cobrar contra mayor", "receivables",
-                reportRepository.receivableSubledgerBalance(companyId), value(closing, "ACCOUNTS_RECEIVABLE"));
-            addReconciliation(result, "PAYABLE_RECONCILIATION", "Cuentas por pagar contra mayor", "expenses",
-                reportRepository.payableSubledgerBalance(companyId), value(closing, "ACCOUNTS_PAYABLE"));
-        }
+        result.addAll(reconciliation.reconcile(companyId, to, unitId, businessId));
         return mergeFindings(result);
     }
 
     private List<SourceCoverage> sourceCoverage(
         long companyId,
-        LocalDate from,
-        LocalDate to,
-        FinancialLedgerRepository.AccountingSettings settings,
+        AccountingPostingModels.Discovery discovery,
         List<QualityFinding> findings
     ) {
-        var discovery = discoveryService.discover(companyId, from, to, settings.functionalCurrency());
-        var modules = List.of("sales", "expenses", "receivables", "payroll");
+        var modules = List.of("sales", "expenses", "receivables", "payroll", "inventory");
         var result = new ArrayList<SourceCoverage>();
         for (String module : modules) {
             int eligible = discovery.eligibleByModule().getOrDefault(module, 0);
-            int posted = reportRepository.countPostedSource(companyId, module, from, to);
+            int posted = (int) discovery.candidates().stream().filter(candidate -> module.equals(candidate.sourceModule()))
+                .filter(candidate -> ledgerRepository.findEntry(companyId, candidate.sourceEventKey())
+                    .filter(entry -> "POSTED".equals(entry.status()) && candidate.sourceFingerprint().equals(entry.fingerprint())).isPresent()).count();
             int blocked = findings.stream()
                 .filter(item -> module.equals(item.sourceModule())
                     && "BLOCKING".equals(item.severity())
@@ -249,6 +277,8 @@ class FinancialReportingService {
             statementLine("CASH", "Efectivo y equivalentes", 1, false, value(current, "CASH"), value(comparative, "CASH")),
             statementLine("RECEIVABLES", "Cuentas por cobrar", 1, false, value(current, "ACCOUNTS_RECEIVABLE"), value(comparative, "ACCOUNTS_RECEIVABLE")),
             statementLine("INVENTORY", "Inventarios", 1, false, value(current, "INVENTORY"), value(comparative, "INVENTORY")),
+            statementLine("PURCHASE_TAX_PENDING", "Impuestos de compras pendientes de clasificación", 1, false,
+                value(current, "PURCHASE_TAX_PENDING"), value(comparative, "PURCHASE_TAX_PENDING")),
             statementLine("PPE", "Propiedad, planta y equipo neto", 1, false, now.propertyPlantEquipment(), before.propertyPlantEquipment()),
             statementLine("TOTAL_ASSETS", "Total activos", 0, true, now.assets(), before.assets()),
             statementLine("PAYABLES", "Cuentas por pagar", 1, false, value(current, "ACCOUNTS_PAYABLE"), value(comparative, "ACCOUNTS_PAYABLE")),
@@ -267,22 +297,28 @@ class FinancialReportingService {
     }
 
     private static FinancialStatement cashFlowStatement(
-        Map<String, BigDecimal> current,
-        Map<String, BigDecimal> comparative
+        Map<String, BigDecimal> current, Map<String, BigDecimal> comparative,
+        Map<String, BigDecimal> opening, Map<String, BigDecimal> closing,
+        Map<String, BigDecimal> comparativeOpening, Map<String, BigDecimal> comparativeClosing
     ) {
         var now = cashMetrics(current);
         var before = cashMetrics(comparative);
         var lines = List.of(
+            statementLine("OPENING_CASH", "Efectivo inicial", 0, true, value(opening, "CASH"), value(comparativeOpening, "CASH")),
+            statementLine("OPENING_ADJUSTMENTS", "Saldos de apertura incorporados", 1, false, value(current, "OPENING"), value(comparative, "OPENING")),
             statementLine("CUSTOMER_COLLECTIONS", "Cobros de clientes", 1, false, now.customerCollections(), before.customerCollections()),
             statementLine("SUPPLIER_PAYMENTS", "Pagos a proveedores y gastos", 1, false, now.supplierPayments(), before.supplierPayments()),
             statementLine("PAYROLL_PAYMENTS", "Pagos de nómina", 1, false, now.payrollPayments(), before.payrollPayments()),
+            statementLine("OTHER_OPERATING_CASH", "Otros movimientos de operación", 1, false, now.otherOperating(), before.otherOperating()),
             statementLine("OPERATING_CASH", "Flujo neto de operación", 0, true, now.operating(), before.operating()),
             statementLine("INVESTING_CASH", "Flujo neto de inversión", 0, true, now.investing(), before.investing()),
             statementLine("FINANCING_CASH", "Flujo neto de financiamiento", 0, true, now.financing(), before.financing()),
-            statementLine("NET_CASH_CHANGE", "Cambio neto en efectivo", 0, true, now.netChange(), before.netChange())
+            statementLine("NET_CASH_CHANGE", "Cambio neto en efectivo", 0, true, now.netChange(), before.netChange()),
+            statementLine("CLOSING_CASH", "Efectivo final", 0, true, value(closing, "CASH"), value(comparativeClosing, "CASH"))
         );
         return new FinancialStatement("cash-flow", "Estado de flujos de efectivo",
-            "Clasificación de movimientos registrados en cuentas de efectivo.", "IFRS for SMEs §7 / IAS 7", lines, true);
+            "Clasificación de movimientos registrados en cuentas de efectivo.", "IFRS for SMEs §7 / IAS 7", lines,
+            value(opening, "CASH").add(value(current, "OPENING")).add(now.netChange()).subtract(value(closing, "CASH")).abs().compareTo(TOLERANCE) <= 0);
     }
 
     private static FinancialStatement equityStatement(
@@ -290,18 +326,21 @@ class FinancialReportingService {
         Map<String, BigDecimal> closing,
         Map<String, BigDecimal> comparativeClosing,
         Map<String, BigDecimal> period,
-        Map<String, BigDecimal> comparativePeriod
+        Map<String, BigDecimal> comparativePeriod,
+        Map<String, BigDecimal> comparativeOpening
     ) {
         var start = balanceMetrics(opening);
         var end = balanceMetrics(closing);
         var compare = balanceMetrics(comparativeClosing);
+        var compareStart = balanceMetrics(comparativeOpening);
         var currentProfit = profitMetrics(period).netProfit();
         var comparativeProfit = profitMetrics(comparativePeriod).netProfit();
         var lines = List.of(
-            statementLine("OPENING_EQUITY", "Patrimonio inicial", 0, false, start.equity(), ZERO),
+            statementLine("OPENING_EQUITY", "Patrimonio inicial", 0, false, start.equity(), compareStart.equity()),
             statementLine("PERIOD_RESULT", "Resultado del periodo", 1, false, currentProfit, comparativeProfit),
             statementLine("OTHER_EQUITY_CHANGES", "Aportaciones y otros movimientos", 1, false,
-                end.equity().subtract(start.equity()).subtract(currentProfit), ZERO),
+                end.equity().subtract(start.equity()).subtract(currentProfit),
+                compare.equity().subtract(compareStart.equity()).subtract(comparativeProfit)),
             statementLine("CLOSING_EQUITY", "Patrimonio final", 0, true, end.equity(), compare.equity())
         );
         return new FinancialStatement("changes-equity", "Estado de cambios en el patrimonio",
@@ -310,12 +349,14 @@ class FinancialReportingService {
 
     static ProfitMetrics profitMetrics(Map<String, BigDecimal> totals) {
         BigDecimal revenue = value(totals, "REVENUE");
-        BigDecimal otherIncome = value(totals, "OTHER_INCOME");
+        BigDecimal exchangeGain = value(totals, "REALIZED_EXCHANGE_GAIN");
+        BigDecimal otherIncome = value(totals, "TYPE:REVENUE").subtract(revenue).subtract(exchangeGain);
         BigDecimal cogs = value(totals, "COST_OF_SALES");
-        BigDecimal finance = value(totals, "FINANCE_EXPENSE");
+        BigDecimal financeCosts = value(totals, "FINANCE_EXPENSE").add(value(totals, "REALIZED_EXCHANGE_LOSS"));
+        BigDecimal finance = financeCosts.subtract(exchangeGain);
         BigDecimal tax = value(totals, "INCOME_TAX_EXPENSE");
         BigDecimal expenses = value(totals, "TYPE:EXPENSE");
-        BigDecimal operatingExpenses = expenses.subtract(cogs).subtract(finance).subtract(tax);
+        BigDecimal operatingExpenses = expenses.subtract(cogs).subtract(financeCosts).subtract(tax);
         BigDecimal gross = revenue.subtract(cogs);
         BigDecimal operating = gross.add(otherIncome).subtract(operatingExpenses);
         BigDecimal net = operating.subtract(finance).subtract(tax);
@@ -338,12 +379,14 @@ class FinancialReportingService {
     }
 
     private static CashMetrics cashMetrics(Map<String, BigDecimal> cash) {
-        BigDecimal collections = value(cash, "SALE").max(ZERO).add(value(cash, "RECEIVABLE_PAYMENT").max(ZERO));
+        BigDecimal collections = value(cash, "CUSTOMER_COLLECTIONS");
         BigDecimal supplier = value(cash, "EXPENSE_PAYMENT");
         BigDecimal payroll = value(cash, "PAYROLL_PAYMENT");
-        BigDecimal operating = collections.add(supplier).add(payroll);
-        return new CashMetrics(money(collections), money(supplier), money(payroll), money(operating), ZERO, ZERO,
-            money(operating));
+        BigDecimal other = value(cash, "OTHER_OPERATING");
+        BigDecimal operating = collections.add(supplier).add(payroll).add(other);
+        BigDecimal investing = value(cash, "INVESTING"), financing = value(cash, "FINANCING");
+        return new CashMetrics(money(collections), money(supplier), money(payroll), money(other), money(operating),
+            money(investing), money(financing), money(operating.add(investing).add(financing)));
     }
 
     private static StatementLine statementLine(
@@ -425,7 +468,7 @@ class FinancialReportingService {
         if ("READY".equals(status)) {
             return warnings > 0
                 ? "El reporte está balanceado; conserva advertencias informativas para revisión."
-                : "El reporte está balanceado y listo para revisión y cierre.";
+                : "El reporte está balanceado y listo para revisión.";
         }
         return "Resuelve " + blocking + " hallazgos bloqueantes antes de usar las cifras como definitivas.";
     }
@@ -466,6 +509,7 @@ class FinancialReportingService {
         BigDecimal customerCollections,
         BigDecimal supplierPayments,
         BigDecimal payrollPayments,
+        BigDecimal otherOperating,
         BigDecimal operating,
         BigDecimal investing,
         BigDecimal financing,

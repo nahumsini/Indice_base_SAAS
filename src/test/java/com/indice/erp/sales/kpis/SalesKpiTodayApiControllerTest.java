@@ -24,6 +24,9 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(SalesKpiTodayApiController.class)
 class SalesKpiTodayApiControllerTest {
 
+    @MockBean
+    private com.indice.erp.kpis.KpiRequestAccessService kpiAccess;
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -47,7 +50,8 @@ class SalesKpiTodayApiControllerTest {
         given(sessionAuthService.currentUser(any())).willReturn(Optional.of(
             new AuthSessionUser(5L, 23L, 71L, "Demo", "admin")
         ));
-        given(service.today(23L, "MXN")).willReturn(summary());
+        given(kpiAccess.monetary(any(), org.mockito.ArgumentMatchers.eq("SALES_TOTAL"))).willReturn(com.indice.erp.hr.HrOperationalScope.corporateOffice());
+        given(service.today(23L, "MXN", com.indice.erp.hr.HrOperationalScope.corporateOffice())).willReturn(summary());
 
         mockMvc.perform(get("/api/v1/sales/kpis/today").param("preferredCurrency", "MXN"))
             .andExpect(status().isOk())

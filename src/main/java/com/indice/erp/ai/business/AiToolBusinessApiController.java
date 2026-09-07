@@ -24,17 +24,20 @@ public class AiToolBusinessApiController {
     private final AiToolAuthorizationService authorizationService;
     private final AiBusinessSnapshotService snapshotService;
     private final AiToolUsageAuditService auditService;
+    private final com.indice.erp.kpis.KpiRequestAccessService kpiAccess;
 
     public AiToolBusinessApiController(
         AiAccessTokenService tokenService,
         AiToolAuthorizationService authorizationService,
         AiBusinessSnapshotService snapshotService,
-        AiToolUsageAuditService auditService
+        AiToolUsageAuditService auditService,
+        com.indice.erp.kpis.KpiRequestAccessService kpiAccess
     ) {
         this.tokenService = tokenService;
         this.authorizationService = authorizationService;
         this.snapshotService = snapshotService;
         this.auditService = auditService;
+        this.kpiAccess = kpiAccess;
     }
 
     @GetMapping("/snapshot")
@@ -67,7 +70,7 @@ public class AiToolBusinessApiController {
             putIfPresent(params, "from", from);
             putIfPresent(params, "to", to);
             putIfPresent(params, "preferredCurrency", preferredCurrency);
-            var response = snapshotService.get(user.companyId(), user.userId(), params);
+            var response = snapshotService.get(user.companyId(), user.userId(), kpiAccess.central(user, "kpis", null, null).apply(params));
             auditService.recordRead(storedToken, "get_business_snapshot", "SUCCESS", HttpStatus.OK.value());
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException exception) {

@@ -7,7 +7,7 @@ import type { PaymentAccount } from '../../Expenses/PaymentAccounts/types';
 import { budgetLinesService, paymentAccountsService, toFinanceApiErrorMessage } from '../../Expenses/services';
 import type { FinanceBudgetLine } from '../../Expenses/types/finance-domain.types';
 import type { FinanceReferenceOption } from '../../Expenses/types/finance-reference.types';
-import type { PettyCashCurrency, PettyCashFund, PettyCashFundStatus, PettyCashStatement } from '../types/pettyCash.types';
+import type { PettyCashCurrency, PettyCashFund, PettyCashFundStatus, PettyCashFundType, PettyCashStatement } from '../types/pettyCash.types';
 import { hasPettyCashBackendId, pettyCashService } from '../services';
 import { useTablePagination } from '../../../hooks/useTablePagination';
 import { ConfirmDeleteDialog } from '../../../components/ConfirmDeleteDialog';
@@ -65,7 +65,15 @@ type FundDraft = {
   fundingMethods: string[];
   fundingSourcePaymentAccountId: string;
   fundingSourceName: string;
-  fundingSourceType: 'INTERNAL' | 'EXTERNAL';
+  fundType: PettyCashFundType;
+  externalOwnerType: string;
+  externalOwnerName: string;
+  externalOwnerRelationship: string;
+  externalOwnerReference: string;
+  statementRecipientEmail: string;
+  managedAssetType: string;
+  managedAssetName: string;
+  managedAssetReference: string;
   limitAmount: string;
   name: string;
   paymentAccountId: string;
@@ -189,7 +197,15 @@ const createEmptyFundDraft = ({
     fundingMethods: [PETTY_CASH_METHOD_KEYS.INTERNAL_TRANSFER],
     fundingSourceName: fundingSource?.name ?? financialAccountFallback,
     fundingSourcePaymentAccountId: fundingSource?.id ?? '',
-    fundingSourceType: fundingSource ? 'INTERNAL' : 'EXTERNAL',
+    fundType: 'INTERNAL_COMPANY',
+    externalOwnerType: 'COMPANY',
+    externalOwnerName: '',
+    externalOwnerRelationship: 'CLIENT',
+    externalOwnerReference: '',
+    statementRecipientEmail: '',
+    managedAssetType: '',
+    managedAssetName: '',
+    managedAssetReference: '',
     limitAmount: budgetLine ? String(getBudgetLineLimit(budgetLine)) : '',
     name: '',
     paymentAccountId: paymentAccount?.id ?? '',
@@ -208,7 +224,15 @@ const createFallbackFundDraft = (financialAccountFallback: string): FundDraft =>
   fundingMethods: [PETTY_CASH_METHOD_KEYS.INTERNAL_TRANSFER],
   fundingSourcePaymentAccountId: fallbackPaymentAccounts[0]?.id ?? '',
   fundingSourceName: fallbackPaymentAccounts[0]?.name ?? financialAccountFallback,
-  fundingSourceType: fallbackPaymentAccounts[0] ? 'INTERNAL' : 'EXTERNAL',
+  fundType: 'INTERNAL_COMPANY',
+  externalOwnerType: 'COMPANY',
+  externalOwnerName: '',
+  externalOwnerRelationship: 'CLIENT',
+  externalOwnerReference: '',
+  statementRecipientEmail: '',
+  managedAssetType: '',
+  managedAssetName: '',
+  managedAssetReference: '',
   limitAmount: '',
   name: '',
   paymentAccountId: fallbackPaymentAccounts[0]?.id ?? '',
@@ -226,7 +250,15 @@ const createFundDraftFromFund = (fund: PettyCashFund): FundDraft => ({
   fundingMethods: [...fund.fundingMethods],
   fundingSourceName: fund.fundingSourceName,
   fundingSourcePaymentAccountId: fund.fundingSourcePaymentAccountId ?? '',
-  fundingSourceType: fund.fundingSourcePaymentAccountId ? 'INTERNAL' : 'EXTERNAL',
+  fundType: fund.fundType,
+  externalOwnerType: fund.externalOwnerType ?? 'COMPANY',
+  externalOwnerName: fund.externalOwnerName ?? '',
+  externalOwnerRelationship: fund.externalOwnerRelationship ?? 'CLIENT',
+  externalOwnerReference: fund.externalOwnerReference ?? '',
+  statementRecipientEmail: fund.statementRecipientEmail ?? '',
+  managedAssetType: fund.managedAssetType ?? '',
+  managedAssetName: fund.managedAssetName ?? '',
+  managedAssetReference: fund.managedAssetReference ?? '',
   limitAmount: String(fund.limitAmount),
   name: fund.name,
   paymentAccountId: fund.paymentAccountId,
@@ -402,14 +434,15 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
     const createdByName = getOptionLabel(userOptions, draft.createdByUserId, currentUser?.name ?? copy.funds.defaults.assigned);
     const unitName = getOptionLabel(unitOptions, draft.unitId, copy.funds.defaults.unit);
     const businessName = getOptionLabel(businessChoices, draft.businessId, copy.funds.defaults.business);
-    const fundingAccountName = draft.fundingSourceType === 'EXTERNAL'
+    const isExternalFund = draft.fundType === 'EXTERNAL_MANAGED';
+    const fundingAccountName = isExternalFund
       ? draft.fundingSourceName.trim()
       : getPaymentAccountName(activePaymentAccounts, draft.fundingSourcePaymentAccountId, copy.funds.defaults.financialAccount);
     const localFund: PettyCashFund = {
       id,
-      budgetId: selectedBudgetLine?.budgetId,
-      budgetLineId: selectedBudgetLine?.id,
-      budgetLineName: selectedBudgetLine?.name,
+      budgetId: isExternalFund ? undefined : selectedBudgetLine?.budgetId,
+      budgetLineId: isExternalFund ? undefined : selectedBudgetLine?.id,
+      budgetLineName: isExternalFund ? undefined : selectedBudgetLine?.name,
       businessId: draft.businessId,
       businessName,
       companyId: 'company-1',
@@ -419,8 +452,19 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
       currentBalanceAmount: 0,
       cutOffDay: Number(draft.cutOffDay) || 30,
       fundingMethods: normalizePettyCashMethods(draft.fundingMethods),
+      fundType: draft.fundType,
       fundingSourceName: fundingAccountName,
-      fundingSourcePaymentAccountId: draft.fundingSourceType === 'EXTERNAL' ? undefined : draft.fundingSourcePaymentAccountId,
+      fundingSourcePaymentAccountId: isExternalFund ? undefined : draft.fundingSourcePaymentAccountId,
+      externalOwnerType: isExternalFund ? draft.externalOwnerType : undefined,
+      externalOwnerName: isExternalFund ? draft.externalOwnerName.trim() : undefined,
+      externalOwnerRelationship: isExternalFund ? draft.externalOwnerRelationship : undefined,
+      externalOwnerReference: isExternalFund ? draft.externalOwnerReference.trim() || undefined : undefined,
+      statementRecipientEmail: isExternalFund ? draft.statementRecipientEmail.trim() : undefined,
+      managedAssetType: isExternalFund ? draft.managedAssetType || undefined : undefined,
+      managedAssetName: isExternalFund ? draft.managedAssetName.trim() || undefined : undefined,
+      managedAssetReference: isExternalFund ? draft.managedAssetReference.trim() || undefined : undefined,
+      externalIdentityPending: false,
+      budgetLinkPending: false,
       kioskAccessUrl: undefined,
       kioskEnabled: false,
       kioskPublicToken: undefined,
@@ -458,13 +502,14 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
 
   const handleUpdateFund = async (draft: FundDraft) => {
     if (!editingFund) return;
+    const isExternalFund = draft.fundType === 'EXTERNAL_MANAGED';
     const selectedBudgetLine = activeBudgetLines.find(line => line.id === draft.budgetLineId);
     const businessChoices = filterBusinessesByUnit(businessOptions, draft.unitId);
     const updatedFund: PettyCashFund = {
       ...editingFund,
-      budgetId: selectedBudgetLine?.budgetId,
-      budgetLineId: selectedBudgetLine?.id,
-      budgetLineName: selectedBudgetLine?.name,
+      budgetId: isExternalFund ? undefined : selectedBudgetLine?.budgetId,
+      budgetLineId: isExternalFund ? undefined : selectedBudgetLine?.id,
+      budgetLineName: isExternalFund ? undefined : selectedBudgetLine?.name,
       businessId: draft.businessId,
       businessName: getOptionLabel(businessChoices, draft.businessId, editingFund.businessName),
       createdByName: getOptionLabel(userOptions, draft.createdByUserId, editingFund.createdByName),
@@ -472,10 +517,23 @@ export function PettyCashFundsWorkspace({ funds, onFundsChange, onViewReceipts, 
       currencyCode: draft.currencyCode,
       cutOffDay: Number(draft.cutOffDay) || editingFund.cutOffDay,
       fundingMethods: normalizePettyCashMethods(draft.fundingMethods),
-      fundingSourceName: draft.fundingSourceType === 'EXTERNAL'
+      fundType: draft.fundType,
+      fundingSourceName: isExternalFund
         ? draft.fundingSourceName.trim()
         : getPaymentAccountName(activePaymentAccounts, draft.fundingSourcePaymentAccountId, draft.fundingSourceName),
-      fundingSourcePaymentAccountId: draft.fundingSourceType === 'EXTERNAL' ? undefined : draft.fundingSourcePaymentAccountId,
+      fundingSourcePaymentAccountId: isExternalFund ? undefined : draft.fundingSourcePaymentAccountId,
+      externalOwnerType: isExternalFund ? draft.externalOwnerType : undefined,
+      externalOwnerName: isExternalFund ? draft.externalOwnerName.trim() || undefined : undefined,
+      externalOwnerRelationship: isExternalFund ? draft.externalOwnerRelationship : undefined,
+      externalOwnerReference: isExternalFund ? draft.externalOwnerReference.trim() || undefined : undefined,
+      statementRecipientEmail: isExternalFund ? draft.statementRecipientEmail.trim() || undefined : undefined,
+      managedAssetType: isExternalFund ? draft.managedAssetType || undefined : undefined,
+      managedAssetName: isExternalFund ? draft.managedAssetName.trim() || undefined : undefined,
+      managedAssetReference: isExternalFund ? draft.managedAssetReference.trim() || undefined : undefined,
+      externalIdentityPending: isExternalFund && (
+        !draft.externalOwnerName.trim() || !draft.statementRecipientEmail.trim()
+      ),
+      budgetLinkPending: !isExternalFund && !selectedBudgetLine,
       limitAmount: Number(draft.limitAmount) || editingFund.limitAmount,
       name: draft.name.trim(),
       paymentAccountId: draft.paymentAccountId,
@@ -1151,7 +1209,7 @@ function CreateFundModal({
         businessId: nextBusinessId,
         createdByUserId: current.createdByUserId || nextDefaults.createdByUserId,
         currencyCode: current.currencyCode || nextDefaults.currencyCode,
-        fundingSourcePaymentAccountId: current.fundingSourceType === 'EXTERNAL'
+        fundingSourcePaymentAccountId: current.fundType === 'EXTERNAL_MANAGED'
           ? ''
           : current.fundingSourcePaymentAccountId || nextDefaults.fundingSourcePaymentAccountId,
         limitAmount: current.limitAmount || (nextBudgetLine ? String(getBudgetLineLimit(nextBudgetLine)) : nextDefaults.limitAmount),
@@ -1172,11 +1230,30 @@ function CreateFundModal({
     && draft.paymentAccountId !== draft.fundingSourcePaymentAccountId;
   const fundAccountCurrencyMatches = accountMatchesCurrency(selectedFundAccount, draft.currencyCode);
   const fundingSourceCurrencyMatches = accountMatchesCurrency(selectedFundingSourceAccount, draft.currencyCode);
-  const hasExternalFundingSource = draft.fundingSourceType === 'EXTERNAL' && draft.fundingSourceName.trim().length > 0;
-  const hasValidFundingSource = hasExternalFundingSource || (
-    draft.fundingSourceType === 'INTERNAL' && hasDistinctFundingAccounts && fundingSourceCurrencyMatches
+  const isExternalFund = draft.fundType === 'EXTERNAL_MANAGED';
+  const preservesLegacyPendingIdentity = Boolean(
+    initialFund?.externalIdentityPending && initialFund.fundType === draft.fundType,
   );
-  const budgetLineCurrencyMatches = budgetLineMatchesCurrency(selectedBudgetLine, draft.currencyCode);
+  const preservesLegacyMissingBudget = Boolean(
+    initialFund?.budgetLinkPending
+    && initialFund.fundType === 'INTERNAL_COMPANY'
+    && initialFund.fundType === draft.fundType
+    && !draft.budgetLineId,
+  );
+  const preservesLegacyMissingSourceAccount = Boolean(
+    initialFund?.fundType === 'INTERNAL_COMPANY'
+    && !initialFund.fundingSourcePaymentAccountId
+    && initialFund.fundType === draft.fundType
+    && !draft.fundingSourcePaymentAccountId,
+  );
+  const hasExternalFundingSource = isExternalFund && draft.fundingSourceName.trim().length > 0;
+  const hasValidFundingSource = hasExternalFundingSource || (isExternalFund && preservesLegacyPendingIdentity) || (
+    !isExternalFund && (
+      (hasDistinctFundingAccounts && fundingSourceCurrencyMatches)
+      || preservesLegacyMissingSourceAccount
+    )
+  );
+  const budgetLineCurrencyMatches = isExternalFund || budgetLineMatchesCurrency(selectedBudgetLine, draft.currencyCode);
   const isLimitAboveBudget = Boolean(
     selectedBudgetLine
     && selectedBudgetLimit > 0
@@ -1193,9 +1270,24 @@ function CreateFundModal({
     && draft.businessId.length > 0
     && draft.fundingMethods.length > 0
     && draft.spendingMethods.length > 0;
+  const hasRequiredAccountingLink = isExternalFund || Boolean(selectedBudgetLine) || preservesLegacyMissingBudget;
+  const hasValidManagedAsset = !draft.managedAssetType || draft.managedAssetName.trim().length > 0;
+  const recipientEmail = draft.statementRecipientEmail.trim();
+  const hasValidRecipientEmail = !recipientEmail || /\S+@\S+\.\S+/.test(recipientEmail);
+  const hasExternalIdentity = !isExternalFund || (
+    hasValidManagedAsset
+    && hasValidRecipientEmail
+    && (preservesLegacyPendingIdentity || (
+      draft.externalOwnerType.length > 0
+      && draft.externalOwnerName.trim().length > 0
+      && draft.externalOwnerRelationship.length > 0
+      && recipientEmail.length > 0
+    ))
+  );
+  const canSave = canCreate && hasRequiredAccountingLink && hasExternalIdentity;
 
   const handleSubmit = async () => {
-    if (!canCreate || isSaving) return;
+    if (!canSave || isSaving) return;
     setError('');
     setIsSaving(true);
     try {
@@ -1219,7 +1311,7 @@ function CreateFundModal({
           </button>
           <button
             type="button"
-            disabled={!canCreate || isSaving}
+            disabled={!canSave || isSaving}
             onClick={handleSubmit}
             className="min-h-11 rounded-xl bg-white px-5 py-2.5 text-sm font-medium text-[#147514] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -1237,6 +1329,55 @@ function CreateFundModal({
     >
       <div className="space-y-4">
         {error ? <IndiceModalValidation messages={[error]} tone="error" /> : null}
+        {preservesLegacyPendingIdentity ? (
+          <IndiceModalValidation messages={[copy.funds.modal.legacyIdentityPending]} tone="warning" />
+        ) : null}
+        {preservesLegacyMissingBudget ? (
+          <IndiceModalValidation messages={[copy.funds.modal.legacyBudgetPending]} tone="warning" />
+        ) : null}
+        {preservesLegacyMissingSourceAccount ? (
+          <IndiceModalValidation messages={[copy.funds.modal.legacySourcePending]} tone="warning" />
+        ) : null}
+        <section className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-5 dark:border-emerald-900 dark:bg-emerald-950/30">
+          <h4 className="text-lg font-medium text-slate-900 dark:text-white">{copy.funds.modal.typeTitle}</h4>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{copy.funds.modal.typeDescription}</p>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {([
+              ['INTERNAL_COMPANY', copy.funds.modal.internalFund, copy.funds.modal.internalFundDescription, Landmark],
+              ['EXTERNAL_MANAGED', copy.funds.modal.externalFund, copy.funds.modal.externalFundDescription, ShieldCheck],
+            ] as const).map(([value, label, description, Icon]) => {
+              const selected = draft.fundType === value;
+              return (
+                <button
+                  aria-pressed={selected}
+                  className={`rounded-lg border p-4 text-left transition ${selected ? 'border-[#147514] bg-white ring-2 ring-[#147514]/15 dark:bg-slate-900' : 'border-slate-200 bg-white/70 hover:border-emerald-300 dark:border-slate-700 dark:bg-slate-900/70'}`}
+                  disabled={Boolean(initialFund)}
+                  key={value}
+                  onClick={() => setDraft(current => ({
+                    ...current,
+                    budgetLineId: value === 'EXTERNAL_MANAGED' ? '' : current.budgetLineId || budgetLines[0]?.id || '',
+                    fundType: value,
+                    fundingMethods: value === 'EXTERNAL_MANAGED'
+                      ? current.fundingMethods.filter(method => method !== PETTY_CASH_METHOD_KEYS.INTERNAL_TRANSFER).length > 0
+                        ? current.fundingMethods.filter(method => method !== PETTY_CASH_METHOD_KEYS.INTERNAL_TRANSFER)
+                        : [PETTY_CASH_METHOD_KEYS.TRANSFER]
+                      : current.fundingMethods.includes(PETTY_CASH_METHOD_KEYS.INTERNAL_TRANSFER)
+                        ? current.fundingMethods
+                        : [PETTY_CASH_METHOD_KEYS.INTERNAL_TRANSFER, ...current.fundingMethods],
+                    fundingSourcePaymentAccountId: value === 'EXTERNAL_MANAGED'
+                      ? ''
+                      : current.fundingSourcePaymentAccountId || fundingSourceOptions[0]?.id || '',
+                  }))}
+                  type="button"
+                >
+                  <span className="flex items-center gap-3"><span className={`flex h-10 w-10 items-center justify-center rounded-lg ${selected ? 'bg-[#147514] text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}`}><Icon className="h-5 w-5" /></span><span className="font-medium text-slate-900 dark:text-white">{label}</span></span>
+                  <span className="mt-3 block text-sm leading-6 text-slate-600 dark:text-slate-300">{description}</span>
+                </button>
+              );
+            })}
+          </div>
+          {initialFund ? <p className="mt-3 text-xs font-medium text-slate-500 dark:text-slate-400">{copy.funds.modal.typeLocked}</p> : null}
+        </section>
           <section className="rounded-lg border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800/60">
             <h4 className="text-lg font-medium text-slate-900 dark:text-white">{copy.funds.modal.dataTitle}</h4>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -1248,7 +1389,7 @@ function CreateFundModal({
                   value={draft.name}
                 />
               </PettyCashField>
-              <PettyCashField label={copy.funds.modal.budgetLine}>
+              {!isExternalFund ? <PettyCashField label={copy.funds.modal.budgetLine}>
                 <select
                   className={pettyCashInputClass}
                   onChange={(event) => {
@@ -1267,10 +1408,11 @@ function CreateFundModal({
                     <option key={line.id} value={line.id}>{getBudgetLineLabel(line, copy.funds.defaults.budgetLine, copy.funds.budgetLineOption)}</option>
                   ))}
                 </select>
-              </PettyCashField>
+              </PettyCashField> : null}
               <PettyCashField label={copy.funds.modal.currency}>
                 <select
                   className={pettyCashInputClass}
+                  disabled={Boolean(initialFund)}
                   onChange={(event) => setDraft(current => ({ ...current, currencyCode: event.target.value as PettyCashCurrency }))}
                   value={draft.currencyCode}
                 >
@@ -1290,15 +1432,15 @@ function CreateFundModal({
                   type="number"
                   value={draft.limitAmount}
                 />
-                {selectedBudgetLine ? (
+                {!isExternalFund && selectedBudgetLine ? (
                   <p className={`mt-2 text-xs font-medium ${isLimitAboveBudget ? 'text-amber-700 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400'}`}>
                     {copy.funds.modal.budgetAvailable(getBudgetLineDisplayName(selectedBudgetLine, copy.funds.defaults.budgetLine), formatPettyCashCurrency(selectedBudgetLimit, toPettyCashCurrency(selectedBudgetLine.currencyCode)))} {isLimitAboveBudget ? copy.funds.modal.budgetExceededHint : copy.funds.modal.budgetNormalHint}
                   </p>
-                ) : (
+                ) : !isExternalFund ? (
                   <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">
                     {copy.funds.modal.budgetMissingHint}
                   </p>
-                )}
+                ) : <p className="mt-2 text-xs font-medium text-[#147514] dark:text-emerald-300">{copy.funds.modal.externalAccountingNote}</p>}
               </PettyCashField>
               <PettyCashField label={copy.funds.modal.cutOffDay}>
                 <input
@@ -1322,19 +1464,6 @@ function CreateFundModal({
                   disabled={isLoadingReferenceData && userOptions.length === 0}
                   onChange={(event) => setDraft(current => ({ ...current, responsibleUserId: event.target.value }))}
                   value={draft.responsibleUserId}
-                >
-                  {userOptions.length === 0 ? <option value="">{copy.funds.modal.noUsers}</option> : null}
-                  {userOptions.map(user => (
-                    <option key={user.value} value={user.value}>{user.label}</option>
-                  ))}
-                </select>
-              </PettyCashField>
-              <PettyCashField label={copy.funds.modal.createdBy}>
-                <select
-                  className={pettyCashInputClass}
-                  disabled={isLoadingReferenceData && userOptions.length === 0}
-                  onChange={(event) => setDraft(current => ({ ...current, createdByUserId: event.target.value }))}
-                  value={draft.createdByUserId}
                 >
                   {userOptions.length === 0 ? <option value="">{copy.funds.modal.noUsers}</option> : null}
                   {userOptions.map(user => (
@@ -1396,9 +1525,9 @@ function CreateFundModal({
                     const nextFundingSource = getFundingSourceOptions(paymentAccounts, event.target.value, nextCurrency)[0];
                     setDraft(current => ({
                       ...current,
-                      budgetLineId: nextBudgetLine?.id ?? '',
+                      budgetLineId: current.fundType === 'EXTERNAL_MANAGED' ? '' : nextBudgetLine?.id ?? '',
                       currencyCode: nextCurrency,
-                      fundingSourcePaymentAccountId: current.fundingSourceType === 'EXTERNAL'
+                      fundingSourcePaymentAccountId: current.fundType === 'EXTERNAL_MANAGED'
                         ? ''
                         : nextFundingSource?.id ?? '',
                       limitAmount: nextBudgetLine ? String(getBudgetLineLimit(nextBudgetLine)) : current.limitAmount,
@@ -1416,26 +1545,7 @@ function CreateFundModal({
                   <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">{copy.funds.modal.fundAccountCurrencyWarning}</p>
                 ) : null}
               </PettyCashField>
-              <PettyCashField label={copy.funds.modal.sourceType}>
-                <select
-                  className={pettyCashInputClass}
-                  onChange={(event) => {
-                    const fundingSourceType = event.target.value as FundDraft['fundingSourceType'];
-                    setDraft(current => ({
-                      ...current,
-                      fundingSourcePaymentAccountId: fundingSourceType === 'INTERNAL'
-                        ? fundingSourceOptions[0]?.id ?? ''
-                        : '',
-                      fundingSourceType,
-                    }));
-                  }}
-                  value={draft.fundingSourceType}
-                >
-                  <option value="INTERNAL">{copy.funds.modal.internalSource}</option>
-                  <option value="EXTERNAL">{copy.funds.modal.externalSource}</option>
-                </select>
-              </PettyCashField>
-              {draft.fundingSourceType === 'INTERNAL' ? (
+              {!isExternalFund ? (
                 <PettyCashField label={copy.funds.modal.sourceAccount}>
                   <select
                     className={pettyCashInputClass}
@@ -1500,7 +1610,47 @@ function CreateFundModal({
                 </div>
               </div>
             </div>
+            {!isExternalFund ? <p className="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">{copy.funds.modal.internalAccountingNote}</p> : null}
           </section>
+          {isExternalFund ? (
+            <section className="rounded-lg border border-blue-200 bg-blue-50/60 p-5 dark:border-blue-900 dark:bg-blue-950/25">
+              <h4 className="text-lg font-medium text-slate-900 dark:text-white">{copy.funds.modal.externalIdentityTitle}</h4>
+              <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{copy.funds.modal.externalIdentityDescription}</p>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <PettyCashField label={copy.funds.modal.ownerType}>
+                  <select className={pettyCashInputClass} onChange={(event) => setDraft(current => ({ ...current, externalOwnerType: event.target.value }))} value={draft.externalOwnerType}>
+                    <option value="COMPANY">{copy.funds.modal.ownerCompany}</option><option value="PERSON">{copy.funds.modal.ownerPerson}</option><option value="TRUST">{copy.funds.modal.ownerTrust}</option><option value="OTHER">{copy.funds.modal.ownerOther}</option>
+                  </select>
+                </PettyCashField>
+                <PettyCashField label={copy.funds.modal.ownerRelationship}>
+                  <select className={pettyCashInputClass} onChange={(event) => setDraft(current => ({ ...current, externalOwnerRelationship: event.target.value }))} value={draft.externalOwnerRelationship}>
+                    <option value="CLIENT">{copy.funds.modal.relationshipClient}</option><option value="OWNER">{copy.funds.modal.relationshipOwner}</option><option value="PARTNER">{copy.funds.modal.relationshipPartner}</option><option value="BENEFICIARY">{copy.funds.modal.relationshipBeneficiary}</option><option value="OTHER">{copy.funds.modal.relationshipOther}</option>
+                  </select>
+                </PettyCashField>
+                <PettyCashField label={copy.funds.modal.ownerName}>
+                  <input className={pettyCashInputClass} maxLength={180} onChange={(event) => setDraft(current => ({ ...current, externalOwnerName: event.target.value }))} placeholder={copy.funds.modal.ownerNamePlaceholder} value={draft.externalOwnerName} />
+                </PettyCashField>
+                <PettyCashField label={copy.funds.modal.recipientEmail}>
+                  <input className={pettyCashInputClass} maxLength={254} onChange={(event) => setDraft(current => ({ ...current, statementRecipientEmail: event.target.value }))} placeholder="cliente@empresa.com" type="email" value={draft.statementRecipientEmail} />
+                </PettyCashField>
+                <PettyCashField label={copy.funds.modal.ownerReference}>
+                  <input className={pettyCashInputClass} maxLength={120} onChange={(event) => setDraft(current => ({ ...current, externalOwnerReference: event.target.value }))} placeholder={copy.funds.modal.ownerReferencePlaceholder} value={draft.externalOwnerReference} />
+                </PettyCashField>
+                <div className="md:col-span-2"><p className="text-sm font-medium text-slate-800 dark:text-slate-100">{copy.funds.modal.managedAssetTitle}</p><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{copy.funds.modal.managedAssetDescription}</p></div>
+                <PettyCashField label={copy.funds.modal.assetType}>
+                  <select className={pettyCashInputClass} onChange={(event) => setDraft(current => ({ ...current, managedAssetType: event.target.value, managedAssetName: event.target.value ? current.managedAssetName : '', managedAssetReference: event.target.value ? current.managedAssetReference : '' }))} value={draft.managedAssetType}>
+                    <option value="">{copy.common.notAvailable}</option><option value="REAL_ESTATE">{copy.funds.modal.assetRealEstate}</option><option value="VEHICLE">{copy.funds.modal.assetVehicle}</option><option value="VESSEL">{copy.funds.modal.assetVessel}</option><option value="MACHINERY">{copy.funds.modal.assetMachinery}</option><option value="INVESTMENT_ACCOUNT">{copy.funds.modal.assetInvestment}</option><option value="CURRENCY">{copy.funds.modal.assetCurrency}</option><option value="SECURITIES">{copy.funds.modal.assetSecurities}</option><option value="OTHER">{copy.funds.modal.assetOther}</option>
+                  </select>
+                </PettyCashField>
+                <PettyCashField label={copy.funds.modal.assetName}>
+                  <input className={pettyCashInputClass} disabled={!draft.managedAssetType} maxLength={180} onChange={(event) => setDraft(current => ({ ...current, managedAssetName: event.target.value }))} placeholder={copy.funds.modal.assetNamePlaceholder} value={draft.managedAssetName} />
+                </PettyCashField>
+                <PettyCashField label={copy.funds.modal.assetReference}>
+                  <input className={pettyCashInputClass} disabled={!draft.managedAssetType} maxLength={120} onChange={(event) => setDraft(current => ({ ...current, managedAssetReference: event.target.value }))} placeholder={copy.funds.modal.assetReferencePlaceholder} value={draft.managedAssetReference} />
+                </PettyCashField>
+              </div>
+            </section>
+          ) : null}
       </div>
     </IndiceModalFrame>
   );

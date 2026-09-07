@@ -94,7 +94,12 @@ class SalesReferenceService {
         }
         if (warehouseId == null) {
             if (!lines.isEmpty()) {
-                throw new IllegalArgumentException("warehouseId is required when a sale has items.");
+                boolean servicesOnly = lines.stream().allMatch(item -> {
+                    if (!(item instanceof Map<?, ?> line)) return false;
+                    var productId = safeLong(line.get("productId"));
+                    return productId != null && salesRepository.isServiceProduct(companyId, productId);
+                });
+                if (!servicesOnly) throw new IllegalArgumentException("warehouseId is required when a sale has inventory items.");
             }
             return;
         }

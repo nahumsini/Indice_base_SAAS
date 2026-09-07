@@ -8,14 +8,17 @@ Petty Cash is a controlled operational fund assigned to a responsible user.
 
 Petty Cash is not an Expense.
 
-Petty Cash becomes a source of Expenses only when an administrator authorizes a settlement line backed by evidence.
+An internal company fund becomes a source of Expenses only when an administrator authorizes a settlement line backed by evidence.
+
+An external managed fund records third-party money. Its receipts are validated for the client statement, but never create company Expenses, consume company budget, or feed company accounting KPIs.
 
 Funding, deposits, returns, shortages, and carry-forward movements are fund movements. They must not be counted as Expenses.
 
 ## Core Principle
 
 ```text
-Petty Cash Fund -> Statement / Cut-Off -> Settlement Lines -> Expenses
+Internal company fund -> Statement / Cut-Off -> Settlement Lines -> Company Expenses
+External managed fund -> Statement / Cut-Off -> Validated client statement (no company Expense)
 ```
 
 The fund holds operational money.
@@ -24,7 +27,20 @@ The statement controls one period.
 
 Settlement lines validate receipts.
 
-Expenses are created only from validated settlement lines.
+Expenses are created only from supported settlement lines belonging to internal company funds.
+
+## Fund Classification
+
+Every fund has one explicit and persistent type:
+
+- `INTERNAL_COMPANY`: administers company money. It requires a company source Payment Account, a Budget and a Budget Line. Authorized receipts become company Expenses and update the linked budget.
+- `EXTERNAL_MANAGED`: administers client or third-party money. It requires an explicit external origin, owner/client identity and statement recipient. A managed asset is optional. It must not reference company budgets or a company funding-source account.
+
+Type and currency are immutable after the first financial activity. The backend, not the frontend, enforces this rule.
+
+The application does not connect Sales directly to Funds. External fund entries are captured as fund movements with the origin and statement description needed for accountability.
+
+Legacy funds remain readable and operable. Legacy records inferred as external without complete identity are marked `externalIdentityPending`; they may be edited without data loss, and the UI asks the administrator to complete their identity. New external funds must be complete.
 
 ## Shared Finance References
 
@@ -37,7 +53,7 @@ It consumes the same Finance references used by Expenses:
   money records an explicit source name and does not invent a company account.
 - Spending/payment methods are constrained by the fund configuration and payment account capabilities.
 - Receipt accounting classification comes from active Finance Accounting Accounts.
-- The optional budget relationship is a spending ceiling. It is never interpreted as money already deposited in the fund.
+- The budget relationship is required only for internal funds and represents planned company cost. It is never interpreted as money already deposited in the fund.
 
 The frontend may show the fund limit as "presupuesto del fondo", but the backend model should persist it through a `Budget` / `BudgetLine` relationship so Expenses and Financial Overview can see the same amount.
 
@@ -57,11 +73,14 @@ Examples:
 
 The fund owns:
 
+- explicit fund type
 - responsible user
 - payment account with type `PETTY_CASH`
 - unit and business scope
 - currency
-- optional budget control relationship / spending ceiling
+- internal budget control relationship / spending ceiling, when applicable
+- external owner/client and statement recipient, when applicable
+- optional managed asset identity
 - current balance
 - status
 - cut-off policy
@@ -93,6 +112,7 @@ The statement owns:
 - cut-off date
 - settlement status
 - traceable prior statement as the source of the opening balance
+- immutable fund-type, owner/client, recipient and managed-asset snapshots used to reproduce historical statements
 
 ### PettyCashMovement
 
@@ -108,19 +128,21 @@ Movement examples:
 - forgiven shortage adjustment
 - employee charge
 
-Movements are not Expenses.
+Movements are not Expenses. Entries also retain their business category, counterparty, client-facing statement description, funding method and internal note.
 
 ### PettyCashSettlementLine
 
 The settlement line is the receipt-level proof.
 
-Rule:
+Rule for an internal company fund:
 
 ```text
 1 receipt = 1 settlement line = 0 or 1 Expense
 ```
 
-A settlement line may create an Expense only when it has the required amount, date, company scope, and at least one supporting document. Authorization creates a paid Expense and preserves the petty-cash fund, statement, and settlement-line relationship.
+A settlement line may create an Expense only when it belongs to an internal company fund and has the required amount, date, accounting account, company scope, and at least one supporting document. Authorization creates a paid Expense and preserves the fund, statement, and settlement-line relationship.
+
+For an external managed fund, validation changes the line to `VALIDATED`, contributes to the verified statement total and creates no Expense.
 
 The Expense payment account is always the payment account assigned to the originating fund. The user cannot substitute another payment account during authorization.
 
@@ -137,7 +159,7 @@ previous closing balance
 - A fund is permanent; a statement is monthly.
 - A statement is opened for every active fund, including funds without a budget.
 - A purchase reduces the fund and its payment account when captured.
-- Authorization does not subtract cash a second time; it converts the supported settlement line into an Expense.
+- Validation does not subtract cash a second time. For internal funds it converts the supported line into an Expense; for external funds it finalizes the line only for the client statement.
 - The `Cortes` tab is the auditable history for opening balance, funding, captured purchases, authorized expenses, closing balance, and prior-cut origin.
 
 ## Core Entities
@@ -156,6 +178,16 @@ Fields:
 - responsibleUserId
 - fundingSourcePaymentAccountId
 - fundingSourceName
+- fundType
+- externalOwnerType
+- externalOwnerName
+- externalOwnerRelationship
+- externalOwnerReference
+- statementRecipientEmail
+- managedAssetType
+- managedAssetName
+- managedAssetReference
+- externalIdentityPending
 - name
 - currencyCode
 - limitAmount
@@ -184,6 +216,7 @@ Fields:
 - unitId
 - businessId
 - pettyCashFundId
+- fundTypeSnapshot
 - periodKey
 - periodStart
 - periodEnd
@@ -211,6 +244,14 @@ Fields:
 - deletedAt
 - customFields
 - metadata
+- externalOwnerTypeSnapshot
+- externalOwnerNameSnapshot
+- externalOwnerRelationshipSnapshot
+- externalOwnerReferenceSnapshot
+- statementRecipientEmailSnapshot
+- managedAssetTypeSnapshot
+- managedAssetNameSnapshot
+- managedAssetReferenceSnapshot
 
 ### PettyCashMovement
 
@@ -224,6 +265,12 @@ Fields:
 - pettyCashStatementId
 - fromPaymentAccountId
 - toPaymentAccountId
+- externalSourceName
+- entryCategory
+- counterpartyName
+- statementDescription
+- fundingMethod
+- internalNote
 - type
 - amount
 - currencyCode
@@ -290,10 +337,10 @@ Carry-forward is not a primary status. It is a closing result stored in `carryFo
 - `FORGIVEN_SHORTAGE`
 - `EMPLOYEE_CHARGE`
 
-For `INITIAL_FUNDING`, `ADDITIONAL_DEPOSIT`, and `RETURN_TO_SOURCE`, the origin/destination is
-exclusive: either an internal Payment Account or an explicit external source name. Internal flows
-create a two-sided Treasury transfer; external flows create the corresponding one-sided Treasury
-entry on the fund account and retain the external source in the movement audit context.
+For `INITIAL_FUNDING`, `ADDITIONAL_DEPOSIT`, and `RETURN_TO_SOURCE`, the origin/destination follows
+the fund classification. Internal company funds use the selected company Payment Account and create
+a two-sided Treasury transfer. External managed funds use an explicit external source and create the
+corresponding one-sided Treasury entry on the fund account while retaining the source in the audit context.
 
 ### PettyCashSettlementLineStatus
 
@@ -330,7 +377,7 @@ settlementBalance =
   - shortageAmount
 ```
 
-Verified expense amount is the sum of validated settlement lines that created or linked Expense records.
+For internal funds, verified expense amount is the sum of settlement lines that created or linked Expense records. For external funds, the same statement field is the verified outflow total and has no company accounting meaning.
 
 Petty Cash must use one currency per fund and per statement.
 
@@ -340,12 +387,14 @@ The Funds workspace administers permanent fund configuration.
 
 It owns:
 
+- explicit fund classification
 - fund name
 - responsible user
 - creating user
 - unit and business scope
 - payment account with type `PETTY_CASH`
-- funding source: a company payment account or an explicit external source name
+- funding source: a company payment account for internal funds or an explicit external source name for external funds
+- owner/client, statement recipient and optional managed asset for external funds
 - allowed funding methods
 - allowed spending methods
 - operational limit
@@ -354,7 +403,7 @@ It owns:
 
 Creating a fund does not create an Expense.
 
-Creating a fund does not consume budget.
+Creating a fund does not consume budget. Internal budget impact occurs through actual authorized receipts, not the fund limit or funding deposits.
 
 Creating a fund may create or link a PaymentAccount of type `PETTY_CASH`.
 
@@ -376,7 +425,7 @@ Operational exits with proof are PettyCashSettlementLines.
 
 Entering money increases fund balance.
 
-Uploading a receipt can reduce operational balance, but it still does not create an Expense until validation.
+Uploading a receipt reduces operational balance. It does not create an Expense until an internal-fund receipt is authorized; an external-fund receipt is only validated for its statement.
 
 The basic receipt capture should stay compatible with Expenses:
 
@@ -391,7 +440,7 @@ The basic receipt capture should stay compatible with Expenses:
 - expenseDate
 - attachmentIds
 
-This allows a validated settlement line to become an Expense without re-entering core data.
+This allows an internal supported settlement line to become an Expense without re-entering core data. External receipts may omit company accounting classification because they never enter company accounting.
 
 ## Kiosk Rules
 
@@ -421,7 +470,9 @@ Kiosk does not replace the normal authenticated ERP session. It is a narrow oper
 
 Petty Cash itself never becomes an Expense.
 
-Only a validated settlement line can create or link an Expense.
+Only a supported settlement line from an internal company fund can create or link an Expense.
+
+An external managed fund must never create or link a company Expense, even when its receipt is validated.
 
 The created Expense should preserve traceability:
 
@@ -450,7 +501,7 @@ PETTY_CASH_ACCOUNT -> NEXT_STATEMENT_CARRY_FORWARD
 
 ## Budget Rules
 
-Petty Cash needs two budget views:
+Internal company funds need two budget views:
 
 - verified expense: actual Expenses created from validated receipts
 - estimated expense: operational usage pending reconciliation
@@ -474,11 +525,13 @@ operationalAvailable =
 
 Estimated usage should affect operational visibility, not accounting expense totals.
 
-When a settlement line creates an Expense, that amount moves from estimated/pending exposure into verified expense.
+When an internal settlement line creates an Expense, that amount moves from estimated/pending exposure into verified expense.
+
+External managed fund activity is excluded from company planned, committed, spent and available budget totals.
 
 ## Financial Overview Rules
 
-Financial Overview should distinguish:
+Financial Overview should distinguish internal company-fund activity:
 
 - verified petty cash expenses
 - estimated petty cash usage
@@ -487,6 +540,8 @@ Financial Overview should distinguish:
 - forgiven shortages
 - employee charges
 - upcoming cut-offs
+
+External managed fund movements and verified outflows remain operational statement information and are excluded from company accounting KPIs.
 
 Shortages should not automatically become Expenses.
 
@@ -548,9 +603,9 @@ Attachment ownership must support:
 - `PETTY_CASH_SETTLEMENT_LINE`
 - `EXPENSE`
 
-## API Contract For Later Phases
+## API Contract
 
-Future backend endpoints should be shaped around the aggregate:
+Backend endpoints are shaped around the aggregate:
 
 - list funds
 - create fund
@@ -567,19 +622,11 @@ Future backend endpoints should be shaped around the aggregate:
 - close statement
 - carry forward statement balance
 
-These endpoints are not part of Phase 5B.
-
 ## Non-Goals
 
-Phase 5B does not:
+This fund classification change does not:
 
-- create backend controllers
-- create migrations
-- create repositories
-- add routes
-- implement approvals
-- implement permissions
-- implement payments
-- implement MinIO attachment upload
-- change existing Expenses behavior
-- change auth, CSRF, sessions, or cookies
+- change existing Expenses status behavior, including MCP-created Expense drafts
+- connect Sales directly to Funds
+- replace backend authorization, tenant scope, CSRF, sessions, or cookies
+- hard-delete financial or audit history
