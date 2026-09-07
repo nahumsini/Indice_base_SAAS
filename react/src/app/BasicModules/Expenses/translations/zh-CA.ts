@@ -39,6 +39,14 @@ export const zhCA = mergeFinanceTranslations('zh-CA', {
   periods: { custom: '自定义', lastMonth: '上个月', lastYear: '去年', thisMonth: '本月', thisYear: '今年', twoMonthsAgo: '两个月前' },
   statuses: { audited: '已审计', overdue: '逾期', paid: '已付款', partial: '部分付款', pending: '待处理' },
   expenses: {
+    summary: {
+      metricCompliance: "本期已结清",
+      metricPeriodTotal: count => `本期合计 - ${count}`,
+      metricCarryover: "以前期间余额",
+      carryoverBadge: "以前期间余额",
+      insightEmpty: "没有符合所选筛选条件的费用。",
+      insightCarryover: (count, amount) => `待付余额包含以前月份 ${count} 笔逾期账款的 ${amount}。`,
+    },
     createDisabledReason: '正在加载组织引用数据',
     emptyMessage: '创建费用或调整筛选条件。',
     emptyTitle: '所选期间没有费用',

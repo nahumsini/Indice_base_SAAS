@@ -1,3 +1,4 @@
+import { formatExpenseDate } from '../utils/expenseDates';
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { Plus } from 'lucide-react';
 import { FailureToast } from '../../../components/FailureToast';
@@ -24,7 +25,7 @@ import type { ExpenseListFilters } from '../types/expenseView.types';
 import type { PaymentAccount } from '../PaymentAccounts/types';
 import type { ProviderRecord } from '../Providers/useProveedoresLogic';
 import { createQuickProviderRecord } from '../Providers/providerRecordFactory';
-import { canDeleteExpense, canEditExpense, filterExpenses, isExpenseEffectivelyOverdue } from '../utils/expenseFilters';
+import { canDeleteExpense, canEditExpense, filterExpenses, isExpenseEffectivelyOverdue, splitExpensePeriod } from '../utils/expenseFilters';
 import { useExpenseAttachments } from '../hooks/useExpenseAttachments';
 import { useExpenseColumns } from '../hooks/useExpenseColumns';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
@@ -106,6 +107,19 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
   const detailCopy = getExpenseDetailCopy(useExpensesResolvedLocale());
   const [localExpenses, setLocalExpenses] = useState<Expense[]>(mockExpenses);
   const [filters, setFilters] = useState<ExpenseListFilters>(defaultFilters);
+  const [referenceDate, setReferenceDate] = useState(() => new Date());
+  useEffect(() => {
+    const refreshDay = () => setReferenceDate(previous => {
+      const now = new Date();
+      return previous.toDateString() === now.toDateString() ? previous : now;
+    });
+    const timer = window.setInterval(refreshDay, 60_000);
+    window.addEventListener('focus', refreshDay);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refreshDay);
+    };
+  }, []);
   const [failureToastMessage, setFailureToastMessage] = useState('');
   const [accountingAccountOptions, setAccountingAccountOptions] = useState<FinanceReferenceOption[]>([]);
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>([]);
@@ -179,12 +193,20 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     [expenses],
   );
   const filteredExpenses = useMemo(
-    () => filterExpenses(operationalExpenses, filters),
-    [filters, operationalExpenses],
+    () => filterExpenses(operationalExpenses, filters, referenceDate),
+    [filters, operationalExpenses, referenceDate],
   );
   const summaryExpenses = useMemo(
-    () => filterExpenses(operationalExpenses, { ...filters, statusFilter: 'all' }),
-    [filters, operationalExpenses],
+    () => filterExpenses(operationalExpenses, { ...filters, statusFilter: 'all' }, referenceDate),
+    [filters, operationalExpenses, referenceDate],
+  );
+  const summaryPeriod = useMemo(
+    () => splitExpensePeriod(summaryExpenses, filters.periodFilter, referenceDate),
+    [summaryExpenses, filters.periodFilter, referenceDate],
+  );
+  const carryoverExpenseIds = useMemo(
+    () => new Set(summaryPeriod.carryoverExpenses.map(expense => expense.id)),
+    [summaryPeriod.carryoverExpenses],
   );
   const bulkEditableExpenses = useMemo(() => expenses.filter(expense => (
     isBackendId(expense.id)
@@ -198,8 +220,8 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     paid: 0,
     pending: 0,
     overdue: 0,
-    overdueCount: summaryExpenses.filter((expense) => isExpenseEffectivelyOverdue(expense)).length,
-  }), [summaryExpenses]);
+    overdueCount: summaryExpenses.filter((expense) => isExpenseEffectivelyOverdue(expense, referenceDate)).length,
+  }), [summaryExpenses, referenceDate]);
 
   const handleBulkExpenseCreate = async (drafts: ExpenseBulkDraft[]) => {
     setIsBulkIntegrationSaving(true);
@@ -832,7 +854,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
       if (attachmentFiles.length > 0 && isBackendId(payableExpense.id) && payableExpense.type !== 'budget') {
         const paymentContext = {
           paymentAmount: amount,
-          paymentDate: paymentDate.toISOString().slice(0, 10),
+          paymentDate: formatExpenseDate(paymentDate)!,
           paymentAccountId,
         };
         const uploadResults = await Promise.allSettled(
@@ -912,6 +934,9 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
 
       <ExpensesSummary
         expenses={summaryExpenses}
+        periodExpenses={summaryPeriod.periodExpenses}
+        carryoverExpenses={summaryPeriod.carryoverExpenses}
+        referenceDate={referenceDate}
         preferredCurrency={preferredCurrency}
         statusFilter={filters.statusFilter}
         totals={totals}
@@ -924,6 +949,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
         columns={translatedColumns}
         deletingExpenseIds={deletingExpenseIds}
         expenses={filteredExpenses}
+        carryoverExpenseIds={carryoverExpenseIds}
         getAttachments={getExpenseAttachments}
         onDeleteExpense={requestDeleteExpense}
         onDeleteExpenses={requestDeleteExpenses}

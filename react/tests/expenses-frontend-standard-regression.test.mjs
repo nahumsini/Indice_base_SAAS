@@ -148,7 +148,7 @@ test('Gastos vencidos conserva Pagar y no mezcla lineas presupuestales', () => {
   const tableSource = readFileSync(resolve(expensesRoot, 'Expenses/components/ExpenseTable.tsx'), 'utf8');
 
   assert.match(pageSource, /expenses\.filter\(expense => expense\.type !== 'budget'\)/);
-  assert.match(pageSource, /filterExpenses\(operationalExpenses, filters\)/);
+  assert.match(pageSource, /filterExpenses\(operationalExpenses, filters, referenceDate\)/);
   assert.match(rowSource, /const canMarkPaid = expense\.type !== 'budget' && getExpenseBalance\(expense\) > 0/);
   assert.match(rowSource, /showMarkPaid=\{canMarkPaid/);
   assert.match(tableSource, /const savedExpense = await onMarkExpensePaid\(expense\)/);

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { AlertTriangle, CircleDollarSign, Clock3, Percent, ReceiptText } from 'lucide-react';
 import type { Expense, ExpenseStatus } from '../../types/expenses.types';
 import type { ExpenseListFilters, ExpenseTotals } from '../../types/expenseView.types';
@@ -14,6 +15,9 @@ import { useLanguage } from '../../../../shared/context';
 
 type ExpensesSummaryProps = {
   expenses: Expense[];
+  periodExpenses: Expense[];
+  carryoverExpenses: Expense[];
+  referenceDate: Date;
   preferredCurrency?: string;
   statusFilter: ExpenseListFilters['statusFilter'];
   totals: ExpenseTotals;
@@ -41,6 +45,9 @@ const statusConfig: Array<Omit<StatusMetric, 'amount' | 'amountLabel' | 'count' 
 
 export function ExpensesSummary({
   expenses,
+  periodExpenses,
+  carryoverExpenses,
+  referenceDate,
   onStatusChange,
   preferredCurrency = defaultBusinessCurrency,
   statusFilter,
@@ -50,23 +57,41 @@ export function ExpensesSummary({
   const { currentLanguage } = useLanguage();
   const currencyCopy = getOperationalKpiCurrencyCopy(currentLanguage.code);
   const normalizedPreferredCurrency = normalizeBusinessCurrencyCode(preferredCurrency, defaultBusinessCurrency);
-  const overdueExpenses = expenses.filter(expense => isExpenseEffectivelyOverdue(expense));
+  const overdueExpenses = expenses.filter(expense => isExpenseEffectivelyOverdue(expense, referenceDate));
   const ids = expenses.map((expense) => expense.id);
-  const totalAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_TOTAL', preferredCurrency: normalizedPreferredCurrency, ids });
+  const totalAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_TOTAL', preferredCurrency: normalizedPreferredCurrency, ids: periodExpenses.map(expense => expense.id) });
   const openAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_BALANCE', preferredCurrency: normalizedPreferredCurrency, ids });
   const overdueAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_BALANCE', preferredCurrency: normalizedPreferredCurrency, ids: overdueExpenses.map((expense) => expense.id) });
-  const formatAggregate = (aggregate: { data: KpiMonetaryAggregate | null; loading: boolean }) => aggregate.data && !aggregate.loading
+  const carryoverAggregate = useKpiMonetaryAggregate({ metric: 'EXPENSE_BALANCE', preferredCurrency: normalizedPreferredCurrency, ids: carryoverExpenses.map(expense => expense.id) });
+  // A partial payment changes amounts without changing the aggregate's selected IDs.
+  const balanceRevision = JSON.stringify([referenceDate.toDateString(), expenses.map(expense => [expense.id, expense.total, expense.amountPaid, expense.currency])]);
+  const previousBalanceRevision = useRef(balanceRevision);
+  const { refresh: refreshTotal } = totalAggregate;
+  const { refresh: refreshOpen } = openAggregate;
+  const { refresh: refreshOverdue } = overdueAggregate;
+  const { refresh: refreshCarryover } = carryoverAggregate;
+  useEffect(() => {
+    if (previousBalanceRevision.current === balanceRevision) return;
+    previousBalanceRevision.current = balanceRevision;
+    refreshTotal();
+    refreshOpen();
+    refreshOverdue();
+    refreshCarryover();
+  }, [balanceRevision, refreshTotal, refreshOpen, refreshOverdue, refreshCarryover]);
+  const aggregates = [totalAggregate, openAggregate, overdueAggregate, carryoverAggregate];
+  const formatAggregate = (aggregate: { data: KpiMonetaryAggregate | null; loading: boolean }) => aggregate.data && !aggregate.loading && !aggregate.data.partial
     ? formatBusinessCurrencyAmount(aggregate.data.preferredTotal, normalizedPreferredCurrency)
     : '—';
   const totalAmountLabel = formatAggregate(totalAggregate);
   const openAmountLabel = formatAggregate(openAggregate);
   const overdueAmountLabel = formatAggregate(overdueAggregate);
+  const carryoverAmountLabel = formatAggregate(carryoverAggregate);
   const nativeTotalAmountLabel = totalAggregate.data?.nativeTotals
     .map(({ amount, currency }) => formatBusinessCurrencyAmount(amount, currency)).join(' / ') || normalizedPreferredCurrency;
-  const paidCount = expenses.filter((expense) => getEffectiveExpenseStatus(expense) === 'paid').length;
-  const paidPercentage = expenses.length > 0 ? (paidCount / expenses.length) * 100 : 0;
+  const paidCount = periodExpenses.filter((expense) => getEffectiveExpenseStatus(expense, referenceDate) === 'paid').length;
+  const paidPercentage = periodExpenses.length > 0 ? (paidCount / periodExpenses.length) * 100 : 0;
   const statusMetrics = statusConfig.map(config => {
-    const statusExpenses = expenses.filter(expense => getEffectiveExpenseStatus(expense) === config.status);
+    const statusExpenses = expenses.filter(expense => getEffectiveExpenseStatus(expense, referenceDate) === config.status);
     return {
       ...config,
       amount: statusExpenses.length,
@@ -77,12 +102,17 @@ export function ExpensesSummary({
     };
   });
 
-  const openPaymentCount = expenses.filter(expense => getExpenseBalance(expense) > 0 && getEffectiveExpenseStatus(expense) !== 'paid').length;
-  const insight = totals.overdueCount > 0
+  const openPaymentCount = expenses.filter(expense => getExpenseBalance(expense) > 0 && getEffectiveExpenseStatus(expense, referenceDate) !== 'paid').length;
+  const balanceInsight = expenses.length === 0
+    ? t.expenses.summary.insightEmpty
+    : totals.overdueCount > 0
     ? t.expenses.summary.insightOverdue(totals.overdueCount, overdueAmountLabel)
     : openPaymentCount > 0
       ? t.expenses.summary.insightOpenBalance(openPaymentCount, paidPercentage.toFixed(0))
       : t.expenses.summary.insightAllSettled;
+  const insight = carryoverExpenses.length > 0
+    ? `${balanceInsight} ${t.expenses.summary.insightCarryover(carryoverExpenses.length, carryoverAmountLabel)}`
+    : balanceInsight;
 
   const alertChips: OperationalAlertChip[] = [];
   if (totals.overdueCount > 0) alertChips.push({
@@ -105,10 +135,11 @@ export function ExpensesSummary({
   return <OperationalKpiArea
     alertChips={alertChips}
     metrics={[
-      { id: 'total', icon: <ReceiptText className="h-4 w-4" />, label: t.expenses.summary.metricTotalVisible(expenses.length), value: totalAmountLabel, active: statusFilter === 'all', onClick: () => onStatusChange('all') },
+      { id: 'total', icon: <ReceiptText className="h-4 w-4" />, label: t.expenses.summary.metricPeriodTotal(periodExpenses.length), value: totalAmountLabel, active: statusFilter === 'all', onClick: () => onStatusChange('all') },
       { id: 'open', icon: <CircleDollarSign className="h-4 w-4" />, label: t.expenses.summary.metricOpenBalance, value: openAmountLabel, valueClassName: 'text-amber-600', active: statusFilter === 'pending_and_overdue', onClick: () => onStatusChange('pending_and_overdue') },
       { id: 'overdue', icon: <Clock3 className="h-4 w-4" />, label: t.expenses.summary.metricOverdue, value: overdueAmountLabel, valueClassName: 'text-rose-600', active: statusFilter === 'overdue', onClick: () => onStatusChange('overdue') },
-      { id: 'settled', icon: <Percent className="h-4 w-4" />, label: t.expenses.summary.metricCompliance, value: `${paidPercentage.toFixed(0)}%`, valueClassName: 'text-sky-600', active: statusFilter === 'paid', onClick: () => onStatusChange('paid') },
+      ...(carryoverExpenses.length > 0 ? [{ id: 'carryover', icon: <Clock3 className="h-4 w-4" />, label: t.expenses.summary.metricCarryover, value: carryoverAmountLabel, valueClassName: 'text-rose-600' }] : []),
+      { id: 'settled', icon: <Percent className="h-4 w-4" />, label: t.expenses.summary.metricCompliance, value: periodExpenses.length > 0 ? `${paidPercentage.toFixed(0)}%` : '—', valueClassName: 'text-sky-600', active: statusFilter === 'paid', onClick: () => onStatusChange('paid') },
     ]}
     distributionSegments={statusMetrics.map((metric) => ({
       id: metric.status,
@@ -126,8 +157,8 @@ export function ExpensesSummary({
       rateLabel: totalAggregate.data?.exchangeRate.mode === 'daily' ? currencyCopy.dailyRate : currencyCopy.unavailable,
       effectiveDate: totalAggregate.data?.exchangeRate.effectiveDate,
       source: totalAggregate.data?.exchangeRate.source,
-      isPartial: Boolean(totalAggregate.error || totalAggregate.data?.partial),
-      excludedCount: totalAggregate.data?.excludedRecords ?? (totalAggregate.error ? expenses.length : 0),
+      isPartial: aggregates.some(aggregate => Boolean(aggregate.error || aggregate.data?.partial)),
+      excludedCount: Math.max(...aggregates.map(aggregate => aggregate.data?.excludedRecords ?? (aggregate.error ? expenses.length : 0))),
       labels: currencyCopy,
     }}
   />;

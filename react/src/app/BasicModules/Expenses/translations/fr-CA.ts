@@ -46,6 +46,14 @@ export const frCA = mergeFinanceTranslations('fr-CA', {
   periods: { custom: 'Personnalisée', lastMonth: 'Mois dernier', lastYear: 'Année dernière', thisMonth: 'Ce mois-ci', thisYear: 'Cette année', twoMonthsAgo: 'Il y a deux mois' },
   statuses: { audited: 'Audité', overdue: 'En retard', paid: 'Payé', partial: 'Partiel', pending: 'En attente' },
   expenses: {
+    summary: {
+      metricCompliance: "Réglées pour la période",
+      metricPeriodTotal: count => `Total de la période - ${count}`,
+      metricCarryover: "Solde antérieur",
+      carryoverBadge: "Solde antérieur",
+      insightEmpty: "Aucune dépense ne correspond aux filtres sélectionnés.",
+      insightCarryover: (count, amount) => `Le solde à payer comprend ${amount} de ${count} comptes en retard des mois précédents.`,
+    },
     createDisabledReason: 'Chargement des références organisationnelles',
     emptyMessage: 'Créez une dépense ou ajustez les filtres.',
     emptyTitle: 'Aucune dépense pour la période sélectionnée',

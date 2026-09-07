@@ -1,3 +1,4 @@
+import { formatExpenseDate } from '../../utils/expenseDates';
 import { useEffect, useState, type ReactNode } from 'react';
 import { CalendarDays, Clock3, FileText, HandCoins, Landmark, Loader2, Pencil, ReceiptText, ShieldCheck } from 'lucide-react';
 import { IndiceModalFrame, IndiceModalValidation } from '../../../../components/indice-modal';
@@ -126,7 +127,7 @@ export function ExpenseDetailModal({ expense, onClose, onEdit, onOpenAttachments
                 accountId: expense.paymentAccountId,
                 amount: paid,
                 createdAt: expense.updatedAt,
-                paymentDate: expense.paymentDate?.toISOString().slice(0, 10),
+                paymentDate: formatExpenseDate(expense.paymentDate),
               }}
               isLoading={isLoading}
               locale={locale}

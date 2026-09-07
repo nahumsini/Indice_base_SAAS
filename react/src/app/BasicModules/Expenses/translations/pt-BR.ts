@@ -46,6 +46,14 @@ export const ptBR = mergeFinanceTranslations('pt-BR', {
   periods: { custom: 'Personalizado', lastMonth: 'Mês passado', lastYear: 'Ano passado', thisMonth: 'Este mês', thisYear: 'Este ano', twoMonthsAgo: 'Há dois meses' },
   statuses: { audited: 'Auditado', overdue: 'Vencido', paid: 'Pago', partial: 'Parcial', pending: 'Pendente' },
   expenses: {
+    summary: {
+      metricCompliance: "Liquidado no período",
+      metricPeriodTotal: count => `Total do período - ${count}`,
+      metricCarryover: "Saldo anterior",
+      carryoverBadge: "Saldo anterior",
+      insightEmpty: "Nenhuma despesa corresponde aos filtros selecionados.",
+      insightCarryover: (count, amount) => `O saldo a pagar inclui ${amount} de ${count} contas vencidas de meses anteriores.`,
+    },
     createDisabledReason: 'Carregando referências organizacionais',
     emptyMessage: 'Crie uma despesa ou ajuste os filtros.',
     emptyTitle: 'Nenhuma despesa para o período selecionado',

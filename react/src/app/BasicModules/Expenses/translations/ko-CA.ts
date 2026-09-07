@@ -39,6 +39,14 @@ export const koCA = mergeFinanceTranslations('ko-CA', {
   periods: { custom: '사용자 지정', lastMonth: '지난달', lastYear: '작년', thisMonth: '이번 달', thisYear: '올해', twoMonthsAgo: '두 달 전' },
   statuses: { audited: '감사됨', overdue: '연체', paid: '지급됨', partial: '부분 지급', pending: '대기' },
   expenses: {
+    summary: {
+      metricCompliance: "기간 내 결제 완료",
+      metricPeriodTotal: count => `기간 합계 - ${count}`,
+      metricCarryover: "이전 잔액",
+      carryoverBadge: "이전 잔액",
+      insightEmpty: "선택한 필터에 해당하는 비용이 없습니다.",
+      insightCarryover: (count, amount) => `미지급 잔액에는 이전 달의 연체 계정 ${count}건에 대한 ${amount}이 포함됩니다.`,
+    },
     createDisabledReason: '조직 참조 데이터를 불러오는 중',
     emptyMessage: '비용을 만들거나 필터를 조정하세요.',
     emptyTitle: '선택한 기간에 비용이 없습니다',
