@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { reservePosTicketWindow } from '../../shared/posOperationTickets';
+import type { ClosedShiftTicketRequest } from '../components/ShiftClosingTicketModal';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CashClosingInput, CashRegisterContext } from '../../shared/cashClosing.types';
 import type { OperationalActivity } from '../components/OperationalActivityFeed';
 import {
@@ -59,6 +61,9 @@ export function useSaleShift({
   currency,
   refreshRegisterContext,
 }: UseSaleShiftOptions) {
+  const closedShiftId = useRef<number | null>(null);
+  const closingLock = useRef(false);
+  const [closedTicket, setClosedTicket] = useState<ClosedShiftTicketRequest | null>(null);
   const [currentShift, setCurrentShift] = useState<Shift | null>(null);
   const [showOpenShiftModal, setShowOpenShiftModal] = useState(false);
   const [showCloseShiftModal, setShowCloseShiftModal] = useState(false);
@@ -77,7 +82,9 @@ export function useSaleShift({
   const backendShiftId = useMemo(() => toShiftId(backendCurrentShift?.id), [backendCurrentShift?.id]);
 
   useEffect(() => {
-    if (!backendCurrentShift || !registerContext) {
+    if (!backendCurrentShift || closedShiftId.current === backendCurrentShift.id || !registerContext
+        || String(backendCurrentShift.cashRegisterId) !== registerContext.cashRegisterId
+        || String(backendCurrentShift.warehouseId) !== registerContext.warehouseId) {
       return;
     }
 
@@ -90,6 +97,16 @@ export function useSaleShift({
 
       return {
         ...existingShift,
+        cashRegisterId: backendShift.cashRegisterId,
+        cashRegisterCode: backendShift.cashRegisterCode,
+        cashRegisterName: backendShift.cashRegisterName,
+        warehouseId: backendShift.warehouseId,
+        warehouseName: backendShift.warehouseName,
+        businessUnitId: backendShift.businessUnitId,
+        businessUnitName: backendShift.businessUnitName,
+        businessId: backendShift.businessId,
+        businessName: backendShift.businessName,
+        companyName: backendShift.companyName,
         expectedCash: backendShift.expectedCash,
         status: backendShift.status,
         ...(backendShift.endTime ? { endTime: backendShift.endTime } : {}),
@@ -223,7 +240,7 @@ export function useSaleShift({
   };
 
   const handleCloseShift = async (closing: CashClosingInput) => {
-    if (!currentShift) {
+    if (closingLock.current || !currentShift) {
       return;
     }
 
@@ -238,11 +255,13 @@ export function useSaleShift({
       return;
     }
 
-    if (closing.countedCash < 0) {
+    if (!Number.isFinite(closing.countedCash) || closing.countedCash < 0) {
       setClosingSummaryError(copy.negativeCountedCash);
       return;
     }
 
+    closingLock.current = true;
+    const printWindow = reservePosTicketWindow();
     setIsClosingShift(true);
     setShiftError('');
     setClosingSummaryError('');
@@ -252,7 +271,9 @@ export function useSaleShift({
         countedCashAmount: closing.countedCash,
         closingNote: closing.notes,
       });
-      const difference = toNumber(closedBackendShift.overShortAmount) || closing.countedCash - toNumber(closingSummary.expectedCashAmount);
+      closedShiftId.current = shiftId;
+      setClosedTicket({ shiftId, printWindow });
+      const difference = toNumber(closedBackendShift.overShortAmount);
       setShiftNotice(
         copy.closedNotice(
           closingSummary.ticketsCount,
@@ -266,12 +287,14 @@ export function useSaleShift({
       setClosingSummary(null);
       setCashMovements([]);
       setAutoOpenShiftSuppressed(true);
-      await refreshRegisterContext();
+      void refreshRegisterContext().catch(() => setShiftError(copy.closingSummaryLoadError));
     } catch (error) {
+      printWindow?.close();
       const message = getPosRequestErrorMessage(error, copy.closeError);
       setClosingSummaryError(message);
       setShiftError(message);
     } finally {
+      closingLock.current = false;
       setIsClosingShift(false);
     }
   };
@@ -359,6 +382,8 @@ export function useSaleShift({
   };
 
   return {
+    closedTicket,
+    closeTicket: () => setClosedTicket(null),
     currentShift,
     setCurrentShift,
     showOpenShiftModal,

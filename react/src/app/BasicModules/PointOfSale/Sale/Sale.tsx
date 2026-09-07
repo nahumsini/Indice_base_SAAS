@@ -1,3 +1,4 @@
+import { ShiftClosingTicketModal } from './components/ShiftClosingTicketModal';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { AlertTriangle, ReceiptText } from 'lucide-react';
@@ -197,6 +198,8 @@ export default function Sale() {
     closingSummaryError,
     handleOpenShift,
     handleCloseShift,
+    closedTicket,
+    closeTicket,
     handleCashMovement,
     shiftNotice,
     clearShiftNotice,
@@ -655,6 +658,8 @@ export default function Sale() {
 
   if (!currentShift) {
     return (
+      <>
+      {closedTicket && <ShiftClosingTicketModal request={closedTicket} onClose={closeTicket} />}
       <SaleNoShiftState
         isOpenShiftModalOpen={showOpenShiftModal}
         registerContext={registerContext}
@@ -678,6 +683,7 @@ export default function Sale() {
         }}
         onClearNotice={clearShiftNotice}
       />
+      </>
     );
   }
 

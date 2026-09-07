@@ -51,7 +51,7 @@ class PaidInventoryReceiptServiceTest {
     @Test
     void cashReceiptUsesRegisterWarehouseAndCreatesCashOut() {
         when(cashRegisters.requireOperationalRegister(context(), 20L)).thenReturn(register());
-        when(shifts.findById(context(), 40L)).thenReturn(Optional.of(shift()));
+        when(shifts.findByIdForUpdate(context(), 40L)).thenReturn(Optional.of(shift()));
         when(repository.requireProduct(context(), 700L)).thenReturn(product("Piece"));
         when(providers.get(any(), eq(900L))).thenReturn(provider());
         when(repository.insertReceipt(eq(context()), eq("test-key"), any(), any(), eq(5L), eq(6L),
@@ -78,7 +78,7 @@ class PaidInventoryReceiptServiceTest {
     @Test
     void excludedTaxIsAddedToPayoutButNotInventoryUnitCost() {
         when(cashRegisters.requireOperationalRegister(context(), 20L)).thenReturn(register());
-        when(shifts.findById(context(), 40L)).thenReturn(Optional.of(shift()));
+        when(shifts.findByIdForUpdate(context(), 40L)).thenReturn(Optional.of(shift()));
         when(repository.requireProduct(context(), 700L)).thenReturn(product("Piece"));
         when(providers.get(any(), eq(900L))).thenReturn(provider());
         when(repository.insertReceipt(eq(context()), eq("tax-key"), any(), any(), eq(5L), eq(6L),
@@ -109,7 +109,7 @@ class PaidInventoryReceiptServiceTest {
     @Test
     void pieceProductRejectsAWeightUnitBeforeWriting() {
         when(cashRegisters.requireOperationalRegister(context(), 20L)).thenReturn(register());
-        when(shifts.findById(context(), 40L)).thenReturn(Optional.of(shift()));
+        when(shifts.findByIdForUpdate(context(), 40L)).thenReturn(Optional.of(shift()));
         when(repository.requireProduct(context(), 700L)).thenReturn(product("Piece"));
         when(providers.get(any(), eq(900L))).thenReturn(provider());
 
@@ -123,7 +123,7 @@ class PaidInventoryReceiptServiceTest {
     @Test
     void transferRequiresAnAccount() {
         when(cashRegisters.requireOperationalRegister(context(), 20L)).thenReturn(register());
-        when(shifts.findById(context(), 40L)).thenReturn(Optional.of(shift()));
+        when(shifts.findByIdForUpdate(context(), 40L)).thenReturn(Optional.of(shift()));
 
         assertThatThrownBy(() -> service().create(context(), request("TRANSFER", null, "Piece", BigDecimal.ONE)))
             .isInstanceOf(PosApiException.class)
@@ -133,13 +133,20 @@ class PaidInventoryReceiptServiceTest {
     @Test
     void pieceProductRejectsFractionalQuantityBeforeWriting() {
         when(cashRegisters.requireOperationalRegister(context(), 20L)).thenReturn(register());
-        when(shifts.findById(context(), 40L)).thenReturn(Optional.of(shift()));
+        when(shifts.findByIdForUpdate(context(), 40L)).thenReturn(Optional.of(shift()));
         when(repository.requireProduct(context(), 700L)).thenReturn(product("Piece"));
         when(providers.get(any(), eq(900L))).thenReturn(provider());
 
         assertThatThrownBy(() -> service().create(context(), request("CASH", null, "Piece", new BigDecimal("1.5"))))
             .isInstanceOf(PosApiException.class)
             .hasMessage("Products measured by piece require a whole quantity.");
+    }
+
+    @Test
+    void optionalActivationPreservesLegacyIdempotencyFingerprintShape() {
+        var legacy = new PaidInventoryReceiptDtos.ProductInput(700L, null, null, null, "Piece", null);
+        assertThat(com.indice.erp.pos.PosJsonSupport.toJson(legacy)).isEqualTo(
+            "{\"productId\":700,\"name\":null,\"sku\":null,\"category\":null,\"inventoryUnit\":\"Piece\",\"salePrice\":null}");
     }
 
     private PaidInventoryReceiptService service() {

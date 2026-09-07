@@ -19,7 +19,13 @@ public final class PaidInventoryReceiptDtos {
             String sku,
             String category,
             String inventoryUnit,
-            BigDecimal salePrice) {}
+            BigDecimal salePrice,
+            @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+            Boolean enableInventory) {
+        public ProductInput(Long productId, String name, String sku, String category, String inventoryUnit, BigDecimal salePrice) {
+            this(productId, name, sku, category, inventoryUnit, salePrice, null);
+        }
+    }
 
     public record ItemRequest(
             @NotNull @Valid ProductInput product,
@@ -49,7 +55,7 @@ public final class PaidInventoryReceiptDtos {
 
     public record ProductOptionResponse(
             long id, String name, String sku, String category, String currencyCode,
-            String inventoryUnit, BigDecimal unitCost) {}
+            String inventoryUnit, BigDecimal unitCost, boolean inventoryReady) {}
 
     public record PaymentAccountResponse(
             long id, String name, String type, String currencyCode,

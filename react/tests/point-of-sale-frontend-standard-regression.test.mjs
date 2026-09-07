@@ -582,8 +582,9 @@ test('La recepción pagada usa proveedor, partidas, impuestos y permanece junto 
   assert.match(modal, /evidencePendingRetry/);
   assert.match(modal, /presentation=\{workspaceMode \? 'workspace' : 'modal'\}/);
   assert.match(modal, /workspaceMode\s*\? 'grid gap-3 sm:grid-cols-2'/);
-  assert.doesNotMatch(modal, /Recepciones recientes del turno/);
-  assert.doesNotMatch(modal, /paidInventoryReceipts\(|reversePaidInventoryReceipt/);
+  assert.match(modal, /Tickets de recepciones de este turno/);
+  assert.match(modal, /paidInventoryReceipts\(shiftId\)/);
+  assert.doesNotMatch(modal, /reversePaidInventoryReceipt/);
   assert.match(api, /paidInventoryReceiptProducts\(cashRegisterId/);
   assert.match(api, /paidInventoryReceiptProviders\(\)/);
   assert.match(api, /createPaidInventoryReceiptProvider/);

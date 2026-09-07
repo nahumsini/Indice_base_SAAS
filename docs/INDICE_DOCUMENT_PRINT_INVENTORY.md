@@ -232,3 +232,7 @@ Additional regression evidence:
 6. Decide whether the legacy `NominasTab` generator is reachable or can be deleted.
 7. Record before/after visual evidence and promote the draft only through an explicit
    version 1.0 documentation change.
+
+## POS operational tickets extension — 2026-09-07
+
+`app/BasicModules/PointOfSale/shared/posOperationTickets.ts` provides the paid inventory receipt and individual shift closing thermal tickets (80 mm, internal operational documents, native transaction currency). Entrypoints are `PaidInventoryReceiptModal`, `ShiftClosingTicketModal`, and `CorteDetailModal`. All use the shared `documentHtmlPrintEngine`; receipt/closing reprints query saved documents and never resubmit financial or inventory commands. The engine observes document readiness from the opener so a reserved print window still prints after navigation replaces its initial document.

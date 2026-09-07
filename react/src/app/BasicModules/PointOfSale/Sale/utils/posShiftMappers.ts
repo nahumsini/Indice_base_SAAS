@@ -8,6 +8,7 @@ const toNumber = (value: number | string | null | undefined, fallback = 0): numb
 };
 
 const toOptionalNumber = (value: number | string | null | undefined): number | undefined => {
+  if (value === null || value === undefined || value === '') return undefined;
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : undefined;
 };
@@ -26,6 +27,10 @@ export const getPosRequestErrorMessage = (error: unknown, fallback: string) => (
 );
 
 export function buildShiftFromBackend(backendShift: PosShiftResponse, registerContext: CashRegisterContext): Shift {
+  if (String(backendShift.cashRegisterId) !== String(registerContext.cashRegisterId)
+      || String(backendShift.warehouseId) !== String(registerContext.warehouseId)) {
+    throw new Error('El turno no corresponde a la caja y al almacén seleccionados. Actualiza el contexto de caja.');
+  }
   const openingAmount = toNumber(backendShift.openingAmount);
   const expectedCashAmount = toNumber(backendShift.expectedCashAmount, openingAmount);
   const endTime = backendShift.closedAt ? new Date(backendShift.closedAt) : undefined;

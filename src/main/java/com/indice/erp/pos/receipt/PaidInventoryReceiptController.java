@@ -31,10 +31,11 @@ public class PaidInventoryReceiptController {
     public ResponseEntity<?> products(
             HttpSession session,
             @RequestParam long cashRegisterId,
-            @RequestParam(required = false, defaultValue = "") String query) {
+            @RequestParam(required = false, defaultValue = "") String query,
+            @RequestParam(required = false) String currencyCode) {
         var access = guard.requireReadAccess(session);
         if (access.denied()) return access.error();
-        return ResponseEntity.ok(service.products(access.context(), cashRegisterId, query));
+        return ResponseEntity.ok(service.products(access.context(), cashRegisterId, query, currencyCode));
     }
 
     @GetMapping("/providers")

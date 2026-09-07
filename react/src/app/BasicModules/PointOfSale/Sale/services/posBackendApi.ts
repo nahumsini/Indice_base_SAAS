@@ -184,6 +184,7 @@ export type PosPaidInventoryReceiptPayload = {
       category?: string | null;
       inventoryUnit?: string | null;
       salePrice?: number | null;
+      enableInventory?: boolean;
     };
     quantity: number;
     unitCost: number;
@@ -195,6 +196,7 @@ export type PosPaidInventoryReceiptPayload = {
 };
 
 export type PosInventoryReceiptProduct = {
+  inventoryReady: boolean;
   id: number;
   name: string;
   sku?: string | null;
@@ -251,6 +253,17 @@ export type PosPaidInventoryReceiptResponse = {
   currencyCode: string;
   status: 'POSTED' | 'REVERSED';
   reversalReason?: string | null;
+  cashRegisterId: number;
+  shiftId: number;
+  paymentAccountId?: number | null;
+  paymentReference?: string | null;
+  items: Array<{
+    id: number; productId: number; productName: string; sku?: string | null; inventoryUnit: string;
+    quantity: number | string; enteredUnitCost: number | string; inventoryUnitCost: number | string;
+    taxRate: number | string; taxIncluded: boolean; taxName?: string | null;
+    subtotalAmount: number | string; taxAmount: number | string; lineTotal: number | string;
+  }>;
+  metadata?: Record<string, unknown>;
 };
 
 export type PosPaymentMethodSummary = {
@@ -545,9 +558,10 @@ export const posBackendApi = {
       body: JSON.stringify(payload),
     });
   },
-  paidInventoryReceiptProducts(cashRegisterId: number | string, query = '') {
+  paidInventoryReceiptProducts(cashRegisterId: number | string, query = '', currencyCode?: string) {
     const params = new URLSearchParams({ cashRegisterId: String(cashRegisterId) });
     if (query.trim()) params.set('query', query.trim());
+    if (currencyCode) params.set('currencyCode', currencyCode.trim().toUpperCase());
     return apiClient<PosInventoryReceiptProduct[]>(`${posBasePath}/inventory-receipts/products?${params.toString()}`);
   },
   paidInventoryReceiptProviders() {

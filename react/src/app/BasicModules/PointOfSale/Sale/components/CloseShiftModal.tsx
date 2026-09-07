@@ -73,7 +73,7 @@ export function CloseShiftModal({
       return;
     }
 
-    if (Number.isNaN(Number(countedCash)) || preview.counted < 0) {
+    if (!countedCash.trim() || !Number.isFinite(Number(countedCash)) || preview.counted < 0) {
       setError('El efectivo contado no puede ser negativo.');
       return;
     }
@@ -91,7 +91,7 @@ export function CloseShiftModal({
   const durationMinutes = Math.floor((Date.now() - shift.startTime.getTime()) / 60000);
   const hours = Math.floor(durationMinutes / 60);
   const minutes = durationMinutes % 60;
-  const isBalanced = preview ? Math.abs(preview.difference) < 1 : false;
+  const isBalanced = preview ? Math.abs(preview.difference) < 0.005 : false;
   const isOver = preview ? preview.difference > 0 : false;
   const subtitle = `${shift.cashRegisterCode} - ${shift.businessName} - ${shift.cashierName}`;
 
