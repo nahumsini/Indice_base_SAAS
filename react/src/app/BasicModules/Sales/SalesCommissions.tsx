@@ -10,6 +10,8 @@ import { CommissionsView } from './Sales/components/CommissionsView';
 import { useSalesRecords } from './Sales/hooks/useSalesRecords';
 import { useSalesTranslations } from './Sales/hooks/useSalesTranslations';
 import { commissionRulesService } from './Sales/services/commissionRulesService';
+import { CommissionViewErrorBoundary } from './Sales/components/CommissionViewErrorBoundary';
+import { useLanguage } from '../../shared/context';
 import type { CommissionRule } from './Sales/types/commissions';
 import {
   SalesTitleBar,
@@ -20,6 +22,11 @@ import {
 type WorkspaceSection = 'generated' | 'cuts';
 
 export default function SalesCommissions({ learningModeActive = false }: { learningModeActive?: boolean }) {
+  const { currentLanguage } = useLanguage();
+  return <CommissionViewErrorBoundary locale={currentLanguage.code}><SalesCommissionsWorkspace learningModeActive={learningModeActive} /></CommissionViewErrorBoundary>;
+}
+
+function SalesCommissionsWorkspace({ learningModeActive }: { learningModeActive: boolean }) {
   const t = useSalesTranslations();
   const { products } = useSalesCrm();
   const { preferredCurrency } = usePreferredBusinessCurrency();

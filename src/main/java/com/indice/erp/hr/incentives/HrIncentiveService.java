@@ -58,6 +58,7 @@ public class HrIncentiveService {
                     GROUP BY incentive_id
                 ) a ON a.incentive_id = i.id
                 WHERE i.company_id = ?
+                  AND COALESCE(i.source_type, 'incentive') <> 'petty_cash_shortage'
                 """
         );
         var params = new ArrayList<Object>();
@@ -265,7 +266,7 @@ public class HrIncentiveService {
     @Transactional
     public void cancelIncentive(AuthSessionUser currentUser, long incentiveId) {
         var updated = jdbcTemplate.update(
-            "UPDATE hr_incentives SET status = 'paused' WHERE id = ? AND company_id = ?",
+            "UPDATE hr_incentives SET status = 'paused' WHERE id = ? AND company_id = ? AND COALESCE(source_type, 'incentive') <> 'petty_cash_shortage'",
             incentiveId,
             currentUser.companyId()
         );

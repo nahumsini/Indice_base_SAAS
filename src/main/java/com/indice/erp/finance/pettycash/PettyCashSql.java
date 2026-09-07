@@ -12,12 +12,22 @@ final class PettyCashSql {
             fund.payment_account_id,
             fund.funding_source_payment_account_id,
             fund.responsible_user_id,
+            fund.fund_type,
             fund.name,
             fund.currency_code,
             fund.limit_amount,
             fund.current_balance_amount,
             fund.cut_off_day,
             fund.funding_source_name,
+            fund.external_owner_type,
+            fund.external_owner_name,
+            fund.external_owner_relationship,
+            fund.external_owner_reference,
+            fund.statement_recipient_email,
+            fund.managed_asset_type,
+            fund.managed_asset_name,
+            fund.managed_asset_reference,
+            fund.external_identity_pending,
             fund.funding_methods_json,
             fund.spending_methods_json,
             fund.kiosk_enabled,
@@ -39,6 +49,7 @@ final class PettyCashSql {
             statement.id,
             statement.company_id,
             statement.petty_cash_fund_id,
+            statement.fund_type_snapshot,
             statement.folio,
             statement.period_key,
             statement.period_start,
@@ -56,6 +67,14 @@ final class PettyCashSql {
             statement.currency_code,
             statement.status,
             statement.responsible_user_id,
+            statement.external_owner_type_snapshot,
+            statement.external_owner_name_snapshot,
+            statement.external_owner_relationship_snapshot,
+            statement.external_owner_reference_snapshot,
+            statement.statement_recipient_email_snapshot,
+            statement.managed_asset_type_snapshot,
+            statement.managed_asset_name_snapshot,
+            statement.managed_asset_reference_snapshot,
             statement.reviewed_by_user_id,
             statement.attachment_count,
             statement.created_by_user_id,
@@ -75,6 +94,12 @@ final class PettyCashSql {
             movement.petty_cash_statement_id,
             movement.from_payment_account_id,
             movement.to_payment_account_id,
+            movement.external_source_name,
+            movement.entry_category,
+            movement.counterparty_name,
+            movement.statement_description,
+            movement.funding_method,
+            movement.internal_note,
             movement.type,
             movement.amount,
             movement.currency_code,
@@ -109,6 +134,9 @@ final class PettyCashSql {
             settlement_line.status,
             settlement_line.created_by_user_id,
             settlement_line.updated_by_user_id,
+            settlement_line.cancellation_reason,
+            settlement_line.cancelled_by_user_id,
+            settlement_line.cancelled_at,
             settlement_line.created_at,
             settlement_line.updated_at,
             settlement_line.deleted_at,
@@ -120,11 +148,13 @@ final class PettyCashSql {
     static final String INSERT_FUND = """
             INSERT INTO finance_petty_cash_funds
             (company_id, unit_id, business_id, budget_id, budget_line_id, payment_account_id,
-             funding_source_payment_account_id, responsible_user_id, name, currency_code, limit_amount,
-             current_balance_amount, cut_off_day, funding_source_name, funding_methods_json, spending_methods_json,
+             funding_source_payment_account_id, responsible_user_id, fund_type, name, currency_code, limit_amount,
+             current_balance_amount, cut_off_day, funding_source_name, external_owner_type, external_owner_name,
+             external_owner_relationship, external_owner_reference, statement_recipient_email, managed_asset_type,
+             managed_asset_name, managed_asset_reference, external_identity_pending, funding_methods_json, spending_methods_json,
              kiosk_enabled, kiosk_uses_universal_pin, kiosk_access_url, kiosk_public_token, status, created_by_user_id,
              custom_fields_json, metadata_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
 
     static final String UPDATE_FUND = """
@@ -136,11 +166,21 @@ final class PettyCashSql {
                 payment_account_id = ?,
                 funding_source_payment_account_id = ?,
                 responsible_user_id = ?,
+                fund_type = ?,
                 name = ?,
                 currency_code = ?,
                 limit_amount = ?,
                 cut_off_day = ?,
                 funding_source_name = ?,
+                external_owner_type = ?,
+                external_owner_name = ?,
+                external_owner_relationship = ?,
+                external_owner_reference = ?,
+                statement_recipient_email = ?,
+                managed_asset_type = ?,
+                managed_asset_name = ?,
+                managed_asset_reference = ?,
+                external_identity_pending = ?,
                 funding_methods_json = ?,
                 spending_methods_json = ?,
                 kiosk_enabled = ?,
@@ -159,19 +199,24 @@ final class PettyCashSql {
 
     static final String INSERT_STATEMENT = """
             INSERT INTO finance_petty_cash_statements
-            (company_id, petty_cash_fund_id, folio, period_key, period_start, period_end, cut_off_date,
+            (company_id, petty_cash_fund_id, fund_type_snapshot, folio, period_key, period_start, period_end, cut_off_date,
              opening_balance_amount, assigned_amount, additional_deposit_amount, declared_closing_balance_amount,
              estimated_usage_amount, verified_expense_amount, returned_amount, shortage_amount, carry_forward_amount,
-             currency_code, status, responsible_user_id, attachment_count, created_by_user_id,
+             currency_code, status, responsible_user_id, external_owner_type_snapshot, external_owner_name_snapshot,
+             external_owner_relationship_snapshot, external_owner_reference_snapshot, statement_recipient_email_snapshot,
+             managed_asset_type_snapshot, managed_asset_name_snapshot, managed_asset_reference_snapshot,
+             attachment_count, created_by_user_id,
              custom_fields_json, metadata_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
 
     static final String INSERT_MOVEMENT = """
             INSERT INTO finance_petty_cash_movements
             (company_id, petty_cash_fund_id, petty_cash_statement_id, from_payment_account_id, to_payment_account_id,
-             type, amount, currency_code, movement_date, reference, created_by_user_id, custom_fields_json, metadata_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             external_source_name, entry_category, counterparty_name, statement_description, funding_method, internal_note,
+             type, amount, currency_code, movement_date, reference, created_by_user_id,
+             custom_fields_json, metadata_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
 
     static final String INSERT_SETTLEMENT_LINE = """

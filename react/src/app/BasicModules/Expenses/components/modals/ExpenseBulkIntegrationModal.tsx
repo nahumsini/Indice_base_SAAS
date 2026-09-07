@@ -292,7 +292,7 @@ export function ExpenseBulkIntegrationModal({
         ) : null}
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-950">
           {mode === 'create'
-            ? <>Se usará la divisa preferida <strong>{preferredCurrency}</strong>. La fecha de hoy viene precargada; también puedes pegar desde Excel o escribir AAAA-MM-DD, DD/MM/AAAA o AAAAMMDD. Solo concepto y monto son obligatorios. No se importará nada mientras exista una celda con errores.</>
+            ? <>Se usará la divisa preferida <strong>{preferredCurrency}</strong>. La fecha de hoy viene precargada; también puedes pegar desde Excel o escribir AAAA-MM-DD, DD/MM/AAAA o AAAAMMDD. Los gastos se crearán pendientes para que cada abono registre su cuenta y trazabilidad. No se importará nada mientras exista una celda con errores.</>
             : <>Solo se muestran gastos abiertos del mes seleccionado. Puedes modificar fecha, proveedor, concepto y monto. Los cambios se guardarán juntos únicamente cuando todas las celdas modificadas sean válidas.</>}
         </div>
         <datalist id="bulk-expense-providers">{providers.filter(provider => provider.status === 'active').map(provider => <option key={provider.id} value={provider.name} />)}</datalist>

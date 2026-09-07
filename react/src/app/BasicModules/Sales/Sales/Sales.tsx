@@ -304,15 +304,13 @@ export default function Sales({ learningModeActive = false }: SalesProps) {
     setPendingCancelRecord(record);
   };
 
-  const handleConfirmCancelSale = () => {
+  const handleConfirmCancelSale = async () => {
     if (!pendingCancelRecord) {
       return;
     }
 
-    updateSaleRecord(pendingCancelRecord.id, {
-      commercialStatus: 'cancelled',
-    });
-    setPendingCancelRecord(null);
+    const saved = await updateSaleRecord(pendingCancelRecord.id, { commercialStatus: 'cancelled' });
+    if (saved) setPendingCancelRecord(null);
   };
 
   const handleConfirmDeleteSale = async () => {

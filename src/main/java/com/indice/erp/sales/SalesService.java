@@ -52,6 +52,8 @@ public class SalesService {
     private final KpiCurrencyAggregationService kpiCurrencyAggregationService;
     private final SalesProductAvailabilityLinkCodec availabilityLinkCodec;
     private final OpportunityFlowService opportunityFlowService;
+    private final SalesCollectionService collectionService;
+    private final com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver businessTimeZoneResolver;
     private final Map<String, SalesEntityDefinition> definitions = SalesDefinitions.definitions();
 
     public SalesService(
@@ -63,7 +65,9 @@ public class SalesService {
             BusinessExchangeRateService businessExchangeRateService,
             KpiCurrencyAggregationService kpiCurrencyAggregationService,
             SalesProductAvailabilityLinkCodec availabilityLinkCodec,
-            OpportunityFlowService opportunityFlowService) {
+            OpportunityFlowService opportunityFlowService,
+            SalesCollectionService collectionService,
+            com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver businessTimeZoneResolver) {
         this.salesRepository = salesRepository;
         this.referenceService = referenceService;
         this.objectStorageService = objectStorageService;
@@ -73,6 +77,8 @@ public class SalesService {
         this.kpiCurrencyAggregationService = kpiCurrencyAggregationService;
         this.availabilityLinkCodec = availabilityLinkCodec;
         this.opportunityFlowService = opportunityFlowService;
+        this.collectionService = collectionService;
+        this.businessTimeZoneResolver = businessTimeZoneResolver;
     }
 
     public Map<String, Object> context(long companyId, long userId) {
@@ -89,6 +95,7 @@ public class SalesService {
     public Map<String, Object> list(long companyId, String collection, Map<String, String> filters) {
         var definition = definition(collection);
         var items = salesRepository.list(companyId, definition, filters);
+        if ("sales".equals(collection)) items.forEach(SalesLineAmounts::presentMargin);
         if ("products".equals(collection)) {
             items.forEach(item -> {
                 revealProductAvailability(item);
@@ -109,6 +116,7 @@ public class SalesService {
     public Map<String, Object> get(long companyId, String collection, long id) {
         var definition = definition(collection);
         var item = salesRepository.get(companyId, definition, id);
+        if ("sales".equals(collection)) SalesLineAmounts.presentMargin(item);
         if ("products".equals(collection)) {
             revealProductAvailability(item);
             enrichProductImages(companyId, item);
@@ -139,6 +147,7 @@ public class SalesService {
         }
         if ("sales".equals(collection)) {
             assignAuthenticatedSeller(companyId, userId, normalizedPayload);
+            SalesLineAmounts.calculate(normalizedPayload, true);
             normalizedPayload.putAll(SalesCommissionCalculator.calculate(
                     normalizedPayload,
                     salesRepository.list(companyId, definition("commission-rules"), Map.of())));
@@ -170,12 +179,20 @@ public class SalesService {
                 // statuses from the payload and can be resolved operationally afterwards.
             }
         }
-        return get(companyId, collection, id);
+        var saved = get(companyId, collection, id);
+        if ("sales".equals(collection)) collectionService.apply(companyId, userId, id, null, saved);
+        return saved;
     }
 
     @Transactional
     public Map<String, Object> update(long companyId, long userId, String collection, long id, Map<String, Object> payload) {
         var definition = definition(collection);
+        if ("products".equals(collection)) salesRepository.lockProductForMaintenance(companyId, id);
+        Map<String, Object> saleBefore = null;
+        if ("sales".equals(collection)) {
+            salesRepository.lockSaleForDeletion(companyId, id);
+            saleBefore = get(companyId, collection, id);
+        }
         var updatePayload = payload;
         if ("inventory-warehouses".equals(collection) || "inventory-balances".equals(collection)
                 || "products".equals(collection)) {
@@ -185,6 +202,19 @@ public class SalesService {
             }
         }
         var normalizedPayload = normalizeBeforeSave(companyId, collection, updatePayload);
+        if (("sales".equals(collection) || "quotes".equals(collection)) && payload != null) {
+            var dateKey = "sales".equals(collection) ? "saleDate" : "createdDate";
+            if (!SalesPayloadSupport.contains(payload, dateKey)) normalizedPayload.remove(dateKey);
+        }
+        if ("products".equals(collection) && salesRepository.hasProductInventoryHistory(companyId, id)) {
+            var existingProduct = get(companyId, collection, id);
+            for (var field : List.of("currency", "type")) {
+                String oldValue = SalesPayloadSupport.stringValue(existingProduct, field);
+                String newValue = SalesPayloadSupport.stringValue(normalizedPayload, field);
+                if (oldValue != null && newValue != null && !oldValue.equalsIgnoreCase(newValue))
+                    throw new IllegalArgumentException("El producto conserva moneda y tipo después de registrar inventario. Crea otro producto para una configuración distinta.");
+            }
+        }
         Long opportunityFlowId = null;
         if ("opportunities".equals(collection) && SalesPayloadSupport.contains(normalizedPayload, "stage")) {
             opportunityFlowId = SalesPayloadSupport.longValue(normalizedPayload, "flowId");
@@ -202,6 +232,24 @@ public class SalesService {
             removeOpportunityFlowControl(normalizedPayload);
         }
         if ("sales".equals(collection)) {
+            boolean inventoryCommitted = salesRepository.hasSaleInventoryMovements(companyId, id);
+            if (inventoryCommitted) {
+                for (var field : List.of("currency", "unitId", "businessId")) {
+                    if (normalizedPayload.containsKey(field) && !java.util.Objects.equals(normalizedPayload.get(field), saleBefore.get(field)))
+                        throw new IllegalArgumentException("La venta conserva su moneda y alcance después de mover inventario. Cancélala para emitir una corrección.");
+                }
+                if (normalizedPayload.containsKey("saleLines")) {
+                    if (!SalesLineAmounts.sameInputs(saleBefore.get("saleLines"), normalizedPayload.get("saleLines")))
+                        throw new IllegalArgumentException("La venta conserva sus partidas después de mover inventario. Cancélala para emitir una corrección.");
+                    normalizedPayload.put("saleLines", saleBefore.get("saleLines"));
+                }
+            }
+            boolean financialInput = List.of("saleLines", "subtotal", "discountTotal", "taxTotal", "totalAmount").stream().anyMatch(normalizedPayload::containsKey);
+            if (financialInput) {
+                boolean suppliedLines = normalizedPayload.containsKey("saleLines");
+                normalizedPayload.putIfAbsent("saleLines", saleBefore.get("saleLines"));
+                SalesLineAmounts.calculate(normalizedPayload, suppliedLines && !inventoryCommitted);
+            }
             removeClientCommissionCalculation(normalizedPayload);
             if (commissionInputsChanged(payload)) {
                 var calculationInput = new LinkedHashMap<String, Object>(get(companyId, "sales", id));
@@ -220,7 +268,18 @@ public class SalesService {
             createQuoteItemsFromPayload(companyId, id, normalizedPayload);
             refreshQuoteAmount(companyId, id);
         }
-        return get(companyId, collection, id);
+        var saved = get(companyId, collection, id);
+        if (saleBefore != null) {
+            if ("approved".equals(SalesPayloadSupport.stringValue(normalizedPayload, "inventoryStatus"))) {
+                salesRepository.confirmSaleInventory(companyId, userId, id, saved);
+                saved = get(companyId, collection, id);
+            }
+            collectionService.apply(companyId, userId, id, saleBefore, saved);
+            if ("cancelled".equals(SalesPayloadSupport.stringValue(saved, "commercialStatus"))) {
+                salesRepository.reverseSaleInventory(companyId, userId, id, java.time.LocalDate.now(businessTimeZoneResolver.resolve(companyId)));
+            }
+        }
+        return saved;
     }
 
     /**
@@ -298,6 +357,11 @@ public class SalesService {
 
     @Transactional
     public void delete(long companyId, String collection, long id) {
+        if ("products".equals(collection)) {
+            salesRepository.lockProductForMaintenance(companyId, id);
+            if (salesRepository.hasProductInventoryHistory(companyId, id))
+                throw new IllegalArgumentException("El producto tiene saldos o historial de inventario. Desactívalo para conservar su trazabilidad.");
+        }
         if ("inventory-warehouses".equals(collection)) {
             salesRepository.lockWarehouseForDeletion(companyId, id);
             if (salesRepository.countCashRegistersForWarehouse(companyId, id) > 0) {
@@ -315,6 +379,8 @@ public class SalesService {
         }
         if ("sales".equals(collection)) {
             salesRepository.lockSaleForDeletion(companyId, id);
+            collectionService.requireUncollectedForDeletion(companyId, id);
+            if (salesRepository.hasSaleInventoryMovements(companyId, id)) throw new IllegalArgumentException("La venta tiene historial de inventario. Usa la cancelación para conservarlo.");
             if (salesRepository.countActiveSaleDependents(companyId, id) > 0) {
                 throw new IllegalArgumentException(
                         "Sale cannot be deleted because it has a credit account, POS ticket, or closed commission cut.");
@@ -326,19 +392,22 @@ public class SalesService {
         }
     }
 
-    public Map<String, Object> kpis(long companyId, String preferredCurrency) {
-        var body = new LinkedHashMap<>(salesRepository.kpis(companyId));
+    @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    public Map<String, Object> kpis(long companyId, String preferredCurrency, com.indice.erp.hr.HrOperationalScope scope) {
+        var today = LocalDate.now(businessTimeZoneResolver.resolve(companyId));
+        var body = new LinkedHashMap<>(salesRepository.kpis(companyId, today, scope));
         var rates = businessExchangeRateService.loadDailyRates();
+        var verifiedRates = com.indice.erp.exchange.BusinessExchangeRateEvidence.verifiedRates(rates, today, true);
         var metadata = rates.metadata();
         var effectiveDate = parseKpiRateDate(metadata == null ? null : metadata.sourceDate());
         var source = metadata == null ? "" : metadata.sourceName();
         var currency = preferredCurrency == null || preferredCurrency.isBlank() ? "MXN" : preferredCurrency;
 
-        var pipeline = kpiCurrencyAggregationService.aggregate(salesRepository.opportunityKpiAmounts(companyId), currency, rates.ratesPerUsd(), "daily", effectiveDate, source);
-        var quoted = kpiCurrencyAggregationService.aggregate(salesRepository.quoteKpiAmounts(companyId), currency, rates.ratesPerUsd(), "daily", effectiveDate, source);
-        var sales = kpiCurrencyAggregationService.aggregate(salesRepository.salesKpiAmounts(companyId, "all"), currency, rates.ratesPerUsd(), "daily", effectiveDate, source);
-        var monthly = kpiCurrencyAggregationService.aggregate(salesRepository.salesKpiAmounts(companyId, "month"), currency, rates.ratesPerUsd(), "daily", effectiveDate, source);
-        var weekly = kpiCurrencyAggregationService.aggregate(salesRepository.salesKpiAmounts(companyId, "week"), currency, rates.ratesPerUsd(), "daily", effectiveDate, source);
+        var pipeline = kpiCurrencyAggregationService.aggregate(salesRepository.opportunityKpiAmounts(companyId, scope), currency, verifiedRates, "daily", effectiveDate, source);
+        var quoted = kpiCurrencyAggregationService.aggregate(salesRepository.quoteKpiAmounts(companyId, scope), currency, verifiedRates, "daily", effectiveDate, source);
+        var sales = kpiCurrencyAggregationService.aggregate(salesRepository.salesKpiAmounts(companyId, "all", today, scope), currency, verifiedRates, "daily", effectiveDate, source);
+        var monthly = kpiCurrencyAggregationService.aggregate(salesRepository.salesKpiAmounts(companyId, "month", today, scope), currency, verifiedRates, "daily", effectiveDate, source);
+        var weekly = kpiCurrencyAggregationService.aggregate(salesRepository.salesKpiAmounts(companyId, "week", today, scope), currency, verifiedRates, "daily", effectiveDate, source);
 
         body.put("pipelineValue", pipeline.preferredTotal());
         body.put("quotedValue", quoted.preferredTotal());
@@ -668,11 +737,11 @@ public class SalesService {
         }
         if ("quotes".equals(collection)) {
             hydrateQuoteFromContactAndOpportunity(companyId, normalized);
-            normalized.putIfAbsent("createdDate", LocalDate.now().toString());
+            normalized.putIfAbsent("createdDate", LocalDate.now(businessTimeZoneResolver.resolve(companyId)).toString());
         }
         if ("sales".equals(collection)) {
             hydrateSaleFromRelations(companyId, normalized);
-            normalized.putIfAbsent("saleDate", LocalDate.now().toString());
+            normalized.putIfAbsent("saleDate", LocalDate.now(businessTimeZoneResolver.resolve(companyId)).toString());
         }
         if ("contracts".equals(collection)) {
             hydrateContractFromRelations(companyId, normalized);

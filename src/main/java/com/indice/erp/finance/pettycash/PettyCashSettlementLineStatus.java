@@ -5,5 +5,6 @@ public enum PettyCashSettlementLineStatus {
     RECEIPT_ATTACHED,
     VALIDATED,
     EXPENSE_CREATED,
-    REJECTED
+    REJECTED,
+    REVERSED
 }

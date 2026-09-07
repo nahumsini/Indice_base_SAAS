@@ -264,6 +264,10 @@ structure. Inactive organizational records are excluded from new-assignment sele
 their identifiers and labels for related historical records and historical filters. Saving the
 structure, its active map, and lifecycle changes is one transaction.
 
+The Sales commission reporting owner contract is documented in
+[`sales-commission-reporting-contract.md`](./sales-commission-reporting-contract.md). Its summary POST
+is a filter-only read and uses the central KPI conversion engine; it does not create financial entries.
+
 ## 10. Transactions, Concurrency, And Idempotency
 
 Services/use cases own transaction boundaries. A single transaction must cover the invariant being
@@ -321,8 +325,25 @@ become a second backend vocabulary.
 
 Approved Finance domain contracts remain authoritative. General rules include:
 
+- Treasury is the sole owner of payment-account balance mutations. New account impacts from
+  Expenses, Funds, and POS append idempotent movements through that owner contract; they do not
+  update account balance projections directly. Sales retains its separately approved collection
+  flow until an explicit adoption contract replaces it.
+- A payment account answers where money is held, a fund answers its purpose and custody, and a
+  budget answers how much spending is authorized. These concepts remain separate even when one
+  operation links all three.
+- Available and pending balances remain distinct. A pending collection becomes available only
+  through an auditable settlement movement.
 - A petty-cash issuance or bank-to-fund transfer is a fund movement, not an expense.
 - An expense represents actual business consumption.
+- Expense payment state is derived only from approval, idempotent payment, close, and reversal
+  workflows. A generic status endpoint may preserve an already-current legacy value for
+  compatibility, but it must not manufacture paid amounts or move money.
+- Every expense payment locks the expense aggregate, carries a company-scoped idempotency key when
+  supplied by the client, records its payment history, and posts the Treasury movement in one
+  transaction.
+- Only `DRAFT` expenses may be edited or deleted. Submitted, approved, partially paid, paid, and
+  closed expenses change through their explicit workflow, adjustment, or reversal operations.
 - A petty-cash settlement links or creates expenses from accepted evidence without double counting
   issuance, settlement, and resulting expenses.
 - A purchase order commits budget but does not itself move money.
@@ -331,6 +352,9 @@ Approved Finance domain contracts remain authoritative. General rules include:
 - Approved financial records are reversed or adjusted through an auditable workflow, not silently
   overwritten or deleted.
 
+POS destination policy, universal cash, retained cash, cut settlement, and the Treasury ledger are
+governed by `docs/pos-treasury-settlement-contract-v1.md`.
+
 For the current budget-line foundation, `plannedAmount` is the editable input. The backend derives:
 
 ```text
@@ -338,8 +362,11 @@ availableAmount =
   plannedAmount
   - committedAmount
   - actualExpenseAmount
-  - (pettyCashIssuedAmount - pettyCashSettledAmount)
 ```
+
+Funding transfers custody and does not consume budget. Issued and settled fund amounts remain
+separate disclosures; an authorized receipt consumes actual expense once. This decision is adopted
+in `docs/kpi-financial-closeout-contract-v1.md`.
 
 The approved health state remains derived from the approved domain contract. Do not copy this
 formula into controllers or frontend components, and do not expand it to another financial domain

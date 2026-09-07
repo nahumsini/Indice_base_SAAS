@@ -283,6 +283,9 @@ export interface ReceivablesTranslations {
       overLimit: string;
     };
     payment: {
+      destinationAccount: string;
+      destinationPlaceholder: string;
+      universalCash: string;
       title: string;
       description: string;
       account: string;

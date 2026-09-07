@@ -155,7 +155,12 @@ public final class ReceivablesDtos {
         BigDecimal amount,
         String currency,
         String reference,
-        String registeredBy
+        String registeredBy,
+        Long paymentAccountId,
+        String idempotencyKey,
+        String receiptUrl,
+        String receiptFileName,
+        String receiptMimeType
     ) {
     }
 
@@ -194,7 +199,10 @@ public final class ReceivablesDtos {
         String method,
         BigDecimal amount,
         String reference,
-        String registeredBy
+        String registeredBy,
+        Long paymentAccountId,
+        String idempotencyKey,
+        ReceivableReceiptService.ReceiptInput receipt
     ) {
     }
 

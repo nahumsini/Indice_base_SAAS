@@ -1,5 +1,6 @@
 package com.indice.erp.finance.pettycash;
 
+import com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver;
 import java.sql.Date;
 import java.time.YearMonth;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -12,18 +13,32 @@ import org.springframework.transaction.annotation.Transactional;
 class PettyCashMonthlyCutScheduler {
 
     private final JdbcTemplate jdbcTemplate;
+    private final FinanceBusinessTimeZoneResolver timeZoneResolver;
 
-    PettyCashMonthlyCutScheduler(JdbcTemplate jdbcTemplate) {
+    PettyCashMonthlyCutScheduler(
+            JdbcTemplate jdbcTemplate,
+            FinanceBusinessTimeZoneResolver timeZoneResolver) {
         this.jdbcTemplate = jdbcTemplate;
+        this.timeZoneResolver = timeZoneResolver;
     }
 
-    @Scheduled(cron = "0 5 0 1 * *", zone = "America/Cancun")
+    @Scheduled(cron = "0 5 * * * *", zone = "UTC")
     @Transactional
     public void openMonthlyStatements() {
-        openPeriod(YearMonth.now(java.time.ZoneId.of("America/Cancun")));
+        var companyIds = jdbcTemplate.query(
+            """
+            SELECT DISTINCT company_id
+            FROM finance_petty_cash_funds
+            WHERE deleted_at IS NULL AND status <> 'CLOSED'
+            """,
+            (rs, rowNum) -> rs.getLong("company_id")
+        );
+        for (var companyId : companyIds) {
+            openPeriod(companyId, YearMonth.now(timeZoneResolver.resolve(companyId)));
+        }
     }
 
-    void openPeriod(YearMonth period) {
+    void openPeriod(long companyId, YearMonth period) {
         var periodKey = period.toString();
         var periodStart = period.atDay(1);
         var periodEnd = period.atEndOfMonth();
@@ -35,24 +50,30 @@ class PettyCashMonthlyCutScheduler {
             SET statement.status = 'CUT_PENDING',
                 statement.version = statement.version + 1
             WHERE statement.period_key < ?
+              AND statement.company_id = ?
               AND statement.status = 'OPEN'
               AND statement.deleted_at IS NULL
               AND fund.deleted_at IS NULL
               AND fund.status <> 'CLOSED'
             """,
-            periodKey
+            periodKey,
+            companyId
         );
 
         jdbcTemplate.update(
             """
             INSERT INTO finance_petty_cash_statements
-            (company_id, petty_cash_fund_id, folio, period_key, period_start, period_end, cut_off_date,
+            (company_id, petty_cash_fund_id, fund_type_snapshot, folio, period_key, period_start, period_end, cut_off_date,
              opening_balance_amount, assigned_amount, additional_deposit_amount, declared_closing_balance_amount,
              estimated_usage_amount, verified_expense_amount, returned_amount, shortage_amount, carry_forward_amount,
-             currency_code, status, responsible_user_id, attachment_count, created_by_user_id,
+             currency_code, status, responsible_user_id, external_owner_type_snapshot, external_owner_name_snapshot,
+             external_owner_relationship_snapshot, external_owner_reference_snapshot, statement_recipient_email_snapshot,
+             managed_asset_type_snapshot, managed_asset_name_snapshot, managed_asset_reference_snapshot,
+             attachment_count, created_by_user_id,
              custom_fields_json, metadata_json)
             SELECT fund.company_id,
                    fund.id,
+                   fund.fund_type,
                    CONCAT('PC-ST-', ?, '-', fund.id),
                    ?,
                    ?,
@@ -65,12 +86,21 @@ class PettyCashMonthlyCutScheduler {
                    fund.currency_code,
                    'OPEN',
                    fund.responsible_user_id,
+                   fund.external_owner_type,
+                   fund.external_owner_name,
+                   fund.external_owner_relationship,
+                   fund.external_owner_reference,
+                   fund.statement_recipient_email,
+                   fund.managed_asset_type,
+                   fund.managed_asset_name,
+                   fund.managed_asset_reference,
                    0,
                    NULL,
                    NULL,
                    NULL
             FROM finance_petty_cash_funds fund
             WHERE fund.deleted_at IS NULL
+              AND fund.company_id = ?
               AND fund.status <> 'CLOSED'
               AND NOT EXISTS (
                 SELECT 1
@@ -85,6 +115,7 @@ class PettyCashMonthlyCutScheduler {
             Date.valueOf(periodStart),
             Date.valueOf(periodEnd),
             Date.valueOf(periodEnd),
+            companyId,
             periodKey
         );
     }

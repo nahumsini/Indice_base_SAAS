@@ -31,16 +31,18 @@ public class SalesApiController {
     private final SessionCsrfService sessionCsrfService;
     private final SalesService salesService;
     private final SalesCommissionCutService commissionCutService;
+    private final com.indice.erp.kpis.KpiRequestAccessService kpiAccess;
 
     public SalesApiController(
             SessionAuthService sessionAuthService,
             SessionCsrfService sessionCsrfService,
             SalesService salesService,
-            SalesCommissionCutService commissionCutService) {
+            SalesCommissionCutService commissionCutService, com.indice.erp.kpis.KpiRequestAccessService kpiAccess) {
         this.sessionAuthService = sessionAuthService;
         this.sessionCsrfService = sessionCsrfService;
         this.salesService = salesService;
         this.commissionCutService = commissionCutService;
+        this.kpiAccess = kpiAccess;
     }
 
     @GetMapping("/context")
@@ -60,7 +62,7 @@ public class SalesApiController {
             return unauthorized();
         }
 
-        return ResponseEntity.ok(salesService.kpis(user.get().companyId(), preferredCurrency));
+        return ResponseEntity.ok(salesService.kpis(user.get().companyId(), preferredCurrency, kpiAccess.monetary(user.get(), "SALES_TOTAL")));
     }
 
     @GetMapping("/files")

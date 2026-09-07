@@ -174,14 +174,16 @@ class FinancialAnalyticsService {
     }
 
     private static List<BridgePoint> cashBridge(ReportResponse report) {
-        BigDecimal opening = line(report, "CASH").comparative();
+        BigDecimal opening = line(report, "OPENING_CASH").current();
+        BigDecimal incorporatedOpening = line(report, "OPENING_ADJUSTMENTS").current();
         BigDecimal operating = line(report, "OPERATING_CASH").current();
         BigDecimal investing = line(report, "INVESTING_CASH").current();
         BigDecimal financing = line(report, "FINANCING_CASH").current();
-        BigDecimal afterOperating = opening.add(operating);
+        BigDecimal afterOperating = opening.add(incorporatedOpening).add(operating);
         BigDecimal afterInvesting = afterOperating.add(investing);
         return List.of(
             new BridgePoint("OPENING_CASH", opening, opening, "TOTAL"),
+            new BridgePoint("OPENING_ADJUSTMENTS", incorporatedOpening, money(opening.add(incorporatedOpening)), "CHANGE"),
             new BridgePoint("OPERATING_CASH", operating, money(afterOperating), "CHANGE"),
             new BridgePoint("INVESTING_CASH", investing, money(afterInvesting), "CHANGE"),
             new BridgePoint("FINANCING_CASH", financing, money(afterInvesting.add(financing)), "CHANGE"),

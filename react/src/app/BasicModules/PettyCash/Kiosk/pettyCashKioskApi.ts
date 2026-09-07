@@ -195,12 +195,17 @@ export const pettyCashKioskApi = {
     );
   },
 
-  async deletePublicReceipt(fundToken: string, settlementLineId: number, identificationToken: string) {
+  async deletePublicReceipt(
+    fundToken: string,
+    settlementLineId: number,
+    identificationToken: string,
+    cancellationReason: string,
+  ) {
     return kioskMutation<PublicPettyCashHistory & { fund: PublicPettyCashFund; recent_receipts: PublicPettyCashReceipt[] }>(
       `petty-cash:${fundToken}:receipt:${settlementLineId}:delete`,
       `${publicBasePath}/${fundToken}/receipts/${settlementLineId}`,
       'DELETE',
-      { identification_token: identificationToken },
+      { identification_token: identificationToken, cancellation_reason: cancellationReason.trim() },
     );
   },
 };

@@ -22,7 +22,8 @@ class AccountingSourceDiscoveryServiceTest {
     @BeforeEach
     void setUp() {
         repository = mock(AccountingSourceRepository.class);
-        service = new AccountingSourceDiscoveryService(repository, new ObjectMapper());
+        service = new AccountingSourceDiscoveryService(repository, new ObjectMapper(), new AccountingCurrencyConversion(
+            mock(com.indice.erp.exchange.BusinessExchangeRateSnapshotRepository.class), mock(org.springframework.jdbc.core.JdbcTemplate.class), new ObjectMapper(), mock(HistoricalInventoryCost.class)));
         when(repository.findSales(1L, FROM, TO)).thenReturn(List.of());
         when(repository.findExpenses(1L, FROM, TO)).thenReturn(List.of());
         when(repository.findExpensePayments(1L, FROM, TO)).thenReturn(List.of());
@@ -79,7 +80,9 @@ class AccountingSourceDiscoveryServiceTest {
             new AccountingSourceRepository.PayrollSource(
                 11L, LocalDate.of(2026, 8, 15), "paid", new BigDecimal("1000"),
                 new BigDecimal("200"), new BigDecimal("100"), new BigDecimal("800"),
-                LocalDate.of(2026, 8, 16))
+                LocalDate.of(2026, 8, 16), List.of(new AccountingSourceRepository.PayrollLineSource(
+                    1L, null, null, "MXN", new BigDecimal("1000"), new BigDecimal("200"),
+                    new BigDecimal("100"), new BigDecimal("800"))))
         ));
 
         var discovery = service.discover(1L, FROM, TO, "MXN");

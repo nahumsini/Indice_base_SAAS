@@ -76,6 +76,7 @@ export function getKioskTaskAgendaStatus(
   task: PublicTaskKioskTask,
   referenceDate: string = todayKioskDateKey(),
 ): Exclude<AgendaStatus, 'audited'> | null {
+  if (!['pending', 'in_progress', 'paused', 'completed'].includes(task.status)) return null;
   if (!taskExistsByDate(task, referenceDate)) {
     return null;
   }
@@ -107,6 +108,7 @@ function getKioskTaskAgendaStatusInRange(
   range: AgendaLoadRange,
   referenceDate: string,
 ): Exclude<AgendaStatus, 'audited'> | null {
+  if (!['pending', 'in_progress', 'paused', 'completed'].includes(task.status)) return null;
   if (!taskExistsByDate(task, range.to)) {
     return null;
   }
@@ -137,7 +139,18 @@ function resolveKioskTaskAgendaStatus(
   task: PublicTaskKioskTask,
   options: { period?: PeriodFilter; referenceDate?: string } = {},
 ) {
-  const referenceDate = options.referenceDate ?? todayKioskDateKey();
+  const today = options.referenceDate ?? todayKioskDateKey();
+  const referenceDate = options.period === 'tomorrow' ? toRelativeDateKey(today, 1)
+    : options.period === 'yesterday' ? toRelativeDateKey(today, -1) : today;
+  // An unbounded period includes future pending tasks and historical completions.
+  // It must not fall back to the single-day projection used by Today.
+  if (options.period === 'all') {
+    if (task.status === 'completed') return 'completed';
+    if (task.status === 'in_progress' || task.status === 'paused') return task.status;
+    if (task.status !== 'pending') return null;
+    const due = taskDueDateValue(task);
+    return due && due < today ? 'overdue' : 'pending';
+  }
   const range = options.period ? buildRange(options.period, referenceDate) : null;
   return range
     ? getKioskTaskAgendaStatusInRange(task, range, referenceDate)

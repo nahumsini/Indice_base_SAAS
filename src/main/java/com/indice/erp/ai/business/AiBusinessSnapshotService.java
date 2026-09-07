@@ -52,7 +52,9 @@ public class AiBusinessSnapshotService {
                 integer(summary, "absences"),
                 decimal(summary, "attendanceRate"),
                 integer(summary, "organizationRows"),
-                integer(summary, "executiveScore")
+                integer(summary, "executiveScore"),
+                Boolean.TRUE.equals(summary.get("profitReady")),
+                Boolean.TRUE.equals(summary.get("monetaryPartial"))
             ),
             alerts(panel)
         );

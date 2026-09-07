@@ -70,7 +70,8 @@ public class ShiftService {
 
     @Transactional
     public ShiftResponse close(PosContext context, long shiftId, ShiftCloseRequest request) {
-        var shift = requireShift(context, shiftId);
+        var shift = repository.findByIdForUpdate(context, shiftId)
+            .orElseThrow(() -> new NoSuchElementException("Shift not found."));
         cashClosingService.close(context, shift, request.countedCashAmount(), request.closingNote());
         return get(context, shiftId);
     }

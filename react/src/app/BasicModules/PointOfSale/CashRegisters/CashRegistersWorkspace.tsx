@@ -10,8 +10,9 @@ import { PointOfSaleTitleBar, pointOfSaleTitleBarPrimaryActionClassName, pointOf
 import { PointOfSaleTablePagination } from '../shared/components/PointOfSaleTablePagination';
 import { usePreferredBusinessCurrency } from '../../shared/BusinessCurrencyContext';
 import { CreateCashRegisterModal } from '../Sale/components/CreateCashRegisterModal';
+import { CashRegisterSettlementFields } from '../Sale/components/CashRegisterSettlementFields';
 import { PosModalFrame, posModalModuleFooterClassName, posModalPrimaryActionClassName, posModalSecondaryActionClassName } from '../Sale/components/PosModalFrame';
-import { posBackendApi, type PosCashRegisterCreatePayload, type PosCashRegisterResponse, type PosContextResponse, type PosDailySalesSummaryResponse, type PosShiftClosingSummaryResponse, type PosShiftResponse, type PosWarehouseSummary } from '../Sale/services/posBackendApi';
+import { posBackendApi, type PosCashRegisterCreatePayload, type PosCashRegisterResponse, type PosContextResponse, type PosDailySalesSummaryResponse, type PosSettlementRulePayload, type PosShiftClosingSummaryResponse, type PosShiftResponse, type PosWarehouseSummary } from '../Sale/services/posBackendApi';
 import { useCashRegistersCopy, type CashRegistersCopy } from './cashRegistersTranslations';
 import { SquareTerminalSetupModal } from './SquareTerminalSetupModal';
 import { useSquareTerminalSetupCopy } from './squareTerminalSetupTranslations';
@@ -579,7 +580,7 @@ export default function CashRegistersWorkspace() {
         registers={registers}
       />
     ) : null}
-    {canManageCashRegisters && editing ? <EditRegisterModal copy={copy} register={editing} warehouses={context?.warehouses ?? []} saving={saving} onClose={() => setEditing(null)} onSave={update} /> : null}
+    {canManageCashRegisters && editing ? <EditRegisterModal copy={copy} currencyCode={preferredCurrency} register={editing} warehouses={context?.warehouses ?? []} saving={saving} onClose={() => setEditing(null)} onSave={update} /> : null}
     <IndiceConfirmationDialog
       open={Boolean(registerPendingDeletion)}
       title={copy.deleteModal.title}
@@ -892,13 +893,36 @@ function StatusBadge({ copy, register, shift }: { copy: CashRegistersCopy; regis
   return <span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${tone}`}>{label}</span>;
 }
 
-function EditRegisterModal({ copy, register, warehouses, saving, onClose, onSave }: { copy: CashRegistersCopy; register: PosCashRegisterResponse; warehouses: PosWarehouseSummary[]; saving: boolean; onClose: () => void; onSave: (payload: PosCashRegisterCreatePayload) => Promise<void> }) {
+function EditRegisterModal({ copy, currencyCode, register, warehouses, saving, onClose, onSave }: { copy: CashRegistersCopy; currencyCode: string; register: PosCashRegisterResponse; warehouses: PosWarehouseSummary[]; saving: boolean; onClose: () => void; onSave: (payload: PosCashRegisterCreatePayload) => Promise<void> }) {
   const [warehouseId, setWarehouseId] = useState(String(register.warehouseId));
   const [code, setCode] = useState(register.code);
   const [name, setName] = useState(register.name);
   const [active, setActive] = useState(register.active && register.status === 'ACTIVE');
-  const payload = { warehouseId: Number(warehouseId), code: code.trim().toUpperCase(), name: name.trim(), status: active ? 'ACTIVE' as const : 'INACTIVE' as const, active, notes: register.notes };
-  return <PosModalFrame modalType="standard-form" closeLabel={copy.editModal.closeLabel} eyebrow={copy.editModal.eyebrow} icon={<Pencil className="h-6 w-6" />} isCloseDisabled={saving} onClose={onClose} size="md" subtitle={copy.editModal.subtitle} title={copy.editModal.title} tone="coral" footerClassName={posModalModuleFooterClassName} footerLeading={<button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>{copy.editModal.cancel}</button>} footer={<button type="button" disabled={saving || !code.trim() || !name.trim()} onClick={() => void onSave(payload)} className={posModalPrimaryActionClassName}>{saving ? copy.editModal.saving : copy.editModal.save}</button>}>
-    <div className="space-y-4"><label className="block text-sm font-medium">{copy.editModal.warehouse}<select value={warehouseId} onChange={(event) => setWarehouseId(event.target.value)} className="mt-2 min-h-12 w-full rounded-lg border border-slate-300 bg-white px-3 dark:border-slate-600 dark:bg-slate-950">{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}</select></label><div className="grid gap-4 sm:grid-cols-2"><label className="block text-sm font-medium">{copy.editModal.code}<input value={code} onChange={(event) => setCode(event.target.value)} className="mt-2 min-h-12 w-full rounded-lg border border-slate-300 px-3 dark:border-slate-600 dark:bg-slate-950" /></label><label className="block text-sm font-medium">{copy.editModal.name}<input value={name} onChange={(event) => setName(event.target.value)} className="mt-2 min-h-12 w-full rounded-lg border border-slate-300 px-3 dark:border-slate-600 dark:bg-slate-950" /></label></div><label className="flex items-center justify-between rounded-lg border border-slate-200 p-4 dark:border-slate-700"><span><strong className="block text-sm font-medium">{copy.editModal.activeTitle}</strong><span className="text-xs text-slate-500">{copy.editModal.activeHelp}</span></span><input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} className="h-5 w-5" /></label></div>
+  const [retainedCashAmount, setRetainedCashAmount] = useState(Number(register.retainedCashAmount ?? 0));
+  const [settlementRules, setSettlementRules] = useState<PosSettlementRulePayload[]>(
+    () => (register.settlementRules ?? []).map((rule) => ({
+      paymentMethod: rule.paymentMethod,
+      destinationPaymentAccountId: rule.destinationPaymentAccountId ?? null,
+      settlementTiming: rule.settlementTiming,
+      enabled: rule.enabled,
+    })),
+  );
+  const payload = {
+    warehouseId: Number(warehouseId),
+    code: code.trim().toUpperCase(),
+    name: name.trim(),
+    status: active ? 'ACTIVE' as const : 'INACTIVE' as const,
+    active,
+    notes: register.notes,
+    retainedCashAmount,
+    settlementCurrencyCode: currencyCode,
+    settlementRules,
+  };
+  const settlementReady = settlementRules.length === 5 && !settlementRules.some((rule) => (
+    rule.enabled && rule.paymentMethod !== 'CREDIT' && !rule.destinationPaymentAccountId
+  ));
+  const selectedWarehouseId = Number(warehouseId);
+  return <PosModalFrame modalType="standard-form" closeLabel={copy.editModal.closeLabel} eyebrow={copy.editModal.eyebrow} icon={<Pencil className="h-6 w-6" />} isCloseDisabled={saving} onClose={onClose} size="xl" subtitle={copy.editModal.subtitle} title={copy.editModal.title} tone="coral" footerClassName={posModalModuleFooterClassName} footerLeading={<button type="button" onClick={onClose} className={posModalSecondaryActionClassName}>{copy.editModal.cancel}</button>} footer={<button type="button" disabled={saving || !code.trim() || !name.trim() || !settlementReady} onClick={() => void onSave(payload)} className={posModalPrimaryActionClassName}>{saving ? copy.editModal.saving : copy.editModal.save}</button>}>
+    <div className="space-y-4"><label className="block text-sm font-medium">{copy.editModal.warehouse}<select value={warehouseId} onChange={(event) => { setWarehouseId(event.target.value); setSettlementRules([]); }} className="mt-2 min-h-12 w-full rounded-lg border border-slate-300 bg-white px-3 dark:border-slate-600 dark:bg-slate-950">{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}</select></label><div className="grid gap-4 sm:grid-cols-2"><label className="block text-sm font-medium">{copy.editModal.code}<input value={code} onChange={(event) => setCode(event.target.value)} className="mt-2 min-h-12 w-full rounded-lg border border-slate-300 px-3 dark:border-slate-600 dark:bg-slate-950" /></label><label className="block text-sm font-medium">{copy.editModal.name}<input value={name} onChange={(event) => setName(event.target.value)} className="mt-2 min-h-12 w-full rounded-lg border border-slate-300 px-3 dark:border-slate-600 dark:bg-slate-950" /></label></div><label className="flex items-center justify-between rounded-lg border border-slate-200 p-4 dark:border-slate-700"><span><strong className="block text-sm font-medium">{copy.editModal.activeTitle}</strong><span className="text-xs text-slate-500">{copy.editModal.activeHelp}</span></span><input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} className="h-5 w-5" /></label><CashRegisterSettlementFields currencyCode={currencyCode} disabled={saving} initialRules={selectedWarehouseId === register.warehouseId ? register.settlementRules : []} registerId={selectedWarehouseId === register.warehouseId ? register.id : undefined} retainedCashAmount={retainedCashAmount} rules={settlementRules} warehouseId={selectedWarehouseId} onRetainedCashAmountChange={setRetainedCashAmount} onRulesChange={setSettlementRules} /></div>
   </PosModalFrame>;
 }

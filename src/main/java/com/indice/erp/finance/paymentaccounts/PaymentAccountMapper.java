@@ -26,8 +26,11 @@ public class PaymentAccountMapper {
             rs.getString("currency_code"),
             rs.getBigDecimal("opening_balance"),
             rs.getBigDecimal("current_balance"),
+            rs.getBigDecimal("pending_balance"),
             PaymentAccountStatus.valueOf(rs.getString("status")),
             rs.getString("description"),
+            rs.getString("system_key"),
+            rs.getBoolean("is_system_managed"),
             nullableLong(rs, "created_by_user_id"),
             nullableLong(rs, "updated_by_user_id"),
             instant(rs, "created_at"),
@@ -43,7 +46,9 @@ public class PaymentAccountMapper {
         return new PaymentAccountResponse(
             record.id(), record.companyId(), record.unitId(), record.businessId(), record.name(),
             record.type(), record.currencyCode(), record.openingBalance(), record.currentBalance(),
-            record.status(), record.description(), record.createdByUserId(), record.updatedByUserId(),
+            record.pendingBalance(), record.currentBalance().add(record.pendingBalance()),
+            record.status(), record.description(), record.systemKey(), record.systemManaged(),
+            record.createdByUserId(), record.updatedByUserId(),
             record.createdAt(), record.updatedAt(), record.deletedAt(), record.version(),
             FinanceJsonSupport.toJsonNode(record.customFieldsJson()), FinanceJsonSupport.toJsonNode(record.metadataJson())
         );
@@ -56,7 +61,7 @@ public class PaymentAccountMapper {
         var openingBalance = request.openingBalance();
         return new PaymentAccountCommand(
             assignment.unitId(), assignment.businessId(), trim(request.name()), request.type(),
-            normalizeCurrency(request.currencyCode()), openingBalance, openingBalance,
+            normalizeCurrency(request.currencyCode()), openingBalance, java.math.BigDecimal.ZERO,
             statusOrActive(request.status()), trimToNull(request.description()), context.userId(), null,
             FinanceJsonSupport.toJson(request.customFields()), FinanceJsonSupport.toJson(request.metadata())
         );

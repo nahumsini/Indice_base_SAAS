@@ -15,6 +15,7 @@ import type { PaymentMethod, ReceivableAccount, ReceivablePayment } from '../../
 import { formatMoney, todayIso } from '../../utils';
 import { ReceivablesModalFrame } from './ReceivablesModalFrame';
 import { ReceivablesSearchSelect } from './ReceivablesSearchSelect';
+import { receivablesApi } from '../../services/receivablesApi';
 
 interface PaymentModalProps {
   accounts: ReceivableAccount[];
@@ -33,13 +34,17 @@ export function PaymentModal({
   onClose,
   onSubmit,
 }: PaymentModalProps) {
+  const paymentKey = useRef(crypto.randomUUID());
+  const [paymentAccountId, setPaymentAccountId] = useState('');
+  const [destinations, setDestinations] = useState<Array<{ id: number; name: string; type: string; currencyCode: string }>>([]);
+  const [destinationsLoading, setDestinationsLoading] = useState(false);
   const receiptInputRef = useRef<HTMLInputElement | null>(null);
   const [receivableId, setReceivableId] = useState(initialReceivableId ?? accounts[0]?.id ?? '');
   const selectedAccount = accounts.find((account) => account.id === receivableId) ?? accounts[0] ?? null;
   const [amount, setAmount] = useState(selectedAccount?.installmentAmount ?? 0);
   const [method, setMethod] = useState<PaymentMethod>('transfer');
   const [reference, setReference] = useState('');
-  const [registeredBy, setRegisteredBy] = useState(copy.common.financeUser);
+  const registeredBy = copy.common.financeUser;
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptDataUrl, setReceiptDataUrl] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -51,6 +56,22 @@ export function PaymentModal({
     && amount > 0
     && amount <= selectedAccount.balance,
   );
+  const visibleDestinations = destinations.filter(account => method === 'cash' ? account.type === 'CASH' : account.type === 'BANK');
+  const destinationValid = method === 'cash' || visibleDestinations.some(account => String(account.id) === paymentAccountId);
+  useEffect(() => {
+    let active = true;
+    setDestinations([]);
+    setPaymentAccountId('');
+    if (!selectedAccount?.id) return;
+    setDestinationsLoading(true);
+    receivablesApi.paymentAccounts(selectedAccount.id).then(rows => {
+      if (active) setDestinations(rows);
+    }).catch(error => {
+      if (active) setSubmitError(error instanceof Error ? error.message : copy.errors.registerPayment);
+    }).finally(() => { if (active) setDestinationsLoading(false); });
+    return () => { active = false; };
+  }, [selectedAccount?.id, copy.errors.registerPayment]);
+
   const remainingBalance = selectedAccount ? Math.max(0, selectedAccount.balance - Math.max(0, amount || 0)) : 0;
 
   useEffect(() => {
@@ -89,13 +110,15 @@ export function PaymentModal({
   };
 
   const handleSubmit = async () => {
-    if (!selectedAccount || !isAmountValid || isSaving) return;
+    if (!selectedAccount || !isAmountValid || !destinationValid || destinationsLoading || isSaving) return;
 
     setIsSaving(true);
     setSubmitError('');
     try {
       const result = await onSubmit({
         receivableId: selectedAccount.id,
+        paymentAccountId: paymentAccountId || undefined,
+        idempotencyKey: paymentKey.current,
         saleNumber: selectedAccount.saleNumber,
         customerName: selectedAccount.customerName,
         currency: selectedAccount.currency,
@@ -136,7 +159,7 @@ export function PaymentModal({
           </Button>
           <Button
             type="button"
-            disabled={!isAmountValid || isSaving}
+            disabled={!isAmountValid || !destinationValid || destinationsLoading || isSaving}
             className={moduleModalPrimaryButtonClassName}
             onClick={() => void handleSubmit()}
           >
@@ -203,8 +226,17 @@ export function PaymentModal({
             <FilterSelect
               label={copy.modals.payment.method}
               value={method}
-              onChange={(value) => setMethod(value as PaymentMethod)}
+              onChange={(value) => { setMethod(value as PaymentMethod); setPaymentAccountId(''); }}
               options={Object.entries(copy.paymentMethods).map(([value, label]) => ({ value, label }))}
+            />
+            <FilterSelect
+              label={copy.modals.payment.destinationAccount}
+              value={paymentAccountId}
+              onChange={setPaymentAccountId}
+              options={[
+                { value: '', label: method === 'cash' ? copy.modals.payment.universalCash : copy.modals.payment.destinationPlaceholder },
+                ...visibleDestinations.map(account => ({ value: String(account.id), label: `${account.name} · ${account.currencyCode}` })),
+              ]}
             />
             <label className="space-y-2">
               <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.modals.payment.reference}</span>
@@ -218,7 +250,7 @@ export function PaymentModal({
               <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{copy.modals.payment.registeredBy}</span>
               <Input
                 value={registeredBy}
-                onChange={(event) => setRegisteredBy(event.target.value)}
+                readOnly
                 className="h-11 rounded-xl border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950"
               />
             </label>

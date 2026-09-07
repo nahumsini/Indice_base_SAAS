@@ -58,6 +58,23 @@ class PaymentAccountRepository {
         return rows.stream().findFirst();
     }
 
+    void lockForMaintenance(FinanceContext context, long id) {
+        var params = scopedParams(context); params.add(1, id);
+        var rows = jdbcTemplate.query("SELECT account.id FROM finance_payment_accounts account WHERE account.company_id = ? AND account.id = ?"
+            + " AND account.deleted_at IS NULL AND " + FinanceSqlSupport.scopePredicate("account", context.scope()) + " FOR UPDATE",
+            (rs, row) -> rs.getLong(1), params.toArray());
+        if (rows.isEmpty()) throw new java.util.NoSuchElementException("Payment account not found.");
+    }
+
+    boolean hasFinancialHistory(FinanceContext context, long id) {
+        return jdbcTemplate.queryForObject("""
+            SELECT EXISTS (SELECT 1 FROM finance_payment_account_movements WHERE company_id = ? AND payment_account_id = ?)
+              OR EXISTS (SELECT 1 FROM finance_expense_payments WHERE company_id = ? AND payment_account_id = ?)
+              OR EXISTS (SELECT 1 FROM finance_receivable_payments WHERE company_id = ? AND payment_account_id = ?)
+              OR EXISTS (SELECT 1 FROM finance_petty_cash_funds WHERE company_id = ? AND payment_account_id = ?)
+            """, Boolean.class, context.companyId(), id, context.companyId(), id, context.companyId(), id, context.companyId(), id);
+    }
+
     PaymentAccountRecord insert(FinanceContext context, PaymentAccountCommand command) {
         var keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -102,6 +119,7 @@ class PaymentAccountRepository {
             WHERE company_id = ?
               AND id = ?
               AND deleted_at IS NULL
+              AND is_system_managed = FALSE
             """,
             context.userId(),
             context.companyId(),

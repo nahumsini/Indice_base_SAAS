@@ -21,7 +21,6 @@ import { receivablesApi, type ReceivablesWorkspace as ReceivablesWorkspacePayloa
 import type {
   CandidateSale,
   CreditPolicy,
-  CreditSale,
   CreditSimulation,
   ReceivablePayment,
   ReceivablesState,
@@ -29,8 +28,6 @@ import type {
 import {
   applyPaymentToAccounts,
   applyPaymentToInstallments,
-  createInstallmentsFromCreditSale,
-  createReceivableFromCreditSale,
   resolveInstallmentStatus,
   resolveReceivableStatus,
 } from './utils';
@@ -49,7 +46,6 @@ import {
   receivablesLearningLabels,
 } from './operationalGuidance/receivablesLearningControls';
 
-const shouldUseLocalFallback = (error: unknown) => !(error instanceof ApiClientError);
 
 const receivablesLearningJourneyOrder: readonly ReceivablesTabId[] = [
   'credit-customers',
@@ -91,6 +87,7 @@ const mergePaymentReceiptIntoWorkspace = (
   let receiptMerged = false;
   const payments = workspace.payments.map((workspacePayment) => {
     const matchesPayment = !receiptMerged
+      && (!payment.idempotencyKey || workspacePayment.idempotencyKey === payment.idempotencyKey)
       && workspacePayment.receivableId === payment.receivableId
       && workspacePayment.paymentDate === payment.paymentDate
       && workspacePayment.method === payment.method
@@ -102,6 +99,7 @@ const mergePaymentReceiptIntoWorkspace = (
     }
 
     receiptMerged = true;
+    if (workspacePayment.receiptDataUrl) return workspacePayment;
     return {
       ...workspacePayment,
       receiptDataUrl: payment.receiptDataUrl,
@@ -229,155 +227,60 @@ function ReceivablesWorkspace({
     creditPolicy: CreditPolicy;
     selectedSimulation: CreditSimulation;
   }) => {
-    if (isBackendReady) {
-      try {
-        applyWorkspace(await receivablesApi.createCreditSale(draft));
-        return true;
-      } catch (error) {
-        if (!shouldUseLocalFallback(error)) {
-          setFailureToastMessage(receivablesErrorMessage(error, copy.errors.createCreditSale));
-          return false;
-        }
-        setIsBackendReady(false);
-      }
+    try {
+      applyWorkspace(await receivablesApi.createCreditSale(draft));
+      setIsBackendReady(true);
+      return true;
+    } catch (error) {
+      setFailureToastMessage(receivablesErrorMessage(error, copy.errors.createCreditSale));
+      return false;
     }
-
-    const createdSale: CreditSale = {
-      id: `credit-sale-${Date.now()}`,
-      saleId: draft.candidate.id,
-      salesRecordId: draft.candidate.salesRecordId ?? null,
-      posTicketId: draft.candidate.posTicketId ?? null,
-      contactId: draft.creditPolicy.contactId ?? draft.candidate.contactId ?? null,
-      unitId: draft.candidate.unitId ?? null,
-      businessId: draft.candidate.businessId ?? null,
-      saleNumber: draft.candidate.saleNumber,
-      customerId: draft.creditPolicy.customerId,
-      customerName: draft.creditPolicy.customerName,
-      unit: draft.candidate.unit,
-      business: draft.candidate.business,
-      saleDate: draft.candidate.saleDate,
-      originalAmount: draft.candidate.amount,
-      financedAmount: draft.financedAmount,
-      currency: draft.candidate.currency,
-      status: 'active',
-      selectedSimulation: draft.selectedSimulation,
-      firstDueDate: draft.firstDueDate,
-      source: draft.candidate.source,
-    };
-    const createdReceivable = createReceivableFromCreditSale(createdSale);
-    const createdInstallments = createInstallmentsFromCreditSale(createdSale, createdReceivable);
-
-    setState((current) => ({
-      ...current,
-      creditSales: [createdSale, ...current.creditSales],
-      installments: [...createdInstallments, ...current.installments],
-      receivables: [createdReceivable, ...current.receivables],
-      creditPolicies: current.creditPolicies.map((policy) => (
-        policy.customerId === createdSale.customerId
-          ? {
-              ...policy,
-              availableCredit: Math.max(0, Number((policy.availableCredit - createdSale.financedAmount).toFixed(2))),
-            }
-          : policy
-      )),
-    }));
-    return true;
   };
 
   const registerPayment = async (payment: Omit<ReceivablePayment, 'id'>) => {
-    if (isBackendReady) {
-      try {
-        const workspace = await receivablesApi.registerPayment(payment);
-        applyWorkspace(mergePaymentReceiptIntoWorkspace(workspace, payment));
-        return true;
-      } catch (error) {
-        if (!shouldUseLocalFallback(error)) {
-          setFailureToastMessage(receivablesErrorMessage(error, copy.errors.registerPayment));
-          return false;
-        }
-        setIsBackendReady(false);
-      }
+    try {
+      const workspace = await receivablesApi.registerPayment(payment);
+      applyWorkspace(mergePaymentReceiptIntoWorkspace(workspace, payment));
+      setIsBackendReady(true);
+      return true;
+    } catch (error) {
+      setFailureToastMessage(receivablesErrorMessage(error, copy.errors.registerPayment));
+      return false;
     }
-
-    const createdPayment: ReceivablePayment = {
-      ...payment,
-      id: `payment-${Date.now()}`,
-    };
-
-    setState((current) => {
-      const nextAccounts = applyPaymentToAccounts(current.receivables, createdPayment);
-      const nextInstallments = applyPaymentToInstallments(current.installments, createdPayment);
-      const paidAccount = nextAccounts.find((account) => account.id === payment.receivableId);
-
-      return {
-        ...current,
-        payments: [createdPayment, ...current.payments],
-        installments: nextInstallments,
-        receivables: nextAccounts,
-        creditSales: current.creditSales.map((sale) => (
-          paidAccount?.creditSaleId === sale.id && paidAccount.balance <= 0
-            ? { ...sale, status: 'completed' }
-            : sale
-        )),
-      };
-    });
-    return true;
   };
 
   const updateCreditPolicy = async (
     policyId: string,
     policy: Omit<CreditPolicy, 'id' | 'availableCredit'>,
   ) => {
-    setState((current) => ({
-      ...current,
-      creditPolicies: current.creditPolicies.map((currentPolicy) => {
-        if (currentPolicy.id !== policyId) {
-          return currentPolicy;
-        }
-
-        const lineDelta = policy.creditLine - currentPolicy.creditLine;
-        return {
-          ...currentPolicy,
-          ...policy,
-          availableCredit: Math.max(0, Number((currentPolicy.availableCredit + lineDelta).toFixed(2))),
-        };
-      }),
-    }));
-    return true;
+    try {
+      applyWorkspace(await receivablesApi.updateCreditPolicy(policyId, policy));
+      return true;
+    } catch (error) {
+      setFailureToastMessage(receivablesErrorMessage(error, copy.errors.createCreditPolicy));
+      return false;
+    }
   };
 
   const deleteCreditPolicy = async (policyId: string) => {
-    setState((current) => ({
-      ...current,
-      creditPolicies: current.creditPolicies.filter((policy) => policy.id !== policyId),
-    }));
-    return true;
+    try {
+      applyWorkspace(await receivablesApi.archiveCreditPolicy(policyId));
+      return true;
+    } catch (error) {
+      setFailureToastMessage(receivablesErrorMessage(error, copy.errors.createCreditPolicy));
+      return false;
+    }
   };
 
   const createCreditPolicy = async (policy: Omit<CreditPolicy, 'id' | 'availableCredit'>) => {
-    if (isBackendReady) {
-      try {
-        applyWorkspace(await receivablesApi.createCreditPolicy({ ...policy, currency: policy.currency ?? preferredCurrency }));
-        return true;
-      } catch (error) {
-        if (!shouldUseLocalFallback(error)) {
-          setFailureToastMessage(receivablesErrorMessage(error, copy.errors.createCreditPolicy));
-          return false;
-        }
-        setIsBackendReady(false);
-      }
+    try {
+      applyWorkspace(await receivablesApi.createCreditPolicy({ ...policy, currency: policy.currency ?? preferredCurrency }));
+      setIsBackendReady(true);
+      return true;
+    } catch (error) {
+      setFailureToastMessage(receivablesErrorMessage(error, copy.errors.createCreditPolicy));
+      return false;
     }
-
-    setState((current) => ({
-      ...current,
-      creditPolicies: [{
-        ...policy,
-        currency: policy.currency ?? preferredCurrency,
-        id: `policy-${Date.now()}`,
-        availableCredit: policy.creditLine,
-      }, ...current.creditPolicies],
-    }));
-    return true;
   };
 
   return (

@@ -22,6 +22,7 @@ import com.indice.erp.pos.restaurant.RestaurantOrderDtos.RestaurantCheckoutOrder
 import com.indice.erp.pos.restaurant.RestaurantOrderService;
 import com.indice.erp.pos.status.PaymentStatus;
 import com.indice.erp.pos.status.TicketStatus;
+import com.indice.erp.pos.settlement.SettlementPolicyService;
 import com.indice.erp.pos.ticket.TicketInsertCommand;
 import com.indice.erp.pos.ticket.TicketItemInsertCommand;
 import com.indice.erp.pos.ticket.TicketMapper;
@@ -58,6 +59,7 @@ public class CheckoutService {
     private final DiscountRuleService discountRuleService;
     private final SelfServiceKioskRepository selfServiceKioskRepository;
     private final RestaurantOrderService restaurantOrders;
+    private final SettlementPolicyService settlementPolicyService;
 
     @Autowired
     public CheckoutService(
@@ -74,7 +76,8 @@ public class CheckoutService {
             CheckoutValidator validator,
             DiscountRuleService discountRuleService,
             SelfServiceKioskRepository selfServiceKioskRepository,
-            RestaurantOrderService restaurantOrders) {
+            RestaurantOrderService restaurantOrders,
+            SettlementPolicyService settlementPolicyService) {
         this.cashRegisterService = cashRegisterService;
         this.shiftRepository = shiftRepository;
         this.lookupRepository = lookupRepository;
@@ -89,6 +92,7 @@ public class CheckoutService {
         this.discountRuleService = discountRuleService;
         this.selfServiceKioskRepository = selfServiceKioskRepository;
         this.restaurantOrders = restaurantOrders;
+        this.settlementPolicyService = settlementPolicyService;
     }
 
     CheckoutService(
@@ -107,7 +111,28 @@ public class CheckoutService {
             SelfServiceKioskRepository selfServiceKioskRepository) {
         this(cashRegisterService, shiftRepository, lookupRepository, salesRecordSummaryRepository, ticketRepository,
             paymentRepository, inventoryDeductionService, ticketMapper, paymentMapper, calculator, validator,
-            discountRuleService, selfServiceKioskRepository, null);
+            discountRuleService, selfServiceKioskRepository, null, null);
+    }
+
+    CheckoutService(
+            CashRegisterService cashRegisterService,
+            ShiftRepository shiftRepository,
+            CheckoutLookupRepository lookupRepository,
+            SalesRecordSummaryRepository salesRecordSummaryRepository,
+            TicketRepository ticketRepository,
+            PaymentRepository paymentRepository,
+            InventoryDeductionService inventoryDeductionService,
+            TicketMapper ticketMapper,
+            PaymentMapper paymentMapper,
+            CheckoutCalculator calculator,
+            CheckoutValidator validator,
+            DiscountRuleService discountRuleService,
+            SelfServiceKioskRepository selfServiceKioskRepository,
+            RestaurantOrderService restaurantOrders) {
+        this(cashRegisterService, shiftRepository, lookupRepository, salesRecordSummaryRepository,
+            ticketRepository, paymentRepository, inventoryDeductionService, ticketMapper,
+            paymentMapper, calculator, validator, discountRuleService, selfServiceKioskRepository,
+            restaurantOrders, null);
     }
 
     CheckoutService(
@@ -123,7 +148,8 @@ public class CheckoutService {
             CheckoutCalculator calculator,
             CheckoutValidator validator) {
         this(cashRegisterService, shiftRepository, lookupRepository, salesRecordSummaryRepository, ticketRepository,
-            paymentRepository, inventoryDeductionService, ticketMapper, paymentMapper, calculator, validator, null, null, null);
+            paymentRepository, inventoryDeductionService, ticketMapper, paymentMapper, calculator, validator,
+            null, null, null, null);
     }
 
     @Transactional
@@ -148,7 +174,9 @@ public class CheckoutService {
             context, request, lines, customer,
             restaurantOrder != null ? "RESTAURANT" : preticket == null ? "POS" : "KIOSK", currency,
             register.warehouseId(), register.unitId(), register.businessId());
-        var payments = calculator.payments(request.payments(), currency);
+        var payments = resolvePaymentDestinations(
+            context, register, currency, calculator.payments(request.payments(), currency)
+        );
         var totals = calculator.totals(lines, payments);
         validator.validateLines(lines);
         validator.validatePayments(payments);
@@ -206,7 +234,9 @@ public class CheckoutService {
         validateDiscountRules(context, request, lines, customer,
             restaurantOrder != null ? "RESTAURANT" : preticket == null ? "POS" : "KIOSK", currency,
             register.warehouseId(), register.unitId(), register.businessId());
-        var payments = calculator.payments(request.payments(), currency);
+        var payments = resolvePaymentDestinations(
+            context, register, currency, calculator.payments(request.payments(), currency)
+        );
         var totals = calculator.totals(lines, payments);
         validator.validateLines(lines);
         validator.validatePayments(payments);
@@ -467,6 +497,17 @@ public class CheckoutService {
         )).toList();
     }
 
+    private List<CheckoutPayment> resolvePaymentDestinations(
+            PosContext context,
+            CashRegisterRecord register,
+            String currency,
+            List<CheckoutPayment> payments) {
+        if (settlementPolicyService == null) {
+            return payments;
+        }
+        return settlementPolicyService.resolveCheckoutPayments(context, register, currency, payments);
+    }
+
     private void increaseShiftExpectedCash(PosContext context, ShiftRecord shift, BigDecimal cashPaidAmount) {
         if (cashPaidAmount.compareTo(BigDecimal.ZERO) <= 0) {
             return;
@@ -490,7 +531,8 @@ public class CheckoutService {
             shift.unitId(), shift.businessId(), ticketNumber, customerName(customer), context.userName(),
             totals.totalAmount(), totals.subtotalAmount(), totals.discountAmount(), totals.taxAmount(),
             lines.getFirst().currencyCode(), paymentMethodSummary(payments), paymentReferenceSummary(payments),
-            PosJsonSupport.toJson(lines), trimToNull(notes), metadataJson(inventoryDeducted), inventoryDeducted
+            PosJsonSupport.toJson(inventoryDeductionService.salesLineSnapshots(context, shift, lines)),
+            trimToNull(notes), metadataJson(inventoryDeducted), inventoryDeducted
         );
     }
 

@@ -174,7 +174,7 @@ public class ProcessTaskCollaborationService {
                     SELECT assignment.task_id,
                            assignment.user_company_id,
                            user_company.user_id,
-                           COALESCE(NULLIF(TRIM(user_account.full_name), ''), NULLIF(TRIM(user_account.email), ''), CONCAT('User #', assignment.user_company_id)) AS resolved_name,
+                           COALESCE(NULLIF(TRIM(user_account_display_profile.full_name), ''), NULLIF(TRIM(user_account.full_name), ''), NULLIF(TRIM(user_account.email), ''), CONCAT('User #', assignment.user_company_id)) AS resolved_name,
                            user_account.email,
                            assignment.assignment_role,
                            assignment.contribution_status,
@@ -186,6 +186,7 @@ public class ProcessTaskCollaborationService {
                       ON user_company.id = assignment.user_company_id
                      AND user_company.company_id = assignment.company_id
                     JOIN users user_account ON user_account.id = user_company.user_id
+                        LEFT JOIN user_profiles user_account_display_profile ON user_account_display_profile.user_id = user_account.id
                     WHERE assignment.company_id = ?
                       AND assignment.task_id IN (%s)
                       AND assignment.removed_at IS NULL

@@ -91,11 +91,11 @@ class BudgetLineServiceTest {
     }
 
     @Test
-    void availableAmountFormulaIncludesNetPettyCash() {
+    void custodyTransfersDoNotConsumeBudgetTwice() {
         var available = BudgetLineAmounts.availableAmount(new BigDecimal("1000.00"), new BigDecimal("300.00"),
             new BigDecimal("100.00"), new BigDecimal("200.00"), new BigDecimal("50.00"));
 
-        assertEquals(new BigDecimal("450.00"), available);
+        assertEquals(new BigDecimal("600.00"), available);
         assertEquals(BudgetHealthStatus.ON_TRACK,
             BudgetLineAmounts.healthStatus(new BigDecimal("1000.00"), available));
         assertEquals(BudgetHealthStatus.EXCEEDED,

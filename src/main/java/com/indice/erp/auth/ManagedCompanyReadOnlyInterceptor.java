@@ -17,6 +17,11 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class ManagedCompanyReadOnlyInterceptor implements HandlerInterceptor {
 
     private static final Set<String> READ_METHODS = Set.of("GET", "HEAD", "OPTIONS");
+    private static final Set<String> READ_QUERY_PATHS = Set.of(
+        "/api/v1/kpis/monetary-aggregate/query",
+        "/api/v1/kpis/monetary-aggregate/batch",
+        "/api/v1/sales/commission-summary"
+    );
 
     private final ObjectMapper objectMapper;
     private final ObjectProvider<PlatformAuditService> auditProvider;
@@ -54,6 +59,10 @@ public class ManagedCompanyReadOnlyInterceptor implements HandlerInterceptor {
     }
 
     private boolean isConsultationControl(String method, String path) {
+        // These owner contracts accept filters by POST and never mutate business state.
+        if ("POST".equals(method) && READ_QUERY_PATHS.contains(path)) {
+            return true;
+        }
         if ("/api/v1/auth/managed-company".equals(path)) {
             return "POST".equals(method) || "DELETE".equals(method);
         }

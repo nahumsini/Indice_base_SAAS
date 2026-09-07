@@ -152,6 +152,15 @@ Use for:
 - finance status styling
 - money-focused operational density
 
+New, quick-imported, bulk-imported, and duplicated expenses begin pending. The visible status is a
+workflow result, not an editable field. Partial and full payment actions always open the payment
+flow so the user chooses an eligible account and the backend records the installment and Treasury
+movement together.
+
+Expense edit controls are available only while the record is a draft. Published expenses remain
+consultable; approval, payment, closure, adjustment, and reversal use their named actions instead
+of reopening the original commercial record.
+
 ### Sales, POS, Inventory, And Receivables
 
 Sales, Point of Sale, Inventory, and Receivables must feel like sibling modules.
@@ -234,6 +243,17 @@ Expenses owns:
 - providers when financially scoped
 - finance accounts
 - expense approvals and payments
+
+Funds owns:
+
+- purpose-bound and custodied money;
+- funding, returns, statements, cuts, shortages, and carry-forward;
+- the evidence-to-expense bridge without becoming a second payable ledger.
+
+Finance owns payment accounts and their available, pending, and total balance presentation. POS
+owns register settlement policy and cut operations, but its destination selectors use Finance
+accounts and never expose a checkout-time account override. The approved interaction and ownership
+contract is `docs/pos-treasury-settlement-contract-v1.md`.
 
 Do not duplicate product, inventory, provider, or purchase-order interfaces inside Sales or POS if Inventory owns them.
 

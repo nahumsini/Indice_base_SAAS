@@ -131,9 +131,9 @@ class ProcessTaskKioskQueryService {
             SELECT task.id, task.folio, task.title, task.description, task.status, task.priority,
                    task.start_date, task.due_date, task.completed_at, task.completion_percent,
                    task.notes, task.assigned_user_company_id,
-                   COALESCE(NULLIF(task.assigned_name, ''),
-                            NULLIF(TRIM(assigned_user.full_name), ''),
-                            NULLIF(TRIM(assigned_user.email), ''), NULL) AS assigned_name,
+                   COALESCE(
+                            NULLIF(TRIM(assigned_user_display_profile.full_name), ''), NULLIF(TRIM(assigned_user.full_name), ''),
+                            NULLIF(TRIM(assigned_user.email), ''), NULLIF(task.assigned_name, ''), NULL) AS assigned_name,
                    task.unit_id, unit.name AS unit_name,
                    task.business_id, business.name AS business_name,
                    task.process_id, process.title AS process_title,
@@ -155,6 +155,7 @@ class ProcessTaskKioskQueryService {
               ON assigned_user_company.id = task.assigned_user_company_id
              AND assigned_user_company.company_id = task.company_id
             LEFT JOIN users assigned_user ON assigned_user.id = assigned_user_company.user_id
+                        LEFT JOIN user_profiles assigned_user_display_profile ON assigned_user_display_profile.user_id = assigned_user.id
             LEFT JOIN users created_user ON created_user.id = task.created_by
             LEFT JOIN units unit ON unit.id = task.unit_id
              AND (unit.company_id = task.company_id OR unit.company_id IS NULL)

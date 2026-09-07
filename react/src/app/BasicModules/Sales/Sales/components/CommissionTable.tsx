@@ -21,7 +21,7 @@ import { useTablePagination } from '../../../../hooks/useTablePagination';
 import { usePersistentColumnWidths } from '../../../../hooks/usePersistentColumnWidths';
 import type { SalesRecordsTranslations } from '../translations';
 import type { CommissionRecord, CommissionStatus } from '../types/commissions';
-import { formatSalesCurrency, formatSalesDate } from '../utils/salesFormatters';
+import { formatCommissionMoney, formatSalesDate } from '../utils/salesFormatters';
 
 const statusClasses: Record<CommissionStatus, string> = {
   pending: 'border-[#F4C84A]/45 bg-[#F4C84A]/15 text-[#9a6b05] dark:text-[#F7D973]',
@@ -210,10 +210,10 @@ export function CommissionTable({
                 <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-medium text-slate-800 dark:text-slate-100"><span className="block break-words">{record.customerName}</span></TableCell>
                 <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top">
                   <p className="break-all font-medium text-slate-950 dark:text-white">{record.saleCode}</p>
-                  <p className="mt-1 text-xs font-medium text-slate-500">{formatSalesCurrency(record.saleAmount, record.currency)}</p>
+                  <p className="mt-1 text-xs font-medium text-slate-500">{formatCommissionMoney(record.saleAmount, record.currency)}</p>
                 </TableCell>
                 <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-medium text-slate-700 dark:text-slate-200"><span className="block break-words">{record.productName}</span></TableCell>
-                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 text-right align-top font-medium tabular-nums text-slate-950 dark:text-white"><span className="block break-words">{formatSalesCurrency(record.commissionAmount, record.currency)}</span></TableCell>
+                <TableCell className="overflow-hidden whitespace-normal px-5 py-5 text-right align-top font-medium tabular-nums text-slate-950 dark:text-white"><span className="block break-words">{formatCommissionMoney(record.commissionAmount, record.currency)}</span></TableCell>
                 <TableCell className="overflow-hidden whitespace-normal px-5 py-5 text-center align-top"><CommissionStatusBadge status={record.status} t={t} /></TableCell>
                 <TableCell className="overflow-hidden whitespace-normal px-5 py-5 align-top font-medium text-slate-700 dark:text-slate-200">{formatSalesDate(record.createdDate)}</TableCell>
                 <TableCell className="overflow-hidden whitespace-normal px-4 py-5 text-right align-top">

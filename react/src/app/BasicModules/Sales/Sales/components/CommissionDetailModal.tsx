@@ -5,7 +5,7 @@ import { getSalesModalActionClassNames } from '../../salesModalStyles';
 import type { SalesRecordsTranslations } from '../translations';
 import type { CommissionRecord } from '../types/commissions';
 import { formatCommissionType } from '../utils/commissionRules';
-import { formatCommissionRate, formatSalesCurrency, formatSalesDate } from '../utils/salesFormatters';
+import { formatCommissionRate, formatCommissionMoney, formatSalesDate } from '../utils/salesFormatters';
 import { CommissionStatusBadge } from './CommissionTable';
 import { DetailField } from './SalesModalPrimitives';
 
@@ -55,7 +55,7 @@ export function CommissionDetailModal({
         <div className="grid gap-3 md:grid-cols-4">
           <DetailField label={fields.ruleName} value={record?.commissionRuleName ?? t.common.notAvailable} />
           <DetailField label={fields.commissionType} value={record ? formatCommissionType(record.commissionType) : t.common.notAvailable} />
-          <DetailField label={fields.ruleValue} value={record ? (record.commissionType.startsWith('percentage') ? formatCommissionRate(record.commissionValue) : formatSalesCurrency(record.commissionValue, record.currency)) : t.common.notAvailable} />
+          <DetailField label={fields.ruleValue} value={record ? (record.commissionType.startsWith('percentage') ? formatCommissionRate(record.commissionValue) : formatCommissionMoney(record.commissionValue, record.currency)) : t.common.notAvailable} />
           <DetailField label={fields.priority} value={t.common.notAvailable} />
         </div>
       </section>
@@ -63,8 +63,8 @@ export function CommissionDetailModal({
       <section>
         <h3 className="mb-3 text-sm font-medium text-slate-500 dark:text-slate-400">{t.commissions.detail.sections.financial}</h3>
         <div className="grid gap-3 md:grid-cols-3">
-          <DetailField label={fields.saleAmount} value={formatSalesCurrency(record?.saleAmount ?? 0, record?.currency)} />
-          <DetailField label={fields.commissionAmount} value={formatSalesCurrency(record?.commissionAmount ?? 0, record?.currency)} />
+          <DetailField label={fields.saleAmount} value={formatCommissionMoney(record?.saleAmount ?? 0, record?.currency)} />
+          <DetailField label={fields.commissionAmount} value={formatCommissionMoney(record?.commissionAmount ?? 0, record?.currency)} />
           <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{fields.status}</p>
             <div className="mt-2">{record ? <CommissionStatusBadge status={record.status} t={t} naturalCase /> : t.common.notAvailable}</div>

@@ -111,3 +111,38 @@ test('Saldos ofrece vista previa, descarga e impresión del estado de cuenta', (
   assert.match(pdfSource, /format: 'a4'/);
   assert.match(pdfSource, /openStandardPdfForPrint/);
 });
+
+test('Las compras contabilizadas se anulan con motivo y conservan auditoría', () => {
+  const reconciliationSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashReconciliationWorkspace.tsx'), 'utf8');
+  const publicKioskSource = readFileSync(resolve(pettyCashRoot, 'Kiosk/PublicPettyCashKioskPage.tsx'), 'utf8');
+  const adminApiSource = readFileSync(resolve(pettyCashRoot, 'services/petty-cash.service.ts'), 'utf8');
+  const kioskApiSource = readFileSync(resolve(pettyCashRoot, 'Kiosk/pettyCashKioskApi.ts'), 'utf8');
+  const spanishCopy = readFileSync(resolve(pettyCashRoot, 'translations/es-MX.ts'), 'utf8');
+
+  for (const source of [reconciliationSource, publicKioskSource]) {
+    assert.match(source, /cancellationReason\.trim\(\)\.length < 8/);
+    assert.match(source, /cancellationReasonRequired/);
+  }
+  assert.match(adminApiSource, /\?reason=\$\{encodeURIComponent\(reason\.trim\(\)\)\}/);
+  assert.match(kioskApiSource, /cancellation_reason: cancellationReason\.trim\(\)/);
+  assert.match(spanishCopy, /delete: 'Anular compra'/);
+  assert.match(spanishCopy, /permanecerán en el historial para auditoría/);
+});
+
+test('Los fondos distinguen dinero de empresa y dinero administrado con identidad trazable', () => {
+  const fundsSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashFundsWorkspace.tsx'), 'utf8');
+  const reconciliationSource = readFileSync(resolve(pettyCashRoot, 'components/PettyCashReconciliationWorkspace.tsx'), 'utf8');
+  const serviceSource = readFileSync(resolve(pettyCashRoot, 'services/petty-cash.service.ts'), 'utf8');
+  const typesSource = readFileSync(resolve(pettyCashRoot, 'types/pettyCash.types.ts'), 'utf8');
+  const statementSource = readFileSync(resolve(pettyCashRoot, 'components/statements/PettyCashStatementDetailModal.tsx'), 'utf8');
+
+  assert.match(typesSource, /PettyCashFundType = 'INTERNAL_COMPANY' \| 'EXTERNAL_MANAGED'/);
+  assert.match(fundsSource, /externalOwnerName/);
+  assert.match(fundsSource, /statementRecipientEmail/);
+  assert.match(fundsSource, /managedAssetName/);
+  assert.match(reconciliationSource, /selectedFund\?\.fundType === 'EXTERNAL_MANAGED'/);
+  assert.match(reconciliationSource, /draft\.externalSourceName\.trim\(\)/);
+  assert.match(serviceSource, /externalSourceName: movement\.externalSourceName\?\.trim\(\) \|\| null/);
+  assert.match(serviceSource, /externalOwnerNameSnapshot/);
+  assert.match(statementSource, /fundTypeSnapshot === 'EXTERNAL_MANAGED'/);
+});

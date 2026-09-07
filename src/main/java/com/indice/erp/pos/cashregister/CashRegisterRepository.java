@@ -109,9 +109,9 @@ public class CashRegisterRepository {
         jdbcTemplate.update(connection -> {
             var statement = connection.prepareStatement("""
                 INSERT INTO pos_cash_registers
-                (company_id, unit_id, business_id, warehouse_id, code, name, status, is_active, notes,
+                (company_id, unit_id, business_id, warehouse_id, code, name, status, is_active, notes, retained_cash_amount,
                  created_by_user_id, custom_fields_json, metadata_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, Statement.RETURN_GENERATED_KEYS);
             bindMutation(statement, context, command, true, null);
             return statement;
@@ -124,7 +124,7 @@ public class CashRegisterRepository {
             var statement = connection.prepareStatement("""
                 UPDATE pos_cash_registers
                 SET unit_id = ?, business_id = ?, warehouse_id = ?, code = ?, name = ?, status = ?,
-                    is_active = ?, notes = ?, updated_by_user_id = ?, custom_fields_json = ?,
+                    is_active = ?, notes = ?, retained_cash_amount = ?, updated_by_user_id = ?, custom_fields_json = ?,
                     metadata_json = ?, version = version + 1
                 WHERE company_id = ? AND id = ? AND deleted_at IS NULL
                 """);
@@ -235,6 +235,7 @@ public class CashRegisterRepository {
         statement.setString(index++, command.status().name());
         statement.setBoolean(index++, command.active());
         statement.setString(index++, command.notes());
+        statement.setBigDecimal(index++, command.retainedCashAmount());
         statement.setLong(index++, insert ? command.createdByUserId() : command.updatedByUserId());
         statement.setString(index++, command.customFieldsJson());
         statement.setString(index++, command.metadataJson());

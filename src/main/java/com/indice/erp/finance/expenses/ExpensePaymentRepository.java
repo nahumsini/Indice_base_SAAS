@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -23,6 +24,24 @@ class ExpensePaymentRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    boolean hasInternalSettlementEvidence(FinanceContext context, long expenseId, long lineId) {
+        return Boolean.TRUE.equals(jdbcTemplate.queryForObject("""
+            SELECT EXISTS (
+                SELECT 1 FROM finance_expenses expense
+                JOIN finance_petty_cash_settlement_lines receipt
+                  ON receipt.company_id = expense.company_id AND receipt.expense_id = expense.id
+                JOIN finance_petty_cash_funds fund
+                  ON fund.company_id = receipt.company_id AND fund.id = receipt.petty_cash_fund_id
+                WHERE expense.company_id = ? AND expense.id = ? AND receipt.id = ?
+                  AND expense.deleted_at IS NULL AND receipt.deleted_at IS NULL
+                  AND fund.fund_type = 'INTERNAL_COMPANY' AND receipt.status = 'EXPENSE_CREATED'
+                  AND receipt.total_amount = expense.total_amount
+                  AND receipt.currency_code = expense.currency_code
+                  AND receipt.expense_date = expense.payment_date
+            )
+            """, Boolean.class, context.companyId(), expenseId, lineId));
+    }
+
     boolean insert(
             FinanceContext context,
             long expenseId,
@@ -30,7 +49,8 @@ class ExpensePaymentRepository {
             BigDecimal amount,
             String currencyCode,
             LocalDate paymentDate,
-            String source) {
+            String source,
+            String idempotencyKey) {
         var params = new ArrayList<Object>();
         params.add(context.companyId());
         params.add(expenseId);
@@ -39,6 +59,7 @@ class ExpensePaymentRepository {
         params.add(currencyCode);
         params.add(paymentDate);
         params.add(source);
+        params.add(idempotencyKey);
         params.add(context.userId());
         params.add(context.companyId());
         params.add(expenseId);
@@ -48,8 +69,8 @@ class ExpensePaymentRepository {
             """
             INSERT INTO finance_expense_payments
               (company_id, expense_id, payment_account_id, amount, currency_code,
-               payment_date, source, registered_by_user_id)
-            SELECT ?, ?, ?, ?, ?, ?, ?, ?
+               payment_date, source, idempotency_key, registered_by_user_id)
+            SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
             FROM finance_expenses expense
             WHERE expense.company_id = ?
               AND expense.id = ?
@@ -59,6 +80,32 @@ class ExpensePaymentRepository {
             params.toArray()
         );
         return inserted > 0;
+    }
+
+    Optional<ExpensePaymentIdempotencyRecord> findByIdempotencyKey(
+            FinanceContext context,
+            String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            return Optional.empty();
+        }
+        var rows = jdbcTemplate.query(
+            """
+            SELECT expense_id, payment_account_id, amount, currency_code, payment_date
+            FROM finance_expense_payments
+            WHERE company_id = ?
+              AND idempotency_key = ?
+            """,
+            (rs, rowNum) -> new ExpensePaymentIdempotencyRecord(
+                rs.getLong("expense_id"),
+                nullableLong(rs.getObject("payment_account_id")),
+                rs.getBigDecimal("amount"),
+                rs.getString("currency_code"),
+                rs.getDate("payment_date").toLocalDate()
+            ),
+            context.companyId(),
+            idempotencyKey.trim()
+        );
+        return rows.stream().findFirst();
     }
 
     List<ExpensePaymentResponse> findAll(FinanceContext context, long expenseId) {
@@ -123,5 +170,14 @@ class ExpensePaymentRepository {
         } else if (scope.type() == FinanceScope.Type.BUSINESS_OFFICE) {
             params.add(scope.businessId());
         }
+    }
+
+    record ExpensePaymentIdempotencyRecord(
+        long expenseId,
+        Long paymentAccountId,
+        BigDecimal amount,
+        String currencyCode,
+        LocalDate paymentDate
+    ) {
     }
 }

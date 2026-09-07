@@ -632,6 +632,7 @@ export function toFrontendSaleRecord(row: ApiRow): SaleRecord {
     discountTotal: toNumber(row.discountTotal),
     taxTotal: toNumber(row.taxTotal),
     marginTotal: toNumber(row.marginTotal),
+    marginReady: row.marginReady === true,
     currency: normalizeSalesCurrencyCode(toStringValue(row.currency), defaultSalesCurrency),
     paymentMethod: toStringValue(row.paymentMethod),
     paymentReference: toStringValue(row.paymentReference),
@@ -653,7 +654,13 @@ export function toFrontendSaleRecord(row: ApiRow): SaleRecord {
     commissionRuleName: toStringValue(row.commissionRuleName),
     commissionType: toStringValue(row.commissionType),
     commissionValue: toNumber(row.commissionValue),
-    commissionBreakdown: Array.isArray(row.commissionBreakdown) ? row.commissionBreakdown as SaleRecord['commissionBreakdown'] : [],
+    commissionBreakdown: Array.isArray(row.commissionBreakdown) ? row.commissionBreakdown.map((value) => {
+      const part: ApiRow = value && typeof value === 'object' ? value as ApiRow : {};
+      return { ruleId: toOptionalNumber(part.ruleId), ruleCode: toStringValue(part.ruleCode),
+        ruleName: toStringValue(part.ruleName), commissionType: toStringValue(part.commissionType),
+        commissionValue: toNumber(part.commissionValue, Number.NaN), commissionAmount: toNumber(part.commissionAmount, Number.NaN),
+        productId: toStringValue(part.productId), productName: toStringValue(part.productName) };
+    }) : [],
     saleLines: Array.isArray(row.saleLines) ? row.saleLines as SaleRecord['saleLines'] : [],
     notes: toStringValue(row.notes),
     filesCount: toNumber(row.filesCount),

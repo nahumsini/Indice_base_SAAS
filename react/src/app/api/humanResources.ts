@@ -1006,7 +1006,9 @@ export interface PayrollLineIncentiveCandidate {
   incentive_code: string;
   name: string;
   description?: string | null;
-  incentive_type: "manual" | "kpi";
+  incentive_type: "manual" | "kpi" | "external_deduction";
+  payroll_category: "earning" | "deduction" | "employer_contribution" | "provision";
+  source_type: "incentive" | "petty_cash_shortage" | string;
   amount: number;
   currency_code: string;
   application_status: "approved" | "applied";

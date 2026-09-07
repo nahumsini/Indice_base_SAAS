@@ -19,6 +19,7 @@ import { ExpenseAmountCells } from '../../components/table/ExpenseAmountCells';
 import { ExpenseRowActions } from '../../components/table/ExpenseRowActions';
 import {
   canDeleteExpense,
+  canEditExpense,
   getEffectiveExpenseStatus,
   getExpenseBalance,
   isExpenseEffectivelyOverdue,
@@ -71,6 +72,7 @@ export type ExpenseRowActionVisibility = {
   showAudit?: boolean;
   showMarkPaid?: boolean;
   showRecordPayment?: boolean;
+  showStatusChange?: boolean;
 };
 
 export function EditableExpenseRow({
@@ -100,9 +102,13 @@ export function EditableExpenseRow({
 }: EditableExpenseRowProps) {
   const t = useExpensesTranslations();
   const locale = useExpensesResolvedLocale();
-  const startEditing = () => onStartEdit(expense.id);
+  const canEdit = canEditExpense(expense);
+  const rowIsEditing = isEditing && canEdit;
+  const startEditing = () => {
+    if (canEdit) onStartEdit(expense.id);
+  };
   const startActionEdit = onActionEdit ?? startEditing;
-  const rowHighlightClass = isEditing
+  const rowHighlightClass = rowIsEditing
     ? 'bg-slate-50/80 ring-1 ring-inset ring-slate-200 dark:bg-slate-800/45 dark:ring-slate-700'
     : isSelected
       ? 'bg-[#147514]/5 dark:bg-[#147514]/10'
@@ -117,6 +123,7 @@ export function EditableExpenseRow({
   const businessOptionsForUnit = filterBusinessesForUnit(options.businesses, expense.businessUnit);
   const showAuditAction = actionVisibility?.showAudit ?? true;
   const showMarkPaidAction = actionVisibility?.showMarkPaid ?? true;
+  const showStatusChange = actionVisibility?.showStatusChange ?? true;
   const canRecordPayment = getExpenseBalance(expense) > 0;
   const canMarkPaid = expense.type !== 'budget' && getExpenseBalance(expense) > 0;
   const statusOptions = options.statuses.filter(option => {
@@ -146,10 +153,10 @@ export function EditableExpenseRow({
       className={`
         transition-colors group relative
         ${rowHighlightClass}
-        ${!isEditing && effectiveStatus === 'overdue' ? 'bg-red-50/50 dark:bg-red-900/10 hover:bg-red-50 dark:hover:bg-red-900/20' : ''}
-        ${!isEditing && effectiveStatus === 'pending' ? 'bg-yellow-50/30 dark:bg-yellow-900/5 hover:bg-yellow-50/60 dark:hover:bg-yellow-900/10' : ''}
-        ${!isEditing && effectiveStatus === 'paid' ? 'hover:bg-gray-50 dark:hover:bg-gray-700/50' : ''}
-        ${!isEditing && effectiveStatus === 'partial' ? 'bg-blue-50/30 dark:bg-blue-900/5 hover:bg-blue-50/60 dark:hover:bg-blue-900/10' : ''}
+        ${!rowIsEditing && effectiveStatus === 'overdue' ? 'bg-red-50/50 dark:bg-red-900/10 hover:bg-red-50 dark:hover:bg-red-900/20' : ''}
+        ${!rowIsEditing && effectiveStatus === 'pending' ? 'bg-yellow-50/30 dark:bg-yellow-900/5 hover:bg-yellow-50/60 dark:hover:bg-yellow-900/10' : ''}
+        ${!rowIsEditing && effectiveStatus === 'paid' ? 'hover:bg-gray-50 dark:hover:bg-gray-700/50' : ''}
+        ${!rowIsEditing && effectiveStatus === 'partial' ? 'bg-blue-50/30 dark:bg-blue-900/5 hover:bg-blue-50/60 dark:hover:bg-blue-900/10' : ''}
         ${expense.amount > 5000 ? 'border-l-2 border-l-yellow-400' : ''}
       `}
     >
@@ -170,7 +177,7 @@ export function EditableExpenseRow({
 
       {isColumnVisible('date') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.date, minWidth: columnWidths.date }}>
-          {isEditing ? (
+          {rowIsEditing ? (
             <EditableDatePicker
               ariaLabel={`${t.expenses.columns.date.label} ${expense.folio}`}
               value={formatDateInputValue(expense.date)}
@@ -184,7 +191,7 @@ export function EditableExpenseRow({
 
       {isColumnVisible('businessUnit') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.businessUnit, minWidth: columnWidths.businessUnit }}>
-          {isEditing ? (
+          {rowIsEditing ? (
             <EditableSelect ariaLabel={t.expenses.table.unitFor(expense.folio)} value={expense.businessUnit} options={options.businessUnits} onChange={handleBusinessUnitChange} />
           ) : (
             <ReadonlySelectPill onClick={startEditing}>{businessUnitLabel || '-'}</ReadonlySelectPill>
@@ -194,7 +201,7 @@ export function EditableExpenseRow({
 
       {isColumnVisible('business') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.business, minWidth: columnWidths.business }}>
-          {isEditing ? (
+          {rowIsEditing ? (
             <EditableSelect ariaLabel={t.expenses.table.businessFor(expense.folio)} value={expense.business} options={businessOptionsForUnit} onChange={(business) => onUpdateExpense(expense.id, { business })} />
           ) : (
             <ReadonlySelectPill onClick={startEditing}>{businessLabel || '-'}</ReadonlySelectPill>
@@ -204,7 +211,7 @@ export function EditableExpenseRow({
 
       {isColumnVisible('providerName') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.providerName, minWidth: columnWidths.providerName }}>
-          {isEditing ? (
+          {rowIsEditing ? (
             <EditableSelect
               ariaLabel={t.expenses.table.providerFor(expense.folio)}
               value={selectedProvider}
@@ -222,7 +229,7 @@ export function EditableExpenseRow({
 
       {isColumnVisible('concept') && (
         <td className="px-6 py-4" style={{ width: columnWidths.concept, minWidth: columnWidths.concept }}>
-          {isEditing ? (
+          {rowIsEditing ? (
             <EditableTextInput
               ariaLabel={t.expenses.table.conceptFor(expense.folio)}
               value={expense.concept}
@@ -235,7 +242,7 @@ export function EditableExpenseRow({
       )}
       {isColumnVisible('description') && (
         <td className="px-6 py-4" style={{ width: columnWidths.description, minWidth: columnWidths.description }}>
-          {isEditing ? (
+          {rowIsEditing ? (
             <EditableTextarea
               ariaLabel={`${t.expenses.columns.description.label} ${expense.folio}`}
               placeholder={t.expenses.table.addDescription}
@@ -256,7 +263,7 @@ export function EditableExpenseRow({
       <ExpenseAmountCells columnWidths={columnWidths} expense={expense} isColumnVisible={isColumnVisible} />
       {isColumnVisible('dueDate') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.dueDate, minWidth: columnWidths.dueDate }}>
-          {isEditing ? (
+          {rowIsEditing ? (
             <EditableDatePicker
               ariaLabel={`${t.expenses.columns.dueDate.label} ${expense.folio}`}
               value={formatDateInputValue(expense.dueDate)}
@@ -269,7 +276,7 @@ export function EditableExpenseRow({
       )}
       {isColumnVisible('paymentDate') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.paymentDate, minWidth: columnWidths.paymentDate }}>
-          {isEditing ? (
+          {rowIsEditing ? (
             <EditableDatePicker
               ariaLabel={`${t.expenses.columns.paymentDate.label} ${expense.folio}`}
               value={formatDateInputValue(expense.paymentDate)}
@@ -282,7 +289,7 @@ export function EditableExpenseRow({
       )}
       {isColumnVisible('paymentMethod') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.paymentMethod, minWidth: columnWidths.paymentMethod }}>
-          {isEditing ? (
+          {rowIsEditing ? (
             <EditableSelect ariaLabel={`${t.expenses.columns.paymentMethod.label} ${expense.folio}`} value={expense.paymentMethod} options={options.paymentMethods} onChange={(paymentMethod) => onUpdateExpense(expense.id, { paymentMethod })} />
           ) : (
             <ReadonlySelectPill onClick={startEditing}>{t.expenses.table.paymentMethods[expense.paymentMethod] ?? expense.paymentMethod}</ReadonlySelectPill>
@@ -291,7 +298,7 @@ export function EditableExpenseRow({
       )}
       {isColumnVisible('accountingAccount') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.accountingAccount, minWidth: columnWidths.accountingAccount }}>
-          {isEditing ? (
+          {rowIsEditing ? (
             <EditableSelect ariaLabel={`${t.expenses.columns.accountingAccount.label} ${expense.folio}`} value={expense.accountingAccount ?? ''} options={options.accountingAccounts} onChange={(accountingAccount) => onUpdateExpense(expense.id, { accountingAccount })} />
           ) : (
             <ReadonlySelectPill onClick={startEditing}>{accountingAccountLabel || '-'}</ReadonlySelectPill>
@@ -300,7 +307,7 @@ export function EditableExpenseRow({
       )}
       {isColumnVisible('status') && (
         <td className="px-6 py-4" style={{ width: columnWidths.status, minWidth: columnWidths.status }}>
-          {isEditing ? (
+          {rowIsEditing && showStatusChange ? (
             <EditableSelect
               ariaLabel={`${t.expenses.columns.status.label} ${expense.folio}`}
               value={effectiveStatus}
@@ -353,34 +360,40 @@ export function EditableExpenseRow({
 
       {isColumnVisible('authorizer') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.authorizer, minWidth: columnWidths.authorizer }}>
-          <EditableSelect
-            ariaLabel={t.expenses.table.authorizerFor(expense.folio)}
-            value={workflow.authorizer}
-            options={options.users}
-            onChange={(authorizer) => onUpdateWorkflow(expense.id, { authorizer })}
-          />
+          {canEdit ? (
+            <EditableSelect
+              ariaLabel={t.expenses.table.authorizerFor(expense.folio)}
+              value={workflow.authorizer}
+              options={options.users}
+              onChange={(authorizer) => onUpdateWorkflow(expense.id, { authorizer })}
+            />
+          ) : <ReadonlySelectPill>{options.users.find(option => option.value === workflow.authorizer)?.label || '-'}</ReadonlySelectPill>}
         </td>
       )}
 
       {isColumnVisible('performer') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.performer, minWidth: columnWidths.performer }}>
-          <EditableSelect
-            ariaLabel={t.expenses.table.responsibleFor(expense.folio)}
-            value={workflow.performer}
-            options={options.users}
-            onChange={(performer) => onUpdateWorkflow(expense.id, { performer })}
-          />
+          {canEdit ? (
+            <EditableSelect
+              ariaLabel={t.expenses.table.responsibleFor(expense.folio)}
+              value={workflow.performer}
+              options={options.users}
+              onChange={(performer) => onUpdateWorkflow(expense.id, { performer })}
+            />
+          ) : <ReadonlySelectPill>{options.users.find(option => option.value === workflow.performer)?.label || '-'}</ReadonlySelectPill>}
         </td>
       )}
 
       {isColumnVisible('audit') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.audit, minWidth: columnWidths.audit }}>
-          <EditableTextInput
-            ariaLabel={t.expenses.table.auditNotesFor(expense.folio)}
-            placeholder={t.expenses.table.addAudit}
-            value={workflow.auditNotes}
-            onChange={(auditNotes) => onUpdateWorkflow(expense.id, { auditNotes })}
-          />
+          {canEdit ? (
+            <EditableTextInput
+              ariaLabel={t.expenses.table.auditNotesFor(expense.folio)}
+              placeholder={t.expenses.table.addAudit}
+              value={workflow.auditNotes}
+              onChange={(auditNotes) => onUpdateWorkflow(expense.id, { auditNotes })}
+            />
+          ) : <ReadonlyPill>{workflow.auditNotes || '-'}</ReadonlyPill>}
         </td>
       )}
 
@@ -398,6 +411,7 @@ export function EditableExpenseRow({
           isDeletePending={isDeletePending}
           showAudit={actionVisibility?.showAudit}
           showDelete={canDeleteExpense(expense)}
+          showEdit={canEdit}
           showMarkPaid={canMarkPaid && (actionVisibility?.showMarkPaid ?? true)}
           showRecordPayment={canRecordPayment && (actionVisibility?.showRecordPayment ?? true)}
         />

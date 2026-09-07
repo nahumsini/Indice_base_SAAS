@@ -296,6 +296,7 @@ export function useFinancialOverview({
       && (accountingAccountId === 'all' || expense.accountingAccountId === accountingAccountId)
       && matchesPaymentStatus(expense)
     );
+    const paymentExpenses = sources.expenses.filter(matchesDimensions);
     const filteredExpenses = sources.expenses.filter(expense => (
       isWithinRange(parseLocalDate(expense.expenseDate), periodRange) && matchesDimensions(expense)
     ));
@@ -318,7 +319,7 @@ export function useFinancialOverview({
     const filteredBudgetLines = filterBudgetLines(periodRange);
     const comparisonBudgetLines = filterBudgetLines(comparisonRange);
 
-    return { comparisonBudgetLines, comparisonExpenses, comparisonRange, filteredBudgetLines, filteredExpenses, referenceDate };
+    return { comparisonBudgetLines, comparisonExpenses, comparisonRange, filteredBudgetLines, filteredExpenses, paymentExpenses, periodRange, referenceDate };
   }, [accountingAccountId, businessId, currentDate, customEndDate, customStartDate, paymentStatus, periodFilter, providerId, sources, unitId]);
 
   const overview = useMemo(() => {
@@ -348,6 +349,9 @@ export function useFinancialOverview({
   return {
     ...overview,
     comparisonExpenses: scopedData.comparisonExpenses,
+    paymentExpenses: scopedData.paymentExpenses,
+    periodRange: scopedData.periodRange,
+    comparisonRange: scopedData.comparisonRange,
     comparisonOverview,
     errorMessage,
     fallbackWarnings,

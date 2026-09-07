@@ -3,6 +3,7 @@ import type {
   PosCashClosingDetailResponse,
   PosCashClosingFilters,
   PosCashClosingListResponse,
+  PosCashClosingSettlement,
 } from '../types/cashClosingHistory.types';
 
 const posBasePath = '/api/v1/pos';
@@ -34,6 +35,23 @@ export const cashClosingsApi = {
   detail(closingId: number | string) {
     return apiClient<PosCashClosingDetailResponse>(
       `${posBasePath}/cash-closings/${encodeURIComponent(String(closingId))}`,
+    );
+  },
+
+  settlements(closingId: number | string) {
+    return apiClient<PosCashClosingSettlement[]>(
+      `${posBasePath}/cash-closings/${encodeURIComponent(String(closingId))}/settlements`,
+    );
+  },
+
+  confirmSettlement(
+    closingId: number | string,
+    settlementId: number | string,
+    payload: { receivedAmount: number; note?: string },
+  ) {
+    return apiClient<PosCashClosingSettlement>(
+      `${posBasePath}/cash-closings/${encodeURIComponent(String(closingId))}/settlements/${encodeURIComponent(String(settlementId))}/confirm`,
+      { method: 'POST', body: JSON.stringify(payload) },
     );
   },
 };

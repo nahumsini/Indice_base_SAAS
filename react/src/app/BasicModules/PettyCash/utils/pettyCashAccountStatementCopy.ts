@@ -10,6 +10,11 @@ export type PettyCashAccountStatementCopy = {
   documentLabel: string;
   documentSubtitle: string;
   documentTitle: string;
+  externalAuthorized: string;
+  externalDocumentLabel: string;
+  externalDocumentSubtitle: string;
+  externalDocumentTitle: string;
+  externalLegalNote: string;
   download: string;
   emptyExpenses: string;
   emptyMovements: string;
@@ -18,15 +23,20 @@ export type PettyCashAccountStatementCopy = {
   funded: string;
   generated: string;
   internalNote: string;
+  managedAsset: string;
   movements: string;
   opening: string;
+  owner: string;
+  ownerReference: string;
   period: string;
   previewTitle: string;
   print: string;
   provider: string;
   reconciliation: string;
+  relationship: string;
   reference: string;
   responsible: string;
+  statementRecipient: string;
   statement: string;
   status: string;
   total: string;
@@ -45,6 +55,11 @@ const english: PettyCashAccountStatementCopy = {
   documentLabel: 'Financial control document',
   documentSubtitle: 'Consolidated money entries, recorded expenses and reconciliation for the selected period.',
   documentTitle: 'Petty cash account statement',
+  externalAuthorized: 'Validated outflows',
+  externalDocumentLabel: 'Client funds administration document',
+  externalDocumentSubtitle: 'Consolidated entries, outflows and reconciliation of third-party money administered during the selected period.',
+  externalDocumentTitle: 'Managed fund account statement',
+  externalLegalNote: 'This statement reports third-party money administered by the company. It does not record company income or expenses.',
   download: 'Download PDF',
   emptyExpenses: 'No expenses were recorded in this statement.',
   emptyMovements: 'No money entries were recorded in this statement.',
@@ -53,15 +68,20 @@ const english: PettyCashAccountStatementCopy = {
   funded: 'Money entered',
   generated: 'Generated',
   internalNote: 'Internal control document. It does not replace tax receipts or approval policies.',
+  managedAsset: 'Managed asset',
   movements: 'Money entries and funding',
   opening: 'Opening balance',
+  owner: 'Owner or client',
+  ownerReference: 'Client reference',
   period: 'Period',
   previewTitle: 'Account statement preview',
   print: 'Print',
   provider: 'Provider',
   reconciliation: 'Reconciliation summary',
+  relationship: 'Relationship',
   reference: 'Reference',
   responsible: 'Custodian',
+  statementRecipient: 'Statement recipient',
   statement: 'Statement',
   status: 'Status',
   total: 'Total',
@@ -80,6 +100,11 @@ const spanish: PettyCashAccountStatementCopy = {
   documentLabel: 'Documento de control financiero',
   documentSubtitle: 'Consolidado de ingresos, gastos registrados y conciliación del periodo seleccionado.',
   documentTitle: 'Estado de cuenta de caja chica',
+  externalAuthorized: 'Salidas validadas',
+  externalDocumentLabel: 'Documento de administración de recursos de terceros',
+  externalDocumentSubtitle: 'Consolidado de entradas, salidas y conciliación del dinero de terceros administrado durante el periodo seleccionado.',
+  externalDocumentTitle: 'Estado de cuenta de fondo administrado',
+  externalLegalNote: 'Este estado de cuenta informa sobre dinero de terceros administrado por la empresa. No registra ingresos ni gastos propios de la empresa.',
   download: 'Descargar PDF',
   emptyExpenses: 'Este corte no tiene gastos registrados.',
   emptyMovements: 'Este corte no tiene ingresos registrados.',
@@ -88,15 +113,20 @@ const spanish: PettyCashAccountStatementCopy = {
   funded: 'Dinero ingresado',
   generated: 'Generado',
   internalNote: 'Documento de control interno. No sustituye comprobantes fiscales ni políticas de aprobación.',
+  managedAsset: 'Activo administrado',
   movements: 'Ingresos y fondeos',
   opening: 'Saldo inicial',
+  owner: 'Propietario o cliente',
+  ownerReference: 'Referencia del cliente',
   period: 'Periodo',
   previewTitle: 'Vista previa del estado de cuenta',
   print: 'Imprimir',
   provider: 'Proveedor',
   reconciliation: 'Resumen de conciliación',
+  relationship: 'Relación',
   reference: 'Referencia',
   responsible: 'Responsable',
+  statementRecipient: 'Destinatario del estado de cuenta',
   statement: 'Corte',
   status: 'Estado',
   total: 'Total',

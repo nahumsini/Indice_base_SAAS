@@ -207,7 +207,7 @@ export function ExpenseFormModal({
         paymentDate: isEditMode ? draft.paymentDate : draft.expenseDate,
         paymentMethod: draft.paymentMethod,
         providerId: draft.providerId,
-        status: isEditMode ? draft.status : 'paid',
+        status: isEditMode ? draft.status : 'pending',
         taxes,
         taxCountry: draft.taxEnabled ? draft.taxCountry : undefined,
         taxIncluded: draft.taxEnabled ? draft.taxIncluded : false,
@@ -241,7 +241,7 @@ export function ExpenseFormModal({
           </button>
         </>
       )}
-      footerSummary={`${draft.concept.trim() || t.expenses.modal.emptyConcept} · ${formatCurrency(total, draft.budgetCurrencyCode)}${isEditMode ? '' : ` · ${t.expenses.modal.paidOn} ${formatDateSummary(draft.expenseDate)}`}`}
+      footerSummary={`${draft.concept.trim() || t.expenses.modal.emptyConcept} · ${formatCurrency(total, draft.budgetCurrencyCode)}${isEditMode ? '' : ` · ${formatDateSummary(draft.expenseDate)}`}`}
       icon={isEditMode ? <Pencil className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
       onOpenChange={(open) => !open && onClose()}
       open
@@ -285,7 +285,6 @@ export function ExpenseFormModal({
           <div className="space-y-4 border-t border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-950/30">
             {isEditMode ? (
               <FinanceModalSection title={t.expenses.modal.controlTitle} description={t.expenses.modal.controlDescription}>
-                <SelectInput label={t.expenses.columns.status?.label ?? t.filters.status} value={draft.status} onChange={(status) => updateDraft({ status: status as ExpenseStatus })} options={createStatusOptions(t.expenses.table.statuses)} />
                 <DateInput label={t.expenses.columns.dueDate?.label ?? 'Fecha de vencimiento'} value={draft.dueDate} onChange={(dueDate) => updateDraft({ dueDate })} />
               </FinanceModalSection>
             ) : null}
@@ -482,7 +481,7 @@ function createExpenseDraftState(expense: Expense | null, preferredCurrency: str
     paymentDate: formatDateInputValue(expense?.paymentDate),
     paymentMethod: expense?.paymentMethod ?? 'transfer',
     providerId: expense?.providerId ?? '',
-    status: expense?.status ?? 'paid',
+    status: expense?.status ?? 'pending',
     taxes: expense ? String(expense.taxes ?? '') : '',
     taxCountry,
     taxEnabled: hasTaxMetadata || hasTaxAmount,
@@ -505,10 +504,6 @@ function createFallbackAccountingOptions(currentAccount?: string) {
 
 function createPaymentMethodOptions(paymentMethods: Record<string, string>) {
   return Object.entries(paymentMethods).map(([value, label]) => ({ value, label }));
-}
-
-function createStatusOptions(statuses: Record<string, string>) {
-  return Object.entries(statuses).map(([value, label]) => ({ value, label }));
 }
 
 function normalizeTaxCountry(value: string): BudgetTaxCountry {

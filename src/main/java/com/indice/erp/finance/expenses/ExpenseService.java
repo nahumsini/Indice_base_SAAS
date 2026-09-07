@@ -12,14 +12,17 @@ import com.indice.erp.finance.expenses.dto.RejectExpenseRequest;
 import com.indice.erp.finance.expenses.dto.UpdateExpenseRequest;
 import com.indice.erp.finance.expenses.dto.UpdateExpenseStatusRequest;
 import com.indice.erp.finance.shared.FinanceContext;
-import com.indice.erp.finance.shared.FinanceJsonSupport;
+import com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver;
 import com.indice.erp.finance.status.ExpenseStatus;
 import com.indice.erp.finance.status.PaymentStatus;
+import com.indice.erp.finance.treasury.TreasuryMovementCommand;
+import com.indice.erp.finance.treasury.TreasuryService;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +41,8 @@ public class ExpenseService {
     private final ExpenseMapper mapper;
     private final ExpenseValidator validator;
     private final ExpenseReferenceValidator referenceValidator;
+    private final TreasuryService treasuryService;
+    private final FinanceBusinessTimeZoneResolver timeZoneResolver;
 
     public ExpenseService(
             ExpenseRepository repository,
@@ -46,7 +51,9 @@ public class ExpenseService {
             BudgetLineRollupService budgetLineRollupService,
             ExpenseMapper mapper,
             ExpenseValidator validator,
-            ExpenseReferenceValidator referenceValidator) {
+            ExpenseReferenceValidator referenceValidator,
+            TreasuryService treasuryService,
+            FinanceBusinessTimeZoneResolver timeZoneResolver) {
         this.repository = repository;
         this.workflowRepository = workflowRepository;
         this.paymentRepository = paymentRepository;
@@ -54,11 +61,13 @@ public class ExpenseService {
         this.mapper = mapper;
         this.validator = validator;
         this.referenceValidator = referenceValidator;
+        this.treasuryService = treasuryService;
+        this.timeZoneResolver = timeZoneResolver;
     }
 
     @Transactional
     public ExpenseListResponse list(FinanceContext context) {
-        workflowRepository.markOverduePayments(context, LocalDate.now());
+        workflowRepository.markOverduePayments(context, businessDate(context));
         var expenses = repository.findAll(context).stream()
             .map(mapper::toResponse)
             .toList();
@@ -67,8 +76,30 @@ public class ExpenseService {
 
     @Transactional
     public ExpenseResponse get(FinanceContext context, long expenseId) {
-        workflowRepository.markOverduePayments(context, LocalDate.now());
+        workflowRepository.markOverduePayments(context, businessDate(context));
         return mapper.toResponse(requireExpense(context, expenseId));
+    }
+
+    /** Funds has already withdrawn this money; this records the expense's payment evidence only. */
+    @Transactional
+    public void recordCustodySettlement(FinanceContext context, long expenseId, long settlementLineId) {
+        var expense = requireExpenseForUpdate(context, expenseId);
+        if (expense.status() != ExpenseStatus.PAID || !"PETTY_CASH".equals(expense.auditStatus())
+                || expense.paymentDate() == null || expense.paidAmount().compareTo(expense.totalAmount()) != 0
+                || !paymentRepository.hasInternalSettlementEvidence(context, expenseId, settlementLineId)) {
+            throw FinanceApiException.conflict("Expense does not have matching internal fund settlement evidence.");
+        }
+        var key = "FUND_EXPENSE_PAYMENT:" + settlementLineId;
+        if (paymentRepository.findByIdempotencyKey(context, key).isPresent()) {
+            return;
+        }
+        if (!paymentRepository.findAll(context, expenseId).isEmpty()) {
+            throw FinanceApiException.conflict("Fund expense already has payment evidence.");
+        }
+        if (!paymentRepository.insert(context, expenseId, expense.paymentAccountId(), expense.totalAmount(),
+                expense.currencyCode(), expense.paymentDate(), ExpensePaymentRepository.SOURCE_SETTLED_ON_CREATE, key)) {
+            throw FinanceApiException.conflict("Fund expense payment evidence could not be recorded.");
+        }
     }
 
     @Transactional
@@ -86,7 +117,7 @@ public class ExpenseService {
         }
 
         for (var attempt = 0; attempt < AUTO_FOLIO_ATTEMPTS; attempt++) {
-            var folio = repository.nextFolio(context.companyId(), autoPrefix, LocalDate.now().getYear(), attempt);
+            var folio = repository.nextFolio(context.companyId(), autoPrefix, businessDate(context).getYear(), attempt);
             try {
                 var command = mapper.toCreateCommand(context, request, assignment, folio);
                 var created = repository.insert(context, command);
@@ -105,6 +136,8 @@ public class ExpenseService {
         if (!Boolean.TRUE.equals(request.settleOnCreate())) {
             return mapper.toResponse(created);
         }
+        referenceValidator.validatePaymentAccountForPayment(
+            context, created.paymentAccountId(), created.currencyCode());
         if (!workflowRepository.applyManualStatus(
                 context,
                 created.id(),
@@ -124,9 +157,18 @@ public class ExpenseService {
                 created.totalAmount(),
                 created.currencyCode(),
                 request.expenseDate(),
-                ExpensePaymentRepository.SOURCE_SETTLED_ON_CREATE)) {
+                ExpensePaymentRepository.SOURCE_SETTLED_ON_CREATE,
+                "expense-settle-on-create-" + created.id())) {
             throw FinanceApiException.conflict("Initial expense payment history could not be recorded.");
         }
+        postExpensePayment(
+            context,
+            created,
+            created.paymentAccountId(),
+            created.totalAmount(),
+            "SETTLED_ON_CREATE:" + created.id(),
+            "Pago al crear el gasto"
+        );
         refreshBudgetLine(context, created.budgetLineId());
         return get(context, created.id());
     }
@@ -134,9 +176,7 @@ public class ExpenseService {
     @Transactional
     public ExpenseResponse updateDraft(FinanceContext context, long expenseId, UpdateExpenseRequest request) {
         var existing = requireExpense(context, expenseId);
-        if (List.of(ExpenseStatus.CANCELLED, ExpenseStatus.REJECTED).contains(existing.status())) {
-            throw FinanceApiException.conflict("Cancelled or rejected expenses cannot be updated.");
-        }
+        validator.requireDraft(existing, "updated");
         var assignment = validator.validateUpdate(context, request);
         referenceValidator.validateUpdate(context, assignment, request);
         var command = mapper.toUpdateCommand(context, request, assignment, existing);
@@ -151,7 +191,6 @@ public class ExpenseService {
     public DeleteExpenseResponse deleteDraft(FinanceContext context, long expenseId) {
         var existing = requireExpense(context, expenseId);
         if (existing.status() != ExpenseStatus.DRAFT
-                && !isOperationalExpense(existing)
                 && !isUnpaidPayableKioskSubmission(existing)) {
             validator.requireDraft(existing, "deleted");
         }
@@ -167,11 +206,6 @@ public class ExpenseService {
             && record.metadataJson().contains("\"source\":\"payable-kiosk\"")
             && record.paidAmount().compareTo(BigDecimal.ZERO) == 0
             && record.paymentStatus() != PaymentStatus.PAID;
-    }
-
-    private boolean isOperationalExpense(ExpenseRecord record) {
-        var customFields = FinanceJsonSupport.toJsonNode(record.customFieldsJson());
-        return customFields != null && "real".equals(customFields.path("entryType").asText());
     }
 
     @Transactional
@@ -214,7 +248,13 @@ public class ExpenseService {
 
     @Transactional
     public ExpenseResponse recordPayment(FinanceContext context, long expenseId, RecordExpensePaymentRequest request) {
-        var existing = requireExpense(context, expenseId);
+        var existing = requireExpenseForUpdate(context, expenseId);
+        var idempotencyKey = normalizeIdempotencyKey(request.idempotencyKey());
+        var previousAttempt = paymentRepository.findByIdempotencyKey(context, idempotencyKey);
+        if (previousAttempt.isPresent()) {
+            requireMatchingPaymentAttempt(existing, request, previousAttempt.get());
+            return mapper.toResponse(existing);
+        }
         requireStatus(existing, List.of(ExpenseStatus.APPROVED, ExpenseStatus.PARTIALLY_PAID, ExpenseStatus.PAID), "paid");
         if (request.amount().compareTo(BigDecimal.ZERO) <= 0) {
             throw FinanceApiException.badRequest("Payment amount must be greater than zero.");
@@ -236,9 +276,6 @@ public class ExpenseService {
                 nextPaymentStatus, request.paymentAccountId(), request.paymentDate())) {
             throw FinanceApiException.conflict("Expense payment could not be recorded.");
         }
-        if (!workflowRepository.adjustPaymentAccountBalance(context, request.paymentAccountId(), request.amount().negate())) {
-            throw FinanceApiException.conflict("Payment account balance could not be updated.");
-        }
         if (!paymentRepository.insert(
                 context,
                 expenseId,
@@ -246,9 +283,20 @@ public class ExpenseService {
                 request.amount(),
                 existing.currencyCode(),
                 request.paymentDate(),
-                ExpensePaymentRepository.SOURCE_RECORDED)) {
+                ExpensePaymentRepository.SOURCE_RECORDED,
+                idempotencyKey)) {
             throw FinanceApiException.conflict("Expense payment history could not be recorded.");
         }
+        postExpensePayment(
+            context,
+            existing,
+            request.paymentAccountId(),
+            request.amount(),
+            idempotencyKey == null
+                ? "RECORDED:" + expenseId + ":" + paidAmount.toPlainString()
+                : "RECORDED:IDEMPOTENT:" + idempotencyKey,
+            "Abono a gasto " + existing.folio()
+        );
         refreshBudgetLine(context, existing.budgetLineId());
         return get(context, expenseId);
     }
@@ -268,65 +316,12 @@ public class ExpenseService {
         }
 
         var targetStatus = normalizeLegacyStatus(request.status());
-        var total = existing.totalAmount().max(BigDecimal.ZERO);
-        var paymentDate = request.paymentDate() == null ? LocalDate.now() : request.paymentDate();
-
-        BigDecimal paidAmount;
-        BigDecimal balanceAmount;
-        ExpenseStatus nextStatus;
-        PaymentStatus nextPaymentStatus;
-        LocalDate nextPaymentDate = null;
-        LocalDate closeDate = null;
-        String auditStatus = null;
-
-        switch (targetStatus) {
-            case "pending" -> {
-                paidAmount = BigDecimal.ZERO;
-                balanceAmount = total;
-                nextStatus = ExpenseStatus.APPROVED;
-                nextPaymentStatus = PaymentStatus.UNPAID;
-            }
-            case "overdue" -> {
-                paidAmount = existing.paidAmount().min(total).max(BigDecimal.ZERO);
-                balanceAmount = total.subtract(paidAmount).max(BigDecimal.ZERO);
-                nextStatus = paidAmount.compareTo(BigDecimal.ZERO) > 0
-                    ? ExpenseStatus.PARTIALLY_PAID
-                    : ExpenseStatus.APPROVED;
-                nextPaymentStatus = PaymentStatus.OVERDUE;
-                nextPaymentDate = existing.paymentDate();
-            }
-            case "partial" -> {
-                paidAmount = resolvePartialPaidAmount(total, request.paidAmount(), existing.paidAmount());
-                balanceAmount = total.subtract(paidAmount).max(BigDecimal.ZERO);
-                nextStatus = ExpenseStatus.PARTIALLY_PAID;
-                nextPaymentStatus = PaymentStatus.PARTIALLY_PAID;
-                nextPaymentDate = paymentDate;
-            }
-            case "paid" -> {
-                paidAmount = total;
-                balanceAmount = BigDecimal.ZERO;
-                nextStatus = ExpenseStatus.PAID;
-                nextPaymentStatus = PaymentStatus.PAID;
-                nextPaymentDate = paymentDate;
-            }
-            case "audited" -> {
-                paidAmount = total;
-                balanceAmount = BigDecimal.ZERO;
-                nextStatus = ExpenseStatus.CLOSED;
-                nextPaymentStatus = PaymentStatus.PAID;
-                nextPaymentDate = existing.paymentDate() == null ? paymentDate : existing.paymentDate();
-                closeDate = LocalDate.now();
-                auditStatus = "AUDITED";
-            }
-            default -> throw FinanceApiException.badRequest("Unsupported expense status.");
+        if (!matchesLegacyStatus(existing, targetStatus)) {
+            throw FinanceApiException.badRequest(
+                "Expense status is controlled by submit, approval, record-payment, close and reversal workflows."
+            );
         }
-
-        if (!workflowRepository.applyManualStatus(context, expenseId, paidAmount, balanceAmount,
-                nextStatus, nextPaymentStatus, nextPaymentDate, auditStatus, closeDate)) {
-            throw FinanceApiException.conflict("Expense status could not be updated.");
-        }
-        refreshBudgetLine(context, existing.budgetLineId());
-        return get(context, expenseId);
+        return mapper.toResponse(existing);
     }
 
     @Transactional
@@ -334,7 +329,7 @@ public class ExpenseService {
         var existing = requireExpense(context, expenseId);
         requireStatus(existing, List.of(ExpenseStatus.PAID), "closed");
         transition(context, expenseId, List.of(ExpenseStatus.PAID), ExpenseStatus.CLOSED,
-            PaymentStatus.PAID, existing.approvedByUserId(), "AUDITED", java.time.LocalDate.now());
+            PaymentStatus.PAID, existing.approvedByUserId(), "AUDITED", businessDate(context));
         refreshBudgetLine(context, existing.budgetLineId());
         return get(context, expenseId);
     }
@@ -342,6 +337,54 @@ public class ExpenseService {
     private ExpenseRecord requireExpense(FinanceContext context, long expenseId) {
         return repository.findById(context, expenseId)
             .orElseThrow(() -> new NoSuchElementException("Expense not found."));
+    }
+
+    private ExpenseRecord requireExpenseForUpdate(FinanceContext context, long expenseId) {
+        return repository.findByIdForUpdate(context, expenseId)
+            .orElseThrow(() -> new NoSuchElementException("Expense not found."));
+    }
+
+    private String normalizeIdempotencyKey(String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            return null;
+        }
+        var normalized = idempotencyKey.trim();
+        if (normalized.length() > 120) {
+            throw FinanceApiException.badRequest("idempotencyKey must contain at most 120 characters.");
+        }
+        return normalized;
+    }
+
+    private void requireMatchingPaymentAttempt(
+            ExpenseRecord expense,
+            RecordExpensePaymentRequest request,
+            ExpensePaymentRepository.ExpensePaymentIdempotencyRecord attempt) {
+        if (attempt.expenseId() != expense.id()
+                || !Objects.equals(attempt.paymentAccountId(), request.paymentAccountId())
+                || attempt.amount().compareTo(request.amount()) != 0
+                || !attempt.currencyCode().equalsIgnoreCase(expense.currencyCode())
+                || !attempt.paymentDate().equals(request.paymentDate())) {
+            throw FinanceApiException.conflict("idempotencyKey was already used for a different payment.");
+        }
+    }
+
+    private void postExpensePayment(
+            FinanceContext context,
+            ExpenseRecord expense,
+            Long paymentAccountId,
+            BigDecimal amount,
+            String eventSuffix,
+            String description) {
+        if (paymentAccountId == null) {
+            throw FinanceApiException.badRequest("A payment account is required to register a paid expense.");
+        }
+        treasuryService.post(new TreasuryMovementCommand(
+            context.companyId(), paymentAccountId, expense.unitId(), expense.businessId(), expense.currencyCode(),
+            "EXPENSES", "EXPENSE_PAYMENT", String.valueOf(expense.id()),
+            "EXPENSE_PAYMENT:" + eventSuffix, amount.negate(), BigDecimal.ZERO, description,
+            Instant.now(), context.userId(), null,
+            "{\"expenseId\":" + expense.id() + "}"
+        ));
     }
 
     private void requireStatus(ExpenseRecord record, List<ExpenseStatus> allowedStatuses, String action) {
@@ -377,21 +420,20 @@ public class ExpenseService {
         throw FinanceApiException.badRequest("Unsupported expense status.");
     }
 
-    private BigDecimal resolvePartialPaidAmount(BigDecimal total, BigDecimal requestedAmount, BigDecimal currentAmount) {
-        if (isPositiveBelowTotal(requestedAmount, total)) {
-            return requestedAmount;
-        }
-        if (isPositiveBelowTotal(currentAmount, total)) {
-            return currentAmount;
-        }
-        if (total.compareTo(BigDecimal.ZERO) <= 0) {
-            return BigDecimal.ZERO;
-        }
-        return total.divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP);
-    }
-
-    private boolean isPositiveBelowTotal(BigDecimal amount, BigDecimal total) {
-        return amount != null && amount.compareTo(BigDecimal.ZERO) > 0 && amount.compareTo(total) < 0;
+    private boolean matchesLegacyStatus(ExpenseRecord expense, String targetStatus) {
+        return switch (targetStatus) {
+            case "pending" -> List.of(ExpenseStatus.DRAFT, ExpenseStatus.PENDING_APPROVAL, ExpenseStatus.APPROVED)
+                .contains(expense.status())
+                && expense.paymentStatus() == PaymentStatus.UNPAID;
+            case "overdue" -> expense.paymentStatus() == PaymentStatus.OVERDUE;
+            case "partial" -> expense.status() == ExpenseStatus.PARTIALLY_PAID
+                && expense.paymentStatus() == PaymentStatus.PARTIALLY_PAID;
+            case "paid" -> expense.status() == ExpenseStatus.PAID
+                && expense.paymentStatus() == PaymentStatus.PAID;
+            case "audited" -> expense.status() == ExpenseStatus.CLOSED
+                && expense.paymentStatus() == PaymentStatus.PAID;
+            default -> false;
+        };
     }
 
     private String automaticFolioPrefix(String folio) {
@@ -403,5 +445,9 @@ public class ExpenseService {
             case AUTO_PAYABLE_FOLIO -> "CXP";
             default -> null;
         };
+    }
+
+    private LocalDate businessDate(FinanceContext context) {
+        return LocalDate.now(timeZoneResolver.resolve(context.companyId()));
     }
 }

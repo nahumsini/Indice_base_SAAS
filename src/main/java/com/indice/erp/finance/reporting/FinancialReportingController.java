@@ -30,19 +30,28 @@ public class FinancialReportingController {
     private final FinancialReportingService reportingService;
     private final FinancialSynchronizationService synchronizationService;
     private final FinancialAnalyticsService analyticsService;
+    private final com.indice.erp.kpis.KpiRequestAccessService access;
+    private final AccountingManualEntryService manualEntries;
+    private final com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver timezones;
 
     public FinancialReportingController(
         SessionAuthService sessionAuthService,
         SessionCsrfService csrfService,
         FinancialReportingService reportingService,
         FinancialSynchronizationService synchronizationService,
-        FinancialAnalyticsService analyticsService
+        FinancialAnalyticsService analyticsService,
+        com.indice.erp.kpis.KpiRequestAccessService access,
+        AccountingManualEntryService manualEntries,
+        com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver timezones
     ) {
         this.sessionAuthService = sessionAuthService;
         this.csrfService = csrfService;
         this.reportingService = reportingService;
         this.synchronizationService = synchronizationService;
         this.analyticsService = analyticsService;
+        this.access = access;
+        this.manualEntries = manualEntries;
+        this.timezones = timezones;
     }
 
     @GetMapping("/analytics")
@@ -56,7 +65,9 @@ public class FinancialReportingController {
     ) {
         var user = currentUser(session);
         if (user.isEmpty()) return unauthorized();
-        var range = resolveRange(from, to);
+        var scope = access.central(user.get(), "accounting-reports", unitId, businessId);
+        unitId = scope.unitId(); businessId = scope.businessId();
+        var range = resolveRange(user.get().companyId(), from, to);
         try {
             return ResponseEntity.ok(analyticsService.analytics(user.get().companyId(), range.from(), range.to(),
                 unitId, businessId, months));
@@ -83,7 +94,9 @@ public class FinancialReportingController {
     ) {
         var user = currentUser(session);
         if (user.isEmpty()) return unauthorized();
-        var range = resolveRange(from, to);
+        var scope = access.central(user.get(), "accounting-reports", unitId, businessId);
+        unitId = scope.unitId(); businessId = scope.businessId();
+        var range = resolveRange(user.get().companyId(), from, to);
         try {
             return ResponseEntity.ok(analyticsService.drilldown(user.get().companyId(), range.from(), range.to(),
                 unitId, businessId, subjectType, subjectId, page, pageSize, sortBy, sortDirection));
@@ -106,7 +119,9 @@ public class FinancialReportingController {
         if (user.isEmpty()) {
             return unauthorized();
         }
-        YearMonth month = YearMonth.now();
+        var scope = access.central(user.get(), "accounting-reports", unitId, businessId);
+        unitId = scope.unitId(); businessId = scope.businessId();
+        YearMonth month = YearMonth.now(timezones.resolve(user.get().companyId()));
         LocalDate resolvedFrom = from == null ? month.atDay(1) : from;
         LocalDate resolvedTo = to == null ? month.atEndOfMonth() : to;
         try {
@@ -130,6 +145,7 @@ public class FinancialReportingController {
             return unauthorized();
         }
         try {
+            access.requireCorporate(user.get(), "accounting-reports");
             csrfService.requireCsrf(session, csrfToken);
             if (request == null) {
                 throw new IllegalArgumentException("Synchronization period is required.");
@@ -154,6 +170,7 @@ public class FinancialReportingController {
             return unauthorized();
         }
         try {
+            access.requireCorporate(user.get(), "accounting-reports");
             csrfService.requireCsrf(session, csrfToken);
             return ResponseEntity.ok(reportingService.closePeriod(user.get().companyId(), user.get().userId(), periodKey));
         } catch (IllegalArgumentException ex) {
@@ -175,6 +192,7 @@ public class FinancialReportingController {
             return unauthorized();
         }
         try {
+            access.requireCorporate(user.get(), "accounting-reports");
             csrfService.requireCsrf(session, csrfToken);
             return ResponseEntity.ok(reportingService.reopenPeriod(user.get().companyId(), user.get().userId(), periodKey,
                 request == null ? null : request.reason()));
@@ -185,12 +203,47 @@ public class FinancialReportingController {
         }
     }
 
+    @GetMapping("/capabilities")
+    public ResponseEntity<?> capabilities(HttpSession session) {
+        var user = currentUser(session); if (user.isEmpty()) return unauthorized();
+        return ResponseEntity.ok(Map.of("canManage", access.canManageAccounting(user.get()),
+            "businessDate", LocalDate.now(timezones.resolve(user.get().companyId())).toString()));
+    }
+
+    @GetMapping("/manual-entries/accounts")
+    public ResponseEntity<?> manualAccounts(HttpSession session) {
+        var user = currentUser(session); if (user.isEmpty()) return unauthorized();
+        access.requireCorporate(user.get(), "accounting-reports");
+        return ResponseEntity.ok(manualEntries.accounts(user.get().companyId()));
+    }
+
+    @PostMapping("/manual-entries/preview")
+    public ResponseEntity<?> previewEntry(HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestBody AccountingManualEntryService.EntryRequest request) {
+        var user = currentUser(session); if (user.isEmpty()) return unauthorized();
+        access.requireCorporate(user.get(), "accounting-reports"); csrfService.requireCsrf(session, csrfToken);
+        try { return ResponseEntity.ok(manualEntries.preview(user.get().companyId(), request)); }
+        catch (IllegalArgumentException error) { return invalidRequest(error.getMessage()); }
+    }
+
+    @PostMapping("/manual-entries")
+    public ResponseEntity<?> postEntry(HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestBody AccountingManualEntryService.PostRequest request) {
+        var user = currentUser(session); if (user.isEmpty()) return unauthorized();
+        access.requireCorporate(user.get(), "accounting-reports"); csrfService.requireCsrf(session, csrfToken);
+        try { return ResponseEntity.ok(manualEntries.post(user.get().companyId(), user.get().userId(), request)); }
+        catch (IllegalArgumentException error) { return invalidRequest(error.getMessage()); }
+        catch (IllegalStateException error) { return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", error.getMessage())); }
+    }
+
     private Optional<AuthSessionUser> currentUser(HttpSession session) {
         return sessionAuthService.currentUser(session);
     }
 
-    private static DateRange resolveRange(LocalDate from, LocalDate to) {
-        YearMonth month = YearMonth.now();
+    private DateRange resolveRange(long companyId, LocalDate from, LocalDate to) {
+        YearMonth month = YearMonth.now(timezones.resolve(companyId));
         return new DateRange(from == null ? month.atDay(1) : from, to == null ? month.atEndOfMonth() : to);
     }
 

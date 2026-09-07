@@ -2,19 +2,18 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-test('the full expense form fixes new operational expenses as paid', async () => {
+test('the full expense form starts new operational expenses pending and does not expose a free status selector', async () => {
   const source = await readFile(
     new URL('../src/app/BasicModules/Expenses/components/modals/ExpenseFormModal.tsx', import.meta.url),
     'utf8',
   );
 
-  assert.match(source, /status:\s*expense\?\.status\s*\?\?\s*'paid'/);
-  assert.match(source, /status:\s*isEditMode\s*\?\s*draft\.status\s*:\s*'paid'/);
-  assert.match(source, /footerSummary=\{`\$\{draft\.concept[\s\S]*t\.expenses\.modal\.paidOn/);
-  assert.match(source, /\{isEditMode \? \([\s\S]*<SelectInput label=\{t\.expenses\.columns\.status/);
+  assert.match(source, /status:\s*expense\?\.status\s*\?\?\s*'pending'/);
+  assert.match(source, /status:\s*isEditMode\s*\?\s*draft\.status\s*:\s*'pending'/);
+  assert.doesNotMatch(source, /<SelectInput label=\{t\.expenses\.columns\.status/);
 });
 
-test('creating an operational expense forces paid while edits preserve the selected status', async () => {
+test('creating an operational expense remains pending until the explicit payment workflow', async () => {
   const source = await readFile(
     new URL('../src/app/BasicModules/Expenses/Expenses/Expenses.tsx', import.meta.url),
     'utf8',
@@ -24,20 +23,18 @@ test('creating an operational expense forces paid while edits preserve the selec
     source.indexOf('const handlePayableAccountSubmit'),
   );
 
-  assert.match(submitHandler, /const effectiveStatus = editingExpense \? values\.status : 'paid'/);
-  assert.match(submitHandler, /expensesService\.updateExpenseStatus\(/);
-  assert.match(submitHandler, /editingExpense[\s\S]*draftExpense\.type\s*!==\s*'payable'/);
-  assert.match(submitHandler, /draftExpense\.type\s*!==\s*'payable'/);
+  assert.match(submitHandler, /const effectiveStatus = editingExpense\?\.status \?\? 'pending'/);
+  assert.doesNotMatch(submitHandler, /expensesService\.updateExpenseStatus\(/);
   assert.match(submitHandler, /status:\s*effectiveStatus/);
 });
 
-test('the expense creation request settles paid operational expenses atomically', async () => {
+test('the expense creation request only settles an explicitly paid expense with an account', async () => {
   const source = await readFile(
     new URL('../src/app/BasicModules/Expenses/services/expenses.service.ts', import.meta.url),
     'utf8',
   );
 
-  assert.match(source, /settleOnCreate:\s*expense\.type === 'real' && expense\.status === 'paid'/);
+  assert.match(source, /settleOnCreate:\s*expense\.type === 'real' && expense\.status === 'paid' && Boolean\(expense\.paymentAccountId\)/);
 });
 
 test('the full expense form supports quick providers and persisted evidence', async () => {
@@ -88,5 +85,6 @@ test('payment evidence keeps its context and the expense dossier reads the audit
   assert.match(paymentHistory, /payment\.files\.map/);
   assert.match(paymentHistory, /LEGACY_AGGREGATE/);
   assert.match(pageSource, /<ExpenseDetailModal/);
-  assert.match(filters, /expense\.type === 'real'/);
+  assert.match(filters, /expense\.backendStatus\.toUpperCase\(\) === 'DRAFT'/);
+  assert.doesNotMatch(filters, /expense\.type === 'real'/);
 });

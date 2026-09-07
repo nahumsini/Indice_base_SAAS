@@ -18,15 +18,18 @@ class FinancialSynchronizationService {
     private final FinancialLedgerRepository ledgerRepository;
     private final AccountingSourceDiscoveryService discoveryService;
     private final ObjectMapper objectMapper;
+    private final AccountingSourceReversalService reversals;
 
     FinancialSynchronizationService(
         FinancialLedgerRepository ledgerRepository,
         AccountingSourceDiscoveryService discoveryService,
-        ObjectMapper objectMapper
+        ObjectMapper objectMapper,
+        AccountingSourceReversalService reversals
     ) {
         this.ledgerRepository = ledgerRepository;
         this.discoveryService = discoveryService;
         this.objectMapper = objectMapper;
+        this.reversals = reversals;
     }
 
     @Transactional
@@ -39,8 +42,8 @@ class FinancialSynchronizationService {
         long runId = ledgerRepository.startSyncRun(companyId, userId, from, to);
 
         var discovery = discoveryService.discover(companyId, from, to, settings.functionalCurrency());
-        var issues = new ArrayList<>(discovery.issues());
         int posted = 0;
+        var issues = new ArrayList<>(discovery.issues());
         int alreadyPosted = 0;
 
         for (var candidate : discovery.candidates()) {
@@ -68,6 +71,9 @@ class FinancialSynchronizationService {
             }
         }
 
+        posted += reversals.postSalesReversals(companyId, userId, settings, from, to);
+        issues.addAll(reversals.pending(companyId, from, to, null, null));
+        issues.addAll(ledgerRepository.missingPostedSources(companyId, from, to, discovery));
         int blocked = (int) issues.stream().filter(item -> "BLOCKING".equals(item.severity())).count();
         String status = blocked > 0 ? "COMPLETED_WITH_ISSUES" : "COMPLETED";
         int discovered = discovery.candidates().size() + blocked;

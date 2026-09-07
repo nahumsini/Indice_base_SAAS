@@ -546,8 +546,8 @@ test('Ventas resume cobro, cumplimiento y siguiente acción con datos reales de 
   assert.match(rowSource, /onDownloadQuote\(record\)/);
   assert.match(signalsSource, /return 'createReceivable'/);
   assert.match(signalsSource, /return 'collectBalance'/);
-  assert.match(kpiSource, /metric: 'RECEIVABLE_BALANCE'/);
-  assert.match(kpiSource, /metric: 'RECEIVABLE_PAYMENT_AMOUNT'/);
+  assert.match(kpiSource, /metric: 'SALES_RECEIVABLE_BALANCE'/);
+  assert.match(kpiSource, /metric: 'SALES_COLLECTED'/);
   assert.match(kpiSource, /label: t\.kpis\.grossMargin/);
   assert.match(kpiSource, /label: t\.kpis\.averageTicket/);
 });

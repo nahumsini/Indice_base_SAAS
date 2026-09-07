@@ -296,7 +296,7 @@ export function useSalesRecords(
   };
 
   const updateSaleRecord = (saleId: string, patch: Partial<SaleRecord>) => {
-    updateSharedSaleRecord(saleId, patch);
+    return updateSharedSaleRecord(saleId, patch);
   };
 
   const deleteSaleRecord = (saleId: string) => deleteSharedSaleRecord(saleId);

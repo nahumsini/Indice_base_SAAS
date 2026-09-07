@@ -27,6 +27,7 @@ type ExpenseRowActionsProps = {
   isDeletePending?: boolean;
   showAudit?: boolean;
   showDelete?: boolean;
+  showEdit?: boolean;
   showMarkPaid?: boolean;
   showRecordPayment?: boolean;
   showView?: boolean;
@@ -48,6 +49,7 @@ export function ExpenseRowActions({
   isDeletePending = false,
   showAudit = true,
   showDelete = true,
+  showEdit = true,
   showMarkPaid = true,
   showRecordPayment = true,
   showView = true,
@@ -84,13 +86,15 @@ export function ExpenseRowActions({
           <CheckCircle2 className="h-4 w-4" />
         </ActionButton>
       ) : null}
-      <ActionButton
-        className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60"
-        label={t.common.edit}
-        onClick={onStartEdit}
-      >
-        <Pencil className="h-4 w-4" />
-      </ActionButton>
+      {showEdit ? (
+        <ActionButton
+          className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60"
+          label={t.common.edit}
+          onClick={onStartEdit}
+        >
+          <Pencil className="h-4 w-4" />
+        </ActionButton>
+      ) : null}
       <ActionButton
         className="border-slate-200 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
         label={detailCopy.printVoucher}

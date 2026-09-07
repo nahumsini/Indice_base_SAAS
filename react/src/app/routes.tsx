@@ -64,13 +64,13 @@ function WorkspaceRouteError() {
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6 text-slate-900 dark:bg-slate-950 dark:text-white">
       <section className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <p className="text-xs font-black uppercase tracking-[0.16em] text-[#FF6B5E]">
-          Actualizacion de interfaz
+          {isChunkError ? 'Actualización de interfaz' : 'No se pudo mostrar esta vista'}
         </p>
         <h1 className="mt-2 text-2xl font-black">
-          Necesitamos recargar la vista
+          {isChunkError ? 'Necesitamos recargar la vista' : 'Ocurrió un error en la vista'}
         </h1>
         <p className="mt-3 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">
-          El navegador tenia archivos de una version anterior del frontend. Recarga la pagina para tomar el build actual.
+          {isChunkError ? 'Hay una actualización disponible. Recarga para abrir la versión actual.' : 'Intenta recargar esta vista. Si el problema continúa, comparte el detalle del error con soporte.'}
         </p>
         <p className="mt-3 break-all rounded-lg bg-slate-100 p-3 font-mono text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-200">
           {errorMessage}
@@ -130,13 +130,13 @@ class WorkspaceRenderErrorBoundary extends Component<
       <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6 text-slate-900 dark:bg-slate-950 dark:text-white">
         <section className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-[#FF6B5E]">
-            Actualizacion de interfaz
+            {isChunkError ? 'Actualización de interfaz' : 'No se pudo mostrar esta vista'}
           </p>
           <h1 className="mt-2 text-2xl font-black">
-            Necesitamos recargar la vista
+            {isChunkError ? 'Necesitamos recargar la vista' : 'Ocurrió un error en la vista'}
           </h1>
           <p className="mt-3 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">
-            El navegador intento abrir un archivo antiguo del frontend. Recarga para tomar el build actual.
+            {isChunkError ? 'Hay una actualización disponible. Recarga para abrir la versión actual.' : 'Intenta recargar esta vista. Si el problema continúa, comparte el detalle del error con soporte.'}
           </p>
           <p className="mt-3 break-all rounded-lg bg-slate-100 p-3 font-mono text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-200">
             {errorMessage}

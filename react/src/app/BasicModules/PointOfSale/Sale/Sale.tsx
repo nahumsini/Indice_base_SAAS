@@ -13,6 +13,7 @@ import type { Product } from '../shared/commercial/products';
 import { CashMovementModal } from './components/CashMovementModal';
 import { IndiceSignalBar } from './components/IndiceSignalBar';
 import { PendingPreTicketsPanel } from './components/PendingPreTicketsPanel';
+import { PaidInventoryReceiptModal } from './components/PaidInventoryReceiptModal';
 import { PosFiscalSettingsModal } from './components/PosFiscalSettingsModal';
 import { QuickProductsPanel } from './components/QuickProductsPanel';
 import { ReturnModal } from './components/ReturnModal';
@@ -233,6 +234,8 @@ export default function Sale() {
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [showShiftSummaryWorkspace, setShowShiftSummaryWorkspace] = useState(false);
   const [showFiscalSettingsModal, setShowFiscalSettingsModal] = useState(false);
+  const [showPaidInventoryReceiptModal, setShowPaidInventoryReceiptModal] = useState(false);
+  const [receiptNotice, setReceiptNotice] = useState('');
   const [checkoutRequestId, setCheckoutRequestId] = useState(0);
   const [productSearchRequestId, setProductSearchRequestId] = useState(0);
   const [isProductWorkspaceOpen, setIsProductWorkspaceOpen] = useState(false);
@@ -368,7 +371,8 @@ export default function Sale() {
     showTicketModal ||
     showReturnModal ||
     showShiftSummaryWorkspace ||
-    showFiscalSettingsModal;
+    showFiscalSettingsModal ||
+    showPaidInventoryReceiptModal;
 
   useCustomerDisplayPublisher({
     cart,
@@ -397,6 +401,7 @@ export default function Sale() {
         !showReturnModal &&
         !showShiftSummaryWorkspace &&
         !showFiscalSettingsModal &&
+        !showPaidInventoryReceiptModal &&
         currentShift
       ) {
         barcodeInputRef.current.focus();
@@ -417,6 +422,7 @@ export default function Sale() {
     showReturnModal,
     showShiftSummaryWorkspace,
     showFiscalSettingsModal,
+    showPaidInventoryReceiptModal,
     currentShift,
   ]);
 
@@ -463,6 +469,7 @@ export default function Sale() {
   const openReturnWorkspace = () => {
     setShowCashMovementModal(false);
     setShowShiftSummaryWorkspace(false);
+    setShowPaidInventoryReceiptModal(false);
     setIsProductWorkspaceOpen(false);
     setIsPreticketWorkspaceOpen(false);
     setIsPaymentWorkspaceOpen(false);
@@ -472,6 +479,7 @@ export default function Sale() {
   const openCashMovementWorkspace = () => {
     setShowReturnModal(false);
     setShowShiftSummaryWorkspace(false);
+    setShowPaidInventoryReceiptModal(false);
     setIsProductWorkspaceOpen(false);
     setIsPreticketWorkspaceOpen(false);
     setIsPaymentWorkspaceOpen(false);
@@ -481,11 +489,22 @@ export default function Sale() {
   const openShiftSummaryWorkspace = () => {
     setShowReturnModal(false);
     setShowCashMovementModal(false);
+    setShowPaidInventoryReceiptModal(false);
     setIsProductWorkspaceOpen(false);
     setIsPreticketWorkspaceOpen(false);
     setIsPaymentWorkspaceOpen(false);
     setShowShiftSummaryWorkspace(true);
     void loadClosingSummary();
+  };
+
+  const openPaidInventoryReceiptWorkspace = () => {
+    setShowReturnModal(false);
+    setShowCashMovementModal(false);
+    setShowShiftSummaryWorkspace(false);
+    setIsProductWorkspaceOpen(false);
+    setIsPreticketWorkspaceOpen(false);
+    setIsPaymentWorkspaceOpen(false);
+    setShowPaidInventoryReceiptModal(true);
   };
 
   const handleReturn = (saleId: string, type: 'full' | 'partial') => {
@@ -679,9 +698,11 @@ export default function Sale() {
               onOpenShiftSummary={openShiftSummaryWorkspace}
               onCloseShift={() => {
                 setShowShiftSummaryWorkspace(false);
+                setShowPaidInventoryReceiptModal(false);
                 void openCloseShiftModal();
               }}
               onOpenReturn={openReturnWorkspace}
+              onOpenInventoryReceipt={openPaidInventoryReceiptWorkspace}
               onToggleFullscreen={toggleFullscreenMode}
               fiscalSummary={fiscalSummary}
               fiscalDetail={`${fiscalSettings.taxRate}%`}
@@ -704,7 +725,7 @@ export default function Sale() {
               {smartAlerts.length > 0 && <SmartAlertsStrip alerts={smartAlerts} />}
             </div>
 
-            {[cartNotice, checkoutNotice.startsWith('Venta ') ? '' : checkoutNotice, balanceLoadError, shiftCurrencyMismatchNotice, shiftNotice, shiftError, registerContextError, discountRulesError].filter(Boolean)
+            {[cartNotice, checkoutNotice.startsWith('Venta ') ? '' : checkoutNotice, balanceLoadError, shiftCurrencyMismatchNotice, shiftNotice, shiftError, registerContextError, discountRulesError, receiptNotice].filter(Boolean)
               .length > 0 && (
               <div className="mt-2 space-y-2">
                 {cartNotice && <OperationalNotice message={cartNotice} onDismiss={clearCartNotice} />}
@@ -715,6 +736,7 @@ export default function Sale() {
                 {shiftError && <OperationalNotice message={shiftError} onDismiss={clearShiftError} />}
                 {registerContextError && <OperationalNotice message={registerContextError} onDismiss={clearRegisterContextError} />}
                 {discountRulesError && <OperationalNotice message={discountRulesError} onDismiss={() => setDiscountRulesError('')} />}
+                {receiptNotice && <OperationalNotice message={receiptNotice} onDismiss={() => setReceiptNotice('')} />}
               </div>
             )}
 
@@ -737,7 +759,21 @@ export default function Sale() {
                 style={isPaymentWorkspaceOpen ? { display: 'none' } : undefined}
                 className="flex min-h-0 min-w-0 flex-col gap-4 xl:row-span-2 2xl:row-span-1"
               >
-                {showShiftSummaryWorkspace ? (
+                {showPaidInventoryReceiptModal ? (
+                  <PaidInventoryReceiptModal
+                    isOpen
+                    workspaceMode
+                    cashRegisterId={Number(currentShift.cashRegisterId)}
+                    shiftId={Number(currentShift.id)}
+                    warehouseName={currentShift.warehouseName || registerContext?.warehouseName || 'almacén de la caja'}
+                    currencyCode={transactionCurrency}
+                    onClose={() => setShowPaidInventoryReceiptModal(false)}
+                    onCompleted={async (message) => {
+                      setReceiptNotice(message);
+                      await Promise.all([reloadInventoryBalances(), refreshRegisterContext()]);
+                    }}
+                  />
+                ) : showShiftSummaryWorkspace ? (
                   <ShiftSummaryWorkspace
                     isOpen
                     shift={currentShift}
@@ -884,6 +920,7 @@ export default function Sale() {
                   setShowReturnModal(false);
                   setShowCashMovementModal(false);
                   setShowShiftSummaryWorkspace(false);
+                  setShowPaidInventoryReceiptModal(false);
                   setIsPreticketWorkspaceOpen((current) => !current);
                 }}
                 aria-pressed={isPreticketWorkspaceOpen}
@@ -901,6 +938,7 @@ export default function Sale() {
                   setShowReturnModal(false);
                   setShowCashMovementModal(false);
                   setShowShiftSummaryWorkspace(false);
+                  setShowPaidInventoryReceiptModal(false);
                   setIsProductWorkspaceOpen((current) => !current);
                 }}
                 aria-pressed={isProductWorkspaceOpen}
@@ -926,6 +964,7 @@ export default function Sale() {
                   setShowReturnModal(false);
                   setShowCashMovementModal(false);
                   setShowShiftSummaryWorkspace(false);
+                  setShowPaidInventoryReceiptModal(false);
                   setIsPaymentWorkspaceOpen(true);
                 }}
                 disabled={cart.length === 0 || isPaymentWorkspaceOpen}
@@ -937,7 +976,6 @@ export default function Sale() {
           </footer>
         </div>
       </div>
-
       <SaleSidePanel panel={sidePanel} onClose={() => setSidePanel(null)} formatCurrency={formatSaleCurrency} />
 
       <PosFiscalSettingsModal

@@ -40,7 +40,8 @@ public class ExecutiveDecisionMatrixService {
     private BusinessHealthMatrix businessHealth(
             List<Map<String, Object>> rows,
             List<String> nativeCurrencies) {
-        var singleCurrency = nativeCurrencies.stream().distinct().count() <= 1;
+        var consolidated = nativeCurrencies.stream().distinct().count() <= 1
+            || rows.stream().allMatch(row -> Boolean.TRUE.equals(row.get("currencyConverted")));
         var items = rows.stream().map(row -> {
             var totalTasks = integer(row.get("totalTasks"));
             var attendanceRecords = integer(row.get("attendanceRecords"));
@@ -51,9 +52,10 @@ public class ExecutiveDecisionMatrixService {
                     ? BigDecimal.ZERO
                     : BigDecimal.valueOf(Math.max(0, 100 - percent(overdueTasks, totalTasks)));
             var execution = executionScore(taskCompletion, attendance, backlogScore, totalTasks, attendanceRecords);
-            var revenue = decimal(row.get("salesTotal"));
+            var revenue = decimal(row.get("recognizedRevenue"));
             var margin = decimal(row.get("operatingMargin"));
-            var ready = revenue.compareTo(BigDecimal.ZERO) > 0 && totalTasks > 0;
+            var ready = revenue.compareTo(BigDecimal.ZERO) > 0 && totalTasks > 0
+                && consolidated && !Boolean.TRUE.equals(row.get("monetaryPartial")) && Boolean.TRUE.equals(row.get("profitReady"));
             return new BusinessHealthItem(
                     itemId(row),
                     nullableLong(row.get("unitId")),
@@ -75,7 +77,11 @@ public class ExecutiveDecisionMatrixService {
 
         var issues = new ArrayList<String>();
         if (rows.isEmpty()) issues.add("No hay unidades o negocios disponibles en el alcance.");
-        if (!singleCurrency) issues.add("La lectura monetaria por unidad mezcla monedas de origen y requiere consolidación.");
+        if (!consolidated) issues.add("La lectura monetaria por unidad requiere consolidación de monedas de origen.");
+        if (rows.stream().anyMatch(row -> Boolean.TRUE.equals(row.get("monetaryPartial")))) {
+            issues.add("Faltan tasas válidas para convertir todos los importes; esas unidades quedan sin clasificar.");
+        }
+        if (rows.stream().anyMatch(row -> !Boolean.TRUE.equals(row.get("profitReady")))) issues.add("Falta evidencia financiera de ingresos, costos o nómina para completar la rentabilidad de algunas unidades.");
         var unavailable = items.stream().filter(item -> !item.decisionReady()).count();
         if (unavailable > 0) issues.add(unavailable + " unidades o negocios no tienen ventas y tareas suficientes para clasificarse.");
         var readyCount = items.size() - unavailable;
@@ -87,7 +93,7 @@ public class ExecutiveDecisionMatrixService {
                         readyCount > 0 && issues.isEmpty(),
                         readyCount < items.size() || !issues.isEmpty(),
                         List.copyOf(issues),
-                        "sales_records + finance_expenses + process_tasks + attendance/repeatable-read",
+                        "Finance recognition + historical cost/FX + payroll + process_tasks + attendance/repeatable-read",
                         "Matriz interna: rentabilidad operativa y ejecución observada; no usa referencias externas."));
     }
 

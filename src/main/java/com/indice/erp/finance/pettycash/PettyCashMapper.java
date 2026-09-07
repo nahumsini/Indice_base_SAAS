@@ -43,12 +43,22 @@ public class PettyCashMapper {
             nullableLong(rs, "payment_account_id"),
             nullableLong(rs, "funding_source_payment_account_id"),
             nullableLong(rs, "responsible_user_id"),
+            PettyCashFundType.valueOf(rs.getString("fund_type")),
             rs.getString("name"),
             rs.getString("currency_code"),
             rs.getBigDecimal("limit_amount"),
             rs.getBigDecimal("current_balance_amount"),
             rs.getInt("cut_off_day"),
             rs.getString("funding_source_name"),
+            rs.getString("external_owner_type"),
+            rs.getString("external_owner_name"),
+            rs.getString("external_owner_relationship"),
+            rs.getString("external_owner_reference"),
+            rs.getString("statement_recipient_email"),
+            rs.getString("managed_asset_type"),
+            rs.getString("managed_asset_name"),
+            rs.getString("managed_asset_reference"),
+            rs.getBoolean("external_identity_pending"),
             rs.getString("funding_methods_json"),
             rs.getString("spending_methods_json"),
             rs.getBoolean("kiosk_enabled"),
@@ -72,6 +82,7 @@ public class PettyCashMapper {
             rs.getLong("id"),
             rs.getLong("company_id"),
             rs.getLong("petty_cash_fund_id"),
+            PettyCashFundType.valueOf(rs.getString("fund_type_snapshot")),
             rs.getString("folio"),
             rs.getString("period_key"),
             rs.getObject("period_start", LocalDate.class),
@@ -89,6 +100,14 @@ public class PettyCashMapper {
             rs.getString("currency_code"),
             PettyCashStatementStatus.valueOf(rs.getString("status")),
             nullableLong(rs, "responsible_user_id"),
+            rs.getString("external_owner_type_snapshot"),
+            rs.getString("external_owner_name_snapshot"),
+            rs.getString("external_owner_relationship_snapshot"),
+            rs.getString("external_owner_reference_snapshot"),
+            rs.getString("statement_recipient_email_snapshot"),
+            rs.getString("managed_asset_type_snapshot"),
+            rs.getString("managed_asset_name_snapshot"),
+            rs.getString("managed_asset_reference_snapshot"),
             nullableLong(rs, "reviewed_by_user_id"),
             rs.getInt("attachment_count"),
             nullableLong(rs, "created_by_user_id"),
@@ -110,6 +129,12 @@ public class PettyCashMapper {
             nullableLong(rs, "petty_cash_statement_id"),
             nullableLong(rs, "from_payment_account_id"),
             nullableLong(rs, "to_payment_account_id"),
+            rs.getString("external_source_name"),
+            rs.getString("entry_category"),
+            rs.getString("counterparty_name"),
+            rs.getString("statement_description"),
+            rs.getString("funding_method"),
+            rs.getString("internal_note"),
             PettyCashMovementType.valueOf(rs.getString("type")),
             rs.getBigDecimal("amount"),
             rs.getString("currency_code"),
@@ -146,6 +171,9 @@ public class PettyCashMapper {
             PettyCashSettlementLineStatus.valueOf(rs.getString("status")),
             nullableLong(rs, "created_by_user_id"),
             nullableLong(rs, "updated_by_user_id"),
+            rs.getString("cancellation_reason"),
+            nullableLong(rs, "cancelled_by_user_id"),
+            instant(rs, "cancelled_at"),
             instant(rs, "created_at"),
             instant(rs, "updated_at"),
             instant(rs, "deleted_at"),
@@ -159,8 +187,12 @@ public class PettyCashMapper {
         return new PettyCashFundResponse(
             record.id(), record.companyId(), record.unitId(), record.businessId(), record.budgetId(),
             record.budgetLineId(), record.paymentAccountId(), record.fundingSourcePaymentAccountId(),
-            record.responsibleUserId(), record.name(), record.currencyCode(), record.limitAmount(),
+            record.responsibleUserId(), record.fundType(), record.name(), record.currencyCode(), record.limitAmount(),
             record.currentBalanceAmount(), record.cutOffDay(), record.fundingSourceName(),
+            record.externalOwnerType(), record.externalOwnerName(), record.externalOwnerRelationship(),
+            record.externalOwnerReference(), record.statementRecipientEmail(), record.managedAssetType(),
+            record.managedAssetName(), record.managedAssetReference(), record.externalIdentityPending(),
+            record.fundType() == PettyCashFundType.INTERNAL_COMPANY && record.budgetLineId() == null,
             toStringList(record.fundingMethodsJson()), toStringList(record.spendingMethodsJson()),
             record.kioskEnabled(), record.kioskUsesUniversalPin(), record.kioskAccessUrl(), record.kioskPublicToken(), record.status(),
             record.createdByUserId(), record.updatedByUserId(), record.createdAt(), record.updatedAt(),
@@ -170,12 +202,16 @@ public class PettyCashMapper {
 
     public PettyCashStatementResponse toResponse(PettyCashStatementRecord record) {
         return new PettyCashStatementResponse(
-            record.id(), record.companyId(), record.pettyCashFundId(), record.folio(), record.periodKey(),
+            record.id(), record.companyId(), record.pettyCashFundId(), record.fundTypeSnapshot(), record.folio(), record.periodKey(),
             record.periodStart(), record.periodEnd(), record.cutOffDate(), record.openingBalanceAmount(),
             record.assignedAmount(), record.additionalDepositAmount(), record.declaredClosingBalanceAmount(),
             record.estimatedUsageAmount(), record.verifiedExpenseAmount(), record.returnedAmount(),
             record.shortageAmount(), record.carryForwardAmount(), record.currencyCode(), record.status(),
-            record.responsibleUserId(), record.reviewedByUserId(), record.attachmentCount(),
+            record.responsibleUserId(), record.externalOwnerTypeSnapshot(), record.externalOwnerNameSnapshot(),
+            record.externalOwnerRelationshipSnapshot(), record.externalOwnerReferenceSnapshot(),
+            record.statementRecipientEmailSnapshot(), record.managedAssetTypeSnapshot(),
+            record.managedAssetNameSnapshot(), record.managedAssetReferenceSnapshot(),
+            record.reviewedByUserId(), record.attachmentCount(),
             record.createdByUserId(), record.updatedByUserId(), record.createdAt(), record.updatedAt(),
             record.deletedAt(), record.version(), toJsonNode(record.customFieldsJson()), toJsonNode(record.metadataJson())
         );
@@ -184,7 +220,9 @@ public class PettyCashMapper {
     public PettyCashMovementResponse toResponse(PettyCashMovementRecord record) {
         return new PettyCashMovementResponse(
             record.id(), record.companyId(), record.pettyCashFundId(), record.pettyCashStatementId(),
-            record.fromPaymentAccountId(), record.toPaymentAccountId(), record.type(), record.amount(),
+            record.fromPaymentAccountId(), record.toPaymentAccountId(), record.externalSourceName(),
+            record.entryCategory(), record.counterpartyName(), record.statementDescription(),
+            record.fundingMethod(), record.internalNote(), record.type(), record.amount(),
             record.currencyCode(), record.movementDate(), record.reference(), record.createdByUserId(),
             record.updatedByUserId(), record.createdAt(), record.updatedAt(), record.deletedAt(),
             record.version(), toJsonNode(record.customFieldsJson()), toJsonNode(record.metadataJson())
@@ -197,7 +235,8 @@ public class PettyCashMapper {
             record.expenseId(), record.providerId(), record.accountingAccountId(), record.description(),
             record.receiptReference(), record.subtotalAmount(), record.taxAmount(), record.totalAmount(),
             record.currencyCode(), record.expenseDate(), record.attachmentCount(), record.status(),
-            record.createdByUserId(), record.updatedByUserId(), record.createdAt(), record.updatedAt(),
+            record.createdByUserId(), record.updatedByUserId(), record.cancellationReason(),
+            record.cancelledByUserId(), record.cancelledAt(), record.createdAt(), record.updatedAt(),
             record.deletedAt(), record.version(), toJsonNode(record.customFieldsJson()), toJsonNode(record.metadataJson())
         );
     }
@@ -210,11 +249,18 @@ public class PettyCashMapper {
         var normalizedCurrency = normalizeCurrency(request.currencyCode());
         var currentBalance = request.currentBalanceAmount() == null ? BigDecimal.ZERO : request.currentBalanceAmount();
         var kioskEnabled = request.kioskEnabled() != null && request.kioskEnabled();
+        var fundType = resolveFundType(request.fundType(), request.fundingSourcePaymentAccountId());
+        var externalIdentityPending = isExternalIdentityPending(
+            fundType, request.externalOwnerType(), request.externalOwnerName(), request.statementRecipientEmail());
         return new PettyCashFundCommand(
             assignment.unitId(), assignment.businessId(), request.budgetId(), request.budgetLineId(),
             request.paymentAccountId(), request.fundingSourcePaymentAccountId(), request.responsibleUserId(),
-            trim(request.name()), normalizedCurrency, request.limitAmount(), currentBalance,
+            fundType, trim(request.name()), normalizedCurrency, request.limitAmount(), currentBalance,
             request.cutOffDay() == null ? 30 : request.cutOffDay(), trimToNull(request.fundingSourceName()),
+            normalizeCode(request.externalOwnerType()), trimToNull(request.externalOwnerName()),
+            normalizeCode(request.externalOwnerRelationship()), trimToNull(request.externalOwnerReference()),
+            normalizeEmail(request.statementRecipientEmail()), normalizeCode(request.managedAssetType()),
+            trimToNull(request.managedAssetName()), trimToNull(request.managedAssetReference()), externalIdentityPending,
             FinanceJsonSupport.toJson(cleanList(request.fundingMethods())),
             FinanceJsonSupport.toJson(cleanList(request.spendingMethods())),
             kioskEnabled,
@@ -233,12 +279,20 @@ public class PettyCashMapper {
             PettyCashFundRecord existing,
             String kioskPublicToken) {
         var kioskEnabled = request.kioskEnabled() != null && request.kioskEnabled();
+        var fundType = resolveFundType(request.fundType(), request.fundingSourcePaymentAccountId());
+        var externalIdentityPending = isExternalIdentityPending(
+            fundType, request.externalOwnerType(), request.externalOwnerName(), request.statementRecipientEmail());
         return new PettyCashFundCommand(
             assignment.unitId(), assignment.businessId(), request.budgetId(), request.budgetLineId(),
             request.paymentAccountId(), request.fundingSourcePaymentAccountId(), request.responsibleUserId(),
-            trim(request.name()), normalizeCurrency(request.currencyCode()), request.limitAmount(),
+            fundType, trim(request.name()), normalizeCurrency(request.currencyCode()), request.limitAmount(),
             existing.currentBalanceAmount(), request.cutOffDay() == null ? existing.cutOffDay() : request.cutOffDay(),
-            trimToNull(request.fundingSourceName()), FinanceJsonSupport.toJson(cleanList(request.fundingMethods())),
+            trimToNull(request.fundingSourceName()), normalizeCode(request.externalOwnerType()),
+            trimToNull(request.externalOwnerName()), normalizeCode(request.externalOwnerRelationship()),
+            trimToNull(request.externalOwnerReference()), normalizeEmail(request.statementRecipientEmail()),
+            normalizeCode(request.managedAssetType()), trimToNull(request.managedAssetName()),
+            trimToNull(request.managedAssetReference()), externalIdentityPending,
+            FinanceJsonSupport.toJson(cleanList(request.fundingMethods())),
             FinanceJsonSupport.toJson(cleanList(request.spendingMethods())),
             kioskEnabled,
             request.kioskUsesUniversalPin() == null || request.kioskUsesUniversalPin(),
@@ -254,6 +308,9 @@ public class PettyCashMapper {
             request.pettyCashStatementId(), request.fromPaymentAccountId(), request.toPaymentAccountId(),
             request.type() == null ? PettyCashMovementType.ADDITIONAL_DEPOSIT : request.type(),
             request.amount(), normalizeCurrency(request.currencyCode()), request.movementDate(),
+            trimToNull(request.externalSourceName()), normalizeCode(request.entryCategory()),
+            trimToNull(request.counterpartyName()), trimToNull(request.statementDescription()),
+            normalizeCode(request.fundingMethod()), trimToNull(request.internalNote()),
             trimToNull(request.reference()), context.userId(), FinanceJsonSupport.toJson(request.customFields()),
             FinanceJsonSupport.toJson(request.metadata())
         );
@@ -323,6 +380,34 @@ public class PettyCashMapper {
             throw FinanceApiException.badRequest("currencyCode must be an ISO 4217 code.");
         }
         return trimmed.toUpperCase(Locale.ROOT);
+    }
+
+    private PettyCashFundType resolveFundType(PettyCashFundType requestedType, Long fundingSourcePaymentAccountId) {
+        if (requestedType != null) {
+            return requestedType;
+        }
+        return fundingSourcePaymentAccountId == null
+            ? PettyCashFundType.EXTERNAL_MANAGED
+            : PettyCashFundType.INTERNAL_COMPANY;
+    }
+
+    private boolean isExternalIdentityPending(
+            PettyCashFundType fundType,
+            String ownerType,
+            String ownerName,
+            String recipientEmail) {
+        return fundType == PettyCashFundType.EXTERNAL_MANAGED
+            && (trimToNull(ownerType) == null || trimToNull(ownerName) == null || trimToNull(recipientEmail) == null);
+    }
+
+    private String normalizeCode(String value) {
+        var normalized = trimToNull(value);
+        return normalized == null ? null : normalized.toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
+    }
+
+    private String normalizeEmail(String value) {
+        var normalized = trimToNull(value);
+        return normalized == null ? null : normalized.toLowerCase(Locale.ROOT);
     }
 
     private String trim(String value) {

@@ -61,7 +61,6 @@ BudgetLine availableAmount is derived:
 plannedAmount
 - committedAmount
 - actualExpenseAmount
-- (pettyCashIssuedAmount - pettyCashSettledAmount)
 ```
 
 BudgetHealthStatus is derived from availableAmount and plannedAmount:

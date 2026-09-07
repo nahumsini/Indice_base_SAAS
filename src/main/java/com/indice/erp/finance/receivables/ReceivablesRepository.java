@@ -144,6 +144,7 @@ class ReceivablesRepository {
             SELECT payment.*, account.sale_number, account.customer_name
             FROM finance_receivable_payments payment
             JOIN finance_receivable_accounts account ON account.id = payment.receivable_id
+              AND account.company_id = payment.company_id
             WHERE payment.company_id = ?
               AND account.deleted_at IS NULL
               AND """ + FinanceSqlSupport.scopePredicate("account", context.scope()) + """
@@ -172,12 +173,13 @@ class ReceivablesRepository {
         );
     }
 
-    Optional<CreditPolicyResponse> findCreditPolicy(FinanceContext context, Long contactId, String customerName) {
+    Optional<CreditPolicyResponse> findCreditPolicy(FinanceContext context, Long contactId, String customerName, String currency) {
         var params = scopedParams(context);
         params.add(1, contactId);
         params.add(2, contactId);
         params.add(3, contactId);
         params.add(4, safe(customerName));
+        params.add(5, currency);
         var rows = jdbcTemplate.query(
             """
             SELECT policy.*, unit.name AS unit_name, business.name AS business_name
@@ -189,10 +191,11 @@ class ReceivablesRepository {
                 (? IS NOT NULL AND policy.contact_id = ?)
                 OR (? IS NULL AND LOWER(policy.customer_name) = LOWER(?))
               )
+              AND policy.currency_code = ?
               AND policy.deleted_at IS NULL
               AND """ + FinanceSqlSupport.scopePredicate("policy", context.scope()) + """
             ORDER BY policy.id DESC
-            LIMIT 1
+            LIMIT 1 FOR UPDATE
             """,
             (rs, rowNum) -> mapCreditPolicy(rs),
             params.toArray()
@@ -200,10 +203,69 @@ class ReceivablesRepository {
         return rows.stream().findFirst();
     }
 
+    CreditPolicyResponse lockCreditPolicy(FinanceContext context, long id) {
+        var params = scopedParams(context);
+        params.add(1, id);
+        return jdbcTemplate.query("""
+            SELECT policy.*, unit.name unit_name, business.name business_name
+            FROM finance_credit_policies policy
+            LEFT JOIN units unit ON unit.id = policy.unit_id AND unit.company_id = policy.company_id
+            LEFT JOIN businesses business ON business.id = policy.business_id AND business.company_id = policy.company_id
+            WHERE policy.company_id = ? AND policy.id = ? AND policy.deleted_at IS NULL AND
+            """ + FinanceSqlSupport.scopePredicate("policy", context.scope()) + " FOR UPDATE",
+            (rs, row) -> mapCreditPolicy(rs), params.toArray()).stream().findFirst()
+            .orElseThrow(() -> new java.util.NoSuchElementException("Credit policy not found."));
+    }
+
+    void linkCreditPolicy(FinanceContext context, long saleId, long policyId) {
+        jdbcTemplate.update("UPDATE finance_credit_sales SET credit_policy_id = ? WHERE company_id = ? AND id = ?",
+            policyId, context.companyId(), saleId);
+    }
+
+    Optional<CreditPolicyResponse> policyForCollection(FinanceContext context, ReceivableAccountResponse account) {
+        Long policyId = jdbcTemplate.queryForObject("SELECT credit_policy_id FROM finance_credit_sales WHERE company_id = ? AND id = ?",
+            Long.class, context.companyId(), account.creditSaleId());
+        return policyId == null ? findCreditPolicy(context, account.contactId(), account.customerName(), account.currency())
+            : Optional.of(lockCreditPolicy(context, policyId));
+    }
+
+    void updateCreditPolicy(FinanceContext context, CreditPolicyResponse existing, BigDecimal creditLine,
+            BigDecimal monthlyLimit, int months, BigDecimal interest, String status, String notes) {
+        BigDecimal used = existing.creditLine().subtract(existing.availableCredit()).max(BigDecimal.ZERO);
+        jdbcTemplate.update("""
+            UPDATE finance_credit_policies SET credit_line_amount = ?, available_credit_amount = ?,
+              monthly_purchase_limit_amount = ?, default_term_months = ?, annual_interest_rate = ?, status = ?, notes = ?,
+              updated_by_user_id = ?, version = version + 1
+            WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+            """, creditLine, creditLine.subtract(used), monthlyLimit, months, interest, status, notes,
+                context.userId(), context.companyId(), existing.id());
+    }
+
+    void archiveCreditPolicy(FinanceContext context, long id) {
+        jdbcTemplate.update("UPDATE finance_credit_policies SET deleted_at = CURRENT_TIMESTAMP, status = 'BLOCKED', updated_by_user_id = ?, version = version + 1 WHERE company_id = ? AND id = ? AND deleted_at IS NULL",
+            context.userId(), context.companyId(), id);
+    }
+
+    boolean hasOutstandingCredit(FinanceContext context, CreditPolicyResponse policy) {
+        return jdbcTemplate.queryForObject("""
+            SELECT COUNT(*) FROM finance_receivable_accounts account JOIN finance_credit_sales credit
+              ON credit.company_id = account.company_id AND credit.id = account.credit_sale_id
+            WHERE account.company_id = ? AND account.deleted_at IS NULL AND account.status <> 'CANCELLED' AND account.balance_amount > 0
+              AND (credit.credit_policy_id = ? OR (credit.credit_policy_id IS NULL AND account.currency_code = ?
+                AND ((? IS NOT NULL AND account.contact_id = ?) OR (? IS NULL AND account.customer_name = ?))))
+            """, Integer.class, context.companyId(), policy.id(), policy.currencyCode(), policy.contactId(), policy.contactId(),
+            policy.contactId(), policy.customerName()) > 0;
+    }
+
+    void lockCompanyForPolicyCreation(FinanceContext context) {
+        jdbcTemplate.queryForObject("SELECT id FROM companies WHERE id = ? FOR UPDATE", Long.class, context.companyId());
+    }
+
     BigDecimal sumMonthlyCreditSales(
             FinanceContext context,
             Long contactId,
             String customerName,
+            String currency,
             LocalDate monthStart,
             LocalDate monthEnd) {
         var params = scopedParams(context);
@@ -213,6 +275,7 @@ class ReceivablesRepository {
         params.add(4, safe(customerName));
         params.add(5, Date.valueOf(monthStart));
         params.add(6, Date.valueOf(monthEnd));
+        params.add(7, currency);
         var amount = jdbcTemplate.queryForObject(
             """
             SELECT COALESCE(SUM(credit_sale.financed_amount), 0)
@@ -225,6 +288,7 @@ class ReceivablesRepository {
               AND credit_sale.sale_date >= ?
               AND credit_sale.sale_date < ?
               AND credit_sale.status NOT IN ('REJECTED', 'CANCELLED')
+              AND credit_sale.currency_code = ?
               AND credit_sale.deleted_at IS NULL
               AND """ + FinanceSqlSupport.scopePredicate("credit_sale", context.scope()) + """
             """,
@@ -246,17 +310,29 @@ class ReceivablesRepository {
                    sale.sale_number,
                    sale.customer_name,
                    COALESCE(sale.sale_date, CURRENT_DATE) AS sale_date,
-                   sale.total_amount,
+                   CASE WHEN ticket.id IS NOT NULL THEN COALESCE((
+                     SELECT SUM(payment.amount) FROM pos_payments payment
+                     WHERE payment.company_id = sale.company_id AND payment.ticket_id = ticket.id
+                       AND payment.payment_method = 'CREDIT' AND payment.status = 'CAPTURED'
+                   ), 0) ELSE sale.total_amount END total_amount,
                    UPPER(COALESCE(sale.currency, 'MXN')) AS currency_code,
                    unit.name AS unit_name,
                    business.name AS business_name
             FROM sales_records sale
-            LEFT JOIN pos_tickets ticket ON ticket.sales_record_id = sale.id AND ticket.deleted_at IS NULL
+            LEFT JOIN pos_tickets ticket ON ticket.sales_record_id = sale.id AND ticket.company_id = sale.company_id AND ticket.deleted_at IS NULL
             LEFT JOIN units unit ON unit.id = sale.unit_id
             LEFT JOIN businesses business ON business.id = sale.business_id
             WHERE sale.company_id = ?
               AND sale.deleted_at IS NULL
               AND sale.total_amount > 0
+              AND LOWER(COALESCE(sale.commercial_status, '')) NOT IN ('cancelled', 'canceled', 'rejected', 'voided')
+              AND ((ticket.id IS NULL AND (LOWER(COALESCE(sale.finance_status, 'pending')) <> 'approved'
+                    OR LOWER(sale.payment_method) IN ('credit', 'credito', 'crédito')))
+                OR (ticket.status = 'COMPLETED' AND EXISTS (
+                    SELECT 1 FROM pos_payments payment WHERE payment.company_id = sale.company_id
+                      AND payment.ticket_id = ticket.id AND payment.payment_method = 'CREDIT' AND payment.status = 'CAPTURED')))
+              AND NOT EXISTS (SELECT 1 FROM finance_payment_account_movements movement
+                WHERE movement.company_id = sale.company_id AND movement.source_type = 'SALE_COLLECTION' AND CAST(movement.source_id AS UNSIGNED) = sale.id)
               AND NOT EXISTS (
                 SELECT 1
                 FROM finance_credit_sales credit_sale
@@ -273,6 +349,13 @@ class ReceivablesRepository {
         );
     }
 
+    void lockCandidateSale(FinanceContext context, long id) {
+        var params = scopedParams(context); params.add(1, id);
+        var rows = jdbcTemplate.query("SELECT sale.id FROM sales_records sale WHERE sale.company_id = ? AND sale.id = ? AND sale.deleted_at IS NULL AND "
+            + FinanceSqlSupport.scopePredicate("sale", context.scope()) + " FOR UPDATE", (rs, index) -> rs.getLong(1), params.toArray());
+        if (rows.isEmpty()) throw new java.util.NoSuchElementException("Candidate sale not found.");
+    }
+
     Optional<CandidateSaleResponse> findCandidateSale(FinanceContext context, long salesRecordId) {
         var params = scopedParams(context);
         params.add(1, salesRecordId);
@@ -286,18 +369,30 @@ class ReceivablesRepository {
                    sale.sale_number,
                    sale.customer_name,
                    COALESCE(sale.sale_date, CURRENT_DATE) AS sale_date,
-                   sale.total_amount,
+                   CASE WHEN ticket.id IS NOT NULL THEN COALESCE((
+                     SELECT SUM(payment.amount) FROM pos_payments payment
+                     WHERE payment.company_id = sale.company_id AND payment.ticket_id = ticket.id
+                       AND payment.payment_method = 'CREDIT' AND payment.status = 'CAPTURED'
+                   ), 0) ELSE sale.total_amount END total_amount,
                    UPPER(COALESCE(sale.currency, 'MXN')) AS currency_code,
                    unit.name AS unit_name,
                    business.name AS business_name
             FROM sales_records sale
-            LEFT JOIN pos_tickets ticket ON ticket.sales_record_id = sale.id AND ticket.deleted_at IS NULL
+            LEFT JOIN pos_tickets ticket ON ticket.sales_record_id = sale.id AND ticket.company_id = sale.company_id AND ticket.deleted_at IS NULL
             LEFT JOIN units unit ON unit.id = sale.unit_id
             LEFT JOIN businesses business ON business.id = sale.business_id
             WHERE sale.company_id = ?
               AND sale.id = ?
               AND sale.deleted_at IS NULL
               AND sale.total_amount > 0
+              AND LOWER(COALESCE(sale.commercial_status, '')) NOT IN ('cancelled', 'canceled', 'rejected', 'voided')
+              AND ((ticket.id IS NULL AND (LOWER(COALESCE(sale.finance_status, 'pending')) <> 'approved'
+                    OR LOWER(sale.payment_method) IN ('credit', 'credito', 'crédito')))
+                OR (ticket.status = 'COMPLETED' AND EXISTS (
+                    SELECT 1 FROM pos_payments payment WHERE payment.company_id = sale.company_id
+                      AND payment.ticket_id = ticket.id AND payment.payment_method = 'CREDIT' AND payment.status = 'CAPTURED')))
+              AND NOT EXISTS (SELECT 1 FROM finance_payment_account_movements movement
+                WHERE movement.company_id = sale.company_id AND movement.source_type = 'SALE_COLLECTION' AND CAST(movement.source_id AS UNSIGNED) = sale.id)
               AND NOT EXISTS (
                 SELECT 1
                 FROM finance_credit_sales credit_sale
@@ -386,25 +481,42 @@ class ReceivablesRepository {
         return findReceivableAccount(context, id, LocalDate.now()).orElseThrow();
     }
 
-    void insertPayment(FinanceContext context, ReceivableAccountResponse account, String method, BigDecimal amount,
-            LocalDate paymentDate, String reference, String registeredBy) {
-        jdbcTemplate.update(
-            """
-            INSERT INTO finance_receivable_payments
-            (company_id, receivable_id, payment_date, payment_method, amount, currency_code, reference,
-             registered_by_user_id, registered_by_name)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            context.companyId(),
-            account.id(),
-            Date.valueOf(paymentDate),
-            method,
-            amount,
-            account.currency(),
-            reference,
-            context.userId(),
-            registeredBy
-        );
+    long insertPayment(FinanceContext context, ReceivableAccountResponse account, String method, BigDecimal amount,
+            LocalDate paymentDate, String reference, String registeredBy, long paymentAccountId, String idempotencyKey) {
+        var keys = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            var statement = connection.prepareStatement("""
+                INSERT INTO finance_receivable_payments
+                (company_id, receivable_id, payment_date, payment_method, amount, currency_code, reference,
+                 registered_by_user_id, registered_by_name, payment_account_id, idempotency_key)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, Statement.RETURN_GENERATED_KEYS);
+            Object[] values = {context.companyId(), account.id(), Date.valueOf(paymentDate), method, amount,
+                account.currency(), reference, context.userId(), registeredBy, paymentAccountId, idempotencyKey};
+            for (int i = 0; i < values.length; i++) statement.setObject(i + 1, values[i]);
+            return statement;
+        }, keys);
+        return java.util.Objects.requireNonNull(keys.getKey()).longValue();
+    }
+
+    void lockReceivable(FinanceContext context, long id) {
+        var params = scopedParams(context);
+        params.add(1, id);
+        jdbcTemplate.queryForList("""
+            SELECT account.id FROM finance_receivable_accounts account
+            WHERE account.company_id = ? AND account.id = ? AND account.deleted_at IS NULL
+              AND %s FOR UPDATE
+            """.formatted(FinanceSqlSupport.scopePredicate("account", context.scope())), params.toArray());
+    }
+
+    Optional<ReceivablePaymentResponse> findPaymentByKey(FinanceContext context, String key) {
+        return jdbcTemplate.query("""
+            SELECT payment.*, account.sale_number, account.customer_name
+            FROM finance_receivable_payments payment
+            JOIN finance_receivable_accounts account ON account.id = payment.receivable_id
+              AND account.company_id = payment.company_id
+            WHERE payment.company_id = ? AND payment.idempotency_key = ?
+            """, (rs, index) -> mapPayment(rs), context.companyId(), key).stream().findFirst();
     }
 
     void insertInstallments(FinanceContext context, ReceivableAccountResponse account, LocalDate today) {
@@ -551,52 +663,22 @@ class ReceivablesRepository {
         );
     }
 
-    void decreaseAvailableCredit(FinanceContext context, Long contactId, String customerName, BigDecimal amount) {
-        jdbcTemplate.update(
-            """
+    void decreaseAvailableCredit(FinanceContext context, long policyId, BigDecimal amount) {
+        jdbcTemplate.update("""
             UPDATE finance_credit_policies
-            SET available_credit_amount = GREATEST(0.0000, available_credit_amount - ?),
-                updated_by_user_id = ?,
-                version = version + 1
-            WHERE company_id = ?
-              AND deleted_at IS NULL
-              AND (
-                (? IS NOT NULL AND contact_id = ?)
-                OR (? IS NULL AND LOWER(customer_name) = LOWER(?))
-              )
-            """,
-            amount,
-            context.userId(),
-            context.companyId(),
-            contactId,
-            contactId,
-            contactId,
-            customerName
-        );
+            SET available_credit_amount = GREATEST(0, available_credit_amount - ?),
+                updated_by_user_id = ?, version = version + 1
+            WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+            """, amount, context.userId(), context.companyId(), policyId);
     }
 
-    void increaseAvailableCredit(FinanceContext context, Long contactId, String customerName, BigDecimal amount) {
-        jdbcTemplate.update(
-            """
+    void increaseAvailableCredit(FinanceContext context, long policyId, BigDecimal amount) {
+        jdbcTemplate.update("""
             UPDATE finance_credit_policies
             SET available_credit_amount = LEAST(credit_line_amount, available_credit_amount + ?),
-                updated_by_user_id = ?,
-                version = version + 1
-            WHERE company_id = ?
-              AND deleted_at IS NULL
-              AND (
-                (? IS NOT NULL AND contact_id = ?)
-                OR (? IS NULL AND LOWER(customer_name) = LOWER(?))
-              )
-            """,
-            amount,
-            context.userId(),
-            context.companyId(),
-            contactId,
-            contactId,
-            contactId,
-            customerName
-        );
+                updated_by_user_id = ?, version = version + 1
+            WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+            """, amount, context.userId(), context.companyId(), policyId);
     }
 
     void insertCreditPolicy(
@@ -813,7 +895,11 @@ class ReceivablesRepository {
             rs.getBigDecimal("amount"),
             rs.getString("currency_code"),
             rs.getString("reference"),
-            labelOrDefault(rs.getString("registered_by_name"), "Finanzas")
+            labelOrDefault(rs.getString("registered_by_name"), "Finanzas"),
+            nullableLong(rs, "payment_account_id"),
+            rs.getString("idempotency_key"),
+            rs.getString("receipt_object_key") == null ? null : "/api/v1/finance/receivables/payments/" + rs.getLong("id") + "/receipt",
+            rs.getString("receipt_file_name"), rs.getString("receipt_mime_type")
         );
     }
 

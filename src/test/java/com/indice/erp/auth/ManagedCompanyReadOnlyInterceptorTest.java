@@ -67,6 +67,24 @@ class ManagedCompanyReadOnlyInterceptorTest {
         assertTrue(interceptor.preHandle(request, new MockHttpServletResponse(), new Object()));
     }
 
+    @Test
+    void allowsOnlyTheExplicitMonetaryReadQueriesUsingPost() throws Exception {
+        for (var path : java.util.List.of("/api/v1/kpis/monetary-aggregate/query", "/api/v1/kpis/monetary-aggregate/batch", "/api/v1/sales/commission-summary")) {
+            assertTrue(interceptor.preHandle(managedRequest("POST", path), new MockHttpServletResponse(), new Object()));
+        }
+    }
+
+    @Test
+    void monetaryReadsDoNotEnableFinancialWritesOrSimilarPaths() throws Exception {
+        for (var path : java.util.List.of("/api/v1/kpis/accounting-reports/synchronize",
+                "/api/v1/kpis/accounting-reports/manual-entries", "/api/v1/kpis/automated-reports/1/runs",
+                "/api/v1/kpis/monetary-aggregate/query/other", "/api/v1/sales/commission-summary/other", "/api/v1/finance/receivables/payments")) {
+            var response = new MockHttpServletResponse();
+            assertFalse(interceptor.preHandle(managedRequest("POST", path), response, new Object()));
+            assertTrue(response.getContentAsString().contains("managed_company_read_only"));
+        }
+    }
+
     private MockHttpServletRequest managedRequest(String method, String path) {
         var request = new MockHttpServletRequest(method, path);
         var session = request.getSession();

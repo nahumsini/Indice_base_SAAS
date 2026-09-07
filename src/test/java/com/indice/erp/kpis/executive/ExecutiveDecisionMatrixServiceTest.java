@@ -71,7 +71,9 @@ class ExecutiveDecisionMatrixServiceTest {
         row.put("unitName", "Unidad " + id);
         row.put("businessId", id);
         row.put("businessName", name);
-        row.put("salesTotal", 1000.0);
+        row.put("salesTotal", 1160.0);
+        row.put("recognizedRevenue", 1000.0);
+        row.put("profitReady", true);
         row.put("operatingProfit", margin * 10);
         row.put("operatingMargin", margin);
         row.put("totalTasks", 10);

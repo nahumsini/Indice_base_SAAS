@@ -128,6 +128,8 @@ export function PayrollIncentiveSelector({ line, locale, onApplied, run, text }:
           <div className="grid gap-3 lg:grid-cols-2">
             {orderedItems.map((item) => {
               const isKpiPending = item.connector_status === 'awaiting_kpi_connector';
+              const isFundShortageDeduction = item.incentive_type === 'external_deduction'
+                && item.source_type === 'petty_cash_shortage';
               const isApplying = applyingId === item.application_id;
               return (
                 <article key={item.application_id} className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-950/50">
@@ -147,7 +149,9 @@ export function PayrollIncentiveSelector({ line, locale, onApplied, run, text }:
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-3 dark:border-slate-700">
                     <div className="flex flex-wrap items-center gap-2 text-xs font-normal">
                       <span className="rounded-full bg-white px-2 py-1 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700">
-                        {item.incentive_type === 'kpi' ? text.kpiIncentive : text.manualIncentive}
+                        {isFundShortageDeduction
+                          ? text.fundShortageDeduction
+                          : item.incentive_type === 'kpi' ? text.kpiIncentive : text.manualIncentive}
                       </span>
                       {item.applied_to_line ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200">

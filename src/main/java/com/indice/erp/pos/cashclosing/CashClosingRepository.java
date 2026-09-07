@@ -15,6 +15,8 @@ import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.stereotype.Repository;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import java.sql.Statement;
 
 @Repository
 public class CashClosingRepository {
@@ -50,24 +52,45 @@ public class CashClosingRepository {
         );
     }
 
-    public void insertClosing(PosContext context, ShiftRecord shift, CashClosingAmounts amounts,
+    public long insertClosing(PosContext context, ShiftRecord shift, CashClosingAmounts amounts,
             CashClosingCommand command) {
-        jdbcTemplate.update("""
-            INSERT INTO pos_cash_closings
-            (company_id, unit_id, business_id, warehouse_id, cash_register_id, shift_id,
-             opening_cash_amount, cash_sales_amount, cash_in_amount, cash_out_amount,
-             safe_drop_amount, correction_amount, expected_cash_amount, counted_cash_amount,
-             over_short_amount, total_sales_amount, total_refunds_amount, tickets_count,
-             payments_summary_json, notes, closed_by_user_id, metadata_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            context.companyId(), shift.unitId(), shift.businessId(), shift.warehouseId(),
-            shift.cashRegisterId(), shift.id(), amounts.openingCashAmount(), amounts.cashSalesAmount(),
-            amounts.cashInAmount(), amounts.cashOutAmount(), amounts.safeDropAmount(),
-            amounts.correctionAmount(), amounts.expectedCashAmount(), command.countedCashAmount(),
-            command.overShortAmount(), amounts.totalSalesAmount(), amounts.totalRefundsAmount(),
-            amounts.ticketsCount(), command.paymentsSummaryJson(), command.notes(), context.userId(),
-            command.metadataJson());
+        var keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            var statement = connection.prepareStatement("""
+                INSERT INTO pos_cash_closings
+                (company_id, unit_id, business_id, warehouse_id, cash_register_id, shift_id,
+                 opening_cash_amount, cash_sales_amount, cash_in_amount, cash_out_amount,
+                 safe_drop_amount, correction_amount, expected_cash_amount, counted_cash_amount,
+                 over_short_amount, total_sales_amount, total_refunds_amount, tickets_count,
+                 payments_summary_json, notes, closed_by_user_id, metadata_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, Statement.RETURN_GENERATED_KEYS);
+            var index = 1;
+            statement.setLong(index++, context.companyId());
+            statement.setObject(index++, shift.unitId());
+            statement.setObject(index++, shift.businessId());
+            statement.setLong(index++, shift.warehouseId());
+            statement.setLong(index++, shift.cashRegisterId());
+            statement.setLong(index++, shift.id());
+            statement.setBigDecimal(index++, amounts.openingCashAmount());
+            statement.setBigDecimal(index++, amounts.cashSalesAmount());
+            statement.setBigDecimal(index++, amounts.cashInAmount());
+            statement.setBigDecimal(index++, amounts.cashOutAmount());
+            statement.setBigDecimal(index++, amounts.safeDropAmount());
+            statement.setBigDecimal(index++, amounts.correctionAmount());
+            statement.setBigDecimal(index++, amounts.expectedCashAmount());
+            statement.setBigDecimal(index++, command.countedCashAmount());
+            statement.setBigDecimal(index++, command.overShortAmount());
+            statement.setBigDecimal(index++, amounts.totalSalesAmount());
+            statement.setBigDecimal(index++, amounts.totalRefundsAmount());
+            statement.setInt(index++, amounts.ticketsCount());
+            statement.setString(index++, command.paymentsSummaryJson());
+            statement.setString(index++, command.notes());
+            statement.setLong(index++, context.userId());
+            statement.setString(index, command.metadataJson());
+            return statement;
+        }, keyHolder);
+        return keyHolder.getKey() == null ? 0L : keyHolder.getKey().longValue();
     }
 
     String paymentsSummaryJson(CashClosingAmounts amounts) {

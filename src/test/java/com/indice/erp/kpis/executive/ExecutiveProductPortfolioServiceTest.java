@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 
 import com.indice.erp.exchange.BusinessExchangeRateMetadataResponse;
 import com.indice.erp.exchange.BusinessExchangeRatesResponse;
+import com.indice.erp.exchange.BusinessExchangeRateSourceResponse;
 import com.indice.erp.kpis.currency.KpiCurrencyAggregationService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -35,7 +36,7 @@ class ExecutiveProductPortfolioServiceTest {
                 new BusinessExchangeRateMetadataResponse(
                         "daily", "official", "2026-08-31", "2026-08-31T12:00:00Z",
                         "official-test", "", "", "test"),
-                List.of(),
+                List.of(new BusinessExchangeRateSourceResponse("MXN", new BigDecimal("17.00"), "2026-08-31", "Test", "Test", "", "", "official", "")),
                 List.of());
         when(repository.loadProductPortfolioInventory(scope)).thenReturn(List.of());
         when(repository.loadProductPortfolioSalesQuality(scope)).thenReturn(quality(4));

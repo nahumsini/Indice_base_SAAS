@@ -18,10 +18,12 @@ public class SalesKpiTodayApiController {
 
     private final SessionAuthService sessionAuthService;
     private final SalesKpiTodayService service;
+    private final com.indice.erp.kpis.KpiRequestAccessService access;
 
-    public SalesKpiTodayApiController(SessionAuthService sessionAuthService, SalesKpiTodayService service) {
+    public SalesKpiTodayApiController(SessionAuthService sessionAuthService, SalesKpiTodayService service, com.indice.erp.kpis.KpiRequestAccessService access) {
         this.sessionAuthService = sessionAuthService;
         this.service = service;
+        this.access = access;
     }
 
     @GetMapping("/today")
@@ -35,7 +37,7 @@ public class SalesKpiTodayApiController {
         }
 
         try {
-            return ResponseEntity.ok(service.today(user.get().companyId(), preferredCurrency));
+            return ResponseEntity.ok(service.today(user.get().companyId(), preferredCurrency, access.monetary(user.get(), "SALES_TOTAL")));
         } catch (IllegalArgumentException exception) {
             return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
         }

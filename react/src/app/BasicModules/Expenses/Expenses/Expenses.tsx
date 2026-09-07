@@ -19,12 +19,12 @@ import {
   type AttachmentService,
 } from '../services';
 import { budgetLinesService } from '../services/budget-lines.service';
-import type { Expense, ExpenseStatus, Provider } from '../types/expenses.types';
+import type { Expense, Provider } from '../types/expenses.types';
 import type { ExpenseListFilters } from '../types/expenseView.types';
 import type { PaymentAccount } from '../PaymentAccounts/types';
 import type { ProviderRecord } from '../Providers/useProveedoresLogic';
 import { createQuickProviderRecord } from '../Providers/providerRecordFactory';
-import { canDeleteExpense, filterExpenses, isExpenseEffectivelyOverdue } from '../utils/expenseFilters';
+import { canDeleteExpense, canEditExpense, filterExpenses, isExpenseEffectivelyOverdue } from '../utils/expenseFilters';
 import { useExpenseAttachments } from '../hooks/useExpenseAttachments';
 import { useExpenseColumns } from '../hooks/useExpenseColumns';
 import { useFinanceReferenceData } from '../hooks/useFinanceReferenceData';
@@ -191,7 +191,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     && !expense.purchaseOrderId
     && !expense.budgetLineId
     && expense.type !== 'budget'
-    && (expense.status === 'pending' || expense.status === 'overdue')
+    && canEditExpense(expense)
   )), [expenses]);
   const totals = useMemo(() => ({
     total: 0,
@@ -225,13 +225,13 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
         total: draft.total,
         taxes: 0,
         amount: draft.total,
-        amountPaid: draft.total,
+        amountPaid: 0,
         currency: preferredCurrency,
         dueDate: expenseDate,
-        paymentDate: expenseDate,
+        paymentDate: undefined,
         date: expenseDate,
         paymentMethod: 'transfer',
-        status: 'paid',
+        status: 'pending',
         type: 'real',
         requestedByUserId: currentUser?.id,
         createdAt: now,
@@ -255,7 +255,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     try {
       const results = await Promise.allSettled(drafts.map(async draft => {
         const source = expenses.find(expense => expense.id === draft.id);
-        if (!source || source.purchaseOrderId || source.budgetLineId || source.type === 'budget' || !isBackendId(source.id)) {
+        if (!source || source.purchaseOrderId || source.budgetLineId || source.type === 'budget' || !isBackendId(source.id) || !canEditExpense(source)) {
           throw new Error('El gasto está protegido y no se puede editar de forma masiva.');
         }
         const saved = await expensesService.updateExpense({
@@ -384,13 +384,13 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
         total,
         taxes,
         amount,
-        amountPaid: total,
+        amountPaid: 0,
         currency,
         dueDate: now,
-        paymentDate: now,
+        paymentDate: undefined,
         date: now,
         paymentMethod: 'transfer',
-        status: 'paid',
+        status: 'pending',
         requestedByUserId: currentUser?.id,
         attachments: [],
         taxCountry,
@@ -434,6 +434,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
   };
 
   const persistExpenseUpdate = useCallback((expense: Expense) => {
+    if (!canEditExpense(expense)) return;
     window.clearTimeout(saveTimeoutsRef.current[expense.id]);
     saveTimeoutsRef.current[expense.id] = window.setTimeout(() => {
       const saveOperation = expense.type === 'budget'
@@ -485,7 +486,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     const inputPaymentDate = values.paymentDate ? new Date(`${values.paymentDate}T00:00:00`) : undefined;
     const inputDueDate = values.dueDate ? new Date(`${values.dueDate}T00:00:00`) : undefined;
     const sourceExpense = editingExpense ?? initialExpense;
-    const effectiveStatus = editingExpense ? values.status : 'paid';
+    const effectiveStatus = editingExpense?.status ?? 'pending';
     const paymentDate = inputPaymentDate ?? sourceExpense?.paymentDate;
     const inputExpenseDate = values.expenseDate ? new Date(`${values.expenseDate}T00:00:00`) : undefined;
     const recordDate = inputExpenseDate ?? sourceExpense?.date ?? inputPaymentDate ?? now;
@@ -544,22 +545,6 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
           : draftExpense.type === 'payable'
             ? await createPayableExpense(draftExpense)
             : await expensesService.createExpense(draftExpense, providers);
-
-      if (
-        editingExpense
-        &&
-        draftExpense.type !== 'budget'
-        && draftExpense.type !== 'payable'
-        && isBackendId(savedExpense.id)
-      ) {
-        savedExpense = await expensesService.updateExpenseStatus(
-          savedExpense.id,
-          effectiveStatus,
-          providers,
-          effectiveStatus === 'partial' && amountPaid > 0 ? amountPaid : undefined,
-          paymentDate ?? now,
-        );
-      }
 
       const attachmentOwner = resolveExpenseAttachmentOwner(savedExpense.id);
       const attachmentResults = attachmentOwner
@@ -818,33 +803,6 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     )));
   };
 
-  const handleExpenseStatusChange = async (expense: Expense, status: ExpenseStatus) => {
-    try {
-      if (expense.type === 'budget') {
-        const updatedExpense = applyExpenseStatus(expense, status);
-        const savedExpense = await budgetLinesService.updateBudgetLineFromExpense(updatedExpense);
-        setSuccessToastMessage(t.expenses.messages.saved);
-        return savedExpense;
-      }
-
-      if (isBackendId(expense.id)) {
-        const paidAmount = status === 'partial'
-          ? Math.max(0.01, Math.min(expense.amountPaid && expense.amountPaid < expense.total ? expense.amountPaid : expense.total / 2, expense.total - 0.01))
-          : undefined;
-        const savedExpense = await expensesService.updateExpenseStatus(expense.id, status, providers, paidAmount, new Date());
-        setSuccessToastMessage(t.expenses.messages.saved);
-        return savedExpense;
-      }
-
-      const updatedExpense = applyExpenseStatus(expense, status);
-      setSuccessToastMessage(t.expenses.messages.saved);
-      return updatedExpense;
-    } catch (error) {
-      setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.saveFailed));
-      return null;
-    }
-  };
-
   const ensureExpensePayable = async (expense: Expense) => {
     if (!isBackendId(expense.id) || expense.type === 'budget') {
       return expense;
@@ -858,10 +816,6 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
       currentExpense = await expensesService.approveExpense(currentExpense.id, providers);
     }
     return currentExpense;
-  };
-
-  const handleMarkExpensePaid = async (expense: Expense) => {
-    return handleExpenseStatusChange(expense, 'paid');
   };
 
   const handleRecordExpensePayment = async (expense: Expense, amount: number, paymentAccountId: string, paymentDate: Date, attachmentFiles: File[]) => {
@@ -917,6 +871,10 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
       ...expense,
       id: `expense-${Date.now()}`,
       folio: `${expense.folio}-COPY`,
+      amountPaid: 0,
+      paymentAccountId: undefined,
+      paymentDate: undefined,
+      status: 'pending' as const,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -961,7 +919,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
       />
 
       <ExpenseTable
-        actionVisibility={{ showAudit: false }}
+        actionVisibility={{ showAudit: false, showMarkPaid: false, showStatusChange: false }}
         accountingAccountOptions={accountingAccountOptions}
         columns={translatedColumns}
         deletingExpenseIds={deletingExpenseIds}
@@ -971,18 +929,17 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
         onDeleteExpenses={requestDeleteExpenses}
         onDuplicateExpense={handleDuplicate}
         onEditExpense={(expense) => {
+          if (!canEditExpense(expense)) return;
           setEditingExpense(expense);
           setInitialExpense(null);
           setIsAddExpenseModalOpen(true);
         }}
         onExpensesChange={setExpenses}
-        onMarkExpensePaid={handleMarkExpensePaid}
         onOpenAttachments={openAttachmentsModal}
         onViewExpense={setDetailExpense}
         onPersistExpenseUpdate={persistExpenseUpdate}
         paymentAccounts={paymentAccounts}
         onRecordExpensePayment={handleRecordExpensePayment}
-        onStatusChange={handleExpenseStatusChange}
         businessOptions={businessOptions}
         providers={providers}
         unitOptions={unitOptions}
@@ -1017,6 +974,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
           expense={detailExpense}
           onClose={() => setDetailExpense(null)}
           onEdit={() => {
+            if (!canEditExpense(detailExpense)) return;
             setDetailExpense(null);
             setEditingExpense(detailExpense);
             setInitialExpense(null);
@@ -1131,33 +1089,6 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
       />
     </div>
   );
-}
-
-function applyExpenseStatus(expense: Expense, status: ExpenseStatus): Expense {
-  const paymentDate = new Date();
-  if (status === 'paid' || status === 'audited') {
-    return { ...expense, amountPaid: expense.total, paymentDate, status, updatedAt: paymentDate };
-  }
-
-  if (status === 'partial') {
-    const fallbackPaidAmount = Math.max(0.01, Math.min(expense.total / 2, Math.max(expense.total - 0.01, 0)));
-    const amountPaid = (expense.amountPaid ?? 0) > 0 && (expense.amountPaid ?? 0) < expense.total
-      ? expense.amountPaid
-      : fallbackPaidAmount;
-    return { ...expense, amountPaid, paymentDate, status, updatedAt: paymentDate };
-  }
-
-  if (status === 'overdue') {
-    return {
-      ...expense,
-      amountPaid: Math.min(expense.amountPaid ?? 0, expense.total),
-      paymentDate: expense.paymentDate,
-      status,
-      updatedAt: new Date(),
-    };
-  }
-
-  return { ...expense, amountPaid: 0, paymentDate: undefined, status, updatedAt: new Date() };
 }
 
 function applyExpensePayment(expense: Expense, amount: number, paymentDate: Date): Expense {

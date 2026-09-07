@@ -7,6 +7,7 @@ import com.indice.erp.pos.cashregister.dto.CashRegisterResponse;
 import com.indice.erp.pos.cashregister.dto.CashRegisterUpdateRequest;
 import com.indice.erp.pos.shift.ShiftRepository;
 import com.indice.erp.pos.status.CashRegisterStatus;
+import com.indice.erp.pos.settlement.SettlementPolicyService;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -21,27 +22,33 @@ public class CashRegisterService {
     private final ShiftRepository shiftRepository;
     private final CashRegisterMapper mapper;
     private final CashRegisterValidator validator;
+    private final SettlementPolicyService settlementPolicyService;
 
     public CashRegisterService(
             CashRegisterRepository repository,
             ShiftRepository shiftRepository,
             CashRegisterMapper mapper,
-            CashRegisterValidator validator) {
+            CashRegisterValidator validator,
+            SettlementPolicyService settlementPolicyService) {
         this.repository = repository;
         this.shiftRepository = shiftRepository;
         this.mapper = mapper;
         this.validator = validator;
+        this.settlementPolicyService = settlementPolicyService;
     }
 
     @Transactional(readOnly = true)
     public Map<String, Object> list(PosContext context) {
-        var items = repository.findAll(context).stream().map(mapper::toResponse).toList();
+        var items = repository.findAll(context).stream()
+            .map(register -> mapper.toResponse(register, settlementPolicyService.list(context, register.id())))
+            .toList();
         return Map.of("items", items, "count", items.size());
     }
 
     @Transactional(readOnly = true)
     public CashRegisterResponse get(PosContext context, long registerId) {
-        return mapper.toResponse(requireRegister(context, registerId));
+        var register = requireRegister(context, registerId);
+        return mapper.toResponse(register, settlementPolicyService.list(context, registerId));
     }
 
     @Transactional(readOnly = true)
@@ -53,7 +60,7 @@ public class CashRegisterService {
                     && java.util.Objects.equals(register.unitId(), warehouse.unitId())
                     && java.util.Objects.equals(register.businessId(), warehouse.businessId()))
                 .isPresent())
-            .map(mapper::toResponse)
+            .map(register -> mapper.toResponse(register, settlementPolicyService.list(context, register.id())))
             .toList();
     }
 
@@ -69,10 +76,13 @@ public class CashRegisterService {
         }
         var effectiveRequest = new CashRegisterCreateRequest(
             request.warehouseId(), requestedCode, request.name(), request.status(), request.active(),
-            request.notes(), request.customFields(), request.metadata());
+            request.notes(), request.retainedCashAmount(), request.settlementCurrencyCode(), request.settlementRules(),
+            request.customFields(), request.metadata());
         var command = mapper.toCreateCommand(context, effectiveRequest, warehouse);
         validator.requireCodeAvailable(repository, context, command.code(), null);
-        return mapper.toResponse(repository.insert(context, command));
+        var created = repository.insert(context, command);
+        saveRequestedPolicy(context, created, request.settlementCurrencyCode(), request.settlementRules());
+        return mapper.toResponse(created, settlementPolicyService.list(context, created.id()));
     }
 
     @Transactional(readOnly = true)
@@ -97,7 +107,8 @@ public class CashRegisterService {
         var code = nextAvailableCode(context, warehouse);
         var request = new CashRegisterCreateRequest(
             warehouseId, code, "Caja " + warehouse.name(), CashRegisterStatus.ACTIVE, true,
-            "Caja aprovisionada automáticamente desde el almacén.", null, null);
+            "Caja aprovisionada automáticamente desde el almacén.", java.math.BigDecimal.ZERO,
+            null, null, null, null);
         return mapper.toResponse(repository.insert(context, mapper.toCreateCommand(context, request, warehouse)));
     }
 
@@ -138,15 +149,32 @@ public class CashRegisterService {
 
     @Transactional
     public CashRegisterResponse update(PosContext context, long registerId, CashRegisterUpdateRequest request) {
-        requireRegister(context, registerId);
+        var existing = requireRegister(context, registerId);
+        var retainedCashAmount = request.retainedCashAmount() == null
+            ? existing.retainedCashAmount()
+            : request.retainedCashAmount();
+        var changesSettlementPolicy = request.settlementRules() != null
+            || (request.settlementCurrencyCode() != null && !request.settlementCurrencyCode().isBlank())
+            || retainedCashAmount.compareTo(existing.retainedCashAmount()) != 0;
+        if (changesSettlementPolicy && shiftRepository.hasBlockingShiftForRegister(context, registerId)) {
+            throw PosApiException.conflict(
+                "Cash register settlement settings cannot change while a shift is open. Close the shift first."
+            );
+        }
         var warehouse = repository.findWarehouseForMutation(context, request.warehouseId())
             .orElseThrow(() -> new NoSuchElementException("Warehouse not found."));
         validator.requireWarehouseScope(warehouse);
-        var command = mapper.toUpdateCommand(context, request, warehouse);
+        var effectiveRequest = new CashRegisterUpdateRequest(
+            request.warehouseId(), request.code(), request.name(), request.status(), request.active(),
+            request.notes(), retainedCashAmount, request.settlementCurrencyCode(), request.settlementRules(),
+            request.customFields(), request.metadata());
+        var command = mapper.toUpdateCommand(context, effectiveRequest, warehouse);
         validator.requireCodeAvailable(repository, context, command.code(), registerId);
         if (!repository.update(context, registerId, command)) {
             throw new NoSuchElementException("Cash register not found.");
         }
+        var saved = requireRegister(context, registerId);
+        saveRequestedPolicy(context, saved, request.settlementCurrencyCode(), request.settlementRules());
         return get(context, registerId);
     }
 
@@ -174,5 +202,50 @@ public class CashRegisterService {
             ));
         validator.requireWarehouseMatch(register, warehouse);
         return register;
+    }
+
+    @Transactional
+    public java.util.List<com.indice.erp.finance.treasury.TreasuryAccount> settlementAccounts(
+            PosContext context,
+            long registerId,
+            String currencyCode) {
+        var register = requireRegister(context, registerId);
+        return settlementPolicyService.eligibleAccounts(context, register, currencyCode);
+    }
+
+    @Transactional
+    public java.util.List<com.indice.erp.finance.treasury.TreasuryAccount> settlementAccountsForWarehouse(
+            PosContext context,
+            long warehouseId,
+            String currencyCode) {
+        var warehouse = repository.findWarehouse(context, warehouseId)
+            .orElseThrow(() -> new NoSuchElementException("Warehouse not found."));
+        validator.requireWarehouseScope(warehouse);
+        return settlementPolicyService.eligibleAccountsForScope(
+            context, warehouse.unitId(), warehouse.businessId(), currencyCode
+        );
+    }
+
+    @Transactional
+    public java.util.List<com.indice.erp.pos.settlement.SettlementRuleResponse> settlementPolicy(
+            PosContext context,
+            long registerId,
+            String currencyCode) {
+        var register = requireRegister(context, registerId);
+        return settlementPolicyService.ensureCompatibilityPolicy(context, register, currencyCode);
+    }
+
+    private void saveRequestedPolicy(
+            PosContext context,
+            CashRegisterRecord register,
+            String currencyCode,
+            java.util.List<com.indice.erp.pos.settlement.SettlementRuleRequest> rules) {
+        if (currencyCode == null || currencyCode.isBlank()) {
+            if (rules != null && !rules.isEmpty()) {
+                throw PosApiException.badRequest("settlementCurrencyCode is required when settlementRules are provided.");
+            }
+            return;
+        }
+        settlementPolicyService.savePolicy(context, register, currencyCode, rules);
     }
 }

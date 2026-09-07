@@ -155,7 +155,35 @@ class FinancialReportRepository {
     ) {
         var values = new LinkedHashMap<String, BigDecimal>();
         String sql = """
-            SELECT entry.source_type,
+            SELECT CASE
+                     WHEN entry.journal_type = 'OPENING' THEN 'OPENING'
+                     WHEN entry.source_type IN ('SALE', 'SALE_REVERSAL', 'RECEIVABLE_PAYMENT') THEN 'CUSTOMER_COLLECTIONS'
+                     WHEN entry.source_type = 'PAYROLL_PAYMENT' OR EXISTS (
+                       SELECT 1 FROM finance_expense_payments payment JOIN payroll_run_lines payroll_line
+                         ON payroll_line.company_id = payment.company_id AND payroll_line.payable_expense_id = payment.expense_id
+                       WHERE entry.source_type = 'EXPENSE_PAYMENT' AND payment.company_id = entry.company_id AND payment.id = entry.source_id
+                     ) THEN 'PAYROLL_PAYMENT'
+                     WHEN EXISTS (
+                       SELECT 1 FROM finance_journal_lines counterpart
+                       JOIN finance_accounting_accounts purpose ON purpose.id = counterpart.account_id AND purpose.company_id = counterpart.company_id
+                       WHERE counterpart.company_id = entry.company_id AND counterpart.entry_id = entry.id
+                         AND purpose.system_code IN ('LOANS_PAYABLE', 'CONTRIBUTED_CAPITAL')
+                     ) THEN 'FINANCING'
+                     WHEN EXISTS (
+                       SELECT 1 FROM finance_expense_payments payment
+                       JOIN finance_expenses expense ON expense.company_id = payment.company_id AND expense.id = payment.expense_id
+                       JOIN finance_accounting_accounts purpose ON purpose.company_id = expense.company_id AND purpose.id = expense.accounting_account_id
+                       WHERE entry.source_type = 'EXPENSE_PAYMENT' AND payment.company_id = entry.company_id
+                         AND payment.id = entry.source_id AND purpose.statement_section = 'NON_CURRENT_ASSETS'
+                     ) OR EXISTS (
+                       SELECT 1 FROM finance_journal_lines counterpart
+                       JOIN finance_accounting_accounts purpose ON purpose.id = counterpart.account_id AND purpose.company_id = counterpart.company_id
+                       WHERE counterpart.company_id = entry.company_id AND counterpart.entry_id = entry.id
+                         AND purpose.statement_section = 'NON_CURRENT_ASSETS'
+                     ) THEN 'INVESTING'
+                     WHEN entry.source_type = 'EXPENSE_PAYMENT' THEN 'EXPENSE_PAYMENT'
+                     ELSE 'OTHER_OPERATING'
+                   END cash_category,
                    COALESCE(SUM(line.debit_amount - line.credit_amount), 0) cash_change
             FROM finance_journal_lines line
             JOIN finance_journal_entries entry
@@ -165,10 +193,10 @@ class FinancialReportRepository {
             WHERE line.company_id = ? AND entry.status = 'POSTED'
               AND account.system_code = 'CASH' AND entry.entry_date BETWEEN ? AND ?
             """ + dimensionSql(unitId, businessId) + """
-            GROUP BY entry.source_type
+            GROUP BY cash_category
             """;
         jdbcTemplate.query(sql, (RowCallbackHandler) rs ->
-                values.put(rs.getString("source_type"), money(rs.getBigDecimal("cash_change"))),
+                values.put(rs.getString("cash_category"), money(rs.getBigDecimal("cash_change"))),
             dimensionArgs(companyId, from, to, unitId, businessId));
         return values;
     }
@@ -218,31 +246,6 @@ class FinancialReportRepository {
             """, (rs, rowNum) -> rs.getString("status"), companyId, periodKey).stream().findFirst();
     }
 
-    BigDecimal operationalInventoryValue(long companyId) {
-        return money(jdbcTemplate.queryForObject("""
-            SELECT COALESCE(SUM(available_quantity * COALESCE(unit_cost, 0)), 0)
-            FROM sales_inventory_balances
-            WHERE company_id = ? AND deleted_at IS NULL AND uses_inventory = 1
-            """, BigDecimal.class, companyId));
-    }
-
-    BigDecimal receivableSubledgerBalance(long companyId) {
-        return money(jdbcTemplate.queryForObject("""
-            SELECT COALESCE(SUM(balance_amount), 0)
-            FROM finance_receivable_accounts
-            WHERE company_id = ? AND deleted_at IS NULL AND status <> 'CANCELLED'
-            """, BigDecimal.class, companyId));
-    }
-
-    BigDecimal payableSubledgerBalance(long companyId) {
-        return money(jdbcTemplate.queryForObject("""
-            SELECT COALESCE(SUM(balance_amount), 0)
-            FROM finance_expenses
-            WHERE company_id = ? AND deleted_at IS NULL
-              AND status NOT IN ('DRAFT', 'PENDING_APPROVAL', 'REJECTED', 'CANCELLED')
-            """, BigDecimal.class, companyId));
-    }
-
     int scopeCount(String table, long companyId, long id, Long unitId) {
         if (!"units".equals(table) && !"businesses".equals(table)) {
             throw new IllegalArgumentException("Unsupported accounting scope table.");
@@ -275,6 +278,15 @@ class FinancialReportRepository {
             """, (rs, rowNum) -> new UnitOption(rs.getLong("id"), rs.getString("name"),
                 List.copyOf(businesses.getOrDefault(rs.getLong("id"), new java.util.ArrayList<>()))), companyId);
         return new OrganizationScope(units);
+    }
+
+    OrganizationScope organizationScope(long companyId, Long unitId, Long businessId) {
+        var all = organizationScope(companyId);
+        if (unitId == null && businessId == null) return all;
+        return new OrganizationScope(all.units().stream().filter(unit -> unitId == null || unitId.equals(unit.id()))
+            .map(unit -> new UnitOption(unit.id(), unit.name(), unit.businesses().stream()
+                .filter(business -> businessId == null || businessId.equals(business.id())).toList()))
+            .filter(unit -> businessId == null || !unit.businesses().isEmpty()).toList());
     }
 
     private static String dimensionSql(Long unitId, Long businessId) {

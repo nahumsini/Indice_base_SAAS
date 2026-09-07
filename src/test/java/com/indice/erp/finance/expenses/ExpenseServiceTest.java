@@ -9,9 +9,12 @@ import com.indice.erp.finance.expenses.dto.ExpensePaymentResponse;
 import com.indice.erp.finance.expenses.dto.UpdateExpenseRequest;
 import com.indice.erp.finance.expenses.dto.UpdateExpenseStatusRequest;
 import com.indice.erp.finance.shared.FinanceContext;
+import com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver;
 import com.indice.erp.finance.shared.FinanceScope;
 import com.indice.erp.finance.status.ExpenseStatus;
 import com.indice.erp.finance.status.PaymentStatus;
+import com.indice.erp.finance.treasury.TreasuryMovementCommand;
+import com.indice.erp.finance.treasury.TreasuryService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -29,8 +32,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -55,6 +60,12 @@ class ExpenseServiceTest {
 
     @Mock
     private ExpenseReferenceValidator referenceValidator;
+
+    @Mock
+    private TreasuryService treasuryService;
+
+    @Mock
+    private FinanceBusinessTimeZoneResolver timeZoneResolver;
 
     @Test
     void getReturnsCompanyScopedExpenseFromRepository() {
@@ -96,15 +107,18 @@ class ExpenseServiceTest {
     void createDraftCanSettleOperationalExpenseAtomically() {
         var service = service();
         var context = context();
-        var request = createRequest(null, null, "AUTO-EXP", true);
-        var created = record(10L, ExpenseStatus.DRAFT, "Office supplies");
-        var paid = recordWithPaymentStatus(
+        var request = createRequest(null, null, "AUTO-EXP", true, 81L);
+        var created = recordWithPaymentAccount(
+            10L, ExpenseStatus.DRAFT, PaymentStatus.UNPAID, "Office supplies",
+            BigDecimal.ZERO, new BigDecimal("116.00"), 81L);
+        var paid = recordWithPaymentAccount(
             10L,
             ExpenseStatus.PAID,
             PaymentStatus.PAID,
             "Office supplies",
             new BigDecimal("116.00"),
-            BigDecimal.ZERO
+            BigDecimal.ZERO,
+            81L
         );
 
         when(accessService.containsAssignment(context, null, null)).thenReturn(true);
@@ -124,11 +138,12 @@ class ExpenseServiceTest {
         when(paymentRepository.insert(
             context,
             10L,
-            null,
+            81L,
             new BigDecimal("116.00"),
             "MXN",
             LocalDate.of(2026, 6, 8),
-            ExpensePaymentRepository.SOURCE_SETTLED_ON_CREATE
+            ExpensePaymentRepository.SOURCE_SETTLED_ON_CREATE,
+            "expense-settle-on-create-10"
         )).thenReturn(true);
         when(repository.findById(context, 10L)).thenReturn(Optional.of(paid));
 
@@ -141,12 +156,14 @@ class ExpenseServiceTest {
         verify(paymentRepository).insert(
             context,
             10L,
-            null,
+            81L,
             new BigDecimal("116.00"),
             "MXN",
             LocalDate.of(2026, 6, 8),
-            ExpensePaymentRepository.SOURCE_SETTLED_ON_CREATE
+            ExpensePaymentRepository.SOURCE_SETTLED_ON_CREATE,
+            "expense-settle-on-create-10"
         );
+        verify(treasuryService).post(any(TreasuryMovementCommand.class));
     }
 
     @Test
@@ -231,27 +248,20 @@ class ExpenseServiceTest {
     }
 
     @Test
-    void updateDraftPersistsValidatedApprovedChanges() {
+    void updateDraftRejectsApprovedRecordsWithPaymentHistory() {
         var service = service();
         var context = context();
         var request = updateRequest(null, null, "EXP-003");
-        var command = ArgumentCaptor.forClass(ExpenseDraftCommand.class);
         var existing = recordWithPayment(11L, ExpenseStatus.APPROVED, "Approved expense",
             new BigDecimal("25.00"), new BigDecimal("91.00"));
-        var updated = recordWithPayment(11L, ExpenseStatus.APPROVED, "Updated supplies",
-            new BigDecimal("25.00"), new BigDecimal("91.00"));
 
-        when(repository.findById(context, 11L)).thenReturn(Optional.of(existing), Optional.of(updated));
-        when(accessService.containsAssignment(context, null, null)).thenReturn(true);
-        when(repository.update(eq(context), eq(11L), command.capture())).thenReturn(true);
+        when(repository.findById(context, 11L)).thenReturn(Optional.of(existing));
 
-        var response = service.updateDraft(context, 11L, request);
+        var error = assertThrows(FinanceApiException.class, () -> service.updateDraft(context, 11L, request));
 
-        assertEquals("Updated supplies", response.concept());
-        assertEquals(new BigDecimal("25.00"), command.getValue().paidAmount());
-        assertEquals(new BigDecimal("91.00"), command.getValue().balanceAmount());
-        verify(referenceValidator).validateUpdate(eq(context), any(ExpenseScopedAssignment.class), eq(request));
-        verify(repository).update(eq(context), eq(11L), any());
+        assertEquals(HttpStatus.CONFLICT, error.status());
+        verifyNoInteractions(referenceValidator);
+        verify(repository, never()).update(any(), eq(11L), any());
     }
 
     @Test
@@ -313,7 +323,7 @@ class ExpenseServiceTest {
     }
 
     @Test
-    void deleteDraftAlsoAllowsPaidOperationalExpenses() {
+    void deleteDraftRejectsPaidOperationalExpenses() {
         var service = service();
         var context = context();
         var operationalExpense = recordWithPaymentStatusAndFields(
@@ -321,12 +331,8 @@ class ExpenseServiceTest {
             new BigDecimal("116.00"), BigDecimal.ZERO,
             "{ \"entryType\" : \"real\" }", null);
         when(repository.findById(context, 15L)).thenReturn(Optional.of(operationalExpense));
-        when(repository.softDelete(context, 15L, ExpenseStatus.PAID)).thenReturn(true);
-
-        var response = service.deleteDraft(context, 15L);
-
-        assertTrue(response.success());
-        verify(repository).softDelete(context, 15L, ExpenseStatus.PAID);
+        assertThrows(FinanceApiException.class, () -> service.deleteDraft(context, 15L));
+        verify(repository, never()).softDelete(context, 15L, ExpenseStatus.PAID);
     }
 
     @Test
@@ -367,8 +373,9 @@ class ExpenseServiceTest {
     void recordPaymentDerivesPartialPaymentAmounts() {
         var service = service();
         var context = context();
+        when(repository.findByIdForUpdate(context, 21L))
+            .thenReturn(Optional.of(record(21L, ExpenseStatus.APPROVED, "Approved")));
         when(repository.findById(context, 21L))
-            .thenReturn(Optional.of(record(21L, ExpenseStatus.APPROVED, "Approved")))
             .thenReturn(Optional.of(recordWithPayment(21L, ExpenseStatus.PARTIALLY_PAID, "Approved",
                 new BigDecimal("50.00"), new BigDecimal("66.00"))));
         when(workflowRepository.recordPayment(
@@ -381,7 +388,6 @@ class ExpenseServiceTest {
             81L,
             LocalDate.of(2026, 6, 15)
         )).thenReturn(true);
-        when(workflowRepository.adjustPaymentAccountBalance(context, 81L, new BigDecimal("-50.00"))).thenReturn(true);
         when(paymentRepository.insert(
             context,
             21L,
@@ -389,17 +395,18 @@ class ExpenseServiceTest {
             new BigDecimal("50.00"),
             "MXN",
             LocalDate.of(2026, 6, 15),
-            ExpensePaymentRepository.SOURCE_RECORDED
+            ExpensePaymentRepository.SOURCE_RECORDED,
+            null
         )).thenReturn(true);
 
         var response = service.recordPayment(context, 21L,
-            new RecordExpensePaymentRequest(new BigDecimal("50.00"), 81L, LocalDate.of(2026, 6, 15)));
+            new RecordExpensePaymentRequest(new BigDecimal("50.00"), 81L, LocalDate.of(2026, 6, 15), null));
 
         assertEquals(ExpenseStatus.PARTIALLY_PAID, response.status());
         assertEquals(new BigDecimal("50.00"), response.paidAmount());
         assertEquals(new BigDecimal("66.00"), response.balanceAmount());
         verify(referenceValidator).validatePaymentAccountForPayment(context, 81L, "MXN");
-        verify(workflowRepository).adjustPaymentAccountBalance(context, 81L, new BigDecimal("-50.00"));
+        verify(treasuryService).post(any(TreasuryMovementCommand.class));
         verify(paymentRepository).insert(
             context,
             21L,
@@ -407,7 +414,8 @@ class ExpenseServiceTest {
             new BigDecimal("50.00"),
             "MXN",
             LocalDate.of(2026, 6, 15),
-            ExpensePaymentRepository.SOURCE_RECORDED
+            ExpensePaymentRepository.SOURCE_RECORDED,
+            null
         );
         verify(budgetLineRollupService).refreshExpenseImpact(context, 44L);
     }
@@ -416,8 +424,9 @@ class ExpenseServiceTest {
     void recordPaymentDerivesFullPaymentAmounts() {
         var service = service();
         var context = context();
+        when(repository.findByIdForUpdate(context, 22L))
+            .thenReturn(Optional.of(record(22L, ExpenseStatus.APPROVED, "Approved")));
         when(repository.findById(context, 22L))
-            .thenReturn(Optional.of(record(22L, ExpenseStatus.APPROVED, "Approved")))
             .thenReturn(Optional.of(recordWithPaymentStatus(22L, ExpenseStatus.PAID, PaymentStatus.PAID, "Approved",
                 new BigDecimal("116.00"), new BigDecimal("0.00"))));
         when(workflowRepository.recordPayment(
@@ -430,7 +439,6 @@ class ExpenseServiceTest {
             81L,
             LocalDate.of(2026, 6, 16)
         )).thenReturn(true);
-        when(workflowRepository.adjustPaymentAccountBalance(context, 81L, new BigDecimal("-116.00"))).thenReturn(true);
         when(paymentRepository.insert(
             context,
             22L,
@@ -438,17 +446,18 @@ class ExpenseServiceTest {
             new BigDecimal("116.00"),
             "MXN",
             LocalDate.of(2026, 6, 16),
-            ExpensePaymentRepository.SOURCE_RECORDED
+            ExpensePaymentRepository.SOURCE_RECORDED,
+            null
         )).thenReturn(true);
 
         var response = service.recordPayment(context, 22L,
-            new RecordExpensePaymentRequest(new BigDecimal("116.00"), 81L, LocalDate.of(2026, 6, 16)));
+            new RecordExpensePaymentRequest(new BigDecimal("116.00"), 81L, LocalDate.of(2026, 6, 16), null));
 
         assertEquals(ExpenseStatus.PAID, response.status());
         assertEquals(PaymentStatus.PAID, response.paymentStatus());
         assertEquals(new BigDecimal("116.00"), response.paidAmount());
         assertEquals(new BigDecimal("0.00"), response.balanceAmount());
-        verify(workflowRepository).adjustPaymentAccountBalance(context, 81L, new BigDecimal("-116.00"));
+        verify(treasuryService).post(any(TreasuryMovementCommand.class));
         verify(paymentRepository).insert(
             context,
             22L,
@@ -456,55 +465,97 @@ class ExpenseServiceTest {
             new BigDecimal("116.00"),
             "MXN",
             LocalDate.of(2026, 6, 16),
-            ExpensePaymentRepository.SOURCE_RECORDED
+            ExpensePaymentRepository.SOURCE_RECORDED,
+            null
         );
+    }
+
+    @Test
+    void recordPaymentReturnsExistingResultForAnIdempotentRetry() {
+        var service = service();
+        var context = context();
+        var paymentDate = LocalDate.of(2026, 6, 16);
+        var request = new RecordExpensePaymentRequest(
+            new BigDecimal("116.00"), 81L, paymentDate, "expense-payment-retry-22");
+        var paid = recordWithPaymentStatus(22L, ExpenseStatus.PAID, PaymentStatus.PAID, "Approved",
+            new BigDecimal("116.00"), BigDecimal.ZERO);
+        when(repository.findByIdForUpdate(context, 22L)).thenReturn(Optional.of(paid));
+        when(paymentRepository.findByIdempotencyKey(context, "expense-payment-retry-22"))
+            .thenReturn(Optional.of(new ExpensePaymentRepository.ExpensePaymentIdempotencyRecord(
+                22L, 81L, new BigDecimal("116.00"), "MXN", paymentDate)));
+
+        var response = service.recordPayment(context, 22L, request);
+
+        assertEquals(ExpenseStatus.PAID, response.status());
+        verify(workflowRepository, never()).recordPayment(any(), anyLong(), any(), any(), any(), any(), any(), any());
+        verify(paymentRepository, never()).insert(any(), anyLong(), any(), any(), any(), any(), any(), any());
+        verifyNoInteractions(treasuryService);
+    }
+
+    @Test
+    void recordPaymentRejectsReusingIdempotencyKeyForDifferentPayment() {
+        var service = service();
+        var context = context();
+        var paymentDate = LocalDate.of(2026, 6, 16);
+        var request = new RecordExpensePaymentRequest(
+            new BigDecimal("50.00"), 81L, paymentDate, "expense-payment-retry-22");
+        var existing = record(22L, ExpenseStatus.APPROVED, "Approved");
+        when(repository.findByIdForUpdate(context, 22L)).thenReturn(Optional.of(existing));
+        when(paymentRepository.findByIdempotencyKey(context, "expense-payment-retry-22"))
+            .thenReturn(Optional.of(new ExpensePaymentRepository.ExpensePaymentIdempotencyRecord(
+                21L, 81L, new BigDecimal("50.00"), "MXN", paymentDate)));
+
+        var error = assertThrows(FinanceApiException.class, () -> service.recordPayment(context, 22L, request));
+
+        assertEquals(HttpStatus.CONFLICT, error.status());
+        verifyNoInteractions(treasuryService);
     }
 
     @Test
     void recordPaymentRejectsAmountsAboveBalance() {
         var service = service();
         var context = context();
-        when(repository.findById(context, 23L))
+        when(repository.findByIdForUpdate(context, 23L))
             .thenReturn(Optional.of(recordWithPayment(23L, ExpenseStatus.PARTIALLY_PAID, "Partial",
                 new BigDecimal("50.00"), new BigDecimal("66.00"))));
 
         var error = assertThrows(FinanceApiException.class, () -> service.recordPayment(context, 23L,
-            new RecordExpensePaymentRequest(new BigDecimal("70.00"), 81L, LocalDate.of(2026, 6, 17))));
+            new RecordExpensePaymentRequest(new BigDecimal("70.00"), 81L, LocalDate.of(2026, 6, 17), null)));
 
         assertEquals(HttpStatus.BAD_REQUEST, error.status());
         verify(workflowRepository, never()).recordPayment(any(), eq(23L), any(), any(), any(), any(), any(), any());
-        verify(workflowRepository, never()).adjustPaymentAccountBalance(any(), eq(81L), any());
+        verifyNoInteractions(treasuryService);
     }
 
     @Test
-    void updateStatusToOverduePreservesExistingPaymentAmounts() {
+    void updateStatusRejectsManualFinancialTransition() {
         var service = service();
         var context = context();
         var existing = recordWithPayment(24L, ExpenseStatus.PARTIALLY_PAID, "Partial",
             new BigDecimal("30.00"), new BigDecimal("86.00"));
-        var updated = recordWithPaymentStatus(24L, ExpenseStatus.PARTIALLY_PAID, PaymentStatus.OVERDUE, "Partial",
-            new BigDecimal("30.00"), new BigDecimal("86.00"));
 
-        when(repository.findById(context, 24L)).thenReturn(Optional.of(existing), Optional.of(updated));
-        when(workflowRepository.applyManualStatus(
-            context,
-            24L,
-            new BigDecimal("30.00"),
-            new BigDecimal("86.00"),
-            ExpenseStatus.PARTIALLY_PAID,
-            PaymentStatus.OVERDUE,
-            null,
-            null,
-            null
-        )).thenReturn(true);
+        when(repository.findById(context, 24L)).thenReturn(Optional.of(existing));
+
+        var error = assertThrows(FinanceApiException.class, () -> service.updateStatus(context, 24L,
+            new UpdateExpenseStatusRequest("overdue", null, LocalDate.of(2026, 6, 18))));
+
+        assertEquals(HttpStatus.BAD_REQUEST, error.status());
+        verify(workflowRepository, never()).applyManualStatus(any(), anyLong(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void updateStatusAllowsIdempotentLegacyReadWithoutWriting() {
+        var service = service();
+        var context = context();
+        var existing = recordWithPaymentStatus(24L, ExpenseStatus.PARTIALLY_PAID, PaymentStatus.OVERDUE, "Partial",
+            new BigDecimal("30.00"), new BigDecimal("86.00"));
+        when(repository.findById(context, 24L)).thenReturn(Optional.of(existing));
 
         var response = service.updateStatus(context, 24L,
             new UpdateExpenseStatusRequest("overdue", null, LocalDate.of(2026, 6, 18)));
 
-        assertEquals(ExpenseStatus.PARTIALLY_PAID, response.status());
         assertEquals(PaymentStatus.OVERDUE, response.paymentStatus());
-        assertEquals(new BigDecimal("30.00"), response.paidAmount());
-        assertEquals(new BigDecimal("86.00"), response.balanceAmount());
+        verify(workflowRepository, never()).applyManualStatus(any(), anyLong(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -550,6 +601,7 @@ class ExpenseServiceTest {
     }
 
     private ExpenseService service() {
+        lenient().when(timeZoneResolver.resolve(7L)).thenReturn(java.time.ZoneId.of("America/Toronto"));
         return new ExpenseService(
             repository,
             workflowRepository,
@@ -557,7 +609,9 @@ class ExpenseServiceTest {
             budgetLineRollupService,
             new ExpenseMapper(),
             new ExpenseValidator(accessService),
-            referenceValidator
+            referenceValidator,
+            treasuryService,
+            timeZoneResolver
         );
     }
 
@@ -570,13 +624,22 @@ class ExpenseServiceTest {
     }
 
     private CreateExpenseRequest createRequest(Long unitId, Long businessId, String folio, Boolean settleOnCreate) {
+        return createRequest(unitId, businessId, folio, settleOnCreate, null);
+    }
+
+    private CreateExpenseRequest createRequest(
+            Long unitId,
+            Long businessId,
+            String folio,
+            Boolean settleOnCreate,
+            Long paymentAccountId) {
         return new CreateExpenseRequest(
             unitId,
             businessId,
             null,
             44L,
             null,
-            null,
+            paymentAccountId,
             null,
             folio,
             "Office supplies",
@@ -670,6 +733,32 @@ class ExpenseServiceTest {
             BigDecimal balanceAmount,
             String customFieldsJson,
             String metadataJson) {
+        return recordWithPaymentStatusAndFields(
+            id, status, paymentStatus, concept, paidAmount, balanceAmount, customFieldsJson, metadataJson, null);
+    }
+
+    private ExpenseRecord recordWithPaymentAccount(
+            long id,
+            ExpenseStatus status,
+            PaymentStatus paymentStatus,
+            String concept,
+            BigDecimal paidAmount,
+            BigDecimal balanceAmount,
+            Long paymentAccountId) {
+        return recordWithPaymentStatusAndFields(
+            id, status, paymentStatus, concept, paidAmount, balanceAmount, null, null, paymentAccountId);
+    }
+
+    private ExpenseRecord recordWithPaymentStatusAndFields(
+            long id,
+            ExpenseStatus status,
+            PaymentStatus paymentStatus,
+            String concept,
+            BigDecimal paidAmount,
+            BigDecimal balanceAmount,
+            String customFieldsJson,
+            String metadataJson,
+            Long paymentAccountId) {
         return new ExpenseRecord(
             id,
             7L,
@@ -678,7 +767,7 @@ class ExpenseServiceTest {
             null,
             44L,
             null,
-            null,
+            paymentAccountId,
             null,
             "EXP-" + id,
             concept,

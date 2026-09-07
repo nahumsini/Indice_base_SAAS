@@ -10,12 +10,17 @@ export type PaymentAccount = {
   bank?: string;
   currency: string;
   balance: number;
+  availableBalance?: number;
+  pendingBalance?: number;
+  totalBalance?: number;
   isActive: boolean;
   lastTransaction?: string;
   source?: 'expenses' | 'petty_cash';
   linkedFundId?: string;
   custodian?: string;
   pendingReceipts?: number;
+  systemKey?: string;
+  systemManaged?: boolean;
 };
 
 export type PaymentSortField = keyof PaymentAccount;

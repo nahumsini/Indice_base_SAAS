@@ -441,6 +441,12 @@ public class SessionAuthService {
     }
 
     /** Returns the real authenticated actor without applying a delegated tenant. */
+    /** Rechecks the same active membership used by sessions for an explicitly configured background job. */
+    public Optional<AuthSessionUser> scheduledActor(long userId, long companyId) {
+        return loadActiveSessionAccess(userId, companyId).map(access -> new AuthSessionUser(
+            userId, companyId, access.userCompanyId(), "", normalizeRole(access.role())));
+    }
+
     public Optional<AuthSessionUser> currentActor(HttpSession session) {
         if (!enforceSessionTimeout(session, LoginAuditContext.empty())) {
             return Optional.empty();

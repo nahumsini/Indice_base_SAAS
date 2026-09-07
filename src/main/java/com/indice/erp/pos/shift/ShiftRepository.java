@@ -31,11 +31,19 @@ public class ShiftRepository {
     }
 
     public Optional<ShiftRecord> findById(PosContext context, long shiftId) {
+        return findById(context, shiftId, false);
+    }
+
+    public Optional<ShiftRecord> findByIdForUpdate(PosContext context, long shiftId) {
+        return findById(context, shiftId, true);
+    }
+
+    private Optional<ShiftRecord> findById(PosContext context, long shiftId, boolean lock) {
         var params = scopedParams(context);
         params.add(1, shiftId);
         return jdbcTemplate.query(baseSelect() + """
             WHERE shift.company_id = ? AND shift.id = ? AND shift.deleted_at IS NULL
-              AND """ + PosSqlSupport.scopePredicate("shift", context.scope()),
+              AND """ + PosSqlSupport.scopePredicate("shift", context.scope()) + (lock ? " FOR UPDATE" : ""),
             mapper::mapRow, params.toArray()).stream().findFirst();
     }
 

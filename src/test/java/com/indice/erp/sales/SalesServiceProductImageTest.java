@@ -33,6 +33,7 @@ class SalesServiceProductImageTest {
     @Mock KpiCurrencyAggregationService currencies;
     @Mock SalesProductAvailabilityLinkCodec availabilityLinkCodec;
     @Mock OpportunityFlowService opportunityFlowService;
+    @Mock SalesCollectionService collectionService;
 
     private ObjectStorageProperties storageProperties;
     private SalesService service;
@@ -44,7 +45,7 @@ class SalesServiceProductImageTest {
         storageProperties.getMinio().setPresignExpirySeconds(900);
         service = new SalesService(repository, referenceService, objectStorageService,
             storageProperties, storageMeter, exchangeRates, currencies, availabilityLinkCodec,
-            opportunityFlowService);
+            opportunityFlowService, collectionService, org.mockito.Mockito.mock(com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver.class, call -> java.time.ZoneOffset.UTC));
     }
 
     @Test

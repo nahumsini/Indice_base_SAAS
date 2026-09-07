@@ -170,4 +170,25 @@ class FinancialReportingServiceIntegrationTest {
                     'APPROVED', 'UNPAID')
             """, companyId, "FIN-REPORT-" + suffix);
     }
+
+    @Test
+    void cancellationAfterPostingBlocksReadinessAndPreservesThePublishedJournal() {
+        long company = jdbcTemplate.queryForObject("SELECT MIN(id) FROM companies", Long.class);
+        long user = jdbcTemplate.queryForObject("SELECT MIN(id) FROM users", Long.class);
+        var from = LocalDate.of(2026, 8, 1);
+        var to = LocalDate.of(2026, 8, 31);
+        insertApprovedExpense(company, "CANCEL-AFTER-POST");
+        synchronizationService.synchronize(company, user, from, to);
+        var before = jdbcTemplate.queryForList("SELECT id, source_fingerprint, status FROM finance_journal_entries WHERE company_id = ?", company);
+        jdbcTemplate.update("UPDATE finance_expenses SET status = 'CANCELLED' WHERE company_id = ? AND folio = ?",
+            company, "FIN-REPORT-CANCEL-AFTER-POST");
+        var sync = synchronizationService.synchronize(company, user, from, to);
+        assertThat(sync.blocked()).isGreaterThan(0);
+        var report = reportingService.report(company, from, to, null, null);
+        assertThat(report.readiness().decisionReady()).isFalse();
+        assertThat(report.findings()).extracting(FinancialReportingContracts.QualityFinding::code)
+            .contains("SOURCE_NO_LONGER_ELIGIBLE");
+        assertThat(jdbcTemplate.queryForList("SELECT id, source_fingerprint, status FROM finance_journal_entries WHERE company_id = ?", company))
+            .isEqualTo(before);
+    }
 }

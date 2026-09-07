@@ -203,7 +203,7 @@ export function PettyCashFinancialViewWorkspace({
     : 0;
   const budgetAvailable = Math.max(0, summary.currentBalanceAmount);
   const authorizedReceiptCount = filteredLines.filter(line => line.status === 'EXPENSE_CREATED').length;
-  const pendingReceiptCount = filteredLines.filter(line => line.status !== 'EXPENSE_CREATED' && line.status !== 'REJECTED').length;
+  const pendingReceiptCount = filteredLines.filter(line => !['EXPENSE_CREATED', 'REJECTED', 'REVERSED'].includes(line.status)).length;
   const evidenceCoverage = filteredLines.length > 0
     ? Math.round(clampPercent((filteredLines.filter(line => line.attachmentCount > 0).length / filteredLines.length) * 100))
     : 0;

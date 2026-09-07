@@ -240,7 +240,7 @@ test('Gastos permite integración masiva validada y protege registros con origen
 
   assert.match(headerSource, /Integración masiva/);
   assert.match(modalSource, /Pega desde Excel: fecha \| concepto \| monto/);
-  assert.match(modalSource, /Solo concepto y monto son obligatorios/);
+  assert.match(modalSource, /Los gastos se crearán pendientes para que cada abono registre su cuenta y trazabilidad/);
   assert.match(modalSource, /date: toDateInput\(new Date\(\)\)/);
   assert.match(modalSource, /compactMatch/);
   assert.match(modalSource, /normalizeDateCell/);
@@ -256,16 +256,32 @@ test('Gastos permite integración masiva validada y protege registros con origen
   assert.match(modalSource, /editPageSize = 100/);
   assert.match(modalSource, /filteredEditEvaluations\.slice/);
   assert.match(modalSource, /No hay gastos abiertos que coincidan con el mes y la búsqueda seleccionados/);
-  assert.match(pageSource, /amountPaid: draft\.total/);
-  assert.match(pageSource, /status: 'paid'/);
+  assert.match(pageSource, /amountPaid: 0/);
+  assert.match(pageSource, /status: 'pending'/);
   assert.doesNotMatch(pageSource, /No hay una unidad y un negocio disponibles para clasificar los gastos/);
   assert.match(pageSource, /!expense\.purchaseOrderId/);
   assert.match(pageSource, /!expense\.budgetLineId/);
-  assert.match(pageSource, /expense\.status === 'pending' \|\| expense\.status === 'overdue'/);
+  assert.match(pageSource, /&& canEditExpense\(expense\)/);
+  assert.match(pageSource, /!canEditExpense\(source\)/);
   assert.match(adapterSource, /purchaseOrderId: expense\.purchaseOrderId \? String\(expense\.purchaseOrderId\) : undefined/);
 });
 
-test('Agregar gasto registra una operación pagada y reserva la clasificación para detalles opcionales', () => {
+test('Gastos publicados se consultan y pagan sin sobrescribir su historia financiera', () => {
+  const pageSource = readFileSync(resolve(expensesRoot, 'Expenses/Expenses.tsx'), 'utf8');
+  const tableSource = readFileSync(resolve(expensesRoot, 'Expenses/components/ExpenseTable.tsx'), 'utf8');
+  const rowSource = readFileSync(resolve(expensesRoot, 'Expenses/components/EditableExpenseRow.tsx'), 'utf8');
+  const detailSource = readFileSync(resolve(expensesRoot, 'Expenses/components/ExpenseDetailModal.tsx'), 'utf8');
+  const filtersSource = readFileSync(resolve(expensesRoot, 'utils/expenseFilters.ts'), 'utf8');
+
+  assert.match(filtersSource, /backendStatus\.toUpperCase\(\) === 'DRAFT'/);
+  assert.match(pageSource, /if \(!canEditExpense\(expense\)\) return/);
+  assert.match(tableSource, /if \(!currentExpense \|\| !canEditExpense\(currentExpense\)\) return/);
+  assert.match(tableSource, /showEditControls=\{canEditAllSelected\}/);
+  assert.match(rowSource, /showEdit=\{canEdit\}/);
+  assert.match(detailSource, /canEditExpense\(expense\) \? <button/);
+});
+
+test('Agregar gasto registra una obligación pendiente y reserva la clasificación para detalles opcionales', () => {
   const modalSource = readFileSync(resolve(expensesRoot, 'components/modals/ExpenseFormModal.tsx'), 'utf8');
   const pageSource = readFileSync(resolve(expensesRoot, 'Expenses/Expenses.tsx'), 'utf8');
 

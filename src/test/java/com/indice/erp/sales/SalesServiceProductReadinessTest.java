@@ -34,6 +34,7 @@ class SalesServiceProductReadinessTest {
     @Mock KpiCurrencyAggregationService currencies;
     @Mock SalesProductAvailabilityLinkCodec availabilityLinkCodec;
     @Mock OpportunityFlowService opportunityFlowService;
+    @Mock SalesCollectionService collectionService;
 
     private SalesService service;
     private final SalesEntityDefinition products = SalesDefinitions.definitions().get("products");
@@ -42,7 +43,7 @@ class SalesServiceProductReadinessTest {
     void setUp() {
         service = new SalesService(repository, referenceService, objectStorageService,
                 storageProperties, storageMeter, exchangeRates, currencies,
-                availabilityLinkCodec, opportunityFlowService);
+                availabilityLinkCodec, opportunityFlowService, collectionService, org.mockito.Mockito.mock(com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver.class, call -> java.time.ZoneOffset.UTC));
     }
 
     @Test

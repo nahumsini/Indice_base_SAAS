@@ -5,7 +5,7 @@ import { getStatusBadgeColor } from '../../components/table/ExpenseInlineControl
 import { useExpensesResolvedLocale, useExpensesTranslations } from '../hooks/useExpensesTranslations';
 import type { Expense } from '../../types/expenses.types';
 import { formatCurrency } from '../../utils/expenses.utils';
-import { canDeleteExpense, getEffectiveExpenseStatus, isExpenseEffectivelyOverdue } from '../../utils/expenseFilters';
+import { canDeleteExpense, canEditExpense, getEffectiveExpenseStatus, isExpenseEffectivelyOverdue } from '../../utils/expenseFilters';
 import type { ExpenseRowActionVisibility } from './EditableExpenseRow';
 import { getExpenseDetailCopy } from './expenseDetail.copy';
 import { printExpenseVoucher } from '../../utils/expensePrintDocument';
@@ -169,6 +169,7 @@ function ExpenseMobileCard({
             isDeletePending={isDeletePending}
             showAudit={actionVisibility?.showAudit}
             showDelete={canDeleteExpense(expense)}
+            showEdit={canEditExpense(expense)}
             showMarkPaid={expense.type !== 'budget' && balance > 0 && (actionVisibility?.showMarkPaid ?? true)}
             showRecordPayment={balance > 0 && (actionVisibility?.showRecordPayment ?? true)}
             showView={false}

@@ -35,6 +35,7 @@ export type AccountingReport = {
     frameworkEffectiveDate: string;
     functionalCurrency: string;
     presentationCurrency: string;
+    fiscalCountry?: string;
     periodKey: string;
     periodStatus: 'OPEN' | 'REVIEW' | 'CLOSED' | 'NOT_CREATED';
     generatedAt: string;
@@ -66,6 +67,7 @@ export type AccountingReport = {
       businesses: Array<{ id: number; name: string }>;
     }>;
   };
+  preparationNotes?: string[];
   statements: AccountingStatement[];
   trialBalance: Array<{
     accountId: number;

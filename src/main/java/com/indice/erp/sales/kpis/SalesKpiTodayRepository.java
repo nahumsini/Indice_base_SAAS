@@ -16,23 +16,15 @@ class SalesKpiTodayRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    List<KpiMoneyAmount> salesAmounts(long companyId, LocalDate saleDate) {
-        return jdbcTemplate.query(
-            """
-                SELECT total_amount, currency
-                FROM sales_records
-                WHERE company_id = ?
-                  AND sale_date = ?
-                  AND deleted_at IS NULL
-                ORDER BY id
-                """,
-            (rs, rowNum) -> new KpiMoneyAmount(
-                rs.getBigDecimal("total_amount"),
-                rs.getString("currency")
-            ),
-            companyId,
-            saleDate
-        );
+    List<KpiMoneyAmount> salesAmounts(long companyId, LocalDate saleDate, com.indice.erp.hr.HrOperationalScope scope) {
+        var args = new java.util.ArrayList<Object>(); args.add(companyId); args.add(saleDate);
+        String restriction;
+        if (scope == null || scope.type() == com.indice.erp.hr.HrOperationalScope.Type.UNASSIGNED) restriction = " AND 1 = 0";
+        else { restriction = scope.assignmentPredicate("unit_id", "business_id", "company_id"); args.addAll(scope.assignmentParameters()); }
+        return jdbcTemplate.query("""
+            SELECT total_amount, currency FROM sales_records WHERE company_id = ? AND sale_date = ?
+              AND deleted_at IS NULL AND LOWER(commercial_status) NOT IN ('cancelled', 'canceled', 'rejected', 'voided')
+            """ + restriction + " ORDER BY id", (rs, row) -> new KpiMoneyAmount(rs.getBigDecimal("total_amount"), rs.getString("currency")), args.toArray());
     }
 
     Optional<String> companySettingsJson(long companyId) {

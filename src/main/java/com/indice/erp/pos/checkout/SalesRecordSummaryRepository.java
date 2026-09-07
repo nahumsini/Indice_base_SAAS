@@ -10,9 +10,11 @@ import org.springframework.stereotype.Repository;
 public class SalesRecordSummaryRepository {
 
     private final JdbcTemplate jdbcTemplate;
+    private final com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver timeZoneResolver;
 
-    public SalesRecordSummaryRepository(JdbcTemplate jdbcTemplate) {
+    public SalesRecordSummaryRepository(JdbcTemplate jdbcTemplate, com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver timeZoneResolver) {
         this.jdbcTemplate = jdbcTemplate;
+        this.timeZoneResolver = timeZoneResolver;
     }
 
     public long insert(PosContext context, SalesRecordSummaryCommand command) {
@@ -25,7 +27,7 @@ public class SalesRecordSummaryRepository {
                  currency, payment_method, payment_reference, payment_evidence_status, commercial_status,
                  finance_status, inventory_status, delivery_status, commission_status,
                  inventory_movement_status, sale_lines_json, notes, metadata_json, created_by_user_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_DATE, ?, ?, ?, ?, 0.00, ?, ?, ?, 'captured',
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0.00, ?, ?, ?, 'captured',
                         'completed', 'captured', ?, 'pending', 'pending',
                         ?, ?, ?, ?, ?)
                 """, Statement.RETURN_GENERATED_KEYS);
@@ -45,6 +47,7 @@ public class SalesRecordSummaryRepository {
         statement.setString(index++, command.saleNumber());
         statement.setString(index++, command.customerName());
         statement.setString(index++, command.sellerName());
+        statement.setObject(index++, java.time.LocalDate.now(timeZoneResolver.resolve(context.companyId())));
         statement.setBigDecimal(index++, command.totalAmount());
         statement.setBigDecimal(index++, command.subtotalAmount());
         statement.setBigDecimal(index++, command.discountAmount());

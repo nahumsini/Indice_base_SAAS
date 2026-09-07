@@ -1,6 +1,10 @@
 package com.indice.erp.kpis.executive;
 
+import com.indice.erp.exchange.BusinessExchangeRateService;
+import com.indice.erp.kpis.currency.KpiCurrencyAggregationService;
+import com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver;
 import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.YearMonth;
 import java.time.ZoneId;
@@ -10,11 +14,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
+import com.indice.erp.exchange.BusinessExchangeRatesResponse;
 
 @Service
 public class ExecutiveKpiService {
 
-    private static final ZoneId BUSINESS_ZONE = ZoneId.of("America/Toronto");
     private static final java.util.Set<String> ALLOWED_PERIODS = java.util.Set.of(
             "monthly", "bimonthly", "quarterly", "semester", "annual", "custom");
     private static final java.util.Set<String> ALLOWED_RISKS = java.util.Set.of(
@@ -23,14 +30,32 @@ public class ExecutiveKpiService {
     private final ExecutiveKpiRepository repository;
     private final ExecutiveKpiDomainService domainService;
     private final ExecutiveDecisionMatrixService decisionMatrixService;
+    private final BusinessExchangeRateService exchangeRates;
+    private final KpiCurrencyAggregationService currencyAggregation;
+    private final FinanceBusinessTimeZoneResolver timeZoneResolver;
+    private final TransactionTemplate readTransaction;
+    private final com.indice.erp.finance.reporting.FinancialPerformanceProjectionService financialPerformance;
 
     public ExecutiveKpiService(
             ExecutiveKpiRepository repository,
             ExecutiveKpiDomainService domainService,
-            ExecutiveDecisionMatrixService decisionMatrixService) {
+            ExecutiveDecisionMatrixService decisionMatrixService,
+            BusinessExchangeRateService exchangeRates,
+            KpiCurrencyAggregationService currencyAggregation,
+            FinanceBusinessTimeZoneResolver timeZoneResolver,
+            PlatformTransactionManager transactionManager,
+            com.indice.erp.finance.reporting.FinancialPerformanceProjectionService financialPerformance) {
         this.repository = repository;
+        this.financialPerformance = financialPerformance;
         this.domainService = domainService;
         this.decisionMatrixService = decisionMatrixService;
+        this.exchangeRates = exchangeRates;
+        this.currencyAggregation = currencyAggregation;
+        this.timeZoneResolver = timeZoneResolver;
+        this.readTransaction = new TransactionTemplate(transactionManager);
+        this.readTransaction.setReadOnly(true);
+        this.readTransaction.setIsolationLevel(TransactionDefinition.ISOLATION_REPEATABLE_READ);
+        this.readTransaction.setTimeout(30);
     }
 
     public Map<String, Object> getExecutivePanel(long companyId, long userId, Map<String, String> params) {
@@ -38,6 +63,12 @@ public class ExecutiveKpiService {
         if (!repository.scopeExists(scope)) {
             throw new IllegalArgumentException("The selected unit or business does not belong to this company.");
         }
+        var rates = exchangeRates.loadDailyRates();
+        return readTransaction.execute(status -> buildPanel(scope, rates));
+    }
+
+    private Map<String, Object> buildPanel(ExecutiveKpiScope scope, BusinessExchangeRatesResponse rates) {
+        var currency = new ExecutiveCurrencyProjection(scope, currencyAggregation, rates);
         var orgRows = repository.loadOrganizationRows(scope);
         var sales = repository.loadSalesByOrg(scope);
         var collections = repository.loadCollectionsByOrg(scope);
@@ -49,17 +80,19 @@ public class ExecutiveKpiService {
 
         var rows = ExecutiveKpiRepository.mergeOrgRows(
                 orgRows,
-                sales,
-                collections,
-                expenses,
-                receivables,
-                pettyCash,
+                currency.organizations(sales),
+                currency.organizations(collections),
+                currency.organizations(expenses),
+                currency.organizations(receivables),
+                currency.organizations(pettyCash),
                 operations,
-                attendance);
+                attendance,
+                currency.organizations(financialPerformance.project(scope.companyId(), scope.from(), scope.to(), scope.unitId(), scope.businessId())
+                    .stream().map(com.indice.erp.finance.reporting.FinancialPerformanceProjectionService.PerformanceRow::toMap).toList()));
         var summary = buildSummary(rows);
-        var score = buildExecutiveScore(summary);
-        summary.put("executiveScore", score);
-        summary.put("operatingMargin", percent(number(summary.get("operatingProfit")), number(summary.get("salesTotal"))));
+        summary.put("operatingMargin", percent(number(summary.get("operatingProfit")), number(summary.get("recognizedRevenue"))));
+        summary.put("executiveScore", buildExecutiveScore(summary));
+        summary.put("monetaryPartial", rows.stream().anyMatch(row -> Boolean.TRUE.equals(row.get("monetaryPartial"))));
         var nativeCurrencies = repository.loadNativeCurrencies(scope);
 
         var body = new LinkedHashMap<String, Object>();
@@ -84,14 +117,16 @@ public class ExecutiveKpiService {
         body.put("summary", summary);
         body.put("kpiCards", buildCards(summary));
         body.put("unitRows", rows);
-        body.put("salesBySource", repository.loadSalesBySource(scope));
-        body.put("expensesByAccount", repository.loadExpensesByAccount(scope));
-        body.put("pettyCash", repository.loadPettyCashSummary(scope));
+        body.put("salesBySource", currency.group(repository.loadSalesBySource(scope), row -> String.valueOf(row.get("source"))));
+        body.put("expensesByAccount", currency.group(repository.loadExpensesByAccount(scope), row -> String.valueOf(row.get("accountName")))
+            .stream().sorted(Comparator.comparingDouble((Map<String, Object> row) -> number(row.get("total"))).reversed()).limit(8).toList());
+        var fundSummary = currency.group(repository.loadPettyCashSummary(scope), row -> "all");
+        body.put("pettyCash", fundSummary.isEmpty() ? Map.of("funds", 0, "limitTotal", 0, "balanceTotal", 0, "attention", 0) : fundSummary.getFirst());
         body.put("lowProductivity", repository.loadLowProductivity(scope));
         body.put("absenteeism", repository.loadAbsenteeism(scope));
         body.put("alerts", buildAlerts(summary, rows));
         body.put("rankings", buildRankings(rows));
-        var executiveSnapshot = domainService.buildSnapshot(scope);
+        var executiveSnapshot = domainService.buildSnapshot(scope, rates);
         body.put("domains", executiveSnapshot.domains());
         body.put("diagnosis", executiveSnapshot.diagnosis());
         body.put("productPortfolio", executiveSnapshot.productPortfolio());
@@ -101,7 +136,7 @@ public class ExecutiveKpiService {
     }
 
     private ExecutiveKpiScope parseScope(long companyId, Map<String, String> params) {
-        var today = LocalDate.now(BUSINESS_ZONE);
+        var today = LocalDate.now(timeZoneResolver.resolve(companyId));
         var period = normalize(params.get("period"), "monthly");
         if (!ALLOWED_PERIODS.contains(period)) {
             throw new IllegalArgumentException("period must be monthly, bimonthly, quarterly, semester, annual, or custom.");
@@ -149,29 +184,39 @@ public class ExecutiveKpiService {
                 today);
     }
 
+    private static BigDecimal sumMoney(List<Map<String, Object>> rows, String field) {
+        return rows.stream().map(row -> row.get(field) instanceof BigDecimal amount ? amount
+            : row.get(field) instanceof Number number ? new BigDecimal(number.toString()) : BigDecimal.ZERO)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
     private Map<String, Object> buildSummary(List<Map<String, Object>> rows) {
-        double salesTotal = rows.stream().mapToDouble(row -> number(row.get("salesTotal"))).sum();
-        double collectedTotal = rows.stream().mapToDouble(row -> number(row.get("collectedTotal"))).sum();
-        double expensesTotal = rows.stream().mapToDouble(row -> number(row.get("expensesTotal"))).sum();
-        double payablesTotal = rows.stream().mapToDouble(row -> number(row.get("payablesTotal"))).sum();
-        double receivablesTotal = rows.stream().mapToDouble(row -> number(row.get("receivablesTotal"))).sum();
-        double overdueReceivables = rows.stream().mapToDouble(row -> number(row.get("overdueReceivables"))).sum();
-        double pettyCashBalance = rows.stream().mapToDouble(row -> number(row.get("pettyCashBalance"))).sum();
-        double operatingProfit = salesTotal - expensesTotal;
+        BigDecimal salesTotal = sumMoney(rows, "salesTotal");
+        BigDecimal collectedTotal = sumMoney(rows, "collectedTotal");
+        BigDecimal expensesTotal = sumMoney(rows, "expensesTotal");
+        BigDecimal payablesTotal = sumMoney(rows, "payablesTotal");
+        BigDecimal receivablesTotal = sumMoney(rows, "receivablesTotal");
+        BigDecimal overdueReceivables = sumMoney(rows, "overdueReceivables");
+        BigDecimal pettyCashBalance = sumMoney(rows, "pettyCashBalance");
+        BigDecimal operatingProfit = sumMoney(rows, "operatingProfit");
         int overdueTasks = rows.stream().mapToInt(row -> integer(row.get("overdueTasks"))).sum();
         int totalTasks = rows.stream().mapToInt(row -> integer(row.get("totalTasks"))).sum();
         int absences = rows.stream().mapToInt(row -> integer(row.get("absences"))).sum();
         int attendanceRecords = rows.stream().mapToInt(row -> integer(row.get("attendanceRecords"))).sum();
 
         var summary = new LinkedHashMap<String, Object>();
-        summary.put("salesTotal", round(salesTotal));
-        summary.put("collectedTotal", round(collectedTotal));
-        summary.put("expensesTotal", round(expensesTotal));
-        summary.put("payablesTotal", round(payablesTotal));
-        summary.put("receivablesTotal", round(receivablesTotal));
-        summary.put("overdueReceivables", round(overdueReceivables));
-        summary.put("pettyCashBalance", round(pettyCashBalance));
-        summary.put("operatingProfit", round(operatingProfit));
+        summary.put("salesTotal", salesTotal);
+        summary.put("collectedTotal", collectedTotal);
+        summary.put("expensesTotal", expensesTotal);
+        summary.put("payablesTotal", payablesTotal);
+        summary.put("receivablesTotal", receivablesTotal);
+        summary.put("overdueReceivables", overdueReceivables);
+        summary.put("pettyCashBalance", pettyCashBalance);
+        summary.put("operatingProfit", operatingProfit);
+        summary.put("recognizedRevenue", sumMoney(rows, "recognizedRevenue"));
+        summary.put("costOfSales", sumMoney(rows, "costOfSales"));
+        summary.put("recognizedOperatingExpenses", sumMoney(rows, "recognizedOperatingExpenses"));
+        summary.put("profitReady", !rows.isEmpty() && rows.stream().allMatch(row -> Boolean.TRUE.equals(row.get("profitReady")) && !Boolean.TRUE.equals(row.get("monetaryPartial"))));
         summary.put("totalTasks", totalTasks);
         summary.put("overdueTasks", overdueTasks);
         summary.put("absences", absences);
@@ -181,20 +226,23 @@ public class ExecutiveKpiService {
     }
 
     private List<Map<String, Object>> buildCards(Map<String, Object> summary) {
+        boolean ready = Boolean.TRUE.equals(summary.get("profitReady"));
         return List.of(
                 card("sales", "Ventas totales", summary.get("salesTotal"), "Escala comercial del periodo.", "healthy"),
                 card("collected", "Ventas cobradas", summary.get("collectedTotal"), "Efectivo recuperado por cobranza.", statusFromRatio(number(summary.get("collectedTotal")), number(summary.get("salesTotal")))),
                 card("receivables", "Cartera pendiente", summary.get("receivablesTotal"), "Saldo por cobrar vivo.", riskStatus(number(summary.get("overdueReceivables")), number(summary.get("receivablesTotal")))),
                 card("expenses", "Gastos totales", summary.get("expensesTotal"), "Egresos registrados en expenses.", number(summary.get("expensesTotal")) <= number(summary.get("salesTotal")) ? "healthy" : "critical"),
                 card("payables", "CxP pendiente", summary.get("payablesTotal"), "Pagos abiertos o vencidos.", number(summary.get("payablesTotal")) > 0 ? "watch" : "healthy"),
-                card("profit", "Utilidad operativa", summary.get("operatingProfit"), "Ventas menos gastos operativos.", number(summary.get("operatingProfit")) >= 0 ? "healthy" : "critical"),
-                card("margin", "Margen operativo", summary.get("operatingMargin"), "Rentabilidad operativa sobre ventas.", statusFromScore((int) Math.round(number(summary.get("operatingMargin"))))),
-                card("score", "Score ejecutivo", summary.get("executiveScore"), "Salud combinada financiera y operativa.", statusFromScore(integer(summary.get("executiveScore")))));
+                card("profit", "Utilidad operativa", ready ? summary.get("operatingProfit") : null, ready ? "Ingreso sin impuestos, menos costo de ventas, gastos devengados y nómina; incluye fuentes verificables pendientes de contabilizar." : "Pendiente de evidencia financiera o conversión verificable.", ready ? number(summary.get("operatingProfit")) >= 0 ? "healthy" : "critical" : "watch"),
+                card("margin", "Margen operativo", ready ? summary.get("operatingMargin") : null, "Rentabilidad operativa sobre ingresos reconocidos.", ready ? statusFromScore((int) Math.round(number(summary.get("operatingMargin")))) : "watch"),
+                card("score", "Score ejecutivo", ready ? summary.get("executiveScore") : null, "Salud combinada financiera y operativa.", ready ? statusFromScore(integer(summary.get("executiveScore"))) : "watch"));
     }
 
     private List<Map<String, Object>> buildAlerts(Map<String, Object> summary, List<Map<String, Object>> rows) {
         var alerts = new java.util.ArrayList<Map<String, Object>>();
-        if (number(summary.get("operatingProfit")) < 0) {
+        if (!Boolean.TRUE.equals(summary.get("profitReady"))) alerts.add(alert("watch", "Utilidad pendiente de validar", "Hay fuentes financieras o conversiones pendientes. Consulta la cobertura contable antes de decidir."));
+        if (Boolean.TRUE.equals(summary.get("monetaryPartial"))) alerts.add(alert("watch", "Conversión parcial", "Hay importes conservados en su moneda original que no tienen una tasa verificable."));
+        if (Boolean.TRUE.equals(summary.get("profitReady")) && number(summary.get("operatingProfit")) < 0) {
             alerts.add(alert("critical", "Utilidad negativa", "Los gastos superan las ventas del periodo."));
         }
         if (number(summary.get("overdueReceivables")) > 0) {

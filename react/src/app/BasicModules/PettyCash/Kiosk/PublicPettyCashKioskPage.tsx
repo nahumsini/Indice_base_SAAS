@@ -226,6 +226,7 @@ export default function PublicPettyCashKioskPage() {
   const [isLoadingAttachments, setIsLoadingAttachments] = useState(false);
   const [attachmentsError, setAttachmentsError] = useState('');
   const [receiptToDelete, setReceiptToDelete] = useState<PublicPettyCashReceipt | null>(null);
+  const [cancellationReason, setCancellationReason] = useState('');
   const [isDeletingReceipt, setIsDeletingReceipt] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -492,7 +493,7 @@ export default function PublicPettyCashKioskPage() {
   };
 
   const handleDeleteReceipt = async () => {
-    if (!receiptToDelete || !identity?.identification_token) return;
+    if (!receiptToDelete || !identity?.identification_token || cancellationReason.trim().length < 8) return;
     setIsDeletingReceipt(true);
     setErrorMessage('');
     setSuccessMessage('');
@@ -502,6 +503,7 @@ export default function PublicPettyCashKioskPage() {
         fundToken,
         receiptToDelete.id,
         identity.identification_token,
+        cancellationReason,
       );
       const nextExpenses = normalizeReceipts(response.expenses ?? []);
       const nextIncomeMovements = response.income_movements ?? [];
@@ -517,6 +519,7 @@ export default function PublicPettyCashKioskPage() {
       } : current);
       setBootstrap(current => current ? { ...current, fund: response.fund } : current);
       setReceiptToDelete(null);
+      setCancellationReason('');
       setSuccessMessage(copy.publicKiosk.success.deleted);
     } catch (error) {
       setErrorMessage(normalizeError(error, copy.reconciliation.errors.receiptDelete));
@@ -630,7 +633,7 @@ export default function PublicPettyCashKioskPage() {
                         date={formatDate(receipt.expense_date, copy.publicKiosk.date.empty, copy.publicKiosk.date.locale)}
                         deleteLabel={copy.reconciliation.receipts.delete}
                         noReferenceLabel={copy.common.noReference}
-                        onDelete={() => setReceiptToDelete(receipt)}
+                        onDelete={() => { setCancellationReason(''); setReceiptToDelete(receipt); }}
                         onViewAttachments={() => void handleViewAttachments(receipt)}
                         receipt={receipt}
                         referenceLabel={copy.publicKiosk.history.reference}
@@ -711,15 +714,33 @@ export default function PublicPettyCashKioskPage() {
 
       <ConfirmDeleteDialog
         cancelLabel={copy.common.cancel}
-        confirmDisabled={isDeletingReceipt}
+        confirmDisabled={isDeletingReceipt || cancellationReason.trim().length < 8}
         confirmLabel={copy.reconciliation.receipts.deleteConfirm}
         description={copy.reconciliation.receipts.deleteDescription}
         isVisible={Boolean(receiptToDelete)}
         itemName={receiptToDelete?.description}
-        onCancel={() => { if (!isDeletingReceipt) setReceiptToDelete(null); }}
+        onCancel={() => { if (!isDeletingReceipt) { setReceiptToDelete(null); setCancellationReason(''); } }}
         onConfirm={() => void handleDeleteReceipt()}
         title={copy.reconciliation.receipts.deleteTitle}
-      />
+      >
+        <label className="block space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+          <span>{copy.reconciliation.receipts.cancellationReason}</span>
+          <textarea
+            autoFocus
+            maxLength={500}
+            rows={3}
+            value={cancellationReason}
+            onChange={(event) => setCancellationReason(event.target.value)}
+            placeholder={copy.reconciliation.receipts.cancellationReasonPlaceholder}
+            className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal text-slate-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-red-950"
+          />
+          {cancellationReason.length > 0 && cancellationReason.trim().length < 8 ? (
+            <span className="block text-xs font-normal text-red-600 dark:text-red-300">
+              {copy.reconciliation.receipts.cancellationReasonRequired}
+            </span>
+          ) : null}
+        </label>
+      </ConfirmDeleteDialog>
     </>
   );
 }

@@ -43,16 +43,16 @@ availableAmount =
   plannedAmount
   - committedAmount
   - actualExpenseAmount
-  - (pettyCashIssuedAmount - pettyCashSettledAmount)
 ```
 
-This prevents a petty cash issuance and its later settled receipt from being counted twice.
+Funding transfers custody and does not consume budget. The authorized expense is recognized once;
+issued and settled amounts remain separate disclosures. See `docs/kpi-financial-closeout-contract-v1.md`.
 
 ## Budget Amount Buckets
 
 PurchaseOrder with APPROVED or ISSUED status increases committedAmount.
 
-Expense with PAID or CLOSED status increases actualExpenseAmount.
+Expense with APPROVED, PARTIALLY_PAID, PAID, or CLOSED status increases actualExpenseAmount.
 
 PettyCash with ISSUED status increases pettyCashIssuedAmount.
 

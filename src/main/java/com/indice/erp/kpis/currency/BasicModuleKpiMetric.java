@@ -4,6 +4,8 @@ import java.util.Locale;
 
 public enum BasicModuleKpiMetric {
     SALES_TOTAL,
+    SALES_COLLECTED,
+    SALES_RECEIVABLE_BALANCE,
     SALES_TAX,
     SALES_COMMISSION,
     SALES_OPPORTUNITY_PIPELINE,
@@ -15,6 +17,8 @@ public enum BasicModuleKpiMetric {
     INVENTORY_MOVEMENT_VALUE,
     EXPENSE_TOTAL,
     EXPENSE_PAID,
+    EXPENSE_PAID_TO_DATE,
+    EXPENSE_ACTUAL,
     EXPENSE_SUBTOTAL,
     EXPENSE_TAX,
     EXPENSE_BALANCE,

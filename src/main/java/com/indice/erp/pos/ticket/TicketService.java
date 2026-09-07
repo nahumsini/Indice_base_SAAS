@@ -1,6 +1,7 @@
 package com.indice.erp.pos.ticket;
 
 import com.indice.erp.exchange.BusinessExchangeRateService;
+import com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver;
 import com.indice.erp.kpis.currency.KpiCurrencyAggregationService;
 import com.indice.erp.kpis.currency.KpiMonetaryAggregate;
 import com.indice.erp.pos.PosContext;
@@ -8,7 +9,6 @@ import com.indice.erp.pos.payment.PaymentMapper;
 import com.indice.erp.pos.payment.PaymentRepository;
 import com.indice.erp.pos.ticket.dto.PosTicketDetailResponse;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -18,14 +18,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class TicketService {
 
-    private static final ZoneId OPERATIONAL_ZONE = ZoneId.of("America/Toronto");
-
     private final TicketRepository ticketRepository;
     private final PaymentRepository paymentRepository;
     private final TicketMapper ticketMapper;
     private final PaymentMapper paymentMapper;
     private final KpiCurrencyAggregationService currencyAggregationService;
     private final BusinessExchangeRateService exchangeRateService;
+    private final FinanceBusinessTimeZoneResolver timeZoneResolver;
 
     public TicketService(
             TicketRepository ticketRepository,
@@ -33,13 +32,15 @@ public class TicketService {
             TicketMapper ticketMapper,
             PaymentMapper paymentMapper,
             KpiCurrencyAggregationService currencyAggregationService,
-            BusinessExchangeRateService exchangeRateService) {
+            BusinessExchangeRateService exchangeRateService,
+            FinanceBusinessTimeZoneResolver timeZoneResolver) {
         this.ticketRepository = ticketRepository;
         this.paymentRepository = paymentRepository;
         this.ticketMapper = ticketMapper;
         this.paymentMapper = paymentMapper;
         this.currencyAggregationService = currencyAggregationService;
         this.exchangeRateService = exchangeRateService;
+        this.timeZoneResolver = timeZoneResolver;
     }
 
     @Transactional(readOnly = true)
@@ -50,9 +51,10 @@ public class TicketService {
 
     @Transactional(readOnly = true)
     public KpiMonetaryAggregate summarizeToday(PosContext context, String preferredCurrency) {
-        var businessDate = LocalDate.now(OPERATIONAL_ZONE);
-        var fromInclusive = businessDate.atStartOfDay(OPERATIONAL_ZONE).toInstant();
-        var toExclusive = businessDate.plusDays(1).atStartOfDay(OPERATIONAL_ZONE).toInstant();
+        var operationalZone = timeZoneResolver.resolve(context.companyId());
+        var businessDate = LocalDate.now(operationalZone);
+        var fromInclusive = businessDate.atStartOfDay(operationalZone).toInstant();
+        var toExclusive = businessDate.plusDays(1).atStartOfDay(operationalZone).toInstant();
         var rates = exchangeRateService.loadDailyRates();
         var metadata = rates.metadata();
         return currencyAggregationService.aggregate(
@@ -60,7 +62,7 @@ public class TicketService {
             preferredCurrency == null || preferredCurrency.isBlank() ? "MXN" : preferredCurrency,
             rates.ratesPerUsd(),
             "daily",
-            parseSourceDate(metadata == null ? null : metadata.sourceDate()),
+            parseSourceDate(metadata == null ? null : metadata.sourceDate(), operationalZone),
             metadata == null ? "" : metadata.sourceName()
         );
     }
@@ -74,11 +76,11 @@ public class TicketService {
         return new PosTicketDetailResponse(ticketMapper.toResponse(ticket), items, payments);
     }
 
-    private LocalDate parseSourceDate(String value) {
+    private LocalDate parseSourceDate(String value, java.time.ZoneId operationalZone) {
         try {
-            return value == null || value.isBlank() ? LocalDate.now(OPERATIONAL_ZONE) : LocalDate.parse(value);
+            return value == null || value.isBlank() ? LocalDate.now(operationalZone) : LocalDate.parse(value);
         } catch (DateTimeParseException exception) {
-            return LocalDate.now(OPERATIONAL_ZONE);
+            return LocalDate.now(operationalZone);
         }
     }
 }

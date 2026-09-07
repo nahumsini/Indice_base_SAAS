@@ -29,6 +29,8 @@ const legacyToBackendType = (type: PaymentAccountType): BackendPaymentAccountTyp
 
 export const toPaymentAccount = (account: PaymentAccountApiDto): PaymentAccount => {
   const customFields = asObject(account.customFields);
+	const availableBalance = asNumber(account.availableBalance, asNumber(account.currentBalance, asNumber(account.openingBalance)));
+	const pendingBalance = asNumber(account.pendingBalance);
 
 	  return {
 	    id: String(account.id),
@@ -39,10 +41,15 @@ export const toPaymentAccount = (account: PaymentAccountApiDto): PaymentAccount 
     accountNumber: asString(customFields.accountNumber, undefined),
     bank: asString(customFields.bank, undefined),
     currency: account.currencyCode,
-    balance: asNumber(account.currentBalance, asNumber(account.openingBalance)),
+    balance: availableBalance,
+    availableBalance,
+    pendingBalance,
+    totalBalance: asNumber(account.totalBalance, availableBalance + pendingBalance),
     isActive: account.status !== 'INACTIVE' && account.status !== 'ARCHIVED',
     lastTransaction: (account.updatedAt ?? account.createdAt)?.slice(0, 10),
     source: 'expenses',
+    systemKey: optionalString(account.systemKey),
+    systemManaged: account.systemManaged === true,
   };
 };
 

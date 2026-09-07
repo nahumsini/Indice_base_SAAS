@@ -174,7 +174,7 @@ export function SalesTableRow({
     ? t.modal.paymentMethods[paymentMethodId]
     : record.paymentMethod || t.common.notAvailable;
   const isCredit = isSalesCreditPaymentMethod(record.paymentMethod);
-  const marginRate = record.totalAmount > 0 ? (record.marginTotal / record.totalAmount) * 100 : 0;
+  const marginRate = record.subtotal > 0 ? (record.marginTotal / record.subtotal) * 100 : 0;
   const businessContext = [record.businessUnitName, record.businessName].filter(Boolean).join(' · ');
 
   return (
@@ -211,7 +211,7 @@ export function SalesTableRow({
         <TableCell className={salesCellClassName}>
           <p className="break-words text-sm font-medium text-slate-950 dark:text-white">{formatSalesCurrency(record.totalAmount, record.currency)}</p>
           <p className="mt-1 text-xs font-medium text-slate-500">{record.currency}</p>
-          <p className="mt-2 text-xs font-medium text-emerald-700 dark:text-emerald-300">{t.table.operational.margin}: {formatSalesCurrency(record.marginTotal, record.currency)} · {Math.round(marginRate)}%</p>
+          <p className="mt-2 text-xs font-medium text-emerald-700 dark:text-emerald-300">{t.table.operational.margin}: {record.marginReady === true ? `${formatSalesCurrency(record.marginTotal, record.currency)} · ${Math.round(marginRate)}%` : t.common.notAvailable}</p>
         </TableCell>
       ) : null}
 

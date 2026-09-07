@@ -58,6 +58,11 @@ movements are not auto-posted until their owner publishes an explicit payable/co
 contract. Unsupported source states, missing product cost, missing account mapping, and missing
 exchange rates become quality findings; they are never filled with invented numbers.
 
+Operational payment-account balances and POS cut settlement follow
+`docs/pos-treasury-settlement-contract-v1.md`. That subledger is not a second source of revenue:
+the accounting engine continues to post the commercial sale once, while Treasury proves where and
+when each POS collection became pending or available.
+
 ## 4. Presentation and report set
 
 Primary statements:

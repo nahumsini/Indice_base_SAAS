@@ -51,8 +51,8 @@ export function BusinessHealthMatrixView({ copy, currency, data, loading, locale
       ready: item.decisionReady,
       metrics: [
         { label: copy.health.metrics.revenue, value: money(item.revenue, locale, currency) },
-        { label: copy.health.metrics.profit, value: money(item.operatingProfit, locale, currency) },
-        { label: copy.health.metrics.margin, value: percent(item.operatingMarginPercent, locale) },
+        { label: copy.health.metrics.profit, value: item.decisionReady ? money(item.operatingProfit, locale, currency) : copy.common.unclassified },
+        { label: copy.health.metrics.margin, value: item.decisionReady ? percent(item.operatingMarginPercent, locale) : copy.common.unclassified },
         { label: copy.health.metrics.execution, value: percent(item.executionScore, locale) },
         { label: copy.health.metrics.completion, value: percent(item.taskCompletionRate, locale) },
         { label: copy.health.metrics.attendance, value: percent(item.attendanceRate, locale) },
@@ -60,7 +60,7 @@ export function BusinessHealthMatrixView({ copy, currency, data, loading, locale
         { label: copy.health.metrics.receivables, value: money(item.overdueReceivables, locale, currency) },
       ],
     }));
-  }, [copy.health.metrics, currency, data, locale]);
+  }, [copy.health.metrics, copy.common.unclassified, currency, data, locale]);
 
   return <DecisionMatrix
     actionLabel={copy.common.openProcesses}

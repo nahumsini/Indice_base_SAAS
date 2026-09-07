@@ -143,15 +143,17 @@ class SpecificPosCashTest {
     }
 
     @Test
-    void closingShiftTwiceIsRejected() {
+    void closingShiftRetryReturnsThePersistedOutcome() {
         var service = closingService();
-        var shift = shift(ShiftStatus.OPEN, "100");
+        var shift = shift(ShiftStatus.CLOSED, "100");
         when(closingRepository.existsClosing(context(), 40L)).thenReturn(true);
+        when(closingRepository.calculateAmounts(context(), shift))
+            .thenReturn(amounts("90", "0", "0", "0", "0"));
 
-        assertThatThrownBy(() -> service.close(context(), shift, new BigDecimal("100"), "close"))
-            .isInstanceOf(PosApiException.class)
-            .hasMessage("Shift already has a persisted cash closing.");
+        var result = service.close(context(), shift, new BigDecimal("999"), "retry");
 
+        assertThat(result.closed()).isTrue();
+        assertThat(result.countedCashAmount()).isEqualByComparingTo("100");
         verify(closingRepository, never()).insertClosing(eq(context()), eq(shift), any(), any());
         verify(shiftRepository, never()).closeWithSummary(eq(context()), eq(40L), any(), any(), any(), any());
     }
@@ -271,10 +273,13 @@ class SpecificPosCashTest {
     }
 
     private ShiftRecord shift(ShiftStatus status, String expectedCash) {
+        var closed = status == ShiftStatus.CLOSED;
         return new ShiftRecord(
             40L, 1L, 5L, 6L, 30L, 20L, "Register 1", 10L, null, status,
-            new BigDecimal("10"), new BigDecimal(expectedCash), null, null, "MXN", Instant.now(), null,
-            "open", null, 10L, null, Instant.now(), Instant.now(), 0L, null, null
+            new BigDecimal("10"), new BigDecimal(expectedCash), closed ? new BigDecimal("100") : null,
+            closed ? BigDecimal.ZERO : null, "MXN", Instant.now(), closed ? Instant.now() : null,
+            "open", closed ? "closed" : null, 10L, closed ? 10L : null,
+            Instant.now(), Instant.now(), 0L, null, null
         );
     }
 }

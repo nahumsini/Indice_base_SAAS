@@ -10,10 +10,11 @@ import {
 import { Button } from '../../../components/ui/button';
 import { cn } from '../../../components/ui/utils';
 import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
-import { ApiClientError } from '../../../lib/apiClient';
+import { apiClient, ApiClientError } from '../../../lib/apiClient';
 import { useLanguage } from '../../../shared/context';
 import { AnalyticsDocumentPreviewModal, type AnalyticsDocumentMode } from '../components/AnalyticsDocumentPreviewModal';
 import { useCompanyPrintIdentity } from '../../shared/print/useCompanyPrintIdentity';
+import { AccountingEntryModal } from './AccountingEntryModal';
 import { AccountingDocumentCanvas } from './AccountingDocumentCanvas';
 import { AccountingDrilldownModal, type AccountingDrilldownSubject } from './AccountingDrilldownModal';
 import { AccountingOverviewView } from './AccountingOverviewView';
@@ -63,6 +64,10 @@ export default function InformesContables() {
   const [documentMode, setDocumentMode] = useState<AnalyticsDocumentMode | null>(null);
   const [closeOpen, setCloseOpen] = useState(false); const [reopenOpen, setReopenOpen] = useState(false);
   const requestSequence = useRef(0);
+  const [entryOpen, setEntryOpen] = useState(false);
+  const [canManage, setCanManage] = useState(false);
+  const [businessDate, setBusinessDate] = useState('');
+  useEffect(() => { let active = true; apiClient<{ canManage: boolean; businessDate: string }>('/api/v1/kpis/accounting-reports/capabilities').then(result => { if (active) { setCanManage(result.canManage); setBusinessDate(result.businessDate); } }).catch(() => { if (active) setCanManage(false); }); return () => { active = false; }; }, []);
 
   const workspaceState = useMemo<WorkspaceState>(() => ({ view, statementId, period, from, to, unitId, businessId }), [businessId, from, period, statementId, to, unitId, view]);
   useWorkspaceNavigationMemory({
@@ -97,14 +102,14 @@ export default function InformesContables() {
   const units = data?.organization.units ?? [];
   const businesses = unitId ? units.find((unit) => String(unit.id) === unitId)?.businesses ?? [] : [];
   const activeStatement = data?.statements.find((statement) => statement.id === statementId) ?? data?.statements[0];
-  const monthClosable = data ? data.context.from === `${data.context.periodKey}-01` && data.context.to === lastDayOfMonth(data.context.periodKey) : false;
+  const monthClosable = data && businessDate && data.context.to < businessDate ? data.context.from === `${data.context.periodKey}-01` && data.context.to === lastDayOfMonth(data.context.periodKey) : false;
   const scope = useMemo(() => ({ from, to, unitId, businessId }), [businessId, from, to, unitId]);
 
   const changePeriod = (next: string) => { const id = next as PeriodId; setPeriod(id); if (id !== 'custom') { const range = periodRange(id); setFrom(range.from); setTo(range.to); } };
   const resetFilters = () => { const range = periodRange('current'); setPeriod('current'); setFrom(range.from); setTo(range.to); setUnitId(''); setBusinessId(''); };
-  const synchronize = async () => { setMutating(true); setError(''); setNotice(''); try { await accountingReportsApi.synchronize(from, to); setNotice(copy.messages.syncSuccess); await load(); } catch { setError(copy.messages.loadError); } finally { setMutating(false); } };
-  const confirmClose = async () => { if (!data || !monthClosable) return; setMutating(true); setError(''); try { await accountingReportsApi.close(data.context.periodKey); setCloseOpen(false); setNotice(copy.messages.closeSuccess); await load(); } catch { setError(copy.messages.loadError); } finally { setMutating(false); } };
-  const confirmReopen = async (reason: string) => { if (!data) return; setMutating(true); setError(''); try { await accountingReportsApi.reopen(data.context.periodKey, reason); setReopenOpen(false); setNotice(copy.messages.reopenSuccess); await load(); } catch { setError(copy.messages.loadError); } finally { setMutating(false); } };
+  const synchronize = async () => { setMutating(true); setError(''); setNotice(''); try { await accountingReportsApi.synchronize(from, to); setNotice(copy.messages.syncSuccess); await load(); } catch (cause) { setError(cause instanceof ApiClientError ? cause.message : copy.messages.loadError); } finally { setMutating(false); } };
+  const confirmClose = async () => { if (!data || !monthClosable) return; setMutating(true); setError(''); try { await accountingReportsApi.close(data.context.periodKey); setCloseOpen(false); setNotice(copy.messages.closeSuccess); await load(); } catch (cause) { setError(cause instanceof ApiClientError ? cause.message : copy.messages.loadError); } finally { setMutating(false); } };
+  const confirmReopen = async (reason: string) => { if (!data) return; setMutating(true); setError(''); try { await accountingReportsApi.reopen(data.context.periodKey, reason); setReopenOpen(false); setNotice(copy.messages.reopenSuccess); await load(); } catch (cause) { setError(cause instanceof ApiClientError ? cause.message : copy.messages.loadError); } finally { setMutating(false); } };
 
   const handleInsight = (actionCode: string) => {
     if (actionCode === 'OPEN_CLOSE_QUALITY') return setView('close-quality');
@@ -122,7 +127,7 @@ export default function InformesContables() {
   ];
 
   return <div className="space-y-5">
-    <IndiceTitleBar tone="blue" icon="📑" title={copy.title} subtitle={copy.subtitle} actions={<><Button type="button" variant="outline" disabled={!data || loading} onClick={() => setDocumentMode('export')} className="h-11 rounded-xl border-blue-200 bg-white text-blue-700 dark:bg-slate-900 dark:text-blue-200"><Download className="h-4 w-4" />{copy.actions.export}</Button><Button type="button" variant="outline" disabled={!data || loading || !isPrintReady} onClick={() => setDocumentMode('print')} className="h-11 rounded-xl border-blue-200 bg-white text-blue-700 dark:bg-slate-900 dark:text-blue-200"><Printer className="h-4 w-4" />{copy.actions.print}</Button><Button type="button" disabled={mutating || loading} onClick={() => void synchronize()} className="h-11 rounded-xl bg-blue-700 text-white hover:bg-blue-800"><RefreshCw className={cn('h-4 w-4', mutating && 'animate-spin')} />{mutating ? copy.actions.syncing : copy.actions.synchronize}</Button></>} />
+    <IndiceTitleBar tone="blue" icon="📑" title={copy.title} subtitle={copy.subtitle} actions={<><Button type="button" variant="outline" disabled={!data || loading} onClick={() => setDocumentMode('export')} className="h-11 rounded-xl border-blue-200 bg-white text-blue-700 dark:bg-slate-900 dark:text-blue-200"><Download className="h-4 w-4" />{copy.actions.export}</Button><Button type="button" variant="outline" disabled={!data || loading || !isPrintReady} onClick={() => setDocumentMode('print')} className="h-11 rounded-xl border-blue-200 bg-white text-blue-700 dark:bg-slate-900 dark:text-blue-200"><Printer className="h-4 w-4" />{copy.actions.print}</Button><Button type="button" disabled={!canManage || mutating || loading} onClick={() => void synchronize()} className="h-11 rounded-xl bg-blue-700 text-white hover:bg-blue-800"><RefreshCw className={cn('h-4 w-4', mutating && 'animate-spin')} />{mutating ? copy.actions.syncing : copy.actions.synchronize}</Button></>} />
 
     <IndiceFilterBar title={copy.filters.title} subtitle={copy.filters.subtitle} gridClassName={period === 'custom' ? 'lg:grid-cols-5' : 'lg:grid-cols-3'} summary={<Button type="button" variant="outline" onClick={resetFilters} className="h-9 rounded-xl"><RotateCcw className="h-4 w-4" />{copy.filters.clear}</Button>}>
       <IndiceFilterSelect label={copy.filters.period} value={period} onValueChange={changePeriod} options={(Object.keys(copy.periods) as PeriodId[]).map((id) => ({ value: id, label: copy.periods[id] }))} tone="blue" />
@@ -134,15 +139,16 @@ export default function InformesContables() {
     {data && !loading ? <IndiceWorkspaceNavigation<AccountingViewId> ariaLabel={copy.views.aria} items={navigationItems} onValueChange={setView} tone="blue" value={view} variant="sections" /> : null}
     {error ? <section role="alert" className="flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900 dark:border-rose-900 dark:bg-rose-950/20 dark:text-rose-100 sm:flex-row sm:items-center sm:justify-between"><span className="inline-flex items-center gap-2"><AlertTriangle className="h-4 w-4" />{error}</span><Button type="button" variant="outline" onClick={() => void load()} className="h-9 rounded-xl">{copy.actions.retry}</Button></section> : null}
     {notice ? <section aria-live="polite" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-200"><ShieldCheck className="mr-2 inline h-4 w-4" />{notice}</section> : null}
-    {setupRequired && !loading ? <AccountingSetup copy={copy} onSetup={() => void synchronize()} busy={mutating} /> : null}
+    {setupRequired && !loading && canManage ? <AccountingSetup copy={copy} onSetup={() => void synchronize()} busy={mutating} /> : null}
     {loading ? <AccountingLoading /> : null}
     {data && analytics && !loading ? <>
       {view === 'overview' ? <><AccountingReadiness copy={copy} data={data} locale={locale} /><AccountingOverviewView analytics={analytics} copy={copy} locale={locale} report={data} onInsightAction={handleInsight} onUnitSelect={(nextUnitId) => { setUnitId(nextUnitId); setBusinessId(''); }} /></> : null}
       {view === 'statements' ? <div className="space-y-4"><AccountingReadiness copy={copy} data={data} locale={locale} /><IndiceWorkspaceNavigation<string> ariaLabel={copy.views.statements} items={data.statements.map((statement) => ({ id: statement.id, label: statement.title, icon: statement.id === 'profit-loss' ? <Sparkles className="h-4 w-4" /> : <FileSpreadsheet className="h-4 w-4" /> }))} onValueChange={setStatementId} tone="blue" value={statementId} variant="sections" />{activeStatement ? <StatementView copy={copy} currency={data.context.presentationCurrency} locale={locale} statement={activeStatement} onOpenLine={(id) => setDrilldown({ type: 'STATEMENT_LINE', id })} /> : null}</div> : null}
       {view === 'trial-balance' ? <AccountingTrialBalanceView copy={copy} data={data} locale={locale} onOpenAccount={(id) => setDrilldown({ type: 'ACCOUNT', id: String(id) })} /> : null}
-      {view === 'close-quality' ? <div className="space-y-5"><AccountingReadiness copy={copy} data={data} locale={locale} /><AccountingWorkflow copy={copy} data={data} /><div className="flex justify-end">{monthClosable && !unitId && !businessId && data.readiness.decisionReady ? data.context.periodStatus === 'CLOSED' ? <Button type="button" variant="outline" disabled={mutating} onClick={() => setReopenOpen(true)} className="h-10 rounded-xl"><LockKeyhole className="h-4 w-4" />{copy.actions.reopen}</Button> : <Button type="button" variant="outline" disabled={mutating} onClick={() => setCloseOpen(true)} className="h-10 rounded-xl border-emerald-200 text-emerald-700"><LockKeyhole className="h-4 w-4" />{copy.actions.close}</Button> : null}</div><QualityView copy={copy} data={data} /></div> : null}
+      {view === 'close-quality' ? <div className="space-y-5"><AccountingReadiness copy={copy} data={data} locale={locale} /><AccountingWorkflow copy={copy} data={data} /><div className="flex flex-wrap justify-end gap-2">{canManage ? <Button type="button" variant="outline" disabled={mutating} onClick={() => setEntryOpen(true)}>{locale.startsWith('es') ? 'Apertura o ajuste' : 'Opening or adjustment'}</Button> : null}{canManage && monthClosable && !unitId && !businessId && data.readiness.decisionReady ? data.context.periodStatus === 'CLOSED' ? <Button type="button" variant="outline" disabled={mutating} onClick={() => setReopenOpen(true)} className="h-10 rounded-xl"><LockKeyhole className="h-4 w-4" />{copy.actions.reopen}</Button> : <Button type="button" variant="outline" disabled={mutating} onClick={() => setCloseOpen(true)} className="h-10 rounded-xl border-emerald-200 text-emerald-700"><LockKeyhole className="h-4 w-4" />{copy.actions.close}</Button> : null}</div><QualityView copy={copy} data={data} /></div> : null}
     </> : null}
     {data && activePrintView ? <AnalyticsDocumentPreviewModal company={companyPrintIdentity} fileName={`indice-financial-${view}-${data.context.from}-${data.context.to}.html`} locale={locale} mode={documentMode} onClose={() => setDocumentMode(null)} onExportData={() => exportAccountingCsv(data, analytics, view, statementId, locale)} scopeItems={[{ label: copy.filters.period, value: `${data.context.from} / ${data.context.to}` }, { label: copy.common.framework, value: data.context.reportingFramework.split('_').join(' ') }, { label: copy.common.currency, value: data.context.presentationCurrency }, { label: copy.common.status, value: copy.readiness[data.readiness.status] }]} title={activePrintView.title}><AccountingDocumentCanvas copy={copy} data={data} report={activePrintView} /></AnalyticsDocumentPreviewModal> : null}
+    {entryOpen && data ? <AccountingEntryModal open report={data} locale={locale} onClose={() => setEntryOpen(false)} onSaved={() => { setEntryOpen(false); void load(); }} /> : null}
     <AccountingDrilldownModal copy={copy} locale={locale} subject={drilldown} scope={scope} onClose={() => setDrilldown(null)} />
     <ClosePeriodConfirmation copy={copy} open={closeOpen} periodKey={data?.context.periodKey ?? ''} busy={mutating} onCancel={() => setCloseOpen(false)} onConfirm={() => void confirmClose()} />
     <ReopenPeriodModal copy={copy} open={reopenOpen} periodKey={data?.context.periodKey ?? ''} busy={mutating} onCancel={() => setReopenOpen(false)} onConfirm={(reason) => void confirmReopen(reason)} />

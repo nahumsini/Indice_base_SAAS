@@ -2,6 +2,7 @@ package com.indice.erp.finance.pettycash.dto;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.indice.erp.finance.pettycash.PettyCashFundStatus;
+import com.indice.erp.finance.pettycash.PettyCashFundType;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -16,12 +17,23 @@ public record PettyCashFundResponse(
     Long paymentAccountId,
     Long fundingSourcePaymentAccountId,
     Long responsibleUserId,
+    PettyCashFundType fundType,
     String name,
     String currencyCode,
     BigDecimal limitAmount,
     BigDecimal currentBalanceAmount,
     Integer cutOffDay,
     String fundingSourceName,
+    String externalOwnerType,
+    String externalOwnerName,
+    String externalOwnerRelationship,
+    String externalOwnerReference,
+    String statementRecipientEmail,
+    String managedAssetType,
+    String managedAssetName,
+    String managedAssetReference,
+    Boolean externalIdentityPending,
+    Boolean budgetLinkPending,
     List<String> fundingMethods,
     List<String> spendingMethods,
     Boolean kioskEnabled,

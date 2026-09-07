@@ -14,6 +14,12 @@ import com.indice.erp.finance.shared.FinanceContext;
 import com.indice.erp.finance.shared.FinanceScope;
 import com.indice.erp.finance.shared.FinanceValidationSupport;
 import java.math.BigDecimal;
+import java.util.Set;
+import java.util.Objects;
+import com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver;
+import com.indice.erp.finance.treasury.TreasuryService;
+import com.indice.erp.finance.treasury.TreasuryAccount;
+import com.indice.erp.finance.treasury.TreasuryMovementCommand;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -31,10 +37,29 @@ public class ReceivablesService {
 
     private final ReceivablesRepository repository;
     private final FinanceAccessService accessService;
+    private final TreasuryService treasury;
+    private final FinanceBusinessTimeZoneResolver timeZones;
+    private final ReceivableReceiptService receipts;
 
-    public ReceivablesService(ReceivablesRepository repository, FinanceAccessService accessService) {
+    public ReceivablesService(ReceivablesRepository repository, FinanceAccessService accessService,
+            TreasuryService treasury, FinanceBusinessTimeZoneResolver timeZones, ReceivableReceiptService receipts) {
         this.repository = repository;
         this.accessService = accessService;
+        this.treasury = treasury;
+        this.timeZones = timeZones;
+        this.receipts = receipts;
+    }
+
+    private LocalDate businessDate(FinanceContext context) {
+        return LocalDate.now(timeZones.resolve(context.companyId()));
+    }
+
+    @Transactional(readOnly = true)
+    public List<TreasuryAccount> paymentAccounts(FinanceContext context, long receivableId) {
+        var account = repository.findReceivableAccount(context, receivableId, businessDate(context))
+            .orElseThrow(() -> new NoSuchElementException("Receivable account not found."));
+        return treasury.listEligibleAccounts(context.companyId(), account.currency(), account.unitId(), account.businessId())
+            .stream().filter(destination -> Set.of("BANK", "CASH").contains(destination.type())).toList();
     }
 
     @Transactional(readOnly = true)
@@ -58,17 +83,22 @@ public class ReceivablesService {
     @Transactional
     public ReceivablesWorkspaceResponse createCreditSale(FinanceContext context, CreateCreditSaleRequest request) {
         var financedAmount = positiveAmount(request.financedAmount(), "financedAmount");
-        var firstDueDate = request.firstDueDate() == null ? LocalDate.now().plusMonths(1) : request.firstDueDate();
+        var firstDueDate = request.firstDueDate() == null ? businessDate(context).plusMonths(1) : request.firstDueDate();
         var source = resolveSource(context, request);
+        if (financedAmount.compareTo(source.amount()) > 0) throw FinanceApiException.badRequest("Financed amount cannot exceed the unpaid sale amount.");
+        if (source.posTicketId() != null && financedAmount.compareTo(source.amount()) != 0) {
+            throw FinanceApiException.badRequest("A POS credit must cover exactly the credit tender recorded on its ticket.");
+        }
         var creditSubject = applyCreditSubject(context, source, request);
         var simulation = normalizeSimulation(request.selectedSimulation(), financedAmount);
-        validateCreditCapacity(context, creditSubject, financedAmount);
-        var status = resolveAccountStatus(simulation.totalPayable(), firstDueDate, LocalDate.now());
+        var policy = validateCreditCapacity(context, creditSubject, financedAmount);
+        var status = resolveAccountStatus(simulation.totalPayable(), firstDueDate, businessDate(context));
 
         var createdSale = repository.insertCreditSale(context, creditSubject, financedAmount, firstDueDate, simulation);
+        repository.linkCreditPolicy(context, createdSale.id(), policy.id());
         var createdAccount = repository.insertReceivableAccount(context, createdSale, status);
-        repository.insertInstallments(context, createdAccount, LocalDate.now());
-        repository.decreaseAvailableCredit(context, createdSale.contactId(), createdSale.customerName(), financedAmount);
+        repository.insertInstallments(context, createdAccount, businessDate(context));
+        repository.decreaseAvailableCredit(context, policy.id(), financedAmount);
         return workspaceResponse(context);
     }
 
@@ -77,12 +107,40 @@ public class ReceivablesService {
         if (request.receivableId() == null) {
             throw FinanceApiException.badRequest("receivableId is required.");
         }
+        var key = request.idempotencyKey() == null ? "" : request.idempotencyKey().trim();
+        if (!key.matches("[A-Za-z0-9:_-]{8,120}")) {
+            throw FinanceApiException.badRequest("A valid idempotencyKey is required for a collection.");
+        }
+        repository.lockReceivable(context, request.receivableId());
         var amount = positiveAmount(request.amount(), "amount");
-        var paymentDate = request.paymentDate() == null ? LocalDate.now() : request.paymentDate();
+        var paymentDate = request.paymentDate() == null ? businessDate(context) : request.paymentDate();
         var method = normalizePaymentMethod(request.method());
-        var account = repository.findReceivableAccount(context, request.receivableId(), LocalDate.now())
+        var account = repository.findReceivableAccount(context, request.receivableId(), businessDate(context))
             .orElseThrow(() -> new NoSuchElementException("Receivable account not found."));
 
+        var existing = repository.findPaymentByKey(context, key);
+        if (existing.isPresent()) {
+            var payment = existing.get();
+            if (!Objects.equals(payment.receivableId(), account.id()) || payment.amount().compareTo(amount) != 0
+                    || !payment.paymentDate().equals(paymentDate) || !payment.method().equals(method)
+                    || (request.paymentAccountId() != null && !request.paymentAccountId().equals(payment.paymentAccountId()))) {
+                throw FinanceApiException.conflict("The collection retry key belongs to different payment details.");
+            }
+            return workspaceResponse(context);
+        }
+        if (paymentDate.isAfter(businessDate(context))) {
+            throw FinanceApiException.badRequest("A collection cannot be recorded in the future.");
+        }
+        if ("CANCELLED".equals(account.status())) {
+            throw FinanceApiException.conflict("A cancelled receivable cannot receive payments.");
+        }
+        Long destination = request.paymentAccountId();
+        if (destination == null && "CASH".equals(method)) {
+            destination = treasury.ensureUniversalCash(context.companyId(), context.userId(), account.currency()).id();
+        }
+        if (destination == null) throw FinanceApiException.badRequest("paymentAccountId is required for a non-cash collection.");
+        treasury.requireEligibleAccount(context.companyId(), destination, account.currency(), account.unitId(), account.businessId(),
+            "CASH".equals(method) ? Set.of("CASH") : Set.of("BANK"));
         if (account.balance().compareTo(BigDecimal.ZERO) <= 0) {
             throw FinanceApiException.conflict("Receivable account is already paid.");
         }
@@ -93,19 +151,29 @@ public class ReceivablesService {
         var paidAmount = money(account.paidAmount().add(amount));
         var balance = money(account.totalPayable().subtract(paidAmount).max(BigDecimal.ZERO));
 
-        repository.insertPayment(context, account, method, amount, paymentDate,
+        var paymentId = repository.insertPayment(context, account, method, amount, paymentDate,
             blankToDefault(request.reference(), "Sin referencia"),
-            blankToDefault(request.registeredBy(), context.userName() == null ? "Finanzas" : context.userName()));
-        repository.applyPaymentToInstallments(context, account.id(), amount, paymentDate, LocalDate.now());
+            blankToDefault(context.userName(), "Finanzas"), destination, key);
+        receipts.register(context, account.id(), paymentId, request.receipt());
+        treasury.post(new TreasuryMovementCommand(context.companyId(), destination, account.unitId(), account.businessId(),
+            account.currency(), "RECEIVABLES", "RECEIVABLE_COLLECTION", Long.toString(paymentId),
+            "RECEIVABLE_COLLECTION:" + paymentId, amount, BigDecimal.ZERO, "Cobro de " + account.saleNumber(),
+            paymentDate.atStartOfDay(timeZones.resolve(context.companyId())).toInstant(), context.userId(), null, null));
+        repository.applyPaymentToInstallments(context, account.id(), amount, paymentDate, businessDate(context));
         var nextPaymentDate = balance.compareTo(BigDecimal.ZERO) == 0
             ? account.dueDate()
             : repository.findNextOpenInstallmentDueDate(context, account.id()).orElseGet(() -> fallbackNextPaymentDate(account));
-        var status = resolveAccountStatus(balance, nextPaymentDate, LocalDate.now());
+        var status = resolveAccountStatus(balance, nextPaymentDate, businessDate(context));
         repository.updateReceivableAfterPayment(context, account, paidAmount, balance, nextPaymentDate, status);
         if (balance.compareTo(BigDecimal.ZERO) == 0) {
             repository.markCreditSaleCompleted(context, account.creditSaleId());
         }
-        repository.increaseAvailableCredit(context, account.contactId(), account.customerName(), amount);
+        repository.policyForCollection(context, account)
+            .ifPresent(policy -> {
+                var principalBefore = account.paidAmount().multiply(account.originalAmount()).divide(account.totalPayable(), 4, RoundingMode.HALF_UP);
+                var principalAfter = paidAmount.multiply(account.originalAmount()).divide(account.totalPayable(), 4, RoundingMode.HALF_UP);
+                repository.increaseAvailableCredit(context, policy.id(), principalAfter.subtract(principalBefore));
+            });
         return workspaceResponse(context);
     }
 
@@ -124,14 +192,48 @@ public class ReceivablesService {
         var assignment = resolveAssignment(context, request.unitId(), request.businessId());
 
         validateReferences(context, assignment.unitId(), assignment.businessId(), request.contactId());
+        repository.lockCompanyForPolicyCreation(context);
+        if (repository.findCreditPolicy(context, request.contactId(), customerName, currencyCode).isPresent()) {
+            throw FinanceApiException.conflict("A credit policy already exists for this customer and currency.");
+        }
         repository.insertCreditPolicy(context, request.contactId(), assignment.unitId(), assignment.businessId(),
             customerName, currencyCode, creditLine, monthlyPurchaseLimit, defaultTermMonths, annualInterestRate,
             status, blankToNull(request.notes()));
         return workspaceResponse(context);
     }
 
+    @Transactional
+    public ReceivablesWorkspaceResponse updateCreditPolicy(FinanceContext context, long id, CreateCreditPolicyRequest request) {
+        var existing = repository.lockCreditPolicy(context, id);
+        if (!java.util.Objects.equals(existing.contactId(), request.contactId())
+                || !existing.currencyCode().equalsIgnoreCase(request.currencyCode())
+                || !java.util.Objects.equals(existing.unitId(), request.unitId())
+                || !java.util.Objects.equals(existing.businessId(), request.businessId())
+                || !existing.customerName().equals(request.customerName())) {
+            throw FinanceApiException.badRequest("The policy retains its customer, currency and organizational scope. Create a separate policy for another assignment.");
+        }
+        var line = nonNegative(request.creditLine(), "creditLine");
+        if (line.compareTo(existing.creditLine().subtract(existing.availableCredit())) < 0) {
+            throw FinanceApiException.conflict("The credit line cannot be lower than the credit already in use.");
+        }
+        repository.updateCreditPolicy(context, existing, line, nonNegative(request.monthlyPurchaseLimit(), "monthlyPurchaseLimit"),
+            positiveMonths(request.defaultTermMonths()), nonNegative(request.annualInterestRate(), "annualInterestRate"),
+            normalizePolicyStatus(request.status()), blankToNull(request.notes()));
+        return workspaceResponse(context);
+    }
+
+    @Transactional
+    public ReceivablesWorkspaceResponse archiveCreditPolicy(FinanceContext context, long id) {
+        var policy = repository.lockCreditPolicy(context, id);
+        if (policy.availableCredit().compareTo(policy.creditLine()) < 0 || repository.hasOutstandingCredit(context, policy)) {
+            throw FinanceApiException.conflict("A policy with outstanding credit must be blocked instead of archived.");
+        }
+        repository.archiveCreditPolicy(context, id);
+        return workspaceResponse(context);
+    }
+
     private ReceivablesWorkspaceResponse workspaceResponse(FinanceContext context) {
-        var today = LocalDate.now();
+        var today = businessDate(context);
         var creditSales = repository.listCreditSales(context);
         var receivables = repository.listReceivableAccounts(context, today);
         var installments = repository.listInstallments(context, today);
@@ -149,8 +251,8 @@ public class ReceivablesService {
         );
     }
 
-    private void validateCreditCapacity(FinanceContext context, CandidateSaleResponse source, BigDecimal financedAmount) {
-        var policy = repository.findCreditPolicy(context, source.contactId(), source.customerName())
+    private ReceivablesDtos.CreditPolicyResponse validateCreditCapacity(FinanceContext context, CandidateSaleResponse source, BigDecimal financedAmount) {
+        var policy = repository.findCreditPolicy(context, source.contactId(), source.customerName(), source.currency())
             .orElseThrow(() -> FinanceApiException.conflict("Active credit customer policy is required."));
         if (!"ACTIVE".equalsIgnoreCase(policy.status())) {
             throw FinanceApiException.conflict("Credit customer policy must be active.");
@@ -159,12 +261,13 @@ public class ReceivablesService {
             throw FinanceApiException.conflict("Financed amount exceeds available credit.");
         }
         if (policy.monthlyPurchaseLimit().compareTo(BigDecimal.ZERO) > 0) {
-            var monthStart = LocalDate.now().withDayOfMonth(1);
+            var monthStart = businessDate(context).withDayOfMonth(1);
             var monthEnd = monthStart.plusMonths(1);
             var currentMonthlyUsage = repository.sumMonthlyCreditSales(
                 context,
                 source.contactId(),
                 source.customerName(),
+                source.currency(),
                 monthStart,
                 monthEnd
             );
@@ -172,6 +275,7 @@ public class ReceivablesService {
                 throw FinanceApiException.conflict("Financed amount exceeds monthly credit limit.");
             }
         }
+        return policy;
     }
 
     private CandidateSaleResponse applyCreditSubject(
@@ -217,10 +321,12 @@ public class ReceivablesService {
     private CandidateSaleResponse resolveSource(FinanceContext context, CreateCreditSaleRequest request) {
         var salesRecordId = firstNonNull(request.salesRecordId(), parseSalesRecordId(request.candidateId()));
         if (salesRecordId != null) {
+            repository.lockCandidateSale(context, salesRecordId);
             return repository.findCandidateSale(context, salesRecordId)
                 .orElseThrow(() -> new NoSuchElementException("Candidate sale not found."));
         }
 
+        if (request.posTicketId() != null) throw FinanceApiException.badRequest("Select the saved POS sale to create its credit account.");
         var saleNumber = blankToDefault(request.saleNumber(), "MANUAL-" + System.currentTimeMillis());
         var customerName = blankToDefault(request.customerName(), "Cliente sin nombre");
         var originalAmount = positiveAmount(firstNonNull(request.originalAmount(), request.financedAmount()), "originalAmount");
@@ -240,7 +346,7 @@ public class ReceivablesService {
             customerName,
             "Unidad general",
             "Negocio general",
-            request.saleDate() == null ? LocalDate.now() : request.saleDate(),
+            request.saleDate() == null ? businessDate(context) : request.saleDate(),
             originalAmount,
             currency,
             normalizeSource(request.source())

@@ -8,16 +8,37 @@ import org.springframework.stereotype.Repository;
 public class InventoryDeductionRepository {
 
     private final JdbcTemplate jdbcTemplate;
+    private final com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver timezones;
 
-    public InventoryDeductionRepository(JdbcTemplate jdbcTemplate) {
+    public InventoryDeductionRepository(JdbcTemplate jdbcTemplate, com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver timezones) {
         this.jdbcTemplate = jdbcTemplate;
+        this.timezones = timezones;
+    }
+
+    public java.util.Map<String, Object> costSnapshot(PosContext context, long warehouseId, long productId) {
+        return jdbcTemplate.query("""
+            SELECT product.currency, balance.unit_cost
+            FROM sales_products product
+            JOIN sales_inventory_balances balance
+              ON balance.company_id = product.company_id AND balance.product_id = product.id
+            WHERE product.company_id = ? AND product.id = ? AND product.deleted_at IS NULL
+              AND balance.warehouse_id = ? AND balance.deleted_at IS NULL AND balance.uses_inventory = 1
+            FOR UPDATE
+            """, (rs, row) -> {
+                var snapshot = new java.util.LinkedHashMap<String, Object>();
+                snapshot.put("unitCost", rs.getBigDecimal("unit_cost"));
+                snapshot.put("costCurrency", rs.getString("currency"));
+                snapshot.put("costSource", "INVENTORY_BALANCE");
+                return (java.util.Map<String, Object>) snapshot;
+            }, context.companyId(), productId, warehouseId).stream().findFirst()
+            .orElseThrow(() -> com.indice.erp.pos.PosApiException.badRequest("No inventory cost exists for this product and warehouse."));
     }
 
     public boolean deductAvailable(PosContext context, long warehouseId, long productId, java.math.BigDecimal quantity) {
         var updated = jdbcTemplate.update("""
             UPDATE sales_inventory_balances
             SET available_quantity = available_quantity - ?,
-                last_movement_at = CURRENT_DATE,
+                last_movement_at = ?,
                 updated_by_user_id = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE company_id = ?
@@ -26,7 +47,7 @@ public class InventoryDeductionRepository {
               AND deleted_at IS NULL
               AND uses_inventory = 1
               AND available_quantity >= ?
-            """, quantity, context.userId(), context.companyId(), productId, warehouseId, quantity);
+            """, quantity, java.time.LocalDate.now(timezones.resolve(context.companyId())), context.userId(), context.companyId(), productId, warehouseId, quantity);
         return updated > 0;
     }
 
@@ -60,7 +81,7 @@ public class InventoryDeductionRepository {
             (company_id, movement_number, group_id, product_id, product_name, product_sku, movement_type,
              quantity, from_warehouse_id, from_warehouse_name, business_unit_id, business_id, reason,
              reference, responsible_name, movement_date, status, metadata_json, created_by_user_id)
-            VALUES (?, ?, ?, ?, ?, ?, 'POS_SALE_OUT', ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_DATE, 'posted', ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, 'POS_SALE_OUT', ?, ?, ?, ?, ?, ?, ?, ?, ?, 'posted', ?, ?)
             """,
             context.companyId(),
             command.movementNumber(),
@@ -76,6 +97,7 @@ public class InventoryDeductionRepository {
             "POS checkout inventory deduction",
             command.reference(),
             command.responsibleName(),
+            java.time.LocalDate.now(timezones.resolve(context.companyId())),
             command.metadataJson(),
             context.userId());
     }

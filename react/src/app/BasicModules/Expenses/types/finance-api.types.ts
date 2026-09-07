@@ -96,8 +96,13 @@ export interface PaymentAccountApiDto {
   currencyCode: string;
   openingBalance?: number | string | null;
   currentBalance?: number | string | null;
+  availableBalance?: number | string | null;
+  pendingBalance?: number | string | null;
+  totalBalance?: number | string | null;
   status?: BackendLifecycleStatus | null;
   description?: string | null;
+  systemKey?: string | null;
+  systemManaged?: boolean;
   createdAt?: string | null;
   updatedAt?: string | null;
   customFields?: FinanceJson;

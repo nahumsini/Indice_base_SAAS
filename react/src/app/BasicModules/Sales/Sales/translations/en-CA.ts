@@ -168,7 +168,7 @@ export const enCA = {
       sendToFinance: 'Send to finance validation',
       sendToCredit: 'Convert to credit sale',
       cancelSale: 'Cancel sale',
-      cancelConfirmation: 'Cancel this sale record? This only updates the local commercial status.',
+      cancelConfirmation: 'Cancel this sale? Any collection recorded by Sales will be reversed in Treasury and its history will be preserved. Manage POS tickets in POS.',
       deleteSale: 'Delete sale',
       deleteConfirmation: 'This removes the sale from active views while preserving its database audit trail. Sales with credit, POS, or closed commission records cannot be deleted.',
       deleteError: 'The sale could not be deleted.',

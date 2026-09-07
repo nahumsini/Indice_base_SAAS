@@ -30,12 +30,12 @@ class BasicModuleKpiCurrencyRepositoryTest {
         );
 
         var sql = ArgumentCaptor.forClass(String.class);
-        verify(jdbc).query(sql.capture(), any(RowMapper.class), eq(42L), eq(LocalDate.of(2026, 8, 1)), eq(LocalDate.of(2026, 8, 31)));
+        verify(jdbc).query(sql.capture(), any(RowMapper.class), eq(42L), eq(LocalDate.of(2026, 8, 1)), eq(LocalDate.of(2026, 9, 1)));
         org.assertj.core.api.Assertions.assertThat(sql.getValue())
             .contains("FROM finance_expenses")
             .contains("company_id = ?")
             .contains("expense_date >= ?")
-            .contains("expense_date <= ?")
+            .contains("expense_date < ?")
             .doesNotContain("42");
     }
 
@@ -149,5 +149,48 @@ class BasicModuleKpiCurrencyRepositoryTest {
             .contains("FROM sales_quotes q JOIN sales_opportunities o")
             .contains("LOWER(COALESCE(o.stage, '')) = 'lost'")
             .doesNotContain("estimated_value");
+    }
+
+    @Test
+    void accountingKpisExcludeExternallyManagedFunds() {
+        var balanceJdbc = mock(JdbcTemplate.class);
+        var statementJdbc = mock(JdbcTemplate.class);
+        var movementJdbc = mock(JdbcTemplate.class);
+        var settlementJdbc = mock(JdbcTemplate.class);
+
+        new BasicModuleKpiCurrencyRepository(balanceJdbc).load(
+            BasicModuleKpiMetric.PETTY_CASH_BALANCE, 42L, null, null, List.of(), false
+        );
+        new BasicModuleKpiCurrencyRepository(statementJdbc).load(
+            BasicModuleKpiMetric.PETTY_CASH_STATEMENT_VERIFIED, 42L, null, null, List.of(), false
+        );
+        new BasicModuleKpiCurrencyRepository(movementJdbc).load(
+            BasicModuleKpiMetric.PETTY_CASH_MOVEMENT_AMOUNT, 42L, null, null, List.of(), false
+        );
+        new BasicModuleKpiCurrencyRepository(settlementJdbc).load(
+            BasicModuleKpiMetric.PETTY_CASH_SETTLEMENT_AMOUNT, 42L, null, null, List.of(), false
+        );
+
+        var balanceSql = ArgumentCaptor.forClass(String.class);
+        var statementSql = ArgumentCaptor.forClass(String.class);
+        var movementSql = ArgumentCaptor.forClass(String.class);
+        var settlementSql = ArgumentCaptor.forClass(String.class);
+        verify(balanceJdbc).query(balanceSql.capture(), any(RowMapper.class), eq(42L));
+        verify(statementJdbc).query(statementSql.capture(), any(RowMapper.class), eq(42L));
+        verify(movementJdbc).query(movementSql.capture(), any(RowMapper.class), eq(42L));
+        verify(settlementJdbc).query(settlementSql.capture(), any(RowMapper.class), eq(42L));
+
+        org.assertj.core.api.Assertions.assertThat(balanceSql.getValue())
+            .contains("fund_type = 'INTERNAL_COMPANY'");
+        org.assertj.core.api.Assertions.assertThat(statementSql.getValue())
+            .contains("fund_type_snapshot = 'INTERNAL_COMPANY'");
+        org.assertj.core.api.Assertions.assertThat(movementSql.getValue())
+            .contains("JOIN finance_petty_cash_statements statement_record")
+            .contains("statement_record.fund_type_snapshot = 'INTERNAL_COMPANY'")
+            .contains("movement.company_id = ?");
+        org.assertj.core.api.Assertions.assertThat(settlementSql.getValue())
+            .contains("JOIN finance_petty_cash_statements statement_record")
+            .contains("statement_record.fund_type_snapshot = 'INTERNAL_COMPANY'")
+            .contains("settlement_line.company_id = ?");
     }
 }

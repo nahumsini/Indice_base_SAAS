@@ -158,8 +158,48 @@ export const enCACashRegisters = {
     businessNotAssigned: 'Business not assigned',
     inheritance: 'The register will inherit the selected warehouse unit and business.',
     code: 'Register code',
+    customCode: 'Custom code.',
+    automaticCode: 'The server will reserve the next available sequence when the register is created.',
     name: 'Register name',
     placeholder: 'Main register',
+  },
+  settlement: {
+    title: 'Where the money goes at closing',
+    description: (currency: string) => `Indice uses these rules to record each payment in the correct account. Currency: ${currency}.`,
+    loading: 'Loading accounts',
+    loadError: 'Available accounts could not be loaded.',
+    retainedTitle: 'Cash retained as the next opening float',
+    retainedHelp: 'The remaining counted cash will be transferred to the configured destination.',
+    selectDestination: 'Select the destination account',
+    settlementTiming: 'When it becomes available',
+    immediateTiming: 'Immediately',
+    deferredTiming: 'After confirmation',
+    needsConfiguration: 'needs configuration',
+    creditHelp: 'Recorded in accounts receivable without moving a money account.',
+    deferredHelp: 'Deferred payments appear as pending and become available only after the deposit is confirmed.',
+    incompleteError: 'Wait for the accounts to load and select a destination for every active payment method.',
+    methods: {
+      CASH: {
+        label: 'Cash',
+        help: 'Posted when the register closes; it can remain as cash or pending deposit.',
+      },
+      CARD: {
+        label: 'Card',
+        help: 'Remains pending until the acquirer deposit is confirmed.',
+      },
+      TRANSFER: {
+        label: 'Transfer',
+        help: 'Posted immediately when the destination bank account is already identified.',
+      },
+      WALLET: {
+        label: 'Digital wallet',
+        help: 'Remains pending until the platform settlement is confirmed.',
+      },
+      CREDIT: {
+        label: 'Credit sale',
+        help: 'Creates an account receivable and does not move a money account.',
+      },
+    },
   },
 } as const;
 
@@ -313,8 +353,48 @@ export const esMXCashRegisters: CashRegistersCopy = {
     businessNotAssigned: 'Negocio no asignado',
     inheritance: 'La caja heredará la unidad y negocio del almacén seleccionado.',
     code: 'Código de caja',
+    customCode: 'Código personalizado.',
+    automaticCode: 'El servidor reservará el siguiente consecutivo disponible al crear.',
     name: 'Nombre de caja',
     placeholder: 'Caja principal',
+  },
+  settlement: {
+    title: 'Destino del dinero al cerrar',
+    description: (currency) => `Índice usa estas reglas para registrar cada cobro en la cuenta correcta. Moneda: ${currency}.`,
+    loading: 'Cargando cuentas',
+    loadError: 'No fue posible cargar las cuentas disponibles.',
+    retainedTitle: 'Efectivo que permanece como fondo de apertura',
+    retainedHelp: 'El resto del efectivo contado se trasladará al destino configurado.',
+    selectDestination: 'Selecciona la cuenta destino',
+    settlementTiming: 'Cuándo pasa a disponible',
+    immediateTiming: 'De inmediato',
+    deferredTiming: 'Después de confirmar',
+    needsConfiguration: 'por configurar',
+    creditHelp: 'Se registra en cartera, sin mover una cuenta de dinero.',
+    deferredHelp: 'Los cobros diferidos aparecerán como pendientes y sólo pasarán a saldo disponible cuando se confirme el depósito.',
+    incompleteError: 'Espera a que carguen las cuentas y selecciona un destino para cada método de cobro activo.',
+    methods: {
+      CASH: {
+        label: 'Efectivo',
+        help: 'Se abona al cerrar la caja; puede quedar como efectivo o pendiente de depósito.',
+      },
+      CARD: {
+        label: 'Tarjeta',
+        help: 'Queda pendiente hasta confirmar el depósito del adquirente.',
+      },
+      TRANSFER: {
+        label: 'Transferencia',
+        help: 'Se abona de inmediato cuando el destino bancario ya está identificado.',
+      },
+      WALLET: {
+        label: 'Billetera digital',
+        help: 'Queda pendiente hasta confirmar la liquidación de la plataforma.',
+      },
+      CREDIT: {
+        label: 'Venta a crédito',
+        help: 'Genera una cuenta por cobrar; no mueve una cuenta de dinero.',
+      },
+    },
   },
 };
 

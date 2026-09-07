@@ -25,7 +25,7 @@ final class PaymentAccountTestData {
 
     static UpdatePaymentAccountRequest updateRequest(String name, PaymentAccountStatus status) {
         return new UpdatePaymentAccountRequest(
-            null, null, name, PaymentAccountType.BANK, "usd", null, null,
+            null, null, name, PaymentAccountType.CASH, "mxn", null, null,
             status, "Updated payment account", null, null);
     }
 

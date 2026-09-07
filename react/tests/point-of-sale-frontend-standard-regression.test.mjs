@@ -147,6 +147,17 @@ test('Punto de Venta respeta la escala tipográfica del Frontend Engine V2', () 
   );
 });
 
+test('Cortes exige una nota auditable cuando el depósito confirmado difiere', () => {
+  const detailModal = readFileSync(resolve(pointOfSaleRoot, 'Cortes/components/CorteDetailModal.tsx'), 'utf8');
+  const translations = readFileSync(resolve(pointOfSaleRoot, 'Cortes/cortesTranslations.ts'), 'utf8');
+
+  assert.match(detailModal, /settlementNotes/);
+  assert.match(detailModal, /note: settlementNotes\[settlement\.id\]\?\.trim\(\) \|\| undefined/);
+  assert.match(detailModal, /confirmationNoteHint/);
+  assert.match(translations, /confirmationNote: 'Nota del depósito'/);
+  assert.match(translations, /confirmationNoteHint: 'Obligatoria cuando el importe es diferente'/);
+});
+
 test('Venta conserva la geometria coral y los controles tactiles del workspace POS', () => {
   const sale = readFileSync(resolve(pointOfSaleRoot, 'Sale/Sale.tsx'), 'utf8');
   const theme = readFileSync(resolve(root, 'src/styles/theme.css'), 'utf8');
@@ -527,6 +538,62 @@ test('Cajas concentra la operación en vivo y los cortes cerrados del día', () 
   assert.match(cashRegisters, /<IndiceFilterSearch/);
   assert.match(cashRegisters, /<IndiceFilterSelect/);
   assert.doesNotMatch(cashRegisters.match(/<IndiceFilterBar[\s\S]*?>/)?.[0] ?? '', /subtitle=|summary=/);
+});
+
+test('Cada caja configura el destino por medio de pago y el corte confirma saldos pendientes', () => {
+  const createModal = readFileSync(resolve(pointOfSaleRoot, 'Sale/components/CreateCashRegisterModal.tsx'), 'utf8');
+  const settlementFields = readFileSync(resolve(pointOfSaleRoot, 'Sale/components/CashRegisterSettlementFields.tsx'), 'utf8');
+  const registers = readFileSync(resolve(pointOfSaleRoot, 'CashRegisters/CashRegistersWorkspace.tsx'), 'utf8');
+  const cuts = readFileSync(resolve(pointOfSaleRoot, 'Cortes/components/CorteDetailModal.tsx'), 'utf8');
+  const api = readFileSync(resolve(pointOfSaleRoot, 'Sale/services/posBackendApi.ts'), 'utf8');
+  const closingApi = readFileSync(resolve(pointOfSaleRoot, 'Cortes/services/cashClosingsApi.ts'), 'utf8');
+
+  assert.match(createModal, /<CashRegisterSettlementFields/);
+  assert.match(createModal, /settlementRules\.length < 5/);
+  assert.match(registers, /retainedCashAmount/);
+  assert.match(registers, /settlementRules/);
+  assert.match(settlementFields, /UNIVERSAL_CASH:/);
+  assert.match(settlementFields, /POS_UNASSIGNED_\$\{key\}:/);
+  assert.match(settlementFields, /method === 'CASH' && account\?\.type === 'BANK'/);
+  assert.match(api, /getCashRegisterSettlementPolicy/);
+  assert.match(api, /getWarehouseSettlementAccounts/);
+  assert.match(api, /settlement-policy\/prepare\?currencyCode=/);
+  assert.match(api, /settlement-accounts\/prepare\?warehouseId=/);
+  assert.ok((api.match(/\{ method: 'POST' \}/g) ?? []).length >= 3);
+  assert.match(cuts, /settlement\.status === 'PENDING'/);
+  assert.match(cuts, /receivedAmount/);
+  assert.match(closingApi, /confirmSettlement/);
+});
+
+test('La recepción pagada usa proveedor, partidas, impuestos y permanece junto al contexto de caja', () => {
+  const modal = readFileSync(resolve(pointOfSaleRoot, 'Sale/components/PaidInventoryReceiptModal.tsx'), 'utf8');
+  const shiftBar = readFileSync(resolve(pointOfSaleRoot, 'Sale/components/ShiftBar.tsx'), 'utf8');
+  const sale = readFileSync(resolve(pointOfSaleRoot, 'Sale/Sale.tsx'), 'utf8');
+  const api = readFileSync(resolve(pointOfSaleRoot, 'Sale/services/posBackendApi.ts'), 'utf8');
+
+  assert.match(modal, /modalType="operational-workspace"/);
+  assert.match(modal, /title="Recibir mercancía y pagar"/);
+  assert.match(modal, /1\. Proveedor y pago/);
+  assert.match(modal, /Agregar proveedor rápido/);
+  assert.match(modal, /Búsqueda rápida/);
+  assert.match(modal, /3\. Partidas de la recepción/);
+  assert.match(modal, /Aplicar impuesto a esta partida/);
+  assert.match(modal, /Subtotal[\s\S]*Impuestos[\s\S]*Total/);
+  assert.match(modal, /evidencePendingRetry/);
+  assert.match(modal, /presentation=\{workspaceMode \? 'workspace' : 'modal'\}/);
+  assert.match(modal, /workspaceMode\s*\? 'grid gap-3 sm:grid-cols-2'/);
+  assert.doesNotMatch(modal, /Recepciones recientes del turno/);
+  assert.doesNotMatch(modal, /paidInventoryReceipts\(|reversePaidInventoryReceipt/);
+  assert.match(api, /paidInventoryReceiptProducts\(cashRegisterId/);
+  assert.match(api, /paidInventoryReceiptProviders\(\)/);
+  assert.match(api, /createPaidInventoryReceiptProvider/);
+  assert.match(api, /paidInventoryReceiptPaymentAccounts/);
+  const actionGroupIndex = shiftBar.indexOf('className="flex flex-wrap items-center gap-1.5"');
+  const receiptButtonIndex = shiftBar.indexOf('label="Recibir mercancía"');
+  const returnButtonIndex = shiftBar.indexOf('label="Devolución"');
+  assert.ok(receiptButtonIndex > actionGroupIndex && receiptButtonIndex < returnButtonIndex, 'La acción debe permanecer junto a los demás botones del turno.');
+  assert.equal((sale.match(/<PaidInventoryReceiptModal/g) ?? []).length, 1);
+  assert.match(sale, /data-pos-products-column[\s\S]*showPaidInventoryReceiptModal[\s\S]*<PaidInventoryReceiptModal[\s\S]*workspaceMode[\s\S]*data-pos-ticket-column/);
 });
 
 test('El localizador heredado permite que React actualice textos y atributos dinámicos', () => {

@@ -114,9 +114,9 @@ public class ProcessTasksService {
                    pt.assigned_user_company_id,
                    assigned_user_company.user_id AS assigned_user_id,
                    COALESCE(
-                       NULLIF(pt.assigned_name, ''),
-                       NULLIF(TRIM(assigned_user.full_name), ''),
-                       NULLIF(TRIM(assigned_user.email), ''),
+
+                       NULLIF(TRIM(assigned_user_display_profile.full_name), ''), NULLIF(TRIM(assigned_user.full_name), ''),
+                       NULLIF(TRIM(assigned_user.email), ''), NULLIF(pt.assigned_name, ''),
                        NULL
                    ) AS resolved_assigned_name,
                    pt.status,
@@ -183,6 +183,7 @@ public class ProcessTasksService {
             LEFT JOIN user_companies assigned_user_company ON assigned_user_company.id = pt.assigned_user_company_id
                 AND assigned_user_company.company_id = pt.company_id
             LEFT JOIN users assigned_user ON assigned_user.id = assigned_user_company.user_id
+                        LEFT JOIN user_profiles assigned_user_display_profile ON assigned_user_display_profile.user_id = assigned_user.id
             LEFT JOIN user_companies completed_user_company ON completed_user_company.id = pt.completed_by_user_company_id
                 AND completed_user_company.company_id = pt.company_id
             LEFT JOIN users completed_user ON completed_user.id = COALESCE(completed_user_company.user_id, pt.completed_by_user_id)

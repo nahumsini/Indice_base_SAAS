@@ -7,6 +7,10 @@ import com.indice.erp.finance.paymentaccounts.dto.PaymentAccountListResponse;
 import com.indice.erp.finance.paymentaccounts.dto.PaymentAccountResponse;
 import com.indice.erp.finance.paymentaccounts.dto.UpdatePaymentAccountRequest;
 import com.indice.erp.finance.shared.FinanceContext;
+import com.indice.erp.finance.treasury.TreasuryMovementCommand;
+import com.indice.erp.finance.treasury.TreasuryService;
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.NoSuchElementException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,16 +22,19 @@ public class PaymentAccountService {
     private final PaymentAccountMapper mapper;
     private final PaymentAccountValidator validator;
     private final PaymentAccountReferenceValidator referenceValidator;
+    private final TreasuryService treasuryService;
 
     public PaymentAccountService(
             PaymentAccountRepository repository,
             PaymentAccountMapper mapper,
             PaymentAccountValidator validator,
-            PaymentAccountReferenceValidator referenceValidator) {
+            PaymentAccountReferenceValidator referenceValidator,
+            TreasuryService treasuryService) {
         this.repository = repository;
         this.mapper = mapper;
         this.validator = validator;
         this.referenceValidator = referenceValidator;
+        this.treasuryService = treasuryService;
     }
 
     @Transactional(readOnly = true)
@@ -49,15 +56,33 @@ public class PaymentAccountService {
         referenceValidator.validateAssignment(context, assignment);
         var command = mapper.toCreateCommand(context, request, assignment);
         requireUniqueName(context, command.name(), null);
-        return mapper.toResponse(repository.insert(context, command));
+        var created = repository.insert(context, command);
+        if (created.openingBalance() != null && created.openingBalance().signum() != 0) {
+            treasuryService.post(new TreasuryMovementCommand(
+                context.companyId(), created.id(), created.unitId(), created.businessId(), created.currencyCode(),
+                "FINANCE", "PAYMENT_ACCOUNT_OPENING", String.valueOf(created.id()),
+                "PAYMENT_ACCOUNT_OPENING:" + created.id(), created.openingBalance(), BigDecimal.ZERO,
+                "Saldo inicial de la cuenta", Instant.now(), context.userId(), null,
+                "{\"owner\":\"PAYMENT_ACCOUNTS\"}"
+            ));
+            created = requireAccount(context, created.id());
+        }
+        return mapper.toResponse(created);
     }
 
     @Transactional
     public PaymentAccountResponse update(FinanceContext context, long accountId, UpdatePaymentAccountRequest request) {
-        requireAccount(context, accountId);
+        repository.lockForMaintenance(context, accountId);
+        var existing = requireAccount(context, accountId);
+        requireUserManaged(existing);
         var assignment = validator.validateUpdate(context, request);
         referenceValidator.validateAssignment(context, assignment);
         var command = mapper.toUpdateCommand(context, request, assignment);
+        if (hasFinancialEvidence(context, existing) && (!existing.currencyCode().equals(command.currencyCode())
+                || existing.type() != command.type() || !java.util.Objects.equals(existing.unitId(), command.unitId())
+                || !java.util.Objects.equals(existing.businessId(), command.businessId()))) {
+            throw FinanceApiException.conflict("La cuenta conserva moneda, tipo y alcance después de registrar saldos o movimientos. Crea otra cuenta para una configuración distinta.");
+        }
         requireUniqueName(context, command.name(), accountId);
         if (!repository.update(context, accountId, command)) {
             throw new NoSuchElementException("Payment account not found.");
@@ -67,11 +92,19 @@ public class PaymentAccountService {
 
     @Transactional
     public DeletePaymentAccountResponse delete(FinanceContext context, long accountId) {
-        requireAccount(context, accountId);
+        repository.lockForMaintenance(context, accountId);
+        var existing = requireAccount(context, accountId);
+        requireUserManaged(existing);
+        if (hasFinancialEvidence(context, existing)) throw FinanceApiException.conflict("La cuenta tiene saldos o historial financiero. Puedes desactivarla conservando sus movimientos.");
         if (!repository.softDelete(context, accountId)) {
             throw new NoSuchElementException("Payment account not found.");
         }
         return new DeletePaymentAccountResponse(true);
+    }
+
+    private boolean hasFinancialEvidence(FinanceContext context, PaymentAccountRecord account) {
+        return account.openingBalance().signum() != 0 || account.currentBalance().signum() != 0 || account.pendingBalance().signum() != 0
+            || repository.hasFinancialHistory(context, account.id());
     }
 
     private void requireUniqueName(FinanceContext context, String name, Long excludedAccountId) {
@@ -83,5 +116,11 @@ public class PaymentAccountService {
     private PaymentAccountRecord requireAccount(FinanceContext context, long accountId) {
         return repository.findById(context, accountId)
             .orElseThrow(() -> new NoSuchElementException("Payment account not found."));
+    }
+
+    private void requireUserManaged(PaymentAccountRecord account) {
+        if (account.systemManaged()) {
+            throw FinanceApiException.conflict("System-managed payment accounts cannot be modified or deleted.");
+        }
     }
 }

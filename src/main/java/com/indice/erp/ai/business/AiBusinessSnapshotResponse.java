@@ -35,7 +35,9 @@ public record AiBusinessSnapshotResponse(
         int absences,
         double attendanceRate,
         int organizationRows,
-        int executiveScore
+        int executiveScore,
+        boolean profitReady,
+        boolean monetaryPartial
     ) {
     }
 

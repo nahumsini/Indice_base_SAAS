@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -39,6 +40,44 @@ public class CashRegisterController {
     public ResponseEntity<?> get(HttpSession session, @PathVariable long registerId) {
         var access = guard.requireReadAccess(session);
         return access.denied() ? access.error() : ResponseEntity.ok(service.get(access.context(), registerId));
+    }
+
+    @PostMapping("/{registerId}/settlement-policy/prepare")
+    public ResponseEntity<?> settlementPolicy(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long registerId,
+            @RequestParam String currencyCode) {
+        var access = guard.requireAdminWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.settlementPolicy(access.context(), registerId, currencyCode));
+    }
+
+    @PostMapping("/{registerId}/settlement-accounts/prepare")
+    public ResponseEntity<?> settlementAccounts(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long registerId,
+            @RequestParam String currencyCode) {
+        var access = guard.requireAdminWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.settlementAccounts(access.context(), registerId, currencyCode));
+    }
+
+    @PostMapping("/settlement-accounts/prepare")
+    public ResponseEntity<?> settlementAccountsForWarehouse(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @RequestParam long warehouseId,
+            @RequestParam String currencyCode) {
+        var access = guard.requireAdminWriteAccess(session, csrfToken);
+        return access.denied()
+            ? access.error()
+            : ResponseEntity.ok(service.settlementAccountsForWarehouse(
+                access.context(), warehouseId, currencyCode
+            ));
     }
 
     @PostMapping

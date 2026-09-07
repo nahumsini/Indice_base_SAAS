@@ -19,10 +19,12 @@ public class BasicModuleKpiCurrencyController {
 
     private final SessionAuthService sessionAuthService;
     private final BasicModuleKpiCurrencyService service;
+    private final com.indice.erp.kpis.KpiRequestAccessService access;
 
-    public BasicModuleKpiCurrencyController(SessionAuthService sessionAuthService, BasicModuleKpiCurrencyService service) {
+    public BasicModuleKpiCurrencyController(SessionAuthService sessionAuthService, BasicModuleKpiCurrencyService service, com.indice.erp.kpis.KpiRequestAccessService access) {
         this.sessionAuthService = sessionAuthService;
         this.service = service;
+        this.access = access;
     }
 
     @GetMapping("/monetary-aggregate")
@@ -39,7 +41,7 @@ public class BasicModuleKpiCurrencyController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
         try {
-            return ResponseEntity.ok(service.aggregate(user.get().companyId(), metric, preferredCurrency, from, to, ids, ids != null));
+            return ResponseEntity.ok(service.aggregate(user.get().companyId(), metric, preferredCurrency, from, to, ids, ids != null, access.monetary(user.get(), metric)));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
         }
@@ -54,7 +56,7 @@ public class BasicModuleKpiCurrencyController {
         try {
             var ids = query.ids() == null ? null : query.ids().stream().map(String::valueOf).reduce((left, right) -> left + "," + right).orElse(null);
             return ResponseEntity.ok(service.aggregate(
-                user.get().companyId(), query.metric(), query.preferredCurrency(), query.from(), query.to(), ids, query.ids() != null
+                user.get().companyId(), query.metric(), query.preferredCurrency(), query.from(), query.to(), ids, query.ids() != null, access.monetary(user.get(), query.metric())
             ));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
@@ -78,7 +80,7 @@ public class BasicModuleKpiCurrencyController {
                 }
                 var ids = query.ids() == null ? null : query.ids().stream().map(String::valueOf).reduce((left, right) -> left + "," + right).orElse(null);
                 results.put(query.key(), service.aggregate(
-                    user.get().companyId(), query.metric(), query.preferredCurrency(), query.from(), query.to(), ids, query.ids() != null
+                    user.get().companyId(), query.metric(), query.preferredCurrency(), query.from(), query.to(), ids, query.ids() != null, access.monetary(user.get(), query.metric())
                 ));
             }
             return ResponseEntity.ok(Map.of("results", results));

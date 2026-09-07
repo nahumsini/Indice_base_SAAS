@@ -190,7 +190,7 @@ public class ProcessRunsService {
                     SELECT run.id, run.process_id, version.version_number, run.folio, run.activation_mode,
                            run.reference, run.notes, run.start_date, run.status, run.requires_attention,
                            run.created_at, run.finalized_at,
-                           COALESCE(NULLIF(TRIM(coordinator.full_name), ''), NULLIF(TRIM(coordinator.email), ''), NULL) AS coordinator_name,
+                           COALESCE(NULLIF(TRIM(coordinator_display_profile.full_name), ''), NULLIF(TRIM(coordinator.full_name), ''), NULLIF(TRIM(coordinator.email), ''), NULL) AS coordinator_name,
                            SUM(CASE WHEN task.status = 'completed' THEN 1 ELSE 0 END) AS completed_tasks,
                            SUM(CASE WHEN task.status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled_tasks,
                            SUM(CASE
@@ -204,6 +204,7 @@ public class ProcessRunsService {
                       ON coordinator_company.id = run.coordinator_user_company_id
                      AND coordinator_company.company_id = run.company_id
                     LEFT JOIN users coordinator ON coordinator.id = coordinator_company.user_id
+                        LEFT JOIN user_profiles coordinator_display_profile ON coordinator_display_profile.user_id = coordinator.id
                     LEFT JOIN process_tasks task
                       ON task.company_id = run.company_id
                      AND task.process_run_id = run.id
@@ -414,11 +415,12 @@ public class ProcessRunsService {
                 """
                     SELECT assignee.user_company_id,
                            LOWER(COALESCE(user_company.status, 'active')) IN ('active', 'activo') AS is_active,
-                           COALESCE(NULLIF(TRIM(user_account.full_name), ''), NULLIF(TRIM(user_account.email), ''), CONCAT('User #', assignee.user_company_id)) AS display_name
+                           COALESCE(NULLIF(TRIM(user_account_display_profile.full_name), ''), NULLIF(TRIM(user_account.full_name), ''), NULLIF(TRIM(user_account.email), ''), CONCAT('User #', assignee.user_company_id)) AS display_name
                     FROM process_task_template_assignees assignee
                     JOIN user_companies user_company
                       ON user_company.id = assignee.user_company_id AND user_company.company_id = assignee.company_id
                     JOIN users user_account ON user_account.id = user_company.user_id
+                        LEFT JOIN user_profiles user_account_display_profile ON user_account_display_profile.user_id = user_account.id
                     WHERE assignee.company_id = ? AND assignee.template_id = ?
                     ORDER BY assignee.position_number, assignee.id
                     """,
@@ -482,10 +484,11 @@ public class ProcessRunsService {
         var assignments = jdbcTemplate.query(
                 """
                     SELECT assignment.task_id,
-                           COALESCE(NULLIF(TRIM(user_account.full_name), ''), NULLIF(TRIM(user_account.email), ''), CONCAT('User #', assignment.user_company_id)) AS display_name
+                           COALESCE(NULLIF(TRIM(user_account_display_profile.full_name), ''), NULLIF(TRIM(user_account.full_name), ''), NULLIF(TRIM(user_account.email), ''), CONCAT('User #', assignment.user_company_id)) AS display_name
                     FROM process_task_assignees assignment
                     JOIN user_companies user_company ON user_company.id = assignment.user_company_id AND user_company.company_id = assignment.company_id
                     JOIN users user_account ON user_account.id = user_company.user_id
+                        LEFT JOIN user_profiles user_account_display_profile ON user_account_display_profile.user_id = user_account.id
                     WHERE assignment.company_id = ? AND assignment.task_id IN (%s) AND assignment.removed_at IS NULL
                     ORDER BY CASE WHEN assignment.assignment_role = 'lead' THEN 0 ELSE 1 END, assignment.id
                     """.formatted(placeholders),

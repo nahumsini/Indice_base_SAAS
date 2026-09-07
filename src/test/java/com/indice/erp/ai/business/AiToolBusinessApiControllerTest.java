@@ -30,6 +30,7 @@ class AiToolBusinessApiControllerTest {
     private AiBusinessSnapshotService snapshotService;
     private AiToolUsageAuditService auditService;
     private AiToolBusinessApiController controller;
+    private com.indice.erp.kpis.KpiRequestAccessService kpiAccess;
 
     @BeforeEach
     void setUp() {
@@ -37,7 +38,9 @@ class AiToolBusinessApiControllerTest {
         authorizationService = mock(AiToolAuthorizationService.class);
         snapshotService = mock(AiBusinessSnapshotService.class);
         auditService = mock(AiToolUsageAuditService.class);
-        controller = new AiToolBusinessApiController(tokenService, authorizationService, snapshotService, auditService);
+        kpiAccess = mock(com.indice.erp.kpis.KpiRequestAccessService.class);
+        when(kpiAccess.central(USER, "kpis", null, null)).thenReturn(new com.indice.erp.kpis.KpiRequestAccessService.Selection(null, null));
+        controller = new AiToolBusinessApiController(tokenService, authorizationService, snapshotService, auditService, kpiAccess);
     }
 
     @Test
@@ -59,6 +62,17 @@ class AiToolBusinessApiControllerTest {
             org.mockito.ArgumentMatchers.eq("SUCCESS"),
             org.mockito.ArgumentMatchers.eq(200)
         );
+    }
+
+    @Test
+    void delegatedSnapshotForcesTheCurrentOrganizationalScope() {
+        authenticate();
+        when(authorizationService.canReadBusinessSnapshot(USER)).thenReturn(true);
+        when(kpiAccess.central(USER, "kpis", null, null)).thenReturn(new com.indice.erp.kpis.KpiRequestAccessService.Selection(11L, 12L));
+        var scoped = Map.of("period", "monthly", "unitId", "11", "businessId", "12");
+        when(snapshotService.get(23L, 3L, scoped)).thenReturn(snapshot());
+        assertThat(controller.snapshot(AUTHORIZATION, "monthly", null, null, null).getStatusCode().value()).isEqualTo(200);
+        verify(snapshotService).get(23L, 3L, scoped);
     }
 
     @Test
@@ -110,7 +124,9 @@ class AiToolBusinessApiControllerTest {
                 0,
                 100,
                 0,
-                40
+                40,
+                true,
+                false
             ),
             List.of()
         );

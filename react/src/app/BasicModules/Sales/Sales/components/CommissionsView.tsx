@@ -9,6 +9,8 @@ import { CommissionKpiStrip } from './CommissionKpiStrip';
 import { CommissionTable } from './CommissionTable';
 import { CommissionCutsTable } from './CommissionCutsTable';
 import { salesApi } from '../../salesApi';
+import { useLanguage } from '../../../../shared/context';
+import { commissionFeedback } from '../translations/commissionFeedback';
 import { SalesFilterBar, SalesFilterSearch, SalesFilterSelect, salesFilterControlClassName } from '../../components/SalesFilterBar';
 
 export function CommissionsView({
@@ -33,11 +35,14 @@ export function CommissionsView({
     filters,
     setFilters,
     kpis,
+    summary,
     units,
     businesses,
     salesReps,
     products,
   } = useCommissionCalculations({ sales, rules });
+  const { currentLanguage } = useLanguage();
+  const feedback = commissionFeedback(currentLanguage.code);
   const [selectedRecord, setSelectedRecord] = useState<CommissionRecord | null>(null);
   const [cuts, setCuts] = useState<CommissionCut[]>([]);
   const [cutsError, setCutsError] = useState('');
@@ -85,6 +90,8 @@ export function CommissionsView({
       />
 
       {!learningModeActive ? <CommissionKpiStrip kpis={kpis} records={filteredRecords} t={t} /> : null}
+      {summary.error ? <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">{feedback.unavailable}</p> : null}
+      {summary.data && (summary.data.incomplete || summary.data.total.partial || summary.data.salesBase.partial) ? <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">{feedback.incomplete}</p> : null}
 
       <CommissionTable records={filteredRecords} t={t} onViewRecord={setSelectedRecord} />
 

@@ -642,23 +642,24 @@ export function SalesCrmProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
-    updateSaleRecord: (saleId, patch) => {
+    updateSaleRecord: async (saleId, patch) => {
       const currentSale = salesRecords.find((saleRecord) => saleRecord.id === saleId);
-      setSalesRecords((current) => current.map((saleRecord) => (
-        saleRecord.id === saleId ? { ...saleRecord, ...patch } : saleRecord
-      )));
       const backendId = backendIdFrom(currentSale);
-      if (backendId !== undefined) {
-        void salesApi.update('sales', backendId, toBackendSaleRecord({ ...currentSale, ...patch }, contacts, opportunities, quotes))
-          .then((savedSale) => {
-            const persistedSale = toFrontendSaleRecord(savedSale as Record<string, unknown>);
-            setSalesRecords((current) => current.map((saleRecord) => (
-              saleRecord.id === saleId || saleRecord.backendId === backendId ? persistedSale : saleRecord
-            )));
-          })
-          .catch((error) => handleSyncFailure('update sale', error));
-      } else if (currentSale) {
+      if (backendId === undefined || !currentSale) {
         handleSyncFailure('update sale', new Error('Missing backend identifier.'));
+        return false;
+      }
+      try {
+        const savedSale = await salesApi.update('sales', backendId, toBackendSaleRecord({ ...currentSale, ...patch }, contacts, opportunities, quotes));
+        const persistedSale = toFrontendSaleRecord(savedSale as Record<string, unknown>);
+        setSalesRecords((current) => current.map((saleRecord) => (
+          saleRecord.id === saleId || saleRecord.backendId === backendId ? persistedSale : saleRecord
+        )));
+        setSyncIssue(null);
+        return true;
+      } catch (error) {
+        handleSyncFailure('update sale', error);
+        return false;
       }
     },
     deleteSaleRecord: async (saleId) => {

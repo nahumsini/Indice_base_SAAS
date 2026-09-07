@@ -21,3 +21,18 @@ integrations/indice-mcp/.env
 deployment/env/.env
 deployment/env/*.local
 deployment/env/*.secret
+
+# Local credentials, backups and unrelated work never enter a release context.
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/id_rsa*
+**/id_ed25519*
+**/*.sql.gz
+**/*.dump
+.run
+tmp
+logs
+output
+elcorazondelcaribe-local

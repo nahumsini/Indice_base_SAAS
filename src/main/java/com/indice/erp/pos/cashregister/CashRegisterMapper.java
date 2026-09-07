@@ -29,6 +29,7 @@ public class CashRegisterMapper {
             CashRegisterStatus.valueOf(rs.getString("status")),
             rs.getBoolean("is_active"),
             rs.getString("notes"),
+            rs.getBigDecimal("retained_cash_amount"),
             rs.getLong("created_by_user_id"),
             PosSqlSupport.nullableLong(rs, "updated_by_user_id"),
             PosSqlSupport.instant(rs, "created_at"),
@@ -41,10 +42,17 @@ public class CashRegisterMapper {
     }
 
     public CashRegisterResponse toResponse(CashRegisterRecord record) {
+        return toResponse(record, java.util.List.of());
+    }
+
+    public CashRegisterResponse toResponse(
+            CashRegisterRecord record,
+            java.util.List<com.indice.erp.pos.settlement.SettlementRuleResponse> settlementRules) {
         return new CashRegisterResponse(
             record.id(), record.companyId(), record.unitId(), record.businessId(),
             record.warehouseId(), record.warehouseName(), record.code(), record.name(),
-            record.status(), record.active(), record.notes(), record.createdByUserId(),
+            record.status(), record.active(), record.notes(), record.retainedCashAmount(), settlementRules,
+            record.createdByUserId(),
             record.updatedByUserId(), record.createdAt(), record.updatedAt(), record.version(),
             PosJsonSupport.toJsonNode(record.customFieldsJson()),
             PosJsonSupport.toJsonNode(record.metadataJson())
@@ -59,6 +67,7 @@ public class CashRegisterMapper {
         return new CashRegisterCommand(
             warehouse.unitId(), warehouse.businessId(), warehouse.id(), normalizeCode(request.code()),
             trim(request.name()), status, status == CashRegisterStatus.ACTIVE, trimToNull(request.notes()),
+            nonNegative(request.retainedCashAmount()),
             context.userId(), null, PosJsonSupport.toJson(request.customFields()),
             PosJsonSupport.toJson(request.metadata())
         );
@@ -72,6 +81,7 @@ public class CashRegisterMapper {
         return new CashRegisterCommand(
             warehouse.unitId(), warehouse.businessId(), warehouse.id(), normalizeCode(request.code()),
             trim(request.name()), status, status == CashRegisterStatus.ACTIVE, trimToNull(request.notes()),
+            nonNegative(request.retainedCashAmount()),
             null, context.userId(), PosJsonSupport.toJson(request.customFields()),
             PosJsonSupport.toJson(request.metadata())
         );
@@ -96,5 +106,15 @@ public class CashRegisterMapper {
     private String trimToNull(String value) {
         var trimmed = trim(value);
         return trimmed == null || trimmed.isBlank() ? null : trimmed;
+    }
+
+    private java.math.BigDecimal nonNegative(java.math.BigDecimal value) {
+        if (value == null) {
+            return java.math.BigDecimal.ZERO;
+        }
+        if (value.signum() < 0) {
+            throw com.indice.erp.pos.PosApiException.badRequest("retainedCashAmount cannot be negative.");
+        }
+        return value.setScale(4, java.math.RoundingMode.HALF_UP);
     }
 }
