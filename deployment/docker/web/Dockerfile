@@ -33,6 +33,10 @@ RUN npm run build \
 
 FROM nginxinc/nginx-unprivileged:stable-alpine
 
+USER root
+RUN apk upgrade --no-cache
+USER 101
+
 ARG WEB_NGINX_CONFIG=deployment/docker/web/nginx.conf
 ARG WEB_NGINX_LISTEN_PORT=8080
 ARG WEB_NGINX_BACKEND_PORT=8082

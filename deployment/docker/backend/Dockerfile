@@ -31,7 +31,8 @@ WORKDIR /app
 LABEL org.opencontainers.image.title="Indice ERP Backend"
 LABEL org.opencontainers.image.description="Indice ERP Spring Boot API"
 
-RUN addgroup -S spring \
+RUN apk upgrade --no-cache \
+    && addgroup -S spring \
     && adduser -S spring -G spring \
     && mkdir -p /app/logs \
     && chown -R spring:spring /app/logs
