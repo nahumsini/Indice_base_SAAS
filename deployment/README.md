@@ -100,6 +100,15 @@ Antes de publicar, ejecuta la validación completa con el archivo de entorno rea
 ./deployment/scripts/preflight.sh
 ```
 
+Para el despliegue con `up-host-network.sh`, ejecuta el mismo preflight con
+`DEPLOY_TOPOLOGY=host-network` y el `DEPLOY_ENV_FILE` real. Conserva todas las
+validaciones del entorno, pruebas y builds, pero revisa la sintaxis de Compose
+sin exigir credenciales de su servicio MySQL ni precios Stripe TEST ajenos a esa
+topología. Después de construir las imágenes, el `DEPLOY_DRY_RUN=true` de
+`up-host-network.sh` debe validar las imágenes, rutas, puertos y espacio reales
+antes de activar contenedores. El valor predeterminado `compose` conserva la
+validación interpolada de sus servicios.
+
 El preflight valida la configuración de producción, scripts, Compose, frontend,
 backend, MCP y la construcción de las tres imágenes Docker. No muestra los valores de
 las credenciales. Para comprobar solamente el repositorio con la plantilla:

@@ -5,6 +5,12 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DEPLOY_DIR="${ROOT_DIR}/deployment"
 USE_EXAMPLE=false
+DEPLOY_TOPOLOGY="${DEPLOY_TOPOLOGY:-compose}"
+
+case "${DEPLOY_TOPOLOGY}" in
+  compose|host-network) ;;
+  *) echo "DEPLOY_TOPOLOGY must be compose or host-network." >&2; exit 2 ;;
+esac
 
 if [[ "${1:-}" == "--example" ]]; then
   USE_EXAMPLE=true
@@ -292,16 +298,22 @@ fi
 
 echo "Validating deployment scripts and Compose configuration..."
 bash -n "${DEPLOY_DIR}"/scripts/*.sh
+compose_config_options=(--quiet)
+if [[ "${DEPLOY_TOPOLOGY}" == "host-network" ]]; then
+  # Host-network deployments use the protected environment directly. The Compose
+  # MySQL and Stripe TEST services are not part of that topology.
+  compose_config_options+=(--no-interpolate)
+fi
 docker compose \
   --env-file "${ENV_FILE}" \
   -f "${DEPLOY_DIR}/compose/docker-compose.yml" \
-  config --quiet
+  config "${compose_config_options[@]}"
 docker compose \
   --env-file "${ENV_FILE}" \
   -f "${DEPLOY_DIR}/compose/docker-compose.staging.yml" \
   --profile ai \
   config --no-interpolate --quiet
-if [[ "${USE_EXAMPLE}" == "false" ]]; then
+if [[ "${USE_EXAMPLE}" == "false" && "${DEPLOY_TOPOLOGY}" == "compose" ]]; then
   APP_IMAGE_TAG=release-check docker compose \
     --env-file "${ENV_FILE}" \
     -f "${DEPLOY_DIR}/compose/docker-compose.staging.yml" \
