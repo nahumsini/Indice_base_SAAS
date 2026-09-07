@@ -13,6 +13,7 @@ type ResponsibleUser = {
   id: string;
   name: string;
   companyId: string;
+  companyName: string;
 };
 
 export type SaleRegisterContextState = {
@@ -33,6 +34,7 @@ const emptyResponsibleUser: ResponsibleUser = {
   id: '',
   name: 'Usuario actual',
   companyId: '',
+  companyName: '',
 };
 
 const toId = (value: number | string | null | undefined) => (
@@ -69,6 +71,7 @@ export function useSaleRegisterContext(): SaleRegisterContextState {
           id: String(session.user.id),
           name: session.user.name || emptyResponsibleUser.name,
           companyId: String(session.company.id),
+          companyName: session.company.name,
         });
       }
 
@@ -122,9 +125,11 @@ export function useSaleRegisterContext(): SaleRegisterContextState {
   }, [activeCashRegisters, posContext?.currentOpenShift?.cashRegisterId, selectedCashRegisterId]);
 
   const registerContext = useMemo<CashRegisterContext | null>(() => {
-    const selectedRegister = activeCashRegisters.find((register) => toId(register.id) === selectedCashRegisterId)
-      ?? activeCashRegisters[0]
-      ?? null;
+    // Resolve the open shift synchronously; selection effects run after this render.
+    const shiftRegisterId = toId(posContext?.currentOpenShift?.cashRegisterId);
+    const selectedRegister = shiftRegisterId
+      ? activeCashRegisters.find((register) => toId(register.id) === shiftRegisterId)
+      : activeCashRegisters.find((register) => toId(register.id) === selectedCashRegisterId) ?? activeCashRegisters[0];
 
     if (!selectedRegister) {
       return null;
@@ -134,7 +139,7 @@ export function useSaleRegisterContext(): SaleRegisterContextState {
 
     return {
       companyId: toId(selectedRegister.companyId || responsibleUser.companyId),
-      companyName: 'Empresa actual',
+      companyName: responsibleUser.companyName,
       businessUnitId: toId(selectedRegister.unitId ?? warehouse?.unitId),
       businessUnitName: warehouse?.unitName || 'Unidad no asignada',
       businessId: toId(selectedRegister.businessId ?? warehouse?.businessId),
@@ -150,6 +155,8 @@ export function useSaleRegisterContext(): SaleRegisterContextState {
   }, [
     activeCashRegisters,
     responsibleUser.companyId,
+    responsibleUser.companyName,
+    posContext?.currentOpenShift?.cashRegisterId,
     responsibleUser.id,
     responsibleUser.name,
     selectedCashRegisterId,

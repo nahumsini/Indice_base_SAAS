@@ -78,12 +78,12 @@ public class PaidInventoryReceiptService {
 
     @Transactional(readOnly = true)
     public List<PaidInventoryReceiptDtos.ProductOptionResponse> products(
-            PosContext context, long cashRegisterId, String query) {
+            PosContext context, long cashRegisterId, String query, String currencyCode) {
         var register = cashRegisters.requireOperationalRegister(context, cashRegisterId);
-        return repository.products(context, register.warehouseId(), query).stream()
+        return repository.products(context, register.warehouseId(), query, nullable(currencyCode) == null ? null : currency(currencyCode)).stream()
             .map(product -> new PaidInventoryReceiptDtos.ProductOptionResponse(
                 product.id(), product.name(), product.sku(), product.category(), product.currency(),
-                product.inventoryUnit(), product.unitCost()))
+                product.inventoryUnit(), product.unitCost(), product.inventoryReady()))
             .toList();
     }
 
@@ -126,7 +126,7 @@ public class PaidInventoryReceiptService {
     public List<PaidInventoryReceiptDtos.ReceiptResponse> recent(PosContext context, long shiftId) {
         shifts.findById(context, shiftId).orElseThrow(() -> PosApiException.notFound("Shift not found."));
         return repository.recentForShift(context, shiftId).stream()
-            .map(receipt -> response(receipt, repository.items(context, receipt.id()), receipt.status(), receipt.reversalReason()))
+            .map(receipt -> response(context, receipt, repository.items(context, receipt.id()), receipt.status(), receipt.reversalReason()))
             .toList();
     }
 
@@ -139,7 +139,15 @@ public class PaidInventoryReceiptService {
         if (existing != null) return idempotentResponse(context, existing, fingerprint);
 
         var register = cashRegisters.requireOperationalRegister(context, request.cashRegisterId());
-        var shift = requireOpenShift(context, request.shiftId(), register.id());
+        var shift = requireOpenShift(context, request.shiftId(), register.id(), true);
+        // Serialize receipts with shift closure and read the latest committed idempotency winner.
+        var committed = repository.findByIdempotencyKeyForUpdate(context, idempotencyKey);
+        if (committed != null) return idempotentResponse(context, committed, fingerprint);
+        if (!Objects.equals(shift.warehouseId(), register.warehouseId())
+                || !Objects.equals(shift.unitId(), register.unitId())
+                || !Objects.equals(shift.businessId(), register.businessId())) {
+            throw PosApiException.conflict("The open shift and register must use the same warehouse and organizational scope.");
+        }
         var currency = currency(request.currencyCode());
         if (!currency.equalsIgnoreCase(shift.currencyCode())) {
             throw PosApiException.badRequest("Receipt currency must match the open shift currency.");
@@ -207,6 +215,7 @@ public class PaidInventoryReceiptService {
             var product = item.product() == null
                 ? repository.createProduct(context, item.productInput(), currency)
                 : item.product();
+            if (!product.inventoryReady()) repository.enableInventoryForReceipt(context, product.id(), receiptId);
             var id = repository.addItemAndInventory(context, receiptId, number, shift.unitId(), shift.businessId(),
                 register.warehouseId(), register.warehouseName(), product, item.quantity(), item.enteredUnitCost(),
                 item.inventoryUnitCost(), item.taxRate(), item.taxIncluded(), item.taxProfileId(), item.taxName(),
@@ -215,10 +224,12 @@ public class PaidInventoryReceiptService {
         }
         postPayout(context, shift, receiptId, number, method, request.paymentAccountId(), total, currency,
             nullable(request.paymentReference()));
+        var printedMetadata = repository.receiptMetadata(context, receiptId);
+        repository.snapshotReceiptMetadata(context, receiptId, printedMetadata);
         return new PaidInventoryReceiptDtos.ReceiptResponse(receiptId, number, register.id(), shift.id(),
             register.warehouseId(), register.warehouseName(), provider.id(), provider.name(), method,
             request.paymentAccountId(), subtotal, tax, total, currency, nullable(request.paymentReference()),
-            "POSTED", null, responses, metadataValues);
+            "POSTED", null, responses, printedMetadata);
     }
 
     public PaidInventoryReceiptDtos.AttachmentUploadResponse presignAttachment(
@@ -270,12 +281,12 @@ public class PaidInventoryReceiptService {
         if (!"POSTED".equals(receipt.status())) {
             throw PosApiException.conflict("Inventory receipt is already reversed.");
         }
-        var shift = requireOpenShift(context, receipt.shiftId(), receipt.cashRegisterId());
+        var shift = requireOpenShift(context, receipt.shiftId(), receipt.cashRegisterId(), true);
         var items = repository.items(context, receiptId);
         for (var item : items) repository.reverseInventory(context, receipt, item, reason);
         reversePayout(context, shift, receipt, reason);
         repository.markReversed(context, receiptId, reason);
-        return response(receipt, items, "REVERSED", reason);
+        return response(context, receipt, items, "REVERSED", reason);
     }
 
     private PreparedItem prepareItem(
@@ -285,6 +296,9 @@ public class PaidInventoryReceiptService {
         }
         var product = item.product().productId() == null
             ? null : repository.requireProduct(context, item.product().productId());
+        if (product != null && !product.inventoryReady() && !Boolean.TRUE.equals(item.product().enableInventory())) {
+            throw PosApiException.badRequest("Confirm inventory activation for the selected product before receiving it.");
+        }
         var inventoryUnit = product == null
             ? PaidInventoryReceiptRepository.normalizeUnit(item.product().inventoryUnit())
             : product.inventoryUnit();
@@ -331,7 +345,7 @@ public class PaidInventoryReceiptService {
         if (receipt.requestFingerprint() != null && !Objects.equals(receipt.requestFingerprint(), fingerprint)) {
             throw PosApiException.conflict("Idempotency key was already used with different receipt values.");
         }
-        return response(receipt, repository.items(context, receipt.id()), receipt.status(), receipt.reversalReason());
+        return response(context, receipt, repository.items(context, receipt.id()), receipt.status(), receipt.reversalReason());
     }
 
     private void postPayout(PosContext context, ShiftRecord shift, long receiptId, String number, String method,
@@ -367,6 +381,7 @@ public class PaidInventoryReceiptService {
     }
 
     private PaidInventoryReceiptDtos.ReceiptResponse response(
+            PosContext context,
             PaidInventoryReceiptRepository.ReceiptRow receipt,
             List<PaidInventoryReceiptRepository.ItemRow> items,
             String status,
@@ -381,7 +396,7 @@ public class PaidInventoryReceiptService {
                 item.enteredUnitCost(), item.inventoryUnitCost(), item.taxRate(), item.taxIncluded(),
                 item.taxProfileId(), item.taxName(), item.subtotalAmount(), item.taxAmount(), item.lineTotal()))
                 .toList(),
-            Map.of());
+            repository.receiptMetadata(context, receipt.id()));
     }
 
     private static PaidInventoryReceiptDtos.ItemResponse itemResponse(
@@ -411,7 +426,11 @@ public class PaidInventoryReceiptService {
     }
 
     private ShiftRecord requireOpenShift(PosContext context, long shiftId, long registerId) {
-        var shift = shifts.findById(context, shiftId).orElseThrow(() -> PosApiException.notFound("Shift not found."));
+        return requireOpenShift(context, shiftId, registerId, false);
+    }
+
+    private ShiftRecord requireOpenShift(PosContext context, long shiftId, long registerId, boolean lock) {
+        var shift = (lock ? shifts.findByIdForUpdate(context, shiftId) : shifts.findById(context, shiftId)).orElseThrow(() -> PosApiException.notFound("Shift not found."));
         if (shift.status() != ShiftStatus.OPEN || shift.cashRegisterId() != registerId) {
             throw PosApiException.conflict("Paid inventory receipts require the matching open shift.");
         }

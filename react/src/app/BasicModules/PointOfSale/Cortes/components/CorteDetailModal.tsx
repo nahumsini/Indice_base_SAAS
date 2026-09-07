@@ -1,3 +1,4 @@
+import { closingTicket, printPosOperationTicket, reservePosTicketWindow } from '../../shared/posOperationTickets';
 import { AlertTriangle, Banknote, CheckCircle2, CreditCard, Download, Loader2, Printer, ReceiptText, TrendingDown, TrendingUp } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { escapeDocumentPrintHtml, printDocumentHtml } from '../../../shared/print/documentHtmlPrintEngine';
@@ -85,6 +86,20 @@ export function CorteDetailModal({
       setConfirmingSettlementId(null);
     }
   };
+  const handleTicketPrint = async () => {
+    if (!detail) return;
+    const target = reservePosTicketWindow();
+    try {
+      const result = await cashClosingsApi.list({ shiftId: detail.shiftId });
+      const row = result.items.find(item => item.id === detail.id);
+      if (!printPosOperationTicket(closingTicket({ ...row, ...detail }, locale), target)) {
+        setSettlementError('Habilita las ventanas emergentes y vuelve a imprimir el ticket.');
+      }
+    } catch {
+      target?.close();
+      setSettlementError('No se pudo preparar el ticket del corte. Reintenta imprimir.');
+    }
+  };
   const handlePrint = () => {
     if (!detail || !documentRef.current) return;
     const folio = `COR-${detail.id}`;
@@ -134,6 +149,7 @@ export function CorteDetailModal({
       subtitle={detail ? `COR-${detail.id} - ${formatDateTime(detail.closedAt)}` : copy.detail.loadingSubtitle}
       footer={(
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+          <button type="button" disabled={!detail} onClick={() => void handleTicketPrint()} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border px-5 text-sm font-medium"><Printer className="h-4 w-4" /> Ticket 80 mm</button>
           <button
             type="button"
             onClick={handlePrint}

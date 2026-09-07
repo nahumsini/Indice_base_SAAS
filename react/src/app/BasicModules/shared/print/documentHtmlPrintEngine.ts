@@ -76,12 +76,31 @@ export const printDocumentHtml = ({
     return false;
   }
 
-  const cleanup = () => URL.revokeObjectURL(blobUrl);
-  printWindow.addEventListener('load', () => {
-    printWindow.focus();
-    printWindow.print();
-    window.setTimeout(cleanup, 30_000);
-  }, { once: true });
+  let printed = false;
+  let readinessTimer: number | undefined;
+  const cleanup = () => {
+    window.clearInterval(readinessTimer);
+    URL.revokeObjectURL(blobUrl);
+  };
+  const printWhenReady = () => {
+    if (printed) return;
+    if (printWindow.closed) { cleanup(); return; }
+    try {
+      // A reserved about:blank window replaces its document during navigation.
+      // Its old load listeners can disappear; observe readiness from the opener too.
+      if (printWindow.location.href !== blobUrl || printWindow.document.readyState !== 'complete') return;
+      printed = true;
+      window.clearInterval(readinessTimer);
+      printWindow.focus();
+      printWindow.print();
+      window.setTimeout(cleanup, 30_000);
+    } catch {
+      cleanup();
+      if (notifyOnBlocked) notifyDocumentPrintFailure(locale, 'generation');
+    }
+  };
+  printWindow.addEventListener('load', printWhenReady, { once: true });
+  readinessTimer = window.setInterval(printWhenReady, 100);
   if (targetWindow) printWindow.location.replace(blobUrl);
   window.setTimeout(cleanup, 60_000);
   return true;

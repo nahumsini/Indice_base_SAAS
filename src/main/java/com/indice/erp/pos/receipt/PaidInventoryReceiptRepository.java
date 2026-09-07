@@ -17,11 +17,11 @@ public class PaidInventoryReceiptRepository {
 
     public PaidInventoryReceiptRepository(JdbcTemplate jdbc, com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver timezones) { this.jdbc = jdbc; this.timezones = timezones; }
 
-    public List<ProductRow> products(PosContext context, long warehouseId, String query) {
+    public List<ProductRow> products(PosContext context, long warehouseId, String query, String currencyCode) {
         var normalizedQuery = query == null ? "" : query.trim().toLowerCase();
         var pattern = "%" + normalizedQuery + "%";
         return jdbc.query("""
-            SELECT product.id, product.name, product.sku, product.category, product.currency,
+            SELECT product.id, product.name, product.sku, product.category, product.currency, product.inventory_ready,
                    COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(product.metadata_json, '$.packaging.baseUnit')), ''), 'Piece') inventory_unit,
                    COALESCE(balance.unit_cost, product.cost, 0) unit_cost
             FROM sales_products product
@@ -32,7 +32,8 @@ public class PaidInventoryReceiptRepository {
              AND balance.deleted_at IS NULL
             WHERE product.company_id = ?
               AND product.deleted_at IS NULL
-              AND product.inventory_ready = 1
+              AND (product.inventory_ready = 1 OR UPPER(product.type) IN ('PRODUCT', 'PACKAGE'))
+              AND (? IS NULL OR UPPER(product.currency) = ? OR product.currency IS NULL)
               AND product.status = 'ACTIVE'
               AND (? = '' OR LOWER(product.name) LIKE ? OR LOWER(COALESCE(product.sku, '')) LIKE ?
                    OR LOWER(COALESCE(product.category, '')) LIKE ?)
@@ -40,21 +41,72 @@ public class PaidInventoryReceiptRepository {
             LIMIT 80
             """, (rs, row) -> new ProductRow(rs.getLong("id"), rs.getString("name"), rs.getString("sku"),
                 rs.getString("category"), rs.getString("currency"), rs.getString("inventory_unit"),
-                rs.getBigDecimal("unit_cost")), warehouseId, context.companyId(), normalizedQuery,
+                rs.getBigDecimal("unit_cost"), rs.getBoolean("inventory_ready")), warehouseId, context.companyId(), currencyCode, currencyCode, normalizedQuery,
                 pattern, pattern, pattern);
     }
 
     public ProductRow requireProduct(PosContext context, long productId) {
         return jdbc.query("""
-            SELECT id, name, sku, category, currency, cost,
+            SELECT id, name, sku, category, currency, cost, inventory_ready,
                    COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.packaging.baseUnit')), ''), 'Piece') inventory_unit
             FROM sales_products
-            WHERE company_id = ? AND id = ? AND deleted_at IS NULL AND inventory_ready = 1 AND status = 'ACTIVE' FOR UPDATE
+            WHERE company_id = ? AND id = ? AND deleted_at IS NULL AND (inventory_ready = 1 OR UPPER(type) IN ('PRODUCT', 'PACKAGE')) AND status = 'ACTIVE' FOR UPDATE
             """, (rs, row) -> new ProductRow(rs.getLong("id"), rs.getString("name"), rs.getString("sku"),
                 rs.getString("category"), rs.getString("currency"), rs.getString("inventory_unit"),
-                rs.getBigDecimal("cost")), context.companyId(), productId)
+                rs.getBigDecimal("cost"), rs.getBoolean("inventory_ready")), context.companyId(), productId)
             .stream().findFirst().orElseThrow(() -> PosApiException.badRequest(
                 "The selected product is not enabled for inventory in this company."));
+    }
+
+    /** Sales Inventory owner contract: activate only the explicitly selected physical product.
+     * Existing units, quantities, costs, sale visibility and POS eligibility are preserved. */
+    public void enableInventoryForReceipt(PosContext context, long productId, long receiptId) {
+        int updated = jdbc.update("""
+            UPDATE sales_products
+            SET inventory_ready = 1,
+                custom_fields_json = JSON_SET(COALESCE(custom_fields_json, JSON_OBJECT()),
+                    '$.stockPrepared', TRUE, '$.warehousePrepared', TRUE),
+                metadata_json = JSON_SET(COALESCE(metadata_json, JSON_OBJECT()), '$.inventoryActivation',
+                    JSON_OBJECT('source', 'POS_PAID_RECEIPT', 'receiptId', ?, 'previousInventoryReady', FALSE)),
+                updated_by_user_id = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE company_id = ? AND id = ? AND deleted_at IS NULL AND status = 'ACTIVE'
+              AND inventory_ready = 0 AND UPPER(type) IN ('PRODUCT', 'PACKAGE')
+            """, receiptId, context.userId(), context.companyId(), productId);
+        if (updated != 1 && !requireProduct(context, productId).inventoryReady())
+            throw PosApiException.conflict("Product inventory could not be enabled.");
+    }
+
+    public Map<String, Object> receiptMetadata(PosContext context, long receiptId) {
+        return jdbc.query("""
+            SELECT receipt.metadata_json, receipt.created_at, company.name company_name,
+                   register.code register_code, register.name register_name, warehouse.name warehouse_name,
+                   actor.full_name actor_name
+            FROM pos_inventory_receipts receipt
+            JOIN companies company ON company.id = receipt.company_id
+            JOIN pos_cash_registers register ON register.id = receipt.cash_register_id AND register.company_id = receipt.company_id
+            JOIN sales_inventory_warehouses warehouse ON warehouse.id = receipt.warehouse_id AND warehouse.company_id = receipt.company_id
+            JOIN users actor ON actor.id = receipt.created_by_user_id
+            WHERE receipt.company_id = ? AND receipt.id = ?
+            """, (rs, row) -> {
+                var metadata = new java.util.LinkedHashMap<String, Object>();
+                var stored = com.indice.erp.pos.PosJsonSupport.toJsonNode(rs.getString("metadata_json"));
+                if (stored != null && stored.isObject()) {
+                    metadata.putAll(new com.fasterxml.jackson.databind.ObjectMapper().convertValue(stored,
+                        new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {}));
+                }
+                metadata.putIfAbsent("createdAt", rs.getTimestamp("created_at").toInstant().toString());
+                metadata.putIfAbsent("companyName", rs.getString("company_name"));
+                metadata.putIfAbsent("cashRegisterCode", rs.getString("register_code"));
+                metadata.putIfAbsent("cashRegisterName", rs.getString("register_name"));
+                metadata.putIfAbsent("warehouseName", rs.getString("warehouse_name"));
+                metadata.putIfAbsent("createdByName", rs.getString("actor_name"));
+                return (Map<String, Object>) metadata;
+            }, context.companyId(), receiptId).stream().findFirst().orElse(Map.of());
+    }
+
+    public void snapshotReceiptMetadata(PosContext context, long receiptId, Map<String, Object> metadata) {
+        jdbc.update("UPDATE pos_inventory_receipts SET metadata_json = ? WHERE company_id = ? AND id = ?",
+            com.indice.erp.pos.PosJsonSupport.toJson(metadata), context.companyId(), receiptId);
     }
 
     public ProductRow createProduct(PosContext context, PaidInventoryReceiptDtos.ProductInput input, String currency) {
@@ -203,6 +255,11 @@ public class PaidInventoryReceiptRepository {
             .stream().findFirst().orElse(null);
     }
 
+    public ReceiptRow findByIdempotencyKeyForUpdate(PosContext context, String idempotencyKey) {
+        return receiptQuery("WHERE receipt.company_id = ? AND receipt.idempotency_key = ? FOR UPDATE", context.companyId(), idempotencyKey)
+            .stream().findFirst().orElse(null);
+    }
+
     public ReceiptRow requireReceipt(PosContext context, long receiptId) {
         return receiptQuery("WHERE receipt.company_id = ? AND receipt.id = ?", context.companyId(), receiptId)
             .stream().findFirst().orElseThrow(() -> PosApiException.notFound("Inventory receipt not found."));
@@ -310,7 +367,11 @@ public class PaidInventoryReceiptRepository {
     }
 
     public record ProductRow(long id, String name, String sku, String category, String currency,
-                             String inventoryUnit, BigDecimal unitCost) {}
+                             String inventoryUnit, BigDecimal unitCost, boolean inventoryReady) {
+        public ProductRow(long id, String name, String sku, String category, String currency, String inventoryUnit, BigDecimal unitCost) {
+            this(id, name, sku, category, currency, inventoryUnit, unitCost, true);
+        }
+    }
     public record ItemRow(long id, long productId, String productName, String sku, String inventoryUnit,
                           BigDecimal quantity, BigDecimal enteredUnitCost, BigDecimal inventoryUnitCost,
                           BigDecimal taxRate, boolean taxIncluded, String taxProfileId, String taxName,

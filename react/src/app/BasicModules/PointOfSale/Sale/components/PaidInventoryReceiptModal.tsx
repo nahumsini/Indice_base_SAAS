@@ -1,3 +1,5 @@
+import { OperationTicketPreview } from './OperationTicketPreview';
+import { receiptTicket, printPosOperationTicket, reservePosTicketWindow } from '../../shared/posOperationTickets';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Check, FileUp, PackagePlus, Plus, Search, Trash2, UserRoundPlus } from 'lucide-react';
 import {
@@ -43,6 +45,7 @@ type ProductInput = {
   category?: string | null;
   inventoryUnit?: string | null;
   salePrice?: number | null;
+  enableInventory?: boolean;
 };
 
 type ReceiptLine = {
@@ -108,6 +111,10 @@ export function PaidInventoryReceiptModal({
   const [productSearch, setProductSearch] = useState('');
   const [products, setProducts] = useState<PosInventoryReceiptProduct[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<PosInventoryReceiptProduct | null>(null);
+  const [enableInventory, setEnableInventory] = useState(false);
+  const [recentReceipts, setRecentReceipts] = useState<PosPaidInventoryReceiptResponse[]>([]);
+  const [historyReceipt, setHistoryReceipt] = useState<PosPaidInventoryReceiptResponse | null>(null);
+  const submitLock = useRef(false);
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [category, setCategory] = useState('');
@@ -129,6 +136,9 @@ export function PaidInventoryReceiptModal({
   const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
   const [savedReceipt, setSavedReceipt] = useState<PosPaidInventoryReceiptResponse | null>(null);
   const [evidencePendingRetry, setEvidencePendingRetry] = useState(false);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [catalogError, setCatalogError] = useState('');
+  const [catalogAttempt, setCatalogAttempt] = useState(0);
   const [loadingCatalog, setLoadingCatalog] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -147,7 +157,7 @@ export function PaidInventoryReceiptModal({
       || `${provider.name} ${provider.taxId ?? ''} ${provider.email ?? ''}`.toLocaleLowerCase().includes(query));
   }, [providerId, providerSearch, providers]);
   const displayProducts = useMemo(() => {
-    const currencyProducts = products.filter((product) => !product.currencyCode || product.currencyCode === currencyCode);
+    const currencyProducts = products.filter((product) => !product.currencyCode || product.currencyCode.trim().toUpperCase() === currencyCode.trim().toUpperCase());
     if (!selectedProduct || currencyProducts.some((product) => product.id === selectedProduct.id)) return currencyProducts;
     return [selectedProduct, ...currencyProducts];
   }, [currencyCode, products, selectedProduct]);
@@ -193,37 +203,41 @@ export function PaidInventoryReceiptModal({
     setNotes('');
     setEvidenceFile(null);
     setSavedReceipt(null);
+    setEnableInventory(false);
+    setHistoryReceipt(null);
+    setRecentReceipts([]);
+    void posBackendApi.paidInventoryReceipts(shiftId).then(setRecentReceipts).catch(() => setError('No se pudo cargar el historial de recepciones.'));
     setEvidencePendingRetry(false);
     setError('');
     setLoadingCatalog(true);
-    const initialProductSequence = ++productRequestSequence.current;
-    void Promise.all([
-      posBackendApi.paidInventoryReceiptProviders(),
-      posBackendApi.paidInventoryReceiptProducts(cashRegisterId),
-    ]).then(([nextProviders, nextProducts]) => {
-      setProviders(nextProviders);
-      if (initialProductSequence === productRequestSequence.current) setProducts(nextProducts);
+    let cancelled = false;
+    setProducts([]);
+    void posBackendApi.paidInventoryReceiptProviders().then(nextProviders => {
+      if (!cancelled) setProviders(nextProviders);
     }).catch((nextError) => {
-      setError(nextError instanceof Error ? nextError.message : 'No se pudo preparar la recepción.');
-    }).finally(() => setLoadingCatalog(false));
-  }, [cashRegisterId, defaultTaxProfile?.id, isOpen]);
+      if (!cancelled) setError(nextError instanceof Error ? nextError.message : 'No se pudo preparar la recepción.');
+    }).finally(() => { if (!cancelled) setLoadingCatalog(false); });
+    return () => { cancelled = true; };
+  }, [cashRegisterId, currencyCode, shiftId, defaultTaxProfile?.id, isOpen]);
 
   useEffect(() => {
     if (!isOpen || mode !== 'existing') return;
     const sequence = ++productRequestSequence.current;
+    setLoadingProducts(true);
+    setCatalogError('');
     const timer = window.setTimeout(() => {
-      void posBackendApi.paidInventoryReceiptProducts(cashRegisterId, productSearch)
+      void posBackendApi.paidInventoryReceiptProducts(cashRegisterId, productSearch, currencyCode)
         .then((nextProducts) => {
           if (sequence === productRequestSequence.current) setProducts(nextProducts);
         })
         .catch((nextError) => {
           if (sequence === productRequestSequence.current) {
-            setError(nextError instanceof Error ? nextError.message : 'No se pudieron buscar los productos.');
+            setCatalogError(nextError instanceof Error ? nextError.message : 'No se pudieron buscar los productos.');
           }
-        });
+        }).finally(() => { if (sequence === productRequestSequence.current) setLoadingProducts(false); });
     }, 250);
-    return () => window.clearTimeout(timer);
-  }, [cashRegisterId, isOpen, mode, productSearch]);
+    return () => { window.clearTimeout(timer); productRequestSequence.current++; };
+  }, [cashRegisterId, currencyCode, isOpen, mode, productSearch, catalogAttempt]);
 
   useEffect(() => {
     if (!isOpen || paymentMethod !== 'TRANSFER') return;
@@ -277,6 +291,9 @@ export function PaidInventoryReceiptModal({
     if (mode === 'existing' && !selectedProduct) return setError('Selecciona un producto existente.');
     if (mode === 'new' && !name.trim()) return setError('Escribe el nombre del producto nuevo.');
     const nextQuantity = Number(quantity);
+    if (mode === 'existing' && selectedProduct?.inventoryReady === false && !enableInventory) {
+      return setError('Confirma la activación de inventario para recibir este producto existente.');
+    }
     const nextUnitCost = Number(unitCost);
     if (!Number.isFinite(nextQuantity) || nextQuantity <= 0 || !Number.isFinite(nextUnitCost) || nextUnitCost <= 0) {
       return setError('La cantidad y el costo unitario deben ser mayores que cero.');
@@ -295,7 +312,7 @@ export function PaidInventoryReceiptModal({
     setLines((current) => [...current, {
       key: crypto.randomUUID(),
       product: mode === 'existing'
-        ? { productId: selectedProduct?.id, inventoryUnit: selectedUnit }
+        ? { productId: selectedProduct?.id, inventoryUnit: selectedUnit, ...(selectedProduct?.inventoryReady === false ? { enableInventory: true } : {}) }
         : {
             name: name.trim(),
             sku: sku.trim() || null,
@@ -342,18 +359,19 @@ export function PaidInventoryReceiptModal({
     await posBackendApi.registerPaidInventoryReceiptAttachment(receipt.id, upload, evidenceFile);
   };
 
-  const finishSavedReceipt = async (receipt: PosPaidInventoryReceiptResponse) => {
+  const finishSavedReceipt = async (receipt: PosPaidInventoryReceiptResponse, close = false) => {
     try {
       await onCompleted(
-        `Recepción ${receipt.receiptNumber} guardada. ${lines.length} ${lines.length === 1 ? 'partida ingresó' : 'partidas ingresaron'} a ${receipt.warehouseName}.`,
+        `Recepción ${receipt.receiptNumber} guardada. ${receipt.items.length} ${receipt.items.length === 1 ? 'partida ingresó' : 'partidas ingresaron'} a ${receipt.warehouseName}.`,
       );
-      onClose();
+      if (close) onClose();
     } catch {
       setError(`La recepción ${receipt.receiptNumber} ya quedó guardada, pero no se pudo actualizar la vista. Puedes reintentar sin duplicar la operación.`);
     }
   };
 
   const submit = async () => {
+    if (submitLock.current || savedReceipt) return;
     setError('');
     if (!providerId) return setError('Selecciona un proveedor.');
     if (!lines.length) return setError('Agrega al menos una partida.');
@@ -370,7 +388,9 @@ export function PaidInventoryReceiptModal({
       return setError('Selecciona la cuenta bancaria de la transferencia.');
     }
     if (!validateEvidence()) return;
+    submitLock.current = true;
     setSubmitting(true);
+    const printWindow = reservePosTicketWindow();
     try {
       const receipt = await posBackendApi.createPaidInventoryReceipt({
         idempotencyKey: idempotencyKey.current,
@@ -393,6 +413,14 @@ export function PaidInventoryReceiptModal({
         })),
       });
       setSavedReceipt(receipt);
+      setRecentReceipts(current => [receipt, ...current.filter(item => item.id !== receipt.id)]);
+      try {
+        if (printWindow) printPosOperationTicket(receiptTicket(receipt), printWindow);
+      } catch {
+        printWindow?.close();
+        setError('La recepción está guardada. Puedes volver a imprimir el ticket.');
+      }
+      await finishSavedReceipt(receipt);
       if (evidenceFile) {
         try {
           await uploadEvidence(receipt);
@@ -402,10 +430,11 @@ export function PaidInventoryReceiptModal({
           return;
         }
       }
-      await finishSavedReceipt(receipt);
     } catch (nextError) {
+      printWindow?.close();
       setError(nextError instanceof Error ? nextError.message : 'No se pudo guardar la recepción.');
     } finally {
+      submitLock.current = false;
       setSubmitting(false);
     }
   };
@@ -463,7 +492,7 @@ export function PaidInventoryReceiptModal({
             <FileUp className="h-4 w-4" /> {submitting ? 'Cargando…' : 'Reintentar comprobante'}
           </button>
         ) : (
-          <button type="button" onClick={() => void finishSavedReceipt(savedReceipt)} disabled={submitting} className={primaryActionClassName}>
+          <button type="button" onClick={() => void finishSavedReceipt(savedReceipt, true)} disabled={submitting} className={primaryActionClassName}>
             <Check className="h-4 w-4" /> Actualizar y cerrar
           </button>
         )
@@ -473,6 +502,11 @@ export function PaidInventoryReceiptModal({
         </button>
       )}
     >
+      {savedReceipt ? <PosModalSection><SectionTitle title={`Recepción ${savedReceipt.receiptNumber} guardada`} subtitle="Imprime el ticket o guárdalo como PDF desde la ventana de impresión." /><OperationTicketPreview ticket={receiptTicket(savedReceipt)} /></PosModalSection> : null}
+      {!savedReceipt && recentReceipts.length > 0 ? <details className="rounded-lg border p-3"><summary className="cursor-pointer text-sm font-medium">Tickets de recepciones de este turno</summary>
+        <div className="my-3 flex flex-wrap gap-2">{recentReceipts.map(receipt => <button type="button" key={receipt.id} onClick={() => setHistoryReceipt(receipt)} className="rounded border px-3 py-2 text-sm">{receipt.receiptNumber} · {receipt.status === 'REVERSED' ? 'Revertida' : 'Confirmada'}</button>)}</div>
+        {historyReceipt && <OperationTicketPreview ticket={receiptTicket(historyReceipt)} />}
+      </details> : null}
       <PosModalSection className={workspaceMode ? 'p-4' : undefined}>
         <SectionTitle title="1. Proveedor y pago" subtitle="Identifica a quién se pagó y de dónde salió el dinero." />
         <div className={workspaceMode ? 'mt-4 grid gap-4' : 'mt-4 grid gap-4 lg:grid-cols-2'}>
@@ -547,16 +581,23 @@ export function PaidInventoryReceiptModal({
                   </Field>
                   <Field label="Producto">
                     <select value={selectedProduct?.id ?? ''} onChange={(event) => {
-                      const product = products.find((row) => row.id === Number(event.target.value)) ?? null;
+                      const product = displayProducts.find((row) => row.id === Number(event.target.value)) ?? null;
                       setSelectedProduct(product);
+                      setEnableInventory(false);
                       if (product && Number(product.unitCost) > 0) setUnitCost(String(product.unitCost));
                     }} className={controlClassName}>
-                      <option value="">{loadingCatalog ? 'Cargando productos…' : 'Selecciona un producto…'}</option>
+                      <option value="">{loadingProducts ? 'Cargando productos…' : 'Selecciona un producto…'}</option>
                       {displayProducts.map((product) => (
-                        <option key={product.id} value={product.id}>{product.name}{product.sku ? ` · ${product.sku}` : ''}{product.category ? ` · ${product.category}` : ''}</option>
+                        <option key={product.id} value={product.id}>{product.name}{product.sku ? ` · ${product.sku}` : ''}{product.category ? ` · ${product.category}` : ''}{product.inventoryReady === false ? ' · Activar inventario' : ''}</option>
                       ))}
                     </select>
                   </Field>
+                  {catalogError ? <div role="alert" className="text-sm text-red-700"><p>{catalogError}</p><button type="button" onClick={() => setCatalogAttempt(value => value + 1)}>Reintentar carga de productos</button></div> : null}
+                  {!loadingProducts && !catalogError && products.length === 0 ? <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">No hay productos compatibles con {currencyCode} para esta búsqueda. Se muestran productos y paquetes activos; los servicios y artículos sin control de inventario se configuran en Productos.</p> : null}
+                  {selectedProduct?.inventoryReady === false ? <label className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                    <input type="checkbox" checked={enableInventory} onChange={event => setEnableInventory(event.target.checked)} />
+                    <span>Activar inventario para este producto al confirmar la recepción. Se conservarán su unidad ({unitLabel(selectedUnit)}) y sus existencias anteriores.</span>
+                  </label> : null}
                 </div>
               ) : (
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
