@@ -1,3 +1,4 @@
+import { formatExpenseDate } from '../utils/expenseDates';
 import { apiClient } from '../../../lib/apiClient';
 import {
   toExpense,
@@ -107,7 +108,7 @@ export const expensesService = {
       jsonMutation('POST', {
         amount,
         paymentAccountId: Number(paymentAccountId),
-        paymentDate: paymentDate.toISOString().slice(0, 10),
+        paymentDate: formatExpenseDate(paymentDate),
         idempotencyKey: crypto.randomUUID(),
       }),
     );
@@ -126,7 +127,7 @@ export const expensesService = {
       jsonMutation('POST', {
         status,
         paidAmount,
-        paymentDate: paymentDate ? paymentDate.toISOString().slice(0, 10) : undefined,
+        paymentDate: paymentDate ? formatExpenseDate(paymentDate) : undefined,
       }),
     );
     return toExpense(response, providers);

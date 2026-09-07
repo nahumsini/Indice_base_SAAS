@@ -503,6 +503,11 @@ export type FinanceTranslations = {
       metricOpenBalance: string;
       metricPaid: string;
       metricTotalVisible: (count: number) => string;
+      metricPeriodTotal: (count: number) => string;
+      metricCarryover: string;
+      carryoverBadge: string;
+      insightEmpty: string;
+      insightCarryover: (count: number, amount: string) => string;
       metricOverdue: string;
       nativeBalance: (amount: string) => string;
       openBalanceChip: (count: number) => string;

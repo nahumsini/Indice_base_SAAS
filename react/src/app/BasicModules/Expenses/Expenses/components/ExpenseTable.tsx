@@ -68,6 +68,7 @@ type ExpenseTableProps = {
   emptyMessage?: string;
   emptyTitle?: string;
   expenses: Expense[];
+  carryoverExpenseIds?: ReadonlySet<string>;
   getAttachments: (expense: Expense) => string[];
   onDeleteExpense?: (expenseId: string) => void;
   onDeleteExpenses?: (expenseIds: string[]) => void;
@@ -95,6 +96,7 @@ export function ExpenseTable({
   emptyMessage,
   emptyTitle,
   expenses,
+  carryoverExpenseIds = new Set<string>(),
   getAttachments,
   onDeleteExpense,
   onDeleteExpenses,
@@ -504,6 +506,7 @@ export function ExpenseTable({
       ) : null}
 
       <ExpenseMobileCards
+        carryoverExpenseIds={carryoverExpenseIds}
         actionVisibility={actionVisibility}
         emptyMessage={effectiveEmptyMessage}
         emptyTitle={effectiveEmptyTitle}
@@ -552,6 +555,7 @@ export function ExpenseTable({
                   key={expense.id}
                   actionVisibility={actionVisibility}
                   expense={expense}
+                  isCarryover={carryoverExpenseIds.has(expense.id)}
                   attachmentsCount={expense.attachmentCount ?? getAttachments(expense).length}
                   columnWidths={columnWidths}
                   isEditing={editingRowId === expense.id}

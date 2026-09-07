@@ -45,6 +45,7 @@ export type EditableExpenseRowOptions = {
 type EditableExpenseRowProps = {
   actionVisibility?: ExpenseRowActionVisibility;
   expense: Expense;
+  isCarryover?: boolean;
   attachmentsCount: number;
   columnWidths: Record<string, number>;
   isEditing: boolean;
@@ -78,6 +79,7 @@ export type ExpenseRowActionVisibility = {
 export function EditableExpenseRow({
   actionVisibility,
   expense,
+  isCarryover = false,
   attachmentsCount,
   columnWidths,
   isEditing,
@@ -172,6 +174,7 @@ export function EditableExpenseRow({
       {isColumnVisible('folio') && (
         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
           <span className="font-mono font-medium">{expense.folio}</span>
+          {isCarryover && <span className="mt-1 block text-xs font-medium text-rose-600 dark:text-rose-400">{t.expenses.summary.carryoverBadge}</span>}
         </td>
       )}
 

@@ -15,6 +15,7 @@ type ExpenseMobileCardsProps = {
   emptyMessage: string;
   emptyTitle: string;
   expenses: Expense[];
+  carryoverExpenseIds?: ReadonlySet<string>;
   deletingExpenseIds?: Set<string>;
   isSelected: (expenseId: string) => boolean;
   onAudit: (expenseId: string) => void;
@@ -32,6 +33,7 @@ export function ExpenseMobileCards({
   emptyMessage,
   emptyTitle,
   expenses,
+  carryoverExpenseIds = new Set<string>(),
   deletingExpenseIds = new Set<string>(),
   isSelected,
   onAudit,
@@ -60,6 +62,7 @@ export function ExpenseMobileCards({
           key={expense.id}
           actionVisibility={actionVisibility}
           expense={expense}
+          isCarryover={carryoverExpenseIds.has(expense.id)}
           isDeletePending={deletingExpenseIds.has(expense.id)}
           isSelected={isSelected(expense.id)}
           onAudit={onAudit}
@@ -79,6 +82,7 @@ export function ExpenseMobileCards({
 function ExpenseMobileCard({
   actionVisibility,
   expense,
+  isCarryover,
   isDeletePending,
   isSelected,
   onAudit,
@@ -92,6 +96,7 @@ function ExpenseMobileCard({
 }: {
   actionVisibility?: ExpenseRowActionVisibility;
   expense: Expense;
+  isCarryover: boolean;
   isDeletePending: boolean;
   isSelected: boolean;
   onAudit: (expenseId: string) => void;
@@ -130,6 +135,7 @@ function ExpenseMobileCard({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">{expense.folio}</p>
+              {isCarryover && <p className="text-xs font-medium text-rose-600 dark:text-rose-400">{t.expenses.summary.carryoverBadge}</p>}
               <h3 className="mt-0.5 line-clamp-1 text-sm font-medium text-slate-950 dark:text-white">{expense.concept || '—'}</h3>
               <p className="mt-1 truncate text-xs text-slate-500">{expense.providerName || t.common.unassigned}</p>
             </div>

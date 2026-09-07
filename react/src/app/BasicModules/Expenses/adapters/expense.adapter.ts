@@ -1,4 +1,5 @@
 import { ExpenseStatus as CanonicalExpenseStatus, PaymentStatus } from '../types/finance-status.types';
+import { parseExpenseDate, formatExpenseDate } from '../utils/expenseDates';
 import { DEFAULT_FINANCE_CURRENCY } from '../constants/financeCurrencyOptions';
 import type { FinanceExpense } from '../types/finance-domain.types';
 import type { Expense, ExpenseStatus as LegacyExpenseStatus } from '../types/expenses.types';
@@ -139,9 +140,9 @@ export const toFinanceExpense = (expense: Expense, companyId = 'mock-company'): 
     paidAmount,
     balance: Math.max(expense.total - paidAmount, 0),
     currency: expense.currency,
-    expenseDate: toIsoDate(expense.date) ?? '',
-    dueDate: toIsoDate(expense.dueDate),
-    paidDate: toIsoDate(expense.paymentDate),
+    expenseDate: formatExpenseDate(expense.date) ?? '',
+    dueDate: formatExpenseDate(expense.dueDate),
+    paidDate: formatExpenseDate(expense.paymentDate),
     requestedByUserId: expense.requestedByUserId,
     approvedByUserId: expense.approvedByUserId,
     performedByUserId: expense.performedByUserId,
@@ -166,8 +167,8 @@ export const toExpense = (
   const status = canonicalToLegacyStatus(expense.status, expense.paymentStatus, customFields);
   const amountPaid = asNumber(expense.paidAmount, asNumber(customFields.amountPaid));
   const paymentDate = expense.paymentDate ?? asString(customFields.paymentDate, undefined);
-  const expenseDate = toDate(expense.expenseDate);
-  const dueDate = toDate(expense.dueDate, expenseDate);
+  const expenseDate = parseExpenseDate(expense.expenseDate);
+  const dueDate = parseExpenseDate(expense.dueDate, expenseDate);
   const requestedByUserId = expense.requestedByUserId ? String(expense.requestedByUserId) : undefined;
   const approvedByUserId = expense.approvedByUserId ? String(expense.approvedByUserId) : undefined;
   const performedByUserId = expense.performedByUserId ? String(expense.performedByUserId) : undefined;
@@ -199,7 +200,7 @@ export const toExpense = (
     amountPaid,
     currency: expense.currencyCode,
     dueDate,
-    paymentDate: paymentDate ? toDate(paymentDate) : undefined,
+    paymentDate: paymentDate ? parseExpenseDate(paymentDate) : undefined,
     date: expenseDate,
     paymentMethod: asString(customFields.paymentMethod, 'transfer') as Expense['paymentMethod'],
     accountingAccount: expense.accountingAccountId ? String(expense.accountingAccountId) : asString(customFields.accountingAccount, undefined),
@@ -240,8 +241,8 @@ export const toExpenseApiRequest = (expense: Expense): ExpenseApiRequest => ({
   taxAmount: expense.taxes,
   totalAmount: expense.total,
   currencyCode: (expense.currency || DEFAULT_FINANCE_CURRENCY).slice(0, 3).toUpperCase(),
-  expenseDate: toDateInputValue(expense.date) ?? toDateInputValue(new Date()) ?? '',
-  dueDate: toDateInputValue(expense.dueDate) ?? null,
+  expenseDate: formatExpenseDate(expense.date) ?? formatExpenseDate(new Date()) ?? '',
+  dueDate: formatExpenseDate(expense.dueDate) ?? null,
   requestedByUserId: numericId(expense.requestedByUserId) ?? null,
   approvedByUserId: numericId(expense.approvedByUserId) ?? null,
   performedByUserId: numericId(expense.performedByUserId) ?? null,
@@ -256,7 +257,7 @@ export const toExpenseApiRequest = (expense: Expense): ExpenseApiRequest => ({
     frequency: expense.frequency,
     legacyStatus: expense.status,
     notes: expense.notes,
-    paymentDate: toDateInputValue(expense.paymentDate),
+    paymentDate: formatExpenseDate(expense.paymentDate),
     paymentAccountId: expense.paymentAccountId,
     paymentMethod: expense.paymentMethod,
     projected: expense.projected,

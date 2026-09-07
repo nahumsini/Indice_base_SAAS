@@ -28,26 +28,23 @@ export const isExpensePastDue = (expense: Expense, referenceDate = new Date()) =
 );
 
 export const isExpenseEffectivelyOverdue = (expense: Expense, referenceDate = new Date()) => (
-  expense.status === 'overdue'
-  || (
-    expense.status !== 'paid'
-    && expense.status !== 'audited'
-    && getExpenseBalance(expense) > 0
-    && isExpensePastDue(expense, referenceDate)
-  )
+  expense.status !== 'paid'
+  && expense.status !== 'audited'
+  && !['PAID', 'CLOSED', 'CANCELLED', 'REJECTED'].includes(expense.backendStatus?.toUpperCase() ?? '')
+  && getExpenseBalance(expense) > 0
+  && (expense.status === 'overdue' || isExpensePastDue(expense, referenceDate))
 );
 
-export const getEffectiveExpenseStatus = (expense: Expense): Expense['status'] => {
+export const getEffectiveExpenseStatus = (expense: Expense, referenceDate = new Date()): Expense['status'] => {
   if (expense.status === 'audited') return 'audited';
   if (getExpenseBalance(expense) <= 0) return 'paid';
   if (getExpensePaidAmount(expense) > 0 || expense.status === 'partial') return 'partial';
-  if (isExpenseEffectivelyOverdue(expense)) return 'overdue';
+  if (isExpenseEffectivelyOverdue(expense, referenceDate)) return 'overdue';
   return 'pending';
 };
 
-const isInPeriod = (dateValue: Date, periodFilter: ExpenseListFilters['periodFilter']) => {
+const isInPeriod = (dateValue: Date, periodFilter: ExpenseListFilters['periodFilter'], now: Date) => {
   const date = new Date(dateValue);
-  const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth();
 
@@ -75,7 +72,22 @@ const isInPeriod = (dateValue: Date, periodFilter: ExpenseListFilters['periodFil
   }
 };
 
-export const filterExpenses = (expenses: Expense[], filters: ExpenseListFilters) => {
+// Carryover is a current operational balance, never a change to expense recognition dates.
+// Historical period selections retain their original date-based meaning.
+export const isExpenseCarryover = (
+  expense: Expense,
+  periodFilter: ExpenseListFilters['periodFilter'],
+  referenceDate = new Date(),
+) => periodFilter === 'this_month'
+  && new Date(expense.date).getTime() < new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1).getTime()
+  && isExpenseEffectivelyOverdue(expense, referenceDate);
+
+export const splitExpensePeriod = (expenses: Expense[], periodFilter: ExpenseListFilters['periodFilter'], referenceDate = new Date()) => ({
+  periodExpenses: expenses.filter(expense => isInPeriod(expense.date, periodFilter, referenceDate)),
+  carryoverExpenses: expenses.filter(expense => isExpenseCarryover(expense, periodFilter, referenceDate)),
+});
+
+export const filterExpenses = (expenses: Expense[], filters: ExpenseListFilters, referenceDate = new Date()) => {
   const search = filters.searchTerm.toLowerCase();
 
   return expenses.filter((expense) => {
@@ -84,12 +96,13 @@ export const filterExpenses = (expenses: Expense[], filters: ExpenseListFilters)
       || includesSearch(expense.concept, search)
       || includesSearch(expense.description, search)
       || includesSearch(expense.providerName, search);
-    const matchesPeriod = isInPeriod(expense.date, filters.periodFilter);
+    const matchesPeriod = isInPeriod(expense.date, filters.periodFilter, referenceDate)
+      || isExpenseCarryover(expense, filters.periodFilter, referenceDate);
     const matchesUnit = filters.businessUnitFilter === 'all' || expense.businessUnit === filters.businessUnitFilter;
     const matchesBusiness = filters.businessFilter === 'all' || expense.business === filters.businessFilter;
     const matchesProvider = filters.providerFilter === 'all' || expense.providerId === filters.providerFilter;
-    const effectiveStatus = getEffectiveExpenseStatus(expense);
-    const hasOverdueBalance = isExpenseEffectivelyOverdue(expense);
+    const effectiveStatus = getEffectiveExpenseStatus(expense, referenceDate);
+    const hasOverdueBalance = isExpenseEffectivelyOverdue(expense, referenceDate);
     const matchesStatus = filters.statusFilter === 'all'
       || (filters.statusFilter === 'pending_and_overdue' && (effectiveStatus === 'pending' || hasOverdueBalance))
       || (filters.statusFilter === 'overdue' && hasOverdueBalance)

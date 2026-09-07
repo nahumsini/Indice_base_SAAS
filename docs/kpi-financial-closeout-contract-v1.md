@@ -51,6 +51,22 @@ history, reset the database, or alter an applied migration.
   totals may include drafts when explicitly labelled. Draft workflows are kept.
 - Payments in a period are selected by payment date; expense recognition uses
   expense date. Outstanding balances identify whether they are current or as-of.
+- The Expenses operational list's `this_month` view includes current overdue balances
+  from expenses dated before the first day of the month, including previous years.
+  Search, unit, business, provider and status filters still apply. Settled, zero-balance,
+  closed, cancelled and rejected records cannot be carried as overdue debt. Partial
+  payments carry only the remaining balance. Historical period filters retain their
+  expense-date meaning; this view is not an as-of historical balance calculation.
+- Carryover is identified as prior balance in desktop and mobile rows. The period-total
+  KPI queries only expenses originally dated in that period; open and overdue balances
+  include the carryover once, with a separate prior-balance disclosure. All monetary
+  KPI queries still use the central backend currency engine. Original dates, currencies,
+  amounts, payments, accounting recognition and source records are unchanged. An empty
+  selection is described as empty, never as proof that all obligations are settled.
+  Partial payments refresh the monetary aggregates even when selected IDs do not change.
+- Expense, due and payment dates are calendar dates, parsed and serialized without UTC
+  day shifts. Audit timestamps retain their instant semantics. This affects presentation
+  and round trips only; no stored dates are rewritten during rollout.
 
 ## Sales, collections, and reporting
 
