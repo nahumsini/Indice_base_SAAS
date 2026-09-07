@@ -123,6 +123,7 @@ const companyModules = read(
 const companyActivity = read(
   "src/app/PlatformAdmin/CompanyAccount/CompanyActivityTab.tsx",
 );
+const usersDirectory = read("src/app/PlatformAdmin/UsersDirectoryTab.tsx");
 const companyAccess = read("src/app/PlatformAdmin/CompanyAccount/CompanyAccessTab.tsx");
 const adjustment = read("src/app/PlatformAdmin/BenefitAdjustmentModal.tsx");
 const customerModalPresentation = [
@@ -436,7 +437,9 @@ test("clientes conserva contratos históricos y confirma el nuevo total antes de
 });
 
 test("las tarjetas de clientes funcionan como filtros operativos", () => {
-  assert.match(page, /matchesCustomerStatusFilter\(company, statusFilter\)/);
+  assert.match(page, /platformAdminApi\.getOverview\(overviewOptions\)/);
+  assert.match(platformApi, /status: options\.status \?\? 'all'/);
+  assert.match(platformApi, /pageSize: String\(options\.pageSize \?\? 25\)/);
   assert.match(customerTableUtils, /statusFilter === "temporary"/);
   assert.match(customerTableUtils, /statusFilter === "attention"/);
   assert.match(customerTableUtils, /statusFilter === "expiring"/);
@@ -593,7 +596,7 @@ test("la tabla separa el creador histórico del distribuidor vigente", () => {
   assert.match(customerTableUtils, /case "distributor"/);
   assert.match(platformApi, /creation_origin\?:/);
   assert.match(platformApi, /distributor_company_name\?: string \| null/);
-  assert.match(page, /company\.distributor_company_name/);
+  assert.match(page, /overview\?\.distributors \?\? \[\]/);
 });
 
 test("una cuenta cliente asigna cambia o retira su distribuidor por modal", () => {
@@ -649,6 +652,38 @@ test("usuarios incluidos ocupan y liberan lugares con invitaciones controladas",
   assert.match(platformApi, /cancelCompanyUserInvitation/);
   assert.match(platformApi, /resendCompanyUserInvitation/);
   assert.match(platformApi, /updateCompanyUserStatus/);
+  assert.match(companyActivity, /inviteReason\.trim\(\)\.length < 5/);
+  assert.match(companyActivity, /statusReason\.trim\(\)\.length < 5/);
+  assert.match(companyActivity, /IndiceConfirmationDialog/);
+  assert.doesNotMatch(companyActivity, /window\.confirm/);
+  assert.match(platformApi, /role: 'admin' \| 'user'; reason: string/);
+  assert.match(platformApi, /status: 'active' \| 'inactive', reason: string/);
+});
+
+test("el directorio y los cambios de autoridad no dependen de la página visible", () => {
+  assert.match(usersDirectory, /platformAdminApi\.getCompanyOptions\(query\.trim\(\), directoryPage, directoryPageSize\)/);
+  assert.match(usersDirectory, /setDirectoryPage\(1\)/);
+  assert.match(usersDirectory, /PendingAccessChange/);
+  assert.match(usersDirectory, /companyRequestSequence/);
+  assert.match(usersDirectory, /accessReason\.trim\(\)\.length < 5/);
+  assert.match(usersDirectory, /IndiceConfirmationDialog/);
+  assert.match(platformApi, /updateCompanyUserRole:[\s\S]*reason: string/);
+  assert.match(platformApi, /updateCompanyUserPlatformAccess:[\s\S]*reason: string/);
+});
+
+test("los errores de operaciones destructivas permanecen visibles en su confirmación", () => {
+  assert.match(page, /revocationError/);
+  assert.match(page, /companyDeletionError/);
+  assert.match(page, /moduleChangeError/);
+  assert.doesNotMatch(page, /setAccountFeedback\(\{ type: "error", message \}\);\s*setRevocation\(null\)/);
+});
+
+test("las mutaciones críticas conservan su clave al reintentar una falla transitoria", () => {
+  assert.match(platformApi, /window\.sessionStorage\.getItem\(fingerprint\)/);
+  assert.match(platformApi, /error\.status >= 400 && error\.status < 500/);
+  assert.match(platformApi, /window\.sessionStorage\.removeItem\(fingerprint\)/);
+  assert.match(platformApi, /createCompanyAccount:[\s\S]*idempotentMutation/);
+  assert.match(platformApi, /extendCompanyTrial:[\s\S]*idempotentMutation/);
 });
 
 test("sesiones nacen con cuenta horario destino y consultor sin exigir enlace", () => {
@@ -660,7 +695,7 @@ test("sesiones nacen con cuenta horario destino y consultor sin exigir enlace", 
   assert.match(session, /value\.mode === "VIRTUAL" \|\| value\.serviceLocationCode/);
   assert.match(session, /footer=\{[\s\S]*<>[\s\S]*Cancelar[\s\S]*Siguiente[\s\S]*<\/>/);
   assert.match(session, /new Date\(value\.startAt\) <= new Date\(\)/);
-  assert.match(consulting, /companies=\{companies\}/);
+  assert.match(consulting, /companies=\{selectableCompanies\}/);
   assert.match(consulting, /locations=\{allLocations\}/);
 });
 
@@ -680,6 +715,8 @@ test("la consultoría conserva empresa usuario y preferencia de asignación", ()
   assert.match(consulting, /Trazabilidad de la solicitud/);
   assert.match(consulting, /appointment\.booked_by_user_id/);
   assert.match(consulting, /Puedes reasignar/);
+  assert.match(consulting, /workspace\?\.companies \?\? companies/);
+  assert.match(consulting, /companies=\{selectableCompanies\}/);
 });
 
 test("consultoría sincroniza distribuidores y distingue al equipo interno", () => {

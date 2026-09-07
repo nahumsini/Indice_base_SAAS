@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -84,6 +85,7 @@ class PlatformAccountProvisioningServiceTest {
             .containsEntry("extra_seats", 2)
             .containsEntry("product_codes", List.of("basic_hr", "basic_process_tasks"));
         verify(access).require(9L, "PLATFORM_ACCOUNTS_WRITE");
+        verify(access).require(9L, "PLATFORM_BENEFITS_WRITE");
         verify(courtesyCodes).createAfterAuthorization(eq(9L), eq("account-request-1:access"), any());
         verify(signup).createTrustedCourtesySignup(any(), eq("account-request-1:signup"));
         verify(jdbc).update(
@@ -105,6 +107,29 @@ class PlatformAccountProvisioningServiceTest {
         verify(signup).createTrustedCourtesySignup(signupRequest.capture(), eq("account-request-1:signup"));
         assertThat(signupRequest.getValue().companySize()).isEqualTo("7");
         assertThat(signupRequest.getValue().extraSeats()).isEqualTo(2);
+    }
+
+    @Test
+    void requiresBenefitAuthorityBecauseAccountCreationGrantsCommercialAccess() {
+        when(access.require(9L, "PLATFORM_ACCOUNTS_WRITE"))
+            .thenReturn(new PlatformAdminAccessService.Access(
+                3L,
+                "PLATFORM_OPERATOR",
+                List.of("PLATFORM_ACCOUNTS_WRITE")
+            ));
+        doThrow(new PlatformAdminForbiddenException("Missing benefit authority."))
+            .when(access).require(9L, "PLATFORM_BENEFITS_WRITE");
+
+        assertThatThrownBy(() -> service.create(
+            9L,
+            "account-request-without-benefits",
+            request("DemoSegura2026!", "SUPER_ADMIN")
+        ))
+            .isInstanceOf(PlatformAdminForbiddenException.class)
+            .hasMessageContaining("benefit authority");
+
+        verify(signup, never()).provisioningEnabled();
+        verify(courtesyCodes, never()).createAfterAuthorization(anyLong(), anyString(), any());
     }
 
     @Test

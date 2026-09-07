@@ -43,6 +43,7 @@ public class DistributorPortfolioAccessPolicy {
                  AND membership.company_id = company.id
                  AND LOWER(COALESCE(membership.status, 'active')) = 'active'
                 WHERE company.id = ?
+                  AND company.platform_status = 'ACTIVE'
                   AND UPPER(COALESCE(company.commercial_account_type, '')) = 'DISTRIBUTOR'
                 LIMIT 1
                 """,
@@ -63,6 +64,7 @@ public class DistributorPortfolioAccessPolicy {
                 FROM companies client
                 WHERE client.id = ?
                   AND client.id <> ?
+                  AND client.platform_status = 'ACTIVE'
                   AND UPPER(COALESCE(client.commercial_account_type, '')) = 'SUPER_ADMIN'
                   AND (
                       client.distributor_company_id = ?
@@ -93,6 +95,7 @@ public class DistributorPortfolioAccessPolicy {
                 JOIN companies client ON client.id = appointment.company_id
                 WHERE appointment.id = ?
                   AND client.id <> ?
+                  AND client.platform_status = 'ACTIVE'
                   AND UPPER(COALESCE(client.commercial_account_type, '')) = 'SUPER_ADMIN'
                   AND (
                       client.distributor_company_id = ?

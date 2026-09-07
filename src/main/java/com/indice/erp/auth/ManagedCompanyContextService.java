@@ -164,6 +164,7 @@ public class ManagedCompanyContextService {
                     SELECT company.id, company.name
                     FROM companies company
                     WHERE UPPER(COALESCE(company.commercial_account_type, '')) = 'SUPER_ADMIN'
+                      AND company.platform_status = 'ACTIVE'
                     ORDER BY company.name ASC, company.id ASC
                     """,
                 (rs, rowNum) -> managedCompany(rs.getLong("id"), rs.getString("name"), authority.mode(), null)
@@ -174,6 +175,7 @@ public class ManagedCompanyContextService {
                 SELECT client.id, client.name
                 FROM companies client
                 WHERE UPPER(COALESCE(client.commercial_account_type, '')) = 'SUPER_ADMIN'
+                  AND client.platform_status = 'ACTIVE'
                   AND client.id <> ?
                   AND (
                       client.distributor_company_id = ?
@@ -208,6 +210,7 @@ public class ManagedCompanyContextService {
                 FROM companies
                 WHERE id = ?
                   AND UPPER(COALESCE(commercial_account_type, '')) = 'SUPER_ADMIN'
+                  AND platform_status = 'ACTIVE'
                 LIMIT 1
                 """,
             (rs, rowNum) -> managedCompany(rs.getLong("id"), rs.getString("name"), authority.mode(), null),

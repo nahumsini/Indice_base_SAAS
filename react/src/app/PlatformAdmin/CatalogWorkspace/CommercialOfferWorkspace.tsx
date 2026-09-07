@@ -107,7 +107,7 @@ export function CommercialOfferWorkspace({
   onChange: (catalog: PlatformCatalog) => void;
 }) {
   const { currentLanguage } = useLanguage();
-  const english = currentLanguage.code.startsWith("en");
+  const english = !currentLanguage.code.startsWith("es");
   const [filter, setFilter] = useState<OfferFilter>("ALL");
   const [availability, setAvailability] = useState<AvailabilityFilter>("ALL");
   const [configuration, setConfiguration] = useState<ConfigurationFilter>("ALL");

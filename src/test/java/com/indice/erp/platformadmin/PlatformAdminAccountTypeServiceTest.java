@@ -58,13 +58,13 @@ class PlatformAdminAccountTypeServiceTest {
     @SuppressWarnings({ "rawtypes", "unchecked" })
     void updatesAndAuditsAnEditableCommercialAccountType() {
         when(jdbc.query(anyString(), any(RowMapper.class), eq(44L))).thenReturn((List) List.of(
-            Map.of("account_type", "SUPER_ADMIN", "platform_root", false)
+            Map.of("account_type", "SUPER_ADMIN", "platform_status", "ACTIVE", "platform_root", false)
         ));
 
         var result = service.updateCompanyAccountType(
             9L,
             44L,
-            new PlatformAdminService.AccountTypeUpdateRequest("DISTRIBUTOR")
+            new PlatformAdminService.AccountTypeUpdateRequest("DISTRIBUTOR", "Approved account migration")
         );
 
         assertThat(result)
@@ -72,7 +72,11 @@ class PlatformAdminAccountTypeServiceTest {
             .containsEntry("user_type", "DISTRIBUTOR")
             .containsEntry("changed", true);
         verify(access).require(9L, "PLATFORM_ACCOUNTS_WRITE");
-        verify(jdbc).update("UPDATE companies SET commercial_account_type = ? WHERE id = ?", "DISTRIBUTOR", 44L);
+        verify(jdbc).update(
+            "UPDATE companies SET commercial_account_type = ? WHERE id = ? AND platform_status = 'ACTIVE'",
+            "DISTRIBUTOR",
+            44L
+        );
         verify(audit).record(
             eq(9L),
             eq("COMPANY_ACCOUNT_TYPE_UPDATED"),
@@ -88,13 +92,13 @@ class PlatformAdminAccountTypeServiceTest {
     @SuppressWarnings({ "rawtypes", "unchecked" })
     void refusesToEditAnAccountWithActiveRootAuthority() {
         when(jdbc.query(anyString(), any(RowMapper.class), eq(44L))).thenReturn((List) List.of(
-            Map.of("account_type", "SUPER_ADMIN", "platform_root", true)
+            Map.of("account_type", "SUPER_ADMIN", "platform_status", "ACTIVE", "platform_root", true)
         ));
 
         assertThatThrownBy(() -> service.updateCompanyAccountType(
             9L,
             44L,
-            new PlatformAdminService.AccountTypeUpdateRequest("DISTRIBUTOR")
+            new PlatformAdminService.AccountTypeUpdateRequest("DISTRIBUTOR", "Approved account migration")
         ))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("Root authority");
@@ -103,23 +107,41 @@ class PlatformAdminAccountTypeServiceTest {
     }
 
     @Test
+    void refusesAnAccountTypeChangeWithoutAnAuditableReason() {
+        assertThatThrownBy(() -> service.updateCompanyAccountType(
+            9L,
+            44L,
+            new PlatformAdminService.AccountTypeUpdateRequest("DISTRIBUTOR", " ")
+        ))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("operational reason");
+
+        verify(access).require(9L, "PLATFORM_ACCOUNTS_WRITE");
+        verify(jdbc, never()).update(anyString(), any(), any());
+    }
+
+    @Test
     @SuppressWarnings({ "rawtypes", "unchecked" })
     void enablesAndAuditsPublicDemoAccessForACustomerAccount() {
         when(jdbc.query(anyString(), any(RowMapper.class), eq(44L))).thenReturn((List) List.of(
-            Map.of("account_type", "SUPER_ADMIN", "enabled", false)
+            Map.of("account_type", "SUPER_ADMIN", "enabled", false, "platform_status", "ACTIVE")
         ));
 
         var result = service.updatePublicDemoAccess(
             9L,
             44L,
-            new PlatformAdminService.PublicDemoUpdateRequest(true)
+            new PlatformAdminService.PublicDemoUpdateRequest(true, "Approved public demo access")
         );
 
         assertThat(result)
             .containsEntry("company_id", 44L)
             .containsEntry("public_demo_enabled", true)
             .containsEntry("changed", true);
-        verify(jdbc).update("UPDATE companies SET public_demo_enabled = ? WHERE id = ?", true, 44L);
+        verify(jdbc).update(
+            "UPDATE companies SET public_demo_enabled = ? WHERE id = ? AND platform_status = 'ACTIVE'",
+            true,
+            44L
+        );
         verify(audit).record(eq(9L), eq("PUBLIC_DEMO_ENABLED"), eq("COMPANY"), eq("44"), eq(44L), eq("SUCCESS"), any());
     }
 
@@ -127,16 +149,34 @@ class PlatformAdminAccountTypeServiceTest {
     @SuppressWarnings({ "rawtypes", "unchecked" })
     void refusesToExposeADistributorAsAPublicDemo() {
         when(jdbc.query(anyString(), any(RowMapper.class), eq(44L))).thenReturn((List) List.of(
-            Map.of("account_type", "DISTRIBUTOR", "enabled", false)
+            Map.of("account_type", "DISTRIBUTOR", "enabled", false, "platform_status", "ACTIVE")
         ));
 
         assertThatThrownBy(() -> service.updatePublicDemoAccess(
             9L,
             44L,
-            new PlatformAdminService.PublicDemoUpdateRequest(true)
+            new PlatformAdminService.PublicDemoUpdateRequest(true, "Approved public demo access")
         ))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("customer accounts");
+
+        verify(jdbc, never()).update(anyString(), any(), any());
+    }
+
+    @Test
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    void refusesOperationalChangesForADeletedAccount() {
+        when(jdbc.query(anyString(), any(RowMapper.class), eq(44L))).thenReturn((List) List.of(
+            Map.of("account_type", "SUPER_ADMIN", "platform_status", "DELETED", "platform_root", false)
+        ));
+
+        assertThatThrownBy(() -> service.updateCompanyAccountType(
+            9L,
+            44L,
+            new PlatformAdminService.AccountTypeUpdateRequest("DISTRIBUTOR", "Approved account migration")
+        ))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("Deleted accounts");
 
         verify(jdbc, never()).update(anyString(), any(), any());
     }

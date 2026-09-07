@@ -182,7 +182,8 @@ public class AuthApiController {
             ));
         }
 
-        if (securityProperties.isMfaRequiredForCompany(verification.login().companyName())) {
+        if (sessionAuthService.requiresStrongMfa(verification.login().userId())
+            || securityProperties.isMfaRequiredForCompany(verification.login().companyName())) {
             recordCredentialAudit(verification, "SUCCESS", AuthFailureReason.MFA_REQUIRED,
                 "Password accepted; MFA required.", AuthLockoutService.LockoutState.open(), auditContext);
             var challenge = mfaChallengeService.startChallenge(verification.login(), session.getId(), auditContext);
@@ -244,7 +245,7 @@ public class AuthApiController {
             ));
         }
         servletRequest.changeSessionId();
-        sessionAuthService.storeAuthenticatedSession(session, result.login());
+        sessionAuthService.storeAuthenticatedSession(session, result.login(), true);
         sessionCsrfService.rotateCsrf(session);
         loginSecurityEmailService.sendLoginSuccess(result.login(), LoginAuditContext.from(servletRequest, session));
         return sessionAuthService.currentSession(session)

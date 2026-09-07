@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
   type ReactNode,
@@ -100,11 +101,8 @@ import {
   CustomerColumnsModal,
   CustomerControlCenter,
   TrialExtensionModal,
-  basicCommercialStatus,
-  compareCustomerValues,
   getCustomerTableCopy,
   loadCustomerTableColumnIds,
-  matchesCustomerStatusFilter,
   saveCustomerTableColumnIds,
   type CustomerTableColumnId,
   type CustomerSortKey,
@@ -279,7 +277,7 @@ const offerLabels: Record<string, string> = {
 export default function PlatformAdminPage() {
   const navigate = useNavigate();
   const { currentLanguage } = useLanguage();
-  const english = currentLanguage.code.startsWith("en");
+  const english = !currentLanguage.code.startsWith("es");
   const tabs = useMemo(
     () =>
       tabDefinitions.map((tab) => ({
@@ -312,6 +310,8 @@ export default function PlatformAdminPage() {
     rememberScroll: false,
   });
   const [context, setContext] = useState<PlatformAdminContext | null>(null);
+  const canCreateAccounts = context?.can_create_accounts
+    ?? Boolean(context?.can_manage_accounts && context.can_manage_benefits);
   const visibleTabs = useMemo(
     () => tabs.filter((tab) => {
       if (tab.id === "systemTickets") return Boolean(context?.can_manage_system_tickets);
@@ -375,17 +375,20 @@ export default function PlatformAdminPage() {
   const [companyDeletion, setCompanyDeletion] = useState<PlatformCompanySummary | null>(null);
   const [companyDeletionName, setCompanyDeletionName] = useState("");
   const [companyDeletionReason, setCompanyDeletionReason] = useState("");
+  const [companyDeletionError, setCompanyDeletionError] = useState("");
   const [trialExtensionError, setTrialExtensionError] = useState("");
   const [courtesyAccessOpen, setCourtesyAccessOpen] = useState(false);
   const [revocation, setRevocation] = useState<Revocation>(null);
   const [revocationReason, setRevocationReason] = useState(
     "Fin de cortesía o promoción",
   );
+  const [revocationError, setRevocationError] = useState("");
   const [moduleChange, setModuleChange] =
     useState<ModuleAvailabilityChange>(null);
   const [moduleChangeReason, setModuleChangeReason] = useState(
     "Disponibilidad global administrada desde el panel root",
   );
+  const [moduleChangeError, setModuleChangeError] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -393,35 +396,58 @@ export default function PlatformAdminPage() {
     type: "success" | "error";
     message: string;
   } | null>(null);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const initialLoadStarted = useRef(false);
+  const overviewRequestSequence = useRef(0);
+  const overviewOptions = useMemo(
+    () => ({
+      query,
+      userType: userTypeFilter,
+      status: statusFilter,
+      sort: customerSort.direction ? customerSort.key : "id",
+      direction: customerSort.direction ?? "desc",
+      page,
+      pageSize,
+    }),
+    [customerSort, page, pageSize, query, statusFilter, userTypeFilter],
+  );
+  const overviewOptionsKey = JSON.stringify(overviewOptions);
+  const loadedOverviewOptionsKey = useRef<string | null>(null);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const [
-        access,
-        overviewData,
-        billingData,
-        catalogData,
-        modulesData,
-        auditData,
-        courtesyData,
-      ] = await Promise.all([
-        platformAdminApi.getContext(),
-        platformAdminApi.getOverview(),
+      const access = await platformAdminApi.getContext();
+      setContext(access);
+      const requests = await Promise.allSettled([
+        platformAdminApi.getOverview(overviewOptions),
         platformAdminApi.getBilling(),
         platformAdminApi.getCatalog(),
         platformAdminApi.getModules(),
         platformAdminApi.getAudit(),
-        platformAdminApi.getCourtesyCodes(),
+        access.can_manage_benefits
+          ? platformAdminApi.getCourtesyCodes()
+          : Promise.resolve(null),
       ]);
-      setContext(access);
-      setOverview(overviewData);
-      setBilling(billingData);
-      setCatalog(catalogData);
-      setModuleRegistry(modulesData);
-      setAuditLog(auditData);
-      setCourtesyCatalog(courtesyData);
+      const [overviewResult, billingResult, catalogResult, modulesResult, auditResult, courtesyResult] = requests;
+      if (overviewResult.status === "fulfilled") {
+        setOverview(overviewResult.value);
+        loadedOverviewOptionsKey.current = overviewOptionsKey;
+      }
+      if (billingResult.status === "fulfilled") setBilling(billingResult.value);
+      if (catalogResult.status === "fulfilled") setCatalog(catalogResult.value);
+      if (modulesResult.status === "fulfilled") setModuleRegistry(modulesResult.value);
+      if (auditResult.status === "fulfilled") setAuditLog(auditResult.value);
+      if (courtesyResult.status === "fulfilled") setCourtesyCatalog(courtesyResult.value);
+      const failures = requests.filter((result) => result.status === "rejected");
+      if (failures.length) {
+        setError(
+          english
+            ? `${failures.length} section(s) could not be loaded. The available sections remain usable; refresh to retry.`
+            : `No se pudieron cargar ${failures.length} sección(es). Las secciones disponibles siguen funcionando; actualiza para reintentar.`,
+        );
+      }
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -431,86 +457,58 @@ export default function PlatformAdminPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [english, overviewOptions, overviewOptionsKey]);
 
   useEffect(() => {
+    if (initialLoadStarted.current) return;
+    initialLoadStarted.current = true;
     void loadAll();
   }, [loadAll]);
 
   useEffect(() => {
-    if (activeTab !== "customers" || loading) return;
-
+    if (!context || loading) return;
+    if (loadedOverviewOptionsKey.current === overviewOptionsKey) return;
+    const requestSequence = ++overviewRequestSequence.current;
     let cancelled = false;
-    const refreshCustomerBilling = async () => {
+    const timeoutId = window.setTimeout(async () => {
+      setOverviewLoading(true);
       try {
-        const overviewData = await platformAdminApi.getOverview();
-        if (!cancelled) setOverview(overviewData);
-      } catch {
-        // Background synchronization must not replace usable data with an error screen.
+        const overviewData = await platformAdminApi.getOverview(overviewOptions);
+        if (!cancelled && requestSequence === overviewRequestSequence.current) {
+          setOverview(overviewData);
+          loadedOverviewOptionsKey.current = overviewOptionsKey;
+        }
+      } catch (loadError) {
+        if (!cancelled && requestSequence === overviewRequestSequence.current) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : english
+                ? "The customer portfolio could not be updated."
+                : "No se pudo actualizar la cartera de clientes.",
+          );
+        }
+      } finally {
+        if (!cancelled && requestSequence === overviewRequestSequence.current) {
+          setOverviewLoading(false);
+        }
       }
-    };
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") {
-        void refreshCustomerBilling();
-      }
-    };
-
-    window.addEventListener("focus", refreshWhenVisible);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    const intervalId = window.setInterval(refreshWhenVisible, 30_000);
+    }, 250);
     return () => {
       cancelled = true;
-      window.removeEventListener("focus", refreshWhenVisible);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-      window.clearInterval(intervalId);
+      window.clearTimeout(timeoutId);
     };
-  }, [activeTab, loading]);
+  }, [context, english, loading, overviewOptions, overviewOptionsKey]);
 
   useEffect(() => {
-    if (!loading && context?.can_manage_accounts && hasAccountCreationDraft()) {
+    if (!loading && canCreateAccounts && hasAccountCreationDraft()) {
       setCreateAccountOpen(true);
     }
-  }, [context?.can_manage_accounts, loading]);
+  }, [canCreateAccounts, loading]);
 
-  const companies = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    return (overview?.companies ?? []).filter((company) => {
-      const matchesQuery =
-        !normalizedQuery ||
-        [
-          company.name,
-          company.owner_email,
-          company.distributor_company_name,
-          String(company.id),
-        ].some((value) => value?.toLowerCase().includes(normalizedQuery));
-      const matchesStatus = matchesCustomerStatusFilter(company, statusFilter);
-      const matchesUserType =
-        userTypeFilter === "all" || company.user_type === userTypeFilter;
-      return matchesQuery && matchesUserType && matchesStatus;
-    });
-  }, [overview, query, userTypeFilter, statusFilter]);
-
-  const sortedCompanies = useMemo(() => {
-    if (!customerSort.direction) return companies;
-    const direction = customerSort.direction === "asc" ? 1 : -1;
-    return [...companies].sort(
-      (left, right) =>
-        compareCustomerValues(left, right, customerSort.key) * direction,
-    );
-  }, [companies, customerSort]);
-
-  const distributorAccounts = useMemo(
-    () =>
-      (overview?.companies ?? [])
-        .filter((company) => company.user_type === "DISTRIBUTOR")
-        .sort((left, right) => left.name.localeCompare(right.name)),
-    [overview],
-  );
-
-  const pagedCompanies = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return sortedCompanies.slice(start, start + pageSize);
-  }, [sortedCompanies, page, pageSize]);
+  const companies = overview?.companies ?? [];
+  const distributorAccounts = overview?.distributors ?? [];
+  const pagedCompanies = companies;
 
   const activeCatalogProducts = useMemo(() => {
     return selectActiveCatalogProducts(catalog);
@@ -519,6 +517,12 @@ export default function PlatformAdminPage() {
   useEffect(() => {
     setPage(1);
   }, [query, userTypeFilter, statusFilter, pageSize, customerSort]);
+
+  useEffect(() => {
+    if (overview?.pagination && overview.pagination.page !== page) {
+      setPage(overview.pagination.page);
+    }
+  }, [overview?.pagination, page]);
 
   const openCompany = async (company: PlatformCompanySummary | number) => {
     setError("");
@@ -555,7 +559,7 @@ export default function PlatformAdminPage() {
   const refreshUsersCompany = async () => {
     if (!usersCompany) return;
     const [overviewData, companyData] = await Promise.all([
-      platformAdminApi.getOverview(),
+      platformAdminApi.getOverview(overviewOptions),
       platformAdminApi.getCompany(usersCompany.id),
     ]);
     setOverview(overviewData);
@@ -563,7 +567,7 @@ export default function PlatformAdminPage() {
   };
 
   const refreshOverviewAndCompany = async () => {
-    const overviewData = await platformAdminApi.getOverview();
+    const overviewData = await platformAdminApi.getOverview(overviewOptions);
     setOverview(overviewData);
     if (selected) setSelected(await platformAdminApi.getCompany(selected.id));
   };
@@ -572,9 +576,10 @@ export default function PlatformAdminPage() {
     if (!companyDeletion) return;
     setSaving(true);
     setError("");
+    setCompanyDeletionError("");
     try {
       await platformAdminApi.deleteCompanyAccount(companyDeletion.id, companyDeletionName, companyDeletionReason);
-      setOverview(await platformAdminApi.getOverview());
+      setOverview(await platformAdminApi.getOverview(overviewOptions));
       setAccountFeedback({
         type: "success",
         message: english
@@ -585,7 +590,9 @@ export default function PlatformAdminPage() {
       setCompanyDeletionName("");
       setCompanyDeletionReason("");
     } catch (deletionError) {
-      setError(deletionError instanceof Error ? deletionError.message : "No se pudo eliminar la cuenta.");
+      const message = deletionError instanceof Error ? deletionError.message : "No se pudo eliminar la cuenta.";
+      setCompanyDeletionError(message);
+      setError(message);
     } finally {
       setSaving(false);
     }
@@ -596,7 +603,7 @@ export default function PlatformAdminPage() {
   ): Promise<PlatformAccountCreateResult> => {
     const created = await platformAdminApi.createCompanyAccount(payload);
     const [overviewData, courtesyData, auditData] = await Promise.all([
-      platformAdminApi.getOverview(),
+      platformAdminApi.getOverview(overviewOptions),
       platformAdminApi.getCourtesyCodes(),
       platformAdminApi.getAudit(),
     ]);
@@ -608,6 +615,7 @@ export default function PlatformAdminPage() {
 
   const updateCompanyAccountType = async (
     accountType: EditablePlatformAccountType,
+    reason: string,
   ) => {
     if (!accountTypeEdit || saving) return;
     setSaving(true);
@@ -616,9 +624,10 @@ export default function PlatformAdminPage() {
       await platformAdminApi.updateCompanyAccountType(
         accountTypeEdit.id,
         accountType,
+        reason,
       );
       const [overviewData, auditData] = await Promise.all([
-        platformAdminApi.getOverview(),
+        platformAdminApi.getOverview(overviewOptions),
         platformAdminApi.getAudit(),
       ]);
       setOverview(overviewData);
@@ -639,6 +648,7 @@ export default function PlatformAdminPage() {
 
   const updateCompanyDistributor = async (
     distributorCompanyId: number | null,
+    reason: string,
   ) => {
     if (!distributorAssignment || saving) return;
     setSaving(true);
@@ -647,9 +657,10 @@ export default function PlatformAdminPage() {
       await platformAdminApi.updateCompanyDistributor(
         distributorAssignment.id,
         distributorCompanyId,
+        reason,
       );
       const [overviewData, auditData] = await Promise.all([
-        platformAdminApi.getOverview(),
+        platformAdminApi.getOverview(overviewOptions),
         platformAdminApi.getAudit(),
       ]);
       setOverview(overviewData);
@@ -675,7 +686,7 @@ export default function PlatformAdminPage() {
     try {
       await platformAdminApi.extendCompanyTrial(trialExtension.id, days);
       const [overviewData, auditData] = await Promise.all([
-        platformAdminApi.getOverview(),
+        platformAdminApi.getOverview(overviewOptions),
         platformAdminApi.getAudit(),
       ]);
       setOverview(overviewData);
@@ -701,6 +712,7 @@ export default function PlatformAdminPage() {
     if (!selected || saving) return;
     setSaving(true);
     setError("");
+    setRevocationError("");
     setAccountFeedback(null);
     try {
       const accessEndsAt = selected.benefits
@@ -771,13 +783,13 @@ export default function PlatformAdminPage() {
     }
   };
 
-  const updatePublicDemoAccess = async (enabled: boolean) => {
-    if (!selected || saving) return;
+  const updatePublicDemoAccess = async (enabled: boolean, reason: string) => {
+    if (!selected || saving) return false;
     setSaving(true);
     setError("");
     setAccountFeedback(null);
     try {
-      await platformAdminApi.updatePublicDemoAccess(selected.id, enabled);
+      await platformAdminApi.updatePublicDemoAccess(selected.id, enabled, reason);
       await refreshOverviewAndCompany();
       setAccountFeedback({
         type: "success",
@@ -785,12 +797,14 @@ export default function PlatformAdminPage() {
           ? "La empresa ya aparece en /demo y acepta sus credenciales existentes sin MFA únicamente por esa ruta."
           : "La empresa dejó de aceptar accesos desde /demo. El inicio de sesión normal no cambió.",
       });
+      return true;
     } catch (saveError) {
       const message = saveError instanceof Error
         ? saveError.message
         : "No se pudo actualizar el acceso demo público.";
       setError(message);
       setAccountFeedback({ type: "error", message });
+      return false;
     } finally {
       setSaving(false);
     }
@@ -903,6 +917,7 @@ export default function PlatformAdminPage() {
         setCourtesyCatalog(await platformAdminApi.getCourtesyCodes());
       }
       setRevocation(null);
+      setRevocationError("");
       setRevocationReason("Fin de cortesía o promoción");
     } catch (revokeError) {
       const message =
@@ -912,7 +927,7 @@ export default function PlatformAdminPage() {
       setError(message);
       if (revocation.kind === "benefit")
         setAccountFeedback({ type: "error", message });
-      setRevocation(null);
+      setRevocationError(message);
     } finally {
       setSaving(false);
     }
@@ -922,6 +937,7 @@ export default function PlatformAdminPage() {
     if (!moduleChange || saving || moduleChangeReason.trim().length < 3) return;
     setSaving(true);
     setError("");
+    setModuleChangeError("");
     try {
       await platformAdminApi.updateModuleAvailability(
         moduleChange.module.id,
@@ -930,15 +946,16 @@ export default function PlatformAdminPage() {
       );
       setModuleRegistry(await platformAdminApi.getModules());
       setModuleChange(null);
+      setModuleChangeError("");
       setModuleChangeReason(
         "Disponibilidad global administrada desde el panel root",
       );
     } catch (saveError) {
-      setError(
-        saveError instanceof Error
-          ? saveError.message
-          : "No se pudo cambiar la disponibilidad global del módulo.",
-      );
+      const message = saveError instanceof Error
+        ? saveError.message
+        : "No se pudo cambiar la disponibilidad global del módulo.";
+      setModuleChangeError(message);
+      setError(message);
     } finally {
       setSaving(false);
     }
@@ -1046,8 +1063,11 @@ export default function PlatformAdminPage() {
             {activeTab === "customers" ? (
               <CustomersTab
                 english={english}
-                totals={overview?.totals}
-                allCompanies={overview?.companies ?? []}
+                 totals={overview?.totals}
+                 allCompanies={overview?.companies ?? []}
+                 control={overview?.control}
+                 paginationData={overview?.pagination}
+                 loading={overviewLoading}
                 companies={companies}
                 pagedCompanies={pagedCompanies}
                 query={query}
@@ -1056,7 +1076,7 @@ export default function PlatformAdminPage() {
                 sort={customerSort}
                 page={page}
                 pageSize={pageSize}
-                canCreate={Boolean(context?.can_manage_accounts)}
+                canCreate={canCreateAccounts}
                 canEditTypes={Boolean(context?.can_manage_accounts)}
                 canAssignDistributors={Boolean(context?.can_manage_accounts)}
                 canExtendTrials={context?.role === "PLATFORM_ROOT"}
@@ -1107,6 +1127,7 @@ export default function PlatformAdminPage() {
                 onDelete={(company) => {
                   setCompanyDeletionName("");
                   setCompanyDeletionReason("");
+                  setCompanyDeletionError("");
                   setCompanyDeletion(company);
                 }}
               />
@@ -1126,6 +1147,7 @@ export default function PlatformAdminPage() {
               <BillingTab
                 english={english}
                 data={billing}
+                onDataChange={setBilling}
                 onOpenCompany={openCompany}
               />
             ) : null}
@@ -1137,7 +1159,10 @@ export default function PlatformAdminPage() {
                 canManage={Boolean(context?.can_manage_modules)}
                 saving={saving}
                 onCatalogChange={setCatalog}
-                onModuleChange={setModuleChange}
+                onModuleChange={(change) => {
+                  setModuleChangeError("");
+                  setModuleChange(change);
+                }}
               />
             ) : null}
             {activeTab === "consulting" ? (
@@ -1181,9 +1206,10 @@ export default function PlatformAdminPage() {
           onUpdateTrialProducts={updateTrialProducts}
           onRefreshCompany={refreshOverviewAndCompany}
           onUpdatePublicDemo={updatePublicDemoAccess}
-          onRevokeBenefit={(reference, label, grantCount) =>
-            setRevocation({ kind: "benefit", reference, label, grantCount })
-          }
+          onRevokeBenefit={(reference, label, grantCount) => {
+            setRevocationError("");
+            setRevocation({ kind: "benefit", reference, label, grantCount });
+          }}
           initialTab={selectedInitialTab}
         />
       ) : null}
@@ -1299,9 +1325,10 @@ export default function PlatformAdminPage() {
             saving={saving}
             onChange={setCourtesy}
             onSubmit={submitCourtesyCode}
-            onRevoke={(reference) =>
-              setRevocation({ kind: "courtesy", reference })
-            }
+            onRevoke={(reference) => {
+              setRevocationError("");
+              setRevocation({ kind: "courtesy", reference });
+            }}
           />
         </IndiceModalFrame>
       ) : null}
@@ -1309,9 +1336,13 @@ export default function PlatformAdminPage() {
         <ConfirmModal
           revocation={revocation}
           reason={revocationReason}
+          error={revocationError}
           saving={saving}
           onReason={setRevocationReason}
-          onCancel={() => setRevocation(null)}
+          onCancel={() => {
+            setRevocation(null);
+            setRevocationError("");
+          }}
           onConfirm={() => void confirmRevocation()}
         />
       ) : null}
@@ -1319,9 +1350,13 @@ export default function PlatformAdminPage() {
         <ModuleAvailabilityModal
           change={moduleChange}
           reason={moduleChangeReason}
+          error={moduleChangeError}
           saving={saving}
           onReason={setModuleChangeReason}
-          onCancel={() => setModuleChange(null)}
+          onCancel={() => {
+            setModuleChange(null);
+            setModuleChangeError("");
+          }}
           onConfirm={() => void confirmModuleAvailability()}
         />
       ) : null}
@@ -1336,12 +1371,16 @@ export default function PlatformAdminPage() {
           destructive
           icon={<Trash2 className="h-5 w-5" />}
           itemName={companyDeletion.name}
-          onCancel={() => setCompanyDeletion(null)}
+          onCancel={() => {
+            setCompanyDeletion(null);
+            setCompanyDeletionError("");
+          }}
           onConfirm={() => void confirmCompanyDeletion()}
           open
           title={english ? "Delete account" : "Eliminar cuenta"}
           tone="coral"
         >
+          <IndiceModalValidation messages={companyDeletionError ? [companyDeletionError] : []} />
           <Field label={english ? "Deletion reason" : "Motivo de eliminación"}>
             <textarea autoFocus minLength={5} value={companyDeletionReason} onChange={(event) => setCompanyDeletionReason(event.target.value)} className={`${controlClass} min-h-24 resize-y py-2`} />
           </Field>
@@ -1358,6 +1397,9 @@ function CustomersTab({
   english,
   totals,
   allCompanies,
+  control,
+  paginationData,
+  loading,
   companies,
   pagedCompanies,
   query,
@@ -1390,6 +1432,9 @@ function CustomersTab({
   english: boolean;
   totals: PlatformOverview["totals"] | undefined;
   allCompanies: PlatformCompanySummary[];
+  control: PlatformOverview["control"] | undefined;
+  paginationData: PlatformOverview["pagination"] | undefined;
+  loading: boolean;
   companies: PlatformCompanySummary[];
   pagedCompanies: PlatformCompanySummary[];
   query: string;
@@ -1419,7 +1464,8 @@ function CustomersTab({
   onExtendTrial: (company: PlatformCompanySummary) => void;
   onDelete: (company: PlatformCompanySummary) => void;
 }) {
-  const pages = Math.max(1, Math.ceil(companies.length / pageSize));
+  const pages = paginationData?.total_pages ?? 1;
+  const totalCount = paginationData?.total_items ?? companies.length;
   const copy = getCustomerTableCopy(english);
   const [columnsOpen, setColumnsOpen] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<CustomerTableColumnId[]>(
@@ -1428,18 +1474,16 @@ function CustomersTab({
   useEffect(() => {
     saveCustomerTableColumnIds(visibleColumns);
   }, [visibleColumns]);
-  const demoAndTrialAccounts = allCompanies.filter((company) =>
-    matchesCustomerStatusFilter(company, "temporary"),
-  ).length;
+  const demoAndTrialAccounts = totals?.demo_and_trial_accounts ?? 0;
   const pagination = (
     <DataTablePagination
       currentPage={page}
       totalPages={pages}
       pageSize={pageSize}
       pageSizeOptions={[10, 25, 50, 100, 200]}
-      totalCount={companies.length}
-      pageStart={companies.length ? (page - 1) * pageSize + 1 : 0}
-      pageEnd={Math.min(page * pageSize, companies.length)}
+      totalCount={totalCount}
+      pageStart={totalCount ? (page - 1) * pageSize + 1 : 0}
+      pageEnd={Math.min(page * pageSize, totalCount)}
       itemLabel={english ? "accounts" : "cuentas"}
       onPageChange={onPage}
       onPageSizeChange={onPageSize}
@@ -1447,7 +1491,7 @@ function CustomersTab({
   );
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" aria-busy={loading}>
       <IndiceTitleBar
         tone="aqua"
         icon={<Building2 className="h-5 w-5" />}
@@ -1514,6 +1558,7 @@ function CustomersTab({
       <CustomerControlCenter
         english={english}
         companies={allCompanies}
+        control={control}
         activeFilter={statusFilter}
         onFilter={onStatus}
         onOpenCompany={(company) => onOpenCompany(company)}
@@ -1660,25 +1705,27 @@ function CustomersTab({
 function BillingTab({
   english,
   data,
+  onDataChange,
   onOpenCompany,
 }: {
   english: boolean;
   data: PlatformBilling | null;
+  onDataChange: (data: PlatformBilling) => void;
   onOpenCompany: (company: number) => void;
 }) {
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const requestSequence = useRef(0);
   const [sort, setSort] = useState<{
     key: BillingSortKey;
     direction: SortDirection;
   }>({ key: "period", direction: "desc" });
   const totals = data?.totals;
-  const invoices = useMemo(() => {
-    const rows = data?.invoices ?? [];
-    if (!sort.direction) return rows;
-    const direction = sort.direction === "asc" ? 1 : -1;
-    return [...rows].sort(
-      (left, right) => compareInvoiceValues(left, right, sort.key) * direction,
-    );
-  }, [data?.invoices, sort]);
+  const invoices = data?.invoices ?? [];
   const changeSort = (key: BillingSortKey) =>
     setSort((current) =>
       current.key !== key
@@ -1693,8 +1740,63 @@ function BillingTab({
                   : null,
           },
     );
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize, query, sort, status]);
+  useEffect(() => {
+    const sequence = ++requestSequence.current;
+    let cancelled = false;
+    const timeoutId = window.setTimeout(async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const response = await platformAdminApi.getBilling({
+          query,
+          status,
+          sort: sort.direction ? sort.key : "period",
+          direction: sort.direction ?? "desc",
+          page,
+          pageSize,
+        });
+        if (!cancelled && sequence === requestSequence.current) onDataChange(response);
+      } catch (loadError) {
+        if (!cancelled && sequence === requestSequence.current) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : english
+                ? "Billing history could not be loaded."
+                : "No se pudo cargar el historial de facturación.",
+          );
+        }
+      } finally {
+        if (!cancelled && sequence === requestSequence.current) setLoading(false);
+      }
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [english, onDataChange, page, pageSize, query, sort, status]);
+  useEffect(() => {
+    if (data?.pagination && data.pagination.page !== page) setPage(data.pagination.page);
+  }, [data?.pagination, page]);
+  const pagination = (
+    <DataTablePagination
+      currentPage={page}
+      totalPages={data?.pagination?.total_pages ?? 1}
+      pageSize={pageSize}
+      pageSizeOptions={[10, 25, 50, 100, 200]}
+      totalCount={data?.pagination?.total_items ?? invoices.length}
+      pageStart={(data?.pagination?.total_items ?? 0) ? (page - 1) * pageSize + 1 : 0}
+      pageEnd={Math.min(page * pageSize, data?.pagination?.total_items ?? invoices.length)}
+      itemLabel={english ? "invoices" : "facturas"}
+      onPageChange={setPage}
+      onPageSizeChange={setPageSize}
+    />
+  );
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" aria-busy={loading}>
       <IndiceTitleBar
         tone="blue"
         icon={<CreditCard className="h-5 w-5" />}
@@ -1736,6 +1838,36 @@ function BillingTab({
           accent="blue"
         />
       </section>
+      <IndiceFilterBar
+        title={english ? "Billing documents" : "Documentos de facturación"}
+        gridClassName="lg:grid-cols-[minmax(0,1fr)_240px]"
+      >
+        <IndiceFilterSearch
+          label={english ? "Search" : "Buscar"}
+          placeholder={english ? "Customer, invoice, status or ID" : "Cliente, factura, estado o ID"}
+          tone="aqua"
+          value={query}
+          onValueChange={setQuery}
+          onClear={() => setQuery("")}
+        />
+        <IndiceFilterSelect
+          label={english ? "Document status" : "Estado del documento"}
+          tone="aqua"
+          value={status}
+          onValueChange={setStatus}
+          options={[
+            { value: "all", label: english ? "All statuses" : "Todos los estados" },
+            { value: "paid", label: english ? "Paid" : "Pagada" },
+            { value: "open", label: english ? "Open" : "Abierta" },
+            { value: "attention", label: english ? "Needs attention" : "Requiere atención" },
+          ]}
+        />
+      </IndiceFilterBar>
+      {error ? (
+        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      ) : null}
       <Panel
         title={english ? "Billing history" : "Historial de facturación"}
         description={
@@ -1744,8 +1876,9 @@ function BillingTab({
             : "Importes cobrados, pendientes y enlaces oficiales de Stripe."
         }
       >
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px]">
+        <IndiceTableShell pagination={pagination}>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px]">
             <thead className="bg-slate-50 dark:bg-slate-900">
               <tr>
                 {(
@@ -1794,8 +1927,9 @@ function BillingTab({
                 </tr>
               ) : null}
             </tbody>
-          </table>
-        </div>
+            </table>
+          </div>
+        </IndiceTableShell>
       </Panel>
     </div>
   );
@@ -1921,42 +2055,6 @@ function SortableBillingHeader({
       </button>
     </th>
   );
-}
-
-function compareInvoiceValues(
-  left: PlatformInvoice,
-  right: PlatformInvoice,
-  key: BillingSortKey,
-) {
-  const text = (a: string | null | undefined, b: string | null | undefined) =>
-    (a || "").localeCompare(b || "", undefined, {
-      numeric: true,
-      sensitivity: "base",
-    });
-  const number = (a: number | null | undefined, b: number | null | undefined) =>
-    (a ?? 0) - (b ?? 0);
-  const date = (value: string | null | undefined) =>
-    value ? new Date(value).getTime() || 0 : 0;
-  switch (key) {
-    case "customer":
-      return text(
-        left.company_name || left.owner_email,
-        right.company_name || right.owner_email,
-      );
-    case "invoice":
-      return text(left.invoice_id, right.invoice_id);
-    case "status":
-      return text(left.status, right.status);
-    case "amount":
-      return number(left.amount_due_cents, right.amount_due_cents);
-    case "paid":
-      return number(left.amount_paid_cents, right.amount_paid_cents);
-    case "period":
-      return number(
-        date(left.period_ends_at || left.updated_at),
-        date(right.period_ends_at || right.updated_at),
-      );
-  }
 }
 
 type CatalogView = "products" | "prices";
@@ -4417,6 +4515,7 @@ function CompanyDrawer({
 function ModuleAvailabilityModal({
   change,
   reason,
+  error,
   saving,
   onReason,
   onCancel,
@@ -4424,6 +4523,7 @@ function ModuleAvailabilityModal({
 }: {
   change: NonNullable<ModuleAvailabilityChange>;
   reason: string;
+  error: string;
   saving: boolean;
   onReason: (value: string) => void;
   onCancel: () => void;
@@ -4442,6 +4542,7 @@ function ModuleAvailabilityModal({
       aria-labelledby="module-status-title"
     >
       <section className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl">
+        <IndiceModalValidation messages={error ? [error] : []} />
         <span
           className={`grid h-11 w-11 place-items-center rounded-xl ${activating ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}
         >
@@ -4541,6 +4642,7 @@ function ModuleAvailabilityModal({
 function ConfirmModal({
   revocation,
   reason,
+  error,
   saving,
   onReason,
   onCancel,
@@ -4548,6 +4650,7 @@ function ConfirmModal({
 }: {
   revocation: NonNullable<Revocation>;
   reason: string;
+  error: string;
   saving: boolean;
   onReason: (value: string) => void;
   onCancel: () => void;
@@ -4587,6 +4690,7 @@ function ConfirmModal({
       }
       tone="blue"
     >
+      <IndiceModalValidation messages={error ? [error] : []} />
       <Field label="Motivo de auditoría">
         <select
           autoFocus

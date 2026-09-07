@@ -52,6 +52,7 @@ public class PlatformAccountProvisioningService {
         CreateAccountRequest request
     ) {
         access.require(actorUserId, "PLATFORM_ACCOUNTS_WRITE");
+        access.require(actorUserId, "PLATFORM_BENEFITS_WRITE");
         return createAfterAuthorization(actorUserId, idempotencyKey, request, null);
     }
 

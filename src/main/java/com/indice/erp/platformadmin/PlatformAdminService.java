@@ -10,6 +10,8 @@ import com.indice.erp.configcenter.users.ConfigCenterTabPermissionCatalog;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -84,16 +86,37 @@ public class PlatformAdminService {
         body.put("can_manage_ownership", access.allows("PLATFORM_OWNERSHIP_WRITE"));
         body.put("can_manage_modules", access.allows("PLATFORM_MODULES_WRITE"));
         body.put("can_manage_consulting", access.allows("PLATFORM_CONSULTING_WRITE"));
-        body.put("can_manage_accounts", access.allows("PLATFORM_ACCOUNTS_WRITE") && access.allows("PLATFORM_BENEFITS_WRITE"));
+        body.put("can_manage_accounts", access.allows("PLATFORM_ACCOUNTS_WRITE"));
+        body.put("can_create_accounts", access.allows("PLATFORM_ACCOUNTS_WRITE") && access.allows("PLATFORM_BENEFITS_WRITE"));
         body.put("can_manage_system_tickets", access.allows("SYSTEM_TICKETS_MANAGE"));
         return body;
     }
 
     public Map<String, Object> overview(long actorUserId, String rawQuery, int requestedLimit) {
+        return overview(actorUserId, rawQuery, "all", "all", "id", "desc", 1, requestedLimit);
+    }
+
+    public Map<String, Object> overview(
+        long actorUserId,
+        String rawQuery,
+        String rawUserType,
+        String rawStatus,
+        String rawSort,
+        String rawDirection,
+        int requestedPage,
+        int requestedPageSize
+    ) {
         accessService.require(actorUserId, "PLATFORM_VIEW");
         var query = rawQuery == null ? "" : rawQuery.trim().toLowerCase(Locale.ROOT);
-        var limit = Math.max(1, Math.min(requestedLimit, 500));
-        var pattern = "%" + query + "%";
+        if (query.length() > 120) {
+            throw new IllegalArgumentException("Company search must contain at most 120 characters.");
+        }
+        var userType = upper(rawUserType);
+        var status = lower(rawStatus);
+        var sort = lower(rawSort);
+        var direction = "asc".equals(lower(rawDirection)) ? 1 : -1;
+        var requestedSafePage = Math.max(1, requestedPage);
+        var pageSize = Math.max(1, Math.min(requestedPageSize, 500));
         var companies = jdbcTemplate.query(
             """
                 SELECT company.id, company.name, company.public_demo_enabled, company.platform_status,
@@ -359,14 +382,7 @@ public class PlatformAdminService {
                       FROM billing_invoice_snapshots candidate_invoice
                       WHERE candidate_invoice.company_id = company.id
                   )
-                WHERE (? = ''
-                    OR LOWER(company.name) LIKE ?
-                    OR LOWER(COALESCE(owner.email, '')) LIKE ?
-                    OR LOWER(COALESCE(distributor.name, '')) LIKE ?
-                    OR LOWER(COALESCE(creator_distributor.name, company.created_by_distributor_name, '')) LIKE ?
-                    OR CAST(company.id AS CHAR) = ?)
                 ORDER BY company.id DESC
-                LIMIT ?
                 """,
             (rs, rowNum) -> {
                 var row = new LinkedHashMap<String, Object>();
@@ -442,14 +458,7 @@ public class PlatformAdminService {
                 row.put("active_benefits", rs.getInt("active_benefits"));
                 row.put("temporary_benefits", rs.getInt("temporary_benefits"));
                 return row;
-            },
-            query,
-            pattern,
-            pattern,
-            pattern,
-            pattern,
-            query,
-            limit
+            }
         );
         addBillingProjection(companies);
         var activeCustomerAccounts = companies.stream()
@@ -487,8 +496,60 @@ public class PlatformAdminService {
                 .sum()
         );
         totals.put("paid_last_30_days_cents", scalarLong("SELECT COALESCE(SUM(amount_paid_cents), 0) FROM billing_invoice_snapshots WHERE currency = 'USD' AND LOWER(COALESCE(status, '')) = 'paid' AND updated_at >= DATE_SUB(CURRENT_TIMESTAMP(6), INTERVAL 30 DAY)"));
+        totals.put("demo_and_trial_accounts", companies.stream()
+            .filter(company -> Set.of("demo", "trial").contains(commercialStatus(company)))
+            .count());
         totals.put("currency", "USD");
-        return Map.of("totals", totals, "companies", companies);
+
+        var filteredCompanies = companies.stream()
+            .filter(company -> matchesCompanySearch(company, query))
+            .filter(company -> "ALL".equals(userType) || userType.isBlank()
+                || userType.equalsIgnoreCase(String.valueOf(company.get("user_type"))))
+            .filter(company -> matchesCompanyStatus(company, status))
+            .sorted(companyComparator(sort, direction))
+            .toList();
+        var totalItems = filteredCompanies.size();
+        var totalPages = Math.max(1, (int) Math.ceil(totalItems / (double) pageSize));
+        var page = Math.min(requestedSafePage, totalPages);
+        var fromIndex = Math.min((page - 1) * pageSize, totalItems);
+        var toIndex = Math.min(fromIndex + pageSize, totalItems);
+        var pageCompanies = new ArrayList<>(filteredCompanies.subList(fromIndex, toIndex));
+
+        var managedCustomers = companies.stream()
+            .filter(PlatformAdminService::isManagedCustomer)
+            .toList();
+        var priorities = managedCustomers.stream()
+            .filter(company -> customerPriorityScore(company) > 0)
+            .sorted(Comparator
+                .comparingInt(PlatformAdminService::customerPriorityScore)
+                .reversed()
+                .thenComparing(company -> lower(company.get("name"))))
+            .limit(5)
+            .toList();
+        var control = new LinkedHashMap<String, Object>();
+        control.put("attention", managedCustomers.stream().filter(PlatformAdminService::isCustomerAttentionAccount).count());
+        control.put("expiring", managedCustomers.stream().filter(PlatformAdminService::isCustomerTrialEndingSoon).count());
+        control.put("no_offer", managedCustomers.stream().filter(PlatformAdminService::isCustomerWithoutOffer).count());
+        control.put("no_adoption", managedCustomers.stream().filter(PlatformAdminService::isCustomerWithoutAdoption).count());
+        control.put("priorities", priorities);
+
+        var pagination = new LinkedHashMap<String, Object>();
+        pagination.put("page", page);
+        pagination.put("page_size", pageSize);
+        pagination.put("total_items", totalItems);
+        pagination.put("total_pages", totalPages);
+
+        var result = new LinkedHashMap<String, Object>();
+        result.put("totals", totals);
+        result.put("companies", pageCompanies);
+        result.put("pagination", pagination);
+        result.put("control", control);
+        result.put("distributors", companies.stream()
+            .filter(company -> "DISTRIBUTOR".equalsIgnoreCase(String.valueOf(company.get("user_type"))))
+            .filter(company -> !"deleted".equals(lower(company.get("platform_status"))))
+            .sorted(Comparator.comparing(company -> lower(company.get("name"))))
+            .toList());
+        return result;
     }
 
     private void addBillingProjection(List<? extends Map<String, Object>> companies) {
@@ -566,6 +627,96 @@ public class PlatformAdminService {
         }
     }
 
+    public Map<String, Object> companyOptions(
+        long actorUserId,
+        String rawQuery,
+        int requestedPage,
+        int requestedPageSize
+    ) {
+        accessService.require(actorUserId, "PLATFORM_VIEW");
+        var query = rawQuery == null ? "" : rawQuery.trim().toLowerCase(Locale.ROOT);
+        if (query.length() > 120) {
+            throw new IllegalArgumentException("Company search must contain at most 120 characters.");
+        }
+        var pageSize = Math.max(10, Math.min(requestedPageSize, 100));
+        var pattern = "%" + query + "%";
+        var joins = """
+             FROM companies company
+             LEFT JOIN company_ownerships ownership
+               ON ownership.company_id = company.id AND ownership.status = 'ACTIVE'
+             LEFT JOIN users owner ON owner.id = ownership.owner_user_id
+            """;
+        var where = """
+             WHERE (? = ''
+                OR LOWER(company.name) LIKE ?
+                OR LOWER(COALESCE(owner.email, '')) LIKE ?
+                OR CAST(company.id AS CHAR) = ?)
+            """;
+        var totalResult = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) " + joins + where,
+            Integer.class,
+            query,
+            pattern,
+            pattern,
+            query
+        );
+        var totalItems = totalResult == null ? 0 : totalResult;
+        var totalPages = Math.max(1, (int) Math.ceil(totalItems / (double) pageSize));
+        var page = Math.min(Math.max(1, requestedPage), totalPages);
+        var offset = (page - 1) * pageSize;
+        var companies = jdbcTemplate.query(
+            """
+                SELECT company.id, company.name, company.platform_status,
+                       CASE
+                           WHEN EXISTS (
+                               SELECT 1
+                               FROM user_companies platform_membership
+                               JOIN platform_administrators platform_administrator
+                                 ON platform_administrator.user_id = platform_membership.user_id
+                                AND platform_administrator.status = 'ACTIVE'
+                                AND platform_administrator.platform_role = 'PLATFORM_ROOT'
+                               WHERE platform_membership.company_id = company.id
+                                 AND LOWER(COALESCE(platform_membership.status, 'active')) = 'active'
+                           ) THEN 'ROOT'
+                           ELSE company.commercial_account_type
+                       END AS user_type,
+                       owner.email AS owner_email,
+                       (SELECT COUNT(*)
+                          FROM user_companies membership
+                         WHERE membership.company_id = company.id
+                           AND LOWER(COALESCE(membership.status, 'active')) = 'active') AS active_members
+                """ + joins + where + """
+                 ORDER BY company.name, company.id
+                 LIMIT ? OFFSET ?
+                """,
+            (rs, rowNum) -> {
+                var row = new LinkedHashMap<String, Object>();
+                row.put("id", rs.getLong("id"));
+                row.put("name", rs.getString("name"));
+                row.put("platform_status", rs.getString("platform_status"));
+                row.put("user_type", rs.getString("user_type"));
+                row.put("owner_email", nullable(rs.getString("owner_email")));
+                row.put("active_members", rs.getInt("active_members"));
+                return row;
+            },
+            query,
+            pattern,
+            pattern,
+            query,
+            pageSize,
+            offset
+        );
+        return Map.of(
+            "companies", companies,
+            "pagination", Map.of(
+                "page", page,
+                "page_size", pageSize,
+                "total_items", totalItems,
+                "total_pages", totalPages
+            )
+        );
+    }
+
     private static void unavailableBillingProjection(Map<String, Object> company) {
         company.put("billing_amount_cents", null);
         company.put("billing_amount_kind", "UNAVAILABLE");
@@ -591,6 +742,182 @@ public class PlatformAdminService {
             || "full".equals(accessMode)
             || activeBenefits > 0
             || temporaryBenefits > 0;
+    }
+
+    private static boolean matchesCompanySearch(Map<String, Object> company, String query) {
+        if (query == null || query.isBlank()) {
+            return true;
+        }
+        return java.util.stream.Stream.of(
+            company.get("name"),
+            company.get("owner_email"),
+            company.get("distributor_company_name"),
+            company.get("created_by_distributor_company_name"),
+            company.get("id")
+        )
+            .filter(java.util.Objects::nonNull)
+            .map(PlatformAdminService::lower)
+            .anyMatch(value -> value.contains(query));
+    }
+
+    private static boolean matchesCompanyStatus(Map<String, Object> company, String status) {
+        if (status == null || status.isBlank() || "all".equals(status)) {
+            return true;
+        }
+        return switch (status) {
+            case "temporary" -> Set.of("demo", "trial").contains(commercialStatus(company));
+            case "attention" -> isCustomerAttentionAccount(company);
+            case "expiring" -> isCustomerTrialEndingSoon(company);
+            case "no_offer" -> isCustomerWithoutOffer(company);
+            case "no_adoption" -> isCustomerWithoutAdoption(company);
+            case "active", "trial", "demo", "inactive", "deleted" -> status.equals(commercialStatus(company));
+            default -> true;
+        };
+    }
+
+    private static String commercialStatus(Map<String, Object> company) {
+        if ("deleted".equals(lower(company.get("platform_status")))) {
+            return "deleted";
+        }
+        var billingStatus = lower(company.get("billing_status"));
+        var lifecycleState = lower(company.get("lifecycle_state"));
+        var accessMode = lower(company.get("access_mode"));
+        if ("trialing".equals(billingStatus) || "trial".equals(lifecycleState)) {
+            return "trial";
+        }
+        if (billingStatus.isBlank() && number(company.get("temporary_benefits")) > 0) {
+            return "demo";
+        }
+        if (Set.of("active", "paid").contains(billingStatus)
+            || Set.of("active", "grace").contains(lifecycleState)
+            || "full".equals(accessMode)
+            || number(company.get("active_benefits")) > 0) {
+            return "active";
+        }
+        return "inactive";
+    }
+
+    private static boolean isManagedCustomer(Map<String, Object> company) {
+        return "SUPER_ADMIN".equalsIgnoreCase(String.valueOf(company.get("user_type")))
+            && !"deleted".equals(commercialStatus(company));
+    }
+
+    private static boolean isCustomerAttentionAccount(Map<String, Object> company) {
+        if (!isManagedCustomer(company)) {
+            return false;
+        }
+        var paymentStatus = lower(company.get("last_invoice_status"));
+        if (paymentStatus.isBlank()) {
+            paymentStatus = lower(company.get("last_payment_status"));
+        }
+        return Set.of("past_due", "unpaid", "failed").contains(paymentStatus)
+            || "inactive".equals(commercialStatus(company))
+            || "UNAVAILABLE".equalsIgnoreCase(String.valueOf(company.get("billing_amount_kind")))
+            || isCustomerTrialExpired(company);
+    }
+
+    private static boolean isCustomerTrialExpired(Map<String, Object> company) {
+        return company.get("trial_source") != null
+            && number(company.get("trial_days_remaining")) <= 0;
+    }
+
+    private static boolean isCustomerTrialEndingSoon(Map<String, Object> company) {
+        var remaining = number(company.get("trial_days_remaining"));
+        return isManagedCustomer(company)
+            && company.get("trial_source") != null
+            && remaining > 0
+            && remaining <= 7;
+    }
+
+    private static boolean isCustomerWithoutOffer(Map<String, Object> company) {
+        return isManagedCustomer(company)
+            && lower(company.get("offer_code")).isBlank()
+            && lower(company.get("projected_offer_code")).isBlank()
+            && listSize(company.get("product_names")) == 0
+            && listSize(company.get("product_codes")) == 0;
+    }
+
+    private static boolean isCustomerWithoutAdoption(Map<String, Object> company) {
+        return isManagedCustomer(company)
+            && Set.of("active", "trial", "demo").contains(commercialStatus(company))
+            && number(company.get("active_members")) == 0;
+    }
+
+    private static int customerPriorityScore(Map<String, Object> company) {
+        if (!isManagedCustomer(company)) {
+            return 0;
+        }
+        var score = 0;
+        var paymentStatus = lower(company.get("last_invoice_status"));
+        if (paymentStatus.isBlank()) {
+            paymentStatus = lower(company.get("last_payment_status"));
+        }
+        if (Set.of("past_due", "unpaid", "failed").contains(paymentStatus)) score += 100;
+        if (isCustomerTrialExpired(company)) score += 90;
+        if ("inactive".equals(commercialStatus(company))) score += 80;
+        if ("UNAVAILABLE".equalsIgnoreCase(String.valueOf(company.get("billing_amount_kind")))) score += 70;
+        if (isCustomerTrialEndingSoon(company)) score += 60;
+        if (lower(company.get("owner_email")).isBlank()) score += 50;
+        if (isCustomerWithoutOffer(company)) score += 40;
+        if (isCustomerWithoutAdoption(company)) score += 30;
+        return score;
+    }
+
+    private static Comparator<Map<String, Object>> companyComparator(String sort, int direction) {
+        Comparator<Map<String, Object>> comparator = switch (sort) {
+            case "customer" -> Comparator.comparing(company -> lower(company.get("name")));
+            case "usertype" -> Comparator.comparing(company -> lower(company.get("user_type")));
+            case "distributor" -> Comparator.comparing(company -> lower(firstPresent(
+                company.get("created_by_distributor_company_name"),
+                company.get("distributor_company_name"),
+                company.get("creation_origin"),
+                company.get("name")
+            )));
+            case "status" -> Comparator.comparing(PlatformAdminService::commercialStatus);
+            case "plan" -> Comparator.comparing(company -> lower(firstPresent(
+                company.get("offer_code"), company.get("projected_offer_code")
+            )));
+            case "rate" -> Comparator.comparingLong(company -> number(company.get("billing_amount_cents")));
+            case "users" -> Comparator.comparingLong(company -> number(company.get("active_members")));
+            case "nextevent" -> Comparator.comparing(company -> instantValue(firstPresent(
+                company.get("trial_source") == null ? null : company.get("trial_ends_at"),
+                company.get("current_period_ends_at")
+            )));
+            case "payment" -> Comparator.comparing(company -> lower(firstPresent(
+                company.get("last_invoice_status"), company.get("last_payment_status")
+            )));
+            default -> Comparator.comparingLong(company -> number(company.get("id")));
+        };
+        comparator = comparator.thenComparingLong(company -> number(company.get("id")));
+        return direction < 0 ? comparator.reversed() : comparator;
+    }
+
+    private static long number(Object value) {
+        return value instanceof Number number ? number.longValue() : 0L;
+    }
+
+    private static int listSize(Object value) {
+        return value instanceof List<?> list ? list.size() : 0;
+    }
+
+    private static Object firstPresent(Object... values) {
+        for (var value : values) {
+            if (value != null && !String.valueOf(value).isBlank()) {
+                return value;
+            }
+        }
+        return "";
+    }
+
+    private static Instant instantValue(Object value) {
+        if (value instanceof Instant instant) {
+            return instant;
+        }
+        try {
+            return value == null ? Instant.EPOCH : Instant.parse(String.valueOf(value));
+        } catch (RuntimeException ignored) {
+            return Instant.EPOCH;
+        }
     }
 
     private static long monthlyBillingAmount(Map<String, Object> company) {
@@ -844,13 +1171,14 @@ public class PlatformAdminService {
         if (request == null) {
             throw new IllegalArgumentException("Account type details are required.");
         }
+        var reason = requireOperationalReason(request.reason());
         var accountType = upper(request.account_type());
         if (!COMMERCIAL_ACCOUNT_TYPES.contains(accountType)) {
             throw new IllegalArgumentException("Account type must be SUPER_ADMIN or DISTRIBUTOR.");
         }
         var rows = jdbcTemplate.query(
             """
-                SELECT company.commercial_account_type,
+                SELECT company.commercial_account_type, company.platform_status,
                        EXISTS (
                            SELECT 1
                            FROM user_companies platform_membership
@@ -864,9 +1192,11 @@ public class PlatformAdminService {
                 FROM companies company
                 WHERE company.id = ?
                 LIMIT 1
+                FOR UPDATE
                 """,
             (rs, rowNum) -> Map.<String, Object>of(
                 "account_type", rs.getString("commercial_account_type"),
+                "platform_status", rs.getString("platform_status"),
                 "platform_root", rs.getBoolean("platform_root")
             ),
             companyId
@@ -875,6 +1205,7 @@ public class PlatformAdminService {
             throw new NoSuchElementException("Company not found.");
         }
         var current = rows.getFirst();
+        requireActiveCompanyStatus(current.get("platform_status"));
         if (Boolean.TRUE.equals(current.get("platform_root"))) {
             throw new IllegalStateException("Root authority must be managed from platform administrator security.");
         }
@@ -882,7 +1213,7 @@ public class PlatformAdminService {
         var changed = !accountType.equals(previousType);
         if (changed) {
             jdbcTemplate.update(
-                "UPDATE companies SET commercial_account_type = ? WHERE id = ?",
+                "UPDATE companies SET commercial_account_type = ? WHERE id = ? AND platform_status = 'ACTIVE'",
                 accountType,
                 companyId
             );
@@ -893,7 +1224,7 @@ public class PlatformAdminService {
                 String.valueOf(companyId),
                 companyId,
                 "SUCCESS",
-                Map.of("previous_type", previousType, "user_type", accountType)
+                Map.of("previous_type", previousType, "user_type", accountType, "reason", reason)
             );
         }
         return Map.of(
@@ -1010,16 +1341,19 @@ public class PlatformAdminService {
         if (request == null || request.enabled() == null) {
             throw new IllegalArgumentException("The public demo setting is required.");
         }
+        var reason = requireOperationalReason(request.reason());
         var rows = jdbcTemplate.query(
             """
-                SELECT commercial_account_type, public_demo_enabled
+                SELECT commercial_account_type, public_demo_enabled, platform_status
                 FROM companies
                 WHERE id = ?
                 LIMIT 1
+                FOR UPDATE
                 """,
             (rs, rowNum) -> Map.<String, Object>of(
                 "account_type", rs.getString("commercial_account_type"),
-                "enabled", rs.getBoolean("public_demo_enabled")
+                "enabled", rs.getBoolean("public_demo_enabled"),
+                "platform_status", rs.getString("platform_status")
             ),
             companyId
         );
@@ -1027,6 +1361,7 @@ public class PlatformAdminService {
             throw new NoSuchElementException("Company not found.");
         }
         var current = rows.getFirst();
+        requireActiveCompanyStatus(current.get("platform_status"));
         if (!"SUPER_ADMIN".equals(current.get("account_type"))) {
             throw new IllegalStateException("Only customer accounts can be enabled as public demos.");
         }
@@ -1035,7 +1370,7 @@ public class PlatformAdminService {
         var changed = previous != enabled;
         if (changed) {
             jdbcTemplate.update(
-                "UPDATE companies SET public_demo_enabled = ? WHERE id = ?",
+                "UPDATE companies SET public_demo_enabled = ? WHERE id = ? AND platform_status = 'ACTIVE'",
                 enabled,
                 companyId
             );
@@ -1046,7 +1381,7 @@ public class PlatformAdminService {
                 String.valueOf(companyId),
                 companyId,
                 "SUCCESS",
-                Map.of("previous_enabled", previous, "public_demo_enabled", enabled)
+                Map.of("previous_enabled", previous, "public_demo_enabled", enabled, "reason", reason)
             );
         }
         return Map.of(
@@ -1066,10 +1401,12 @@ public class PlatformAdminService {
         if (request == null) {
             throw new IllegalArgumentException("Distributor assignment details are required.");
         }
+        var reason = requireOperationalReason(request.reason());
         var companies = jdbcTemplate.query(
             """
                 SELECT company.name,
                        company.commercial_account_type,
+                       company.platform_status,
                        company.distributor_company_id,
                        current_distributor.name AS distributor_company_name,
                        EXISTS (
@@ -1087,11 +1424,13 @@ public class PlatformAdminService {
                   ON current_distributor.id = company.distributor_company_id
                 WHERE company.id = ?
                 LIMIT 1
+                FOR UPDATE
                 """,
             (rs, rowNum) -> {
                 var row = new LinkedHashMap<String, Object>();
                 row.put("company_name", rs.getString("name"));
                 row.put("account_type", rs.getString("commercial_account_type"));
+                row.put("platform_status", rs.getString("platform_status"));
                 row.put("distributor_company_id", rs.getObject("distributor_company_id"));
                 row.put("distributor_company_name", nullable(rs.getString("distributor_company_name")));
                 row.put("platform_root", rs.getBoolean("platform_root"));
@@ -1103,6 +1442,7 @@ public class PlatformAdminService {
             throw new NoSuchElementException("Company not found.");
         }
         var company = companies.getFirst();
+        requireActiveCompanyStatus(company.get("platform_status"));
         if (Boolean.TRUE.equals(company.get("platform_root"))) {
             throw new IllegalStateException("Root accounts cannot be assigned to a distributor.");
         }
@@ -1120,7 +1460,9 @@ public class PlatformAdminService {
                 """
                     SELECT name
                     FROM companies
-                    WHERE id = ? AND commercial_account_type = 'DISTRIBUTOR'
+                    WHERE id = ?
+                      AND commercial_account_type = 'DISTRIBUTOR'
+                      AND platform_status = 'ACTIVE'
                     LIMIT 1
                     """,
                 (rs, rowNum) -> rs.getString("name"),
@@ -1136,7 +1478,7 @@ public class PlatformAdminService {
         var changed = !java.util.Objects.equals(previousDistributorId, requestedDistributorId);
         if (changed) {
             jdbcTemplate.update(
-                "UPDATE companies SET distributor_company_id = ? WHERE id = ?",
+                "UPDATE companies SET distributor_company_id = ? WHERE id = ? AND platform_status = 'ACTIVE'",
                 requestedDistributorId,
                 companyId
             );
@@ -1147,6 +1489,7 @@ public class PlatformAdminService {
             detail.put("distributor_company_id", requestedDistributorId);
             detail.put("distributor_company_name", requestedDistributorName);
             detail.put("commercial_origin", requestedDistributorId == null ? "INDICE_DIRECT" : "DISTRIBUTOR");
+            detail.put("reason", reason);
             audit.record(
                 actorUserId,
                 requestedDistributorId == null ? "COMPANY_DISTRIBUTOR_UNASSIGNED" : "COMPANY_DISTRIBUTOR_ASSIGNED",
@@ -1168,8 +1511,78 @@ public class PlatformAdminService {
     }
 
     public Map<String, Object> billing(long actorUserId, int requestedLimit) {
+        return billing(actorUserId, "", "all", "period", "desc", 1, requestedLimit);
+    }
+
+    public Map<String, Object> billing(
+        long actorUserId,
+        String rawQuery,
+        String rawStatus,
+        String rawSort,
+        String rawDirection,
+        int requestedPage,
+        int requestedPageSize
+    ) {
         accessService.require(actorUserId, "PLATFORM_VIEW");
-        var limit = Math.max(1, Math.min(requestedLimit, 200));
+        var query = rawQuery == null ? "" : rawQuery.trim().toLowerCase(Locale.ROOT);
+        if (query.length() > 120) {
+            throw new IllegalArgumentException("Billing search must contain at most 120 characters.");
+        }
+        var status = lower(rawStatus);
+        var sortExpression = switch (lower(rawSort)) {
+            case "customer" -> "LOWER(COALESCE(company.name, ''))";
+            case "invoice" -> "LOWER(COALESCE(invoice.stripe_invoice_id, ''))";
+            case "status" -> "LOWER(COALESCE(invoice.status, ''))";
+            case "amount" -> "COALESCE(invoice.amount_due_cents, 0)";
+            case "paid" -> "COALESCE(invoice.amount_paid_cents, 0)";
+            default -> "COALESCE(invoice.period_starts_at, invoice.updated_at)";
+        };
+        var sortDirection = "asc".equals(lower(rawDirection)) ? "ASC" : "DESC";
+        var pageSize = Math.max(1, Math.min(requestedPageSize, 200));
+        var where = new StringBuilder(" WHERE 1 = 1");
+        var parameters = new ArrayList<Object>();
+        if (!query.isBlank()) {
+            var pattern = "%" + query + "%";
+            where.append("""
+                 AND (LOWER(COALESCE(company.name, '')) LIKE ?
+                   OR LOWER(COALESCE(owner.email, '')) LIKE ?
+                   OR LOWER(COALESCE(invoice.stripe_invoice_id, '')) LIKE ?
+                   OR LOWER(COALESCE(invoice.status, '')) LIKE ?
+                   OR CAST(invoice.company_id AS CHAR) = ?)
+                """);
+            parameters.add(pattern);
+            parameters.add(pattern);
+            parameters.add(pattern);
+            parameters.add(pattern);
+            parameters.add(query);
+        }
+        switch (status) {
+            case "paid" -> where.append(" AND LOWER(COALESCE(invoice.status, '')) = 'paid'");
+            case "open" -> where.append(" AND LOWER(COALESCE(invoice.status, '')) = 'open'");
+            case "attention" -> where.append(" AND LOWER(COALESCE(invoice.status, '')) IN ('past_due', 'uncollectible', 'void')");
+            default -> {
+                // Unknown and empty filters intentionally fall back to the complete authorized list.
+            }
+        }
+        var fromSql = """
+             FROM billing_invoice_snapshots invoice
+             LEFT JOIN companies company ON company.id = invoice.company_id
+             LEFT JOIN company_ownerships ownership
+               ON ownership.company_id = company.id AND ownership.status = 'ACTIVE'
+             LEFT JOIN users owner ON owner.id = ownership.owner_user_id
+            """;
+        var totalResult = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) " + fromSql + where,
+            Integer.class,
+            parameters.toArray()
+        );
+        var totalItems = totalResult == null ? 0 : totalResult;
+        var totalPages = Math.max(1, (int) Math.ceil(totalItems / (double) pageSize));
+        var page = Math.min(Math.max(1, requestedPage), totalPages);
+        var offset = (page - 1) * pageSize;
+        var pageParameters = new ArrayList<>(parameters);
+        pageParameters.add(pageSize);
+        pageParameters.add(offset);
         var invoices = jdbcTemplate.query(
             """
                 SELECT invoice.stripe_invoice_id, invoice.company_id, company.name AS company_name,
@@ -1187,14 +1600,8 @@ public class PlatformAdminService {
                        invoice.amount_due_cents, invoice.amount_paid_cents,
                        invoice.hosted_invoice_url, invoice.invoice_pdf_url,
                        invoice.period_starts_at, invoice.period_ends_at, invoice.updated_at
-                FROM billing_invoice_snapshots invoice
-                LEFT JOIN companies company ON company.id = invoice.company_id
-                LEFT JOIN company_ownerships ownership
-                  ON ownership.company_id = company.id AND ownership.status = 'ACTIVE'
-                LEFT JOIN users owner ON owner.id = ownership.owner_user_id
-                ORDER BY invoice.updated_at DESC, invoice.id DESC
-                LIMIT ?
-                """,
+            """ + fromSql + where + " ORDER BY " + sortExpression + " " + sortDirection
+                + ", invoice.id DESC LIMIT ? OFFSET ?",
             (rs, rowNum) -> {
                 var row = new LinkedHashMap<String, Object>();
                 row.put("invoice_id", rs.getString("stripe_invoice_id"));
@@ -1212,15 +1619,21 @@ public class PlatformAdminService {
                 row.put("updated_at", instant(rs.getTimestamp("updated_at")));
                 return row;
             },
-            limit
+            pageParameters.toArray()
         );
         var totals = new LinkedHashMap<String, Object>();
-        totals.put("invoices", invoices.size());
+        totals.put("invoices", scalar("SELECT COUNT(*) FROM billing_invoice_snapshots"));
         totals.put("paid_cents", scalarLong("SELECT COALESCE(SUM(amount_paid_cents), 0) FROM billing_invoice_snapshots WHERE currency = 'USD' AND LOWER(COALESCE(status, '')) = 'paid'"));
         totals.put("open_cents", scalarLong("SELECT COALESCE(SUM(COALESCE(amount_due_cents, 0) - COALESCE(amount_paid_cents, 0)), 0) FROM billing_invoice_snapshots WHERE currency = 'USD' AND LOWER(COALESCE(status, '')) IN ('open', 'past_due', 'uncollectible')"));
         totals.put("failed", scalar("SELECT COUNT(*) FROM billing_invoice_snapshots WHERE LOWER(COALESCE(status, '')) IN ('past_due', 'uncollectible', 'void')"));
         totals.put("currency", "USD");
-        return Map.of("totals", totals, "invoices", invoices);
+        var pagination = Map.of(
+            "page", page,
+            "page_size", pageSize,
+            "total_items", totalItems,
+            "total_pages", totalPages
+        );
+        return Map.of("totals", totals, "invoices", invoices, "pagination", pagination);
     }
 
     public Map<String, Object> catalog(long actorUserId) {
@@ -1868,7 +2281,7 @@ public class PlatformAdminService {
         if (idempotencyKey == null || idempotencyKey.isBlank()) {
             throw new IllegalArgumentException("Idempotency-Key is required.");
         }
-        requireCompany(companyId);
+        requireActiveCompany(companyId);
         var type = upper(request == null ? null : request.benefit_type());
         var source = upper(request == null ? null : request.source_type());
         var reason = request == null || request.reason() == null ? "" : request.reason().trim();
@@ -2320,14 +2733,21 @@ public class PlatformAdminService {
         ).stream().findFirst().orElseThrow(() -> new IllegalArgumentException("Unknown active product_code."));
     }
 
-    private void requireCompany(long companyId) {
-        var count = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM companies WHERE id = ?",
-            Integer.class,
+    private void requireActiveCompany(long companyId) {
+        var statuses = jdbcTemplate.query(
+            "SELECT platform_status FROM companies WHERE id = ? FOR UPDATE",
+            (rs, rowNum) -> rs.getString("platform_status"),
             companyId
         );
-        if (count == null || count == 0) {
+        if (statuses.isEmpty()) {
             throw new NoSuchElementException("Company not found.");
+        }
+        requireActiveCompanyStatus(statuses.getFirst());
+    }
+
+    private void requireActiveCompanyStatus(Object status) {
+        if (!"ACTIVE".equalsIgnoreCase(String.valueOf(status))) {
+            throw new IllegalStateException("Deleted accounts cannot receive operational or access changes.");
         }
     }
 
@@ -2363,6 +2783,14 @@ public class PlatformAdminService {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
+    private static String requireOperationalReason(String value) {
+        var reason = value == null ? "" : value.trim();
+        if (reason.length() < 5 || reason.length() > 500) {
+            throw new IllegalArgumentException("Provide an operational reason between 5 and 500 characters.");
+        }
+        return reason;
+    }
+
     private static Instant instant(Timestamp value) {
         return value == null ? null : value.toInstant();
     }
@@ -2394,16 +2822,16 @@ public class PlatformAdminService {
     public record ModuleAvailabilityRequest(Boolean active, String reason) {
     }
 
-    public record AccountTypeUpdateRequest(String account_type) {
+    public record AccountTypeUpdateRequest(String account_type, String reason) {
     }
 
     public record CompanyDeletionRequest(String confirmation_name, String reason) {
     }
 
-    public record PublicDemoUpdateRequest(Boolean enabled) {
+    public record PublicDemoUpdateRequest(Boolean enabled, String reason) {
     }
 
-    public record DistributorAssignmentRequest(Long distributor_company_id) {
+    public record DistributorAssignmentRequest(Long distributor_company_id, String reason) {
     }
 
     private record ModuleAvailabilityRow(long id, String slug, String name, boolean core, boolean active) {

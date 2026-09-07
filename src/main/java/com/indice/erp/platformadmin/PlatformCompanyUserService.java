@@ -68,6 +68,7 @@ public class PlatformCompanyUserService {
         InvitationRequest request
     ) {
         accessService.require(actorUserId, "PLATFORM_ACCOUNTS_WRITE");
+        requireOperationalReason(request == null ? null : request.reason());
         return inviteAfterAuthorization(actorUserId, companyId, idempotencyKey, request);
     }
 
@@ -79,10 +80,11 @@ public class PlatformCompanyUserService {
         String idempotencyKey,
         InvitationRequest request
     ) {
-        requireCompany(companyId);
+        requireActiveCompany(companyId);
         if (request == null) {
             throw new IllegalArgumentException("Los datos de la invitación son obligatorios.");
         }
+        var reason = requireOperationalReason(request.reason());
 
         var name = normalizeName(request.name());
         var email = normalizeEmail(request.email());
@@ -137,6 +139,11 @@ public class PlatformCompanyUserService {
         tabPermissionAccess.replaceInvitationTabPermissions(invitationId, permissionKeys, moduleSlugs);
         seatService.attachInvitation(reservation, invitationId);
 
+        var inviteDetail = new LinkedHashMap<String, Object>();
+        inviteDetail.put("email", email);
+        inviteDetail.put("role", role);
+        inviteDetail.put("reserved_seat", reservation.enforced());
+        inviteDetail.put("reason", reason);
         auditService.record(
             actorUserId,
             "COMPANY_USER_INVITED",
@@ -144,7 +151,7 @@ public class PlatformCompanyUserService {
             String.valueOf(invitationId),
             companyId,
             "SUCCESS",
-            Map.of("email", email, "role", role, "reserved_seat", reservation.enforced())
+            inviteDetail
         );
 
         var result = new LinkedHashMap<String, Object>();
@@ -206,6 +213,7 @@ public class PlatformCompanyUserService {
     /** Caller must authorize the target company before invoking this shared operation. */
     @Transactional
     public Map<String, Object> resendInvitationAfterAuthorization(long actorUserId, long companyId, long invitationId) {
+        requireActiveCompany(companyId);
         var invitation = pendingInvitation(companyId, invitationId);
         var token = UUID.randomUUID().toString().replace("-", "");
         var expiresAt = clock.instant().plus(7, ChronoUnit.DAYS);
@@ -249,6 +257,7 @@ public class PlatformCompanyUserService {
         MemberStatusRequest request
     ) {
         accessService.require(actorUserId, "PLATFORM_ACCOUNTS_WRITE");
+        requireOperationalReason(request == null ? null : request.reason());
         return updateStatusAfterAuthorization(actorUserId, companyId, userId, request);
     }
 
@@ -263,9 +272,13 @@ public class PlatformCompanyUserService {
         if (request == null) {
             throw new IllegalArgumentException("El estado del usuario es obligatorio.");
         }
+        var reason = requireOperationalReason(request.reason());
         var requestedStatus = normalizeStatus(request.status());
         if (!Set.of("active", "inactive").contains(requestedStatus)) {
             throw new IllegalArgumentException("El estado debe ser activo o inactivo.");
+        }
+        if ("active".equals(requestedStatus)) {
+            requireActiveCompany(companyId);
         }
         var member = member(companyId, userId);
         var currentlyActive = "active".equals(normalizeStatus(member.status()));
@@ -302,6 +315,11 @@ public class PlatformCompanyUserService {
             member.membershipId(),
             companyId
         );
+        var statusDetail = new LinkedHashMap<String, Object>();
+        statusDetail.put("membership_id", member.membershipId());
+        statusDetail.put("role", member.role());
+        statusDetail.put("status", requestedStatus);
+        statusDetail.put("reason", reason);
         auditService.record(
             actorUserId,
             "active".equals(requestedStatus) ? "COMPANY_USER_ACTIVATED" : "COMPANY_USER_DEACTIVATED",
@@ -309,7 +327,7 @@ public class PlatformCompanyUserService {
             String.valueOf(userId),
             companyId,
             "SUCCESS",
-            Map.of("membership_id", member.membershipId(), "role", member.role(), "status", requestedStatus)
+            statusDetail
         );
         return memberResult(companyId, member, requestedStatus);
     }
@@ -326,10 +344,12 @@ public class PlatformCompanyUserService {
         if (request == null) {
             throw new IllegalArgumentException("El rol del usuario es obligatorio.");
         }
+        var reason = requireOperationalReason(request.reason());
         var requestedRole = normalizeRole(request.role());
         if (!ASSIGNABLE_ROLES.contains(requestedRole)) {
             throw new IllegalArgumentException("El rol debe ser Usuario, Administrador, Super Admin o Root.");
         }
+        requireActiveCompany(companyId);
         var member = member(companyId, userId);
         if (member.owner()) {
             throw new IllegalStateException("La propiedad de la cuenta se administra desde transferencia de propietario.");
@@ -355,7 +375,12 @@ public class PlatformCompanyUserService {
             String.valueOf(userId),
             companyId,
             "SUCCESS",
-            Map.of("membership_id", member.membershipId(), "from_role", currentRole, "to_role", requestedRole)
+            Map.of(
+                "membership_id", member.membershipId(),
+                "from_role", currentRole,
+                "to_role", requestedRole,
+                "reason", reason
+            )
         );
         return memberRoleResult(companyId, member, requestedRole);
     }
@@ -369,12 +394,16 @@ public class PlatformCompanyUserService {
     ) {
         var authority = accessService.require(actorUserId, "PLATFORM_ACCOUNTS_WRITE");
         requirePlatformRoot(authority);
-        var member = member(companyId, userId);
-        if (!"active".equals(normalizeStatus(member.status()))) {
-            throw new IllegalStateException("Sólo un usuario activo puede recibir acceso de plataforma.");
-        }
+        var reason = requireOperationalReason(request == null ? null : request.reason());
         var requestedRole = normalizePlatformRole(request == null ? null : request.platform_role());
         if ("PLATFORM_ROOT".equals(requestedRole)) {
+            requireActiveCompany(companyId);
+        }
+        var member = member(companyId, userId);
+        if ("PLATFORM_ROOT".equals(requestedRole)) {
+            if (!"active".equals(normalizeStatus(member.status()))) {
+                throw new IllegalStateException("Sólo un usuario activo puede recibir acceso de plataforma.");
+            }
             jdbcTemplate.update(
                 """
                     INSERT INTO platform_administrators
@@ -413,7 +442,7 @@ public class PlatformCompanyUserService {
             String.valueOf(userId),
             companyId,
             "SUCCESS",
-            Map.of("membership_id", member.membershipId(), "platform_role", requestedRole)
+            Map.of("membership_id", member.membershipId(), "platform_role", requestedRole, "reason", reason)
         );
         return memberRoleResult(companyId, member, normalizeRole(member.role()));
     }
@@ -474,6 +503,20 @@ public class PlatformCompanyUserService {
         var count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM companies WHERE id = ?", Integer.class, companyId);
         if (count == null || count == 0) {
             throw new NoSuchElementException("No se encontró la cuenta.");
+        }
+    }
+
+    private void requireActiveCompany(long companyId) {
+        var statuses = jdbcTemplate.query(
+            "SELECT platform_status FROM companies WHERE id = ? FOR UPDATE",
+            (rs, rowNum) -> rs.getString("platform_status"),
+            companyId
+        );
+        if (statuses.isEmpty()) {
+            throw new NoSuchElementException("No se encontró la cuenta.");
+        }
+        if (!"ACTIVE".equalsIgnoreCase(statuses.getFirst())) {
+            throw new IllegalStateException("La cuenta eliminada no admite altas ni cambios de acceso.");
         }
     }
 
@@ -1055,20 +1098,28 @@ public class PlatformCompanyUserService {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
+    private static String requireOperationalReason(String value) {
+        var reason = value == null ? "" : value.trim();
+        if (reason.length() < 5 || reason.length() > 500) {
+            throw new IllegalArgumentException("Ingresa un motivo operativo de 5 a 500 caracteres.");
+        }
+        return reason;
+    }
+
     private static Instant instant(Timestamp value) {
         return value == null ? null : value.toInstant();
     }
 
-    public record InvitationRequest(String name, String email, String role) {
+    public record InvitationRequest(String name, String email, String role, String reason) {
     }
 
-    public record MemberStatusRequest(String status) {
+    public record MemberStatusRequest(String status, String reason) {
     }
 
-    public record MemberRoleRequest(String role) {
+    public record MemberRoleRequest(String role, String reason) {
     }
 
-    public record PlatformAccessRequest(String platform_role) {
+    public record PlatformAccessRequest(String platform_role, String reason) {
     }
 
     private record Invitation(long id, String email, String name) {
