@@ -121,6 +121,7 @@ public class PlatformCompanyModuleService {
     }
 
     private SubscriptionRecord subscription(long companyId) {
+        requireActiveCompany(companyId);
         return jdbcTemplate.query(
             """
                 SELECT stripe_subscription_id, COALESCE(billing_interval, 'MONTH') AS billing_interval,
@@ -137,6 +138,20 @@ public class PlatformCompanyModuleService {
             ),
             companyId
         ).stream().findFirst().orElseThrow(() -> new NoSuchElementException("La cuenta no tiene una suscripción Stripe."));
+    }
+
+    private void requireActiveCompany(long companyId) {
+        var statuses = jdbcTemplate.query(
+            "SELECT platform_status FROM companies WHERE id = ?",
+            (rs, rowNum) -> rs.getString("platform_status"),
+            companyId
+        );
+        if (statuses.isEmpty()) {
+            throw new NoSuchElementException("No se encontró la cuenta.");
+        }
+        if (!"ACTIVE".equalsIgnoreCase(statuses.getFirst())) {
+            throw new IllegalStateException("La cuenta eliminada no admite cambios de productos.");
+        }
     }
 
     private String requireIdempotencyKey(String value) {

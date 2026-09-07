@@ -3,6 +3,7 @@ package com.indice.erp.auth;
 import com.indice.erp.access.ModuleSlugNormalizer;
 import com.indice.erp.billing.subscription.CompanySubscriptionStatus;
 import com.indice.erp.billing.subscription.CompanySubscriptionStatusProvider;
+import com.indice.erp.platformadmin.PlatformAdminAccessService;
 import com.indice.erp.tenant.TenantScope;
 import jakarta.servlet.http.HttpSession;
 import java.time.Clock;
@@ -30,6 +31,8 @@ public class SessionAuthService {
     public static final String SESSION_LOGIN_CSRF = "auth.login.csrf";
     public static final String SESSION_CREATED_AT = "auth.session.created_at";
     public static final String SESSION_LAST_SEEN_AT = "auth.session.last_seen_at";
+    public static final String SESSION_MFA_VERIFIED = "auth.session.mfa_verified";
+    public static final String SESSION_PLATFORM_ROLE = "auth.session.platform_role";
     public static final String SESSION_PUBLIC_DEMO = "auth.public_demo";
     public static final String SESSION_PUBLIC_DEMO_EXPIRES_AT = "auth.public_demo.expires_at";
     private static final Duration PUBLIC_DEMO_SESSION_DURATION = Duration.ofMinutes(60);
@@ -41,6 +44,7 @@ public class SessionAuthService {
     private final AuthSecurityProperties securityProperties;
     private final Clock clock;
     private final ObjectProvider<ManagedCompanyContextService> managedCompanyContextProvider;
+    private final ObjectProvider<PlatformAdminAccessService> platformAdminAccessProvider;
 
     @Autowired
     public SessionAuthService(
@@ -50,7 +54,8 @@ public class SessionAuthService {
         CompanySubscriptionStatusProvider subscriptionStatusProvider,
         AuthSecurityProperties securityProperties,
         Clock clock,
-        ObjectProvider<ManagedCompanyContextService> managedCompanyContextProvider
+        ObjectProvider<ManagedCompanyContextService> managedCompanyContextProvider,
+        ObjectProvider<PlatformAdminAccessService> platformAdminAccessProvider
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.passwordEncoder = passwordEncoder;
@@ -59,6 +64,28 @@ public class SessionAuthService {
         this.securityProperties = securityProperties;
         this.clock = clock;
         this.managedCompanyContextProvider = managedCompanyContextProvider;
+        this.platformAdminAccessProvider = platformAdminAccessProvider;
+    }
+
+    SessionAuthService(
+        JdbcTemplate jdbcTemplate,
+        BCryptPasswordEncoder passwordEncoder,
+        LoginAuditService loginAuditService,
+        CompanySubscriptionStatusProvider subscriptionStatusProvider,
+        AuthSecurityProperties securityProperties,
+        Clock clock,
+        ObjectProvider<ManagedCompanyContextService> managedCompanyContextProvider
+    ) {
+        this(
+            jdbcTemplate,
+            passwordEncoder,
+            loginAuditService,
+            subscriptionStatusProvider,
+            securityProperties,
+            clock,
+            managedCompanyContextProvider,
+            null
+        );
     }
 
     SessionAuthService(
@@ -76,6 +103,7 @@ public class SessionAuthService {
             subscriptionStatusProvider,
             securityProperties,
             clock,
+            null,
             null
         );
     }
@@ -257,6 +285,10 @@ public class SessionAuthService {
     }
 
     public void storeAuthenticatedSession(HttpSession session, AuthenticatedLogin login) {
+        storeAuthenticatedSession(session, login, false);
+    }
+
+    public void storeAuthenticatedSession(HttpSession session, AuthenticatedLogin login, boolean mfaVerified) {
         var role = normalizeRole(login.role());
         session.setAttribute(SESSION_USER_ID, login.userId());
         session.setAttribute(SESSION_COMPANY_ID, login.companyId());
@@ -266,9 +298,16 @@ public class SessionAuthService {
         var now = clock.instant();
         session.setAttribute(SESSION_CREATED_AT, now);
         session.setAttribute(SESSION_LAST_SEEN_AT, now);
+        session.setAttribute(SESSION_MFA_VERIFIED, mfaVerified);
+        var platformRole = activePlatformRole(login.userId());
+        if (platformRole.isBlank()) {
+            session.removeAttribute(SESSION_PLATFORM_ROLE);
+        } else {
+            session.setAttribute(SESSION_PLATFORM_ROLE, platformRole);
+        }
         session.removeAttribute(SESSION_PUBLIC_DEMO);
         session.removeAttribute(SESSION_PUBLIC_DEMO_EXPIRES_AT);
-        applySessionIdleTimeout(session, role);
+        applySessionIdleTimeout(session, effectiveTimeoutRole(role, platformRole));
     }
 
     public void storePublicDemoSession(HttpSession session, AuthenticatedLogin login) {
@@ -284,7 +323,7 @@ public class SessionAuthService {
 
     public boolean isPublicDemoCompany(long companyId) {
         return Boolean.TRUE.equals(jdbcTemplate.queryForObject(
-            "SELECT public_demo_enabled FROM companies WHERE id = ?",
+            "SELECT public_demo_enabled FROM companies WHERE id = ? AND platform_status = 'ACTIVE'",
             Boolean.class,
             companyId
         ));
@@ -297,6 +336,7 @@ public class SessionAuthService {
                 FROM companies
                 WHERE public_demo_enabled = TRUE
                   AND commercial_account_type = 'SUPER_ADMIN'
+                  AND platform_status = 'ACTIVE'
                 ORDER BY name, id
                 """,
             (rs, rowNum) -> new PublicDemoCompany(rs.getLong("id"), rs.getString("name"))
@@ -311,7 +351,7 @@ public class SessionAuthService {
         var now = clock.instant();
         var createdAt = sessionInstant(session.getAttribute(SESSION_CREATED_AT), now);
         var lastSeenAt = sessionInstant(session.getAttribute(SESSION_LAST_SEEN_AT), now);
-        var role = sessionRole(session);
+        var role = effectiveTimeoutRole(sessionRole(session), sessionString(session, SESSION_PLATFORM_ROLE));
         var idleTimeoutSeconds = securityProperties.getSessionIdleTimeoutSecondsForRole(role);
         var demoExpiresAt = isPublicDemoSession(session)
             ? sessionInstant(session.getAttribute(SESSION_PUBLIC_DEMO_EXPIRES_AT), createdAt)
@@ -346,6 +386,39 @@ public class SessionAuthService {
         session.setAttribute(SESSION_CREATED_AT, createdAt);
         session.setAttribute(SESSION_LAST_SEEN_AT, now);
         return true;
+    }
+
+    public boolean requiresStrongMfa(long userId) {
+        var accessService = platformAdminAccessProvider == null
+            ? null
+            : platformAdminAccessProvider.getIfAvailable();
+        return accessService != null && accessService.requiresStrongMfa(userId);
+    }
+
+    public boolean isMfaVerified(HttpSession session) {
+        return session != null && Boolean.TRUE.equals(session.getAttribute(SESSION_MFA_VERIFIED));
+    }
+
+    private String activePlatformRole(long userId) {
+        var accessService = platformAdminAccessProvider == null
+            ? null
+            : platformAdminAccessProvider.getIfAvailable();
+        return accessService == null ? "" : accessService.activeRole(userId);
+    }
+
+    private static String effectiveTimeoutRole(String companyRole, String platformRole) {
+        if ("PLATFORM_ROOT".equalsIgnoreCase(platformRole)) {
+            return "root";
+        }
+        if (platformRole != null && !platformRole.isBlank()) {
+            return "superadmin";
+        }
+        return companyRole;
+    }
+
+    private static String sessionString(HttpSession session, String key) {
+        var value = session.getAttribute(key);
+        return value == null ? "" : String.valueOf(value);
     }
 
     private LoginAttemptResult authenticateAndStoreSession(
@@ -389,7 +462,10 @@ public class SessionAuthService {
         var role = normalizeRole(activeAccess.get().role());
         session.setAttribute(SESSION_USER_COMPANY_ID, activeAccess.get().userCompanyId());
         session.setAttribute(SESSION_ROLE, role);
-        applySessionIdleTimeout(session, role);
+        applySessionIdleTimeout(
+            session,
+            effectiveTimeoutRole(role, sessionString(session, SESSION_PLATFORM_ROLE))
+        );
 
         return Optional.of(new AuthSessionUser(
             userIdNumber.longValue(),
@@ -530,7 +606,10 @@ public class SessionAuthService {
         var role = normalizeRole(membership.get().role());
         session.setAttribute(SESSION_ROLE, role);
         ManagedCompanyContextService.clearAttributes(session);
-        applySessionIdleTimeout(session, role);
+        applySessionIdleTimeout(
+            session,
+            effectiveTimeoutRole(role, sessionString(session, SESSION_PLATFORM_ROLE))
+        );
         return true;
     }
 
@@ -604,11 +683,13 @@ public class SessionAuthService {
     private Optional<CompanyRole> loadActiveSessionAccess(long userId, long companyId) {
         return jdbcTemplate.query(
             """
-                SELECT id, COALESCE(role, 'user') AS role
-                FROM user_companies
-                WHERE user_id = ?
-                  AND company_id = ?
-                  AND LOWER(COALESCE(status, 'active')) IN ('active', 'activo')
+                SELECT membership.id, COALESCE(membership.role, 'user') AS role
+                FROM user_companies membership
+                JOIN companies company ON company.id = membership.company_id
+                WHERE membership.user_id = ?
+                  AND membership.company_id = ?
+                  AND company.platform_status = 'ACTIVE'
+                  AND LOWER(COALESCE(membership.status, 'active')) IN ('active', 'activo')
                 LIMIT 1
                 """,
             (rs, rowNum) -> new CompanyRole(rs.getLong("id"), companyId, rs.getString("role")),
@@ -700,11 +781,13 @@ public class SessionAuthService {
     private SessionAccess loadSessionAccess(long userId, long companyId) {
         var userCompanyIds = jdbcTemplate.query(
             """
-                SELECT id
-                FROM user_companies
-                WHERE user_id = ?
-                  AND company_id = ?
-                  AND LOWER(COALESCE(status, 'active')) IN ('active', 'activo')
+                SELECT membership.id
+                FROM user_companies membership
+                JOIN companies company ON company.id = membership.company_id
+                WHERE membership.user_id = ?
+                  AND membership.company_id = ?
+                  AND company.platform_status = 'ACTIVE'
+                  AND LOWER(COALESCE(membership.status, 'active')) IN ('active', 'activo')
                 LIMIT 1
                 """,
             (rs, rowNum) -> rs.getLong("id"),

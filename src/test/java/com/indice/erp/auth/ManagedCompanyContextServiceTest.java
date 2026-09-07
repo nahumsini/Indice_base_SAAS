@@ -3,6 +3,7 @@ package com.indice.erp.auth;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
@@ -12,12 +13,14 @@ import com.indice.erp.distributorportal.DistributorPortfolioAccessPolicy.Distrib
 import com.indice.erp.platformadmin.PlatformAdminAccessService;
 import com.indice.erp.platformadmin.PlatformAuditService;
 import jakarta.servlet.http.HttpSession;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 
 @ExtendWith(MockitoExtension.class)
 class ManagedCompanyContextServiceTest {
@@ -90,6 +93,26 @@ class ManagedCompanyContextServiceTest {
             eq(44L),
             eq("DENIED"),
             any()
+        );
+    }
+
+    @Test
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    void platformRootCannotActivateADeletedClientCompany() {
+        given(platformAccess.find(41L)).willReturn(
+            new PlatformAdminAccessService.Access(1L, "PLATFORM_ROOT", List.of())
+        );
+        given(jdbcTemplate.query(any(String.class), any(RowMapper.class), eq(7L))).willReturn(List.of());
+        given(jdbcTemplate.query(any(String.class), any(RowMapper.class), eq(44L))).willReturn(List.of());
+
+        assertThatThrownBy(() -> service.activate(actor, 44L, session))
+            .isInstanceOf(ManagedCompanyContextForbiddenException.class)
+            .hasMessageContaining("not available");
+
+        verify(jdbcTemplate).query(
+            argThat((String sql) -> sql.contains("platform_status = 'ACTIVE'")),
+            any(RowMapper.class),
+            eq(44L)
         );
     }
 }

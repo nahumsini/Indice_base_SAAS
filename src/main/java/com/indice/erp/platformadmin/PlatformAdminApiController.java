@@ -13,6 +13,8 @@ import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -31,6 +33,8 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RestController
 @RequestMapping("/api/v1/platform-admin")
 public class PlatformAdminApiController {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(PlatformAdminApiController.class);
 
     private final SessionAuthService auth;
     private final SessionCsrfService csrf;
@@ -88,17 +92,53 @@ public class PlatformAdminApiController {
     public ResponseEntity<?> overview(
         HttpSession session,
         @RequestParam(name = "q", defaultValue = "") String query,
-        @RequestParam(name = "limit", defaultValue = "50") int limit
+        @RequestParam(name = "limit", required = false) Integer legacyLimit,
+        @RequestParam(name = "page", defaultValue = "1") int page,
+        @RequestParam(name = "pageSize", required = false) Integer requestedPageSize,
+        @RequestParam(name = "userType", defaultValue = "all") String userType,
+        @RequestParam(name = "status", defaultValue = "all") String status,
+        @RequestParam(name = "sort", defaultValue = "id") String sort,
+        @RequestParam(name = "direction", defaultValue = "desc") String direction
     ) {
-        return withUser(session, userId -> service.overview(userId, query, limit));
+        var pageSize = requestedPageSize == null
+            ? (legacyLimit == null ? 50 : legacyLimit)
+            : requestedPageSize;
+        return withUser(session, userId -> service.overview(
+            userId,
+            query,
+            userType,
+            status,
+            sort,
+            direction,
+            page,
+            pageSize
+        ));
     }
 
     @GetMapping("/billing")
     public ResponseEntity<?> billing(
         HttpSession session,
-        @RequestParam(name = "limit", defaultValue = "100") int limit
+        @RequestParam(name = "limit", defaultValue = "100") int legacyLimit,
+        @RequestParam(name = "q", defaultValue = "") String query,
+        @RequestParam(name = "status", defaultValue = "all") String status,
+        @RequestParam(name = "sort", defaultValue = "period") String sort,
+        @RequestParam(name = "direction", defaultValue = "desc") String direction,
+        @RequestParam(name = "page", defaultValue = "1") int page,
+        @RequestParam(name = "pageSize", required = false) Integer requestedPageSize
     ) {
-        return withUser(session, userId -> service.billing(userId, limit));
+        if (requestedPageSize == null && query.isBlank() && "all".equalsIgnoreCase(status) && page == 1) {
+            return withUser(session, userId -> service.billing(userId, legacyLimit));
+        }
+        var pageSize = requestedPageSize == null ? legacyLimit : requestedPageSize;
+        return withUser(session, userId -> service.billing(
+            userId,
+            query,
+            status,
+            sort,
+            direction,
+            page,
+            pageSize
+        ));
     }
 
     @GetMapping("/catalog")
@@ -455,6 +495,16 @@ public class PlatformAdminApiController {
     @GetMapping("/companies/{companyId}")
     public ResponseEntity<?> company(HttpSession session, @PathVariable long companyId) {
         return withUser(session, userId -> service.company(userId, companyId));
+    }
+
+    @GetMapping("/companies/options")
+    public ResponseEntity<?> companyOptions(
+        HttpSession session,
+        @RequestParam(name = "q", defaultValue = "") String query,
+        @RequestParam(name = "page", defaultValue = "1") int page,
+        @RequestParam(name = "pageSize", defaultValue = "50") int pageSize
+    ) {
+        return withUser(session, userId -> service.companyOptions(userId, query, page, pageSize));
     }
 
     @GetMapping("/companies/{companyId}/users/activity")
@@ -869,12 +919,17 @@ public class PlatformAdminApiController {
     }
 
     private ResponseEntity<?> error(RuntimeException exception) {
-        var message = exception.getMessage() == null ? "Request could not be completed." : exception.getMessage();
         if (exception instanceof PlatformAdminForbiddenException) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", message));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                "code", "PLATFORM_ACCESS_DENIED",
+                "message", "You do not have permission to complete this platform operation."
+            ));
         }
         if (exception instanceof NoSuchElementException) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", message));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "code", "PLATFORM_RESOURCE_NOT_FOUND",
+                "message", safeExpectedMessage(exception, "The requested platform resource was not found.")
+            ));
         }
         if (exception instanceof SeatCapacityExceededException capacity) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
@@ -889,9 +944,34 @@ public class PlatformAdminApiController {
             ));
         }
         if (exception instanceof IllegalStateException) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", message));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                "code", "PLATFORM_OPERATION_CONFLICT",
+                "message", safeExpectedMessage(exception, "The platform operation conflicts with the current state.")
+            ));
         }
-        return ResponseEntity.badRequest().body(Map.of("message", message));
+        if (exception instanceof IllegalArgumentException
+            && "Invalid CSRF token.".equals(exception.getMessage())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                "code", "INVALID_CSRF_TOKEN",
+                "message", "The security token is invalid or expired. Refresh and try again."
+            ));
+        }
+        if (exception instanceof IllegalArgumentException) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "code", "PLATFORM_VALIDATION_ERROR",
+                "message", safeExpectedMessage(exception, "Review the submitted information and try again.")
+            ));
+        }
+        LOGGER.error("Unexpected platform administration failure", exception);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+            "code", "PLATFORM_INTERNAL_ERROR",
+            "message", "The platform operation could not be completed. Try again or contact support with the request reference."
+        ));
+    }
+
+    private String safeExpectedMessage(RuntimeException exception, String fallback) {
+        var message = exception.getMessage();
+        return message == null || message.isBlank() ? fallback : message;
     }
 
     private String buildInviteLink(HttpServletRequest request, String token) {

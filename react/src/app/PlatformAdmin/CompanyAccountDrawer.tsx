@@ -39,7 +39,7 @@ export interface CompanyAccountDrawerProps {
   onPreviewProducts: (productCodes: string[]) => Promise<PlatformCompanyProductPreview>;
   onUpdateTrialProducts: (productCodes: string[], expectedCatalogVersion: string) => Promise<boolean>;
   onRefreshCompany: () => Promise<void>;
-  onUpdatePublicDemo?: (enabled: boolean) => Promise<void>;
+  onUpdatePublicDemo?: (enabled: boolean, reason: string) => Promise<boolean>;
   onRevokeBenefit: (reference: string, label?: string, grantCount?: number) => void;
   feedback: { type: "success" | "error"; message: string } | null;
   initialTab?: CompanyAccountTab;
@@ -105,7 +105,9 @@ export function CompanyAccountDrawer({
 
   if (!company) return null;
 
+  const companyActive = company.platform_status !== "DELETED";
   const canManageBenefits = Boolean(context?.can_manage_benefits);
+  const canCreateBenefits = companyActive && canManageBenefits;
   const safeCount = (value: unknown) => {
     const parsed = Number(value);
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
@@ -200,7 +202,7 @@ export function CompanyAccountDrawer({
             activeUserCount={activeUserCount}
             availableSeats={availableSeats}
             accessLabel={accessLabel}
-            canManagePublicDemo={Boolean(context?.can_manage_accounts && onUpdatePublicDemo)}
+            canManagePublicDemo={Boolean(companyActive && context?.can_manage_accounts && onUpdatePublicDemo)}
             saving={saving}
             onUpdatePublicDemo={onUpdatePublicDemo}
           />
@@ -213,6 +215,8 @@ export function CompanyAccountDrawer({
             activeProducts={activeProducts}
             activeProductBenefits={activeProductBenefits}
             saving={saving}
+            canManageProducts={canCreateBenefits}
+            canRevokeBenefits={canManageBenefits}
             onGrant={onGrantProduct}
             onPreviewProducts={onPreviewProducts}
             onUpdateTrialProducts={onUpdateTrialProducts}
@@ -223,7 +227,7 @@ export function CompanyAccountDrawer({
         {tab === "activity" ? (
           <CompanyActivityTab
             company={company}
-            canManage={Boolean(context?.can_manage_accounts)}
+            canManage={Boolean(companyActive && context?.can_manage_accounts)}
             onRefresh={onRefreshCompany}
             onManageSeats={() => selectTab("access")}
             userApi={userApi}
@@ -234,7 +238,8 @@ export function CompanyAccountDrawer({
           <CompanyAccessTab
             company={company}
             saving={saving}
-            canManage={canManageBenefits}
+            canCreate={canCreateBenefits}
+            canRevoke={canManageBenefits}
             onCreate={() => setAdjustmentOpen(true)}
             onRevoke={onRevokeBenefit}
           />

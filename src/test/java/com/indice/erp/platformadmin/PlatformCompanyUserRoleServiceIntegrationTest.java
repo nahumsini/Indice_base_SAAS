@@ -61,7 +61,7 @@ class PlatformCompanyUserRoleServiceIntegrationTest {
             actorUserId,
             companyId,
             targetUserId,
-            new PlatformCompanyUserService.MemberRoleRequest("superadmin")
+            new PlatformCompanyUserService.MemberRoleRequest("superadmin", "Approved role change")
         );
 
         assertThat(roleResult)
@@ -73,7 +73,7 @@ class PlatformCompanyUserRoleServiceIntegrationTest {
             actorUserId,
             companyId,
             targetUserId,
-            new PlatformCompanyUserService.PlatformAccessRequest("PLATFORM_ROOT")
+            new PlatformCompanyUserService.PlatformAccessRequest("PLATFORM_ROOT", "Approved platform access")
         );
 
         assertThat(platformResult)
@@ -88,12 +88,81 @@ class PlatformCompanyUserRoleServiceIntegrationTest {
             supportUserId,
             companyId,
             targetUserId,
-            new PlatformCompanyUserService.MemberRoleRequest("root")
+            new PlatformCompanyUserService.MemberRoleRequest("root", "Approved role change")
         ))
             .isInstanceOf(PlatformAdminForbiddenException.class)
             .hasMessageContaining("Platform Root");
 
         assertThat(roleFor(targetUserId)).isEqualTo("admin");
+    }
+
+    @Test
+    void deletedCompanyRejectsRoleReactivationAndNewPlatformAuthority() {
+        jdbc.update("UPDATE companies SET platform_status = 'DELETED' WHERE id = ?", companyId);
+        jdbc.update("UPDATE user_companies SET status = 'inactive' WHERE company_id = ? AND user_id = ?", companyId, targetUserId);
+
+        assertThatThrownBy(() -> service.updateRole(
+            actorUserId,
+            companyId,
+            targetUserId,
+            new PlatformCompanyUserService.MemberRoleRequest("superadmin", "Attempt after account deletion")
+        ))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("cuenta eliminada");
+
+        assertThatThrownBy(() -> service.updateStatus(
+            actorUserId,
+            companyId,
+            targetUserId,
+            new PlatformCompanyUserService.MemberStatusRequest("active", "Attempt after account deletion")
+        ))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("cuenta eliminada");
+
+        assertThatThrownBy(() -> service.updatePlatformAccess(
+            actorUserId,
+            companyId,
+            targetUserId,
+            new PlatformCompanyUserService.PlatformAccessRequest("PLATFORM_ROOT", "Attempt after account deletion")
+        ))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("cuenta eliminada");
+
+        assertThat(roleFor(targetUserId)).isEqualTo("admin");
+        assertThat(jdbc.queryForObject(
+            "SELECT COUNT(*) FROM platform_administrators WHERE user_id = ? AND status = 'ACTIVE'",
+            Integer.class,
+            targetUserId
+        )).isZero();
+    }
+
+    @Test
+    void deletedCompanyStillAllowsRevokingPlatformAuthorityFromAnInactiveMember() {
+        service.updatePlatformAccess(
+            actorUserId,
+            companyId,
+            targetUserId,
+            new PlatformCompanyUserService.PlatformAccessRequest("PLATFORM_ROOT", "Approved platform access")
+        );
+        jdbc.update("UPDATE companies SET platform_status = 'DELETED' WHERE id = ?", companyId);
+        jdbc.update(
+            "UPDATE user_companies SET status = 'inactive' WHERE company_id = ? AND user_id = ?",
+            companyId,
+            targetUserId
+        );
+
+        service.updatePlatformAccess(
+            actorUserId,
+            companyId,
+            targetUserId,
+            new PlatformCompanyUserService.PlatformAccessRequest("NONE", "Revoke obsolete platform access")
+        );
+
+        assertThat(jdbc.queryForObject(
+            "SELECT status FROM platform_administrators WHERE user_id = ?",
+            String.class,
+            targetUserId
+        )).isEqualTo("REVOKED");
     }
 
     @Test

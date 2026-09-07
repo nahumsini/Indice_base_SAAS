@@ -31,7 +31,7 @@ export default function DistributorAssignmentModal({
   saving: boolean;
   error: string;
   onClose: () => void;
-  onSave: (distributorCompanyId: number | null) => Promise<void>;
+  onSave: (distributorCompanyId: number | null, reason: string) => Promise<void>;
 }) {
   const [selection, setSelection] = useState(
     company.distributor_company_id
@@ -40,6 +40,7 @@ export default function DistributorAssignmentModal({
         ? String(distributors[0].id)
         : "direct",
   );
+  const [reason, setReason] = useState("");
   const sortedDistributors = useMemo(
     () => [...distributors].sort((left, right) => left.name.localeCompare(right.name)),
     [distributors],
@@ -49,7 +50,7 @@ export default function DistributorAssignmentModal({
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    void onSave(selectedId);
+    void onSave(selectedId, reason.trim());
   };
 
   return (
@@ -72,7 +73,7 @@ export default function DistributorAssignmentModal({
           <button
             type="submit"
             form="platform-distributor-assignment-form"
-            disabled={saving || unchanged || (!distributors.length && !company.distributor_company_id)}
+            disabled={saving || unchanged || reason.trim().length < 5 || (!distributors.length && !company.distributor_company_id)}
             className="inline-flex items-center justify-center gap-2"
           >
             {saving ? (
@@ -154,6 +155,18 @@ export default function DistributorAssignmentModal({
                 </option>
               ))}
             </select>
+          </label>
+          <label className="mt-4 block space-y-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
+            <span>{english ? "Operational reason" : "Motivo operativo"}</span>
+            <textarea
+              required
+              minLength={5}
+              maxLength={500}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              className="min-h-24 w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-normal text-slate-800 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              placeholder={english ? "Explain the commercial relationship change" : "Explica el cambio de relación comercial"}
+            />
           </label>
         </section>
 

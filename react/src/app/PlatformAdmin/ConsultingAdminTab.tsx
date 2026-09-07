@@ -258,6 +258,7 @@ export default function ConsultingAdminTab({
   const consultants: PlatformConsultingConsultant[] = workspace?.consultants ?? [];
   const allAppointments = workspace?.appointments ?? [];
   const allLocations = workspace?.locations ?? [];
+  const selectableCompanies = workspace?.companies ?? companies;
 
   const load = async () => {
     setLoading(true);
@@ -815,7 +816,7 @@ export default function ConsultingAdminTab({
       ) : null}
       {sessionModalOpen ? (
         <SessionCreateModal
-          companies={companies}
+          companies={selectableCompanies}
           consultants={consultants}
           locations={allLocations}
           attendingConsultant={attendingConsultant}

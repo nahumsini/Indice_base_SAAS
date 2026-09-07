@@ -49,6 +49,8 @@ test('la cartera usa un API dedicado con los mismos flujos operativos de Root', 
   assert.match(contracts, /AccountCreationModal/);
   assert.match(contracts, /CompanyAccountDrawer/);
   assert.match(contracts, /lockedAccountType="SUPER_ADMIN"/);
+  assert.match(contracts, /IndiceConfirmationDialog/);
+  assert.doesNotMatch(contracts, /window\.confirm/);
 });
 
 test('la tabla explica contrato acceso usuarios y proximo evento', () => {

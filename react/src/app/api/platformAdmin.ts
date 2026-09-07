@@ -1,4 +1,4 @@
-import { apiClient } from '../lib/apiClient';
+import { ApiClientError, apiClient } from '../lib/apiClient';
 import { endpoints } from './endpoints';
 
 export interface PlatformAdminContext {
@@ -9,7 +9,15 @@ export interface PlatformAdminContext {
   can_manage_modules: boolean;
   can_manage_consulting: boolean;
   can_manage_accounts: boolean;
+  can_create_accounts?: boolean;
   can_manage_system_tickets: boolean;
+}
+
+export interface PlatformPagination {
+  page: number;
+  page_size: number;
+  total_items: number;
+  total_pages: number;
 }
 
 export type PlatformAccountType = 'ROOT' | 'SUPER_ADMIN' | 'DISTRIBUTOR';
@@ -92,6 +100,12 @@ export interface PlatformConsultingWorkspace {
   appointments: PlatformConsultingAppointment[];
   locations: PlatformConsultingLocation[];
   consultants: PlatformConsultingConsultant[];
+  companies: Array<{
+    id: number;
+    name: string;
+    owner_email?: string | null;
+    country_code?: string | null;
+  }>;
 }
 
 export interface PlatformConsultingAvailabilityDay {
@@ -474,9 +488,19 @@ export interface PlatformOverview {
     active_customer_companies: number;
     customer_active_users: number;
     paid_last_30_days_cents: number;
+    demo_and_trial_accounts: number;
     currency: string;
   };
   companies: PlatformCompanySummary[];
+  distributors: PlatformCompanySummary[];
+  pagination: PlatformPagination;
+  control: {
+    attention: number;
+    expiring: number;
+    no_offer: number;
+    no_adoption: number;
+    priorities: PlatformCompanySummary[];
+  };
 }
 
 export interface PlatformBilling {
@@ -488,6 +512,21 @@ export interface PlatformBilling {
     currency: string;
   };
   invoices: PlatformInvoice[];
+  pagination: PlatformPagination;
+}
+
+export interface PlatformCompanyOption {
+  id: number;
+  name: string;
+  platform_status?: 'ACTIVE' | 'DELETED';
+  user_type: PlatformAccountType;
+  owner_email?: string | null;
+  active_members: number;
+}
+
+export interface PlatformCompanyOptions {
+  companies: PlatformCompanyOption[];
+  pagination: PlatformPagination;
 }
 
 export interface PlatformCatalogVersion {
@@ -913,30 +952,123 @@ const companyPath = (companyId: number) => `${endpoints.platformAdmin.companies}
 const courtesyCodesPath = '/api/v1/platform-admin/courtesy-codes';
 const consultingPath = '/api/v1/platform-admin/consulting';
 const moduleWorkOrdersPath = `${endpoints.platformAdmin.modules}/work-orders`;
+const IDEMPOTENCY_STORAGE_PREFIX = 'indice.platform-admin.idempotency.v1.';
+const IDEMPOTENCY_TTL_MS = 30 * 60 * 1000;
+
+export interface PlatformOverviewQuery {
+  query?: string;
+  userType?: string;
+  status?: string;
+  sort?: string;
+  direction?: 'asc' | 'desc';
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PlatformBillingQuery {
+  query?: string;
+  status?: string;
+  sort?: string;
+  direction?: 'asc' | 'desc';
+  page?: number;
+  pageSize?: number;
+}
+
+const operationFingerprint = (path: string, method: string, payload: unknown) => {
+  const value = `${method}:${path}:${JSON.stringify(payload)}`;
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${IDEMPOTENCY_STORAGE_PREFIX}${(hash >>> 0).toString(16)}`;
+};
+
+const storedOperationKey = (fingerprint: string) => {
+  if (typeof window === 'undefined') return crypto.randomUUID();
+  try {
+    const stored = window.sessionStorage.getItem(fingerprint);
+    if (stored) {
+      const parsed = JSON.parse(stored) as { key?: unknown; createdAt?: unknown };
+      if (
+        typeof parsed.key === 'string'
+        && typeof parsed.createdAt === 'number'
+        && Date.now() - parsed.createdAt < IDEMPOTENCY_TTL_MS
+      ) {
+        return parsed.key;
+      }
+    }
+    const key = crypto.randomUUID();
+    window.sessionStorage.setItem(fingerprint, JSON.stringify({ key, createdAt: Date.now() }));
+    return key;
+  } catch {
+    return crypto.randomUUID();
+  }
+};
+
+const clearStoredOperationKey = (fingerprint: string) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.removeItem(fingerprint);
+  } catch {
+    // Browser privacy settings may disable session storage; request safety still holds in memory.
+  }
+};
+
+const idempotentMutation = async <T>(
+  path: string,
+  method: 'POST' | 'PATCH',
+  payload: unknown,
+) => {
+  const fingerprint = operationFingerprint(path, method, payload);
+  const idempotencyKey = storedOperationKey(fingerprint);
+  try {
+    const result = await apiClient<T>(path, {
+      method,
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify(payload),
+    });
+    clearStoredOperationKey(fingerprint);
+    return result;
+  } catch (error) {
+    if (error instanceof ApiClientError && error.status >= 400 && error.status < 500 && error.status !== 408) {
+      clearStoredOperationKey(fingerprint);
+    }
+    throw error;
+  }
+};
 
 export const platformAdminApi = {
   getContext: () => apiClient<PlatformAdminContext>(endpoints.platformAdmin.context),
-  getOverview: (query = '') => apiClient<PlatformOverview>(
-    `${endpoints.platformAdmin.overview}?q=${encodeURIComponent(query)}&limit=500`,
-  ),
+  getOverview: (options: PlatformOverviewQuery = {}) => {
+    const parameters = new URLSearchParams({
+      q: options.query ?? '',
+      userType: options.userType ?? 'all',
+      status: options.status ?? 'all',
+      sort: options.sort ?? 'id',
+      direction: options.direction ?? 'desc',
+      page: String(options.page ?? 1),
+      pageSize: String(options.pageSize ?? 25),
+    });
+    return apiClient<PlatformOverview>(`${endpoints.platformAdmin.overview}?${parameters}`);
+  },
   getCompany: (companyId: number) => apiClient<PlatformCompanyDetail>(companyPath(companyId)),
+  getCompanyOptions: (query = '', page = 1, pageSize = 50) => {
+    const parameters = new URLSearchParams({ q: query, page: String(page), pageSize: String(pageSize) });
+    return apiClient<PlatformCompanyOptions>(`${endpoints.platformAdmin.companies}/options?${parameters}`);
+  },
   getCompanyUserActivity: (companyId: number) => apiClient<PlatformCompanyUserActivity>(
     `${companyPath(companyId)}/users/activity`,
   ),
   getAllCompanyUserActivity: (recentLimit = 10) => apiClient<PlatformAllCompanyUserActivity>(
     `${endpoints.platformAdmin.companies}/users/activity?recentLimit=${encodeURIComponent(String(recentLimit))}`,
   ),
-  createCompanyAccount: (payload: PlatformAccountCreatePayload) => apiClient<PlatformAccountCreateResult>(
-    endpoints.platformAdmin.companies,
-    {
-      method: 'POST',
-      headers: { 'Idempotency-Key': crypto.randomUUID() },
-      body: JSON.stringify(payload),
-    },
+  createCompanyAccount: (payload: PlatformAccountCreatePayload) => idempotentMutation<PlatformAccountCreateResult>(
+    endpoints.platformAdmin.companies, 'POST', payload,
   ),
-  updateCompanyAccountType: (companyId: number, accountType: EditablePlatformAccountType) => apiClient<PlatformAccountTypeUpdateResult>(
+  updateCompanyAccountType: (companyId: number, accountType: EditablePlatformAccountType, reason: string) => apiClient<PlatformAccountTypeUpdateResult>(
     `${companyPath(companyId)}/account-type`,
-    { method: 'PATCH', body: JSON.stringify({ account_type: accountType }) },
+    { method: 'PATCH', body: JSON.stringify({ account_type: accountType, reason }) },
   ),
   deleteCompanyAccount: (companyId: number, confirmationName: string, reason: string) => apiClient<{
     company_id: number;
@@ -946,21 +1078,16 @@ export const platformAdminApi = {
     method: 'DELETE',
     body: JSON.stringify({ confirmation_name: confirmationName, reason }),
   }),
-  updatePublicDemoAccess: (companyId: number, enabled: boolean) => apiClient<PlatformPublicDemoUpdateResult>(
+  updatePublicDemoAccess: (companyId: number, enabled: boolean, reason: string) => apiClient<PlatformPublicDemoUpdateResult>(
     `${companyPath(companyId)}/public-demo`,
-    { method: 'PATCH', body: JSON.stringify({ enabled }) },
+    { method: 'PATCH', body: JSON.stringify({ enabled, reason }) },
   ),
-  updateCompanyDistributor: (companyId: number, distributorCompanyId: number | null) => apiClient<PlatformDistributorAssignmentResult>(
+  updateCompanyDistributor: (companyId: number, distributorCompanyId: number | null, reason: string) => apiClient<PlatformDistributorAssignmentResult>(
     `${companyPath(companyId)}/distributor`,
-    { method: 'PATCH', body: JSON.stringify({ distributor_company_id: distributorCompanyId }) },
+    { method: 'PATCH', body: JSON.stringify({ distributor_company_id: distributorCompanyId, reason }) },
   ),
-  inviteCompanyUser: (companyId: number, payload: { name: string; email: string; role: 'admin' | 'user' }) => apiClient<PlatformCompanyUserMutationResult>(
-    `${companyPath(companyId)}/users/invitations`,
-    {
-      method: 'POST',
-      headers: { 'Idempotency-Key': crypto.randomUUID() },
-      body: JSON.stringify(payload),
-    },
+  inviteCompanyUser: (companyId: number, payload: { name: string; email: string; role: 'admin' | 'user'; reason: string }) => idempotentMutation<PlatformCompanyUserMutationResult>(
+    `${companyPath(companyId)}/users/invitations`, 'POST', payload,
   ),
   cancelCompanyUserInvitation: (companyId: number, invitationId: number) => apiClient<PlatformCompanyUserMutationResult>(
     `${companyPath(companyId)}/users/invitations/${invitationId}`,
@@ -970,27 +1097,32 @@ export const platformAdminApi = {
     `${companyPath(companyId)}/users/invitations/${invitationId}/resend`,
     { method: 'POST' },
   ),
-  updateCompanyUserStatus: (companyId: number, userId: number, status: 'active' | 'inactive') => apiClient<PlatformCompanyUserMutationResult>(
+  updateCompanyUserStatus: (companyId: number, userId: number, status: 'active' | 'inactive', reason: string) => apiClient<PlatformCompanyUserMutationResult>(
     `${companyPath(companyId)}/users/${userId}/status`,
-    { method: 'PATCH', body: JSON.stringify({ status }) },
+    { method: 'PATCH', body: JSON.stringify({ status, reason }) },
   ),
-  updateCompanyUserRole: (companyId: number, userId: number, role: 'user' | 'admin' | 'superadmin' | 'root') => apiClient<PlatformCompanyUserMutationResult>(
+  updateCompanyUserRole: (companyId: number, userId: number, role: 'user' | 'admin' | 'superadmin' | 'root', reason: string) => apiClient<PlatformCompanyUserMutationResult>(
     `${companyPath(companyId)}/users/${userId}/role`,
-    { method: 'PATCH', body: JSON.stringify({ role }) },
+    { method: 'PATCH', body: JSON.stringify({ role, reason }) },
   ),
-  updateCompanyUserPlatformAccess: (companyId: number, userId: number, platformRole: 'PLATFORM_ROOT' | 'NONE') => apiClient<PlatformCompanyUserMutationResult>(
+  updateCompanyUserPlatformAccess: (companyId: number, userId: number, platformRole: 'PLATFORM_ROOT' | 'NONE', reason: string) => apiClient<PlatformCompanyUserMutationResult>(
     `${companyPath(companyId)}/users/${userId}/platform-access`,
-    { method: 'PATCH', body: JSON.stringify({ platform_role: platformRole }) },
+    { method: 'PATCH', body: JSON.stringify({ platform_role: platformRole, reason }) },
   ),
-  extendCompanyTrial: (companyId: number, days: 15) => apiClient<PlatformTrialExtensionResult>(
-    `${companyPath(companyId)}/trial-extension`,
-    {
-      method: 'PATCH',
-      headers: { 'Idempotency-Key': crypto.randomUUID() },
-      body: JSON.stringify({ days, consultation_confirmed: true }),
-    },
+  extendCompanyTrial: (companyId: number, days: 15) => idempotentMutation<PlatformTrialExtensionResult>(
+    `${companyPath(companyId)}/trial-extension`, 'PATCH', { days, consultation_confirmed: true },
   ),
-  getBilling: () => apiClient<PlatformBilling>(`${endpoints.platformAdmin.billing}?limit=200`),
+  getBilling: (options: PlatformBillingQuery = {}) => {
+    const parameters = new URLSearchParams({
+      q: options.query ?? '',
+      status: options.status ?? 'all',
+      sort: options.sort ?? 'period',
+      direction: options.direction ?? 'desc',
+      page: String(options.page ?? 1),
+      pageSize: String(options.pageSize ?? 25),
+    });
+    return apiClient<PlatformBilling>(`${endpoints.platformAdmin.billing}?${parameters}`);
+  },
   getCatalog: () => apiClient<PlatformCatalog>(endpoints.platformAdmin.catalog),
   synchronizeComplementaryProducts: () => apiClient<{
     catalog_version_id: number;
@@ -1111,19 +1243,14 @@ export const platformAdminApi = {
     `${consultingPath}/locations/${locationId}`,
     { method: 'PATCH', body: JSON.stringify(payload) },
   ),
-  grantBenefit: (companyId: number, payload: BenefitPayload) => apiClient<PlatformBenefit>(
-    `${companyPath(companyId)}/benefits`,
-    {
-      method: 'POST',
-      headers: { 'Idempotency-Key': crypto.randomUUID() },
-      body: JSON.stringify(payload),
-    },
+  grantBenefit: (companyId: number, payload: BenefitPayload) => idempotentMutation<PlatformBenefit>(
+    `${companyPath(companyId)}/benefits`, 'POST', payload,
   ),
   revokeBenefit: (companyId: number, reference: string, reason: string) => apiClient<PlatformBenefit>(
     `${companyPath(companyId)}/benefits/${encodeURIComponent(reference)}`,
     { method: 'DELETE', body: JSON.stringify({ reason }) },
   ),
-  updateTrialProducts: (companyId: number, productCodes: string[], expectedCatalogVersion: string) => apiClient<{
+  updateTrialProducts: (companyId: number, productCodes: string[], expectedCatalogVersion: string) => idempotentMutation<{
     company_id: number;
     product_codes: string[];
     offer_code: string;
@@ -1134,14 +1261,10 @@ export const platformAdminApi = {
     selection_state: 'SCHEDULED' | string;
     effective_at?: string | null;
     change_reference?: string | null;
-  }>(`${companyPath(companyId)}/products`, {
-    method: 'PATCH',
-    headers: { 'Idempotency-Key': crypto.randomUUID() },
-    body: JSON.stringify({
+  }>(`${companyPath(companyId)}/products`, 'PATCH', {
       product_codes: productCodes,
       expected_catalog_version: expectedCatalogVersion,
     }),
-  }),
   previewCompanyProducts: (companyId: number, productCodes: string[]) => apiClient<PlatformCompanyProductPreview>(
     `${companyPath(companyId)}/products/preview`,
     {
@@ -1150,11 +1273,9 @@ export const platformAdminApi = {
     },
   ),
   getCourtesyCodes: () => apiClient<CourtesyCodeCatalog>(courtesyCodesPath),
-  createCourtesyCode: (payload: CourtesyCodePayload) => apiClient<CourtesyCode>(courtesyCodesPath, {
-    method: 'POST',
-    headers: { 'Idempotency-Key': crypto.randomUUID() },
-    body: JSON.stringify(payload),
-  }),
+  createCourtesyCode: (payload: CourtesyCodePayload) => idempotentMutation<CourtesyCode>(
+    courtesyCodesPath, 'POST', payload,
+  ),
   revokeCourtesyCode: (reference: string, reason: string) => apiClient<CourtesyCode>(
     `${courtesyCodesPath}/${encodeURIComponent(reference)}`,
     { method: 'DELETE', body: JSON.stringify({ reason }) },

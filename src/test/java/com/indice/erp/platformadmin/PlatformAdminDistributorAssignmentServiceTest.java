@@ -62,6 +62,7 @@ class PlatformAdminDistributorAssignmentServiceTest {
         company.put("account_type", "SUPER_ADMIN");
         company.put("distributor_company_id", null);
         company.put("distributor_company_name", null);
+        company.put("platform_status", "ACTIVE");
         company.put("platform_root", false);
         when(jdbc.query(anyString(), any(RowMapper.class), eq(44L)))
             .thenReturn((List) List.of(company));
@@ -71,7 +72,7 @@ class PlatformAdminDistributorAssignmentServiceTest {
         var result = service.updateCompanyDistributor(
             9L,
             44L,
-            new PlatformAdminService.DistributorAssignmentRequest(12L)
+            new PlatformAdminService.DistributorAssignmentRequest(12L, "Approved distributor assignment")
         );
 
         assertThat(result)
@@ -82,7 +83,7 @@ class PlatformAdminDistributorAssignmentServiceTest {
             .containsEntry("changed", true);
         verify(access).require(9L, "PLATFORM_ACCOUNTS_WRITE");
         verify(jdbc).update(
-            "UPDATE companies SET distributor_company_id = ? WHERE id = ?",
+            "UPDATE companies SET distributor_company_id = ? WHERE id = ? AND platform_status = 'ACTIVE'",
             12L,
             44L
         );
@@ -105,6 +106,7 @@ class PlatformAdminDistributorAssignmentServiceTest {
         company.put("account_type", "SUPER_ADMIN");
         company.put("distributor_company_id", null);
         company.put("distributor_company_name", null);
+        company.put("platform_status", "ACTIVE");
         company.put("platform_root", true);
         when(jdbc.query(anyString(), any(RowMapper.class), eq(44L)))
             .thenReturn((List) List.of(company));
@@ -112,7 +114,7 @@ class PlatformAdminDistributorAssignmentServiceTest {
         assertThatThrownBy(() -> service.updateCompanyDistributor(
             9L,
             44L,
-            new PlatformAdminService.DistributorAssignmentRequest(12L)
+            new PlatformAdminService.DistributorAssignmentRequest(12L, "Approved distributor assignment")
         ))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("Root accounts");

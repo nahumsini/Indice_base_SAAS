@@ -11,6 +11,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.indice.erp.billing.subscription.CompanySubscriptionStatus;
+import com.indice.erp.platformadmin.PlatformAdminAccessService;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -105,7 +106,12 @@ class SessionAuthServiceTest {
         session.setAttribute(SessionAuthService.SESSION_ROLE, "admin");
 
         when(jdbcTemplate.query(
-            contains("SELECT id, COALESCE(role"),
+            ArgumentMatchers.argThat((String sql) ->
+                sql != null
+                    && sql.contains("SELECT membership.id, COALESCE(membership.role")
+                    && sql.contains("JOIN companies company")
+                    && sql.contains("company.platform_status = 'ACTIVE'")
+            ),
             ArgumentMatchers.any(RowMapper.class),
             eq(5L),
             eq(7L)
@@ -119,8 +125,8 @@ class SessionAuthServiceTest {
         });
         when(jdbcTemplate.query(
             ArgumentMatchers.argThat((String sql) ->
-                sql != null && sql.contains("SELECT id") && sql.contains("FROM user_companies")
-                    && !sql.contains("COALESCE(role")
+                sql != null && sql.contains("SELECT membership.id") && sql.contains("FROM user_companies")
+                    && !sql.contains(" AS role")
             ),
             ArgumentMatchers.<RowMapper<Long>>any(),
             eq(5L),
@@ -228,7 +234,7 @@ class SessionAuthServiceTest {
         session.setAttribute(SessionAuthService.SESSION_ROLE, "superadmin");
 
         when(jdbcTemplate.query(
-            contains("SELECT id, COALESCE(role"),
+            contains("SELECT membership.id, COALESCE(membership.role"),
             ArgumentMatchers.any(RowMapper.class),
             eq(5L),
             eq(7L)
@@ -268,6 +274,32 @@ class SessionAuthServiceTest {
         service.storeAuthenticatedSession(session, loginWithRole(role));
 
         assertEquals(expectedSeconds, session.getMaxInactiveInterval());
+    }
+
+    @Test
+    void platformRootSessionStoresMfaStateAndUsesTheStricterIdleTimeout() {
+        @SuppressWarnings("unchecked")
+        var platformAccessProvider = (ObjectProvider<PlatformAdminAccessService>) mock(ObjectProvider.class);
+        var platformAccess = mock(PlatformAdminAccessService.class);
+        when(platformAccessProvider.getIfAvailable()).thenReturn(platformAccess);
+        when(platformAccess.activeRole(5L)).thenReturn("PLATFORM_ROOT");
+        var service = new SessionAuthService(
+            jdbcTemplate,
+            passwordEncoder,
+            LoginAuditService.noop(),
+            companyId -> CompanySubscriptionStatus.activeLegacy(),
+            new AuthSecurityProperties(),
+            Clock.systemUTC(),
+            null,
+            platformAccessProvider
+        );
+        var session = new MockHttpSession();
+
+        service.storeAuthenticatedSession(session, loginWithRole("user"), true);
+
+        assertEquals("PLATFORM_ROOT", session.getAttribute(SessionAuthService.SESSION_PLATFORM_ROLE));
+        assertEquals(true, session.getAttribute(SessionAuthService.SESSION_MFA_VERIFIED));
+        assertEquals(1_800, session.getMaxInactiveInterval());
     }
 
     @Test
@@ -331,7 +363,7 @@ class SessionAuthServiceTest {
         session.setAttribute(SessionAuthService.SESSION_ROLE, "admin");
 
         when(jdbcTemplate.query(
-            contains("SELECT id, COALESCE(role"),
+            contains("SELECT membership.id, COALESCE(membership.role"),
             ArgumentMatchers.any(RowMapper.class),
             eq(5L),
             eq(7L)
@@ -364,7 +396,7 @@ class SessionAuthServiceTest {
         session.setAttribute(ManagedCompanyContextService.SESSION_MANAGED_COMPANY_ID, 44L);
 
         when(jdbcTemplate.query(
-            contains("SELECT id, COALESCE(role"),
+            contains("SELECT membership.id, COALESCE(membership.role"),
             ArgumentMatchers.any(RowMapper.class),
             eq(5L),
             eq(7L)

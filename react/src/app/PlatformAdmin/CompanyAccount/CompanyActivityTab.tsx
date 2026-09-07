@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { platformAdminApi, type PlatformCompanyDetail } from "../../api/platformAdmin";
+import { IndiceConfirmationDialog } from "../../components/indice-modal/IndiceConfirmationDialog";
 import { IndiceModalFrame } from "../../components/indice-modal/IndiceModalFrame";
 import { CompactEmptyState, StatusPill, WorkspaceSection } from "./CompanyAccountPrimitives";
 import { formatDate, formatMoney, humanize, initials } from "./companyAccountUtils";
@@ -58,6 +59,19 @@ export function CompanyActivityTab({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"admin" | "user">("user");
+  const [inviteReason, setInviteReason] = useState("");
+  const [statusReason, setStatusReason] = useState("");
+  const [pendingStatus, setPendingStatus] = useState<{
+    userId: number;
+    status: "active" | "inactive";
+    label: string;
+  } | null>(null);
+  const [pendingInvitationCancel, setPendingInvitationCancel] = useState<{
+    invitationId: number;
+    label: string;
+  } | null>(null);
+  const [statusError, setStatusError] = useState("");
+  const [invitationCancelError, setInvitationCancelError] = useState("");
   const [busyKey, setBusyKey] = useState("");
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [inviteLink, setInviteLink] = useState("");
@@ -84,6 +98,7 @@ export function CompanyActivityTab({
     setName("");
     setEmail("");
     setRole("user");
+    setInviteReason("");
     setInviteLink("");
     setCopied(false);
     setFeedback(null);
@@ -99,6 +114,7 @@ export function CompanyActivityTab({
         name: name.trim(),
         email: email.trim(),
         role,
+        reason: inviteReason.trim(),
       });
       setInviteLink(result.invite_link || "");
       setFeedback({
@@ -115,20 +131,28 @@ export function CompanyActivityTab({
     }
   };
 
-  const updateMemberStatus = async (userId: number, status: "active" | "inactive", label: string) => {
+  const updateMemberStatus = async (
+    userId: number,
+    status: "active" | "inactive",
+    reason: string,
+  ) => {
     if (isBusy) return;
-    if (status === "inactive" && !window.confirm(`¿Desactivar a ${label}? El lugar quedará disponible de inmediato.`)) return;
     setBusyKey(`member-${userId}`);
     setFeedback(null);
+    setStatusError("");
     try {
-      await userApi.updateCompanyUserStatus(company.id, userId, status);
+      await userApi.updateCompanyUserStatus(company.id, userId, status, reason);
       await onRefresh();
       setFeedback({
         type: "success",
         message: status === "active" ? "Usuario reactivado y lugar ocupado." : "Usuario desactivado y lugar liberado.",
       });
+      setPendingStatus(null);
+      setStatusReason("");
     } catch (error) {
-      setFeedback({ type: "error", message: error instanceof Error ? error.message : "No se pudo actualizar el usuario." });
+      const message = error instanceof Error ? error.message : "No se pudo actualizar el usuario.";
+      setStatusError(message);
+      setFeedback({ type: "error", message });
     } finally {
       setBusyKey("");
     }
@@ -153,16 +177,20 @@ export function CompanyActivityTab({
     }
   };
 
-  const cancelInvitation = async (invitationId: number, label: string) => {
-    if (isBusy || !window.confirm(`¿Cancelar la invitación de ${label}? El lugar reservado quedará libre.`)) return;
+  const cancelInvitation = async (invitationId: number) => {
+    if (isBusy) return;
     setBusyKey(`cancel-${invitationId}`);
     setFeedback(null);
+    setInvitationCancelError("");
     try {
       await userApi.cancelCompanyUserInvitation(company.id, invitationId);
       await onRefresh();
       setFeedback({ type: "success", message: "Invitación cancelada y lugar liberado." });
+      setPendingInvitationCancel(null);
     } catch (error) {
-      setFeedback({ type: "error", message: error instanceof Error ? error.message : "No se pudo cancelar la invitación." });
+      const message = error instanceof Error ? error.message : "No se pudo cancelar la invitación.";
+      setInvitationCancelError(message);
+      setFeedback({ type: "error", message });
     } finally {
       setBusyKey("");
     }
@@ -273,7 +301,7 @@ export function CompanyActivityTab({
                     <div className="mt-1"><StatusPill status="active" /></div>
                   </div>
                   {canManage ? (
-                    <button type="button" disabled={protectedUser || isBusy} onClick={() => void updateMemberStatus(member.user_id, "inactive", member.name || member.email)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-rose-200 px-3 text-xs font-medium text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400" title={protectedUser ? "El propietario de la cuenta está protegido." : "Desactivar y liberar lugar"}>
+                    <button type="button" disabled={protectedUser || isBusy} onClick={() => { setStatusReason(""); setStatusError(""); setPendingStatus({ userId: member.user_id, status: "inactive", label: member.name || member.email }); }} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-rose-200 px-3 text-xs font-medium text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400" title={protectedUser ? "El propietario de la cuenta está protegido." : "Desactivar y liberar lugar"}>
                       <UserX className="h-3.5 w-3.5" /> {protectedUser ? "Protegido" : "Desactivar"}
                     </button>
                   ) : null}
@@ -299,7 +327,7 @@ export function CompanyActivityTab({
                 {canManage ? (
                   <div className="flex gap-2">
                     <button type="button" disabled={isBusy} onClick={() => void resendInvitation(invitation.invitation_id)} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-blue-600 hover:bg-blue-50" aria-label="Reenviar invitación" title="Reenviar y renovar vigencia"><RefreshCw className="h-4 w-4" /></button>
-                    <button type="button" disabled={isBusy} onClick={() => void cancelInvitation(invitation.invitation_id, invitation.name || invitation.email)} className="grid h-9 w-9 place-items-center rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50" aria-label="Cancelar invitación" title="Cancelar y liberar lugar"><Trash2 className="h-4 w-4" /></button>
+                    <button type="button" disabled={isBusy} onClick={() => { setInvitationCancelError(""); setPendingInvitationCancel({ invitationId: invitation.invitation_id, label: invitation.name || invitation.email }); }} className="grid h-9 w-9 place-items-center rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50" aria-label="Cancelar invitación" title="Cancelar y liberar lugar"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 ) : null}
               </div>
@@ -317,7 +345,7 @@ export function CompanyActivityTab({
                   <p className="truncate text-xs text-slate-500">{member.email}</p>
                 </div>
                 <StatusPill status="inactive" />
-                {canManage ? <button type="button" disabled={isBusy || (capacityEnforced && available < 1)} onClick={() => void updateMemberStatus(member.user_id, "active", member.name || member.email)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-emerald-200 px-3 text-xs font-medium text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"><Check className="h-3.5 w-3.5" /> Reactivar</button> : null}
+                {canManage ? <button type="button" disabled={isBusy || (capacityEnforced && available < 1)} onClick={() => { setStatusReason(""); setStatusError(""); setPendingStatus({ userId: member.user_id, status: "active", label: member.name || member.email }); }} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-emerald-200 px-3 text-xs font-medium text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"><Check className="h-3.5 w-3.5" /> Reactivar</button> : null}
               </div>
             ))}
           </div>
@@ -367,7 +395,7 @@ export function CompanyActivityTab({
                 {copied ? "Enlace copiado" : "Copiar invitación"}
               </button>
             ) : (
-              <button type="submit" form="platform-company-user-invite" disabled={isBusy || !name.trim() || !email.trim()}>
+              <button type="submit" form="platform-company-user-invite" disabled={isBusy || !name.trim() || !email.trim() || inviteReason.trim().length < 5}>
                 <Send className="mr-2 inline h-4 w-4" /> {isBusy ? "Enviando…" : "Enviar invitación"}
               </button>
             )}
@@ -387,9 +415,87 @@ export function CompanyActivityTab({
               <label className={`cursor-pointer rounded-xl border p-3 ${role === "admin" ? "border-blue-500 bg-blue-50" : "border-slate-200"}`}><input type="radio" className="sr-only" checked={role === "admin"} onChange={() => setRole("admin")} /><span className="block text-sm font-medium text-slate-900">Administrador</span><span className="mt-1 block text-xs text-slate-500">Puede administrar la cuenta, sin sustituir al propietario.</span></label>
             </div>
           </fieldset>
+          <label className="block space-y-1.5 text-sm font-medium text-slate-700">
+            <span>Motivo operativo</span>
+            <textarea
+              required
+              minLength={5}
+              maxLength={500}
+              value={inviteReason}
+              onChange={(event) => setInviteReason(event.target.value)}
+              className="min-h-20 w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 font-normal outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              placeholder="Ej. Alta del responsable administrativo solicitada por la empresa"
+            />
+            <span className="block text-xs font-normal text-slate-500">Se guardará en la bitácora de plataforma.</span>
+          </label>
           <p className="text-xs leading-5 text-slate-500">Los permisos iniciales se limitan a los módulos activos de esta cuenta. Después podrán ajustarse desde Configuración.</p>
         </form>
       </IndiceModalFrame>
+
+      <IndiceConfirmationDialog
+        open={pendingStatus !== null}
+        busy={isBusy}
+        destructive={pendingStatus?.status === "inactive"}
+        tone={pendingStatus?.status === "inactive" ? "coral" : "blue"}
+        title={pendingStatus?.status === "inactive" ? "Desactivar usuario" : "Reactivar usuario"}
+        description={pendingStatus?.status === "inactive"
+          ? "El acceso se bloqueará y su lugar quedará disponible inmediatamente."
+          : "El usuario recuperará el acceso y ocupará un lugar disponible."}
+        itemName={pendingStatus?.label}
+        confirmLabel={pendingStatus?.status === "inactive" ? "Desactivar" : "Reactivar"}
+        confirmDisabled={statusReason.trim().length < 5}
+        onCancel={() => { if (!isBusy) { setPendingStatus(null); setStatusReason(""); setStatusError(""); } }}
+        onConfirm={() => {
+          if (!pendingStatus || statusReason.trim().length < 5) return;
+          void updateMemberStatus(pendingStatus.userId, pendingStatus.status, statusReason.trim());
+        }}
+      >
+        {statusError ? (
+          <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {statusError}
+          </div>
+        ) : null}
+        <label className="block space-y-1.5 text-sm font-medium text-slate-700">
+          <span>Motivo operativo</span>
+          <textarea
+            autoFocus
+            required
+            minLength={5}
+            maxLength={500}
+            value={statusReason}
+            onChange={(event) => setStatusReason(event.target.value)}
+            className="min-h-24 w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 font-normal outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            placeholder="Explica por qué cambia el acceso"
+          />
+        </label>
+      </IndiceConfirmationDialog>
+
+      <IndiceConfirmationDialog
+        open={pendingInvitationCancel !== null}
+        busy={isBusy}
+        destructive
+        tone="coral"
+        title="Cancelar invitación"
+        description="La invitación dejará de funcionar y el lugar reservado quedará disponible inmediatamente."
+        itemName={pendingInvitationCancel?.label}
+        confirmLabel="Cancelar invitación"
+        onCancel={() => {
+          if (!isBusy) {
+            setPendingInvitationCancel(null);
+            setInvitationCancelError("");
+          }
+        }}
+        onConfirm={() => {
+          if (!pendingInvitationCancel) return;
+          void cancelInvitation(pendingInvitationCancel.invitationId);
+        }}
+      >
+        {invitationCancelError ? (
+          <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {invitationCancelError}
+          </div>
+        ) : null}
+      </IndiceConfirmationDialog>
     </div>
   );
 }

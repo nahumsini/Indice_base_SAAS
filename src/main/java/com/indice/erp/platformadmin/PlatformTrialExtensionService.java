@@ -141,7 +141,7 @@ public class PlatformTrialExtensionService {
         String keyHash,
         int days
     ) {
-        lockCompany(companyId);
+        lockActiveCompany(companyId);
         var existing = preparedExtension(keyHash);
         if (existing != null) {
             if (existing.addedDays() != days) {
@@ -198,6 +198,7 @@ public class PlatformTrialExtensionService {
     }
 
     private void complete(long companyId, PreparedMutation mutation) {
+        lockActiveCompany(companyId);
         var extensionStatus = jdbc.queryForObject(
             "SELECT status FROM platform_trial_extensions WHERE public_reference = ? FOR UPDATE",
             String.class,
@@ -383,13 +384,16 @@ public class PlatformTrialExtensionService {
         ).stream().filter(source -> source != null).findFirst().orElse(null);
     }
 
-    private void lockCompany(long companyId) {
-        var found = jdbc.query(
-            "SELECT id FROM companies WHERE id = ? FOR UPDATE",
-            (rs, rowNum) -> rs.getLong(1),
+    private void lockActiveCompany(long companyId) {
+        var statuses = jdbc.query(
+            "SELECT platform_status FROM companies WHERE id = ? FOR UPDATE",
+            (rs, rowNum) -> rs.getString("platform_status"),
             companyId
         );
-        if (found.isEmpty()) throw new NoSuchElementException("Company not found.");
+        if (statuses.isEmpty()) throw new NoSuchElementException("Company not found.");
+        if (!"ACTIVE".equalsIgnoreCase(statuses.getFirst())) {
+            throw new IllegalStateException("Deleted accounts cannot receive trial extensions.");
+        }
     }
 
     private Map<String, Object> completedExtension(String keyHash) {

@@ -83,7 +83,7 @@ public class ConsultingAdministrationService {
                 """,
             (rs, rowNum) -> adminAppointmentRow(rs)
         );
-        return workspaceResponse(appointments);
+        return workspaceResponse(appointments, companyOptions(null));
     }
 
     public Map<String, Object> workspaceForDistributorAfterAuthorization(long distributorCompanyId) {
@@ -126,7 +126,7 @@ public class ConsultingAdministrationService {
             distributorCompanyId,
             distributorCompanyId
         );
-        return workspaceResponse(appointments);
+        return workspaceResponse(appointments, companyOptions(distributorCompanyId));
     }
 
     public Map<String, Object> consultantAvailability(long actorUserId, String consultantEmail) {
@@ -206,7 +206,10 @@ public class ConsultingAdministrationService {
         return consultantAvailabilityAfterAuthorization(consultant);
     }
 
-    private Map<String, Object> workspaceResponse(List<Map<String, Object>> appointments) {
+    private Map<String, Object> workspaceResponse(
+        List<Map<String, Object>> appointments,
+        List<Map<String, Object>> companies
+    ) {
         var locations = locations();
         var now = clock.instant();
         var requested = appointments.stream().filter(row -> "REQUESTED".equals(row.get("status"))).count();
@@ -226,7 +229,70 @@ public class ConsultingAdministrationService {
         response.put("appointments", appointments);
         response.put("locations", locations);
         response.put("consultants", consultants());
+        response.put("companies", companies);
         return response;
+    }
+
+    private List<Map<String, Object>> companyOptions(Long distributorCompanyId) {
+        var distributorScope = distributorCompanyId == null
+            ? ""
+            : """
+                 AND (
+                     company.distributor_company_id = ?
+                     OR (
+                         company.distributor_company_id IS NULL
+                         AND company.created_by_distributor_company_id = ?
+                     )
+                 )
+                """;
+        var sql = """
+                SELECT company.id, company.name,
+                       COALESCE((
+                           SELECT owner.email
+                           FROM company_ownerships ownership
+                           JOIN users owner ON owner.id = ownership.owner_user_id
+                           WHERE ownership.company_id = company.id
+                             AND ownership.status = 'ACTIVE'
+                           ORDER BY ownership.id
+                           LIMIT 1
+                       ), (
+                           SELECT member_user.email
+                           FROM user_companies member
+                           JOIN users member_user ON member_user.id = member.user_id
+                           WHERE member.company_id = company.id
+                             AND LOWER(COALESCE(member.status, 'active')) = 'active'
+                           ORDER BY FIELD(LOWER(COALESCE(member.role, 'user')),
+                               'root', 'superadmin', 'owner', 'admin', 'manager', 'user'), member.id
+                           LIMIT 1
+                       )) AS owner_email,
+                       (
+                           SELECT intent.country_code
+                           FROM billing_signup_intents intent
+                           WHERE intent.company_id = company.id
+                           ORDER BY intent.completed_at DESC, intent.id DESC
+                           LIMIT 1
+                       ) AS country_code
+                FROM companies company
+                WHERE company.platform_status = 'ACTIVE'
+                  AND UPPER(COALESCE(company.commercial_account_type, '')) = 'SUPER_ADMIN'
+                """ + distributorScope + """
+                ORDER BY company.name, company.id
+                """;
+        Object[] parameters = distributorCompanyId == null
+            ? new Object[] {}
+            : new Object[] { distributorCompanyId, distributorCompanyId };
+        return jdbcTemplate.query(
+            sql,
+            (rs, rowNum) -> {
+                var row = new LinkedHashMap<String, Object>();
+                row.put("id", rs.getLong("id"));
+                row.put("name", rs.getString("name"));
+                row.put("owner_email", rs.getString("owner_email"));
+                row.put("country_code", rs.getString("country_code"));
+                return row;
+            },
+            parameters
+        );
     }
 
     @Transactional
@@ -343,7 +409,14 @@ public class ConsultingAdministrationService {
         if (request == null) throw new IllegalArgumentException("Session details are required.");
         var companyId = request.companyId();
         var companyName = jdbcTemplate.query(
-            "SELECT name FROM companies WHERE id = ? LIMIT 1",
+            """
+                SELECT name
+                FROM companies
+                WHERE id = ?
+                  AND platform_status = 'ACTIVE'
+                  AND UPPER(COALESCE(commercial_account_type, '')) = 'SUPER_ADMIN'
+                LIMIT 1
+                """,
             (rs, rowNum) -> rs.getString("name"),
             companyId
         );

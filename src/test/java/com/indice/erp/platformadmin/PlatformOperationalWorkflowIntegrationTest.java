@@ -41,6 +41,7 @@ class PlatformOperationalWorkflowIntegrationTest {
     private ConsultingAdministrationService consulting;
 
     private long actorUserId;
+    private long distributorCompanyId;
     private String consultantEmail;
     private String distributorEmail;
     private String distributorCompanyName;
@@ -66,7 +67,7 @@ class PlatformOperationalWorkflowIntegrationTest {
             "INSERT INTO companies (name, commercial_account_type) VALUES (?, 'DISTRIBUTOR')",
             distributorCompanyName
         );
-        var distributorCompanyId = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        distributorCompanyId = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         jdbc.update(
             "INSERT INTO users (email, password_hash, full_name) VALUES (?, '$2a$10$workflowtest', 'Daniel Distribuidor')",
             distributorEmail
@@ -129,6 +130,43 @@ class PlatformOperationalWorkflowIntegrationTest {
         assertThat(cancelled)
             .containsEntry("status", "CANCELLED")
             .containsEntry("removed", true);
+    }
+
+    @Test
+    void consultingWorkspaceListsAllActiveClientsAndRejectsClosedAccounts() {
+        var activeClientName = CLIENT_PREFIX + "active-" + UUID.randomUUID();
+        var deletedClientName = CLIENT_PREFIX + "deleted-" + UUID.randomUUID();
+        jdbc.update(
+            "INSERT INTO companies (name, commercial_account_type, distributor_company_id) VALUES (?, 'SUPER_ADMIN', ?)",
+            activeClientName,
+            distributorCompanyId
+        );
+        var activeClientId = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        jdbc.update(
+            "INSERT INTO companies (name, commercial_account_type, platform_status) VALUES (?, 'SUPER_ADMIN', 'DELETED')",
+            deletedClientName
+        );
+        var deletedClientId = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+
+        @SuppressWarnings("unchecked")
+        var platformCompanies = (List<Map<String, Object>>) consulting.workspace(actorUserId).get("companies");
+        assertThat(platformCompanies)
+            .anyMatch(row -> activeClientId == ((Number) row.get("id")).longValue())
+            .noneMatch(row -> deletedClientId == ((Number) row.get("id")).longValue());
+
+        @SuppressWarnings("unchecked")
+        var distributorCompanies = (List<Map<String, Object>>) consulting
+            .workspaceForDistributorAfterAuthorization(distributorCompanyId)
+            .get("companies");
+        assertThat(distributorCompanies)
+            .anyMatch(row -> activeClientId == ((Number) row.get("id")).longValue())
+            .noneMatch(row -> deletedClientId == ((Number) row.get("id")).longValue());
+
+        assertThatThrownBy(() -> consulting.createAppointment(
+            actorUserId,
+            availabilityAppointment(deletedClientId, Instant.now().plusSeconds(86_400))
+        )).isInstanceOf(java.util.NoSuchElementException.class)
+            .hasMessageContaining("Client account not found");
     }
 
     @Test

@@ -6,13 +6,15 @@ import { formatDate, humanize, offerLabels } from "./companyAccountUtils";
 export function CompanyAccessTab({
   company,
   saving,
-  canManage,
+  canCreate,
+  canRevoke,
   onCreate,
   onRevoke,
 }: {
   company: PlatformCompanyDetail;
   saving: boolean;
-  canManage: boolean;
+  canCreate: boolean;
+  canRevoke: boolean;
   onCreate: () => void;
   onRevoke: (reference: string, label?: string, grantCount?: number) => void;
 }) {
@@ -21,7 +23,7 @@ export function CompanyAccessTab({
       title="Accesos administrativos"
       description="Cortesías, promociones, pruebas y apoyos con vigencia auditable."
       icon={ShieldCheck}
-      action={canManage ? (
+      action={canCreate ? (
         <button
           type="button"
           className="inline-flex h-10 items-center gap-2 rounded-lg bg-blue-900 px-4 text-sm font-medium text-white transition hover:bg-blue-950"
@@ -35,7 +37,7 @@ export function CompanyAccessTab({
       {company.benefits.length ? (
         <div className="divide-y divide-slate-100">
           {company.benefits.map((benefit) => {
-            const canRevoke = canManage && benefit.status.toUpperCase() === "ACTIVE" && benefit.source_type.toUpperCase() !== "SUBSCRIPTION";
+            const benefitCanBeRevoked = canRevoke && benefit.status.toUpperCase() === "ACTIVE" && benefit.source_type.toUpperCase() !== "SUBSCRIPTION";
             return (
               <div key={benefit.reference} className="flex flex-wrap items-center gap-3 px-4 py-3.5">
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-600">
@@ -53,7 +55,7 @@ export function CompanyAccessTab({
                     {benefit.ends_at ? ` · hasta ${formatDate(benefit.ends_at)}` : " · sin vencimiento"}
                   </p>
                 </div>
-                {canRevoke ? (
+                {benefitCanBeRevoked ? (
                   <button
                     type="button"
                     className="h-9 rounded-lg border border-rose-200 px-3 text-xs font-medium text-rose-600 transition hover:bg-rose-50 disabled:opacity-60"

@@ -32,6 +32,8 @@ export function CompanyModulesTab({
   activeProducts,
   activeProductBenefits,
   saving,
+  canManageProducts,
+  canRevokeBenefits,
   onGrant,
   onPreviewProducts,
   onUpdateTrialProducts,
@@ -42,6 +44,8 @@ export function CompanyModulesTab({
   activeProducts: Set<string>;
   activeProductBenefits: Map<string, PlatformBenefit[]>;
   saving: boolean;
+  canManageProducts: boolean;
+  canRevokeBenefits: boolean;
   onGrant: (productCode: string) => Promise<void>;
   onPreviewProducts: (productCodes: string[]) => Promise<PlatformCompanyProductPreview>;
   onUpdateTrialProducts: (productCodes: string[], expectedCatalogVersion: string) => Promise<boolean>;
@@ -108,6 +112,7 @@ export function CompanyModulesTab({
   );
 
   const requestPreview = async (productCodes: string[], description: string, code: string) => {
+    if (!canManageProducts) return;
     setPreviewError("");
     setPreviewingCode(code);
     try {
@@ -121,7 +126,7 @@ export function CompanyModulesTab({
   };
 
   const applyPendingChange = async () => {
-    if (!pendingChange) return;
+    if (!pendingChange || !canManageProducts) return;
     const applied = await onUpdateTrialProducts(
       pendingChange.productCodes,
       pendingChange.preview.catalog_version,
@@ -173,7 +178,7 @@ export function CompanyModulesTab({
             </p>
           ) : null}
         </div>
-        {stripeManaged && subscriptionProduct && !targetProduct ? (
+        {canManageProducts && stripeManaged && subscriptionProduct && !targetProduct ? (
           <button
             type="button"
             className="h-9 shrink-0 rounded-lg border border-blue-200 bg-white px-3 text-xs font-medium text-blue-700 transition hover:bg-blue-50 disabled:opacity-60"
@@ -187,7 +192,7 @@ export function CompanyModulesTab({
           >
             {previewingCode === product.code ? <LoaderCircle className="mx-auto h-4 w-4 animate-spin" /> : "Conservar"}
           </button>
-        ) : stripeManaged && subscriptionProduct ? (
+        ) : canManageProducts && stripeManaged && subscriptionProduct ? (
           <button
             type="button"
             className="h-9 shrink-0 rounded-lg border border-rose-200 px-3 text-xs font-medium text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -201,7 +206,7 @@ export function CompanyModulesTab({
           >
             {previewingCode === product.code ? <LoaderCircle className="mx-auto h-4 w-4 animate-spin" /> : "Quitar"}
           </button>
-        ) : active && removableBenefit ? (
+        ) : active && removableBenefit && canRevokeBenefits ? (
           <button
             type="button"
             className="h-9 shrink-0 rounded-lg border border-rose-200 px-3 text-xs font-medium text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
@@ -210,7 +215,7 @@ export function CompanyModulesTab({
           >
             Quitar acceso
           </button>
-        ) : active ? null : stripeManaged && targetProduct ? (
+        ) : active ? null : canManageProducts && stripeManaged && targetProduct ? (
           <button
             type="button"
             className="h-9 shrink-0 rounded-lg border border-rose-200 bg-white px-3 text-xs font-medium text-rose-600 transition hover:bg-rose-50 disabled:opacity-60"
@@ -224,7 +229,7 @@ export function CompanyModulesTab({
           >
             {previewingCode === product.code ? <LoaderCircle className="mx-auto h-4 w-4 animate-spin" /> : "Quitar del cambio"}
           </button>
-        ) : stripeManaged ? (
+        ) : canManageProducts && stripeManaged ? (
           <button
             type="button"
             className="h-9 shrink-0 rounded-lg bg-blue-600 px-3 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
@@ -238,7 +243,7 @@ export function CompanyModulesTab({
           >
             {previewingCode === product.code ? <LoaderCircle className="mx-auto h-4 w-4 animate-spin" /> : "Agregar"}
           </button>
-        ) : (
+        ) : canManageProducts ? (
           <button
             type="button"
             className="h-9 shrink-0 rounded-lg bg-blue-600 px-3 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
@@ -247,7 +252,7 @@ export function CompanyModulesTab({
           >
             Agregar acceso
           </button>
-        )}
+        ) : null}
       </article>
     );
   };
@@ -275,7 +280,7 @@ export function CompanyModulesTab({
                   ? "Cambio contractual programado"
                   : "Borrador de contratación sin activar"}
             </p>
-            {company.commercial_change.status === "PENDING_STRIPE" ? (
+            {canManageProducts && company.commercial_change.status === "PENDING_STRIPE" ? (
               <button
                 type="button"
                 className="h-8 rounded-lg border border-blue-300 bg-white px-3 text-xs font-medium text-blue-800 disabled:opacity-60"
@@ -327,7 +332,7 @@ export function CompanyModulesTab({
           </div>
           <div className="mt-3 flex justify-end gap-2">
             <button type="button" className="h-9 rounded-lg border border-blue-200 bg-white px-3 font-medium text-blue-800" disabled={saving} onClick={() => setPendingChange(null)}>Cancelar</button>
-            <button type="button" className="h-9 rounded-lg bg-blue-700 px-4 font-medium text-white disabled:opacity-60" disabled={saving || pendingChange.preview.estimated_amount_cents == null} onClick={() => void applyPendingChange()}>
+            <button type="button" className="h-9 rounded-lg bg-blue-700 px-4 font-medium text-white disabled:opacity-60" disabled={!canManageProducts || saving || pendingChange.preview.estimated_amount_cents == null} onClick={() => void applyPendingChange()}>
               {saving ? "Aplicando…" : "Confirmar cambio"}
             </button>
           </div>

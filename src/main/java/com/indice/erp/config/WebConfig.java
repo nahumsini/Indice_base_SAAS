@@ -10,6 +10,8 @@ import com.indice.erp.billing.lifecycle.CommercialLifecycleInterceptor;
 import com.indice.erp.billing.subscription.ModuleEntitlementInterceptor;
 import com.indice.erp.billing.subscription.SubscriptionAccessInterceptor;
 import com.indice.erp.entitlement.EntitlementShadowInterceptor;
+import com.indice.erp.platformadmin.PlatformAdminMfaInterceptor;
+import com.indice.erp.platformadmin.PlatformAdminFailureAuditInterceptor;
 import java.time.Clock;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -27,6 +29,8 @@ public class WebConfig implements WebMvcConfigurer {
     private final AppWebProperties appWebProperties;
     private final ObjectProvider<AuthSessionTimeoutInterceptor> authSessionTimeoutInterceptor;
     private final ObjectProvider<PublicDemoSessionInterceptor> publicDemoSessionInterceptor;
+    private final ObjectProvider<PlatformAdminMfaInterceptor> platformAdminMfaInterceptor;
+    private final ObjectProvider<PlatformAdminFailureAuditInterceptor> platformAdminFailureAuditInterceptor;
     private final ObjectProvider<ManagedCompanyReadOnlyInterceptor> managedCompanyReadOnlyInterceptor;
     private final ObjectProvider<EntitlementShadowInterceptor> entitlementShadowInterceptor;
     private final ObjectProvider<CommercialLifecycleInterceptor> commercialLifecycleInterceptor;
@@ -39,6 +43,8 @@ public class WebConfig implements WebMvcConfigurer {
         AppWebProperties appWebProperties,
         ObjectProvider<AuthSessionTimeoutInterceptor> authSessionTimeoutInterceptor,
         ObjectProvider<PublicDemoSessionInterceptor> publicDemoSessionInterceptor,
+        ObjectProvider<PlatformAdminFailureAuditInterceptor> platformAdminFailureAuditInterceptor,
+        ObjectProvider<PlatformAdminMfaInterceptor> platformAdminMfaInterceptor,
         ObjectProvider<ManagedCompanyReadOnlyInterceptor> managedCompanyReadOnlyInterceptor,
         ObjectProvider<EntitlementShadowInterceptor> entitlementShadowInterceptor,
         ObjectProvider<CommercialLifecycleInterceptor> commercialLifecycleInterceptor,
@@ -50,6 +56,8 @@ public class WebConfig implements WebMvcConfigurer {
         this.appWebProperties = appWebProperties;
         this.authSessionTimeoutInterceptor = authSessionTimeoutInterceptor;
         this.publicDemoSessionInterceptor = publicDemoSessionInterceptor;
+        this.platformAdminFailureAuditInterceptor = platformAdminFailureAuditInterceptor;
+        this.platformAdminMfaInterceptor = platformAdminMfaInterceptor;
         this.managedCompanyReadOnlyInterceptor = managedCompanyReadOnlyInterceptor;
         this.entitlementShadowInterceptor = entitlementShadowInterceptor;
         this.commercialLifecycleInterceptor = commercialLifecycleInterceptor;
@@ -75,6 +83,12 @@ public class WebConfig implements WebMvcConfigurer {
         );
         publicDemoSessionInterceptor.ifAvailable((interceptor) ->
             registry.addInterceptor(interceptor).addPathPatterns("/api/**").order(-150)
+        );
+        platformAdminFailureAuditInterceptor.ifAvailable((interceptor) ->
+            registry.addInterceptor(interceptor).addPathPatterns("/api/v1/platform-admin/**").order(-149)
+        );
+        platformAdminMfaInterceptor.ifAvailable((interceptor) ->
+            registry.addInterceptor(interceptor).addPathPatterns("/api/v1/platform-admin/**").order(-145)
         );
         managedCompanyReadOnlyInterceptor.ifAvailable((interceptor) ->
             registry.addInterceptor(interceptor).addPathPatterns("/api/**").order(-140)

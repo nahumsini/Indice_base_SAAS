@@ -113,6 +113,34 @@ class AuthApiControllerTest {
     }
 
     @Test
+    void platformAdministratorRequiresMfaEvenWhenCompanyPolicyDoesNot() throws Exception {
+        var login = authenticatedLogin();
+        given(lockoutService.passwordLockout(eq("demo@example.com"), eq("empresa demo spring")))
+            .willReturn(AuthLockoutService.LockoutState.open());
+        given(sessionAuthService.verifyLoginCredentials(eq("Empresa Demo Spring"), eq("demo@example.com"), eq("demo123")))
+            .willReturn(LoginCredentialVerificationResult.success(login, "demo@example.com", "empresa demo spring"));
+        given(sessionAuthService.requiresStrongMfa(login.userId())).willReturn(true);
+        given(securityProperties.isMfaRequiredForCompany("Empresa Demo Spring")).willReturn(false);
+        given(mfaChallengeService.startChallenge(eq(login), any(), any(LoginAuditContext.class)))
+            .willReturn(LoginMfaChallengeService.MfaStartResult.started(
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                "d***@example.com",
+                300,
+                30
+            ));
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                .header("X-CSRF-Token", "csrf-token")
+                .contentType(APPLICATION_JSON)
+                .content(loginPayload()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.mfaRequired").value(true));
+
+        verify(mfaChallengeService).startChallenge(eq(login), any(), any(LoginAuditContext.class));
+        verify(sessionAuthService, never()).storeAuthenticatedSession(any(), eq(login));
+    }
+
+    @Test
     void publicDemoLoginSkipsMfaOnlyForAnEnabledCompany() throws Exception {
         var session = sessionResponse(1L, "Empresa Demo Spring");
         var login = authenticatedLogin();
@@ -235,7 +263,7 @@ class AuthApiControllerTest {
             .andExpect(jsonPath("$.companies[0].scope.type").value("corporate_office"))
             .andExpect(jsonPath("$.csrfToken").value("csrf-token"));
 
-        verify(sessionAuthService).storeAuthenticatedSession(any(), eq(login));
+        verify(sessionAuthService).storeAuthenticatedSession(any(), eq(login), eq(true));
         verify(sessionCsrfService).rotateCsrf(any());
         verify(loginSecurityEmailService).sendLoginSuccess(eq(login), any(LoginAuditContext.class));
     }

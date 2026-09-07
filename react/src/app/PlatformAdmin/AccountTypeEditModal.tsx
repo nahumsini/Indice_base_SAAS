@@ -25,15 +25,16 @@ export default function AccountTypeEditModal({
   saving: boolean;
   error: string;
   onClose: () => void;
-  onSave: (accountType: EditablePlatformAccountType) => Promise<void>;
+  onSave: (accountType: EditablePlatformAccountType, reason: string) => Promise<void>;
 }) {
   const [accountType, setAccountType] = useState<EditablePlatformAccountType>(
     company.user_type === "DISTRIBUTOR" ? "DISTRIBUTOR" : "SUPER_ADMIN",
   );
+  const [reason, setReason] = useState("");
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    void onSave(accountType);
+    void onSave(accountType, reason.trim());
   };
 
   return (
@@ -56,7 +57,7 @@ export default function AccountTypeEditModal({
           <button
             type="submit"
             form="platform-account-type-form"
-            disabled={saving || accountType === company.user_type}
+            disabled={saving || accountType === company.user_type || reason.trim().length < 5}
             className="inline-flex items-center justify-center gap-2"
           >
             {saving ? (
@@ -102,6 +103,21 @@ export default function AccountTypeEditModal({
               <option value="SUPER_ADMIN">Super Admin · {english ? "customer" : "cliente"}</option>
               <option value="DISTRIBUTOR">{english ? "Distributor" : "Distribuidor"}</option>
             </select>
+          </label>
+          <label className="mt-4 block space-y-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
+            <span>{english ? "Operational reason" : "Motivo operativo"}</span>
+            <textarea
+              required
+              minLength={5}
+              maxLength={500}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              className="min-h-24 w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-normal text-slate-800 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              placeholder={english ? "Explain why this account classification is changing" : "Explica por qué cambia la clasificación de esta cuenta"}
+            />
+            <span className="block text-xs font-normal text-slate-500">
+              {english ? "This reason will be stored in the Root audit trail." : "Este motivo quedará guardado en la auditoría Root."}
+            </span>
           </label>
         </section>
         <p className="rounded-xl border border-[#59C3A5]/30 bg-[#59C3A5]/10 px-4 py-3 text-sm leading-6 text-[#176B5B] dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/10 dark:text-[#8FE0CA]">

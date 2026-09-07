@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Building2, ExternalLink, ShieldCheck } from "lucide-react";
 import type { PlatformCompanyDetail } from "../../api/platformAdmin";
+import { IndiceConfirmationDialog } from "../../components/indice-modal";
 import { WorkspaceSection, SummaryDatum, StatusPill } from "./CompanyAccountPrimitives";
 import { commercialOrigin, formatDate, formatMoney, humanize } from "./companyAccountUtils";
 
@@ -22,8 +24,11 @@ export function CompanyOverviewTab({
   accessLabel: string;
   canManagePublicDemo: boolean;
   saving: boolean;
-  onUpdatePublicDemo?: (enabled: boolean) => Promise<void>;
+  onUpdatePublicDemo?: (enabled: boolean, reason: string) => Promise<boolean>;
 }) {
+  const [pendingDemoState, setPendingDemoState] = useState<boolean | null>(null);
+  const [demoReason, setDemoReason] = useState("");
+  const [demoError, setDemoError] = useState("");
   const origin = commercialOrigin(company);
   const plan = company.offer_code ? humanize(company.offer_code) : "Sin plan";
   const nextEvent = company.current_period_ends_at || company.trial_ends_at;
@@ -98,7 +103,11 @@ export function CompanyOverviewTab({
             role="switch"
             aria-checked={Boolean(company.public_demo_enabled)}
             disabled={!canManagePublicDemo || saving || company.user_type !== "SUPER_ADMIN"}
-            onClick={() => void onUpdatePublicDemo?.(!company.public_demo_enabled)}
+            onClick={() => {
+              setDemoReason("");
+              setDemoError("");
+              setPendingDemoState(!company.public_demo_enabled);
+            }}
             className={`relative h-8 w-14 shrink-0 rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 disabled:cursor-not-allowed disabled:opacity-50 ${
               company.public_demo_enabled ? "bg-blue-600" : "bg-slate-300"
             }`}
@@ -110,6 +119,48 @@ export function CompanyOverviewTab({
           </button>
         </div>
       </div>
+      <IndiceConfirmationDialog
+        open={pendingDemoState !== null}
+        tone={pendingDemoState ? "blue" : "coral"}
+        destructive={pendingDemoState === false}
+        title={pendingDemoState ? "Habilitar demo pública" : "Deshabilitar demo pública"}
+        description={pendingDemoState
+          ? "La empresa aparecerá en /demo y aceptará sus credenciales por el canal público controlado."
+          : "La empresa dejará de aceptar accesos desde /demo; las sesiones normales no cambiarán."}
+        confirmLabel={pendingDemoState ? "Habilitar demo" : "Deshabilitar demo"}
+        confirmDisabled={saving || demoReason.trim().length < 5}
+        busy={saving}
+        onCancel={() => { setPendingDemoState(null); setDemoError(""); }}
+        onConfirm={async () => {
+          if (pendingDemoState === null || demoReason.trim().length < 5) return;
+          const changed = await onUpdatePublicDemo?.(pendingDemoState, demoReason.trim());
+          if (changed) {
+            setPendingDemoState(null);
+            setDemoError("");
+          } else {
+            setDemoError("No se pudo guardar el cambio. Revisa el aviso operativo y vuelve a intentarlo.");
+          }
+        }}
+      >
+        {demoError ? (
+          <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {demoError}
+          </div>
+        ) : null}
+        <label className="block space-y-1.5 text-sm font-medium text-slate-700">
+          <span>Motivo operativo</span>
+          <textarea
+            autoFocus
+            required
+            minLength={5}
+            maxLength={500}
+            value={demoReason}
+            onChange={(event) => setDemoReason(event.target.value)}
+            className="min-h-24 w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 font-normal outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            placeholder="Explica por qué cambia el acceso demo"
+          />
+        </label>
+      </IndiceConfirmationDialog>
     </WorkspaceSection>
   );
 }

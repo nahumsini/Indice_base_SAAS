@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   Building2,
@@ -14,6 +14,7 @@ import {
   platformAdminApi,
   type PlatformCompanyDetail,
   type PlatformCompanyMember,
+  type PlatformCompanyOption,
   type PlatformCompanySummary,
   type PlatformAllCompanyUserActivity,
   type PlatformCompanyUserActivity,
@@ -24,10 +25,14 @@ import {
   CompanyBusinessActivityPanel,
   LifecyclePanel,
 } from "./CompanyUserActivityPanels";
+import { IndiceConfirmationDialog } from "../components/indice-modal/IndiceConfirmationDialog";
 
 type CompanyRole = "user" | "admin" | "superadmin" | "root";
 type CompanyWorkspaceTab = "users" | "activities" | "allActivities";
 type Feedback = { type: "success" | "error"; message: string } | null;
+type PendingAccessChange =
+  | { kind: "role"; member: PlatformCompanyMember; nextRole: CompanyRole }
+  | { kind: "platform"; member: PlatformCompanyMember; nextRole: "PLATFORM_ROOT" | "NONE" };
 
 const roleOptions: { value: CompanyRole; en: string; es: string }[] = [
   { value: "user", en: "User", es: "Usuario" },
@@ -58,6 +63,12 @@ export function CompaniesDirectoryTab({
   onOpenCompany: (company: PlatformCompanyDetail) => void;
 }) {
   const [query, setQuery] = useState("");
+  const [directoryCompanies, setDirectoryCompanies] = useState<PlatformCompanyOption[]>([]);
+  const [directoryPage, setDirectoryPage] = useState(1);
+  const [directoryPageSize] = useState(25);
+  const [directoryTotal, setDirectoryTotal] = useState(0);
+  const [directoryPages, setDirectoryPages] = useState(1);
+  const [directoryLoading, setDirectoryLoading] = useState(true);
   const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
   const [company, setCompany] = useState<PlatformCompanyDetail | null>(null);
   const [activity, setActivity] = useState<PlatformCompanyUserActivity | null>(null);
@@ -69,37 +80,62 @@ export function CompaniesDirectoryTab({
   const [loadingAllActivity, setLoadingAllActivity] = useState(false);
   const [savingKey, setSavingKey] = useState("");
   const [feedback, setFeedback] = useState<Feedback>(null);
-
-  const visibleCompanies = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return companies;
-    return companies.filter((item) => [
-      item.name,
-      item.owner_email ?? "",
-      String(item.id),
-    ].some((value) => value.toLowerCase().includes(normalizedQuery)));
-  }, [companies, query]);
+  const [pendingAccessChange, setPendingAccessChange] = useState<PendingAccessChange | null>(null);
+  const [accessReason, setAccessReason] = useState("");
+  const [accessError, setAccessError] = useState("");
+  const companyRequestSequence = useRef(0);
 
   const selectedCompanySummary = useMemo(
-    () => companies.find((item) => item.id === selectedCompanyId) ?? null,
-    [companies, selectedCompanyId],
+    () => company ?? companies.find((item) => item.id === selectedCompanyId) ?? null,
+    [companies, company, selectedCompanyId],
   );
+  const selectedCompanyActive = company?.platform_status !== "DELETED";
+
+  useEffect(() => {
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      setDirectoryLoading(true);
+      try {
+        const response = await platformAdminApi.getCompanyOptions(query.trim(), directoryPage, directoryPageSize);
+        if (!active) return;
+        setDirectoryCompanies(response.companies);
+        setDirectoryTotal(response.pagination.total_items);
+        setDirectoryPages(response.pagination.total_pages);
+        if (response.pagination.page !== directoryPage) setDirectoryPage(response.pagination.page);
+      } catch (error) {
+        if (!active) return;
+        setFeedback({
+          type: "error",
+          message: error instanceof Error ? error.message : english ? "Company directory could not be loaded." : "No se pudo cargar el directorio de empresas.",
+        });
+      } finally {
+        if (active) setDirectoryLoading(false);
+      }
+    }, 250);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [directoryPage, directoryPageSize, english, query]);
 
   const loadCompany = useCallback(async (companyId: number) => {
+    const requestSequence = ++companyRequestSequence.current;
     setLoading(true);
     setFeedback(null);
     try {
       const companyDetail = await platformAdminApi.getCompany(companyId);
+      if (requestSequence !== companyRequestSequence.current) return;
       setCompany(companyDetail);
       setSelectedCompanyId(companyId);
       setActivity(null);
     } catch (error) {
+      if (requestSequence !== companyRequestSequence.current) return;
       setFeedback({
         type: "error",
         message: error instanceof Error ? error.message : english ? "Company users could not be loaded." : "No se pudieron cargar los usuarios.",
       });
     } finally {
-      setLoading(false);
+      if (requestSequence === companyRequestSequence.current) setLoading(false);
     }
   }, [english]);
 
@@ -148,16 +184,19 @@ export function CompaniesDirectoryTab({
   }, [allActivity?.recent_events_limit, allActivityRecentLimit, loadAllActivity]);
 
   useEffect(() => {
-    if (!visibleCompanies.length) {
+    if (directoryLoading) return;
+    if (!directoryCompanies.length) {
+      companyRequestSequence.current += 1;
+      setLoading(false);
       setCompany(null);
       setSelectedCompanyId(null);
       return;
     }
-    if (selectedCompanyId && visibleCompanies.some((item) => item.id === selectedCompanyId)) {
+    if (selectedCompanyId && directoryCompanies.some((item) => item.id === selectedCompanyId)) {
       return;
     }
-    void loadCompany(visibleCompanies[0].id);
-  }, [loadCompany, selectedCompanyId, visibleCompanies]);
+    void loadCompany(directoryCompanies[0].id);
+  }, [directoryCompanies, directoryLoading, loadCompany, selectedCompanyId]);
 
   useEffect(() => {
     if (activeCompanyTab !== "activities" || !selectedCompanyId || activity) return;
@@ -182,34 +221,43 @@ export function CompaniesDirectoryTab({
     }
   };
 
-  const updateRole = async (member: PlatformCompanyMember, role: CompanyRole) => {
+  const updateRole = async (member: PlatformCompanyMember, role: CompanyRole, reason: string) => {
     if (!company || normalizeRole(member.role) === role) return;
     setSavingKey(`role:${member.user_id}`);
     setFeedback(null);
+    setAccessError("");
     try {
-      await platformAdminApi.updateCompanyUserRole(company.id, member.user_id, role);
+      await platformAdminApi.updateCompanyUserRole(company.id, member.user_id, role, reason);
       await refreshCompany();
       setFeedback({
         type: "success",
         message: english ? "Company role updated." : "Rol de la cuenta actualizado.",
       });
+      setPendingAccessChange(null);
+      setAccessReason("");
     } catch (error) {
+      const message = error instanceof Error ? error.message : english ? "Role could not be updated." : "No se pudo actualizar el rol.";
+      setAccessError(message);
       setFeedback({
         type: "error",
-        message: error instanceof Error ? error.message : english ? "Role could not be updated." : "No se pudo actualizar el rol.",
+        message,
       });
     } finally {
       setSavingKey("");
     }
   };
 
-  const togglePlatformRoot = async (member: PlatformCompanyMember) => {
+  const updatePlatformAccess = async (
+    member: PlatformCompanyMember,
+    nextRole: "PLATFORM_ROOT" | "NONE",
+    reason: string,
+  ) => {
     if (!company) return;
-    const nextRole = isPlatformRoot(member) ? "NONE" : "PLATFORM_ROOT";
     setSavingKey(`platform:${member.user_id}`);
     setFeedback(null);
+    setAccessError("");
     try {
-      await platformAdminApi.updateCompanyUserPlatformAccess(company.id, member.user_id, nextRole);
+      await platformAdminApi.updateCompanyUserPlatformAccess(company.id, member.user_id, nextRole, reason);
       await refreshCompany();
       setFeedback({
         type: "success",
@@ -217,10 +265,14 @@ export function CompaniesDirectoryTab({
           ? english ? "Platform Root access granted." : "Acceso Platform Root concedido."
           : english ? "Platform Root access revoked." : "Acceso Platform Root revocado.",
       });
+      setPendingAccessChange(null);
+      setAccessReason("");
     } catch (error) {
+      const message = error instanceof Error ? error.message : english ? "Platform access could not be updated." : "No se pudo actualizar el acceso de plataforma.";
+      setAccessError(message);
       setFeedback({
         type: "error",
-        message: error instanceof Error ? error.message : english ? "Platform access could not be updated." : "No se pudo actualizar el acceso de plataforma.",
+        message,
       });
     } finally {
       setSavingKey("");
@@ -253,7 +305,7 @@ export function CompaniesDirectoryTab({
             </p>
           </div>
           <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-medium text-blue-700">
-            {companies.length} {english ? "companies" : "empresas"}
+            {directoryTotal} {english ? "companies" : "empresas"}
           </span>
         </div>
       </div>
@@ -312,14 +364,14 @@ export function CompaniesDirectoryTab({
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => { setQuery(event.target.value); setDirectoryPage(1); }}
                 className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 placeholder={english ? "Search company or owner" : "Buscar empresa o propietario"}
               />
             </label>
           </div>
           <div className="max-h-[620px] divide-y divide-slate-100 overflow-y-auto">
-            {visibleCompanies.map((item) => {
+            {directoryCompanies.map((item) => {
               const selected = item.id === selectedCompanyId;
               return (
                 <button
@@ -339,18 +391,47 @@ export function CompaniesDirectoryTab({
                     <span className="block truncate text-sm font-semibold text-slate-900">{item.name}</span>
                     <span className="mt-0.5 block truncate text-xs text-slate-500">{item.owner_email || `#${item.id}`}</span>
                     <span className="mt-1 block text-xs text-slate-500">
-                      {item.active_members} {english ? "active users" : "usuarios activos"}
+                      {item.platform_status === "DELETED"
+                        ? english ? "Deleted account · read only" : "Cuenta eliminada · solo lectura"
+                        : `${item.active_members} ${english ? "active users" : "usuarios activos"}`}
                     </span>
                   </span>
                 </button>
               );
             })}
-            {!visibleCompanies.length ? (
+            {!directoryCompanies.length && !directoryLoading ? (
               <div className="px-4 py-8 text-center text-sm text-slate-500">
                 {english ? "No companies match this search." : "No hay empresas con esa busqueda."}
               </div>
             ) : null}
+            {directoryLoading ? (
+              <div className="flex items-center justify-center gap-2 px-4 py-5 text-sm text-slate-500">
+                <LoaderCircle className="h-4 w-4 animate-spin text-blue-600" />
+                {english ? "Loading companies..." : "Cargando empresas..."}
+              </div>
+            ) : null}
           </div>
+          {directoryTotal > directoryPageSize ? (
+            <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-3 py-3 text-xs text-slate-500">
+              <button
+                type="button"
+                disabled={directoryPage <= 1 || directoryLoading}
+                onClick={() => setDirectoryPage((current) => Math.max(1, current - 1))}
+                className="h-9 rounded-lg border border-slate-200 px-3 font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {english ? "Previous" : "Anterior"}
+              </button>
+              <span>{directoryPage} / {directoryPages}</span>
+              <button
+                type="button"
+                disabled={directoryPage >= directoryPages || directoryLoading}
+                onClick={() => setDirectoryPage((current) => Math.min(directoryPages, current + 1))}
+                className="h-9 rounded-lg border border-slate-200 px-3 font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {english ? "Next" : "Siguiente"}
+              </button>
+            </div>
+          ) : null}
         </aside>
 
         <section className="min-w-0 rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -437,8 +518,14 @@ export function CompaniesDirectoryTab({
                             ) : (
                               <select
                                 value={role}
-                                disabled={!canManageRoles || savingKey === `role:${member.user_id}`}
-                                onChange={(event) => void updateRole(member, event.target.value as CompanyRole)}
+                                disabled={!canManageRoles || !selectedCompanyActive || savingKey === `role:${member.user_id}`}
+                                onChange={(event) => {
+                                  const nextRole = event.target.value as CompanyRole;
+                                  if (nextRole === role) return;
+                                  setAccessReason("");
+                                  setAccessError("");
+                                  setPendingAccessChange({ kind: "role", member, nextRole });
+                                }}
                                 className="h-10 min-w-44 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                               >
                                 {roleOptions.map((option) => (
@@ -452,8 +539,21 @@ export function CompaniesDirectoryTab({
                           <td className="px-4 py-3">
                             <button
                               type="button"
-                              disabled={!canManageRoles || !active || savingKey === `platform:${member.user_id}`}
-                              onClick={() => void togglePlatformRoot(member)}
+                              disabled={
+                                !canManageRoles
+                                || !active
+                                || (!selectedCompanyActive && !isPlatformRoot(member))
+                                || savingKey === `platform:${member.user_id}`
+                              }
+                              onClick={() => {
+                                setAccessReason("");
+                                setAccessError("");
+                                setPendingAccessChange({
+                                  kind: "platform",
+                                  member,
+                                  nextRole: isPlatformRoot(member) ? "NONE" : "PLATFORM_ROOT",
+                                });
+                              }}
                               className={`inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-sm font-medium transition disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 ${
                                 isPlatformRoot(member)
                                   ? "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
@@ -497,6 +597,55 @@ export function CompaniesDirectoryTab({
         </section>
       </div>
       )}
+      <IndiceConfirmationDialog
+        open={pendingAccessChange !== null}
+        busy={Boolean(savingKey)}
+        destructive={pendingAccessChange?.kind === "platform" && pendingAccessChange.nextRole === "NONE"}
+        tone={pendingAccessChange?.kind === "platform" ? "coral" : "blue"}
+        title={pendingAccessChange?.kind === "role"
+          ? english ? "Change company role" : "Cambiar rol de empresa"
+          : pendingAccessChange?.nextRole === "PLATFORM_ROOT"
+            ? english ? "Grant Platform Root" : "Conceder Platform Root"
+            : english ? "Revoke Platform Root" : "Revocar Platform Root"}
+        description={pendingAccessChange?.kind === "platform"
+          ? english
+            ? "This changes cross-company administrative access and will be recorded in the platform audit log."
+            : "Esto cambia el acceso administrativo entre empresas y quedará registrado en la bitácora de plataforma."
+          : english
+            ? "The user's permissions inside this company will change immediately."
+            : "Los permisos del usuario dentro de esta empresa cambiarán inmediatamente."}
+        itemName={pendingAccessChange?.member.name || pendingAccessChange?.member.email}
+        confirmLabel={english ? "Confirm change" : "Confirmar cambio"}
+        confirmDisabled={accessReason.trim().length < 5}
+        onCancel={() => { if (!savingKey) { setPendingAccessChange(null); setAccessReason(""); setAccessError(""); } }}
+        onConfirm={() => {
+          if (!pendingAccessChange || accessReason.trim().length < 5) return;
+          if (pendingAccessChange.kind === "role") {
+            void updateRole(pendingAccessChange.member, pendingAccessChange.nextRole, accessReason.trim());
+          } else {
+            void updatePlatformAccess(pendingAccessChange.member, pendingAccessChange.nextRole, accessReason.trim());
+          }
+        }}
+      >
+        {accessError ? (
+          <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {accessError}
+          </div>
+        ) : null}
+        <label className="block space-y-1.5 text-sm font-medium text-slate-700">
+          <span>{english ? "Operational reason" : "Motivo operativo"}</span>
+          <textarea
+            autoFocus
+            required
+            minLength={5}
+            maxLength={500}
+            value={accessReason}
+            onChange={(event) => setAccessReason(event.target.value)}
+            className="min-h-24 w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 font-normal outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            placeholder={english ? "Explain why this access is changing" : "Explica por qué cambia este acceso"}
+          />
+        </label>
+      </IndiceConfirmationDialog>
     </section>
   );
 }

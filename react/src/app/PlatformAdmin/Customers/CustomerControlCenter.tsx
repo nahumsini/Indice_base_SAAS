@@ -6,7 +6,7 @@ import {
   Radar,
   Rocket,
 } from "lucide-react";
-import type { PlatformCompanySummary } from "../../api/platformAdmin";
+import type { PlatformCompanySummary, PlatformOverview } from "../../api/platformAdmin";
 import {
   customerControlSignals,
   customerPriorityScore,
@@ -75,22 +75,25 @@ const signalCopy: Record<
 export function CustomerControlCenter({
   english,
   companies,
+  control,
   activeFilter,
   onFilter,
   onOpenCompany,
 }: {
   english: boolean;
   companies: PlatformCompanySummary[];
+  control?: PlatformOverview["control"];
   activeFilter: string;
   onFilter: (filter: string) => void;
   onOpenCompany: (company: PlatformCompanySummary) => void;
 }) {
   const customerAccounts = companies.filter(isManagedCustomer);
-  const attention = customerAccounts.filter(isCustomerAttentionAccount).length;
-  const expiring = customerAccounts.filter(isCustomerTrialEndingSoon).length;
-  const withoutOffer = customerAccounts.filter(isCustomerWithoutOffer).length;
-  const withoutAdoption = customerAccounts.filter(isCustomerWithoutAdoption).length;
-  const priorities = customerAccounts
+  const attention = control?.attention ?? customerAccounts.filter(isCustomerAttentionAccount).length;
+  const expiring = control?.expiring ?? customerAccounts.filter(isCustomerTrialEndingSoon).length;
+  const withoutOffer = control?.no_offer ?? customerAccounts.filter(isCustomerWithoutOffer).length;
+  const withoutAdoption = control?.no_adoption ?? customerAccounts.filter(isCustomerWithoutAdoption).length;
+  const prioritySource = control?.priorities ?? customerAccounts;
+  const priorities = prioritySource
     .map((company) => ({ company, signals: customerControlSignals(company) }))
     .filter(({ signals }) => signals.length > 0)
     .sort((left, right) => customerPriorityScore(right.company) - customerPriorityScore(left.company))

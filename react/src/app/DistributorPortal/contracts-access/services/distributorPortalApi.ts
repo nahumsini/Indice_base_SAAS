@@ -41,7 +41,7 @@ export const distributorPortalApi = {
   ),
   inviteCompanyUser: (
     companyId: number,
-    payload: { name: string; email: string; role: 'admin' | 'user' },
+    payload: { name: string; email: string; role: 'admin' | 'user'; reason: string },
   ) => apiClient<PlatformCompanyUserMutationResult>(`${companyPath(companyId)}/users/invitations`, {
     method: 'POST',
     headers: { 'Idempotency-Key': crypto.randomUUID() },
@@ -55,9 +55,9 @@ export const distributorPortalApi = {
     `${companyPath(companyId)}/users/invitations/${invitationId}/resend`,
     { method: 'POST' },
   ),
-  updateCompanyUserStatus: (companyId: number, userId: number, status: 'active' | 'inactive') => apiClient<PlatformCompanyUserMutationResult>(
+  updateCompanyUserStatus: (companyId: number, userId: number, status: 'active' | 'inactive', reason: string) => apiClient<PlatformCompanyUserMutationResult>(
     `${companyPath(companyId)}/users/${userId}/status`,
-    { method: 'PATCH', body: JSON.stringify({ status }) },
+    { method: 'PATCH', body: JSON.stringify({ status, reason }) },
   ),
   extendCompanyTrial: (companyId: number, days: 15) => apiClient<PlatformTrialExtensionResult>(
     `${companyPath(companyId)}/trial-extension`,

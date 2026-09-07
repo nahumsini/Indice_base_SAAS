@@ -3,6 +3,7 @@ package com.indice.erp.platformadmin;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -98,7 +99,21 @@ class PlatformAdminApiControllerTest {
 
         mockMvc.perform(get("/api/v1/platform-admin/context"))
             .andExpect(status().isForbidden())
-            .andExpect(jsonPath("$.message").value("Platform administration access is required."));
+            .andExpect(jsonPath("$.code").value("PLATFORM_ACCESS_DENIED"))
+            .andExpect(jsonPath("$.message").value("You do not have permission to complete this platform operation."));
+    }
+
+    @Test
+    void mutationRejectsAnInvalidCsrfTokenAsForbidden() throws Exception {
+        var platformRoot = new AuthSessionUser(99L, 7L, "Platform Root", "root");
+        given(auth.currentUser(any())).willReturn(Optional.of(platformRoot));
+        willThrow(new IllegalArgumentException("Invalid CSRF token."))
+            .given(csrf).requireCsrf(any(), eq("expired-token"));
+
+        mockMvc.perform(post("/api/v1/platform-admin/catalog/drafts")
+                .header("X-CSRF-Token", "expired-token"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value("INVALID_CSRF_TOKEN"));
     }
 
     @Test
@@ -137,6 +152,47 @@ class PlatformAdminApiControllerTest {
         mockMvc.perform(get("/api/v1/platform-admin/audit"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.events[0].action").value("BENEFIT_GRANTED"));
+    }
+
+    @Test
+    void overviewPassesServerSideFiltersSortingAndPagination() throws Exception {
+        var platformRoot = new AuthSessionUser(99L, 7L, "Platform Root", "user");
+        given(auth.currentUser(any())).willReturn(Optional.of(platformRoot));
+        given(service.overview(99L, "north", "SUPER_ADMIN", "attention", "payment", "asc", 3, 25))
+            .willReturn(Map.of(
+                "companies", List.of(),
+                "pagination", Map.of("page", 3, "page_size", 25, "total_items", 61, "total_pages", 3)
+            ));
+
+        mockMvc.perform(get("/api/v1/platform-admin/overview")
+                .param("q", "north")
+                .param("userType", "SUPER_ADMIN")
+                .param("status", "attention")
+                .param("sort", "payment")
+                .param("direction", "asc")
+                .param("page", "3")
+                .param("pageSize", "25"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.pagination.total_items").value(61));
+
+        verify(service).overview(99L, "north", "SUPER_ADMIN", "attention", "payment", "asc", 3, 25);
+    }
+
+    @Test
+    void companyDirectoryUsesASeparatePaginatedProjection() throws Exception {
+        var platformRoot = new AuthSessionUser(99L, 7L, "Platform Root", "user");
+        given(auth.currentUser(any())).willReturn(Optional.of(platformRoot));
+        given(service.companyOptions(99L, "owner@example.com", 2, 50)).willReturn(Map.of(
+            "companies", List.of(Map.of("id", 12, "name", "North")),
+            "pagination", Map.of("page", 2, "page_size", 50, "total_items", 75, "total_pages", 2)
+        ));
+
+        mockMvc.perform(get("/api/v1/platform-admin/companies/options")
+                .param("q", "owner@example.com")
+                .param("page", "2")
+                .param("pageSize", "50"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.companies[0].id").value(12));
     }
 
     @Test

@@ -4,6 +4,7 @@ import { AiOAuthAuthorizePage, InviteAcceptPage, LoginPage, PublicDemoPage, Publ
 import { AiConnectionSupportPage } from './Public/AiConnectionSupportPage';
 import { authApi } from './api/auth';
 import { subscribeToAuthenticationExpired } from './api/authSessionStore';
+import { ApiClientError } from './lib/apiClient';
 import { BusinessCurrencyProvider } from './BasicModules/shared/BusinessCurrencyContext';
 import { LoadingBarOverlay } from './components/LoadingBarOverlay';
 
@@ -423,8 +424,10 @@ const requirePlatformAdminSession = async () => {
   try {
     await platformAdminApi.getContext();
     return null;
-  } catch {
-    return redirect('/dashboard');
+  } catch (error) {
+    if (error instanceof ApiClientError && error.status === 401) return redirect('/login');
+    if (error instanceof ApiClientError && error.status === 403) return redirect('/dashboard');
+    throw error;
   }
 };
 

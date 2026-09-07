@@ -15,6 +15,7 @@ import AccountCreationModal from '../../PlatformAdmin/AccountCreationModal';
 import CompanyAccountDrawer from '../../PlatformAdmin/CompanyAccountDrawer';
 import { selectActiveCatalogProducts } from '../../PlatformAdmin/selectActiveCatalogProducts';
 import { TrialExtensionModal, type TrialExtensionDays } from '../../PlatformAdmin/Customers/TrialExtensionModal';
+import { IndiceConfirmationDialog } from '../../components/indice-modal/IndiceConfirmationDialog';
 import type { DistributorClient, DistributorStageFilter } from './types/contractsAccess';
 import type { DistributorPortalCopy } from './translations';
 import { useContractsAccess } from './hooks/useContractsAccess';
@@ -53,6 +54,8 @@ export function ContractsAccessPage({ copy, locale }: { copy: DistributorPortalC
   const [trialError, setTrialError] = useState('');
   const [benefit, setBenefit] = useState<BenefitPayload>(initialBenefit);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [pendingRevocation, setPendingRevocation] = useState<{ reference: string; label: string } | null>(null);
+  const [revocationError, setRevocationError] = useState('');
 
   const stageOptions = [
     { value: 'ALL', label: copy.filters.allStages },
@@ -172,18 +175,20 @@ export function ContractsAccessPage({ copy, locale }: { copy: DistributorPortalC
     }
   };
 
-  const revokeBenefit = async (reference: string, label?: string) => {
+  const revokeBenefit = async (reference: string) => {
     if (!selected || saving) return;
-    const confirmed = window.confirm(`¿Quitar ${label || 'este acceso'} de la cuenta?`);
-    if (!confirmed) return;
     setSaving(true);
     setFeedback(null);
+    setRevocationError('');
     try {
       await distributorPortalApi.revokeBenefit(selected.id, reference, 'Acceso retirado por el distribuidor responsable.');
       await refreshCompany();
       setFeedback({ type: 'success', message: 'El acceso fue retirado correctamente.' });
+      setPendingRevocation(null);
     } catch (saveError) {
-      setFeedback({ type: 'error', message: saveError instanceof Error ? saveError.message : 'No se pudo retirar el acceso.' });
+      const message = saveError instanceof Error ? saveError.message : 'No se pudo retirar el acceso.';
+      setRevocationError(message);
+      setFeedback({ type: 'error', message });
     } finally {
       setSaving(false);
     }
@@ -301,7 +306,10 @@ export function ContractsAccessPage({ copy, locale }: { copy: DistributorPortalC
           onPreviewProducts={previewCompanyProducts}
           onUpdateTrialProducts={updateTrialProducts}
           onRefreshCompany={refreshCompany}
-          onRevokeBenefit={(reference, label) => void revokeBenefit(reference, label)}
+          onRevokeBenefit={(reference, label) => {
+            setRevocationError('');
+            setPendingRevocation({ reference, label: label || 'este acceso' });
+          }}
           userApi={distributorPortalApi}
         />
       ) : null}
@@ -320,6 +328,33 @@ export function ContractsAccessPage({ copy, locale }: { copy: DistributorPortalC
           onConfirm={extendTrial}
         />
       ) : null}
+
+      <IndiceConfirmationDialog
+        open={pendingRevocation !== null}
+        busy={saving}
+        destructive
+        tone="coral"
+        title="Retirar acceso"
+        description="La cuenta dejará de recibir este beneficio. La acción quedará registrada en la auditoría."
+        itemName={pendingRevocation?.label}
+        confirmLabel="Retirar acceso"
+        onCancel={() => {
+          if (!saving) {
+            setPendingRevocation(null);
+            setRevocationError('');
+          }
+        }}
+        onConfirm={() => {
+          if (!pendingRevocation) return;
+          void revokeBenefit(pendingRevocation.reference);
+        }}
+      >
+        {revocationError ? (
+          <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {revocationError}
+          </div>
+        ) : null}
+      </IndiceConfirmationDialog>
     </div>
   );
 }
