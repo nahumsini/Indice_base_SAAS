@@ -22,6 +22,10 @@ class FinancialLedgerRepository {
 
     private final JdbcTemplate jdbcTemplate;
 
+    void lockCompanySources(long companyId) {
+        jdbcTemplate.queryForList("SELECT id FROM companies WHERE id = ? FOR UPDATE", Long.class, companyId);
+    }
+
     FinancialLedgerRepository(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }

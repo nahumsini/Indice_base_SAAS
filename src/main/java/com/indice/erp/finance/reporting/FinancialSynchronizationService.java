@@ -35,6 +35,8 @@ class FinancialSynchronizationService {
     @Transactional
     SynchronizeResponse synchronize(long companyId, long userId, LocalDate from, LocalDate to) {
         validateRange(from, to);
+        // Source discovery and posting must not race with an expense classification change.
+        ledgerRepository.lockCompanySources(companyId);
         ledgerRepository.ensureSettings(companyId, userId);
         ledgerRepository.ensureStandardAccounts(companyId, userId);
         var settings = ledgerRepository.findSettings(companyId)

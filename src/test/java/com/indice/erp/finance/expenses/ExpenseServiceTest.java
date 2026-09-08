@@ -797,7 +797,7 @@ class ExpenseServiceTest {
             null,
             0L,
             customFieldsJson,
-            metadataJson
+            metadataJson, null, false
         );
     }
 }

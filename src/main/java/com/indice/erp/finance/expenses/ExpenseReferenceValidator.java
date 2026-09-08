@@ -50,6 +50,25 @@ public class ExpenseReferenceValidator {
         requireExists(count, "paymentAccountId");
     }
 
+    public void validateImportPaymentAccount(FinanceContext context, Long id, String currency) {
+        if (id == null) return;
+        var count = jdbcTemplate.queryForObject("""
+            SELECT COUNT(*) FROM finance_payment_accounts account
+            WHERE account.id = ? AND account.company_id = ? AND account.deleted_at IS NULL
+              AND account.status = 'ACTIVE' AND UPPER(account.currency_code) = UPPER(?)
+              AND account.type <> 'PETTY_CASH'
+            """, Long.class, id, context.companyId(), currency);
+        requireExists(count, "paymentAccountId");
+    }
+
+    public void validateImportAccountingAccount(FinanceContext context, Long id) {
+        if (id == null) return;
+        requireExists(jdbcTemplate.queryForObject("""
+            SELECT COUNT(*) FROM finance_accounting_accounts
+            WHERE id = ? AND company_id = ? AND deleted_at IS NULL AND status = 'ACTIVE'
+            """, Long.class, id, context.companyId()), "accountingAccountId");
+    }
+
     private void validateReferences(
             FinanceContext context,
             ExpenseScopedAssignment assignment,

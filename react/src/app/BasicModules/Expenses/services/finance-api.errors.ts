@@ -9,6 +9,25 @@ const statusMessages: Record<number, string> = {
 };
 
 const backendMessageTranslations: Record<string, string> = {
+  'The accounting account belongs to the source fund and cannot be changed here.': 'Esta cuenta está vinculada al fondo de origen y no se puede cambiar desde Gastos.',
+  'This expense has a posted journal entry. Use an accounting adjustment to preserve the ledger.': 'El gasto ya tiene un asiento publicado. Su cuenta requiere un ajuste contable.',
+  'The expense changed. Reload it before changing its accounting account.': 'El gasto cambió. Actualiza la lista antes de cambiar su cuenta contable.',
+  'The expense changed. Reload it before editing.': 'El gasto cambió. Actualiza la lista antes de editarlo.',
+  'This import was already saved. Reload Expenses before importing another batch.': 'Este lote ya se guardó. Actualiza Gastos antes de iniciar otro lote.',
+  'This expense is protected and cannot be edited in a batch.': 'El gasto está protegido y no admite edición masiva.',
+  'Fund expenses must be managed from their source fund.': 'Este gasto debe gestionarse desde su fondo de origen.',
+  'Only draft expenses can be updated.': 'El gasto ya fue registrado y no admite edición de sus importes.',
+  'Cancelled or rejected expenses cannot be reclassified.': 'Los gastos cancelados o rechazados no admiten reclasificación.',
+  'Imported expenses must start pending.': 'Los gastos importados deben comenzar pendientes de pago.',
+  'Expense not found.': 'No se encontró el gasto en tu ámbito de acceso.',
+  'accountingAccountId is invalid for this company.': 'Selecciona una cuenta contable activa de esta empresa.',
+  'paymentAccountId is invalid for this company.': 'Selecciona una cuenta de pago activa de esta empresa, en la moneda del gasto y que no pertenezca a un fondo.',
+  'providerId is invalid for this company.': 'Selecciona un proveedor de esta empresa.',
+  'unitId is invalid for this company.': 'Actualiza la lista y selecciona una unidad de esta empresa.',
+  'businessId is invalid for this company.': 'Selecciona un negocio de la unidad indicada.',
+  'requestedByUserId is invalid for this company.': 'Actualiza tu sesión: el solicitante no pertenece a esta empresa.',
+  'totalAmount must equal subtotalAmount plus taxAmount.': 'El total debe ser igual al subtotal más impuestos.',
+
   'An expense with this folio already exists.': 'Ya existe un gasto con este folio.',
   'Cancelled or rejected expenses cannot change status.': 'Los gastos cancelados o rechazados no pueden cambiar de estado.',
   'Expense is already paid.': 'Este gasto ya esta pagado.',
@@ -41,6 +60,8 @@ export const toFinanceApiErrorMessage = (
   if (error instanceof ApiClientError) {
     const backendMessage = messageFromPayload(error.payload);
     if (backendMessage) {
+      const row = /^Row (\d+): (.+)$/.exec(backendMessage);
+      if (row) return `Fila ${row[1]}: ${backendMessageTranslations[row[2]] ?? 'No se pudo guardar. Revisa sus datos, cuentas y permisos.'}`;
       const translatedMessage = backendMessageTranslations[backendMessage];
       if (translatedMessage) return translatedMessage;
       return error.status >= 500 ? fallbackMessage : statusMessages[error.status] ?? fallbackMessage;

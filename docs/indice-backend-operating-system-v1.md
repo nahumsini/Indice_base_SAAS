@@ -344,6 +344,16 @@ Approved Finance domain contracts remain authoritative. General rules include:
   transaction.
 - Only `DRAFT` expenses may be edited or deleted. Submitted, approved, partially paid, paid, and
   closed expenses change through their explicit workflow, adjustment, or reversal operations.
+- Expense accounting classification is an explicit account-only operation, with company/scope
+  checks, optimistic version validation and server-owned audit history. Ordinary expenses may be
+  classified before journal posting without modifying amounts, payment evidence, currency or
+  status. Fund-origin expenses, cancelled/rejected expenses, and posted journal sources are protected.
+  Classification and financial synchronization serialize through the authenticated company row.
+- Bulk expense imports and edits are atomic transactions (1–200 rows). Imported records remain
+  pending. An optional payment account is a preselection, never an implicit payment, and must be
+  active, company-owned, match native currency and not be a fund custody account. Import retry
+  evidence is unique by company/request key, bound to the actor and payload hash, and returns the
+  original expense IDs on an identical retry. Automatic folio creation serializes by company.
 - A petty-cash settlement links or creates expenses from accepted evidence without double counting
   issuance, settlement, and resulting expenses.
 - A purchase order commits budget but does not itself move money.

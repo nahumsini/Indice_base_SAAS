@@ -49,6 +49,8 @@ import { AttachmentsModal } from './components/AttachmentsModal';
 import { ExpenseDetailModal } from './components/ExpenseDetailModal';
 import { getExpenseDetailCopy } from './components/expenseDetail.copy';
 import { ExpenseTable } from './components/ExpenseTable';
+import { expenseGroupPeriodLabel } from '../utils/expenseFundGroups';
+import { getExpenseFundGroupCopy } from './components/expenseFundGroup.copy';
 import { useWorkspaceNavigationMemory } from '../../../hooks/useWorkspaceNavigationMemory';
 
 interface ExpensesProps {
@@ -104,7 +106,8 @@ const resolveExpenseAttachmentOwner = (expenseId: string): ExpenseAttachmentOwne
 
 export default function Expenses({ expenses: controlledExpenses, onFinanceDataChanged, onExpensesChange, onProvidersChange, providers: providerRecords }: ExpensesProps = {}) {
   const t = useExpensesTranslations();
-  const detailCopy = getExpenseDetailCopy(useExpensesResolvedLocale());
+  const locale = useExpensesResolvedLocale();
+  const detailCopy = getExpenseDetailCopy(locale);
   const [localExpenses, setLocalExpenses] = useState<Expense[]>(mockExpenses);
   const [filters, setFilters] = useState<ExpenseListFilters>(defaultFilters);
   const [referenceDate, setReferenceDate] = useState(() => new Date());
@@ -223,50 +226,49 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
     overdueCount: summaryExpenses.filter((expense) => isExpenseEffectivelyOverdue(expense, referenceDate)).length,
   }), [summaryExpenses, referenceDate]);
 
-  const handleBulkExpenseCreate = async (drafts: ExpenseBulkDraft[]) => {
+  const handleBulkExpenseCreate = async (drafts: ExpenseBulkDraft[], requestKey: string) => {
     setIsBulkIntegrationSaving(true);
     try {
       const now = new Date();
-      const defaultUnit = filters.businessUnitFilter !== 'all' ? filters.businessUnitFilter : unitOptions[0]?.value ?? '';
-      const scopedBusinesses = defaultUnit
-        ? businessOptions.filter(option => !option.unitId || option.unitId === defaultUnit)
-        : businessOptions;
-      const defaultBusiness = filters.businessFilter !== 'all' ? filters.businessFilter : scopedBusinesses[0]?.value ?? '';
-      const results = await Promise.allSettled(drafts.map((draft, index) => {
+      const defaultUnit = filters.businessUnitFilter !== 'all' ? filters.businessUnitFilter : referenceUnitOptions[0]?.value ?? '';
+      const defaultBusiness = filters.businessFilter !== 'all' ? filters.businessFilter
+        : referenceBusinessOptions.find(option => option.unitId === defaultUnit)?.value ?? '';
+      const batch: Expense[] = drafts.map((draft, index) => {
         const expenseDate = new Date(`${draft.date}T00:00:00`);
-        return expensesService.createExpense({
-        id: `bulk-expense-${Date.now()}-${index}`,
-        folio: AUTO_EXPENSE_FOLIO,
-        businessUnit: defaultUnit,
-        business: defaultBusiness,
-        concept: draft.concept,
-        description: draft.concept,
-        category: mockExpenses[0].category,
-        providerId: draft.providerId,
-        providerName: providers.find(provider => provider.id === draft.providerId)?.name,
-        total: draft.total,
-        taxes: 0,
-        amount: draft.total,
-        amountPaid: 0,
-        currency: preferredCurrency,
-        dueDate: expenseDate,
-        paymentDate: undefined,
-        date: expenseDate,
-        paymentMethod: 'transfer',
-        status: 'pending',
-        type: 'real',
-        requestedByUserId: currentUser?.id,
-        createdAt: now,
-        updatedAt: now,
-        }, providers);
-      }));
-      const saved = results.flatMap(result => result.status === 'fulfilled' ? [result.value] : []);
-      const failed = results.length - saved.length;
-      if (!saved.length) throw new Error('No se pudo guardar ningún gasto. Revisa las referencias e inténtalo de nuevo.');
-      setExpenses(current => [...saved, ...current]);
+        return {
+          id: `bulk-expense-${index}`,
+          folio: AUTO_EXPENSE_FOLIO,
+          businessUnit: defaultUnit,
+          business: defaultBusiness,
+          concept: draft.concept,
+          description: draft.concept,
+          category: mockExpenses[0].category,
+          providerId: draft.providerId,
+          providerName: providers.find(provider => provider.id === draft.providerId)?.name,
+          accountingAccount: draft.accountingAccountId,
+          paymentAccountId: draft.paymentAccountId,
+          total: draft.total,
+          taxes: 0,
+          amount: draft.total,
+          amountPaid: 0,
+          currency: draft.currency,
+          dueDate: expenseDate,
+          date: expenseDate,
+          paymentMethod: 'transfer',
+          status: 'pending',
+          type: 'real',
+          requestedByUserId: currentUser?.id,
+          createdAt: now,
+          updatedAt: now,
+        };
+      });
+      const saved = await expensesService.importExpenses(batch, requestKey, providers);
+      const savedIds = new Set(saved.map(expense => expense.id));
+      setExpenses(current => [...saved, ...current.filter(expense => !savedIds.has(expense.id))]);
       onFinanceDataChanged?.();
       setSuccessToastMessage(`${saved.length} gasto${saved.length === 1 ? '' : 's'} creado${saved.length === 1 ? '' : 's'} correctamente.`);
-      if (failed) setFailureToastMessage(`${failed} fila${failed === 1 ? '' : 's'} no se pudieron guardar y requieren revisión.`);
+    } catch (error) {
+      throw new Error(toFinanceApiErrorMessage(error, 'No se pudo guardar el lote. La captura se conserva para reintentar.'));
     } finally {
       setIsBulkIntegrationSaving(false);
     }
@@ -275,35 +277,46 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
   const handleBulkExpenseUpdate = async (drafts: ExpenseBulkEditDraft[]) => {
     setIsBulkIntegrationSaving(true);
     try {
-      const results = await Promise.allSettled(drafts.map(async draft => {
+      const batch = drafts.map(draft => {
         const source = expenses.find(expense => expense.id === draft.id);
         if (!source || source.purchaseOrderId || source.budgetLineId || source.type === 'budget' || !isBackendId(source.id) || !canEditExpense(source)) {
           throw new Error('El gasto está protegido y no se puede editar de forma masiva.');
         }
-        const saved = await expensesService.updateExpense({
+        if (draft.total < source.taxes) throw new Error('El monto total no puede ser menor que los impuestos registrados.');
+        return {
           ...source,
           providerId: draft.providerId,
           providerName: providers.find(provider => provider.id === draft.providerId)?.name,
           concept: draft.concept,
           description: source.description || draft.concept,
+          accountingAccount: draft.accountingAccountId,
+          paymentAccountId: draft.paymentAccountId,
           total: draft.total,
-          amount: draft.total,
-          taxes: 0,
+          amount: Number((draft.total - source.taxes).toFixed(4)),
+          taxes: source.taxes,
           date: new Date(`${draft.date}T00:00:00`),
           updatedAt: new Date(),
-        }, providers);
-        return saved;
-      }));
-      const saved = results.flatMap(result => result.status === 'fulfilled' ? [result.value] : []);
-      const failed = results.length - saved.length;
-      if (!saved.length) throw new Error('No se pudo actualizar ningún gasto. Revisa los registros e inténtalo de nuevo.');
+        };
+      });
+      const saved = await expensesService.updateExpensesBatch(batch, providers);
       const savedById = new Map(saved.map(expense => [expense.id, expense]));
       setExpenses(current => current.map(expense => savedById.get(expense.id) ?? expense));
       onFinanceDataChanged?.();
       setSuccessToastMessage(`${saved.length} gasto${saved.length === 1 ? '' : 's'} actualizado${saved.length === 1 ? '' : 's'} correctamente.`);
-      if (failed) setFailureToastMessage(`${failed} cambio${failed === 1 ? '' : 's'} no se pudieron guardar y requieren revisión.`);
+    } catch (error) {
+      throw new Error(toFinanceApiErrorMessage(error, 'No se pudo actualizar el lote. La captura se conserva para reintentar.'));
     } finally {
       setIsBulkIntegrationSaving(false);
+    }
+  };
+
+  const reclassifyExpense = async (expense: Expense, accountingAccountId: string) => {
+    try {
+      const saved = await expensesService.reclassifyExpense(expense, accountingAccountId, providers);
+      setExpenses(current => current.map(item => item.id === saved.id ? saved : item));
+      onFinanceDataChanged?.();
+    } catch (error) {
+      setFailureToastMessage(toFinanceApiErrorMessage(error, t.expenses.messages.saveFailed));
     }
   };
 
@@ -944,6 +957,8 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
       />
 
       <ExpenseTable
+        fundPeriodLabel={expenseGroupPeriodLabel(filters.periodFilter, referenceDate, locale, getExpenseFundGroupCopy(locale).period)}
+        hasFundDetailFilters={Boolean(filters.searchTerm || filters.providerFilter !== 'all' || filters.businessUnitFilter !== 'all' || filters.businessFilter !== 'all' || filters.statusFilter !== 'all')}
         actionVisibility={{ showAudit: false, showMarkPaid: false, showStatusChange: false }}
         accountingAccountOptions={accountingAccountOptions}
         columns={translatedColumns}
@@ -964,6 +979,7 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
         onOpenAttachments={openAttachmentsModal}
         onViewExpense={setDetailExpense}
         onPersistExpenseUpdate={persistExpenseUpdate}
+        onReclassifyExpense={reclassifyExpense}
         paymentAccounts={paymentAccounts}
         onRecordExpensePayment={handleRecordExpensePayment}
         businessOptions={businessOptions}
@@ -984,6 +1000,9 @@ export default function Expenses({ expenses: controlledExpenses, onFinanceDataCh
       )}
 
       <ExpenseBulkIntegrationModal
+        accountingAccounts={accountingAccountOptions}
+        paymentAccounts={paymentAccounts.filter(account => account.isActive && account.backendType !== 'PETTY_CASH' && account.source !== 'petty_cash' && !account.linkedFundId)
+          .map(account => ({ value: account.id, label: account.name, currency: account.currency }))}
         editableExpenses={bulkEditableExpenses}
         isSaving={isBulkIntegrationSaving}
         lockedExpenseCount={expenses.length - bulkEditableExpenses.length}

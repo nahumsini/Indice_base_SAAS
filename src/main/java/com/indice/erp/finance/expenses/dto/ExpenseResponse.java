@@ -46,6 +46,8 @@ public record ExpenseResponse(
     Instant deletedAt,
     Long version,
     JsonNode customFields,
-    JsonNode metadata
+    JsonNode metadata,
+    ExpenseFundReference originFund,
+    boolean accountingPosted
 ) {
 }

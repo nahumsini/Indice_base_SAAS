@@ -68,6 +68,8 @@ class FundExpenseCloseoutIntegrationTest {
         var line = repository.findSettlementLineById(context, receipt).orElseThrow();
         long expense = repository.insertExpenseFromSettlementLine(context, fundRecord, statementRecord, line);
         repository.linkSettlementLineExpense(context, receipt, expense);
+        assertThat(expenses.get(context, expense).originFund().id()).isEqualTo(fund);
+        assertThat(expenses.get(context, expense).originFund().name()).isEqualTo(token);
         expenses.recordCustodySettlement(context, expense, receipt);
         expenses.recordCustodySettlement(context, expense, receipt);
         repository.applySettlementLineExpenseToStatement(context, statement, new BigDecimal("200"));

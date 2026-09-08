@@ -39,7 +39,9 @@ class ExpenseRepository {
             SELECT
             """ + ExpenseSql.SELECT_COLUMNS + """
             FROM finance_expenses expense
-            WHERE expense.company_id = ?
+            """ + ExpenseSql.FUND_JOIN + """
+            WHERE """ + ExpenseSql.COMPANY_EXPENSE + """
+              AND expense.company_id = ?
               AND expense.deleted_at IS NULL
               AND """ + FinanceSqlSupport.scopePredicate("expense", context.scope()) + """
             ORDER BY expense.expense_date DESC, expense.id DESC
@@ -68,7 +70,9 @@ class ExpenseRepository {
             SELECT
             """ + ExpenseSql.SELECT_COLUMNS + """
             FROM finance_expenses expense
-            WHERE expense.company_id = ?
+            """ + ExpenseSql.FUND_JOIN + """
+            WHERE """ + ExpenseSql.COMPANY_EXPENSE + """
+              AND expense.company_id = ?
               AND expense.id = ?
               AND expense.deleted_at IS NULL
               AND """ + FinanceSqlSupport.scopePredicate("expense", context.scope())
@@ -102,6 +106,24 @@ class ExpenseRepository {
 
         var expenseId = keyHolder.getKey() == null ? 0L : keyHolder.getKey().longValue();
         return findById(context, expenseId).orElseThrow();
+    }
+
+    void lockCompanyForCreation(FinanceContext context) {
+        var ids = jdbcTemplate.queryForList("SELECT id FROM companies WHERE id = ? FOR UPDATE", Long.class, context.companyId());
+        if (ids.isEmpty()) throw com.indice.erp.finance.FinanceApiException.notFound("Company not found.");
+    }
+
+    int updateAccountingAccount(FinanceContext context, ExpenseRecord existing, Long accountId) {
+        return jdbcTemplate.update("""
+            UPDATE finance_expenses SET accounting_account_id = ?, updated_by_user_id = ?, version = version + 1,
+                custom_fields_json = JSON_SET(COALESCE(custom_fields_json, JSON_OBJECT()), '$.accountingAccount', ?),
+                metadata_json = JSON_SET(COALESCE(metadata_json, JSON_OBJECT()), '$.accountingClassificationChanges',
+                    JSON_ARRAY_APPEND(COALESCE(JSON_EXTRACT(metadata_json, '$.accountingClassificationChanges'), JSON_ARRAY()),
+                        '$', JSON_OBJECT('previousAccountId', ?, 'accountId', ?, 'userId', ?, 'changedAt', UTC_TIMESTAMP(6))))
+            WHERE company_id = ? AND id = ? AND deleted_at IS NULL AND version = ?
+            """, accountId, context.userId(), accountId,
+            existing.accountingAccountId(), accountId, context.userId(),
+            context.companyId(), existing.id(), existing.version());
     }
 
     String nextFolio(long companyId, String documentPrefix, int year, int collisionOffset) {

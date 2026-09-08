@@ -15,7 +15,7 @@ import type { ExpenseApiDto, ExpenseListApiResponse, ExpensePaymentListApiRespon
 
 const expensesPath = '/api/v1/finance/expenses';
 
-const jsonMutation = (method: 'POST' | 'PUT', body: unknown): RequestInit => ({
+const jsonMutation = (method: 'POST' | 'PUT' | 'PATCH', body: unknown): RequestInit => ({
   method,
   body: JSON.stringify(body),
 });
@@ -52,6 +52,29 @@ export const expensesService = {
       registeredByName: payment.registeredByName ?? undefined,
       createdAt: new Date(payment.createdAt),
     }));
+  },
+
+  async importExpenses(expenses: Expense[], requestKey: string, providers: Array<{ id: string; name: string }> = []): Promise<Expense[]> {
+    const response = await apiClient<ExpenseListApiResponse>(`${expensesPath}/import`, jsonMutation('POST', {
+      requestKey,
+      expenses: expenses.map(expense => ({ ...toExpenseApiRequest(expense), settleOnCreate: false })),
+    }));
+    return response.expenses.map(expense => toExpense(expense, providers));
+  },
+
+  async updateExpensesBatch(expenses: Expense[], providers: Array<{ id: string; name: string }> = []): Promise<Expense[]> {
+    const response = await apiClient<ExpenseListApiResponse>(`${expensesPath}/batch`, jsonMutation('PUT', {
+      expenses: expenses.map(expense => ({ id: Number(expense.id), expectedVersion: expense.version, expense: toExpenseApiRequest(expense) })),
+    }));
+    return response.expenses.map(expense => toExpense(expense, providers));
+  },
+
+  async reclassifyExpense(expense: Expense, accountingAccountId: string, providers: Array<{ id: string; name: string }> = []): Promise<Expense> {
+    const response = await apiClient<ExpenseApiDto>(`${expensesPath}/${expense.id}/accounting-account`, jsonMutation('PATCH', {
+      accountingAccountId: accountingAccountId ? Number(accountingAccountId) : null,
+      expectedVersion: expense.version,
+    }));
+    return toExpense(response, providers);
   },
 
   async createExpense(expense: Expense, providers: Array<{ id: string; name: string }> = []): Promise<Expense> {
