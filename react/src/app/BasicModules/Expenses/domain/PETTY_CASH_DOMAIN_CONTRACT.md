@@ -29,6 +29,34 @@ Settlement lines validate receipts.
 
 Expenses are created only from supported settlement lines belonging to internal company funds.
 
+In the company Expenses workspace, origin is resolved from the same-company settlement line
+relationship, with a same-company payment account of type `PETTY_CASH` linked to exactly one fund
+as a legacy fallback. Ordinary bank, cash or card accounts do not identify fund origin, even when
+historical funds reference them; they remain available for ordinary expense imports. An ambiguous
+custody account never selects an arbitrary fund. Historical `PETTY_CASH` audit markers still block
+reclassification when the source cannot be resolved. Client-provided source
+metadata does not authorize or identify a fund. The accounting-account column shows the source fund
+name and is locked; full expense editing and account-only reclassification must reject fund expenses.
+Legacy expenses linked to external managed funds are excluded from company Expenses list/detail
+queries without deleting or rewriting those records. Historical closed/deleted funds retain their
+identity for this purpose.
+
+### Expenses presentation by fund
+
+Authorized internal-fund expenses (`PAID`/`CLOSED`) collapse into one display row per fund and native
+currency after the selected expense-date period and other row filters have been applied. The period
+is the Expenses filter, not the statement's authorization/closing month. Each group retains all
+receipt IDs and offers a read-only breakdown; it is never a new Expense, payment, or journal source.
+Ordinary expenses retain their existing actions. Reversed/cancelled sources are not described as
+authorized spend. External funds, funding movements and unapproved receipts do not enter a group.
+
+The existing KPI monetary-aggregate service supplies native totals for the filtered original IDs,
+including subtotal, taxes, total, paid-to-date and balance. Grouping does not alter KPI recognition,
+receipt classification, exports, source dates, or treasury movements. Groups are not bulk mutation
+targets. Different classifications display as multiple accounts and remain visible per receipt.
+The existing Petty Cash control route accepts an optional `fundId` selection, validated against the
+already authorized fund catalog; it does not grant access to that fund or bypass permissions.
+
 ## Fund Classification
 
 Every fund has one explicit and persistent type:

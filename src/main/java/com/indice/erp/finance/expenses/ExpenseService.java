@@ -104,6 +104,8 @@ public class ExpenseService {
 
     @Transactional
     public ExpenseResponse createDraft(FinanceContext context, CreateExpenseRequest request) {
+        // Serialize automatic numbers before any consistent read establishes a stale snapshot.
+        repository.lockCompanyForCreation(context);
         var assignment = validator.validateCreate(context, request);
         referenceValidator.validateCreate(context, assignment, request);
         var autoPrefix = automaticFolioPrefix(request.folio());
@@ -175,8 +177,15 @@ public class ExpenseService {
 
     @Transactional
     public ExpenseResponse updateDraft(FinanceContext context, long expenseId, UpdateExpenseRequest request) {
+        repository.lockCompanyForCreation(context);
         var existing = requireExpense(context, expenseId);
         validator.requireDraft(existing, "updated");
+        if (existing.originFund() != null || "PETTY_CASH".equals(existing.auditStatus())) {
+            throw FinanceApiException.conflict("Fund expenses must be managed from their source fund.");
+        }
+        if (existing.accountingPosted()) {
+            throw FinanceApiException.conflict("This expense has a posted journal entry. Use an accounting adjustment to preserve the ledger.");
+        }
         var assignment = validator.validateUpdate(context, request);
         referenceValidator.validateUpdate(context, assignment, request);
         var command = mapper.toUpdateCommand(context, request, assignment, existing);

@@ -137,9 +137,9 @@ test('Saldo permite ordenar ascendente y descendente por el saldo calculado', ()
   const configSource = readFileSync(resolve(expensesRoot, 'constants/expenseTableConfig.ts'), 'utf8');
 
   assert.match(configSource, /key: 'balance', label: 'Saldo', sortable: 'balance'/);
-  assert.match(tableSource, /sortField === 'balance'/);
-  assert.match(tableSource, /getExpenseBalance\(left\)/);
-  assert.match(tableSource, /getExpenseBalance\(right\)/);
+  const groupingSource = readFileSync(resolve(expensesRoot, 'utils/expenseFundGroups.ts'), 'utf8');
+  assert.match(tableSource, /sortExpenseRows\(displayRows, sortField, sortDirection, fundTotals.data\)/);
+  assert.match(groupingSource, /field === 'balance' \? getExpenseBalance\(row.expense\)/);
 });
 
 test('Gastos vencidos conserva Pagar y no mezcla lineas presupuestales', () => {
@@ -240,12 +240,12 @@ test('Gastos permite integración masiva validada y protege registros con origen
 
   assert.match(headerSource, /Integración masiva/);
   assert.match(modalSource, /Pega desde Excel: fecha \| concepto \| monto/);
-  assert.match(modalSource, /Los gastos se crearán pendientes para que cada abono registre su cuenta y trazabilidad/);
-  assert.match(modalSource, /date: toDateInput\(new Date\(\)\)/);
-  assert.match(modalSource, /compactMatch/);
+  assert.match(modalSource, /Los gastos se crearán pendientes: elegir cuenta no retira dinero/);
+  assert.match(modalSource, /date: displayDate\(toDateInput\(new Date\(\)\)\)/);
+  assert.match(readFileSync(resolve(expensesRoot, 'utils/expenseBulkInput.ts'), 'utf8'), /compactMatch/);
   assert.match(modalSource, /normalizeDateCell/);
   assert.match(modalSource, /No se importará nada mientras exista una celda con errores/);
-  assert.match(modalSource, /La fecha de hoy viene precargada/);
+  assert.match(modalSource, /la fecha de hoy viene precargada/);
   assert.match(modalSource, /type="month"/);
   assert.match(modalSource, /required type="month"/);
   assert.doesNotMatch(modalSource, />Ver todos</);

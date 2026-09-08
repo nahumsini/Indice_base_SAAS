@@ -38,6 +38,7 @@ export const toPaymentAccount = (account: PaymentAccountApiDto): PaymentAccount 
 	    businessId: account.businessId ? String(account.businessId) : undefined,
 	    name: account.name,
     type: asString(customFields.legacyType, backendToLegacyType[account.type]) as PaymentAccountType,
+    backendType: account.type,
     accountNumber: asString(customFields.accountNumber, undefined),
     bank: asString(customFields.bank, undefined),
     currency: account.currencyCode,

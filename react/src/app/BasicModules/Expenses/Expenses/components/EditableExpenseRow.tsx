@@ -1,4 +1,6 @@
-import { Paperclip } from 'lucide-react';
+import { useState } from 'react';
+import { ExpenseAccountSelect } from '../../components/table/ExpenseAccountSelect';
+import { Paperclip, LockKeyhole } from 'lucide-react';
 import { Checkbox } from '../../../../components/ui/checkbox';
 import { useExpensesResolvedLocale, useExpensesTranslations } from '../hooks/useExpensesTranslations';
 import type { Expense, ExpenseStatus, PaymentMethod, Provider } from '../../types/expenses.types';
@@ -20,6 +22,7 @@ import { ExpenseRowActions } from '../../components/table/ExpenseRowActions';
 import {
   canDeleteExpense,
   canEditExpense,
+  canReclassifyExpense,
   getEffectiveExpenseStatus,
   getExpenseBalance,
   isExpenseEffectivelyOverdue,
@@ -58,6 +61,7 @@ type EditableExpenseRowProps = {
   onSelectionChange: (expenseId: string, selected: boolean) => void;
   onStatusChange?: (expenseId: string, status: ExpenseStatus) => void;
   onUpdateExpense: (expenseId: string, updates: Partial<Expense>) => void;
+  onReclassifyExpense?: (expense: Expense, accountId: string) => Promise<void>;
   onUpdateWorkflow: (expenseId: string, updates: Partial<ExpenseWorkflowState>) => void;
   onOpenAttachments: (expense: Expense) => void;
   onDuplicate: (expenseId: string) => void;
@@ -92,6 +96,7 @@ export function EditableExpenseRow({
   onSelectionChange,
   onStatusChange,
   onUpdateExpense,
+  onReclassifyExpense,
   onUpdateWorkflow,
   onOpenAttachments,
   onDuplicate,
@@ -102,6 +107,7 @@ export function EditableExpenseRow({
   onAudit,
   onView,
 }: EditableExpenseRowProps) {
+  const [isClassifying, setIsClassifying] = useState(false);
   const t = useExpensesTranslations();
   const locale = useExpensesResolvedLocale();
   const canEdit = canEditExpense(expense);
@@ -301,10 +307,29 @@ export function EditableExpenseRow({
       )}
       {isColumnVisible('accountingAccount') && (
         <td className="px-6 py-4 whitespace-nowrap" style={{ width: columnWidths.accountingAccount, minWidth: columnWidths.accountingAccount }}>
-          {rowIsEditing ? (
-            <EditableSelect ariaLabel={`${t.expenses.columns.accountingAccount.label} ${expense.folio}`} value={expense.accountingAccount ?? ''} options={options.accountingAccounts} onChange={(accountingAccount) => onUpdateExpense(expense.id, { accountingAccount })} />
+          {expense.originFund ? (
+            <div className="flex items-start gap-2" title="Cuenta vinculada al fondo de origen">
+              <LockKeyhole className="mt-1 h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
+              <div><span>{accountingAccountLabel || '-'}</span><span className="block text-xs text-slate-500">{expense.originFund.name}</span></div>
+            </div>
+          ) : canEdit || (canReclassifyExpense(expense) && onReclassifyExpense) ? (
+            <ExpenseAccountSelect
+              label={`${t.expenses.columns.accountingAccount.label} ${expense.folio}`}
+              value={expense.accountingAccount ?? ''}
+              options={options.accountingAccounts}
+              disabled={isClassifying}
+              onChange={async accountingAccount => {
+                if (canEdit) {
+                  onUpdateExpense(expense.id, { accountingAccount });
+                  return;
+                }
+                setIsClassifying(true);
+                try { await onReclassifyExpense?.(expense, accountingAccount); }
+                finally { setIsClassifying(false); }
+              }}
+            />
           ) : (
-            <ReadonlySelectPill onClick={startEditing}>{accountingAccountLabel || '-'}</ReadonlySelectPill>
+            <span title={expense.accountingPosted ? 'Ya contabilizado; requiere un ajuste contable.' : undefined}>{accountingAccountLabel || '-'}</span>
           )}
         </td>
       )}

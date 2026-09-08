@@ -97,7 +97,7 @@ export function ExpenseDetailModal({ expense, onClose, onEdit, onOpenAttachments
 
           <DetailSection icon={<Landmark className="h-4 w-4" />} title={copy.overview}>
             <DetailRow label={copy.provider} value={expense.providerName || t.common.unassigned} />
-            <DetailRow label={t.expenses.columns.accountingAccount?.label ?? copy.classification} value={expense.accountingAccount || t.common.unassigned} />
+            <DetailRow label={t.expenses.columns.accountingAccount?.label ?? copy.classification} value={expense.originFund ? `${expense.accountingAccount || t.common.unassigned} · ${expense.originFund.name}` : expense.accountingAccount || t.common.unassigned} />
             <DetailRow label={copy.subtotal} value={formatCurrency(expense.amount, expense.currency)} />
             <DetailRow label={copy.taxes} value={formatCurrency(expense.taxes, expense.currency)} />
             <DetailRow label={t.expenses.modal.currency} value={expense.currency} />

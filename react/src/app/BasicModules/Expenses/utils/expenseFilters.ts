@@ -15,12 +15,18 @@ export const getExpensePaidAmount = (expense: Expense) => Math.max(expense.amoun
 export const getExpenseBalance = (expense: Expense) => Math.max(expense.total - getExpensePaidAmount(expense), 0);
 
 export const canEditExpense = (expense: Expense) => (
-  expense.type === 'budget'
+  !expense.originFund && !expense.accountingPosted && (expense.type === 'budget'
   || !expense.backendStatus
-  || expense.backendStatus.toUpperCase() === 'DRAFT'
+  || expense.backendStatus.toUpperCase() === 'DRAFT')
 );
 
 export const canDeleteExpense = canEditExpense;
+
+export const canReclassifyExpense = (expense: Expense) => (
+  /^\d+$/.test(expense.id) && !expense.originFund && !expense.accountingPosted
+  && !['CANCELLED', 'REJECTED'].includes(expense.backendStatus?.toUpperCase() ?? '')
+  && expense.version !== undefined
+);
 
 export const isExpensePastDue = (expense: Expense, referenceDate = new Date()) => (
   Boolean(expense.dueDate)
@@ -95,7 +101,8 @@ export const filterExpenses = (expenses: Expense[], filters: ExpenseListFilters,
       || includesSearch(expense.folio, search)
       || includesSearch(expense.concept, search)
       || includesSearch(expense.description, search)
-      || includesSearch(expense.providerName, search);
+      || includesSearch(expense.providerName, search)
+      || includesSearch(expense.originFund?.name, search);
     const matchesPeriod = isInPeriod(expense.date, filters.periodFilter, referenceDate)
       || isExpenseCarryover(expense, filters.periodFilter, referenceDate);
     const matchesUnit = filters.businessUnitFilter === 'all' || expense.businessUnit === filters.businessUnitFilter;
