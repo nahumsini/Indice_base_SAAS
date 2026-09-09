@@ -69,6 +69,9 @@ class PlatformAdminApiControllerTest {
     private PlatformCatalogStripeSynchronizationService catalogStripeSynchronization;
 
     @MockBean
+    private PlatformCatalogPublicationService catalogPublication;
+
+    @MockBean
     private PlatformModuleWorkOrderService moduleWorkOrders;
 
     @MockBean
@@ -79,6 +82,56 @@ class PlatformAdminApiControllerTest {
 
     @MockBean
     private AppWebProperties appWebProperties;
+
+    @Test
+    void productPriceDraftSaveUsesTheAuthenticatedActorAndExactCents() throws Exception {
+        given(auth.currentUser(any())).willReturn(Optional.of(new AuthSessionUser(99L, 7L, "Root", "root")));
+        var monthly = new PlatformCatalogManagementService.SavedPriceResponse(1L, "extra_user", "MONTH", 1300L, null, "DRAFT");
+        var annual = new PlatformCatalogManagementService.SavedPriceResponse(2L, "extra_user", "YEAR", 15600L, null, "DRAFT");
+        given(catalogManagement.saveProductPrices(eq(99L), eq(41L), any()))
+            .willReturn(new PlatformCatalogManagementService.ProductPricesResponse(41L, monthly, annual));
+        mockMvc.perform(put("/api/v1/platform-admin/catalog/products/41/prices")
+                .header("X-CSRF-Token", "csrf-test").contentType(APPLICATION_JSON)
+                .content("{\"monthly_amount_cents\":1300,\"annual_amount_cents\":15600}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.monthly.unit_amount_cents").value(1300));
+        verify(csrf).requireCsrf(any(), eq("csrf-test"));
+        verify(catalogManagement).saveProductPrices(99L, 41L,
+            new PlatformCatalogManagementService.ProductPricesRequest(1300L, 15600L));
+    }
+
+    @Test
+    void synchronizedPublicationForwardsExplicitModeAndConfirmation() throws Exception {
+        given(auth.currentUser(any())).willReturn(Optional.of(new AuthSessionUser(99L, 7L, "Root", "root")));
+        given(catalogPublication.synchronizeAndPublish(eq(99L), eq(77L), any()))
+            .willReturn(new PlatformCatalogPublicationService.PublicationResponse(77L, "draft", "ACTIVE", true, "LIVE", 13));
+        mockMvc.perform(post("/api/v1/platform-admin/catalog/drafts/77/synchronize-and-publish")
+                .header("X-CSRF-Token", "csrf-test").contentType(APPLICATION_JSON)
+                .content("{\"target_mode\":\"LIVE\",\"confirmation\":\"PUBLICAR EN STRIPE LIVE\"}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.published").value(true))
+            .andExpect(jsonPath("$.synchronized_products").value(13));
+        verify(csrf).requireCsrf(any(), eq("csrf-test"));
+        verify(catalogPublication).synchronizeAndPublish(99L, 77L,
+            new PlatformCatalogPublicationService.PublicationRequest("LIVE", "PUBLICAR EN STRIPE LIVE"));
+    }
+
+    @Test
+    void newCatalogMutationsRequireSessionAndCsrf() throws Exception {
+        given(auth.currentUser(any())).willReturn(Optional.empty());
+        mockMvc.perform(put("/api/v1/platform-admin/catalog/products/41/prices").contentType(APPLICATION_JSON)
+                .content("{\"monthly_amount_cents\":1300,\"annual_amount_cents\":15600}"))
+            .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/v1/platform-admin/catalog/drafts/77/synchronize-and-publish").contentType(APPLICATION_JSON)
+                .content("{\"target_mode\":\"TEST\"}"))
+            .andExpect(status().isUnauthorized());
+        given(auth.currentUser(any())).willReturn(Optional.of(new AuthSessionUser(99L, 7L, "Root", "root")));
+        willThrow(new IllegalArgumentException("Invalid CSRF token.")).given(csrf).requireCsrf(any(), eq("invalid"));
+        mockMvc.perform(put("/api/v1/platform-admin/catalog/products/41/prices").header("X-CSRF-Token", "invalid")
+                .contentType(APPLICATION_JSON).content("{\"monthly_amount_cents\":1300,\"annual_amount_cents\":15600}"))
+            .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/platform-admin/catalog/drafts/77/synchronize-and-publish").header("X-CSRF-Token", "invalid")
+                .contentType(APPLICATION_JSON).content("{\"target_mode\":\"TEST\"}"))
+            .andExpect(status().isForbidden());
+    }
 
     @Test
     void contextRequiresAnAuthenticatedApplicationSession() throws Exception {

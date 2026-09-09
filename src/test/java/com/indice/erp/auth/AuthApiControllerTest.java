@@ -1,6 +1,8 @@
 package com.indice.erp.auth;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
@@ -50,6 +52,9 @@ class AuthApiControllerTest {
 
     @MockBean
     private AuthSecurityProperties securityProperties;
+
+    @MockBean
+    private LocalDevelopmentAuthPolicy localDevelopmentAuthPolicy;
 
     @BeforeEach
     void allowMvcSliceSessionTimeoutInterceptor() {
@@ -138,6 +143,62 @@ class AuthApiControllerTest {
 
         verify(mfaChallengeService).startChallenge(eq(login), any(), any(LoginAuditContext.class));
         verify(sessionAuthService, never()).storeAuthenticatedSession(any(), eq(login));
+    }
+
+    @Test
+    void explicitLocalExceptionCreatesAPasswordSessionWithoutPretendingMfaWasVerified() throws Exception {
+        var login = authenticatedLogin();
+        var session = new MockHttpSession();
+        var originalSessionId = session.getId();
+        given(lockoutService.passwordLockout(eq("demo@example.com"), eq("empresa demo spring")))
+            .willReturn(AuthLockoutService.LockoutState.open());
+        given(sessionAuthService.verifyLoginCredentials(eq("Empresa Demo Spring"), eq("demo@example.com"), eq("demo123")))
+            .willReturn(LoginCredentialVerificationResult.success(login, "demo@example.com", "empresa demo spring"));
+        given(sessionAuthService.requiresStrongMfa(login.userId())).willReturn(true);
+        given(localDevelopmentAuthPolicy.isMfaBypassed()).willReturn(true);
+        given(sessionAuthService.currentSession(any())).willReturn(Optional.of(sessionResponse(1L, "Empresa Demo Spring")));
+        given(sessionCsrfService.ensureCsrf(any())).willReturn("rotated-local-csrf");
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                .session(session)
+                .header("X-CSRF-Token", "csrf-token")
+                .contentType(APPLICATION_JSON)
+                .content(loginPayload()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.user.id").value(1))
+            .andExpect(jsonPath("$.mfaRequired").doesNotExist())
+            .andExpect(jsonPath("$.csrfToken").value("rotated-local-csrf"));
+
+        verify(sessionCsrfService).requireCsrf(session, "csrf-token");
+        verify(sessionCsrfService).rotateCsrf(session);
+        verify(sessionAuthService).storeAuthenticatedSession(session, login);
+        verify(sessionAuthService, never()).storeAuthenticatedSession(any(), any(), eq(true));
+        verifyNoInteractions(mfaChallengeService);
+        assertThat(session.getId()).isNotEqualTo(originalSessionId);
+        assertThat(session.getAttribute(SessionAuthService.SESSION_MFA_VERIFIED)).isNotEqualTo(true);
+    }
+
+    @Test
+    void platformMfaDeliveryFailureNeverFallsBackToAPasswordSession() throws Exception {
+        var login = authenticatedLogin();
+        given(lockoutService.passwordLockout(eq("demo@example.com"), eq("empresa demo spring")))
+            .willReturn(AuthLockoutService.LockoutState.open());
+        given(sessionAuthService.verifyLoginCredentials(eq("Empresa Demo Spring"), eq("demo@example.com"), eq("demo123")))
+            .willReturn(LoginCredentialVerificationResult.success(login, "demo@example.com", "empresa demo spring"));
+        given(sessionAuthService.requiresStrongMfa(login.userId())).willReturn(true);
+        given(securityProperties.isMfaRequiredForCompany("Empresa Demo Spring")).willReturn(false);
+        given(mfaChallengeService.startChallenge(eq(login), any(), any(LoginAuditContext.class)))
+            .willReturn(LoginMfaChallengeService.MfaStartResult.failure("Could not deliver the verification code."));
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                .header("X-CSRF-Token", "csrf-token")
+                .contentType(APPLICATION_JSON)
+                .content(loginPayload()))
+            .andExpect(status().isServiceUnavailable());
+
+        verify(sessionAuthService, never()).storeAuthenticatedSession(any(), any());
+        verify(sessionAuthService, never()).storeAuthenticatedSession(any(), any(), anyBoolean());
+        verifyNoInteractions(loginSecurityEmailService);
     }
 
     @Test

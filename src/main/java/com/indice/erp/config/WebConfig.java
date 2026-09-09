@@ -3,6 +3,7 @@ package com.indice.erp.config;
 import com.indice.erp.access.tab.TabPermissionInterceptor;
 import com.indice.erp.access.module.ModuleAccessInterceptor;
 import com.indice.erp.auth.AuthSecurityProperties;
+import com.indice.erp.auth.LocalDevelopmentAuthPolicy;
 import com.indice.erp.auth.AuthSessionTimeoutInterceptor;
 import com.indice.erp.auth.ManagedCompanyReadOnlyInterceptor;
 import com.indice.erp.auth.PublicDemoSessionInterceptor;
@@ -17,6 +18,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -111,6 +113,11 @@ public class WebConfig implements WebMvcConfigurer {
         tabPermissionInterceptor.ifAvailable((interceptor) ->
             registry.addInterceptor(interceptor).addPathPatterns("/api/**").order(-20)
         );
+    }
+
+    @Bean
+    LocalDevelopmentAuthPolicy localDevelopmentAuthPolicy(Environment environment, AuthSecurityProperties securityProperties) {
+        return new LocalDevelopmentAuthPolicy(environment, securityProperties);
     }
 
     @Bean

@@ -27,6 +27,7 @@ const authorizationFingerprint = (
     scope: session.company?.scope ?? null,
     subscriptionStatus: session.company?.subscription?.status ?? null,
     subscriptionAccessAllowed: session.company?.subscription?.access_allowed ?? null,
+    subscriptionLockReason: session.company?.subscription?.lock_reason ?? null,
     demoMode: session.demoMode === true,
   });
 };

@@ -1,6 +1,7 @@
 package com.indice.erp.platformadmin;
 
 import com.indice.erp.billing.BillingHashing;
+import com.indice.erp.billing.collection.PaymentCollectionProtectionService;
 import com.indice.erp.auth.SignupTrialTerms;
 import com.indice.erp.billing.lifecycle.CommercialLifecycleService;
 import com.indice.erp.billing.stripe.StripeBillingGateway;
@@ -30,7 +31,9 @@ public class PlatformTrialExtensionService {
     private final CommercialLifecycleService lifecycle;
     private final CompanyEntitlementProjectionService entitlements;
     private final Clock clock;
+    private final PaymentCollectionProtectionService paymentProtection;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public PlatformTrialExtensionService(
         JdbcTemplate jdbc,
         TransactionTemplate transactions,
@@ -39,7 +42,8 @@ public class PlatformTrialExtensionService {
         StripeBillingGateway stripe,
         CommercialLifecycleService lifecycle,
         CompanyEntitlementProjectionService entitlements,
-        Clock clock
+        Clock clock,
+        PaymentCollectionProtectionService paymentProtection
     ) {
         this.jdbc = jdbc;
         this.transactions = transactions;
@@ -49,6 +53,14 @@ public class PlatformTrialExtensionService {
         this.lifecycle = lifecycle;
         this.entitlements = entitlements;
         this.clock = clock;
+        this.paymentProtection = paymentProtection;
+    }
+
+    public PlatformTrialExtensionService(JdbcTemplate jdbc, TransactionTemplate transactions,
+        PlatformAdminAccessService access, PlatformAuditService audit, StripeBillingGateway stripe,
+        CommercialLifecycleService lifecycle, CompanyEntitlementProjectionService entitlements, Clock clock) {
+        this(jdbc, transactions, access, audit, stripe, lifecycle, entitlements, clock,
+            new PaymentCollectionProtectionService(jdbc, clock));
     }
 
     public Map<String, Object> extend(
@@ -147,8 +159,10 @@ public class PlatformTrialExtensionService {
             if (existing.addedDays() != days) {
                 throw new IllegalStateException("La llave de idempotencia ya se usó con otra duración.");
             }
+            if (!existing.completed()) paymentProtection.requireGrantAllowed(companyId);
             return existing;
         }
+        paymentProtection.requireGrantAllowed(companyId);
         var pending = jdbc.queryForObject(
             "SELECT COUNT(*) FROM platform_trial_extensions WHERE company_id = ? AND status = 'PREPARED'",
             Integer.class,
@@ -205,6 +219,7 @@ public class PlatformTrialExtensionService {
             mutation.reference()
         );
         if ("COMPLETED".equals(extensionStatus)) return;
+        paymentProtection.requireGrantAllowed(companyId);
         if (!"PREPARED".equals(extensionStatus) && !"FAILED".equals(extensionStatus)) {
             throw new IllegalStateException("La extensión no está disponible para completarse.");
         }

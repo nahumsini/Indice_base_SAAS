@@ -20,6 +20,7 @@ import {
 } from '../src/app/Auth/PublicPlans/publicPlansSelection.ts';
 import {
   calculatePublicPlanPricing,
+  formatPublicPlanMoney,
   publishedTierAmount,
   selectAllCompatibleProductCodes,
   toggleCompatibleProductCode,
@@ -115,6 +116,15 @@ test('session cleanup preserves the global language preference while removing te
     if (previousWindow === undefined) delete globalThis.window;
     else Object.defineProperty(globalThis, 'window', { configurable: true, value: previousWindow });
   }
+});
+
+test('a new collection hold refreshes authorization even when access was already restricted', () => {
+  const session = sessionWithAccess({ role: 'superadmin', modules: [], tabs: [] });
+  session.company.subscription = { status: 'payment_required', access_allowed: false, lock_reason: 'OTHER_HOLD' };
+  setCachedAuthSession(session);
+  const baseline = getAuthorizationRevision();
+  setCachedAuthSession({ ...session, company: { ...session.company, subscription: { ...session.company.subscription, lock_reason: 'PAYMENT_REQUEST_OVERDUE' } } });
+  assert.equal(getAuthorizationRevision(), baseline + 1);
 });
 
 test('a role or grant revocation publishes one authorization revision without reacting to reordered grants', () => {
@@ -359,6 +369,28 @@ test('draft or ready module prices never leak into a public estimate', () => {
   assert.equal(pricing.validSelection, true);
   assert.equal(pricing.baseAmountCents, null);
   assert.equal(pricing.estimatedAmountCents, null);
+});
+
+test('public money preserves the published cents and distinguishes a missing amount from zero', () => {
+  assert.equal(formatPublicPlanMoney(null, 'USD', 'en-US'), '—');
+  assert.equal(formatPublicPlanMoney(0, 'USD', 'en-US'), '$0');
+  assert.equal(formatPublicPlanMoney(7900, 'USD', 'en-US'), '$79');
+  assert.equal(formatPublicPlanMoney(75840, 'USD', 'en-US'), '$758.40');
+  assert.equal(formatPublicPlanMoney(191041, 'USD', 'en-US'), '$1,910.41');
+});
+
+test('signup summaries retain unpublished totals and public storage fallback follows the five GiB contract', async () => {
+  const [signupPage, builder] = await Promise.all([
+    readFile(new URL('../src/app/Auth/SignupPage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/Auth/PublicPlans/PublicPlansBuilder.tsx', import.meta.url), 'utf8'),
+  ]);
+  assert.match(signupPage, /const selectedPrice = selectedCount === 0 \? 0 : estimatedAmount;/);
+  assert.match(signupPage, /if \(amountCents == null\) return copy\.pendingCompletePrice;/);
+  assert.equal(signupPage.match(/currency\(selectedPrice, form\.billingInterval, copy\)/g)?.length, 2);
+  assert.match(signupPage, /formatPublicPlanMoney\(amountCents, 'USD', copy\.locale\)/);
+  assert.doesNotMatch(signupPage, /estimatedAmount \?\? 0/);
+  assert.match(builder, /config\.includedStorageGiB \?\? 5/);
+  assert.match(builder, /config\.storageBlockGiB \?\? 5/);
 });
 
 test('public plans route remains a read-only configurator and hands validated choices to signup', async () => {

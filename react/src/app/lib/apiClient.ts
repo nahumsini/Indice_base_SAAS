@@ -191,6 +191,10 @@ export async function apiClient<T = unknown>(
     await refreshAuthSession();
   }
 
+  if (response.status === 402 && codeFromPayload(payload) === 'PAYMENT_REQUEST_OVERDUE') {
+    await refreshAuthSession().catch(() => null);
+  }
+
   if (!response.ok) {
     const message = messageFromPayload(payload) || response.statusText;
     const code = codeFromPayload(payload);
@@ -223,6 +227,12 @@ export async function requestText(path: string, init: ApiClientRequestInit = {})
       expireCachedAuthSession();
     } else if (response.status === 403) {
       await refreshAuthSession();
+    } else if (response.status === 402) {
+      try {
+        if (codeFromPayload(JSON.parse(text)) === 'PAYMENT_REQUEST_OVERDUE') {
+          await refreshAuthSession().catch(() => null);
+        }
+      } catch { /* Preserve the original response when its body is not JSON. */ }
     }
     throw new ApiClientError(response.statusText || 'Request failed', response.status, undefined, text);
   }

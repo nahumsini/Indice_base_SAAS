@@ -1,6 +1,7 @@
 package com.indice.erp.platformadmin;
 
 import com.indice.erp.auth.SessionAuthService;
+import com.indice.erp.auth.LocalDevelopmentAuthPolicy;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -14,13 +15,16 @@ public class PlatformAdminMfaInterceptor implements HandlerInterceptor {
 
     private final SessionAuthService sessionAuthService;
     private final PlatformAdminAccessService accessService;
+    private final LocalDevelopmentAuthPolicy localDevelopmentAuthPolicy;
 
     public PlatformAdminMfaInterceptor(
         SessionAuthService sessionAuthService,
-        PlatformAdminAccessService accessService
+        PlatformAdminAccessService accessService,
+        LocalDevelopmentAuthPolicy localDevelopmentAuthPolicy
     ) {
         this.sessionAuthService = sessionAuthService;
         this.accessService = accessService;
+        this.localDevelopmentAuthPolicy = localDevelopmentAuthPolicy;
     }
 
     @Override
@@ -41,7 +45,7 @@ public class PlatformAdminMfaInterceptor implements HandlerInterceptor {
         if (access == null || (!access.mfaRequired() && !"PLATFORM_ROOT".equals(access.role()))) {
             return true;
         }
-        if (sessionAuthService.isMfaVerified(session)) {
+        if (sessionAuthService.isMfaVerified(session) || localDevelopmentAuthPolicy.isMfaBypassed()) {
             return true;
         }
 

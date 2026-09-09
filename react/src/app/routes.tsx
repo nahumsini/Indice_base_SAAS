@@ -6,7 +6,7 @@ import { authApi } from './api/auth';
 import { subscribeToAuthenticationExpired } from './api/authSessionStore';
 import { ApiClientError } from './lib/apiClient';
 import { BusinessCurrencyProvider } from './BasicModules/shared/BusinessCurrencyContext';
-import { LoadingBarOverlay } from './components/LoadingBarOverlay';
+import { LocalizedLoadingBarOverlay } from './components/LocalizedLoadingBarOverlay';
 
 const App = lazy(() => import('./App'));
 const HumanResourcesKiosk = lazy(() => import('./BasicModules/HumanResources/Kiosk/Kiosk'));
@@ -161,10 +161,9 @@ function KioskRoute() {
   return (
     <Suspense
       fallback={(
-        <LoadingBarOverlay
+        <LocalizedLoadingBarOverlay
           isVisible
-          title="Loading kiosk"
-          description="Preparing the attendance kiosk."
+          variant="attendanceKiosk"
         />
       )}
     >
@@ -177,10 +176,9 @@ function TaskKioskRoute() {
   return (
     <Suspense
       fallback={(
-        <LoadingBarOverlay
+        <LocalizedLoadingBarOverlay
           isVisible
-          title="Loading task access"
-          description="Preparing the task kiosk."
+          variant="taskKiosk"
         />
       )}
     >
@@ -193,10 +191,9 @@ function PettyCashKioskRoute() {
   return (
     <Suspense
       fallback={(
-        <LoadingBarOverlay
+        <LocalizedLoadingBarOverlay
           isVisible
-          title="Loading petty cash"
-          description="Preparing the petty cash kiosk."
+          variant="pettyCashKiosk"
         />
       )}
     >
@@ -209,10 +206,9 @@ function ExpensesPayablesKioskRoute() {
   return (
     <Suspense
       fallback={(
-        <LoadingBarOverlay
+        <LocalizedLoadingBarOverlay
           isVisible
-          title="Loading payable account kiosk"
-          description="Preparing the expenses kiosk."
+          variant="payablesKiosk"
         />
       )}
     >
@@ -225,10 +221,9 @@ function PublicCatalogRoute() {
   return (
     <Suspense
       fallback={(
-        <LoadingBarOverlay
+        <LocalizedLoadingBarOverlay
           isVisible
-          title="Cargando catálogo público"
-          description="Preparando productos y opciones de contacto."
+          variant="publicCatalog"
         />
       )}
     >
@@ -241,10 +236,9 @@ function CustomerDisplayRoute() {
   return (
     <Suspense
       fallback={(
-        <LoadingBarOverlay
+        <LocalizedLoadingBarOverlay
           isVisible
-          title="Loading customer display"
-          description="Preparing the point-of-sale mirror."
+          variant="customerDisplay"
         />
       )}
     >
@@ -257,10 +251,9 @@ function SupplierPortalRoute() {
   return (
     <Suspense
       fallback={(
-        <LoadingBarOverlay
+        <LocalizedLoadingBarOverlay
           isVisible
-          title="Loading supplier portal"
-          description="Preparing the supplier purchase proposal portal."
+          variant="supplierPortal"
         />
       )}
     >
@@ -273,10 +266,9 @@ function SelfServiceKioskRoute() {
   return (
     <Suspense
       fallback={(
-        <LoadingBarOverlay
+        <LocalizedLoadingBarOverlay
           isVisible
-          title="Cargando kiosco de autoservicio"
-          description="Preparando el catálogo y la caja asignada."
+          variant="selfServiceKiosk"
         />
       )}
     >
@@ -289,10 +281,9 @@ function SelfCheckoutKioskRoute() {
   return (
     <Suspense
       fallback={(
-        <LoadingBarOverlay
+        <LocalizedLoadingBarOverlay
           isVisible
-          title="Cargando autocobro"
-          description="Preparando la estación táctil y su catálogo."
+          variant="selfCheckoutKiosk"
         />
       )}
     >
@@ -303,7 +294,7 @@ function SelfCheckoutKioskRoute() {
 
 function RestaurantKioskRoute() {
   return (
-    <Suspense fallback={<LoadingBarOverlay isVisible title="Cargando operación de restaurante" description="Conectando mesas, comandas, cocina y caja." />}>
+    <Suspense fallback={<LocalizedLoadingBarOverlay isVisible variant="restaurantKiosk" />}>
       <RestaurantKioskPage />
     </Suspense>
   );
@@ -311,7 +302,7 @@ function RestaurantKioskRoute() {
 
 function MultiKioskMobileRoute() {
   return (
-    <Suspense fallback={<LoadingBarOverlay isVisible title="Cargando Multikiosco" description="Preparando tus accesos de trabajo." />}>
+    <Suspense fallback={<LocalizedLoadingBarOverlay isVisible variant="multiKiosk" />}>
       <MultiKioskMobilePage />
     </Suspense>
   );
@@ -336,10 +327,9 @@ function PrivateAppRoute() {
       <BusinessCurrencyProvider>
         <Suspense
           fallback={(
-            <LoadingBarOverlay
+            <LocalizedLoadingBarOverlay
               isVisible
-              title="Loading workspace"
-              description="Preparing your dashboard."
+              variant="workspace"
             />
           )}
         >
@@ -365,7 +355,7 @@ function PlatformAdminRoute() {
   }), [location.hash, location.pathname, location.search, navigate]);
 
   return (
-    <Suspense fallback={<LoadingBarOverlay isVisible title="Cargando plataforma" description="Validando autoridad operativa." />}>
+    <Suspense fallback={<LocalizedLoadingBarOverlay isVisible variant="platform" />}>
       <PlatformAdminPage />
     </Suspense>
   );
@@ -386,7 +376,7 @@ function DistributorPortalRoute() {
   }), [location.hash, location.pathname, location.search, navigate]);
 
   return (
-    <Suspense fallback={<LoadingBarOverlay isVisible title="Loading distributor portal" description="Validating your linked portfolio." />}>
+    <Suspense fallback={<LocalizedLoadingBarOverlay isVisible variant="distributorPortal" />}>
       <DistributorPortalPage />
     </Suspense>
   );
@@ -554,7 +544,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/certificates/verify/:folio',
-    element: <Suspense fallback={<LoadingBarOverlay isVisible title="Validando certificado" description="Consultando autenticidad y vigencia." />}><TrainingCertificateVerificationPage /></Suspense>,
+    element: <Suspense fallback={<LocalizedLoadingBarOverlay isVisible variant="certificate" />}><TrainingCertificateVerificationPage /></Suspense>,
   },
   {
     path: '/pos-self-service/:publicAccessToken',
