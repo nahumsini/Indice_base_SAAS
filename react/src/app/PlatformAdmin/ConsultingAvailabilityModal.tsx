@@ -1,4 +1,11 @@
 import {
+  useConsultingCopy,
+  consultingText,
+  consultingNumber,
+  consultingWeekdays,
+  type ConsultingCopy,
+} from "./ConsultingTranslations";
+import {
   useEffect,
   useMemo,
   useState,
@@ -18,15 +25,7 @@ import {
 } from "../components/indice-modal";
 import { countryOptions } from "./flowOptions";
 
-const weekdays = [
-  { id: 1, label: "Lunes", short: "Lun" },
-  { id: 2, label: "Martes", short: "Mar" },
-  { id: 3, label: "Miércoles", short: "Mié" },
-  { id: 4, label: "Jueves", short: "Jue" },
-  { id: 5, label: "Viernes", short: "Vie" },
-  { id: 6, label: "Sábado", short: "Sáb" },
-  { id: 7, label: "Domingo", short: "Dom" },
-] as const;
+
 
 const controlClass =
   "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[#177D66] focus:ring-2 focus:ring-[#177D66]/10 disabled:bg-slate-100 disabled:text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white";
@@ -48,6 +47,8 @@ export function ConsultingAvailabilityModal({
   ) => Promise<PlatformConsultingAvailability>;
   onSaved: (availability: PlatformConsultingAvailability) => void;
 }) {
+  const { copy, locale } = useConsultingCopy();
+  const weekdays = consultingWeekdays(locale);
   const [consultantEmail, setConsultantEmail] = useState(
     initialConsultantEmail || consultants[0]?.email || "",
   );
@@ -79,7 +80,7 @@ export function ConsultingAvailabilityModal({
       .catch((loadError: unknown) => {
         if (!active) return;
         setAvailability(null);
-        setError(errorMessage(loadError, "No se pudo cargar la disponibilidad."));
+        setError(errorMessage(copy, loadError, copy.loadAvailabilityError));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -87,7 +88,7 @@ export function ConsultingAvailabilityModal({
     return () => {
       active = false;
     };
-  }, [consultantEmail, onLoad]);
+  }, [consultantEmail, onLoad, copy]);
 
   const updateDay = (
     dayOfWeek: number,
@@ -120,7 +121,7 @@ export function ConsultingAvailabilityModal({
       onClose();
     } catch (saveError) {
       setError(
-        errorMessage(saveError, "No se pudo guardar la disponibilidad."),
+        errorMessage(copy, saveError, copy.saveAvailabilityError),
       );
     } finally {
       setSaving(false);
@@ -135,25 +136,25 @@ export function ConsultingAvailabilityModal({
       modalType="standard-form"
       tone="aqua"
       icon={<CalendarRange className="h-5 w-5" />}
-      eyebrow="Agenda de consultorías"
-      title="Configurar disponibilidad"
-      description="Define los días y horarios en los que cada distribuidor consultor puede recibir sesiones."
+      eyebrow={copy.agenda}
+      title={copy.configureAvailability}
+      description={copy.availabilityHelp}
       footerSummary={
         availability
-          ? `${availability.days.filter((day) => day.enabled).length} días disponibles`
-          : "Selecciona un consultor"
+          ? consultingText(copy.daysAvailable, { count: consultingNumber(availability.days.filter((day) => day.enabled).length, locale) })
+          : copy.selectConsultant
       }
       footer={
         <>
           <button type="button" onClick={onClose} disabled={saving}>
-            Cancelar
-          </button>
+            {copy.cancel}
+            </button>
           <button
             type="submit"
             form="consulting-availability-form"
             disabled={!availability || loading || saving}
           >
-            {saving ? "Guardando…" : "Guardar disponibilidad"}
+            {saving ? copy.saving : copy.saveAvailability}
           </button>
         </>
       }
@@ -166,7 +167,7 @@ export function ConsultingAvailabilityModal({
         <IndiceModalValidation messages={error ? [error] : []} />
 
         <section className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2 dark:border-slate-700 dark:bg-slate-900">
-          <Field label="Distribuidor consultor">
+          <Field label={copy.distributorConsultant}>
             <select
               autoFocus
               required
@@ -182,7 +183,7 @@ export function ConsultingAvailabilityModal({
               ))}
             </select>
           </Field>
-          <Field label="Zona horaria">
+          <Field label={copy.timezone}>
             <select
               required
               disabled={!availability || loading}
@@ -206,17 +207,17 @@ export function ConsultingAvailabilityModal({
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
           <header className="border-b border-slate-100 px-4 py-3 dark:border-slate-700">
             <h3 className="text-sm font-medium text-slate-950 dark:text-white">
-              Horario semanal
+              {copy.weeklySchedule}
             </h3>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Desactiva un día si no debe aceptar nuevas consultorías.
+              {copy.disableDayHelp}
             </p>
           </header>
 
           {loading ? (
             <div className="flex min-h-52 items-center justify-center gap-2 text-sm text-slate-500">
               <LoaderCircle className="h-5 w-5 animate-spin text-[#177D66]" />
-              Cargando disponibilidad…
+              {copy.loadingAvailability}
             </div>
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-700">
@@ -250,7 +251,7 @@ export function ConsultingAvailabilityModal({
                       <span className="hidden sm:inline">{weekday.label}</span>
                       <span className="sm:hidden">{weekday.short}</span>
                     </label>
-                    <Field label="Desde" compact>
+                    <Field label={copy.from} compact>
                       <input
                         type="time"
                         required={Boolean(day?.enabled)}
@@ -262,7 +263,7 @@ export function ConsultingAvailabilityModal({
                         className={controlClass}
                       />
                     </Field>
-                    <Field label="Hasta" compact>
+                    <Field label={copy.to} compact>
                       <input
                         type="time"
                         required={Boolean(day?.enabled)}
@@ -307,9 +308,9 @@ function Field({
   );
 }
 
-function errorMessage(error: unknown, fallback: string) {
+function errorMessage(copy: ConsultingCopy, error: unknown, fallback: string) {
   if (error instanceof TypeError && /fetch/i.test(error.message)) {
-    return "No se pudo conectar con Índice. Verifica que el servidor esté activo y vuelve a intentarlo.";
+    return copy.connectionError;
   }
   return error instanceof Error && error.message ? error.message : fallback;
 }

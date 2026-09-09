@@ -1,3 +1,4 @@
+import { useCustomerAccountCopy } from "./useCustomerAccountCopy";
 import {
   ArrowRight,
   CircleAlert,
@@ -18,59 +19,6 @@ import {
   type CustomerControlSignal,
 } from "./customerTableUtils";
 
-const signalCopy: Record<
-  CustomerControlSignal,
-  { es: string; en: string; actionEs: string; actionEn: string }
-> = {
-  payment: {
-    es: "Cobro vencido o fallido",
-    en: "Past-due or failed payment",
-    actionEs: "Gestionar cobro y confirmar continuidad",
-    actionEn: "Collect payment and confirm continuity",
-  },
-  access: {
-    es: "Cuenta sin acceso operativo",
-    en: "Account without operational access",
-    actionEs: "Revisar contrato, acceso y estado comercial",
-    actionEn: "Review contract, access and commercial status",
-  },
-  pricing: {
-    es: "Tarifa o proyección pendiente",
-    en: "Rate or projection pending",
-    actionEs: "Definir tarifa y validar la facturación",
-    actionEn: "Set the rate and validate billing",
-  },
-  trialExpired: {
-    es: "Prueba vencida",
-    en: "Trial expired",
-    actionEs: "Cerrar, extender o convertir la prueba",
-    actionEn: "Close, extend or convert the trial",
-  },
-  trialEnding: {
-    es: "Prueba por vencer",
-    en: "Trial ending soon",
-    actionEs: "Contactar y definir el siguiente paso",
-    actionEn: "Contact the customer and define the next step",
-  },
-  owner: {
-    es: "Sin contacto propietario",
-    en: "No owner contact",
-    actionEs: "Registrar al responsable del cliente",
-    actionEn: "Register the customer owner",
-  },
-  offer: {
-    es: "Sin plan o módulos definidos",
-    en: "No plan or modules defined",
-    actionEs: "Configurar la oferta contratada",
-    actionEn: "Configure the contracted offer",
-  },
-  adoption: {
-    es: "Sin usuarios activos",
-    en: "No active users",
-    actionEs: "Agendar activación y revisar adopción",
-    actionEn: "Schedule activation and review adoption",
-  },
-};
 
 export function CustomerControlCenter({
   english,
@@ -87,6 +35,61 @@ export function CustomerControlCenter({
   onFilter: (filter: string) => void;
   onOpenCompany: (company: PlatformCompanySummary) => void;
 }) {
+  const { t, locale, number } = useCustomerAccountCopy();
+const signalCopy: Record<
+  CustomerControlSignal,
+  { es: string; en: string; actionEs: string; actionEn: string }
+> = {
+  payment: {
+    es: t("signalPayment"),
+    en: t("signalPayment"),
+    actionEs: t("signalPaymentAction"),
+    actionEn: t("signalPaymentAction"),
+  },
+  access: {
+    es: t("signalAccess"),
+    en: t("signalAccess"),
+    actionEs: t("signalAccessAction"),
+    actionEn: t("signalAccessAction"),
+  },
+  pricing: {
+    es: t("signalPricing"),
+    en: t("signalPricing"),
+    actionEs: t("signalPricingAction"),
+    actionEn: t("signalPricingAction"),
+  },
+  trialExpired: {
+    es: t("trialExpired"),
+    en: t("trialExpired"),
+    actionEs: t("signalTrialExpiredAction"),
+    actionEn: t("signalTrialExpiredAction"),
+  },
+  trialEnding: {
+    es: t("trialEndingSoon"),
+    en: t("trialEndingSoon"),
+    actionEs: t("signalTrialEndingAction"),
+    actionEn: t("signalTrialEndingAction"),
+  },
+  owner: {
+    es: t("noOwnerContact"),
+    en: t("noOwnerContact"),
+    actionEs: t("signalOwnerAction"),
+    actionEn: t("signalOwnerAction"),
+  },
+  offer: {
+    es: t("noPlanModulesDefined"),
+    en: t("noPlanModulesDefined"),
+    actionEs: t("signalOfferAction"),
+    actionEn: t("signalOfferAction"),
+  },
+  adoption: {
+    es: t("noActiveUsersLabel"),
+    en: t("noActiveUsersLabel"),
+    actionEs: t("signalAdoptionAction"),
+    actionEn: t("signalAdoptionAction"),
+  },
+};
+
   const customerAccounts = companies.filter(isManagedCustomer);
   const attention = control?.attention ?? customerAccounts.filter(isCustomerAttentionAccount).length;
   const expiring = control?.expiring ?? customerAccounts.filter(isCustomerTrialEndingSoon).length;
@@ -102,33 +105,33 @@ export function CustomerControlCenter({
   const indicators = [
     {
       filter: "attention",
-      label: english ? "Critical review" : "Revisión crítica",
+      label: t("criticalReview"),
       value: attention,
-      hint: english ? "Billing or access" : "Cobro o acceso",
+      hint: t("billingOrAccess"),
       icon: CircleAlert,
       accent: "coral",
     },
     {
       filter: "expiring",
-      label: english ? "Trials ending" : "Pruebas por vencer",
+      label: t("trialsEnding"),
       value: expiring,
-      hint: english ? "Next 7 days" : "Próximos 7 días",
+      hint: t("nextSevenDays"),
       icon: Clock3,
       accent: "gold",
     },
     {
       filter: "no_offer",
-      label: english ? "Offer pending" : "Oferta pendiente",
+      label: t("offerPending"),
       value: withoutOffer,
-      hint: english ? "No plan or modules" : "Sin plan o módulos",
+      hint: t("noPlanModules"),
       icon: PackageSearch,
       accent: "blue",
     },
     {
       filter: "no_adoption",
-      label: english ? "No adoption" : "Sin adopción",
+      label: t("noAdoption"),
       value: withoutAdoption,
-      hint: english ? "No active users" : "Sin usuarios activos",
+      hint: t("noActiveUsersLabel"),
       icon: Rocket,
       accent: "mint",
     },
@@ -146,26 +149,20 @@ export function CustomerControlCenter({
           </span>
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.14em] text-[#177D66] dark:text-[#8FE0CA]">
-              {english ? "Portfolio command" : "Mando de cartera"}
+              {t("portfolioCommand")}
             </p>
             <h2 id="customer-control-title" className="mt-1 text-lg font-medium text-slate-950 dark:text-white">
-              {english ? "Decide what needs attention today" : "Decide qué cliente necesita atención hoy"}
+              {t("attentionToday")}
             </h2>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-              {english
-                ? "Priorities are calculated from real access, billing, trial and adoption data."
-                : "Las prioridades se calculan con datos reales de acceso, cobro, prueba y adopción."}
+              {t("priorityDataHelp")}
             </p>
           </div>
         </div>
         <span className="inline-flex w-fit items-center rounded-full bg-white px-3 py-1.5 text-xs font-medium text-[#176B5B] ring-1 ring-[#59C3A5]/35 dark:bg-slate-800 dark:text-[#8FE0CA]">
           {priorities.length
-            ? english
-              ? `${priorities.length} top priorities`
-              : `${priorities.length} prioridades principales`
-            : english
-              ? "Portfolio under control"
-              : "Cartera bajo control"}
+            ? t("topPriorities", { count: priorities.length })
+            : t("portfolioUnderControl")}
         </span>
       </div>
 
@@ -174,10 +171,10 @@ export function CustomerControlCenter({
           <div className="flex items-center justify-between gap-3 px-5 py-3">
             <div>
               <h3 className="text-sm font-medium text-slate-900 dark:text-white">
-                {english ? "Recommended next actions" : "Siguientes acciones recomendadas"}
+                {t("nextActions")}
               </h3>
               <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                {english ? "Highest-risk customers appear first." : "Los clientes con mayor riesgo aparecen primero."}
+                {t("highestRiskFirst")}
               </p>
             </div>
           </div>
@@ -186,7 +183,7 @@ export function CustomerControlCenter({
             <div className="divide-y divide-slate-100 border-t border-slate-100 dark:divide-slate-800 dark:border-slate-800">
               {priorities.map(({ company, signals }) => {
                 const primarySignal = signalCopy[signals[0]];
-                const responsible = company.distributor_company_name || (english ? "Indice team" : "Equipo Índice");
+                const responsible = company.distributor_company_name || (t("indiceTeam"));
                 return (
                   <button
                     type="button"
@@ -197,20 +194,20 @@ export function CustomerControlCenter({
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-medium text-slate-900 dark:text-white">{company.name}</span>
                       <span className="mt-0.5 block truncate text-xs text-slate-500 dark:text-slate-400">
-                        {english ? primarySignal.en : primarySignal.es}
-                        {signals.length > 1 ? ` · +${signals.length - 1}` : ""}
+                        {primarySignal.es}
+                        {signals.length > 1 ? ` · +${number(signals.length - 1)}` : ""}
                       </span>
                     </span>
                     <span className="min-w-0">
                       <span className="block truncate text-xs font-medium text-[#176B5B] dark:text-[#8FE0CA]">
-                        {english ? primarySignal.actionEn : primarySignal.actionEs}
+                        {primarySignal.actionEs}
                       </span>
                       <span className="mt-0.5 block truncate text-[11px] text-slate-400">
-                        {english ? "Responsible" : "Responsable"}: {responsible}
+                        {t("responsible")}: {responsible}
                       </span>
                     </span>
                     <span className="inline-flex items-center gap-1 text-xs font-medium text-[#177D66] opacity-80 transition group-hover:translate-x-0.5 group-hover:opacity-100 dark:text-[#8FE0CA]">
-                      {english ? "Review" : "Revisar"}
+                      {t("review")}
                       <ArrowRight className="h-3.5 w-3.5" />
                     </span>
                   </button>
@@ -220,10 +217,10 @@ export function CustomerControlCenter({
           ) : (
             <div className="border-t border-slate-100 px-5 py-8 text-center dark:border-slate-800">
               <p className="text-sm font-medium text-[#177D66] dark:text-[#8FE0CA]">
-                {english ? "No immediate operational risks." : "No hay riesgos operativos inmediatos."}
+                {t("noImmediateRisks")}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                {english ? "Continue monitoring adoption and upcoming renewals." : "Continúa monitoreando adopción y próximas renovaciones."}
+                {t("monitorRenewals")}
               </p>
             </div>
           )}
@@ -249,7 +246,7 @@ export function CustomerControlCenter({
                 <span className={`grid h-9 w-9 place-items-center rounded-xl ${accents[accent]}`}>
                   <Icon className="h-4 w-4" />
                 </span>
-                <span className="mt-3 block text-xl font-medium tabular-nums text-slate-950 dark:text-white">{value}</span>
+                <span className="mt-3 block text-xl font-medium tabular-nums text-slate-950 dark:text-white">{number(value)}</span>
                 <span className="mt-0.5 block text-xs font-medium text-slate-700 dark:text-slate-200">{label}</span>
                 <span className="mt-0.5 block text-[11px] text-slate-400">{hint}</span>
               </button>

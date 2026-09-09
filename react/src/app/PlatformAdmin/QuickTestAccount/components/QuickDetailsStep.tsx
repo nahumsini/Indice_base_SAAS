@@ -1,3 +1,5 @@
+import { useCustomerAccountCopy } from "../../Customers/useCustomerAccountCopy";
+import { countryLabel } from "../../flowOptions";
 import { ClipboardCheck, ShieldCheck } from "lucide-react";
 import {
   AccountField,
@@ -25,6 +27,7 @@ export function QuickDetailsStep({
   moduleCount: number;
   onChange: (patch: Partial<QuickTestDraft>) => void;
 }) {
+  const { locale } = useCustomerAccountCopy();
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800 sm:p-5">
       <AccountStepTitle
@@ -58,7 +61,7 @@ export function QuickDetailsStep({
           >
             {countryOptions.map((country) => (
               <option key={country.code} value={country.code}>
-                {country.label}
+                {countryLabel(country.code, locale)}
               </option>
             ))}
           </select>

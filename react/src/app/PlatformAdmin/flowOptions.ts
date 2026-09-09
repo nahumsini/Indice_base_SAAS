@@ -1,3 +1,6 @@
+import { getCatalogCopy, type CatalogCopy } from "./CatalogWorkspace/translations";
+
+// These existing values are persisted in account and audit records; localize only their display labels.
 export const countryOptions = [
   {
     code: "MX",
@@ -118,4 +121,71 @@ export const redemptionOptions = [1, 5, 10, 25, 50, 100] as const;
 
 export function countryOption(code: string) {
   return countryOptions.find((option) => option.code === code);
+}
+
+const optionTranslationKeys: Record<string, keyof CatalogCopy> = {
+  "Servicios profesionales": "industryProfessional",
+  "Consultoría empresarial": "industryConsulting",
+  "Servicios legales y contables": "industryLegal",
+  "Comercio y retail": "industryRetail",
+  "Comercio electrónico": "industryEcommerce",
+  "Hotelería y turismo": "industryHospitality",
+  "Restaurantes y alimentos": "industryRestaurants",
+  "Agricultura, ganadería y pesca": "industryAgriculture",
+  "Construcción e inmuebles": "industryConstruction",
+  "Arquitectura e ingeniería": "industryArchitecture",
+  "Manufactura": "industryManufacturing",
+  "Industria automotriz": "industryAutomotive",
+  "Aeroespacial y defensa": "industryAerospace",
+  "Alimentos y bebidas": "industryFood",
+  "Química y petroquímica": "industryChemical",
+  "Farmacéutica y biotecnología": "industryPharmaceutical",
+  "Textil, moda y calzado": "industryTextile",
+  "Minería y metalurgia": "industryMining",
+  "Energía y servicios públicos": "industryEnergy",
+  "Petróleo y gas": "industryOil",
+  "Manejo de residuos industriales": "industryWaste",
+  "Reciclaje y economía circular": "industryRecycling",
+  "Servicios ambientales": "industryEnvironmental",
+  "Organismos de certificación": "industryCertification",
+  "Salud": "industryHealth",
+  "Educación": "industryEducation",
+  "Transporte y logística": "industryLogistics",
+  "Tecnología": "industryTechnology",
+  "Telecomunicaciones": "industryTelecom",
+  "Banca y servicios financieros": "industryBanking",
+  "Seguros": "industryInsurance",
+  "Gobierno y sector público": "industryGovernment",
+  "Seguridad privada": "industrySecurity",
+  "Limpieza y mantenimiento": "industryCleaning",
+  "Medios y entretenimiento": "industryMedia",
+  "Organización sin fines de lucro": "industryNonprofit",
+  "Demostración comercial": "reasonDemo",
+  "Prueba controlada": "reasonControlledTrial",
+  "Promoción comercial": "reasonPromotion",
+  "Atención de soporte": "reasonSupport",
+  "Compensación autorizada": "reasonCompensation",
+  "Publicación planificada del módulo": "reasonModulePublication",
+  "Mantenimiento preventivo": "reasonMaintenance",
+  "Incidente operativo": "reasonIncident",
+  "Retiro temporal del producto": "reasonTemporaryRemoval",
+  "Cambio de estrategia comercial": "reasonStrategy",
+  "Acceso vencido": "reasonExpired",
+  "Solicitud del cliente": "reasonCustomerRequest",
+  "Corrección administrativa": "reasonCorrection",
+  "Código comprometido": "reasonCompromised",
+  "Concesión duplicada": "reasonDuplicate"
+};
+
+/** Keep the original option value in requests and stored records. */
+export function flowOptionLabel(value: string, languageCode: string): string {
+  const key = optionTranslationKeys[value];
+  return typeof key === "string" ? getCatalogCopy(languageCode)[key] : value;
+}
+
+export function countryLabel(code: string, languageCode: string): string {
+  const keys: Record<string, keyof CatalogCopy> = {
+    MX: "countryMX", CA: "countryCA", US: "countryUS", CO: "countryCO", BR: "countryBR",
+  };
+  return typeof keys[code] === "string" ? getCatalogCopy(languageCode)[keys[code]] : code;
 }

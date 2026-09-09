@@ -1,3 +1,9 @@
+import {
+  useOperationsCopy,
+  getOperationsCopy,
+  operationsNumber,
+  type OperationsLocale,
+} from "./OperationsTranslations";
 import { useMemo, useState, type ReactNode } from "react";
 import {
   Activity,
@@ -33,10 +39,10 @@ import { useLocalStorageState } from "../hooks/useLocalStorageState";
 const PLATFORM_ACTIVITY_CHART_STORAGE_KEY = "indice.platformAdmin.allActivity.chartMetrics.v2";
 
 const PLATFORM_ACTIVITY_CHART_METRICS = [
-  { key: "unique_active_users", color: "#059669", labelEn: "Active users", labelEs: "Usuarios activos" },
-  { key: "successful_logins", color: "#2563eb", labelEn: "Successful logins", labelEs: "Logins exitosos" },
-  { key: "failed_attempts", color: "#e11d48", labelEn: "Failed attempts", labelEs: "Intentos fallidos" },
-  { key: "total_events", color: "#f59e0b", labelEn: "Total auth events", labelEs: "Eventos totales" },
+  { key: "unique_active_users", color: "#059669", labelKey: "activeUsers" },
+  { key: "successful_logins", color: "#2563eb", labelKey: "successfulLogins" },
+  { key: "failed_attempts", color: "#e11d48", labelKey: "failedAttempts" },
+  { key: "total_events", color: "#f59e0b", labelKey: "totalAuthEvents" },
 ] as const;
 
 type PlatformActivityChartMetricKey = typeof PLATFORM_ACTIVITY_CHART_METRICS[number]["key"];
@@ -60,10 +66,11 @@ function normalizeChartMetrics(metrics: unknown): PlatformActivityChartMetricKey
   return deduped.length ? deduped : DEFAULT_PLATFORM_ACTIVITY_CHART_METRICS;
 }
 
-function chartMetricLabel(metricKey: string, english: boolean) {
+function chartMetricLabel(locale: OperationsLocale, metricKey: string, english: boolean) {
+  const copy = getOperationsCopy(locale);
   const metric = PLATFORM_ACTIVITY_CHART_METRICS.find((candidate) => candidate.key === metricKey);
   if (!metric) return metricKey;
-  return english ? metric.labelEn : metric.labelEs;
+  return copy[metric.labelKey];
 }
 
 export function AllCompanyActivityPanel({
@@ -81,6 +88,7 @@ export function AllCompanyActivityPanel({
   onLoadMore: () => void;
   onRefresh: () => void;
 }) {
+  const { copy, locale } = useOperationsCopy();
   const companyById = useMemo(() => new Map(companies.map((company) => [company.id, company])), [companies]);
   const [chartSettingsOpen, setChartSettingsOpen] = useState(false);
   const [storedChartMetrics, setStoredChartMetrics] = useLocalStorageState<PlatformActivityChartMetricKey[]>(
@@ -108,7 +116,7 @@ export function AllCompanyActivityPanel({
       <div className="grid min-h-80 place-items-center rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm">
         <div className="text-center">
           <LoaderCircle className="mx-auto mb-3 h-6 w-6 animate-spin text-blue-600" />
-          {english ? "Loading all company activity..." : "Cargando actividad de todas las empresas..."}
+          {copy.loadingAllCompanyActivity}
         </div>
       </div>
     );
@@ -118,14 +126,15 @@ export function AllCompanyActivityPanel({
     return (
       <div className="grid min-h-80 place-items-center rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-center text-sm text-slate-500 shadow-sm">
         <div>
-          <p>{english ? "All activity data is not loaded yet." : "La actividad general aun no esta cargada."}</p>
+          <p>{copy.allActivityDataIsNotLoadedYet}
+            </p>
           <button
             type="button"
             onClick={onRefresh}
             className="mt-4 inline-flex h-10 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
           >
             <RefreshCw className="h-4 w-4" />
-            {english ? "Load all activities" : "Cargar todas las actividades"}
+            {copy.loadAllActivities}
           </button>
         </div>
       </div>
@@ -135,8 +144,8 @@ export function AllCompanyActivityPanel({
   const chartHasData = activity.activity_buckets.some((bucket) => (
     visibleChartMetrics.some((metric) => Number(bucket[metric.key] ?? 0) > 0)
   ));
-  const serverLoad = formatServerLoad(activity.server.system_load_average, activity.server.available_processors, english);
-  const serverHint = `${english ? "Heap" : "Memoria"} ${formatBytes(activity.server.heap_used_bytes)} / ${formatBytes(activity.server.heap_max_bytes)}`;
+  const serverLoad = formatServerLoad(locale, activity.server.system_load_average, activity.server.available_processors, english);
+  const serverHint = `${copy.heap} ${formatBytes(locale, activity.server.heap_used_bytes)} / ${formatBytes(locale, activity.server.heap_max_bytes)}`;
 
   return (
     <section className="space-y-4">
@@ -148,12 +157,10 @@ export function AllCompanyActivityPanel({
             </span>
             <div className="min-w-0">
               <h3 className="text-base font-semibold text-slate-950">
-                {english ? "All activities" : "Todas las actividades"}
+                {copy.allActivities}
               </h3>
               <p className="mt-1 text-sm text-slate-600">
-                {english
-                  ? "Every company, active users, authentication trend, payments, and server load in one view."
-                  : "Todas las empresas, usuarios activos, tendencia de acceso, cobros y carga del servidor en una vista."}
+                {copy.everyCompanyActiveUsersAuthenticationTrendPayments}
               </p>
             </div>
           </div>
@@ -164,17 +171,17 @@ export function AllCompanyActivityPanel({
             className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-semibold text-blue-700 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            {english ? "Refresh" : "Actualizar"}
+            {copy.refresh}
           </button>
         </div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <SummaryCard icon={<Building2 className="h-4 w-4" />} label={english ? "Companies" : "Empresas"} value={activity.totals.companies} hint={english ? "Loaded from server" : "Cargadas del servidor"} tone="blue" />
-        <SummaryCard icon={<UsersRound className="h-4 w-4" />} label={english ? "Active users" : "Usuarios activos"} value={activity.totals.active_users} hint={`${activity.totals.active_now_users} ${english ? "active now" : "activos ahora"}`} tone="emerald" />
-        <SummaryCard icon={<Gauge className="h-4 w-4" />} label={english ? "Logged in today" : "Entraron hoy"} value={activity.totals.logged_in_users_24h} hint={`${activity.totals.auth_events_24h} ${english ? "auth events" : "eventos de acceso"}`} tone="violet" />
-        <SummaryCard icon={<ShieldAlert className="h-4 w-4" />} label={english ? "Failed attempts" : "Intentos fallidos"} value={activity.totals.failed_login_events_24h} hint={english ? "Last 24 hours" : "Ultimas 24 horas"} tone="rose" />
-        <SummaryCard icon={<Server className="h-4 w-4" />} label={english ? "Server load" : "Carga servidor"} value={serverLoad} hint={serverHint} tone="slate" textValue />
+        <SummaryCard icon={<Building2 className="h-4 w-4" />} label={copy.companies} value={activity.totals.companies} hint={copy.loadedFromServer} tone="blue" />
+        <SummaryCard icon={<UsersRound className="h-4 w-4" />} label={copy.activeUsers} value={activity.totals.active_users} hint={`${operationsNumber(activity.totals.active_now_users, locale)} ${copy.activeNow218}`} tone="emerald" />
+        <SummaryCard icon={<Gauge className="h-4 w-4" />} label={copy.loggedInToday} value={activity.totals.logged_in_users_24h} hint={`${operationsNumber(activity.totals.auth_events_24h, locale)} ${copy.authEvents}`} tone="violet" />
+        <SummaryCard icon={<ShieldAlert className="h-4 w-4" />} label={copy.failedAttempts} value={activity.totals.failed_login_events_24h} hint={copy.lastHours} tone="rose" />
+        <SummaryCard icon={<Server className="h-4 w-4" />} label={copy.serverLoad} value={serverLoad} hint={serverHint} tone="slate" textValue />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
@@ -186,10 +193,10 @@ export function AllCompanyActivityPanel({
               </span>
               <div>
                 <h4 className="text-sm font-semibold text-slate-950">
-                  {english ? "Platform activity trend" : "Tendencia de actividad"}
+                  {copy.platformActivityTrend}
                 </h4>
                 <p className="text-xs text-slate-500">
-                  {english ? "Hourly active users and authentication events in the last 24 hours." : "Usuarios activos por hora y eventos de acceso en las ultimas 24 horas."}
+                  {copy.hourlyActiveUsersAndAuthenticationEventsIn}
                 </p>
               </div>
             </div>
@@ -200,21 +207,21 @@ export function AllCompanyActivityPanel({
               aria-expanded={chartSettingsOpen}
             >
               <SlidersHorizontal className="h-4 w-4" />
-              {english ? "Customize" : "Personalizar"}
+              {copy.customize}
             </button>
           </div>
           {chartSettingsOpen ? (
             <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  {english ? "Metrics" : "Metricas"}
+                  {copy.metrics}
                 </p>
                 <button
                   type="button"
                   onClick={() => setStoredChartMetrics([...DEFAULT_PLATFORM_ACTIVITY_CHART_METRICS])}
                   className="text-xs font-semibold text-blue-700 hover:text-blue-800"
                 >
-                  {english ? "Reset" : "Restablecer"}
+                  {copy.reset}
                 </button>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -238,7 +245,7 @@ export function AllCompanyActivityPanel({
                         className="h-4 w-4 rounded border-slate-300 accent-blue-600"
                       />
                       <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: metric.color }} />
-                      {chartMetricLabel(metric.key, english)}
+                      {chartMetricLabel(locale, metric.key, english)}
                     </label>
                   );
                 })}
@@ -251,7 +258,7 @@ export function AllCompanyActivityPanel({
                 <LineChart data={activity.activity_buckets} margin={{ top: 12, right: 20, left: -18, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} />
+                  <YAxis tickFormatter={(value) => operationsNumber(Number(value), locale)} allowDecimals={false} tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} />
                   <Tooltip
                     cursor={{ stroke: "#94a3b8", strokeDasharray: "4 4", strokeWidth: 1 }}
                     contentStyle={{
@@ -259,13 +266,13 @@ export function AllCompanyActivityPanel({
                       borderRadius: 12,
                       boxShadow: "0 12px 30px rgba(15, 23, 42, 0.12)",
                     }}
-                    formatter={(value, name) => [value, chartMetricLabel(String(name), english)]}
+                    formatter={(value, name) => [operationsNumber(Number(value), locale), chartMetricLabel(locale, String(name), english)]}
                   />
                   <Legend
                     verticalAlign="top"
                     align="right"
                     wrapperStyle={{ fontSize: 12, paddingBottom: 12 }}
-                    formatter={(value) => chartMetricLabel(String(value), english)}
+                    formatter={(value) => chartMetricLabel(locale, String(value), english)}
                   />
                   {visibleChartMetrics.map((metric) => (
                     <Line
@@ -282,7 +289,7 @@ export function AllCompanyActivityPanel({
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <EmptyState label={english ? "No auth events in the last 24 hours." : "No hay eventos de acceso en las ultimas 24 horas."} />
+              <EmptyState label={copy.noAuthEventsInTheLastHours} />
             )}
           </div>
         </div>
@@ -292,14 +299,14 @@ export function AllCompanyActivityPanel({
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h4 className="text-sm font-semibold text-slate-950">
-                  {english ? "Latest activity" : "Actividad reciente"}
+                  {copy.latestActivity}
                 </h4>
                 <p className="mt-1 text-xs text-slate-500">
-                  {english ? "Recent events across all companies." : "Eventos recientes de todas las empresas."}
+                  {copy.recentEventsAcrossAllCompanies}
                 </p>
               </div>
               <span className="rounded-full border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-500">
-                {activity.recent_events.length.toLocaleString()} {english ? "shown" : "mostrados"}
+                {activity.recent_events.length.toLocaleString(locale)} {copy.shown}
               </span>
             </div>
           </div>
@@ -313,22 +320,22 @@ export function AllCompanyActivityPanel({
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="truncate text-sm font-semibold text-slate-900">
-                        {event.name || event.email || (english ? "Unknown user" : "Usuario desconocido")}
+                        {event.name || event.email || (copy.unknownUser)}
                       </p>
                       <OutcomeBadge outcome={event.outcome} english={english} />
                     </div>
                     <p className="mt-1 truncate text-xs text-slate-500">
-                      {event.company_name || (english ? "Unknown company" : "Empresa desconocida")} / {eventLabel(event.event_type, event.stage, english)}
+                      {event.company_name || (copy.unknownCompany)} / {eventLabel(locale, event.event_type, event.stage, english)}
                     </p>
                     <p className="mt-1 truncate text-xs text-slate-400">
-                      {formatDate(event.created_at)}{event.ip_address ? ` / ${event.ip_address}` : ""}
+                      {formatDate(locale, event.created_at)}{event.ip_address ? ` / ${event.ip_address}` : ""}
                     </p>
                   </div>
                 </div>
               </div>
             ))}
             {!activity.recent_events.length ? (
-              <EmptyState label={english ? "No recent activity." : "No hay actividad reciente."} compact />
+              <EmptyState label={copy.noRecentActivity} compact />
             ) : null}
           </div>
           {activity.recent_events_has_more ? (
@@ -340,7 +347,7 @@ export function AllCompanyActivityPanel({
                 className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                {english ? "Load more activity" : "Cargar mas actividad"}
+                {copy.loadMoreActivity}
               </button>
             </div>
           ) : null}
@@ -351,13 +358,20 @@ export function AllCompanyActivityPanel({
         <table className="min-w-[1120px] w-full text-left">
           <thead className="bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3">{english ? "Company" : "Empresa"}</th>
-              <th className="px-4 py-3">{english ? "Users" : "Usuarios"}</th>
-              <th className="px-4 py-3">{english ? "Active now" : "Activos ahora"}</th>
-              <th className="px-4 py-3">{english ? "Logged in 24h" : "Login 24h"}</th>
-              <th className="px-4 py-3">{english ? "Failed 24h" : "Fallos 24h"}</th>
-              <th className="px-4 py-3">{english ? "Payment coming" : "Proximo cobro"}</th>
-              <th className="px-4 py-3">{english ? "Status" : "Estado"}</th>
+              <th className="px-4 py-3">{copy.company}
+            </th>
+              <th className="px-4 py-3">{copy.users}
+            </th>
+              <th className="px-4 py-3">{copy.activeNow}
+            </th>
+              <th className="px-4 py-3">{copy.loggedInH}
+            </th>
+              <th className="px-4 py-3">{copy.failedH}
+            </th>
+              <th className="px-4 py-3">{copy.paymentComing}
+            </th>
+              <th className="px-4 py-3">{copy.status}
+            </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -367,7 +381,7 @@ export function AllCompanyActivityPanel({
           </tbody>
         </table>
         {!activity.companies.length ? (
-          <EmptyState label={english ? "No companies found." : "No se encontraron empresas."} compact />
+          <EmptyState label={copy.noCompaniesFound} compact />
         ) : null}
       </div>
     </section>
@@ -383,7 +397,8 @@ function CompanyActivityRow({
   company?: PlatformCompanySummary;
   english: boolean;
 }) {
-  const payment = paymentLabel(row, company, english);
+  const { copy, locale } = useOperationsCopy();
+  const payment = paymentLabel(locale, row, company, english);
   const attention = row.failed_login_events_24h > 0 || ["past_due", "unpaid", "failed", "uncollectible"].includes(
     String(company?.last_invoice_status || row.last_invoice_status || company?.last_payment_status || row.billing_status || "").toLowerCase(),
   );
@@ -394,12 +409,12 @@ function CompanyActivityRow({
         <p className="truncate text-xs text-slate-500">{row.owner_email || `#${row.company_id}`}</p>
       </td>
       <td className="px-4 py-3 text-sm text-slate-700">
-        <span className="font-semibold text-slate-950">{row.active_users}</span> / {row.total_users}
+        <span className="font-semibold text-slate-950">{operationsNumber(row.active_users, locale)}</span> / {operationsNumber(row.total_users, locale)}
       </td>
-      <td className="px-4 py-3 text-sm font-semibold text-slate-950">{row.active_now_users}</td>
-      <td className="px-4 py-3 text-sm font-semibold text-slate-950">{row.logged_in_users_24h}</td>
+      <td className="px-4 py-3 text-sm font-semibold text-slate-950">{operationsNumber(row.active_now_users, locale)}</td>
+      <td className="px-4 py-3 text-sm font-semibold text-slate-950">{operationsNumber(row.logged_in_users_24h, locale)}</td>
       <td className={`px-4 py-3 text-sm font-semibold ${row.failed_login_events_24h > 0 ? "text-rose-700" : "text-slate-950"}`}>
-        {row.failed_login_events_24h}
+        {operationsNumber(row.failed_login_events_24h, locale)}
       </td>
       <td className="px-4 py-3">
         <div className="flex items-start gap-2">
@@ -414,7 +429,7 @@ function CompanyActivityRow({
         <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
           attention ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"
         }`}>
-          {attention ? english ? "Needs review" : "Requiere revision" : english ? "Healthy" : "Saludable"}
+          {attention ? copy.needsReview : copy.healthy}
         </span>
       </td>
     </tr>
@@ -436,6 +451,7 @@ function SummaryCard({
   tone: "blue" | "emerald" | "rose" | "slate" | "violet";
   textValue?: boolean;
 }) {
+  const { locale } = useOperationsCopy();
   const toneClass = {
     blue: "bg-blue-50 text-blue-700",
     emerald: "bg-emerald-50 text-emerald-700",
@@ -448,7 +464,7 @@ function SummaryCard({
       <span className={`grid h-9 w-9 place-items-center rounded-xl ${toneClass}`}>{icon}</span>
       <p className="mt-3 text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
       <p className={`mt-1 truncate font-semibold text-slate-950 ${textValue ? "text-xl" : "text-2xl"}`}>
-        {typeof value === "number" ? value.toLocaleString() : value}
+        {typeof value === "number" ? value.toLocaleString(locale) : value}
       </p>
       <p className="mt-1 min-h-4 truncate text-xs text-slate-500">{hint}</p>
     </article>
@@ -456,6 +472,7 @@ function SummaryCard({
 }
 
 function EmptyState({ label, compact = false }: { label: string; compact?: boolean }) {
+
   return (
     <div className={`grid place-items-center rounded-xl border border-dashed border-slate-200 text-center text-sm text-slate-500 ${
       compact ? "min-h-24 p-4" : "min-h-32 p-4"
@@ -466,6 +483,7 @@ function EmptyState({ label, compact = false }: { label: string; compact?: boole
 }
 
 function OutcomeBadge({ outcome, english }: { outcome?: string | null; english: boolean }) {
+  const { copy } = useOperationsCopy();
   const normalized = (outcome ?? "").toUpperCase();
   const success = normalized === "SUCCESS";
   const blocked = normalized === "BLOCKED";
@@ -477,7 +495,7 @@ function OutcomeBadge({ outcome, english }: { outcome?: string | null; english: 
           ? "bg-amber-50 text-amber-700"
           : "bg-rose-50 text-rose-700"
     }`}>
-      {success ? english ? "Success" : "Exitoso" : blocked ? english ? "Blocked" : "Bloqueado" : english ? "Failed" : "Fallido"}
+      {success ? copy.success : blocked ? copy.blocked : copy.failed}
     </span>
   );
 }
@@ -489,27 +507,30 @@ function eventTone(outcome?: string | null) {
   return "bg-rose-50 text-rose-700";
 }
 
-function eventLabel(eventType?: string | null, stage?: string | null, english = true) {
+function eventLabel(locale: OperationsLocale, eventType?: string | null, stage?: string | null, english = true) {
+  const copy = getOperationsCopy(locale);
   const type = (eventType ?? "").toUpperCase();
   const eventStage = (stage ?? "").toUpperCase();
-  if (type === "MFA_VERIFY") return english ? "MFA verification" : "Verificacion MFA";
-  if (type === "SESSION_TIMEOUT") return english ? "Session timeout" : "Sesion expirada";
-  if (eventStage === "PASSWORD") return english ? "Password login" : "Login con contrasena";
-  return [eventType, stage].filter(Boolean).join(" / ") || (english ? "Authentication event" : "Evento de autenticacion");
+  if (type === "MFA_VERIFY") return copy.mfaVerification;
+  if (type === "SESSION_TIMEOUT") return copy.sessionTimeout;
+  if (eventStage === "PASSWORD") return copy.passwordLogin;
+  return [eventType, stage].filter(Boolean).join(" / ") || (copy.authenticationEvent);
 }
 
-function paymentLabel(row: PlatformAllCompanyActivityRow, company: PlatformCompanySummary | undefined, english: boolean) {
+function paymentLabel(locale: OperationsLocale, row: PlatformAllCompanyActivityRow, company: PlatformCompanySummary | undefined, english: boolean) {
+  const copy = getOperationsCopy(locale);
   const cents = company?.billing_amount_cents ?? row.last_invoice_due_cents ?? null;
   const currency = company?.billing_currency || row.billing_currency || company?.currency || "USD";
   const date = company?.current_period_ends_at || row.current_period_ends_at || company?.last_invoice_period_ends_at || row.last_invoice_period_ends_at;
   return {
-    amount: cents === null || cents === undefined ? english ? "Not configured" : "No configurado" : formatMoney(cents, currency, english),
-    date: date ? `${english ? "Next" : "Proximo"}: ${formatDate(date)}` : english ? "No billing date" : "Sin fecha de cobro",
+    amount: cents === null || cents === undefined ? copy.notConfigured : formatMoney(locale, cents, currency, english),
+    date: date ? `${copy.next}: ${formatDate(locale, date)}` : copy.noBillingDate,
   };
 }
 
-function formatMoney(value: number, currency: string, english: boolean) {
-  return new Intl.NumberFormat(english ? "en-US" : "es-MX", {
+function formatMoney(locale: OperationsLocale, value: number, currency: string, english: boolean) {
+  const copy = getOperationsCopy(locale);
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
     minimumFractionDigits: value % 100 === 0 ? 0 : 2,
@@ -517,21 +538,22 @@ function formatMoney(value: number, currency: string, english: boolean) {
   }).format(value / 100);
 }
 
-function formatServerLoad(load: number, processors: number, english: boolean) {
-  if (!Number.isFinite(load) || load < 0) return english ? "Unavailable" : "No disponible";
-  return `${load.toFixed(2)} / ${processors || 1}`;
+function formatServerLoad(locale: OperationsLocale, load: number, processors: number, english: boolean) {
+  const copy = getOperationsCopy(locale);
+  if (!Number.isFinite(load) || load < 0) return copy.unavailable;
+  return `${new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(load)} / ${operationsNumber(processors || 1, locale)}`;
 }
 
-function formatBytes(value: number) {
-  if (!Number.isFinite(value) || value <= 0) return "0 MB";
-  return `${Math.round(value / 1024 / 1024).toLocaleString()} MB`;
+function formatBytes(locale: OperationsLocale, value: number) {
+  return new Intl.NumberFormat(locale, { style: "unit", unit: "megabyte", unitDisplay: "short", maximumFractionDigits: 0 }).format(Number.isFinite(value) && value > 0 ? value / 1024 / 1024 : 0);
 }
 
-function formatDate(value?: string | null) {
-  if (!value) return "N/A";
+function formatDate(locale: OperationsLocale, value?: string | null) {
+  const copy = getOperationsCopy(locale);
+  if (!value) return copy.notAvailable;
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "N/A";
-  return date.toLocaleString(undefined, {
+  if (Number.isNaN(date.getTime())) return copy.notAvailable;
+  return date.toLocaleString(locale, {
     month: "short",
     day: "numeric",
     hour: "2-digit",

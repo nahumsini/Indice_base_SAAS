@@ -1,3 +1,11 @@
+import {
+  useOperationsCopy,
+  getOperationsCopy,
+  operationsText,
+  operationsNumber,
+  operationsStatus,
+  type OperationsLocale,
+} from "./OperationsTranslations";
 import type { ReactNode } from "react";
 import {
   BadgeCheck,
@@ -41,15 +49,16 @@ export function CompanyBusinessActivityPanel({
   english: boolean;
   loading: boolean;
 }) {
+  const { copy, locale } = useOperationsCopy();
   if (!company) return null;
   const activeUsers = activity?.totals.active_users ?? company.active_members ?? 0;
   const loggedInToday = activity?.totals.logged_in_users_24h ?? 0;
   const failedAttempts = activity?.totals.failed_login_events_24h ?? 0;
   const successEvents = activity?.activity_buckets.reduce((sum, bucket) => sum + bucket.successful_logins, 0) ?? 0;
   const activityRate = activeUsers > 0 ? Math.round((loggedInToday / activeUsers) * 100) : 0;
-  const paymentAmount = formatMoney(company.billing_amount_cents, company.billing_currency || company.currency || "USD", english);
-  const paymentDate = paymentDateLabel(company, english);
-  const commercialStatus = companyStatusLabel(company, english);
+  const paymentAmount = formatMoney(locale, company.billing_amount_cents, company.billing_currency || company.currency || "USD", english);
+  const paymentDate = paymentDateLabel(locale, company, english);
+  const commercialStatus = companyStatusLabel(locale, company, english);
   const attention = failedAttempts > 0 ||
     ["past_due", "unpaid", "failed"].includes(String(company.last_invoice_status || company.last_payment_status || "").toLowerCase());
 
@@ -58,52 +67,48 @@ export function CompanyBusinessActivityPanel({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h4 className="text-sm font-semibold text-slate-950">
-            {english ? "Company activity overview" : "Resumen de actividad de empresa"}
+            {copy.companyActivityOverview}
           </h4>
           <p className="mt-1 text-xs text-slate-500">
-            {english
-              ? "Operational activity, billing signal, and company trend for the selected company."
-              : "Actividad operativa, senal de cobro y tendencia de la empresa seleccionada."}
+            {copy.operationalActivityBillingSignalAndCompanyTrend}
           </p>
         </div>
         <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
           attention ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"
         }`}>
-          {attention ? english ? "Needs review" : "Requiere revision" : english ? "Healthy" : "Saludable"}
+          {attention ? copy.needsReview : copy.healthy}
         </span>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <OverviewCard
           icon={<UsersRound className="h-4 w-4" />}
-          label={english ? "Active users" : "Usuarios activos"}
-          value={activeUsers.toLocaleString()}
-          hint={english ? "Users enabled in this company" : "Usuarios habilitados en esta empresa"}
+          label={copy.activeUsers}
+          value={activeUsers.toLocaleString(locale)}
+          hint={copy.usersEnabledInThisCompany}
           tone="emerald"
         />
         <OverviewCard
           icon={<TrendingUp className="h-4 w-4" />}
-          label={english ? "Company trend" : "Tendencia"}
-          value={loading && !activity ? "..." : `${activityRate}%`}
-          hint={english
-            ? `${loggedInToday} active users logged in, ${successEvents} successful events`
-            : `${loggedInToday} usuarios entraron, ${successEvents} eventos exitosos`}
+          label={copy.companyTrend}
+          value={loading && !activity ? "..." : new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 0 }).format(activityRate / 100)}
+          hint={operationsText(copy.valueActiveUsersLoggedInValueSuccessful, { value0: loggedInToday, value1: successEvents }, locale)}
           tone="blue"
         />
         <OverviewCard
           icon={<CreditCard className="h-4 w-4" />}
-          label={english ? "Payment coming" : "Proximo cobro"}
+          label={copy.paymentComing}
           value={paymentAmount}
           hint={paymentDate}
           tone="violet"
         />
         <OverviewCard
           icon={<Gauge className="h-4 w-4" />}
-          label={english ? "Company health" : "Salud de empresa"}
+          label={copy.companyHealth}
           value={commercialStatus}
           hint={failedAttempts
-            ? english ? `${failedAttempts} failed login attempts in 24h` : `${failedAttempts} intentos fallidos en 24h`
-            : english ? "No failed login attempts in 24h" : "Sin intentos fallidos en 24h"}
+            ? operationsText(copy.valueFailedLoginAttemptsInH, { value0: failedAttempts }, locale)
+            : copy.noFailedLoginAttemptsInH}
           tone={attention ? "rose" : "slate"}
         />
       </div>
@@ -111,18 +116,18 @@ export function CompanyBusinessActivityPanel({
       <div className="grid gap-3 md:grid-cols-3">
         <SmallSignal
           icon={<BadgeCheck className="h-4 w-4" />}
-          label={english ? "Billing status" : "Estado de cobro"}
-          value={company.billing_status || company.last_invoice_status || "N/A"}
+          label={copy.billingStatus}
+          value={operationsStatus(company.billing_status || company.last_invoice_status, locale)}
         />
         <SmallSignal
           icon={<CalendarClock className="h-4 w-4" />}
-          label={english ? "Cycle" : "Ciclo"}
-          value={cycleLabel(company, english)}
+          label={copy.cycle}
+          value={cycleLabel(locale, company, english)}
         />
         <SmallSignal
           icon={<ShieldCheck className="h-4 w-4" />}
-          label={english ? "Access mode" : "Modo de acceso"}
-          value={company.access_mode || company.lifecycle_state || "N/A"}
+          label={copy.accessMode}
+          value={operationsStatus(company.access_mode || company.lifecycle_state, locale)}
         />
       </div>
     </div>
@@ -138,11 +143,12 @@ export function ActivityPanel({
   english: boolean;
   loading: boolean;
 }) {
+  const { copy, locale } = useOperationsCopy();
   if (loading && !activity) {
-    return <PanelLoader label={english ? "Loading activity..." : "Cargando actividad..."} />;
+    return <PanelLoader label={copy.loadingActivity} />;
   }
   if (!activity) {
-    return <EmptyPanel label={english ? "No activity data is available." : "No hay datos de actividad."} />;
+    return <EmptyPanel label={copy.noActivityDataIsAvailable} />;
   }
   const totals = activity.totals;
   const chartHasData = activity.activity_buckets.some((item) => item.total_events > 0);
@@ -151,30 +157,30 @@ export function ActivityPanel({
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           icon={<UserCheck className="h-4 w-4" />}
-          label={english ? "Active users" : "Usuarios activos"}
+          label={copy.activeUsers}
           value={totals.active_users}
-          hint={english ? "Active company members" : "Miembros activos de la empresa"}
+          hint={copy.activeCompanyMembers}
           tone="emerald"
         />
         <MetricCard
           icon={<Clock3 className="h-4 w-4" />}
-          label={english ? "Active now" : "Activos ahora"}
+          label={copy.activeNow}
           value={totals.active_now_users}
-          hint={english ? `Last ${activity.activity_window_minutes} minutes` : `Ultimos ${activity.activity_window_minutes} minutos`}
+          hint={operationsText(copy.lastValueMinutes, { value0: activity.activity_window_minutes }, locale)}
           tone="blue"
         />
         <MetricCard
           icon={<LogIn className="h-4 w-4" />}
-          label={english ? "Logged in today" : "Con login hoy"}
+          label={copy.loggedInToday}
           value={totals.logged_in_users_24h}
-          hint={english ? "Unique users in 24h" : "Usuarios unicos en 24h"}
+          hint={copy.uniqueUsersInH}
           tone="violet"
         />
         <MetricCard
           icon={<ShieldAlert className="h-4 w-4" />}
-          label={english ? "Failed attempts" : "Intentos fallidos"}
+          label={copy.failedAttempts}
           value={totals.failed_login_events_24h}
-          hint={english ? "Last 24 hours" : "Ultimas 24 horas"}
+          hint={copy.lastHours}
           tone="rose"
         />
       </div>
@@ -187,12 +193,10 @@ export function ActivityPanel({
             </span>
             <div>
               <h4 className="text-sm font-semibold text-slate-950">
-                {english ? "Login activity by hour" : "Actividad de login por hora"}
+                {copy.loginActivityByHour}
               </h4>
               <p className="text-xs text-slate-500">
-                {english
-                  ? "Successful and failed authentication events over the last 24 hours."
-                  : "Eventos exitosos y fallidos de autenticacion en las ultimas 24 horas."}
+                {copy.successfulAndFailedAuthenticationEventsOverThe}
               </p>
             </div>
           </div>
@@ -202,14 +206,14 @@ export function ActivityPanel({
                 <BarChart data={activity.activity_buckets} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} />
+                  <YAxis tickFormatter={(value) => operationsNumber(Number(value), locale)} allowDecimals={false} tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} />
                   <Tooltip
                     cursor={{ fill: "#f8fafc" }}
                     formatter={(value, name) => [
-                      value,
+                      operationsNumber(Number(value), locale),
                       name === "successful_logins"
-                        ? english ? "Successful logins" : "Logins exitosos"
-                        : english ? "Failed attempts" : "Intentos fallidos",
+                        ? copy.successfulLogins
+                        : copy.failedAttempts,
                     ]}
                   />
                   <Bar dataKey="successful_logins" fill="#2563eb" radius={[6, 6, 0, 0]} />
@@ -218,7 +222,7 @@ export function ActivityPanel({
               </ResponsiveContainer>
             ) : (
               <EmptyPanel
-                label={english ? "No login events in the last 24 hours." : "No hay eventos de login en las ultimas 24 horas."}
+                label={copy.noLoginEventsInTheLastHours}
                 compact
               />
             )}
@@ -228,12 +232,10 @@ export function ActivityPanel({
         <div className="rounded-2xl border border-slate-200 bg-white">
           <div className="border-b border-slate-100 p-4">
             <h4 className="text-sm font-semibold text-slate-950">
-              {english ? "Recent auth events" : "Eventos recientes"}
+              {copy.recentAuthEvents}
             </h4>
             <p className="mt-1 text-xs text-slate-500">
-              {english
-                ? "Latest successful, failed, blocked, and session timeout events."
-                : "Ultimos eventos exitosos, fallidos, bloqueados y de sesion."}
+              {copy.latestSuccessfulFailedBlockedAndSessionTimeout}
             </p>
           </div>
           <div className="max-h-72 divide-y divide-slate-100 overflow-y-auto">
@@ -246,23 +248,23 @@ export function ActivityPanel({
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="truncate text-sm font-semibold text-slate-900">
-                        {event.name || event.email || (english ? "Unknown user" : "Usuario desconocido")}
+                        {event.name || event.email || (copy.unknownUser)}
                       </p>
                       <OutcomeBadge outcome={event.outcome} english={english} />
                     </div>
                     <p className="mt-1 text-xs text-slate-500">
-                      {eventLabel(event.event_type, event.stage, english)}
+                      {eventLabel(locale, event.event_type, event.stage, english)}
                       {event.failure_reason_code ? ` / ${event.failure_reason_code}` : ""}
                     </p>
                     <p className="mt-1 truncate text-xs text-slate-400">
-                      {formatDate(event.created_at)}{event.ip_address ? ` / ${event.ip_address}` : ""}
+                      {formatDate(locale, event.created_at)}{event.ip_address ? ` / ${event.ip_address}` : ""}
                     </p>
                   </div>
                 </div>
               </div>
             ))}
             {!activity.recent_events.length ? (
-              <EmptyPanel label={english ? "No recent auth events." : "No hay eventos recientes."} compact />
+              <EmptyPanel label={copy.noRecentAuthEvents} compact />
             ) : null}
           </div>
         </div>
@@ -280,11 +282,12 @@ export function LifecyclePanel({
   english: boolean;
   loading: boolean;
 }) {
+  const { copy, locale } = useOperationsCopy();
   if (loading && !activity) {
-    return <PanelLoader label={english ? "Loading users..." : "Cargando usuarios..."} />;
+    return <PanelLoader label={copy.loadingUsers} />;
   }
   if (!activity) {
-    return <EmptyPanel label={english ? "No user lifecycle data is available." : "No hay datos de usuarios."} />;
+    return <EmptyPanel label={copy.noUserLifecycleDataIsAvailable} />;
   }
   const newUsers = activity.members.filter((member) => member.new_user);
   const oldUsers = activity.members.filter((member) => !member.new_user);
@@ -295,23 +298,23 @@ export function LifecyclePanel({
       <div className="grid gap-3 md:grid-cols-3">
         <MetricCard
           icon={<UserPlus className="h-4 w-4" />}
-          label={english ? "New users" : "Usuarios nuevos"}
+          label={copy.newUsers}
           value={newUsers.length}
-          hint={english ? `Joined in ${activity.new_user_window_days} days` : `Agregados en ${activity.new_user_window_days} dias`}
+          hint={operationsText(copy.joinedInValueDays, { value0: activity.new_user_window_days }, locale)}
           tone="blue"
         />
         <MetricCard
           icon={<UsersRound className="h-4 w-4" />}
-          label={english ? "Existing users" : "Usuarios antiguos"}
+          label={copy.existingUsers}
           value={oldUsers.length}
-          hint={english ? "Older than the new-user window" : "Fuera de la ventana de nuevos"}
+          hint={copy.olderThanTheNewUserWindow}
           tone="slate"
         />
         <MetricCard
           icon={<ShieldCheck className="h-4 w-4" />}
-          label="Platform Root"
+          label={copy.platformRoot}
           value={activity.totals.platform_roots}
-          hint={english ? "Users with platform-level access" : "Usuarios con acceso de plataforma"}
+          hint={copy.usersWithPlatformLevelAccess}
           tone="violet"
         />
       </div>
@@ -320,14 +323,14 @@ export function LifecyclePanel({
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <h4 className="text-sm font-semibold text-slate-950">
-              {english ? "User age mix" : "Mezcla de usuarios"}
+              {copy.userAgeMix}
             </h4>
             <p className="mt-1 text-xs text-slate-500">
-              {english ? "New users are defined by membership creation date." : "Los usuarios nuevos se definen por la fecha de alta."}
+              {copy.newUsersAreDefinedByMembershipCreation}
             </p>
           </div>
           <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-            {newPercent}% {english ? "new" : "nuevo"}
+            {new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 0 }).format(newPercent / 100)} {copy.new}
           </span>
         </div>
         <div className="h-3 overflow-hidden rounded-full bg-slate-100">
@@ -339,11 +342,16 @@ export function LifecyclePanel({
         <table className="min-w-[780px] w-full text-left">
           <thead className="bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3">{english ? "User" : "Usuario"}</th>
-              <th className="px-4 py-3">{english ? "Lifecycle" : "Ciclo"}</th>
-              <th className="px-4 py-3">{english ? "Joined" : "Alta"}</th>
-              <th className="px-4 py-3">{english ? "Last login" : "Ultimo login"}</th>
-              <th className="px-4 py-3">{english ? "24h failures" : "Fallos 24h"}</th>
+              <th className="px-4 py-3">{copy.user}
+            </th>
+              <th className="px-4 py-3">{copy.lifecycle}
+            </th>
+              <th className="px-4 py-3">{copy.joined}
+            </th>
+              <th className="px-4 py-3">{copy.lastLogin}
+            </th>
+              <th className="px-4 py-3">{copy.hFailures}
+            </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -357,12 +365,12 @@ export function LifecyclePanel({
                   <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
                     member.new_user ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"
                   }`}>
-                    {member.new_user ? english ? "New" : "Nuevo" : english ? "Existing" : "Antiguo"}
+                    {member.new_user ? copy.new194 : copy.existing}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-sm text-slate-600">{formatDate(member.created_at)}</td>
-                <td className="px-4 py-3 text-sm text-slate-600">{formatDate(member.last_login_at)}</td>
-                <td className="px-4 py-3 text-sm font-semibold text-slate-900">{member.failed_login_events_24h}</td>
+                <td className="px-4 py-3 text-sm text-slate-600">{formatDate(locale, member.created_at)}</td>
+                <td className="px-4 py-3 text-sm text-slate-600">{formatDate(locale, member.last_login_at)}</td>
+                <td className="px-4 py-3 text-sm font-semibold text-slate-900">{operationsNumber(member.failed_login_events_24h, locale)}</td>
               </tr>
             ))}
           </tbody>
@@ -385,6 +393,7 @@ function OverviewCard({
   hint: string;
   tone: "blue" | "emerald" | "rose" | "slate" | "violet";
 }) {
+
   const toneClass = {
     blue: "bg-blue-50 text-blue-700",
     emerald: "bg-emerald-50 text-emerald-700",
@@ -411,6 +420,7 @@ function SmallSignal({
   label: string;
   value: string;
 }) {
+  const { locale } = useOperationsCopy();
   return (
     <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-slate-600">
@@ -418,7 +428,7 @@ function SmallSignal({
       </span>
       <div className="min-w-0">
         <p className="text-xs text-slate-500">{label}</p>
-        <p className="truncate text-sm font-semibold text-slate-900">{humanize(value)}</p>
+        <p className="truncate text-sm font-semibold text-slate-900">{humanize(locale, value)}</p>
       </div>
     </div>
   );
@@ -437,6 +447,7 @@ function MetricCard({
   hint: string;
   tone: "blue" | "emerald" | "rose" | "slate" | "violet";
 }) {
+  const { locale } = useOperationsCopy();
   const toneClass = {
     blue: "bg-blue-50 text-blue-700",
     emerald: "bg-emerald-50 text-emerald-700",
@@ -448,13 +459,14 @@ function MetricCard({
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <span className={`grid h-9 w-9 place-items-center rounded-xl ${toneClass}`}>{icon}</span>
       <p className="mt-3 text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-slate-950">{value.toLocaleString()}</p>
+      <p className="mt-1 text-2xl font-semibold text-slate-950">{value.toLocaleString(locale)}</p>
       <p className="mt-1 text-xs text-slate-500">{hint}</p>
     </div>
   );
 }
 
 function PanelLoader({ label }: { label: string }) {
+
   return (
     <div className="grid min-h-80 place-items-center p-6 text-sm text-slate-500">
       <div className="text-center">
@@ -466,6 +478,7 @@ function PanelLoader({ label }: { label: string }) {
 }
 
 function EmptyPanel({ label, compact = false }: { label: string; compact?: boolean }) {
+
   return (
     <div className={`grid place-items-center rounded-xl border border-dashed border-slate-200 text-center text-sm text-slate-500 ${
       compact ? "min-h-32 p-4" : "min-h-80 p-6"
@@ -476,6 +489,7 @@ function EmptyPanel({ label, compact = false }: { label: string; compact?: boole
 }
 
 function OutcomeBadge({ outcome, english }: { outcome?: string | null; english: boolean }) {
+  const { copy } = useOperationsCopy();
   const normalized = (outcome ?? "").toUpperCase();
   const success = normalized === "SUCCESS";
   const blocked = normalized === "BLOCKED";
@@ -487,7 +501,7 @@ function OutcomeBadge({ outcome, english }: { outcome?: string | null; english: 
           ? "bg-amber-50 text-amber-700"
           : "bg-rose-50 text-rose-700"
     }`}>
-      {success ? english ? "Success" : "Exitoso" : blocked ? english ? "Blocked" : "Bloqueado" : english ? "Failed" : "Fallido"}
+      {success ? copy.success : blocked ? copy.blocked : copy.failed}
     </span>
   );
 }
@@ -499,20 +513,22 @@ function eventTone(outcome?: string | null) {
   return "bg-rose-50 text-rose-700";
 }
 
-function eventLabel(eventType?: string | null, stage?: string | null, english = true) {
+function eventLabel(locale: OperationsLocale, eventType?: string | null, stage?: string | null, english = true) {
+  const copy = getOperationsCopy(locale);
   const type = (eventType ?? "").toUpperCase();
   const eventStage = (stage ?? "").toUpperCase();
-  if (type === "MFA_VERIFY") return english ? "MFA verification" : "Verificacion MFA";
-  if (type === "SESSION_TIMEOUT") return english ? "Session timeout" : "Sesion expirada";
-  if (eventStage === "PASSWORD") return english ? "Password login" : "Login con contrasena";
-  return [eventType, stage].filter(Boolean).join(" / ") || (english ? "Authentication event" : "Evento de autenticacion");
+  if (type === "MFA_VERIFY") return copy.mfaVerification;
+  if (type === "SESSION_TIMEOUT") return copy.sessionTimeout;
+  if (eventStage === "PASSWORD") return copy.passwordLogin;
+  return [eventType, stage].filter(Boolean).join(" / ") || (copy.authenticationEvent);
 }
 
-function formatDate(value?: string | null) {
-  if (!value) return "N/A";
+function formatDate(locale: OperationsLocale, value?: string | null) {
+  const copy = getOperationsCopy(locale);
+  if (!value) return copy.notAvailable;
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "N/A";
-  return date.toLocaleString(undefined, {
+  if (Number.isNaN(date.getTime())) return copy.notAvailable;
+  return date.toLocaleString(locale, {
     month: "short",
     day: "numeric",
     hour: "2-digit",
@@ -520,45 +536,50 @@ function formatDate(value?: string | null) {
   });
 }
 
-function formatMoney(value?: number | null, currency = "USD", english = true) {
-  if (value === null || value === undefined) return english ? "Not configured" : "No configurado";
-  return new Intl.NumberFormat(english ? "en-US" : "es-MX", {
+function formatMoney(locale: OperationsLocale, value?: number | null, currency = "USD", english = true) {
+  const copy = getOperationsCopy(locale);
+  if (value === null || value === undefined) return copy.notConfigured;
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
     maximumFractionDigits: 0,
   }).format(value / 100);
 }
 
-function paymentDateLabel(company: PlatformCompanySummary, english: boolean) {
+function paymentDateLabel(locale: OperationsLocale, company: PlatformCompanySummary, english: boolean) {
+  const copy = getOperationsCopy(locale);
   const date = company.current_period_ends_at || company.last_invoice_period_ends_at || company.trial_ends_at;
   if (!date) {
     return company.billing_amount_kind === "UNAVAILABLE"
-      ? english ? "Billing is not configured" : "Cobro no configurado"
-      : english ? "Billing date unavailable" : "Fecha de cobro no disponible";
+      ? copy.billingIsNotConfigured
+      : copy.billingDateUnavailable;
   }
   const prefix = company.trial_ends_at === date
-    ? english ? "Trial ends" : "Prueba termina"
-    : english ? "Next billing date" : "Proxima fecha de cobro";
-  return `${prefix}: ${formatDate(date)}`;
+    ? copy.trialEnds
+    : copy.nextBillingDate;
+  return `${prefix}: ${formatDate(locale, date)}`;
 }
 
-function companyStatusLabel(company: PlatformCompanySummary, english: boolean) {
+function companyStatusLabel(locale: OperationsLocale, company: PlatformCompanySummary, english: boolean) {
+  const copy = getOperationsCopy(locale);
   const raw = company.lifecycle_state || company.billing_status || company.last_payment_status || company.last_invoice_status;
-  if (!raw) return english ? "Unknown" : "Desconocido";
-  return humanize(raw);
+  if (!raw) return copy.unknown;
+  return operationsStatus(raw, locale);
 }
 
-function cycleLabel(company: PlatformCompanySummary, english: boolean) {
+function cycleLabel(locale: OperationsLocale, company: PlatformCompanySummary, english: boolean) {
+  const copy = getOperationsCopy(locale);
   const interval = company.billing_amount_interval || company.billing_interval;
-  if (!interval) return english ? "No billing cycle" : "Sin ciclo de cobro";
+  if (!interval) return copy.noBillingCycle;
   const normalized = interval.toUpperCase();
-  if (normalized === "YEAR") return english ? "Annual" : "Anual";
-  if (normalized === "MONTH") return english ? "Monthly" : "Mensual";
-  return humanize(interval);
+  if (normalized === "YEAR") return copy.annual;
+  if (normalized === "MONTH") return copy.monthly;
+  return humanize(locale, interval);
 }
 
-function humanize(value?: string | null) {
-  if (!value) return "N/A";
+function humanize(locale: OperationsLocale, value?: string | null) {
+  const copy = getOperationsCopy(locale);
+  if (!value) return copy.notAvailable;
   return value
     .replace(/_/g, " ")
     .toLowerCase()

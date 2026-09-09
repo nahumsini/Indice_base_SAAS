@@ -1,20 +1,23 @@
 import type { ModuleWorkOrderCopy } from "./types";
 export const copy: ModuleWorkOrderCopy = {
-  eyebrow: "Arquitetura frontend",
-  title: "Criar ordem de trabalho do módulo",
+  eyebrow: "Catálogo de módulos",
+  title: "Solicitar novo módulo",
   description:
-    "Defina a solicitação. Nenhum arquivo, rota ou regra de acesso será alterado.",
+    "Cadastre uma nova função para revisão antes de incluí-la na oferta comercial.",
   cancel: "Cancelar",
-  create: "Criar ordem",
+  create: "Criar solicitação",
   name: "Nome do módulo",
-  namePlaceholder: "Controle de Qualidade",
-  locale: "Idioma de configuração inicial",
+  namePlaceholder: "Controle de qualidade",
+  locale: "Idioma inicial",
   guidance:
-    "A ordem inclui nome técnico em inglês, slug, rota e os oito locales obrigatórios.",
-  sectionTitle: "Ordens de trabalho de módulos",
+    "A solicitação ficará pendente. Quando o módulo estiver pronto, poderá ser ativado e adicionado aos produtos e preços.",
+  sectionTitle: "Solicitações de novos módulos",
   sectionDescription:
-    "Solicitações frontend aguardando revisão e implementação.",
-  draft: "Rascunho",
-  remove: "Remover",
-  add: "Adicionar módulo",
+    "Novas funções aguardando revisão e inclusão na Indice.",
+  draft: "Pendente",
+  remove: "Cancelar solicitação",
+  add: "Solicitar novo módulo",
+  loadError: "Não foi possível carregar as solicitações de módulos. Atualize e tente novamente.",
+  createError: "Não foi possível criar a solicitação de módulo. Tente novamente.",
+  removeError: "Não foi possível cancelar a solicitação de módulo. Atualize e tente novamente.",
 };

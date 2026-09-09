@@ -1,3 +1,4 @@
+import { useCustomerAccountCopy } from "./Customers/useCustomerAccountCopy";
 import { Box, Building2, Gift, Users } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
@@ -19,11 +20,11 @@ import { initials } from "./CompanyAccount/companyAccountUtils";
 
 export type CompanyAccountTab = "overview" | "modules" | "activity" | "access";
 
-const accountTabs = [
-  { id: "overview" as const, label: "Cuenta", icon: <Building2 className="h-4 w-4" /> },
-  { id: "modules" as const, label: "Módulos", icon: <Box className="h-4 w-4" /> },
-  { id: "activity" as const, label: "Usuarios y facturación", icon: <Users className="h-4 w-4" /> },
-  { id: "access" as const, label: "Accesos", icon: <Gift className="h-4 w-4" /> },
+const getAccountTabs = (t: ReturnType<typeof useCustomerAccountCopy>["t"]) => [
+  { id: "overview" as const, label: t("account"), icon: <Building2 className="h-4 w-4" /> },
+  { id: "modules" as const, label: t("modules"), icon: <Box className="h-4 w-4" /> },
+  { id: "activity" as const, label: t("usersBilling"), icon: <Users className="h-4 w-4" /> },
+  { id: "access" as const, label: t("accesses"), icon: <Gift className="h-4 w-4" /> },
 ];
 
 export interface CompanyAccountDrawerProps {
@@ -65,6 +66,7 @@ export function CompanyAccountDrawer({
   initialTab = "overview",
   userApi,
 }: CompanyAccountDrawerProps) {
+  const { t, locale, number } = useCustomerAccountCopy();
   const [tab, setTab] = useState<CompanyAccountTab>(initialTab);
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
   const contentTopRef = useRef<HTMLDivElement | null>(null);
@@ -122,12 +124,12 @@ export function CompanyAccountDrawer({
   const availableSeats = Math.max(capacity - activeUserCount - reservedUserCount, 0);
   const billingStatus = company.billing_status?.toUpperCase();
   const accessLabel = billingStatus === "TRIALING"
-    ? `Prueba Stripe${company.trial_ends_at ? ` · hasta ${new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short", year: "numeric" }).format(new Date(company.trial_ends_at))}` : ""}`
+    ? `${t("stripeTrial")}${company.trial_ends_at ? ` · ${t("untilDate", { date: new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(new Date(company.trial_ends_at)) })}` : ""}`
     : company.stripe_subscription_id
-      ? "Suscripción Stripe"
+      ? t("stripeSubscription")
       : company.active_benefits > 0
-        ? "Acceso administrativo"
-        : "Sin acceso comercial";
+        ? t("adminAccess")
+        : t("noCommercialAccess");
 
   if (adjustmentOpen) {
     return (
@@ -156,9 +158,9 @@ export function CompanyAccountDrawer({
       onOpenChange={(nextOpen) => {
         if (!nextOpen) onClose();
       }}
-      eyebrow="Cuenta de cliente"
+      eyebrow={t("customerAccount")}
       title={company.name}
-      description={`${company.owner_email || "Sin correo propietario"} · Empresa #${company.id}`}
+      description={`${company.owner_email || t("noOwnerEmail")} · ${t("companyId", { id: String(company.id) })}`}
       icon={
         <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/15 text-sm font-medium text-white">
           {initials(company.name)}
@@ -168,18 +170,17 @@ export function CompanyAccountDrawer({
       tone="aqua"
       bodyClassName="bg-slate-50/70 p-0 dark:bg-slate-950/40"
       contentClassName="sm:w-[96vw] sm:max-w-[96rem] sm:max-h-[90dvh]"
-      footerSummary={`${activeProducts.size} módulo(s) activo(s) · ${activeUserCount} activo(s)${reservedUserCount ? ` + ${reservedUserCount} reservado(s)` : ""} de ${capacity} lugares`}
+      footerSummary={`${t("modulesSummary", { count: activeProducts.size })} · ${t("seatSummary", { active: activeUserCount, reserved: reservedUserCount, capacity })}`}
       footer={
         <button type="button" className="cursor-pointer" onClick={() => onClose()}>
-          Cerrar
-        </button>
+          {t("close")}</button>
       }
     >
       <div ref={contentTopRef} />
       <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur dark:border-slate-700 dark:bg-slate-900/95 sm:px-5">
         <IndiceWorkspaceNavigation<CompanyAccountTab>
-          ariaLabel="Secciones de la cuenta"
-          items={accountTabs}
+          ariaLabel={t("accountSections")}
+          items={getAccountTabs(t)}
           value={tab}
           onValueChange={selectTab}
           tone="aqua"

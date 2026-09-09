@@ -1,3 +1,5 @@
+import { useCustomerAccountCopy } from "../../Customers/useCustomerAccountCopy";
+import { catalogProductLabel } from "../../CatalogWorkspace/catalogLabels";
 import {
   BadgeCheck,
   Check,
@@ -19,6 +21,8 @@ export function AccountCreationSuccess({
   created: CreatedAccountAccess;
   copy: AccountCreationCopy;
 }) {
+  const { locale } = useCustomerAccountCopy();
+  const productLabel = (product: { code: string; name: string }) => catalogProductLabel({ product_code: product.code, display_name: product.name }, locale);
   const [copied, setCopied] = useState("");
   const copyValue = async (label: string, value: string) => {
     await writeClipboard(value);
@@ -31,7 +35,7 @@ export function AccountCreationSuccess({
     `${copy.success.company}: ${created.company_name}`,
     `${copy.success.email}: ${created.owner_email}`,
     `${copy.success.password}: ${created.temporaryPassword}`,
-    `${copy.success.loadedModules}: ${(created.products ?? []).map((product) => product.name).join(", ")}`,
+    `${copy.success.loadedModules}: ${(created.products ?? []).map(productLabel).join(", ")}`,
     "",
     copy.success.securityReminder,
   ].join("\n");
@@ -67,7 +71,7 @@ export function AccountCreationSuccess({
             <div key={product.code} className="flex min-w-0 items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/60 px-3 py-2.5">
               <Check className="h-4 w-4 shrink-0 text-emerald-700" />
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{product.name}</p>
+                <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{productLabel(product)}</p>
                 <p className="truncate font-mono text-[11px] text-slate-500">{product.code}</p>
               </div>
             </div>

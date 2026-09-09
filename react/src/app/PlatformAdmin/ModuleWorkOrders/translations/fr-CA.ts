@@ -1,20 +1,23 @@
 import type { ModuleWorkOrderCopy } from "./types";
 export const copy: ModuleWorkOrderCopy = {
-  eyebrow: "Architecture frontale",
-  title: "Créer un bon de travail de module",
+  eyebrow: "Catalogue des modules",
+  title: "Demander un nouveau module",
   description:
-    "Définissez la demande. Aucun fichier source, itinéraire ou accès ne sera modifié.",
+    "Soumettez une nouvelle fonction à l’examen avant son ajout à l’offre commerciale.",
   cancel: "Annuler",
-  create: "Créer le bon",
+  create: "Créer la demande",
   name: "Nom du module",
   namePlaceholder: "Contrôle de la qualité",
-  locale: "Langue de configuration initiale",
+  locale: "Langue initiale",
   guidance:
-    "Le bon inclut un nom technique anglais, un identifiant, un itinéraire et les huit paramètres régionaux requis.",
-  sectionTitle: "Bons de travail des modules",
+    "La demande restera en attente. Une fois le module prêt, il pourra être activé, puis ajouté aux produits et aux prix.",
+  sectionTitle: "Demandes de nouveaux modules",
   sectionDescription:
-    "Demandes frontales en attente d'examen et de mise en œuvre.",
-  draft: "Brouillon",
-  remove: "Supprimer",
-  add: "Ajouter un module",
+    "Nouvelles fonctions en attente d’examen et d’ajout à Indice.",
+  draft: "En attente",
+  remove: "Annuler la demande",
+  add: "Demander un nouveau module",
+  loadError: "Impossible de charger les demandes de modules. Actualisez et réessayez.",
+  createError: "Impossible de créer la demande de module. Réessayez.",
+  removeError: "Impossible d’annuler la demande de module. Actualisez et réessayez.",
 };

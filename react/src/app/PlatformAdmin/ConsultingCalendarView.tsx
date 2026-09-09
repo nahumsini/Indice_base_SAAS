@@ -1,3 +1,12 @@
+import {
+  useConsultingCopy,
+  getConsultingCopy,
+  consultingText,
+  consultingNumber,
+  consultingWeekdays,
+  type ConsultingCopy,
+  type ConsultingLocale,
+} from "./ConsultingTranslations";
 import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
@@ -26,16 +35,15 @@ type CalendarEntry = {
   isConfirmedTime: boolean;
 };
 
-const weekdayLabels = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
-const statusCopy: Record<PlatformConsultingStatus, string> = {
-  REQUESTED: "Por confirmar",
-  PAYMENT_REQUIRED: "Pago pendiente",
-  CONFIRMED: "Confirmada",
-  COMPLETED: "Completada",
-  NO_SHOW: "No asistió",
-  CANCELLED: "Cancelada",
-};
+const getStatusCopy = (copy: ConsultingCopy): Record<PlatformConsultingStatus, string> => ({
+  REQUESTED: copy.pendingConfirmation,
+  PAYMENT_REQUIRED: copy.paymentPending,
+  CONFIRMED: copy.confirmed,
+  COMPLETED: copy.completed,
+  NO_SHOW: copy.noShow,
+  CANCELLED: copy.cancelled,
+});
 
 export function ConsultingCalendarView({
   appointments,
@@ -46,6 +54,9 @@ export function ConsultingCalendarView({
   onOpen: (appointment: PlatformConsultingAppointment) => void;
   onConfigureAvailability?: () => void;
 }) {
+  const { copy, locale } = useConsultingCopy();
+  const weekdayLabels = consultingWeekdays(locale).map((day) => day.short);
+  const statusCopy = getStatusCopy(copy);
   const today = useMemo(() => new Date(), []);
   const [visibleMonth, setVisibleMonth] = useState(
     () => new Date(today.getFullYear(), today.getMonth(), 1),
@@ -61,14 +72,14 @@ export function ConsultingCalendarView({
           .map((appointment) => appointment.consultant_name?.trim())
           .filter((name): name is string => Boolean(name)),
       ),
-    ).sort((left, right) => left.localeCompare(right, "es"));
+    ).sort((left, right) => left.localeCompare(right, locale));
 
     return [
-      { value: "ALL", label: "Todos los consultores" },
-      { value: "UNASSIGNED", label: "Sin consultor asignado" },
+      { value: "ALL", label: copy.allConsultants },
+      { value: "UNASSIGNED", label: copy.noConsultant },
       ...names.map((name) => ({ value: name, label: name })),
     ];
-  }, [appointments]);
+  }, [appointments, copy, locale]);
 
   const entries = useMemo<CalendarEntry[]>(
     () =>
@@ -82,7 +93,7 @@ export function ConsultingCalendarView({
             startAt,
             isConfirmedTime,
             dateKey: toDateKey(startAt, appointment.timezone),
-            timeLabel: formatTime(startAt, appointment.timezone),
+            timeLabel: formatTime(locale, startAt, appointment.timezone),
           };
         })
         .filter((entry) => {
@@ -103,7 +114,7 @@ export function ConsultingCalendarView({
         .sort((left, right) =>
           new Date(left.startAt).getTime() - new Date(right.startAt).getTime(),
         ),
-    [appointments, consultantFilter, statusFilter],
+    [appointments, consultantFilter, statusFilter, locale],
   );
 
   const monthKey = toMonthKey(visibleMonth);
@@ -172,25 +183,25 @@ export function ConsultingCalendarView({
   return (
     <div className="space-y-5">
       <IndiceFilterBar
-        title="Agenda de consultorías"
-        subtitle="Consulta horarios solicitados y confirmados, responsables y disponibilidad mensual."
-        summary={`${monthEntries.length} ${monthEntries.length === 1 ? "sesión" : "sesiones"} en el mes`}
+        title={copy.agenda}
+        subtitle={copy.agendaDescription}
+        summary={consultingText(monthEntries.length === 1 ? copy.monthSession : copy.monthSessions, { count: consultingNumber(monthEntries.length, locale) })}
         gridClassName="md:grid-cols-2"
       >
         <IndiceFilterSelect
-          label="Consultor"
+          label={copy.consultant}
           value={consultantFilter}
           onValueChange={setConsultantFilter}
           options={consultantOptions}
           tone="aqua"
         />
         <IndiceFilterSelect
-          label="Estado"
+          label={copy.status}
           value={statusFilter}
           onValueChange={setStatusFilter}
           options={[
-            { value: "ACTIVE", label: "Pendientes y confirmadas" },
-            { value: "ALL", label: "Todos los estados" },
+            { value: "ACTIVE", label: copy.pendingConfirmed },
+            { value: "ALL", label: copy.allStatuses },
             ...Object.entries(statusCopy).map(([value, label]) => ({
               value,
               label,
@@ -200,23 +211,23 @@ export function ConsultingCalendarView({
         />
       </IndiceFilterBar>
 
-      <section className="grid gap-3 sm:grid-cols-3" aria-label="Resumen mensual">
+      <section className="grid gap-3 sm:grid-cols-3" aria-label={copy.monthlySummary}>
         <CalendarSummary
-          label="Sesiones del mes"
+          label={copy.monthlySessions}
           value={monthEntries.length}
-          description="Solicitadas y confirmadas"
+          description={copy.requestedConfirmed}
           tone="blue"
         />
         <CalendarSummary
-          label="Con consultor"
+          label={copy.withConsultant}
           value={assignedThisMonth}
-          description="Responsable identificado"
+          description={copy.responsibleIdentified}
           tone="aqua"
         />
         <CalendarSummary
-          label="Horario solicitado"
+          label={copy.requestedTime}
           value={requestedThisMonth}
-          description="Aún requieren confirmación"
+          description={copy.stillAwaitingConfirmation}
           tone="amber"
         />
       </section>
@@ -226,12 +237,12 @@ export function ConsultingCalendarView({
           <header className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700">
             <div>
               <p className="text-lg font-medium capitalize text-slate-950 dark:text-white">
-                {formatMonth(visibleMonth)}
+                {formatMonth(locale, visibleMonth)}
               </p>
               <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
-                <Legend color="bg-blue-500" label="Confirmada" />
-                <Legend color="bg-amber-500" label="Solicitada" />
-                <Legend color="bg-[#59C3A5]" label="Completada" />
+                <Legend color="bg-blue-500" label={copy.confirmed} />
+                <Legend color="bg-amber-500" label={copy.requested} />
+                <Legend color="bg-[#59C3A5]" label={copy.completed} />
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -242,13 +253,13 @@ export function ConsultingCalendarView({
                   className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#177D66] px-3 text-xs font-medium text-white shadow-sm transition hover:bg-[#126553] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#59C3A5]/30"
                 >
                   <CalendarRange className="h-4 w-4" />
-                  Configurar disponibilidad
-                </button>
+                  {copy.configureAvailability}
+            </button>
               ) : null}
               <button
                 type="button"
                 onClick={() => moveMonth(-1)}
-                aria-label="Mes anterior"
+                aria-label={copy.previousMonth}
                 className={calendarControlClass}
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -258,12 +269,12 @@ export function ConsultingCalendarView({
                 onClick={goToToday}
                 className="h-10 rounded-xl border border-[#59C3A5]/30 bg-white px-3 text-xs font-medium text-[#176B5B] transition hover:bg-[#59C3A5]/10 dark:bg-slate-900 dark:text-[#8FE0CA]"
               >
-                Hoy
-              </button>
+                {copy.today}
+            </button>
               <button
                 type="button"
                 onClick={() => moveMonth(1)}
-                aria-label="Mes siguiente"
+                aria-label={copy.nextMonth}
                 className={calendarControlClass}
               >
                 <ChevronRight className="h-4 w-4" />
@@ -310,9 +321,9 @@ export function ConsultingCalendarView({
                               ? "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700"
                               : "text-slate-400 dark:text-slate-600"
                         }`}
-                        aria-label={`Ver agenda del ${formatLongDate(dateKey)}`}
+                        aria-label={consultingText(copy.viewDay, { date: formatLongDate(locale, dateKey) })}
                       >
-                        {date.getDate()}
+                        {consultingNumber(date.getDate(), locale)}
                       </button>
                       <div className="space-y-1">
                         {dayEntries.slice(0, 3).map((entry) => (
@@ -335,7 +346,7 @@ export function ConsultingCalendarView({
                             onClick={() => setSelectedDate(dateKey)}
                             className="px-1 text-[11px] font-medium text-[#176B5B] hover:underline dark:text-[#8FE0CA]"
                           >
-                            +{dayEntries.length - 3} más
+                            {consultingText(copy.moreCount, { count: consultingNumber(dayEntries.length - 3, locale) })}
                           </button>
                         ) : null}
                       </div>
@@ -354,12 +365,12 @@ export function ConsultingCalendarView({
             </span>
             <div>
               <h3 className="font-medium text-slate-950 dark:text-white">
-                {formatLongDate(selectedDate)}
+                {formatLongDate(locale, selectedDate)}
               </h3>
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 {selectedEntries.length
-                  ? `${selectedEntries.length} ${selectedEntries.length === 1 ? "consultoría programada" : "consultorías programadas"}`
-                  : "Sin consultorías para este día"}
+                  ? consultingText(selectedEntries.length === 1 ? copy.scheduledConsultation : copy.scheduledConsultations, { count: consultingNumber(selectedEntries.length, locale) })
+                  : copy.noSessionsDay}
               </p>
             </div>
           </div>
@@ -389,15 +400,15 @@ export function ConsultingCalendarView({
                 <div className="mt-3 space-y-2 text-xs text-slate-600 dark:text-slate-300">
                   <p className="flex items-center gap-2">
                     <Clock3 className="h-3.5 w-3.5 text-[#177D66]" />
-                    {entry.timeLabel} · {entry.appointment.duration_minutes} min
+                    {entry.timeLabel} · {consultingText(copy.shortMinutes, { count: consultingNumber(entry.appointment.duration_minutes, locale) })}
                     <span className="text-slate-400">
-                      {entry.isConfirmedTime ? "Confirmado" : "Solicitado"}
+                      {entry.isConfirmedTime ? copy.confirmedTime : copy.requestedTimeShort}
                     </span>
                   </p>
                   <p className="flex items-center gap-2">
                     <UserRound className="h-3.5 w-3.5 text-[#177D66]" />
                     <span className="truncate">
-                      {entry.appointment.consultant_name || "Sin consultor asignado"}
+                      {entry.appointment.consultant_name || copy.noConsultant}
                     </span>
                   </p>
                   <p className="flex items-center gap-2">
@@ -407,14 +418,15 @@ export function ConsultingCalendarView({
                       <Monitor className="h-3.5 w-3.5 text-blue-600" />
                     )}
                     {entry.appointment.consultation_mode === "IN_PERSON"
-                      ? entry.appointment.service_location_name || "Presencial"
-                      : "Virtual"}
+                      ? entry.appointment.service_location_name || copy.inPerson
+                      : copy.virtual}
                   </p>
                 </div>
                 {entry.appointment.alternative_start_at &&
                 !entry.isConfirmedTime ? (
                   <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-[11px] text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
-                    Alternativa: {formatDateTime(
+                    {copy.alternativePrefix}{" "}{formatDateTime(
+                      locale,
                       entry.appointment.alternative_start_at,
                       entry.appointment.timezone,
                     )}
@@ -426,8 +438,8 @@ export function ConsultingCalendarView({
               <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-8 text-center dark:border-slate-700">
                 <Clock3 className="mx-auto h-5 w-5 text-slate-400" />
                 <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                  Selecciona otro día o cambia los filtros para consultar la agenda.
-                </p>
+                  {copy.selectOtherDay}
+            </p>
               </div>
             ) : null}
           </div>
@@ -448,6 +460,7 @@ function CalendarSummary({
   description: string;
   tone: "blue" | "aqua" | "amber";
 }) {
+  const { locale } = useConsultingCopy();
   const tones = {
     blue: "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300",
     aqua: "bg-[#59C3A5]/10 text-[#177D66] dark:text-[#8FE0CA]",
@@ -461,7 +474,7 @@ function CalendarSummary({
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{description}</p>
         </div>
         <span className={`rounded-xl px-3 py-1.5 text-xl font-medium ${tones[tone]}`}>
-          {value}
+          {consultingNumber(value, locale)}
         </span>
       </div>
     </article>
@@ -475,6 +488,8 @@ function CalendarStatus({
   status: PlatformConsultingStatus;
   isConfirmedTime: boolean;
 }) {
+  const { copy } = useConsultingCopy();
+  const statusCopy = getStatusCopy(copy);
   return (
     <span
       className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-medium ${eventTone(status, isConfirmedTime)}`}
@@ -553,17 +568,17 @@ function toDateKey(value: string, timeZone?: string) {
   }
 }
 
-function formatMonth(date: Date) {
-  return new Intl.DateTimeFormat("es-MX", {
+function formatMonth(locale: ConsultingLocale, date: Date) {
+  return new Intl.DateTimeFormat(locale, {
     month: "long",
     year: "numeric",
   }).format(date);
 }
 
-function formatLongDate(dateKey: string) {
+function formatLongDate(locale: ConsultingLocale, dateKey: string) {
   const date = new Date(`${dateKey}T12:00:00`);
-  if (Number.isNaN(date.getTime())) return "Fecha seleccionada";
-  return new Intl.DateTimeFormat("es-MX", {
+  if (Number.isNaN(date.getTime())) return getConsultingCopy(locale).selectedDate;
+  return new Intl.DateTimeFormat(locale, {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -571,28 +586,28 @@ function formatLongDate(dateKey: string) {
   }).format(date);
 }
 
-function formatTime(value: string, timeZone?: string) {
+function formatTime(locale: ConsultingLocale, value: string, timeZone?: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
   try {
-    return new Intl.DateTimeFormat("es-MX", {
+    return new Intl.DateTimeFormat(locale, {
       hour: "2-digit",
       minute: "2-digit",
       timeZone: timeZone || undefined,
     }).format(date);
   } catch {
-    return new Intl.DateTimeFormat("es-MX", {
+    return new Intl.DateTimeFormat(locale, {
       hour: "2-digit",
       minute: "2-digit",
     }).format(date);
   }
 }
 
-function formatDateTime(value: string, timeZone?: string) {
+function formatDateTime(locale: ConsultingLocale, value: string, timeZone?: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
   try {
-    return new Intl.DateTimeFormat("es-MX", {
+    return new Intl.DateTimeFormat(locale, {
       day: "2-digit",
       month: "short",
       hour: "2-digit",
@@ -600,7 +615,7 @@ function formatDateTime(value: string, timeZone?: string) {
       timeZone: timeZone || undefined,
     }).format(date);
   } catch {
-    return new Intl.DateTimeFormat("es-MX", {
+    return new Intl.DateTimeFormat(locale, {
       day: "2-digit",
       month: "short",
       hour: "2-digit",

@@ -1,3 +1,5 @@
+import { useCustomerAccountCopy } from "../../Customers/useCustomerAccountCopy";
+import { countryLabel, flowOptionLabel } from "../../flowOptions";
 import { Building2 } from "lucide-react";
 import type { EditablePlatformAccountType, PlatformAccountCreatePayload } from "../../../api/platformAdmin";
 import { countryOptions, industryOptions } from "../../flowOptions";
@@ -24,6 +26,7 @@ export function CompanyStep({
   onChange,
   lockedAccountType,
 }: CompanyStepProps) {
+  const { locale } = useCustomerAccountCopy();
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800 sm:p-5">
       <AccountStepTitle
@@ -59,7 +62,7 @@ export function CompanyStep({
           >
             {countryOptions.map((country) => (
               <option key={country.code} value={country.code}>
-                {country.label}
+                {countryLabel(country.code, locale)}
               </option>
             ))}
           </select>
@@ -88,8 +91,8 @@ export function CompanyStep({
           >
             <option value="">{copy.company.unspecified}</option>
             {industryOptions.map((industry) => (
-              <option key={industry} value={industry}>
-                {industry}
+              <option key={flowOptionLabel(industry, locale)} value={flowOptionLabel(industry, locale)}>
+                {flowOptionLabel(industry, locale)}
               </option>
             ))}
           </select>

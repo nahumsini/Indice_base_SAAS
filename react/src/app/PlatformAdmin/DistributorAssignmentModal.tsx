@@ -1,3 +1,4 @@
+import { useCustomerAccountCopy } from "./Customers/useCustomerAccountCopy";
 import { useMemo, useState, type FormEvent } from "react";
 import {
   Building2,
@@ -33,6 +34,7 @@ export default function DistributorAssignmentModal({
   onClose: () => void;
   onSave: (distributorCompanyId: number | null, reason: string) => Promise<void>;
 }) {
+  const { t, locale, number } = useCustomerAccountCopy();
   const [selection, setSelection] = useState(
     company.distributor_company_id
       ? String(company.distributor_company_id)
@@ -42,8 +44,8 @@ export default function DistributorAssignmentModal({
   );
   const [reason, setReason] = useState("");
   const sortedDistributors = useMemo(
-    () => [...distributors].sort((left, right) => left.name.localeCompare(right.name)),
-    [distributors],
+    () => [...distributors].sort((left, right) => left.name.localeCompare(right.name, locale)),
+    [distributors, locale],
   );
   const selectedId = selection === "direct" ? null : Number(selection);
   const unchanged = selectedId === (company.distributor_company_id ?? null);
@@ -62,13 +64,13 @@ export default function DistributorAssignmentModal({
       contentClassName="sm:max-w-xl"
       tone="aqua"
       icon={<Handshake className="h-5 w-5" />}
-      eyebrow={english ? "Commercial relationship" : "Relación comercial"}
-      title={english ? "Assign distributor" : "Asignar distribuidor"}
+      eyebrow={t("commercialRelationship")}
+      title={t("assignDistributor")}
       description={company.name}
       footer={
         <>
           <button type="button" onClick={onClose} disabled={saving}>
-            {english ? "Cancel" : "Cancelar"}
+            {t("cancel")}
           </button>
           <button
             type="submit"
@@ -84,16 +86,10 @@ export default function DistributorAssignmentModal({
               <Link2 className="h-4 w-4" />
             )}
             {saving
-              ? english
-                ? "Saving..."
-                : "Guardando..."
+              ? t("saving")
               : selection === "direct"
-                ? english
-                  ? "Remove relationship"
-                  : "Desvincular distribuidor"
-                : english
-                  ? "Assign distributor"
-                  : "Asignar distribuidor"}
+                ? t("removeDistributor")
+                : t("assignDistributor")}
           </button>
         </>
       }
@@ -108,9 +104,7 @@ export default function DistributorAssignmentModal({
             ...(error ? [error] : []),
             ...(!distributors.length
               ? [
-                  english
-                    ? "There are no distributor accounts available. Create one or change an eligible account to Distributor first."
-                    : "No hay cuentas distribuidoras disponibles. Primero crea una o cambia una cuenta elegible a Distribuidor.",
+                  t("noDistributors"),
                 ]
               : []),
           ]}
@@ -124,20 +118,18 @@ export default function DistributorAssignmentModal({
             <div className="min-w-0">
               <p className="truncate font-medium text-slate-900 dark:text-white">{company.name}</p>
               <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
-                {company.owner_email || `Empresa #${company.id}`}
+                {company.owner_email || t("companyId", { id: String(company.id) })}
               </p>
               <p className="mt-2 text-xs font-medium text-slate-500">
                 {company.distributor_company_name
-                  ? `${english ? "Current distributor" : "Distribuidor actual"}: ${company.distributor_company_name}`
-                  : english
-                    ? "Current origin: Direct with Indice"
-                    : "Origen actual: Directo con Índice"}
+                  ? `${t("currentDistributor")}: ${company.distributor_company_name}`
+                  : t("currentDirectOrigin")}
               </p>
             </div>
           </div>
 
           <label className="mt-5 block space-y-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
-            <span>{english ? "Commercial origin" : "Origen comercial"}</span>
+            <span>{t("commercialOrigin")}</span>
             <select
               autoFocus
               value={selection}
@@ -146,18 +138,18 @@ export default function DistributorAssignmentModal({
             >
               {company.distributor_company_id ? (
                 <option value="direct">
-                  {english ? "Direct with Indice" : "Directo con Índice"}
+                  {t("directWithIndice")}
                 </option>
               ) : null}
               {sortedDistributors.map((distributor) => (
                 <option key={distributor.id} value={distributor.id}>
-                  {distributor.name} · ID {distributor.id}
+                  {distributor.name} · {t("identifierId", { id: String(distributor.id) })}
                 </option>
               ))}
             </select>
           </label>
           <label className="mt-4 block space-y-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
-            <span>{english ? "Operational reason" : "Motivo operativo"}</span>
+            <span>{t("operationalReason")}</span>
             <textarea
               required
               minLength={5}
@@ -165,7 +157,7 @@ export default function DistributorAssignmentModal({
               value={reason}
               onChange={(event) => setReason(event.target.value)}
               className="min-h-24 w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-normal text-slate-800 outline-none transition focus:border-[#59C3A5] focus:ring-2 focus:ring-[#59C3A5]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-              placeholder={english ? "Explain the commercial relationship change" : "Explica el cambio de relación comercial"}
+              placeholder={t("relationshipReason")}
             />
           </label>
         </section>
@@ -173,9 +165,7 @@ export default function DistributorAssignmentModal({
         <p className="flex items-start gap-2 rounded-xl border border-[#59C3A5]/30 bg-[#59C3A5]/10 px-4 py-3 text-sm leading-6 text-[#176B5B] dark:border-[#59C3A5]/25 dark:bg-[#59C3A5]/10 dark:text-[#8FE0CA]">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
-            {english
-              ? "This relationship identifies the distributor of origin for the client, enables distributor-preferred consulting, and is recorded in the Root audit trail."
-              : "Esta relación identifica al distribuidor de origen del cliente, habilita la preferencia de consultoría con su distribuidor y queda registrada en la auditoría Root."}
+            {t("relationshipHelp")}
           </span>
         </p>
       </form>

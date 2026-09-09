@@ -1,7 +1,8 @@
+import { useCustomerAccountCopy } from "../Customers/useCustomerAccountCopy";
 import { Gift, ShieldCheck } from "lucide-react";
 import type { PlatformCompanyDetail } from "../../api/platformAdmin";
 import { CompactEmptyState, StatusPill, WorkspaceSection } from "./CompanyAccountPrimitives";
-import { formatDate, humanize, offerLabels } from "./companyAccountUtils";
+import { formatDate, humanize } from "./companyAccountUtils";
 
 export function CompanyAccessTab({
   company,
@@ -18,10 +19,11 @@ export function CompanyAccessTab({
   onCreate: () => void;
   onRevoke: (reference: string, label?: string, grantCount?: number) => void;
 }) {
+  const { t, locale, number } = useCustomerAccountCopy();
   return (
     <WorkspaceSection
-      title="Accesos administrativos"
-      description="Cortesías, promociones, pruebas y apoyos con vigencia auditable."
+      title={t("adminAccessTitle")}
+      description={t("adminAccessDescription")}
       icon={ShieldCheck}
       action={canCreate ? (
         <button
@@ -30,8 +32,7 @@ export function CompanyAccessTab({
           onClick={onCreate}
         >
           <span aria-hidden="true">＋</span>
-          Crear ajuste
-        </button>
+          {t("createAdjustment")}</button>
       ) : null}
     >
       {company.benefits.length ? (
@@ -46,13 +47,13 @@ export function CompanyAccessTab({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-sm font-medium text-slate-900">
-                      {benefit.product_code ? humanize(benefit.product_code) : humanize(benefit.benefit_type)}
+                      {benefit.product_code ? humanize(benefit.product_code, locale) : humanize(benefit.benefit_type, locale)}
                     </p>
                     <StatusPill status={benefit.status} />
                   </div>
                   <p className="mt-1 text-xs text-slate-500">
-                    {benefit.reason || "Ajuste administrativo"} · {offerLabels[benefit.source_type.toLowerCase()] || humanize(benefit.source_type)}
-                    {benefit.ends_at ? ` · hasta ${formatDate(benefit.ends_at)}` : " · sin vencimiento"}
+                    {benefit.reason || t("adminAdjustment")} · {humanize(benefit.source_type, locale)}
+                    {benefit.ends_at ? ` · ${t("untilDate", { date: formatDate(benefit.ends_at, locale) })}` : ` · ${t("noExpiry")}`}
                   </p>
                 </div>
                 {benefitCanBeRevoked ? (
@@ -60,17 +61,16 @@ export function CompanyAccessTab({
                     type="button"
                     className="h-9 rounded-lg border border-rose-200 px-3 text-xs font-medium text-rose-600 transition hover:bg-rose-50 disabled:opacity-60"
                     disabled={saving}
-                    onClick={() => onRevoke(benefit.reference, benefit.product_code ? humanize(benefit.product_code) : humanize(benefit.benefit_type), 1)}
+                    onClick={() => onRevoke(benefit.reference, benefit.product_code ? humanize(benefit.product_code, locale) : humanize(benefit.benefit_type, locale), 1)}
                   >
-                    Revocar
-                  </button>
+                    {t("revoke")}</button>
                 ) : null}
               </div>
             );
           })}
         </div>
       ) : (
-        <CompactEmptyState icon={Gift}>No hay ajustes administrativos registrados.</CompactEmptyState>
+        <CompactEmptyState icon={Gift}>{t("noAdjustments")}</CompactEmptyState>
       )}
     </WorkspaceSection>
   );

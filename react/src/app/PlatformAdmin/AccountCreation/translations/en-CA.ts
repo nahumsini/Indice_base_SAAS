@@ -16,7 +16,7 @@ export const enCACopy: AccountCreationCopy = {
   },
   progress: {
     label: "Account creation progress",
-    step: (current, total, modules) => `Step ${current} of ${total} · ${modules} module(s)`,
+    step: (current, total, modules) => `Step ${current} of ${total} · Modules: ${modules}`,
     ready: (companyId) => `Company #${companyId} · access ready to deliver`,
   },
   company: {
@@ -79,7 +79,7 @@ export const enCACopy: AccountCreationCopy = {
     initialAccess: "Initial access", oneTimePassword: "The password is only displayed here.",
     copyAll: "Copy details", copiedAll: "Details copied", copy: "Copy", copied: "Copied",
     loginPage: "Sign-in page", company: "Company", email: "Email", password: "Temporary password",
-    loadedModules: "Loaded modules", loadedModulesDescription: (count) => `${count} module(s) confirmed on the account`,
+    loadedModules: "Loaded modules", loadedModulesDescription: (count) => `Modules confirmed on the account: ${count}`,
     accessDataTitle: "Índice access details", securityReminder: "For security, change the password after signing in.",
     securityShare: "Ask the user to change this password under Dashboard → Profile → Security. Índice will not email it or store it in the Root audit log.",
   },

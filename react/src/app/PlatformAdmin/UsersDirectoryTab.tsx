@@ -1,3 +1,8 @@
+import {
+  useOperationsCopy,
+  operationsNumber,
+  type OperationsCopy,
+} from "./OperationsTranslations";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
@@ -34,17 +39,17 @@ type PendingAccessChange =
   | { kind: "role"; member: PlatformCompanyMember; nextRole: CompanyRole }
   | { kind: "platform"; member: PlatformCompanyMember; nextRole: "PLATFORM_ROOT" | "NONE" };
 
-const roleOptions: { value: CompanyRole; en: string; es: string }[] = [
-  { value: "user", en: "User", es: "Usuario" },
-  { value: "admin", en: "Admin", es: "Administrador" },
-  { value: "superadmin", en: "Super Admin", es: "Super Admin" },
-  { value: "root", en: "Root", es: "Root" },
+const getRoleOptions = (copy: OperationsCopy): { value: CompanyRole; en: string; es: string }[] => [
+  { value: "user", en: copy.user, es: copy.user },
+  { value: "admin", en: copy.admin, es: copy.admin },
+  { value: "superadmin", en: copy.superAdmin, es: copy.superAdmin },
+  { value: "root", en: copy.root, es: copy.root },
 ];
 
-const companyWorkspaceTabs: { id: CompanyWorkspaceTab; en: string; es: string; icon: LucideIcon }[] = [
-  { id: "users", en: "Users", es: "Usuarios", icon: UsersRound },
-  { id: "activities", en: "Activities", es: "Actividades", icon: Activity },
-  { id: "allActivities", en: "All activities", es: "Todas las actividades", icon: Building2 },
+const getCompanyWorkspaceTabs = (copy: OperationsCopy): { id: CompanyWorkspaceTab; en: string; es: string; icon: LucideIcon }[] => [
+  { id: "users", en: copy.users, es: copy.users, icon: UsersRound },
+  { id: "activities", en: copy.activities, es: copy.activities, icon: Activity },
+  { id: "allActivities", en: copy.allActivities, es: copy.allActivities, icon: Building2 },
 ];
 
 const INITIAL_ALL_ACTIVITY_RECENT_LIMIT = 10;
@@ -62,6 +67,9 @@ export function CompaniesDirectoryTab({
   canManageRoles: boolean;
   onOpenCompany: (company: PlatformCompanyDetail) => void;
 }) {
+  const { copy, locale } = useOperationsCopy();
+  const roleOptions = getRoleOptions(copy);
+  const companyWorkspaceTabs = getCompanyWorkspaceTabs(copy);
   const [query, setQuery] = useState("");
   const [directoryCompanies, setDirectoryCompanies] = useState<PlatformCompanyOption[]>([]);
   const [directoryPage, setDirectoryPage] = useState(1);
@@ -106,7 +114,7 @@ export function CompaniesDirectoryTab({
         if (!active) return;
         setFeedback({
           type: "error",
-          message: error instanceof Error ? error.message : english ? "Company directory could not be loaded." : "No se pudo cargar el directorio de empresas.",
+          message: error instanceof Error ? error.message : copy.companyDirectoryCouldNotBeLoaded,
         });
       } finally {
         if (active) setDirectoryLoading(false);
@@ -116,7 +124,7 @@ export function CompaniesDirectoryTab({
       active = false;
       window.clearTimeout(timer);
     };
-  }, [directoryPage, directoryPageSize, english, query]);
+  }, [directoryPage, directoryPageSize, copy, locale, query]);
 
   const loadCompany = useCallback(async (companyId: number) => {
     const requestSequence = ++companyRequestSequence.current;
@@ -132,12 +140,12 @@ export function CompaniesDirectoryTab({
       if (requestSequence !== companyRequestSequence.current) return;
       setFeedback({
         type: "error",
-        message: error instanceof Error ? error.message : english ? "Company users could not be loaded." : "No se pudieron cargar los usuarios.",
+        message: error instanceof Error ? error.message : copy.companyUsersCouldNotBeLoaded,
       });
     } finally {
       if (requestSequence === companyRequestSequence.current) setLoading(false);
     }
-  }, [english]);
+  }, [copy, locale]);
 
   const loadActivity = useCallback(async (companyId: number) => {
     setLoadingActivity(true);
@@ -150,12 +158,12 @@ export function CompaniesDirectoryTab({
         type: "error",
         message: error instanceof Error
           ? error.message
-          : english ? "Company activity could not be loaded." : "No se pudo cargar la actividad.",
+          : copy.companyActivityCouldNotBeLoaded,
       });
     } finally {
       setLoadingActivity(false);
     }
-  }, [english]);
+  }, [copy, locale]);
 
   const loadAllActivity = useCallback(async (recentLimit = INITIAL_ALL_ACTIVITY_RECENT_LIMIT) => {
     setLoadingAllActivity(true);
@@ -170,12 +178,12 @@ export function CompaniesDirectoryTab({
         type: "error",
         message: error instanceof Error
           ? error.message
-          : english ? "All company activity could not be loaded." : "No se pudo cargar la actividad general.",
+          : copy.allCompanyActivityCouldNotBeLoaded,
       });
     } finally {
       setLoadingAllActivity(false);
     }
-  }, [english]);
+  }, [copy, locale]);
 
   const loadMoreAllActivity = useCallback(async () => {
     const currentLimit = allActivity?.recent_events_limit ?? allActivityRecentLimit;
@@ -231,12 +239,12 @@ export function CompaniesDirectoryTab({
       await refreshCompany();
       setFeedback({
         type: "success",
-        message: english ? "Company role updated." : "Rol de la cuenta actualizado.",
+        message: copy.companyRoleUpdated,
       });
       setPendingAccessChange(null);
       setAccessReason("");
     } catch (error) {
-      const message = error instanceof Error ? error.message : english ? "Role could not be updated." : "No se pudo actualizar el rol.";
+      const message = error instanceof Error ? error.message : copy.roleCouldNotBeUpdated;
       setAccessError(message);
       setFeedback({
         type: "error",
@@ -262,13 +270,13 @@ export function CompaniesDirectoryTab({
       setFeedback({
         type: "success",
         message: nextRole === "PLATFORM_ROOT"
-          ? english ? "Platform Root access granted." : "Acceso Platform Root concedido."
-          : english ? "Platform Root access revoked." : "Acceso Platform Root revocado.",
+          ? copy.platformRootAccessGranted
+          : copy.platformRootAccessRevoked,
       });
       setPendingAccessChange(null);
       setAccessReason("");
     } catch (error) {
-      const message = error instanceof Error ? error.message : english ? "Platform access could not be updated." : "No se pudo actualizar el acceso de plataforma.";
+      const message = error instanceof Error ? error.message : copy.platformAccessCouldNotBeUpdated;
       setAccessError(message);
       setFeedback({
         type: "error",
@@ -288,24 +296,14 @@ export function CompaniesDirectoryTab({
           </span>
           <div className="min-w-0 flex-1">
             <h2 className="text-lg font-semibold text-slate-950">
-              {english ? "Companies" : "Empresas"}
+              {copy.companies}
             </h2>
             <p className="mt-1 text-sm text-slate-600">
-              {english
-                ? activeCompanyTab === "users"
-                  ? "Select a company, review its users, and manage company roles or Platform Root access."
-                  : activeCompanyTab === "activities"
-                    ? "Select a company and review active users, company trend, billing signals, and security activity."
-                    : "Review every company, active users, payments, authentication trend, and server load."
-                : activeCompanyTab === "users"
-                  ? "Selecciona una empresa, revisa sus usuarios y administra roles de cuenta o acceso Platform Root."
-                  : activeCompanyTab === "activities"
-                    ? "Selecciona una empresa y revisa usuarios activos, tendencia, cobros y actividad de seguridad."
-                    : "Revisa todas las empresas, usuarios activos, cobros, tendencia de acceso y carga del servidor."}
+              {activeCompanyTab === "users" ? copy.userDirectoryHelp : activeCompanyTab === "activities" ? copy.companyActivityHelp : copy.allActivityHelp}
             </p>
           </div>
           <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-medium text-blue-700">
-            {directoryTotal} {english ? "companies" : "empresas"}
+            {operationsNumber(directoryTotal, locale)} {copy.companies125}
           </span>
         </div>
       </div>
@@ -331,7 +329,7 @@ export function CompaniesDirectoryTab({
               }`}
             >
               <Icon className="h-4 w-4" />
-              {english ? tab.en : tab.es}
+              {tab.en}
             </button>
           );
         })}
@@ -366,7 +364,7 @@ export function CompaniesDirectoryTab({
                 value={query}
                 onChange={(event) => { setQuery(event.target.value); setDirectoryPage(1); }}
                 className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                placeholder={english ? "Search company or owner" : "Buscar empresa o propietario"}
+                placeholder={copy.searchCompanyOrOwner}
               />
             </label>
           </div>
@@ -392,8 +390,8 @@ export function CompaniesDirectoryTab({
                     <span className="mt-0.5 block truncate text-xs text-slate-500">{item.owner_email || `#${item.id}`}</span>
                     <span className="mt-1 block text-xs text-slate-500">
                       {item.platform_status === "DELETED"
-                        ? english ? "Deleted account · read only" : "Cuenta eliminada · solo lectura"
-                        : `${item.active_members} ${english ? "active users" : "usuarios activos"}`}
+                        ? copy.deletedAccountReadOnly
+                        : `${item.active_members} ${copy.activeUsers128}`}
                     </span>
                   </span>
                 </button>
@@ -401,13 +399,13 @@ export function CompaniesDirectoryTab({
             })}
             {!directoryCompanies.length && !directoryLoading ? (
               <div className="px-4 py-8 text-center text-sm text-slate-500">
-                {english ? "No companies match this search." : "No hay empresas con esa busqueda."}
+                {copy.noCompaniesMatchThisSearch}
               </div>
             ) : null}
             {directoryLoading ? (
               <div className="flex items-center justify-center gap-2 px-4 py-5 text-sm text-slate-500">
                 <LoaderCircle className="h-4 w-4 animate-spin text-blue-600" />
-                {english ? "Loading companies..." : "Cargando empresas..."}
+                {copy.loadingCompanies}
               </div>
             ) : null}
           </div>
@@ -419,16 +417,16 @@ export function CompaniesDirectoryTab({
                 onClick={() => setDirectoryPage((current) => Math.max(1, current - 1))}
                 className="h-9 rounded-lg border border-slate-200 px-3 font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {english ? "Previous" : "Anterior"}
+                {copy.previous}
               </button>
-              <span>{directoryPage} / {directoryPages}</span>
+              <span>{operationsNumber(directoryPage, locale)} / {operationsNumber(directoryPages, locale)}</span>
               <button
                 type="button"
                 disabled={directoryPage >= directoryPages || directoryLoading}
                 onClick={() => setDirectoryPage((current) => Math.min(directoryPages, current + 1))}
                 className="h-9 rounded-lg border border-slate-200 px-3 font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {english ? "Next" : "Siguiente"}
+                {copy.next}
               </button>
             </div>
           ) : null}
@@ -438,7 +436,7 @@ export function CompaniesDirectoryTab({
           {loading && !company ? (
             <div className="grid min-h-80 place-items-center text-sm text-slate-500">
               <LoaderCircle className="mb-3 h-6 w-6 animate-spin text-blue-600" />
-              {english ? "Loading users..." : "Cargando usuarios..."}
+              {copy.loadingUsers}
             </div>
           ) : null}
 
@@ -448,7 +446,7 @@ export function CompaniesDirectoryTab({
                 <div className="min-w-0 flex-1">
                   <h3 className="truncate text-base font-semibold text-slate-950">{company.name}</h3>
                   <p className="mt-1 text-sm text-slate-500">
-                    {company.members.length} {english ? "users" : "usuarios"} / {company.owner_email || `#${company.id}`}
+                    {operationsNumber(company.members.length, locale)} {copy.users134} / {company.owner_email || `#${company.id}`}
                   </p>
                 </div>
                 {activeCompanyTab === "activities" && selectedCompanyId ? (
@@ -459,7 +457,7 @@ export function CompaniesDirectoryTab({
                     className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <RefreshCw className={`h-4 w-4 ${loadingActivity ? "animate-spin" : ""}`} />
-                    {english ? "Refresh" : "Actualizar"}
+                    {copy.refresh}
                   </button>
                 ) : null}
                 <button
@@ -467,7 +465,7 @@ export function CompaniesDirectoryTab({
                   onClick={() => onOpenCompany(company)}
                   className="h-10 rounded-xl border border-blue-200 px-4 text-sm font-medium text-blue-700 transition hover:bg-blue-50"
                 >
-                  {english ? "Open account" : "Abrir cuenta"}
+                  {copy.openAccount}
                 </button>
               </div>
 
@@ -476,10 +474,14 @@ export function CompaniesDirectoryTab({
                 <table className="min-w-[900px] w-full text-left">
                   <thead className="bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500">
                     <tr>
-                      <th className="px-4 py-3">{english ? "User" : "Usuario"}</th>
-                      <th className="px-4 py-3">{english ? "Status" : "Estado"}</th>
-                      <th className="px-4 py-3">{english ? "Company role" : "Rol en empresa"}</th>
-                      <th className="px-4 py-3">{english ? "Platform access" : "Acceso plataforma"}</th>
+                      <th className="px-4 py-3">{copy.user}
+            </th>
+                      <th className="px-4 py-3">{copy.status}
+            </th>
+                      <th className="px-4 py-3">{copy.companyRole}
+            </th>
+                      <th className="px-4 py-3">{copy.platformAccess}
+            </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -499,7 +501,7 @@ export function CompaniesDirectoryTab({
                                   <p className="truncate text-sm font-semibold text-slate-900">{member.name || member.email}</p>
                                   {owner ? (
                                     <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
-                                      {english ? "Owner" : "Propietario"}
+                                      {copy.owner}
                                     </span>
                                   ) : null}
                                 </div>
@@ -513,7 +515,7 @@ export function CompaniesDirectoryTab({
                           <td className="px-4 py-3">
                             {owner ? (
                               <span className="inline-flex h-10 min-w-44 items-center rounded-xl border border-amber-200 bg-amber-50 px-3 text-sm font-medium text-amber-800">
-                                {english ? "Owner" : "Propietario"}
+                                {copy.owner}
                               </span>
                             ) : (
                               <select
@@ -530,7 +532,7 @@ export function CompaniesDirectoryTab({
                               >
                                 {roleOptions.map((option) => (
                                   <option key={option.value} value={option.value}>
-                                    {english ? option.en : option.es}
+                                    {option.en}
                                   </option>
                                 ))}
                               </select>
@@ -568,8 +570,8 @@ export function CompaniesDirectoryTab({
                                 <ShieldCheck className="h-4 w-4" />
                               )}
                               {isPlatformRoot(member)
-                                ? "Platform Root"
-                                : english ? "Grant Platform Root" : "Dar Platform Root"}
+                                ? copy.platformRoot
+                                : copy.grantPlatformRoot}
                             </button>
                           </td>
                         </tr>
@@ -603,19 +605,16 @@ export function CompaniesDirectoryTab({
         destructive={pendingAccessChange?.kind === "platform" && pendingAccessChange.nextRole === "NONE"}
         tone={pendingAccessChange?.kind === "platform" ? "coral" : "blue"}
         title={pendingAccessChange?.kind === "role"
-          ? english ? "Change company role" : "Cambiar rol de empresa"
+          ? copy.changeCompanyRole
           : pendingAccessChange?.nextRole === "PLATFORM_ROOT"
-            ? english ? "Grant Platform Root" : "Conceder Platform Root"
-            : english ? "Revoke Platform Root" : "Revocar Platform Root"}
+            ? copy.grantPlatformRoot
+            : copy.revokePlatformRoot}
         description={pendingAccessChange?.kind === "platform"
-          ? english
-            ? "This changes cross-company administrative access and will be recorded in the platform audit log."
-            : "Esto cambia el acceso administrativo entre empresas y quedará registrado en la bitácora de plataforma."
-          : english
-            ? "The user's permissions inside this company will change immediately."
-            : "Los permisos del usuario dentro de esta empresa cambiarán inmediatamente."}
+          ? copy.thisChangesCrossCompanyAdministrativeAccessAnd
+          : copy.theUserSPermissionsInsideThisCompany}
         itemName={pendingAccessChange?.member.name || pendingAccessChange?.member.email}
-        confirmLabel={english ? "Confirm change" : "Confirmar cambio"}
+        cancelLabel={copy.cancel}
+        confirmLabel={copy.confirmChange}
         confirmDisabled={accessReason.trim().length < 5}
         onCancel={() => { if (!savingKey) { setPendingAccessChange(null); setAccessReason(""); setAccessError(""); } }}
         onConfirm={() => {
@@ -633,7 +632,8 @@ export function CompaniesDirectoryTab({
           </div>
         ) : null}
         <label className="block space-y-1.5 text-sm font-medium text-slate-700">
-          <span>{english ? "Operational reason" : "Motivo operativo"}</span>
+          <span>{copy.operationalReason}
+            </span>
           <textarea
             autoFocus
             required
@@ -642,7 +642,7 @@ export function CompaniesDirectoryTab({
             value={accessReason}
             onChange={(event) => setAccessReason(event.target.value)}
             className="min-h-24 w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 font-normal outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            placeholder={english ? "Explain why this access is changing" : "Explica por qué cambia este acceso"}
+            placeholder={copy.explainWhyThisAccessIsChanging}
           />
         </label>
       </IndiceConfirmationDialog>
@@ -651,11 +651,12 @@ export function CompaniesDirectoryTab({
 }
 
 function StatusBadge({ active, english }: { active: boolean; english: boolean }) {
+  const { copy } = useOperationsCopy();
   return (
     <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
       active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
     }`}>
-      {active ? english ? "Active" : "Activo" : english ? "Inactive" : "Inactivo"}
+      {active ? copy.active : copy.inactive}
     </span>
   );
 }
