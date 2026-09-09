@@ -353,11 +353,16 @@ Approved Finance domain contracts remain authoritative. General rules include:
   classified before journal posting without modifying amounts, payment evidence, currency or
   status. Fund-origin expenses, cancelled/rejected expenses, and posted journal sources are protected.
   Classification and financial synchronization serialize through the authenticated company row.
-- Bulk expense imports and edits are atomic transactions (1–200 rows). Imported records remain
-  pending. An optional payment account is a preselection, never an implicit payment, and must be
-  active, company-owned, match native currency and not be a fund custody account. Import retry
-  evidence is unique by company/request key, bound to the actor and payload hash, and returns the
-  original expense IDs on an identical retry. Automatic folio creation serializes by company.
+- Bulk expense imports and edits are atomic transactions (1–200 rows). Explicit paid imports
+  require an active, company-owned payment account matching native currency, outside fund custody,
+  and record payment history and Treasury through the existing expense owner in the same transaction.
+  Pending imports preserve the supplied due date and only preselect an optional eligible account.
+  Import-specific included-tax markers require a boolean and an explicit valid rate when enabled;
+  the backend splits the gross amount with BigDecimal and existing two-decimal rounding. Legacy
+  callers retain their explicit tax breakdown. Import retry evidence is unique by company/request
+  key, bound to actor and payload hash, and returns original expense IDs on an identical retry.
+  Automatic folio creation serializes by company. Selected-row payment/due-date operations follow
+  the Finance bulk owner contract and cannot erase payment history by changing a status label.
 - A petty-cash settlement links or creates expenses from accepted evidence without double counting
   issuance, settlement, and resulting expenses.
 - Signed monthly fund closure and explicit approval without an attachment follow

@@ -18,13 +18,23 @@ public class ExpenseOperationsController {
     private final ExpenseImportService imports;
     private final ExpenseAccountingClassificationService classification;
     private final ExpenseBulkActionService bulk;
+    private final ExpenseBulkStatusService bulkStatus;
 
     public ExpenseOperationsController(FinanceRequestGuard guard, ExpenseImportService imports,
-            ExpenseAccountingClassificationService classification, ExpenseBulkActionService bulk) {
+            ExpenseAccountingClassificationService classification, ExpenseBulkActionService bulk, ExpenseBulkStatusService bulkStatus) {
         this.guard = guard;
         this.imports = imports;
         this.classification = classification;
         this.bulk = bulk;
+        this.bulkStatus = bulkStatus;
+    }
+    @PostMapping("/bulk-status")
+    public ResponseEntity<?> bulkStatus(HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrf,
+            @Valid @RequestBody com.indice.erp.finance.expenses.dto.ExpenseBulkStatusRequest request) {
+        var access = guard.requireWriteAccess(session, csrf);
+        if (access.denied()) return access.error();
+        return ResponseEntity.ok(bulkStatus.apply(access.context(), request));
     }
     @PostMapping("/bulk-actions")
     public ResponseEntity<?> bulkAction(HttpSession session,

@@ -22,6 +22,10 @@ export const canEditExpense = (expense: Expense) => (
 
 export const canDeleteExpense = canEditExpense;
 
+export const canPayExpense = (expense: Expense) => !expense.originFund && expense.type !== 'budget'
+  && !['CANCELLED', 'REJECTED', 'CLOSED', 'PAID'].includes(expense.backendStatus?.toUpperCase() ?? '')
+  && getExpenseBalance(expense) > 0;
+
 export const canReclassifyExpense = (expense: Expense) => (
   /^\d+$/.test(expense.id) && !expense.originFund && !expense.accountingPosted
   && !['CANCELLED', 'REJECTED'].includes(expense.backendStatus?.toUpperCase() ?? '')

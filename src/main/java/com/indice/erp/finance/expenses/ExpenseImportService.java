@@ -9,6 +9,8 @@ import com.indice.erp.finance.expenses.dto.ExpenseResponse;
 import com.indice.erp.finance.expenses.dto.ImportExpensesRequest;
 import com.indice.erp.finance.expenses.dto.UpdateExpensesBatchRequest;
 import com.indice.erp.finance.shared.FinanceContext;
+import com.indice.erp.finance.shared.FinanceBusinessTimeZoneResolver;
+import java.time.LocalDate;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -25,14 +27,17 @@ public class ExpenseImportService {
     private final ExpenseReferenceValidator references;
     private final ExpenseImportRepository batches;
     private final ObjectMapper json;
+    private final FinanceBusinessTimeZoneResolver timeZones;
 
     public ExpenseImportService(ExpenseRepository repository, ExpenseService expenses,
-            ExpenseReferenceValidator references, ExpenseImportRepository batches, ObjectMapper json) {
+            ExpenseReferenceValidator references, ExpenseImportRepository batches, ObjectMapper json,
+            FinanceBusinessTimeZoneResolver timeZones) {
         this.repository = repository;
         this.expenses = expenses;
         this.references = references;
         this.batches = batches;
         this.json = json;
+        this.timeZones = timeZones;
     }
 
     @Transactional
@@ -56,9 +61,7 @@ public class ExpenseImportService {
         for (var index = 0; index < request.expenses().size(); index++) {
             var row = request.expenses().get(index);
             try {
-                if (row == null || Boolean.TRUE.equals(row.settleOnCreate())) {
-                    throw FinanceApiException.badRequest("Imported expenses must start pending.");
-                }
+                if (row == null) throw FinanceApiException.badRequest("Expense row is required.");
                 if (row.purchaseOrderId() != null || row.budgetLineId() != null) {
                     throw FinanceApiException.badRequest("Use the source workflow for purchase orders and budget-linked expenses.");
                 }
@@ -67,6 +70,13 @@ public class ExpenseImportService {
                 }
                 references.validateImportPaymentAccount(context, row.paymentAccountId(), row.currencyCode());
                 references.validateImportAccountingAccount(context, row.accountingAccountId());
+                if (Boolean.TRUE.equals(row.settleOnCreate())) {
+                    if (row.paymentAccountId() == null)
+                        throw FinanceApiException.badRequest("Paid imports require a payment account on every row.");
+                    if (row.expenseDate() == null || row.expenseDate().isAfter(LocalDate.now(timeZones.resolve(context.companyId()))))
+                        throw FinanceApiException.badRequest("Paid imports require an expense date no later than today.");
+                }
+                row = ExpenseImportTax.normalize(row);
                 saved.add(expenses.createDraft(context, row));
             } catch (FinanceApiException ex) {
                 throw new FinanceApiException(ex.status(), "Row " + (index + 1) + ": " + ex.getMessage());

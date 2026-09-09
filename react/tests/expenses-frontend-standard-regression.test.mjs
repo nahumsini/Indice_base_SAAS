@@ -149,7 +149,8 @@ test('Gastos vencidos conserva Pagar y no mezcla lineas presupuestales', () => {
 
   assert.match(pageSource, /expenses\.filter\(expense => expense\.type !== 'budget'\)/);
   assert.match(pageSource, /filterExpenses\(operationalExpenses, filters, referenceDate\)/);
-  assert.match(rowSource, /const canMarkPaid = expense\.type !== 'budget' && getExpenseBalance\(expense\) > 0/);
+  assert.match(rowSource, /const canMarkPaid = canPayExpense\(expense\)/);
+  assert.match(pageSource, /showMarkPaid: true, showRecordPayment: false/);
   assert.match(rowSource, /showMarkPaid=\{canMarkPaid/);
   assert.match(tableSource, /const savedExpense = await onMarkExpensePaid\(expense\)/);
 });
@@ -240,12 +241,11 @@ test('Gastos permite integración masiva validada y protege registros con origen
 
   assert.match(headerSource, /Integración masiva/);
   assert.match(modalSource, /Pega desde Excel: fecha \| concepto \| monto/);
-  assert.match(modalSource, /Los gastos se crearán pendientes: elegir cuenta no retira dinero/);
+  assert.match(modalSource, /importStatus === 'paid' \? copy\.importPaidHint : copy\.importPendingHint/);
   assert.match(modalSource, /date: displayDate\(toDateInput\(new Date\(\)\)\)/);
   assert.match(readFileSync(resolve(expensesRoot, 'utils/expenseBulkInput.ts'), 'utf8'), /compactMatch/);
   assert.match(modalSource, /normalizeDateCell/);
-  assert.match(modalSource, /No se importará nada mientras exista una celda con errores/);
-  assert.match(modalSource, /la fecha de hoy viene precargada/);
+  assert.match(modalSource, /!ready\.length \|\| invalid\.length \|\| ready\.length > 200/);
   assert.match(modalSource, /type="month"/);
   assert.match(modalSource, /required type="month"/);
   assert.doesNotMatch(modalSource, />Ver todos</);
@@ -257,7 +257,7 @@ test('Gastos permite integración masiva validada y protege registros con origen
   assert.match(modalSource, /filteredEditEvaluations\.slice/);
   assert.match(modalSource, /No hay gastos abiertos que coincidan con el mes y la búsqueda seleccionados/);
   assert.match(pageSource, /amountPaid: 0/);
-  assert.match(pageSource, /status: 'pending'/);
+  assert.match(pageSource, /status: draft\.paid \? 'paid' : 'pending'/);
   assert.doesNotMatch(pageSource, /No hay una unidad y un negocio disponibles para clasificar los gastos/);
   assert.match(pageSource, /!expense\.purchaseOrderId/);
   assert.match(pageSource, /!expense\.budgetLineId/);

@@ -5,6 +5,9 @@ import { Button } from '../../../../components/ui/button';
 import { ExpenseAccountSelect } from '../table/ExpenseAccountSelect';
 import type { SelectOption } from '../table/ExpenseInlineControls';
 import { parseMoney, parseDate, displayDate } from '../../utils/expenseBulkInput';
+import { getDefaultBudgetTaxProfile, getBudgetTaxProfiles, inferTaxCountryFromCurrency } from '../../Budgets/budgetTaxCatalog';
+import { useExpensesResolvedLocale } from '../../Expenses/hooks/useExpensesTranslations';
+import { getExpenseWorkflowCopy } from '../../utils/expenseWorkflow.copy';
 import type { Expense, Provider } from '../../types/expenses.types';
 
 export type ExpenseBulkDraft = {
@@ -15,6 +18,13 @@ export type ExpenseBulkDraft = {
   accountingAccountId?: string;
   currency: string;
   total: number;
+  paid?: boolean;
+  dueDate?: string;
+  taxIncluded?: boolean;
+  taxRate?: number;
+  taxName?: string;
+  taxCountry?: string;
+  taxProfileId?: string;
 };
 
 export type ExpenseBulkEditDraft = ExpenseBulkDraft & { id: string };
@@ -24,6 +34,7 @@ type EditableField = 'date' | 'provider' | 'concept' | 'total' | 'paymentAccount
 type EditableRow = Record<EditableField, string> & {
   id: string;
   expenseId?: string;
+  taxIncluded?: boolean;
   original: Record<EditableField, string>;
 };
 
@@ -98,6 +109,11 @@ export function ExpenseBulkIntegrationModal({
   preferredCurrency: string;
   providers: Provider[];
 }) {
+  const copy = getExpenseWorkflowCopy(useExpensesResolvedLocale());
+  const [importStatus, setImportStatus] = useState<'paid' | 'pending'>('paid');
+  const [dueDate, setDueDate] = useState(() => toDateInput(new Date()));
+  const [taxProfileId, setTaxProfileId] = useState('');
+  const [manualTaxRate, setManualTaxRate] = useState('');
   const submitInFlight = useRef(false);
   const requestKey = useRef('');
   const [batchCurrency, setBatchCurrency] = useState(preferredCurrency);
@@ -112,6 +128,10 @@ export function ExpenseBulkIntegrationModal({
     if (!open) return;
     requestKey.current = crypto.randomUUID();
     setBatchCurrency(preferredCurrency);
+    setImportStatus('paid');
+    setDueDate(toDateInput(new Date()));
+    setTaxProfileId(getDefaultBudgetTaxProfile(inferTaxCountryFromCurrency(preferredCurrency))?.id ?? '');
+    setManualTaxRate('');
     setMode('create');
     setRows(emptyRows());
     setMessage('');
@@ -119,6 +139,12 @@ export function ExpenseBulkIntegrationModal({
     setEditPage(1);
     setEditSearch('');
   }, [open]);
+
+  const taxCountry = inferTaxCountryFromCurrency(batchCurrency);
+  const taxProfiles = getBudgetTaxProfiles(taxCountry);
+  const taxProfile = taxProfiles.find(profile => profile.id === taxProfileId) ?? getDefaultBudgetTaxProfile(taxCountry);
+  const taxRate = taxProfile?.manualRate ? Number(manualTaxRate.replace(',', '.')) / 100 : taxProfile?.rate ?? 0;
+  const taxValid = Number.isFinite(taxRate) && taxRate > 0 && taxRate <= 1;
 
   const changeMode = (nextMode: BulkMode) => {
     setMode(nextMode);
@@ -146,16 +172,18 @@ export function ExpenseBulkIntegrationModal({
     const total = parseMoney(row.total, currency);
     const date = parseDate(row.date) || (mode === 'create' && !row.date.trim() ? toDateInput(new Date()) : '');
     const errors = {
+      taxIncluded: mode === 'create' && row.taxIncluded && !taxValid ? copy.taxRequired : '',
+      dueDate: mode === 'create' && importStatus === 'pending' && !parseDate(dueDate) ? copy.dateRequired : '',
       concept: !row.concept.trim() ? 'Escribe el concepto del gasto.' : row.concept.trim().length > 220 ? 'El concepto admite hasta 220 caracteres.' : '',
-      date: !date ? 'Escribe una fecha válida en DD/MM/AAAA.' : '',
-      paymentAccount: row.paymentAccount.trim() && !paymentAccountId ? 'Selecciona una cuenta de pago activa en la moneda de la fila.' : '',
+      date: !date ? 'Escribe una fecha válida en DD/MM/AAAA.' : mode === 'create' && importStatus === 'paid' && date > toDateInput(new Date()) ? copy.importDateInvalid : '',
+      paymentAccount: ((mode === 'create' && importStatus === 'paid') || row.paymentAccount.trim()) && !paymentAccountId ? 'Selecciona una cuenta de pago activa en la moneda de la fila.' : '',
       accountingAccount: row.accountingAccount.trim() && !accountingAccountId ? 'Selecciona una cuenta contable existente.' : '',
       provider: mode === 'edit' && row.provider.trim() && !provider ? 'Selecciona un proveedor existente.' : '',
       total: !Number.isFinite(total) || total <= 0 ? 'Escribe un monto mayor a cero, con máximo dos decimales.' : '',
     };
     const valid = used && !Object.values(errors).some(Boolean);
     return { date, errors, provider, row, rowIndex, total, used, valid, currency, paymentOptions, paymentAccountId, accountingAccountId };
-  }), [mode, batchCurrency, providers, rows, accountingAccounts, paymentAccounts, editableExpenses]);
+  }), [mode, batchCurrency, providers, rows, accountingAccounts, paymentAccounts, editableExpenses, importStatus, dueDate, taxValid, copy.taxRequired, copy.dateRequired, copy.importDateInvalid]);
 
   const ready = evaluations.filter(result => result.valid);
   const invalid = evaluations.filter(result => result.used && !result.valid);
@@ -209,6 +237,7 @@ export function ExpenseBulkIntegrationModal({
         const target = { ...next[targetIndex] };
         cells.forEach((cell, columnOffset) => {
           const field = fields[startColumn + columnOffset];
+          if (mode === 'create' && startColumn + columnOffset === fields.length) target.taxIncluded = /^(true|1|sí|si|yes|x|✓)$/i.test(cell.trim());
           if (field) target[field] = field === 'date' && parseDate(cell) ? displayDate(parseDate(cell)) : cell.trim();
         });
         next[targetIndex] = target;
@@ -225,6 +254,9 @@ export function ExpenseBulkIntegrationModal({
       const drafts = ready.map(result => ({
         concept: result.row.concept.trim(), date: result.date, providerId: result.provider, total: result.total, currency: result.currency,
         paymentAccountId: result.paymentAccountId, accountingAccountId: result.accountingAccountId,
+        ...(mode === 'create' ? { paid: importStatus === 'paid', dueDate, taxIncluded: Boolean(result.row.taxIncluded),
+          taxRate: result.row.taxIncluded ? taxRate : 0, taxName: result.row.taxIncluded ? taxProfile?.shortName : undefined,
+          taxCountry, taxProfileId: result.row.taxIncluded ? taxProfile?.id : undefined } : {}),
       }));
       if (mode === 'create') await onCreate(drafts, requestKey.current);
       else await onUpdate(drafts.map((draft, index) => ({ ...draft, id: ready[index].row.expenseId! })));
@@ -300,14 +332,20 @@ export function ExpenseBulkIntegrationModal({
         ) : null}
         <div className="shrink-0 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-950">
           {mode === 'create'
-            ? <><span className="sm:hidden">Gastos pendientes en <strong>{batchCurrency}</strong>. Fecha DD/MM/AAAA. Elegir cuenta no registra un pago. Máximo 200 filas.</span><span className="hidden sm:inline">Importación en <strong>{batchCurrency}</strong>. Fecha DD/MM/AAAA; la fecha de hoy viene precargada y también acepta ISO o Excel. Los gastos se crearán pendientes: elegir cuenta no retira dinero. Máximo 200 filas por lote. No se importará nada mientras exista una celda con errores.</span></>
+            ? <>{importStatus === 'paid' ? copy.importPaidHint : copy.importPendingHint} {copy.taxHint} {batchCurrency}.</>
             : <>Solo se muestran gastos abiertos del mes seleccionado. Puedes modificar fecha, proveedor, concepto, monto y cuentas. Los cambios se guardarán juntos únicamente cuando todas las celdas modificadas sean válidas.</>}
         </div>
+        {mode === 'create' && <div className="grid shrink-0 gap-3 sm:grid-cols-3">
+          <label className="grid gap-1 text-sm">{copy.importStatus}<select aria-label={copy.importStatus} disabled={isSaving} className="h-11 rounded-xl border bg-transparent px-3" value={importStatus} onChange={event => setImportStatus(event.target.value as 'paid' | 'pending')}><option value="paid">{copy.paid}</option><option value="pending">{copy.pending}</option></select></label>
+          {importStatus === 'pending' && <label className="grid gap-1 text-sm">{copy.dueDate}<input aria-label={copy.dueDate} type="date" disabled={isSaving} className="h-11 rounded-xl border bg-transparent px-3" value={dueDate} onChange={event => setDueDate(event.target.value)} /></label>}
+          <label className="grid gap-1 text-sm">{copy.tax}<select aria-label={copy.tax} disabled={isSaving} className="h-11 rounded-xl border bg-transparent px-3" value={taxProfile?.id} onChange={event => setTaxProfileId(event.target.value)}>{taxProfiles.map(profile => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label>
+          {taxProfile?.manualRate && <label className="grid gap-1 text-sm">{copy.taxRate}<input aria-label={copy.taxRate} inputMode="decimal" disabled={isSaving} className="h-11 rounded-xl border bg-transparent px-3" value={manualTaxRate} onChange={event => setManualTaxRate(event.target.value)} /></label>}
+        </div>}
         <datalist id="bulk-expense-providers">{providers.filter(provider => provider.status === 'active').map(provider => <option key={provider.id} value={provider.name} />)}</datalist>
         <IndiceModalValidation messages={message ? [message] : ready.length > 200 ? ['Importa hasta 200 gastos por lote.'] : invalid.length ? [`Corrige ${invalid.length} fila${invalid.length === 1 ? '' : 's'} antes de guardar.`] : []} />
         <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-slate-300 bg-white shadow-sm">
           <table className={`w-full ${mode === 'create' ? 'min-w-[1160px]' : 'min-w-[1360px]'} border-collapse text-sm`}>
-            <thead className="sticky top-0 z-10 bg-slate-100"><tr><th className="w-12 border-b border-r border-slate-300 px-2 py-3 text-xs font-medium text-slate-500">#</th>{columns.map(column => <th key={column.field} className={`${column.width} border-b border-r border-slate-300 px-3 py-3 text-left font-medium text-slate-800`}>{column.label}</th>)}</tr></thead>
+            <thead className="sticky top-0 z-10 bg-slate-100"><tr><th className="w-12 border-b border-r border-slate-300 px-2 py-3 text-xs font-medium text-slate-500">#</th>{columns.map(column => <th key={column.field} className={`${column.width} border-b border-r border-slate-300 px-3 py-3 text-left font-medium text-slate-800`}>{column.label}</th>)}{mode === 'create' && <th className="w-36 border-b px-3 py-3 font-medium">{copy.includesTax}</th>}</tr></thead>
             <tbody>{visibleEvaluations.map(({ errors, row, rowIndex, used, valid, currency, paymentOptions, paymentAccountId, accountingAccountId }) => (
               <tr key={row.id} className={used && !valid ? 'bg-red-50' : mode === 'edit' && rowChanged(row) ? 'bg-amber-50' : 'bg-emerald-50/25'}>
                 <td className="border-b border-r border-slate-200 px-2 py-2 text-center text-xs text-slate-400">{rowIndex + 1}</td>
@@ -319,6 +357,7 @@ export function ExpenseBulkIntegrationModal({
                         onChange={value => updateCell(rowIndex, column.field, value)} />
                       {used && errors[column.field] ? <span className="px-2 text-xs text-red-700">{errors[column.field]}</span> : null}
                     </div> : <div className="flex items-center"><input disabled={isSaving} aria-label={`${column.label}, fila ${rowIndex + 1}`} list={column.list} aria-invalid={used && Boolean(errors[column.field])} title={used ? errors[column.field] : ''} value={row[column.field]} inputMode={column.field === 'total' ? 'decimal' : 'text'} onBlur={() => column.field === 'date' && normalizeDateCell(rowIndex)} onChange={event => updateCell(rowIndex, column.field, event.target.value)} placeholder={column.placeholder} className="h-11 w-full bg-transparent px-3 outline-none focus:bg-white focus:ring-2 focus:ring-inset focus:ring-emerald-600 aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-inset aria-[invalid=true]:ring-red-500" />{mode === 'edit' && column.field === 'total' ? <span className="pr-2 text-xs text-slate-500">{currency}</span> : null}</div>}</td>)}
+                {mode === 'create' && <td className="border-b p-2 text-center"><input type="checkbox" aria-label={`${copy.includesTax}, ${rowIndex + 1}`} checked={Boolean(row.taxIncluded)} disabled={isSaving} onChange={event => setRows(current => current.map((item, index) => index === rowIndex ? { ...item, taxIncluded: event.target.checked } : item))} className="h-5 w-5 accent-green-700" />{used && errors.taxIncluded && <span role="alert" className="block text-xs text-red-700">{errors.taxIncluded}</span>}</td>}
               </tr>
             ))}{mode === 'edit' && visibleEvaluations.length === 0 ? <tr><td colSpan={columns.length + 1} className="px-6 py-10 text-center text-sm text-slate-500">No hay gastos abiertos que coincidan con el mes y la búsqueda seleccionados.</td></tr> : null}</tbody>
           </table>
