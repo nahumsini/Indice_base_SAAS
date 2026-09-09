@@ -7,12 +7,14 @@ import { BillingInvoiceHistory } from './components/BillingInvoiceHistory';
 import { BillingOverviewBar } from './components/BillingOverviewBar';
 import { ModuleSelectionPanel } from './components/ModuleSelectionPanel';
 import { useBillingManagement } from './hooks/useBillingManagement';
+import { useBillingPaymentMethod } from './hooks/useBillingPaymentMethod';
 import { getBillingCopy } from './translations';
 
 export default function SubscriptionManagementPage() {
   const { currentLanguage } = useLanguage();
   const copy = getBillingCopy(currentLanguage.code);
   const billing = useBillingManagement(copy);
+  const paymentMethod = useBillingPaymentMethod(!billing.loading && Boolean(billing.selection), billing.readOnly);
 
   return (
     <main className="min-h-[calc(100vh-4rem)] bg-slate-50 px-4 py-4 text-slate-900 dark:bg-slate-950 dark:text-white sm:px-6 sm:py-5 lg:px-8">
@@ -66,6 +68,7 @@ export default function SubscriptionManagementPage() {
               copy={copy}
               selection={billing.preview ?? billing.selection}
               subscription={billing.subscription}
+              paymentMethod={paymentMethod}
               languageCode={currentLanguage.code}
             />
             <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_25rem]">
@@ -84,6 +87,7 @@ export default function SubscriptionManagementPage() {
                 selection={billing.selection}
                 preview={billing.preview}
                 subscription={billing.subscription}
+                paymentMethod={paymentMethod}
                 draft={billing.draft}
                 action={billing.action}
                 hasChanges={billing.hasChanges}

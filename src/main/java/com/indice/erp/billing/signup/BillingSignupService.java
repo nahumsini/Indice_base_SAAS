@@ -22,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Pattern;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -151,6 +152,11 @@ public class BillingSignupService {
 
         try {
             var spec = repository.checkoutSpec(intent.id());
+            if (!Objects.equals(spec.catalogVersion(), selection.catalogVersion())) {
+                throw new BillingSignupConflictException(
+                    "The commercial offer changed since this signup attempt. Reload the plans, review the current prices, and start checkout again."
+                );
+            }
             if (properties.getSuccessUrl().isBlank() || properties.getCancelUrl().isBlank()) {
                 throw new IllegalStateException("Stripe checkout success and cancel URLs are required.");
             }

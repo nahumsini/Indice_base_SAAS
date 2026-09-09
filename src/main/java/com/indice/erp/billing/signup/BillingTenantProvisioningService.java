@@ -37,6 +37,7 @@ public class BillingTenantProvisioningService {
     private final Clock clock;
     private final CompanyEntitlementProjectionService entitlementProjection;
     private final CommercialLifecycleService commercialLifecycle;
+    private final BillingProvisioningLifecycleService provisioningLifecycle;
     private final StorageQuotaService storageQuota;
     private final SignupWelcomeEmailService welcomeEmailService;
     private final TransactionTemplate transactions;
@@ -49,6 +50,7 @@ public class BillingTenantProvisioningService {
         Clock clock,
         CompanyEntitlementProjectionService entitlementProjection,
         CommercialLifecycleService commercialLifecycle,
+        BillingProvisioningLifecycleService provisioningLifecycle,
         StorageQuotaService storageQuota,
         SignupWelcomeEmailService welcomeEmailService,
         TransactionTemplate transactions
@@ -60,6 +62,7 @@ public class BillingTenantProvisioningService {
         this.clock = clock;
         this.entitlementProjection = entitlementProjection;
         this.commercialLifecycle = commercialLifecycle;
+        this.provisioningLifecycle = provisioningLifecycle;
         this.storageQuota = storageQuota;
         this.welcomeEmailService = welcomeEmailService;
         this.transactions = transactions;
@@ -166,7 +169,7 @@ public class BillingTenantProvisioningService {
         } else {
             trial = resolveTrialWindow(intent);
             provisionTrialProducts(intent.catalogVersionId(), intentId, companyId, trial, initialAccessProductIds);
-            commercialLifecycle.initializeTrial(companyId, trial.endsAt());
+            provisioningLifecycle.initializeStripe(companyId, intentId, trial.endsAt());
         }
         storageQuota.initializeCompany(companyId);
         jdbcTemplate.update(

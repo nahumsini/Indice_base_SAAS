@@ -16,6 +16,8 @@ import com.indice.erp.entitlement.CompanyEntitlementProjectionService;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -91,15 +93,16 @@ class StripeWebhookEventHandlerTest {
         );
     }
 
-    @Test
-    void successfulPaymentEventThatIsNotASettledInvoiceDoesNotApplyAccess() {
+    @ParameterizedTest
+    @ValueSource(strings = {"invoice.payment_succeeded", "invoice.paid"})
+    void successfulPaymentEventThatIsNotASettledInvoiceDoesNotApplyAccess(String eventType) {
         var association = new BillingProjectionRepository.ProjectionAssociation(7L, 42L, 11L, false);
         when(projections.associationForSubscription("sub_expected")).thenReturn(association);
 
         handler().process(claimed("""
             {
               "id": "evt_payment_attempt",
-              "type": "invoice.payment_succeeded",
+              "type": "%s",
               "created": 1788134400,
               "data": {"object": {
                 "id": "in_still_open",
@@ -110,9 +113,9 @@ class StripeWebhookEventHandlerTest {
                 "period_start": 1788220800
               }}
             }
-            """));
+            """.formatted(eventType)));
 
-        verifyNoInteractions(selectionChanges);
+        verifyNoInteractions(commercialLifecycle, selectionChanges, entitlementProjection);
     }
 
     private StripeWebhookEventHandler handler() {

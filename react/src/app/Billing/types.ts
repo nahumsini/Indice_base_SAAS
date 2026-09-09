@@ -1,5 +1,6 @@
 import type {
   BillingSelectionResponse,
+  BillingPaymentMethodResponse,
   BillingSubscriptionResponse,
   BillingInvoiceRecord,
 } from '../api/billing';
@@ -22,4 +23,10 @@ export type BillingManagementState = {
   action: string;
   error: string;
   success: string;
+};
+
+export type BillingPaymentMethodState = {
+  loading: boolean;
+  ownerOnly: boolean;
+  summary: BillingPaymentMethodResponse | null;
 };

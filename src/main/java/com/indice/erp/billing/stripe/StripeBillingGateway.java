@@ -1,6 +1,7 @@
 package com.indice.erp.billing.stripe;
 
 import com.stripe.exception.StripeException;
+import com.stripe.model.Charge;
 import com.stripe.model.Customer;
 import com.stripe.model.Subscription;
 import com.stripe.model.checkout.Session;
@@ -27,6 +28,10 @@ public class StripeBillingGateway {
 
     public Subscription retrieveSubscription(String subscriptionId) throws StripeException {
         return Subscription.retrieve(subscriptionId, requestOptions());
+    }
+
+    public Charge retrieveCharge(String chargeId) throws StripeException {
+        return Charge.retrieve(chargeId, requestOptions());
     }
 
     public void expireCheckoutSession(String sessionId) throws StripeException {
