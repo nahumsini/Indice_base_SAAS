@@ -9,6 +9,14 @@ const statusMessages: Record<number, string> = {
 };
 
 const backendMessageTranslations: Record<string, string> = {
+  'The statement balance changed. Refresh and review it before closing.': 'El saldo del corte cambió. Actualiza la vista y revisa el importe antes de cerrar.',
+  'A later statement is already closed. Its opening balance cannot be rewritten.': 'Hay un corte posterior cerrado cuyo saldo inicial cambiaría. Revisa la secuencia de cortes antes de continuar.',
+  'No verified exchange rate is available for the payroll deduction date.': 'No hay un tipo de cambio verificado para la fecha del cargo a nómina. El corte y el cargo no se guardaron.',
+  'The fund must have a responsible collaborator before charging a shortage to payroll.': 'Asigna un colaborador responsable al fondo antes de cargar el faltante a nómina.',
+  'The fund responsible user is not an active company collaborator.': 'El responsable del fondo debe ser un colaborador activo de esta empresa.',
+  'Petty cash statement is already closed.': 'El corte ya está cerrado. Sus movimientos se conservan en el historial.',
+  'Petty cash statement has receipts pending expense creation.': 'Autoriza o rechaza los registros pendientes antes de cerrar el corte. Los autorizados no requieren adjunto.',
+  'Petty cash settlement line requires evidence before authorization.': 'La autorización sin comprobante requiere un administrador.',
   'The accounting account belongs to the source fund and cannot be changed here.': 'Esta cuenta está vinculada al fondo de origen y no se puede cambiar desde Gastos.',
   'This expense has a posted journal entry. Use an accounting adjustment to preserve the ledger.': 'El gasto ya tiene un asiento publicado. Su cuenta requiere un ajuste contable.',
   'The expense changed. Reload it before changing its accounting account.': 'El gasto cambió. Actualiza la lista antes de cambiar su cuenta contable.',

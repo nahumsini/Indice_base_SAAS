@@ -356,6 +356,10 @@ Approved Finance domain contracts remain authoritative. General rules include:
   original expense IDs on an identical retry. Automatic folio creation serializes by company.
 - A petty-cash settlement links or creates expenses from accepted evidence without double counting
   issuance, settlement, and resulting expenses.
+- Signed monthly fund closure and explicit approval without an attachment follow
+  `docs/petty-cash-statement-close-resolution-contract-v1.md`. Accepted receipt states survive
+  attachment changes; carryover is an opening projection, and balance resolutions are audited
+  adjustments. Payroll remains the owner of applying a queued shortage deduction.
 - A purchase order commits budget but does not itself move money.
 - A budget is a container; the budget line is the operational control aggregate.
 - Reporting distinguishes committed, actual, issued, and settled amounts.

@@ -183,18 +183,21 @@ export type PettyCashStatementCloseAction =
   | 'RETURN_TO_SOURCE'
   | 'CARRY_FORWARD'
   | 'FORGIVE_SHORTAGE'
+  | 'FORGIVE_SURPLUS'
   | 'CHARGE_EMPLOYEE';
 
 type PettyCashStatementCloseApiResponse = {
   fund: PettyCashFundApiDto;
   statement: PettyCashStatementApiDto;
   nextStatement?: PettyCashStatementApiDto | null;
+  updatedStatements?: PettyCashStatementApiDto[];
 };
 
 type PettyCashStatementCloseMutation = {
   fund: PettyCashFund;
   statement: PettyCashStatement;
   nextStatement?: PettyCashStatement;
+  updatedStatements: PettyCashStatement[];
 };
 
 type PettyCashAttachmentApiDto = Partial<PettyCashAttachment> & {
@@ -306,6 +309,7 @@ type PettyCashSettlementLineApiRequest = {
 
 type PettyCashStatementCloseApiRequest = {
   action: PettyCashStatementCloseAction;
+  expectedClosingBalance?: number;
   shortageAmount?: number;
   closeDate?: string;
   reference?: string;
@@ -743,6 +747,7 @@ export const pettyCashService = {
       fund,
       statement: toStatement(response.statement, fundsById),
       nextStatement: response.nextStatement ? toStatement(response.nextStatement, fundsById) : undefined,
+      updatedStatements: (response.updatedStatements ?? []).map(item => toStatement(item, fundsById)),
     };
   },
 

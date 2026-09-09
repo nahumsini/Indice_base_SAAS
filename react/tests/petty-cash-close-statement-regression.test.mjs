@@ -171,15 +171,30 @@ test('a successful carry-forward inserts a missing next month only once and uses
   assert.equal(ws.props.funds[0].currentBalanceAmount, 123.45);
 });
 
-test('negative balances cannot be closed as zero and do not issue requests', async () => {
+test('negative balances can carry, forgive or charge payroll but never close cleanly', async () => {
   for (const balance of [-1764.28, -0.01]) {
-    const dialog = workspace({ statements: [statement({ declaredClosingBalanceAmount: balance })] }).open();
-    assert.equal(dialog.render().props.canSave, false);
-    assert.match(text(dialog.render()), /saldo negativo/);
-    const action = field(dialog.render(), 'Accion de cierre');
-    assert.ok(nodes(action).find(node => node.type === 'option' && node.props.value === 'CLOSE_CLEAN').props.disabled);
-    await dialog.render().props.onSave();
-    assert.equal(requests.length, 0);
+    for (const choice of ['CARRY_FORWARD', 'FORGIVE_SHORTAGE', 'CHARGE_EMPLOYEE']) {
+      const ws = workspace({ statements: [statement({ declaredClosingBalanceAmount: balance })] });
+      const dialog = ws.open();
+      assert.equal(dialog.render().props.canSave, true);
+      const action = field(dialog.render(), 'Accion de cierre');
+      assert.ok(nodes(action).find(node => node.type === 'option' && node.props.value === 'CLOSE_CLEAN').props.disabled);
+      action.props.onChange({ target: { value: 'CLOSE_CLEAN' } });
+      assert.equal(dialog.render().props.canSave, false);
+      await dialog.render().props.onSave();
+      assert.equal(requests.length, 0);
+      action.props.onChange({ target: { value: choice } });
+      assert.equal(dialog.render().props.canSave, true);
+      if (choice !== 'CARRY_FORWARD') {
+        assert.equal(field(dialog.render(), 'Diferencia a resolver').props.readOnly, true);
+        assert.equal(field(dialog.render(), 'Diferencia a resolver').props.value, String(Math.abs(balance)));
+      }
+      respond = () => ({ fund: fund(), statement: statement({ status: 'CLOSED' }) });
+      await dialog.render().props.onSave();
+      assert.equal(requests[0].body.action, choice);
+      assert.equal(requests[0].body.expectedClosingBalance, balance);
+      assert.equal(requests[0].body.shortageAmount, choice === 'CARRY_FORWARD' ? undefined : Math.abs(balance));
+    }
   }
 });
 
@@ -190,13 +205,13 @@ test('pending receipt statuses block closure, including zero-valued receipts and
     search.props.onChange({ target: { value: 'no matching receipt' } });
     const dialog = ws.open();
     assert.equal(dialog.render().props.canSave, false, status);
-    assert.match(text(dialog.render()), /Convierte los comprobantes pendientes/);
+    assert.match(text(dialog.render()), /Autoriza o rechaza los registros pendientes/);
   }
 });
 
 test('external funds close after validation without creating expenses; rejected/reversed receipts do not block', () => {
   for (const fundType of ['INTERNAL_COMPANY', 'EXTERNAL_MANAGED']) {
-    const lines = [line({ status: fundType === 'EXTERNAL_MANAGED' ? 'VALIDATED' : 'EXPENSE_CREATED' }),
+    const lines = [line({ status: fundType === 'EXTERNAL_MANAGED' ? 'VALIDATED' : 'EXPENSE_CREATED', attachmentCount: 0 }),
       line({ id: '81', status: 'REJECTED' }), line({ id: '82', status: 'REVERSED' }),
       line({ id: '83', pettyCashStatementId: '52', status: 'DRAFT' }),
       line({ id: '84', pettyCashFundId: '9', status: 'DRAFT' })];
@@ -225,20 +240,23 @@ test('zero closes cleanly, while balance disposal and shortage choices validate 
   field(dialog.render(), 'Fecha de cierre').props.onChange({ target: { value: '2026-09-08' } });
   respond = () => ({ fund: fund(), statement: statement({ status: 'CLOSED' }) });
   await dialog.render().props.onSave();
-  assert.deepEqual(requests[0].body, { action: 'CLOSE_CLEAN', closeDate: '2026-09-08' });
+  assert.deepEqual(requests[0].body, { action: 'CLOSE_CLEAN', closeDate: '2026-09-08', expectedClosingBalance: 0 });
 
   const withBalance = workspace({ statements: [statement({ declaredClosingBalanceAmount: 250 })] }).open();
   field(withBalance.render(), 'Accion de cierre').props.onChange({ target: { value: 'RETURN_TO_SOURCE' } });
   assert.equal(withBalance.render().props.canSave, true);
+  field(withBalance.render(), 'Accion de cierre').props.onChange({ target: { value: 'FORGIVE_SURPLUS' } });
+  assert.equal(withBalance.render().props.canSave, true);
+  assert.equal(field(withBalance.render(), 'Diferencia a resolver').props.value, '250');
   for (const action of ['CHARGE_EMPLOYEE', 'FORGIVE_SHORTAGE']) {
     field(withBalance.render(), 'Accion de cierre').props.onChange({ target: { value: action } });
-    for (const amount of ['0', '-1', '251']) {
-      field(withBalance.render(), 'Monto faltante *').props.onChange({ target: { value: amount } });
-      assert.equal(withBalance.render().props.canSave, false);
-    }
-    field(withBalance.render(), 'Monto faltante *').props.onChange({ target: { value: '100' } });
-    assert.equal(withBalance.render().props.canSave, true);
+    assert.equal(withBalance.render().props.canSave, false);
   }
+  const noResponsible = workspace({ funds: [fund({ responsibleUserId: undefined })],
+    statements: [statement({ declaredClosingBalanceAmount: -250 })] }).open();
+  field(noResponsible.render(), 'Accion de cierre').props.onChange({ target: { value: 'CHARGE_EMPLOYEE' } });
+  assert.equal(noResponsible.render().props.canSave, false);
+
 });
 
 test('failed close keeps the modal and its fields, exposes the error inside it, and permits retry', async () => {
@@ -280,4 +298,20 @@ test('leaving edited closing details requires confirmation and never closes the 
   assert.equal(modal(ws.render()), undefined);
   assert.equal(ws.props.statements[0].status, 'CUT_PENDING');
   assert.equal(requests.length, 0);
+});
+
+
+test('closing refreshes all affected successor balances using the backend response', async () => {
+  const next = statement({ id: '52', periodKey: '2026-09', declaredClosingBalanceAmount: -1938.29 });
+  const later = statement({ id: '53', periodKey: '2026-10', declaredClosingBalanceAmount: -1948.29 });
+  const ws = workspace({ statements: [statement({ declaredClosingBalanceAmount: -1764.28 }), next, later] });
+  const dialog = ws.open();
+  field(dialog.render(), 'Accion de cierre').props.onChange({ target: { value: 'FORGIVE_SHORTAGE' } });
+  respond = () => ({ fund: fund({ currentBalanceAmount: -184.01 }),
+    statement: statement({ status: 'FORGIVEN_SHORTAGE' }),
+    updatedStatements: [{ ...next, declaredClosingBalanceAmount: -174.01 }, { ...later, declaredClosingBalanceAmount: -184.01 }] });
+  await dialog.render().props.onSave();
+  assert.equal(ws.props.statements.find(item => item.id === '52').declaredClosingBalanceAmount, -174.01);
+  assert.equal(ws.props.statements.find(item => item.id === '53').declaredClosingBalanceAmount, -184.01);
+  assert.equal(ws.props.statements.length, 3);
 });

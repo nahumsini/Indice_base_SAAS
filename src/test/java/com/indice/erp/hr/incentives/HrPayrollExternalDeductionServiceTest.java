@@ -1,4 +1,6 @@
 package com.indice.erp.hr.incentives;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -26,9 +28,12 @@ class HrPayrollExternalDeductionServiceTest {
     @Mock
     private JdbcTemplate jdbcTemplate;
 
+    @Mock
+    private com.indice.erp.exchange.BusinessExchangeRateSnapshotRepository exchangeSnapshots;
+
     @Test
     void queuesFundShortageAsExplicitPendingPayrollDeduction() {
-        var service = new HrPayrollExternalDeductionService(jdbcTemplate);
+        var service = new HrPayrollExternalDeductionService(jdbcTemplate, exchangeSnapshots);
         when(jdbcTemplate.queryForList(anyString(), any(Object[].class))).thenReturn(List.of(Map.of(
             "user_company_id", 91L,
             "registration_country", "MX"
@@ -70,7 +75,7 @@ class HrPayrollExternalDeductionServiceTest {
 
     @Test
     void duplicateFundStatementDoesNotQueueSecondApplication() {
-        var service = new HrPayrollExternalDeductionService(jdbcTemplate);
+        var service = new HrPayrollExternalDeductionService(jdbcTemplate, exchangeSnapshots);
         when(jdbcTemplate.queryForList(anyString(), any(Object[].class))).thenReturn(List.of(Map.of(
             "user_company_id", 91L,
             "registration_country", "MX"
@@ -93,7 +98,7 @@ class HrPayrollExternalDeductionServiceTest {
 
     @Test
     void rejectsInactiveResponsibleCollaboratorBeforeCreatingDeduction() {
-        var service = new HrPayrollExternalDeductionService(jdbcTemplate);
+        var service = new HrPayrollExternalDeductionService(jdbcTemplate, exchangeSnapshots);
         when(jdbcTemplate.queryForList(anyString(), any(Object[].class))).thenReturn(List.of());
 
         assertThrows(NoSuchElementException.class, () -> service.queueFundShortageDeduction(
@@ -104,6 +109,41 @@ class HrPayrollExternalDeductionServiceTest {
         assertEquals(0L, mockingDetails(jdbcTemplate).getInvocations().stream()
             .filter(invocation -> "update".equals(invocation.getMethod().getName()))
             .count());
+    }
+
+    @Test
+    void missingOrFallbackExchangeRateCannotBecomeAPayrollAmount() {
+        var service = new HrPayrollExternalDeductionService(jdbcTemplate, exchangeSnapshots);
+        when(jdbcTemplate.queryForList(anyString(), any(Object[].class))).thenReturn(List.of(Map.of(
+            "user_company_id", 91L, "registration_country", "MX")));
+        assertThrows(IllegalArgumentException.class, () -> service.queueFundShortageDeduction(
+            7L, 81L, 31L, "Test fund", 501L, "PC-ST-501", new BigDecimal("100.00"), "CAD",
+            LocalDate.of(2026, 9, 8), 1L));
+        verify(jdbcTemplate, never()).update(anyString(), any(Object[].class));
+    }
+
+    @Test
+    void verifiedDatedConversionPreservesSourceAndPayrollCurrency() {
+        var date = LocalDate.of(2026, 9, 8);
+        var snapshot = new com.indice.erp.exchange.BusinessExchangeRatesResponse("USD",
+            Map.of("USD", BigDecimal.ONE, "MXN", new BigDecimal("20")), null,
+            List.of(new com.indice.erp.exchange.BusinessExchangeRateSourceResponse(
+                "MXN", new BigDecimal("20"), "2026-09-08", "Fixture bank", "fixture", "https://example.test", "https://example.test", "official", "")), List.of());
+        when(exchangeSnapshots.find(date)).thenReturn(java.util.Optional.of(snapshot));
+        when(jdbcTemplate.queryForList(anyString(), any(Object[].class))).thenReturn(List.of(Map.of(
+            "user_company_id", 91L, "registration_country", "MX")));
+        when(jdbcTemplate.queryForObject(contains("FROM hr_incentives"), eq(Long.class), any(Object[].class))).thenReturn(701L);
+        when(jdbcTemplate.queryForObject(contains("FROM hr_incentive_applications"), eq(Integer.class), any(Object[].class))).thenReturn(0);
+        new HrPayrollExternalDeductionService(jdbcTemplate, exchangeSnapshots).queueFundShortageDeduction(
+            7L, 81L, 31L, "Test fund", 501L, "PC-ST-501", new BigDecimal("100.00"), "USD", date, 1L);
+        var application = mockingDetails(jdbcTemplate).getInvocations().stream()
+            .filter(invocation -> "update".equals(invocation.getMethod().getName()))
+            .filter(invocation -> invocation.getArgument(0, String.class).contains("INSERT INTO hr_incentive_applications"))
+            .findFirst().orElseThrow().getArguments();
+        assertEquals(new BigDecimal("2000.00"), application[6]);
+        assertEquals("MXN", application[7]);
+        assertEquals(new BigDecimal("100.00"), application[13]);
+        assertEquals("USD", application[14]);
     }
 
     @Test

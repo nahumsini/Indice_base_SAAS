@@ -508,6 +508,57 @@ class PettyCashRepository {
         );
     }
 
+    void recordCloseDecision(FinanceContext context, long statementId, PettyCashStatementCloseAction action,
+            LocalDate closeDate, String reference, BigDecimal closingBalance) {
+        jdbcTemplate.update("""
+            UPDATE finance_petty_cash_statements
+            SET metadata_json = JSON_SET(COALESCE(metadata_json, JSON_OBJECT()), '$.closure',
+                JSON_OBJECT('action', ?, 'date', ?, 'reference', ?, 'actorUserId', ?, 'balanceBefore', ?))
+            WHERE company_id = ? AND id = ? AND deleted_at IS NULL
+            """, action.name(), closeDate.toString(), reference, context.userId(), closingBalance,
+            context.companyId(), statementId);
+    }
+
+    /** The fund is locked by the caller. Opening carryover is a projection, never a new deposit. */
+    List<PettyCashStatementRecord> reconcileFollowingStatementOpening(
+            FinanceContext context, long fundId, String periodKey, BigDecimal nextOpening) {
+        var following = jdbcTemplate.query("""
+            SELECT
+            """ + PettyCashSql.STATEMENT_COLUMNS + """
+            FROM finance_petty_cash_statements statement
+            JOIN finance_petty_cash_funds fund ON fund.id = statement.petty_cash_fund_id
+            WHERE statement.company_id = ? AND statement.petty_cash_fund_id = ?
+              AND statement.period_key > ? AND statement.deleted_at IS NULL AND fund.deleted_at IS NULL
+              AND """ + FinanceSqlSupport.scopePredicate("fund", context.scope()) + """
+            ORDER BY statement.period_key, statement.id FOR UPDATE
+            """, mapper::mapStatement, scopedParams(context, fundId, periodKey).toArray());
+        if (following.isEmpty()) return List.of();
+        var terminal = java.util.Set.of(PettyCashStatementStatus.CLOSED, PettyCashStatementStatus.TRANSFERRED_TO_NEXT_CUT,
+            PettyCashStatementStatus.FORGIVEN_SHORTAGE, PettyCashStatementStatus.CHARGED_TO_EMPLOYEE);
+        var adjustments = new LinkedHashMap<Long, BigDecimal>();
+        var opening = nextOpening;
+        for (var row : following) {
+            var delta = opening.subtract(row.openingBalanceAmount());
+            if (terminal.contains(row.status())) {
+                if (delta.signum() != 0) throw com.indice.erp.finance.FinanceApiException.conflict(
+                    "A later statement is already closed. Its opening balance cannot be rewritten.");
+                break; // An unchanged, finalized cut is the boundary of this correction.
+            }
+            if (delta.signum() != 0) adjustments.put(row.id(), delta);
+            opening = row.declaredClosingBalanceAmount().add(delta);
+        }
+        for (var adjustment : adjustments.entrySet()) {
+            jdbcTemplate.update("""
+                UPDATE finance_petty_cash_statements
+                SET opening_balance_amount = opening_balance_amount + ?,
+                    declared_closing_balance_amount = declared_closing_balance_amount + ?,
+                    updated_by_user_id = ?, version = version + 1
+                WHERE company_id = ? AND petty_cash_fund_id = ? AND id = ? AND deleted_at IS NULL
+                """, adjustment.getValue(), adjustment.getValue(), context.userId(), context.companyId(), fundId, adjustment.getKey());
+        }
+        return following.stream().map(row -> findStatementById(context, row.id()).orElseThrow()).toList();
+    }
+
     PettyCashSettlementLineRecord insertSettlementLine(
             FinanceContext context,
             long fundId,
@@ -1038,7 +1089,7 @@ class PettyCashRepository {
             WHERE company_id = ?
               AND id = ?
               AND expense_id IS NULL
-              AND status = 'RECEIPT_ATTACHED'
+              AND status IN ('DRAFT', 'RECEIPT_ATTACHED')
               AND deleted_at IS NULL
             """,
             context.userId(), context.companyId(), lineId

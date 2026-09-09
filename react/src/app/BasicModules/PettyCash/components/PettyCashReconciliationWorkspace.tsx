@@ -1104,15 +1104,16 @@ export function PettyCashReconciliationWorkspace({
     try {
       const saved = await pettyCashService.closeStatement(fund.id, statement.id, {
         action: draft.action,
+        expectedClosingBalance: statement.declaredClosingBalanceAmount,
         closeDate: draft.closeDate,
         reference: draft.reference.trim() || undefined,
-        shortageAmount: Number(draft.shortageAmount) || undefined,
+        shortageAmount: ['FORGIVE_SHORTAGE', 'FORGIVE_SURPLUS', 'CHARGE_EMPLOYEE'].includes(draft.action)
+          ? Number(draft.shortageAmount) : undefined,
       });
       onFundsChange(current => current.map(currentFund => (currentFund.id === saved.fund.id ? saved.fund : currentFund)));
       onStatementsChange(current => {
-        const withClosed = current.map(currentStatement => (
-          currentStatement.id === saved.statement.id ? saved.statement : currentStatement
-        ));
+        const updates = new Map([saved.statement, ...saved.updatedStatements].map(item => [item.id, item]));
+        const withClosed = current.map(currentStatement => updates.get(currentStatement.id) ?? currentStatement);
         if (!saved.nextStatement) return withClosed;
         return withClosed.some(currentStatement => currentStatement.id === saved.nextStatement?.id)
           ? withClosed.map(currentStatement => (currentStatement.id === saved.nextStatement?.id ? saved.nextStatement : currentStatement))
@@ -1567,12 +1568,12 @@ function CloseStatementModal({
     && ![finalizedStatus, 'REJECTED', 'REVERSED'].includes(line.status)
   ));
   const pendingAmount = pendingLines.reduce((total, line) => total + line.totalAmount, 0);
-  const defaultAction: PettyCashStatementCloseAction = closingBalance > 0 ? 'CARRY_FORWARD' : 'CLOSE_CLEAN';
+  const defaultAction: PettyCashStatementCloseAction = closingBalance !== 0 ? 'CARRY_FORWARD' : 'CLOSE_CLEAN';
   const [draft, setDraft] = useState<CloseStatementDraft>({
     action: defaultAction,
     closeDate: todayIso(),
     reference: '',
-    shortageAmount: '',
+    shortageAmount: String(Math.abs(closingBalance)),
   });
   const initialDraft = useRef(draft);
   const [discardPromptOpen, setDiscardPromptOpen] = useState(false);
@@ -1584,14 +1585,20 @@ function CloseStatementModal({
     }
     onClose();
   };
-  const hasBalance = closingBalance > 0;
-  const isShortageAction = draft.action === 'FORGIVE_SHORTAGE' || draft.action === 'CHARGE_EMPLOYEE';
+  const hasBalance = closingBalance !== 0;
+  const isShortageAction = ['FORGIVE_SHORTAGE', 'FORGIVE_SURPLUS', 'CHARGE_EMPLOYEE'].includes(draft.action);
   const shortageAmount = Number(draft.shortageAmount) || 0;
+  const validAction = draft.action === 'CLOSE_CLEAN' ? closingBalance === 0
+    : draft.action === 'CARRY_FORWARD' ? hasBalance
+    : draft.action === 'RETURN_TO_SOURCE' || draft.action === 'FORGIVE_SURPLUS' ? closingBalance > 0
+    : draft.action === 'CHARGE_EMPLOYEE' ? closingBalance < 0 && Boolean(fund?.responsibleUserId)
+    : closingBalance < 0;
   const canSave = pendingLines.length === 0
-    && Number.isFinite(closingBalance) && closingBalance >= 0
+    && Number.isFinite(closingBalance)
     && Boolean(draft.closeDate)
     && !closedStatementStatuses.includes(statement.status)
-    && (isShortageAction ? shortageAmount > 0 && shortageAmount <= closingBalance : (draft.action === 'CLOSE_CLEAN' ? closingBalance === 0 : hasBalance))
+    && validAction
+    && (!isShortageAction || (shortageAmount > 0 && shortageAmount === Math.abs(closingBalance)))
     && !isSaving;
 
   return (
@@ -1625,9 +1632,10 @@ function CloseStatementModal({
           >
             <option disabled={closingBalance !== 0} value="CLOSE_CLEAN">{copy.reconciliation.closeModal.closeClean}</option>
             <option disabled={!hasBalance} value="CARRY_FORWARD">{copy.reconciliation.closeModal.carryForward}</option>
-            <option disabled={!hasBalance} value="RETURN_TO_SOURCE">{copy.reconciliation.closeModal.returnToSource}</option>
-            <option disabled={!hasBalance} value="CHARGE_EMPLOYEE">{copy.reconciliation.closeModal.chargeEmployee}</option>
-            <option disabled={!hasBalance} value="FORGIVE_SHORTAGE">{copy.reconciliation.closeModal.forgiveShortage}</option>
+            <option disabled={closingBalance <= 0} value="RETURN_TO_SOURCE">{copy.reconciliation.closeModal.returnToSource}</option>
+            <option disabled={closingBalance >= 0 || !fund?.responsibleUserId} value="CHARGE_EMPLOYEE">{copy.reconciliation.closeModal.chargeEmployee}</option>
+            <option disabled={closingBalance >= 0} value="FORGIVE_SHORTAGE">{copy.reconciliation.closeModal.forgiveShortage}</option>
+            <option disabled={closingBalance <= 0} value="FORGIVE_SURPLUS">{copy.reconciliation.closeModal.forgiveSurplus}</option>
           </select>
         </PettyCashField>
         <PettyCashField label={copy.reconciliation.closeModal.closeDate}>
@@ -1642,14 +1650,19 @@ function CloseStatementModal({
           <PettyCashField label={copy.reconciliation.closeModal.shortageAmount}>
             <input
               className={pettyCashInputClass}
-              max={closingBalance}
-              min="0"
-              onChange={(event) => setDraft(current => ({ ...current, shortageAmount: event.target.value }))}
-              placeholder="0.00"
+              readOnly
               type="number"
               value={draft.shortageAmount}
             />
           </PettyCashField>
+        ) : null}
+        {draft.action === 'CHARGE_EMPLOYEE' ? (
+          <p className="md:col-span-2 text-sm text-slate-600 dark:text-slate-300">
+            {fund?.responsibleName} — {copy.reconciliation.closeModal.payrollHint}
+          </p>
+        ) : null}
+        {isShortageAction ? (
+          <p className="md:col-span-2 text-sm text-slate-600 dark:text-slate-300">{copy.reconciliation.closeModal.adjustmentHint}</p>
         ) : null}
         <div className="md:col-span-2">
           <PettyCashField label={copy.reconciliation.closeModal.reference}>

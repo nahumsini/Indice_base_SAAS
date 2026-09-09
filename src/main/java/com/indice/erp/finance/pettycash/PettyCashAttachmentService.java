@@ -226,8 +226,7 @@ public class PettyCashAttachmentService {
             UPDATE finance_petty_cash_settlement_lines
             SET attachment_count = ?,
                 status = CASE
-                  WHEN status IN ('EXPENSE_CREATED', 'REVERSED') THEN status
-                  WHEN status = 'VALIDATED' AND ? > 0 THEN status
+                  WHEN status IN ('EXPENSE_CREATED', 'VALIDATED', 'REJECTED', 'REVERSED') THEN status
                   WHEN ? > 0 THEN 'RECEIPT_ATTACHED'
                   ELSE 'DRAFT'
                 END,
@@ -237,7 +236,6 @@ public class PettyCashAttachmentService {
               AND id = ?
               AND deleted_at IS NULL
             """,
-            lineCount,
             lineCount,
             lineCount,
             context.userId(),
