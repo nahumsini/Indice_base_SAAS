@@ -1,3 +1,4 @@
+import { ticketDuration, ticketFileSize } from "./ticketFormatting";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import {
   AlertTriangle,
@@ -88,7 +89,7 @@ export function SystemTicketsWorkspace({ portal, locale, initialFolio = '' }: { 
         to: to ? new Date(`${to}T23:59:59.999`).toISOString() : '',
       }));
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Request could not be completed.');
+      setError(copy.requestFailed);
     } finally {
       setLoading(false);
     }
@@ -175,7 +176,7 @@ export function SystemTicketsWorkspace({ portal, locale, initialFolio = '' }: { 
       notifyDocumentPrintFailure(locale, 'popup-blocked');
       return;
     }
-    const preparing = locale.toLowerCase().startsWith('es') ? 'Preparando documento…' : 'Preparing document…';
+    const preparing = copy.preparing;
     targetWindow.document.title = preparing;
     targetWindow.document.body.textContent = preparing;
     Object.assign(targetWindow.document.body.style, {
@@ -192,7 +193,7 @@ export function SystemTicketsWorkspace({ portal, locale, initialFolio = '' }: { 
       .catch((printError) => {
         targetWindow.close();
         notifyDocumentPrintFailure(locale, 'generation');
-        setError(printError instanceof Error ? printError.message : 'No se pudo generar el expediente del ticket.');
+        setError(copy.printFailed);
       })
       .finally(() => setPrintLoadingId(null));
   };
@@ -320,6 +321,7 @@ export function SystemTicketsWorkspace({ portal, locale, initialFolio = '' }: { 
       </section>
 
       <CreateTicketModal
+        locale={locale}
         copy={copy}
         modules={data?.modules ?? []}
         open={createOpen}
@@ -347,7 +349,7 @@ export function SystemTicketsWorkspace({ portal, locale, initialFolio = '' }: { 
   );
 }
 
-function CreateTicketModal({ copy, modules, open, portal, onOpenChange, onCreated }: { copy: ReturnType<typeof getSystemTicketCopy>; modules: string[]; open: boolean; portal: SystemTicketPortal; onOpenChange: (open: boolean) => void; onCreated: (ticket: SystemTicket, warning?: string) => Promise<void> }) {
+function CreateTicketModal({ copy, locale, modules, open, portal, onOpenChange, onCreated }: { locale: string; copy: ReturnType<typeof getSystemTicketCopy>; modules: string[]; open: boolean; portal: SystemTicketPortal; onOpenChange: (open: boolean) => void; onCreated: (ticket: SystemTicket, warning?: string) => Promise<void> }) {
   const [form, setForm] = useState<SystemTicketCreatePayload>(initialCreate);
   const [photo, setPhoto] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
@@ -414,7 +416,7 @@ function CreateTicketModal({ copy, modules, open, portal, onOpenChange, onCreate
       onOpenChange(false);
       await onCreated(created, warning);
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Request could not be completed.');
+      setError(copy.requestFailed);
     } finally {
       setSaving(false);
     }
@@ -462,7 +464,7 @@ function CreateTicketModal({ copy, modules, open, portal, onOpenChange, onCreate
               <img src={photoPreview} alt={photo.name} className="h-16 w-16 rounded-xl border border-white object-cover shadow-sm" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-slate-900">{photo.name}</p>
-                <p className="mt-1 text-xs text-slate-500">{formatFileSize(photo.size)}</p>
+                <p className="mt-1 text-xs text-slate-500">{ticketFileSize(photo.size, locale)}</p>
                 <button type="button" onClick={openPhotoPicker} className="mt-2 text-xs font-medium text-[#177D66] underline underline-offset-2">{copy.changePhoto}</button>
               </div>
               <button type="button" onClick={clearPhoto} aria-label={copy.removePhoto} title={copy.removePhoto} className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-red-200 bg-white text-red-600 hover:bg-red-50">
@@ -518,26 +520,12 @@ function TargetBadge({ ticket, copy, locale }: { ticket: SystemTicket; copy: Ret
   if (['RESOLVED', 'CLOSED'].includes(ticket.status)) return <span className="text-sm text-slate-500">{formatDate(ticket.target_resolution_at, locale)}</span>;
   return (
     <span className={`inline-flex flex-col rounded-xl border px-2.5 py-1.5 text-xs ${ticket.overdue ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
-      <span className="font-medium">{ticket.overdue ? copy.overdue : formatRemaining(ticket.minutes_to_target)}</span>
+      <span className="font-medium">{ticket.overdue ? copy.overdue : ticketDuration(ticket.minutes_to_target, locale)}</span>
       <span className="mt-0.5 opacity-75">{formatDate(ticket.target_resolution_at, locale)}</span>
     </span>
   );
 }
 
-function formatRemaining(value: number | null) {
-  if (value == null) return '—';
-  const absolute = Math.max(0, value);
-  if (absolute < 60) return `${absolute} min`;
-  if (absolute < 1440) return `${Math.round(absolute / 60)} h`;
-  return `${Math.round(absolute / 1440)} d`;
-}
-
 function formatDate(value: string, locale: string) {
   try { return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)); } catch { return value; }
-}
-
-function formatFileSize(value: number) {
-  if (value < 1024) return `${value} B`;
-  if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`;
-  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }

@@ -1,0 +1,1577 @@
+[
+  {
+    "code": "indice.q01",
+    "prompt": "A new company asks for indicators before defining its structure. What should be done first?",
+    "options": {
+      "a": "Configure the company, units, responsible people and permissions",
+      "b": "Choose dashboard colours",
+      "c": "Import any available spreadsheet"
+    }
+  },
+  {
+    "code": "indice.q02",
+    "prompt": "Which statement best expresses the core value of Índice?",
+    "options": {
+      "a": "Connect people, processes, products and finances to operate with clarity",
+      "b": "Replace every human decision with automation",
+      "c": "Focus exclusively on accounting"
+    }
+  },
+  {
+    "code": "indice.q03",
+    "prompt": "What distinguishes Índice from a passive administrative tool?",
+    "options": {
+      "a": "It connects data entry, control and decisions with ongoing support",
+      "b": "It has more screens and tables",
+      "c": "It requires using every module"
+    }
+  },
+  {
+    "code": "indice.q04",
+    "prompt": "What is the purpose of the company profile during a consultation?",
+    "options": {
+      "a": "It provides context for adapting the structure, modules and recommendations",
+      "b": "It automatically sets all prices",
+      "c": "It replaces the interview with the owner"
+    }
+  },
+  {
+    "code": "indice.q05",
+    "prompt": "What should a business unit represent?",
+    "options": {
+      "a": "An operational part of the business that needs its own responsible people and analysis",
+      "b": "Any label used to decorate reports",
+      "c": "Every user who enters the system"
+    }
+  },
+  {
+    "code": "indice.q06",
+    "prompt": "Why should permissions be configured before operations begin?",
+    "options": {
+      "a": "So each person sees and performs only what relates to their responsibilities",
+      "b": "To increase the number of billable users",
+      "c": "To prevent employees from using the system"
+    }
+  },
+  {
+    "code": "indice.q07",
+    "prompt": "A customer wants the entire team to share one administrative account. What do you recommend?",
+    "options": {
+      "a": "Create individual users with permissions matching their responsibilities",
+      "b": "Share it and change the password monthly",
+      "c": "Use the account from only one computer"
+    }
+  },
+  {
+    "code": "indice.q08",
+    "prompt": "What should a consultant do before interpreting a dashboard KPI?",
+    "options": {
+      "a": "Confirm the period, unit, currency and information source",
+      "b": "Compare it with any historical figure",
+      "c": "Export it for review outside the system"
+    }
+  },
+  {
+    "code": "indice.q09",
+    "prompt": "What is the purpose of the business maturity assessment?",
+    "options": {
+      "a": "Identify priorities and gaps before recommending an implementation",
+      "b": "Assign the customer a public rating",
+      "c": "Determine how many employees should be dismissed"
+    }
+  },
+  {
+    "code": "indice.q10",
+    "prompt": "What is the correct relationship between modules and pillars?",
+    "options": {
+      "a": "Modules address and connect the needs of the four pillars",
+      "b": "Each module belongs to a different company",
+      "c": "The pillars replace modular configuration"
+    }
+  },
+  {
+    "code": "indice.q11",
+    "prompt": "If a company's information is scattered, what is the first value Índice should demonstrate?",
+    "options": {
+      "a": "A shared, traceable view of operations",
+      "b": "A catalogue of every available feature",
+      "c": "An unconfigured financial report"
+    }
+  },
+  {
+    "code": "indice.q12",
+    "prompt": "What does visibility mean in the Índice model?",
+    "options": {
+      "a": "Understanding what is happening and the evidence behind it",
+      "b": "Giving everyone full access",
+      "c": "Displaying as many charts as possible"
+    }
+  },
+  {
+    "code": "indice.q13",
+    "prompt": "What does control mean in the Índice model?",
+    "options": {
+      "a": "Defining rules, responsible people and validations for execution",
+      "b": "Personally reviewing every activity",
+      "c": "Blocking any changes to data"
+    }
+  },
+  {
+    "code": "indice.q14",
+    "prompt": "What does decision mean in the Índice model?",
+    "options": {
+      "a": "Turning data and signals into actions with context",
+      "b": "Automatically accepting every recommendation",
+      "c": "Generating reports with no responsible person"
+    }
+  },
+  {
+    "code": "indice.q15",
+    "prompt": "What is a poor practice during an initial demonstration?",
+    "options": {
+      "a": "Listing every module without relating them to a problem",
+      "b": "Confirming the main pain point",
+      "c": "Showing a brief, relevant workflow"
+    }
+  },
+  {
+    "code": "indice.q16",
+    "prompt": "What should the consultant explain about notifications?",
+    "options": {
+      "a": "They turn events and pending work into visible follow-up",
+      "b": "They replace all team communication",
+      "c": "They only report password changes"
+    }
+  },
+  {
+    "code": "indice.q17",
+    "prompt": "Why is column customization useful for operations?",
+    "options": {
+      "a": "It shows the information needed for the current decision",
+      "b": "It permanently hides unselected data",
+      "c": "It changes the user's permissions"
+    }
+  },
+  {
+    "code": "indice.q18",
+    "prompt": "An owner asks to begin by loading years of data. What is the appropriate response?",
+    "options": {
+      "a": "First define the objective, then migrate only what is needed to operate",
+      "b": "Accept everything without reviewing quality",
+      "c": "Always refuse any migration"
+    }
+  },
+  {
+    "code": "indice.q19",
+    "prompt": "What should be preserved when configuring a company with multiple units?",
+    "options": {
+      "a": "Separate responsibilities and context while retaining a consolidated view",
+      "b": "One shared account per unit",
+      "c": "Combined inventories for simplicity"
+    }
+  },
+  {
+    "code": "indice.q20",
+    "prompt": "When should a new module be recommended?",
+    "options": {
+      "a": "When a problem and a workflow that delivers value are clearly identified",
+      "b": "When the customer does not use the previous module",
+      "c": "Whenever a new feature appears"
+    }
+  },
+  {
+    "code": "indice.q21",
+    "prompt": "What demonstrates that a user has mastered navigation?",
+    "options": {
+      "a": "They can find a workflow, complete it and return without losing context",
+      "b": "They memorize the visual order of every tab",
+      "c": "They know every icon by heart"
+    }
+  },
+  {
+    "code": "indice.q22",
+    "prompt": "What should a consultant avoid when discussing the dashboard?",
+    "options": {
+      "a": "Presenting it as a solution without reliable data and processes",
+      "b": "Explaining where indicators come from",
+      "c": "Relating it to decisions"
+    }
+  },
+  {
+    "code": "indice.q23",
+    "prompt": "What is the correct system sequence?",
+    "options": {
+      "a": "Capture, control and decide",
+      "b": "Decide, delete and capture",
+      "c": "Report, sell and archive"
+    }
+  },
+  {
+    "code": "indice.q24",
+    "prompt": "What makes an Índice implementation sustainable?",
+    "options": {
+      "a": "Clear configuration, team adoption and ongoing support",
+      "b": "One lengthy session at the beginning",
+      "c": "Activating every feature on the first day"
+    }
+  },
+  {
+    "code": "indice.q25",
+    "prompt": "How should a general explanation of Índice conclude?",
+    "options": {
+      "a": "By confirming which problem the customer wants to organize first",
+      "b": "By immediately providing a price list",
+      "c": "By asking the customer to choose a module"
+    }
+  },
+  {
+    "code": "rh.q01",
+    "prompt": "What must be in place before attendance can be managed?",
+    "options": {
+      "a": "Employees, positions, locations and schedules correctly configured",
+      "b": "Next year's payroll",
+      "c": "A general announcement"
+    }
+  },
+  {
+    "code": "rh.q02",
+    "prompt": "What is the difference between an employment record and system access?",
+    "options": {
+      "a": "The record describes the employment relationship; access defines digital permissions",
+      "b": "They are exactly the same record",
+      "c": "Access replaces employment documents"
+    }
+  },
+  {
+    "code": "rh.q03",
+    "prompt": "An employee changes positions. What should be reviewed besides the position title?",
+    "options": {
+      "a": "Supervisor, department, permissions, schedule and operational effects",
+      "b": "Only their photograph",
+      "c": "Only their personal email address"
+    }
+  },
+  {
+    "code": "rh.q04",
+    "prompt": "What is the purpose of assigning a work centre?",
+    "options": {
+      "a": "It links the employee's rules, location and operational context",
+      "b": "It automatically creates a registered tax branch",
+      "c": "It removes the need for schedules"
+    }
+  },
+  {
+    "code": "rh.q05",
+    "prompt": "What should be checked before stating that someone arrived late?",
+    "options": {
+      "a": "The applicable schedule, time zone, location and attendance record",
+      "b": "Another employee's comment",
+      "c": "The time shown on the printed report"
+    }
+  },
+  {
+    "code": "rh.q06",
+    "prompt": "What is the purpose of Control in Human Resources?",
+    "options": {
+      "a": "Review attendance, schedules, incidents and operational actions",
+      "b": "Calculate taxes only",
+      "c": "Publish products for employees"
+    }
+  },
+  {
+    "code": "rh.q07",
+    "prompt": "Why should an attendance PIN or identity never be shared?",
+    "options": {
+      "a": "It breaks the traceability of who made the entry",
+      "b": "It uses more storage",
+      "c": "It changes the schedule automatically"
+    }
+  },
+  {
+    "code": "rh.q08",
+    "prompt": "What should a consultant do when attendance records are missing?",
+    "options": {
+      "a": "Review configuration and evidence before concluding there was an absence",
+      "b": "Create manual records without explanation",
+      "c": "Deactivate the employee"
+    }
+  },
+  {
+    "code": "rh.q09",
+    "prompt": "What are employment files and formal records used for?",
+    "options": {
+      "a": "They document employment events with context, dates and follow-up",
+      "b": "They replace contracts and applicable laws",
+      "c": "They store photographs only"
+    }
+  },
+  {
+    "code": "rh.q10",
+    "prompt": "What value do leave authorizations provide?",
+    "options": {
+      "a": "They organize requests, evidence, review and resolution",
+      "b": "They grant administrator permissions",
+      "c": "They change salary automatically"
+    }
+  },
+  {
+    "code": "rh.q11",
+    "prompt": "How should announcements be used?",
+    "options": {
+      "a": "With a defined audience, effective period and verifiable message",
+      "b": "As a replacement for all training",
+      "c": "To share passwords"
+    }
+  },
+  {
+    "code": "rh.q12",
+    "prompt": "What can the assets module manage?",
+    "options": {
+      "a": "Assignment, custodian, condition and return of property",
+      "b": "Complete tax depreciation without configuration",
+      "c": "Attendance through geolocation"
+    }
+  },
+  {
+    "code": "rh.q13",
+    "prompt": "What risk is addressed by linking assets to employees?",
+    "options": {
+      "a": "It prevents assets from having no custodian or history",
+      "b": "It avoids creating suppliers",
+      "c": "It eliminates commercial inventory"
+    }
+  },
+  {
+    "code": "rh.q14",
+    "prompt": "When should a payroll incident be recorded?",
+    "options": {
+      "a": "When a verifiable event affects the period",
+      "b": "Always after closing and paying",
+      "c": "Only when the bank requests it"
+    }
+  },
+  {
+    "code": "rh.q15",
+    "prompt": "What should a consultant clarify about payroll?",
+    "options": {
+      "a": "It depends on employment configuration, country, periods and reliable incident records",
+      "b": "It always produces the same calculation in every country",
+      "c": "It can operate without employees"
+    }
+  },
+  {
+    "code": "rh.q16",
+    "prompt": "What is the role of incentives?",
+    "options": {
+      "a": "They document traceable rules, results and recognition",
+      "b": "They replace base salary",
+      "c": "They grant access to the finance module"
+    }
+  },
+  {
+    "code": "rh.q17",
+    "prompt": "A customer reports ghost employees. What is the first workflow?",
+    "options": {
+      "a": "Audit active employees, employment relationships, access and payments",
+      "b": "Delete everyone who did not clock in today",
+      "c": "Recreate the company"
+    }
+  },
+  {
+    "code": "rh.q18",
+    "prompt": "What should an employee registration demonstration show?",
+    "options": {
+      "a": "Minimum required data, structure, supervisor, schedule, documents and separate system access",
+      "b": "Every available field, even when not applicable",
+      "c": "Only name and phone number"
+    }
+  },
+  {
+    "code": "rh.q19",
+    "prompt": "Why must permissions for each tab be respected?",
+    "options": {
+      "a": "They protect sensitive information and separate responsibilities",
+      "b": "They increase system speed",
+      "c": "They avoid the need for filters"
+    }
+  },
+  {
+    "code": "rh.q20",
+    "prompt": "What should a Human Resources KPI do?",
+    "options": {
+      "a": "Answer an operational question and lead to an action",
+      "b": "Display the largest possible number of employees",
+      "c": "Replace case reviews"
+    }
+  },
+  {
+    "code": "rh.q21",
+    "prompt": "How should absenteeism be interpreted correctly?",
+    "options": {
+      "a": "Using the period, population, schedules and justified incidents",
+      "b": "Only by counting empty records",
+      "c": "By comparing people from different companies"
+    }
+  },
+  {
+    "code": "rh.q22",
+    "prompt": "When is an attendance kiosk useful?",
+    "options": {
+      "a": "When controlled data entry is needed without full administrative access",
+      "b": "To let everyone manage payroll",
+      "c": "To replace individual users"
+    }
+  },
+  {
+    "code": "rh.q23",
+    "prompt": "What should be done when a team's supervisor changes?",
+    "options": {
+      "a": "Update the structure and verify permissions and dependent workflows",
+      "b": "Edit only an external organization chart",
+      "c": "Delete the team's history"
+    }
+  },
+  {
+    "code": "rh.q24",
+    "prompt": "Which consulting recommendation is incorrect?",
+    "options": {
+      "a": "Promise attendance control without configuring schedules or locations",
+      "b": "Test the workflow with a small group",
+      "c": "Assign responsibility for incidents"
+    }
+  },
+  {
+    "code": "rh.q25",
+    "prompt": "What outcome should the HR consultant be able to explain?",
+    "options": {
+      "a": "Who belongs to the team, what they must do and what needs attention",
+      "b": "How many screens the module has",
+      "c": "What colour each tab uses"
+    }
+  },
+  {
+    "code": "procesos.q01",
+    "prompt": "When should you create a task?",
+    "options": {
+      "a": "When there is a specific activity with an owner and date",
+      "b": "When the entire company needs to be modelled",
+      "c": "When there is no expected outcome"
+    }
+  },
+  {
+    "code": "procesos.q02",
+    "prompt": "When should you create a project?",
+    "options": {
+      "a": "When there is a temporary goal involving several related activities",
+      "b": "For every recurring daily activity",
+      "c": "To store documents without owners"
+    }
+  },
+  {
+    "code": "procesos.q03",
+    "prompt": "When should you create a process?",
+    "options": {
+      "a": "When a workflow must repeat with consistent stages and rules",
+      "b": "When only a personal reminder is needed",
+      "c": "When the work has no known order"
+    }
+  },
+  {
+    "code": "procesos.q04",
+    "prompt": "What minimum elements does a useful task need?",
+    "options": {
+      "a": "Owner, outcome, priority and date",
+      "b": "Colour, emoji and comment",
+      "c": "Only a title"
+    }
+  },
+  {
+    "code": "procesos.q05",
+    "prompt": "What is evidence used for in a task?",
+    "options": {
+      "a": "It demonstrates what was done and allows the outcome to be reviewed",
+      "b": "It replaces the owner",
+      "c": "It automatically closes any process"
+    }
+  },
+  {
+    "code": "procesos.q06",
+    "prompt": "What should be avoided when creating tasks?",
+    "options": {
+      "a": "Ambiguous instructions without a verifiable outcome",
+      "b": "Assigning a date",
+      "c": "Defining a priority"
+    }
+  },
+  {
+    "code": "procesos.q07",
+    "prompt": "How does a process stage differ from an informal list?",
+    "options": {
+      "a": "It has progress criteria, an owner and a connection to the next step",
+      "b": "It uses more text",
+      "c": "It can only be viewed in a calendar"
+    }
+  },
+  {
+    "code": "procesos.q08",
+    "prompt": "A process is always delayed at the same stage. What should the consultant review?",
+    "options": {
+      "a": "Workload, owner, required input and exit criteria",
+      "b": "The card's colour",
+      "c": "The creator's password"
+    }
+  },
+  {
+    "code": "procesos.q09",
+    "prompt": "What is the calendar view for?",
+    "options": {
+      "a": "Placing work and deadlines in time",
+      "b": "Defining financial permissions",
+      "c": "Replacing projects and processes"
+    }
+  },
+  {
+    "code": "procesos.q10",
+    "prompt": "What is a board view for?",
+    "options": {
+      "a": "Visualizing work statuses and movement",
+      "b": "Calculating payroll",
+      "c": "Managing ledger accounts"
+    }
+  },
+  {
+    "code": "procesos.q11",
+    "prompt": "What is an operational table for?",
+    "options": {
+      "a": "Precisely comparing, filtering and managing multiple records",
+      "b": "Avoiding opening details",
+      "c": "Replacing all evidence"
+    }
+  },
+  {
+    "code": "procesos.q12",
+    "prompt": "When should a task be escalated?",
+    "options": {
+      "a": "When a blockage, impact or deadline requires a defined intervention",
+      "b": "Every time it receives a comment",
+      "c": "Only after it is deleted"
+    }
+  },
+  {
+    "code": "procesos.q13",
+    "prompt": "What should task follow-up contain?",
+    "options": {
+      "a": "Progress, evidence, blockage and next action",
+      "b": "Undated conversations",
+      "c": "Only an estimated percentage"
+    }
+  },
+  {
+    "code": "procesos.q14",
+    "prompt": "What value does assigning a team to a task provide?",
+    "options": {
+      "a": "It clarifies participants while retaining one primary owner",
+      "b": "It makes nobody responsible",
+      "c": "It grants administrator permissions"
+    }
+  },
+  {
+    "code": "procesos.q15",
+    "prompt": "What problem does a task kiosk solve?",
+    "options": {
+      "a": "It allows work to be performed or recorded without full system access",
+      "b": "It removes the need for identity",
+      "c": "It publishes processes on social media"
+    }
+  },
+  {
+    "code": "procesos.q16",
+    "prompt": "What should a kiosk protect?",
+    "options": {
+      "a": "Identity, scope, permissions and operational evidence",
+      "b": "Only the visual design",
+      "c": "The module's name"
+    }
+  },
+  {
+    "code": "procesos.q17",
+    "prompt": "What should a process KPI measure?",
+    "options": {
+      "a": "Time, compliance, workload, blockages or quality to support decisions",
+      "b": "The total number of colours",
+      "c": "The number of comments without context"
+    }
+  },
+  {
+    "code": "procesos.q18",
+    "prompt": "A company manages everything through messages. What is the first step?",
+    "options": {
+      "a": "Choose a critical workflow and define its owners, stages and evidence",
+      "b": "Import all conversations",
+      "c": "Immediately ban messaging"
+    }
+  },
+  {
+    "code": "procesos.q19",
+    "prompt": "How should process design begin?",
+    "options": {
+      "a": "By defining the goal, input, outcome and owners",
+      "b": "By choosing a template for its appearance",
+      "c": "By creating alerts before stages"
+    }
+  },
+  {
+    "code": "procesos.q20",
+    "prompt": "What indicates that a process is overdesigned?",
+    "options": {
+      "a": "It contains stages or fields that do not affect control or decisions",
+      "b": "It includes owners",
+      "c": "It retains evidence"
+    }
+  },
+  {
+    "code": "procesos.q21",
+    "prompt": "What should the consultant do if nobody updates tasks?",
+    "options": {
+      "a": "Review clarity, workload, habits, permissions and the usefulness of follow-up",
+      "b": "Add more required fields",
+      "c": "Close every task"
+    }
+  },
+  {
+    "code": "procesos.q22",
+    "prompt": "Why is a deadline without an owner insufficient?",
+    "options": {
+      "a": "No person has a clear responsibility to act",
+      "b": "It cannot be shown in a calendar",
+      "c": "It does not allow colours"
+    }
+  },
+  {
+    "code": "procesos.q23",
+    "prompt": "How does progress differ from completion?",
+    "options": {
+      "a": "Progress shows advancement; completion confirms that the criterion was met",
+      "b": "They are always the same status",
+      "c": "Completion only means it is overdue"
+    }
+  },
+  {
+    "code": "procesos.q24",
+    "prompt": "What should a consultative process demonstration show?",
+    "options": {
+      "a": "A real problem transformed into execution, evidence and a control signal",
+      "b": "Every possible setting",
+      "c": "Only the creation form"
+    }
+  },
+  {
+    "code": "procesos.q25",
+    "prompt": "What is the module's expected outcome?",
+    "options": {
+      "a": "Repeatable, visible work that depends less on memory or messages",
+      "b": "More meetings to review pending work",
+      "c": "Eliminating every operational exception"
+    }
+  },
+  {
+    "code": "finanzas.q01",
+    "prompt": "How does an expense differ from an account payable?",
+    "options": {
+      "a": "The expense describes the transaction; the payable retains an outstanding obligation",
+      "b": "There is no difference",
+      "c": "The payable is always settled"
+    }
+  },
+  {
+    "code": "finanzas.q02",
+    "prompt": "What data makes an expense traceable?",
+    "options": {
+      "a": "Description, supplier, date, amount, owner, account and evidence",
+      "b": "Only the total amount",
+      "c": "Only the category"
+    }
+  },
+  {
+    "code": "finanzas.q03",
+    "prompt": "When should an account payable be recorded?",
+    "options": {
+      "a": "When an obligation exists that will be settled later",
+      "b": "After it is paid in full",
+      "c": "Only when no supplier exists"
+    }
+  },
+  {
+    "code": "finanzas.q04",
+    "prompt": "What is the supplier directory for?",
+    "options": {
+      "a": "Maintaining identity, terms and reusable purchasing and payment context",
+      "b": "Replacing ledger accounts",
+      "c": "Automatically authorizing any expense"
+    }
+  },
+  {
+    "code": "finanzas.q05",
+    "prompt": "What risk does an accounts payable kiosk reduce?",
+    "options": {
+      "a": "Scattered invoices and receipt without traceability",
+      "b": "Exchange-rate fluctuations",
+      "c": "Duplicate internal users"
+    }
+  },
+  {
+    "code": "finanzas.q06",
+    "prompt": "How are budget and actual spending related?",
+    "options": {
+      "a": "The budget sets expectations and spending measures execution and variance",
+      "b": "The budget replaces every expense",
+      "c": "Spending always changes the original budget"
+    }
+  },
+  {
+    "code": "finanzas.q07",
+    "prompt": "What should the consultant review when a budget variance occurs?",
+    "options": {
+      "a": "Period, scope, description, owner, cause and recurrence",
+      "b": "Only the overall percentage",
+      "c": "Only the largest supplier"
+    }
+  },
+  {
+    "code": "finanzas.q08",
+    "prompt": "What are ledger accounts for?",
+    "options": {
+      "a": "Consistently classifying transactions for analysis and reporting",
+      "b": "Storing bank passwords",
+      "c": "Defining payment schedules"
+    }
+  },
+  {
+    "code": "finanzas.q09",
+    "prompt": "What are payment accounts for?",
+    "options": {
+      "a": "Identifying where money is paid from or received",
+      "b": "Replacing suppliers",
+      "c": "Automatically creating budgets"
+    }
+  },
+  {
+    "code": "finanzas.q10",
+    "prompt": "What should be avoided when creating financial categories?",
+    "options": {
+      "a": "Ambiguous duplicates that fragment analysis",
+      "b": "Clear names",
+      "c": "A consistent structure"
+    }
+  },
+  {
+    "code": "finanzas.q11",
+    "prompt": "What does a petty cash fund need?",
+    "options": {
+      "a": "Owner, currency, limits, purpose and opening balance",
+      "b": "Only a name",
+      "c": "One account shared by everyone"
+    }
+  },
+  {
+    "code": "finanzas.q12",
+    "prompt": "Why must every petty cash inflow be recorded?",
+    "options": {
+      "a": "To reconstruct the source of the balance",
+      "b": "To turn it into a sale",
+      "c": "To avoid using receipts"
+    }
+  },
+  {
+    "code": "finanzas.q13",
+    "prompt": "Why does every petty cash outflow need evidence?",
+    "options": {
+      "a": "To explain the amount, purpose and owner",
+      "b": "To increase the balance",
+      "c": "To change the currency"
+    }
+  },
+  {
+    "code": "finanzas.q14",
+    "prompt": "What does reconciling a fund mean?",
+    "options": {
+      "a": "Comparing transactions, evidence and balance to explain differences",
+      "b": "Adjusting the number until it matches",
+      "c": "Deleting rejected expenses"
+    }
+  },
+  {
+    "code": "finanzas.q15",
+    "prompt": "When should a fund be replenished?",
+    "options": {
+      "a": "After reviewing transactions and supporting documents according to policy",
+      "b": "Every time the balance falls",
+      "c": "Before recording expenses"
+    }
+  },
+  {
+    "code": "finanzas.q16",
+    "prompt": "What should a petty cash statement retain?",
+    "options": {
+      "a": "Period, balances, transactions, differences and review status",
+      "b": "Only the closing balance",
+      "c": "Only approved receipts"
+    }
+  },
+  {
+    "code": "finanzas.q17",
+    "prompt": "The cash counted does not match. What is the first step?",
+    "options": {
+      "a": "Reconstruct inflows, outflows, pending items and evidence",
+      "b": "Edit the balance directly",
+      "c": "Create a new fund"
+    }
+  },
+  {
+    "code": "finanzas.q18",
+    "prompt": "How does a purchase differ from a payment?",
+    "options": {
+      "a": "The purchase creates the transaction; payment settles all or part of the obligation",
+      "b": "They always happen at the same time",
+      "c": "Payment creates inventory without a purchase"
+    }
+  },
+  {
+    "code": "finanzas.q19",
+    "prompt": "Why must taxes and currency be configured with context?",
+    "options": {
+      "a": "They affect amounts, comparability and reports",
+      "b": "They only change the design",
+      "c": "They have no effect on any calculation"
+    }
+  },
+  {
+    "code": "finanzas.q20",
+    "prompt": "What should a financial KPI do?",
+    "options": {
+      "a": "Connect an outcome with its cause and a decision",
+      "b": "Show every transaction without filters",
+      "c": "Hide small variances"
+    }
+  },
+  {
+    "code": "finanzas.q21",
+    "prompt": "What is the error in adding funds held in different currencies?",
+    "options": {
+      "a": "It creates a non-comparable total without conversion and context",
+      "b": "It duplicates suppliers",
+      "c": "It removes taxes"
+    }
+  },
+  {
+    "code": "finanzas.q22",
+    "prompt": "How should a rejected receipt be handled?",
+    "options": {
+      "a": "With a visible status, reason and follow-up",
+      "b": "By deleting it without history",
+      "c": "By approving it to close the period"
+    }
+  },
+  {
+    "code": "finanzas.q23",
+    "prompt": "What should a financial-control demonstration show?",
+    "options": {
+      "a": "The path from recording and evidence through review and decision",
+      "b": "Only the dashboard total",
+      "c": "Only supplier creation"
+    }
+  },
+  {
+    "code": "finanzas.q24",
+    "prompt": "When should a consultant escalate a financial issue?",
+    "options": {
+      "a": "When it requires accounting, tax or legal judgment beyond system use",
+      "b": "Never, because Índice replaces the accountant",
+      "c": "Every time an expense is recorded"
+    }
+  },
+  {
+    "code": "finanzas.q25",
+    "prompt": "What is the expected outcome of Finance in Índice?",
+    "options": {
+      "a": "Explainable transactions, visible obligations and decisions with context",
+      "b": "Eliminating every variance",
+      "c": "Automating every authorization"
+    }
+  },
+  {
+    "code": "ventas.q01",
+    "prompt": "What is the difference between a contact and an opportunity?",
+    "options": {
+      "a": "A contact identifies the person; an opportunity represents a potential sale",
+      "b": "They are the same record",
+      "c": "An opportunity exists only after payment"
+    }
+  },
+  {
+    "code": "ventas.q02",
+    "prompt": "What should the source of an opportunity record?",
+    "options": {
+      "a": "The channel or effort that generated the prospect",
+      "b": "The stage colour",
+      "c": "The customer’s bank account"
+    }
+  },
+  {
+    "code": "ventas.q03",
+    "prompt": "What makes an opportunity actionable?",
+    "options": {
+      "a": "Owner, stage, value, next action and date",
+      "b": "Only the customer’s name",
+      "c": "A quote with no follow-up"
+    }
+  },
+  {
+    "code": "ventas.q04",
+    "prompt": "What does an opportunity without a next action indicate?",
+    "options": {
+      "a": "A risk of stagnation and lack of follow-up",
+      "b": "Automatic closing",
+      "c": "That payment has already been collected"
+    }
+  },
+  {
+    "code": "ventas.q05",
+    "prompt": "What is the sales pipeline used for?",
+    "options": {
+      "a": "It shows progress, stagnation and sales workload",
+      "b": "It replaces contracts",
+      "c": "It calculates payroll"
+    }
+  },
+  {
+    "code": "ventas.q06",
+    "prompt": "When should an opportunity move to a different stage?",
+    "options": {
+      "a": "When evidence shows it has met the advancement criteria",
+      "b": "At the end of every week",
+      "c": "When the salesperson wants the report to look better"
+    }
+  },
+  {
+    "code": "ventas.q07",
+    "prompt": "What should a useful quote contain?",
+    "options": {
+      "a": "Customer, line items, prices, taxes, validity and terms",
+      "b": "Only the total",
+      "c": "Only the logo"
+    }
+  },
+  {
+    "code": "ventas.q08",
+    "prompt": "What is the difference between a quote and a sale?",
+    "options": {
+      "a": "A quote proposes terms; a sale formalizes the commercial agreement",
+      "b": "There is no difference",
+      "c": "A sale does not need a customer"
+    }
+  },
+  {
+    "code": "ventas.q09",
+    "prompt": "What should be verified before converting a quote?",
+    "options": {
+      "a": "Acceptance, scope, validity, prices and terms",
+      "b": "Only that it has a PDF",
+      "c": "That the salesperson earns a commission"
+    }
+  },
+  {
+    "code": "ventas.q10",
+    "prompt": "What should a sale record?",
+    "options": {
+      "a": "Customer, products or services, amounts, taxes, payment and owner",
+      "b": "Only the expected revenue",
+      "c": "Only the contract number"
+    }
+  },
+  {
+    "code": "ventas.q11",
+    "prompt": "How are sales and inventory related?",
+    "options": {
+      "a": "A sale can reserve or deduct stock according to the configured workflow",
+      "b": "Every sale creates a warehouse",
+      "c": "They should never be related"
+    }
+  },
+  {
+    "code": "ventas.q12",
+    "prompt": "When is an account receivable created?",
+    "options": {
+      "a": "When a sale is fully or partly on credit",
+      "b": "When full payment is received",
+      "c": "When a contact is created"
+    }
+  },
+  {
+    "code": "ventas.q13",
+    "prompt": "What purpose does a contract serve?",
+    "options": {
+      "a": "It formalizes the agreed scope, obligations, duration and terms",
+      "b": "It replaces every quote",
+      "c": "It creates products automatically"
+    }
+  },
+  {
+    "code": "ventas.q14",
+    "prompt": "Why do payment accounts matter in sales?",
+    "options": {
+      "a": "They clarify where money is received and reconciled",
+      "b": "They define the prospect’s stage",
+      "c": "They replace contacts"
+    }
+  },
+  {
+    "code": "ventas.q15",
+    "prompt": "What should a commission rule define?",
+    "options": {
+      "a": "Calculation basis, percentage, condition, beneficiary and payment timing",
+      "b": "Only the salesperson’s name",
+      "c": "An amount unrelated to sales"
+    }
+  },
+  {
+    "code": "ventas.q16",
+    "prompt": "What risk does a commission settlement reduce?",
+    "options": {
+      "a": "Duplicate payments or payments without an identifiable period and sales",
+      "b": "Inventory loss",
+      "c": "Missing schedules"
+    }
+  },
+  {
+    "code": "ventas.q17",
+    "prompt": "What should a sales KPI measure?",
+    "options": {
+      "a": "Conversion, value, speed, activity or results with context",
+      "b": "The number of contacts with no time period",
+      "c": "The number of visible columns"
+    }
+  },
+  {
+    "code": "ventas.q18",
+    "prompt": "A company loses social media prospects. What do you implement first?",
+    "options": {
+      "a": "Source, owner, stages and next action",
+      "b": "A general discount",
+      "c": "A contract for every contact"
+    }
+  },
+  {
+    "code": "ventas.q19",
+    "prompt": "What should the consultant do about stalled opportunities?",
+    "options": {
+      "a": "Review the stage criteria, last activity, objection and next action",
+      "b": "Move them all to closing",
+      "c": "Delete them without reviewing"
+    }
+  },
+  {
+    "code": "ventas.q20",
+    "prompt": "What relationship should exist between products and quotes?",
+    "options": {
+      "a": "A consistent catalogue and terms to avoid improvised entry and pricing",
+      "b": "None; everything should be written manually",
+      "c": "Only a shared photograph"
+    }
+  },
+  {
+    "code": "ventas.q21",
+    "prompt": "When should after-sales support be recorded?",
+    "options": {
+      "a": "From closing, with commitments, an owner and follow-up",
+      "b": "Only when there is a complaint",
+      "c": "After the contract expires"
+    }
+  },
+  {
+    "code": "ventas.q22",
+    "prompt": "What should a Sales demonstration show?",
+    "options": {
+      "a": "The journey from prospect to closing and the ongoing relationship",
+      "b": "Every available table",
+      "c": "Only product creation"
+    }
+  },
+  {
+    "code": "ventas.q23",
+    "prompt": "Why should a specific conversion rate not be promised?",
+    "options": {
+      "a": "It depends on the customer’s process, offer, execution and market",
+      "b": "Because the module does not record sales",
+      "c": "Because there are no KPIs"
+    }
+  },
+  {
+    "code": "ventas.q24",
+    "prompt": "What data lets you evaluate a lead source’s effectiveness?",
+    "options": {
+      "a": "Opportunities and results attributable to the source within a period",
+      "b": "The total number of users",
+      "c": "The number of expired contracts"
+    }
+  },
+  {
+    "code": "ventas.q25",
+    "prompt": "What is the module’s expected outcome?",
+    "options": {
+      "a": "A repeatable, traceable sales process connected to operations",
+      "b": "Sending more messages without control",
+      "c": "Closing every opportunity on the same day"
+    }
+  },
+  {
+    "code": "kpis.q01",
+    "prompt": "What should a KPI answer?",
+    "options": {
+      "a": "A business question connected to a decision",
+      "b": "How many colours the dashboard uses",
+      "c": "Everything that happened without prioritization"
+    }
+  },
+  {
+    "code": "kpis.q02",
+    "prompt": "What should be confirmed before comparing periods?",
+    "options": {
+      "a": "The same scope, currency, unit and definition",
+      "b": "That charts have the same size",
+      "c": "That the newer period has more data"
+    }
+  },
+  {
+    "code": "kpis.q03",
+    "prompt": "Why can an isolated value be misleading?",
+    "options": {
+      "a": "It does not show trends, targets, composition or context",
+      "b": "It is always rounded",
+      "c": "It cannot be exported"
+    }
+  },
+  {
+    "code": "kpis.q04",
+    "prompt": "What distinguishes a KPI from a metric?",
+    "options": {
+      "a": "A KPI represents priority performance; a metric may simply be a data point",
+      "b": "There is no difference",
+      "c": "A metric is always financial"
+    }
+  },
+  {
+    "code": "kpis.q05",
+    "prompt": "What should be done when an indicator changes?",
+    "options": {
+      "a": "Validate the data and investigate its cause before acting",
+      "b": "Assign blame immediately",
+      "c": "Change the target"
+    }
+  },
+  {
+    "code": "kpis.q06",
+    "prompt": "What is the purpose of opening a KPI's details?",
+    "options": {
+      "a": "To explain its components, trend and likely cause",
+      "b": "To change the result",
+      "c": "To remove filters"
+    }
+  },
+  {
+    "code": "kpis.q07",
+    "prompt": "What makes a target useful?",
+    "options": {
+      "a": "It defines the expected result, period, owner and criteria",
+      "b": "It must always be higher",
+      "c": "It does not need a date"
+    }
+  },
+  {
+    "code": "kpis.q08",
+    "prompt": "What should an action resulting from a KPI include?",
+    "options": {
+      "a": "An owner, date, expected result and follow-up",
+      "b": "Only a comment",
+      "c": "A new chart"
+    }
+  },
+  {
+    "code": "kpis.q09",
+    "prompt": "What is the risk of mixing currencies?",
+    "options": {
+      "a": "The total is not comparable without a defined conversion",
+      "b": "Users are duplicated",
+      "c": "Permissions are lost"
+    }
+  },
+  {
+    "code": "kpis.q10",
+    "prompt": "What does an income statement show?",
+    "options": {
+      "a": "Revenue, costs, expenses and the result for a period",
+      "b": "Assets and liabilities at a specific date",
+      "c": "Only bank transactions"
+    }
+  },
+  {
+    "code": "kpis.q11",
+    "prompt": "What does a balance sheet show?",
+    "options": {
+      "a": "Assets, liabilities and equity at a specific date",
+      "b": "Sales by salesperson",
+      "c": "Overdue tasks"
+    }
+  },
+  {
+    "code": "kpis.q12",
+    "prompt": "What does cash flow show?",
+    "options": {
+      "a": "Cash inflows, outflows and availability",
+      "b": "Only accounting profit",
+      "c": "Only accounts payable"
+    }
+  },
+  {
+    "code": "kpis.q13",
+    "prompt": "Why can profit and cash differ?",
+    "options": {
+      "a": "Credit, pending payments, investments and transactions occur at different times",
+      "b": "Because one is always wrong",
+      "c": "Because of the report's colour"
+    }
+  },
+  {
+    "code": "kpis.q14",
+    "prompt": "When should an account ledger be used?",
+    "options": {
+      "a": "When transactions in a specific account need to be explained",
+      "b": "To track attendance",
+      "c": "To create opportunities"
+    }
+  },
+  {
+    "code": "kpis.q15",
+    "prompt": "What should be checked before exporting a report?",
+    "options": {
+      "a": "Filters, period, scope, currency and consistency",
+      "b": "Only the filename",
+      "c": "The number of pages"
+    }
+  },
+  {
+    "code": "kpis.q16",
+    "prompt": "What is the purpose of an automated report?",
+    "options": {
+      "a": "To deliver recurring information with defined content, frequency and recipients",
+      "b": "To correct data automatically",
+      "c": "To authorize expenses"
+    }
+  },
+  {
+    "code": "kpis.q17",
+    "prompt": "What should be done before enabling an automation?",
+    "options": {
+      "a": "Run a test and validate the content and recipients",
+      "b": "Send it to the entire company",
+      "c": "Delete previous reports"
+    }
+  },
+  {
+    "code": "kpis.q18",
+    "prompt": "What is the risk of automating an incorrect report?",
+    "options": {
+      "a": "It repeats and distributes the error faster",
+      "b": "It reduces storage",
+      "c": "It changes the currency"
+    }
+  },
+  {
+    "code": "kpis.q19",
+    "prompt": "The margin is falling. Which analysis is appropriate?",
+    "options": {
+      "a": "Validate the scope and investigate sales, costs, products and units",
+      "b": "Dismiss the salesperson with the fewest sales",
+      "c": "Raise all prices without reviewing"
+    }
+  },
+  {
+    "code": "kpis.q20",
+    "prompt": "Sales are rising while cash is falling. What should be reviewed?",
+    "options": {
+      "a": "Credit, collections, inventory, payments and working capital",
+      "b": "Only the number of customers",
+      "c": "Only attendance"
+    }
+  },
+  {
+    "code": "kpis.q21",
+    "prompt": "What should a consultant do if an indicator's source is incomplete?",
+    "options": {
+      "a": "State the limitation and correct data capture before drawing conclusions",
+      "b": "Present it as an exact estimate",
+      "c": "Hide the indicator"
+    }
+  },
+  {
+    "code": "kpis.q22",
+    "prompt": "What characterizes a useful alert?",
+    "options": {
+      "a": "It has a condition, impact, owner and expected action",
+      "b": "It appears every day",
+      "c": "It uses red"
+    }
+  },
+  {
+    "code": "kpis.q23",
+    "prompt": "What should an executive dashboard avoid?",
+    "options": {
+      "a": "Too many indicators without priorities or actions",
+      "b": "Context filters",
+      "c": "Access to details"
+    }
+  },
+  {
+    "code": "kpis.q24",
+    "prompt": "What demonstrates consulting proficiency with KPIs?",
+    "options": {
+      "a": "Explaining what changed, why it matters, its cause and what to do",
+      "b": "Memorizing every formula",
+      "c": "Exporting every chart"
+    }
+  },
+  {
+    "code": "kpis.q25",
+    "prompt": "What is the expected outcome of KPIs?",
+    "options": {
+      "a": "Repeatable decisions based on contextualized information",
+      "b": "More reports without owners",
+      "c": "Eliminating all uncertainty"
+    }
+  },
+  {
+    "code": "comercial.q01",
+    "prompt": "What is the main objective of the first contact?",
+    "options": {
+      "a": "Build trust and secure a consulting session",
+      "b": "Close the sale in under five minutes",
+      "c": "Send the entire catalogue"
+    }
+  },
+  {
+    "code": "comercial.q02",
+    "prompt": "What should be researched before approaching a prospect?",
+    "options": {
+      "a": "Industry, size, contact and public information without assuming a diagnosis",
+      "b": "Unrelated personal information",
+      "c": "Only the ability to pay"
+    }
+  },
+  {
+    "code": "comercial.q03",
+    "prompt": "How should social media and prospecting leads be handled?",
+    "options": {
+      "a": "Record the source and guide them through the same process with context",
+      "b": "Mix them without identifying the source",
+      "c": "Serve only social media leads"
+    }
+  },
+  {
+    "code": "comercial.q04",
+    "prompt": "What should the first message communicate?",
+    "options": {
+      "a": "Value, approachability and a clear reason to talk",
+      "b": "All prices and modules",
+      "c": "A promise of guaranteed savings"
+    }
+  },
+  {
+    "code": "comercial.q05",
+    "prompt": "How long should the recommended consultation last?",
+    "options": {
+      "a": "Between 60 and 90 minutes, depending on the context",
+      "b": "A maximum of ten minutes",
+      "c": "Always more than three hours"
+    }
+  },
+  {
+    "code": "comercial.q06",
+    "prompt": "What are the first few minutes of the session for?",
+    "options": {
+      "a": "Break the ice, build trust and confirm the context",
+      "b": "Configure users",
+      "c": "Negotiate the final price"
+    }
+  },
+  {
+    "code": "comercial.q07",
+    "prompt": "Which four areas make up the business map?",
+    "options": {
+      "a": "People, processes, products and finance",
+      "b": "Sales, marketing, design and advertising",
+      "c": "Hardware, software, networks and support"
+    }
+  },
+  {
+    "code": "comercial.q08",
+    "prompt": "How should the initial interview be conducted?",
+    "options": {
+      "a": "With open-ended questions that help understand the business",
+      "b": "As an interrogation with yes-or-no answers",
+      "c": "By showing modules between every question"
+    }
+  },
+  {
+    "code": "comercial.q09",
+    "prompt": "What should the consultant confirm when identifying a pain point?",
+    "options": {
+      "a": "Impact, urgency, cause and shared understanding",
+      "b": "Only the module they want to sell",
+      "c": "A third party’s opinion"
+    }
+  },
+  {
+    "code": "comercial.q10",
+    "prompt": "How should you choose what to show in the demo?",
+    "options": {
+      "a": "Based on the priority pain point and expected result",
+      "b": "In alphabetical order of modules",
+      "c": "By always showing everything"
+    }
+  },
+  {
+    "code": "comercial.q11",
+    "prompt": "What should a demonstration avoid?",
+    "options": {
+      "a": "Features unrelated to the diagnosis",
+      "b": "A brief walkthrough",
+      "c": "Confirming value with the customer"
+    }
+  },
+  {
+    "code": "comercial.q12",
+    "prompt": "The customer asks about price before the diagnosis. What do you do?",
+    "options": {
+      "a": "Acknowledge the question and explain that the scope depends on understanding their operations",
+      "b": "Apply an immediate discount",
+      "c": "End the meeting"
+    }
+  },
+  {
+    "code": "comercial.q13",
+    "prompt": "What should the commercial scope include?",
+    "options": {
+      "a": "Modules, users, units, migration, training and implementation",
+      "b": "Only the monthly fee",
+      "c": "Only the payment date"
+    }
+  },
+  {
+    "code": "comercial.q14",
+    "prompt": "When is a prospect sufficiently ready to close?",
+    "options": {
+      "a": "There is a need, authority, budget and intent",
+      "b": "The customer has seen the dashboard",
+      "c": "The session has reached 90 minutes"
+    }
+  },
+  {
+    "code": "comercial.q15",
+    "prompt": "What is the first strategy for addressing a price objection?",
+    "options": {
+      "a": "Reinforce or add value before reducing the price",
+      "b": "Always reduce it by 50%",
+      "c": "Remove ongoing support"
+    }
+  },
+  {
+    "code": "comercial.q16",
+    "prompt": "What should be recorded at the end of a session?",
+    "options": {
+      "a": "Diagnosis, agreements, owners, dates, objections and next step",
+      "b": "Only whether a sale occurred",
+      "c": "Only the duration"
+    }
+  },
+  {
+    "code": "comercial.q17",
+    "prompt": "What follows closing?",
+    "options": {
+      "a": "Implementation with owners, sessions, configuration and adoption",
+      "b": "Wait for the first complaint",
+      "c": "Hand over credentials without context"
+    }
+  },
+  {
+    "code": "comercial.q18",
+    "prompt": "How is the number of initial sessions determined?",
+    "options": {
+      "a": "According to the sessions included in the purchased package",
+      "b": "Always one",
+      "c": "According to the consultant’s commission"
+    }
+  },
+  {
+    "code": "comercial.q19",
+    "prompt": "What minimum support should be provided at the start?",
+    "options": {
+      "a": "Implementation program sessions and active follow-up",
+      "b": "A welcome email",
+      "c": "Only reactive technical support"
+    }
+  },
+  {
+    "code": "comercial.q20",
+    "prompt": "What should the consultant do after implementation?",
+    "options": {
+      "a": "Follow up monthly on adoption, problems and opportunities",
+      "b": "Contact the customer only for renewal",
+      "c": "Transfer all responsibility to the corporate team"
+    }
+  },
+  {
+    "code": "comercial.q21",
+    "prompt": "When should a case be escalated to the corporate team?",
+    "options": {
+      "a": "When it cannot be resolved or requires additional knowledge, authority or opinions",
+      "b": "Never",
+      "c": "Whenever the customer asks a question"
+    }
+  },
+  {
+    "code": "comercial.q22",
+    "prompt": "What does providing support throughout a long-term relationship mean?",
+    "options": {
+      "a": "Helping the customer adopt, improve and receive ongoing value",
+      "b": "Contacting them only to sell modules",
+      "c": "Running their operations for them"
+    }
+  },
+  {
+    "code": "comercial.q23",
+    "prompt": "What behaviour requires immediate reassignment?",
+    "options": {
+      "a": "Harassment, insults, threats or serious disrespect",
+      "b": "Requesting a second opinion",
+      "c": "Requesting an additional session"
+    }
+  },
+  {
+    "code": "comercial.q24",
+    "prompt": "What should a consultant do if they do not know an answer?",
+    "options": {
+      "a": "Acknowledge the limit, research and escalate without making things up",
+      "b": "Improvise to maintain authority",
+      "c": "Change the subject"
+    }
+  },
+  {
+    "code": "comercial.q25",
+    "prompt": "What defines the success of an Indice consultation?",
+    "options": {
+      "a": "The customer understands their problem, the proposed value and the next step",
+      "b": "Every module was shown",
+      "c": "The session ended quickly"
+    }
+  }
+]

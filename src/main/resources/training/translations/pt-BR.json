@@ -1,0 +1,1577 @@
+[
+  {
+    "code": "indice.q01",
+    "prompt": "Uma empresa nova solicita indicadores antes de definir sua estrutura. O que deve ser feito primeiro?",
+    "options": {
+      "a": "Configurar empresa, unidades, responsáveis e permissões",
+      "b": "Escolher as cores do painel",
+      "c": "Importar qualquer planilha disponível"
+    }
+  },
+  {
+    "code": "indice.q02",
+    "prompt": "Qual afirmação expressa melhor a proposta central do Índice?",
+    "options": {
+      "a": "Conectar pessoas, processos, produtos e finanças para operar com clareza",
+      "b": "Substituir todas as decisões humanas por automações",
+      "c": "Concentrar-se apenas na contabilidade"
+    }
+  },
+  {
+    "code": "indice.q03",
+    "prompt": "O que diferencia o Índice de uma ferramenta administrativa passiva?",
+    "options": {
+      "a": "Conecta registro, controle e decisão com acompanhamento",
+      "b": "Tem mais telas e tabelas",
+      "c": "Obriga a usar todos os módulos"
+    }
+  },
+  {
+    "code": "indice.q04",
+    "prompt": "Para que serve o perfil empresarial durante uma consultoria?",
+    "options": {
+      "a": "Oferece contexto para adaptar estrutura, módulos e recomendações",
+      "b": "Define automaticamente todos os preços",
+      "c": "Substitui a entrevista com o proprietário"
+    }
+  },
+  {
+    "code": "indice.q05",
+    "prompt": "O que uma unidade de negócio deve representar?",
+    "options": {
+      "a": "Uma parte da operação que precisa de responsáveis e análise própria",
+      "b": "Qualquer etiqueta usada para decorar relatórios",
+      "c": "Cada usuário que entra no sistema"
+    }
+  },
+  {
+    "code": "indice.q06",
+    "prompt": "Por que as permissões devem ser configuradas antes de operar?",
+    "options": {
+      "a": "Para que cada pessoa veja e execute apenas o que corresponde à sua responsabilidade",
+      "b": "Para aumentar o número de usuários cobrados",
+      "c": "Para impedir que os funcionários usem o sistema"
+    }
+  },
+  {
+    "code": "indice.q07",
+    "prompt": "Um cliente quer compartilhar uma conta administrativa com toda a equipe. O que você recomenda?",
+    "options": {
+      "a": "Criar usuários individuais com permissões adequadas às suas responsabilidades",
+      "b": "Compartilhá-la e trocar a senha mensalmente",
+      "c": "Usar a conta em apenas um computador"
+    }
+  },
+  {
+    "code": "indice.q08",
+    "prompt": "O que um consultor deve fazer antes de interpretar um indicador do painel?",
+    "options": {
+      "a": "Confirmar período, unidade, moeda e fonte da informação",
+      "b": "Compará-lo com qualquer valor histórico",
+      "c": "Exportá-lo para analisar fora do sistema"
+    }
+  },
+  {
+    "code": "indice.q09",
+    "prompt": "Qual é o objetivo do diagnóstico de maturidade empresarial?",
+    "options": {
+      "a": "Identificar prioridades e lacunas antes de recomendar uma implantação",
+      "b": "Atribuir uma avaliação pública ao cliente",
+      "c": "Determinar quantos funcionários devem ser demitidos"
+    }
+  },
+  {
+    "code": "indice.q10",
+    "prompt": "Qual é a relação correta entre módulos e pilares?",
+    "options": {
+      "a": "Os módulos atendem e conectam as necessidades dos quatro pilares",
+      "b": "Cada módulo pertence a uma empresa diferente",
+      "c": "Os pilares substituem a configuração modular"
+    }
+  },
+  {
+    "code": "indice.q11",
+    "prompt": "Se uma empresa tem informações dispersas, qual é o primeiro valor que o Índice deve demonstrar?",
+    "options": {
+      "a": "Uma visão comum e rastreável da operação",
+      "b": "Um catálogo com todas as funções disponíveis",
+      "c": "Um relatório financeiro sem configuração"
+    }
+  },
+  {
+    "code": "indice.q12",
+    "prompt": "O que significa visibilidade no modelo Índice?",
+    "options": {
+      "a": "Entender o que acontece e quais evidências sustentam isso",
+      "b": "Permitir acesso completo a todos",
+      "c": "Mostrar o maior número possível de gráficos"
+    }
+  },
+  {
+    "code": "indice.q13",
+    "prompt": "O que significa controle no modelo Índice?",
+    "options": {
+      "a": "Definir regras, responsáveis e validações para executar",
+      "b": "Revisar pessoalmente cada atividade",
+      "c": "Bloquear qualquer alteração nos dados"
+    }
+  },
+  {
+    "code": "indice.q14",
+    "prompt": "O que significa decisão no modelo Índice?",
+    "options": {
+      "a": "Transformar dados e sinais em ações com contexto",
+      "b": "Aceitar automaticamente todas as recomendações",
+      "c": "Gerar relatórios sem responsáveis"
+    }
+  },
+  {
+    "code": "indice.q15",
+    "prompt": "Qual é uma prática inadequada durante a demonstração inicial?",
+    "options": {
+      "a": "Enumerar todos os módulos sem relacioná-los a um problema",
+      "b": "Confirmar a principal dificuldade",
+      "c": "Mostrar um fluxo breve e relevante"
+    }
+  },
+  {
+    "code": "indice.q16",
+    "prompt": "O que o consultor deve explicar sobre as notificações?",
+    "options": {
+      "a": "Que transformam eventos e pendências em acompanhamento visível",
+      "b": "Que substituem toda a comunicação da equipe",
+      "c": "Que informam apenas alterações de senha"
+    }
+  },
+  {
+    "code": "indice.q17",
+    "prompt": "Por que a personalização de colunas é útil para a operação?",
+    "options": {
+      "a": "Permite mostrar as informações necessárias para a decisão atual",
+      "b": "Oculta definitivamente os dados não selecionados",
+      "c": "Altera as permissões do usuário"
+    }
+  },
+  {
+    "code": "indice.q18",
+    "prompt": "Um proprietário pede para começar carregando anos de dados. Qual é a resposta adequada?",
+    "options": {
+      "a": "Definir primeiro o objetivo e migrar apenas o necessário para operar",
+      "b": "Aceitar tudo sem verificar a qualidade",
+      "c": "Recusar sempre qualquer migração"
+    }
+  },
+  {
+    "code": "indice.q19",
+    "prompt": "O que deve ser preservado ao configurar uma empresa com várias unidades?",
+    "options": {
+      "a": "Responsabilidades e contextos separados sem perder uma visão consolidada",
+      "b": "Uma conta compartilhada por unidade",
+      "c": "Estoques misturados para simplificar"
+    }
+  },
+  {
+    "code": "indice.q20",
+    "prompt": "Quando um novo módulo deve ser recomendado?",
+    "options": {
+      "a": "Quando há um problema e um fluxo de valor claramente identificados",
+      "b": "Quando o cliente não usa o módulo anterior",
+      "c": "Sempre que surge uma função nova"
+    }
+  },
+  {
+    "code": "indice.q21",
+    "prompt": "O que demonstra que um usuário domina a navegação?",
+    "options": {
+      "a": "Consegue localizar um fluxo, executá-lo e voltar sem perder o contexto",
+      "b": "Memoriza a ordem visual de todas as abas",
+      "c": "Conhece todos os ícones de memória"
+    }
+  },
+  {
+    "code": "indice.q22",
+    "prompt": "O que o consultor deve evitar ao falar sobre o painel?",
+    "options": {
+      "a": "Apresentá-lo como solução sem dados e processos confiáveis",
+      "b": "Explicar de onde vêm os indicadores",
+      "c": "Relacioná-lo a decisões"
+    }
+  },
+  {
+    "code": "indice.q23",
+    "prompt": "Qual é a sequência correta do sistema?",
+    "options": {
+      "a": "Registrar, controlar e decidir",
+      "b": "Decidir, apagar e registrar",
+      "c": "Relatar, vender e arquivar"
+    }
+  },
+  {
+    "code": "indice.q24",
+    "prompt": "O que torna uma implantação do Índice sustentável?",
+    "options": {
+      "a": "Configuração clara, adoção pela equipe e acompanhamento contínuo",
+      "b": "Uma sessão longa no início",
+      "c": "Ativar todas as funções no primeiro dia"
+    }
+  },
+  {
+    "code": "indice.q25",
+    "prompt": "Como deve terminar uma explicação geral do Índice?",
+    "options": {
+      "a": "Confirmando qual problema o cliente deseja organizar primeiro",
+      "b": "Entregando imediatamente uma lista de preços",
+      "c": "Pedindo que o cliente escolha um módulo"
+    }
+  },
+  {
+    "code": "rh.q01",
+    "prompt": "O que deve existir antes de controlar a frequência?",
+    "options": {
+      "a": "Colaboradores, cargos, locais e horários configurados corretamente",
+      "b": "A folha de pagamento do próximo ano",
+      "c": "Um comunicado geral"
+    }
+  },
+  {
+    "code": "rh.q02",
+    "prompt": "Qual é a diferença entre prontuário funcional e acesso ao sistema?",
+    "options": {
+      "a": "O prontuário descreve a relação de trabalho; o acesso define permissões digitais",
+      "b": "São exatamente o mesmo registro",
+      "c": "O acesso substitui os documentos trabalhistas"
+    }
+  },
+  {
+    "code": "rh.q03",
+    "prompt": "Um colaborador muda de cargo. O que deve ser revisado além do nome do cargo?",
+    "options": {
+      "a": "Responsável, área, permissões, horário e efeitos operacionais",
+      "b": "Apenas sua fotografia",
+      "c": "Somente seu e-mail pessoal"
+    }
+  },
+  {
+    "code": "rh.q04",
+    "prompt": "Para que serve atribuir um local de trabalho?",
+    "options": {
+      "a": "Relaciona as regras, a localização e o contexto operacional do colaborador",
+      "b": "Cria automaticamente uma filial fiscal",
+      "c": "Elimina a necessidade de horários"
+    }
+  },
+  {
+    "code": "rh.q05",
+    "prompt": "O que deve ser verificado antes de afirmar que alguém chegou atrasado?",
+    "options": {
+      "a": "Horário vigente, fuso horário, localização e registro de frequência",
+      "b": "O comentário de outro funcionário",
+      "c": "O horário do relatório impresso"
+    }
+  },
+  {
+    "code": "rh.q06",
+    "prompt": "Qual é a finalidade de Controle em Recursos Humanos?",
+    "options": {
+      "a": "Revisar frequência, horários, ocorrências e ações operacionais",
+      "b": "Calcular apenas impostos",
+      "c": "Publicar produtos para funcionários"
+    }
+  },
+  {
+    "code": "rh.q07",
+    "prompt": "Por que não se deve compartilhar um PIN ou uma identidade de registro de ponto?",
+    "options": {
+      "a": "Compromete a rastreabilidade de quem fez o registro",
+      "b": "Consome mais armazenamento",
+      "c": "Altera o horário automaticamente"
+    }
+  },
+  {
+    "code": "rh.q08",
+    "prompt": "O que um consultor deve fazer quando faltam registros de frequência?",
+    "options": {
+      "a": "Revisar a configuração e as evidências antes de concluir que houve ausência",
+      "b": "Criar registros manuais sem explicação",
+      "c": "Desativar o colaborador"
+    }
+  },
+  {
+    "code": "rh.q09",
+    "prompt": "Para que servem os prontuários e registros formais?",
+    "options": {
+      "a": "Documentam eventos de trabalho com contexto, datas e acompanhamento",
+      "b": "Substituem contratos e leis aplicáveis",
+      "c": "Armazenam apenas fotografias"
+    }
+  },
+  {
+    "code": "rh.q10",
+    "prompt": "Qual é o valor das autorizações de ausência?",
+    "options": {
+      "a": "Organizam solicitações, evidências, análise e decisão",
+      "b": "Concedem permissões de administrador",
+      "c": "Alteram o salário automaticamente"
+    }
+  },
+  {
+    "code": "rh.q11",
+    "prompt": "Como os comunicados devem ser utilizados?",
+    "options": {
+      "a": "Com público-alvo, período de validade e mensagem verificável",
+      "b": "Como substitutos de toda capacitação",
+      "c": "Para compartilhar senhas"
+    }
+  },
+  {
+    "code": "rh.q12",
+    "prompt": "O que o módulo de ativos permite controlar?",
+    "options": {
+      "a": "Atribuição, responsável, estado e devolução de bens",
+      "b": "Toda a depreciação fiscal sem configuração",
+      "c": "A frequência por geolocalização"
+    }
+  },
+  {
+    "code": "rh.q13",
+    "prompt": "Qual risco é resolvido ao vincular ativos a colaboradores?",
+    "options": {
+      "a": "Evita bens sem responsável nem histórico",
+      "b": "Evita criar fornecedores",
+      "c": "Elimina o estoque comercial"
+    }
+  },
+  {
+    "code": "rh.q14",
+    "prompt": "Quando uma ocorrência de folha de pagamento deve ser registrada?",
+    "options": {
+      "a": "Quando existe um fato verificável que afeta o período",
+      "b": "Sempre depois do fechamento e do pagamento",
+      "c": "Somente quando o banco solicita"
+    }
+  },
+  {
+    "code": "rh.q15",
+    "prompt": "O que o consultor deve esclarecer sobre a folha de pagamento?",
+    "options": {
+      "a": "Depende da configuração trabalhista, do país, dos períodos e de ocorrências confiáveis",
+      "b": "Sempre produz o mesmo cálculo em qualquer país",
+      "c": "Pode funcionar sem colaboradores"
+    }
+  },
+  {
+    "code": "rh.q16",
+    "prompt": "Qual é a função dos incentivos?",
+    "options": {
+      "a": "Documentam regras, resultados e reconhecimentos rastreáveis",
+      "b": "Substituem o salário-base",
+      "c": "Concedem acesso ao módulo financeiro"
+    }
+  },
+  {
+    "code": "rh.q17",
+    "prompt": "Um cliente relata funcionários fantasmas. Qual é o primeiro fluxo?",
+    "options": {
+      "a": "Auditar colaboradores ativos, vínculos de trabalho, acessos e pagamentos",
+      "b": "Excluir todos que não registraram o ponto hoje",
+      "c": "Recriar a empresa"
+    }
+  },
+  {
+    "code": "rh.q18",
+    "prompt": "O que uma demonstração de cadastro de colaborador deve mostrar?",
+    "options": {
+      "a": "Dados mínimos, estrutura, responsável, horário, documentos e acesso separado",
+      "b": "Todos os campos disponíveis, mesmo que não se apliquem",
+      "c": "Apenas nome e telefone"
+    }
+  },
+  {
+    "code": "rh.q19",
+    "prompt": "Por que as permissões por aba devem ser respeitadas?",
+    "options": {
+      "a": "Protegem informações sensíveis e separam responsabilidades",
+      "b": "Aumentam a velocidade do sistema",
+      "c": "Evitam o uso de filtros"
+    }
+  },
+  {
+    "code": "rh.q20",
+    "prompt": "O que um indicador de Recursos Humanos deve fazer?",
+    "options": {
+      "a": "Responder a uma pergunta operacional e levar a uma ação",
+      "b": "Mostrar a maior quantidade de funcionários",
+      "c": "Substituir a análise de casos"
+    }
+  },
+  {
+    "code": "rh.q21",
+    "prompt": "Como interpretar corretamente o absenteísmo?",
+    "options": {
+      "a": "Considerando período, população, horários e ocorrências justificadas",
+      "b": "Apenas contando registros vazios",
+      "c": "Comparando pessoas de empresas diferentes"
+    }
+  },
+  {
+    "code": "rh.q22",
+    "prompt": "Quando é útil usar um quiosque de ponto?",
+    "options": {
+      "a": "Quando é necessário um registro controlado sem acesso administrativo completo",
+      "b": "Para que todos gerenciem a folha de pagamento",
+      "c": "Para substituir usuários individuais"
+    }
+  },
+  {
+    "code": "rh.q23",
+    "prompt": "O que deve ser feito quando muda o responsável por uma equipe?",
+    "options": {
+      "a": "Atualizar a estrutura e verificar permissões e fluxos dependentes",
+      "b": "Editar apenas um organograma externo",
+      "c": "Apagar o histórico da equipe"
+    }
+  },
+  {
+    "code": "rh.q24",
+    "prompt": "Qual recomendação de consultoria está incorreta?",
+    "options": {
+      "a": "Prometer controle de frequência sem configurar horários nem locais",
+      "b": "Testar o fluxo com um grupo pequeno",
+      "c": "Definir responsáveis pelas ocorrências"
+    }
+  },
+  {
+    "code": "rh.q25",
+    "prompt": "Qual resultado o consultor de RH deve saber explicar?",
+    "options": {
+      "a": "Quem faz parte da equipe, o que deve fazer e o que exige atenção",
+      "b": "Quantas telas o módulo possui",
+      "c": "Qual cor cada aba usa"
+    }
+  },
+  {
+    "code": "procesos.q01",
+    "prompt": "Quando se deve criar uma tarefa?",
+    "options": {
+      "a": "Quando há uma atividade concreta com responsável e data",
+      "b": "Quando é necessário modelar toda a empresa",
+      "c": "Quando não há resultado esperado"
+    }
+  },
+  {
+    "code": "procesos.q02",
+    "prompt": "Quando se deve criar um projeto?",
+    "options": {
+      "a": "Quando há um objetivo temporário com várias atividades relacionadas",
+      "b": "Para qualquer atividade diária recorrente",
+      "c": "Para guardar documentos sem responsáveis"
+    }
+  },
+  {
+    "code": "procesos.q03",
+    "prompt": "Quando se deve criar um processo?",
+    "options": {
+      "a": "Quando um fluxo precisa se repetir com etapas e regras consistentes",
+      "b": "Quando basta um lembrete pessoal",
+      "c": "Quando o trabalho não tem ordem conhecida"
+    }
+  },
+  {
+    "code": "procesos.q04",
+    "prompt": "Quais elementos mínimos uma tarefa útil precisa ter?",
+    "options": {
+      "a": "Responsável, resultado, prioridade e data",
+      "b": "Cor, emoji e comentário",
+      "c": "Apenas um título"
+    }
+  },
+  {
+    "code": "procesos.q05",
+    "prompt": "Para que serve a evidência em uma tarefa?",
+    "options": {
+      "a": "Demonstra o que foi feito e permite revisar o resultado",
+      "b": "Substitui o responsável",
+      "c": "Encerra automaticamente qualquer processo"
+    }
+  },
+  {
+    "code": "procesos.q06",
+    "prompt": "O que deve ser evitado ao criar tarefas?",
+    "options": {
+      "a": "Instruções ambíguas sem resultado verificável",
+      "b": "Definir uma data",
+      "c": "Definir prioridade"
+    }
+  },
+  {
+    "code": "procesos.q07",
+    "prompt": "O que diferencia uma etapa de processo de uma lista informal?",
+    "options": {
+      "a": "Tem critério de avanço, responsável e relação com a próxima etapa",
+      "b": "Usa mais texto",
+      "c": "Só pode ser vista no calendário"
+    }
+  },
+  {
+    "code": "procesos.q08",
+    "prompt": "Um processo sempre atrasa na mesma etapa. O que o consultor deve revisar?",
+    "options": {
+      "a": "Carga, responsável, entrada necessária e critério de saída",
+      "b": "A cor do cartão",
+      "c": "A senha do criador"
+    }
+  },
+  {
+    "code": "procesos.q09",
+    "prompt": "Para que serve a visualização de calendário?",
+    "options": {
+      "a": "Situar trabalho e prazos no tempo",
+      "b": "Definir permissões financeiras",
+      "c": "Substituir projetos e processos"
+    }
+  },
+  {
+    "code": "procesos.q10",
+    "prompt": "Para que serve a visualização de quadro?",
+    "options": {
+      "a": "Visualizar estados e movimentação do trabalho",
+      "b": "Calcular a folha de pagamento",
+      "c": "Administrar contas contábeis"
+    }
+  },
+  {
+    "code": "procesos.q11",
+    "prompt": "Para que serve uma tabela operacional?",
+    "options": {
+      "a": "Comparar, filtrar e administrar vários registros com precisão",
+      "b": "Evitar abrir detalhes",
+      "c": "Substituir toda evidência"
+    }
+  },
+  {
+    "code": "procesos.q12",
+    "prompt": "Quando uma tarefa deve ser escalada?",
+    "options": {
+      "a": "Quando bloqueio, impacto ou prazo exige intervenção definida",
+      "b": "Sempre que recebe um comentário",
+      "c": "Somente depois de ser excluída"
+    }
+  },
+  {
+    "code": "procesos.q13",
+    "prompt": "O que o acompanhamento de uma tarefa deve conter?",
+    "options": {
+      "a": "Avanço, evidência, bloqueio e próxima ação",
+      "b": "Conversas sem data",
+      "c": "Apenas um percentual estimado"
+    }
+  },
+  {
+    "code": "procesos.q14",
+    "prompt": "Que valor traz atribuir uma equipe a uma tarefa?",
+    "options": {
+      "a": "Esclarece os participantes mantendo um responsável principal",
+      "b": "Faz com que ninguém seja responsável",
+      "c": "Concede permissões de administrador"
+    }
+  },
+  {
+    "code": "procesos.q15",
+    "prompt": "Qual problema um quiosque de tarefas resolve?",
+    "options": {
+      "a": "Permite executar ou registrar trabalho sem acesso completo ao sistema",
+      "b": "Elimina a necessidade de identidade",
+      "c": "Publica processos em redes sociais"
+    }
+  },
+  {
+    "code": "procesos.q16",
+    "prompt": "O que um quiosque deve proteger?",
+    "options": {
+      "a": "Identidade, escopo, permissões e evidência da operação",
+      "b": "Somente o design visual",
+      "c": "O nome do módulo"
+    }
+  },
+  {
+    "code": "procesos.q17",
+    "prompt": "O que um indicador de processos deve medir?",
+    "options": {
+      "a": "Tempo, cumprimento, carga, bloqueios ou qualidade para decidir",
+      "b": "Número total de cores",
+      "c": "Quantidade de comentários sem contexto"
+    }
+  },
+  {
+    "code": "procesos.q18",
+    "prompt": "Uma empresa administra tudo por mensagens. Qual é o primeiro passo?",
+    "options": {
+      "a": "Escolher um fluxo crítico e definir responsáveis, etapas e evidências",
+      "b": "Importar todas as conversas",
+      "c": "Proibir imediatamente as mensagens"
+    }
+  },
+  {
+    "code": "procesos.q19",
+    "prompt": "Como o desenho de um processo deve começar?",
+    "options": {
+      "a": "Definindo objetivo, entrada, resultado e responsáveis",
+      "b": "Escolhendo um modelo pela aparência",
+      "c": "Criando alertas antes das etapas"
+    }
+  },
+  {
+    "code": "procesos.q20",
+    "prompt": "O que indica que um processo está complexo demais?",
+    "options": {
+      "a": "Tem etapas ou campos que não alteram controle nem decisão",
+      "b": "Inclui responsáveis",
+      "c": "Mantém evidências"
+    }
+  },
+  {
+    "code": "procesos.q21",
+    "prompt": "O que o consultor deve fazer se ninguém atualiza as tarefas?",
+    "options": {
+      "a": "Revisar clareza, carga, hábitos, permissões e utilidade do acompanhamento",
+      "b": "Adicionar mais campos obrigatórios",
+      "c": "Encerrar todas as tarefas"
+    }
+  },
+  {
+    "code": "procesos.q22",
+    "prompt": "Por que um prazo sem responsável é insuficiente?",
+    "options": {
+      "a": "Não há uma pessoa claramente obrigada a agir",
+      "b": "Não pode ser mostrado no calendário",
+      "c": "Não permite usar cores"
+    }
+  },
+  {
+    "code": "procesos.q23",
+    "prompt": "O que diferencia avanço de conclusão?",
+    "options": {
+      "a": "Avanço mostra progresso; conclusão confirma o cumprimento do critério",
+      "b": "São sempre o mesmo estado",
+      "c": "Conclusão significa apenas que venceu"
+    }
+  },
+  {
+    "code": "procesos.q24",
+    "prompt": "O que uma demonstração consultiva de processos deve mostrar?",
+    "options": {
+      "a": "Um problema real convertido em execução, evidência e sinal de controle",
+      "b": "Todas as configurações possíveis",
+      "c": "Apenas o formulário de criação"
+    }
+  },
+  {
+    "code": "procesos.q25",
+    "prompt": "Qual é o resultado esperado do módulo?",
+    "options": {
+      "a": "Trabalho repetível, visível e menos dependente de memória ou mensagens",
+      "b": "Mais reuniões para revisar pendências",
+      "c": "Eliminar toda exceção operacional"
+    }
+  },
+  {
+    "code": "finanzas.q01",
+    "prompt": "O que diferencia uma despesa de uma conta a pagar?",
+    "options": {
+      "a": "A despesa descreve a operação; a conta a pagar mantém uma obrigação pendente",
+      "b": "Não existe diferença",
+      "c": "A conta a pagar está sempre liquidada"
+    }
+  },
+  {
+    "code": "finanzas.q02",
+    "prompt": "Quais dados tornam uma despesa rastreável?",
+    "options": {
+      "a": "Descrição, fornecedor, data, valor, responsável, conta e evidência",
+      "b": "Somente o valor total",
+      "c": "Apenas a categoria"
+    }
+  },
+  {
+    "code": "finanzas.q03",
+    "prompt": "Quando uma conta a pagar deve ser registrada?",
+    "options": {
+      "a": "Quando há uma obrigação que será liquidada depois",
+      "b": "Depois de ser paga integralmente",
+      "c": "Somente quando não há fornecedor"
+    }
+  },
+  {
+    "code": "finanzas.q04",
+    "prompt": "Para que serve o cadastro de fornecedores?",
+    "options": {
+      "a": "Manter identidade, condições e contexto reutilizável de compra e pagamento",
+      "b": "Substituir contas contábeis",
+      "c": "Autorizar automaticamente qualquer despesa"
+    }
+  },
+  {
+    "code": "finanzas.q05",
+    "prompt": "Qual risco um quiosque de contas a pagar reduz?",
+    "options": {
+      "a": "Faturas dispersas e recebimento sem rastreabilidade",
+      "b": "Variações da taxa de câmbio",
+      "c": "Duplicidade de usuários internos"
+    }
+  },
+  {
+    "code": "finanzas.q06",
+    "prompt": "Qual é a relação entre orçamento e gasto real?",
+    "options": {
+      "a": "O orçamento define a expectativa e o gasto mede execução e desvio",
+      "b": "O orçamento substitui todas as despesas",
+      "c": "O gasto sempre altera o orçamento original"
+    }
+  },
+  {
+    "code": "finanzas.q07",
+    "prompt": "O que o consultor deve revisar diante de um desvio orçamentário?",
+    "options": {
+      "a": "Período, escopo, descrição, responsável, causa e recorrência",
+      "b": "Somente o percentual geral",
+      "c": "Apenas o maior fornecedor"
+    }
+  },
+  {
+    "code": "finanzas.q08",
+    "prompt": "Para que servem as contas contábeis?",
+    "options": {
+      "a": "Classificar movimentos consistentemente para análises e relatórios",
+      "b": "Guardar senhas bancárias",
+      "c": "Definir horários de pagamento"
+    }
+  },
+  {
+    "code": "finanzas.q09",
+    "prompt": "Para que servem as contas de pagamento?",
+    "options": {
+      "a": "Identificar de onde o dinheiro é pago ou recebido",
+      "b": "Substituir fornecedores",
+      "c": "Criar orçamentos automaticamente"
+    }
+  },
+  {
+    "code": "finanzas.q10",
+    "prompt": "O que deve ser evitado ao criar categorias financeiras?",
+    "options": {
+      "a": "Duplicidades ambíguas que fragmentam a análise",
+      "b": "Nomes claros",
+      "c": "Uma estrutura consistente"
+    }
+  },
+  {
+    "code": "finanzas.q11",
+    "prompt": "O que um fundo de caixa pequeno precisa ter?",
+    "options": {
+      "a": "Responsável, moeda, limites, propósito e saldo inicial",
+      "b": "Somente um nome",
+      "c": "Uma conta compartilhada por todos"
+    }
+  },
+  {
+    "code": "finanzas.q12",
+    "prompt": "Por que toda entrada de caixa pequeno deve ser registrada?",
+    "options": {
+      "a": "Para reconstruir a origem do saldo",
+      "b": "Para convertê-la em venda",
+      "c": "Para evitar comprovantes"
+    }
+  },
+  {
+    "code": "finanzas.q13",
+    "prompt": "Por que toda saída de caixa pequeno precisa de evidência?",
+    "options": {
+      "a": "Para explicar valor, propósito e responsável",
+      "b": "Para aumentar o saldo",
+      "c": "Para mudar a moeda"
+    }
+  },
+  {
+    "code": "finanzas.q14",
+    "prompt": "O que significa conciliar um fundo?",
+    "options": {
+      "a": "Comparar movimentos, evidências e saldo para explicar diferenças",
+      "b": "Ajustar o número até coincidir",
+      "c": "Excluir despesas rejeitadas"
+    }
+  },
+  {
+    "code": "finanzas.q15",
+    "prompt": "Quando um fundo deve ser reposto?",
+    "options": {
+      "a": "Depois de revisar movimentos e comprovantes conforme a política",
+      "b": "Sempre que o saldo diminui",
+      "c": "Antes de registrar despesas"
+    }
+  },
+  {
+    "code": "finanzas.q16",
+    "prompt": "O que um extrato de caixa pequeno deve manter?",
+    "options": {
+      "a": "Período, saldos, movimentos, diferenças e estado de revisão",
+      "b": "Somente o saldo final",
+      "c": "Apenas recibos aprovados"
+    }
+  },
+  {
+    "code": "finanzas.q17",
+    "prompt": "O dinheiro contado não coincide. Qual é o primeiro passo?",
+    "options": {
+      "a": "Reconstruir entradas, saídas, pendências e evidências",
+      "b": "Editar diretamente o saldo",
+      "c": "Criar um novo fundo"
+    }
+  },
+  {
+    "code": "finanzas.q18",
+    "prompt": "O que diferencia uma compra de um pagamento?",
+    "options": {
+      "a": "A compra cria a operação; o pagamento liquida toda ou parte da obrigação",
+      "b": "Sempre acontecem ao mesmo tempo",
+      "c": "O pagamento cria estoque sem compra"
+    }
+  },
+  {
+    "code": "finanzas.q19",
+    "prompt": "Por que impostos e moeda devem ser configurados com contexto?",
+    "options": {
+      "a": "Afetam valores, comparabilidade e relatórios",
+      "b": "Só alteram o design",
+      "c": "Não influenciam nenhum cálculo"
+    }
+  },
+  {
+    "code": "finanzas.q20",
+    "prompt": "O que um indicador financeiro deve fazer?",
+    "options": {
+      "a": "Conectar um resultado à sua causa e a uma decisão",
+      "b": "Mostrar todos os movimentos sem filtros",
+      "c": "Ocultar variações pequenas"
+    }
+  },
+  {
+    "code": "finanzas.q21",
+    "prompt": "Qual é o erro ao somar fundos em moedas diferentes?",
+    "options": {
+      "a": "Gera um total não comparável sem conversão e contexto",
+      "b": "Duplica fornecedores",
+      "c": "Elimina os impostos"
+    }
+  },
+  {
+    "code": "finanzas.q22",
+    "prompt": "Como um comprovante rejeitado deve ser tratado?",
+    "options": {
+      "a": "Com estado, motivo e acompanhamento visíveis",
+      "b": "Excluindo-o sem histórico",
+      "c": "Aprovando-o para encerrar o período"
+    }
+  },
+  {
+    "code": "finanzas.q23",
+    "prompt": "O que uma demonstração de controle financeiro deve mostrar?",
+    "options": {
+      "a": "O percurso do registro e evidência à revisão e decisão",
+      "b": "Somente o total do painel",
+      "c": "Apenas a criação de fornecedores"
+    }
+  },
+  {
+    "code": "finanzas.q24",
+    "prompt": "Quando um consultor deve escalar um tema financeiro?",
+    "options": {
+      "a": "Quando exige julgamento contábil, fiscal ou jurídico além do uso do sistema",
+      "b": "Nunca, pois o Índice substitui o contador",
+      "c": "Sempre que uma despesa é registrada"
+    }
+  },
+  {
+    "code": "finanzas.q25",
+    "prompt": "Qual é o resultado esperado de Finanças no Índice?",
+    "options": {
+      "a": "Movimentos explicáveis, obrigações visíveis e decisões com contexto",
+      "b": "Eliminar toda variação",
+      "c": "Automatizar qualquer autorização"
+    }
+  },
+  {
+    "code": "ventas.q01",
+    "prompt": "Qual é a diferença entre um contato e uma oportunidade?",
+    "options": {
+      "a": "O contato identifica a pessoa; a oportunidade representa uma possibilidade comercial",
+      "b": "São o mesmo registro",
+      "c": "A oportunidade só existe após o pagamento"
+    }
+  },
+  {
+    "code": "ventas.q02",
+    "prompt": "O que a origem de uma oportunidade deve registrar?",
+    "options": {
+      "a": "O canal ou esforço que gerou o prospect",
+      "b": "A cor da etapa",
+      "c": "A conta bancária do cliente"
+    }
+  },
+  {
+    "code": "ventas.q03",
+    "prompt": "O que torna uma oportunidade operacional?",
+    "options": {
+      "a": "Responsável, etapa, valor, próxima ação e data",
+      "b": "Apenas o nome do cliente",
+      "c": "Uma proposta sem acompanhamento"
+    }
+  },
+  {
+    "code": "ventas.q04",
+    "prompt": "O que indica uma oportunidade sem próxima ação?",
+    "options": {
+      "a": "Risco de estagnação e falta de acompanhamento",
+      "b": "Fechamento automático",
+      "c": "Que o pagamento já foi recebido"
+    }
+  },
+  {
+    "code": "ventas.q05",
+    "prompt": "Para que serve o pipeline de vendas?",
+    "options": {
+      "a": "Mostra avanço, estagnação e carga comercial",
+      "b": "Substitui contratos",
+      "c": "Calcula a folha de pagamento"
+    }
+  },
+  {
+    "code": "ventas.q06",
+    "prompt": "Quando a etapa de uma oportunidade deve mudar?",
+    "options": {
+      "a": "Quando há evidências de que o critério de avanço foi cumprido",
+      "b": "Ao final de cada semana",
+      "c": "Quando o vendedor quer melhorar o relatório"
+    }
+  },
+  {
+    "code": "ventas.q07",
+    "prompt": "O que uma proposta comercial útil deve conter?",
+    "options": {
+      "a": "Cliente, itens, preços, impostos, validade e condições",
+      "b": "Apenas o total",
+      "c": "Apenas o logotipo"
+    }
+  },
+  {
+    "code": "ventas.q08",
+    "prompt": "Qual é a diferença entre uma proposta e uma venda?",
+    "options": {
+      "a": "A proposta apresenta condições; a venda formaliza o acordo comercial",
+      "b": "Não há diferença",
+      "c": "A venda não precisa de cliente"
+    }
+  },
+  {
+    "code": "ventas.q09",
+    "prompt": "O que deve ser verificado antes de converter uma proposta?",
+    "options": {
+      "a": "Aceitação, escopo, validade, preços e condições",
+      "b": "Apenas se existe um PDF",
+      "c": "Se o vendedor recebe comissão"
+    }
+  },
+  {
+    "code": "ventas.q10",
+    "prompt": "O que uma venda deve registrar?",
+    "options": {
+      "a": "Cliente, produtos ou serviços, valores, impostos, pagamento e responsável",
+      "b": "Apenas a receita esperada",
+      "c": "Apenas o número do contrato"
+    }
+  },
+  {
+    "code": "ventas.q11",
+    "prompt": "Como vendas e estoque se relacionam?",
+    "options": {
+      "a": "A venda pode reservar ou reduzir o estoque conforme o fluxo configurado",
+      "b": "Toda venda cria um depósito",
+      "c": "Nunca devem se relacionar"
+    }
+  },
+  {
+    "code": "ventas.q12",
+    "prompt": "Quando surge uma conta a receber?",
+    "options": {
+      "a": "Quando uma venda fica total ou parcialmente a prazo",
+      "b": "Quando o pagamento integral é recebido",
+      "c": "Ao criar um contato"
+    }
+  },
+  {
+    "code": "ventas.q13",
+    "prompt": "Qual é a função de um contrato?",
+    "options": {
+      "a": "Formaliza escopo, obrigações, vigência e condições acordadas",
+      "b": "Substitui qualquer proposta",
+      "c": "Cria produtos automaticamente"
+    }
+  },
+  {
+    "code": "ventas.q14",
+    "prompt": "Por que as contas de pagamento são importantes em vendas?",
+    "options": {
+      "a": "Esclarecem onde o dinheiro é recebido e conciliado",
+      "b": "Definem a etapa do prospect",
+      "c": "Substituem contatos"
+    }
+  },
+  {
+    "code": "ventas.q15",
+    "prompt": "O que uma regra de comissão deve definir?",
+    "options": {
+      "a": "Base de cálculo, percentual, condição, beneficiário e momento do pagamento",
+      "b": "Apenas o nome do vendedor",
+      "c": "Um valor sem relação com as vendas"
+    }
+  },
+  {
+    "code": "ventas.q16",
+    "prompt": "Que risco uma apuração de comissões reduz?",
+    "options": {
+      "a": "Pagamentos duplicados ou sem período e vendas identificáveis",
+      "b": "Perda de estoque",
+      "c": "Falta de horários"
+    }
+  },
+  {
+    "code": "ventas.q17",
+    "prompt": "O que um indicador comercial deve medir?",
+    "options": {
+      "a": "Conversão, valor, velocidade, atividade ou resultados com contexto",
+      "b": "Número de contatos sem período definido",
+      "c": "Quantidade de colunas visíveis"
+    }
+  },
+  {
+    "code": "ventas.q18",
+    "prompt": "Uma empresa perde prospects das redes sociais. O que você implementa primeiro?",
+    "options": {
+      "a": "Origem, responsável, etapas e próxima ação",
+      "b": "Um desconto geral",
+      "c": "Um contrato para cada contato"
+    }
+  },
+  {
+    "code": "ventas.q19",
+    "prompt": "O que o consultor deve fazer diante de oportunidades estagnadas?",
+    "options": {
+      "a": "Revisar o critério da etapa, a última atividade, a objeção e a próxima ação",
+      "b": "Mover todas para fechamento",
+      "c": "Excluí-las sem revisão"
+    }
+  },
+  {
+    "code": "ventas.q20",
+    "prompt": "Qual relação deve existir entre produtos e propostas?",
+    "options": {
+      "a": "Catálogo e condições consistentes para evitar preenchimento e preços improvisados",
+      "b": "Nenhuma; tudo deve ser escrito manualmente",
+      "c": "Apenas uma fotografia compartilhada"
+    }
+  },
+  {
+    "code": "ventas.q21",
+    "prompt": "Quando o pós-venda deve ser registrado?",
+    "options": {
+      "a": "Desde o fechamento, com compromissos, responsável e acompanhamento",
+      "b": "Somente quando houver uma reclamação",
+      "c": "Após o vencimento do contrato"
+    }
+  },
+  {
+    "code": "ventas.q22",
+    "prompt": "O que uma demonstração de Vendas deve mostrar?",
+    "options": {
+      "a": "O percurso do prospect ao fechamento e à continuidade do relacionamento",
+      "b": "Todas as tabelas disponíveis",
+      "c": "Apenas a criação de produtos"
+    }
+  },
+  {
+    "code": "ventas.q23",
+    "prompt": "Por que não se deve prometer uma taxa de conversão específica?",
+    "options": {
+      "a": "Depende do processo, da oferta, da execução e do mercado do cliente",
+      "b": "Porque o módulo não registra vendas",
+      "c": "Porque não existem indicadores"
+    }
+  },
+  {
+    "code": "ventas.q24",
+    "prompt": "Que dado permite avaliar a eficácia de uma fonte de leads?",
+    "options": {
+      "a": "Oportunidades e resultados atribuíveis à origem em um período",
+      "b": "O número total de usuários",
+      "c": "O número de contratos vencidos"
+    }
+  },
+  {
+    "code": "ventas.q25",
+    "prompt": "Qual é o resultado esperado do módulo?",
+    "options": {
+      "a": "Um processo comercial repetível, rastreável e conectado à operação",
+      "b": "Enviar mais mensagens sem controle",
+      "c": "Fechar todas as oportunidades no mesmo dia"
+    }
+  },
+  {
+    "code": "kpis.q01",
+    "prompt": "A que um KPI deve responder?",
+    "options": {
+      "a": "A uma pergunta de negócio ligada a uma decisão",
+      "b": "Quantas cores o painel usa",
+      "c": "Tudo o que aconteceu sem prioridade"
+    }
+  },
+  {
+    "code": "kpis.q02",
+    "prompt": "O que deve ser confirmado antes de comparar períodos?",
+    "options": {
+      "a": "Mesmo escopo, moeda, unidade e definição",
+      "b": "Que os gráficos tenham o mesmo tamanho",
+      "c": "Que haja mais dados no período novo"
+    }
+  },
+  {
+    "code": "kpis.q03",
+    "prompt": "Por que um valor isolado pode enganar?",
+    "options": {
+      "a": "Não mostra tendência, meta, composição nem contexto",
+      "b": "Está sempre arredondado",
+      "c": "Não pode ser exportado"
+    }
+  },
+  {
+    "code": "kpis.q04",
+    "prompt": "O que diferencia um KPI de uma métrica?",
+    "options": {
+      "a": "O KPI representa desempenho prioritário; uma métrica pode ser apenas um dado",
+      "b": "Não existe diferença",
+      "c": "A métrica é sempre financeira"
+    }
+  },
+  {
+    "code": "kpis.q05",
+    "prompt": "O que fazer quando um indicador muda?",
+    "options": {
+      "a": "Validar o dado e investigar sua causa antes de agir",
+      "b": "Atribuir culpa imediatamente",
+      "c": "Alterar a meta"
+    }
+  },
+  {
+    "code": "kpis.q06",
+    "prompt": "Para que serve abrir o detalhe de um KPI?",
+    "options": {
+      "a": "Explica componentes, tendência e causa provável",
+      "b": "Altera o resultado",
+      "c": "Remove filtros"
+    }
+  },
+  {
+    "code": "kpis.q07",
+    "prompt": "O que torna uma meta útil?",
+    "options": {
+      "a": "Define resultado esperado, período, responsável e critério",
+      "b": "Deve sempre ser mais alta",
+      "c": "Não precisa de data"
+    }
+  },
+  {
+    "code": "kpis.q08",
+    "prompt": "O que uma ação derivada de um KPI deve conter?",
+    "options": {
+      "a": "Responsável, data, resultado esperado e acompanhamento",
+      "b": "Somente um comentário",
+      "c": "Um novo gráfico"
+    }
+  },
+  {
+    "code": "kpis.q09",
+    "prompt": "Qual é o risco de misturar moedas?",
+    "options": {
+      "a": "Gera um total não comparável sem conversão definida",
+      "b": "Duplica usuários",
+      "c": "Perde permissões"
+    }
+  },
+  {
+    "code": "kpis.q10",
+    "prompt": "O que mostra uma demonstração de resultados?",
+    "options": {
+      "a": "Receitas, custos, despesas e resultado de um período",
+      "b": "Ativos e passivos em uma data",
+      "c": "Somente movimentações bancárias"
+    }
+  },
+  {
+    "code": "kpis.q11",
+    "prompt": "O que mostra um balanço patrimonial?",
+    "options": {
+      "a": "Ativos, passivos e patrimônio líquido em uma data",
+      "b": "Vendas por vendedor",
+      "c": "Tarefas vencidas"
+    }
+  },
+  {
+    "code": "kpis.q12",
+    "prompt": "O que mostra o fluxo de caixa?",
+    "options": {
+      "a": "Entradas, saídas e disponibilidade de caixa",
+      "b": "Somente lucro contábil",
+      "c": "Apenas contas a pagar"
+    }
+  },
+  {
+    "code": "kpis.q13",
+    "prompt": "Por que lucro e caixa podem ser diferentes?",
+    "options": {
+      "a": "Há crédito, pagamentos pendentes, investimentos e movimentações em momentos distintos",
+      "b": "Porque um deles está sempre errado",
+      "c": "Por causa da cor do relatório"
+    }
+  },
+  {
+    "code": "kpis.q14",
+    "prompt": "Quando consultar o razão de uma conta?",
+    "options": {
+      "a": "Quando é necessário explicar as movimentações de uma conta específica",
+      "b": "Para controlar a presença",
+      "c": "Para criar oportunidades"
+    }
+  },
+  {
+    "code": "kpis.q15",
+    "prompt": "O que revisar antes de exportar um relatório?",
+    "options": {
+      "a": "Filtros, período, escopo, moeda e consistência",
+      "b": "Somente o nome do arquivo",
+      "c": "A quantidade de páginas"
+    }
+  },
+  {
+    "code": "kpis.q16",
+    "prompt": "Para que serve um relatório automatizado?",
+    "options": {
+      "a": "Entrega informações recorrentes com conteúdo, frequência e destinatários definidos",
+      "b": "Corrige dados automaticamente",
+      "c": "Autoriza despesas"
+    }
+  },
+  {
+    "code": "kpis.q17",
+    "prompt": "O que fazer antes de ativar uma automação?",
+    "options": {
+      "a": "Executar um teste e validar conteúdo e destinatários",
+      "b": "Enviar para toda a empresa",
+      "c": "Excluir relatórios anteriores"
+    }
+  },
+  {
+    "code": "kpis.q18",
+    "prompt": "Qual é o risco de automatizar um relatório incorreto?",
+    "options": {
+      "a": "Repete e distribui o erro mais rapidamente",
+      "b": "Reduz o armazenamento",
+      "c": "Altera a moeda"
+    }
+  },
+  {
+    "code": "kpis.q19",
+    "prompt": "A margem está caindo. Qual análise corresponde?",
+    "options": {
+      "a": "Validar o escopo e investigar vendas, custos, produtos e unidades",
+      "b": "Demitir o vendedor com menos vendas",
+      "c": "Aumentar todos os preços sem revisão"
+    }
+  },
+  {
+    "code": "kpis.q20",
+    "prompt": "As vendas sobem e o caixa cai. O que deve ser revisado?",
+    "options": {
+      "a": "Crédito, cobrança, estoque, pagamentos e capital de giro",
+      "b": "Somente a quantidade de clientes",
+      "c": "Apenas a presença"
+    }
+  },
+  {
+    "code": "kpis.q21",
+    "prompt": "O que o consultor deve fazer se a fonte de um indicador estiver incompleta?",
+    "options": {
+      "a": "Declarar a limitação e corrigir a captura antes de concluir",
+      "b": "Apresentá-lo como uma estimativa exata",
+      "c": "Ocultar o indicador"
+    }
+  },
+  {
+    "code": "kpis.q22",
+    "prompt": "O que caracteriza um alerta útil?",
+    "options": {
+      "a": "Tem condição, impacto, responsável e ação esperada",
+      "b": "Aparece todos os dias",
+      "c": "Usa a cor vermelha"
+    }
+  },
+  {
+    "code": "kpis.q23",
+    "prompt": "O que um painel executivo deve evitar?",
+    "options": {
+      "a": "Excesso de indicadores sem prioridade nem ação",
+      "b": "Filtros de contexto",
+      "c": "Acesso ao detalhe"
+    }
+  },
+  {
+    "code": "kpis.q24",
+    "prompt": "O que demonstra domínio consultivo de KPIs?",
+    "options": {
+      "a": "Explicar o que mudou, por que importa, a causa e o que fazer",
+      "b": "Memorizar todas as fórmulas",
+      "c": "Exportar todos os gráficos"
+    }
+  },
+  {
+    "code": "kpis.q25",
+    "prompt": "Qual é o resultado esperado dos KPIs?",
+    "options": {
+      "a": "Decisões reproduzíveis baseadas em informações contextualizadas",
+      "b": "Mais relatórios sem responsáveis",
+      "c": "Eliminar toda incerteza"
+    }
+  },
+  {
+    "code": "comercial.q01",
+    "prompt": "Qual é o principal objetivo do primeiro contato?",
+    "options": {
+      "a": "Criar confiança e conseguir uma sessão de consultoria",
+      "b": "Fechar a venda em menos de cinco minutos",
+      "c": "Enviar o catálogo completo"
+    }
+  },
+  {
+    "code": "comercial.q02",
+    "prompt": "O que deve ser pesquisado antes da abordagem?",
+    "options": {
+      "a": "Setor, porte, contato e sinais públicos, sem presumir um diagnóstico",
+      "b": "Dados pessoais sem relação com o assunto",
+      "c": "Apenas a capacidade de pagamento"
+    }
+  },
+  {
+    "code": "comercial.q03",
+    "prompt": "Como devem ser tratados os leads de redes sociais e de prospecção?",
+    "options": {
+      "a": "Registrar a origem e conduzi-los pelo mesmo processo com contexto",
+      "b": "Misturá-los sem identificar a fonte",
+      "c": "Atender apenas os leads das redes sociais"
+    }
+  },
+  {
+    "code": "comercial.q04",
+    "prompt": "O que a primeira mensagem deve comunicar?",
+    "options": {
+      "a": "Valor, proximidade e uma razão clara para conversar",
+      "b": "Todos os preços e módulos",
+      "c": "Uma promessa de economia garantida"
+    }
+  },
+  {
+    "code": "comercial.q05",
+    "prompt": "Quanto tempo deve durar a consultoria recomendada?",
+    "options": {
+      "a": "Entre 60 e 90 minutos, conforme o contexto",
+      "b": "No máximo dez minutos",
+      "c": "Sempre mais de três horas"
+    }
+  },
+  {
+    "code": "comercial.q06",
+    "prompt": "Para que servem os primeiros minutos da sessão?",
+    "options": {
+      "a": "Quebrar o gelo, gerar confiança e confirmar o contexto",
+      "b": "Configurar usuários",
+      "c": "Negociar o preço final"
+    }
+  },
+  {
+    "code": "comercial.q07",
+    "prompt": "Quais quatro áreas formam o mapa empresarial?",
+    "options": {
+      "a": "Pessoas, processos, produtos e finanças",
+      "b": "Vendas, marketing, design e publicidade",
+      "c": "Hardware, software, redes e suporte"
+    }
+  },
+  {
+    "code": "comercial.q08",
+    "prompt": "Como deve ser feita a entrevista inicial?",
+    "options": {
+      "a": "Com perguntas abertas que permitam compreender a empresa",
+      "b": "Como um interrogatório com respostas de sim ou não",
+      "c": "Mostrando módulos entre cada pergunta"
+    }
+  },
+  {
+    "code": "comercial.q09",
+    "prompt": "O que o consultor deve confirmar ao identificar um problema?",
+    "options": {
+      "a": "Impacto, urgência, causa e entendimento compartilhado",
+      "b": "Apenas o módulo que deseja vender",
+      "c": "A opinião de terceiros"
+    }
+  },
+  {
+    "code": "comercial.q10",
+    "prompt": "Como escolher o que mostrar na demonstração?",
+    "options": {
+      "a": "Conforme o problema prioritário e o resultado esperado",
+      "b": "Por ordem alfabética dos módulos",
+      "c": "Mostrando sempre tudo"
+    }
+  },
+  {
+    "code": "comercial.q11",
+    "prompt": "O que uma demonstração deve evitar?",
+    "options": {
+      "a": "Funções sem relação com o diagnóstico",
+      "b": "Um percurso breve",
+      "c": "Confirmar o valor com o cliente"
+    }
+  },
+  {
+    "code": "comercial.q12",
+    "prompt": "O cliente pergunta o preço antes do diagnóstico. O que você faz?",
+    "options": {
+      "a": "Reconhecer a pergunta e explicar que o escopo depende de compreender a operação",
+      "b": "Aplicar um desconto imediato",
+      "c": "Encerrar a reunião"
+    }
+  },
+  {
+    "code": "comercial.q13",
+    "prompt": "O que o escopo comercial deve incluir?",
+    "options": {
+      "a": "Módulos, usuários, unidades, migração, treinamento e implementação",
+      "b": "Apenas a mensalidade",
+      "c": "Apenas a data do pagamento"
+    }
+  },
+  {
+    "code": "comercial.q14",
+    "prompt": "Quando o prospect está suficientemente pronto para fechar?",
+    "options": {
+      "a": "Há necessidade, autoridade, orçamento e intenção",
+      "b": "O cliente viu o painel",
+      "c": "A sessão chegou a 90 minutos"
+    }
+  },
+  {
+    "code": "comercial.q15",
+    "prompt": "Qual é a primeira estratégia diante de uma objeção de preço?",
+    "options": {
+      "a": "Reforçar ou agregar valor antes de reduzir o preço",
+      "b": "Reduzir sempre 50%",
+      "c": "Eliminar o acompanhamento"
+    }
+  },
+  {
+    "code": "comercial.q16",
+    "prompt": "O que deve ser registrado ao terminar uma sessão?",
+    "options": {
+      "a": "Diagnóstico, acordos, responsáveis, datas, objeções e próximo passo",
+      "b": "Apenas se houve venda",
+      "c": "Apenas a duração"
+    }
+  },
+  {
+    "code": "comercial.q17",
+    "prompt": "O que vem depois do fechamento?",
+    "options": {
+      "a": "Implementação com responsáveis, sessões, configuração e adoção",
+      "b": "Esperar a primeira reclamação",
+      "c": "Entregar credenciais sem contexto"
+    }
+  },
+  {
+    "code": "comercial.q18",
+    "prompt": "Como é determinado o número de sessões iniciais?",
+    "options": {
+      "a": "Conforme as sessões incluídas no pacote contratado",
+      "b": "Sempre uma",
+      "c": "Conforme a comissão do consultor"
+    }
+  },
+  {
+    "code": "comercial.q19",
+    "prompt": "Qual acompanhamento mínimo deve existir no início?",
+    "options": {
+      "a": "As sessões do programa de implementação e acompanhamento ativo",
+      "b": "Um e-mail de boas-vindas",
+      "c": "Apenas suporte técnico reativo"
+    }
+  },
+  {
+    "code": "comercial.q20",
+    "prompt": "O que o consultor deve fazer após a implementação?",
+    "options": {
+      "a": "Acompanhar mensalmente a adoção, os problemas e as oportunidades",
+      "b": "Contatar o cliente apenas para renovar",
+      "c": "Transferir toda a responsabilidade à equipe corporativa"
+    }
+  },
+  {
+    "code": "comercial.q21",
+    "prompt": "Quando um caso deve ser encaminhado à equipe corporativa?",
+    "options": {
+      "a": "Quando não pode ser resolvido ou exige conhecimento, autoridade ou opiniões adicionais",
+      "b": "Nunca",
+      "c": "Sempre que o cliente faz uma pergunta"
+    }
+  },
+  {
+    "code": "comercial.q22",
+    "prompt": "O que significa acompanhar durante um relacionamento de longo prazo?",
+    "options": {
+      "a": "Ajudar o cliente a adotar, melhorar e obter valor contínuo",
+      "b": "Contatá-lo apenas para vender módulos",
+      "c": "Resolver a operação por ele"
+    }
+  },
+  {
+    "code": "comercial.q23",
+    "prompt": "Que conduta exige reatribuição imediata?",
+    "options": {
+      "a": "Assédio, insultos, ameaças ou desrespeito grave",
+      "b": "Solicitar uma segunda opinião",
+      "c": "Pedir uma sessão adicional"
+    }
+  },
+  {
+    "code": "comercial.q24",
+    "prompt": "O que um consultor deve fazer se não souber uma resposta?",
+    "options": {
+      "a": "Reconhecer o limite, pesquisar e encaminhar sem inventar",
+      "b": "Improvisar para manter a autoridade",
+      "c": "Mudar de assunto"
+    }
+  },
+  {
+    "code": "comercial.q25",
+    "prompt": "O que define o sucesso de uma consultoria Indice?",
+    "options": {
+      "a": "O cliente compreende seu problema, o valor proposto e o próximo passo",
+      "b": "Todos os módulos foram mostrados",
+      "c": "A sessão terminou rapidamente"
+    }
+  }
+]

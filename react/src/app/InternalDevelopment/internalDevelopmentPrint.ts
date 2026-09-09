@@ -1,3 +1,4 @@
+import { internalDevelopmentLocale, getInternalDevelopmentMessages } from './translations';
 import {
   escapeDocumentPrintHtml,
   printDocumentHtml,
@@ -29,21 +30,22 @@ const contentSection = (title: string, value: string | null) => value?.trim()
 export const printInternalDevelopmentDetail = ({
   detail,
   english,
-  locale,
+  locale: requestedLocale,
   targetWindow,
 }: PrintInternalDevelopmentDetailParams) => {
-  const copy = getInternalDevelopmentCopy(english);
+  const locale = internalDevelopmentLocale(requestedLocale);
+  const copy = getInternalDevelopmentCopy(locale);
   const { entry, history } = detail;
   const printedAt = formatDate(new Date().toISOString(), locale);
   const participants = entry.participants.length
     ? entry.participants.map((participant) => escapeDocumentPrintHtml(participant.name)).join(', ')
-    : (english ? 'No additional participants' : 'Sin participantes adicionales');
+    : (getInternalDevelopmentMessages(locale).noAdditionalParticipants);
   const historyRows = history.map((item, index) => `
     <tr class="${index % 2 === 1 ? 'alternate' : ''}">
       <td>v${escapeDocumentPrintHtml(item.entryVersion)}</td>
       <td>${escapeDocumentPrintHtml(item.actionCode === 'CREATED'
-        ? (english ? 'Record created' : 'Registro creado')
-        : (english ? 'Record updated' : 'Registro actualizado'))}</td>
+        ? (getInternalDevelopmentMessages(locale).recordCreated)
+        : (getInternalDevelopmentMessages(locale).recordUpdated))}</td>
       <td>${escapeDocumentPrintHtml(item.changedByName)}</td>
       <td>${escapeDocumentPrintHtml(formatDate(item.changedAt, locale))}</td>
     </tr>`).join('');
@@ -53,7 +55,7 @@ export const printInternalDevelopmentDetail = ({
       <header class="report-header">
         <div>
           <p class="brand">ÍNDICE</p>
-          <p class="document-kind">${escapeDocumentPrintHtml(english ? 'Internal development record' : 'Registro de desarrollo interno')}</p>
+          <p class="document-kind">${escapeDocumentPrintHtml(getInternalDevelopmentMessages(locale).internalDevelopmentRecord)}</p>
         </div>
         <div class="folio-block">
           <span>${escapeDocumentPrintHtml(entry.folio)}</span>
@@ -67,42 +69,42 @@ export const printInternalDevelopmentDetail = ({
       </section>
 
       <section class="metadata-grid">
-        <div><span>${escapeDocumentPrintHtml(english ? 'Date' : 'Fecha')}</span><strong>${escapeDocumentPrintHtml(formatDate(entry.eventAt, locale))}</strong></div>
+        <div><span>${escapeDocumentPrintHtml(getInternalDevelopmentMessages(locale).date)}</span><strong>${escapeDocumentPrintHtml(formatDate(entry.eventAt, locale))}</strong></div>
         <div><span>${escapeDocumentPrintHtml(copy.owner)}</span><strong>${escapeDocumentPrintHtml(entry.ownerName)}</strong></div>
         <div><span>${escapeDocumentPrintHtml(copy.status)}</span><strong>${escapeDocumentPrintHtml(copy.statuses[entry.status])}</strong></div>
-        ${entry.periodStart && entry.periodEnd ? `<div><span>${escapeDocumentPrintHtml(english ? 'Reported period' : 'Periodo reportado')}</span><strong>${escapeDocumentPrintHtml(entry.periodStart)} — ${escapeDocumentPrintHtml(entry.periodEnd)}</strong></div>` : ''}
-        ${entry.location ? `<div><span>${escapeDocumentPrintHtml(english ? 'Location or channel' : 'Lugar o canal')}</span><strong>${escapeDocumentPrintHtml(entry.location)}</strong></div>` : ''}
-        ${entry.relatedEntryTitle ? `<div><span>${escapeDocumentPrintHtml(english ? 'Related record' : 'Registro relacionado')}</span><strong>${escapeDocumentPrintHtml(entry.relatedEntryTitle)}</strong></div>` : ''}
+        ${entry.periodStart && entry.periodEnd ? `<div><span>${escapeDocumentPrintHtml(getInternalDevelopmentMessages(locale).reportedPeriod)}</span><strong>${escapeDocumentPrintHtml(entry.periodStart)} — ${escapeDocumentPrintHtml(entry.periodEnd)}</strong></div>` : ''}
+        ${entry.location ? `<div><span>${escapeDocumentPrintHtml(getInternalDevelopmentMessages(locale).locationOrChannel)}</span><strong>${escapeDocumentPrintHtml(entry.location)}</strong></div>` : ''}
+        ${entry.relatedEntryTitle ? `<div><span>${escapeDocumentPrintHtml(getInternalDevelopmentMessages(locale).relatedRecord)}</span><strong>${escapeDocumentPrintHtml(entry.relatedEntryTitle)}</strong></div>` : ''}
       </section>
 
-      ${contentSection(english ? 'Executive summary' : 'Resumen ejecutivo', entry.summary)}
-      ${contentSection(english ? 'Detailed evidence' : 'Evidencia detallada', entry.details)}
-      ${contentSection(english ? 'Decisions' : 'Decisiones', entry.decisions)}
-      ${contentSection(english ? 'Next steps' : 'Siguientes pasos', entry.nextSteps)}
+      ${contentSection(getInternalDevelopmentMessages(locale).executiveSummary, entry.summary)}
+      ${contentSection(getInternalDevelopmentMessages(locale).detailedEvidence, entry.details)}
+      ${contentSection(getInternalDevelopmentMessages(locale).decisions, entry.decisions)}
+      ${contentSection(getInternalDevelopmentMessages(locale).nextSteps, entry.nextSteps)}
 
       <section class="report-section">
         <h2>${escapeDocumentPrintHtml(copy.participants)}</h2>
         <div class="content-box">${participants}</div>
       </section>
 
-      ${entry.referenceUrl ? `<section class="report-section"><h2>${escapeDocumentPrintHtml(english ? 'Evidence link' : 'Enlace de evidencia')}</h2><div class="content-box break-all">${escapeDocumentPrintHtml(entry.referenceUrl)}</div></section>` : ''}
+      ${entry.referenceUrl ? `<section class="report-section"><h2>${escapeDocumentPrintHtml(getInternalDevelopmentMessages(locale).evidenceLink)}</h2><div class="content-box break-all">${escapeDocumentPrintHtml(entry.referenceUrl)}</div></section>` : ''}
 
       <section class="report-section audit-section">
-        <h2>${escapeDocumentPrintHtml(english ? 'Revision history' : 'Historial de revisiones')}</h2>
+        <h2>${escapeDocumentPrintHtml(getInternalDevelopmentMessages(locale).revisionHistory)}</h2>
         <table>
           <thead><tr>
-            <th>${escapeDocumentPrintHtml(english ? 'Version' : 'Versión')}</th>
-            <th>${escapeDocumentPrintHtml(english ? 'Event' : 'Evento')}</th>
-            <th>${escapeDocumentPrintHtml(english ? 'User' : 'Usuario')}</th>
-            <th>${escapeDocumentPrintHtml(english ? 'Date' : 'Fecha')}</th>
+            <th>${escapeDocumentPrintHtml(getInternalDevelopmentMessages(locale).version)}</th>
+            <th>${escapeDocumentPrintHtml(getInternalDevelopmentMessages(locale).event)}</th>
+            <th>${escapeDocumentPrintHtml(getInternalDevelopmentMessages(locale).user)}</th>
+            <th>${escapeDocumentPrintHtml(getInternalDevelopmentMessages(locale).date)}</th>
           </tr></thead>
           <tbody>${historyRows}</tbody>
         </table>
       </section>
 
       <footer class="report-footer">
-        <span>${escapeDocumentPrintHtml(english ? 'Internal corporate document' : 'Documento corporativo interno')}</span>
-        <span>${escapeDocumentPrintHtml(english ? 'Printed' : 'Impreso')}: ${escapeDocumentPrintHtml(printedAt)}</span>
+        <span>${escapeDocumentPrintHtml(getInternalDevelopmentMessages(locale).internalCorporateDocument)}</span>
+        <span>${escapeDocumentPrintHtml(getInternalDevelopmentMessages(locale).printed)}: ${escapeDocumentPrintHtml(printedAt)}</span>
       </footer>
     </main>`;
 

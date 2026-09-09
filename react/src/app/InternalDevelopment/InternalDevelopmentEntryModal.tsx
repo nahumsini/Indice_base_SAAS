@@ -1,3 +1,5 @@
+import { useLanguage } from "../shared/context";
+import { internalDevelopmentLocale, getInternalDevelopmentMessages, formatInternalDevelopmentMessage } from './translations';
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { ChevronDown, FilePlus2, LoaderCircle, Save, SlidersHorizontal } from 'lucide-react';
 import { IndiceModalFrame, IndiceModalValidation } from '../components/indice-modal';
@@ -105,7 +107,9 @@ export function InternalDevelopmentEntryModal({
   onSaved: (detail: InternalDevelopmentDetail) => Promise<void>;
   open: boolean;
 }) {
-  const copy = getInternalDevelopmentCopy(english);
+  const { currentLanguage } = useLanguage();
+  const locale = internalDevelopmentLocale(currentLanguage.code);
+  const copy = getInternalDevelopmentCopy(locale);
   const [form, setForm] = useState<FormState>(() => initialForm(entry, members, currentUserId));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -138,9 +142,9 @@ export function InternalDevelopmentEntryModal({
     form.relatedEntryId,
     form.participantUserIds.some((userId) => String(userId) !== form.ownerUserId) ? 'participants' : '',
   ].filter(Boolean).length;
-  const titlePlaceholder = english
-    ? isWeekly ? 'e.g. Development progress for this week' : isMeeting ? 'e.g. Product follow-up meeting' : 'e.g. New module contribution'
-    : isWeekly ? 'Ej. Avances de desarrollo de esta semana' : isMeeting ? 'Ej. Junta de seguimiento de producto' : 'Ej. Contribución al nuevo módulo';
+  const titlePlaceholder = isWeekly ? getInternalDevelopmentMessages(locale).weeklyPlaceholder
+    : isMeeting ? getInternalDevelopmentMessages(locale).meetingPlaceholder
+    : getInternalDevelopmentMessages(locale).contributionPlaceholder;
 
   const setType = (entryType: InternalDevelopmentEntryType) => {
     setForm((current) => ({
@@ -192,7 +196,7 @@ export function InternalDevelopmentEntryModal({
       onOpenChange(false);
       await onSaved(detail);
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : (english ? 'The record could not be saved.' : 'No se pudo guardar el registro.'));
+      setError((getInternalDevelopmentMessages(locale).theRecordCouldNotBeSaved));
     } finally {
       setSaving(false);
     }
@@ -203,21 +207,21 @@ export function InternalDevelopmentEntryModal({
       open={open}
       onOpenChange={onOpenChange}
       busy={saving}
-      eyebrow={entry ? entry.folio : (english ? 'New corporate evidence' : 'Nueva evidencia corporativa')}
-      title={entry ? (english ? 'Edit internal record' : 'Editar registro interno') : copy.newEntry}
-      description={english ? 'Complete the essentials now. Add detailed traceability only when it brings value.' : 'Completa lo esencial ahora. Agrega trazabilidad detallada solo cuando aporte valor.'}
+      eyebrow={entry ? entry.folio : (getInternalDevelopmentMessages(locale).newCorporateEvidence)}
+      title={entry ? (getInternalDevelopmentMessages(locale).editInternalRecord) : copy.newEntry}
+      description={getInternalDevelopmentMessages(locale).completeTheEssentialsNowAddDetailedTraceabilityOnly}
       icon={<FilePlus2 className="h-5 w-5" />}
       modalType="standard-form"
       tone="aqua"
-      footerSummary={entry ? `${entry.folio} · v${entry.version}` : (english ? 'Quick capture · optional traceability' : 'Captura rápida · trazabilidad opcional')}
+      footerSummary={entry ? `${entry.folio} · v${entry.version}` : (getInternalDevelopmentMessages(locale).quickCaptureOptionalTraceability)}
       footer={(
         <>
           <button type="button" disabled={saving} onClick={() => onOpenChange(false)} className="h-10 rounded-xl border border-white/40 px-4 text-sm font-medium text-white">
-            {english ? 'Cancel' : 'Cancelar'}
+            {getInternalDevelopmentMessages(locale).cancel}
           </button>
           <button type="submit" form="internal-development-entry-form" disabled={saving || !canSubmit} className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-medium text-[#176B5B] disabled:opacity-50">
             {saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            {saving ? (english ? 'Saving…' : 'Guardando…') : (english ? 'Save record' : 'Guardar registro')}
+            {saving ? (getInternalDevelopmentMessages(locale).saving) : (getInternalDevelopmentMessages(locale).saveRecord)}
           </button>
         </>
       )}
@@ -226,9 +230,9 @@ export function InternalDevelopmentEntryModal({
         {error ? <IndiceModalValidation tone="error" messages={[error]} /> : null}
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
           <div className="border-b border-slate-100 p-4 dark:border-slate-800">
-            <h3 className="text-base font-medium text-slate-900 dark:text-white">{english ? 'Quick record' : 'Registro rápido'}</h3>
+            <h3 className="text-base font-medium text-slate-900 dark:text-white">{getInternalDevelopmentMessages(locale).quickRecord}</h3>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              {english ? 'Complete the essential information. Everything else is optional.' : 'Completa la información esencial. Todo lo demás es opcional.'}
+              {getInternalDevelopmentMessages(locale).completeTheEssentialInformationEverythingElseIsOptional}
             </p>
           </div>
 
@@ -246,34 +250,34 @@ export function InternalDevelopmentEntryModal({
               </Field>
             </div>
 
-            <Field label={english ? 'What are you recording?' : '¿Qué estás registrando?'}>
+            <Field label={getInternalDevelopmentMessages(locale).whatAreYouRecording}>
               <input className={inputClass} required maxLength={180} value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder={titlePlaceholder} />
             </Field>
-            <Field label={english ? 'Brief result or progress' : 'Resultado o avance breve'}>
+            <Field label={getInternalDevelopmentMessages(locale).briefResultOrProgress}>
               <textarea
                 className={textAreaClass}
                 required
                 maxLength={700}
                 value={form.summary}
                 onChange={(event) => setForm((current) => ({ ...current, summary: event.target.value }))}
-                placeholder={english ? 'Summarize what was done, achieved or left pending.' : 'Resume qué se hizo, qué se logró o qué quedó pendiente.'}
+                placeholder={getInternalDevelopmentMessages(locale).summarizeWhatWasDoneAchievedOrLeftPending}
               />
             </Field>
 
             {isWeekly ? (
               <div className="grid gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2 dark:border-slate-800">
-                <Field label={english ? 'Week starts' : 'Semana desde'}><input type="date" className={inputClass} required value={form.periodStart} onChange={(event) => setForm((current) => ({ ...current, periodStart: event.target.value }))} /></Field>
-                <Field label={english ? 'Week ends' : 'Semana hasta'}><input type="date" className={inputClass} required value={form.periodEnd} onChange={(event) => setForm((current) => ({ ...current, periodEnd: event.target.value }))} /></Field>
+                <Field label={getInternalDevelopmentMessages(locale).weekStarts}><input type="date" className={inputClass} required value={form.periodStart} onChange={(event) => setForm((current) => ({ ...current, periodStart: event.target.value }))} /></Field>
+                <Field label={getInternalDevelopmentMessages(locale).weekEnds}><input type="date" className={inputClass} required value={form.periodEnd} onChange={(event) => setForm((current) => ({ ...current, periodEnd: event.target.value }))} /></Field>
               </div>
             ) : null}
 
             {isMeeting ? (
               <div className="grid gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2 dark:border-slate-800">
-                <Field label={english ? 'Meeting date and time' : 'Fecha y hora de la junta'}>
+                <Field label={getInternalDevelopmentMessages(locale).meetingDateAndTime}>
                   <input type="datetime-local" className={inputClass} required value={form.eventAt} onChange={(event) => setForm((current) => ({ ...current, eventAt: event.target.value }))} />
                 </Field>
-                <Field label={english ? 'Location or channel' : 'Lugar o canal'}>
-                  <input className={inputClass} maxLength={180} value={form.location} onChange={(event) => setForm((current) => ({ ...current, location: event.target.value }))} placeholder={english ? 'Board room, Meet link…' : 'Sala, enlace de Meet…'} />
+                <Field label={getInternalDevelopmentMessages(locale).locationOrChannel}>
+                  <input className={inputClass} maxLength={180} value={form.location} onChange={(event) => setForm((current) => ({ ...current, location: event.target.value }))} placeholder={getInternalDevelopmentMessages(locale).boardRoomMeetLink} />
                 </Field>
               </div>
             ) : null}
@@ -281,8 +285,8 @@ export function InternalDevelopmentEntryModal({
 
           <div className="border-t border-slate-100 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-950/30">
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              {english ? 'It will be saved as' : 'Se guardará como'} <span className="font-medium text-slate-700 dark:text-slate-200">{copy.statuses[form.status]}</span>
-              {' · '}{english ? 'Responsible' : 'Responsable'}: <span className="font-medium text-slate-700 dark:text-slate-200">{ownerName ?? '—'}</span>
+              {getInternalDevelopmentMessages(locale).itWillBeSavedAs} <span className="font-medium text-slate-700 dark:text-slate-200">{copy.statuses[form.status]}</span>
+              {' · '}{getInternalDevelopmentMessages(locale).responsible}: <span className="font-medium text-slate-700 dark:text-slate-200">{ownerName ?? '—'}</span>
             </p>
           </div>
         </section>
@@ -297,13 +301,13 @@ export function InternalDevelopmentEntryModal({
           >
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#59C3A5]/15 text-[#176B5B]"><SlidersHorizontal className="h-5 w-5" /></span>
             <span className="min-w-0 flex-1">
-              <span className="block text-sm font-medium text-slate-900 dark:text-white">{english ? 'Add details and traceability' : 'Agregar detalles y trazabilidad'}</span>
-              <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">{english ? 'Evidence, participants, decisions and next steps.' : 'Evidencia, participantes, decisiones y siguientes pasos.'}</span>
+              <span className="block text-sm font-medium text-slate-900 dark:text-white">{getInternalDevelopmentMessages(locale).addDetailsAndTraceability}</span>
+              <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">{getInternalDevelopmentMessages(locale).evidenceParticipantsDecisionsAndNextSteps}</span>
             </span>
             <span className="rounded-full bg-[#59C3A5]/15 px-2.5 py-1 text-xs font-medium text-[#176B5B]">
               {optionalDetailCount > 0
-                ? (english ? `${optionalDetailCount} details` : `${optionalDetailCount} detalles`)
-                : (english ? 'Optional' : 'Opcional')}
+                ? (formatInternalDevelopmentMessage(getInternalDevelopmentMessages(locale).details, optionalDetailCount))
+                : (getInternalDevelopmentMessages(locale).optional)}
             </span>
             <ChevronDown className={`h-5 w-5 shrink-0 text-slate-400 transition ${advancedOpen ? 'rotate-180' : ''}`} />
           </button>
@@ -311,8 +315,8 @@ export function InternalDevelopmentEntryModal({
           {advancedOpen ? (
             <div id="internal-development-advanced-fields" className="space-y-6 border-t border-[#59C3A5]/30 p-4">
               <div>
-                <h3 className="text-sm font-medium text-slate-900 dark:text-white">{english ? 'Control information' : 'Información de control'}</h3>
-                <p className="mt-1 text-xs text-slate-500">{english ? 'Adjust only when the default values do not apply.' : 'Ajústala únicamente cuando los valores automáticos no correspondan.'}</p>
+                <h3 className="text-sm font-medium text-slate-900 dark:text-white">{getInternalDevelopmentMessages(locale).controlInformation}</h3>
+                <p className="mt-1 text-xs text-slate-500">{getInternalDevelopmentMessages(locale).adjustOnlyWhenTheDefaultValuesDoNot}</p>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <Field label={copy.status}>
                     <select className={inputClass} value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as InternalDevelopmentStatus }))}>
@@ -321,18 +325,18 @@ export function InternalDevelopmentEntryModal({
                   </Field>
                   <Field label={copy.owner}>
                     <select className={inputClass} required value={form.ownerUserId} onChange={(event) => setForm((current) => ({ ...current, ownerUserId: event.target.value }))}>
-                      <option value="">{english ? 'Select a Root user' : 'Selecciona un usuario Root'}</option>
+                      <option value="">{getInternalDevelopmentMessages(locale).selectARootUser}</option>
                       {members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
                     </select>
                   </Field>
                   {!isMeeting ? (
-                    <Field label={english ? 'Record date and time' : 'Fecha y hora del registro'}>
+                    <Field label={getInternalDevelopmentMessages(locale).recordDateAndTime}>
                       <input type="datetime-local" className={inputClass} required value={form.eventAt} onChange={(event) => setForm((current) => ({ ...current, eventAt: event.target.value }))} />
                     </Field>
                   ) : null}
-                  <Field label={english ? 'Related record' : 'Registro relacionado'}>
+                  <Field label={getInternalDevelopmentMessages(locale).relatedRecord}>
                     <select className={inputClass} value={form.relatedEntryId} onChange={(event) => setForm((current) => ({ ...current, relatedEntryId: event.target.value }))}>
-                      <option value="">{english ? 'No related record' : 'Sin registro relacionado'}</option>
+                      <option value="">{getInternalDevelopmentMessages(locale).noRelatedRecord}</option>
                       {relatedOptions.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.folio} · {candidate.title}</option>)}
                     </select>
                   </Field>
@@ -340,16 +344,16 @@ export function InternalDevelopmentEntryModal({
               </div>
 
               <div className="border-t border-slate-100 pt-5 dark:border-slate-800">
-                <h3 className="text-sm font-medium text-slate-900 dark:text-white">{english ? 'Evidence' : 'Evidencia'}</h3>
+                <h3 className="text-sm font-medium text-slate-900 dark:text-white">{getInternalDevelopmentMessages(locale).evidence}</h3>
                 <div className="mt-4 space-y-4">
-                  <Field label={english ? 'Detailed evidence' : 'Detalle adicional'}><textarea className={textAreaClass} maxLength={20_000} value={form.details} onChange={(event) => setForm((current) => ({ ...current, details: event.target.value }))} placeholder={english ? 'Add context, metrics or relevant facts.' : 'Agrega contexto, métricas o hechos relevantes.'} /></Field>
-                  <Field label={english ? 'Evidence link' : 'Enlace de evidencia'}><input type="url" className={inputClass} maxLength={700} value={form.referenceUrl} onChange={(event) => setForm((current) => ({ ...current, referenceUrl: event.target.value }))} placeholder="https://" /></Field>
+                  <Field label={getInternalDevelopmentMessages(locale).detailedEvidence}><textarea className={textAreaClass} maxLength={20_000} value={form.details} onChange={(event) => setForm((current) => ({ ...current, details: event.target.value }))} placeholder={getInternalDevelopmentMessages(locale).addContextMetricsOrRelevantFacts} /></Field>
+                  <Field label={getInternalDevelopmentMessages(locale).evidenceLink}><input type="url" className={inputClass} maxLength={700} value={form.referenceUrl} onChange={(event) => setForm((current) => ({ ...current, referenceUrl: event.target.value }))} placeholder="https://" /></Field>
                 </div>
               </div>
 
               <div className="border-t border-slate-100 pt-5 dark:border-slate-800">
                 <h3 className="text-sm font-medium text-slate-900 dark:text-white">{copy.participants}</h3>
-                <p className="mt-1 text-xs text-slate-500">{english ? 'The responsible person is included automatically.' : 'La persona responsable se incluye automáticamente.'}</p>
+                <p className="mt-1 text-xs text-slate-500">{getInternalDevelopmentMessages(locale).theResponsiblePersonIsIncludedAutomatically}</p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {members.map((member) => {
                     const checked = form.participantUserIds.includes(member.id) || form.ownerUserId === String(member.id);
@@ -364,10 +368,10 @@ export function InternalDevelopmentEntryModal({
               </div>
 
               <div className="border-t border-slate-100 pt-5 dark:border-slate-800">
-                <h3 className="text-sm font-medium text-slate-900 dark:text-white">{english ? 'Outcome and continuity' : 'Resultado y continuidad'}</h3>
+                <h3 className="text-sm font-medium text-slate-900 dark:text-white">{getInternalDevelopmentMessages(locale).outcomeAndContinuity}</h3>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <Field label={english ? 'Decisions' : 'Decisiones'}><textarea className={textAreaClass} maxLength={20_000} value={form.decisions} onChange={(event) => setForm((current) => ({ ...current, decisions: event.target.value }))} placeholder={english ? 'What was approved or defined?' : '¿Qué se aprobó o definió?'} /></Field>
-                  <Field label={english ? 'Next steps' : 'Siguientes pasos'}><textarea className={textAreaClass} maxLength={20_000} value={form.nextSteps} onChange={(event) => setForm((current) => ({ ...current, nextSteps: event.target.value }))} placeholder={english ? 'Action, owner and expected date.' : 'Acción, responsable y fecha esperada.'} /></Field>
+                  <Field label={getInternalDevelopmentMessages(locale).decisions}><textarea className={textAreaClass} maxLength={20_000} value={form.decisions} onChange={(event) => setForm((current) => ({ ...current, decisions: event.target.value }))} placeholder={getInternalDevelopmentMessages(locale).whatWasApprovedOrDefined} /></Field>
+                  <Field label={getInternalDevelopmentMessages(locale).nextSteps}><textarea className={textAreaClass} maxLength={20_000} value={form.nextSteps} onChange={(event) => setForm((current) => ({ ...current, nextSteps: event.target.value }))} placeholder={getInternalDevelopmentMessages(locale).actionOwnerAndExpectedDate} /></Field>
                 </div>
               </div>
             </div>

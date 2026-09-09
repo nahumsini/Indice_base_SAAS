@@ -1,3 +1,4 @@
+import { getInternalDevelopmentMessages, formatInternalDevelopmentMessage } from './translations';
 import { CalendarDays, ExternalLink, FileClock, PencilLine, Printer, Users } from 'lucide-react';
 import { IndiceModalFrame } from '../components/indice-modal';
 import { getInternalDevelopmentCopy } from './internalDevelopment.copy';
@@ -19,7 +20,7 @@ export function InternalDevelopmentDetailModal({
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }) {
-  const copy = getInternalDevelopmentCopy(english);
+  const copy = getInternalDevelopmentCopy(locale);
   if (!detail) return null;
   const { entry } = detail;
   const handlePrint = () => printInternalDevelopmentDetail({ detail, english, locale });
@@ -34,14 +35,14 @@ export function InternalDevelopmentDetailModal({
       icon={<FileClock className="h-5 w-5" />}
       modalType="standard-form"
       tone="aqua"
-      footerSummary={english ? `Last updated by ${entry.updatedByName}` : `Última actualización por ${entry.updatedByName}`}
+      footerSummary={formatInternalDevelopmentMessage(getInternalDevelopmentMessages(locale).lastUpdatedBy, entry.updatedByName)}
       footer={(
         <>
           <button type="button" onClick={() => onOpenChange(false)} className="h-10 rounded-xl border border-white/40 px-4 text-sm font-medium text-white">
-            {english ? 'Close' : 'Cerrar'}
+            {getInternalDevelopmentMessages(locale).close}
           </button>
           <button type="button" onClick={handlePrint} className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/40 px-4 text-sm font-medium text-white">
-            <Printer className="h-4 w-4" />{english ? 'Print' : 'Imprimir'}
+            <Printer className="h-4 w-4" />{getInternalDevelopmentMessages(locale).print}
           </button>
           <button type="button" onClick={onEdit} className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-medium text-[#176B5B]">
             <PencilLine className="h-4 w-4" />{copy.edit}
@@ -51,25 +52,25 @@ export function InternalDevelopmentDetailModal({
     >
       <div className="space-y-5">
         <section className="grid gap-3 sm:grid-cols-3">
-          <Meta label={english ? 'Date' : 'Fecha'} value={formatDate(entry.eventAt, locale)} icon={<CalendarDays className="h-4 w-4" />} />
+          <Meta label={getInternalDevelopmentMessages(locale).date} value={formatDate(entry.eventAt, locale)} icon={<CalendarDays className="h-4 w-4" />} />
           <Meta label={copy.owner} value={entry.ownerName} />
           <Meta label={copy.status} value={copy.statuses[entry.status]} />
         </section>
 
-        <Content title={english ? 'Executive summary' : 'Resumen ejecutivo'} value={entry.summary} highlighted />
-        {entry.details ? <Content title={english ? 'Detailed evidence' : 'Evidencia detallada'} value={entry.details} /> : null}
+        <Content title={getInternalDevelopmentMessages(locale).executiveSummary} value={entry.summary} highlighted />
+        {entry.details ? <Content title={getInternalDevelopmentMessages(locale).detailedEvidence} value={entry.details} /> : null}
 
         {entry.periodStart && entry.periodEnd ? (
           <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-            <p className="text-xs font-medium text-slate-500">{english ? 'Reported period' : 'Periodo reportado'}</p>
+            <p className="text-xs font-medium text-slate-500">{getInternalDevelopmentMessages(locale).reportedPeriod}</p>
             <p className="mt-1 text-sm font-medium text-slate-900 dark:text-white">{entry.periodStart} — {entry.periodEnd}</p>
           </section>
         ) : null}
 
         {entry.decisions || entry.nextSteps ? (
           <section className="grid gap-4 sm:grid-cols-2">
-            {entry.decisions ? <Content title={english ? 'Decisions' : 'Decisiones'} value={entry.decisions} /> : null}
-            {entry.nextSteps ? <Content title={english ? 'Next steps' : 'Siguientes pasos'} value={entry.nextSteps} /> : null}
+            {entry.decisions ? <Content title={getInternalDevelopmentMessages(locale).decisions} value={entry.decisions} /> : null}
+            {entry.nextSteps ? <Content title={getInternalDevelopmentMessages(locale).nextSteps} value={entry.nextSteps} /> : null}
           </section>
         ) : null}
 
@@ -84,25 +85,25 @@ export function InternalDevelopmentDetailModal({
 
         {entry.relatedEntryTitle || entry.location || entry.referenceUrl ? (
           <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-700 dark:bg-slate-900">
-            {entry.relatedEntryTitle ? <Line label={english ? 'Related record' : 'Registro relacionado'} value={entry.relatedEntryTitle} /> : null}
-            {entry.location ? <Line label={english ? 'Location or channel' : 'Lugar o canal'} value={entry.location} /> : null}
+            {entry.relatedEntryTitle ? <Line label={getInternalDevelopmentMessages(locale).relatedRecord} value={entry.relatedEntryTitle} /> : null}
+            {entry.location ? <Line label={getInternalDevelopmentMessages(locale).locationOrChannel} value={entry.location} /> : null}
             {entry.referenceUrl ? (
               <a href={entry.referenceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 font-medium text-[#177D66] hover:underline">
-                <ExternalLink className="h-4 w-4" />{english ? 'Open evidence' : 'Abrir evidencia'}
+                <ExternalLink className="h-4 w-4" />{getInternalDevelopmentMessages(locale).openEvidence}
               </a>
             ) : null}
           </section>
         ) : null}
 
         <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-          <h3 className="text-sm font-medium text-slate-900 dark:text-white">{english ? 'Revision history' : 'Historial de revisiones'}</h3>
-          <p className="mt-1 text-xs text-slate-500">{english ? 'Every saved version remains auditable.' : 'Cada versión guardada permanece auditable.'}</p>
+          <h3 className="text-sm font-medium text-slate-900 dark:text-white">{getInternalDevelopmentMessages(locale).revisionHistory}</h3>
+          <p className="mt-1 text-xs text-slate-500">{getInternalDevelopmentMessages(locale).everySavedVersionRemainsAuditable}</p>
           <ol className="mt-4 space-y-3">
             {detail.history.map((history) => (
               <li key={history.id} className="flex items-start gap-3 border-l-2 border-[#59C3A5] pl-3">
                 <span className="mt-0.5 rounded-full bg-[#59C3A5]/15 px-2 py-1 text-xs font-medium text-[#176B5B]">v{history.entryVersion}</span>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-900 dark:text-white">{history.actionCode === 'CREATED' ? (english ? 'Record created' : 'Registro creado') : (english ? 'Record updated' : 'Registro actualizado')}</p>
+                  <p className="text-sm font-medium text-slate-900 dark:text-white">{history.actionCode === 'CREATED' ? (getInternalDevelopmentMessages(locale).recordCreated) : (getInternalDevelopmentMessages(locale).recordUpdated)}</p>
                   <p className="mt-0.5 text-xs text-slate-500">{history.changedByName} · {formatDate(history.changedAt, locale)}</p>
                 </div>
               </li>
