@@ -29,7 +29,7 @@ test('el expediente A4 conserva trazabilidad sin publicar enlaces temporales', a
   assert.match(printHelper, /pageSize: 'a4'/);
   assert.match(printHelper, /orientation: 'portrait'/);
   assert.match(printHelper, /escapeDocumentPrintHtml/);
-  assert.match(printHelper, /Trazabilidad y conversación/);
+  assert.match(printHelper, /escapeDocumentPrintHtml\(copy\.traceability\)/);
   assert.match(printHelper, /attachmentRows/);
   assert.doesNotMatch(printHelper, /download_url/);
   assert.doesNotMatch(printHelper, /window\.print\(/);

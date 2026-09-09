@@ -70,9 +70,10 @@ test('Expenses mantiene acciones visibles y semánticas con el patrón de Agenda
   assert.match(providersHeaderSource, /const eligibleActionCount = 2 \+ Number/);
   assert.match(providersHeaderSource, /const hasOverflow = eligibleActionCount > 3/);
   assert.match(providersHeaderSource, /<DropdownMenu>/);
-  assert.match(providersHeaderSource, /onClick=\{onManagePayablesKiosks\}/);
-  assert.match(providersHeaderSource, /Kioscos CxP/);
-  assert.match(providersPageSource, /<PayablesKioskManagementModal/);
+  assert.match(providersHeaderSource, /onClick=\{onReviewProviderCenter\}/);
+  assert.match(providersHeaderSource, /Solicitudes/);
+  assert.match(providersPageSource, /<ProviderCenterFinanceReviewModal/);
+  assert.doesNotMatch(providersPageSource, /<PayablesKioskManagementModal/);
   assert.match(headerSource, /onClick=\{onConfigureColumns\}/);
   for (const directHeaderSource of [accountingHeaderSource, paymentAccountsHeaderSource, budgetHeaderSource]) {
     assert.doesNotMatch(directHeaderSource, /<DropdownMenu>/);

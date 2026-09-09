@@ -58,6 +58,21 @@ class MultiKioskServiceScopeTest {
     @Test
     void overdueCompanyCannotBootstrapAuthenticateResumeOrUseChildOperations() throws Exception {
         stubPublicQueries(List.of());
+        assertCollectionRestriction();
+    }
+
+    @Test
+    void overdueCompanyCannotUseProviderCenterOrRegisterProviders() throws Exception {
+        stubProviderPublicQueries(List.of());
+        assertCollectionRestriction();
+        assertThatThrownBy(() -> service.registerProvider("public-token", Map.of(), "network"))
+            .isInstanceOf(KioskUnavailableException.class);
+        verify(collectionGuard, times(7)).requireOperationalAccess(7L);
+        verifyNoInteractions(providerTools, providerDashboard, rateLimits);
+        verify(jdbcTemplate, never()).update(anyString(), any(Object[].class));
+    }
+
+    private void assertCollectionRestriction() throws Exception {
         doThrow(new KioskUnavailableException()).when(collectionGuard).requireOperationalAccess(7L);
 
         assertThatThrownBy(() -> service.bootstrap("public-token"))
