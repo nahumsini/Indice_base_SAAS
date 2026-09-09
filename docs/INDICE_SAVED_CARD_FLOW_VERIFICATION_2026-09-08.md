@@ -52,7 +52,7 @@ The browser checks overflow, readable buttons, masked data, owner/delegation beh
 an existing subscriber without a card opens the portal. It makes zero API requests.
 
 Results: 242 backend tests across 28 unique classes passed, with no failures, errors or skipped
-tests. Flyway applied 207 migrations to the fresh schema through V266, and migration uniqueness
+tests. Flyway applied 207 migrations to the fresh schema through V267, and migration uniqueness
 passed. All 36 registered frontend billing regressions, TypeScript validation, the production
 frontend build, and 120 browser combinations passed. The build retains its existing large-chunk
 warning. `git diff --check` passed.
@@ -66,7 +66,7 @@ and the stopped functional backend were untouched.
 
 ## Production requirements still requiring direct verification
 
-- Deploy/restart the approved backend and apply the existing V265/V266 migrations through the
+- Deploy/restart the approved backend and apply the existing V266/V267 migrations through the
   normal backup and rollback process. No new schema migration was introduced by this follow-up.
 - Install matching Stripe account/mode credentials through protected server files. The restricted
   key needs Payment Methods read access in addition to the existing billing permissions; no new

@@ -75,7 +75,7 @@ Preflight checks configuration presence and required flags; it does not prove de
 
 ## Persistence and operation
 
-Migrations V265 and V266 add case, audit, delivery, invoice-obligation and pinned activation state tables.
+Migrations V266 and V267 add case, audit, delivery, invoice-obligation and pinned activation state tables.
 They do not seed or enroll companies. Case changes, event history and reminder enqueue commit together.
 Provider IO occurs outside these transactions. One OPEN request per company is enforced in MySQL.
 All tenant reads and mutations retain company scope; Root administration has explicit server authority.
@@ -109,7 +109,7 @@ the complete seven-day clock, extension, duplicate delivery, unrelated payment, 
 tenant-isolation cases in a Stripe test environment without real charges. Record live evidence separately;
 local test success does not certify live credentials, email delivery, webhooks or payment acceptance.
 
-Local verification on 2026-09-08: the full Flyway chain reached V266 on disposable MySQL 8;
+Local verification on 2026-09-08: the full Flyway chain reached V267 on disposable MySQL 8;
 184 tests across 25 collection, payment/activation, subscription, entitlement, trial-extension and kiosk
 suites passed with no failures or skips. Database cases ran against that isolated database. Frontend
 validation passed 27 billing/request-flow, 15 auth and 73 platform regressions, TypeScript and the
@@ -126,8 +126,8 @@ Primary implementation locations:
 - `react/src/app/PlatformAdmin/Customers/PaymentRequestModal.tsx` and
   `react/src/app/Billing/components/PaymentRequestRecovery.tsx`: administrator and customer flows,
   supported by the payment request API, hook and presentation helpers.
-- `src/main/resources/db/migration/V265__company_payment_collection_requests.sql` and
-  `V266__payment_collection_obligations.sql`: forward schema additions.
+- `src/main/resources/db/migration/V266__company_payment_collection_requests.sql` and
+  `V267__payment_collection_obligations.sql`: forward schema additions.
 - `src/main/resources/application.properties`, deployment Compose/environment/preflight files,
   and the canonical billing architecture: rollout switches and operating contract.
 
