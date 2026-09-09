@@ -305,6 +305,11 @@ export const esMX = {
       reference: 'Referencia',
       referencePlaceholder: 'Notas del cierre, devolucion o traspaso',
       pendingWarning: 'Convierte los comprobantes pendientes en gasto antes de cerrar este corte.',
+      externalPendingWarning: 'Valida los comprobantes pendientes antes de cerrar el corte de este fondo externo.',
+      negativeBalanceWarning: 'Este corte tiene saldo negativo. Debes conciliarlo antes de cerrar; no se puede cerrar como si el saldo fuera cero.',
+      discardTitle: '¿Descartar los datos del cierre?',
+      discardDescription: 'Los cambios no se han guardado. Si sales, se descartará lo capturado y el corte permanecerá abierto.',
+      discardConfirm: 'Descartar y salir',
     },
     depositModal: {
       ...enCA.reconciliation.depositModal,

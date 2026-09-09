@@ -423,6 +423,9 @@ public class PettyCashService {
 
         switch (action) {
             case CLOSE_CLEAN -> {
+                if (closingBalance.signum() < 0) {
+                    throw FinanceApiException.badRequest("Reconcile the negative closing balance before closing the statement.");
+                }
                 if (closingBalance.signum() > 0) {
                     throw FinanceApiException.badRequest("Use RETURN_TO_SOURCE or CARRY_FORWARD when closing balance is greater than zero.");
                 }

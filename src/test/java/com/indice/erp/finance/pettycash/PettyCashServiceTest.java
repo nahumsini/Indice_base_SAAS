@@ -21,6 +21,9 @@ import java.time.ZoneId;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -617,6 +620,112 @@ class PettyCashServiceTest {
             context, statement.id(), PettyCashStatementStatus.CLOSED,
             new BigDecimal("250.00"), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO
         );
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"-0.01", "-1764.28"})
+    void cleanCloseRejectsNegativeBalanceWithoutChangingFinancialRecords(String balance) {
+        var service = service();
+        var context = context();
+        var fund = record(99L, createCommand("fund-token-123"));
+        var statement = statementRecord(501L, fund.id(), new BigDecimal(balance), PettyCashStatementStatus.SETTLED);
+        when(repository.findFundById(context, fund.id())).thenReturn(Optional.of(fund));
+        when(repository.findStatementByIdForUpdate(context, statement.id())).thenReturn(Optional.of(statement));
+
+        var error = assertThrows(FinanceApiException.class, () -> service.closeStatement(
+            context, fund.id(), statement.id(),
+            new ClosePettyCashStatementRequest(PettyCashStatementCloseAction.CLOSE_CLEAN, null, null, null)
+        ));
+
+        assertEquals("Reconcile the negative closing balance before closing the statement.", error.getMessage());
+        verifyNoClosingMutations();
+    }
+
+    @Test
+    void cleanClosePreservesZeroBalanceWithoutCreatingMoneyMovements() {
+        var service = service();
+        var context = context();
+        var fund = record(99L, createCommand("fund-token-123"));
+        var statement = statementRecord(501L, fund.id(), BigDecimal.ZERO, PettyCashStatementStatus.SETTLED);
+        var closed = statementRecord(501L, fund.id(), BigDecimal.ZERO, PettyCashStatementStatus.CLOSED);
+        when(repository.findFundById(context, fund.id())).thenReturn(Optional.of(fund));
+        when(repository.findStatementByIdForUpdate(context, statement.id())).thenReturn(Optional.of(statement));
+        when(repository.findStatementById(context, statement.id())).thenReturn(Optional.of(closed));
+
+        var response = service.closeStatement(context, fund.id(), statement.id(),
+            new ClosePettyCashStatementRequest(PettyCashStatementCloseAction.CLOSE_CLEAN, null, null, null));
+
+        assertEquals(PettyCashStatementStatus.CLOSED, response.statement().status());
+        verify(repository).closeStatement(context, statement.id(), PettyCashStatementStatus.CLOSED,
+            BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+        verify(repository, never()).insertMovement(any(), anyLong(), any());
+        verify(repository, never()).adjustFundBalance(any(), anyLong(), any());
+        verifyNoInteractions(treasuryService, payrollExternalDeductionService, expenseService);
+    }
+
+    @Test
+    void closeRejectsPendingReceiptsEvenWithZeroBalance() {
+        var service = service();
+        var context = context();
+        var fund = record(99L, createCommand("fund-token-123"));
+        var statement = statementRecord(501L, fund.id());
+        when(repository.findFundById(context, fund.id())).thenReturn(Optional.of(fund));
+        when(repository.findStatementByIdForUpdate(context, statement.id())).thenReturn(Optional.of(statement));
+        when(repository.countPendingSettlementLinesForStatement(context, statement.id())).thenReturn(1L);
+
+        var error = assertThrows(FinanceApiException.class, () -> service.closeStatement(
+            context, fund.id(), statement.id(),
+            new ClosePettyCashStatementRequest(PettyCashStatementCloseAction.CLOSE_CLEAN, null, null, null)
+        ));
+
+        assertEquals("Petty cash statement has receipts pending expense creation.", error.getMessage());
+        verifyNoClosingMutations();
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = PettyCashStatementStatus.class,
+        names = {"CLOSED", "TRANSFERRED_TO_NEXT_CUT", "FORGIVEN_SHORTAGE", "CHARGED_TO_EMPLOYEE"})
+    void closeRejectsAlreadyFinalizedStatementsWithoutRepeatingTheirMovements(PettyCashStatementStatus status) {
+        var service = service();
+        var context = context();
+        var fund = record(99L, createCommand("fund-token-123"));
+        var statement = statementRecord(501L, fund.id(), BigDecimal.ZERO, status);
+        when(repository.findFundById(context, fund.id())).thenReturn(Optional.of(fund));
+        when(repository.findStatementByIdForUpdate(context, statement.id())).thenReturn(Optional.of(statement));
+
+        var error = assertThrows(FinanceApiException.class, () -> service.closeStatement(
+            context, fund.id(), statement.id(),
+            new ClosePettyCashStatementRequest(PettyCashStatementCloseAction.CLOSE_CLEAN, null, null, null)
+        ));
+
+        assertEquals("Petty cash statement is already closed.", error.getMessage());
+        verifyNoClosingMutations();
+    }
+
+    @Test
+    void closeRejectsStatementFromAnotherFund() {
+        var service = service();
+        var context = context();
+        var fund = record(99L, createCommand("fund-token-123"));
+        var statement = statementRecord(501L, 100L);
+        when(repository.findFundById(context, fund.id())).thenReturn(Optional.of(fund));
+        when(repository.findStatementByIdForUpdate(context, statement.id())).thenReturn(Optional.of(statement));
+
+        var error = assertThrows(FinanceApiException.class, () -> service.closeStatement(
+            context, fund.id(), statement.id(),
+            new ClosePettyCashStatementRequest(PettyCashStatementCloseAction.CLOSE_CLEAN, null, null, null)
+        ));
+
+        assertEquals("statementId does not belong to this fund.", error.getMessage());
+        verifyNoClosingMutations();
+    }
+
+    private void verifyNoClosingMutations() {
+        verify(repository, never()).closeStatement(any(), anyLong(), any(), any(), any(), any(), any());
+        verify(repository, never()).insertMovement(any(), anyLong(), any());
+        verify(repository, never()).adjustFundBalance(any(), anyLong(), any());
+        verify(repository, never()).applyMovementToBudgetLine(any(), any(), any(), any());
+        verifyNoInteractions(treasuryService, payrollExternalDeductionService, expenseService);
     }
 
     @Test

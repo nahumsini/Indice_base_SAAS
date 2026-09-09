@@ -236,6 +236,11 @@ export const frCA = {
       reference: 'Reference',
       referencePlaceholder: 'Notes de fermeture, retour ou report',
       pendingWarning: 'Convertissez les recus en attente en depenses avant de fermer ce releve.',
+      externalPendingWarning: 'Validez les reçus en attente avant de fermer le relevé de ce fonds externe.',
+      negativeBalanceWarning: 'Ce relevé a un solde négatif. Rapprochez-le avant de le fermer; il ne peut pas être fermé comme si le solde était nul.',
+      discardTitle: 'Abandonner les détails de clôture?',
+      discardDescription: 'Vos modifications ne sont pas enregistrées. Quitter effacera les détails saisis et laissera le relevé ouvert.',
+      discardConfirm: 'Abandonner et quitter',
     },
     depositModal: {
       ...enCA.reconciliation.depositModal,
