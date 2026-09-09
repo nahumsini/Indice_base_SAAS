@@ -991,6 +991,32 @@ public class PurchaseOrderRepository {
         return count != null && count > 0;
     }
 
+    public boolean supplierCompanyProductAllowed(long companyId, long productId) {
+        var count = jdbcTemplate.queryForObject("""
+            SELECT COUNT(*)
+            FROM sales_products product
+            WHERE product.company_id = ? AND product.id = ?
+              AND product.deleted_at IS NULL
+              AND LOWER(TRIM(product.status)) = 'active'
+            """, Integer.class, companyId, productId);
+        return count != null && count > 0;
+    }
+
+    public boolean supplierQuoteRequestProductAllowed(
+            long companyId, long providerId, long quoteRequestId, long productId) {
+        var count = jdbcTemplate.queryForObject("""
+            SELECT COUNT(*)
+            FROM pos_supplier_quote_requests request
+            INNER JOIN pos_supplier_quote_request_items item
+              ON item.company_id = request.company_id AND item.quote_request_id = request.id
+            INNER JOIN sales_products product
+              ON product.company_id = item.company_id AND product.id = item.product_id
+            WHERE request.company_id = ? AND request.provider_id = ? AND request.id = ?
+              AND item.product_id = ? AND product.deleted_at IS NULL
+            """, Integer.class, companyId, providerId, quoteRequestId, productId);
+        return count != null && count > 0;
+    }
+
     public String nextSubmissionNumber(PosContext context) {
         var year = LocalDate.now().getYear();
         var prefix = "SUP-" + year + "-";

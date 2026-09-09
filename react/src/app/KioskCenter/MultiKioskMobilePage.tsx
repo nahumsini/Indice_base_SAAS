@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowLeft,
   Grid2X2,
+  Handshake,
   LoaderCircle,
   LockKeyhole,
   LogOut,
@@ -32,8 +33,11 @@ import {
   getMultiKioskMobileCopy,
   type MultiKioskMobileCopy,
 } from './multiKioskMobileTranslations';
+import { ProviderCenterAccessGate } from './multi-kiosk/ProviderCenterAccessGate';
+import { getProviderCenterPublicCopy, type ProviderCenterPublicCopy } from './providerCenterPublicTranslations';
 
 const accents: Record<string, { color: string; soft: string; textClassName: string }> = {
+  'indice-aqua': { color: '#177D66', soft: '#EAF8F3', textClassName: 'text-emerald-700 dark:text-emerald-300' },
   'indice-blue': { color: '#2563EB', soft: '#EFF6FF', textClassName: 'text-blue-700 dark:text-blue-300' },
   'indice-green': { color: '#16876B', soft: '#EAF8F3', textClassName: 'text-emerald-700 dark:text-emerald-300' },
   'indice-yellow': { color: '#C67A05', soft: '#FFF8E6', textClassName: 'text-amber-800 dark:text-amber-300' },
@@ -41,6 +45,7 @@ const accents: Record<string, { color: string; soft: string; textClassName: stri
 };
 
 const identityTones: Record<string, KioskThemeTone> = {
+  'indice-aqua': 'aqua',
   'indice-blue': 'blue',
   'indice-green': 'green',
   'indice-yellow': 'yellow',
@@ -60,9 +65,10 @@ const friendlyError = (error: unknown, copy: MultiKioskMobileCopy) => {
 
 function MultiKioskHeader({
   bootstrap,
-  employee,
+  identityName,
   accent,
   copy,
+  providerCopy,
   compact = false,
   busy = false,
   onBack,
@@ -71,9 +77,10 @@ function MultiKioskHeader({
   workspace,
 }: {
   bootstrap: MultiKioskBootstrap;
-  employee?: string;
+  identityName?: string;
   accent: { color: string; soft: string; textClassName: string };
   copy: MultiKioskMobileCopy;
+  providerCopy?: ProviderCenterPublicCopy;
   compact?: boolean;
   busy?: boolean;
   onBack?: () => void;
@@ -81,7 +88,11 @@ function MultiKioskHeader({
   utilities?: ReactNode;
   workspace?: MultiKioskChildWorkspace | null;
 }) {
-  if (compact && employee) {
+  const signOutLabel = bootstrap.audience_type === 'PROVIDER'
+    ? (providerCopy?.header.changeProvider ?? copy.launcher.signOut)
+    : copy.launcher.signOut;
+
+  if (compact && identityName) {
     return (
       <header
         className="border-b border-slate-200 bg-white px-3 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top))] dark:border-slate-800 dark:bg-slate-950 sm:px-4"
@@ -105,7 +116,9 @@ function MultiKioskHeader({
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-xl"
                 style={{ color: accent.color, backgroundColor: accent.soft }}
               >
-                <Grid2X2 className="h-5 w-5" />
+                {bootstrap.audience_type === 'PROVIDER'
+                  ? <Handshake className="h-5 w-5" />
+                  : <Grid2X2 className="h-5 w-5" />}
               </span>
             )}
             {workspace ? (
@@ -124,7 +137,7 @@ function MultiKioskHeader({
               </h1>
               {workspace ? (
                 <p className="truncate text-[11px] leading-4 text-slate-500 dark:text-slate-400">
-                  {workspace.bootstrap?.scope_label ?? workspace.kiosk.purpose} · {employee}
+                  {workspace.bootstrap?.scope_label ?? workspace.kiosk.purpose} · {identityName}
                 </p>
               ) : null}
             </div>
@@ -139,11 +152,11 @@ function MultiKioskHeader({
                 disabled={busy}
                 className="inline-flex h-11 w-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-0 text-sm font-medium text-slate-700 outline-none transition hover:bg-slate-50 focus-visible:ring-4 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900 sm:w-auto sm:px-3"
                 style={{ '--tw-ring-color': `${accent.color}25` } as React.CSSProperties}
-                aria-label={copy.launcher.signOut}
-                title={copy.launcher.signOut}
+                aria-label={signOutLabel}
+                title={signOutLabel}
               >
                 <LogOut className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden sm:inline">{copy.launcher.changeEmployee}</span>
+                <span className="hidden sm:inline">{bootstrap.audience_type === 'PROVIDER' ? signOutLabel : copy.launcher.changeEmployee}</span>
               </button>
             ) : null}
           </div>
@@ -161,10 +174,16 @@ function MultiKioskHeader({
             className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl"
             style={{ color: accent.color, backgroundColor: accent.soft }}
           >
-            <Grid2X2 className="h-5 w-5" />
+            {bootstrap.audience_type === 'PROVIDER'
+              ? <Handshake className="h-5 w-5" />
+              : <Grid2X2 className="h-5 w-5" />}
           </span>
           <div className="min-w-0">
-            <p className={`text-xs font-medium ${accent.textClassName}`}>{bootstrap.company_name}</p>
+            <p className={`text-xs font-medium ${accent.textClassName}`}>
+              {bootstrap.audience_type === 'PROVIDER' && providerCopy
+                ? `${providerCopy.header.portal} · ${bootstrap.company_name}`
+                : bootstrap.company_name}
+            </p>
             <h1 className="mt-1 text-xl font-medium tracking-tight text-slate-950 dark:text-white">{bootstrap.name}</h1>
             <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
               {bootstrap.description || copy.header.defaultDescription}
@@ -244,7 +263,7 @@ function Launcher({ session, accent, busy, busyId, copy, error, onOpen }: {
         copy={copy.launcher}
         moduleLabel={ownerModule => moduleName(ownerModule, copy)}
         onOpen={onOpen}
-        sessionLabel={session.employee.name}
+        sessionLabel={session.identity?.name ?? session.provider?.name ?? session.employee?.name ?? ''}
         sessionStatusLabel={copy.launcher.activeSession}
       />
     </div>
@@ -272,9 +291,12 @@ export default function MultiKioskMobilePage() {
   const launcherFocusRef = useRef<HTMLDivElement>(null);
   const workspaceFocusRef = useRef<HTMLDivElement>(null);
   const requestedToolIdentity = searchParams.get('tool') ?? '';
-  const accent = accents[bootstrap?.theme_key ?? 'indice-blue'] ?? accents['indice-blue'];
-  const identityTone = identityTones[bootstrap?.theme_key ?? 'indice-blue'] ?? 'blue';
+  const providerAudience = bootstrap?.audience_type === 'PROVIDER';
+  const accentKey = providerAudience ? 'indice-aqua' : (bootstrap?.theme_key ?? 'indice-blue');
+  const accent = accents[accentKey] ?? accents['indice-blue'];
+  const identityTone = providerAudience ? 'aqua' : (identityTones[accentKey] ?? 'blue');
   const copy = getMultiKioskMobileCopy(currentLanguage.code);
+  const providerCopy = getProviderCenterPublicCopy(currentLanguage.code);
   const copyRef = useRef(copy);
   copyRef.current = copy;
 
@@ -338,7 +360,6 @@ export default function MultiKioskMobilePage() {
     multiKioskPublicApi.bootstrap(token, controller.signal)
       .then(async data => {
         setBootstrap(data);
-        try { sessionStorage.setItem(`indice.multi-kiosk.${token}.csrf`, data.csrf_token); } catch { /* no-op */ }
         if (multiKioskMobileSession.get(token)) {
           try { setSession(await multiKioskPublicApi.session(token, controller.signal)); }
           catch (failure) {
@@ -354,14 +375,18 @@ export default function MultiKioskMobilePage() {
     return () => controller.abort();
   }, [clearLocalAuthority, token]);
 
-  const authenticate = async (pin: string) => {
+  const authenticate = async (pin: string, providerName?: string) => {
     if (!bootstrap || authenticationInFlightRef.current) return;
     authenticationInFlightRef.current = true;
     setLoading(true);
     setError('');
     multiKioskMobileSession.clearAuthority(token);
-    try { setSession(await multiKioskPublicApi.authenticate(token, pin, bootstrap.csrf_token)); }
-    catch (failure) { setError(friendlyError(failure, copy)); }
+    try { setSession(await multiKioskPublicApi.authenticate(token, pin, bootstrap.csrf_token, providerName)); }
+    catch (failure) {
+      setError(providerAudience && failure instanceof ApiClientError && failure.status === 403
+        ? providerCopy.access.invalidCredentials
+        : friendlyError(failure, copy));
+    }
     finally {
       authenticationInFlightRef.current = false;
       setLoading(false);
@@ -507,10 +532,11 @@ export default function MultiKioskMobilePage() {
   }
 
   const posWorkspace = workspace?.kiosk.module === 'POINT_OF_SALE';
+  const providerWorkspace = providerAudience && Boolean(workspace);
   const shellWidth = !session
-    ? 'max-w-[31rem]'
+    ? providerAudience ? 'max-w-2xl' : 'max-w-[31rem]'
     : workspace
-      ? posWorkspace ? 'max-w-[96rem]' : 'max-w-3xl'
+      ? posWorkspace ? 'max-w-[96rem]' : providerWorkspace ? 'max-w-5xl' : 'max-w-3xl'
       : 'max-w-6xl';
 
   return (
@@ -534,8 +560,9 @@ export default function MultiKioskMobilePage() {
           bootstrap={bootstrap}
           accent={accent}
           copy={copy}
+          providerCopy={providerAudience ? providerCopy : undefined}
           compact={Boolean(session)}
-          employee={session?.employee.name}
+          identityName={session?.identity?.name ?? session?.provider?.name ?? session?.employee?.name}
           busy={loading || busyId !== null}
           onBack={workspace ? returnToLauncher : undefined}
           onSignOut={session ? () => { void signOut(); } : undefined}
@@ -545,13 +572,28 @@ export default function MultiKioskMobilePage() {
       )) : <div />}
     >
       {bootstrap && !session ? (
-        <PinGate busy={loading} copy={copy} error={error} onClearError={() => setError('')} onSubmit={authenticate} tone={identityTone} />
+        bootstrap.audience_type === 'PROVIDER' ? (
+          <ProviderCenterAccessGate
+            allowRegistration={bootstrap.allow_provider_registration}
+            backspaceLabel={copy.pin.backspace}
+            busy={loading}
+            clearLabel={copy.pin.clear}
+            companyName={bootstrap.company_name}
+            copy={providerCopy}
+            error={error}
+            onClearError={() => setError('')}
+            onRegister={async payload => (await multiKioskPublicApi.registerProvider(token, payload, bootstrap.csrf_token)).message}
+            onSubmit={(providerName, pin) => authenticate(pin, providerName)}
+          />
+        ) : (
+          <PinGate busy={loading} copy={copy} error={error} onClearError={() => setError('')} onSubmit={authenticate} tone={identityTone} />
+        )
       ) : session && workspace && activeKioskId !== null ? (
         <div
           ref={workspaceFocusRef}
           aria-labelledby="multi-kiosk-workspace-title"
           tabIndex={-1}
-          className={`mx-auto w-full outline-none ${posWorkspace ? 'max-w-[96rem]' : 'max-w-3xl'}`}
+          className={`mx-auto w-full outline-none ${posWorkspace ? 'max-w-[96rem]' : providerWorkspace ? 'max-w-5xl' : 'max-w-3xl'}`}
         >
           {workspace.experience_status !== 'READY' ? (
             <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center text-amber-900 dark:border-amber-800 dark:bg-amber-950/35 dark:text-amber-100">

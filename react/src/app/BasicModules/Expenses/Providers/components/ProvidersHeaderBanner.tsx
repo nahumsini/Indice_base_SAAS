@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Building2, Columns3, KeyRound, MoreHorizontal, Plus, Store } from 'lucide-react';
+import { Building2, ClipboardCheck, Columns3, MoreHorizontal, Plus } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { IndiceTitleBar } from '../../../../components/frontend-os';
 import {
@@ -30,8 +30,7 @@ export function ProvidersHeaderBanner({
   icon,
   onAddProvider,
   onConfigureColumns,
-  onManagePayablesKiosks,
-  onManageSupplierPortal,
+  onReviewProviderCenter,
   subtitle,
   title,
   variant = 'finance',
@@ -39,8 +38,7 @@ export function ProvidersHeaderBanner({
   icon?: ReactNode;
   onAddProvider: () => void;
   onConfigureColumns: () => void;
-  onManagePayablesKiosks?: () => void;
-  onManageSupplierPortal?: () => void;
+  onReviewProviderCenter?: () => void;
   subtitle?: string;
   title?: string;
   variant?: ProvidersHeaderVariant;
@@ -48,20 +46,14 @@ export function ProvidersHeaderBanner({
   const t = useProvidersTranslations();
   const styles = headerVariantStyles[variant];
   const headerIcon = icon ?? <Building2 className="h-5 w-5" />;
-  const eligibleActionCount = 2 + Number(Boolean(onManagePayablesKiosks)) + Number(Boolean(onManageSupplierPortal));
+  const eligibleActionCount = 2 + Number(Boolean(onReviewProviderCenter));
   const hasOverflow = eligibleActionCount > 3;
   const actionLayout = (
     <>
-      {onManagePayablesKiosks ? (
-        <Button variant="outline" className={`h-11 w-full justify-center gap-2 rounded-lg border-slate-200 bg-white px-4 text-sm font-medium shadow-none dark:border-slate-700 dark:bg-slate-800 sm:w-auto ${styles.columnsButton}`} onClick={onManagePayablesKiosks}>
-          <Store className="h-4 w-4" />
-          Kioscos CxP
-        </Button>
-      ) : null}
-      {onManageSupplierPortal ? (
-        <Button variant="outline" className={`h-11 w-full justify-center gap-2 rounded-lg border-slate-200 bg-white px-4 text-sm font-medium shadow-none dark:border-slate-700 dark:bg-slate-800 sm:w-auto ${styles.columnsButton}`} onClick={onManageSupplierPortal}>
-          <KeyRound className="h-4 w-4" />
-          Portal de proveedores
+      {onReviewProviderCenter && !hasOverflow ? (
+        <Button variant="outline" className={`h-11 w-full justify-center gap-2 rounded-lg border-slate-200 bg-white px-4 text-sm font-medium shadow-none dark:border-slate-700 dark:bg-slate-800 sm:w-auto ${styles.columnsButton}`} onClick={onReviewProviderCenter}>
+          <ClipboardCheck className="h-4 w-4" />
+          Solicitudes
         </Button>
       ) : null}
       {!hasOverflow ? (
@@ -87,6 +79,10 @@ export function ProvidersHeaderBanner({
               <Columns3 className="h-4 w-4" />
               {t.common.columns}
             </DropdownMenuItem>
+            {onReviewProviderCenter ? <DropdownMenuItem className="rounded-lg py-2.5" onClick={onReviewProviderCenter}>
+              <ClipboardCheck className="h-4 w-4" />
+              Solicitudes del Centro
+            </DropdownMenuItem> : null}
           </DropdownMenuContent>
         </DropdownMenu>
       ) : null}

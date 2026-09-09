@@ -163,8 +163,8 @@ export function PurchaseOrdersTable({
                       <IconAction label={copy.common.view} onClick={() => onSelect(order)} icon={Eye} disabled={disabled} />
                       {order.status === 'DRAFT' && <IconAction label={copy.orderTable.request} onClick={() => onAction(order, 'request')} icon={CheckCircle2} disabled={disabled} />}
                       {(order.status === 'DRAFT' || order.status === 'REQUESTED') && <IconAction label={copy.orderTable.approve} onClick={() => onAction(order, 'approve')} icon={ShieldCheck} disabled={disabled} />}
-                      {(order.status === 'REQUESTED' || order.status === 'APPROVED') && <IconAction label={copy.orderTable.send} onClick={() => onAction(order, 'send')} icon={Send} disabled={disabled} />}
-                      {['APPROVED', 'SENT', 'PARTIALLY_RECEIVED'].includes(order.status) && <IconAction label={copy.orderTable.receive} onClick={() => onReceive(order)} icon={PackageCheck} disabled={disabled} />}
+                      {(order.status === 'REQUESTED' || order.status === 'APPROVED' || order.status === 'NEEDS_CLARIFICATION') && <IconAction label={copy.orderTable.send} onClick={() => onAction(order, 'send')} icon={Send} disabled={disabled} />}
+                      {['APPROVED', 'SENT', 'CONFIRMED', 'PARTIALLY_RECEIVED'].includes(order.status) && <IconAction label={copy.orderTable.receive} onClick={() => onReceive(order)} icon={PackageCheck} disabled={disabled} />}
                       {primaryInvoice ? (
                         <>
                           {primaryInvoice.documentUrl ? (

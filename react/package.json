@@ -9,7 +9,7 @@
     "calibrate:personal-performance": "node scripts/personal-performance-engine-calibration.mjs",
     "dev": "vite",
     "audit:pos-i18n": "node scripts/pos-i18n-audit.mjs",
-    "test:kiosks": "node --experimental-strip-types --test tests/kiosk-frontend-regression.test.mjs tests/multi-kiosk-responsiveness-regression.test.mjs tests/multi-kiosk-task-runtime-regression.test.mjs",
+    "test:kiosks": "node --experimental-strip-types --test tests/kiosk-frontend-regression.test.mjs tests/multi-kiosk-responsiveness-regression.test.mjs tests/multi-kiosk-task-runtime-regression.test.mjs tests/provider-center-regression.test.mjs",
     "test:auth": "node --experimental-strip-types --test tests/auth-session-regression.test.mjs",
     "test:expenses": "node --test tests/expenses-workflow-regression.test.mjs tests/expenses-carryover-regression.test.mjs",
     "test:expenses-ui": "node --test tests/expenses-frontend-standard-regression.test.mjs",

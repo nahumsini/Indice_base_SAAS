@@ -3,6 +3,7 @@ package com.indice.erp.kiosk.api;
 import com.indice.erp.kiosk.engine.KioskEngineFeatureFlags;
 import com.indice.erp.kiosk.engine.KioskUnavailableException;
 import com.indice.erp.kiosk.engine.MultiKioskService;
+import com.indice.erp.kiosk.engine.ProviderCenterAccessAdminService;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
@@ -22,17 +23,54 @@ public class MultiKioskAdminV2Controller {
     private final KioskInternalRequestGuard guard;
     private final KioskEngineFeatureFlags flags;
     private final MultiKioskService multiKiosks;
+    private final ProviderCenterAccessAdminService providerAccess;
     private final KioskV2ResponseFactory responses;
 
     public MultiKioskAdminV2Controller(
             KioskInternalRequestGuard guard,
             KioskEngineFeatureFlags flags,
             MultiKioskService multiKiosks,
+            ProviderCenterAccessAdminService providerAccess,
             KioskV2ResponseFactory responses) {
         this.guard = guard;
         this.flags = flags;
         this.multiKiosks = multiKiosks;
+        this.providerAccess = providerAccess;
         this.responses = responses;
+    }
+
+    @GetMapping("/{multiKioskId}/providers")
+    public ResponseEntity<?> providers(HttpSession session, @PathVariable long multiKioskId) {
+        requireEnabled();
+        var user = guard.requireCenterRead(session);
+        return ResponseEntity.ok(responses.success(
+            providerAccess.list(user.companyId(), multiKioskId), null, null));
+    }
+
+    @PostMapping("/{multiKioskId}/providers/{providerId}/pin")
+    public ResponseEntity<?> issueProviderPin(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long multiKioskId,
+            @PathVariable long providerId) {
+        requireEnabled();
+        var user = guard.requireCenterWrite(session, csrfToken);
+        return ResponseEntity.ok(responses.success(
+            providerAccess.issueOrRotate(
+                user.companyId(), multiKioskId, providerId, user.userId()), null, null));
+    }
+
+    @PostMapping("/{multiKioskId}/providers/{providerId}/revoke")
+    public ResponseEntity<?> revokeProviderPin(
+            HttpSession session,
+            @RequestHeader(name = "X-CSRF-Token", required = false) String csrfToken,
+            @PathVariable long multiKioskId,
+            @PathVariable long providerId) {
+        requireEnabled();
+        var user = guard.requireCenterWrite(session, csrfToken);
+        return ResponseEntity.ok(responses.success(
+            providerAccess.revoke(
+                user.companyId(), multiKioskId, providerId, user.userId()), null, null));
     }
 
     @GetMapping

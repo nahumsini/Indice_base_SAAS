@@ -7,6 +7,7 @@ import com.indice.erp.finance.expenses.dto.CreateExpenseRequest;
 import com.indice.erp.finance.shared.FinanceContext;
 import com.indice.erp.finance.shared.FinanceScope;
 import com.indice.erp.billing.storage.CompanyStorageMeter;
+import com.indice.erp.kiosk.engine.KioskIdentityCredentialService;
 import com.indice.erp.pos.PosApiException;
 import com.indice.erp.pos.PosContext;
 import com.indice.erp.pos.PosScope;
@@ -86,6 +87,7 @@ public class PurchaseOrderService {
     private final ExpenseService expenseService;
     private final ObjectMapper objectMapper;
     private final CompanyStorageMeter storageMeter;
+    private final KioskIdentityCredentialService kioskCredentials;
 
     public PurchaseOrderService(
             PurchaseOrderRepository repository,
@@ -94,7 +96,8 @@ public class PurchaseOrderService {
             ObjectStorageProperties storageProperties,
             ExpenseService expenseService,
             ObjectMapper objectMapper,
-            CompanyStorageMeter storageMeter) {
+            CompanyStorageMeter storageMeter,
+            KioskIdentityCredentialService kioskCredentials) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
         this.objectStorageService = objectStorageService;
@@ -102,6 +105,7 @@ public class PurchaseOrderService {
         this.expenseService = expenseService;
         this.objectMapper = objectMapper;
         this.storageMeter = storageMeter;
+        this.kioskCredentials = kioskCredentials;
     }
 
     @Transactional(readOnly = true)
@@ -349,7 +353,7 @@ public class PurchaseOrderService {
         var fileName = requireSupplierDocumentFileName(request.fileName());
         var contentType = requireSupplierDocumentContentType(request.contentType(), fileName);
         var sizeBytes = requireSupplierDocumentSize(request.sizeBytes());
-        var objectKey = buildSupplierInvoiceDocumentObjectKey(access.companyId(), access.id(), fileName);
+        var objectKey = buildSupplierInvoiceDocumentObjectKey(access, fileName);
         var upload = storageMeter.presign(
             access.companyId(),
             "POS",
@@ -406,15 +410,55 @@ public class PurchaseOrderService {
     public SupplierSubmissionResponse createPublicSupplierSubmission(
             PurchaseOrderRepository.SupplierPortalAccessRecord access,
             SupplierPortalSubmissionRequest request) {
+        return createPublicSupplierSubmission(access, null, request, false);
+    }
+
+    @Transactional
+    public SupplierSubmissionResponse createProviderCenterSupplierSubmission(
+            PurchaseOrderRepository.SupplierPortalAccessRecord access,
+            SupplierPortalSubmissionRequest request) {
+        return createPublicSupplierSubmission(access, null, request, true);
+    }
+
+    @Transactional
+    public SupplierSubmissionResponse createProviderCenterQuoteSubmission(
+            PurchaseOrderRepository.SupplierPortalAccessRecord access,
+            long quoteRequestId,
+            SupplierPortalSubmissionRequest request) {
+        if (quoteRequestId <= 0) {
+            throw PosApiException.badRequest("quoteRequestId is required.");
+        }
+        return createPublicSupplierSubmission(access, quoteRequestId, request, false);
+    }
+
+    private SupplierSubmissionResponse createPublicSupplierSubmission(
+            PurchaseOrderRepository.SupplierPortalAccessRecord access,
+            Long quoteRequestId,
+            SupplierPortalSubmissionRequest request,
+            boolean allowCompanyCatalog) {
         requireOperationalPortalAccess(access);
         for (var item : request.items()) {
             if (trimToNull(item.imageUrl()) != null) {
                 throw PosApiException.badRequest(
                     "External image URLs are not accepted by the supplier portal.");
             }
-            if (item.productId() != null && !repository.supplierPortalProductAllowed(
-                    access.companyId(), access.providerId(), item.productId())) {
-                throw PosApiException.badRequest("productId is not available for this supplier portal.");
+            if (item.productId() != null) {
+                var allowed = quoteRequestId == null
+                    ? allowCompanyCatalog
+                        ? repository.supplierCompanyProductAllowed(
+                            access.companyId(), item.productId())
+                        : repository.supplierPortalProductAllowed(
+                            access.companyId(), access.providerId(), item.productId())
+                    : repository.supplierQuoteRequestProductAllowed(
+                        access.companyId(), access.providerId(), quoteRequestId, item.productId());
+                if (!allowed) {
+                    throw PosApiException.badRequest(
+                        quoteRequestId == null
+                            ? allowCompanyCatalog
+                                ? "productId is not available in the company procurement catalog."
+                                : "productId is not available for this supplier portal."
+                            : "productId was not requested in this quote request.");
+                }
             }
         }
         var context = supplierPortalPosContext(access);
@@ -461,6 +505,47 @@ public class PurchaseOrderService {
             request.submittedByName()
         );
         return submitSupplierInvoice(context, invoice);
+    }
+
+    /** Provider Center variant: an invoice in this lane must reference the provider's PO. */
+    @Transactional
+    public SupplierInvoiceResponse createProviderCenterSupplierInvoice(
+            PurchaseOrderRepository.SupplierPortalAccessRecord access,
+            long purchaseOrderId,
+            SupplierPortalInvoiceRequest request) {
+        requireOperationalPortalAccess(access);
+        if (purchaseOrderId <= 0) {
+            throw PosApiException.badRequest("purchaseOrderId is required.");
+        }
+        var context = supplierPortalPosContext(access);
+        var order = repository.findOrder(context, purchaseOrderId)
+            .orElseThrow(() -> PosApiException.notFound("Purchase order not found."));
+        if (!access.providerId().equals(order.providerId())) {
+            throw PosApiException.forbidden("Purchase order does not belong to this provider.");
+        }
+        if (order.status() != PurchaseOrderStatus.CONFIRMED
+                && order.status() != PurchaseOrderStatus.PARTIALLY_RECEIVED
+                && order.status() != PurchaseOrderStatus.RECEIVED) {
+            throw PosApiException.conflict(
+                "La orden debe estar confirmada o recibida antes de facturarla.");
+        }
+        if (!normalizedCurrency(request.currencyCode()).equals(normalizedCurrency(order.currencyCode()))) {
+            throw PosApiException.badRequest("La moneda de la factura debe coincidir con la orden.");
+        }
+        if (money(request.subtotalAmount().add(request.taxAmount()))
+                .compareTo(money(request.totalAmount())) != 0) {
+            throw PosApiException.badRequest("El total de la factura debe ser igual al subtotal más impuestos.");
+        }
+        if (request.invoiceDate() != null && request.dueDate() != null
+                && request.dueDate().isBefore(request.invoiceDate())) {
+            throw PosApiException.badRequest("El vencimiento no puede ser anterior a la fecha de factura.");
+        }
+        var documentReference = request.documentUrl() == null
+            ? null : requirePublicSupplierDocumentReference(access, request.documentUrl());
+        return submitSupplierInvoice(context, new SupplierInvoiceRequest(
+            access.providerId(), purchaseOrderId, request.invoiceNumber(), request.invoiceDate(),
+            request.dueDate(), request.subtotalAmount(), request.taxAmount(), request.totalAmount(),
+            request.currencyCode(), request.notes(), documentReference, request.submittedByName()));
     }
 
     @Transactional
@@ -607,7 +692,11 @@ public class PurchaseOrderService {
     @Transactional
     public PurchaseOrderResponse sendOrder(PosContext context, long orderId, PurchaseOrderActionRequest request) {
         var order = requireOrder(context, orderId);
-        requireOneOf(order, PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.REQUESTED);
+        requireOneOf(
+            order,
+            PurchaseOrderStatus.APPROVED,
+            PurchaseOrderStatus.REQUESTED,
+            PurchaseOrderStatus.NEEDS_CLARIFICATION);
         updateStatus(context, orderId, PurchaseOrderStatus.SENT, request);
         return requireOrder(context, orderId);
     }
@@ -625,7 +714,12 @@ public class PurchaseOrderService {
     @Transactional
     public PurchaseOrderResponse receiveOrder(PosContext context, long orderId, PurchaseOrderReceiveRequest request) {
         var order = requireOrder(context, orderId);
-        requireOneOf(order, PurchaseOrderStatus.SENT, PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.PARTIALLY_RECEIVED);
+        requireOneOf(
+            order,
+            PurchaseOrderStatus.SENT,
+            PurchaseOrderStatus.CONFIRMED,
+            PurchaseOrderStatus.APPROVED,
+            PurchaseOrderStatus.PARTIALLY_RECEIVED);
         var receiptNumber = repository.nextReceiptNumber(context);
         var receiptId = repository.insertReceipt(context, order, receiptNumber, request.notes());
         for (var receiveItem : request.items()) {
@@ -880,8 +974,19 @@ public class PurchaseOrderService {
         var access = repository.findSupplierPortalAccessByCode(portalCode)
             .orElseThrow(() -> PosApiException.notFound("Supplier portal not found."));
         requireOperationalPortalAccess(access);
-        if (access.pinHash() == null || access.pinHash().isBlank()
-                || pin == null || !passwordEncoder.matches(pin.trim(), access.pinHash())) {
+        var credential = kioskCredentials.pinCredential(
+            access.companyId(), "PROVIDER", access.providerId()).orElse(null);
+        var legacyMatch = access.pinHash() != null && !access.pinHash().isBlank()
+            && pin != null && passwordEncoder.matches(pin.trim(), access.pinHash());
+        var centralMatch = credential != null
+            && credential.secretHash() != null && !credential.secretHash().isBlank()
+            && pin != null && passwordEncoder.matches(pin.trim(), credential.secretHash());
+        var validPin = credential == null
+            ? legacyMatch
+            : "ACTIVE".equalsIgnoreCase(credential.status())
+                && ("LEGACY_MIGRATION".equalsIgnoreCase(credential.origin())
+                    ? legacyMatch : centralMatch);
+        if (!validPin) {
             throw PosApiException.forbidden("Supplier portal PIN is invalid.");
         }
         return access;
@@ -1040,7 +1145,7 @@ public class PurchaseOrderService {
         if (reference == null
                 || reference.startsWith("http://")
                 || reference.startsWith("https://")
-                || !reference.startsWith(supplierInvoiceDocumentPrefix(access.companyId(), access.id()))) {
+                || !reference.startsWith(supplierInvoiceDocumentPrefix(access))) {
             throw PosApiException.badRequest("Supplier invoice document reference is invalid for this portal.");
         }
         requireSupplierDocumentStorage();
@@ -1116,8 +1221,9 @@ public class PurchaseOrderService {
         storageMeter.commit(companyId, supplierDocumentsBucket(), objectKey, sizeBytes);
     }
 
-    private String buildSupplierInvoiceDocumentObjectKey(long companyId, long accessId, String fileName) {
-        return supplierInvoiceDocumentPrefix(companyId, accessId)
+    private String buildSupplierInvoiceDocumentObjectKey(
+            PurchaseOrderRepository.SupplierPortalAccessRecord access, String fileName) {
+        return supplierInvoiceDocumentPrefix(access)
             + UUID.randomUUID()
             + "-"
             + sanitizeSupplierDocumentFileName(fileName);
@@ -1136,6 +1242,13 @@ public class PurchaseOrderService {
 
     private String supplierInvoiceDocumentPrefix(long companyId, long accessId) {
         return "pos/supplier-portal/" + companyId + "/" + accessId + "/invoices/";
+    }
+
+    private String supplierInvoiceDocumentPrefix(
+            PurchaseOrderRepository.SupplierPortalAccessRecord access) {
+        return access.id() == null
+            ? "pos/provider-center/" + access.companyId() + "/" + access.providerId() + "/invoices/"
+            : supplierInvoiceDocumentPrefix(access.companyId(), access.id());
     }
 
     private long requireSupplierDocumentSize(Long sizeBytes) {

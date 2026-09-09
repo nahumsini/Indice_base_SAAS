@@ -14,8 +14,10 @@ import com.indice.erp.pos.PosScope;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalAccessRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalAccessResponse;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalInvoiceRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalLoginRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierPortalSubmissionRequest;
 import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierSubmissionItemRequest;
+import com.indice.erp.pos.purchaseorder.PurchaseOrderDtos.SupplierSubmissionResponse;
 import com.indice.erp.storage.ObjectStorageProperties;
 import com.indice.erp.storage.ObjectStorageService;
 import java.math.BigDecimal;
@@ -38,6 +40,7 @@ class SupplierPortalPurchaseOrderServiceTest {
     @Mock ObjectStorageService objectStorageService;
     @Mock ObjectStorageProperties storageProperties;
     @Mock ExpenseService expenseService;
+    @Mock com.indice.erp.kiosk.engine.KioskIdentityCredentialService kioskCredentials;
 
     @Test
     void creationPreservesFutureExpirationAndUsesOpaqueTokenWithoutIdentityPrefix() {
@@ -117,6 +120,38 @@ class SupplierPortalPurchaseOrderServiceTest {
     }
 
     @Test
+    void providerCenterSubmissionCanUseAnActiveProductFromTheCompanyCatalog() {
+        var item = new SupplierSubmissionItemRequest(
+            999L, "PROV-SKU", "Producto compartido", null, null,
+            BigDecimal.ONE, BigDecimal.TEN, BigDecimal.ZERO, null, BigDecimal.ONE);
+        var request = new SupplierPortalSubmissionRequest(
+            null, "MXN", "Ana", "ana@proveedor.mx", null, List.of(item));
+        var providerContext = providerContext();
+        var expected = new SupplierSubmissionResponse(
+            123L, 7L, 80L, "Proveedor Norte", "p@example.com", null,
+            "SUP-2026-0001", SupplierSubmissionStatus.SUBMITTED, "MXN",
+            BigDecimal.TEN, BigDecimal.ZERO, BigDecimal.TEN,
+            "Ana", "ana@proveedor.mx", Instant.now(), null, null, null,
+            null, null, Instant.now(), List.of());
+        when(repository.supplierCompanyProductAllowed(7L, 999L)).thenReturn(true);
+        when(repository.findProvider(providerContext, 80L)).thenReturn(Optional.of(provider()));
+        when(repository.findProduct(providerContext, 999L)).thenReturn(Optional.of(
+            new PurchaseOrderRepository.ProductRef(999L, "CAT-SKU", "Producto compartido", BigDecimal.TEN, "MXN")));
+        when(repository.nextSubmissionNumber(providerContext)).thenReturn("SUP-2026-0001");
+        when(repository.insertSupplierSubmission(
+            eq(providerContext), any(), any(), eq("SUP-2026-0001"),
+            any(), any(), any(), any())).thenReturn(123L);
+        when(repository.findSupplierSubmission(providerContext, 123L)).thenReturn(Optional.of(expected));
+
+        var result = service().createProviderCenterSupplierSubmission(providerCenterAccess(), request);
+
+        assertThat(result).isEqualTo(expected);
+        org.mockito.Mockito.verify(repository).supplierCompanyProductAllowed(7L, 999L);
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never())
+            .supplierPortalProductAllowed(7L, 80L, 999L);
+    }
+
+    @Test
     void publicInvoiceRejectsArbitraryExternalDocumentUrls() {
         var request = new SupplierPortalInvoiceRequest(
             null, "INV-2026-1", LocalDate.now(), LocalDate.now().plusDays(30),
@@ -128,15 +163,54 @@ class SupplierPortalPurchaseOrderServiceTest {
             .hasMessage("Supplier invoice document reference is invalid for this portal.");
     }
 
+    @Test
+    void legacyPortalStillAcceptsItsOwnPinBeforeCentralProviderCenterActivation() {
+        when(repository.findSupplierPortalAccessByCode("PORTAL-ABC"))
+            .thenReturn(Optional.of(access()));
+        when(kioskCredentials.pinCredential(7L, "PROVIDER", 80L)).thenReturn(Optional.of(
+            new com.indice.erp.kiosk.engine.KioskIdentityCredentialService.PersonalPinCredential(
+                "migrated-hash", "ACTIVE", "LEGACY_MIGRATION")));
+        when(passwordEncoder.matches("legacy-pin", "legacy-hash")).thenReturn(true);
+
+        var result = service().authenticateSupplierPortal(
+            "PORTAL-ABC", new SupplierPortalLoginRequest("legacy-pin"));
+
+        assertThat(result.providerId()).isEqualTo(80L);
+    }
+
+    @Test
+    void centralProviderPinSupersedesTheOldPinOnLegacyLinks() {
+        when(repository.findSupplierPortalAccessByCode("PORTAL-ABC"))
+            .thenReturn(Optional.of(access()));
+        when(kioskCredentials.pinCredential(7L, "PROVIDER", 80L)).thenReturn(Optional.of(
+            new com.indice.erp.kiosk.engine.KioskIdentityCredentialService.PersonalPinCredential(
+                "central-hash", "ACTIVE",
+                com.indice.erp.kiosk.engine.KioskIdentityCredentialService.PROVIDER_CENTER_ORIGIN)));
+        when(passwordEncoder.matches("old-pin", "legacy-hash")).thenReturn(true);
+        when(passwordEncoder.matches("old-pin", "central-hash")).thenReturn(false);
+
+        assertThatThrownBy(() -> service().authenticateSupplierPortal(
+            "PORTAL-ABC", new SupplierPortalLoginRequest("old-pin")))
+            .isInstanceOf(PosApiException.class)
+            .hasMessage("Supplier portal PIN is invalid.");
+    }
+
     private PurchaseOrderService service() {
         return new PurchaseOrderService(
             repository, passwordEncoder, objectStorageService, storageProperties,
             expenseService, new ObjectMapper(),
-            org.mockito.Mockito.mock(com.indice.erp.billing.storage.CompanyStorageMeter.class));
+            org.mockito.Mockito.mock(com.indice.erp.billing.storage.CompanyStorageMeter.class),
+            kioskCredentials);
     }
 
     private PosContext context() {
         return new PosContext(10L, 7L, "Buyer", "admin", true, PosScope.corporateOffice());
+    }
+
+    private PosContext providerContext() {
+        return new PosContext(
+            0L, 7L, "Proveedor Norte", "supplier_portal", true,
+            PosScope.businessOffice(3L, 4L));
     }
 
     private PurchaseOrderRepository.ProviderRef provider() {
@@ -148,5 +222,12 @@ class SupplierPortalPurchaseOrderServiceTest {
             18L, 7L, "Indice", 80L, "Proveedor Norte", "p@example.com", "PORTAL-ABC",
             "legacy-hash", "ACTIVE", Instant.now().plusSeconds(3600),
             "[]", 3L, "Unidad Norte", 4L, "Negocio Norte");
+    }
+
+    private PurchaseOrderRepository.SupplierPortalAccessRecord providerCenterAccess() {
+        return new PurchaseOrderRepository.SupplierPortalAccessRecord(
+            null, 7L, "Indice", 80L, "Proveedor Norte", "p@example.com", "provider-center",
+            "central-hash", "ACTIVE", null,
+            null, 3L, "Unidad Norte", 4L, "Negocio Norte");
     }
 }

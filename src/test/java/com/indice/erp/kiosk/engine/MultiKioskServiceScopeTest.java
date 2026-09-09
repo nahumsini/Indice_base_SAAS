@@ -35,7 +35,9 @@ class MultiKioskServiceScopeTest {
     @Mock private KioskPayloadProtectionService protection;
     @Mock private KioskEmployeeAccessService employeeAccess;
     @Mock private KioskEmployeeToolCatalogService employeeTools;
+    @Mock private KioskProviderToolCatalogService providerTools;
     @Mock private KioskMultiDashboardService dashboard;
+    @Mock private KioskProviderMultiDashboardService providerDashboard;
     @Mock private KioskRateLimitService rateLimits;
 
     private BCryptPasswordEncoder passwordEncoder;
@@ -46,7 +48,8 @@ class MultiKioskServiceScopeTest {
         passwordEncoder = new BCryptPasswordEncoder();
         service = new MultiKioskService(
             jdbcTemplate, new ObjectMapper(), passwordEncoder, protection,
-            employeeAccess, employeeTools, dashboard, rateLimits, 28_800, 43_200);
+            employeeAccess, employeeTools, providerTools, dashboard, providerDashboard,
+            rateLimits, 28_800, 43_200);
     }
 
     @Test
@@ -103,6 +106,53 @@ class MultiKioskServiceScopeTest {
         assertThat(wasUpdateCalled("INSERT INTO multi_kiosk_sessions")).isFalse();
         verify(rateLimits, never()).releaseSuccessfulMultiKioskPinAttempt(
             7L, 44L, "test-network");
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void providerAuthenticatesByCompanyScopedNameAndSixDigitPin() throws Exception {
+        var hash = passwordEncoder.encode(TEST_PIN);
+        stubProviderPublicQueries(List.of(providerIdentityRow(501L, hash)));
+        given(providerDashboard.listForMultiKiosk(7L, 44L, 501L))
+            .willReturn(List.of(Map.of("id", 77L, "name", "Seguimiento y pagos")));
+
+        var result = service.authenticate(
+            "public-token", "Proveedor Uno", TEST_PIN, "browser-session", "test-network");
+
+        assertThat(result).containsKeys("session_token", "identity", "provider", "kiosks");
+        assertThat(result.get("provider")).isEqualTo(Map.of("id", 501L, "name", "Proveedor Uno"));
+        assertThat(wasQueryCalled("provider.company_id = ?")).isTrue();
+        assertThat(wasQueryCalled("credential_origin = 'PROVIDER_CENTER_ADMIN'")).isTrue();
+        assertThat(wasUpdateCalled("'PROVIDER'")).isTrue();
+        verify(rateLimits).releaseSuccessfulMultiKioskPinAttempt(7L, 44L, "test-network");
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void unknownProviderNameFailsWithoutCreatingASession() throws Exception {
+        stubProviderPublicQueries(List.of());
+
+        assertThatThrownBy(() -> service.authenticate(
+            "public-token", "Proveedor inexistente", TEST_PIN,
+            "browser-session", "test-network"))
+            .isInstanceOf(SecurityException.class)
+            .hasMessage("Nombre de proveedor o NIP incorrecto.");
+
+        assertThat(wasUpdateCalled("INSERT INTO multi_kiosk_sessions")).isFalse();
+        var failureAudit = org.mockito.Mockito.mockingDetails(jdbcTemplate).getInvocations().stream()
+            .filter(invocation -> "update".equals(invocation.getMethod().getName()))
+            .filter(invocation -> String.valueOf((Object) invocation.getArgument(0))
+                .contains("INSERT INTO multi_kiosk_audit_events"))
+            .findFirst()
+            .orElseThrow();
+        assertThat(failureAudit.getArguments()[5]).isEqualTo("PROVIDER_CENTER_PIN_FAILED");
+        assertThat(failureAudit.getArguments()[6]).isEqualTo("FAILED");
+        assertThat(String.valueOf(failureAudit.getArguments()[9]))
+            .contains("\"access_population\":\"PROVIDER_NAME_PIN\"");
+        verify(providerDashboard, never()).listForMultiKiosk(
+            org.mockito.ArgumentMatchers.anyLong(),
+            org.mockito.ArgumentMatchers.anyLong(),
+            org.mockito.ArgumentMatchers.anyLong());
     }
 
     @Test
@@ -246,8 +296,10 @@ class MultiKioskServiceScopeTest {
             .findFirst()
             .orElseThrow();
         var insertValues = insert.getArguments();
-        assertThat(insertValues[5]).isNull();
-        assertThat(insertValues[6]).isNull();
+        assertThat(insertValues[5]).isEqualTo("EMPLOYEE");
+        assertThat(insertValues[6]).isEqualTo(false);
+        assertThat(insertValues[7]).isNull();
+        assertThat(insertValues[8]).isNull();
         assertThat(wasSqlUsed("FROM units")).isFalse();
         assertThat(wasSqlUsed("FROM businesses")).isFalse();
         assertThat(wasSqlUsed("multi_kiosk_assignments")).isFalse();
@@ -276,12 +328,37 @@ class MultiKioskServiceScopeTest {
             });
     }
 
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private void stubProviderPublicQueries(List<ResultSet> identityRows) throws Exception {
+        given(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
+            .willAnswer(invocation -> {
+                var sql = String.valueOf((Object) invocation.getArgument(0));
+                var mapper = (RowMapper) invocation.getArgument(1);
+                if (sql.contains("SELECT COALESCE(updated_by, created_by)")) {
+                    return List.of(mapper.mapRow(actorRow(), 0));
+                }
+                if (sql.contains("FROM multi_kiosk_definitions")) {
+                    return List.of(mapper.mapRow(providerDefinitionRow(), 0));
+                }
+                if (sql.contains("FROM finance_providers provider")) {
+                    var mapped = new java.util.ArrayList<>();
+                    for (var index = 0; index < identityRows.size(); index++) {
+                        mapped.add(mapper.mapRow(identityRows.get(index), index));
+                    }
+                    return mapped;
+                }
+                return List.of();
+            });
+    }
+
     private ResultSet definitionRow(Long unitId, Long businessId) throws Exception {
         var rs = mock(ResultSet.class);
         given(rs.getLong("id")).willReturn(44L);
         given(rs.getLong("company_id")).willReturn(7L);
         given(rs.getString("name")).willReturn("Company operations");
         given(rs.getString("description")).willReturn("Employee launcher");
+        given(rs.getString("audience_type")).willReturn("EMPLOYEE");
+        given(rs.getBoolean("allow_provider_registration")).willReturn(false);
         given(rs.getString("status")).willReturn("ACTIVE");
         given(rs.getObject("unit_id", Long.class)).willReturn(unitId);
         given(rs.getObject("business_id", Long.class)).willReturn(businessId);
@@ -299,6 +376,28 @@ class MultiKioskServiceScopeTest {
         given(rs.getString("name")).willReturn("Active member " + membershipId);
         given(rs.getString("role")).willReturn("user");
         given(rs.getString("secret_hash")).willReturn(hash);
+        return rs;
+    }
+
+    private ResultSet providerDefinitionRow() throws Exception {
+        var rs = definitionRow(null, null);
+        given(rs.getString("name")).willReturn("Centro de Proveedores");
+        given(rs.getString("description")).willReturn("Acceso de proveedores");
+        given(rs.getString("audience_type")).willReturn("PROVIDER");
+        return rs;
+    }
+
+    private ResultSet providerIdentityRow(long providerId, String hash) throws Exception {
+        var rs = mock(ResultSet.class);
+        given(rs.getLong("provider_id")).willReturn(providerId);
+        given(rs.getString("name")).willReturn("Proveedor Uno");
+        given(rs.getString("secret_hash")).willReturn(hash);
+        return rs;
+    }
+
+    private ResultSet actorRow() throws Exception {
+        var rs = mock(ResultSet.class);
+        given(rs.getLong("actor_id")).willReturn(81L);
         return rs;
     }
 
@@ -325,6 +424,8 @@ class MultiKioskServiceScopeTest {
         given(rs.getString("code")).willReturn("MK-TEST");
         given(rs.getString("name")).willReturn("Company operations");
         given(rs.getString("description")).willReturn("");
+        given(rs.getString("audience_type")).willReturn("EMPLOYEE");
+        given(rs.getBoolean("allow_provider_registration")).willReturn(false);
         given(rs.getString("status")).willReturn("ACTIVE");
         given(rs.getString("unit_name")).willReturn("");
         given(rs.getString("business_name")).willReturn("");

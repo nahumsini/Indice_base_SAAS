@@ -8,6 +8,9 @@ import java.sql.Statement;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
@@ -82,6 +85,157 @@ class PayableKioskPublicRepository {
         return count != null && count > 0;
     }
 
+    Map<String, Object> providerCenterProfile(long companyId, long providerId) {
+        return jdbcTemplate.query(
+            """
+                SELECT id, name, legal_name, tax_id, email, phone, contact_name,
+                       payment_terms_days
+                FROM finance_providers
+                WHERE company_id = ? AND id = ? AND status = 'ACTIVE' AND deleted_at IS NULL
+                """,
+            (rs, rowNum) -> {
+                var row = new LinkedHashMap<String, Object>();
+                row.put("id", rs.getLong("id"));
+                row.put("name", rs.getString("name"));
+                row.put("legal_name", value(rs.getString("legal_name")));
+                row.put("tax_id", value(rs.getString("tax_id")));
+                row.put("email", value(rs.getString("email")));
+                row.put("phone", value(rs.getString("phone")));
+                row.put("contact_name", value(rs.getString("contact_name")));
+                row.put("payment_terms_days", rs.getInt("payment_terms_days"));
+                return Map.copyOf(row);
+            }, companyId, providerId).stream().findFirst().orElse(Map.of());
+    }
+
+    List<Map<String, Object>> providerCenterPayables(long companyId, long providerId) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT expense.id, expense.folio, expense.concept, expense.total_amount,
+                       expense.paid_amount, expense.balance_amount, expense.currency_code,
+                       expense.expense_date, expense.due_date, expense.status,
+                       expense.payment_status, expense.created_at
+                FROM finance_expenses expense
+                WHERE expense.company_id = ? AND expense.provider_id = ?
+                  AND expense.purchase_order_id IS NULL AND expense.deleted_at IS NULL
+                ORDER BY expense.created_at DESC, expense.id DESC LIMIT 100
+                """,
+            (rs, rowNum) -> {
+                var row = new LinkedHashMap<String, Object>();
+                row.put("id", rs.getLong("id"));
+                row.put("folio", rs.getString("folio"));
+                row.put("concept", rs.getString("concept"));
+                row.put("total_amount", rs.getBigDecimal("total_amount"));
+                row.put("paid_amount", rs.getBigDecimal("paid_amount"));
+                row.put("balance_amount", rs.getBigDecimal("balance_amount"));
+                row.put("currency_code", rs.getString("currency_code"));
+                row.put("expense_date", rs.getDate("expense_date").toLocalDate().toString());
+                row.put("due_date", rs.getDate("due_date") == null ? "" : rs.getDate("due_date").toLocalDate().toString());
+                row.put("status", rs.getString("status"));
+                row.put("payment_status", rs.getString("payment_status"));
+                row.put("created_at", rs.getTimestamp("created_at").toInstant().toString());
+                return new LinkedHashMap<>(row);
+            }, companyId, providerId);
+        attachPaymentProjection(companyId, rows);
+        return rows.stream().map(Map::copyOf).toList();
+    }
+
+    List<Map<String, Object>> providerCenterPurchaseOrderPayments(
+            long companyId, long providerId) {
+        var rows = jdbcTemplate.query(
+            """
+                SELECT expense.id, expense.folio, expense.purchase_order_id,
+                       JSON_UNQUOTE(JSON_EXTRACT(expense.metadata_json, '$.supplierInvoiceId'))
+                         AS supplier_invoice_id,
+                       JSON_UNQUOTE(JSON_EXTRACT(expense.metadata_json, '$.invoiceNumber'))
+                         AS invoice_number,
+                       expense.total_amount, expense.paid_amount, expense.balance_amount,
+                       expense.currency_code, expense.payment_status, expense.created_at
+                FROM finance_expenses expense
+                WHERE expense.company_id = ? AND expense.provider_id = ?
+                  AND expense.purchase_order_id IS NOT NULL AND expense.deleted_at IS NULL
+                ORDER BY expense.created_at DESC, expense.id DESC LIMIT 100
+                """,
+            (rs, rowNum) -> {
+                var row = new LinkedHashMap<String, Object>();
+                row.put("expense_id", rs.getLong("id"));
+                row.put("folio", rs.getString("folio"));
+                row.put("purchase_order_id", rs.getLong("purchase_order_id"));
+                var supplierInvoiceId = nullableLong(rs, "supplier_invoice_id");
+                if (supplierInvoiceId != null) row.put("supplier_invoice_id", supplierInvoiceId);
+                row.put("document_reference", value(rs.getString("invoice_number")).isBlank()
+                    ? rs.getString("folio") : rs.getString("invoice_number"));
+                row.put("total_amount", rs.getBigDecimal("total_amount"));
+                row.put("paid_amount", rs.getBigDecimal("paid_amount"));
+                row.put("balance_amount", rs.getBigDecimal("balance_amount"));
+                row.put("currency_code", rs.getString("currency_code"));
+                row.put("payment_status", rs.getString("payment_status"));
+                row.put("created_at", rs.getTimestamp("created_at").toInstant().toString());
+                return row;
+            }, companyId, providerId);
+        attachPaymentProjection(companyId, rows);
+        return rows.stream().map(Map::copyOf).toList();
+    }
+
+    private void attachPaymentProjection(
+            long companyId, List<? extends Map<String, Object>> rows) {
+        for (var row : rows) {
+            var rawExpenseId = row.containsKey("id") ? row.get("id") : row.get("expense_id");
+            var expenseId = ((Number) rawExpenseId).longValue();
+            row.put("payments", jdbcTemplate.query(
+                """
+                    SELECT id, amount, currency_code, payment_date
+                    FROM finance_expense_payments
+                    WHERE company_id = ? AND expense_id = ?
+                    ORDER BY payment_date DESC, id DESC
+                    """,
+                (rs, rowNum) -> Map.of(
+                    "date", rs.getDate("payment_date").toLocalDate().toString(),
+                    "amount", rs.getBigDecimal("amount"),
+                    "currency_code", rs.getString("currency_code"),
+                    "reference", "PAGO-" + rs.getLong("id")),
+                companyId, expenseId));
+        }
+    }
+
+    private Long nullableLong(java.sql.ResultSet rs, String column) throws java.sql.SQLException {
+        var value = rs.getLong(column);
+        return rs.wasNull() ? null : value;
+    }
+
+    long insertProviderChangeRequest(
+            long companyId,
+            long providerId,
+            String category,
+            String changesJson,
+            String protectedChanges,
+            String submittedByName,
+            String submittedByEmail) {
+        var keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            var statement = connection.prepareStatement(
+                """
+                    INSERT INTO provider_profile_change_requests (
+                        company_id, provider_id, category, status, changes_json,
+                        protected_changes, submitted_by_name, submitted_by_email
+                    ) VALUES (?, ?, ?, 'SUBMITTED', ?, ?, ?, ?)
+                    """,
+                Statement.RETURN_GENERATED_KEYS);
+            statement.setLong(1, companyId);
+            statement.setLong(2, providerId);
+            statement.setString(3, category);
+            statement.setString(4, changesJson);
+            statement.setString(5, protectedChanges);
+            statement.setString(6, submittedByName);
+            statement.setString(7, submittedByEmail);
+            return statement;
+        }, keyHolder);
+        return keyHolder.getKey() == null ? 0L : keyHolder.getKey().longValue();
+    }
+
+    private String value(String value) {
+        return value == null ? "" : value;
+    }
+
     long insertPayable(
             PayableKioskRow kiosk,
             Long providerId,
@@ -91,7 +245,8 @@ class PayableKioskPublicRepository {
             String metadataJson) {
         var keyHolder = new GeneratedKeyHolder();
         var businessDate = LocalDate.now(timeZoneResolver.resolve(kiosk.companyId()));
-        var folio = "CXP-" + businessDate.getYear() + "-" + Long.toString(System.currentTimeMillis()).substring(7);
+        var folio = "CXP-" + businessDate.getYear() + "-"
+            + UUID.randomUUID().toString().replace("-", "").toUpperCase();
         jdbcTemplate.update(connection -> {
             var statement = connection.prepareStatement(
                     """
@@ -292,6 +447,20 @@ class PayableKioskPublicRepository {
                 providerId,
                 kiosk.id());
         return count != null && count > 0;
+    }
+
+    Optional<String> providerCenterPayableCurrency(
+            long companyId, long providerId, long expenseId) {
+        return jdbcTemplate.query(
+                """
+                SELECT currency_code
+                FROM finance_expenses
+                WHERE company_id = ? AND id = ? AND provider_id = ? AND deleted_at IS NULL
+                  AND JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.source')) = 'provider-center'
+                LIMIT 1
+                """,
+                (rs, rowNum) -> rs.getString("currency_code"),
+                companyId, expenseId, providerId).stream().findFirst();
     }
 
     boolean payableBelongsToEmployee(PayableKioskRow kiosk, long employeeId, long expenseId) {

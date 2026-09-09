@@ -198,6 +198,7 @@ export function usePurchaseOrderWorkspace() {
     reviewSupplierSubmission,
     saving,
     setFilters,
+    setError,
     setNotice,
     submitSupplierInvoice,
     supplierInvoices,

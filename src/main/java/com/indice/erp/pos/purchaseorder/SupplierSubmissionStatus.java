@@ -8,5 +8,6 @@ public enum SupplierSubmissionStatus {
     APPROVED,
     PARTIALLY_APPROVED,
     REJECTED,
-    CONVERTED_TO_PURCHASE_ORDER
+    CONVERTED_TO_PURCHASE_ORDER,
+    SUPERSEDED
 }

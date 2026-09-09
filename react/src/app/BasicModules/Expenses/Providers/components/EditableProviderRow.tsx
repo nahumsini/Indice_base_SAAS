@@ -27,7 +27,6 @@ type EditableProviderRowProps = {
   onEditProvider: (providerId: string) => void;
   onOpenEditProvider: (provider: ProviderRecord) => void;
   onOpenAttachments: (provider: ProviderRecord) => void;
-  onManageAccess: (provider: ProviderRecord) => void;
   onUpdateProvider: (providerId: string, updates: Partial<ProviderRecord>) => void;
 };
 
@@ -42,7 +41,6 @@ export function EditableProviderRow({
   onEditProvider,
   onOpenEditProvider,
   onOpenAttachments,
-  onManageAccess,
   onUpdateProvider,
   provider,
   unitOptions,
@@ -81,7 +79,7 @@ export function EditableProviderRow({
       {canShow('authorizer') ? <ReadonlyMappedCell field="authorizer" provider={provider} columnWidths={columnWidths} options={userOptions} /> : null}
       {canShow('performer') ? <ReadonlyMappedCell field="performer" provider={provider} columnWidths={columnWidths} options={userOptions} /> : null}
       <td className="whitespace-nowrap px-6 py-4 text-right align-middle" style={{ width: columnWidths.actions, minWidth: columnWidths.actions }}>
-        <ProviderRowActions providerId={provider.id} onActivateProvider={onActivateProvider} onDeleteProvider={onDeleteProvider} onDuplicateProvider={onDuplicateProvider} onEditProvider={() => onOpenEditProvider(provider)} onManageAccess={() => onManageAccess(provider)} />
+        <ProviderRowActions providerId={provider.id} onActivateProvider={onActivateProvider} onDeleteProvider={onDeleteProvider} onDuplicateProvider={onDuplicateProvider} onEditProvider={() => onOpenEditProvider(provider)} />
       </td>
     </tr>
   );

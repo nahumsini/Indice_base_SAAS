@@ -13,15 +13,10 @@ import { defaultProviderColumns, legacyWideProviderFactoryPreset, type ProviderC
 import { ProviderColumnsModal } from './components/ProviderColumnsModal';
 import { ProviderCreateModal } from './components/ProviderCreateModal';
 import { QuickProviderCreateModal } from './components/QuickProviderCreateModal';
-import { SupplierPortalAccessModal } from '../../PointOfSale/OrdenesCompra/components/SupplierPortalAccessModal';
-import { purchaseOrdersApi } from '../../PointOfSale/OrdenesCompra/services/purchaseOrdersApi';
-import type { ProviderOption, SupplierPortalAccess, SupplierPortalAccessPayload, SupplierPortalAccessStatus } from '../../PointOfSale/OrdenesCompra/types/purchaseOrder.types';
-import type { PosWarehouseSummary } from '../../PointOfSale/Sale/services/posBackendApi';
 import { ProvidersFilterBar } from './components/ProvidersFilterBar';
 import { ProvidersHeaderBanner, type ProvidersHeaderVariant } from './components/ProvidersHeaderBanner';
 import { ProvidersTable } from './components/ProvidersTable';
-import { ProviderKioskAccessModal } from './components/ProviderKioskAccessModal';
-import { PayablesKioskManagementModal } from '../components/modals/PayablesKioskManagementModal';
+import { ProviderCenterFinanceReviewModal } from './components/ProviderCenterFinanceReviewModal';
 import {
   type ProviderRecord,
   type ProviderFormValues,
@@ -102,13 +97,7 @@ export default function ProveedoresPage({
   const [isColumnsModalOpen, setIsColumnsModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isQuickCreateModalOpen, setIsQuickCreateModalOpen] = useState(false);
-  const [isSupplierPortalOpen, setIsSupplierPortalOpen] = useState(false);
-  const [isPayablesKioskManagementOpen, setIsPayablesKioskManagementOpen] = useState(false);
-  const [supplierPortalSaving, setSupplierPortalSaving] = useState(false);
-  const [supplierPortalAccess, setSupplierPortalAccess] = useState<SupplierPortalAccess[]>([]);
-  const [supplierPortalProviders, setSupplierPortalProviders] = useState<ProviderOption[]>([]);
-  const [supplierPortalWarehouses, setSupplierPortalWarehouses] = useState<PosWarehouseSummary[]>([]);
-  const [accessProvider, setAccessProvider] = useState<ProviderRecord | null>(null);
+  const [isProviderCenterReviewOpen, setIsProviderCenterReviewOpen] = useState(false);
   const [providerPendingDelete, setProviderPendingDelete] = useState<ProviderRecord | null>(null);
   const [isDeletingProvider, setIsDeletingProvider] = useState(false);
   const translatedProviderColumns = useMemo(() => defaultProviderColumns.map(column => {
@@ -201,34 +190,6 @@ export default function ProveedoresPage({
     setIsQuickCreateModalOpen(false);
   };
 
-  const openSupplierPortal = async () => {
-    setIsSupplierPortalOpen(true);
-    try {
-      const [accessResponse, providerResponse, context] = await Promise.all([
-        purchaseOrdersApi.listSupplierPortalAccess(),
-        purchaseOrdersApi.providers(),
-        purchaseOrdersApi.context(),
-      ]);
-      setSupplierPortalAccess(accessResponse.items ?? []);
-      setSupplierPortalProviders((providerResponse.providers ?? []).filter(provider => provider.status !== 'INACTIVE'));
-      setSupplierPortalWarehouses(context.warehouses ?? []);
-    } catch (error) {
-      setFailureToastMessage(toFinanceApiErrorMessage(error, 'No se pudo cargar el portal de proveedores.'));
-    }
-  };
-
-  const runSupplierPortalAction = async <T,>(operation: () => Promise<T>) => {
-    setSupplierPortalSaving(true);
-    try {
-      return await operation();
-    } catch (error) {
-      setFailureToastMessage(toFinanceApiErrorMessage(error, 'No se pudo actualizar el portal de proveedores.'));
-      throw error;
-    } finally {
-      setSupplierPortalSaving(false);
-    }
-  };
-
   const handleEditProvider = async (values: ProviderFormValues) => {
     if (!editingProvider) return;
     await saveProvider(editingProvider.id, values);
@@ -255,8 +216,7 @@ export default function ProveedoresPage({
         icon={headerIcon}
         onAddProvider={() => setIsCreateModalOpen(true)}
         onConfigureColumns={() => setIsColumnsModalOpen(true)}
-        onManagePayablesKiosks={() => setIsPayablesKioskManagementOpen(true)}
-        onManageSupplierPortal={() => void openSupplierPortal()}
+        onReviewProviderCenter={variant === 'finance' ? () => setIsProviderCenterReviewOpen(true) : undefined}
         subtitle={headerSubtitle}
         title={headerTitle}
         variant={variant}
@@ -303,54 +263,14 @@ export default function ProveedoresPage({
           onOpenEditProvider={setEditingProvider}
           onOpenAttachments={setAttachmentsProvider}
           onUpdateProvider={updateProvider}
-          onManageAccess={setAccessProvider}
         />
       </div>
-      <ProviderKioskAccessModal
-        provider={accessProvider}
-        onClose={() => setAccessProvider(null)}
+      <ProviderCenterFinanceReviewModal
+        isOpen={isProviderCenterReviewOpen}
+        onClose={() => setIsProviderCenterReviewOpen(false)}
         onError={setFailureToastMessage}
         onSuccess={setSuccessToastMessage}
       />
-      <PayablesKioskManagementModal
-        businessOptions={businessOptions}
-        isOpen={isPayablesKioskManagementOpen}
-        onClose={() => setIsPayablesKioskManagementOpen(false)}
-        onError={setFailureToastMessage}
-        onSuccess={setSuccessToastMessage}
-        unitOptions={unitOptions}
-      />
-      {isSupplierPortalOpen ? (
-        <SupplierPortalAccessModal
-          accessList={supplierPortalAccess}
-          providers={supplierPortalProviders}
-          warehouses={supplierPortalWarehouses}
-          saving={supplierPortalSaving}
-          onClose={() => setIsSupplierPortalOpen(false)}
-          onSubmit={(payload: SupplierPortalAccessPayload) => runSupplierPortalAction(async () => {
-            const created = await purchaseOrdersApi.createSupplierPortalAccess(payload);
-            setSupplierPortalAccess(current => [created, ...current]);
-            return created;
-          })}
-          onStatusChange={(accessId: number, status: SupplierPortalAccessStatus) => runSupplierPortalAction(async () => {
-            const updated = await purchaseOrdersApi.updateSupplierPortalAccessStatus(accessId, { status });
-            setSupplierPortalAccess(current => current.map(access => access.id === updated.id ? updated : access));
-            return updated;
-          })}
-          onChangePin={(accessId, pin) => runSupplierPortalAction(async () => {
-            const updated = await purchaseOrdersApi.changeSupplierPortalAccessPin(accessId, { pin });
-            setSupplierPortalAccess(current => current.map(access => access.id === updated.id ? updated : access));
-            return updated;
-          })}
-          onResetLink={(accessId) => runSupplierPortalAction(async () => {
-            const updated = await purchaseOrdersApi.resetSupplierPortalAccessLink(accessId);
-            setSupplierPortalAccess(current => current.map(access => access.id === updated.id ? updated : access));
-            return updated;
-          })}
-          onUpdateConfiguration={(kioskId, payload) => runSupplierPortalAction(() => purchaseOrdersApi.updateSupplierPortalKiosk(kioskId, payload))}
-          onDelete={(kioskId, reason) => runSupplierPortalAction(() => purchaseOrdersApi.deleteSupplierPortalKiosk(kioskId, reason))}
-        />
-      ) : null}
       {attachmentsProvider && (
         <AttachmentsModal
           isOpen

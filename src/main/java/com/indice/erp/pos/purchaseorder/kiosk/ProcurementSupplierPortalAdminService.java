@@ -99,18 +99,15 @@ public class ProcurementSupplierPortalAdminService {
         var existingCredential = credentials.pinCredential(
             access.companyId(), "PROVIDER", access.providerId()).orElse(null);
         var reusePersonalPin = existingCredential != null
-            && "ACTIVE".equalsIgnoreCase(existingCredential.status())
-            && !"LEGACY_MIGRATION".equalsIgnoreCase(existingCredential.origin());
+            && "ACTIVE".equalsIgnoreCase(existingCredential.status());
         String authoritativePinHash;
         if (!reusePersonalPin) {
+            requireSixDigitProviderPin(request.pin());
             authoritativePinHash = passwordEncoder.encode(request.pin().trim());
-            credentials.rotatePersonalPin(
-                access.companyId(), "PROVIDER", access.providerId(),
-                authoritativePinHash);
             moduleAudit.adminSuccess(
                 access.companyId(), access.id(), context.userId(),
-                "SUPPLIER_PERSONAL_PIN_CREATED",
-                java.util.Map.of("provider_id", access.providerId(), "sessions_revoked", true));
+                "SUPPLIER_LEGACY_PIN_CREATED",
+                java.util.Map.of("provider_id", access.providerId(), "provider_center_activated", false));
         } else {
             authoritativePinHash = existingCredential.secretHash();
         }
@@ -132,7 +129,7 @@ public class ProcurementSupplierPortalAdminService {
         return new SupplierPortalAccessResponse(
             created.id(), created.providerId(), created.providerName(), created.providerEmail(),
             created.portalCode(), created.portalUrl(), created.status(), created.expiresAt(),
-            created.createdAt(), created.updatedAt(), !reusePersonalPin);
+            created.createdAt(), created.updatedAt(), false);
     }
 
     @Transactional
@@ -175,19 +172,28 @@ public class ProcurementSupplierPortalAdminService {
                 || definition.effectiveStatus(java.time.Instant.now()) == KioskDefinitionStatus.EXPIRED) {
             throw new IllegalStateException("A revoked or expired supplier portal cannot rotate its PIN.");
         }
+        requireSixDigitProviderPin(request.pin());
+        if (credentials.activeProviderCenterPinHash(context.companyId(), grantedProviderId(definition)
+                .orElseThrow(() -> new IllegalStateException("Supplier identity is unavailable."))).isPresent()) {
+            throw new IllegalStateException(
+                "El NIP común se administra únicamente en el Centro de kioscos.");
+        }
         var response = purchaseOrders.changeSupplierPortalAccessPin(context, accessId, request);
         var authoritativePinHash = passwordEncoder.encode(request.pin().trim());
-        credentials.rotatePersonalPin(
-            context.companyId(), "PROVIDER", response.providerId(),
-            authoritativePinHash);
         repository.updateSupplierPortalPinsForProvider(
             context.companyId(), response.providerId(), authoritativePinHash, context.userId());
         grants.revokeIdentity(definition, "PROVIDER", response.providerId(), context.userId());
         grants.grant(definition, "PROVIDER", response.providerId(), "*", context.userId());
         moduleAudit.adminSuccess(
-            context.companyId(), accessId, context.userId(), "SUPPLIER_PERSONAL_PIN_ROTATED",
-            java.util.Map.of("provider_id", response.providerId(), "sessions_revoked", true));
+            context.companyId(), accessId, context.userId(), "SUPPLIER_LEGACY_PIN_ROTATED",
+            java.util.Map.of("provider_id", response.providerId(), "provider_center_activated", false));
         return response;
+    }
+
+    private void requireSixDigitProviderPin(String pin) {
+        if (pin == null || !pin.trim().matches("^[0-9]{6}$")) {
+            throw new IllegalArgumentException("Provider PIN must contain exactly 6 digits.");
+        }
     }
 
     @Transactional
